@@ -1138,11 +1138,112 @@ def compile_package_artifact(
         action_target_ids_by_object[id(action)] = compose_id
         return ir_compose
 
+    formula_generated_knowledges: list[IrKnowledge] = []
+    formula_generated_operators: list[IrOperator] = []
+    formula_generated_strategies: list[IrStrategy] = []
+    for k in knowledge_nodes:
+        if not _is_local(k, pkg):
+            continue
+        if getattr(k, "formula", None) is None:
+            continue
+        lowered = lower_claim_formula(
+            k,
+            claim_id=knowledge_map[id(k)],
+            namespace=pkg.namespace,
+            package_name=pkg.name,
+            knowledge_map=knowledge_map,
+        )
+        formula_generated_knowledges.extend(lowered.knowledges)
+        formula_generated_operators.extend(lowered.operators)
+        formula_generated_strategies.extend(lowered.strategies)
+        _apply_formula_knowledge_updates(
+            ir_knowledges,
+            metadata_updates=lowered.metadata_updates,
+            parameter_updates=lowered.parameter_updates,
+        )
+
+    from gaia.lang.bayes.compiler import lower_bayes_claims
+
+    action_labels_by_object = {
+        id(action): _action_label(action, pkg, action_index)
+        for action_index, action in enumerate(getattr(pkg, "actions", []))
+    }
+    bayes_lowered = lower_bayes_claims(
+        knowledge_nodes,
+        actions=tuple(getattr(pkg, "actions", ())),
+        namespace=pkg.namespace,
+        package_name=pkg.name,
+        knowledge_map=knowledge_map,
+        action_labels_by_object=action_labels_by_object,
+        existing_operators=[
+            *ir_operators,
+            *action_operators,
+            *formula_generated_operators,
+        ],
+    )
+    _apply_formula_knowledge_updates(
+        ir_knowledges,
+        metadata_updates=bayes_lowered.metadata_updates,
+        parameter_updates={},
+    )
+    action_label_map.update(bayes_lowered.action_label_map)
+    target_action_labels_by_id.update(bayes_lowered.target_action_labels_by_id)
+    for action in getattr(pkg, "actions", []):
+        if not _is_bayes_action(action):
+            continue
+        action_label = action_labels_by_object.get(id(action))
+        if action_label is None:
+            continue
+        target_id = bayes_lowered.action_label_map.get(action_label)
+        if target_id is not None:
+            action_target_ids_by_object[id(action)] = target_id
+
+    for action_index, action in enumerate(getattr(pkg, "actions", [])):
+        if isinstance(action, Compose):
+            ir_composes.append(_compile_compose_action(action, action_index))
+
+    # ========================================================================
+    # Reference scanning: now that all actions are lowered and action_label_map
+    # is complete, build the full label_to_id table (Knowledge + Action labels)
+    # and scan all reference-bearing text.
+    # ========================================================================
+
     # Build label-to-QID table from the full knowledge closure (local + imported foreign nodes).
     label_to_id: dict[str, str] = {}
     for k in knowledge_nodes:
         if k.label:
             label_to_id[k.label] = knowledge_map[id(k)]
+
+    # Check for Knowledge/Action label collisions before merging action labels.
+    # Build a map from short action labels to their target QIDs.
+    action_short_labels: dict[str, str] = {}
+    for action in getattr(pkg, "actions", []):
+        if not action.label:
+            continue
+        action_label_qid = action_labels_by_object.get(id(action))
+        if action_label_qid is None:
+            continue
+        target_qid = action_label_map.get(action_label_qid)
+        if target_qid is None:
+            continue
+        action_short_labels[action.label] = target_qid
+
+    knowledge_labels = set(label_to_id.keys())
+    action_labels_set = set(action_short_labels.keys())
+    label_collisions = sorted(action_labels_set & knowledge_labels)
+    if label_collisions:
+        quoted = ", ".join(f"'{lbl}'" for lbl in label_collisions)
+        raise ValueError(
+            f"label collision(s) {quoted}: same identifier used as both "
+            f"a Knowledge label and an Action label. rename one side to disambiguate."
+        )
+
+    # Extend label_to_id with action labels resolved to their lowered target QIDs.
+    # Per spec 2026-05-10-action-label-references-design.md, action labels become
+    # addressable via [@label] references, resolving to the conclusion Claim QID
+    # (for support actions), the warrant helper QID (for structural actions), or
+    # the compose node QID (for compose actions).
+    label_to_id.update(action_short_labels)
 
     # Spec §3.5: fail-fast on label / citation-key collision.
     check_collisions(label_to_id, references)
@@ -1209,10 +1310,87 @@ def compile_package_artifact(
         if _is_local(k, pkg):
             _accumulate(k, k.content)
 
+    # Scan Action rationale fields. References in action rationale are attributed
+    # to the action's lowered target Knowledge node (conclusion claim for support
+    # actions, warrant helper for structural actions, compose node for compose).
+    # Per spec 2026-05-10-action-label-references-design.md, action rationale is
+    # now reference-bearing text.
+    # Since action targets may be Strategy/Operator nodes, we need to resolve them
+    # to their corresponding Knowledge nodes (warrant helpers, conclusion claims).
+    action_rationale_refs: dict[str, tuple[set[str], set[str]]] = {}  # target_knowledge_qid -> (k_refs, c_refs)
+
+    # Build a mapping from Strategy/Operator IDs to their warrant helper Knowledge IDs
+    # by scanning all strategies and operators for 'warrants' metadata.
+    all_strategies = [*ir_strategies, *formula_generated_strategies, *bayes_lowered.strategies]
+    all_operators = [*ir_operators, *action_operators, *formula_generated_operators, *bayes_lowered.operators]
+
+    for action in getattr(pkg, "actions", []):
+        if not action.rationale:
+            continue
+        action_label = action_labels_by_object.get(id(action))
+        if action_label is None:
+            continue
+        target_id = action_label_map.get(action_label)
+        if target_id is None:
+            continue
+
+        # Collect references from rationale
+        k_refs, c_refs = _collect_refs_from_text(action.rationale, label_to_id, references)
+        if not k_refs and not c_refs:
+            continue
+
+        # Resolve target_id to Knowledge node(s):
+        # - For Strategy: look for 'warrants' in metadata
+        # - For Operator: look for 'warrants' in metadata
+        # - For Knowledge: use directly
+        # - For Compose: use the compose node itself (it's in ir_composes, not knowledges)
+        target_knowledge_ids: list[str] = []
+
+        # Check if it's a Strategy
+        for strat in all_strategies:
+            if strat.strategy_id == target_id:
+                warrants = strat.metadata.get('warrants', []) if strat.metadata else []
+                if warrants:
+                    target_knowledge_ids.extend(warrants)
+                else:
+                    # No warrant helpers, use conclusion
+                    if strat.conclusion:
+                        target_knowledge_ids.append(strat.conclusion)
+                break
+
+        # Check if it's an Operator
+        if not target_knowledge_ids:
+            for op in all_operators:
+                if op.operator_id == target_id:
+                    warrants = op.metadata.get('warrants', []) if op.metadata else []
+                    if warrants:
+                        target_knowledge_ids.extend(warrants)
+                    else:
+                        # No warrant helpers, use conclusion
+                        if op.conclusion:
+                            target_knowledge_ids.append(op.conclusion)
+                    break
+
+        # If still not found, assume it's a Knowledge ID directly
+        if not target_knowledge_ids:
+            target_knowledge_ids.append(target_id)
+
+        # Record refs for each target Knowledge node
+        for target_knowledge_id in target_knowledge_ids:
+            action_rationale_refs[target_knowledge_id] = (set(k_refs), set(c_refs))
+
     # Write provenance metadata onto IR knowledge nodes.
     # Belt-and-suspenders: never mutate foreign nodes' metadata even if
     # refs_by_knowledge somehow picks them up — provenance belongs to the
     # package that owns the node.
+    # Scan all IR knowledge lists: ir_knowledges, generated_knowledges,
+    # formula_generated_knowledges, and bayes_lowered.knowledges.
+    all_ir_knowledges = [
+        *ir_knowledges,
+        *generated_knowledges,
+        *formula_generated_knowledges,
+        *bayes_lowered.knowledges,
+    ]
     for k in knowledge_nodes:
         if not _is_local(k, pkg):
             continue
@@ -1223,7 +1401,7 @@ def compile_package_artifact(
         if not k_refs and not c_refs:
             continue
         qid = knowledge_map[id(k)]
-        for i, ir_k in enumerate(ir_knowledges):
+        for i, ir_k in enumerate(all_ir_knowledges):
             if ir_k.id != qid:
                 continue
             metadata = dict(ir_k.metadata) if ir_k.metadata else {}
@@ -1235,72 +1413,47 @@ def compile_package_artifact(
                 provenance["referenced_claims"] = sorted(k_refs)
             gaia_meta["provenance"] = provenance
             metadata["gaia"] = gaia_meta
-            ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+            all_ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
             break
 
-    formula_generated_knowledges: list[IrKnowledge] = []
-    formula_generated_operators: list[IrOperator] = []
-    formula_generated_strategies: list[IrStrategy] = []
-    for k in knowledge_nodes:
-        if not _is_local(k, pkg):
-            continue
-        if getattr(k, "formula", None) is None:
-            continue
-        lowered = lower_claim_formula(
-            k,
-            claim_id=knowledge_map[id(k)],
-            namespace=pkg.namespace,
-            package_name=pkg.name,
-            knowledge_map=knowledge_map,
-        )
-        formula_generated_knowledges.extend(lowered.knowledges)
-        formula_generated_operators.extend(lowered.operators)
-        formula_generated_strategies.extend(lowered.strategies)
-        _apply_formula_knowledge_updates(
-            ir_knowledges,
-            metadata_updates=lowered.metadata_updates,
-            parameter_updates=lowered.parameter_updates,
-        )
+    # Write provenance from action rationale to their target IR nodes.
+    # Action targets may be generated nodes (warrant helpers, compose nodes)
+    # that don't appear in knowledge_nodes, so we scan all_ir_knowledges by ID.
+    for target_qid, (k_refs, c_refs) in action_rationale_refs.items():
+        for i, ir_k in enumerate(all_ir_knowledges):
+            if ir_k.id != target_qid:
+                continue
+            metadata = dict(ir_k.metadata) if ir_k.metadata else {}
+            gaia_meta = dict(metadata.get("gaia", {}))
+            provenance: dict[str, Any] = dict(gaia_meta.get("provenance", {}))
+            # Merge with existing provenance (if any)
+            if c_refs:
+                existing_cites = set(provenance.get("cited_refs", []))
+                existing_cites.update(c_refs)
+                provenance["cited_refs"] = sorted(existing_cites)
+            if k_refs:
+                existing_refs = set(provenance.get("referenced_claims", []))
+                existing_refs.update(k_refs)
+                provenance["referenced_claims"] = sorted(existing_refs)
+            gaia_meta["provenance"] = provenance
+            metadata["gaia"] = gaia_meta
+            all_ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+            break
 
-    from gaia.lang.bayes.compiler import lower_bayes_claims
+    # Unpack the updated IR knowledge lists back
+    num_ir = len(ir_knowledges)
+    num_gen = len(generated_knowledges)
+    num_formula = len(formula_generated_knowledges)
+    ir_knowledges[:] = all_ir_knowledges[:num_ir]
+    generated_knowledges[:] = all_ir_knowledges[num_ir : num_ir + num_gen]
+    formula_generated_knowledges[:] = all_ir_knowledges[
+        num_ir + num_gen : num_ir + num_gen + num_formula
+    ]
+    bayes_lowered_knowledges_updated = all_ir_knowledges[num_ir + num_gen + num_formula :]
 
-    action_labels_by_object = {
-        id(action): _action_label(action, pkg, action_index)
-        for action_index, action in enumerate(getattr(pkg, "actions", []))
-    }
-    bayes_lowered = lower_bayes_claims(
-        knowledge_nodes,
-        actions=tuple(getattr(pkg, "actions", ())),
-        namespace=pkg.namespace,
-        package_name=pkg.name,
-        knowledge_map=knowledge_map,
-        action_labels_by_object=action_labels_by_object,
-        existing_operators=[
-            *ir_operators,
-            *action_operators,
-            *formula_generated_operators,
-        ],
-    )
-    _apply_formula_knowledge_updates(
-        ir_knowledges,
-        metadata_updates=bayes_lowered.metadata_updates,
-        parameter_updates={},
-    )
-    action_label_map.update(bayes_lowered.action_label_map)
-    target_action_labels_by_id.update(bayes_lowered.target_action_labels_by_id)
-    for action in getattr(pkg, "actions", []):
-        if not _is_bayes_action(action):
-            continue
-        action_label = action_labels_by_object.get(id(action))
-        if action_label is None:
-            continue
-        target_id = bayes_lowered.action_label_map.get(action_label)
-        if target_id is not None:
-            action_target_ids_by_object[id(action)] = target_id
-
-    for action_index, action in enumerate(getattr(pkg, "actions", [])):
-        if isinstance(action, Compose):
-            ir_composes.append(_compile_compose_action(action, action_index))
+    # ========================================================================
+    # End of reference scanning
+    # ========================================================================
 
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None
@@ -1311,7 +1464,7 @@ def compile_package_artifact(
             *ir_knowledges,
             *generated_knowledges,
             *formula_generated_knowledges,
-            *bayes_lowered.knowledges,
+            *bayes_lowered_knowledges_updated,
         ],
         operators=[
             *ir_operators,
