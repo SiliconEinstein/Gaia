@@ -1228,9 +1228,22 @@ def compile_package_artifact(
             continue
         action_short_labels[action.label] = target_qid
 
-    knowledge_labels = set(label_to_id.keys())
+    # Collision check: reject when the same label is used for both a user-authored
+    # Knowledge node and an Action. Exclude action-owned helper Knowledge nodes
+    # (those with metadata['generated']=True and metadata['helper_kind']) from the
+    # collision set, as they are intentionally created by the action lowering and
+    # share the action's label by design (e.g., bayes.model/likelihood helpers).
+    user_knowledge_labels = set()
+    for k in knowledge_nodes:
+        if not k.label:
+            continue
+        # Skip action-owned helpers
+        if k.metadata.get('generated') and k.metadata.get('helper_kind'):
+            continue
+        user_knowledge_labels.add(k.label)
+
     action_labels_set = set(action_short_labels.keys())
-    label_collisions = sorted(action_labels_set & knowledge_labels)
+    label_collisions = sorted(action_labels_set & user_knowledge_labels)
     if label_collisions:
         quoted = ", ".join(f"'{lbl}'" for lbl in label_collisions)
         raise ValueError(
