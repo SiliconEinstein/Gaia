@@ -43,7 +43,16 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["gaia", "gaia.ir*", "gaia.lang*", "gaia.bp*", "gaia.cli*", "gaia.review*"]
+include = [
+    "gaia",
+    "gaia.bp*",
+    "gaia.cli*",
+    "gaia.inquiry*",
+    "gaia.ir*",
+    "gaia.lang*",
+    "gaia.review*",
+    "gaia.trace*",
+]
 
 [tool.setuptools.package-data]
 "gaia.cli.templates.pages" = ["**/*"]
