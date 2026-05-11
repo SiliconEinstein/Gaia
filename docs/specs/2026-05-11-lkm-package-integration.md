@@ -627,22 +627,54 @@ gaia lkm fork lkm-paper-812085204238729217
 
 ---
 
-### 6. Configuration Files
+### 6. Configuration System
+
+#### Configuration Hierarchy
+
+```
+~/.config/gaia/config.toml          # Global configuration
+    ↓ (override)
+<project>/.gaia/config.toml         # Project configuration
+    ↓ (override)
+Environment variables               # Highest priority
+```
 
 #### Global Config: `~/.config/gaia/config.toml`
 
 ```toml
+# Gaia Global Configuration
+
 [packages]
-mode = "managed"  # project | managed | workspace
+mode = "managed"  # "project" | "managed" | "workspace"
 cache-dir = "~/.local/share/gaia/packages"
+
+[search]
+mode = "hybrid"  # "local" | "hybrid" | "semantic"
+embedding-model = "BAAI/bge-large-en-v1.5"  # or e5-mistral-7b / MiniLM-L6-v2
+rerank-model = "cross-encoder/ms-marco-MiniLM-L-12-v2"
+prefetch-lkm = false
+prefetch-limit = 1000
+auto-update = true
+index-dir = ".gaia/search_index"
 
 [lkm]
 base-url = "https://open.bohrium.com/openapi/v1/lkm"
 access-key-env = "LKM_ACCESS_KEY"
+timeout = 30
+max-retries = 3
+retry-delay = 1
 
 [cache]
-auto-clean = false  # Auto-clean unused packages
-clean-after-days = 30  # Clean packages unused for 30 days
+auto-clean = false
+clean-after-days = 30
+```
+
+#### Project Config: `<project>/.gaia/config.toml`
+
+```toml
+[search]
+embedding-model = "sentence-transformers/all-MiniLM-L6-v2"
+auto-update = false
 ```
 
 #### Project Config: `pyproject.toml`
@@ -651,10 +683,29 @@ clean-after-days = 30  # Clean packages unused for 30 days
 [tool.gaia]
 type = "knowledge-package"
 namespace = "mylab"
-package-mode = "managed"  # Override global config
+package-mode = "managed"
 
 [tool.gaia.packages]
-prefer-local = false  # Prefer local packages over global cache
+prefer-local = false
+```
+
+#### Environment Variables
+
+```bash
+export LKM_ACCESS_KEY="your-bohrium-access-key"
+export GAIA_LKM_BASE_URL="https://custom-lkm.example.com/api/v1"
+export GAIA_EMBEDDING_MODEL="BAAI/bge-large-en-v1.5"
+export GAIA_SEARCH_MODE="semantic"
+```
+
+#### Configuration CLI
+
+```bash
+gaia config init                    # Interactive setup
+gaia config show                    # Show all config
+gaia config show search.embedding-model
+gaia config set search.embedding-model "BAAI/bge-large-en-v1.5"
+gaia config validate                # Validate configuration
 ```
 
 ---
@@ -796,6 +847,87 @@ def generate_package(
 
 ---
 
+### 10. Unified Search System (inspired by LeanSearch)
+
+#### Overview
+
+Gaia provides unified search across three knowledge sources:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    gaia search                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │   Local      │  │   Virtual    │  │   Remote     │ │
+│  │   Package    │  │   Env        │  │   (LKM)      │ │
+│  └──────────────┘  └──────────────┘  └──────────────┘ │
+│         ↓                 ↓                  ↓          │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │    Unified Vector Search (ChromaDB + E5)        │   │
+│  └─────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Design inspiration:** [LeanSearch](https://leansearch.net/) — semantic search for Lean's Mathlib.
+
+#### CLI Commands
+
+```bash
+gaia search "GaN bandgap DFT"                  # Search all sources
+gaia search "GaN bandgap" --scope local        # Only current project
+gaia search "GaN bandgap" --scope venv         # Only installed packages
+gaia search "GaN bandgap" --scope remote       # Only LKM API
+gaia search "GaN bandgap" --augment            # Query augmentation
+gaia search "GaN bandgap" --add                # Interactive add
+
+gaia search --init                             # Initialize index
+gaia search --init --prefetch-lkm              # Pre-fetch LKM claims
+gaia search --rebuild                          # Rebuild index
+gaia search --status                           # Show index status
+```
+
+#### Search Architecture
+
+**Hybrid Strategy:**
+
+```
+User query → Query augmentation (optional)
+    ↓
+┌─────────────────────┬─────────────────────┐
+│  Local + Venv       │  Remote LKM         │
+│  Vector search      │  API search         │
+│  ChromaDB           │  /claims/match      │
+└─────────────────────┴─────────────────────┘
+    ↓                       ↓
+    └───────────┬───────────┘
+                ↓
+        Merge & Re-rank → Top-k results
+```
+
+**Key Features:**
+1. Task-instructed embeddings
+2. Query augmentation with LLM
+3. Cross-encoder re-ranking
+
+#### Index Management
+
+```bash
+gaia search --init
+```
+
+**Behavior:**
+1. Scan local package + virtual env
+2. Optionally pre-fetch popular LKM claims
+3. Embed all documents
+4. Store in `.gaia/search_index/`
+
+**Auto-update:** After `gaia compile` or `gaia add lkm:...`
+
+**Index size:** ~1200 claims × 16 KB = ~19 MB
+
+---
+
+## Implementation Plan
+
 ## Implementation Plan
 
 ### Phase 1: Project-local Mode (v0.6)
@@ -803,13 +935,17 @@ def generate_package(
 **Goal:** Basic LKM package management with project-local storage
 
 **Deliverables:**
-- [ ] `gaia/lkm/client.py` — LKM HTTP API client
+- [ ] `gaia/config.py` — Hierarchical configuration loader
+- [ ] `gaia/lkm/client.py` — LKM HTTP API client with retry logic
 - [ ] `gaia/lkm/package_gen.py` — Generate Gaia package from LKM evidence
-- [ ] `gaia/cli/commands/lkm.py` — CLI commands
-  - [ ] `gaia lkm search <query>`
-  - [ ] `gaia add lkm:<claim-id>`
-  - [ ] `gaia remove lkm-paper-<id>`
-  - [ ] `gaia lkm list`
+- [ ] `gaia/cli/commands/config.py` — Configuration management
+  - [ ] `gaia config init` — Interactive setup
+  - [ ] `gaia config show/set` — View/modify config
+- [ ] `gaia/cli/commands/lkm.py` — LKM package commands
+  - [ ] `gaia lkm search <query>` — Search LKM
+  - [ ] `gaia add lkm:<claim-id>` — Add LKM package
+  - [ ] `gaia remove lkm-paper-<id>` — Remove LKM package
+  - [ ] `gaia lkm list` — List installed LKM packages
 - [ ] `gaia sync` — Sync dependencies to `.gaia/packages/`
 - [ ] `gaia.lock` format + read/write
 - [ ] `gaia compile` — Auto-load packages from `.gaia/packages/`
@@ -819,23 +955,30 @@ def generate_package(
 
 ---
 
-### Phase 2: Managed Mode (v0.7)
+### Phase 2: Managed Mode + Unified Search (v0.7)
 
-**Goal:** Global package cache with symlinks
+**Goal:** Global package cache + semantic search across all knowledge sources
 
 **Deliverables:**
-- [ ] Global config `~/.config/gaia/config.toml`
 - [ ] Global cache `~/.local/share/gaia/packages/`
 - [ ] `gaia config set package-mode managed`
 - [ ] `gaia sync --migrate` — Migrate from project to managed mode
 - [ ] `gaia cache list/clean` — Manage global cache
 - [ ] `usage.json` — Track package usage across projects
 - [ ] `gaia update` — Update LKM packages
+- [ ] **Unified Search System:**
+  - [ ] `gaia/search/indexer.py` — Build/update search index
+  - [ ] `gaia/search/engine.py` — Unified search engine
+  - [ ] `gaia search` — Search across local/venv/remote
+  - [ ] Task-instructed embeddings (LeanSearch-style)
+  - [ ] Query augmentation with LLM
+  - [ ] Cross-encoder re-ranking
+  - [ ] Auto-update index after compile/add
 - [ ] `gaia inquiry hunt-contradictions --use-lkm`
 - [ ] `gaia starmap --show-packages`
 - [ ] Tests + documentation
 
-**Timeline:** 3-4 weeks
+**Timeline:** 4-5 weeks
 
 ---
 
@@ -872,6 +1015,14 @@ def generate_package(
 
 6. **Offline mode:** Should `gaia compile` work without LKM access?
    - Proposal: Yes, if `gaia.lock` + `.gaia/packages/` are present
+
+7. **Embedding model selection:** Should we default to large (e5-mistral-7b) or small (MiniLM)?
+   - Proposal: Default to `BAAI/bge-large-en-v1.5` (good balance: 1.3GB, high quality)
+   - Let users choose lighter model via `gaia config init`
+
+8. **Search index location:** Project-local (`.gaia/search_index/`) or global cache?
+   - Proposal: Project-local by default (each project has its own index)
+   - Allows different projects to use different embedding models
 
 ---
 
@@ -913,31 +1064,51 @@ Just download LKM evidence JSON, let users manually write Gaia DSL.
 - [npm documentation](https://docs.npmjs.com/)
 - [gaia-lkm-skills repo](https://github.com/SiliconEinstein/gaia-lkm-skills)
 - [LKM API documentation](https://open.bohrium.com/openapi/v1/lkm)
+- [LeanSearch](https://leansearch.net/) — Semantic search for Lean's Mathlib
+- [LeanSearch paper (arXiv:2403.13310)](https://arxiv.org/html/2403.13310v2) — A Semantic Search Engine for Mathlib4
+- [Lean Finder paper (arXiv:2510.15940)](https://arxiv.org/html/2510.15940v1) — Semantic Search for Mathlib That Understands User Intents
 
 ---
 
 ## Appendix: Example Session
 
 ```bash
-# Initialize project
+# 1. Initialize global config
+gaia config init
+# Prompts:
+#   LKM Access Key: **** (from https://bohrium.dp.tech)
+#   Embedding model: [1] e5-mistral / [2] bge-large / [3] MiniLM
+#   Choose: 2
+
+# Or set manually
+export LKM_ACCESS_KEY="your-bohrium-key"
+gaia config set search.embedding-model "BAAI/bge-large-en-v1.5" --global
+
+# 2. Initialize project
 gaia init my-research
 cd my-research
 
-# Search LKM
-gaia lkm search "GaN bandgap DFT"
-# Output: 10 results
+# 3. Initialize search index
+gaia search --init
+# Output: Loading embedding model: BAAI/bge-large-en-v1.5
+#         Indexing local package... 0 claims
+#         ✓ Indexed 0 claims
 
-# Add relevant papers
+# 4. Search LKM (remote)
+gaia search "GaN bandgap DFT" --scope remote
+# Output: 10 results from LKM API
+
+# 5. Add relevant papers
 gaia add lkm:gcn_812085204238729217
 gaia add lkm:gcn_923847192837492
 
-# Check installed packages
+# 6. Check installed packages
 gaia lkm list
 # Output:
 #   lkm-paper-812085@2024.4.15
 #   lkm-paper-923847@2024.5.10
 
-# Write user code
+# 7. Write user code
 cat > plan.gaia.py <<EOF
 from gaia.lang import claim, contradict
 from lkm.lkm_paper_812085 import gan_bandgap_pbe
@@ -949,13 +1120,28 @@ contradict(my_measurement, gan_bandgap_pbe, prior=0.7)
 contradict(gan_bandgap_pbe, gan_bandgap_hse, prior=0.5)
 EOF
 
-# Compile and infer
-gaia compile  # Auto-syncs dependencies
+# 8. Compile (auto-updates search index)
+gaia compile
+# Output: Syncing dependencies...
+#         Updating search index...
+#         Indexing local package... 1 claim
+#         Indexing virtual env... 2 claims
+#         ✓ Indexed 3 claims
+#         Compiling...
+
+# 9. Search across all sources
+gaia search "GaN bandgap"
+# Output:
+# [LOCAL] mylab:gan-research::my_measurement
+# [VENV] lkm:lkm-paper-812085::gan_bandgap_pbe
+# [VENV] lkm:lkm-paper-923847::gan_bandgap_hse
+
+# 10. Infer
 gaia infer
 
-# Visualize
+# 11. Visualize
 gaia starmap --show-packages
 
-# Later: update LKM packages
+# 12. Later: update LKM packages
 gaia update --lkm
 ```
