@@ -337,9 +337,12 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 | `compute(ClaimType, *, fn, given, background, rationale)` | Deterministic computation with claim inputs |
 | `infer(evidence, *, hypothesis, background, rationale, p_e_given_h, p_e_given_not_h)` | Probabilistic prediction/evidence link; returns a reviewable likelihood helper claim |
 | `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="")` | Symmetric probabilistic association; returns a reviewable association helper claim |
+| `depends_on(conclusion, *, given, background=None, rationale="")` | Scaffold record for load-bearing dependencies that are not formalized yet |
+| `candidate_relation(a, b, *, proposed, background=None, rationale="")` | Scaffold record for a hypothesized binary relation that is not formalized yet |
+| `tension(a, b, *, background=None, rationale="")` | Thin wrapper for `candidate_relation(..., proposed="tension")` |
 | `@compose(name, version, background=None, warrants=None, rationale="", label=None)` | Decorates a Python workflow and records its child actions as a reviewable Compose DAG |
 
-`observe(...)`, `derive(...)`, and `compute(...)` return their produced conclusion claim. `infer(...)`, `associate(...)`, and relation verbs return generated helper claims because the public semantic object is the declared relation. A `@compose` call returns the wrapped function's conclusion claim while also recording a Compose action in the compiled IR.
+`observe(...)`, `derive(...)`, and `compute(...)` return their produced conclusion claim. `infer(...)`, `associate(...)`, and formal relation verbs return generated helper claims because the public semantic object is the declared relation. Scaffold verbs are recorded in `.gaia/formalization_manifest.json`; `candidate_relation(...)` and `tension(...)` do not create helper claims, strategies, operators, or BP factors. A `@compose` call returns the wrapped function's conclusion claim while also recording a Compose action in the compiled IR.
 
 #### Relations
 
@@ -348,6 +351,8 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 | `equal(a, b)` | Reviewable claim that A and B have the same truth value |
 | `contradict(a, b)` | Reviewable claim that A and B cannot both be true |
 | `exclusive(a, b)` | Reviewable claim that exactly one of A and B is true |
+
+Use `candidate_relation(..., proposed="equal" | "contradict" | "exclusive" | "associate" | "tension")` when the relation is worth tracking but not ready to enter inference. Upgrade it to `equal(...)`, `contradict(...)`, `exclusive(...)`, or `associate(...)` only after the relation is formalized and reviewable as semantics.
 
 #### Structural Proposition Helpers
 

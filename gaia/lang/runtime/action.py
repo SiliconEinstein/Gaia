@@ -80,6 +80,16 @@ class DependsOn(Scaffold):
 
 
 @dataclass
+class CandidateRelation(Scaffold):
+    """Marks a hypothesized relation that has not been formalized yet."""
+
+    a: Claim | None = None
+    b: Claim | None = None
+    proposed: str = ""
+    status: str = "hypothesis"
+
+
+@dataclass
 class Structural(Action):
     """Hard structural constraint between claims or claim formulas."""
 

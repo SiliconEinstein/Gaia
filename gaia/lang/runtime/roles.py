@@ -10,6 +10,7 @@ from typing import Callable
 from gaia.lang.runtime.action import (
     Action,
     Associate,
+    CandidateRelation,
     Compose,
     Compute,
     Contradict,
@@ -161,6 +162,9 @@ def _collect_action_roles(
         add(action.conclusion, "dependency_target")
         for given in action.given:
             add(given, "unformalized_dependency")
+    elif isinstance(action, CandidateRelation):
+        add(action.a, f"candidate_{action.proposed}_target")
+        add(action.b, f"candidate_{action.proposed}_target")
     elif isinstance(action, Infer):
         add(action.hypothesis, "hypothesis")
         add(action.evidence, "evidence")

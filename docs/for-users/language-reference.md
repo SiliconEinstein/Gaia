@@ -59,6 +59,7 @@ from gaia.lang import (
     not_, and_, or_,                                      # Propositional expressions
     ClaimAtom, land, implies,                             # Formula AST helpers
     contradict, equal, exclusive,                         # Reviewable relations
+    depends_on, candidate_relation, tension,              # Scaffold annotations
     observe, derive, compute, infer, decompose,            # Recommended actions
 
     # Compatibility aliases and legacy/experimental APIs
@@ -181,7 +182,7 @@ co2_causes_temp = causal(
 
 ## Recommended Actions
 
-Action verbs are the v0.5 main path for connecting claims. Support verbs, `infer(...)`, and `decompose(...)` return the produced or affected claim. Relation-shaped verbs such as `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return generated helper claims because the relation itself is the review target.
+Action verbs are the v0.5 main path for connecting claims. Support verbs, `infer(...)`, and `decompose(...)` return the produced or affected claim. Relation-shaped verbs such as `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return generated helper claims because the relation itself is the review target. Scaffold verbs record authoring work that is not ready to enter formal semantics.
 
 | Function | Use when |
 |----------|----------|
@@ -191,6 +192,9 @@ Action verbs are the v0.5 main path for connecting claims. Support verbs, `infer
 | `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, rationale="")` | A probabilistic prediction/evidence link remains; returns the evidence claim and keeps an internal likelihood warrant |
 | `decompose(whole, *, parts, formula, rationale="")` | A composite claim's truth condition is a formula over atomic part claims; returns the whole claim |
 | `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, rationale="")` | A symmetric probabilistic association remains; returns an association helper claim |
+| `depends_on(conclusion, *, given, background=None, rationale="")` | A conclusion has load-bearing dependencies that still need formalization |
+| `candidate_relation(a, b, *, proposed, background=None, rationale="")` | Two claims may have a relation, but the relation is not formalized yet |
+| `tension(a, b, *, background=None, rationale="")` | Shorthand for a candidate scientific tension between two claims |
 | `@compose(name, version, background=None, warrants=None, rationale="", label=None)` | A reusable Python workflow should be reviewed as one named action DAG |
 
 ```python
@@ -201,7 +205,7 @@ matched = equal(prediction, measurement, rationale="The prediction matches the m
 
 If a step feels uncertain, first ask whether the uncertain part should become a separate premise. Use `infer(...)` only for the remaining probabilistic relation after that extraction.
 
-`infer(...)` creates an internal likelihood helper for review but returns the evidence claim. `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return helper claims directly. All helper claims are review targets, not independent probabilistic inputs, so do not assign external priors to them.
+`infer(...)` creates an internal likelihood helper for review but returns the evidence claim. `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return helper claims directly. All helper claims are review targets, not independent probabilistic inputs, so do not assign external priors to them. `depends_on(...)`, `candidate_relation(...)`, and `tension(...)` compile only to `.gaia/formalization_manifest.json`; they create no strategy, operator, helper claim, or BP factor.
 
 `decompose(...)` is for composite claims whose internal truth condition should be
 reviewable and prior-aware. It compiles to a generated formula helper plus an
@@ -295,6 +299,29 @@ same = equal(prediction, observation,
 one_of = exclusive(conventional_sc, unconventional_sc,
     rationale="This package treats the two cases as an exhaustive binary split.")
 ```
+
+Use scaffold relations when the relation is worth tracking but not ready to
+enter inference:
+
+```python
+maybe_same = candidate_relation(
+    prediction,
+    observation,
+    proposed="equal",
+    rationale="They may state the same observable after unit normalization.",
+)
+
+open_tension = tension(
+    model_prediction,
+    measured_result,
+    background=[same_regime],
+    rationale="The stated prediction and measurement disagree in the same regime.",
+)
+```
+
+Allowed `proposed` values are `equal`, `contradict`, `exclusive`, `associate`,
+and `tension`. These records remain in the formalization manifest until a
+human or agent upgrades them to a formal relation.
 
 ### v5 compatibility operators
 

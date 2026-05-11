@@ -38,6 +38,7 @@ from gaia.lang.runtime import Knowledge, Operator
 from gaia.lang.runtime.action import (
     Action,
     Associate,
+    CandidateRelation,
     Compose,
     Compute,
     Contradict,
@@ -525,6 +526,11 @@ def compile_package_artifact(
                 register_knowledge(given)
             if action.conclusion is not None:
                 register_knowledge(action.conclusion)
+        elif isinstance(action, CandidateRelation):
+            if action.a is not None:
+                register_knowledge(action.a)
+            if action.b is not None:
+                register_knowledge(action.b)
         elif isinstance(action, Equal | Contradict | Exclusive):
             if action.a is not None:
                 register_knowledge(action.a)
@@ -686,6 +692,28 @@ def compile_package_artifact(
             "given": [knowledge_map[id(given)] for given in action.given],
             "rationale": action.rationale,
             "status": "unformalized",
+            "metadata": _metadata_to_ir(dict(action.metadata or {}), knowledge_map),
+        }
+        background = [knowledge_map[id(bg)] for bg in action.background]
+        if background:
+            record["background"] = background
+        return record
+
+    def _compile_candidate_relation_action(
+        action: CandidateRelation,
+        action_index: int,
+    ) -> dict[str, Any]:
+        if action.a is None or action.b is None:
+            raise ValueError("CandidateRelation action requires a and b")
+        label = _scaffold_label(action, action_index)
+        record = {
+            "id": _make_scaffold_qid(pkg.namespace, pkg.name, label),
+            "kind": "candidate_relation",
+            "label": label,
+            "proposed": action.proposed,
+            "claims": [knowledge_map[id(action.a)], knowledge_map[id(action.b)]],
+            "rationale": action.rationale,
+            "status": action.status,
             "metadata": _metadata_to_ir(dict(action.metadata or {}), knowledge_map),
         }
         background = [knowledge_map[id(bg)] for bg in action.background]
@@ -1036,7 +1064,7 @@ def compile_package_artifact(
         return bayes_meta.get("action") in {"predictive_model", "likelihood"}
 
     def compile_action(action: Any, action_index: int) -> IrStrategy | IrOperator | None:
-        if isinstance(action, DependsOn):
+        if isinstance(action, DependsOn | CandidateRelation):
             return None
         if _is_bayes_action(action):
             return None
@@ -1073,6 +1101,11 @@ def compile_package_artifact(
             continue
         if isinstance(action, DependsOn):
             formalization_dependencies.append(_compile_depends_on_action(action, action_index))
+            continue
+        if isinstance(action, CandidateRelation):
+            formalization_dependencies.append(
+                _compile_candidate_relation_action(action, action_index)
+            )
             continue
         target = compile_action(action, action_index)
         if target is None:

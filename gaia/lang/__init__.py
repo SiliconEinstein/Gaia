@@ -8,6 +8,7 @@ from gaia.lang.dsl import (
     and_,
     associate,
     case_analysis,
+    candidate_relation,
     claim,
     compare,
     composite,
@@ -53,6 +54,7 @@ from gaia.lang.dsl import (
     question,
     setting,
     support,
+    tension,
 )
 from gaia.lang.formula import (
     ArithOp,
@@ -84,6 +86,7 @@ from gaia.lang.formula import (
 from gaia.lang.runtime import (
     Action,
     Associate,
+    CandidateRelation,
     Claim,
     ClaimKind,
     Compute,
@@ -134,6 +137,7 @@ __all__ = [
     "Associate",
     "bayes",
     "Bool",
+    "CandidateRelation",
     "Causes",
     "Claim",
     "ClaimAtom",
@@ -195,6 +199,7 @@ __all__ = [
     "and_",
     "associate",
     "case_analysis",
+    "candidate_relation",
     "causes",
     "causal",
     "claim",
@@ -243,4 +248,5 @@ __all__ = [
     "roles_for_package",
     "setting",
     "support",
+    "tension",
 ]

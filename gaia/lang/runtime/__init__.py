@@ -1,6 +1,7 @@
 from gaia.lang.runtime.action import (
     Action,
     Associate,
+    CandidateRelation,
     Compute,
     Compose,
     Contradict,
@@ -41,6 +42,7 @@ from gaia.lang.runtime.variable import Variable
 __all__ = [
     "Action",
     "Associate",
+    "CandidateRelation",
     "Claim",
     "ClaimKind",
     "Compute",

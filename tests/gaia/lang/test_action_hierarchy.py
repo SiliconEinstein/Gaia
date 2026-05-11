@@ -1,5 +1,6 @@
 from gaia.lang.runtime.action import (
     Action,
+    CandidateRelation,
     Compute,
     Contradict,
     Derive,
@@ -58,3 +59,9 @@ def test_depends_on_is_scaffold_not_support():
     assert issubclass(Scaffold, Action)
     assert not issubclass(DependsOn, Support)
     assert not issubclass(DependsOn, Structural)
+
+
+def test_candidate_relation_is_scaffold_not_structural():
+    assert issubclass(CandidateRelation, Scaffold)
+    assert not issubclass(CandidateRelation, Support)
+    assert not issubclass(CandidateRelation, Structural)

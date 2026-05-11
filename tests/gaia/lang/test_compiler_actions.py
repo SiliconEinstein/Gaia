@@ -1,6 +1,7 @@
 from gaia.lang import (
     Claim,
     associate,
+    candidate_relation,
     compute,
     contradict,
     depends_on,
@@ -10,6 +11,7 @@ from gaia.lang import (
     infer,
     observe,
     predict,
+    tension,
 )
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
@@ -367,6 +369,83 @@ def test_compile_depends_on_action_to_formalization_manifest_only():
             "given": ["github:v6_actions::a", "github:v6_actions::b"],
             "rationale": "C currently relies on A and B.",
             "status": "unformalized",
+            "metadata": {},
+        }
+    ]
+
+
+def test_compile_candidate_relation_to_formalization_manifest_only():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        setting = Claim("The comparison uses the same observable definition.")
+        setting.label = "same_observable"
+        action = candidate_relation(
+            a,
+            b,
+            proposed="equal",
+            background=[setting],
+            rationale="A and B may be the same scientific claim.",
+            label="maybe_same_claim",
+            metadata={"source": "retrieval"},
+        )
+
+    compiled = compile_package_artifact(pkg)
+
+    assert action.proposed == "equal"
+    assert compiled.graph.strategies == []
+    assert compiled.graph.operators == []
+    assert {k.id for k in compiled.graph.knowledges} == {
+        "github:v6_actions::a",
+        "github:v6_actions::b",
+        "github:v6_actions::same_observable",
+    }
+
+    manifest = compiled.formalization_manifest
+    assert manifest["dependencies"] == [
+        {
+            "id": "github:v6_actions::scaffold::maybe_same_claim",
+            "kind": "candidate_relation",
+            "label": "maybe_same_claim",
+            "proposed": "equal",
+            "claims": ["github:v6_actions::a", "github:v6_actions::b"],
+            "rationale": "A and B may be the same scientific claim.",
+            "status": "hypothesis",
+            "metadata": {"source": "retrieval"},
+            "background": ["github:v6_actions::same_observable"],
+        }
+    ]
+
+
+def test_tension_is_candidate_relation_wrapper():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("Model predicts X.")
+        a.label = "prediction"
+        b = Claim("Experiment observes not-X.")
+        b.label = "observation"
+        action = tension(
+            a,
+            b,
+            rationale="Prediction and observation are not aligned.",
+            label="prediction_observation_tension",
+        )
+
+    compiled = compile_package_artifact(pkg)
+
+    assert action.proposed == "tension"
+    assert compiled.graph.strategies == []
+    assert compiled.graph.operators == []
+    assert compiled.formalization_manifest["dependencies"] == [
+        {
+            "id": "github:v6_actions::scaffold::prediction_observation_tension",
+            "kind": "candidate_relation",
+            "label": "prediction_observation_tension",
+            "proposed": "tension",
+            "claims": ["github:v6_actions::prediction", "github:v6_actions::observation"],
+            "rationale": "Prediction and observation are not aligned.",
+            "status": "hypothesis",
             "metadata": {},
         }
     ]
