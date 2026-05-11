@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import numpy as np
+from numpy.typing import NDArray
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 
 __all__ = ["exact_inference", "exact_joint_over", "comparison_table"]
 
 CHUNK_BITS = 20
+FloatArray = NDArray[np.float64]
+
+
+def _float_array(values: object) -> FloatArray:
+    """Return a float64 ndarray while preserving runtime numpy semantics."""
+    return np.asarray(values, dtype=np.float64)
 
 
 def _enumerate_log_joint(
@@ -64,7 +71,7 @@ def _factor_log_potentials(
     factor: Factor,
     states: np.ndarray,
     var_idx: dict[str, int],
-) -> np.ndarray:
+) -> FloatArray:
     cs = states.shape[0]
     h = 1.0 - CROMWELL_EPS
     lo = CROMWELL_EPS
@@ -84,7 +91,7 @@ def _factor_log_potentials(
         std_impl = np.where((a == 1) & (b == 0), lo, h)
         comp = np.where((a == 1) & (b == 0), h, lo)
         pot = np.where(hv == 1, std_impl, comp)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.CONJUNCTION:
         idxs = [var_idx[x] for x in vids]
@@ -95,7 +102,7 @@ def _factor_log_potentials(
         m = states[:, m_idx]
         ok = (all_one & (m == 1)) | ((~all_one) & (m == 0))
         pot = np.where(ok, h, lo)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.DISJUNCTION:
         idxs = [var_idx[x] for x in vids]
@@ -106,7 +113,7 @@ def _factor_log_potentials(
         d = states[:, d_idx]
         ok = (any_one & (d == 1)) | ((~any_one) & (d == 0))
         pot = np.where(ok, h, lo)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.EQUIVALENCE:
         a_idx = var_idx[vids[0]]
@@ -115,7 +122,7 @@ def _factor_log_potentials(
         target = (states[:, a_idx] == states[:, b_idx]).astype(np.int8)
         ok = states[:, h_idx] == target
         pot = np.where(ok, h, lo)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.CONTRADICTION:
         a_idx = var_idx[vids[0]]
@@ -125,7 +132,7 @@ def _factor_log_potentials(
         target = np.where(both, 0, 1).astype(np.int8)
         ok = states[:, h_idx] == target
         pot = np.where(ok, h, lo)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.NEGATION:
         a_idx = var_idx[vids[0]]
@@ -133,7 +140,7 @@ def _factor_log_potentials(
         target = 1 - states[:, a_idx]
         ok = states[:, h_idx] == target
         pot = np.where(ok, h, lo)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.COMPLEMENT:
         a_idx = var_idx[vids[0]]
@@ -143,7 +150,7 @@ def _factor_log_potentials(
         target = xor.astype(np.int8)
         ok = states[:, h_idx] == target
         pot = np.where(ok, h, lo)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.SOFT_ENTAILMENT:
         assert factor.p1 is not None and factor.p2 is not None
@@ -157,7 +164,7 @@ def _factor_log_potentials(
             np.where(cv == 1, p1, 1.0 - p1),
             np.where(cv == 0, p2, 1.0 - p2),
         )
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.CONDITIONAL:
         assert factor.cpt is not None
@@ -170,7 +177,7 @@ def _factor_log_potentials(
         p_sel = cpt[idx]
         cv = states[:, c_idx]
         pot = np.where(cv == 1, p_sel, 1.0 - p_sel)
-        return np.log(pot)
+        return _float_array(np.log(pot))
 
     if ft == FactorType.PAIRWISE_POTENTIAL:
         assert factor.cpt is not None

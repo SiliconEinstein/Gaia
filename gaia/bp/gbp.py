@@ -219,14 +219,14 @@ def _build_cross_region_graph(
 
     # Set priors from region beliefs (region-internal evidence)
     var_to_region: dict[str, int] = {}
-    for ri, region in enumerate(regions):
+    for region_idx, region in enumerate(regions):
         for v in region:
-            var_to_region[v] = ri
+            var_to_region[v] = region_idx
 
     for v in cross_vars:
-        ri = var_to_region.get(v)
-        if ri is not None and v in region_beliefs.get(ri, {}):
-            prior = region_beliefs[ri][v]
+        maybe_region_idx = var_to_region.get(v)
+        if maybe_region_idx is not None and v in region_beliefs.get(maybe_region_idx, {}):
+            prior = region_beliefs[maybe_region_idx][v]
             cross_fg.add_variable(v, prior=prior)
         elif v in graph.unary_factors:
             cross_fg.add_variable(v, prior=graph.unary_factors[v])
@@ -263,14 +263,18 @@ def _combine_beliefs(
     and renormalize), avoiding double-counting the prior.
     """
     var_to_region: dict[str, int] = {}
-    for ri, region in enumerate(regions):
+    for region_idx, region in enumerate(regions):
         for v in region:
-            var_to_region[v] = ri
+            var_to_region[v] = region_idx
 
     final: dict[str, float] = {}
     for v in graph.variables:
-        ri = var_to_region.get(v)
-        region_b = region_beliefs.get(ri, {}).get(v) if ri is not None else None
+        maybe_region_idx = var_to_region.get(v)
+        region_b = (
+            region_beliefs.get(maybe_region_idx, {}).get(v)
+            if maybe_region_idx is not None
+            else None
+        )
 
         if v not in cross_vars or cross_beliefs is None:
             # Variable only in intra-region: use region JT belief

@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import logging
 from itertools import product as cartesian_product
+from typing import TypeAlias
 
 
 from gaia.bp.bp import BPDiagnostics, BPResult
@@ -51,6 +52,7 @@ from gaia.bp.potentials import evaluate_potential
 __all__ = ["JunctionTreeInference", "jt_treewidth"]
 
 logger = logging.getLogger(__name__)
+PotentialTable: TypeAlias = dict[tuple[int, ...], float]
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +270,7 @@ def _compute_clique_potential(
     clique: frozenset[str],
     factors: list[Factor],
     priors: dict[str, float],
-) -> dict[tuple[int, ...], float]:
+) -> PotentialTable:
     """Compute the initial (unnormalized) potential table for a clique.
 
     The clique potential is:
@@ -286,7 +288,7 @@ def _compute_clique_potential(
     """
     var_list = sorted(clique)
     n = len(var_list)
-    table: dict[tuple[int, ...], float] = {}
+    table: PotentialTable = {}
 
     for vals in cartesian_product((0, 1), repeat=n):
         assignment = {v: vals[i] for i, v in enumerate(var_list)}
@@ -325,10 +327,10 @@ def _tree_adjacency(
 
 
 def _marginalize(
-    table: dict[tuple[int, ...], float],
+    table: PotentialTable,
     var_list: list[str],
     keep_vars: frozenset[str],
-) -> dict[tuple[int, ...], float]:
+) -> PotentialTable:
     """Marginalize a clique potential table down to keep_vars.
 
     Sums over all variables NOT in keep_vars, returning a table indexed
@@ -342,7 +344,7 @@ def _marginalize(
     """
     keep_list = sorted(keep_vars)
     keep_indices = [var_list.index(v) for v in keep_list]
-    result: dict[tuple[int, ...], float] = {}
+    result: PotentialTable = {}
 
     for vals, pot in table.items():
         key = tuple(vals[i] for i in keep_indices)
@@ -352,11 +354,11 @@ def _marginalize(
 
 
 def _multiply_tables(
-    table_a: dict[tuple[int, ...], float],
+    table_a: PotentialTable,
     vars_a: list[str],
-    table_b: dict[tuple[int, ...], float],
+    table_b: PotentialTable,
     vars_b: list[str],
-) -> tuple[dict[tuple[int, ...], float], list[str]]:
+) -> tuple[PotentialTable, list[str]]:
     """Multiply two factor tables, aligning on shared variables.
 
     Returns (product_table, sorted_union_vars).
@@ -365,7 +367,7 @@ def _multiply_tables(
     a_indices = [union_vars.index(v) for v in vars_a]
     b_indices = [union_vars.index(v) for v in vars_b]
 
-    result: dict[tuple[int, ...], float] = {}
+    result: PotentialTable = {}
     for vals in cartesian_product((0, 1), repeat=len(union_vars)):
         a_key = tuple(vals[i] for i in a_indices)
         b_key = tuple(vals[i] for i in b_indices)
@@ -377,11 +379,11 @@ def _multiply_tables(
 
 
 def _divide_tables(
-    table_a: dict[tuple[int, ...], float],
+    table_a: PotentialTable,
     vars_a: list[str],
-    table_b: dict[tuple[int, ...], float],
+    table_b: PotentialTable,
     vars_b: list[str],
-) -> tuple[dict[tuple[int, ...], float], list[str]]:
+) -> tuple[PotentialTable, list[str]]:
     """Divide table_a / table_b (aligned on shared variables).
 
     Used in Shafer-Shenoy message passing: message(i->j) =
@@ -392,7 +394,7 @@ def _divide_tables(
     a_indices = [union_vars.index(v) for v in vars_a]
     b_indices = [union_vars.index(v) for v in vars_b]
 
-    result: dict[tuple[int, ...], float] = {}
+    result: PotentialTable = {}
     for vals in cartesian_product((0, 1), repeat=len(union_vars)):
         a_key = tuple(vals[i] for i in a_indices)
         b_key = tuple(vals[i] for i in b_indices)
@@ -405,11 +407,11 @@ def _divide_tables(
 
 def _collect_distribute(
     cliques: list[frozenset[str]],
-    clique_potentials: list[dict[tuple[int, ...], float]],
+    clique_potentials: list[PotentialTable],
     clique_var_lists: list[list[str]],
     tree_adj: dict[int, list[tuple[int, frozenset[str]]]],
     n_cliques: int,
-) -> list[dict[tuple[int, ...], float]]:
+) -> list[PotentialTable]:
     """Run collect + distribute (two-pass Shafer-Shenoy) message passing.
 
     Uses post-order DFS (collect) then pre-order DFS (distribute),
@@ -445,14 +447,20 @@ def _collect_distribute(
 
     # Messages: msg[(sender, receiver)] = separator-indexed table
     # Initially: uniform over separator
-    messages: dict[tuple[int, int], tuple[dict, list[str]]] = {}
-    for i, j, sep in [(i, j, sep) for i in range(n_cliques) for j, sep in tree_adj[i]]:
-        sep_list = sorted(sep)
-        uniform = {vals: 1.0 for vals in cartesian_product((0, 1), repeat=len(sep_list))}
+    messages: dict[tuple[int, int], tuple[PotentialTable, list[str]]] = {}
+    for i, j, separator in [
+        (i, j, separator) for i in range(n_cliques) for j, separator in tree_adj[i]
+    ]:
+        sep_list = sorted(separator)
+        uniform: PotentialTable = {
+            vals: 1.0 for vals in cartesian_product((0, 1), repeat=len(sep_list))
+        }
         messages[(i, j)] = (uniform, sep_list)
 
     # Helper: compute message from clique i to clique j
-    def compute_message(sender: int, receiver: int, sep: frozenset[str]) -> tuple[dict, list[str]]:
+    def compute_message(
+        sender: int, receiver: int, sep: frozenset[str]
+    ) -> tuple[PotentialTable, list[str]]:
         # Start with sender's initial potential
         table = dict(clique_potentials[sender])
         var_list = list(clique_var_lists[sender])
@@ -473,11 +481,13 @@ def _collect_distribute(
         par = parent.get(node)
         if par is not None:
             # Find separator between node and par
-            sep = None
+            sep: frozenset[str] | None = None
             for neighbor, s in tree_adj[node]:
                 if neighbor == par:
                     sep = s
                     break
+            if sep is None:
+                raise RuntimeError(f"Junction tree missing separator between {node} and {par}")
             msg_table, msg_vars = compute_message(node, par, sep)
             messages[(node, par)] = (msg_table, msg_vars)
 
@@ -489,7 +499,7 @@ def _collect_distribute(
                 messages[(node, child)] = (msg_table, msg_vars)
 
     # Calibrate: multiply all incoming messages into each clique
-    calibrated: list[dict[tuple[int, ...], float]] = []
+    calibrated: list[PotentialTable] = []
     for i in range(n_cliques):
         table = dict(clique_potentials[i])
         var_list = list(clique_var_lists[i])
@@ -498,7 +508,7 @@ def _collect_distribute(
             table, var_list = _multiply_tables(table, var_list, in_msg, in_vars)
         # Re-index to sorted clique variable order
         target_vars = clique_var_lists[i]
-        reindexed: dict[tuple[int, ...], float] = {}
+        reindexed: PotentialTable = {}
         for vals, pot in table.items():
             key = tuple(vals[var_list.index(v)] for v in target_vars)
             reindexed[key] = reindexed.get(key, 0.0) + pot
@@ -514,7 +524,7 @@ def _collect_distribute(
 
 def _extract_beliefs(
     cliques: list[frozenset[str]],
-    calibrated: list[dict[tuple[int, ...], float]],
+    calibrated: list[PotentialTable],
     clique_var_lists: list[list[str]],
     all_variables: set[str],
 ) -> dict[str, float]:
@@ -650,7 +660,7 @@ class JunctionTreeInference:
         # first clique found that contains it. Variables without unary factors
         # contribute the base counting measure.
         unary_assigned: set[str] = set()
-        clique_potentials: list[dict[tuple[int, ...], float]] = []
+        clique_potentials: list[PotentialTable] = []
 
         for i, clique in enumerate(cliques):
             var_list = clique_var_lists[i]

@@ -41,7 +41,7 @@ from itertools import product as cartesian_product
 import numpy as np
 from numpy.typing import NDArray
 
-from gaia.bp.factor_graph import FactorGraph
+from gaia.bp.factor_graph import Factor, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
 __all__ = ["BeliefPropagation", "BPDiagnostics", "BPResult"]
@@ -57,12 +57,12 @@ Msg = NDArray[np.float64]
 
 def _uniform_msg() -> Msg:
     """Return uniform [0.5, 0.5] computational seed."""
-    return np.array([0.5, 0.5])
+    return np.array([0.5, 0.5], dtype=np.float64)
 
 
 def _prior_to_msg(pi: float) -> Msg:
     """Convert scalar prior π=P(x=1) to normalized 2-vector."""
-    return np.array([1.0 - pi, pi])
+    return np.array([1.0 - pi, pi], dtype=np.float64)
 
 
 def _normalize(msg: Msg) -> Msg:
@@ -206,7 +206,7 @@ def _compute_v2f(
 def _compute_f2v(
     factor_idx: int,
     target_var: str,
-    factor,  # Factor object
+    factor: Factor,
     v2f_msgs: dict[tuple[str, int], Msg],
 ) -> Msg:
     """Compute a single factor→variable message by marginalizing.
@@ -225,7 +225,7 @@ def _compute_f2v(
     all_vars = factor.all_vars
     other_vars = [v for v in all_vars if v != target_var]
 
-    msg_out = np.zeros(2)
+    msg_out = np.zeros(2, dtype=np.float64)
 
     for target_val in (0, 1):
         total = 0.0
@@ -322,10 +322,10 @@ class BeliefPropagation:
         # --- Edge case: no factors — beliefs = unary factors or neutral measure ---
         if not graph.factors:
             diag.converged = True
-            beliefs = {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
-            for vid, p in beliefs.items():
+            initial_beliefs = {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
+            for vid, p in initial_beliefs.items():
                 diag.belief_history[vid] = [p]
-            return BPResult(beliefs=beliefs, diagnostics=diag)
+            return BPResult(beliefs=initial_beliefs, diagnostics=diag)
 
         # --- Build reverse index: var -> list of factor indices ---
         var_to_factors = graph.get_var_to_factors()
@@ -386,13 +386,17 @@ class BeliefPropagation:
                 )
 
             # Step 3: Damp and normalize both sets of messages
-            for key in f2v_msgs:
-                blended = self._damping * new_f2v[key] + (1.0 - self._damping) * f2v_msgs[key]
-                f2v_msgs[key] = _normalize(blended)
+            for f2v_key in f2v_msgs:
+                blended = (
+                    self._damping * new_f2v[f2v_key] + (1.0 - self._damping) * f2v_msgs[f2v_key]
+                )
+                f2v_msgs[f2v_key] = _normalize(blended)
 
-            for key in v2f_msgs:
-                blended = self._damping * new_v2f[key] + (1.0 - self._damping) * v2f_msgs[key]
-                v2f_msgs[key] = _normalize(blended)
+            for v2f_key in v2f_msgs:
+                blended = (
+                    self._damping * new_v2f[v2f_key] + (1.0 - self._damping) * v2f_msgs[v2f_key]
+                )
+                v2f_msgs[v2f_key] = _normalize(blended)
 
             # Step 4: Compute beliefs
             beliefs: dict[str, float] = {}

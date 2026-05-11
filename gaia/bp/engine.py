@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
-from gaia.bp.bp import BeliefPropagation, BPResult
+from gaia.bp.bp import BPDiagnostics, BeliefPropagation, BPResult
 from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import FactorGraph
 from gaia.bp.gbp import GeneralizedBeliefPropagation
@@ -115,7 +115,7 @@ class InferenceResult:
         return self.bp_result.beliefs
 
     @property
-    def diagnostics(self):
+    def diagnostics(self) -> BPDiagnostics:
         """Shortcut to BPDiagnostics."""
         return self.bp_result.diagnostics
 
@@ -195,8 +195,6 @@ class InferenceEngine:
                     "Use method='jt' for exact inference up to treewidth ~15."
                 )
             beliefs, Z = exact_inference(graph)
-            from gaia.bp.bp import BPDiagnostics
-
             diag = BPDiagnostics()
             diag.converged = True
             for v, b in beliefs.items():
@@ -249,16 +247,17 @@ class InferenceEngine:
                 is_exact=False,
             )
 
-    def benchmark(self, graph: FactorGraph) -> dict[str, dict]:
+    def benchmark(self, graph: FactorGraph) -> dict[str, dict[str, object]]:
         """Run all feasible methods and return a comparison dict.
 
         Returns dict: method_name -> {'beliefs': ..., 'elapsed_ms': ..., 'is_exact': ...}
         Skips exact brute-force if graph has > EXACT_MAX_VARS variables.
         """
-        results: dict[str, dict] = {}
+        results: dict[str, dict[str, object]] = {}
 
-        for method in ("jt", "gbp", "bp"):
-            r = self.run(graph, method=method)  # type: ignore
+        methods: tuple[Literal["jt", "gbp", "bp"], ...] = ("jt", "gbp", "bp")
+        for method in methods:
+            r = self.run(graph, method=method)
             results[method] = {
                 "beliefs": r.beliefs,
                 "elapsed_ms": r.elapsed_ms,

@@ -18,12 +18,18 @@ Spec: github.com/SiliconEinstein/Gaia/issues/357
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import numpy as np
+from numpy.typing import NDArray
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
+from gaia.ir.strategy import Strategy
 
 _HIGH: float = 1.0 - CROMWELL_EPS
 _LOW: float = CROMWELL_EPS
+FloatArray: TypeAlias = NDArray[np.float64]
+StrategyCpt: TypeAlias = tuple[FloatArray, list[str]]
 
 __all__ = [
     "factor_to_tensor",
@@ -32,15 +38,26 @@ __all__ = [
     "cpt_tensor_to_list",
 ]
 
+
 # Sentinel used by ``strategy_cpt`` to detect cycles while the recursion is
 # in progress.  When a composite is first visited, we write this sentinel to
 # the cache before recursing into its sub-strategies; if the recursion hits
 # the same strategy_id again before it completes, we raise instead of looping
 # forever.
-_IN_PROGRESS = object()
+class _InProgress:
+    """Sentinel type for cycle detection in strategy CPT recursion."""
 
 
-def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
+_IN_PROGRESS = _InProgress()
+StrategyCptCacheValue: TypeAlias = StrategyCpt | _InProgress
+
+
+def _float_array(values: object) -> FloatArray:
+    """Return a float64 ndarray while preserving runtime numpy semantics."""
+    return np.asarray(values, dtype=np.float64)
+
+
+def factor_to_tensor(f: Factor) -> StrategyCpt:
     """Build a dense tensor representation of a Factor.
 
     Shape: ``(2,) * (len(f.variables) + 1)``.
@@ -156,10 +173,10 @@ def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
 
 
 def contract_to_cpt(
-    tensors: list[tuple[np.ndarray, list[str]]],
+    tensors: list[StrategyCpt],
     free_vars: list[str],
     unary_priors: dict[str, float],
-) -> np.ndarray:
+) -> FloatArray:
     """Contract a list of factor tensors down to a conditional CPT tensor.
 
     Uses ``opt_einsum.contract_path`` to plan an optimal contraction order,
@@ -313,11 +330,11 @@ def contract_to_cpt(
             "contract_to_cpt: zero partition function encountered; "
             "graph may have contradictory deterministic factors."
         )
-    return joint / totals
+    return _float_array(joint / totals)
 
 
 def cpt_tensor_to_list(
-    tensor: np.ndarray,
+    tensor: FloatArray,
     axes: list[str],
     premises: list[str],
     conclusion: str,
@@ -342,14 +359,14 @@ def cpt_tensor_to_list(
 
 
 def strategy_cpt(
-    s,
-    strat_by_id: dict,
+    s: Strategy,
+    strat_by_id: dict[str, Strategy],
     strat_params: dict[str, list[float]],
     var_priors: dict[str, float],
     namespace: str,
     package_name: str,
-    cache: dict,
-) -> tuple[np.ndarray, list[str]]:
+    cache: dict[str, StrategyCptCacheValue],
+) -> StrategyCpt:
     """Compute the effective CPT tensor of a single Gaia IR strategy.
 
     Layer-by-layer variable elimination:
@@ -385,10 +402,17 @@ def strategy_cpt(
     from gaia.bp.lowering import _lower_strategy
     from gaia.ir.strategy import CompositeStrategy
 
-    cached = cache.get(s.strategy_id)
-    if cached is _IN_PROGRESS:
+    if s.strategy_id is None:
+        raise ValueError("strategy_cpt requires a strategy_id")
+    if s.conclusion is None:
+        raise ValueError(f"strategy_cpt requires a conclusion for {s.strategy_id!r}")
+    strategy_id = s.strategy_id
+    conclusion = s.conclusion
+
+    cached = cache.get(strategy_id)
+    if isinstance(cached, _InProgress):
         raise ValueError(
-            f"strategy_cpt: cycle detected — strategy_id {s.strategy_id!r} "
+            f"strategy_cpt: cycle detected — strategy_id {strategy_id!r} "
             "is its own ancestor in the composite recursion."
         )
     if cached is not None:
@@ -396,13 +420,13 @@ def strategy_cpt(
 
     if isinstance(s, CompositeStrategy):
         # Mark this composite as in-progress so recursive calls detect cycles.
-        cache[s.strategy_id] = _IN_PROGRESS
-        child_tensors: list[tuple[np.ndarray, list[str]]] = []
+        cache[strategy_id] = _IN_PROGRESS
+        child_tensors: list[StrategyCpt] = []
         for sid in s.sub_strategies:
             sub = strat_by_id.get(sid)
             if sub is None:
                 raise KeyError(
-                    f"CompositeStrategy {s.strategy_id!r} references missing strategy_id {sid!r}"
+                    f"CompositeStrategy {strategy_id!r} references missing strategy_id {sid!r}"
                 )
             sub_tensor, sub_axes = strategy_cpt(
                 sub,
@@ -415,7 +439,7 @@ def strategy_cpt(
             )
             child_tensors.append((sub_tensor, sub_axes))
 
-        free = [*s.premises, s.conclusion]
+        free = [*s.premises, conclusion]
         free_set = set(free)
 
         # Bridge variables: any child axis that isn't a composite free var.
@@ -430,7 +454,7 @@ def strategy_cpt(
 
         cpt_tensor = contract_to_cpt(child_tensors, free_vars=free, unary_priors=bridges)
         result = (cpt_tensor, free)
-        cache[s.strategy_id] = result
+        cache[strategy_id] = result
         return result
 
     # Leaf: build a mini FactorGraph via the existing _lower_strategy dispatch.
@@ -453,12 +477,12 @@ def strategy_cpt(
     )
 
     tensors = [factor_to_tensor(f) for f in mini.factors]
-    free = [*s.premises, s.conclusion]
+    free = [*s.premises, conclusion]
     free_set = set(free)
     # Explicit unary factors for variables in the mini fg that are NOT free axes.
     non_free = {v: p for v, p in mini.unary_factors.items() if v not in free_set}
 
     cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=non_free)
     result = (cpt_tensor, free)
-    cache[s.strategy_id] = result
+    cache[strategy_id] = result
     return result

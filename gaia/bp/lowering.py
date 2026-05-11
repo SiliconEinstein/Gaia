@@ -6,6 +6,7 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 from gaia.ir.formalize import formalize_named_strategy
@@ -69,7 +70,7 @@ def _next_fid(prefix: str, i: list[int]) -> str:
 
 def _review_target_allowed(
     target_id: str | None,
-    metadata: dict | None,
+    metadata: dict[str, Any] | None,
     review_manifest: ReviewManifest | None,
 ) -> bool:
     if review_manifest is None:
@@ -375,7 +376,7 @@ def fold_composite_to_cpt(
     Returns a list of 2^k floats (k = number of premises), indexed by the
     binary encoding of the premise assignment (bit 0 = first premise).
     """
-    from gaia.bp.contraction import cpt_tensor_to_list, strategy_cpt
+    from gaia.bp.contraction import StrategyCptCacheValue, cpt_tensor_to_list, strategy_cpt
 
     if not expand_formal:
         raise NotImplementedError(
@@ -384,7 +385,10 @@ def fold_composite_to_cpt(
             "docs/foundations/gaia-ir/07-lowering.md §9."
         )
 
-    cache: dict = {}
+    if s.conclusion is None:
+        raise ValueError(f"CompositeStrategy {s.strategy_id} requires a conclusion for folding.")
+
+    cache: dict[str, StrategyCptCacheValue] = {}
     cpt_tensor, axes = strategy_cpt(
         s,
         strat_by_id=strat_by_id,
@@ -532,9 +536,12 @@ def _lower_strategy(
     if s.conclusion is None:
         raise ValueError(f"Leaf strategy {s.strategy_id} requires a conclusion for lowering.")
     conc = s.conclusion
+    if s.strategy_id is None:
+        raise ValueError("Strategy requires a strategy_id for lowering.")
+    strategy_id = s.strategy_id
     _ensure_claim_var(fg, conc, priors, claim_ids)
-    for p in s.premises:
-        _ensure_claim_var(fg, p, priors, claim_ids)
+    for premise_id in s.premises:
+        _ensure_claim_var(fg, premise_id, priors, claim_ids)
 
     if s.type == StrategyType.INFER:
         if s.premises:
@@ -544,7 +551,7 @@ def _lower_strategy(
                 inline_prior=s.prior_hypothesis,
                 priors=priors,
                 metadata_priors=metadata_priors,
-                strategy_id=s.strategy_id,
+                strategy_id=strategy_id,
                 field_name="prior_hypothesis",
             )
         _apply_inline_prior_provider(
@@ -553,10 +560,10 @@ def _lower_strategy(
             inline_prior=s.prior_evidence,
             priors=priors,
             metadata_priors=metadata_priors,
-            strategy_id=s.strategy_id,
+            strategy_id=strategy_id,
             field_name="prior_evidence",
         )
-        cpt = s.conditional_probabilities or strat_params.get(s.strategy_id)
+        cpt = s.conditional_probabilities or strat_params.get(strategy_id)
         if not cpt:
             cpt = [0.5] * (1 << len(s.premises))
         if infer_degraded:
@@ -575,7 +582,7 @@ def _lower_strategy(
                 full = (1 << len(s.premises)) - 1
                 p1 = float(cpt[full])
                 p2 = 1.0 - float(cpt[0])
-                m = f"_m_infer_{s.strategy_id}"
+                m = f"_m_infer_{strategy_id}"
                 fg.add_variable(m)
                 fg.add_factor(
                     _next_fid("infer_conj", ctr),
@@ -607,7 +614,7 @@ def _lower_strategy(
         return
 
     if s.type == StrategyType.NOISY_AND:
-        raw = s.conditional_probabilities or strat_params.get(s.strategy_id) or [0.5]
+        raw = s.conditional_probabilities or strat_params.get(strategy_id) or [0.5]
         p = float(raw[0])
         premises = list(s.premises)
         if len(premises) == 1:
@@ -620,7 +627,7 @@ def _lower_strategy(
                 p2=1.0 - CROMWELL_EPS,
             )
         else:
-            m = f"_m_na_{s.strategy_id}"
+            m = f"_m_na_{strategy_id}"
             fg.add_variable(m)
             fg.add_factor(_next_fid("na_conj", ctr), FactorType.CONJUNCTION, premises, m)
             fg.add_factor(

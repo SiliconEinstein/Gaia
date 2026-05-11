@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 2 in progress — full backfill
-**Last updated**: 2026-05-12 01:22 (Phase 2.1-ir complete)
+**Last updated**: 2026-05-12 01:29 (Phase 2.1-bp complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -38,7 +38,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Progress: 9 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
-  - Progress: 3 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
+  - Progress: 4 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
 - [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 3 — Acceptance + PR**
 - [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
@@ -115,8 +115,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 01:10 | completed_at: 2026-05-12 01:14 | breakpoint_notes: Existing `gaia/logic/` annotations were already strict-clean for the scoped type unit, so no code edits were needed. Verification: `uv run mypy --follow-imports=skip gaia/logic` => success for 2 source files; `uv run mypy gaia/logic` => only pre-existing imported `gaia/ir/formalize.py` backlog (74 errors), not logic-file errors; `uv run pytest tests/gaia/logic/test_propositional.py --no-cov` => 5 passed, 13 warnings; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.32%, required 90% reached.
 - [x] **2.1-ir** `gaia/ir/` (IR primitives — re-read `doc-fidelity-baseline.md` § Protected layers + § Core invariants before touching)
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 01:16 | completed_at: 2026-05-12 01:22 | breakpoint_notes: Added strict-compatible annotations and local type narrowing in `gaia/ir/formalize.py`, `gaia/ir/coarsen.py`, `gaia/ir/linearize.py`, and `gaia/ir/validator.py` without changing IR schemas, public signatures, or validation semantics. `formalize.py` now uses private helpers to express generated-ID invariants and enum coercion to mypy; `coarsen.py`/`linearize.py` now use concrete generic dict/tuple annotations; `validator.py` avoids loop-variable type reuse that confused strict mypy. Verification: `uv run mypy --follow-imports=silent gaia/ir` => success for 13 source files; `uv run pytest tests/ir tests/gaia/ir/test_review.py --no-cov` => 245 passed; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.32%, required 90% reached.
-- [ ] **2.1-bp** `gaia/bp/` (BP algorithm — re-read `doc-fidelity-baseline.md` § BP semantics before touching)
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: ⚠️ Do not change message-passing algorithm or potential-function semantics.
+- [x] **2.1-bp** `gaia/bp/` (BP algorithm — re-read `doc-fidelity-baseline.md` § BP semantics before touching)
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 01:23 | completed_at: 2026-05-12 01:29 | breakpoint_notes: Added strict-compatible annotations and local type narrowing across BP inference, contraction, exact enumeration, lowering, junction-tree, GBP, and engine modules without changing message-passing algorithms or potential-function semantics. Verification: `uv run mypy gaia/bp` => success for 10 source files; `uv run pytest tests/gaia/bp tests/test_lowering.py tests/test_contraction.py tests/test_bp_jaynes_contract.py --no-cov` => 211 passed; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.30%, required 90% reached.
 - [ ] **2.1-lang** `gaia/lang/` (DSL — large module with sub-dirs: dsl/, formula/, refs/, review/, runtime/, types/)
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: Recommend sub-splitting in-place if needed: agent can break this into 2.1-lang-dsl / 2.1-lang-formula / etc. by editing this STATE inline.
 - [ ] **2.1-trace** `gaia/trace/`
