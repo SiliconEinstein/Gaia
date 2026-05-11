@@ -16,57 +16,201 @@
 
 <!-- END REFACTOR MORTAL BANNER -->
 
-# AGENTS
+# CLAUDE.md
 
-Instructions for any agent (Claude Code, Codex, Cursor, etc.) working in this repo. `CLAUDE.md` in this repo is a symlink to this file so Claude Code's auto-load resolves here too.
+This file follows the Claude Code `/init` convention: it gives agents the repo-specific
+operating rules that are not obvious from reading the code. `CLAUDE.md` is a symlink to
+`AGENTS.md`, so these instructions apply to Claude Code, Cursor, Codex, and other in-repo
+agents.
 
-For project overview, architecture, CLI surface, and DSL reference, read `README.md` and `docs/foundations/`. This file is for **agent conventions only** — things you can't derive from reading the code.
+For product overview, architecture, CLI behavior, and DSL reference, start with `README.md`
+and then read the relevant canonical documents under `docs/foundations/`. This guide is only
+for contributor workflow and guardrails.
 
-## Common Commands
+## Project Map
+
+Gaia is a Python 3.12 project for compiling a Python authoring DSL into Gaia IR and running
+probabilistic inference over the resulting graph.
+
+Key entry points:
+
+- `gaia/lang/` owns the authoring DSL.
+- `gaia/ir/` implements the Gaia IR contract shared by CLI and downstream systems.
+- `gaia/bp/` implements factor-graph lowering and inference.
+- `gaia/cli/` exposes the installed `gaia` Typer command.
+- `tests/` contains the behavior and compatibility suite.
+- `docs/foundations/` is the canonical design surface; `docs/specs/` holds current and
+  historical design specs.
+
+## Local Setup
+
+Use `uv` for all dependency management. Do not install repo dependencies with `pip`.
 
 ```bash
-uv sync                          # install (always uv, never pip)
-pytest                           # run tests
-ruff check . && ruff format .    # lint + format
+uv sync --extra dev
+uv run pre-commit install
 ```
 
-## Workflow
+The same setup is available through:
 
-每项工作完成后，**必须**提交 PR 到 main：
+```bash
+make bootstrap
+```
 
-1. 完成开发并确认测试通过
-2. 跑 `ruff check .` 和 `ruff format --check .`，修干净
-3. commit、push 分支、`gh pr create`
-4. 创建 PR 后**必须**用 `gh run list --branch <branch> --limit 1` 检查 CI；失败则 `gh run view <run-id> --log-failed` 看日志修复
+## Quality Gates
 
-例外：版本号 bump、纯 README/CLAUDE.md 改动这类琐碎提交，按历史惯例可直接 push 到 main。
+Before committing normal development work, run:
 
-## Skills
+```bash
+make check
+```
 
-Skill bodies live under `.claude/skills/<skill-name>/SKILL.md`; Claude Code discovers them natively. AGENTS-aware agents (Codex, Cursor, etc.) read the index at `.claude/skills.md`.
+`make check` runs `uv run pre-commit run --all-files` and `uv run pytest`. Pytest is configured
+with strict markers, coverage for `gaia`, and `--cov-fail-under=90`.
 
-When executing tasks, **always** use the matching skill rather than going manual.
+Additional focused commands:
 
-## Implementation Rules
+```bash
+make lint        # pre-commit over all files
+make test        # pytest with the configured coverage gate
+make typecheck   # strict mypy over gaia and tests
+```
 
-- **严格遵守设计文档**：实现时不得擅自降级设计文档中明确指定的技术方案（如用 TF-IDF 替代 embedding + BM25）。如有困难想简化，**必须先和用户商量**。
-- **不确定就问**：对设计方案的任何偏离，无论多小，都要在实现前提出。
-- **Plan 必须覆盖 spec 的每一步**：写 implementation plan 时逐条核对 spec，遗漏步骤等于悄悄砍需求。
+During the v0.5 refactor, strict mypy and full ruff select may still have known backlog items.
+Do not weaken the configuration to make a work unit pass; record the state in `.refactor/STATE.md`
+when the refactor queue says a gate is expected to remain red.
 
-## Scripts & Pipelines: Logging Is Mandatory
+## Current Refactor Workflow
 
-所有 CLI 脚本（`scripts/*.py`、`gaia/lkm/pipelines/*.py` 有 `__main__` 的）**必须**符合以下规范，否则后台运行就是黑盒：
+The v0.5 quality baseline refactor overrides the normal "open a PR after every commit" habit.
+While the mortal banner is present:
 
-1. **双 handler**：同时输出到 console 和 `logs/{name}-{timestamp}.log`
-2. **`force=True`**：`logging.basicConfig` 必须加 `force=True` 覆盖已有配置（LanceDB/httpx import 时会初始化）
-3. **每阶段打点**：每步开始/结束都 log，不只在最后 summary
-4. **第一行输出 log 文件路径**：让用户立刻知道去哪看日志
-5. **`print(..., flush=True)`**：logging 自动 flush，但普通 print 不会
+1. Read `.refactor/STATE.md` first.
+2. Read `.refactor/doc-fidelity-baseline.md`.
+3. Claim exactly one pending unit in `STATE.md`.
+4. Keep the work inside the stated refactor boundary.
+5. Verify the unit with the relevant local gates.
+6. Commit the unit on `feat/v05-quality-baseline_rsw`.
+7. Update `STATE.md` as the last action before exit.
 
-模板：
+Do not open a PR during this refactor unless the user explicitly gives the Phase 3 ship/PR
+handshake. Outside this temporary refactor, follow the regular branch-to-PR workflow for
+feature work.
+
+## Engineering Rules
+
+- Preserve public APIs, CLI command names, arguments, output formats, persisted artifact shapes,
+  DSL names, IR schemas, and BP algorithms unless the user explicitly approves a design change.
+- Follow the design docs exactly. If a requested implementation would downgrade or diverge from
+  a documented design, stop and ask before coding.
+- Keep plans aligned with specs step by step; omitting a spec requirement is not an acceptable
+  simplification.
+- Prefer existing repo patterns and helper APIs over new abstractions.
+- Keep edits scoped to the work unit. Do not clean up unrelated files, protected docs, generated
+  fixtures, or user changes in the same pass.
+- If the environment exposes repo skills or agent workflows, use the matching one before going
+  manual.
+
+## Code Style
+
+- Python target: 3.12.
+- Ruff line length: 100.
+- Use PEP 604 annotations: `X | None`, not `Optional[X]`; `list[X]`, not `List[X]`.
+- Use Google-style docstrings for new or touched public modules, classes, and functions.
+- Use Pydantic v2 APIs: `.model_dump()`, `.model_validate()`, `.model_validate_json()`.
+- Keep Typer command docstrings concise because they can affect `--help` output.
+
+## Doc Fidelity
+
+Documentation fidelity is load-bearing in this repo. Code, annotations, docstrings, tests, and
+tooling must match the semantics described in `docs/foundations/**` and current-canonical
+`docs/specs/**`.
+
+If you find a semantic contradiction between docs and code:
+
+1. Do not decide which side is right.
+2. Do not fix it in passing.
+3. Mark the current refactor unit `blocked` in `.refactor/STATE.md`.
+4. Record the doc reference, code location, contradiction, and impact in both the task notes and
+   the Doc-Code Contradiction Log.
+5. Tell the user so the issue can be escalated through the collaboration doc.
+
+Missing annotations, missing docstrings, and normal test gaps are not contradictions; actual
+behavioral or semantic disagreement is.
+
+## Foundations Layers
+
+`docs/foundations/` mirrors the architecture. Information flows downward; lower layers reference
+upper layers instead of redefining them.
+
+| Layer | Responsibility |
+| --- | --- |
+| `theory/` | External theory: Jaynes, propositional operators, BP foundations |
+| `ecosystem/` | Product scope, decentralized package flow, registry operations |
+| `gaia-ir/` | Gaia IR structure contract and validation rules |
+| `gaia-lang/` | Authoring DSL, package model, predicate logic, Bayes surface |
+| `bp/` | BP computation over Gaia IR |
+| `review/` | Review, inquiry, and gating pipeline |
+| `cli/` | Local authoring, compile, inference, storage, registration |
+| `contracts/` | Shared report/data contracts |
+
+Hard layering rules:
+
+1. `docs/foundations/gaia-ir/` is the single source for IR structure definitions.
+2. `docs/foundations/bp/` defines BP computation semantics.
+3. `gaia/cli/` owns Gaia Lang workflows; LKM-side systems operate on Gaia IR, not Gaia Lang.
+4. Cross-layer definitions should link instead of copying content.
+5. Schema changes start in the IR layer and require downstream validation.
+
+## Protected Layers
+
+Do not edit these documentation layers directly:
+
+- `docs/foundations/gaia-ir/`
+- `docs/foundations/theory/`
+
+If implementation work appears to require changing Gaia IR or theory definitions, stop and ask
+the user with:
+
+1. the current definition,
+2. why it needs to change,
+3. the proposed change.
+
+Approved protected-layer changes must be isolated from feature or quality-refactor work.
+
+## Documentation Policy
+
+Before editing architecture or foundation docs, read `docs/documentation-policy.md`.
+
+Foundation documents must clearly distinguish:
+
+- current canonical behavior,
+- target designs,
+- transitional notes,
+- historical background,
+- runtime implementation quirks.
+
+Prefer replacing or archiving obsolete conceptual models over repeatedly patching them in place.
+
+## Scripts and Pipelines
+
+CLI scripts and pipeline entry points must log enough detail to be diagnosable when run in the
+background. This applies to `scripts/*.py` and any package pipeline entry point with `__main__`.
+
+Required logging pattern:
+
+1. log to both console and `logs/{name}-{timestamp}.log`,
+2. use `logging.basicConfig(..., force=True)`,
+3. log each phase start and finish,
+4. print or log the log-file path first,
+5. use `print(..., flush=True)` for ordinary prints.
+
+Template:
 
 ```python
-import logging, os, time
+import logging
+import os
+import time
 
 _LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
 os.makedirs(_LOG_DIR, exist_ok=True)
@@ -82,84 +226,16 @@ logger = logging.getLogger(__name__)
 logger.info("Log file: %s", _LOG_FILE)
 ```
 
-**禁止**：后台跑脚本不看日志。跑完总要 tail 一下确认有输出。
+If you run a background script, inspect its log before reporting results.
 
-## Code Style
+## Git and Worktrees
 
-- Ruff，line length 100，target Python 3.12
-- 类型注解用 PEP 604（`X | None`，不是 `Optional[X]`）
-- Google-style docstrings
-- Pydantic v2 API：`.model_dump()` / `.model_validate()` / `.model_validate_json()`
-
-## Worktrees
-
-Worktrees 放在 `.worktrees/`（已 gitignore）：
+Work in a branch or an isolated worktree unless the user explicitly asks otherwise. Worktrees live
+under `.worktrees/`, which is gitignored:
 
 ```bash
 git worktree add .worktrees/<name> -b feature/<name>
 ```
 
-## Design Documents
-
-Specs 在 `docs/foundations/` 按架构层组织：
-
-```
-docs/foundations/theory/       → Pure theory (Jaynes, BP) — 外部定义，从不变
-docs/foundations/ecosystem/    → 业务生态 — 产品范围、去中心化架构、工作流
-docs/foundations/gaia-ir/      → Gaia IR 结构契约（CLI↔LKM 共享）
-docs/foundations/gaia-lang/    → Gaia Language（DSL，CLI 和 LKM 共享）
-docs/foundations/bp/           → BP 计算语义
-docs/foundations/review/       → Review pipeline
-docs/foundations/cli/          → CLI（本地 authoring/compile/inference）
-docs/foundations/lkm/          → LKM server（curation、global inference、storage、API）
-```
-
-历史文档在 `docs/archive/`，规划在 `docs/plans/`，设计在 `docs/specs/`。
-
-## Documentation Policy
-
-编辑架构或 foundation 文档前先读 `docs/documentation-policy.md`。
-
-### Foundations 分层规则
-
-`docs/foundations/` 镜像 Gaia 三层编译流水（Gaia Lang → Gaia IR → BP）+ 两个产品面（CLI、LKM）。信息**自上而下**流动 — 下层引用上层定义，**永不重复**。
-
-| Layer | 责任 |
-|-------|------|
-| **theory/** | 外部理论（Jaynes、BP 算法）— 独立于 Gaia 的定义 |
-| **ecosystem/** | 业务生态 — 产品范围、参与者关系 |
-| **gaia-ir/** | Gaia IR 结构契约 — 节点 schema、factor 类型、canonicalization，**单一定义点** |
-| **gaia-lang/** | Gaia Language（authoring DSL）— 语言规范、knowledge 类型、package 模型 |
-| **bp/** | Gaia IR 上的 BP 计算 — factor 势能、推理算法 |
-| **review/** | Review pipeline — 验证、审查、gating |
-| **cli/** | CLI（本地工作流）— compiler、本地 inference、本地 storage |
-| **lkm/** | LKM server（全局工作流）— curation、global inference、storage、API |
-
-**规则：**
-1. **gaia-ir/ 是结构定义的唯一来源**（FactorNode、knowledge 节点 schema）。bp/、cli/、lkm/ **引用**，不重定义。
-2. **bp/** 定义计算语义。CLI 和 LKM 引用算法细节。
-3. **cli/** 拥有 Gaia Lang。LKM **从不引用 Gaia Lang** — 它操作 Gaia IR。
-4. 跨层定义**只链接，不复制**。
-5. schema 改动先在 gaia-ir/ 改，再验证下游引用。
-
-### Protected Layers (Change Control)
-
-`gaia-ir/` 是 CLI↔LKM 的协议契约层。
-
-**硬性规则：**
-- Agent **禁止**直接修改 `docs/foundations/gaia-ir/` 下任何文件
-- Agent **禁止**直接修改 `docs/foundations/theory/` 下任何文件（纯理论层，外部定义）
-- 如果实现中发现 Gaia IR 定义需要调整，必须**停下来和用户沟通**：
-  1. 当前定义是什么
-  2. 为什么需要改
-  3. 提议的改动内容
-- 用户批准后，改动作为**独立 PR** 提交，不能混在功能 PR 里
-- 合并后必须验证所有下游引用（bp/、cli/、lkm/）一致
-
-### General Doc Rules
-
-- 标明文档状态（`Current canonical` / `Target design` / `Transitional`）
-- 标明改动性质（澄清 / 替换 / 提案）
-- 优先**替换或归档**过时的概念模型，而不是无尽地原地打补丁
-- canonical doc 添加、替换或重大重定范围时，**同 PR 更新**索引/归档/重定向文件
-- **不要默默混合**：current canonical 语义、target design、运行时实现 quirk、历史背景 — 这些必须分开
+Never use destructive git commands, force-push shared branches, or revert user changes unless the
+user explicitly requests it.
