@@ -312,11 +312,12 @@ operators get `1 - CROMWELL_EPS`, compositional operators get `0.5`).
 
 ### Factor types
 
-The `FactorType` enum defines 8 factor types:
+The `FactorType` enum defines 10 factor types:
 
 | FactorType | Parameters | Arity constraint |
 |------------|-----------|-----------------|
 | `IMPLICATION` | none (deterministic) | exactly 1 premise |
+| `NEGATION` | none (deterministic) | exactly 1 premise |
 | `CONJUNCTION` | none (deterministic) | 2+ premises |
 | `DISJUNCTION` | none (deterministic) | 2+ premises |
 | `EQUIVALENCE` | none (deterministic) | exactly 2 premises |
@@ -324,6 +325,7 @@ The `FactorType` enum defines 8 factor types:
 | `COMPLEMENT` | none (deterministic) | exactly 2 premises |
 | `SOFT_ENTAILMENT` | `p1`, `p2` (require `p1 + p2 > 1`) | exactly 1 premise |
 | `CONDITIONAL` | `cpt` (length `2^k`) | 1+ premises |
+| `PAIRWISE_POTENTIAL` | `cpt` (length 4: joint weights) | exactly 2 variables (no conclusion) |
 
 Deterministic factors use Cromwell-softened potentials (`HIGH = 1 - EPS`,
 `LOW = EPS`).
@@ -336,7 +338,7 @@ Strategies are lowered by type. In v0.5 the canonical authoring path is through 
 - **`deduction`** (lowering target of `derive` and the deprecated `deduction` strategy): `CONJUNCTION` for multiple premises, then a hard `CONDITIONAL` implication with CPT `[0.5, 1 - EPS]`. Review gates whether the warrant enters the information set; it does not supply a numeric prior.
 - **`support`** (deprecated v5 strategy; lowering preserved for compatibility): soft implication via `SOFT_ENTAILMENT`; legacy `prior=` folds into its effective `p1`.
 - **`noisy_and`** (deprecated): `CONJUNCTION + SOFT_ENTAILMENT`. Single premise omits conjunction.
-- **`associate`**: pairwise potential between two Claims using the author-supplied `p_a_given_b` / `p_b_given_a` and at least one marginal prior.
+- **`associate`**: `PAIRWISE_POTENTIAL` factor over two Claims with joint weights derived from `p_a_given_b`, `p_b_given_a`, and at least one marginal prior. No helper conclusion variable.
 - **Bayes likelihood** (`bayes.likelihood(...)`): emits one `infer` strategy per hypothesis with `[0.5, clamp(exp(logL_i - logL_max))]`, plus rigid relation operators driven by the `exclusivity` setting.
 - **Other named formal types** (legacy v5: `elimination`, `case_analysis`, `analogy`, `extrapolation`, ...): auto-formalized via `formalize_named_strategy()`, then expanded to deterministic factors.
 - **`FormalStrategy`**: each embedded operator maps to a deterministic factor via `_OPERATOR_MAP`.

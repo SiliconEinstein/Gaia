@@ -20,7 +20,7 @@ Two side-channel command groups support the authoring loop without producing or 
 ```
 gaia inquiry  — local review loop (focus / obligation / hypothesis / review)
 gaia trace    — inference-trace verification and audit (verify / review / show)
-gaia starmap  — package-graph visualization (dot / svg / Sigma.js bundle)
+gaia starmap  — package-graph visualization (html / dot / svg)
 ```
 
 `gaia infer` is required before `gaia render --target github`; `--target docs` works without it (beliefs enrich the output when available but are not required).
@@ -73,7 +73,7 @@ gaia compile [PATH]
 3. Assigns labels from Python variable names to unlabeled objects (Knowledge labels and Action labels share a single namespace per package; collision is a compile error — see [../gaia-lang/knowledge-and-reasoning.md §4.3](../gaia-lang/knowledge-and-reasoning.md#43-action-label-references)).
 4. Compiles the collected package to Gaia IR via `gaia.lang.compiler.compile_package`. Action lowering, formula lowering, and bayes lowering all run as part of this step.
 5. Validates the resulting `LocalCanonicalGraph` (warnings printed, errors abort).
-6. Generates a baseline `ReviewManifest` over every action target and merges it with `<pkg>/reviews.json` if present.
+6. Generates a baseline `ReviewManifest` over every action target and merges it with `.gaia/review_manifest.json` if present.
 7. Writes `.gaia/ir.json` and `.gaia/ir_hash` to the package directory.
 
 Compilation is deterministic: same source produces the same `ir_hash`. No LLM
@@ -307,7 +307,7 @@ gaia inquiry tactics log
 gaia inquiry review                    # full review loop (compile + validate + analyze + snapshot)
 ```
 
-State persists in `.gaia/inquiry-state.json`. Review snapshots persist in `.gaia/reviews/<review_id>.json` for diffing.
+State persists in `.gaia/inquiry/state.json` and `.gaia/inquiry/tactics.jsonl`. Review snapshots persist in `.gaia/inquiry/reviews/<review_id>.json` for diffing.
 
 Reference: [../review/review-pipeline.md §4](../review/review-pipeline.md#4-cli-gaia-inquiry-review).
 
@@ -334,14 +334,14 @@ Reference: [../review/review-pipeline.md §6](../review/review-pipeline.md#6-cli
 Cross-paper / cross-package knowledge-graph visualization. Reads compiled IR (and optionally registry metadata) to render the constellation of claims, actions, and modules.
 
 ```
-gaia starmap [PATH] [--format dot|svg|sigma] [--theme stellaris] [--out OUTPUT]
+gaia starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--out OUTPUT]
 ```
 
 | Option | Default | Description |
 |---|---|---|
-| `--format` | `dot` | `dot` → Graphviz `.dot` source (paper-ready); `svg` → injected stellaris-glow SVG; `sigma` → Sigma.js / ForceAtlas2 bundle with HTML index |
-| `--theme` | `stellaris` | Visual theme; currently only `stellaris` is shipped |
-| `--out` | stdout / `.gaia/starmap/` | Output destination |
+| `--format` | `html` | `html` → interactive Sigma.js single-file bundle; `dot` → Graphviz `.dot` source (paper-ready); `svg` → rendered SVG with optional stellaris glow filters |
+| `--theme` | `light` | Visual theme: `light` (flat paper-friendly), `stellaris` / `dark` (deep-space dark with glow filters for svg) |
+| `--out` | `.gaia/starmap.{html,dot,svg}` | Output destination |
 
 `gaia starmap-replay` is an experimental sibling that renders an animated playback of declaration order.
 
@@ -351,14 +351,14 @@ gaia starmap [PATH] [--format dot|svg|sigma] [--theme stellaris] [--out OUTPUT]
 | Stage    | Command          | Key Artifacts |
 |----------|------------------|---------------|
 | Init     | `gaia init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
-| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, baseline `reviews.json` (if absent) |
+| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/review_manifest.json` (baseline if absent) |
 | Check    | `gaia check`     | (validation only) |
 | Add      | `gaia add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
-| Inquiry  | `gaia inquiry`   | `.gaia/inquiry-state.json`, `.gaia/reviews/<review_id>.json` |
+| Inquiry  | `gaia inquiry`   | `.gaia/inquiry/state.json`, `.gaia/inquiry/tactics.jsonl`, `.gaia/inquiry/reviews/<review_id>.json` |
 | Infer    | `gaia infer`     | `.gaia/beliefs.json`, trace under `.gaia/trace/` |
 | Trace    | `gaia trace`     | (audit only; reads trace files) |
 | Render   | `gaia render`    | `docs/detailed-reasoning.md`, `.github-output/` |
-| Starmap  | `gaia starmap`   | `.gaia/starmap/` (or stdout) |
+| Starmap  | `gaia starmap`   | `.gaia/starmap.{html,dot,svg}` |
 | Register | `gaia register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml` (in registry repo) |
 
 
