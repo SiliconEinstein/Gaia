@@ -7,8 +7,10 @@ conclusion it supports (directly or transitively).
 
 from __future__ import annotations
 
+from typing import Any
 
-def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
+
+def coarsen_ir(ir: dict[str, Any], exported_ids: set[str]) -> dict[str, Any]:
     """Produce a coarse-grained IR with leaf premises and exported conclusions.
 
     Parameters
@@ -97,18 +99,18 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
 
     # 4b. Also find exported → exported edges (one exported supports another)
     for exp in exported_ids:
-        visited: set[str] = set()
+        visited_export: set[str] = set()
         queue = list(forward.get(exp, []))
         while queue:
             node = queue.pop(0)
-            if node in visited:
+            if node in visited_export:
                 continue
-            visited.add(node)
+            visited_export.add(node)
             if node in exported_ids:
                 edges.append((exp, node))
                 continue
             for neighbor in forward.get(node, []):
-                if neighbor not in visited:
+                if neighbor not in visited_export:
                     queue.append(neighbor)
 
     # 4c. Handle unreachable exported conclusions.
@@ -141,18 +143,18 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
         surrogate_leaves: set[str] = set()
 
         for orphan in orphaned_exports:
-            visited: set[str] = set()
+            visited_reverse: set[str] = set()
             queue = list(reverse_adj.get(orphan, []))
             while queue:
                 node = queue.pop(0)
-                if node in visited:
+                if node in visited_reverse:
                     continue
-                visited.add(node)
+                visited_reverse.add(node)
                 lbl = kid_labels.get(node, "")
                 if lbl.startswith("__") or lbl.startswith("_anon"):
                     # Skip helpers, keep searching
                     for pred in reverse_adj.get(node, []):
-                        if pred not in visited:
+                        if pred not in visited_reverse:
                             queue.append(pred)
                     continue
                 if kid_types.get(node) != "claim":
@@ -170,11 +172,11 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
                     surrogate_leaves.add(node)
                 else:
                     # Check if all predecessors are already visited (cycle)
-                    if non_helper_preds <= visited:
+                    if non_helper_preds <= visited_reverse:
                         surrogate_leaves.add(node)
                     else:
                         for pred in preds:
-                            if pred not in visited:
+                            if pred not in visited_reverse:
                                 queue.append(pred)
 
         # Run forward BFS from surrogate leaves
@@ -308,8 +310,8 @@ def mutual_information(
 
 
 def compute_coarse_cpts(
-    ir: dict,
-    coarse: dict,
+    ir: dict[str, Any],
+    coarse: dict[str, Any],
     node_priors: dict[str, float] | None = None,
     strategy_params: dict[str, list[float]] | None = None,
     strategy_indices: set[int] | None = None,
@@ -357,7 +359,7 @@ def compute_coarse_cpts(
     # Build operator tensors directly from canon.operators.  Each operator
     # becomes one factor tensor using the same FactorType mapping as
     # lower_local_graph's operator pass.
-    operator_tensors: list[tuple] = []
+    operator_tensors: list[tuple[Any, list[str]]] = []
     for op in canon.operators:
         op_factor = Factor(
             factor_id=f"op_{op.conclusion}",
@@ -371,8 +373,8 @@ def compute_coarse_cpts(
     from gaia.ir.strategy import CompositeStrategy
 
     strat_by_id = {s.strategy_id: s for s in canon.strategies if s.strategy_id}
-    cache: dict = {}
-    strategy_tensors: list[tuple] = []
+    cache: dict[str, tuple[Any, list[str]]] = {}
+    strategy_tensors: list[tuple[Any, list[str]]] = []
     for s in canon.strategies:
         # CompositeStrategy organizes sub-strategies; its CPT is already a
         # contraction of its children's CPTs.  Including it as a separate

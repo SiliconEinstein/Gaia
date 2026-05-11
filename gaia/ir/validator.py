@@ -16,13 +16,13 @@ from gaia.ir.knowledge import (
     is_structural_expression_helper,
 )
 from gaia.ir.operator import Operator, OperatorType
-from gaia.ir.strategy import Strategy, CompositeStrategy, FormalStrategy, StrategyType
 from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
     PriorRecord,
     StrategyParamRecord,
 )
+from gaia.ir.strategy import CompositeStrategy, FormalStrategy, Strategy, StrategyType
 
 
 def _parse_qid(qid: str) -> tuple[str, str, str] | None:
@@ -767,33 +767,35 @@ def validate_parameterization(
 
     # check conditional_probabilities arity — only for infer/noisy_and
     strategy_lookup = {s.strategy_id: s for s in graph.strategies if s.strategy_id}
-    for r in strategy_params:
-        s = strategy_lookup.get(r.strategy_id)
-        if s is None:
+    for strategy_param in strategy_params:
+        strategy = strategy_lookup.get(strategy_param.strategy_id)
+        if strategy is None:
             continue  # dangling ref handled below
-        if s.type not in _PARAMETERIZED_TYPES:
+        if strategy.type not in _PARAMETERIZED_TYPES:
             continue  # non-parameterized, already warned
-        actual = len(r.conditional_probabilities)
-        if s.type == StrategyType.INFER:
-            expected = 2 ** len(s.premises)
+        actual = len(strategy_param.conditional_probabilities)
+        if strategy.type == StrategyType.INFER:
+            expected = 2 ** len(strategy.premises)
             if actual != expected:
                 result.error(
-                    f"StrategyParamRecord '{r.strategy_id}': infer strategy with "
-                    f"{len(s.premises)} premises requires 2^{len(s.premises)}={expected} "
+                    f"StrategyParamRecord '{strategy_param.strategy_id}': infer strategy with "
+                    f"{len(strategy.premises)} premises requires "
+                    f"2^{len(strategy.premises)}={expected} "
                     f"conditional_probabilities, got {actual}"
                 )
-        elif s.type == StrategyType.NOISY_AND:
+        elif strategy.type == StrategyType.NOISY_AND:
             if actual != 1:
                 result.error(
-                    f"StrategyParamRecord '{r.strategy_id}': noisy_and strategy "
+                    f"StrategyParamRecord '{strategy_param.strategy_id}': noisy_and strategy "
                     f"requires 1 conditional_probability, got {actual}"
                 )
 
     # Cromwell bounds on priors
-    for r in priors:
-        if r.value < CROMWELL_EPS or r.value > 1 - CROMWELL_EPS:
+    for prior_record in priors:
+        if prior_record.value < CROMWELL_EPS or prior_record.value > 1 - CROMWELL_EPS:
             result.error(
-                f"PriorRecord '{r.knowledge_id}': value {r.value} outside Cromwell bounds "
+                f"PriorRecord '{prior_record.knowledge_id}': value {prior_record.value} "
+                f"outside Cromwell bounds "
                 f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
             )
 
@@ -808,9 +810,11 @@ def validate_parameterization(
 
     # dangling references: priors for non-existent claims
     all_knowledge_ids = {k.id for k in graph.knowledges if k.id}
-    for r in priors:
-        if r.knowledge_id not in all_knowledge_ids:
-            result.warn(f"PriorRecord '{r.knowledge_id}': references non-existent Knowledge")
+    for prior_record in priors:
+        if prior_record.knowledge_id not in all_knowledge_ids:
+            result.warn(
+                f"PriorRecord '{prior_record.knowledge_id}': references non-existent Knowledge"
+            )
 
     # dangling references: params for non-existent strategies
     for r in strategy_params:

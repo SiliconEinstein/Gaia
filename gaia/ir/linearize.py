@@ -8,6 +8,7 @@ are grouped together, independent of the Python module structure.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -66,7 +67,7 @@ def _union_find_group(
 
 
 def linearize_narrative(
-    coarse: dict,
+    coarse: dict[str, Any],
     beliefs: dict[str, float] | None = None,
     priors: dict[str, float] | None = None,
     mi_per_strategy: dict[int, float] | None = None,
@@ -91,7 +92,7 @@ def linearize_narrative(
     # Build adjacency
     forward: dict[str, list[str]] = {}
     backward: dict[str, list[str]] = {}
-    strategy_for_conclusion: dict[str, dict] = {}
+    strategy_for_conclusion: dict[str, dict[str, Any]] = {}
     strategy_idx_for_conclusion: dict[str, int] = {}
 
     for i, s in enumerate(coarse["strategies"]):
