@@ -1,12 +1,12 @@
 ---
 status: current-canonical
 layer: gaia-lang
-since: v5-phase-1
+since: v0.5
 ---
 
 # Gaia Lang Package Model
 
-A Gaia knowledge package is a standard Python library that declares knowledge (claims, settings, questions), reasoning strategies, and logical operators using the Gaia Lang DSL. This document defines how packages are structured, configured, named, and what artifacts they produce.
+A Gaia knowledge package is a standard Python library that declares knowledge (claims, notes, questions), reasoning actions, and logical operators using the Gaia Lang DSL. This document defines how packages are structured, configured, named, and what artifacts they produce. For the conceptual model behind the surface, see [knowledge-and-reasoning.md](knowledge-and-reasoning.md).
 
 ## Package Creation
 
@@ -17,7 +17,24 @@ gaia init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
 ```
 
-This scaffolds the complete package: `pyproject.toml` (with `[tool.gaia]` config and a generated UUID), the `src/` directory layout, a DSL template in `__init__.py`, and `.gitignore` with `.gaia/` entry. Package name must end with `-gaia`.
+This wraps `uv init --lib` to scaffold a standard Python library, then patches `pyproject.toml` to add `[tool.hatch.build.targets.wheel]` (so the renamed `src/<import_name>/` is picked up) and `[tool.gaia]` with a generated UUID. It also writes a v0.5 DSL template to `__init__.py`, appends Gaia ignore patterns to `.gitignore`, and runs `uv add gaia-lang`. Package name must end with `-gaia`.
+
+The generated `__init__.py` template uses the v0.5 action surface:
+
+```python
+from gaia.lang import claim, derive, note
+
+context = note("Background context for this package.")
+hypothesis = claim("A scientific hypothesis.")
+prediction = derive(
+    "A testable prediction follows from the hypothesis.",
+    given=hypothesis,
+    background=[context],
+    rationale="Explain why the hypothesis entails this prediction.",
+)
+
+__all__ = ["hypothesis", "prediction"]
+```
 
 ## pyproject.toml Structure
 
@@ -117,7 +134,7 @@ Three visibility levels control what the compiler exports and how labels are ass
 | **Public** | No `_` prefix, not necessarily in `__all__` | Package-internal. Variable name becomes the label. Compiled into IR. |
 | **Private** | `_` prefix | Not labeled by the CLI. Still compiled into IR as anonymous nodes. Local helpers only. |
 
-Labels are assigned automatically from variable names during package loading. If a `Knowledge` or `Strategy` object is bound to a module-level variable and listed in `__all__` (or is public with no `__all__`), its variable name becomes its `.label` field. The label then forms the final segment of the object's QID.
+Labels are assigned automatically from variable names during package loading. If a `Knowledge` or `Action` object is bound to a module-level variable and listed in `__all__` (or is public with no `__all__`), its variable name becomes its `.label` field. The label then forms the final segment of the object's QID. Action labels are addressable via `[@label]` references the same way Knowledge labels are; see [knowledge-and-reasoning.md §4.3](knowledge-and-reasoning.md#43-action-label-references).
 
 Example:
 
@@ -156,9 +173,12 @@ dependencies = [
 
 ```python
 # galileo_falling_bodies/reasoning.py
+from gaia.lang import claim, derive
 from aristotle_mechanics import natural_motion
 
-hypothesis = claim("Heavy objects fall faster.", given=[natural_motion])
+hypothesis = claim("Heavy objects fall faster.")
+derive(hypothesis, given=natural_motion,
+       rationale="Aristotle's natural-motion doctrine entails it.")
 ```
 
 At compile time, imported Knowledge objects retain their foreign QIDs (e.g., `github:aristotle_mechanics::natural_motion`). The local graph records both owned and foreign QIDs. See [../gaia-ir/03-identity-and-hashing.md](../gaia-ir/03-identity-and-hashing.md) for the ownership vs. reference distinction.
@@ -201,13 +221,17 @@ priors, and model warrants with current action/relation verbs.
 
 All artifacts are written to `.gaia/` within the package root.
 
-| Artifact | Written by | Contents |
-|----------|-----------|----------|
-| `.gaia/ir.json` | `gaia compile` | `LocalCanonicalGraph` -- the complete compiled IR |
-| `.gaia/ir_hash` | `gaia compile` | SHA-256 hash of the canonical IR serialization |
-| `.gaia/beliefs.json` | `gaia infer` | BP inference output: posterior beliefs per knowledge node |
+| Artifact | Written by | Tracked in git? | Contents |
+|----------|-----------|-----------------|----------|
+| `.gaia/ir.json` | `gaia compile` | yes | `LocalCanonicalGraph` -- the complete compiled IR |
+| `.gaia/ir_hash` | `gaia compile` | yes | SHA-256 hash of the canonical IR serialization |
+| `.gaia/beliefs.json` | `gaia infer` | no (gitignored) | BP inference output: posterior beliefs per knowledge node |
+| `.gaia/dep_beliefs/` | `gaia infer` | no (gitignored) | cached posterior beliefs from upstream `*-gaia` dependencies |
 
-The `.gaia/` directory should be git-tracked so that compiled artifacts travel with the source. Add `__pycache__/` and `*.pyc` to `.gitignore`, but not `.gaia/`.
+The first two artifacts must travel with the source so that registry
+clients can verify the compiled graph; the inference outputs are
+reproducible from source + priors and are intentionally regenerated.
+`gaia init` writes both ignore patterns into `.gitignore` automatically.
 
 ## Package Lifecycle
 
@@ -234,6 +258,6 @@ The check command validates three categories:
 
 **Object-level:** Every Knowledge has a valid type and non-empty content.
 
-**Graph-level:** All referenced IDs exist, strategy premises/conclusions are claims (not settings or questions), no cyclic dependencies, ID uniqueness.
+**Graph-level:** All referenced IDs exist; strategy and action premises / conclusions are Claims (not Notes or Questions); decomposition graphs have no cycles and every atomic part appears in the formula exactly once; no cyclic strategy / operator dependencies; ID uniqueness; Knowledge labels and Action labels do not collide within the same package.
 
 **Artifact-level:** `.gaia/ir_hash` matches current source compilation, `.gaia/ir.json` is consistent.

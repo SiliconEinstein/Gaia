@@ -1,26 +1,31 @@
 ---
 status: current-canonical
 layer: cli
-since: v5-phase-1
+since: v0.5
 ---
 
 # CLI Workflow
 
 ## Overview
 
-The Gaia CLI is a knowledge package authoring toolkit. It provides a seven-command
-pipeline that takes a Python DSL package from scaffolding to registry registration:
+The Gaia CLI is a knowledge package authoring toolkit. The main authoring pipeline takes a Python DSL package from scaffolding to registry registration:
 
 ```
-gaia init --> gaia add --> write package --> gaia compile --> gaia infer --> gaia render --> git tag --> gaia register
-(scaffold)   (add deps)    (DSL code)      (DSL -> IR)     (optional*)     (present)              (registry PR)
+gaia init --> gaia add --> write package --> gaia compile --> gaia check --> gaia infer --> gaia render --> git tag --> gaia register
+(scaffold)   (add deps)    (DSL code)      (DSL -> IR)     (validate)    (BP)            (present)              (registry PR)
 ```
 
-`*` `gaia infer` is required before `gaia render --target github`; `--target docs`
-works without it (beliefs enrich the output when available but are not required).
+Two side-channel command groups support the authoring loop without producing or modifying IR / priors / beliefs:
 
-Entry point: installed as the `gaia` CLI command via `pyproject.toml`
-`[project.scripts]`, backed by a Typer app at `gaia.cli.main:app`.
+```
+gaia inquiry  — local review loop (focus / obligation / hypothesis / review)
+gaia trace    — inference-trace verification and audit (verify / review / show)
+gaia starmap  — package-graph visualization (html / dot / svg)
+```
+
+`gaia infer` is required before `gaia render --target github`; `--target docs` works without it (beliefs enrich the output when available but are not required).
+
+Entry point: installed as the `gaia` CLI command via `pyproject.toml` `[project.scripts]`, backed by a Typer app at `gaia.cli.main:app`.
 
 
 ## Commands
@@ -64,11 +69,12 @@ gaia compile [PATH]
 **What it does:**
 
 1. Loads the package from `pyproject.toml` (requires `[tool.gaia].type = "knowledge-package"`).
-2. Imports the Python module, collects `Knowledge`, `Strategy`, and `Operator` declarations.
-3. Assigns labels from Python variable names to unlabeled objects.
-4. Compiles the collected package to Gaia IR via `gaia.lang.compiler.compile_package`.
+2. Imports the Python module, collects `Knowledge`, `Action` (including `Compose`), `Strategy`, and `Operator` declarations registered to the active `CollectedPackage`.
+3. Assigns labels from Python variable names to unlabeled objects (Knowledge labels and Action labels share a single namespace per package; collision is a compile error — see [../gaia-lang/knowledge-and-reasoning.md §4.3](../gaia-lang/knowledge-and-reasoning.md#43-action-label-references)).
+4. Compiles the collected package to Gaia IR via `gaia.lang.compiler.compile_package`. Action lowering, formula lowering, and bayes lowering all run as part of this step.
 5. Validates the resulting `LocalCanonicalGraph` (warnings printed, errors abort).
-6. Writes `.gaia/ir.json` and `.gaia/ir_hash` to the package directory.
+6. Generates a baseline `ReviewManifest` over every action target and attaches it in memory to `CompiledPackage.review`. The manifest is not persisted by `gaia compile`; it is read/merged later by `gaia inquiry review` and `gaia infer` when `.gaia/review_manifest.json` exists.
+7. Writes `.gaia/ir.json` and `.gaia/ir_hash` to the package directory.
 
 Compilation is deterministic: same source produces the same `ir_hash`. No LLM
 calls, no network access.
@@ -284,16 +290,75 @@ gaia register [PATH] [--tag TAG] [--repo URL] [--registry-dir PATH]
 Reference: [Registration](registration.md) for details.
 
 
+## Authoring Side-Channels
+
+These commands support the authoring loop but do not produce or mutate IR, priors, or beliefs. They read what `gaia compile` and `gaia infer` already wrote.
+
+### `gaia inquiry`
+
+Local review loop and proof-state ledger. Reads the compiled IR, the merged review manifest, the current focus claim, obligations, and working hypotheses; never modifies `.py` source, IR, priors, or beliefs.
+
+```
+gaia inquiry focus [TARGET]            # set / clear / push / pop / inspect focus
+gaia inquiry obligation add|list|close
+gaia inquiry hypothesis add|list|remove
+gaia inquiry reject [TARGET]
+gaia inquiry tactics log
+gaia inquiry review                    # full review loop (compile + validate + analyze + snapshot)
+```
+
+State persists in `.gaia/inquiry/state.json` and `.gaia/inquiry/tactics.jsonl`. Review snapshots persist in `.gaia/inquiry/reviews/<review_id>.json` for diffing.
+
+Reference: [../review/review-pipeline.md §4](../review/review-pipeline.md#4-cli-gaia-inquiry-review).
+
+### `gaia trace`
+
+ARM (Auditable Reasoning Manifest) trace reviewer. Inference and other agent-side workflows emit hash-chained trace files; this command verifies and audits them.
+
+```
+gaia trace verify <PATH>                                  # schema + hash-chain check
+gaia trace review <PATH> [--mode trace|publish] [--package PKG] [--json|--markdown] [--strict]
+gaia trace show <PATH> [--kind KIND] [--limit N] [--json]
+```
+
+Exit codes:
+- `verify`: 0 clean / 1 chain or manifest mismatch / 2 schema error.
+- `review`: 0 clean / 1 error diagnostic (or `--strict` warning) / 2 invalid CLI args.
+
+`--mode publish` weighs diagnostics more strictly for release-gate use; `--mode trace` is the authoring-time view. `--package <pkg>` cross-references `claim_ref` events against the package's `Review` records.
+
+Reference: [../review/review-pipeline.md §6](../review/review-pipeline.md#6-cli-gaia-trace-verify--review--show).
+
+### `gaia starmap`
+
+Cross-paper / cross-package knowledge-graph visualization. Reads compiled IR (and optionally registry metadata) to render the constellation of claims, actions, and modules.
+
+```
+gaia starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--out OUTPUT]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--format` | `html` | `html` → interactive Sigma.js single-file bundle; `dot` → Graphviz `.dot` source (paper-ready); `svg` → rendered SVG with optional stellaris glow filters |
+| `--theme` | `light` | Visual theme: `light` (flat paper-friendly), `stellaris` / `dark` (deep-space dark with glow filters for svg) |
+| `--out` | `.gaia/starmap.{html,dot,svg}` | Output destination |
+
+`gaia starmap-replay` is an experimental sibling that renders an animated playback of declaration order.
+
+
 ## Artifacts by Stage
 
 | Stage    | Command          | Key Artifacts |
 |----------|------------------|---------------|
 | Init     | `gaia init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
-| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash` |
+| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/compile_metadata.json`, `.gaia/formalization_manifest.json` |
 | Check    | `gaia check`     | (validation only) |
 | Add      | `gaia add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
-| Infer    | `gaia infer`     | `.gaia/beliefs.json` |
+| Inquiry  | `gaia inquiry`   | `.gaia/inquiry/state.json`, `.gaia/inquiry/tactics.jsonl`, `.gaia/inquiry/reviews/<review_id>.json`, `.gaia/review_manifest.json` (persisted by inquiry review) |
+| Infer    | `gaia infer`     | `.gaia/beliefs.json`, trace under `.gaia/trace/`, `.gaia/review_manifest.json` (merged/persisted if reviews exist) |
+| Trace    | `gaia trace`     | (audit only; reads trace files) |
 | Render   | `gaia render`    | `docs/detailed-reasoning.md`, `.github-output/` |
+| Starmap  | `gaia starmap`   | `.gaia/starmap.{html,dot,svg}` |
 | Register | `gaia register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml` (in registry repo) |
 
 
@@ -306,7 +371,7 @@ A valid Gaia knowledge package has:
 - `[project].version` set.
 - `[tool.gaia].uuid` set to a valid UUID (required for `register`).
 - A Python module at `src/<import_name>/` or `<import_name>/` that declares
-  `Knowledge`, `Strategy`, and/or `Operator` objects.
+  `Knowledge`, `Action` (including `Compose`), `Strategy`, and/or `Operator` objects.
 
 The import name is derived from the project name: strip the `-gaia` suffix and
 replace hyphens with underscores (e.g., `galileo-falling-bodies-gaia` becomes
