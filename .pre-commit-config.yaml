@@ -1,0 +1,29 @@
+exclude: ^(\.refactor/|tmp/)
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+        files: ^(\.pre-commit-config\.yaml|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+      - id: trailing-whitespace
+        files: ^(\.pre-commit-config\.yaml|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff-check
+        args: [--fix, --select=E4,E7,E9,F]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy strict (manual until Phase 2)
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        stages: [manual]

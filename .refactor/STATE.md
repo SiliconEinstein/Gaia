@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 0 complete → Phase 1 ready to start
-**Last updated**: 2026-05-12 00:16 (Phase 1.3 complete)
+**Last updated**: 2026-05-12 00:26 (Phase 1.4 complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -35,7 +35,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **Phase 0 — Repo prepare** (Claude-led from home_agent side)
   - Done: 0.1 branch cut · 0.2 doc fidelity baseline · 0.3 mortal banner · 0.4 STATE.md framework · 0.5 baseline metrics · 0.6 commit + push · 0.7 iteration playbook
 - [ ] **Phase 1 — Engineering baseline injection** (user dispatches in-repo agents serially)
-  - Progress: 3 / 9 work units
+  - Progress: 4 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
   - Progress: 0 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
@@ -84,8 +84,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **1.3** `pyproject.toml` — pytest addopts add `--strict-markers` + `--cov-fail-under=90`; dev extras adds pre-commit
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:11 | completed_at: 2026-05-12 00:16 | breakpoint_notes: Added pytest `addopts` for `--strict-markers`, `--cov=gaia`, `--cov-report=term-missing`, and `--cov-fail-under=90`, so the local pytest entry point enforces the 90% coverage gate. Added `pre-commit>=4.6.0` to the dev extra via `uv add --optional dev pre-commit`, updating `uv.lock` with its transitive dependencies. Verification: `uv sync --extra dev && uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.31%, required 90% reached; `uv run ruff check . --statistics --exit-zero` => config parsed, 976 known Phase 2 full-select backlog items; `uv run ruff format --check .` => 280 files already formatted.
   - Ref: 协作单 § Must-migrate #4
-- [ ] **1.4** New `.pre-commit-config.yaml` — hygiene hooks + ruff (check --fix / format) + local mypy hook + exclude `^\.refactor/` + exclude `^tmp/`
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+- [x] **1.4** New `.pre-commit-config.yaml` — hygiene hooks + ruff (check --fix / format) + local mypy hook + exclude `^\.refactor/` + exclude `^tmp/`
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:20 | completed_at: 2026-05-12 00:26 | breakpoint_notes: Added `.pre-commit-config.yaml` with global excludes for `^\.refactor/` and `^tmp/`, standard hygiene hooks, `ruff-check --fix --select=E4,E7,E9,F`, `ruff-format`, and a local `uv run mypy` hook staged as `manual` until Phase 2 clears the strict type backlog. EOF / trailing-whitespace hooks are scoped away from generated storage fixtures and archival/protected docs after an initial dry run showed they would otherwise rewrite unrelated files, including protected foundations docs. Verification: `uv run pre-commit run --all-files` => all default hooks passed (merge-conflict, YAML, EOF, trailing whitespace, private-key, ruff check, ruff format).
   - Ref: 协作单 § Must-migrate #3
 - [ ] **1.5** `.github/workflows/ci.yml` — switch to `uv sync --extra dev` + add mypy step
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
