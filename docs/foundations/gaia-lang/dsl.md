@@ -550,11 +550,18 @@ unified `@` syntax:
 `note`, or `question`, or an explicit `label=`) or an Action label (the
 `label=` argument on `derive` / `observe` / `compute` / `predict` / `infer`
 / `associate` / `equal` / `contradict` / `exclusive` / `decompose` / `@compose`).
-Action labels resolve to the action's lowered target QID — the conclusion
-Claim for `Support` actions, the warrant helper Claim for `Probabilistic`
-and `Structural` actions, and the `Compose` node for `@compose`. The
-scaffold-only `depends_on` action is **not addressable** because it leaves
-no IR target.
+Action labels resolve to the action's lowered IR target — a Strategy or
+Operator ID, which then resolves to the action's warrant helper Claim for
+provenance attribution. Exception: `observe()` with no premises maps directly
+to the conclusion Claim. The scaffold-only `depends_on` action is **not
+addressable** because it leaves no IR target.
+
+**Semantic distinction:** This provides two ways to reference a conclusion:
+- `[@conclusion_label]` references the conclusion Claim itself
+- `[@action_label]` references the warrant that supports the conclusion
+
+Example: "See [@derive_b] for the derivation of [@b]" clearly separates
+the reasoning from the result.
 
 Compile enforces three invariants: (1) a key cannot exist in both the
 label table and `references.json` (collision -> compile error); (2) a
