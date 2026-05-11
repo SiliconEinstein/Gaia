@@ -1210,9 +1210,29 @@ def compile_package_artifact(
 
     # Build label-to-QID table from the full knowledge closure (local + imported foreign nodes).
     label_to_id: dict[str, str] = {}
+    knowledge_label_ids: dict[str, set[str]] = {}
     for k in knowledge_nodes:
         if k.label:
-            label_to_id[k.label] = knowledge_map[id(k)]
+            qid = knowledge_map[id(k)]
+            label_to_id[k.label] = qid
+            knowledge_label_ids.setdefault(k.label, set()).add(qid)
+
+    def _action_reference_target(action: Action, default_target_qid: str) -> str:
+        """Return the QID an author-side action label should resolve to in text."""
+        if not action.label:
+            return default_target_qid
+        if (
+            isinstance(action, Support)
+            and action.conclusion is not None
+            and action.conclusion.label == action.label
+        ):
+            return knowledge_map[id(action.conclusion)]
+        helper = getattr(action, "helper", None)
+        if helper is not None and getattr(helper, "label", None) == action.label:
+            helper_qid = knowledge_map.get(id(helper))
+            if helper_qid is not None:
+                return helper_qid
+        return default_target_qid
 
     # Check for Knowledge/Action label collisions before merging action labels.
     # Build a map from short action labels to their target QIDs.
@@ -1226,24 +1246,17 @@ def compile_package_artifact(
         target_qid = action_label_map.get(action_label_qid)
         if target_qid is None:
             continue
-        action_short_labels[action.label] = target_qid
+        action_short_labels[action.label] = _action_reference_target(action, target_qid)
 
-    # Collision check: reject when the same label is used for both a user-authored
-    # Knowledge node and an Action. Exclude action-owned helper Knowledge nodes
-    # (those with metadata['generated']=True and metadata['helper_kind']) from the
-    # collision set, as they are intentionally created by the action lowering and
-    # share the action's label by design (e.g., bayes.model/likelihood helpers).
-    user_knowledge_labels = set()
-    for k in knowledge_nodes:
-        if not k.label:
-            continue
-        # Skip action-owned helpers
-        if k.metadata.get('generated') and k.metadata.get('helper_kind'):
-            continue
-        user_knowledge_labels.add(k.label)
-
-    action_labels_set = set(action_short_labels.keys())
-    label_collisions = sorted(action_labels_set & user_knowledge_labels)
+    # Collision check: reject when the same author label points at distinct
+    # Knowledge and Action targets. If an action intentionally shares a label
+    # with its own conclusion/helper, both labels resolve to the same target and
+    # are therefore not ambiguous.
+    label_collisions = sorted(
+        label
+        for label, target_qid in action_short_labels.items()
+        if label in knowledge_label_ids and knowledge_label_ids[label] != {target_qid}
+    )
     if label_collisions:
         quoted = ", ".join(f"'{lbl}'" for lbl in label_collisions)
         raise ValueError(
@@ -1330,12 +1343,19 @@ def compile_package_artifact(
     # now reference-bearing text.
     # Since action targets may be Strategy/Operator nodes, we need to resolve them
     # to their corresponding Knowledge nodes (warrant helpers, conclusion claims).
-    action_rationale_refs: dict[str, tuple[set[str], set[str]]] = {}  # target_knowledge_qid -> (k_refs, c_refs)
+    action_rationale_refs: dict[
+        str, tuple[set[str], set[str]]
+    ] = {}  # target_knowledge_qid -> (k_refs, c_refs)
 
     # Build a mapping from Strategy/Operator IDs to their warrant helper Knowledge IDs
     # by scanning all strategies and operators for 'warrants' metadata.
     all_strategies = [*ir_strategies, *formula_generated_strategies, *bayes_lowered.strategies]
-    all_operators = [*ir_operators, *action_operators, *formula_generated_operators, *bayes_lowered.operators]
+    all_operators = [
+        *ir_operators,
+        *action_operators,
+        *formula_generated_operators,
+        *bayes_lowered.operators,
+    ]
 
     for action in getattr(pkg, "actions", []):
         if not action.rationale:
@@ -1362,7 +1382,7 @@ def compile_package_artifact(
         # Check if it's a Strategy
         for strat in all_strategies:
             if strat.strategy_id == target_id:
-                warrants = strat.metadata.get('warrants', []) if strat.metadata else []
+                warrants = strat.metadata.get("warrants", []) if strat.metadata else []
                 if warrants:
                     target_knowledge_ids.extend(warrants)
                 else:
@@ -1375,7 +1395,7 @@ def compile_package_artifact(
         if not target_knowledge_ids:
             for op in all_operators:
                 if op.operator_id == target_id:
-                    warrants = op.metadata.get('warrants', []) if op.metadata else []
+                    warrants = op.metadata.get("warrants", []) if op.metadata else []
                     if warrants:
                         target_knowledge_ids.extend(warrants)
                     else:

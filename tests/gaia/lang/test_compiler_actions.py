@@ -1,3 +1,5 @@
+import pytest
+
 from gaia.lang import (
     Claim,
     associate,
@@ -370,3 +372,28 @@ def test_compile_depends_on_action_to_formalization_manifest_only():
             "metadata": {},
         }
     ]
+
+
+def test_support_action_can_share_label_with_own_conclusion():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        c = derive("C.", given=a, rationale="A implies C.", label="derive_c")
+        c.label = "derive_c"
+
+    compiled = compile_package_artifact(pkg)
+
+    assert _knowledge_by_label(compiled)["derive_c"].id == "github:v6_actions::derive_c"
+
+
+def test_unrelated_knowledge_action_label_collision_still_raises():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        unrelated = Claim("Unrelated claim.")
+        unrelated.label = "derive_c"
+        c = derive("C.", given=a, rationale="A implies C.", label="derive_c")
+        c.label = "c"
+
+    with pytest.raises(ValueError, match="label collision"):
+        compile_package_artifact(pkg)
