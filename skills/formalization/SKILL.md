@@ -89,7 +89,7 @@ derived = derive(
 )
 ```
 
-### Empirical observation with grounding
+### Empirical observation
 
 ```python
 obs = observe(
@@ -178,18 +178,17 @@ Confirm:
 - derived claims do not receive manual priors;
 - helper claims from relations, Boolean expressions, `infer(...)`, and
   `associate(...)` do not receive manual priors;
-- root `observe(...)` claims that matter to exported goals are covered by
-  priors or intentionally left to MaxEnt.
+- zero-premise `observe(...)` claims are already pinned to `1 - CROMWELL_EPS`.
 
 ## Pass 6: Write Priors And Infer
 
 Create `src/<package>/priors.py`:
 
 ```python
-from . import observation, hypothesis
+from . import measured_data, hypothesis
 
 PRIORS: dict = {
-    observation: (0.9, "Direct measurement reported in the source."),
+    measured_data: (0.9, "Independent measured input reported in the source."),
     hypothesis: (0.5, "Neutral before this package's evidence is applied."),
 }
 ```

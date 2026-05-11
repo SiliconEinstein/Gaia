@@ -14,7 +14,7 @@ Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Pa
 from gaia.lang import (
     claim, note, question,                                 # Knowledge
     Variable, Nat, Real, Probability, Bool,                # Formula terms
-    parameter, observation, causal,                        # Structured formula claims
+    parameter, causal,                                     # Structured formula claims
     not_, and_, or_,                                      # Propositional expressions
     contradict, equal, exclusive,                         # Reviewable relations
     observe, derive, compute, infer,                       # Recommended actions
@@ -135,22 +135,26 @@ h = parameter(
 The compiled source claim gets an IR parameter and `metadata.formula_bindings`
 for `p = 0.75`.
 
-### `observation(..., describe=None, prior=None, label=None)`
+### Structured measured values
 
-Creates a `ClaimKind.OBSERVATION` claim from variables with concrete `value`
-fields. Multiple observations lower as a conjunction of equalities, while the
-primitive bindings are still copied back to the source claim.
+Observation is represented by `observe(...)`, not by a claim kind. For measured
+values, write an ordinary formula claim and then mark it with a zero-premise
+`observe(...)`.
 
 ```python
-n = Variable(symbol="n", domain=Nat, value=395)
-k = Variable(symbol="k", domain=Nat, value=295)
-d = observation(
-    n=n,
-    k=k,
-    describe="Observed 295 dominant phenotypes out of 395 F2 plants.",
-    prior=0.95,
+n = Variable(symbol="n", domain=Nat)
+k = Variable(symbol="k", domain=Nat)
+d = observe(
+    claim(
+        "Observed 295 dominant phenotypes out of 395 F2 plants.",
+        formula=land(equals(n, Constant(395, Nat)), equals(k, Constant(295, Nat))),
+    ),
+    rationale="Extracted from the reported count table.",
 )
 ```
+
+The primitive bindings are still copied back to the source claim. A
+zero-premise observation pins the claim to `1 - CROMWELL_EPS`.
 
 ### `causal(cause, effect, *, describe=None, prior=None, label=None, ...)`
 
@@ -175,7 +179,7 @@ because the relation itself is the semantic object reviewers inspect.
 
 ### `observe(conclusion, *, given=(), background=None, rationale="", label=None)`
 
-Empirical observation. With no `given`, it records grounding on the conclusion and still creates a reviewable observation warrant. A root observation is also an independent probabilistic input for `gaia check --hole`.
+Empirical observation. With no `given`, it pins the conclusion to `1 - CROMWELL_EPS` and creates a reviewable observation warrant on the claim's `supported_by` metadata. With `given`, it lowers as an observation-pattern support edge from the premises to the conclusion and does not assign a prior.
 
 ### `derive(conclusion, *, given=(), background=None, rationale="", label=None)`
 

@@ -7,8 +7,8 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
+from gaia.ir.parameterization import CROMWELL_EPS
 from gaia.lang.runtime.action import Compute, Derive, Observe
-from gaia.lang.runtime.grounding import Grounding
 from gaia.lang.runtime.knowledge import Claim, Knowledge
 
 
@@ -43,6 +43,16 @@ def _implication_warrant(
     return Claim(content, metadata=metadata)
 
 
+def _pin_observed_claim(conclusion: Claim) -> None:
+    pinned = 1.0 - CROMWELL_EPS
+    if conclusion.prior is not None and conclusion.prior != pinned:
+        raise ValueError(
+            "zero-premise observe() pins the conclusion to 1 - CROMWELL_EPS; "
+            "do not combine it with a different Claim.prior"
+        )
+    conclusion.prior = pinned
+
+
 def derive(
     conclusion: Claim | str,
     *,
@@ -69,7 +79,7 @@ def derive(
         conclusion=conclusion,
         given=given_tuple,
     )
-    conclusion.supports.append(action)
+    conclusion.supported_by.append(action)
     return conclusion
 
 
@@ -78,6 +88,7 @@ def observe(
     *,
     given: Claim | tuple[Claim, ...] | list[Claim] | None = (),
     background: list[Knowledge] | None = None,
+    source_refs: list[str] | None = None,
     rationale: str = "",
     label: str | None = None,
 ) -> Claim:
@@ -96,12 +107,13 @@ def observe(
         rationale=rationale,
         background=list(background or []),
         warrants=[warrant],
+        metadata={"source_refs": list(source_refs)} if source_refs else {},
         conclusion=conclusion,
         given=given_tuple,
     )
-    if not given_tuple and conclusion.grounding is None:
-        conclusion.grounding = Grounding(kind="source_fact", rationale=rationale)
-    conclusion.supports.append(action)
+    if not given_tuple:
+        _pin_observed_claim(conclusion)
+    conclusion.supported_by.append(action)
     return conclusion
 
 
@@ -154,7 +166,7 @@ def _compute_call(
         given=given_tuple,
         fn=fn,
     )
-    conclusion.supports.append(action)
+    conclusion.supported_by.append(action)
     return conclusion
 
 
@@ -199,7 +211,7 @@ def compute(
                 given=given_tuple,
                 fn=wrapped_fn,
             )
-            conclusion.supports.append(action)
+            conclusion.supported_by.append(action)
             return conclusion
 
         return wrapper

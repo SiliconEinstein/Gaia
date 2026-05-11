@@ -34,7 +34,6 @@ class ReviewOutput:
 | `claim` | 0.5 |
 | `question` | 0.5 |
 | `action` | 0.5 |
-| `observation` | 0.5 |
 | `contradiction` | 0.5 |
 | `equivalence` | 0.5 |
 

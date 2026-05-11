@@ -18,7 +18,6 @@ from gaia.lang.runtime.action import (
 )
 from gaia.lang.runtime.composition import Composition, compose, composition
 from gaia.lang.runtime.domain import Domain
-from gaia.lang.runtime.grounding import Grounding
 from gaia.lang.runtime.knowledge import (
     Claim,
     ClaimKind,
@@ -48,7 +47,6 @@ __all__ = [
     "Domain",
     "Equal",
     "Exclusive",
-    "Grounding",
     "Infer",
     "Knowledge",
     "Note",

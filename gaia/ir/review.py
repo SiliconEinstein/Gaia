@@ -16,13 +16,13 @@ class ReviewStatus(StrEnum):
 
 
 class Review(BaseModel):
-    """Qualitative review record for a compiled Strategy or Operator target."""
+    """Qualitative review record for a compiled action, strategy, or operator target."""
 
     model_config = ConfigDict(extra="forbid")
 
     review_id: str
     action_label: str
-    target_kind: Literal["strategy", "operator", "knowledge", "compose"]
+    target_kind: Literal["action", "strategy", "operator", "knowledge", "compose"]
     target_id: str
     status: ReviewStatus
     audit_question: str

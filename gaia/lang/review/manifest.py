@@ -72,16 +72,15 @@ def _strategy_question(strategy: Any, action_type: str, labels: dict[str, str]) 
     )
 
 
-def _grounding_action_label(knowledge: Any) -> str | None:
+def _knowledge_supported_by_entries(knowledge: Any) -> list[dict[str, Any]]:
     metadata = knowledge.metadata or {}
-    grounding = metadata.get("grounding")
-    if not isinstance(grounding, dict):
-        return None
-    action_label = grounding.get("action_label")
-    return action_label if isinstance(action_label, str) and action_label else None
+    supported_by = metadata.get("supported_by")
+    if not isinstance(supported_by, list):
+        return []
+    return [entry for entry in supported_by if isinstance(entry, dict)]
 
 
-def _grounding_question(knowledge: Any, labels: dict[str, str]) -> str:
+def _observe_question(knowledge: Any, labels: dict[str, str]) -> str:
     knowledge_id = knowledge.id or ""
     return generate_audit_question(
         "observe",
@@ -124,20 +123,25 @@ def generate_review_manifest(compiled: Any) -> ReviewManifest:
     reviews: list[Review] = []
 
     for knowledge in compiled.graph.knowledges:
-        action_label = _grounding_action_label(knowledge)
-        if not action_label or not knowledge.id:
+        if not knowledge.id:
             continue
-        reviews.append(
-            Review(
-                review_id=_review_id("knowledge", knowledge.id),
-                action_label=action_label,
-                target_kind="knowledge",
-                target_id=knowledge.id,
-                status=ReviewStatus.UNREVIEWED,
-                audit_question=_grounding_question(knowledge, labels),
-                round=1,
+        for entry in _knowledge_supported_by_entries(knowledge):
+            if entry.get("pattern") != "observation":
+                continue
+            action_label = entry.get("action_label")
+            if not isinstance(action_label, str) or not action_label:
+                continue
+            reviews.append(
+                Review(
+                    review_id=_review_id("action", action_label),
+                    action_label=action_label,
+                    target_kind="action",
+                    target_id=action_label,
+                    status=ReviewStatus.UNREVIEWED,
+                    audit_question=_observe_question(knowledge, labels),
+                    round=1,
+                )
             )
-        )
 
     for strategy in compiled.graph.strategies:
         metadata = strategy.metadata or {}

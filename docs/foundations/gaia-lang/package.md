@@ -170,7 +170,7 @@ Prior probabilities for BP inference are assigned through `priors.py`. Exports a
 The v0.5 contract is:
 
 - assign external priors only to independent inputs that are load-bearing for exported goals;
-- treat root `observe(...)` claims as independent inputs unless they are otherwise derived;
+- do not assign external priors to zero-premise `observe(...)` claims; they are pinned to `1 - CROMWELL_EPS`;
 - do not assign priors to derived claims, structural expression helpers, relation helper claims, or generated formalization helpers;
 - use `gaia check --hole` to decide which independent degrees of freedom are covered and which intentionally rely on MaxEnt.
 

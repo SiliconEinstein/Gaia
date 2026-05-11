@@ -8,7 +8,7 @@
 
 `pipeline_review()` 返回一个 ReviewOutput，包含：
 
-- **`node_priors`** -- `dict[str, float]`，将每个 local canonical node ID 映射到其先验概率。先验按知识类型分配：`setting` = 1.0，`claim`/`question`/`action`/`observation` = 0.5。
+- **`node_priors`** -- `dict[str, float]`，将每个 local canonical node ID 映射到其先验概率。旧审查层曾按知识类型给默认值；当前 v0.5 合同要求先验只来自显式输入或 zero-premise `observe(...)` pin。
 - **`factor_params`** -- `dict[str, FactorParams]`，将每个推理 factor 映射到其条件概率。值来自审查链步骤的 `conditional_prior` 字段；如果没有审查数据则默认为 1.0。
 - **`review`** -- 原始审查数据，包括摘要文本和按链步骤的评估。
 - **`model`** -- 产生审查的模型（`"mock"` 或 LLM 模型名称）。

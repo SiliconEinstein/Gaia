@@ -75,13 +75,12 @@ def _boundary_claim_analysis(
     """Identify load-bearing boundary claims for exported goals.
 
     Prefer the goal-oriented inquiry boundary when exported goals exist. A
-    grounding-only root observation is still an independent probabilistic DOF:
-    the grounding makes the observation reviewable, but it does not supply a
-    numeric prior.
+    zero-premise observe action pins its conclusion to 1 - CROMWELL_EPS, so it
+    is not treated as an unparameterized boundary DOF.
     """
 
     def needs_probability_input(node: InquiryNode) -> bool:
-        return not node.incoming or all(edge.kind == "grounding" for edge in node.incoming)
+        return not node.incoming
 
     def expand_decomposition_boundary(boundary_ids: set[str]) -> set[str]:
         expanded = set(boundary_ids)

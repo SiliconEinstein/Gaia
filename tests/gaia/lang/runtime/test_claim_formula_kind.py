@@ -37,7 +37,6 @@ def test_claim_kind_enum_values():
     assert {k.value for k in ClaimKind} == {
         "general",
         "parameter",
-        "observation",
         "quantified",
         "causal",
     }

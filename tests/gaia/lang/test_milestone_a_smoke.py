@@ -37,8 +37,8 @@ def test_mendel_parameter_assertion():
     assert H.formula.left is p
 
 
-def test_mendel_observation():
-    """D records observed counts via conjunction of Equals."""
+def test_mendel_data_formula():
+    """D records count data via conjunction of Equals; observation is an action."""
     n_obs = Variable(symbol="n_obs", domain=Nat, value=395)
     k_obs = Variable(symbol="k_obs", domain=Nat, value=295)
     n = Variable(symbol="n", domain=Nat)
@@ -52,10 +52,10 @@ def test_mendel_observation():
     D = Claim(
         content="295 of 395 F2 plants are dominant.",
         formula=formula,
-        kind=ClaimKind.OBSERVATION,
+        kind=ClaimKind.GENERAL,
         prior=0.95,
     )
-    assert D.kind is ClaimKind.OBSERVATION
+    assert D.kind is ClaimKind.GENERAL
     assert len(D.formula.operands) == 2
 
 

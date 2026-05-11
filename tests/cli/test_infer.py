@@ -357,7 +357,7 @@ def test_infer_with_accepted_root_observe_review(tmp_path):
     apply_package_priors(loaded)
     compiled = compile_loaded_package_artifact(loaded)
     assert compiled.review is not None
-    assert [review.target_kind for review in compiled.review.reviews] == ["knowledge"]
+    assert [review.target_kind for review in compiled.review.reviews] == ["action"]
     accepted = [
         review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
         for review in compiled.review.reviews
