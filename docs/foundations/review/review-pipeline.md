@@ -1,76 +1,195 @@
-# 审查 Pipeline
+---
+status: current-canonical
+layer: review
+since: v0.5
+---
 
-> **Status:** Current canonical -- target evolution noted
+# Review Pipeline
 
-审查引擎评估知识包并为 belief propagation 生成概率参数。它目前位于 `cli/llm_client.py`，由 `libs/pipeline.py:pipeline_review()` 编排。
+Gaia separates **structural compilation** (objective, deterministic) from **review** (qualitative judgment about whether an authored action's warrant should enter the information set used by BP). Review is a per-action decision: a reviewer reads each action's audit question and accepts, rejects, defers, or asks for more inputs.
 
-## 审查产出
+In v0.5 review is fully local. The CLI generates a **review manifest** at compile time, an inquiry loop guides the author through outstanding actions, and the trace produced by `gaia infer` can be independently audited. There is no central review server today.
 
-`pipeline_review()` 返回一个 ReviewOutput，包含：
+This document covers the local review surface. The legacy LLM-driven `pipeline_review()` / `cli/llm_client.py` path described in earlier versions of this file is removed and superseded.
 
-- **`node_priors`** -- `dict[str, float]`，将每个 local canonical node ID 映射到其先验概率。先验按知识类型分配：`setting` = 1.0，`claim`/`question`/`action`/`observation` = 0.5。
-- **`factor_params`** -- `dict[str, FactorParams]`，将每个推理 factor 映射到其条件概率。值来自审查链步骤的 `conditional_prior` 字段；如果没有审查数据则默认为 1.0。
-- **`review`** -- 原始审查数据，包括摘要文本和按链步骤的评估。
-- **`model`** -- 产生审查的模型（`"mock"` 或 LLM 模型名称）。
+## 1. Review Targets
 
-## ReviewClient (LLM)
+Every authored Action that survives lowering produces at least one **review target**:
 
-ReviewClient 使用 litellm 将包的 markdown 发送给 LLM，附带系统提示（`cli/prompts/review_system.md`）。LLM 返回 YAML，包含每个链步骤的评估，含 `conditional_prior`、`weak_points` 和 `explanation` 字段。
+| Action family | Target kind | Audit question pattern |
+|---|---|---|
+| `Derive / Observe / Compute / Predict` (`Support`) | `strategy` | "Does the warrant for &lt;action_label&gt; correctly entail &lt;conclusion&gt; from the listed premises?" |
+| `Infer` / `Associate` (`Probabilistic`) | `strategy` | "Are the supplied conditional probabilities for &lt;action_label&gt; defensible?" |
+| `Equal / Contradict / Exclusive / Decompose` (`Structural`) | `operator` | "Is the structural relation declared by &lt;action_label&gt; correct?" |
+| `Compose` | `compose` | "Is the composed workflow &lt;action_label&gt; well-formed and faithful to its child actions?" |
+| Reviewable helper claims (e.g. `bayes` likelihood comparison) | `knowledge` | "Does the helper claim &lt;label&gt; correctly summarize the underlying lifted likelihood update?" |
 
-解析器（`_parse_response`）处理多种 YAML 格式：
-- 包含 `chains` 列表和 `steps` 的结构化格式
-- 使用 `chain_name.step_index` 键的扁平格式
-- 解析失败时回退到 `{"summary": "Parse error", "chains": []}`
+`DependsOn` (`Scaffold`) is intentionally not reviewable — it is authoring metadata only and never enters the IR. Structural-expression helpers from the deprecated `~A` / `A & B` / `A | B` shortcuts carry `metadata["review"] = false` and are also skipped.
 
-提供同步（`review_package`）和异步（`areview_package`）接口。
+## 2. Data Model
 
-## MockReviewClient
+Source: `gaia/ir/review.py`.
 
-MockReviewClient 在不调用 LLM 的情况下生成确定性的审查输出：
+```python
+class ReviewStatus(StrEnum):
+    UNREVIEWED   = "unreviewed"
+    ACCEPTED     = "accepted"
+    REJECTED     = "rejected"
+    NEEDS_INPUTS = "needs_inputs"
 
-- `review_from_graph_data()` -- 由 `pipeline_review(mock=True)` 使用。遍历 `graph_data` 中的推理 factor，为每个分配 `conditional_prior: 0.85`。
-- `review_package()` -- 从 markdown 中解析 `[step:name.N]` 锚点（旧格式）。
+class Review(BaseModel):
+    review_id: str                              # deterministic per (target_kind, target_id)
+    action_label: str                           # e.g. "github:foo::derive_x"
+    target_kind: Literal["strategy", "operator", "knowledge", "compose"]
+    target_id: str                              # IR QID of the lowered target
+    status: ReviewStatus
+    audit_question: str
+    reviewer_notes: str | None = None
+    timestamp: str | None = None
+    round: int = 1                              # supports multiple review rounds
 
-Mock 审查被所有 CLI 命令（`gaia infer`、`gaia publish --local`）和测试使用。
+class ReviewManifest(BaseModel):
+    reviews: list[Review] = []
 
-## Pipeline 集成
+    def latest_status(self, target_id: str) -> ReviewStatus | None: ...
+```
 
-`libs/pipeline.py:pipeline_review()` 编排以下流程：
+`Review.round` lets a target accumulate a history; `latest_status(target_id)` returns the highest-round status. The persisted manifest is a JSON file at `.gaia/review_manifest.json`; the auto-generated baseline manifest carries `status = UNREVIEWED` for every target the compiler emitted.
 
-1. 如果 `mock=True`，调用 `MockReviewClient.review_from_graph_data(graph_data)`
-2. 如果 `mock=False`，从图数据渲染 markdown，调用 `ReviewClient.areview_package()`
-3. 从 LocalCanonicalGraph 的 Knowledge 节点（以 QID 标识）构建 `node_priors`，使用基于类型的默认值
-4. 通过本地图将审查链结论映射回 factor ID 来构建 `factor_params`
-5. 返回 ReviewOutput
+## 3. Manifest Generation
 
-审查输出直接馈入 `pipeline_infer()`，后者构造 LocalParameterization 并运行 BP。参见 [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md) 了解参数化模型。
+Source: `gaia/lang/review/manifest.py:generate_review_manifest`, called from `compile_package_artifact()` at the end of compilation.
 
-## 目标：服务端 ReviewService
+For each compiled action target, the manifest builder:
 
-目标架构用服务端 ReviewService 替代 CLI 端审查，该服务将：
+1. Resolves the action label from the package-wide `action_label_map`.
+2. Picks the target kind by inspecting the action subclass (`_strategy_action_type`, `_operator_action_type`, etc.).
+3. Builds a templated audit question via `gaia.lang.review.templates.generate_audit_question(action_type, **labels)`.
+4. Mints a deterministic `review_id` per `(target_kind, target_id)` so re-compiles do not invalidate stored reviews of unchanged targets.
 
-1. **验证** -- 独立重新编译提交的源码；与提交的 `raw_graph.json` 进行差异对比。
-2. **审计规范化** -- 检查每个 Knowledge 节点（QID）的分组决策。
-3. **多 agent 审查** -- 多个独立的 LLM agent 并行评估，生成 `PeerReviewReport`。
-4. **反驳周期** -- 阻塞性发现触发最多 5 轮作者反驳。
-5. **守门人** -- 综合结果做出接受/拒绝决策，触发全局规范化和集成。
+The result is attached to the `CompiledPackage`. `gaia infer` and `gaia inquiry review` later merge it with the package's persisted `.gaia/review_manifest.json` (see §5).
 
-## 代码路径
+## 4. CLI: `gaia inquiry review`
 
-| 组件 | 文件 |
-|------|------|
-| ReviewClient | `cli/llm_client.py:ReviewClient` |
-| MockReviewClient | `cli/llm_client.py:MockReviewClient` |
-| 审查 pipeline 函数 | `libs/pipeline.py:pipeline_review()` |
-| 系统提示 | `cli/prompts/review_system.md` |
-| 先验/参数构建器 | `libs/pipeline.py:_build_node_priors()`, `_build_factor_params()` |
+Source: `gaia/cli/commands/inquiry.py`, `gaia/inquiry/review.py:run_review`.
 
-## 当前状态
+`gaia inquiry review` runs the local review loop in a single step:
 
-`pipeline_review()` 通过 `mock` 参数同时支持 mock 和 LLM 路径。当前 CLI 命令默认 `mock=True`。真实 LLM 审查需要显式设置 `mock=False` 并提供有效的 API 凭证。审查客户端位于 `cli/` 而非 `libs/`，因为它最初是 CLI 专用的。
+```
+1. ensure_package_env()             — set up sys.path for the package
+2. load_gaia_package() + apply_package_priors()
+3. compile_loaded_package_artifact()
+4. validate_local_graph()           — structural validation
+5. load_or_generate_review_manifest()
+6. resolve_focus_target()           — current focus claim, if any
+7. analyze_knowledge_breakdown()    — what kinds of nodes exist
+8. analyze inquiry tree, prior holes, belief diagnostics
+9. publish_blockers()               — list NEEDS_INPUTS / REJECTED items
+10. snapshot to .gaia/inquiry/reviews/<review_id>.json for diffing
+```
 
-## 目标状态
+The output is a `ReviewReport` dataclass that the CLI prints in text or markdown form (`render_text` / `render_markdown`). Public surface:
 
-- 将审查逻辑迁移到服务端 ReviewService，在包摄入时自动运行。
-- 将 ReviewClient 从 `cli/` 迁移到 `libs/` 或 `services/`。
-- 添加 `gaia review` CLI 命令，调用真实 LLM 审查并保存审查附件。
+```python
+from gaia.inquiry.review import (
+    ReviewReport, run_review, render_text, render_markdown,
+    publish_blockers, resolve_graph,
+)
+```
+
+Companion sub-commands persist focus / obligation / hypothesis state in `.gaia/inquiry/state.json` and tactics in `.gaia/inquiry/tactics.jsonl` so that subsequent reviews stay aligned with where the author last left off:
+
+| Sub-command | Purpose |
+|---|---|
+| `gaia inquiry focus [target]` | set / clear / push / pop / inspect the current focus claim |
+| `gaia inquiry obligation add / list / close` | track synthetic proof obligations attached to claims |
+| `gaia inquiry hypothesis add / list / remove` | working-hypothesis ledger (does not enter IR) |
+| `gaia inquiry reject` | mark a focus path as rejected |
+| `gaia inquiry tactics log` | view the tactic event log |
+| `gaia inquiry review` | full review loop (above) |
+
+None of these sub-commands mutate `.py` source, IR, priors, or beliefs — they are pure inquiry-state operations.
+
+## 5. Manifest Merging
+
+Source: `gaia/cli/commands/_review_manifest.py`.
+
+```python
+def load_or_generate_review_manifest(pkg_path: Path | str, compiled) -> ReviewManifest
+def merge_review_manifests(generated: ReviewManifest, stored: ReviewManifest) -> ReviewManifest
+def latest_reviews(manifest: ReviewManifest) -> list[Review]
+```
+
+`load_or_generate_review_manifest()` reads `.gaia/review_manifest.json` if it exists, then merges stored entries with the generated baseline by `review_id`. New targets appear as `UNREVIEWED`; targets that disappeared from the IR are dropped on the next compile. `latest_reviews()` returns the highest-round status per target, suitable for downstream gating.
+
+The merged manifest is what `gaia infer` consults when deciding which warrant claims enter the information set `I` — accepted reviews promote their warrant helper claim to a hard observation; `UNREVIEWED` and `NEEDS_INPUTS` warrants stay at MaxEnt.
+
+## 6. CLI: `gaia trace verify / review / show`
+
+Source: `gaia/cli/commands/trace.py`, `gaia/trace/review.py:run_trace_review`. Spec: `docs/specs/2026-...` ARM Trace Reviewer (PR #491).
+
+The trace pipeline records every reasoning event emitted during `gaia infer` and other agent-side workflows into a hash-chained `.json` / `.jsonl` file. The trace is independent of the inference numerical result — its purpose is to make the *reasoning process* itself auditable.
+
+| Sub-command | Purpose | Exit codes |
+|---|---|---|
+| `gaia trace verify <path>` | schema + hash chain validation | 0 clean / 1 chain mismatch / 2 schema error |
+| `gaia trace review <path> [--mode trace\|publish]` | full eight-section trace review (manifest, hash chain, causal health, references, tampering, execution stats, ranking, recommendations) | 0 clean / 1 error diagnostic (or `--strict` warning) / 2 invalid CLI |
+| `gaia trace show <path> [--kind ... --limit N]` | filtered event-by-event dump | 0 / 2 |
+
+`run_trace_review()` produces a `TraceReviewReport` with:
+
+```
+manifest_section, hash_chain_section, causal_health_section,
+reference_section, tampering_section, execution_stats,
+diagnostics, next_edits, next_edits_structured
+```
+
+The `--mode publish` ranking weighs diagnostics differently: it is meant to gate a release-grade trace review (e.g. before promoting a package to the registry), while the default `--mode trace` is the authoring-time view.
+
+`--package <pkg>` lets the trace reviewer cross-reference `claim_ref` events against the package's compiled `Review` records, so that the reviewer can flag tampering or missing reviews at trace time.
+
+## 7. Where Review Lives in the Pipeline
+
+```
+   gaia compile
+         │  emits LocalCanonicalGraph + CompiledPackage.review
+         ▼
+   gaia inquiry review                gaia trace verify / review / show
+         │                                       │
+         │ merges stored .gaia/review_manifest.json │ audits a recorded
+         │ produces ReviewReport                 │ inference trace
+         │ guides next-edit obligations          │
+         ▼                                       ▼
+   .gaia/review_manifest.json (per package)  trace snapshots in .gaia/trace/
+
+         ↓ both feed ↓
+
+                  gaia infer
+        (ACCEPTED warrants enter the information set;
+         everything else stays at MaxEnt)
+```
+
+For the BP semantics of accepted vs unreviewed warrants see [../bp/inference.md](../bp/inference.md) and [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md).
+
+## 8. Code Map
+
+| Component | Location |
+|---|---|
+| `Review` / `ReviewManifest` / `ReviewStatus` schema | `gaia/ir/review.py` |
+| Manifest generator (per-action audit questions) | `gaia/lang/review/manifest.py` |
+| Audit-question templates | `gaia/lang/review/templates.py` |
+| CLI manifest load / merge | `gaia/cli/commands/_review_manifest.py` |
+| `gaia inquiry` CLI sub-app | `gaia/cli/commands/inquiry.py` |
+| Inquiry review loop | `gaia/inquiry/review.py` |
+| Inquiry state, focus, obligations | `gaia/inquiry/state.py`, `focus.py`, `proof_state.py` |
+| `gaia trace` CLI sub-app | `gaia/cli/commands/trace.py` |
+| Trace review (eight sections + diagnostics) | `gaia/trace/review.py` |
+| Trace schema and hash chain | `gaia/trace/schema.py`, `gaia/trace/hashing.py` |
+
+## 9. Future Work
+
+The local review pipeline above is the current canonical surface. Three forward-looking pieces remain explicit non-goals for v0.5 and live in dedicated specs:
+
+- **Server-side ReviewService** — multi-agent peer review with rebuttal cycles. See `docs/foundations/contracts/review-report.md` for the data contract that a future service would emit.
+- **Cross-package warrant gating** — propagating accepted reviews from a dependency into the local information set. Today the merged manifest is package-local.
+- **Automated LLM reviewers** — a deprecated v5 implementation existed in `cli/llm_client.py`. The replacement architecture is captured in the curation specs (`docs/specs/2026-03-17-curation-service-design.md`, etc.) and is owned by the LKM workstream rather than by `gaia-lang`.
