@@ -9,6 +9,7 @@
 > 3. **重构边界**：**不动** IR / 语义 / DSL 表面 / API 签名 / 算法 / 命名。本重构只做：工程基线注入（ruff / mypy / pytest / pre-commit config + CI）+ 补 type annotations + 补 Google docstrings + 补 test。
 > 4. **🚨 doc-code 矛盾即停**：发现仓库 docs 与 code 在语义 / 行为层面**矛盾**（不是缺注解 / 缺 docstring 级的小差，而是实际逻辑分歧），**立即停手**，在 `.refactor/STATE.md` 当前 task `breakpoint_notes` 字段下记录（doc 段落引用 + code 文件:行号 + 矛盾描述 + 影响面），task status 标 `blocked`。**不要自行决断"哪边对"，也不要"顺手修齐"** — 重构 branch 只做工程基线，语义层矛盾一律升级。
 > 5. **协作单**：本次重构由飞书协作单 `AM15dZDhjooNyaxZRhNc1Sawnce` 驱动；决策定盘 + ❓ 升回都走协作单。看板入口：`GAIA-LKM kanban` (`IUvrwMmwliAUDukbXfUcwwxEnmf`)。
+> 6. **重构期间不开 PR — 仅 commit + push 到 `feat/v05-quality-baseline_rsw` branch**。本仓库 `CLAUDE.md § Workflow` 的「commit 完必开 PR」规则在重构期间替换为「commit + push feat branch 即可」；PR 在阶段 3 user explicit「ship/PR」handshake 后才开。
 >
 > **本 banner + `.refactor/` 目录是重构期间临时产物。** 重构 PR merge 完 + 用户明确说「清理重构产物」后，在收尾 PR 内一并删除。
 

@@ -145,5 +145,5 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 ## 源代码
 
-- `gaia/gaia_ir/parameterization.py` -- `PriorRecord`, `StrategyParamRecord`, `ResolutionPolicy`, `ParameterizationSource`
-- `gaia/gaia_ir/strategy.py` -- `Strategy`, `StrategyType`（type 决定参数模型）
+- `gaia/ir/parameterization.py` -- `PriorRecord`, `StrategyParamRecord`, `ResolutionPolicy`, `ParameterizationSource`
+- `gaia/ir/strategy.py` -- `Strategy`, `StrategyType`（type 决定参数模型）

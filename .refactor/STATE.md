@@ -171,16 +171,15 @@
 
 （agent 发现 doc 与 code 语义/行为矛盾时 mirror 在这里，同步升回协作单 ❓ 段）
 
-### M1 — `docs/foundations/gaia-ir/01-overview.md` 引用过时模块路径 `gaia/gaia_ir/...`
+### M1 — `docs/foundations/gaia-ir/01-overview.md` + `06-parameterization.md` 引用过时模块路径 `gaia/gaia_ir/...` ✅ FIXED
 
 - **发现于**: 阶段 0.2 doc fidelity baseline 抓取（subagent）
-- **Doc 段落**: `docs/foundations/gaia-ir/01-overview.md` 在源码布局段引用 `gaia/gaia_ir/...`
-- **Code 实际位置**: `gaia/ir/` （`gaia/ir/__init__.py` / `gaia/ir/graphs.py` 等；用户导入路径 `from gaia.ir import ...`）
-- **矛盾性质**: doc 侧 stale wording — 代码模块从未叫 `gaia.gaia_ir`，doc 中的 `gaia/gaia_ir/` 是旧表述
-- **影响面**: 任何照 doc 路径 grep code 的 agent 会找不到文件 → 可能误判 code 缺失或自行重命名；refactor agent 不可「顺手」把 code 改名 `gaia.ir → gaia.gaia_ir` 以匹配 doc（会破坏所有用户 import）
-- **建议处置**: 以 **code 为准**（`gaia.ir` 是 canonical）；修 doc — 但 doc 在 `docs/foundations/gaia-ir/` 下，CLAUDE.md § Protected Layers 标明该目录 agent 禁止修改，需与用户确认 fix 路径（doc fix 是否纳入本次 refactor PR 还是另开 doc fix PR）
-- **状态**: ❓ 待升回协作单确认（subagent flagged in baseline doc § 9 risk #1 + #17）
-- **Mirror 自**: `.refactor/doc-fidelity-baseline.md` § 9 (risk surface) item 1 + 17
+- **Doc 段落**: `docs/foundations/gaia-ir/01-overview.md` 源码布局段 (7 行) + `06-parameterization.md` 源码段 (2 行) 引用 `gaia/gaia_ir/...`
+- **Code 实际位置**: `gaia/ir/`（`gaia/ir/__init__.py` 等；用户导入路径 `from gaia.ir import ...`）；live code 无 `gaia.gaia_ir` import (`grep` 验证零命中)
+- **矛盾性质**: doc 侧 stale wording — 代码模块从未叫 `gaia.gaia_ir`，doc 中的 `gaia/gaia_ir/` 是旧表述（`docs/plans/2026-03-30-gaia-ir-code-alignment.md` 暗示曾有迁移，但 plans/ 历史冻结不动）
+- **处置**: 以 code 为准修 doc — 共 9 行替换 `gaia/gaia_ir/` → `gaia/ir/`。user 在阶段 0 末显式 authorize（覆盖 CLAUDE.md § Protected Layers 「agent 禁止改 gaia-ir/ docs」一次性例外，因为属于 path 拼写 fix 非 IR 定义调整）
+- **状态**: ✅ FIXED 2026-05-11，作为阶段 0 follow-up commit 一并 push 到 `feat/v05-quality-baseline_rsw`
+- **Mirror 自**: `.refactor/doc-fidelity-baseline.md` § 9 (risk surface) item 1 + 17（baseline 文件可能仍 list 此项 — 已 mirror 状态在此 STATE）
 
 ### M2 — `StrategyType` enum 跨文档不一致（轻度，非 blocker）
 
