@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 0 complete → Phase 1 ready to start
-**Last updated**: 2026-05-11 23:25 (Phase 1.1 complete)
+**Last updated**: 2026-05-11 23:58 (Phase 1.2 complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -35,7 +35,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **Phase 0 — Repo prepare** (Claude-led from home_agent side)
   - Done: 0.1 branch cut · 0.2 doc fidelity baseline · 0.3 mortal banner · 0.4 STATE.md framework · 0.5 baseline metrics · 0.6 commit + push · 0.7 iteration playbook
 - [ ] **Phase 1 — Engineering baseline injection** (user dispatches in-repo agents serially)
-  - Progress: 1 / 9 work units
+  - Progress: 2 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
   - Progress: 0 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
@@ -78,8 +78,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **1.1** `pyproject.toml` — ruff lint full select (lbg 15 categories + mccabe 9 + Google docstrings + per-file ignores)
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-11 23:22 | completed_at: 2026-05-11 23:25 | breakpoint_notes: Added exact 协作单 category set (`ARG, B, C4, C90, D, DTZ, E, ERA, F, I, RET, RUF, SIM, UP, W`), mccabe `max-complexity = 9`, Google pydocstyle convention, and per-file ignores for test docstrings plus intentional unicode/math text. Verification: `uv run ruff check . --select RUF001,RUF002,RUF003 --exit-zero` => All checks passed; `uv run ruff check . --statistics --exit-zero` => config parsed, 976 remaining full-select backlog items.
   - Ref: 协作单 § Must-migrate #1
-- [ ] **1.2** `pyproject.toml` — mypy strict block + dev extras adds mypy + types-* stubs + tests overrides
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+- [x] **1.2** `pyproject.toml` — mypy strict block + dev extras adds mypy + types-* stubs + tests overrides
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-11 23:48 | completed_at: 2026-05-11 23:58 | breakpoint_notes: Added `[tool.mypy]` strict config over `gaia` + `tests`, explicit missing-import overrides for untyped external/fallback modules (`opt_einsum.*`, `sympy.*`, `tomli`), and looser tests override for untyped test defs/decorators. Added dev extra deps via `uv add`: `mypy>=2.0.0` and `scipy-stubs>=1.17.1.4`; attempted `types-sympy` first, but uv confirmed no such registry package and left files unchanged. Verification: `uv sync --extra dev` => green; `uv run ruff check . --statistics --exit-zero` => config parsed, 976 remaining full-select backlog items; `uv run mypy` => config parsed with no missing-import/config errors, 1691 expected Phase 2 type errors in 134 files.
   - Ref: 协作单 § Must-migrate #2
 - [ ] **1.3** `pyproject.toml` — pytest addopts add `--strict-markers` + `--cov-fail-under=90`; dev extras adds pre-commit
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
