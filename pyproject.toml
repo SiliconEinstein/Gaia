@@ -77,3 +77,60 @@ exclude_lines = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = [
+    ".refactor",
+    "tmp",
+]
+
+[tool.ruff.lint]
+select = [
+    "ARG",
+    "B",
+    "C4",
+    "C90",
+    "D",
+    "DTZ",
+    "E",
+    "ERA",
+    "F",
+    "I",
+    "RET",
+    "RUF",
+    "SIM",
+    "UP",
+    "W",
+]
+ignore = [
+    # Mutually exclusive pydocstyle rules; keep the Google-compatible pair.
+    "D203",
+    "D213",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"tests/**/*.py" = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+"gaia/trace/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/bp/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/inquiry/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/cli/commands/_dot.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/cli/commands/_stellaris_svg.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/cli/commands/trace.py" = ["RUF001", "RUF002", "RUF003"]
+"examples/mendel-v0-5-gaia/src/mendel_v0_5/*.py" = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 9
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
