@@ -1,148 +1,164 @@
+<!-- BEGIN REFACTOR MORTAL BANNER · started 2026-05-11 -->
+
+> 🚧 **REFACTOR IN PROGRESS — v0.5 engineering quality baseline alignment**
+>
+> This repo is mid-refactor. Every in-repo agent / contributor MUST follow these rules before touching anything:
+>
+> 1. **STATE document**: `.refactor/STATE.md` is the live progress doc for this refactor. **First action on session start = read STATE.md**, find the next `pending` work unit in the task queue. **Last action before exit = update STATE.md** (mark `done` or record `breakpoint_notes`).
+> 2. **Doc fidelity is the top discipline**: all code / type annotations / docstrings / tests MUST strictly match the logic and semantics described in `docs/foundations/**` and `docs/specs/**`. Read `.refactor/doc-fidelity-baseline.md` on agent startup.
+> 3. **Refactor boundary**: **DO NOT change** IR / semantics / DSL surface / API signatures / algorithms / naming. This refactor only does: engineering baseline injection (ruff / mypy / pytest / pre-commit config + CI) + adding type annotations + adding Google docstrings + adding tests.
+> 4. **🚨 Doc-code contradiction = stop immediately**: if you find a semantic / behavioral **contradiction** between repo docs and code (not just missing annotations / docstrings — actual logic disagreement), **stop immediately**, record under the current task's `breakpoint_notes` in `.refactor/STATE.md` (doc paragraph reference + code file:line + contradiction description + impact area), set task status to `blocked`. **Do not decide "which side is right" yourself, and do not "fix it up in passing"** — the refactor branch only does engineering baseline; all semantic-layer contradictions must escalate.
+> 5. **协作单**: this refactor is driven by Feishu 协作单 `AM15dZDhjooNyaxZRhNc1Sawnce`; decisions + ❓ escalation flow through it. Kanban entry: `GAIA-LKM kanban` (`IUvrwMmwliAUDukbXfUcwwxEnmf`).
+> 6. **No PR during refactor — commit + push to `feat/v05-quality-baseline_rsw` only**. This repo's `CLAUDE.md § Workflow` rule "open a PR after every commit" is overridden during the refactor with "commit + push feat branch is enough"; PR opens at Phase 3 only, after the user gives an explicit "ship / PR" handshake.
+>
+> **This banner + `.refactor/` directory are temporary refactor artifacts.** Both will be deleted in a final cleanup PR after the refactor PR merges AND the user explicitly says "clean up refactor artifacts".
+
+<!-- END REFACTOR MORTAL BANNER -->
+
 # AGENTS
 
-<skills_system priority="1">
+Instructions for any agent (Claude Code, Codex, Cursor, etc.) working in this repo. `CLAUDE.md` in this repo is a symlink to this file so Claude Code's auto-load resolves here too.
 
-## Available Skills
+For project overview, architecture, CLI surface, and DSL reference, read `README.md` and `docs/foundations/`. This file is for **agent conventions only** — things you can't derive from reading the code.
 
-<!-- SKILLS_TABLE_START -->
-<usage>
-When users ask you to perform tasks, check if any of the available skills below can help complete the task more effectively. Skills provide specialized capabilities and domain knowledge.
+## Common Commands
 
-How to use skills:
-- Invoke: Bash("openskills read <skill-name>")
-- The skill content will load with detailed instructions on how to complete the task
-- Base directory provided in output for resolving bundled resources (references/, scripts/, assets/)
+```bash
+uv sync                          # install (always uv, never pip)
+pytest                           # run tests
+ruff check . && ruff format .    # lint + format
+```
 
-Usage notes:
-- Only use skills listed in <available_skills> below
-- Do not invoke a skill that is already loaded in your context
-- Each skill invocation is stateless
-</usage>
+## Workflow
 
-<available_skills>
+每项工作完成后，**必须**提交 PR 到 main：
 
-<skill>
-<name>brainstorming</name>
-<description>"You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."</description>
-<location>project</location>
-</skill>
+1. 完成开发并确认测试通过
+2. 跑 `ruff check .` 和 `ruff format --check .`，修干净
+3. commit、push 分支、`gh pr create`
+4. 创建 PR 后**必须**用 `gh run list --branch <branch> --limit 1` 检查 CI；失败则 `gh run view <run-id> --log-failed` 看日志修复
 
-<skill>
-<name>dispatching-parallel-agents</name>
-<description>Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies</description>
-<location>project</location>
-</skill>
+例外：版本号 bump、纯 README/CLAUDE.md 改动这类琐碎提交，按历史惯例可直接 push 到 main。
 
-<skill>
-<name>executing-plans</name>
-<description>Use when you have a written implementation plan to execute in a separate session with review checkpoints</description>
-<location>project</location>
-</skill>
+## Skills
 
-<skill>
-<name>finishing-a-development-branch</name>
-<description>Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup</description>
-<location>project</location>
-</skill>
+Skill bodies live under `.claude/skills/<skill-name>/SKILL.md`; Claude Code discovers them natively. AGENTS-aware agents (Codex, Cursor, etc.) read the index at `.claude/skills.md`.
 
-<skill>
-<name>gitflow</name>
-<description>"Git flow assistant for team development. Use when the user says /gitflow, asks about git conventions, wants to create/merge a PR, or needs help with branching/commit/review workflow. Can also be triggered by 'create PR', 'merge PR', '合并PR', 'git规范', 'PR怎么写'."</description>
-<location>project</location>
-</skill>
+When executing tasks, **always** use the matching skill rather than going manual.
 
-<skill>
-<name>gaia-ir-authoring</name>
-<description>Use when constructing a Gaia knowledge package or LocalCanonicalGraph — teaches Python DSL authoring, compilation, validation, registration, and BP inference using gaia.lang + gaia.ir + gaia.bp</description>
-<location>project</location>
-</skill>
+## Implementation Rules
 
-<skill>
-<name>meeting</name>
-<description>Use when a decision needs structured multi-party deliberation with external AI agents before the user decides. Triggers include architecture discussions, design trade-offs, naming decisions, or any topic where independent perspectives improve decision quality.</description>
-<location>project</location>
-</skill>
+- **严格遵守设计文档**：实现时不得擅自降级设计文档中明确指定的技术方案（如用 TF-IDF 替代 embedding + BM25）。如有困难想简化，**必须先和用户商量**。
+- **不确定就问**：对设计方案的任何偏离，无论多小，都要在实现前提出。
+- **Plan 必须覆盖 spec 的每一步**：写 implementation plan 时逐条核对 spec，遗漏步骤等于悄悄砍需求。
 
-<skill>
-<name>pr-review</name>
-<description>"Pull request review assistant for this repo. Use when the user asks to review a PR, audit whether a PR really matches its code/tests/docs/issues, prepare GitHub review comments, or check if a PR's claimed scope is actually implemented."</description>
-<location>project</location>
-</skill>
+## Scripts & Pipelines: Logging Is Mandatory
 
-<skill>
-<name>receiving-code-review</name>
-<description>Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation</description>
-<location>project</location>
-</skill>
+所有 CLI 脚本（`scripts/*.py`、`gaia/lkm/pipelines/*.py` 有 `__main__` 的）**必须**符合以下规范，否则后台运行就是黑盒：
 
-<skill>
-<name>requesting-code-review</name>
-<description>Use when completing tasks, implementing major features, or before merging to verify work meets requirements</description>
-<location>project</location>
-</skill>
+1. **双 handler**：同时输出到 console 和 `logs/{name}-{timestamp}.log`
+2. **`force=True`**：`logging.basicConfig` 必须加 `force=True` 覆盖已有配置（LanceDB/httpx import 时会初始化）
+3. **每阶段打点**：每步开始/结束都 log，不只在最后 summary
+4. **第一行输出 log 文件路径**：让用户立刻知道去哪看日志
+5. **`print(..., flush=True)`**：logging 自动 flush，但普通 print 不会
 
-<skill>
-<name>subagent-driven-development</name>
-<description>Use when executing implementation plans with independent tasks in the current session</description>
-<location>project</location>
-</skill>
+模板：
 
-<skill>
-<name>systematic-debugging</name>
-<description>Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes</description>
-<location>project</location>
-</skill>
+```python
+import logging, os, time
 
-<skill>
-<name>test-driven-development</name>
-<description>Use when implementing any feature or bugfix, before writing implementation code</description>
-<location>project</location>
-</skill>
+_LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+os.makedirs(_LOG_DIR, exist_ok=True)
+_LOG_FILE = os.path.join(_LOG_DIR, f"{script_name}-{time.strftime('%Y%m%d-%H%M%S')}.log")
 
-<skill>
-<name>using-git-worktrees</name>
-<description>Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selection and safety verification</description>
-<location>project</location>
-</skill>
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler(_LOG_FILE)],
+    force=True,
+)
+logger = logging.getLogger(__name__)
+logger.info("Log file: %s", _LOG_FILE)
+```
 
-<skill>
-<name>using-superpowers</name>
-<description>Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions</description>
-<location>project</location>
-</skill>
+**禁止**：后台跑脚本不看日志。跑完总要 tail 一下确认有输出。
 
-<skill>
-<name>verification-before-completion</name>
-<description>Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always</description>
-<location>project</location>
-</skill>
+## Code Style
 
-<skill>
-<name>writing-plans</name>
-<description>Use when you have a spec or requirements for a multi-step task, before touching code</description>
-<location>project</location>
-</skill>
+- Ruff，line length 100，target Python 3.12
+- 类型注解用 PEP 604（`X | None`，不是 `Optional[X]`）
+- Google-style docstrings
+- Pydantic v2 API：`.model_dump()` / `.model_validate()` / `.model_validate_json()`
 
-<skill>
-<name>writing-skills</name>
-<description>Use when creating new skills, editing existing skills, or verifying skills work before deployment</description>
-<location>project</location>
-</skill>
+## Worktrees
 
-</available_skills>
-<!-- SKILLS_TABLE_END -->
+Worktrees 放在 `.worktrees/`（已 gitignore）：
 
-</skills_system>
+```bash
+git worktree add .worktrees/<name> -b feature/<name>
+```
+
+## Design Documents
+
+Specs 在 `docs/foundations/` 按架构层组织：
+
+```
+docs/foundations/theory/       → Pure theory (Jaynes, BP) — 外部定义，从不变
+docs/foundations/ecosystem/    → 业务生态 — 产品范围、去中心化架构、工作流
+docs/foundations/gaia-ir/      → Gaia IR 结构契约（CLI↔LKM 共享）
+docs/foundations/gaia-lang/    → Gaia Language（DSL，CLI 和 LKM 共享）
+docs/foundations/bp/           → BP 计算语义
+docs/foundations/review/       → Review pipeline
+docs/foundations/cli/          → CLI（本地 authoring/compile/inference）
+docs/foundations/lkm/          → LKM server（curation、global inference、storage、API）
+```
+
+历史文档在 `docs/archive/`，规划在 `docs/plans/`，设计在 `docs/specs/`。
 
 ## Documentation Policy
 
-When editing docs under `docs/foundations/`, read `docs/documentation-policy.md` first.
+编辑架构或 foundation 文档前先读 `docs/documentation-policy.md`。
 
-Use that file as the canonical rule set for:
+### Foundations 分层规则
 
-- document levels and scope
-- status labels (`Current canonical`, `Target design`, `Transitional`)
-- when to clarify vs replace vs write a proposal doc
-- how to handle retired docs and companion README/index updates
+`docs/foundations/` 镜像 Gaia 三层编译流水（Gaia Lang → Gaia IR → BP）+ 两个产品面（CLI、LKM）。信息**自上而下**流动 — 下层引用上层定义，**永不重复**。
 
-Do not treat old foundation docs as the source of truth just because they exist. If a concept has been moved to a newer canonical doc, archive the old file or reduce it to a thin redirect instead of continuing to evolve two competing definitions.
+| Layer | 责任 |
+|-------|------|
+| **theory/** | 外部理论（Jaynes、BP 算法）— 独立于 Gaia 的定义 |
+| **ecosystem/** | 业务生态 — 产品范围、参与者关系 |
+| **gaia-ir/** | Gaia IR 结构契约 — 节点 schema、factor 类型、canonicalization，**单一定义点** |
+| **gaia-lang/** | Gaia Language（authoring DSL）— 语言规范、knowledge 类型、package 模型 |
+| **bp/** | Gaia IR 上的 BP 计算 — factor 势能、推理算法 |
+| **review/** | Review pipeline — 验证、审查、gating |
+| **cli/** | CLI（本地工作流）— compiler、本地 inference、本地 storage |
+| **lkm/** | LKM server（全局工作流）— curation、global inference、storage、API |
+
+**规则：**
+1. **gaia-ir/ 是结构定义的唯一来源**（FactorNode、knowledge 节点 schema）。bp/、cli/、lkm/ **引用**，不重定义。
+2. **bp/** 定义计算语义。CLI 和 LKM 引用算法细节。
+3. **cli/** 拥有 Gaia Lang。LKM **从不引用 Gaia Lang** — 它操作 Gaia IR。
+4. 跨层定义**只链接，不复制**。
+5. schema 改动先在 gaia-ir/ 改，再验证下游引用。
+
+### Protected Layers (Change Control)
+
+`gaia-ir/` 是 CLI↔LKM 的协议契约层。
+
+**硬性规则：**
+- Agent **禁止**直接修改 `docs/foundations/gaia-ir/` 下任何文件
+- Agent **禁止**直接修改 `docs/foundations/theory/` 下任何文件（纯理论层，外部定义）
+- 如果实现中发现 Gaia IR 定义需要调整，必须**停下来和用户沟通**：
+  1. 当前定义是什么
+  2. 为什么需要改
+  3. 提议的改动内容
+- 用户批准后，改动作为**独立 PR** 提交，不能混在功能 PR 里
+- 合并后必须验证所有下游引用（bp/、cli/、lkm/）一致
+
+### General Doc Rules
+
+- 标明文档状态（`Current canonical` / `Target design` / `Transitional`）
+- 标明改动性质（澄清 / 替换 / 提案）
+- 优先**替换或归档**过时的概念模型，而不是无尽地原地打补丁
+- canonical doc 添加、替换或重大重定范围时，**同 PR 更新**索引/归档/重定向文件
+- **不要默默混合**：current canonical 语义、target design、运行时实现 quirk、历史背景 — 这些必须分开
