@@ -152,7 +152,7 @@ The `--mode publish` ranking weighs diagnostics differently: it is meant to gate
 
 ```
    gaia compile
-         │  emits LocalCanonicalGraph + CompiledPackage.review_manifest
+         │  emits LocalCanonicalGraph + CompiledPackage.review
          ▼
    gaia inquiry review                gaia trace verify / review / show
          │                                       │
