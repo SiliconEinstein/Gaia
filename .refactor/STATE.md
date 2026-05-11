@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 0 complete → Phase 1 ready to start
-**Last updated**: 2026-05-12 00:36 (Phase 1.6 complete)
+**Last updated**: 2026-05-12 00:46 (Phase 1.7 complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -35,7 +35,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **Phase 0 — Repo prepare** (Claude-led from home_agent side)
   - Done: 0.1 branch cut · 0.2 doc fidelity baseline · 0.3 mortal banner · 0.4 STATE.md framework · 0.5 baseline metrics · 0.6 commit + push · 0.7 iteration playbook
 - [ ] **Phase 1 — Engineering baseline injection** (user dispatches in-repo agents serially)
-  - Progress: 6 / 9 work units
+  - Progress: 7 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
   - Progress: 0 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
@@ -93,8 +93,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **1.6** New `codecov.yml` (if codecov bot is enabled; this repo currently has none, so either add one mirroring lbg-cli style or rely on the local strong gate)
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:34 | completed_at: 2026-05-12 00:36 | breakpoint_notes: CI already uploads `coverage.xml` via `codecov/codecov-action@v5`, and the repo already had a stale `codecov.yml` with obsolete `gaia/lkm/**` ignore rules. Updated `codecov.yml` to align Codecov's project status with the local strong gate (`target: 90%`, `threshold: 0%`) while preserving the existing 80% patch target and removing nonexistent LKM/script ignores. Verification: `uv run pre-commit run check-yaml --files codecov.yml .github/workflows/ci.yml && uv run pytest --cov-report=xml tests -q -m "not integration_api"` => check-yaml passed; 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.31%, required 90% reached; generated `coverage.xml` removed after verification.
   - Ref: 协作单 § Sundry cleanup (codecov.yml part)
-- [ ] **1.7** New `Makefile` — (optional) `bootstrap / lint / typecheck / test / check` targets
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+- [x] **1.7** New `Makefile` — (optional) `bootstrap / lint / typecheck / test / check` targets
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 00:42 | completed_at: 2026-05-12 00:46 | breakpoint_notes: Added root `Makefile` with `bootstrap`, `lint`, `typecheck`, `test`, and `check` targets. `check` intentionally follows the current Phase 1 green gate (`lint` via `pre-commit run --all-files` plus `test` via `pytest`) while `typecheck` remains available as an explicit target for the known Phase 2 strict-mypy backlog. Verification: `make check` => pre-commit hooks passed; pytest `1605 passed, 3 skipped, 58 warnings`, TOTAL coverage 90.31%; `make -n bootstrap typecheck` => dry-run printed the expected `uv sync --extra dev`, `uv run pre-commit install`, and `uv run mypy` commands.
 - [ ] **1.8** New `CONTRIBUTING.md` — developer local setup guide (`uv sync --extra dev` + `pre-commit install` + `make check`)
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
 - [ ] **1.9** `CLAUDE.md` full rewrite (referencing Claude Code `/init` convention) — top mortal banner already written in Phase 0; this work unit lands the remaining sections (engineering rules + local setup + refactor boundary + doc fidelity discipline + test requirements + project overview links to README)
