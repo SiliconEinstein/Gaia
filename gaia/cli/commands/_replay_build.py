@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+from dataclasses import dataclass
 from typing import Any
 
 from gaia.bp import InferenceEngine, lower_local_graph
@@ -371,6 +372,514 @@ def annotate_layout_with_kinds(layout: dict[str, Any], ir: dict[str, Any]) -> di
     return layout
 
 
+_BRIDGE_ACTION_KINDS: frozenset[str] = frozenset(
+    {"deduction", "support", "contradiction", "equivalence"}
+)
+_PAIR_BRIDGE_ACTION_KINDS: frozenset[str] = frozenset({"support", "contradiction", "equivalence"})
+
+
+@dataclass(frozen=True)
+class _PendingBridgeAction:
+    """Event-side symbol that still needs a fallback layout bridge."""
+
+    kind: str
+    symbol: str
+    module: str
+    position: int
+
+
+@dataclass(frozen=True)
+class _BridgeContext:
+    """Shared indexes used by replay symbol bridging."""
+
+    ir: dict[str, Any]
+    nodes: dict[str, Any]
+    strategy_signatures: dict[tuple[Any, ...], str]
+    pair_signatures: dict[tuple[Any, ...], str]
+    knowledge_module_by_id: dict[str, str]
+    knowledge_ids: set[str]
+
+
+def _bridge_ir_to_lkm(ir: dict[str, Any]) -> dict[str, str]:
+    """Build the IR-id to LKM-id map used by post-rekey layout matching."""
+    ir_to_lkm: dict[str, str] = {}
+    for knowledge in ir.get("knowledges", []) or []:
+        kid = knowledge.get("id")
+        meta = knowledge.get("metadata") or {}
+        lid = meta.get("lkm_id")
+        if isinstance(kid, str) and isinstance(lid, str) and lid:
+            ir_to_lkm[kid] = lid
+    return ir_to_lkm
+
+
+def _bridge_lkm_id(kid: str | None, ir_to_lkm: dict[str, str]) -> str | None:
+    """Return the LKM id for an IR id, falling back to the IR id itself."""
+    if not isinstance(kid, str):
+        return None
+    return ir_to_lkm.get(kid, kid)
+
+
+def _record_bridge_signature(
+    sig_dict: dict[tuple[Any, ...], str], sig: tuple[Any, ...], target: str
+) -> None:
+    """Record a signature-to-layout-key mapping, marking collisions ambiguous."""
+    existing = sig_dict.get(sig)
+    if existing is None and sig not in sig_dict:
+        sig_dict[sig] = target
+    elif existing != target:
+        sig_dict[sig] = ""
+
+
+def _build_bridge_signatures(
+    ir: dict[str, Any], ir_to_lkm: dict[str, str]
+) -> tuple[dict[tuple[Any, ...], str], dict[tuple[Any, ...], str]]:
+    """Index IR strategies/operators by the edge signatures emitted in events."""
+    strategy_signatures: dict[tuple[Any, ...], str] = {}
+    pair_signatures: dict[tuple[Any, ...], str] = {}
+    for i, strategy in enumerate(ir.get("strategies", []) or []):
+        conclusion = strategy.get("conclusion")
+        premises = strategy.get("premises", []) or []
+        if not conclusion or not premises:
+            continue
+        conclusion_lkm = _bridge_lkm_id(conclusion, ir_to_lkm)
+        premise_lkms = frozenset(
+            lkm for lkm in (_bridge_lkm_id(premise, ir_to_lkm) for premise in premises) if lkm
+        )
+        target = f"strat_{i}"
+        _record_bridge_signature(
+            strategy_signatures, ("strategy", premise_lkms, conclusion_lkm), target
+        )
+        strategy_type = strategy.get("type")
+        if isinstance(strategy_type, str) and len(premise_lkms) == 1 and conclusion_lkm:
+            (premise_lkm,) = premise_lkms
+            _record_bridge_signature(
+                pair_signatures, (strategy_type, frozenset({premise_lkm, conclusion_lkm})), target
+            )
+    for i, operator in enumerate(ir.get("operators", []) or []):
+        kind = operator.get("operator")
+        variables = operator.get("variables", []) or []
+        if not kind or not variables:
+            continue
+        variable_lkms = frozenset(
+            lkm for lkm in (_bridge_lkm_id(variable, ir_to_lkm) for variable in variables) if lkm
+        )
+        if len(variable_lkms) >= 2:
+            _record_bridge_signature(pair_signatures, (kind, variable_lkms), f"oper_{i}")
+    return strategy_signatures, pair_signatures
+
+
+def _build_bridge_knowledge_indexes(ir: dict[str, Any]) -> tuple[dict[str, str], set[str]]:
+    """Return knowledge module lookup plus the set of live IR knowledge ids."""
+    knowledge_module_by_id: dict[str, str] = {}
+    knowledge_ids: set[str] = set()
+    for knowledge in ir.get("knowledges", []) or []:
+        kid = knowledge.get("id")
+        if isinstance(kid, str) and kid:
+            knowledge_ids.add(kid)
+            module = knowledge.get("module")
+            if isinstance(module, str) and module:
+                knowledge_module_by_id[kid] = module
+    return knowledge_module_by_id, knowledge_ids
+
+
+def _build_bridge_context(ir: dict[str, Any], nodes: dict[str, Any]) -> _BridgeContext:
+    """Build all indexes needed by edge-signature and fallback bridging."""
+    ir_to_lkm = _bridge_ir_to_lkm(ir)
+    strategy_signatures, pair_signatures = _build_bridge_signatures(ir, ir_to_lkm)
+    knowledge_module_by_id, knowledge_ids = _build_bridge_knowledge_indexes(ir)
+    return _BridgeContext(
+        ir=ir,
+        nodes=nodes,
+        strategy_signatures=strategy_signatures,
+        pair_signatures=pair_signatures,
+        knowledge_module_by_id=knowledge_module_by_id,
+        knowledge_ids=knowledge_ids,
+    )
+
+
+def _gcn(s: Any) -> str | None:
+    """Return event graph ids, which use the ``gcn_`` prefix."""
+    return s if isinstance(s, str) and s.startswith("gcn_") else None
+
+
+def _bucket_edges_by_kind(edges: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Bucket event ``edges_added`` records by their ``kind`` field."""
+    edges_by_kind: dict[str, list[dict[str, Any]]] = {}
+    for edge in edges:
+        edges_by_kind.setdefault(edge.get("kind") or "", []).append(edge)
+    return edges_by_kind
+
+
+def _claim_bridge_target(nodes: dict[str, Any], symbol: str, target: str) -> bool:
+    """Alias ``target``'s layout entry to ``symbol`` and stamp canonical ids."""
+    if target not in nodes or symbol in nodes:
+        return False
+    aliased_entry = dict(nodes[target])
+    aliased_entry["canonical_id"] = target
+    nodes[target]["canonical_id"] = target
+    nodes[symbol] = aliased_entry
+    return True
+
+
+def _deduction_signature_target(
+    context: _BridgeContext,
+    edges_by_kind: dict[str, list[dict[str, Any]]],
+    position: int,
+) -> str | None:
+    """Find a strategy target from deduction edges in the current event."""
+    deduction_edges = edges_by_kind.get("deduction") or []
+    candidate: str | None = None
+    if position < len(deduction_edges):
+        edge = deduction_edges[position]
+        from_id = _gcn(edge.get("from"))
+        to_id = _gcn(edge.get("to"))
+        if from_id and to_id:
+            candidate = context.strategy_signatures.get(("strategy", frozenset({from_id}), to_id))
+    if candidate:
+        return candidate
+    gcns_from = {from_id for edge in deduction_edges if (from_id := _gcn(edge.get("from")))}
+    gcns_to = {to_id for edge in deduction_edges if (to_id := _gcn(edge.get("to")))}
+    premises = gcns_from - gcns_to
+    conclusions = gcns_to - gcns_from
+    if len(conclusions) == 1 and premises:
+        conclusion = next(iter(conclusions))
+        return context.strategy_signatures.get(("strategy", frozenset(premises), conclusion))
+    return None
+
+
+def _pair_signature_target(
+    context: _BridgeContext,
+    edges_by_kind: dict[str, list[dict[str, Any]]],
+    kind: str,
+    position: int,
+) -> str | None:
+    """Find an operator/strategy target from a two-endpoint relation edge."""
+    kind_edges = edges_by_kind.get(kind) or []
+    if position >= len(kind_edges):
+        return None
+    edge = kind_edges[position]
+    from_id = _gcn(edge.get("from"))
+    to_id = _gcn(edge.get("to"))
+    if not from_id or not to_id:
+        return None
+    return context.pair_signatures.get((kind, frozenset({from_id, to_id})))
+
+
+def _edge_signature_candidate(
+    context: _BridgeContext,
+    action: dict[str, Any],
+    edges_by_kind: dict[str, list[dict[str, Any]]],
+    kind_seen: dict[str, int],
+) -> tuple[str, str] | None:
+    """Return ``(symbol, target)`` for an edge-signature bridge candidate."""
+    kind = action.get("action")
+    symbol = action.get("symbol")
+    if not isinstance(kind, str) or not isinstance(symbol, str) or not symbol:
+        return None
+    position = kind_seen.get(kind, 0)
+    kind_seen[kind] = position + 1
+    if symbol in context.nodes:
+        return None
+    if kind == "deduction":
+        target = _deduction_signature_target(context, edges_by_kind, position)
+    elif kind in _PAIR_BRIDGE_ACTION_KINDS:
+        target = _pair_signature_target(context, edges_by_kind, kind, position)
+    else:
+        target = None
+    if target and target in context.nodes:
+        return symbol, target
+    return None
+
+
+def _bridge_edge_signature_events(context: _BridgeContext, events: list[dict[str, Any]]) -> int:
+    """Apply the strongest bridge path: event edge signatures."""
+    bridged = 0
+    for event in events:
+        delta = event.get("graph_delta") or {}
+        actions = event.get("gaia_actions") or []
+        edges = delta.get("edges_added") or []
+        if not actions or not edges:
+            continue
+        edges_by_kind = _bucket_edges_by_kind(edges)
+        kind_seen: dict[str, int] = {}
+        for action in actions:
+            if not isinstance(action, dict):
+                continue
+            candidate = _edge_signature_candidate(context, action, edges_by_kind, kind_seen)
+            if candidate is None:
+                continue
+            symbol, target = candidate
+            bridged += int(_claim_bridge_target(context.nodes, symbol, target))
+    return bridged
+
+
+def _target_index(target: str, prefix: str) -> int | None:
+    """Parse ``strat_<i>`` / ``oper_<i>`` target indexes."""
+    if not target.startswith(prefix):
+        return None
+    try:
+        return int(target.split("_", 1)[1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _strategy_for_target(ir: dict[str, Any], target: str) -> dict[str, Any] | None:
+    """Return the IR strategy dict for a ``strat_<i>`` target."""
+    index = _target_index(target, "strat_")
+    strategies = ir.get("strategies", []) or []
+    if index is None or not (0 <= index < len(strategies)):
+        return None
+    strategy = strategies[index]
+    return strategy if isinstance(strategy, dict) else None
+
+
+def _operator_for_target(ir: dict[str, Any], target: str) -> dict[str, Any] | None:
+    """Return the IR operator dict for an ``oper_<i>`` target."""
+    index = _target_index(target, "oper_")
+    operators = ir.get("operators", []) or []
+    if index is None or not (0 <= index < len(operators)):
+        return None
+    operator = operators[index]
+    return operator if isinstance(operator, dict) else None
+
+
+def _bridge_target_conclusion(ir: dict[str, Any], target: str) -> str | None:
+    """Return the conclusion knowledge id for a strategy/operator target."""
+    strategy = _strategy_for_target(ir, target)
+    operator = _operator_for_target(ir, target) if strategy is None else None
+    target_record = strategy or operator
+    if target_record is None:
+        return None
+    conclusion = target_record.get("conclusion")
+    return conclusion if isinstance(conclusion, str) else None
+
+
+def _module_of_bridge_target(context: _BridgeContext, target: str) -> str | None:
+    """Return the conclusion-knowledge module for a bridge target."""
+    conclusion = _bridge_target_conclusion(context.ir, target)
+    return context.knowledge_module_by_id.get(conclusion) if conclusion else None
+
+
+def _conclusion_slug(context: _BridgeContext, target: str) -> str | None:
+    """Return the Python symbol slug encoded in a relation conclusion id."""
+    conclusion = _bridge_target_conclusion(context.ir, target)
+    if not isinstance(conclusion, str) or "::" not in conclusion:
+        return None
+    return conclusion.rsplit("::", 1)[-1]
+
+
+def _ir_kind_for_bridge_target(context: _BridgeContext, target: str, action_kind: str) -> bool:
+    """Return whether an IR target aligns with an event-side action kind."""
+    if action_kind == "deduction":
+        strategy = _strategy_for_target(context.ir, target)
+        return bool(strategy and strategy.get("type") == "deduction")
+    if action_kind not in _PAIR_BRIDGE_ACTION_KINDS:
+        return False
+    operator = _operator_for_target(context.ir, target)
+    if operator is not None:
+        return bool(operator.get("operator") == action_kind)
+    strategy = _strategy_for_target(context.ir, target)
+    return bool(strategy and strategy.get("type") == action_kind)
+
+
+def _bridge_target_refs(context: _BridgeContext, target: str) -> list[str]:
+    """Collect knowledge ids referenced by a bridge target."""
+    refs: list[str] = []
+    strategy = _strategy_for_target(context.ir, target)
+    operator = _operator_for_target(context.ir, target) if strategy is None else None
+    target_record = strategy or operator
+    if target_record is None:
+        return refs
+    conclusion = target_record.get("conclusion")
+    if isinstance(conclusion, str):
+        refs.append(conclusion)
+    field = "premises" if strategy is not None else "variables"
+    for ref in target_record.get(field) or []:
+        if isinstance(ref, str):
+            refs.append(ref)
+    return refs
+
+
+def _ir_refs_consistent(context: _BridgeContext, target: str) -> bool:
+    """Return whether a fallback target references only live IR knowledges."""
+    refs = _bridge_target_refs(context, target)
+    return bool(refs) and all(ref in context.knowledge_ids for ref in refs)
+
+
+def _refresh_already_bridged(nodes: dict[str, Any]) -> set[str]:
+    """Return canonical strat_/oper_ ids already claimed by event aliases."""
+    already: set[str] = set()
+    for entry in nodes.values():
+        if not isinstance(entry, dict):
+            continue
+        canonical_id = entry.get("canonical_id")
+        if isinstance(canonical_id, str) and canonical_id:
+            already.add(canonical_id)
+    return already
+
+
+def _action_module(action: dict[str, Any]) -> str | None:
+    """Return the stem of ``action.file`` when it names a Python file."""
+    file_name = action.get("file")
+    if not isinstance(file_name, str) or not file_name.endswith(".py"):
+        return None
+    base = file_name.rsplit("/", 1)[-1]
+    return base[:-3] if base.endswith(".py") else None
+
+
+def _collect_pending_bridge_actions(
+    events: list[dict[str, Any]], nodes: dict[str, Any]
+) -> list[_PendingBridgeAction]:
+    """Collect unbridged event-side symbols eligible for file-based fallback."""
+    file_kind_seen: dict[tuple[str, str], int] = {}
+    pending: list[_PendingBridgeAction] = []
+    for event in events:
+        for action in event.get("gaia_actions") or []:
+            if not isinstance(action, dict):
+                continue
+            kind = action.get("action")
+            symbol = action.get("symbol")
+            if not isinstance(kind, str) or not isinstance(symbol, str) or not symbol:
+                continue
+            if kind not in _BRIDGE_ACTION_KINDS:
+                continue
+            module = _action_module(action)
+            if module is None:
+                continue
+            position = file_kind_seen.get((module, kind), 0)
+            file_kind_seen[(module, kind)] = position + 1
+            if symbol not in nodes:
+                pending.append(_PendingBridgeAction(kind, symbol, module, position))
+    return pending
+
+
+def _bridge_target_keys(context: _BridgeContext, module: str, kind: str) -> list[str]:
+    """Return canonical layout targets matching a fallback module/kind pair."""
+    already = _refresh_already_bridged(context.nodes)
+    targets: list[str] = []
+    for target_key in list(context.nodes.keys()):
+        if not (target_key.startswith("strat_") or target_key.startswith("oper_")):
+            continue
+        if target_key in already:
+            continue
+        if _module_of_bridge_target(context, target_key) != module:
+            continue
+        if not _ir_kind_for_bridge_target(context, target_key, kind):
+            continue
+        targets.append(target_key)
+    return targets
+
+
+def _apply_symbol_name_fallback(
+    context: _BridgeContext, pending: list[_PendingBridgeAction]
+) -> tuple[int, list[str]]:
+    """Bridge by matching action symbols to IR conclusion-id slugs."""
+    bridged = 0
+    warnings: list[str] = []
+    for item in pending:
+        if item.symbol in context.nodes:
+            continue
+        for target_key in _bridge_target_keys(context, item.module, item.kind):
+            if _conclusion_slug(context, target_key) != item.symbol:
+                continue
+            bridged += int(_claim_bridge_target(context.nodes, item.symbol, target_key))
+            warnings.append(
+                f"symbol-name fallback: bridged {item.symbol!r} (kind={item.kind!r}, "
+                f"file={item.module}.py) to {target_key!r} via IR conclusion-id slug."
+            )
+            break
+    return bridged, warnings
+
+
+def _apply_file_uniqueness_fallback(
+    context: _BridgeContext, pending: list[_PendingBridgeAction]
+) -> tuple[int, list[str]]:
+    """Bridge when exactly one sane unclaimed IR target exists for a file/kind."""
+    bridged = 0
+    warnings: list[str] = []
+    for item in pending:
+        if item.symbol in context.nodes:
+            continue
+        candidates = _bridge_target_keys(context, item.module, item.kind)
+        if len(candidates) != 1 or not _ir_refs_consistent(context, candidates[0]):
+            continue
+        bridged += int(_claim_bridge_target(context.nodes, item.symbol, candidates[0]))
+        warnings.append(
+            f"file-uniqueness fallback: bridged {item.symbol!r} (kind={item.kind!r}, "
+            f"file={item.module}.py) to {candidates[0]!r} as the sole unbridged "
+            "candidate of that kind in that module."
+        )
+    return bridged, warnings
+
+
+def _positional_target_keys(context: _BridgeContext, module: str, kind: str) -> list[str]:
+    """Return fallback targets in the same declaration order as the IR."""
+    targets: list[str] = []
+    prefixes = ("strat_",) if kind == "deduction" else ("oper_", "strat_")
+    counts = {
+        "strat_": len(context.ir.get("strategies", []) or []),
+        "oper_": len(context.ir.get("operators", []) or []),
+    }
+    already = _refresh_already_bridged(context.nodes)
+    for prefix in prefixes:
+        for index in range(counts[prefix]):
+            key = f"{prefix}{index}"
+            if key not in context.nodes or key in already:
+                continue
+            if _module_of_bridge_target(context, key) != module:
+                continue
+            if _ir_kind_for_bridge_target(context, key, kind):
+                targets.append(key)
+    return targets
+
+
+def _apply_positional_fallback(
+    context: _BridgeContext, pending: list[_PendingBridgeAction]
+) -> tuple[int, list[str]]:
+    """Bridge remaining symbols by event order within each source file and kind."""
+    bridged = 0
+    warnings: list[str] = []
+    by_bucket: dict[tuple[str, str], list[_PendingBridgeAction]] = {}
+    for item in pending:
+        if item.symbol not in context.nodes:
+            by_bucket.setdefault((item.module, item.kind), []).append(item)
+    for (module, kind), unbridged in by_bucket.items():
+        ir_targets = _positional_target_keys(context, module, kind)
+        for index, item in enumerate(sorted(unbridged, key=lambda entry: entry.position)):
+            if index >= len(ir_targets):
+                break
+            target_key = ir_targets[index]
+            if not _ir_refs_consistent(context, target_key):
+                continue
+            bridged += int(_claim_bridge_target(context.nodes, item.symbol, target_key))
+            warnings.append(
+                f"positional fallback: bridged {item.symbol!r} "
+                f"(kind={item.kind!r}, file={module}.py) to {target_key!r} "
+                "by IR declaration order — no edge-signature or symbol-name match was available."
+            )
+    return bridged, warnings
+
+
+def _bridge_fallback_events(
+    context: _BridgeContext, events: list[dict[str, Any]]
+) -> tuple[int, list[str]]:
+    """Apply file/module fallback bridge strategies after signature matching."""
+    pending = _collect_pending_bridge_actions(events, context.nodes)
+    if not pending:
+        return 0, []
+    bridged = 0
+    warnings: list[str] = []
+    for apply_fallback in (
+        _apply_symbol_name_fallback,
+        _apply_file_uniqueness_fallback,
+        _apply_positional_fallback,
+    ):
+        count, fallback_warnings = apply_fallback(context, pending)
+        bridged += count
+        warnings.extend(fallback_warnings)
+    return bridged, warnings
+
+
 def bridge_event_symbols_to_layout(
     layout: dict[str, Any],
     ir: dict[str, Any],
@@ -433,495 +942,11 @@ def bridge_event_symbols_to_layout(
     if not isinstance(nodes, dict):
         return layout, warnings
 
-    # IR id -> lkm_id, for keying off the post-rekey layout.
-    ir_to_lkm: dict[str, str] = {}
-    for k in ir.get("knowledges", []) or []:
-        kid = k.get("id")
-        meta = k.get("metadata") or {}
-        lid = meta.get("lkm_id")
-        if isinstance(kid, str) and isinstance(lid, str) and lid:
-            ir_to_lkm[kid] = lid
-
-    def to_lkm(kid: str | None) -> str | None:
-        if not isinstance(kid, str):
-            return None
-        return ir_to_lkm.get(kid, kid)
-
-    # Build signature dicts that map (kind-or-shape, lkm-id-tuple) → layout key.
-    #
-    #   strategy_signatures: ("strategy", {premise lkm_ids}, conclusion lkm_id)
-    #     used for `deduction` actions (and any strategy whose `type` is
-    #     support / contradiction / equivalence — packages occasionally
-    #     model support as a strategy rather than an operator).
-    #
-    #   pair_signatures: (kind, frozenset({lkm_a, lkm_b})) — the symmetric,
-    #     two-endpoint form. Matches both operators (kind = operator type)
-    #     and strategies whose premise+conclusion together form a 2-set
-    #     (a single-premise support / contradiction / equivalence).
-    #
-    # Collisions kick the entry out of the dict; the bridge then silently
-    # skips that match rather than mis-routing.
-    strategy_signatures: dict[tuple[Any, ...], str] = {}
-    pair_signatures: dict[tuple[Any, ...], str] = {}
-
-    def _record(sig_dict: dict[tuple[Any, ...], str], sig: tuple[Any, ...], target: str) -> None:
-        # First write wins; a second collision marks the slot dead by
-        # mapping to None so subsequent lookups skip it.
-        existing = sig_dict.get(sig)
-        if existing is None and sig not in sig_dict:
-            sig_dict[sig] = target
-        elif existing != target:
-            sig_dict[sig] = ""  # sentinel for "ambiguous"
-
-    for i, s in enumerate(ir.get("strategies", []) or []):
-        concl = s.get("conclusion")
-        premises = s.get("premises", []) or []
-        if not concl or not premises:
-            continue
-        concl_lkm = to_lkm(concl)
-        premise_lkms = frozenset(p for p in (to_lkm(x) for x in premises) if p)
-        sig = ("strategy", premise_lkms, concl_lkm)
-        _record(strategy_signatures, sig, f"strat_{i}")
-        # Single-premise strategies also get a pair entry, keyed by the
-        # event-side action kind (the strategy `type`).
-        stype = s.get("type")
-        if isinstance(stype, str) and len(premise_lkms) == 1 and concl_lkm:
-            (premise_lkm,) = premise_lkms
-            _record(
-                pair_signatures,
-                (stype, frozenset({premise_lkm, concl_lkm})),
-                f"strat_{i}",
-            )
-
-    for i, o in enumerate(ir.get("operators", []) or []):
-        kind = o.get("operator")
-        variables = o.get("variables", []) or []
-        if not kind or not variables:
-            continue
-        var_lkms = frozenset(v for v in (to_lkm(x) for x in variables) if v)
-        if len(var_lkms) >= 2:
-            _record(pair_signatures, (kind, var_lkms), f"oper_{i}")
-
-    def _gcn(s: Any) -> str | None:
-        return s if isinstance(s, str) and s.startswith("gcn_") else None
-
-    # Walk events looking for symbols to bridge. Within an event, we pair
-    # operator/support/contradiction/equivalence actions positionally with
-    # edges of the same kind (matches the frontend store's pairing logic
-    # in `actionPositionalIndex`). For deductions, all deduction edges in
-    # the event participate — each strategy lands one event with all its
-    # premises pointing into the same conclusion.
-    bridged = 0
-    for ev in events:
-        delta = ev.get("graph_delta") or {}
-        actions = ev.get("gaia_actions") or []
-        edges = delta.get("edges_added") or []
-        if not actions or not edges:
-            continue
-
-        # Pre-bucket edges by kind for positional pairing.
-        edges_by_kind: dict[str, list[dict[str, Any]]] = {}
-        for e in edges:
-            edges_by_kind.setdefault(e.get("kind") or "", []).append(e)
-        # Index of each action within its kind, used to pair with edges.
-        kind_seen: dict[str, int] = {}
-
-        for action in actions:
-            if not isinstance(action, dict):
-                continue
-            kind = action.get("action")
-            symbol = action.get("symbol")
-            if not isinstance(kind, str) or not isinstance(symbol, str) or not symbol:
-                continue
-            pos_in_kind = kind_seen.get(kind, 0)
-            kind_seen[kind] = pos_in_kind + 1
-            if symbol in nodes:
-                continue
-
-            target: str | None = None
-            if kind == "deduction":
-                # Strategy bridge: try the positional-pairing form first
-                # (one deduction edge per deduction action — each edge's
-                # endpoints identify one strategy's premise and conclusion).
-                # Fall back to the union form when the event has fewer edges
-                # than actions (skip-pivot deductions sharing a single
-                # strategy).
-                ded_edges = edges_by_kind.get("deduction") or []
-                candidate: str | None = None
-                if pos_in_kind < len(ded_edges):
-                    e = ded_edges[pos_in_kind]
-                    f = _gcn(e.get("from"))
-                    t = _gcn(e.get("to"))
-                    if f and t:
-                        bridge_sig: tuple[Any, ...] = ("strategy", frozenset({f}), t)
-                        candidate = strategy_signatures.get(bridge_sig)
-                if not candidate:
-                    gcns_from = {f for e in ded_edges if (f := _gcn(e.get("from")))}
-                    gcns_to = {t for e in ded_edges if (t := _gcn(e.get("to")))}
-                    premises = gcns_from - gcns_to
-                    conclusions = gcns_to - gcns_from
-                    if len(conclusions) == 1 and premises:
-                        concl = next(iter(conclusions))
-                        bridge_sig = ("strategy", frozenset(premises), concl)
-                        candidate = strategy_signatures.get(bridge_sig)
-                if candidate:
-                    target = candidate
-            elif kind in ("support", "contradiction", "equivalence"):
-                kind_edges = edges_by_kind.get(kind) or []
-                if pos_in_kind < len(kind_edges):
-                    e = kind_edges[pos_in_kind]
-                    f = _gcn(e.get("from"))
-                    t = _gcn(e.get("to"))
-                    if f and t:
-                        pair_sig: tuple[Any, ...] = (kind, frozenset({f, t}))
-                        candidate = pair_signatures.get(pair_sig)
-                        if candidate:
-                            target = candidate
-            if not target or target not in nodes:
-                continue
-            aliased_entry = dict(nodes[target])
-            # Stamp `canonical_id` on both the alias and the original
-            # entry so the replay store can deduplicate at final-state
-            # reconciliation (one canonical per position; admitting the
-            # alias short-circuits admitting strat_<i>/oper_<i> at the
-            # same coords).
-            aliased_entry["canonical_id"] = target
-            nodes[target]["canonical_id"] = target
-            nodes[symbol] = aliased_entry
-            bridged += 1
-
-    # ── Fallback: file/module + symbol-name + positional bridges ──────────
-    #
-    # When the edge-signature match in the loop above fails (event has
-    # no edges_added, or the ``graph_delta`` references gcns the IR no
-    # longer holds — i.e. the agent emitted a stale relation that was
-    # later rewritten by the package author), we try three weaker
-    # strategies in order: file+symbol-name, file+kind-uniqueness,
-    # then positional-in-file. All three are gated by the action's
-    # ``file`` carrying a fully-qualified ``.py`` path so degenerate
-    # ``file=src/{ns}`` (no specific module) doesn't bridge anything.
-
-    # Helper: derive an IR operator/strategy's source module from its
-    # conclusion knowledge's ``module`` field. The static DOT renderer
-    # already groups by this same module, so it cleanly maps to the file
-    # stem in the action.file path.
-    knowledge_module_by_id: dict[str, str] = {}
-    knowledge_ids: set[str] = set()
-    for k in ir.get("knowledges", []) or []:
-        kid = k.get("id")
-        if isinstance(kid, str) and kid:
-            knowledge_ids.add(kid)
-            mod = k.get("module")
-            if isinstance(mod, str) and mod:
-                knowledge_module_by_id[kid] = mod
-
-    def _module_of_target(target: str) -> str | None:
-        """Return the conclusion-knowledge module of a replay target.
-
-        Handles ``strat_<i>`` and ``oper_<i>`` targets, returning None if the
-        module cannot be determined.
-        """
-        if target.startswith("strat_"):
-            try:
-                idx = int(target.split("_", 1)[1])
-            except (ValueError, IndexError):
-                return None
-            strats = ir.get("strategies", []) or []
-            if 0 <= idx < len(strats):
-                concl = strats[idx].get("conclusion")
-                return knowledge_module_by_id.get(concl) if isinstance(concl, str) else None
-        elif target.startswith("oper_"):
-            try:
-                idx = int(target.split("_", 1)[1])
-            except (ValueError, IndexError):
-                return None
-            opers = ir.get("operators", []) or []
-            if 0 <= idx < len(opers):
-                concl = opers[idx].get("conclusion")
-                return knowledge_module_by_id.get(concl) if isinstance(concl, str) else None
-        return None
-
-    def _conclusion_slug(target: str) -> str | None:
-        """Return the Python symbol name bound to a relation target.
-
-        Contradiction, equivalence, and support targets encode this as the slug
-        after the last ``::`` in the conclusion id.
-        """
-        concl: str | None = None
-        if target.startswith("strat_"):
-            try:
-                idx = int(target.split("_", 1)[1])
-            except (ValueError, IndexError):
-                return None
-            strats = ir.get("strategies", []) or []
-            if 0 <= idx < len(strats):
-                concl = strats[idx].get("conclusion")
-        elif target.startswith("oper_"):
-            try:
-                idx = int(target.split("_", 1)[1])
-            except (ValueError, IndexError):
-                return None
-            opers = ir.get("operators", []) or []
-            if 0 <= idx < len(opers):
-                concl = opers[idx].get("conclusion")
-        if not isinstance(concl, str) or "::" not in concl:
-            return None
-        return concl.rsplit("::", 1)[-1]
-
-    def _ir_kind_for_target(target: str, action_kind: str) -> bool:
-        """Does this IR strat/oper align with the action's kind?"""
-        if action_kind == "deduction" and target.startswith("strat_"):
-            try:
-                idx = int(target.split("_", 1)[1])
-            except (ValueError, IndexError):
-                return False
-            strats = ir.get("strategies", []) or []
-            if 0 <= idx < len(strats):
-                return bool(strats[idx].get("type") == "deduction")
-            return False
-        if action_kind in ("support", "contradiction", "equivalence"):
-            # Either an operator with matching ``operator`` or a
-            # strategy with matching ``type`` (some packages model
-            # support as a strategy rather than an operator).
-            if target.startswith("oper_"):
-                try:
-                    idx = int(target.split("_", 1)[1])
-                except (ValueError, IndexError):
-                    return False
-                opers = ir.get("operators", []) or []
-                if 0 <= idx < len(opers):
-                    return bool(opers[idx].get("operator") == action_kind)
-                return False
-            if target.startswith("strat_"):
-                try:
-                    idx = int(target.split("_", 1)[1])
-                except (ValueError, IndexError):
-                    return False
-                strats = ir.get("strategies", []) or []
-                if 0 <= idx < len(strats):
-                    return bool(strats[idx].get("type") == action_kind)
-                return False
-        return False
-
-    def _ir_refs_consistent(target: str) -> bool:
-        """Return whether a fallback target references live IR knowledges.
-
-        The IR strat/oper referenced ids must all resolve to IR knowledges.
-        Rejects phantom matches where an IR entry references a
-        knowledge id that no longer exists in the IR.
-        """
-        if target.startswith("strat_"):
-            try:
-                idx = int(target.split("_", 1)[1])
-            except (ValueError, IndexError):
-                return False
-            strats = ir.get("strategies", []) or []
-            if not (0 <= idx < len(strats)):
-                return False
-            s = strats[idx]
-            refs: list[Any] = []
-            concl = s.get("conclusion")
-            if isinstance(concl, str):
-                refs.append(concl)
-            for p in s.get("premises") or []:
-                if isinstance(p, str):
-                    refs.append(p)
-            return all(r in knowledge_ids for r in refs) and bool(refs)
-        if target.startswith("oper_"):
-            try:
-                idx = int(target.split("_", 1)[1])
-            except (ValueError, IndexError):
-                return False
-            opers = ir.get("operators", []) or []
-            if not (0 <= idx < len(opers)):
-                return False
-            o = opers[idx]
-            refs = []
-            concl = o.get("conclusion")
-            if isinstance(concl, str):
-                refs.append(concl)
-            for v in o.get("variables") or []:
-                if isinstance(v, str):
-                    refs.append(v)
-            return all(r in knowledge_ids for r in refs) and bool(refs)
-        return False
-
-    # ``targets_already_bridged`` tracks strat_/oper_ keys that already
-    # have an event-side alias claimed (either by the edge-signature
-    # match above or by an earlier fallback pass on the same run). The
-    # fallbacks only consider unbridged targets so we don't claim the
-    # same canonical id twice.
-    def _refresh_already_bridged() -> set[str]:
-        already: set[str] = set()
-        for entry in nodes.values():
-            if not isinstance(entry, dict):
-                continue
-            cid = entry.get("canonical_id")
-            if isinstance(cid, str) and cid:
-                already.add(cid)
-        return already
-
-    def _action_module(action: dict[str, Any]) -> str | None:
-        """Stem of ``action.file`` when it's a ``.py`` path; else None."""
-        f = action.get("file")
-        if not isinstance(f, str) or not f.endswith(".py"):
-            return None
-        # Take the basename without extension.
-        base = f.rsplit("/", 1)[-1]
-        return base[:-3] if base.endswith(".py") else None
-
-    def _claim_target(symbol: str, target: str) -> None:
-        """Alias ``target``'s layout entry to ``symbol``.
-
-        Stamps canonical_id on both entries. This is a no-op if the symbol or
-        target collides with the existing layout in a way we'd refuse.
-        """
-        nonlocal bridged
-        if target not in nodes or symbol in nodes:
-            return
-        aliased_entry = dict(nodes[target])
-        aliased_entry["canonical_id"] = target
-        nodes[target]["canonical_id"] = target
-        nodes[symbol] = aliased_entry
-        bridged += 1
-
-    # Collect every unbridged ``(kind, action.symbol, action.file)``
-    # tuple in event-stream order, plus a positional index tracking how
-    # many same-kind actions in the same file have appeared earlier.
-    file_kind_seen: dict[tuple[str, str], int] = {}
-    pending: list[
-        tuple[dict[str, Any], str, str, str, int]
-    ] = []  # (action, kind, symbol, module, pos)
-    for ev in events:
-        for action in ev.get("gaia_actions") or []:
-            if not isinstance(action, dict):
-                continue
-            kind = action.get("action")
-            symbol = action.get("symbol")
-            if not isinstance(kind, str) or not isinstance(symbol, str) or not symbol:
-                continue
-            if kind not in ("deduction", "support", "contradiction", "equivalence"):
-                continue
-            module = _action_module(action)
-            if module is None:
-                continue
-            pos = file_kind_seen.get((module, kind), 0)
-            file_kind_seen[(module, kind)] = pos + 1
-            if symbol in nodes:
-                continue
-            pending.append((action, kind, symbol, module, pos))
-
-    if pending:
-        fallback_warns: list[str] = []
-        # Step B: file + symbol-name match.
-        for _action, kind, symbol, module, _pos in pending:
-            if symbol in nodes:
-                continue
-            already = _refresh_already_bridged()
-            for target_key in list(nodes.keys()):
-                if not (target_key.startswith("strat_") or target_key.startswith("oper_")):
-                    continue
-                if target_key in already:
-                    continue
-                if _module_of_target(target_key) != module:
-                    continue
-                if not _ir_kind_for_target(target_key, kind):
-                    continue
-                if _conclusion_slug(target_key) == symbol:
-                    _claim_target(symbol, target_key)
-                    fallback_warns.append(
-                        f"symbol-name fallback: bridged {symbol!r} (kind={kind!r}, "
-                        f"file={module}.py) to {target_key!r} via IR conclusion-id slug."
-                    )
-                    break
-
-        # Step C: file + kind uniqueness — exactly one candidate left.
-        for _action, kind, symbol, module, _pos in pending:
-            if symbol in nodes:
-                continue
-            already = _refresh_already_bridged()
-            candidates: list[str] = []
-            for target_key in list(nodes.keys()):
-                if not (target_key.startswith("strat_") or target_key.startswith("oper_")):
-                    continue
-                if target_key in already:
-                    continue
-                if _module_of_target(target_key) != module:
-                    continue
-                if not _ir_kind_for_target(target_key, kind):
-                    continue
-                candidates.append(target_key)
-            if len(candidates) == 1 and _ir_refs_consistent(candidates[0]):
-                _claim_target(symbol, candidates[0])
-                fallback_warns.append(
-                    f"file-uniqueness fallback: bridged {symbol!r} (kind={kind!r}, "
-                    f"file={module}.py) to {candidates[0]!r} as the sole unbridged "
-                    "candidate of that kind in that module."
-                )
-
-        # Step D: positional-in-file fallback. Group still-pending
-        # symbols by (module, kind) and pair them with unbridged IR
-        # entries in IR declaration order.
-        # Re-walk pending to gather still-unbridged in stable order.
-        by_bucket: dict[tuple[str, str], list[tuple[str, int]]] = {}
-        for _action, kind, symbol, module, pos in pending:
-            if symbol in nodes:
-                continue
-            by_bucket.setdefault((module, kind), []).append((symbol, pos))
-        for (module, kind), unbridged in by_bucket.items():
-            already = _refresh_already_bridged()
-            # IR strat_/oper_ targets in declaration order matching
-            # this (module, kind) and not yet bridged.
-            ir_targets: list[str] = []
-            n_strats = len(ir.get("strategies", []) or [])
-            n_opers = len(ir.get("operators", []) or [])
-            if kind == "deduction":
-                for i in range(n_strats):
-                    key = f"strat_{i}"
-                    if key not in nodes or key in already:
-                        continue
-                    if _module_of_target(key) != module:
-                        continue
-                    if not _ir_kind_for_target(key, kind):
-                        continue
-                    ir_targets.append(key)
-            else:
-                # operator-shaped kinds: walk operators first (stable
-                # declaration order via i), then strategies of matching
-                # type as a fallback.
-                for i in range(n_opers):
-                    key = f"oper_{i}"
-                    if key not in nodes or key in already:
-                        continue
-                    if _module_of_target(key) != module:
-                        continue
-                    if not _ir_kind_for_target(key, kind):
-                        continue
-                    ir_targets.append(key)
-                for i in range(n_strats):
-                    key = f"strat_{i}"
-                    if key not in nodes or key in already:
-                        continue
-                    if _module_of_target(key) != module:
-                        continue
-                    if not _ir_kind_for_target(key, kind):
-                        continue
-                    ir_targets.append(key)
-            # Pair: Nth pending → Nth IR target, gated by sanity check.
-            unbridged_sorted = sorted(unbridged, key=lambda t: t[1])
-            for i, (symbol, _pos) in enumerate(unbridged_sorted):
-                if i >= len(ir_targets):
-                    break
-                target_key = ir_targets[i]
-                if not _ir_refs_consistent(target_key):
-                    continue
-                _claim_target(symbol, target_key)
-                fallback_warns.append(
-                    f"positional fallback: bridged {symbol!r} (kind={kind!r}, file={module}.py) "
-                    f"to {target_key!r} by IR declaration order — no edge-signature or "
-                    "symbol-name match was available."
-                )
-        warnings.extend(fallback_warns)
+    context = _build_bridge_context(ir, nodes)
+    bridged = _bridge_edge_signature_events(context, events)
+    fallback_count, fallback_warnings = _bridge_fallback_events(context, events)
+    bridged += fallback_count
+    warnings.extend(fallback_warnings)
 
     if bridged:
         warnings.append(f"bridged {bridged} event-side symbol(s) to pinned positions")
