@@ -349,6 +349,15 @@ class GeneralizedBeliefPropagation:
         bp_max_iter: int = 200,
         bp_threshold: float = 1e-8,
     ) -> None:
+        """Initialize GBP region-detection and fallback inference settings.
+
+        Args:
+            max_cycle_len: Maximum cycle length to group into GBP regions.
+            jt_threshold: Treewidth at or below which JT is used directly.
+            bp_damping: Damping factor for cross-region loopy BP.
+            bp_max_iter: Maximum cross-region BP iterations.
+            bp_threshold: Cross-region BP convergence threshold.
+        """
         self._max_cycle_len = max_cycle_len
         self._jt_threshold = jt_threshold
         self._jt = JunctionTreeInference()
@@ -388,7 +397,6 @@ class GeneralizedBeliefPropagation:
         diag: BPDiagnostics,
     ) -> BPResult:
         """Full region-graph GBP with inter-region message passing."""
-
         # Step 1: Build regions
         regions = build_region_graph(graph, self._max_cycle_len)
         n_regions = len(regions)

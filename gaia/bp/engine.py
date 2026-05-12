@@ -55,8 +55,7 @@ EXACT_MAX_VARS: int = 26  # Brute-force enumeration limit (2^26 = 67M states)
 class EngineConfig:
     """Configuration for the unified inference engine.
 
-    Attributes
-    ----------
+    Attributes:
     jt_max_treewidth:
         Use JT (exact) when estimated treewidth ≤ this value.
     gbp_max_treewidth:
@@ -89,8 +88,7 @@ class InferenceResult:
 
     Wraps BPResult and adds engine-level diagnostics.
 
-    Attributes
-    ----------
+    Attributes:
     bp_result:
         The underlying BPResult (beliefs + diagnostics).
     method_used:
@@ -131,14 +129,18 @@ class InferenceEngine:
       2. GBP: jt_max_treewidth < tw ≤ gbp_max_treewidth → region decomposition
       3. BP: tw > gbp_max_treewidth → loopy BP approximation
 
-    Parameters
-    ----------
+    Args:
     config:
         EngineConfig controlling thresholds and algorithm parameters.
         Defaults to EngineConfig() with recommended settings.
     """
 
     def __init__(self, config: EngineConfig | None = None) -> None:
+        """Initialize the engine and its reusable inference backends.
+
+        Args:
+            config: Optional engine thresholds and algorithm parameters.
+        """
         self._config = config or EngineConfig()
         self._jt = JunctionTreeInference()
         self._gbp = GeneralizedBeliefPropagation(
@@ -160,8 +162,7 @@ class InferenceEngine:
     ) -> InferenceResult:
         """Run inference on *graph* using the specified or auto-selected method.
 
-        Parameters
-        ----------
+        Args:
         graph:
             A validated FactorGraph.
         method:
@@ -171,14 +172,9 @@ class InferenceEngine:
             'bp': force loopy BP (fast but approximate on cyclic graphs).
             'exact': force brute-force enumeration (only feasible for ≤26 vars).
 
-        Returns
-        -------
-        InferenceResult
-            .beliefs: dict[str, float] — posterior P(v=1) per variable
-            .method_used: which algorithm ran
-            .treewidth: estimated graph treewidth
-            .elapsed_ms: wall-clock time
-            .is_exact: whether the result is mathematically exact
+        Returns:
+            InferenceResult with posterior beliefs, selected method metadata,
+            estimated treewidth, elapsed time, and exactness flag.
         """
         cfg = self._config
         t0 = time.perf_counter()

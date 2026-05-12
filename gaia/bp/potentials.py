@@ -124,6 +124,19 @@ def pairwise_potential(
 
 
 def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
+    """Evaluate ``factor`` for a complete binary variable assignment.
+
+    Args:
+        factor: Factor whose potential family and parameters are dispatched.
+        assignment: Mapping from every factor variable ID to ``0`` or ``1``.
+
+    Returns:
+        The scalar potential weight for the assignment.
+
+    Raises:
+        ValueError: If required factor parameters are missing or the factor
+            type is unknown.
+    """
     ft = factor.factor_type
     v = factor.variables
     c = factor.conclusion

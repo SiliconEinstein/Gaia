@@ -25,6 +25,8 @@ def _cromwell_clamp(value: float, label: str = "") -> float:
 
 
 class FactorType(Enum):
+    """Supported binary-factor potential families for Gaia BP lowering."""
+
     IMPLICATION = auto()
     NEGATION = auto()
     CONJUNCTION = auto()
@@ -39,6 +41,18 @@ class FactorType(Enum):
 
 @dataclass(frozen=True)
 class Factor:
+    """Factor node connecting premise variables to a conclusion variable.
+
+    Attributes:
+        factor_id: Stable identifier for diagnostics and merged graphs.
+        factor_type: Potential family used to evaluate assignments.
+        variables: Premise variable IDs in factor-specific order.
+        conclusion: Conclusion or paired variable ID.
+        p1: Optional positive-case probability for soft entailment factors.
+        p2: Optional negative-case probability for soft entailment factors.
+        cpt: Optional conditional probability table or pairwise weights.
+    """
+
     factor_id: str
     factor_type: FactorType
     variables: list[str]
@@ -49,6 +63,7 @@ class Factor:
 
     @property
     def all_vars(self) -> list[str]:
+        """Return premise variables plus conclusion with duplicates removed."""
         seen: set[str] = set()
         out: list[str] = []
         for v in (*self.variables, self.conclusion):
@@ -59,7 +74,10 @@ class Factor:
 
 
 class FactorGraph:
+    """Mutable binary factor graph consumed by BP, JT, GBP, and exact inference."""
+
     def __init__(self) -> None:
+        """Initialize an empty factor graph with no variables or factors."""
         self.variables: dict[str, float] = {}
         self.unary_factors: dict[str, float] = {}
         self.factors: list[Factor] = []
@@ -120,6 +138,21 @@ class FactorGraph:
         p2: float | None = None,
         cpt: Sequence[float] | None = None,
     ) -> None:
+        """Add a validated factor to the graph.
+
+        Args:
+            factor_id: Stable factor identifier.
+            factor_type: Potential family to add.
+            variables: Premise variable IDs in factor-specific order.
+            conclusion: Conclusion or paired variable ID.
+            p1: Optional soft-entailment ``P(conclusion=1 | premise=1)``.
+            p2: Optional soft-entailment ``P(conclusion=0 | premise=0)``.
+            cpt: Optional conditional table or pairwise potential weights.
+
+        Raises:
+            ValueError: If the factor shape or parameters violate the
+                contract for ``factor_type``.
+        """
         v_list = list(variables)
         if conclusion in v_list:
             raise ValueError(
@@ -243,6 +276,7 @@ class FactorGraph:
                 )
 
     def get_var_to_factors(self) -> dict[str, list[int]]:
+        """Return a reverse index from variable ID to incident factor indices."""
         index: dict[str, list[int]] = {vid: [] for vid in self.variables}
         for fi, factor in enumerate(self.factors):
             for vid in factor.all_vars:
@@ -257,6 +291,7 @@ class FactorGraph:
         return index
 
     def validate(self) -> list[str]:
+        """Return structural validation errors without mutating the graph."""
         errors: list[str] = []
         for fi, factor in enumerate(self.factors):
             seen: set[str] = set()
@@ -274,6 +309,7 @@ class FactorGraph:
         return errors
 
     def summary(self) -> str:
+        """Return a human-readable summary of variables, unary factors, and factors."""
         lines = [f"FactorGraph: {len(self.variables)} variables, {len(self.factors)} factors"]
         lines.append("Variables:")
         for vid, measure in sorted(self.variables.items()):

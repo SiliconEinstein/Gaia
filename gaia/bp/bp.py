@@ -93,8 +93,7 @@ def _normalize(msg: Msg) -> Msg:
 class BPDiagnostics:
     """Diagnostic information collected during a BP run.
 
-    Attributes
-    ----------
+    Attributes:
     converged:
         True if the run stopped due to belief change < convergence_threshold.
     iterations_run:
@@ -157,8 +156,7 @@ class BPDiagnostics:
 class BPResult:
     """Return value of BeliefPropagation.run().
 
-    Attributes
-    ----------
+    Attributes:
     beliefs:
         {var_id: posterior_belief} where belief = P(x=1) after BP.
     diagnostics:
@@ -270,8 +268,7 @@ class BeliefPropagation:
     - Relation variables (CONTRADICTION/EQUIVALENCE) participate fully.
     - BPDiagnostics always collected (full belief history).
 
-    Parameters
-    ----------
+    Args:
     damping:
         α in bp.md §4. Default 0.5. Range (0, 1].
         1.0 = fully replace old message (fast, may oscillate).
@@ -289,6 +286,16 @@ class BeliefPropagation:
         max_iterations: int = 100,
         convergence_threshold: float = 1e-6,
     ) -> None:
+        """Initialize loopy BP with damping and convergence controls.
+
+        Args:
+            damping: Message damping factor in ``(0, 1]``.
+            max_iterations: Maximum number of synchronous BP sweeps.
+            convergence_threshold: Stop when the maximum belief change falls below this value.
+
+        Raises:
+            ValueError: If ``damping`` is outside ``(0, 1]``.
+        """
         if not (0.0 < damping <= 1.0):
             raise ValueError(f"damping must be in (0, 1], got {damping}")
         self._damping = damping
@@ -300,17 +307,13 @@ class BeliefPropagation:
 
         Always returns a BPResult with full diagnostics (never None).
 
-        Parameters
-        ----------
+        Args:
         graph:
             A validated FactorGraph. Variables referenced by factors must
             be registered. Cromwell clamping is enforced at graph construction.
 
-        Returns
-        -------
-        BPResult
-            .beliefs: dict[str, float] — posterior P(x=1) per variable.
-            .diagnostics: BPDiagnostics — full run record.
+        Returns:
+            A BPResult containing posterior ``P(x=1)`` beliefs and full run diagnostics.
         """
         diag = BPDiagnostics()
 

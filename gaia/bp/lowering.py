@@ -738,11 +738,10 @@ def merge_factor_graphs(
         QID prefix for the local package, e.g. ``"github:my_pkg::"``.
         Variables starting with this prefix are owned by the local package.
 
-    Returns
-    -------
-    A merged :class:`FactorGraph` where shared QIDs map to a single
-    variable (dep-owned prior takes precedence for dep nodes) and all
-    factors coexist with prefixed IDs to avoid collision.
+    Returns:
+        A merged :class:`FactorGraph` where shared QIDs map to a single
+        variable (dep-owned prior takes precedence for dep nodes) and all
+        factors coexist with prefixed IDs to avoid collision.
     """
     merged = FactorGraph()
 

@@ -191,8 +191,7 @@ def contract_to_cpt(
     alphabet at any individual step — even when the global variable count
     exceeds 52.
 
-    Parameters
-    ----------
+    Args:
     tensors:
         List of ``(ndarray, axis_var_ids)`` pairs.  The ndarray has one axis
         per name in ``axis_var_ids`` (in order); each axis has size 2.
@@ -207,17 +206,15 @@ def contract_to_cpt(
         Non-free variables omitted from this mapping are summed with the base
         counting measure, not assigned an implicit ``π=0.5`` prior.
 
-    Returns
-    -------
-    ndarray of shape ``(2,) * len(free_vars)`` giving ``P(conclusion | premises)``.
-    The last axis is normalized so that ``T[..., 0] + T[..., 1] == 1``.
+    Returns:
+        ndarray of shape ``(2,) * len(free_vars)`` giving
+        ``P(conclusion | premises)``. The last axis is normalized so that
+        ``T[..., 0] + T[..., 1] == 1``.
 
-    Raises
-    ------
-    ValueError
-        If ``free_vars`` is empty, or if the normalized joint is zero for some
-        premise assignment even after per-step rescaling (indicates
-        contradictory deterministic factors).
+    Raises:
+        ValueError: If ``free_vars`` is empty, or if the normalized joint is
+            zero for some premise assignment even after per-step rescaling
+            (indicates contradictory deterministic factors).
     """
     import opt_einsum as oe
 
@@ -388,15 +385,14 @@ def strategy_cpt(
     ``compute_coarse_cpts`` with the global factor graph's unary factors).
     Pass ``{}`` for isolated composite folding.
 
-    Note
-    ----
-    The ``cache`` is keyed by ``s.strategy_id``, which encodes
-    ``(scope, type, premises, conclusion)``.  It does NOT encode
-    ``var_priors`` or ``strat_params``.  Callers MUST pass a fresh
-    ``cache`` dict for each top-level invocation; reusing a cache
-    across calls with different unary factors or strat_params will return
-    stale results for ``FormalStrategy`` and auto-formalized leaves
-    whose internal helper claims have non-default priors.
+    Note:
+        The ``cache`` is keyed by ``s.strategy_id``, which encodes
+        ``(scope, type, premises, conclusion)``.  It does NOT encode
+        ``var_priors`` or ``strat_params``.  Callers MUST pass a fresh
+        ``cache`` dict for each top-level invocation; reusing a cache
+        across calls with different unary factors or strat_params will return
+        stale results for ``FormalStrategy`` and auto-formalized leaves
+        whose internal helper claims have non-default priors.
     """
     from gaia.bp.factor_graph import FactorGraph
     from gaia.bp.lowering import _lower_strategy

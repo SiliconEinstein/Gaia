@@ -191,6 +191,16 @@ def _factor_log_potentials(
 
 
 def exact_inference(graph: FactorGraph) -> tuple[dict[str, float], float]:
+    """Compute exact marginals and the partition function by enumeration.
+
+    Args:
+        graph: Factor graph to enumerate. Graphs with more than 26 variables
+            are rejected by the shared enumeration helper.
+
+    Returns:
+        A pair ``(beliefs, Z)`` where ``beliefs`` maps variable IDs to exact
+        posterior ``P(x=1)`` and ``Z`` is the unnormalized partition function.
+    """
     var_ids, _, all_log_joints = _enumerate_log_joint(graph)
     joint, z_shifted = _shifted_joint(all_log_joints)
     log_Z = all_log_joints.max() + np.log(z_shifted)
@@ -237,6 +247,19 @@ def comparison_table(
     title: str = "Exact vs BP Comparison",
     tolerance: float = 0.02,
 ) -> str:
+    """Render a side-by-side exact-vs-BP belief comparison table.
+
+    Args:
+        graph: Factor graph whose variables are displayed.
+        exact_beliefs: Exact posterior beliefs keyed by variable ID.
+        bp_beliefs: Approximate BP posterior beliefs keyed by variable ID.
+        Z: Exact partition function to show in the table header.
+        title: Header title for the rendered table.
+        tolerance: Absolute difference below which a row is counted as matching.
+
+    Returns:
+        A formatted multiline table for diagnostics and tests.
+    """
     var_ids = sorted(graph.variables.keys())
 
     lines = []

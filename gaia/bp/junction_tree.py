@@ -609,11 +609,9 @@ class JunctionTreeInference:
             A validated FactorGraph. All variables referenced by factors
             must be registered.
 
-        Returns
-        -------
-        BPResult
-            .beliefs: dict[str, float] — exact marginal P(v=1) per variable.
-            .diagnostics: BPDiagnostics recording treewidth and clique count.
+        Returns:
+            BPResult containing exact marginal ``P(v=1)`` beliefs and
+            diagnostics recording treewidth and clique count.
         """
         diag = BPDiagnostics()
 
