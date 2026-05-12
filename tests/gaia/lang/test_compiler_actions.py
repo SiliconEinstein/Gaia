@@ -4,6 +4,7 @@ from gaia.lang import (
     Claim,
     associate,
     candidate_relation,
+    compose,
     compute,
     contradict,
     depends_on,
@@ -479,4 +480,55 @@ def test_unrelated_knowledge_action_label_collision_still_raises():
         c.label = "c"
 
     with pytest.raises(ValueError, match="label collision"):
+        compile_package_artifact(pkg)
+
+
+def test_duplicate_strategy_action_label_raises():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        c1 = derive("C1.", given=a, rationale="A implies C1.", label="same_step")
+        c1.label = "c1"
+        c2 = derive("C2.", given=a, rationale="A implies C2.", label="same_step")
+        c2.label = "c2"
+
+    with pytest.raises(ValueError, match="duplicate action label 'same_step'"):
+        compile_package_artifact(pkg)
+
+
+def test_duplicate_operator_action_label_raises():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        c = Claim("C.")
+        c.label = "c"
+        first = contradict(a, b, rationale="A conflicts with B.", label="same_relation")
+        first.label = "first_conflict"
+        second = contradict(a, c, rationale="A conflicts with C.", label="same_relation")
+        second.label = "second_conflict"
+
+    with pytest.raises(ValueError, match="duplicate action label 'same_relation'"):
+        compile_package_artifact(pkg)
+
+
+def test_duplicate_compose_action_label_raises():
+    @compose(name="test:workflow:first", version="1.0", label="same_workflow")
+    def first_workflow(seed: Claim) -> Claim:
+        return derive("C1.", given=seed, rationale="First workflow.", label="first_child")
+
+    @compose(name="test:workflow:second", version="1.0", label="same_workflow")
+    def second_workflow(seed: Claim) -> Claim:
+        return derive("C2.", given=seed, rationale="Second workflow.", label="second_child")
+
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        c1 = first_workflow(a)
+        c1.label = "c1"
+        c2 = second_workflow(a)
+        c2.label = "c2"
+
+    with pytest.raises(ValueError, match="duplicate action label 'same_workflow'"):
         compile_package_artifact(pkg)

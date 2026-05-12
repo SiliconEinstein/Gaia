@@ -369,7 +369,8 @@ As a rule of thumb:
 ## 5. Structured Formula Sugar
 
 Most authors do not need to hand-write every AST node for common data claims.
-Gaia provides three helpers.
+Gaia provides two formula helpers, plus the normal `observe(...)` action for
+measured values.
 
 ### `parameter(variable, value, ...)`
 
@@ -397,31 +398,33 @@ Equals(theta, Constant(0.75, Probability))
 Current limit: `parameter(...)` supports primitive variables only. It does not
 bind a finite `Domain` member.
 
-### `observation(...)`
+### Structured observed values
 
-Use this to record observed primitive values:
+Use a normal formula claim for observed primitive values, then mark it with
+`observe(...)`. Observation is an action verb, not a `ClaimKind` and not a
+structured-claim sugar.
 
 ```python
-from gaia.lang import Nat, Variable, observation
+from gaia.lang import Constant, Nat, Variable, claim, equals, land, observe
 
-n = Variable(symbol="n", domain=Nat, value=395)
-k = Variable(symbol="k", domain=Nat, value=295)
+n = Variable(symbol="n", domain=Nat)
+k = Variable(symbol="k", domain=Nat)
 
-data = observation(
-    n=n,
-    k=k,
-    describe="Observed 295 dominant phenotypes out of 395 F2 plants.",
-    prior=0.999,
-    label="f2_data",
+data = observe(
+    claim(
+        "Observed 295 dominant phenotypes out of 395 F2 plants.",
+        formula=land(equals(n, Constant(395, Nat)), equals(k, Constant(295, Nat))),
+    ),
+    rationale="Extracted from the reported count table.",
+    label="observe_f2_data",
 )
+data.label = "f2_data"
 ```
 
-One observed variable lowers to one equality. Multiple observed variables lower
-to a conjunction of equalities, and the compiler copies the primitive bindings
-back onto the source claim as `parameters` plus `metadata.formula_bindings`.
-
-Current limit: `observation(...)` expects variables whose domains are primitive
-types and whose `value` fields are already set.
+One equality records one observed binding. Multiple observed bindings should be
+written as a conjunction of equalities. The compiler copies primitive formula
+bindings onto the source claim as `parameters` plus `metadata.formula_bindings`;
+the zero-premise `observe(...)` action pins the claim to `1 - CROMWELL_EPS`.
 
 ### `causal(cause, effect, ...)`
 
@@ -658,7 +661,8 @@ Current non-goals:
 - no nested-quantifier lowering contract;
 - no automatic Skolemization for `forall x exists y`;
 - no zero-arity predicate symbols;
-- no `parameter(...)` / `observation(...)` sugar for finite `Domain` values.
+- no `parameter(...)` sugar or special observation helper for finite `Domain`
+  values.
 
 ---
 
@@ -729,7 +733,7 @@ treats them as the same node.
 | A simple scientific assertion | `claim("...")` |
 | Background text with no truth variable | `note("...")` |
 | A scalar parameter value | `parameter(variable, value, ...)` |
-| Observed primitive values | `observation(...)` |
+| Observed primitive values | `claim(formula=...)` plus `observe(...)` |
 | A causal marker claim | `causal(cause, effect, ...)` |
 | Boolean structure over existing claims | `claim(formula=land(...))`, `implies(...)`, etc. |
 | A finite-domain universal or existential claim | `claim(formula=forall(...))` / `claim(formula=exists(...))` |

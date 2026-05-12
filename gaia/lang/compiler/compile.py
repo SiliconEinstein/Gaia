@@ -384,6 +384,10 @@ def _action_label(action: Any, pkg: CollectedPackage, action_index: int) -> str:
     return _make_action_qid(pkg.namespace, pkg.name, label)
 
 
+def _action_label_display(action_label: str) -> str:
+    return action_label.rsplit("::action::", maxsplit=1)[-1]
+
+
 def _action_metadata(
     action: Any,
     pkg: CollectedPackage,
@@ -753,6 +757,12 @@ class _ActionCompiler:
     def _record_action_target(self, action_label: str, target_id: str | None) -> None:
         if target_id is None:
             return
+        existing_target_id = self.action_label_map.get(action_label)
+        if existing_target_id is not None and existing_target_id != target_id:
+            raise ValueError(
+                f"duplicate action label '{_action_label_display(action_label)}' "
+                f"targets both {existing_target_id!r} and {target_id!r}"
+            )
         self.action_label_map[action_label] = target_id
         self.target_action_labels_by_id[target_id] = action_label
 
