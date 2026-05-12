@@ -453,6 +453,16 @@ def _build_prior_holes(kb: KnowledgeBreakdown) -> list[dict[str, Any]]:
     return out
 
 
+def _empty_belief_report() -> dict[str, Any]:
+    return {
+        "ran_inference": False,
+        "beliefs": [],
+        "focus": None,
+        "largest_increases": [],
+        "largest_decreases": [],
+    }
+
+
 def _strategy_review_status(
     strategy: Any,
     review_manifest: ReviewManifest | None,
@@ -497,6 +507,74 @@ def _build_inquiry_tree(
     }
 
 
+def _dependency_factor_graphs(loaded: Any, depth: int) -> list[tuple[str, Any, str]]:
+    from gaia.bp import lower_local_graph
+
+    dep_factor_graphs: list[tuple[str, Any, str]] = []
+    for dep in load_dependency_compiled_graphs(loaded.project_config, depth=depth):
+        dep_review_manifest = load_or_generate_review_manifest(dep.root, dep)
+        dep_fg = lower_local_graph(dep.graph, review_manifest=dep_review_manifest)
+        dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
+        dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
+    return dep_factor_graphs
+
+
+def _review_factor_graph(
+    graph: Any,
+    pkg_path: Path,
+    loaded: Any,
+    review_manifest: ReviewManifest | None,
+    depth: int,
+) -> Any:
+    from gaia.bp import lower_local_graph, merge_factor_graphs
+
+    if depth != 0:
+        dep_factor_graphs = _dependency_factor_graphs(loaded, depth)
+        local_fg = lower_local_graph(graph, review_manifest=review_manifest)
+        local_prefix = f"{graph.namespace}:{graph.package_name}::"
+        if dep_factor_graphs:
+            return merge_factor_graphs(local_fg, dep_factor_graphs, local_prefix=local_prefix)
+        return local_fg
+
+    foreign = collect_foreign_node_priors(graph, pkg_path)
+    return lower_local_graph(
+        graph,
+        node_priors=foreign or None,
+        review_manifest=review_manifest,
+    )
+
+
+def _run_factor_graph_inference(fg: Any) -> Any:
+    from gaia.bp.engine import InferenceEngine
+
+    engine = InferenceEngine()
+    return engine.run(fg)
+
+
+def _append_belief_entries(out: dict[str, Any], graph: Any, result: Any) -> None:
+    kbyid = {knowledge.id: knowledge for knowledge in graph.knowledges}
+    for kid, belief in sorted(result.bp_result.beliefs.items()):
+        if kid in kbyid:
+            out["beliefs"].append(
+                {"knowledge_id": kid, "label": kbyid[kid].label, "belief": belief}
+            )
+
+
+def _set_focus_belief(out: dict[str, Any], focus: FocusBinding) -> None:
+    if not focus.resolved_id:
+        return
+    for entry in out["beliefs"]:
+        if entry["knowledge_id"] == focus.resolved_id:
+            out["focus"] = {
+                "knowledge_id": focus.resolved_id,
+                "label": entry["label"],
+                "before": None,
+                "after": entry["belief"],
+                "delta": None,
+            }
+            return
+
+
 def _build_belief_report(
     graph: Any,
     pkg_path: Path,
@@ -509,13 +587,7 @@ def _build_belief_report(
     review_manifest: ReviewManifest | None = None,
     depth: int = 0,
 ) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "ran_inference": False,
-        "beliefs": [],
-        "focus": None,
-        "largest_increases": [],
-        "largest_decreases": [],
-    }
+    out = _empty_belief_report()
     if graph is None or no_infer:
         return out
     if loaded is None or compiled is None:
@@ -523,62 +595,19 @@ def _build_belief_report(
     if errors:
         return out
     try:
-        from gaia.bp import FactorGraph, lower_local_graph, merge_factor_graphs
-        from gaia.bp.engine import InferenceEngine
-
-        if depth != 0:
-            dep_compiled = load_dependency_compiled_graphs(loaded.project_config, depth=depth)
-            dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
-            for dep in dep_compiled:
-                dep_review_manifest = load_or_generate_review_manifest(dep.root, dep)
-                dep_fg = lower_local_graph(dep.graph, review_manifest=dep_review_manifest)
-                dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
-                dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
-
-            local_fg = lower_local_graph(graph, review_manifest=review_manifest)
-            local_prefix = f"{graph.namespace}:{graph.package_name}::"
-            fg = (
-                merge_factor_graphs(local_fg, dep_factor_graphs, local_prefix=local_prefix)
-                if dep_factor_graphs
-                else local_fg
-            )
-        else:
-            foreign = collect_foreign_node_priors(graph, pkg_path)
-            fg = lower_local_graph(
-                graph,
-                node_priors=foreign or None,
-                review_manifest=review_manifest,
-            )
+        fg = _review_factor_graph(graph, pkg_path, loaded, review_manifest, depth)
         fg_errs = fg.validate()
         if fg_errs:
             errors.extend(fg_errs)
             return out
-        engine = InferenceEngine()
-        result = engine.run(fg)
+        result = _run_factor_graph_inference(fg)
     except Exception as exc:  # pragma: no cover
         errors.append(f"infer: {exc}")
         return out
 
     out["ran_inference"] = True
-    kbyid = {k.id: k for k in graph.knowledges}
-    for kid, belief in sorted(result.bp_result.beliefs.items()):
-        if kid in kbyid:
-            out["beliefs"].append(
-                {"knowledge_id": kid, "label": kbyid[kid].label, "belief": belief}
-            )
-
-    if focus.resolved_id:
-        for entry in out["beliefs"]:
-            if entry["knowledge_id"] == focus.resolved_id:
-                out["focus"] = {
-                    "knowledge_id": focus.resolved_id,
-                    "label": entry["label"],
-                    "before": None,
-                    "after": entry["belief"],
-                    "delta": None,
-                }
-                break
-
+    _append_belief_entries(out, graph, result)
+    _set_focus_belief(out, focus)
     return out
 
 

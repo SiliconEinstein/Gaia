@@ -644,6 +644,69 @@ def detect_overstrong_strategy_without_provenance(
     return out
 
 
+def _link_clique(adj: dict[str, set[str]], nodes: list[str]) -> None:
+    nodes = [n for n in nodes if n]
+    for i, a in enumerate(nodes):
+        for b in nodes[i + 1 :]:
+            adj[a].add(b)
+            adj[b].add(a)
+
+
+def _strategy_connection_nodes(strategy: Any) -> list[str]:
+    nodes: list[str] = []
+    if getattr(strategy, "conclusion", None):
+        nodes.append(strategy.conclusion)
+    nodes.extend(getattr(strategy, "premises", None) or [])
+    nodes.extend(getattr(strategy, "background", None) or [])
+    return nodes
+
+
+def _operator_connection_nodes(operator: Any) -> list[str]:
+    nodes: list[str] = []
+    if getattr(operator, "conclusion", None):
+        nodes.append(operator.conclusion)
+    nodes.extend(getattr(operator, "variables", None) or [])
+    return nodes
+
+
+def _graph_connection_adjacency(graph: Any) -> dict[str, set[str]]:
+    adj: dict[str, set[str]] = defaultdict(set)
+    for strategy in getattr(graph, "strategies", []) or []:
+        _link_clique(adj, _strategy_connection_nodes(strategy))
+    for operator in getattr(graph, "operators", []) or []:
+        _link_clique(adj, _operator_connection_nodes(operator))
+    return adj
+
+
+def _reachable_claims(adj: dict[str, set[str]], start: str) -> set[str]:
+    visited: set[str] = {start}
+    q: deque[str] = deque([start])
+    while q:
+        cur = q.popleft()
+        for nb in adj.get(cur, ()):
+            if nb not in visited:
+                visited.add(nb)
+                q.append(nb)
+    return visited
+
+
+def _background_only_claim_ids(graph: Any) -> set[str]:
+    in_core: set[str] = set()
+    in_bg: set[str] = set()
+    for strategy in getattr(graph, "strategies", []) or []:
+        if getattr(strategy, "conclusion", None):
+            in_core.add(strategy.conclusion)
+        for premise in getattr(strategy, "premises", None) or []:
+            in_core.add(premise)
+        for background in getattr(strategy, "background", None) or []:
+            in_bg.add(background)
+    return in_bg - in_core
+
+
+def _claim_label(knowledge: Any, kid: str) -> str:
+    return getattr(knowledge, "label", "") or (kid.split("::")[-1] if kid else "")
+
+
 def detect_claim_with_evidence_but_no_focus_connection(
     graph: Any,
     focus: FocusBinding | None,
@@ -663,56 +726,15 @@ def detect_claim_with_evidence_but_no_focus_connection(
     if not fid:
         return []
 
-    adj: dict[str, set[str]] = defaultdict(set)
-
-    def _link_clique(nodes: list[str]) -> None:
-        nodes = [n for n in nodes if n]
-        for i, a in enumerate(nodes):
-            for b in nodes[i + 1 :]:
-                adj[a].add(b)
-                adj[b].add(a)
-
-    for s in getattr(graph, "strategies", []) or []:
-        clique: list[str] = []
-        if getattr(s, "conclusion", None):
-            clique.append(s.conclusion)
-        clique.extend(getattr(s, "premises", None) or [])
-        clique.extend(getattr(s, "background", None) or [])
-        _link_clique(clique)
-    for o in getattr(graph, "operators", []) or []:
-        clique = []
-        if getattr(o, "conclusion", None):
-            clique.append(o.conclusion)
-        clique.extend(getattr(o, "variables", None) or [])
-        _link_clique(clique)
-
-    visited: set[str] = {fid}
-    q: deque[str] = deque([fid])
-    while q:
-        cur = q.popleft()
-        for nb in adj.get(cur, ()):
-            if nb not in visited:
-                visited.add(nb)
-                q.append(nb)
-
-    in_core: set[str] = set()
-    in_bg: set[str] = set()
-    for s in getattr(graph, "strategies", []) or []:
-        if getattr(s, "conclusion", None):
-            in_core.add(s.conclusion)
-        for p in getattr(s, "premises", None) or []:
-            in_core.add(p)
-        for b in getattr(s, "background", None) or []:
-            in_bg.add(b)
-    bg_only = in_bg - in_core
-
+    visited = _reachable_claims(_graph_connection_adjacency(graph), fid)
+    bg_only = _background_only_claim_ids(graph)
     out: list[Diagnostic] = []
     focus_label = fid.split("::")[-1] if fid else ""
     for k in getattr(graph, "knowledges", []) or []:
         kid = getattr(k, "id", "")
         if kid not in bg_only or kid in visited:
             continue
-        label = getattr(k, "label", "") or (kid.split("::")[-1] if kid else "")
+        label = _claim_label(k, kid)
         d = Diagnostic(
             severity="info",
             kind="claim_with_evidence_but_no_focus_connection",
