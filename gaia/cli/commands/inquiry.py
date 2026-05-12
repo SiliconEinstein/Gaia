@@ -71,6 +71,7 @@ def focus_command(
     show_stack: bool = typer.Option(False, "--stack", help="Print focus stack."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
+    """Inspect or update the current inquiry focus."""
     flags_set = sum([bool(clear), bool(push), bool(pop), bool(show_stack)])
     if flags_set > 1:
         typer.echo("Error: --clear/--push/--pop/--stack are mutually exclusive.", err=True)
@@ -161,6 +162,7 @@ def obligation_add(
     kind: str = typer.Option("other", "--kind", help="Diagnostic kind."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
+    """Add a synthetic obligation for an inquiry target."""
     if kind not in VALID_OBLIGATION_KINDS:
         typer.echo(
             f"Error: invalid --kind {kind!r}; allowed: {sorted(VALID_OBLIGATION_KINDS)}",
@@ -187,6 +189,7 @@ def obligation_list(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """List open synthetic obligations."""
     state = load_state(path)
     rows = [
         {
@@ -213,6 +216,7 @@ def obligation_close(
     qid: str = typer.Argument(...),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Close a synthetic obligation by QID."""
     state = load_state(path)
     before = len(state.synthetic_obligations)
     state.synthetic_obligations = [o for o in state.synthetic_obligations if o.qid != qid]
@@ -235,6 +239,7 @@ def hypothesis_add(
     scope: Optional[str] = typer.Option(None, "--scope", help="Scope QID."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Add a working hypothesis to inquiry state."""
     state = load_state(path)
     qid = mint_qid("hyp")
     state.synthetic_hypotheses.append(
@@ -250,6 +255,7 @@ def hypothesis_list(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """List working hypotheses from inquiry state."""
     state = load_state(path)
     rows = [
         {
@@ -276,6 +282,7 @@ def hypothesis_remove(
     qid: str = typer.Argument(...),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Remove a working hypothesis by QID."""
     state = load_state(path)
     before = len(state.synthetic_hypotheses)
     state.synthetic_hypotheses = [h for h in state.synthetic_hypotheses if h.qid != qid]
@@ -298,6 +305,7 @@ def reject_command(
     content: str = typer.Option(..., "-c", "--content", help="Reason."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Record a synthetic rejection for a strategy."""
     state = load_state(path)
     qid = mint_qid("rej")
     state.synthetic_rejections.append(
@@ -318,6 +326,7 @@ def tactics_log(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Print the inquiry tactic event log."""
     from gaia.inquiry.state import read_tactic_log
 
     rows = read_tactic_log(path)
@@ -351,6 +360,7 @@ def review_command(
     markdown_out: bool = typer.Option(False, "--markdown"),
     strict: bool = typer.Option(False, "--strict"),
 ) -> None:
+    """Run the local semantic inquiry review."""
     if mode not in {"auto", "formalize", "explore", "verify", "publish"}:
         typer.echo(f"Error: invalid --mode {mode!r}.", err=True)
         raise typer.Exit(2)

@@ -1,4 +1,4 @@
-"""gaia trace — public CLI sub-app（与 gaia inquiry 平行）。
+"""Public `gaia trace` CLI sub-app.
 
 Commands per ARM Trace v1：
   verify  — 仅 schema + hash chain 校验，秒级 fail-fast
@@ -39,7 +39,7 @@ def verify_command(
     trace_path: str = typer.Argument(..., help="Path to trace file (.json/.jsonl)."),
     quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output."),
 ) -> None:
-    """schema + hash chain 校验。
+    """Verify trace schema and hash chain.
 
     exit 0：clean
     exit 1：hash chain / manifest mismatch
@@ -116,7 +116,7 @@ def review_command(
         help="Exit non-zero whenever any error/warning diagnostic is present.",
     ),
 ) -> None:
-    """完整八段 review。
+    """Run the full ARM trace review.
 
     exit 0：clean
     exit 1：含 error 级 diagnostic 或 --strict 下含 warning
@@ -168,7 +168,7 @@ def show_command(
     ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSONL of selected events."),
 ) -> None:
-    """打印事件流（tactic_log 风格）。
+    """Print the trace event stream.
 
     schema_violation 时仍然尽量打可解析事件 + 报错到 stderr。
     """

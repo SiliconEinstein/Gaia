@@ -958,7 +958,7 @@ def load_dependency_compiled_graphs(
         Internal dedup set (QID prefixes already loaded). Callers should
         not pass this.
 
-    Returns
+    Returns:
     -------
     Flat list of :class:`DependencyGraph` for all discovered dependencies
     (deduplicated by ``namespace:package_name``).

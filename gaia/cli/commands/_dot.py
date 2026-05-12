@@ -253,7 +253,7 @@ def _belief_annotation(prior: float | None, belief: float | None) -> str:
 
 
 def _quote_id(raw: str) -> str:
-    """Return ``"<raw>"`` with embedded ``"`` and ``\\`` escaped."""
+    r"""Return ``"<raw>"`` with embedded ``"`` and ``\\`` escaped."""
     return '"' + raw.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 

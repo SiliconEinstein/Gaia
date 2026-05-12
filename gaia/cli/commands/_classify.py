@@ -58,8 +58,11 @@ def is_note_type(ktype: str) -> bool:
 
 
 def node_role(kid: str, ktype: str, c: KnowledgeClassification) -> str:
-    """Return the role of a knowledge node: note, question, derived, structural,
-    independent, background, or orphaned."""
+    """Return the role of a knowledge node.
+
+    Roles are note, question, derived, structural, independent, background,
+    or orphaned.
+    """
     if is_note_type(ktype):
         return "note"
     if ktype == "question":

@@ -31,7 +31,6 @@ def merge_review_manifests(
     and audit question are unchanged, persisted rounds are reattached to the new
     target id so accepted reviews are not silently dropped by hash churn.
     """
-
     generated_target_ids = {review.target_id for review in generated.reviews}
     generated_by_stable_key: dict[tuple[str, str, str], Review] = {}
     duplicate_stable_keys: set[tuple[str, str, str]] = set()

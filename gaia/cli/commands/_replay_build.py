@@ -616,8 +616,11 @@ def bridge_event_symbols_to_layout(
                 knowledge_module_by_id[kid] = mod
 
     def _module_of_target(target: str) -> str | None:
-        """Return the conclusion-knowledge module of ``strat_<i>`` /
-        ``oper_<i>``, or None if it can't be determined."""
+        """Return the conclusion-knowledge module of a replay target.
+
+        Handles ``strat_<i>`` and ``oper_<i>`` targets, returning None if the
+        module cannot be determined.
+        """
         if target.startswith("strat_"):
             try:
                 idx = int(target.split("_", 1)[1])
@@ -639,10 +642,11 @@ def bridge_event_symbols_to_layout(
         return None
 
     def _conclusion_slug(target: str) -> str | None:
-        """The Python symbol name a contradiction/equivalence/support
-        operator was bound to — encoded as the slug after the last
-        ``::`` in its conclusion id (e.g.
-        ``local:pkg::older_dmc_enhancement...`` → ``older_dmc_enhancement...``)."""
+        """Return the Python symbol name bound to a relation target.
+
+        Contradiction, equivalence, and support targets encode this as the slug
+        after the last ``::`` in the conclusion id.
+        """
         concl: str | None = None
         if target.startswith("strat_"):
             try:
@@ -700,10 +704,12 @@ def bridge_event_symbols_to_layout(
         return False
 
     def _ir_refs_consistent(target: str) -> bool:
-        """Sanity gate for the positional fallback: the IR
-        strat/oper's referenced ids must all resolve to IR knowledges.
+        """Return whether a fallback target references live IR knowledges.
+
+        The IR strat/oper referenced ids must all resolve to IR knowledges.
         Rejects phantom matches where an IR entry references a
-        knowledge id that no longer exists in the IR."""
+        knowledge id that no longer exists in the IR.
+        """
         if target.startswith("strat_"):
             try:
                 idx = int(target.split("_", 1)[1])
@@ -765,9 +771,11 @@ def bridge_event_symbols_to_layout(
         return base[:-3] if base.endswith(".py") else None
 
     def _claim_target(symbol: str, target: str) -> None:
-        """Alias ``target``'s layout entry to ``symbol`` and stamp
-        canonical_id on both. No-op if the symbol or target collides
-        with the existing layout in a way we'd refuse."""
+        """Alias ``target``'s layout entry to ``symbol``.
+
+        Stamps canonical_id on both entries. This is a no-op if the symbol or
+        target collides with the existing layout in a way we'd refuse.
+        """
         nonlocal bridged
         if target not in nodes or symbol in nodes:
             return
@@ -1393,8 +1401,10 @@ def topo_reorder_ticks(
 
 
 def compute_dot_layout(dot_source: str, *, dot_binary: str = "dot") -> dict[str, Any]:
-    """Run Graphviz ``dot -Tjson0`` against *dot_source* and return a
-    layout dict shaped for the replay frontend.
+    """Return a replay frontend layout from Graphviz output.
+
+    Runs Graphviz ``dot -Tjson0`` against *dot_source* and returns a layout
+    dict shaped for the replay frontend.
 
     Output shape::
 
@@ -1498,8 +1508,10 @@ def collect_round_order(events: list[dict[str, Any]]) -> list[str]:
 
 
 def collect_round_lkm_membership(events: list[dict[str, Any]]) -> dict[str, set[str]]:
-    """Map each ``round_id`` to the cumulative set of ``lkm_id`` values that
-    have been added (in any ``graph_delta.nodes_added``) by end of that round.
+    """Map each ``round_id`` to cumulative ``lkm_id`` membership.
+
+    Membership includes values added in any ``graph_delta.nodes_added`` entry
+    by the end of that round.
 
     The cumulative set for round R is monotonically non-decreasing across
     R's natural order. Knowledge nodes whose ``nodes_added`` entry has no
@@ -1535,9 +1547,11 @@ def _truncated_canonical_graph(
     ir: dict[str, Any],
     keep_knowledge_ids: set[str],
 ) -> LocalCanonicalGraph | None:
-    """Build a ``LocalCanonicalGraph`` from *ir* containing only the knowledges
-    in *keep_knowledge_ids* (plus operators / strategies whose every reference
-    lands inside that kept set). Returns ``None`` when no claim survives the cut.
+    """Build a truncated ``LocalCanonicalGraph`` from *ir*.
+
+    The graph contains only the knowledges in *keep_knowledge_ids* plus
+    operators and strategies whose every reference lands inside that kept set.
+    Returns ``None`` when no claim survives the cut.
     """
     knowledges = [k for k in ir.get("knowledges", []) if k.get("id") in keep_knowledge_ids]
     if not knowledges:
@@ -1586,7 +1600,9 @@ def compute_round_beliefs(
     ir: dict[str, Any],
     events: list[dict[str, Any]],
 ) -> dict[str, dict[str, float]]:
-    """Run inference on a truncated IR for each ``round_id`` and return
+    """Return per-round beliefs from truncated IR inference.
+
+    Runs inference on a truncated IR for each ``round_id`` and returns
     ``{round_id: {knowledge_id: belief}}``.
 
     The truncation is keyed on each knowledge's ``metadata.lkm_id``: a

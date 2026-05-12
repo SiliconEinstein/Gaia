@@ -36,6 +36,7 @@ class HoleEntry:
 
     @property
     def is_hole(self) -> bool:
+        """Return whether this independent claim is missing a prior."""
         return self.prior is None
 
 
@@ -54,10 +55,12 @@ class KnowledgeBreakdown:
 
     @property
     def holes(self) -> list[HoleEntry]:
+        """Return independent claims that still need priors."""
         return [e for e in self.independent if e.is_hole]
 
     @property
     def covered(self) -> list[HoleEntry]:
+        """Return independent claims that already have priors."""
         return [e for e in self.independent if not e.is_hole]
 
 

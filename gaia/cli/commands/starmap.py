@@ -139,7 +139,7 @@ def starmap_command(
         ),
     ),
 ) -> None:
-    """Emit a starmap of the compiled package.
+    r"""Emit a starmap of the compiled package.
 
     Three formats are supported:
 
@@ -159,7 +159,6 @@ def starmap_command(
     all formats.
 
     Examples:
-
       # Interactive HTML (default):
       gaia starmap path/to/pkg
 

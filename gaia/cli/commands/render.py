@@ -23,6 +23,8 @@ from gaia.ir.validator import validate_local_graph
 
 
 class RenderTarget(str, Enum):
+    """Supported presentation targets for `gaia render`."""
+
     docs = "docs"
     github = "github"
     obsidian = "obsidian"

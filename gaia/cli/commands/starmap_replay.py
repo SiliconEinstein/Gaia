@@ -343,7 +343,6 @@ def starmap_replay_command(
     cumulative knowledge set.
 
     Examples:
-
       # Default — write .gaia/starmap-replay.html into the package:
       gaia starmap-replay path/to/pkg
 

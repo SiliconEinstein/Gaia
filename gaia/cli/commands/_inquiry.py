@@ -92,7 +92,6 @@ def build_goal_trees(
     formalization_manifest: dict[str, Any] | None = None,
 ) -> list[InquiryNode]:
     """Build dependency trees by walking backward from exported Claims."""
-
     goal_ids = exported_ids or _exported_claim_ids(ir)
     knowledge_by_id = {
         knowledge["id"]: knowledge
