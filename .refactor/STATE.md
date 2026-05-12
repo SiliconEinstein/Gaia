@@ -275,15 +275,15 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 
 ##### 2.5.3a — Outlier ≥50 (5 individual units, one function each)
 
-- [ ] **2.5.3a-compile_package_artifact** Refactor `compile_package_artifact` (218 complexity) — likely in `gaia/cli/commands/*`. Read `docs/foundations/**` for canonical algorithm spec. Extract helpers; preserve CLI surface + output formats + exit codes. Verify: pytest 1605 + characterization tests on this command's outputs (CLI snapshot tests if present) + diff sample.
+- [ ] **2.5.3a-compile_package_artifact** Refactor `compile_package_artifact` (218 complexity) at **`gaia/lang/compiler/compile.py:471`** — this is the DSL compile entry point, not a CLI command. Read **`docs/foundations/gaia-lang/**`** for canonical compile / lowering semantics. Extract private helpers; preserve public function signature + compile-output schema + emitted IR equivalence. Verify: full pytest 1605 + `tests/gaia/lang/**` test subset + diff sample (helpers compute the same intermediate values).
   - status: `pending`
-- [ ] **2.5.3a-bridge_event_symbols_to_layout** Refactor `bridge_event_symbols_to_layout` (129). Same approach.
+- [ ] **2.5.3a-bridge_event_symbols_to_layout** Refactor `bridge_event_symbols_to_layout` (129) at **`gaia/cli/commands/_replay_build.py:374`** — replay-layout bridge logic. Doc-fidelity reference: `docs/foundations/` replay / starmap-related sections (NOT gaia-ir). Extract helpers; preserve replay output layout equivalence. Verify: full pytest 1605 + `tests/cli/test_starmap_replay.py` + `tests/cli/test_starmap*.py` subset + diff sample.
   - status: `pending`
-- [ ] **2.5.3a-topo_reorder_ticks** Refactor `topo_reorder_ticks` (66) in `gaia/ir`. Read `docs/foundations/gaia-ir/**` for topo invariants. Extract helpers; preserve IR schema + topo ordering semantics. Verify: pytest 1605 + IR-specific test subset + diff sample.
+- [ ] **2.5.3a-topo_reorder_ticks** Refactor `topo_reorder_ticks` (66) at **`gaia/cli/commands/_replay_build.py:1104`** — this is replay tick ordering logic, **NOT** IR topo invariants. Doc-fidelity reference: `docs/foundations/` replay / inquiry / starmap chapters (NOT `docs/foundations/gaia-ir/`). Extract helpers; preserve replay tick ordering semantics. Verify: full pytest 1605 + `tests/cli/test_starmap_replay.py` subset + diff sample.
   - status: `pending`
-- [ ] **2.5.3a-coarsen_ir** Refactor `coarsen_ir` (63) in `gaia/ir`. Same care as topo_reorder_ticks.
+- [ ] **2.5.3a-coarsen_ir** Refactor `coarsen_ir` (63) at **`gaia/ir/coarsen.py:13`** — this IS in IR. Read `docs/foundations/gaia-ir/**` for IR coarsening invariants. Extract helpers; preserve IR schema + coarsening semantics + factor identity. Verify: full pytest 1605 + `tests/ir/**` + `tests/gaia/ir/**` subset + diff sample.
   - status: `pending`
-- [ ] **2.5.3a-_simulate_store_admission** Refactor `_simulate_store_admission` (55). Read relevant docs/foundations for canonical semantics. Same approach.
+- [ ] **2.5.3a-_simulate_store_admission** Refactor `_simulate_store_admission` (55) at **`tests/cli/test_starmap_replay.py:1163`** — **test-side helper, not production code**. No canonical-algorithm doc-fidelity reference; behavioral parity = the same test scenarios still pass. Extract helpers; preserve test setup behavior. Verify: full pytest 1605 + `tests/cli/test_starmap_replay.py` all green + diff sample. Note: this is a test helper feeding the assertions; preserve its inputs/outputs exactly.
   - status: `pending`
 
 ##### 2.5.3b — 30-39 band, 17 functions, module-grouped (~3-5 units)
