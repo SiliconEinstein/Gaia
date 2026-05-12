@@ -2,28 +2,26 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import typer
 
+from gaia.bp import lower_local_graph
+from gaia.bp.engine import InferenceEngine
 from gaia.cli._packages import (
     GaiaCliError,
     apply_package_priors,
     build_package_manifests,
+    collect_foreign_node_priors,
+    compile_loaded_package_artifact,
     load_gaia_package,
+    render_manifest_json,
 )
-from gaia.cli._packages import compile_loaded_package_artifact
-from gaia.cli._packages import render_manifest_json
-from gaia.cli._packages import collect_foreign_node_priors
-from gaia.bp import lower_local_graph
-from gaia.bp.engine import InferenceEngine
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
@@ -34,7 +32,7 @@ except ImportError:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _read_gaia_lang_version_from_compile_metadata(pkg_path: Path) -> str:

@@ -1,6 +1,7 @@
 """Tests for Operator data model — §2.4 inputs/conclusion separation."""
 
 import pytest
+
 from gaia.ir import Operator, OperatorType
 
 

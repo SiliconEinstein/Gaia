@@ -17,7 +17,6 @@ from gaia.lang import (
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
 
-
 pytestmark = pytest.mark.legacy_dsl
 
 

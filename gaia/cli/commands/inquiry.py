@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
+from gaia.inquiry.focus import resolve_focus_target
 from gaia.inquiry.review import (
     publish_blockers,
     render_markdown,
@@ -22,7 +22,6 @@ from gaia.inquiry.review import (
     resolve_graph,
     run_review,
 )
-from gaia.inquiry.focus import resolve_focus_target
 from gaia.inquiry.state import (
     VALID_OBLIGATION_KINDS,
     SyntheticHypothesis,
@@ -64,7 +63,7 @@ inquiry_app.add_typer(tactics_app, name="tactics")
 
 @inquiry_app.command("focus")
 def focus_command(
-    target: Optional[str] = typer.Argument(None, help="Focus target."),
+    target: str | None = typer.Argument(None, help="Focus target."),
     clear: bool = typer.Option(False, "--clear", help="Clear current focus."),
     push: bool = typer.Option(False, "--push", help="Push current focus and set new."),
     pop: bool = typer.Option(False, "--pop", help="Pop saved focus off the stack."),
@@ -236,7 +235,7 @@ def obligation_close(
 @hypothesis_app.command("add")
 def hypothesis_add(
     content: str = typer.Argument(..., help="Hypothesis content."),
-    scope: Optional[str] = typer.Option(None, "--scope", help="Scope QID."),
+    scope: str | None = typer.Option(None, "--scope", help="Scope QID."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
     """Add a working hypothesis to inquiry state."""
@@ -351,11 +350,11 @@ def tactics_log(
 @inquiry_app.command("review")
 def review_command(
     path: str = typer.Argument(".", help="Package path."),
-    focus_: Optional[str] = typer.Option(None, "--focus"),
+    focus_: str | None = typer.Option(None, "--focus"),
     mode: str = typer.Option("auto", "--mode"),
     no_infer: bool = typer.Option(False, "--no-infer"),
     depth: int = typer.Option(0, "--depth"),
-    since: Optional[str] = typer.Option(None, "--since"),
+    since: str | None = typer.Option(None, "--since"),
     json_out: bool = typer.Option(False, "--json"),
     markdown_out: bool = typer.Option(False, "--markdown"),
     strict: bool = typer.Option(False, "--strict"),

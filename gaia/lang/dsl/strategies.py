@@ -6,10 +6,10 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal
 
-from gaia.lang.runtime import Knowledge, Step, Strategy
-from gaia.lang.runtime.nodes import ReasonInput
-from gaia.lang.runtime.knowledge import _current_package
 from gaia.lang.dsl.operators import _validate_reason_prior
+from gaia.lang.runtime import Knowledge, Step, Strategy
+from gaia.lang.runtime.knowledge import _current_package
+from gaia.lang.runtime.nodes import ReasonInput
 from gaia.lang.runtime.package import infer_package_from_callstack
 
 if TYPE_CHECKING:

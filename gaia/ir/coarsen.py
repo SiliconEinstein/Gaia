@@ -318,9 +318,9 @@ def compute_coarse_cpts(
     Returns a dict mapping strategy index to CPT (list of 2^k floats).
     """
     from gaia.bp.contraction import (
+        StrategyCptCacheValue,
         contract_to_cpt,
         cpt_tensor_to_list,
-        StrategyCptCacheValue,
         factor_to_tensor,
         strategy_cpt,
     )

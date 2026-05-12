@@ -21,7 +21,6 @@ from __future__ import annotations
 from math import comb
 from typing import NamedTuple
 
-
 DOMINANT_COUNT = 295
 RECESSIVE_COUNT = 100
 TOTAL_COUNT = DOMINANT_COUNT + RECESSIVE_COUNT

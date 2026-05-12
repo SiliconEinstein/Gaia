@@ -21,7 +21,7 @@ class Binomial(_BaseDistribution):
         super().__init__(kind="binomial", params={"n": n, "p": p})
 
     @model_validator(mode="after")
-    def _validate_binomial(self) -> "Binomial":
+    def _validate_binomial(self) -> Binomial:
         n = self.params["n"]
         p = self.params["p"]
         if _is_concrete_number(n):
@@ -63,7 +63,7 @@ class Poisson(_BaseDistribution):
         super().__init__(kind="poisson", params={"rate": rate})
 
     @model_validator(mode="after")
-    def _validate_poisson(self) -> "Poisson":
+    def _validate_poisson(self) -> Poisson:
         rate = self.params["rate"]
         if _is_concrete_number(rate) and float(rate) <= 0.0:
             raise ValueError(f"Poisson rate must be > 0, got {rate!r}")

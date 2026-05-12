@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # ============ Text ============
 
 
-def render_text(report: "TraceReviewReport") -> str:
+def render_text(report: TraceReviewReport) -> str:
     """Render a trace review report as the plain-text CLI view."""
     out: list[str] = []
     out.append("=" * 72)
@@ -105,7 +105,7 @@ def render_text(report: "TraceReviewReport") -> str:
 # ============ Markdown ============
 
 
-def render_markdown(report: "TraceReviewReport") -> str:
+def render_markdown(report: TraceReviewReport) -> str:
     """Render a trace review report as Markdown."""
     out: list[str] = []
     out.append(f"# ARM Trace Review — `{report.trace_review_id}`")
@@ -182,12 +182,12 @@ def render_markdown(report: "TraceReviewReport") -> str:
 # ============ JSON ============
 
 
-def to_json_dict(report: "TraceReviewReport") -> dict[str, Any]:
+def to_json_dict(report: TraceReviewReport) -> dict[str, Any]:
     """Return the JSON-compatible mapping for a trace review report."""
     return report.to_json_dict()
 
 
-def render_json(report: "TraceReviewReport") -> str:
+def render_json(report: TraceReviewReport) -> str:
     """Render deterministic JSON with stable key ordering."""
     return json.dumps(
         report.to_json_dict(),

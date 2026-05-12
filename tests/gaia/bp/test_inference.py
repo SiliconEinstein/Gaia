@@ -4,12 +4,11 @@ import pytest
 
 from gaia.bp import BeliefPropagation, FactorGraph, FactorType
 from gaia.bp.bp import BPResult
-from gaia.bp.factor_graph import CROMWELL_EPS
+from gaia.bp.engine import EngineConfig, InferenceEngine
 from gaia.bp.exact import exact_inference
-from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
+from gaia.bp.factor_graph import CROMWELL_EPS
 from gaia.bp.gbp import GeneralizedBeliefPropagation, build_region_graph, detect_short_cycles
-from gaia.bp.engine import InferenceEngine, EngineConfig
-
+from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
 
 # ── Shared fixtures ──
 

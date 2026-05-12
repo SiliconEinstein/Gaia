@@ -19,9 +19,9 @@ from gaia.cli.commands.check_core import (
     KnowledgeBreakdown,
     find_possible_duplicate_claims,
 )
-from gaia.ir import ReviewManifest, ReviewStatus
 from gaia.inquiry.anchor import SourceAnchor
 from gaia.inquiry.focus import FocusBinding
+from gaia.ir import ReviewManifest, ReviewStatus
 
 Severity = Literal["error", "warning", "info"]
 DiagnosticKind = Literal[

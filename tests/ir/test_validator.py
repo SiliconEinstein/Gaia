@@ -2,20 +2,19 @@
 
 from gaia.ir import (
     Compose,
+    CompositeStrategy,
+    FormalExpr,
+    FormalStrategy,
     Knowledge,
     KnowledgeType,
+    LocalCanonicalGraph,
     Operator,
     Strategy,
-    CompositeStrategy,
-    FormalStrategy,
-    FormalExpr,
-    LocalCanonicalGraph,
 )
 from gaia.ir.validator import (
     validate_local_graph,
     validate_parameterization,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

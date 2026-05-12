@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from gaia.trace.schema import TraceEvent, TraceManifest
@@ -49,9 +49,9 @@ def _to_jsonable(value: Any) -> Any:
         return value
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            v = value.replace(tzinfo=timezone.utc)
+            v = value.replace(tzinfo=UTC)
         else:
-            v = value.astimezone(timezone.utc)
+            v = value.astimezone(UTC)
         s = v.isoformat()
         if s.endswith("+00:00"):
             s = s[:-6] + "Z"

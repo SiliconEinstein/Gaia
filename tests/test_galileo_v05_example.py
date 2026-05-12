@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import shutil
 import json
+import shutil
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-
 
 runner = CliRunner()
 

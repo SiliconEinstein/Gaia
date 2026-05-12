@@ -95,8 +95,11 @@ def test_brief_overview_groups_by_module(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_overview
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -133,8 +136,11 @@ def test_brief_overview_shows_priors(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_overview
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -155,8 +161,11 @@ def test_brief_module_expands_all_strategies(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_module
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -188,8 +197,11 @@ def test_brief_module_unknown_returns_error(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_module
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -207,8 +219,11 @@ def test_brief_detail_expands_formal_strategy(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_detail
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -239,8 +254,11 @@ def test_brief_detail_expands_composite(tmp_path):
     _write_induction_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_detail
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -291,8 +309,11 @@ def test_brief_detail_unknown_label(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_detail
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -310,8 +331,11 @@ def test_dispatch_show_routes_module_vs_label(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import dispatch_show
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -449,8 +473,11 @@ def test_brief_overview_shows_questions(tmp_path):
     _write_question_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_overview
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -471,8 +498,11 @@ def test_brief_module_shows_notes_and_questions(tmp_path):
     _write_question_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_module
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -495,8 +525,11 @@ def test_brief_detail_independent_premise(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_detail
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -545,8 +578,11 @@ def test_brief_detail_abduction_composite_with_review_notes(tmp_path):
     _write_abduction_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import (
         _format_warrant_tree,
         _review_notes,
@@ -612,8 +648,11 @@ def test_review_notes_abduction_close_priors(tmp_path):
     _write_abduction_close_priors_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import _review_notes, _strategy_by_id
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -639,8 +678,11 @@ def test_review_notes_induction_consistent(tmp_path):
     _write_induction_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import _review_notes, _strategy_by_id
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -695,8 +737,11 @@ def test_brief_detail_infer_strategy(tmp_path):
     _write_infer_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_detail
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -739,8 +784,11 @@ def test_brief_detail_formal_strategy_warrant_tree(tmp_path):
     _write_deduction_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_detail
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -765,8 +813,11 @@ def test_dispatch_show_module_not_in_order(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import dispatch_show
 
     loaded = load_gaia_package(str(pkg_dir))
@@ -789,8 +840,11 @@ def test_overview_filters_sub_strategies_and_prefers_composite(tmp_path):
     _write_induction_package(pkg_dir)
     _compile(pkg_dir)
 
-    from gaia.cli._packages import apply_package_priors, load_gaia_package
-    from gaia.cli._packages import compile_loaded_package_artifact
+    from gaia.cli._packages import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
     from gaia.cli.commands._brief import generate_brief_overview
 
     loaded = load_gaia_package(str(pkg_dir))

@@ -247,7 +247,7 @@ def _likelihoods(
                 raise ValueError("precomputed likelihood keys must be original hypothesis Claims")
         provided = set(action.precomputed)
         if provided != hypotheses:
-            missing = sorted((claim.label or claim.content for claim in hypotheses - provided))
+            missing = sorted(claim.label or claim.content for claim in hypotheses - provided)
             details = []
             if missing:
                 details.append(f"missing {missing}")

@@ -24,7 +24,6 @@ from collections.abc import Callable
 
 from gaia.inquiry.diagnostics import Diagnostic, NextEdit
 
-
 # Spec §7 — `kind` priority per mode. Lower number = higher priority.
 # `severity` is a tiebreaker (error < warning < info).
 _MODE_RANK: dict[str, dict[str, int]] = {

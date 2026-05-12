@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-
 from collections import defaultdict
+from typing import Any
 
 from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 
@@ -112,11 +110,11 @@ def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
         if not conc:
             continue
         existing = best_per_conc.get(conc)
-        if existing is None:
-            best_per_conc[conc] = s
-        elif s.get("sub_strategies") and not existing.get("sub_strategies"):
-            best_per_conc[conc] = s
-        elif s.get("formal_expr") and not existing.get("formal_expr"):
+        if (
+            existing is None
+            or (s.get("sub_strategies") and not existing.get("sub_strategies"))
+            or (s.get("formal_expr") and not existing.get("formal_expr"))
+        ):
             best_per_conc[conc] = s
 
     strat_by_module: dict[str, list[dict[str, Any]]] = defaultdict(list)

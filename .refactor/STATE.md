@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: **Phase 2.5 — Audit-driven full-select ruff alignment** (Phase 2 closed, Phase 2.4 hotfix `75d6d769` landed, rev2 audit Pillar 3 FAIL surfaced spec gap → Phase 2.5 added)
-**Last updated**: 2026-05-12 (2.5.0 mccabe threshold alignment)
+**Last updated**: 2026-05-12 (2.5.1 safe ruff autofix sweep)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`, current HEAD `75d6d769`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -44,7 +44,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [ ] **Phase 2.5 — Audit-driven full-select ruff alignment** (new phase added 2026-05-12 post rev2 audit)
   - **Why**: rev2 audit Pillar 3 FAIL — `uv run ruff check .` (CI command) reports 531 errors at HEAD `75d6d769`; spec gap = three ruff invocations diverged (Phase 0.5 baseline measured full select, Phase 2.2 close criteria narrowed to `--select D`, Phase 2.4 close-out used pre-commit's `--select E4,E7,E9,F`, CI runs full pyproject 15-select); PR opened to `v0.5` will red on CI. Phase 2.5 closes the gap by **aligning close-out gate to CI command + driving ruff full-select to 0 errors**.
   - **Path**: C-硬 (refactor, NOT noqa exception); 4 pinned decisions in § Phase 2.5 spec below.
-  - Progress: 1 / TBD work units (queue in § Phase 2.5 task queue)
+  - Progress: 2 / TBD work units (queue in § Phase 2.5 task queue)
 - [ ] **Phase 3 — Acceptance + PR** (γ rolled back, will redo with Phase 2.5 close-out command)
 - [ ] **🚦 Checkpoint γ'**: Phase 2.5 + Phase 3.1 close-out all green → PR body regen + user ship handshake
 - [ ] **Cleanup R.x — after PR merge**: delete mortal banner + `.refactor/` + restore canon CD default
@@ -259,8 +259,8 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 
 #### 2.5.1 — Global safe-autofix sweep (cross-cutting; safe-only, NO --unsafe-fixes)
 
-- [ ] **2.5.1** Run **`uv run ruff check --fix .`** (NO `--unsafe-fixes` flag) to apply only the 194 safe-fix items (I001 imports / UP017 datetime.timezone.utc / UP037 quoted-annotation / UP045 / C420 / SIM114 / UP035 / RUF100 / RET505 / RUF023 / UP012 / UP034 / B009 / B010 etc.). Do **NOT** pass `--unsafe-fixes`. The 62 hidden `[-]` unsafe-fix candidates (RUF022 unsorted-dunder-all + others) are deliberately left in the queue for human-eyes review in 2.5.2 — user-decided 2026-05-12 (no blanket unsafe-fix run, every unsafe transformation gets manual pattern review). Verify: pytest 1605 stable + sample diff is purely mechanical.
-  - status: `pending`
+- [x] **2.5.1** Run **`uv run ruff check --fix .`** (NO `--unsafe-fixes` flag) to apply only the 194 safe-fix items (I001 imports / UP017 datetime.timezone.utc / UP037 quoted-annotation / UP045 / C420 / SIM114 / UP035 / RUF100 / RET505 / RUF023 / UP012 / UP034 / B009 / B010 etc.). Do **NOT** pass `--unsafe-fixes`. The 62 hidden `[-]` unsafe-fix candidates (RUF022 unsorted-dunder-all + others) are deliberately left in the queue for human-eyes review in 2.5.2 — user-decided 2026-05-12 (no blanket unsafe-fix run, every unsafe transformation gets manual pattern review). Verify: pytest 1605 stable + sample diff is purely mechanical.
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 13:52 | completed_at: 2026-05-12 14:04 | breakpoint_notes: Ran `uv run ruff check --fix .` with no `--unsafe-fixes`; safe autofix reported 238 fixes and left expected non-safe/manual Phase 2.5 findings. Sample diff was mechanical (import/export sorting, PEP 604/UTC rewrites, redundant-branch simplifications, duplicate-branch merging, unused noqa cleanup). Two preservation follow-ups were needed after safe fixes: restored the public `gaia.lang.dsl.support` helper after same-named submodule import shadowing, and declared the existing `CollectedPackage._module_titles` dynamic attribute so strict mypy accepts direct assignment. Verification: `uv run ruff format --check .` => 280 files already formatted; `uv run mypy --show-error-codes --no-pretty` => success for 275 source files; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.32%, required 90% reached; `uv run ruff check . --statistics --exit-zero` => 306 expected remaining Phase 2.5 findings, no safe fixes available, 66 hidden unsafe-fix candidates left for 2.5.2c.
 
 #### 2.5.2 — Manual pattern-able cleanup (cross-cutting; absorbs unsafe-fix candidates too; 2-3 units)
 

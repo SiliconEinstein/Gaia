@@ -361,8 +361,8 @@ def test_contract_to_cpt_many_variables():
         )
         factors.append(factor_to_tensor(f))
     # Priors for internal variables (not the first and last main vars) and all helpers
-    priors = {v: 0.5 for v in var_names[1:-1]}
-    priors.update({h: _HIGH for h in helper_names})
+    priors = dict.fromkeys(var_names[1:-1], 0.5)
+    priors.update(dict.fromkeys(helper_names, _HIGH))
     cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
     assert cpt.shape == (2, 2)
     assert _np.all(_np.isfinite(cpt))
@@ -907,7 +907,7 @@ def test_compute_coarse_cpts_skips_composite_strategies():
     wraps it, then call compute_coarse_cpts and compare the coarse CPT to the
     CPT we'd get from the leaf alone.
     """
-    from gaia.ir.coarsen import compute_coarse_cpts, coarsen_ir
+    from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts
 
     leaf = Strategy(
         scope="local",
@@ -990,8 +990,8 @@ def test_contract_to_cpt_deep_chain_no_underflow():
             conclusion=helper_names[i],
         )
         factors.append(factor_to_tensor(f))
-    priors = {v: 0.5 for v in var_names[1:-1]}
-    priors.update({h: _HIGH for h in helper_names})
+    priors = dict.fromkeys(var_names[1:-1], 0.5)
+    priors.update(dict.fromkeys(helper_names, _HIGH))
     # Should NOT raise, and should produce a valid CPT.
     cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
     assert cpt.shape == (2, 2)
@@ -1234,7 +1234,7 @@ def test_compute_coarse_cpts_with_helper_claims():
     (__implication_result_*, etc.). If helper priors are missing, tensor contraction fails. This
     test verifies that passing complete priors (with helper claims at 1-ε) produces valid CPTs.
     """
-    from gaia.ir.coarsen import compute_coarse_cpts, coarsen_ir
+    from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts
 
     # Build a support strategy (which auto-formalizes to conjunction + implication
     # with helper claims like __implication_result_*, __conjunction_result_*)

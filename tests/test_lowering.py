@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 
 from gaia.bp import FactorType, lower_local_graph, lower_operator
-from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.exact import exact_inference, exact_joint_over
+from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
-from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
+from gaia.ir import CompositeStrategy, Knowledge, LocalCanonicalGraph, Operator, Strategy
 
 NS, PKG = "github", "lowertest"
 

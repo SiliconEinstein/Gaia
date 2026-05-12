@@ -44,7 +44,7 @@ from numpy.typing import NDArray
 from gaia.bp.factor_graph import Factor, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
-__all__ = ["BeliefPropagation", "BPDiagnostics", "BPResult"]
+__all__ = ["BPDiagnostics", "BPResult", "BeliefPropagation"]
 
 # 2-vector: [P(x=0), P(x=1)], always normalized to sum=1
 Msg = NDArray[np.float64]

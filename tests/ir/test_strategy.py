@@ -1,14 +1,15 @@
 """Tests for Strategy data model (Strategy, CompositeStrategy, FormalStrategy)."""
 
 import pytest
+
 from gaia.ir import (
-    Strategy,
     CompositeStrategy,
-    FormalStrategy,
     FormalExpr,
-    StrategyType,
-    Step,
+    FormalStrategy,
     Operator,
+    Step,
+    Strategy,
+    StrategyType,
 )
 
 

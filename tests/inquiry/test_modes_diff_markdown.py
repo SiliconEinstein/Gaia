@@ -16,7 +16,6 @@ from gaia.inquiry.ranking import (
 )
 from gaia.inquiry.review import render_markdown, run_review
 
-
 # --------------------------------------------------------------------------- #
 # §14.2 — extended diff categories                                            #
 # --------------------------------------------------------------------------- #

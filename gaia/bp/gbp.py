@@ -33,12 +33,11 @@ from __future__ import annotations
 import logging
 from collections import defaultdict, deque
 
-
 from gaia.bp.bp import BeliefPropagation, BPDiagnostics, BPResult
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
 
-__all__ = ["GeneralizedBeliefPropagation", "detect_short_cycles", "build_region_graph"]
+__all__ = ["GeneralizedBeliefPropagation", "build_region_graph", "detect_short_cycles"]
 
 logger = logging.getLogger(__name__)
 

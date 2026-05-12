@@ -16,11 +16,11 @@ from typing import Any
 from gaia.ir.knowledge import Knowledge, KnowledgeType, make_qid
 from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.strategy import (
+    _FORMAL_STRATEGY_TYPES,
     FormalExpr,
     FormalStrategy,
     Step,
     StrategyType,
-    _FORMAL_STRATEGY_TYPES,
 )
 
 _HELPER_KIND_BY_OPERATOR = {

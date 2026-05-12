@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-
-from gaia.trace.ranking import _MODE_RANK, rank_diagnostics, supported_modes
 from gaia.trace.diagnostics import (
     detect_actor,
     detect_claim_refs,
@@ -27,11 +25,12 @@ from gaia.trace.hashing import (
     hash_event,
 )
 from gaia.trace.loader import LoadResult, SchemaIssue
+from gaia.trace.ranking import _MODE_RANK, rank_diagnostics, supported_modes
 from gaia.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
 
 
 def _ts(seq: int) -> datetime:
-    return datetime(2026, 4, 28, tzinfo=timezone.utc) + timedelta(seconds=seq)
+    return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:

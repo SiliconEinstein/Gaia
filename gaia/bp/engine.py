@@ -33,13 +33,13 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
-from gaia.bp.bp import BPDiagnostics, BeliefPropagation, BPResult
+from gaia.bp.bp import BeliefPropagation, BPDiagnostics, BPResult
 from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import FactorGraph
 from gaia.bp.gbp import GeneralizedBeliefPropagation
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
 
-__all__ = ["InferenceEngine", "EngineConfig", "MethodChoice"]
+__all__ = ["EngineConfig", "InferenceEngine", "MethodChoice"]
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +206,7 @@ class InferenceEngine:
                 is_exact=True,
             )
 
-        elif method == "jt" or (method == "auto" and tw <= cfg.jt_max_treewidth):
+        if method == "jt" or (method == "auto" and tw <= cfg.jt_max_treewidth):
             bp_result = self._jt.run(graph)
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: JT (exact), treewidth=%d, %.1fms", tw, elapsed)
@@ -218,7 +218,7 @@ class InferenceEngine:
                 is_exact=True,
             )
 
-        elif method == "gbp" or (method == "auto" and tw <= cfg.gbp_max_treewidth):
+        if method == "gbp" or (method == "auto" and tw <= cfg.gbp_max_treewidth):
             bp_result = self._gbp.run(graph)
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: GBP, treewidth=%d, %.1fms", tw, elapsed)
@@ -230,18 +230,17 @@ class InferenceEngine:
                 is_exact=(tw <= cfg.jt_max_treewidth),
             )
 
-        else:
-            # method == "bp" or treewidth > gbp_max_treewidth
-            bp_result = self._bp.run(graph)
-            elapsed = (time.perf_counter() - t0) * 1000
-            logger.info("InferenceEngine: loopy BP, treewidth=%d, %.1fms", tw, elapsed)
-            return InferenceResult(
-                bp_result=bp_result,
-                method_used="bp",
-                treewidth=tw,
-                elapsed_ms=elapsed,
-                is_exact=False,
-            )
+        # method == "bp" or treewidth > gbp_max_treewidth
+        bp_result = self._bp.run(graph)
+        elapsed = (time.perf_counter() - t0) * 1000
+        logger.info("InferenceEngine: loopy BP, treewidth=%d, %.1fms", tw, elapsed)
+        return InferenceResult(
+            bp_result=bp_result,
+            method_used="bp",
+            treewidth=tw,
+            elapsed_ms=elapsed,
+            is_exact=False,
+        )
 
     def benchmark(self, graph: FactorGraph) -> dict[str, dict[str, object]]:
         """Run all feasible methods and return a comparison dict.

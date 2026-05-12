@@ -2,32 +2,34 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from typing import Any
-
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from math import log2
+from typing import Any
 
 import typer
 from sympy import And, Equivalent, Symbol
 from sympy.logic.boolalg import Not
 from sympy.logic.inference import satisfiable
 
-from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_relations
-from gaia.cli._packages import apply_package_priors
-from gaia.cli._packages import compile_loaded_package_artifact
+from gaia.bp import lower_local_graph
+from gaia.bp.exact import exact_joint_over
+from gaia.bp.factor_graph import CROMWELL_EPS
+from gaia.cli._packages import (
+    GaiaCliError,
+    apply_package_priors,
+    compile_loaded_package_artifact,
+    load_gaia_package,
+    validate_fills_relations,
+)
 from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees
 from gaia.cli.commands._review_manifest import (
     latest_reviews,
     load_or_generate_review_manifest,
 )
-from gaia.bp import lower_local_graph
-from gaia.bp.factor_graph import CROMWELL_EPS
-from gaia.bp.exact import exact_joint_over
-from gaia.ir import LocalCanonicalGraph
-from gaia.ir import ReviewManifest
+from gaia.ir import LocalCanonicalGraph, ReviewManifest
 from gaia.ir.operator import OperatorType
 from gaia.ir.validator import validate_local_graph
 from gaia.logic.propositional import to_sympy_proposition

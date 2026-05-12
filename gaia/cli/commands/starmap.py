@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-
 import json
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import typer
 

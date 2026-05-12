@@ -114,15 +114,15 @@ vacuum_equal_fall_prediction = derive(
 )
 
 __all__ = [
-    "daily_observation",
-    "aristotle_model",
-    "medium_model",
-    "aristotle_daily_prediction",
     "aristotle_daily_match",
-    "medium_daily_prediction",
-    "medium_daily_match",
+    "aristotle_daily_prediction",
+    "aristotle_model",
+    "aristotle_paradox",
     "composite_faster",
     "composite_slower",
-    "aristotle_paradox",
+    "daily_observation",
+    "medium_daily_match",
+    "medium_daily_prediction",
+    "medium_model",
     "vacuum_equal_fall_prediction",
 ]

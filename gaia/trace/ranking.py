@@ -15,7 +15,6 @@ from collections.abc import Callable
 
 from gaia.inquiry.diagnostics import Diagnostic, NextEdit
 
-
 # 与 ARM Trace v1 §1.4 优先级对齐：schema-violation 必前；hash chain /
 # manifest hash 是抗作弊核心，紧随其后；causal / reference / observability
 # 类按致命度递减。

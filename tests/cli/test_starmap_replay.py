@@ -1426,11 +1426,11 @@ def _final_state_parity(pkg_dir: Path) -> tuple[dict, dict]:
     from gaia.cli.commands._graph_json import generate_graph_json
     from gaia.cli.commands._render_priors import param_data_from_ir_metadata
     from gaia.cli.commands.starmap_replay import (
-        _read_jsonl,
-        _is_replayable,
         ARTIFACTS_SUBDIR,
         GROWTH_LOG_NAME,
         RETRIEVAL_LOG_NAME,
+        _is_replayable,
+        _read_jsonl,
     )
 
     ensure_package_env(pkg_dir)

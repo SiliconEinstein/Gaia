@@ -5,25 +5,25 @@ import pytest
 from gaia.lang import (
     Claim,
     Step,
+    abduction,
     claim,
     compare,
-    noisy_and,
-    setting,
     composite,
-    abduction,
     contradiction,
     derive,
     fills,
     induction,
+    noisy_and,
+    setting,
     support,
 )
 from gaia.lang.compiler.compile import (
-    compile_package_artifact,
+    _anonymous_label,
     _compile_reason,
+    _content_hash,
     _knowledge_id,
     _normalize_label,
-    _anonymous_label,
-    _content_hash,
+    compile_package_artifact,
 )
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.unit import q

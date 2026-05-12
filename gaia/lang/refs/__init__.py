@@ -12,19 +12,18 @@ Public API:
 from __future__ import annotations
 
 from gaia.lang.refs.errors import ReferenceError
-from gaia.lang.refs.types import (
-    BracketGroup,
-    ExtractionResult,
-    RefKind,
-    RefMarker,
-)
-
 from gaia.lang.refs.extractor import extract
 from gaia.lang.refs.loader import load_references
 from gaia.lang.refs.resolver import (
     check_collisions,
     resolve,
     validate_groups,
+)
+from gaia.lang.refs.types import (
+    BracketGroup,
+    ExtractionResult,
+    RefKind,
+    RefMarker,
 )
 
 __all__ = [
@@ -33,9 +32,9 @@ __all__ = [
     "RefKind",
     "RefMarker",
     "ReferenceError",
-    "extract",
     "check_collisions",
+    "extract",
+    "load_references",
     "resolve",
     "validate_groups",
-    "load_references",
 ]

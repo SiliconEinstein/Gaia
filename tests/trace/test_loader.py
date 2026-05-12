@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from gaia.trace.hashing import (
@@ -25,7 +25,7 @@ def _build_clean_trace() -> tuple[TraceManifest, list[TraceEvent]]:
             event_id=f"e{i}",
             seq=i,
             prev_hash=prev,
-            ts=datetime(2026, 4, 28, 0, 0, i, tzinfo=timezone.utc),
+            ts=datetime(2026, 4, 28, 0, 0, i, tzinfo=UTC),
             kind="decision",
             actor="arm",
             reason="grounded",
@@ -37,7 +37,7 @@ def _build_clean_trace() -> tuple[TraceManifest, list[TraceEvent]]:
         arm_id="arm",
         session_id="s1",
         trace_id="t1",
-        created_at=datetime(2026, 4, 28, tzinfo=timezone.utc),
+        created_at=datetime(2026, 4, 28, tzinfo=UTC),
         events_root=compute_events_root(events),
     )
     manifest = manifest.model_copy(update={"manifest_hash": compute_manifest_hash(manifest)})

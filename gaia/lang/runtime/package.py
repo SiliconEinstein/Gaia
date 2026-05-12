@@ -36,6 +36,7 @@ class CollectedPackage:
         self._token: Token[CollectedPackage | None] | None = None
         self._module_counters: dict[str | None, int] = {}
         self._module_order: list[str] = []
+        self._module_titles: dict[str, str] | None = None
         self._exported_labels: set[str] = set()
 
     def __enter__(self) -> CollectedPackage:

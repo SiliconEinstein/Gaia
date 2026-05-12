@@ -32,10 +32,10 @@ FloatArray: TypeAlias = NDArray[np.float64]
 StrategyCpt: TypeAlias = tuple[FloatArray, list[str]]
 
 __all__ = [
-    "factor_to_tensor",
     "contract_to_cpt",
-    "strategy_cpt",
     "cpt_tensor_to_list",
+    "factor_to_tensor",
+    "strategy_cpt",
 ]
 
 

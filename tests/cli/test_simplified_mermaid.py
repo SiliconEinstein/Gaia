@@ -7,7 +7,6 @@ from gaia.cli.commands._simplified_mermaid import (
     select_simplified_nodes,
 )
 
-
 # ── Task 6: select_simplified_nodes ──
 
 

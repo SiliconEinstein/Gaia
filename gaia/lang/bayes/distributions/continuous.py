@@ -35,7 +35,7 @@ class Normal(_ContinuousDistribution):
         super().__init__(kind="normal", params={"mu": mu, "sigma": sigma})
 
     @model_validator(mode="after")
-    def _validate_normal(self) -> "Normal":
+    def _validate_normal(self) -> Normal:
         sigma = self.params["sigma"]
         if _is_concrete_number(sigma) and float(sigma) <= 0.0:
             raise ValueError(f"Normal sigma must be > 0, got {sigma!r}")
@@ -53,7 +53,7 @@ class Beta(_ContinuousDistribution):
         super().__init__(kind="beta", params={"alpha": alpha, "beta": beta})
 
     @model_validator(mode="after")
-    def _validate_beta(self) -> "Beta":
+    def _validate_beta(self) -> Beta:
         for name in ("alpha", "beta"):
             value = self.params[name]
             if _is_concrete_number(value) and float(value) <= 0.0:
@@ -72,7 +72,7 @@ class Exponential(_ContinuousDistribution):
         super().__init__(kind="exponential", params={"rate": rate})
 
     @model_validator(mode="after")
-    def _validate_exponential(self) -> "Exponential":
+    def _validate_exponential(self) -> Exponential:
         rate = self.params["rate"]
         if _is_concrete_number(rate) and float(rate) <= 0.0:
             raise ValueError(f"Exponential rate must be > 0, got {rate!r}")
@@ -90,7 +90,7 @@ class LogNormal(_ContinuousDistribution):
         super().__init__(kind="lognormal", params={"mu": mu, "sigma": sigma})
 
     @model_validator(mode="after")
-    def _validate_lognormal(self) -> "LogNormal":
+    def _validate_lognormal(self) -> LogNormal:
         sigma = self.params["sigma"]
         if _is_concrete_number(sigma) and float(sigma) <= 0.0:
             raise ValueError(f"LogNormal sigma must be > 0, got {sigma!r}")
@@ -108,7 +108,7 @@ class StudentT(_ContinuousDistribution):
         super().__init__(kind="studentt", params={"df": df, "mu": mu, "sigma": sigma})
 
     @model_validator(mode="after")
-    def _validate_studentt(self) -> "StudentT":
+    def _validate_studentt(self) -> StudentT:
         for name in ("df", "sigma"):
             value = self.params[name]
             if _is_concrete_number(value) and float(value) <= 0.0:
@@ -127,7 +127,7 @@ class Cauchy(_ContinuousDistribution):
         super().__init__(kind="cauchy", params={"mu": mu, "gamma": gamma})
 
     @model_validator(mode="after")
-    def _validate_cauchy(self) -> "Cauchy":
+    def _validate_cauchy(self) -> Cauchy:
         gamma = self.params["gamma"]
         if _is_concrete_number(gamma) and float(gamma) <= 0.0:
             raise ValueError(f"Cauchy gamma must be > 0, got {gamma!r}")
@@ -145,7 +145,7 @@ class Gamma(_ContinuousDistribution):
         super().__init__(kind="gamma", params={"alpha": alpha, "rate": rate})
 
     @model_validator(mode="after")
-    def _validate_gamma(self) -> "Gamma":
+    def _validate_gamma(self) -> Gamma:
         for name in ("alpha", "rate"):
             value = self.params[name]
             if _is_concrete_number(value) and float(value) <= 0.0:
@@ -164,7 +164,7 @@ class ChiSquared(_ContinuousDistribution):
         super().__init__(kind="chisquared", params={"df": df})
 
     @model_validator(mode="after")
-    def _validate_chisquared(self) -> "ChiSquared":
+    def _validate_chisquared(self) -> ChiSquared:
         df = self.params["df"]
         if _is_concrete_number(df) and float(df) <= 0.0:
             raise ValueError(f"ChiSquared df must be > 0, got {df!r}")

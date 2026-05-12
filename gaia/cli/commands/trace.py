@@ -13,8 +13,6 @@ Exit codes：
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 
 from gaia.trace.hashing import compute_events_root, compute_manifest_hash, recompute_chain
@@ -102,12 +100,12 @@ _SUPPORTED_REVIEW_MODES = {"trace", "publish"}
 def review_command(
     trace_path: str = typer.Argument(..., help="Path to trace file (.json/.jsonl)."),
     mode: str = typer.Option("trace", "--mode", help="Ranking mode: trace|publish."),
-    package: Optional[str] = typer.Option(
+    package: str | None = typer.Option(
         None, "--package", help="Gaia package path used to resolve claim_ref review_ids."
     ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON report (deterministic)."),
     markdown_out: bool = typer.Option(False, "--markdown", help="Emit Markdown report."),
-    snapshot_dir: Optional[str] = typer.Option(
+    snapshot_dir: str | None = typer.Option(
         None, "--snapshot-dir", help="Override snapshot output directory."
     ),
     strict: bool = typer.Option(
@@ -163,7 +161,7 @@ def review_command(
 def show_command(
     trace_path: str = typer.Argument(..., help="Path to trace file (.json/.jsonl)."),
     limit: int = typer.Option(50, "--limit", help="Max events to print (0 = all)."),
-    kind: Optional[str] = typer.Option(
+    kind: str | None = typer.Option(
         None, "--kind", help="Filter by event kind (decision/tool_call/...)."
     ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSONL of selected events."),

@@ -8,6 +8,9 @@ Parameterization (probability parameters) acts on LocalCanonicalGraph.
 Spec: docs/foundations/gaia-ir/
 """
 
+from gaia.ir.compose import Compose
+from gaia.ir.formalize import FormalizationResult, formalize_named_strategy
+from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.ir.knowledge import (
     Knowledge,
     KnowledgeType,
@@ -16,17 +19,6 @@ from gaia.ir.knowledge import (
     make_qid,
 )
 from gaia.ir.operator import Operator, OperatorType
-from gaia.ir.compose import Compose
-from gaia.ir.strategy import (
-    CompositeStrategy,
-    FormalExpr,
-    FormalStrategy,
-    Step,
-    Strategy,
-    StrategyType,
-)
-from gaia.ir.graphs import LocalCanonicalGraph
-from gaia.ir.formalize import FormalizationResult, formalize_named_strategy
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
     ParameterizationSource,
@@ -39,9 +31,17 @@ from gaia.ir.schemas import (
     BUILTIN_DISTRIBUTION_KINDS,
     BuiltinDistributionKind,
     CallableRef,
-    DistributionParam,
     DistributionLiteral,
+    DistributionParam,
     QuantityLiteral,
+)
+from gaia.ir.strategy import (
+    CompositeStrategy,
+    FormalExpr,
+    FormalStrategy,
+    Step,
+    Strategy,
+    StrategyType,
 )
 
 __all__ = [

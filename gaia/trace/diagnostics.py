@@ -15,8 +15,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 from gaia.inquiry.diagnostics import Diagnostic
 from gaia.trace.hashing import (
@@ -455,7 +456,7 @@ def detect_claim_refs(
         for j, ref in enumerate(ev.refs):
             try:
                 ok = bool(res(ref.review_id))
-            except Exception as exc:  # noqa: BLE001 — resolver 不允许 crash detector
+            except Exception as exc:
                 ok = False
                 msg_extra = f" (resolver raised: {exc!r})"
             else:

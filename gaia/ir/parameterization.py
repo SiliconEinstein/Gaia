@@ -5,7 +5,7 @@ Implements docs/foundations/gaia-ir/parameterization.md.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, model_validator
@@ -34,7 +34,7 @@ class PriorRecord(BaseModel):
     def model_post_init(self, __context: Any) -> None:
         """Set default timestamp and apply Cromwell clamping after validation."""
         if self.created_at is None:
-            object.__setattr__(self, "created_at", datetime.now(timezone.utc))
+            object.__setattr__(self, "created_at", datetime.now(UTC))
         object.__setattr__(self, "value", _clamp(self.value))
 
 
@@ -60,7 +60,7 @@ class StrategyParamRecord(BaseModel):
     def model_post_init(self, __context: Any) -> None:
         """Set default timestamp and clamp every conditional probability."""
         if self.created_at is None:
-            object.__setattr__(self, "created_at", datetime.now(timezone.utc))
+            object.__setattr__(self, "created_at", datetime.now(UTC))
         clamped = [_clamp(p) for p in self.conditional_probabilities]
         object.__setattr__(self, "conditional_probabilities", clamped)
 

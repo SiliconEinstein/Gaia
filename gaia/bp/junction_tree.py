@@ -44,7 +44,6 @@ import logging
 from itertools import product as cartesian_product
 from typing import TypeAlias
 
-
 from gaia.bp.bp import BPDiagnostics, BPResult
 from gaia.bp.factor_graph import Factor, FactorGraph
 from gaia.bp.potentials import evaluate_potential
@@ -452,9 +451,9 @@ def _collect_distribute(
         (i, j, separator) for i in range(n_cliques) for j, separator in tree_adj[i]
     ]:
         sep_list = sorted(separator)
-        uniform: PotentialTable = {
-            vals: 1.0 for vals in cartesian_product((0, 1), repeat=len(sep_list))
-        }
+        uniform: PotentialTable = dict.fromkeys(
+            cartesian_product((0, 1), repeat=len(sep_list)), 1.0
+        )
         messages[(i, j)] = (uniform, sep_list)
 
     # Helper: compute message from clique i to clique j

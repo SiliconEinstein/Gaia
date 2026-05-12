@@ -5,9 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from sympy import Symbol
-from sympy.logic.boolalg import And, Equivalent, Implies, Not, Or, Xor
+from sympy.logic.boolalg import And, Equivalent, Implies, Not, Or, Xor, to_cnf, to_dnf, to_nnf
 from sympy.logic.boolalg import simplify_logic as _sympy_simplify_logic
-from sympy.logic.boolalg import to_cnf, to_dnf, to_nnf
 from sympy.logic.inference import satisfiable
 
 from gaia.ir.graphs import LocalCanonicalGraph

@@ -1,5 +1,5 @@
-from gaia.lang import observe
 from gaia.ir.parameterization import CROMWELL_EPS
+from gaia.lang import observe
 from gaia.lang.runtime.action import Observe
 from gaia.lang.runtime.knowledge import Claim
 

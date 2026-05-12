@@ -2,7 +2,7 @@
 
 import pytest
 
-from gaia.lang import claim, contradiction, complement, disjunction, equivalence, noisy_and
+from gaia.lang import claim, complement, contradiction, disjunction, equivalence, noisy_and
 
 pytestmark = pytest.mark.legacy_dsl
 

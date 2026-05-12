@@ -185,7 +185,7 @@ def likelihood(
                 raise ValueError("precomputed likelihood keys must be original hypothesis Claims")
         provided = set(precomputed)
         if provided != allowed:
-            missing = sorted((claim.label or claim.content for claim in allowed - provided))
+            missing = sorted(claim.label or claim.content for claim in allowed - provided)
             details = []
             if missing:
                 details.append(f"missing {missing}")

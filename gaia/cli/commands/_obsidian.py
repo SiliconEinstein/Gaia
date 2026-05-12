@@ -11,15 +11,12 @@ Naming: filenames use titles, wikilinks use labels, aliases bridge them.
 
 from __future__ import annotations
 
-from typing import Any
-
-
 import json
+from typing import Any
 
 from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 from gaia.cli.commands._detailed_reasoning import render_mermaid, topo_layers
 from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
-
 
 # ---------------------------------------------------------------------------
 # Helpers

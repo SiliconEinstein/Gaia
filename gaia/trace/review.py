@@ -7,16 +7,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from gaia.inquiry.diagnostics import Diagnostic, NextEdit
-from gaia.trace.ranking import rank_diagnostics, rank_next_edits
 from gaia.inquiry.snapshot import mint_review_id
 from gaia.trace.diagnostics import (
-    ReviewIdResolver,
     RETRY_CHAIN_LIMIT_DEFAULT,
+    ReviewIdResolver,
     detect_actor,
     detect_claim_refs,
     detect_decision_grounds,
@@ -36,11 +35,12 @@ from gaia.trace.hashing import (
     recompute_chain,
 )
 from gaia.trace.loader import LoadResult, load_trace
+from gaia.trace.ranking import rank_diagnostics, rank_next_edits
 from gaia.trace.schema import Trace
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ============ 八段容器 ============

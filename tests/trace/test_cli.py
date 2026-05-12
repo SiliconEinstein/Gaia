@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -17,12 +17,11 @@ from gaia.trace.hashing import (
 )
 from gaia.trace.schema import Trace, TraceEvent, TraceManifest
 
-
 runner = CliRunner()
 
 
 def _ts(seq: int) -> datetime:
-    return datetime(2026, 4, 28, tzinfo=timezone.utc) + timedelta(seconds=seq)
+    return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:

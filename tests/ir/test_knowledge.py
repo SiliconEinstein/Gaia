@@ -3,8 +3,9 @@
 import hashlib
 
 import pytest
-from gaia.ir import Knowledge, KnowledgeType, Parameter, PackageRef
-from gaia.ir.knowledge import make_qid, is_qid
+
+from gaia.ir import Knowledge, KnowledgeType, PackageRef, Parameter
+from gaia.ir.knowledge import is_qid, make_qid
 
 
 class TestMakeQid:
@@ -128,7 +129,7 @@ class TestKnowledgeCreation:
         assert k1.content_hash != k2.content_hash
 
     def test_legacy_content_hash_without_format_is_accepted_and_normalized(self):
-        old_hash = hashlib.sha256("claim|test|[]".encode()).hexdigest()
+        old_hash = hashlib.sha256(b"claim|test|[]").hexdigest()
         expected = Knowledge(id="github:pkg::expected", type="claim", content="test").content_hash
 
         k = Knowledge(

@@ -10,10 +10,8 @@ No detection logic is duplicated in ``gaia.inquiry``.
 
 from __future__ import annotations
 
-from typing import Any
-
-
 from dataclasses import dataclass, field
+from typing import Any
 
 from gaia.cli.commands._classify import KnowledgeClassification, classify_ir, node_role
 

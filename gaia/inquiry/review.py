@@ -8,7 +8,7 @@ report defined by spec §8/§9. No detection logic lives here.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,9 +27,6 @@ from gaia.cli.commands.check_core import (
     analyze_knowledge_breakdown,
     find_possible_duplicate_claims,
 )
-from gaia.ir import ReviewManifest, ReviewStatus
-from gaia.ir.validator import validate_local_graph
-
 from gaia.inquiry.anchor import find_anchors
 from gaia.inquiry.diagnostics import (
     Diagnostic,
@@ -61,10 +58,12 @@ from gaia.inquiry.snapshot import (
     save_snapshot,
 )
 from gaia.inquiry.state import load_state, save_state
+from gaia.ir import ReviewManifest, ReviewStatus
+from gaia.ir.validator import validate_local_graph
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # --------------------------------------------------------------------------- #

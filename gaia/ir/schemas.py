@@ -6,7 +6,6 @@ from typing import Literal
 
 from pydantic import BaseModel, model_validator
 
-
 BuiltinDistributionKind = Literal[
     "normal",
     "lognormal",

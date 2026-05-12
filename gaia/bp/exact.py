@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 
-__all__ = ["exact_inference", "exact_joint_over", "comparison_table"]
+__all__ = ["comparison_table", "exact_inference", "exact_joint_over"]
 
 CHUNK_BITS = 20
 FloatArray = NDArray[np.float64]

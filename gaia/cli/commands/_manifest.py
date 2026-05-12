@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 
 def generate_manifest(
@@ -59,7 +58,7 @@ def generate_manifest(
 
     manifest = {
         "package_name": ir.get("package_name", ""),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "wiki_pages": wiki_pages,
         "pages_sections": pages_sections,
         "assets": assets or [],

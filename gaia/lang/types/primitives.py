@@ -15,7 +15,7 @@ _SEALED = False
 class PrimitiveType:
     """A built-in typed sort. Construction is sealed once the module finishes loading."""
 
-    __slots__ = ("name", "_accept")
+    __slots__ = ("_accept", "name")
 
     def __init__(self, name: str, accept: Callable[[object], bool]) -> None:
         """Create a primitive type token before the module is sealed."""

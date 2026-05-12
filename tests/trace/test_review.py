@@ -11,9 +11,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-
 
 from gaia.trace.hashing import (
     GENESIS_PREV_HASH,
@@ -25,12 +24,11 @@ from gaia.trace.render import render_json, render_markdown, render_text
 from gaia.trace.review import TraceReviewReport, run_trace_review
 from gaia.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
 
-
 # ============ Fixture 工厂 ============
 
 
 def _ts(seq: int) -> datetime:
-    return datetime(2026, 4, 28, tzinfo=timezone.utc) + timedelta(seconds=seq)
+    return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:

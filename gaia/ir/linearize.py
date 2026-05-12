@@ -112,7 +112,7 @@ def linearize_narrative(
 
     # Topological sort → layer assignment
     all_kids = {k["id"] for k in coarse["knowledges"] if not k.get("label", "").startswith("__")}
-    in_degree: dict[str, int] = {kid: 0 for kid in all_kids}
+    in_degree: dict[str, int] = dict.fromkeys(all_kids, 0)
     for conc, plist in backward.items():
         if conc in all_kids:
             in_degree[conc] = len([p for p in plist if p in all_kids])

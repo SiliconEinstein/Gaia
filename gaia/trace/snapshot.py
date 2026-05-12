@@ -15,7 +15,7 @@ def _default_dir() -> Path:
 
 
 def save_trace_review_snapshot(
-    report: "TraceReviewReport",
+    report: TraceReviewReport,
     *,
     snapshot_dir: str | Path | None = None,
 ) -> Path:

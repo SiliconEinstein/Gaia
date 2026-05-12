@@ -15,7 +15,6 @@ from gaia.lang.formula.symbols import FunctionSymbol
 from gaia.lang.runtime.domain import Domain
 from gaia.lang.types.primitives import PrimitiveType
 
-
 _ARITH_OPS = frozenset({"+", "-", "*", "/"})
 
 
@@ -39,7 +38,7 @@ def _term_domain(t: Any) -> PrimitiveType | Domain | None:
     if isinstance(t, Constant):
         return t.primitive
     if hasattr(t, "domain"):  # Variable
-        domain = getattr(t, "domain")
+        domain = t.domain
         if isinstance(domain, PrimitiveType | Domain):
             return domain
     if isinstance(t, FunctionApp):

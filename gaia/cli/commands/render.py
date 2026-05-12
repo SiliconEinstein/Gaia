@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-
 import json
 from enum import Enum
+from typing import Any
 
 import typer
 

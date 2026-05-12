@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 from gaia.cli.commands.check_core import HoleEntry, KnowledgeBreakdown
 from gaia.inquiry.diagnostics import (
     Diagnostic,
@@ -21,7 +20,6 @@ from gaia.inquiry.diagnostics import (
 )
 from gaia.inquiry.ranking import rank_diagnostics, supported_modes
 from gaia.inquiry.review import publish_blockers, run_review
-
 
 # --------------------------------------------------------------------------- #
 # stale_artifact

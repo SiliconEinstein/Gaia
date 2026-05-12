@@ -17,9 +17,9 @@ from gaia.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
 __all__ = [
     "ClaimRef",
     "Trace",
+    "TraceDiagnosticKind",
     "TraceEvent",
     "TraceManifest",
-    "TraceDiagnosticKind",
     "TraceReviewReport",
     "run_trace_review",
 ]

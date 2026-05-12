@@ -37,11 +37,9 @@ command injects the timeline JSON into that template at the
 
 from __future__ import annotations
 
-from typing import Any
-
-
 import json
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -193,7 +191,7 @@ def _try_load_ir_artifacts(
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
-    except (GaiaCliError, Exception) as exc:  # noqa: BLE001 - we degrade
+    except (GaiaCliError, Exception) as exc:
         warnings.append(f"compilation skipped: {exc}")
         ir_json_path = pkg_dir / ".gaia" / "ir.json"
         if ir_json_path.is_file():
@@ -235,7 +233,7 @@ def _try_load_ir_artifacts(
             annotate_layout_with_kinds(layout, ir)
         except FileNotFoundError as exc:
             warnings.append(f"pinned layout skipped: {exc}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             warnings.append(f"pinned layout failed: {exc}")
 
     return ir, layout, warnings

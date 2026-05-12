@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 from gaia.cli.commands._classify import classify_ir, node_role
 
 

@@ -5,17 +5,17 @@ from __future__ import annotations
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
 
 __all__ = [
-    "implication_potential",
-    "negation_potential",
+    "complement_potential",
+    "conditional_potential",
     "conjunction_potential",
+    "contradiction_potential",
     "disjunction_potential",
     "equivalence_potential",
-    "contradiction_potential",
-    "complement_potential",
-    "soft_entailment_potential",
-    "conditional_potential",
-    "pairwise_potential",
     "evaluate_potential",
+    "implication_potential",
+    "negation_potential",
+    "pairwise_potential",
+    "soft_entailment_potential",
 ]
 
 Assignment = dict[str, int]
@@ -36,9 +36,8 @@ def implication_potential(
     if h == 1:
         # Standard implication: A=1,B=0 forbidden
         return _LOW if (a == 1 and b == 0) else _HIGH
-    else:
-        # Complement: A=1,B=0 is the only HIGH row
-        return _HIGH if (a == 1 and b == 0) else _LOW
+    # Complement: A=1,B=0 is the only HIGH row
+    return _HIGH if (a == 1 and b == 0) else _LOW
 
 
 def conjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:

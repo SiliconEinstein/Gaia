@@ -10,7 +10,6 @@ from mendel_v0_5 import (
 )
 from mendel_v0_5.probabilities import PRIOR_MENDELIAN_MODEL
 
-
 PRIORS = {
     mendelian_segregation_model: (
         PRIOR_MENDELIAN_MODEL,

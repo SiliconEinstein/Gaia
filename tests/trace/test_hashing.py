@@ -1,6 +1,6 @@
 """TR-1：canonical_json 决定性 + chain 篡改检出。."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -22,7 +22,7 @@ def _ev(seq: int, prev_hash: str, *, kind="decision", actor="arm", **kw) -> Trac
         event_id=f"e{seq}",
         seq=seq,
         prev_hash=prev_hash,
-        ts=datetime(2026, 4, 28, tzinfo=timezone.utc).replace(second=seq),
+        ts=datetime(2026, 4, 28, tzinfo=UTC).replace(second=seq),
         kind=kind,
         actor=actor,
         reason="r" if kind == "decision" else None,
@@ -57,7 +57,7 @@ def test_canonical_json_no_whitespace():
 
 
 def test_canonical_json_datetime_to_iso_z():
-    dt = datetime(2026, 4, 28, 12, 0, 0, tzinfo=timezone.utc)
+    dt = datetime(2026, 4, 28, 12, 0, 0, tzinfo=UTC)
     out = canonical_json({"t": dt})
     assert out == b'{"t":"2026-04-28T12:00:00Z"}'
 
@@ -82,7 +82,7 @@ def test_canonical_json_rejects_non_str_dict_key():
 def test_canonical_json_handles_unicode_without_escape():
     out = canonical_json({"k": "中文"})
     # ensure_ascii=False ⇒ 直接 utf-8 出，不转义
-    assert "中文".encode("utf-8") in out
+    assert "中文".encode() in out
 
 
 # ---------- sha256 + chain ----------
@@ -164,7 +164,7 @@ def test_manifest_hash_excludes_self_field():
         arm_id="arm",
         session_id="s",
         trace_id="t",
-        created_at=datetime(2026, 4, 28, tzinfo=timezone.utc),
+        created_at=datetime(2026, 4, 28, tzinfo=UTC),
     )
     h1 = compute_manifest_hash(m)
     m2 = m.model_copy(update={"manifest_hash": h1})
@@ -176,7 +176,7 @@ def test_manifest_hash_changes_with_substantive_field():
         arm_id="arm",
         session_id="s",
         trace_id="t",
-        created_at=datetime(2026, 4, 28, tzinfo=timezone.utc),
+        created_at=datetime(2026, 4, 28, tzinfo=UTC),
     )
     h1 = compute_manifest_hash(m)
     m2 = m.model_copy(update={"arm_id": "other"})

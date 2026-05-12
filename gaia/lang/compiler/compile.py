@@ -13,23 +13,44 @@ from typing import Any, cast
 
 from gaia.ir import (
     Compose as IrCompose,
+)
+from gaia.ir import (
     CompositeStrategy as IrCompositeStrategy,
+)
+from gaia.ir import (
     FormalExpr as IrFormalExpr,
+)
+from gaia.ir import (
     FormalStrategy as IrFormalStrategy,
+)
+from gaia.ir import (
     Knowledge as IrKnowledge,
+)
+from gaia.ir import (
     LocalCanonicalGraph,
-    Operator as IrOperator,
-    Parameter as IrParameter,
-    PackageRef as IrPackageRef,
     ReviewManifest,
-    Step as IrStep,
-    Strategy as IrStrategy,
     formalize_named_strategy,
     make_qid,
+)
+from gaia.ir import (
+    Operator as IrOperator,
+)
+from gaia.ir import (
+    PackageRef as IrPackageRef,
+)
+from gaia.ir import (
+    Parameter as IrParameter,
+)
+from gaia.ir import (
+    Step as IrStep,
+)
+from gaia.ir import (
+    Strategy as IrStrategy,
 )
 from gaia.ir.knowledge import KnowledgeType
 from gaia.ir.operator import OperatorType
 from gaia.ir.strategy import StrategyType
+from gaia.lang.compiler.lower_formula import lower_claim_formula
 from gaia.lang.refs import (
     ReferenceError,
     check_collisions,
@@ -37,9 +58,7 @@ from gaia.lang.refs import (
     resolve,
     validate_groups,
 )
-from gaia.lang.compiler.lower_formula import lower_claim_formula
 from gaia.lang.runtime import Claim, Knowledge, Operator
-from gaia.lang.runtime.nodes import ReasonInput, Strategy as DslStrategy
 from gaia.lang.runtime.action import (
     Action,
     Associate,
@@ -51,11 +70,15 @@ from gaia.lang.runtime.action import (
     DependsOn,
     Equal,
     Exclusive,
-    Infer as InferAction,
     Observe,
     Predict,
     Support,
 )
+from gaia.lang.runtime.action import (
+    Infer as InferAction,
+)
+from gaia.lang.runtime.nodes import ReasonInput
+from gaia.lang.runtime.nodes import Strategy as DslStrategy
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.lang.runtime.param import UNBOUND
 from gaia.unit import is_quantity, to_literal
@@ -527,12 +550,7 @@ def compile_package_artifact(
                     register_action_knowledge(child_action)
             if action.conclusion is not None:
                 register_knowledge(action.conclusion)
-        elif isinstance(action, Support):
-            for given in action.given:
-                register_knowledge(given)
-            if action.conclusion is not None:
-                register_knowledge(action.conclusion)
-        elif isinstance(action, DependsOn):
+        elif isinstance(action, Support) or isinstance(action, DependsOn):
             for given in action.given:
                 register_knowledge(given)
             if action.conclusion is not None:

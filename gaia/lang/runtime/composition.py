@@ -106,16 +106,12 @@ def _action_inputs(action: Action) -> Iterable[Knowledge]:
 
 
 def _action_outputs(action: Action) -> Iterable[Knowledge]:
-    if isinstance(action, Compose):
+    if isinstance(action, Compose) or isinstance(action, Support):
         if action.conclusion is not None:
             yield action.conclusion
-    elif isinstance(action, Support):
-        if action.conclusion is not None:
-            yield action.conclusion
-    elif isinstance(action, Equal | Contradict | Exclusive):
-        if action.helper is not None:
-            yield action.helper
-    elif isinstance(action, Infer | Associate):
+    elif isinstance(action, Equal | Contradict | Exclusive) or isinstance(
+        action, Infer | Associate
+    ):
         if action.helper is not None:
             yield action.helper
     yield from action.warrants

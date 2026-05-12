@@ -1,7 +1,7 @@
 from enum import Enum
 
 from gaia.lang.runtime.knowledge import Claim, Setting
-from gaia.lang.runtime.param import Param, UNBOUND
+from gaia.lang.runtime.param import UNBOUND, Param
 
 
 class MoleculeType(str, Enum):

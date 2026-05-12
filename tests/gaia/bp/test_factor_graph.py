@@ -4,7 +4,6 @@ import pytest
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 
-
 # ── Variable management ──
 
 

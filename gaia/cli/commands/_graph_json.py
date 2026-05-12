@@ -7,11 +7,9 @@ Top-level ``modules`` and ``cross_module_edges`` arrays are computed.
 
 from __future__ import annotations
 
-from typing import Any
-
-
 import json
 from collections import Counter
+from typing import Any
 
 
 def generate_graph_json(

@@ -239,8 +239,8 @@ class TestSupportTrendConsistencyWithSoftEntailment:
     """
 
     def _run_both(self, p1, p2, prior_a=0.6, prior_b=0.4):
-        from gaia.bp.factor_graph import FactorGraph, FactorType
         from gaia.bp.exact import exact_inference
+        from gaia.bp.factor_graph import FactorGraph, FactorType
 
         fg1 = FactorGraph()
         fg1.add_variable("A", prior_a)

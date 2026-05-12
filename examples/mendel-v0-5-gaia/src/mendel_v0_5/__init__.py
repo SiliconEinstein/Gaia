@@ -75,7 +75,6 @@ from .probabilities import (
     mendel_count_association_parameters,
 )
 
-
 association_parameters = mendel_count_association_parameters()
 
 f2_total_count = Variable(symbol="n_f2", domain=Nat, value=TOTAL_COUNT)
@@ -328,26 +327,26 @@ f2_reappearance_blending_conflict = contradict(
 
 
 __all__ = [
-    "mendelian_segregation_model",
     "blending_inheritance_model",
-    "competing_models",
-    "f1_uniform_dominant_observation",
-    "f2_has_discrete_classes_observation",
-    "f2_recessive_reappears_observation",
-    "f2_count_observation",
-    "mendel_predicts_f1_dominance",
-    "f1_mendel_match",
-    "mendel_predicts_discrete_classes",
-    "f2_discrete_classes_mendel_match",
-    "mendel_predicts_recessive_reappearance",
-    "f2_reappearance_mendel_match",
-    "mendel_predicts_three_to_one_ratio",
-    "f2_dominant_count_specific",
-    "mendel_count_association",
-    "blending_predicts_intermediate_f1",
-    "f1_blending_conflict",
     "blending_predicts_f2_continuous",
-    "f2_discrete_classes_blending_conflict",
+    "blending_predicts_intermediate_f1",
     "blending_predicts_no_recessive_reappearance",
+    "competing_models",
+    "f1_blending_conflict",
+    "f1_mendel_match",
+    "f1_uniform_dominant_observation",
+    "f2_count_observation",
+    "f2_discrete_classes_blending_conflict",
+    "f2_discrete_classes_mendel_match",
+    "f2_dominant_count_specific",
+    "f2_has_discrete_classes_observation",
     "f2_reappearance_blending_conflict",
+    "f2_reappearance_mendel_match",
+    "f2_recessive_reappears_observation",
+    "mendel_count_association",
+    "mendel_predicts_discrete_classes",
+    "mendel_predicts_f1_dominance",
+    "mendel_predicts_recessive_reappearance",
+    "mendel_predicts_three_to_one_ratio",
+    "mendelian_segregation_model",
 ]

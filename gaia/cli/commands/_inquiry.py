@@ -8,7 +8,6 @@ from typing import Any
 
 from gaia.ir import ReviewManifest
 
-
 _CANDIDATE_RELATION_EDGE_KIND = "candidate_relation"
 
 
@@ -18,7 +17,7 @@ class InquiryEdge:
     label: str
     target_id: str | None
     status: str | None
-    inputs: list["InquiryNode"] = field(default_factory=list)
+    inputs: list[InquiryNode] = field(default_factory=list)
 
 
 @dataclass

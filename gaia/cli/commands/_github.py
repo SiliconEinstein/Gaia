@@ -6,16 +6,15 @@ a React SPA template, and a README skeleton into a single ``.github-output/`` di
 
 from __future__ import annotations
 
-from typing import Any
-
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._manifest import generate_manifest
-from gaia.ir.coarsen import coarsen_ir
 from gaia.cli.commands._wiki import generate_all_wiki
+from gaia.ir.coarsen import coarsen_ir
 
 
 def _copy_react_template(docs_dir: Path) -> None:

@@ -10,19 +10,23 @@ import subprocess
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, cast
 
-from gaia.lang.runtime import Claim, Knowledge, Strategy
-from gaia.lang.runtime.package import CollectedPackage
-from gaia.lang.runtime.package import pyproject_for_module
-from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
-from gaia.ir.parameterization import CROMWELL_EPS
 from packaging.requirements import InvalidRequirement, Requirement
+
+from gaia.ir.parameterization import CROMWELL_EPS
+from gaia.lang.runtime import Claim, Knowledge, Strategy
+from gaia.lang.runtime.package import (
+    CollectedPackage,
+    get_inferred_package,
+    pyproject_for_module,
+    reset_inferred_package,
+)
 
 if TYPE_CHECKING:
     from gaia.ir.graphs import LocalCanonicalGraph
@@ -195,7 +199,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
                 # Use first line of docstring as title
                 module_titles[mod_name] = doc.strip().split("\n")[0].strip()
     if module_titles:
-        setattr(pkg, "_module_titles", module_titles)
+        pkg._module_titles = module_titles
 
     pkg.name = import_name
     pkg.version = version
@@ -1036,7 +1040,7 @@ def gaia_lang_version() -> str:
 
 def _utc_now_iso() -> str:
     """UTC timestamp in ISO-8601 with Z suffix and second precision."""
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _render_compile_metadata(ir_hash: str) -> str:

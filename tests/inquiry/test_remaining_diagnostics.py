@@ -24,7 +24,6 @@ from gaia.inquiry.focus import FocusBinding
 from gaia.inquiry.ranking import _MODE_RANK, _UNKNOWN_KIND_RANK, supported_modes
 from gaia.inquiry.review import publish_blockers, run_review
 
-
 # --------------------------------------------------------------------------- #
 # Lightweight graph stubs                                                     #
 # --------------------------------------------------------------------------- #

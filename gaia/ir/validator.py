@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
 from gaia.ir.knowledge import (
     Knowledge,
     KnowledgeType,
@@ -16,7 +17,6 @@ from gaia.ir.knowledge import (
     is_structural_expression_helper,
 )
 from gaia.ir.operator import Operator, OperatorType
-from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
     PriorRecord,
@@ -310,7 +310,7 @@ def _validate_composite_dag(
 
     # DFS cycle detection
     WHITE, GRAY, BLACK = 0, 1, 2
-    color: dict[str, int] = {sid: WHITE for sid in adj}
+    color: dict[str, int] = dict.fromkeys(adj, WHITE)
 
     def dfs(node: str) -> bool:
         """Returns True if cycle found."""
@@ -379,7 +379,7 @@ def _validate_formal_expr_closure(
         conclusion_to_deps[op.conclusion] = deps
 
     WHITE, GRAY, BLACK = 0, 1, 2
-    color: dict[str, int] = {c: WHITE for c in conclusion_to_deps}
+    color: dict[str, int] = dict.fromkeys(conclusion_to_deps, WHITE)
 
     def dfs(node: str) -> bool:
         color[node] = GRAY
