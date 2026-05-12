@@ -45,44 +45,35 @@ from gaia.ir.strategy import (
 )
 
 __all__ = [
-    # Knowledge
-    "Knowledge",
-    "KnowledgeType",
-    "PackageRef",
-    "Parameter",
-    "make_qid",
-    # Operator
-    "Operator",
-    "OperatorType",
-    # Compose
-    "Compose",
-    # Strategy
-    "CompositeStrategy",
-    "FormalExpr",
-    "FormalStrategy",
-    "Step",
-    "Strategy",
-    "StrategyType",
-    # Graphs
-    "LocalCanonicalGraph",
-    # Formalization
-    "FormalizationResult",
-    "formalize_named_strategy",
-    # Parameterization
-    "CROMWELL_EPS",
-    "ParameterizationSource",
-    "PriorRecord",
-    "ResolutionPolicy",
-    "StrategyParamRecord",
-    # Schemas
-    "BUILTIN_DISTRIBUTION_KINDS",
-    "BuiltinDistributionKind",
-    "CallableRef",
-    "DistributionParam",
-    "DistributionLiteral",
-    "QuantityLiteral",
-    # Review
-    "Review",
-    "ReviewManifest",
-    "ReviewStatus",
+    "BUILTIN_DISTRIBUTION_KINDS",  # Schemas
+    "CROMWELL_EPS",  # Parameterization
+    "BuiltinDistributionKind",  # Schemas
+    "CallableRef",  # Schemas
+    "Compose",  # Compose
+    "CompositeStrategy",  # Strategy
+    "DistributionLiteral",  # Schemas
+    "DistributionParam",  # Schemas
+    "FormalExpr",  # Strategy
+    "FormalStrategy",  # Strategy
+    "FormalizationResult",  # Formalization
+    "Knowledge",  # Knowledge
+    "KnowledgeType",  # Knowledge
+    "LocalCanonicalGraph",  # Graphs
+    "Operator",  # Operator
+    "OperatorType",  # Operator
+    "PackageRef",  # Knowledge
+    "Parameter",  # Knowledge
+    "ParameterizationSource",  # Parameterization
+    "PriorRecord",  # Parameterization
+    "QuantityLiteral",  # Schemas
+    "ResolutionPolicy",  # Parameterization
+    "Review",  # Review
+    "ReviewManifest",  # Review
+    "ReviewStatus",  # Review
+    "Step",  # Strategy
+    "Strategy",  # Strategy
+    "StrategyParamRecord",  # Parameterization
+    "StrategyType",  # Strategy
+    "formalize_named_strategy",  # Formalization
+    "make_qid",  # Knowledge
 ]
