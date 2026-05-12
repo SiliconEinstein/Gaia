@@ -185,7 +185,7 @@ ignore = [
 "examples/mendel-v0-5-gaia/src/mendel_v0_5/*.py" = ["RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 9
+max-complexity = 12
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

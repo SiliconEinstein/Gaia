@@ -76,6 +76,12 @@ make test        # pytest with the configured coverage gate
 make typecheck   # strict mypy over gaia and tests
 ```
 
+Ruff's mccabe complexity limit is set to 12. The earlier limit of 9 was inherited from
+`lbg-cli`, a CLI-utility repo with much less algorithmic weight; Gaia mixes CLI workflows with
+BP message passing, IR coarsening, DSL compile/lower/link passes, and inquiry orchestration. A
+limit of 12 is a mainstream Python threshold for mixed CLI + library + algorithmic codebases
+while still requiring true decomposition of high-complexity functions.
+
 During the v0.5 refactor, strict mypy and full ruff select may still have known backlog items.
 Do not weaken the configuration to make a work unit pass; record the state in `.refactor/STATE.md`
 when the refactor queue says a gate is expected to remain red.
