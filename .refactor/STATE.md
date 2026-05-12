@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
-**Current phase**: Phase 2 in progress — full backfill
-**Last updated**: 2026-05-12 10:57 (Phase 2.3-monitor complete)
+**Current phase**: Checkpoint β pending — Phase 2 full backfill complete
+**Last updated**: 2026-05-12 11:06 (Phase 2.4 close-out acceptance complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -37,8 +37,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [x] **Phase 1 — Engineering baseline injection** (user dispatches in-repo agents serially)
   - Progress: 9 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
-- [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
-  - Progress: 19 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
+- [x] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
+  - Progress: 20 / 20 listed work units (type annotations + docstrings + coverage guard + close-out acceptance)
 - [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 3 — Acceptance + PR**
 - [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
@@ -164,8 +164,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 
 #### 2.4 Full close-out acceptance gate
 
-- [ ] **2.4** Full run: `pre-commit run --all-files` + `pytest --cov` + `mypy --strict` — all green, coverage ≥ 90%.
-  - status: `pending` | breakpoint_notes: —
+- [x] **2.4** Full run: `pre-commit run --all-files` + `pytest --cov` + `mypy --strict` — all green, coverage ≥ 90%.
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 11:03 | completed_at: 2026-05-12 11:06 | breakpoint_notes: Full close-out acceptance gate is green. Verification: `uv run pre-commit run --all-files && uv run pytest --cov=gaia --cov-report=term && uv run mypy --strict --show-error-codes --no-pretty` => pre-commit hooks passed; pytest `1605 passed, 3 skipped, 58 warnings`, TOTAL coverage 90.27%, required 90% reached; mypy `Success: no issues found in 275 source files`.
 
 > **🚦 Checkpoint β — after Phase 2**: user returns to home_agent so Claude can verify (sampled doc fidelity cross-check + acceptance gate all green).
 
