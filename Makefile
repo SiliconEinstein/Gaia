@@ -5,7 +5,7 @@ PYTEST_ARGS ?=
 
 bootstrap:
 	$(UV) sync --extra dev
-	$(UV) run pre-commit install
+	$(UV) run pre-commit install --hook-type pre-commit --hook-type pre-push
 
 lint:
 	$(UV) run pre-commit run --all-files

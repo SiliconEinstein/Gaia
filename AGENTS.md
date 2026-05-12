@@ -30,7 +30,7 @@ Use `uv` for all dependency management. Do not install repo dependencies with `p
 
 ```bash
 uv sync --extra dev
-uv run pre-commit install
+uv run pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
 The same setup is available through:
@@ -39,30 +39,64 @@ The same setup is available through:
 make bootstrap
 ```
 
+Install **both** the pre-commit and pre-push hooks (as `make bootstrap` does). The pre-push
+hook runs the CI-byte-aligned gate locally so red CI is caught before the push leaves your
+machine.
+
 ## Quality Gates
 
-Before committing normal development work, run:
+Local hooks split work between commit time and push time:
+
+- **pre-commit** (fast, per commit): hygiene hooks (trailing whitespace / EOF newline /
+  merge-conflict / detect-private-key), `ruff check` narrow select + `--fix`, `ruff format`,
+  `mypy --strict`, and the `CLAUDE.md` symlink check.
+- **pre-push** (CI-byte-aligned, per push): `ruff check .` full 15-cat select,
+  `ruff format --check .`, `mypy`, `pytest --cov-report=xml tests -v -m "not integration_api"`,
+  plus the symlink check again.
+
+For ad-hoc runs:
 
 ```bash
-make check
-```
-
-`make check` runs `uv run pre-commit run --all-files` and `uv run pytest`. Pytest is configured
-with strict markers, coverage for `gaia`, and `--cov-fail-under=90`.
-
-Additional focused commands:
-
-```bash
+make check       # pre-commit (all files) + pytest with the configured coverage gate
 make lint        # pre-commit over all files
 make test        # pytest with the configured coverage gate
 make typecheck   # strict mypy over gaia and tests
 ```
+
+Pytest is configured with strict markers, coverage for `gaia`, and `--cov-fail-under=90`.
 
 Ruff's mccabe complexity limit is set to 12. The earlier limit of 9 was inherited from
 `lbg-cli`, a CLI-utility repo with much less algorithmic weight; Gaia mixes CLI workflows with
 BP message passing, IR coarsening, DSL compile/lower/link passes, and inquiry orchestration. A
 limit of 12 is a mainstream Python threshold for mixed CLI + library + algorithmic codebases
 while still requiring true decomposition of high-complexity functions.
+
+## Push Pre-flight
+
+The pre-push hook runs the CI-byte-aligned gate (full ruff + format check + mypy + pytest
+--cov) on every `git push`. This guarantees that if the hook is green, CI on the corresponding
+PR will be green for the same reasons.
+
+**Do not bypass the pre-push hook** with `--no-verify`, `--no-gpg-sign`, or any other skip
+flag. If the hook fails, fix the underlying issue and create a new commit — do not skip the
+hook to "ship now, fix later". Bypassing produces silent drift between local and CI state and
+defeats the entire point of byte-aligning the gates.
+
+This applies equally to in-repo agents (Claude Code, Cursor, Codex, etc.). Agents must not
+push without a green pre-push gate. Only the human contributor can override the hook in
+genuinely exceptional circumstances, and the override should be called out explicitly in the
+PR description.
+
+### CLAUDE.md ↔ AGENTS.md sync
+
+`CLAUDE.md` is a symlink to `AGENTS.md`. The pre-commit + pre-push hooks both verify this
+relationship. Editing `AGENTS.md` is the canonical action; `CLAUDE.md` is never edited as a
+separate file. If you ever find the two diverging (the symlink replaced by a real file copy),
+restore with:
+
+```bash
+rm CLAUDE.md && ln -sf AGENTS.md CLAUDE.md
+```
 
 ## Engineering Rules
 

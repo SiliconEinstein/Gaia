@@ -21,9 +21,37 @@ repos:
 
   - repo: local
     hooks:
+      - id: claude-md-symlink
+        name: CLAUDE.md must be a symlink to AGENTS.md
+        entry: "bash -c 'test -L CLAUDE.md && [ \"$(readlink CLAUDE.md)\" = \"AGENTS.md\" ] || { echo \"CLAUDE.md must be a symlink to AGENTS.md (run: ln -sf AGENTS.md CLAUDE.md)\"; exit 1; }'"
+        language: system
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
       - id: mypy
-        name: mypy strict (manual until Phase 2)
+        name: mypy --strict
         entry: uv run mypy
         language: system
         pass_filenames: false
-        stages: [manual]
+        stages: [pre-commit, pre-push]
+
+      - id: ruff-check-full
+        name: ruff check . (full 15-cat select, CI byte-aligned)
+        entry: uv run ruff check .
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: ruff-format-check
+        name: ruff format --check . (CI byte-aligned)
+        entry: uv run ruff format --check .
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: pytest-cov
+        name: pytest --cov (CI byte-aligned)
+        entry: uv run pytest --cov-report=xml tests -v -m "not integration_api"
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
