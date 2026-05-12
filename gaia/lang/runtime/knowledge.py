@@ -115,6 +115,79 @@ class ClaimKind(Enum):
     CAUSAL = "causal"
 
 
+def _validate_formula_and_kind(formula: Any, kind: ClaimKind) -> None:
+    if formula is not None:
+        from gaia.lang.formula.predicate import is_formula
+
+        if not is_formula(formula):
+            raise TypeError(f"formula must be a Formula or None, got {type(formula).__name__}")
+    if not isinstance(kind, ClaimKind):
+        raise TypeError(f"kind must be a ClaimKind member, got {type(kind).__name__}")
+
+
+def _split_param_kwargs(
+    kwargs: dict[str, Any],
+    param_fields: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    param_values: dict[str, Any] = {}
+    knowledge_kwargs: dict[str, Any] = {}
+    for key, value in kwargs.items():
+        if key in param_fields:
+            param_values[key] = value
+        else:
+            knowledge_kwargs[key] = value
+    return param_values, knowledge_kwargs
+
+
+def _parameter_entries(
+    param_fields: dict[str, Any],
+    param_values: dict[str, Any],
+) -> list[dict[str, Any]]:
+    params = []
+    for name, ann in param_fields.items():
+        val = param_values.get(name, UNBOUND)
+        stored_val = val.value if isinstance(val, Enum) else val
+        params.append(
+            {
+                "name": name,
+                "type": ann.__name__ if isinstance(ann, type) else str(ann),
+                "value": stored_val,
+            }
+        )
+    return params
+
+
+def _render_templated_content(
+    content: str | None,
+    *,
+    template: str,
+    param_fields: dict[str, Any],
+    param_values: dict[str, Any],
+    knowledge_kwargs: dict[str, Any],
+) -> str | None:
+    if content is not None or not template or not param_fields:
+        return content
+
+    metadata = dict(knowledge_kwargs.get("metadata") or {})
+    metadata["content_template"] = template
+    knowledge_kwargs["metadata"] = metadata
+    rendered_template = template
+    render_values: dict[str, Any] = {}
+    for name in param_fields:
+        val = param_values.get(name, UNBOUND)
+        if val is UNBOUND:
+            continue
+        if isinstance(val, Knowledge):
+            ref = f"[@{val.label or '?'}]"
+            render_values[name] = ref
+            rendered_template = rendered_template.replace(f"[@{name}]", ref)
+        elif isinstance(val, Enum):
+            render_values[name] = val.value
+        else:
+            render_values[name] = val
+    return rendered_template.format_map(_SafeFormatDict(render_values))
+
+
 @dataclass(init=False, eq=False)
 class Claim(Knowledge):
     """Proposition with prior. Participates in BP."""
@@ -195,54 +268,19 @@ class Claim(Knowledge):
         **kwargs: Any,
     ) -> None:
         """Create a probabilistic claim node."""
-        if formula is not None:
-            from gaia.lang.formula.predicate import is_formula
-
-            if not is_formula(formula):
-                raise TypeError(f"formula must be a Formula or None, got {type(formula).__name__}")
-        if not isinstance(kind, ClaimKind):
-            raise TypeError(f"kind must be a ClaimKind member, got {type(kind).__name__}")
-
+        _validate_formula_and_kind(formula, kind)
         param_fields = getattr(self.__class__, "_param_fields", {})
-        param_values: dict[str, Any] = {}
-        knowledge_kwargs: dict[str, Any] = {}
-        for key, value in kwargs.items():
-            if key in param_fields:
-                param_values[key] = value
-            else:
-                knowledge_kwargs[key] = value
-
-        params = []
-        for name, ann in param_fields.items():
-            val = param_values.get(name, UNBOUND)
-            stored_val = val.value if isinstance(val, Enum) else val
-            params.append(
-                {
-                    "name": name,
-                    "type": ann.__name__ if isinstance(ann, type) else str(ann),
-                    "value": stored_val,
-                }
-            )
+        param_values, knowledge_kwargs = _split_param_kwargs(kwargs, param_fields)
+        params = _parameter_entries(param_fields, param_values)
 
         template = self.__class__.__doc__ or ""
-        if content is None and template and param_fields:
-            metadata = dict(knowledge_kwargs.get("metadata") or {})
-            metadata["content_template"] = template
-            knowledge_kwargs["metadata"] = metadata
-            rendered_template = template
-            render_values: dict[str, Any] = {}
-            for name in param_fields:
-                val = param_values.get(name, UNBOUND)
-                if val is not UNBOUND:
-                    if isinstance(val, Knowledge):
-                        ref = f"[@{val.label or '?'}]"
-                        render_values[name] = ref
-                        rendered_template = rendered_template.replace(f"[@{name}]", ref)
-                    elif isinstance(val, Enum):
-                        render_values[name] = val.value
-                    else:
-                        render_values[name] = val
-            content = rendered_template.format_map(_SafeFormatDict(render_values))
+        content = _render_templated_content(
+            content,
+            template=template,
+            param_fields=param_fields,
+            param_values=param_values,
+            knowledge_kwargs=knowledge_kwargs,
+        )
 
         for name, val in param_values.items():
             object.__setattr__(self, name, val)

@@ -132,97 +132,117 @@ def _compose_question(compose: Any, labels: dict[str, str]) -> str:
     )
 
 
+def _knowledge_reviews(knowledge: Any, labels: dict[str, str]) -> list[Review]:
+    if not knowledge.id:
+        return []
+
+    reviews: list[Review] = []
+    for entry in _knowledge_supported_by_entries(knowledge):
+        if entry.get("pattern") != "observation":
+            continue
+        action_label = entry.get("action_label")
+        if not isinstance(action_label, str) or not action_label:
+            continue
+        reviews.append(
+            Review(
+                review_id=_review_id("action", action_label),
+                action_label=action_label,
+                target_kind="action",
+                target_id=action_label,
+                status=ReviewStatus.UNREVIEWED,
+                audit_question=_knowledge_question(knowledge, "observe", labels),
+                round=1,
+            )
+        )
+
+    review_info = _knowledge_review_info(knowledge)
+    if review_info is not None:
+        action_label, action_type = review_info
+        reviews.append(
+            Review(
+                review_id=_review_id("knowledge", knowledge.id),
+                action_label=action_label,
+                target_kind="knowledge",
+                target_id=knowledge.id,
+                status=ReviewStatus.UNREVIEWED,
+                audit_question=_knowledge_question(knowledge, action_type, labels),
+                round=1,
+            )
+        )
+    return reviews
+
+
+def _strategy_review(strategy: Any, labels: dict[str, str]) -> Review | None:
+    metadata = strategy.metadata or {}
+    action_label = metadata.get("action_label")
+    if not action_label or not strategy.strategy_id:
+        return None
+    action_type = _strategy_action_type(strategy)
+    return Review(
+        review_id=_review_id("strategy", strategy.strategy_id),
+        action_label=action_label,
+        target_kind="strategy",
+        target_id=strategy.strategy_id,
+        status=ReviewStatus.UNREVIEWED,
+        audit_question=_strategy_question(strategy, action_type, labels),
+        round=1,
+    )
+
+
+def _operator_review(operator: Any, labels: dict[str, str]) -> Review | None:
+    metadata = operator.metadata or {}
+    action_label = metadata.get("action_label")
+    if not action_label or not operator.operator_id:
+        return None
+    action_type = _operator_action_type(operator)
+    return Review(
+        review_id=_review_id("operator", operator.operator_id),
+        action_label=action_label,
+        target_kind="operator",
+        target_id=operator.operator_id,
+        status=ReviewStatus.UNREVIEWED,
+        audit_question=_operator_question(operator, action_type, labels),
+        round=1,
+    )
+
+
+def _compose_review(compose: Any, labels: dict[str, str]) -> Review | None:
+    metadata = compose.metadata or {}
+    action_label = metadata.get("action_label")
+    if not action_label or not compose.compose_id:
+        return None
+    return Review(
+        review_id=_review_id("compose", compose.compose_id),
+        action_label=action_label,
+        target_kind="compose",
+        target_id=compose.compose_id,
+        status=ReviewStatus.UNREVIEWED,
+        audit_question=_compose_question(compose, labels),
+        round=1,
+    )
+
+
 def generate_review_manifest(compiled: Any) -> ReviewManifest:
     """Generate unreviewed Review records for each v6 action target."""
     labels = _labels_by_id(compiled)
     reviews: list[Review] = []
 
     for knowledge in compiled.graph.knowledges:
-        if not knowledge.id:
-            continue
-        for entry in _knowledge_supported_by_entries(knowledge):
-            if entry.get("pattern") != "observation":
-                continue
-            action_label = entry.get("action_label")
-            if not isinstance(action_label, str) or not action_label:
-                continue
-            reviews.append(
-                Review(
-                    review_id=_review_id("action", action_label),
-                    action_label=action_label,
-                    target_kind="action",
-                    target_id=action_label,
-                    status=ReviewStatus.UNREVIEWED,
-                    audit_question=_knowledge_question(knowledge, "observe", labels),
-                    round=1,
-                )
-            )
-        review_info = _knowledge_review_info(knowledge)
-        if review_info is not None:
-            action_label, action_type = review_info
-            reviews.append(
-                Review(
-                    review_id=_review_id("knowledge", knowledge.id),
-                    action_label=action_label,
-                    target_kind="knowledge",
-                    target_id=knowledge.id,
-                    status=ReviewStatus.UNREVIEWED,
-                    audit_question=_knowledge_question(knowledge, action_type, labels),
-                    round=1,
-                )
-            )
+        reviews.extend(_knowledge_reviews(knowledge, labels))
 
     for strategy in compiled.graph.strategies:
-        metadata = strategy.metadata or {}
-        action_label = metadata.get("action_label")
-        if not action_label or not strategy.strategy_id:
-            continue
-        action_type = _strategy_action_type(strategy)
-        reviews.append(
-            Review(
-                review_id=_review_id("strategy", strategy.strategy_id),
-                action_label=action_label,
-                target_kind="strategy",
-                target_id=strategy.strategy_id,
-                status=ReviewStatus.UNREVIEWED,
-                audit_question=_strategy_question(strategy, action_type, labels),
-                round=1,
-            )
-        )
+        review = _strategy_review(strategy, labels)
+        if review is not None:
+            reviews.append(review)
 
     for operator in compiled.graph.operators:
-        metadata = operator.metadata or {}
-        action_label = metadata.get("action_label")
-        if not action_label or not operator.operator_id:
-            continue
-        action_type = _operator_action_type(operator)
-        reviews.append(
-            Review(
-                review_id=_review_id("operator", operator.operator_id),
-                action_label=action_label,
-                target_kind="operator",
-                target_id=operator.operator_id,
-                status=ReviewStatus.UNREVIEWED,
-                audit_question=_operator_question(operator, action_type, labels),
-                round=1,
-            )
-        )
+        review = _operator_review(operator, labels)
+        if review is not None:
+            reviews.append(review)
 
     for compose in getattr(compiled.graph, "composes", []):
-        metadata = compose.metadata or {}
-        action_label = metadata.get("action_label")
-        if not action_label or not compose.compose_id:
-            continue
-        reviews.append(
-            Review(
-                review_id=_review_id("compose", compose.compose_id),
-                action_label=action_label,
-                target_kind="compose",
-                target_id=compose.compose_id,
-                status=ReviewStatus.UNREVIEWED,
-                audit_question=_compose_question(compose, labels),
-                round=1,
-            )
-        )
+        review = _compose_review(compose, labels)
+        if review is not None:
+            reviews.append(review)
 
     return ReviewManifest(reviews=reviews)

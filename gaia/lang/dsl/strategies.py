@@ -333,6 +333,53 @@ def deduction(
     )
 
 
+def _composition_warrant(content: str, reason: ReasonInput) -> Knowledge:
+    metadata: dict[str, Any] = {"helper_kind": "composition_validity", "generated": True}
+    if isinstance(reason, str) and reason:
+        metadata["warrant"] = reason
+    return Knowledge(content=content, type="claim", metadata=metadata)
+
+
+def _unique_premises(strategies: list[Strategy]) -> list[Knowledge]:
+    all_premises: list[Knowledge] = []
+    seen: set[int] = set()
+    for strategy in strategies:
+        for premise in strategy.premises:
+            if id(premise) not in seen:
+                all_premises.append(premise)
+                seen.add(id(premise))
+    return all_premises
+
+
+def _validate_abduction_inputs(
+    support_h: Strategy,
+    support_alt: Strategy,
+    comparison: Strategy,
+) -> Knowledge:
+    if not isinstance(support_h, Strategy):
+        raise TypeError("abduction() first arg must be a Strategy")
+    if not isinstance(support_alt, Strategy):
+        raise TypeError("abduction() second arg must be a Strategy")
+    if not isinstance(comparison, Strategy):
+        raise TypeError("abduction() third arg must be a Strategy")
+    if support_h.type != "support":
+        raise TypeError("abduction() first arg must be a support strategy")
+    if support_alt.type != "support":
+        raise TypeError("abduction() second arg must be a support strategy")
+    if comparison.type != "compare":
+        raise TypeError("abduction() third arg must be a compare strategy")
+    if len(comparison.premises) != 3:
+        raise ValueError("abduction() compare strategy must have [pred_h, pred_alt, observation]")
+    observation = comparison.premises[2]
+    if support_h.conclusion is not observation:
+        raise ValueError("abduction() support_h must conclude the compared observation")
+    if support_alt.conclusion is not observation:
+        raise ValueError("abduction() support_alt must conclude the compared observation")
+    if comparison.conclusion is None:
+        raise ValueError("abduction() compare strategy must have a conclusion")
+    return comparison.conclusion
+
+
 def abduction(
     support_h: Strategy,
     support_alt: Strategy,
@@ -356,48 +403,12 @@ def abduction(
     Returns:
         CompositeStrategy whose conclusion is ``comparison.conclusion``.
     """
-    if not isinstance(support_h, Strategy):
-        raise TypeError("abduction() first arg must be a Strategy")
-    if not isinstance(support_alt, Strategy):
-        raise TypeError("abduction() second arg must be a Strategy")
-    if not isinstance(comparison, Strategy):
-        raise TypeError("abduction() third arg must be a Strategy")
-    if support_h.type != "support":
-        raise TypeError("abduction() first arg must be a support strategy")
-    if support_alt.type != "support":
-        raise TypeError("abduction() second arg must be a support strategy")
-    if comparison.type != "compare":
-        raise TypeError("abduction() third arg must be a compare strategy")
-    if len(comparison.premises) != 3:
-        raise ValueError("abduction() compare strategy must have [pred_h, pred_alt, observation]")
-    observation = comparison.premises[2]
-    if support_h.conclusion is not observation:
-        raise ValueError("abduction() support_h must conclude the compared observation")
-    if support_alt.conclusion is not observation:
-        raise ValueError("abduction() support_alt must conclude the compared observation")
-    if comparison.conclusion is None:
-        raise ValueError("abduction() compare strategy must have a conclusion")
-
-    # Composition warrant
-    comp_warrant = Knowledge(
-        content=(f"abduction_validity({support_h.type}, {support_alt.type}, {comparison.type})"),
-        type="claim",
-        metadata={"helper_kind": "composition_validity", "generated": True},
+    conclusion = _validate_abduction_inputs(support_h, support_alt, comparison)
+    comp_warrant = _composition_warrant(
+        f"abduction_validity({support_h.type}, {support_alt.type}, {comparison.type})",
+        reason,
     )
-    if isinstance(reason, str) and reason:
-        comp_warrant.metadata["warrant"] = reason
-
-    # Gather unique premises from all three sub-strategies
-    all_premises: list[Knowledge] = []
-    seen: set[int] = set()
-    for s in [support_h, support_alt, comparison]:
-        for p in s.premises:
-            if id(p) not in seen:
-                all_premises.append(p)
-                seen.add(id(p))
-
-    # Conclusion comes from the comparison strategy
-    conclusion = comparison.conclusion
+    all_premises = _unique_premises([support_h, support_alt, comparison])
 
     strategy = Strategy(
         type="abduction",
@@ -524,6 +535,60 @@ def composite(
     )
 
 
+def _support_has_law_as_premise(strategy: Strategy, law: Knowledge) -> bool:
+    return any(p is law for p in strategy.premises)
+
+
+def _validate_induction_inputs(
+    support_1: Strategy,
+    support_2: Strategy,
+    law: Knowledge,
+) -> None:
+    if not isinstance(support_1, Strategy):
+        raise TypeError(f"induction() support_1 must be a Strategy, got {type(support_1).__name__}")
+    if not isinstance(support_2, Strategy):
+        raise TypeError(f"induction() support_2 must be a Strategy, got {type(support_2).__name__}")
+    if support_1.type not in {"support", "induction"}:
+        raise TypeError("induction() support_1 must be a support strategy or previous induction")
+    if support_2.type != "support":
+        raise TypeError("induction() support_2 must be a support strategy")
+
+    if support_1.type == "support" and not _support_has_law_as_premise(support_1, law):
+        raise ValueError(
+            "induction() support_1 must have the law as a premise "
+            "(generative direction: support([law, ...], obs))"
+        )
+    if support_1.type == "induction" and support_1.conclusion is not law:
+        raise ValueError("induction() support_1 (previous induction) must conclude the same law")
+    if not _support_has_law_as_premise(support_2, law):
+        raise ValueError(
+            "induction() support_2 must have the law as a premise "
+            "(generative direction: support([law, ...], obs))"
+        )
+
+
+def _induction_premises(
+    support_1: Strategy,
+    support_2: Strategy,
+    law: Knowledge,
+) -> list[Knowledge]:
+    all_premises: list[Knowledge] = []
+    seen: set[int] = set()
+    for strategy in [support_1, support_2]:
+        for premise in strategy.premises:
+            if id(premise) not in seen and premise is not law:
+                all_premises.append(premise)
+                seen.add(id(premise))
+        if (
+            strategy.conclusion is not None
+            and strategy.conclusion is not law
+            and id(strategy.conclusion) not in seen
+        ):
+            all_premises.append(strategy.conclusion)
+            seen.add(id(strategy.conclusion))
+    return all_premises
+
+
 def induction(
     support_1: Strategy,
     support_2: Strategy,
@@ -546,61 +611,12 @@ def induction(
     Returns:
         CompositeStrategy whose conclusion is *law*.
     """
-    if not isinstance(support_1, Strategy):
-        raise TypeError(f"induction() support_1 must be a Strategy, got {type(support_1).__name__}")
-    if not isinstance(support_2, Strategy):
-        raise TypeError(f"induction() support_2 must be a Strategy, got {type(support_2).__name__}")
-    if support_1.type not in {"support", "induction"}:
-        raise TypeError("induction() support_1 must be a support strategy or previous induction")
-    if support_2.type != "support":
-        raise TypeError("induction() support_2 must be a support strategy")
-
-    # Validate law participation: each support must have law as a *premise*
-    # (generative direction: law predicts observation).  Putting law as the
-    # conclusion (obs → law) is the wrong direction for induction — the
-    # observation is the evidence, not the conclusion of the sub-strategy.
-    # A chained induction must have law as its conclusion.
-    def _support_has_law_as_premise(s: Strategy) -> bool:
-        return any(p is law for p in s.premises)
-
-    if support_1.type == "support" and not _support_has_law_as_premise(support_1):
-        raise ValueError(
-            "induction() support_1 must have the law as a premise "
-            "(generative direction: support([law, ...], obs))"
-        )
-    if support_1.type == "induction" and support_1.conclusion is not law:
-        raise ValueError("induction() support_1 (previous induction) must conclude the same law")
-    if not _support_has_law_as_premise(support_2):
-        raise ValueError(
-            "induction() support_2 must have the law as a premise "
-            "(generative direction: support([law, ...], obs))"
-        )
-
-    # Auto-create composition warrant
-    warrant_metadata: dict[str, Any] = {"helper_kind": "composition_validity", "generated": True}
-    if isinstance(reason, str) and reason:
-        warrant_metadata["warrant"] = reason
-    composition_warrant = Knowledge(
-        content="Are observations independent? Do they support the same law?",
-        type="claim",
-        metadata=warrant_metadata,
+    _validate_induction_inputs(support_1, support_2, law)
+    composition_warrant = _composition_warrant(
+        "Are observations independent? Do they support the same law?",
+        reason,
     )
-
-    # Collect all variables from sub-strategies (excluding law) as composite
-    # premises.  In the generative model (law → obs), observations are the
-    # sub-strategy *conclusions*, not premises.  We must gather both to
-    # correctly expose all evidence nodes at the composite level.
-    all_premises: list[Knowledge] = []
-    seen: set[int] = set()
-    for s in [support_1, support_2]:
-        for p in s.premises:
-            if id(p) not in seen and p is not law:
-                all_premises.append(p)
-                seen.add(id(p))
-        # Sub-strategy conclusions (observations in generative mode)
-        if s.conclusion is not None and s.conclusion is not law and id(s.conclusion) not in seen:
-            all_premises.append(s.conclusion)
-            seen.add(id(s.conclusion))
+    all_premises = _induction_premises(support_1, support_2, law)
 
     strategy = Strategy(
         type="induction",

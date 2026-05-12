@@ -25,6 +25,85 @@ def _as_given_tuple(given: Claim | tuple[Claim, ...] | list[Claim] | None) -> tu
     return tuple(given)
 
 
+def _legacy_infer(
+    premises: list[Knowledge] | tuple[Knowledge, ...],
+    args: tuple[Any, ...],
+    legacy_kwargs: dict[str, Any],
+) -> Strategy:
+    from gaia.lang.dsl.strategies import infer as legacy_infer
+
+    warnings.warn(
+        "infer([premises], conclusion, ...) is deprecated; use "
+        "infer(evidence, hypothesis=..., p_e_given_h=..., "
+        "p_e_given_not_h=...) instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return legacy_infer(list(premises), *args, **legacy_kwargs)
+
+
+def _resolve_evidence(
+    evidence_or_legacy: Claim | str | list[Knowledge] | tuple[Knowledge, ...] | None,
+    evidence: Claim | str | None,
+) -> Claim | str | None:
+    if evidence_or_legacy is None:
+        return evidence
+    if isinstance(evidence_or_legacy, (list, tuple)):
+        raise TypeError("legacy infer form must be handled before evidence resolution")
+    if evidence is not None:
+        raise TypeError("infer() got evidence both positionally and by keyword")
+    return evidence_or_legacy
+
+
+def _validate_infer_claims(
+    *,
+    hypothesis: Claim | None,
+    evidence: Claim | str | None,
+    p_e_given_h: float | Claim | None,
+    given: Claim | tuple[Claim, ...] | list[Claim] | None,
+) -> tuple[Claim, Claim, tuple[Claim, ...]]:
+    if hypothesis is None:
+        raise TypeError("infer() missing required keyword argument: 'hypothesis'")
+    if evidence is None:
+        raise TypeError("infer() missing required keyword argument: 'evidence'")
+    if p_e_given_h is None:
+        raise TypeError("infer() missing required keyword argument: 'p_e_given_h'")
+    if isinstance(evidence, str):
+        evidence = Claim(evidence)
+    if not isinstance(evidence, Claim):
+        raise TypeError("infer() evidence must be a Claim or string")
+    if not isinstance(hypothesis, Claim):
+        raise TypeError("infer() hypothesis must be a Claim")
+    given_tuple = _as_given_tuple(given)
+    if any(not isinstance(item, Claim) for item in given_tuple):
+        raise TypeError("infer() given entries must be Claims")
+    return evidence, hypothesis, given_tuple
+
+
+def _infer_relation(
+    *,
+    hypothesis: Claim,
+    evidence: Claim,
+    given_tuple: tuple[Claim, ...],
+    p_e_given_h: float | Claim | None,
+    p_e_given_not_h: float | Claim | None,
+    prior_hypothesis: float | None,
+    prior_evidence: float | None,
+) -> dict[str, Any]:
+    relation: dict[str, Any] = {
+        "type": "infer",
+        "hypothesis": hypothesis,
+        "evidence": evidence,
+        "p_e_given_h": p_e_given_h,
+        "p_e_given_not_h": p_e_given_not_h,
+        "prior_hypothesis": prior_hypothesis,
+        "prior_evidence": prior_evidence,
+    }
+    if given_tuple:
+        relation["given"] = given_tuple
+    return relation
+
+
 def infer(
     evidence_or_legacy: Claim | str | list[Knowledge] | tuple[Knowledge, ...] | None = None,
     *args: Any,
@@ -47,54 +126,30 @@ def infer(
     compatibility path.
     """
     if isinstance(evidence_or_legacy, (list, tuple)):
-        from gaia.lang.dsl.strategies import infer as legacy_infer
-
-        warnings.warn(
-            "infer([premises], conclusion, ...) is deprecated; use "
-            "infer(evidence, hypothesis=..., p_e_given_h=..., "
-            "p_e_given_not_h=...) instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return legacy_infer(list(evidence_or_legacy), *args, **legacy_kwargs)
+        return _legacy_infer(evidence_or_legacy, args, legacy_kwargs)
 
     if args:
         raise TypeError("v6 infer() accepts only one positional evidence argument")
     if legacy_kwargs:
         unexpected = next(iter(legacy_kwargs))
         raise TypeError(f"infer() got an unexpected keyword argument: '{unexpected}'")
-    if evidence_or_legacy is not None:
-        if evidence is not None:
-            raise TypeError("infer() got evidence both positionally and by keyword")
-        evidence = evidence_or_legacy
-
-    if hypothesis is None:
-        raise TypeError("infer() missing required keyword argument: 'hypothesis'")
-    if evidence is None:
-        raise TypeError("infer() missing required keyword argument: 'evidence'")
-    if p_e_given_h is None:
-        raise TypeError("infer() missing required keyword argument: 'p_e_given_h'")
-    if isinstance(evidence, str):
-        evidence = Claim(evidence)
-    if not isinstance(evidence, Claim):
-        raise TypeError("infer() evidence must be a Claim or string")
-    if not isinstance(hypothesis, Claim):
-        raise TypeError("infer() hypothesis must be a Claim")
-    given_tuple = _as_given_tuple(given)
-    if any(not isinstance(item, Claim) for item in given_tuple):
-        raise TypeError("infer() given entries must be Claims")
-
-    relation = {
-        "type": "infer",
-        "hypothesis": hypothesis,
-        "evidence": evidence,
-        "p_e_given_h": p_e_given_h,
-        "p_e_given_not_h": p_e_given_not_h,
-        "prior_hypothesis": prior_hypothesis,
-        "prior_evidence": prior_evidence,
-    }
-    if given_tuple:
-        relation["given"] = given_tuple
+    evidence = _resolve_evidence(evidence_or_legacy, evidence)
+    evidence, hypothesis, given_tuple = _validate_infer_claims(
+        hypothesis=hypothesis,
+        evidence=evidence,
+        p_e_given_h=p_e_given_h,
+        given=given,
+    )
+    assert p_e_given_h is not None
+    relation = _infer_relation(
+        hypothesis=hypothesis,
+        evidence=evidence,
+        given_tuple=given_tuple,
+        p_e_given_h=p_e_given_h,
+        p_e_given_not_h=p_e_given_not_h,
+        prior_hypothesis=prior_hypothesis,
+        prior_evidence=prior_evidence,
+    )
     helper = Claim(
         f"{_claim_ref(evidence)} statistically supports {_claim_ref(hypothesis)}.",
         metadata={

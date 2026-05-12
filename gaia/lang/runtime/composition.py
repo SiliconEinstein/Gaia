@@ -74,35 +74,46 @@ def _unique_knowledge(items: Iterable[Knowledge]) -> tuple[Knowledge, ...]:
     return tuple(result)
 
 
+def _binary_relation_inputs(
+    action: Equal | Contradict | Exclusive | Associate,
+) -> Iterable[Knowledge]:
+    if action.a is not None:
+        yield action.a
+    if action.b is not None:
+        yield action.b
+
+
+def _decompose_inputs(action: Decompose) -> Iterable[Knowledge]:
+    if action.whole is not None:
+        yield action.whole
+    yield from action.parts
+
+
+def _infer_action_inputs(action: Infer) -> Iterable[Knowledge]:
+    if action.hypothesis is not None:
+        yield action.hypothesis
+    if action.evidence is not None:
+        yield action.evidence
+    yield from action.given
+    if isinstance(action.p_e_given_h, Knowledge):
+        yield action.p_e_given_h
+    if isinstance(action.p_e_given_not_h, Knowledge):
+        yield action.p_e_given_not_h
+
+
 def _action_inputs(action: Action) -> Iterable[Knowledge]:
     if isinstance(action, Compose):
         yield from (item for item in action.inputs if isinstance(item, Knowledge))
     elif isinstance(action, Support):
         yield from action.given
     elif isinstance(action, Equal | Contradict | Exclusive):
-        if action.a is not None:
-            yield action.a
-        if action.b is not None:
-            yield action.b
+        yield from _binary_relation_inputs(action)
     elif isinstance(action, Decompose):
-        if action.whole is not None:
-            yield action.whole
-        yield from action.parts
+        yield from _decompose_inputs(action)
     elif isinstance(action, Infer):
-        if action.hypothesis is not None:
-            yield action.hypothesis
-        if action.evidence is not None:
-            yield action.evidence
-        yield from action.given
-        if isinstance(action.p_e_given_h, Knowledge):
-            yield action.p_e_given_h
-        if isinstance(action.p_e_given_not_h, Knowledge):
-            yield action.p_e_given_not_h
+        yield from _infer_action_inputs(action)
     elif isinstance(action, Associate):
-        if action.a is not None:
-            yield action.a
-        if action.b is not None:
-            yield action.b
+        yield from _binary_relation_inputs(action)
 
 
 def _action_outputs(action: Action) -> Iterable[Knowledge]:

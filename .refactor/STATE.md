@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: **Phase 2.5 — Audit-driven full-select ruff alignment** (Phase 2 closed, Phase 2.4 hotfix `75d6d769` landed, rev2 audit Pillar 3 FAIL surfaced spec gap → Phase 2.5 added)
-**Last updated**: 2026-05-12 (2.5.3c-inquiry done)
+**Last updated**: 2026-05-12 (2.5.3c-lang done; 2.5.3c-ir blocked M3)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`, current HEAD `75d6d769`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -44,7 +44,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [ ] **Phase 2.5 — Audit-driven full-select ruff alignment** (new phase added 2026-05-12 post rev2 audit)
   - **Why**: rev2 audit Pillar 3 FAIL — `uv run ruff check .` (CI command) reports 531 errors at HEAD `75d6d769`; spec gap = three ruff invocations diverged (Phase 0.5 baseline measured full select, Phase 2.2 close criteria narrowed to `--select D`, Phase 2.4 close-out used pre-commit's `--select E4,E7,E9,F`, CI runs full pyproject 15-select); PR opened to `v0.5` will red on CI. Phase 2.5 closes the gap by **aligning close-out gate to CI command + driving ruff full-select to 0 errors**.
   - **Path**: C-硬 (refactor, NOT noqa exception); 4 pinned decisions in § Phase 2.5 spec below.
-  - Progress: 14 / TBD work units (queue in § Phase 2.5 task queue)
+  - Progress: 15 / TBD work units (queue in § Phase 2.5 task queue)
 - [ ] **Phase 3 — Acceptance + PR** (γ rolled back, will redo with Phase 2.5 close-out command)
 - [ ] **🚦 Checkpoint γ'**: Phase 2.5 + Phase 3.1 close-out all green → PR body regen + user ship handshake
 - [ ] **Cleanup R.x — after PR merge**: delete mortal banner + `.refactor/` + restore canon CD default
@@ -298,7 +298,7 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 
 - [ ] **2.5.3c** Refactor 13-29 complexity band C901 (~46 functions across modules). Executor groups by module: 2.5.3c-cli-commands / 2.5.3c-ir / 2.5.3c-bp / 2.5.3c-inquiry / 2.5.3c-lang / 2.5.3c-trace / 2.5.3c-logic. Module-internal C901 functions handled together within each unit.
   - status: `in-progress`
-  - breakpoint_notes: Split live 45 remaining C901 findings into module sub-units on 2026-05-12: bp (8), cli+cli/commands (20), inquiry (2), ir (8), lang (7). 2.5.3c-bp, 2.5.3c-cli, and 2.5.3c-inquiry are done; live remaining C901 count after 2.5.3c-inquiry is 15: ir (8), lang (7). No live trace/logic findings remained.
+  - breakpoint_notes: Split live 45 remaining C901 findings into module sub-units on 2026-05-12: bp (8), cli+cli/commands (20), inquiry (2), ir (8), lang (7). 2.5.3c-bp, 2.5.3c-cli, 2.5.3c-inquiry, and 2.5.3c-lang are done. 2.5.3c-ir blocked on 2026-05-12 by M3 doc-code contradiction (`OperatorType.IMPLICATION` arity: protected docs say one variable plus conclusion, live code/tests require two variables plus conclusion). Live remaining C901 count after 2.5.3c-lang is 8, all in blocked `gaia/ir/` functions. No live trace/logic findings remained.
   - Note: same sub-divide pattern as 2.5.3b — write sub-units before claim.
 - [x] **2.5.3c-bp** Refactor BP 13-29 complexity C901 functions: `gaia/bp/bp.py:run`, `gaia/bp/contraction.py:factor_to_tensor`, `gaia/bp/contraction.py:contract_to_cpt`, `gaia/bp/exact.py:_factor_log_potentials`, `gaia/bp/factor_graph.py:add_factor`, `gaia/bp/junction_tree.py:_collect_distribute`, `gaia/bp/lowering.py:lower_local_graph`, `gaia/bp/potentials.py:evaluate_potential`. Preserve BP algorithm semantics, factor potentials, public APIs, message shapes, and lowering behavior.
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 16:45 | completed_at: 2026-05-12 16:55 | breakpoint_notes: Refactored the BP 13-29 C901 set by extracting private message-sweep helpers, factor/tensor/potential dispatch tables, factor-parameter validators, junction-tree traversal helpers, and lowering phase helpers. Public BP APIs, factor semantics, Cromwell clamping, CPT indexing, message shapes, inference algorithms, and Gaia IR lowering behavior are preserved. Verification: `uv run ruff check gaia/bp --select C901 --output-format=concise` => passed; `uv run ruff check gaia/bp --output-format=concise` => passed; `uv run ruff format --check gaia/bp` => 10 files already formatted; `uv run mypy gaia/bp --show-error-codes --no-pretty` => success for 10 source files; `uv run pytest tests/gaia/bp tests/test_lowering.py tests/test_contraction.py tests/test_bp_jaynes_contract.py --no-cov` => 211 passed; `uv run mypy --show-error-codes --no-pretty` => success for 275 source files; `uv run ruff format --check .` => 280 files already formatted; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 91.25%, required 90% reached; `uv run ruff check . --statistics --exit-zero` => 37 remaining findings, all C901 outside BP reserved for later 2.5.3c sub-units.
@@ -307,9 +307,9 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 - [x] **2.5.3c-inquiry** Refactor inquiry 13-29 complexity C901 functions in `gaia/inquiry/`. Preserve inquiry diagnostics, review report shape, ordering, and CLI-visible output.
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 17:44 | completed_at: 2026-05-12 17:54 | breakpoint_notes: Refactored the live 2 inquiry C901 findings by extracting private graph-connectivity helpers for the background-evidence diagnostic and private belief-report/factor-graph helpers for inquiry review inference. Inquiry diagnostic kinds/messages, review report shape, diagnostic ordering, focus belief output, dependency-depth inference, CLI-visible output, and persisted snapshot behavior are preserved. Verification: `uv run ruff check gaia/inquiry --select C901 --output-format=concise && uv run ruff check gaia/inquiry --output-format=concise && uv run ruff format --check gaia/inquiry && uv run mypy gaia/inquiry --show-error-codes --no-pretty && uv run pytest tests/inquiry --no-cov` => passed; `uv run ruff check . --statistics --exit-zero && uv run ruff format --check . && uv run mypy --show-error-codes --no-pretty && uv run pytest && uv run pre-commit run --all-files` => 15 remaining C901 findings outside inquiry, 280 files formatted, mypy success for 275 source files, pytest 1605 passed / 3 skipped / 58 warnings with TOTAL coverage 91.49%, pre-commit hooks passed.
 - [ ] **2.5.3c-ir** Refactor IR 13-29 complexity C901 functions in `gaia/ir/`. Preserve IR schemas, validators, hashing, public symbols, and protected-layer semantics.
-  - status: `pending`
+  - status: `blocked` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 17:52 | completed_at: — | breakpoint_notes: BLOCKED by M3 doc-code contradiction. Protected docs `docs/foundations/gaia-ir/02-gaia-ir.md` §2.2/§2.4 describe `implication` as `variables=[A]`, `conclusion=B`, with `variables` as inputs and `conclusion` as the output claim. `docs/foundations/gaia-ir/08-validation.md` §3 repeats that `conclusion` is separate from variables. Live code `gaia/ir/operator.py:_validate_invariants` requires `operator=implication` to have exactly 2 variables, and IR/BP tests construct implications with two variables plus a distinct conclusion. Impact area: IR operator schema/validation, FormalExpr closure, formalization helpers, BP lowering, and tests. Refactor did not decide either side and made no IR code changes.
 - [ ] **2.5.3c-lang** Refactor Gaia Lang 13-29 complexity C901 functions in `gaia/lang/`. Preserve DSL signatures, public re-exports, compile/lowering behavior, legacy compatibility, and review manifest shape.
-  - status: `pending`
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 17:57 | completed_at: 2026-05-12 18:24 | breakpoint_notes: Refactored the live 7 Gaia Lang C901 findings by extracting private helpers for Bayes likelihood hypothesis/precomputed validation and metadata construction, v6 infer compatibility/input validation/relation payload construction, legacy abduction/induction validation and premise collection, review manifest record generation, compose action-input extraction, and templated Claim initialization. DSL signatures, public re-exports, compile/lowering behavior, Bayes likelihood metadata/action shapes, legacy strategy compatibility, compose capture behavior, and review manifest shape/order are preserved. Verification: `uv run ruff check gaia/lang --select C901 --output-format=concise` => passed; `uv run ruff check gaia/lang --output-format=concise` => passed; `uv run mypy gaia/lang --show-error-codes --no-pretty` => success for 60 source files; `uv run pytest tests/gaia/lang --no-cov` => 477 passed; `uv run mypy --show-error-codes --no-pretty` => success for 275 source files; `uv run ruff format --check .` => 280 files already formatted; `uv run ruff check . --statistics --exit-zero` => 8 remaining findings, all C901 in blocked `gaia/ir/`; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 91.53%, required 90% reached; `uv run pre-commit run --all-files` => passed.
 
 #### 2.5.4 — Close-out acceptance gate
 
@@ -371,7 +371,16 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 - **Status**: non-blocking — agents encountering `support` / `noisy_and` should leave them as-is. **NOT escalated to 协作单**; logged here for agent self-check.
 - **Mirror source**: `.refactor/doc-fidelity-baseline.md` § 9 risk items 2 + 16
 
-(M3+ reserved for future agent escalations.)
+### M3 — `OperatorType.IMPLICATION` arity mismatch between protected IR docs and live code/tests
+
+- **Found at**: Phase 2.5.3c-ir
+- **Doc location**: `docs/foundations/gaia-ir/02-gaia-ir.md` §2.2/§2.4 describes `implication` as `variables=[A]`, `conclusion=B`, with `variables` as inputs and `conclusion` as the output claim; `docs/foundations/gaia-ir/08-validation.md` §3 preserves the same separation.
+- **Actual code location**: `gaia/ir/operator.py:_validate_invariants` requires `operator=implication` to have exactly 2 variables; IR/BP tests construct implication operators with two variables plus a distinct conclusion.
+- **Nature**: semantic contract mismatch in the IR operator schema/validation surface. This is not a docstring or typing issue; it changes the legal arity and graph shape for implication operators.
+- **Impact area**: IR operator validation, FormalExpr closure rules, formalization helpers, BP lowering, and tests.
+- **Status**: blocked for 2.5.3c-ir; no code-side decision made during the quality refactor.
+
+(M4+ reserved for future agent escalations.)
 
 ---
 
