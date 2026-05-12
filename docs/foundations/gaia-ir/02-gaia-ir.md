@@ -190,7 +190,7 @@ Operator:
 
 | operator | 符号 | variables | conclusion | 真值约束 | 说明 |
 |----------|------|-----------|------------|---------|------|
-| **implication** | → | [A] | B | A=1 时 B 必须=1 | A 成立则 B 必须成立 |
+| **implication** | → | [A, B] | helper claim（如 `implies(A,B)`） | A=1 时 B 必须=1 | A 成立则 B 必须成立 |
 | **negation** | ¬ | [A] | helper claim（如 `not(A)`） | helper=¬A | 一元否定表达式 |
 | **equivalence** | ↔ | [A, B] | helper claim（如 `same_truth(A,B)`） | A=B | 真值必须一致 |
 | **contradiction** | ⊗ | [A, B] | helper claim（如 `not_both_true(A,B)`） | ¬(A=1 ∧ B=1) | 不能同时为真 |
