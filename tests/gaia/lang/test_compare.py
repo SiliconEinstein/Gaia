@@ -74,7 +74,7 @@ def test_compare_prior_stored():
 
 def test_compare_reason_without_prior_raises():
     """compare() reason without prior raises ValueError."""
-    with pytest.raises(ValueError, match="reason.*prior.*paired"):
+    with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
         compare(claim("P1"), claim("P2"), claim("O"), reason="no prior")
 
 

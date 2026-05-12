@@ -17,19 +17,24 @@ from gaia.lang.bayes.distributions import (
     StudentT,
     UnresolvedParameterError,
 )
+from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.lang.bayes.verbs.likelihood import likelihood
 from gaia.lang.bayes.verbs.model import model
 from gaia.lang.bayes.verbs.predict import predict
-from gaia.lang.runtime.roles import register_role_handler
-from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
+from gaia.lang.runtime.action import Action
+from gaia.lang.runtime.roles import RoleAdder, register_role_handler
 
 
 def _register_bayes_roles() -> None:
-    def predictive_model_roles(action, add) -> None:
+    def predictive_model_roles(action: Action, add: RoleAdder) -> None:
+        if not isinstance(action, PredictiveModel):
+            return
         add(action.hypothesis, "hypothesis")
         add(action.helper, "model_helper")
 
-    def likelihood_roles(action, add) -> None:
+    def likelihood_roles(action: Action, add: RoleAdder) -> None:
+        if not isinstance(action, Likelihood):
+            return
         add(action.model, "compared_model")
         for alternative in action.against:
             add(alternative, "compared_alternative")
@@ -54,12 +59,12 @@ __all__ = [
     "Gamma",
     "Likelihood",
     "LogNormal",
-    "model",
     "Normal",
     "Poisson",
     "PredictiveModel",
     "StudentT",
     "UnresolvedParameterError",
     "likelihood",
+    "model",
     "predict",
 ]

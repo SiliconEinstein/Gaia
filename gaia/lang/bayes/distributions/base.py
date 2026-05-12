@@ -45,7 +45,7 @@ class _BaseDistribution(BaseModel):
     params: dict[str, Any]
 
     @model_validator(mode="after")
-    def _validate_params(self) -> "_BaseDistribution":
+    def _validate_params(self) -> _BaseDistribution:
         for name, value in self.params.items():
             if not _is_concrete_number(value) and not _is_deferred_reference(value):
                 raise ValueError(
@@ -63,10 +63,11 @@ class _BaseDistribution(BaseModel):
             raise UnresolvedParameterError(self.kind, deferred)
         return {name: float(value) for name, value in self.params.items()}
 
-    def _replace_params(self, params: dict[str, Any]) -> "_BaseDistribution":
+    def _replace_params(self, params: dict[str, Any]) -> _BaseDistribution:
         return self.__class__(**params)
 
-    def model_dump(self, **kwargs: Any) -> dict[str, Any]:  # type: ignore[override]
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        del kwargs
         concrete = {
             name: value for name, value in self.params.items() if not _is_deferred_reference(value)
         }

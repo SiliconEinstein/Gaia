@@ -5,9 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from sympy import Symbol
-from sympy.logic.boolalg import And, Equivalent, Implies, Not, Or, Xor
+from sympy.logic.boolalg import And, Equivalent, Implies, Not, Or, Xor, to_cnf, to_dnf, to_nnf
 from sympy.logic.boolalg import simplify_logic as _sympy_simplify_logic
-from sympy.logic.boolalg import to_cnf, to_dnf, to_nnf
 from sympy.logic.inference import satisfiable
 
 from gaia.ir.graphs import LocalCanonicalGraph
@@ -112,7 +111,6 @@ def to_sympy_proposition(graph: LocalCanonicalGraph, knowledge_id: str) -> Any:
     operators. The returned SymPy object is a backend representation only; callers
     should not persist it in Gaia IR.
     """
-
     return _to_sympy(
         graph,
         knowledge_id,
@@ -127,7 +125,6 @@ def simplify_proposition(
     graph: LocalCanonicalGraph, knowledge_id: str, *, force: bool = False
 ) -> Any:
     """Return SymPy's simplified Boolean form for a Gaia proposition."""
-
     return _sympy_simplify_logic(to_sympy_proposition(graph, knowledge_id), force=force)
 
 
@@ -139,7 +136,6 @@ def to_cnf_proposition(
     force: bool = False,
 ) -> Any:
     """Return a CNF SymPy expression for a Gaia proposition."""
-
     return to_cnf(to_sympy_proposition(graph, knowledge_id), simplify=simplify, force=force)
 
 
@@ -151,7 +147,6 @@ def to_dnf_proposition(
     force: bool = False,
 ) -> Any:
     """Return a DNF SymPy expression for a Gaia proposition."""
-
     return to_dnf(to_sympy_proposition(graph, knowledge_id), simplify=simplify, force=force)
 
 
@@ -159,7 +154,6 @@ def to_nnf_proposition(
     graph: LocalCanonicalGraph, knowledge_id: str, *, simplify: bool = True
 ) -> Any:
     """Return a negation-normal-form SymPy expression for a Gaia proposition."""
-
     return to_nnf(to_sympy_proposition(graph, knowledge_id), simplify=simplify)
 
 
@@ -169,7 +163,6 @@ def are_equivalent(
     right_knowledge_id: str,
 ) -> bool:
     """Return whether two Gaia propositions are logically equivalent."""
-
     left = to_sympy_proposition(graph, left_knowledge_id)
     right = to_sympy_proposition(graph, right_knowledge_id)
     return satisfiable(Xor(left, right)) is False
@@ -177,5 +170,4 @@ def are_equivalent(
 
 def is_satisfiable(graph: LocalCanonicalGraph, knowledge_id: str) -> bool:
     """Return whether a Gaia proposition has at least one satisfying assignment."""
-
     return satisfiable(to_sympy_proposition(graph, knowledge_id)) is not False

@@ -406,7 +406,7 @@ class TestFormalizeNamedStrategy:
         assert _role_counts(result.knowledges) == Counter(
             {"conjunction_result": 1, "implication_result": 1}
         )
-        # Conjunction: variables=[a, b]
+        # Conjunction operator inputs are a and b.
         conj_op = result.strategy.formal_expr.operators[0]
         assert conj_op.variables == ["github:test::a", "github:test::b"]
         # Forward implication: conjunction -> c

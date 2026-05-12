@@ -18,29 +18,158 @@ Spec: github.com/SiliconEinstein/Gaia/issues/357
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
+from numpy.typing import NDArray
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
+from gaia.ir.strategy import Strategy
 
 _HIGH: float = 1.0 - CROMWELL_EPS
 _LOW: float = CROMWELL_EPS
+type FloatArray = NDArray[np.float64]
+type StrategyCpt = tuple[FloatArray, list[str]]
+type TensorBuilder = Callable[[Factor, list[str], tuple[int, ...]], StrategyCpt]
 
 __all__ = [
-    "factor_to_tensor",
     "contract_to_cpt",
-    "strategy_cpt",
     "cpt_tensor_to_list",
+    "factor_to_tensor",
+    "strategy_cpt",
 ]
+
 
 # Sentinel used by ``strategy_cpt`` to detect cycles while the recursion is
 # in progress.  When a composite is first visited, we write this sentinel to
 # the cache before recursing into its sub-strategies; if the recursion hits
 # the same strategy_id again before it completes, we raise instead of looping
 # forever.
-_IN_PROGRESS = object()
+class _InProgress:
+    """Sentinel type for cycle detection in strategy CPT recursion."""
 
 
-def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
+_IN_PROGRESS = _InProgress()
+type StrategyCptCacheValue = StrategyCpt | _InProgress
+
+
+def _float_array(values: object) -> FloatArray:
+    """Return a float64 ndarray while preserving runtime numpy semantics."""
+    return np.asarray(values, dtype=np.float64)
+
+
+def _implication_tensor(_f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a ternary implication helper."""
+    t = np.empty(shape, dtype=np.float64)
+    for a in range(2):
+        for b in range(2):
+            for h in range(2):
+                if h == 1:
+                    t[a, b, h] = _LOW if (a == 1 and b == 0) else _HIGH
+                else:
+                    t[a, b, h] = _HIGH if (a == 1 and b == 0) else _LOW
+    return t, axes
+
+
+def _conjunction_tensor(_f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a conjunction factor."""
+    grids = np.indices(shape)
+    inputs_all_one = grids[:-1].all(axis=0)
+    conclusion = grids[-1].astype(bool)
+    return np.where(conclusion == inputs_all_one, _HIGH, _LOW).astype(np.float64), axes
+
+
+def _disjunction_tensor(_f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a disjunction factor."""
+    grids = np.indices(shape)
+    inputs_any_one = grids[:-1].any(axis=0)
+    conclusion = grids[-1].astype(bool)
+    return np.where(conclusion == inputs_any_one, _HIGH, _LOW).astype(np.float64), axes
+
+
+def _equivalence_tensor(_f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for an equivalence factor."""
+    grids = np.indices(shape)
+    target = grids[0] == grids[1]
+    return np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64), axes
+
+
+def _contradiction_tensor(_f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a contradiction factor."""
+    grids = np.indices(shape)
+    target = ~((grids[0] == 1) & (grids[1] == 1))
+    return np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64), axes
+
+
+def _negation_tensor(_f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a negation factor."""
+    grids = np.indices(shape)
+    target = grids[0] == 0
+    return np.where(grids[1].astype(bool) == target, _HIGH, _LOW).astype(np.float64), axes
+
+
+def _complement_tensor(_f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a complement factor."""
+    grids = np.indices(shape)
+    target = grids[0] != grids[1]
+    return np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64), axes
+
+
+def _soft_entailment_tensor(f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a soft-entailment factor."""
+    if f.p1 is None or f.p2 is None:
+        raise ValueError(f"SOFT_ENTAILMENT {f.factor_id!r} missing p1/p2")
+    t = np.empty(shape, dtype=np.float64)
+    t[0, 0] = f.p2
+    t[0, 1] = 1.0 - f.p2
+    t[1, 0] = 1.0 - f.p1
+    t[1, 1] = f.p1
+    return t, axes
+
+
+def _conditional_tensor(f: Factor, axes: list[str], shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a full conditional CPT."""
+    if f.cpt is None:
+        raise ValueError(f"CONDITIONAL {f.factor_id!r} missing cpt")
+    k = len(f.variables)
+    expected = 1 << k
+    if len(f.cpt) != expected:
+        raise ValueError(f"CONDITIONAL {f.factor_id!r}: cpt length {len(f.cpt)} != 2^k={expected}")
+    cpt_arr = np.asarray(f.cpt, dtype=np.float64)
+    grids = np.indices(shape)
+    prem_idx = np.zeros(shape, dtype=np.int64)
+    for bit in range(k):
+        prem_idx |= grids[bit].astype(np.int64) << bit
+    p = cpt_arr[prem_idx]
+    conclusion = grids[-1]
+    return np.where(conclusion == 1, p, 1.0 - p), axes
+
+
+def _pairwise_tensor(f: Factor, axes: list[str], _shape: tuple[int, ...]) -> StrategyCpt:
+    """Build the tensor for a pairwise potential."""
+    if f.cpt is None:
+        raise ValueError(f"PAIRWISE_POTENTIAL {f.factor_id!r} missing cpt")
+    if len(f.cpt) != 4:
+        raise ValueError(f"PAIRWISE_POTENTIAL {f.factor_id!r}: cpt length {len(f.cpt)} != 4")
+    return np.asarray(f.cpt, dtype=np.float64).reshape((2, 2), order="F"), axes
+
+
+_TENSOR_BUILDERS: dict[FactorType, TensorBuilder] = {
+    FactorType.IMPLICATION: _implication_tensor,
+    FactorType.CONJUNCTION: _conjunction_tensor,
+    FactorType.DISJUNCTION: _disjunction_tensor,
+    FactorType.EQUIVALENCE: _equivalence_tensor,
+    FactorType.CONTRADICTION: _contradiction_tensor,
+    FactorType.NEGATION: _negation_tensor,
+    FactorType.COMPLEMENT: _complement_tensor,
+    FactorType.SOFT_ENTAILMENT: _soft_entailment_tensor,
+    FactorType.CONDITIONAL: _conditional_tensor,
+    FactorType.PAIRWISE_POTENTIAL: _pairwise_tensor,
+}
+
+
+def factor_to_tensor(f: Factor) -> StrategyCpt:
     """Build a dense tensor representation of a Factor.
 
     Shape: ``(2,) * (len(f.variables) + 1)``.
@@ -51,115 +180,122 @@ def factor_to_tensor(f: Factor) -> tuple[np.ndarray, list[str]]:
     factors (SOFT_ENTAILMENT, CONDITIONAL) use their stored parameters.
     """
     axes = [*f.variables, f.conclusion]
-    n = len(axes)
-    shape = (2,) * n
-    ft = f.factor_type
+    shape = (2,) * len(axes)
+    try:
+        builder = _TENSOR_BUILDERS[f.factor_type]
+    except KeyError as err:
+        raise ValueError(f"Unknown FactorType: {f.factor_type!r}") from err
+    return builder(f, axes, shape)
 
-    if ft == FactorType.IMPLICATION:
-        # Ternary: axes = [antecedent, consequent, helper]
-        # H=1 (implication holds): standard A=>B (A=1,B=0 forbidden)
-        # H=0 (implication fails): complement (A=1,B=0 is the only HIGH row)
-        t = np.empty(shape, dtype=np.float64)
-        for a in range(2):
-            for b in range(2):
-                for h in range(2):
-                    if h == 1:
-                        t[a, b, h] = _LOW if (a == 1 and b == 0) else _HIGH
-                    else:
-                        t[a, b, h] = _HIGH if (a == 1 and b == 0) else _LOW
-        return t, axes
 
-    if ft == FactorType.CONJUNCTION:
-        grids = np.indices(shape)  # shape: (n, 2, 2, ..., 2)
-        inputs_all_one = grids[:-1].all(axis=0)
-        concl = grids[-1].astype(bool)
-        t = np.where(concl == inputs_all_one, _HIGH, _LOW).astype(np.float64)
-        return t, axes
+def _collect_tensor_variables(tensors: list[StrategyCpt]) -> list[str]:
+    """Collect distinct tensor variable names in first-seen order."""
+    all_vars: list[str] = []
+    seen: set[str] = set()
+    for _, axes in tensors:
+        for variable in axes:
+            if variable not in seen:
+                seen.add(variable)
+                all_vars.append(variable)
+    return all_vars
 
-    if ft == FactorType.DISJUNCTION:
-        grids = np.indices(shape)
-        inputs_any_one = grids[:-1].any(axis=0)
-        concl = grids[-1].astype(bool)
-        t = np.where(concl == inputs_any_one, _HIGH, _LOW).astype(np.float64)
-        return t, axes
 
-    if ft == FactorType.EQUIVALENCE:
-        grids = np.indices(shape)
-        # Helper concl == (A == B)
-        target = grids[0] == grids[1]
-        t = np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
-        return t, axes
+def _build_contract_operands(
+    tensors: list[StrategyCpt],
+    free_vars: list[str],
+    unary_priors: dict[str, float],
+) -> tuple[list[np.ndarray], list[list[str]], list[str]]:
+    """Build factor, unary, and degenerate operands for contraction."""
+    all_vars = _collect_tensor_variables(tensors)
+    seen = set(all_vars)
+    free_set = set(free_vars)
 
-    if ft == FactorType.CONTRADICTION:
-        grids = np.indices(shape)
-        # Helper concl == NOT(A AND B)
-        target = ~((grids[0] == 1) & (grids[1] == 1))
-        t = np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
-        return t, axes
+    operands: list[np.ndarray] = []
+    operand_axes: list[list[str]] = []
+    for tensor, axes in tensors:
+        operands.append(np.asarray(tensor, dtype=np.float64))
+        operand_axes.append(list(axes))
 
-    if ft == FactorType.NEGATION:
-        grids = np.indices(shape)
-        # Helper concl == NOT(A)
-        target = grids[0] == 0
-        t = np.where(grids[1].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
-        return t, axes
+    for variable in all_vars:
+        if variable in free_set:
+            continue
+        if variable in unary_priors:
+            pi = unary_priors[variable]
+            operands.append(np.array([1.0 - pi, pi], dtype=np.float64))
+            operand_axes.append([variable])
 
-    if ft == FactorType.COMPLEMENT:
-        grids = np.indices(shape)
-        # Helper concl == (A XOR B)
-        target = grids[0] != grids[1]
-        t = np.where(grids[2].astype(bool) == target, _HIGH, _LOW).astype(np.float64)
-        return t, axes
+    for variable in free_vars:
+        if variable not in seen:
+            operands.append(np.array([0.5, 0.5], dtype=np.float64))
+            operand_axes.append([variable])
+            seen.add(variable)
+            all_vars.append(variable)
 
-    if ft == FactorType.SOFT_ENTAILMENT:
-        if f.p1 is None or f.p2 is None:
-            raise ValueError(f"SOFT_ENTAILMENT {f.factor_id!r} missing p1/p2")
-        p1, p2 = f.p1, f.p2
-        # p1 = P(C=1 | premise=1); p2 = P(C=0 | premise=0)
-        # Axes: [premise, conclusion]
-        t = np.empty(shape, dtype=np.float64)
-        t[0, 0] = p2
-        t[0, 1] = 1.0 - p2
-        t[1, 0] = 1.0 - p1
-        t[1, 1] = p1
-        return t, axes
+    return operands, operand_axes, all_vars
 
-    if ft == FactorType.CONDITIONAL:
-        if f.cpt is None:
-            raise ValueError(f"CONDITIONAL {f.factor_id!r} missing cpt")
-        k = len(f.variables)
-        expected = 1 << k
-        if len(f.cpt) != expected:
-            raise ValueError(
-                f"CONDITIONAL {f.factor_id!r}: cpt length {len(f.cpt)} != 2^k={expected}"
-            )
-        cpt_arr = np.asarray(f.cpt, dtype=np.float64)
-        grids = np.indices(shape)
-        # Build the flat premise index: sum(v_i << i) over input axes
-        prem_idx = np.zeros(shape, dtype=np.int64)
-        for bit in range(k):
-            prem_idx |= grids[bit].astype(np.int64) << bit
-        p = cpt_arr[prem_idx]
-        concl = grids[-1]
-        t = np.where(concl == 1, p, 1.0 - p)
-        return t, axes
 
-    if ft == FactorType.PAIRWISE_POTENTIAL:
-        if f.cpt is None:
-            raise ValueError(f"PAIRWISE_POTENTIAL {f.factor_id!r} missing cpt")
-        if len(f.cpt) != 4:
-            raise ValueError(f"PAIRWISE_POTENTIAL {f.factor_id!r}: cpt length {len(f.cpt)} != 4")
-        t = np.asarray(f.cpt, dtype=np.float64).reshape((2, 2), order="F")
-        return t, axes
+def _build_contract_args(
+    operands: list[np.ndarray],
+    operand_axes: list[list[str]],
+    all_vars: list[str],
+    free_vars: list[str],
+) -> list[object]:
+    """Build opt_einsum's alternating operand/index argument list."""
+    var_to_idx = {variable: index for index, variable in enumerate(all_vars)}
+    args: list[object] = []
+    for operand, axes in zip(operands, operand_axes, strict=True):
+        args.append(operand)
+        args.append([var_to_idx[variable] for variable in axes])
+    args.append([var_to_idx[variable] for variable in free_vars])
+    return args
 
-    raise ValueError(f"Unknown FactorType: {ft!r}")
+
+def _ascii_einsum_subscripts(einsum_str: str) -> str:
+    """Remap opt_einsum's non-ASCII symbols to numpy-compatible ASCII."""
+    special = [char for char in dict.fromkeys(einsum_str) if char not in "->,"]
+    if not any(ord(char) > 127 for char in special):
+        return einsum_str
+    ascii52 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    mapping = {char: ascii52[index] for index, char in enumerate(special)}
+    return "".join(mapping.get(char, char) for char in einsum_str)
+
+
+def _execute_contract_path(operands: list[np.ndarray], path_info: Any) -> np.ndarray:
+    """Execute opt_einsum's pairwise contraction path with per-step rescaling."""
+    working: list[np.ndarray] = list(operands)
+    for step in path_info.contraction_list:
+        inds = step[0]
+        einsum_str = _ascii_einsum_subscripts(step[2])
+        popped = [working[index] for index in inds]
+        for index in sorted(inds, reverse=True):
+            working.pop(index)
+
+        result = np.einsum(einsum_str, *popped)
+        max_value = float(result.max())
+        if max_value > 0:
+            result = result / max_value
+
+        working.append(result)
+
+    return working[0]
+
+
+def _normalize_contracted_joint(joint: np.ndarray) -> FloatArray:
+    """Normalize a contracted joint along the conclusion axis."""
+    totals = joint.sum(axis=-1, keepdims=True)
+    if np.any(totals <= 0):
+        raise ValueError(
+            "contract_to_cpt: zero partition function encountered; "
+            "graph may have contradictory deterministic factors."
+        )
+    return _float_array(joint / totals)
 
 
 def contract_to_cpt(
-    tensors: list[tuple[np.ndarray, list[str]]],
+    tensors: list[StrategyCpt],
     free_vars: list[str],
     unary_priors: dict[str, float],
-) -> np.ndarray:
+) -> FloatArray:
     """Contract a list of factor tensors down to a conditional CPT tensor.
 
     Uses ``opt_einsum.contract_path`` to plan an optimal contraction order,
@@ -174,8 +310,7 @@ def contract_to_cpt(
     alphabet at any individual step — even when the global variable count
     exceeds 52.
 
-    Parameters
-    ----------
+    Args:
     tensors:
         List of ``(ndarray, axis_var_ids)`` pairs.  The ndarray has one axis
         per name in ``axis_var_ids`` (in order); each axis has size 2.
@@ -190,134 +325,43 @@ def contract_to_cpt(
         Non-free variables omitted from this mapping are summed with the base
         counting measure, not assigned an implicit ``π=0.5`` prior.
 
-    Returns
-    -------
-    ndarray of shape ``(2,) * len(free_vars)`` giving ``P(conclusion | premises)``.
-    The last axis is normalized so that ``T[..., 0] + T[..., 1] == 1``.
+    Returns:
+        ndarray of shape ``(2,) * len(free_vars)`` giving
+        ``P(conclusion | premises)``. The last axis is normalized so that
+        ``T[..., 0] + T[..., 1] == 1``.
 
-    Raises
-    ------
-    ValueError
-        If ``free_vars`` is empty, or if the normalized joint is zero for some
-        premise assignment even after per-step rescaling (indicates
-        contradictory deterministic factors).
+    Raises:
+        ValueError: If ``free_vars`` is empty, or if the normalized joint is
+            zero for some premise assignment even after per-step rescaling
+            (indicates contradictory deterministic factors).
     """
     import opt_einsum as oe
 
     if not free_vars:
         raise ValueError("free_vars must be non-empty (need at least a conclusion axis)")
 
-    # Collect all distinct variable names across the input tensors, preserving
-    # first-seen order for deterministic integer-index assignment.
-    all_vars: list[str] = []
-    seen: set[str] = set()
-    for _, axes in tensors:
-        for v in axes:
-            if v not in seen:
-                seen.add(v)
-                all_vars.append(v)
-
-    free_set = set(free_vars)
-
     # Build the full operand list:
     #   1) Original factor tensors
     #   2) Explicit unary-factor tensors for non-free variables
     #   3) Degenerate uniform tensors for free variables not in any input
     #      (legitimate case: CompositeStrategy with unused interface premises)
-    operands: list[np.ndarray] = []
-    operand_axes: list[list[str]] = []
-
-    for t, ax in tensors:
-        operands.append(np.asarray(t, dtype=np.float64))
-        operand_axes.append(list(ax))
-
-    for v in all_vars:
-        if v in free_set:
-            continue
-        if v in unary_priors:
-            pi = unary_priors[v]
-            operands.append(np.array([1.0 - pi, pi], dtype=np.float64))
-            operand_axes.append([v])
-
-    for v in free_vars:
-        if v not in seen:
-            operands.append(np.array([0.5, 0.5], dtype=np.float64))
-            operand_axes.append([v])
-            seen.add(v)
-            all_vars.append(v)
-
-    # Assign unique integer indices to each distinct variable.
-    var_to_idx: dict[str, int] = {v: i for i, v in enumerate(all_vars)}
-
-    # Build the opt_einsum args: alternating (operand, [integer axis indices]),
-    # then a final list with the output index order.
-    args: list[object] = []
-    for op, ax in zip(operands, operand_axes):
-        args.append(op)
-        args.append([var_to_idx[v] for v in ax])
-    args.append([var_to_idx[v] for v in free_vars])
+    operands, operand_axes, all_vars = _build_contract_operands(tensors, free_vars, unary_priors)
+    args = _build_contract_args(operands, operand_axes, all_vars, free_vars)
 
     # Let opt_einsum plan an optimal contraction order.  ``contract_path``
     # returns ``(path, PathInfo)`` where ``PathInfo.contraction_list`` has
     # the per-step subscript strings we need to execute ourselves.
     _, path_info = oe.contract_path(*args, optimize="greedy")
 
-    # ASCII alphabet for per-step einsum subscript remapping.
-    _ASCII52 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
     # Execute the path step by step.  Each step contracts exactly two
     # operands via a small np.einsum call (well within the 52-symbol
     # alphabet) and the result is rescaled to prevent underflow.
-    working: list[np.ndarray] = list(operands)
-    for step in path_info.contraction_list:
-        inds = step[0]
-        einsum_str = step[2]
-
-        # Collect operands in the order specified by ``inds`` — this matches
-        # the operand order encoded in ``einsum_str``.  Then remove them from
-        # ``working`` highest-index-first so lower indices stay valid.
-        popped = [working[i] for i in inds]
-        for i in sorted(inds, reverse=True):
-            working.pop(i)
-
-        # opt_einsum may use non-ASCII characters in its internal symbol pool
-        # when the global variable count exceeds 52.  Numpy's einsum only
-        # accepts ASCII letters.  Since each pairwise step uses at most a
-        # handful of distinct axis symbols, we remap them to 'a','b','c',...
-        # before calling np.einsum.
-        special = [c for c in dict.fromkeys(einsum_str) if c not in "->,"]
-        if any(ord(c) > 127 for c in special):
-            mapping = {c: _ASCII52[i] for i, c in enumerate(special)}
-            einsum_str = "".join(mapping.get(c, c) for c in einsum_str)
-
-        result = np.einsum(einsum_str, *popped)
-
-        # Per-step rescale: divide by the max to keep values in [0, 1].
-        # The final CPT is a ratio, so this cancels out in the final
-        # normalization along the conclusion axis.
-        m = float(result.max())
-        if m > 0:
-            result = result / m
-
-        working.append(result)
-
-    # After all steps, exactly one operand remains: the joint over free vars
-    # in the requested order (opt_einsum's final step includes any output
-    # transpose needed).
-    joint = working[0]
-
-    # Normalize along the conclusion axis (last free axis).
-    totals = joint.sum(axis=-1, keepdims=True)
-    if np.any(totals <= 0):
-        raise ValueError(
-            "contract_to_cpt: zero partition function encountered; "
-            "graph may have contradictory deterministic factors."
-        )
-    return joint / totals
+    joint = _execute_contract_path(operands, path_info)
+    return _normalize_contracted_joint(joint)
 
 
 def cpt_tensor_to_list(
-    tensor: np.ndarray,
+    tensor: FloatArray,
     axes: list[str],
     premises: list[str],
     conclusion: str,
@@ -336,20 +380,20 @@ def cpt_tensor_to_list(
     t = np.transpose(tensor, perm)
     out: list[float] = []
     for assignment in range(1 << k):
-        idx = tuple(((assignment >> bit) & 1) for bit in range(k)) + (1,)
+        idx = (*(((assignment >> bit) & 1) for bit in range(k)), 1)
         out.append(float(t[idx]))
     return out
 
 
 def strategy_cpt(
-    s,
-    strat_by_id: dict,
+    s: Strategy,
+    strat_by_id: dict[str, Strategy],
     strat_params: dict[str, list[float]],
     var_priors: dict[str, float],
     namespace: str,
     package_name: str,
-    cache: dict,
-) -> tuple[np.ndarray, list[str]]:
+    cache: dict[str, StrategyCptCacheValue],
+) -> StrategyCpt:
     """Compute the effective CPT tensor of a single Gaia IR strategy.
 
     Layer-by-layer variable elimination:
@@ -371,24 +415,30 @@ def strategy_cpt(
     ``compute_coarse_cpts`` with the global factor graph's unary factors).
     Pass ``{}`` for isolated composite folding.
 
-    Note
-    ----
-    The ``cache`` is keyed by ``s.strategy_id``, which encodes
-    ``(scope, type, premises, conclusion)``.  It does NOT encode
-    ``var_priors`` or ``strat_params``.  Callers MUST pass a fresh
-    ``cache`` dict for each top-level invocation; reusing a cache
-    across calls with different unary factors or strat_params will return
-    stale results for ``FormalStrategy`` and auto-formalized leaves
-    whose internal helper claims have non-default priors.
+    Note:
+        The ``cache`` is keyed by ``s.strategy_id``, which encodes
+        ``(scope, type, premises, conclusion)``.  It does NOT encode
+        ``var_priors`` or ``strat_params``.  Callers MUST pass a fresh
+        ``cache`` dict for each top-level invocation; reusing a cache
+        across calls with different unary factors or strat_params will return
+        stale results for ``FormalStrategy`` and auto-formalized leaves
+        whose internal helper claims have non-default priors.
     """
     from gaia.bp.factor_graph import FactorGraph
     from gaia.bp.lowering import _lower_strategy
     from gaia.ir.strategy import CompositeStrategy
 
-    cached = cache.get(s.strategy_id)
-    if cached is _IN_PROGRESS:
+    if s.strategy_id is None:
+        raise ValueError("strategy_cpt requires a strategy_id")
+    if s.conclusion is None:
+        raise ValueError(f"strategy_cpt requires a conclusion for {s.strategy_id!r}")
+    strategy_id = s.strategy_id
+    conclusion = s.conclusion
+
+    cached = cache.get(strategy_id)
+    if isinstance(cached, _InProgress):
         raise ValueError(
-            f"strategy_cpt: cycle detected — strategy_id {s.strategy_id!r} "
+            f"strategy_cpt: cycle detected — strategy_id {strategy_id!r} "
             "is its own ancestor in the composite recursion."
         )
     if cached is not None:
@@ -396,13 +446,13 @@ def strategy_cpt(
 
     if isinstance(s, CompositeStrategy):
         # Mark this composite as in-progress so recursive calls detect cycles.
-        cache[s.strategy_id] = _IN_PROGRESS
-        child_tensors: list[tuple[np.ndarray, list[str]]] = []
+        cache[strategy_id] = _IN_PROGRESS
+        child_tensors: list[StrategyCpt] = []
         for sid in s.sub_strategies:
             sub = strat_by_id.get(sid)
             if sub is None:
                 raise KeyError(
-                    f"CompositeStrategy {s.strategy_id!r} references missing strategy_id {sid!r}"
+                    f"CompositeStrategy {strategy_id!r} references missing strategy_id {sid!r}"
                 )
             sub_tensor, sub_axes = strategy_cpt(
                 sub,
@@ -415,7 +465,7 @@ def strategy_cpt(
             )
             child_tensors.append((sub_tensor, sub_axes))
 
-        free = [*s.premises, s.conclusion]
+        free = [*s.premises, conclusion]
         free_set = set(free)
 
         # Bridge variables: any child axis that isn't a composite free var.
@@ -430,7 +480,7 @@ def strategy_cpt(
 
         cpt_tensor = contract_to_cpt(child_tensors, free_vars=free, unary_priors=bridges)
         result = (cpt_tensor, free)
-        cache[s.strategy_id] = result
+        cache[strategy_id] = result
         return result
 
     # Leaf: build a mini FactorGraph via the existing _lower_strategy dispatch.
@@ -453,12 +503,12 @@ def strategy_cpt(
     )
 
     tensors = [factor_to_tensor(f) for f in mini.factors]
-    free = [*s.premises, s.conclusion]
+    free = [*s.premises, conclusion]
     free_set = set(free)
     # Explicit unary factors for variables in the mini fg that are NOT free axes.
     non_free = {v: p for v, p in mini.unary_factors.items() if v not in free_set}
 
     cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=non_free)
     result = (cpt_tensor, free)
-    cache[s.strategy_id] = result
+    cache[strategy_id] = result
     return result

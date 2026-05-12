@@ -1,10 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 
 from gaia.lang.runtime.knowledge import Claim, Setting
-from gaia.lang.runtime.param import Param, UNBOUND
+from gaia.lang.runtime.param import UNBOUND, Param
 
 
-class MoleculeType(str, Enum):
+class MoleculeType(StrEnum):
     DNA = "DNA"
     RNA = "RNA"
     PROTEIN = "protein"
@@ -79,5 +79,5 @@ def test_knowledge_parameter_stored_as_reference():
     exp = Setting("AB test.")
     exp.label = "exp_123"
     counts = ABCounts(experiment=exp, ctrl_n=10_000, ctrl_k=500)
-    param = [p for p in counts.parameters if p["name"] == "experiment"][0]
+    param = next(p for p in counts.parameters if p["name"] == "experiment")
     assert param["value"] is exp

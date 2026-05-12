@@ -246,7 +246,7 @@ def test_generate_detailed_reasoning_with_beliefs():
 
 
 def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
-    """gaia render --target docs writes docs/detailed-reasoning.md."""
+    """Gaia render --target docs writes docs/detailed-reasoning.md."""
     pkg_dir = tmp_path / "docs_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -657,7 +657,7 @@ def test_mermaid_deduction_deterministic():
     md = render_mermaid(ir)
     assert '(["deduction"])' in md
     # deduction is deterministic — no :::weak on the strategy node
-    strat_line = [line for line in md.split("\n") if "strat_0" in line and '(["' in line][0]
+    strat_line = next(line for line in md.split("\n") if "strat_0" in line and '(["' in line)
     assert ":::weak" not in strat_line
     assert "a --> strat_0" in md
     assert "b --> strat_0" in md

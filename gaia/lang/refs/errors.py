@@ -11,6 +11,7 @@ class ReferenceError(Exception):
     """
 
     def __init__(self, message: str, *, location: str | None = None) -> None:
+        """Create a reference error with an optional location prefix."""
         self.location = location
         if location:
             super().__init__(f"{location}: {message}")

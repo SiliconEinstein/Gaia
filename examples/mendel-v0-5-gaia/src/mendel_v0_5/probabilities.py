@@ -21,7 +21,6 @@ from __future__ import annotations
 from math import comb
 from typing import NamedTuple
 
-
 DOMINANT_COUNT = 295
 RECESSIVE_COUNT = 100
 TOTAL_COUNT = DOMINANT_COUNT + RECESSIVE_COUNT
@@ -31,6 +30,8 @@ PRIOR_MENDELIAN_MODEL = 0.5
 
 
 class MendelCountAssociation(NamedTuple):
+    """Bayesian association parameters for Mendel's dominant-count observation."""
+
     p_count_given_mendelian: float
     p_count_given_diffuse: float
     prior_mendelian: float

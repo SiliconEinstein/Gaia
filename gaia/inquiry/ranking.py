@@ -20,8 +20,9 @@ required so an unknown DiagnosticKind never silently drops off the report.
 
 from __future__ import annotations
 
-from gaia.inquiry.diagnostics import Diagnostic, NextEdit
+from collections.abc import Callable
 
+from gaia.inquiry.diagnostics import Diagnostic, NextEdit
 
 # Spec §7 — `kind` priority per mode. Lower number = higher priority.
 # `severity` is a tiebreaker (error < warning < info).
@@ -149,13 +150,14 @@ _UNKNOWN_KIND_RANK = 99  # appended after known kinds, sorted by severity only.
 
 
 def supported_modes() -> tuple[str, ...]:
+    """Return the inquiry ranking modes supported by the priority tables."""
     return tuple(_MODE_RANK.keys())
 
 
-def _key(mode: str):
+def _key(mode: str) -> Callable[[Diagnostic | NextEdit], tuple[int, int, str]]:
     table = _MODE_RANK.get(mode, _MODE_RANK["auto"])
 
-    def _k(d: Diagnostic | NextEdit):
+    def _k(d: Diagnostic | NextEdit) -> tuple[int, int, str]:
         kind_rank = table.get(d.kind, _UNKNOWN_KIND_RANK)
         sev_rank = _SEVERITY_RANK.get(d.severity, 9)
         # Stable tiebreak on label so identical (kind, severity) sort deterministically.
@@ -174,5 +176,5 @@ def rank_diagnostics(diagnostics: list[Diagnostic], mode: str) -> list[Diagnosti
 
 
 def rank_next_edits(edits: list[NextEdit], mode: str) -> list[NextEdit]:
-    """Same ranking applied to structured next-edits (kept in lock-step)."""
+    """Return structured next-edits sorted with the diagnostic priority table."""
     return sorted(edits, key=_key(mode))

@@ -70,13 +70,15 @@ def test_step_premise_validation():
     c = claim("C.")
     outside = claim("Not a premise.")
 
-    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match="not in the strategy's premise list"):
-            noisy_and(
-                premises=[a, b],
-                conclusion=c,
-                reason=[Step(reason="Bad step", premises=[outside])],
-            )
+    with (
+        pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"),
+        pytest.raises(ValueError, match="not in the strategy's premise list"),
+    ):
+        noisy_and(
+            premises=[a, b],
+            conclusion=c,
+            reason=[Step(reason="Bad step", premises=[outside])],
+        )
 
 
 def test_deduction():
@@ -171,14 +173,14 @@ def test_fills_explicit_mode_overrides_strength_default():
 def test_fills_rejects_non_claim_source():
     source = setting("Background.")
     target = claim("Target premise.")
-    with pytest.raises(ValueError, match="source.type == 'claim'"):
+    with pytest.raises(ValueError, match=r"source.type == 'claim'"):
         fills(source=source, target=target)
 
 
 def test_fills_rejects_non_claim_target():
     source = claim("Source theorem.")
     target = setting("Background.")
-    with pytest.raises(ValueError, match="target.type == 'claim'"):
+    with pytest.raises(ValueError, match=r"target.type == 'claim'"):
         fills(source=source, target=target)
 
 
@@ -299,7 +301,7 @@ def test_deduction_prior_stored():
 
 
 def test_deduction_reason_without_prior_raises():
-    with pytest.raises(ValueError, match="reason.*prior.*paired"):
+    with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
         deduction([claim("A")], claim("B"), reason="no prior")
 
 

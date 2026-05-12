@@ -7,245 +7,37 @@ conclusion it supports (directly or transitively).
 
 from __future__ import annotations
 
+from typing import Any
 
-def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
+_HELPER_LABEL_PREFIXES = ("__", "_anon")
+
+
+def coarsen_ir(ir: dict[str, Any], exported_ids: set[str]) -> dict[str, Any]:
     """Produce a coarse-grained IR with leaf premises and exported conclusions.
 
-    Parameters
-    ----------
-    ir:
-        Full compiled IR dict with knowledges, strategies, operators.
-    exported_ids:
-        Set of knowledge IDs that are exported conclusions.
+    Args:
+        ir: Full compiled IR dict with knowledges, strategies, operators.
+        exported_ids: Set of knowledge IDs that are exported conclusions.
 
-    Returns
-    -------
-    A new IR dict (same schema) containing only leaf premises + exported
-    conclusions, connected by ``infer`` strategies representing transitive
-    reasoning chains.
+    Returns:
+        A new IR dict (same schema) containing only leaf premises + exported
+        conclusions, connected by ``infer`` strategies representing transitive
+        reasoning chains.
     """
-    # 1. Identify all nodes concluded by a strategy or operator
-    strat_conclusions = {s["conclusion"] for s in ir["strategies"] if s.get("conclusion")}
-    op_conclusions = {o["conclusion"] for o in ir["operators"] if o.get("conclusion")}
-    all_concluded = strat_conclusions | op_conclusions
+    knowledge_labels = _knowledge_labels(ir)
+    leaf_ids = _leaf_ids(ir, knowledge_labels)
+    forward = _build_forward_adjacency(ir)
 
-    # 2. Identify leaf premises: claims not concluded by any strategy/operator,
-    #    excluding helpers and notes
-    leaf_ids: set[str] = set()
-    for k in ir["knowledges"]:
-        kid = k["id"]
-        label = k.get("label") or ""
-        if label.startswith("__") or label.startswith("_anon"):
-            continue
-        if kid not in all_concluded and k["type"] == "claim":
-            leaf_ids.add(kid)
-
-    # Induction intentionally forms a fine-grained confirmation cycle:
-    # law -> observations via support, and observations -> law via the
-    # induction composite.  The observations are therefore concluded nodes,
-    # but they are still the coarse evidence interface for the law.  Seed them
-    # as surrogate leaves so coarse BFS exposes obs -> law instead of guessing
-    # a cycle-breaking leaf later.
-    helper_labels = {k["id"]: k.get("label") or "" for k in ir["knowledges"]}
-    for s in ir["strategies"]:
-        if s.get("type") != "induction":
-            continue
-        conc = s.get("conclusion")
-        if not conc:
-            continue
-        for premise in s.get("premises", []):
-            if premise == conc:
-                continue
-            label = helper_labels.get(premise, "")
-            if label.startswith("__") or label.startswith("_anon"):
-                continue
-            leaf_ids.add(premise)
-
-    # 3. Build forward adjacency: for each node, which conclusions does it
-    #    support (as a premise of a strategy or variable of an operator)?
-    forward: dict[str, set[str]] = {}
-    for s in ir["strategies"]:
-        conc = s.get("conclusion")
-        if not conc:
-            continue
-        for p in s.get("premises", []):
-            forward.setdefault(p, set()).add(conc)
-    for o in ir["operators"]:
-        conc = o.get("conclusion")
-        if not conc:
-            continue
-        for v in o.get("variables", []):
-            forward.setdefault(v, set()).add(conc)
-
-    # 4. For each leaf premise, BFS forward to find which exported conclusions
-    #    it transitively supports. Stop at exported conclusions.
-    edges: list[tuple[str, str]] = []
-    for leaf in leaf_ids:
-        visited: set[str] = set()
-        queue = [leaf]
-        while queue:
-            node = queue.pop(0)
-            if node in visited:
-                continue
-            visited.add(node)
-            if node != leaf and node in exported_ids:
-                edges.append((leaf, node))
-                continue
-            for neighbor in forward.get(node, []):
-                if neighbor not in visited:
-                    queue.append(neighbor)
-
-    # 4b. Also find exported → exported edges (one exported supports another)
-    for exp in exported_ids:
-        visited: set[str] = set()
-        queue = list(forward.get(exp, []))
-        while queue:
-            node = queue.pop(0)
-            if node in visited:
-                continue
-            visited.add(node)
-            if node in exported_ids:
-                edges.append((exp, node))
-                continue
-            for neighbor in forward.get(node, []):
-                if neighbor not in visited:
-                    queue.append(neighbor)
-
-    # 4c. Handle unreachable exported conclusions.
-    # Some exported conclusions have no path from leaf premises — e.g. when
-    # induction patterns create cycles (law → obs and obs₁+obs₂ → law) making
-    # every node "concluded".  For unreachable exports, reverse-BFS to find the
-    # deepest non-helper claims and promote them to surrogate leaf premises.
-    connected_exports_so_far = {e[1] for e in edges}
-    orphaned_exports = exported_ids - connected_exports_so_far
-    if orphaned_exports:
-        # Build reverse adjacency: conclusion → premises
-        reverse_adj: dict[str, set[str]] = {}
-        for s in ir["strategies"]:
-            conc = s.get("conclusion")
-            if not conc:
-                continue
-            for p in s.get("premises", []):
-                reverse_adj.setdefault(conc, set()).add(p)
-        for o in ir["operators"]:
-            conc = o.get("conclusion")
-            if not conc:
-                continue
-            for v in o.get("variables", []):
-                reverse_adj.setdefault(conc, set()).add(v)
-
-        # For each orphaned export, reverse-BFS to find claims with no further
-        # non-helper predecessors — these are "cycle-breaking" leaves.
-        kid_labels = {k["id"]: k.get("label") or "" for k in ir["knowledges"]}
-        kid_types = {k["id"]: k.get("type", "") for k in ir["knowledges"]}
-        surrogate_leaves: set[str] = set()
-
-        for orphan in orphaned_exports:
-            visited: set[str] = set()
-            queue = list(reverse_adj.get(orphan, []))
-            while queue:
-                node = queue.pop(0)
-                if node in visited:
-                    continue
-                visited.add(node)
-                lbl = kid_labels.get(node, "")
-                if lbl.startswith("__") or lbl.startswith("_anon"):
-                    # Skip helpers, keep searching
-                    for pred in reverse_adj.get(node, []):
-                        if pred not in visited:
-                            queue.append(pred)
-                    continue
-                if kid_types.get(node) != "claim":
-                    continue
-                # If this node has no non-helper predecessors, it's a surrogate leaf
-                preds = reverse_adj.get(node, set())
-                non_helper_preds = {
-                    p
-                    for p in preds
-                    if not kid_labels.get(p, "").startswith("__")
-                    and not kid_labels.get(p, "").startswith("_anon")
-                    and kid_types.get(p) == "claim"
-                }
-                if not non_helper_preds:
-                    surrogate_leaves.add(node)
-                else:
-                    # Check if all predecessors are already visited (cycle)
-                    if non_helper_preds <= visited:
-                        surrogate_leaves.add(node)
-                    else:
-                        for pred in preds:
-                            if pred not in visited:
-                                queue.append(pred)
-
-        # Run forward BFS from surrogate leaves
-        leaf_ids |= surrogate_leaves
-        for leaf in surrogate_leaves:
-            visited_fwd: set[str] = set()
-            queue_fwd = [leaf]
-            while queue_fwd:
-                node = queue_fwd.pop(0)
-                if node in visited_fwd:
-                    continue
-                visited_fwd.add(node)
-                if node != leaf and node in exported_ids:
-                    edges.append((leaf, node))
-                    continue
-                for neighbor in forward.get(node, []):
-                    if neighbor not in visited_fwd:
-                        queue_fwd.append(neighbor)
-
-    # 5. Deduplicate edges
+    edges = _coarse_edges(leaf_ids, exported_ids, forward)
+    leaf_ids |= _add_orphan_surrogate_edges(ir, exported_ids, forward, edges)
     unique_edges = sorted(set(edges))
 
-    # 6. Determine which leaf premises are actually connected to exports
-    connected_leaves = {e[0] for e in unique_edges}
-    connected_exports = {e[1] for e in unique_edges}
-
-    # 7. Build coarse knowledges (only connected nodes)
+    connected_leaves = {src for src, _ in unique_edges}
+    connected_exports = {dst for _, dst in unique_edges}
     keep_ids = connected_leaves | connected_exports
-    coarse_knowledges = []
-    for k in ir["knowledges"]:
-        if k["id"] in keep_ids:
-            coarse_knowledges.append(k)
-
-    # 8. Build coarse strategies (one infer per edge)
-    coarse_strategies = []
-    by_conclusion: dict[str, list[str]] = {}
-    for src, dst in unique_edges:
-        if src == dst:
-            continue
-        by_conclusion.setdefault(dst, []).append(src)
-
-    for conc, premises in by_conclusion.items():
-        coarse_strategies.append(
-            {
-                "type": "infer",
-                "premises": sorted(premises),
-                "conclusion": conc,
-                "reason": "",
-            }
-        )
-
-    # 9. Preserve operators whose variables/conclusion touch keep_ids.
-    #    Also pull in any operator variables not yet in keep_ids so the
-    #    constraint renders completely.
-    coarse_operators = []
-    for o in ir.get("operators", []):
-        conc = o.get("conclusion")
-        variables = o.get("variables", [])
-        all_nodes = set(variables)
-        if conc:
-            all_nodes.add(conc)
-        # Keep operator if at least one endpoint is in keep_ids
-        if all_nodes & keep_ids:
-            coarse_operators.append(o)
-            # Pull in any missing variables/conclusion
-            for nid in all_nodes:
-                if nid not in keep_ids:
-                    keep_ids.add(nid)
-                    k = next((k for k in ir["knowledges"] if k["id"] == nid), None)
-                    if k and not k.get("label", "").startswith("__"):
-                        coarse_knowledges.append(k)
+    coarse_knowledges = _coarse_knowledges(ir, keep_ids)
+    coarse_strategies = _coarse_strategies(unique_edges)
+    coarse_operators = _coarse_operators(ir, keep_ids, coarse_knowledges)
 
     return {
         "package_name": ir.get("package_name", ""),
@@ -254,6 +46,279 @@ def coarsen_ir(ir: dict, exported_ids: set[str]) -> dict:
         "strategies": coarse_strategies,
         "operators": coarse_operators,
     }
+
+
+def _is_helper_label(label: str) -> bool:
+    return label.startswith(_HELPER_LABEL_PREFIXES)
+
+
+def _knowledge_labels(ir: dict[str, Any]) -> dict[str, str]:
+    return {k["id"]: k.get("label") or "" for k in ir["knowledges"]}
+
+
+def _knowledge_types(ir: dict[str, Any]) -> dict[str, str]:
+    return {k["id"]: k.get("type", "") for k in ir["knowledges"]}
+
+
+def _concluded_ids(ir: dict[str, Any]) -> set[str]:
+    strat_conclusions = {s["conclusion"] for s in ir["strategies"] if s.get("conclusion")}
+    op_conclusions = {o["conclusion"] for o in ir["operators"] if o.get("conclusion")}
+    return strat_conclusions | op_conclusions
+
+
+def _leaf_ids(ir: dict[str, Any], knowledge_labels: dict[str, str]) -> set[str]:
+    all_concluded = _concluded_ids(ir)
+    leaf_ids = {
+        k["id"]
+        for k in ir["knowledges"]
+        if not _is_helper_label(k.get("label") or "")
+        and k["id"] not in all_concluded
+        and k["type"] == "claim"
+    }
+    leaf_ids.update(_induction_interface_premises(ir, knowledge_labels))
+    return leaf_ids
+
+
+def _induction_interface_premises(
+    ir: dict[str, Any],
+    knowledge_labels: dict[str, str],
+) -> set[str]:
+    premises: set[str] = set()
+    for strategy in ir["strategies"]:
+        if strategy.get("type") != "induction":
+            continue
+        conclusion = strategy.get("conclusion")
+        if not conclusion:
+            continue
+        for premise in strategy.get("premises", []):
+            if premise != conclusion and not _is_helper_label(knowledge_labels.get(premise, "")):
+                premises.add(premise)
+    return premises
+
+
+def _build_forward_adjacency(ir: dict[str, Any]) -> dict[str, set[str]]:
+    forward: dict[str, set[str]] = {}
+    for strategy in ir["strategies"]:
+        _add_adjacency_edges(forward, strategy.get("premises", []), strategy.get("conclusion"))
+    for operator in ir["operators"]:
+        _add_adjacency_edges(forward, operator.get("variables", []), operator.get("conclusion"))
+    return forward
+
+
+def _build_reverse_adjacency(ir: dict[str, Any]) -> dict[str, set[str]]:
+    reverse: dict[str, set[str]] = {}
+    for strategy in ir["strategies"]:
+        _add_reverse_edges(reverse, strategy.get("conclusion"), strategy.get("premises", []))
+    for operator in ir["operators"]:
+        _add_reverse_edges(reverse, operator.get("conclusion"), operator.get("variables", []))
+    return reverse
+
+
+def _add_adjacency_edges(
+    adjacency: dict[str, set[str]],
+    sources: list[str],
+    conclusion: str | None,
+) -> None:
+    if not conclusion:
+        return
+    for source in sources:
+        adjacency.setdefault(source, set()).add(conclusion)
+
+
+def _add_reverse_edges(
+    reverse: dict[str, set[str]],
+    conclusion: str | None,
+    sources: list[str],
+) -> None:
+    if not conclusion:
+        return
+    for source in sources:
+        reverse.setdefault(conclusion, set()).add(source)
+
+
+def _coarse_edges(
+    leaf_ids: set[str],
+    exported_ids: set[str],
+    forward: dict[str, set[str]],
+) -> list[tuple[str, str]]:
+    edges = _reachable_export_edges(leaf_ids, exported_ids, forward)
+    for exported_id in exported_ids:
+        starts = forward.get(exported_id, set())
+        edges.extend(
+            _reachable_export_edges(
+                {exported_id},
+                exported_ids,
+                forward,
+                starts=starts,
+                include_self_export=True,
+            )
+        )
+    return edges
+
+
+def _reachable_export_edges(
+    source_ids: set[str],
+    exported_ids: set[str],
+    forward: dict[str, set[str]],
+    *,
+    starts: set[str] | None = None,
+    include_self_export: bool = False,
+) -> list[tuple[str, str]]:
+    edges: list[tuple[str, str]] = []
+    for source_id in source_ids:
+        queue = list(starts) if starts is not None else [source_id]
+        visited: set[str] = set()
+        while queue:
+            node = queue.pop(0)
+            if node in visited:
+                continue
+            visited.add(node)
+            if (include_self_export or node != source_id) and node in exported_ids:
+                edges.append((source_id, node))
+                continue
+            queue.extend(neighbor for neighbor in forward.get(node, []) if neighbor not in visited)
+    return edges
+
+
+def _add_orphan_surrogate_edges(
+    ir: dict[str, Any],
+    exported_ids: set[str],
+    forward: dict[str, set[str]],
+    edges: list[tuple[str, str]],
+) -> set[str]:
+    orphaned_exports = exported_ids - {dst for _, dst in edges}
+    if not orphaned_exports:
+        return set()
+
+    reverse = _build_reverse_adjacency(ir)
+    surrogate_leaves = _surrogate_leaves_for_orphans(
+        orphaned_exports,
+        reverse,
+        _knowledge_labels(ir),
+        _knowledge_types(ir),
+    )
+    edges.extend(_reachable_export_edges(surrogate_leaves, exported_ids, forward))
+    return surrogate_leaves
+
+
+def _surrogate_leaves_for_orphans(
+    orphaned_exports: set[str],
+    reverse: dict[str, set[str]],
+    knowledge_labels: dict[str, str],
+    knowledge_types: dict[str, str],
+) -> set[str]:
+    surrogate_leaves: set[str] = set()
+    for orphan in orphaned_exports:
+        surrogate_leaves.update(
+            _cycle_breaking_leaves(orphan, reverse, knowledge_labels, knowledge_types)
+        )
+    return surrogate_leaves
+
+
+def _cycle_breaking_leaves(
+    orphan: str,
+    reverse: dict[str, set[str]],
+    knowledge_labels: dict[str, str],
+    knowledge_types: dict[str, str],
+) -> set[str]:
+    leaves: set[str] = set()
+    visited: set[str] = set()
+    queue = list(reverse.get(orphan, []))
+    while queue:
+        node = queue.pop(0)
+        if node in visited:
+            continue
+        visited.add(node)
+        queue.extend(
+            _next_reverse_nodes(node, reverse, knowledge_labels, knowledge_types, visited, leaves)
+        )
+    return leaves
+
+
+def _next_reverse_nodes(
+    node: str,
+    reverse: dict[str, set[str]],
+    knowledge_labels: dict[str, str],
+    knowledge_types: dict[str, str],
+    visited: set[str],
+    leaves: set[str],
+) -> list[str]:
+    if _is_helper_label(knowledge_labels.get(node, "")):
+        return [pred for pred in reverse.get(node, []) if pred not in visited]
+    if knowledge_types.get(node) != "claim":
+        return []
+
+    preds = reverse.get(node, set())
+    non_helper_preds = _non_helper_claim_predecessors(preds, knowledge_labels, knowledge_types)
+    if not non_helper_preds or non_helper_preds <= visited:
+        leaves.add(node)
+        return []
+    return [pred for pred in preds if pred not in visited]
+
+
+def _non_helper_claim_predecessors(
+    predecessors: set[str],
+    knowledge_labels: dict[str, str],
+    knowledge_types: dict[str, str],
+) -> set[str]:
+    return {
+        pred
+        for pred in predecessors
+        if not _is_helper_label(knowledge_labels.get(pred, ""))
+        and knowledge_types.get(pred) == "claim"
+    }
+
+
+def _coarse_knowledges(ir: dict[str, Any], keep_ids: set[str]) -> list[dict[str, Any]]:
+    return [knowledge for knowledge in ir["knowledges"] if knowledge["id"] in keep_ids]
+
+
+def _coarse_strategies(unique_edges: list[tuple[str, str]]) -> list[dict[str, Any]]:
+    by_conclusion: dict[str, list[str]] = {}
+    for source_id, conclusion_id in unique_edges:
+        if source_id != conclusion_id:
+            by_conclusion.setdefault(conclusion_id, []).append(source_id)
+    return [
+        {"type": "infer", "premises": sorted(premises), "conclusion": conclusion, "reason": ""}
+        for conclusion, premises in by_conclusion.items()
+    ]
+
+
+def _coarse_operators(
+    ir: dict[str, Any],
+    keep_ids: set[str],
+    coarse_knowledges: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    knowledge_by_id = {knowledge["id"]: knowledge for knowledge in ir["knowledges"]}
+    coarse_operators = []
+    for operator in ir.get("operators", []):
+        all_nodes = _operator_nodes(operator)
+        if all_nodes & keep_ids:
+            coarse_operators.append(operator)
+            _pull_operator_knowledges(all_nodes, keep_ids, coarse_knowledges, knowledge_by_id)
+    return coarse_operators
+
+
+def _operator_nodes(operator: dict[str, Any]) -> set[str]:
+    all_nodes = set(operator.get("variables", []))
+    if conclusion := operator.get("conclusion"):
+        all_nodes.add(conclusion)
+    return all_nodes
+
+
+def _pull_operator_knowledges(
+    all_nodes: set[str],
+    keep_ids: set[str],
+    coarse_knowledges: list[dict[str, Any]],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> None:
+    for node_id in all_nodes:
+        if node_id in keep_ids:
+            continue
+        keep_ids.add(node_id)
+        knowledge = knowledge_by_id.get(node_id)
+        if knowledge and not (knowledge.get("label", "") or "").startswith("__"):
+            coarse_knowledges.append(knowledge)
 
 
 def _binary_entropy(p: float) -> float:
@@ -271,16 +336,12 @@ def mutual_information(
 ) -> float:
     """Compute I(premises; conclusion) in bits from a coarse CPT.
 
-    Parameters
-    ----------
-    cpt:
-        CPT of length 2^k, indexed by binary encoding of premise assignment.
-    premise_priors:
-        Prior probability of each premise being true (length k).
+    Args:
+        cpt: CPT of length 2^k, indexed by binary encoding of premise assignment.
+        premise_priors: Prior probability of each premise being true (length k).
 
-    Returns
-    -------
-    Mutual information in bits.
+    Returns:
+        Mutual information in bits.
     """
     k = len(premise_priors)
     assert len(cpt) == (1 << k)
@@ -308,8 +369,8 @@ def mutual_information(
 
 
 def compute_coarse_cpts(
-    ir: dict,
-    coarse: dict,
+    ir: dict[str, Any],
+    coarse: dict[str, Any],
     node_priors: dict[str, float] | None = None,
     strategy_params: dict[str, list[float]] | None = None,
     strategy_indices: set[int] | None = None,
@@ -324,6 +385,7 @@ def compute_coarse_cpts(
     Returns a dict mapping strategy index to CPT (list of 2^k floats).
     """
     from gaia.bp.contraction import (
+        StrategyCptCacheValue,
         contract_to_cpt,
         cpt_tensor_to_list,
         factor_to_tensor,
@@ -357,7 +419,7 @@ def compute_coarse_cpts(
     # Build operator tensors directly from canon.operators.  Each operator
     # becomes one factor tensor using the same FactorType mapping as
     # lower_local_graph's operator pass.
-    operator_tensors: list[tuple] = []
+    operator_tensors: list[tuple[Any, list[str]]] = []
     for op in canon.operators:
         op_factor = Factor(
             factor_id=f"op_{op.conclusion}",
@@ -371,8 +433,8 @@ def compute_coarse_cpts(
     from gaia.ir.strategy import CompositeStrategy
 
     strat_by_id = {s.strategy_id: s for s in canon.strategies if s.strategy_id}
-    cache: dict = {}
-    strategy_tensors: list[tuple] = []
+    cache: dict[str, StrategyCptCacheValue] = {}
+    strategy_tensors: list[tuple[Any, list[str]]] = []
     for s in canon.strategies:
         # CompositeStrategy organizes sub-strategies; its CPT is already a
         # contraction of its children's CPTs.  Including it as a separate

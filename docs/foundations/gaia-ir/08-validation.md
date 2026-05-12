@@ -65,7 +65,7 @@ validation 的职责是**验证结构合法性**。
 4. `conclusion` 必须引用同 graph 中存在的 `claim`
 5. `conclusion` 不得出现在 `variables` 中——`variables` 只放输入，`conclusion` 独立承载输出
 6. Operator 分为两类（见 [02-gaia-ir.md §2.4](02-gaia-ir.md#24-不变量)）：
-   - **Directed（`implication`、`conjunction`）**：`conclusion` 是输出 claim
+   - **Directed（`implication`、`conjunction`）**：`implication` 的 `conclusion` 是结构型 implication helper claim（variables=[A, B]，conclusion=`implies(A,B)` 型 helper）；`conjunction` 的 `conclusion` 是合取输出 claim `M`
    - **Relation（`equivalence`、`contradiction`、`complement`、`disjunction`）**：`conclusion` 是结构型 helper claim
 7. 关系型 Operator 的 `conclusion` 不允许被作者借来手写任意主观结论
 9. 若 `metadata.canonical_name` 缺失或未采用推荐 functor 形式，当前更适合作为 warning / lint，而不是 hard error

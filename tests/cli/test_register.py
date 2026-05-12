@@ -599,8 +599,11 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
 
 
 def test_render_versions_toml_emits_gaia_lang_version_when_present():
-    """New entries with gaia_lang_version emit it in canonical order; older entries
-    lacking the field render unchanged (forward compat when appending)."""
+    """Verify render versions toml emits gaia lang version when present.
+
+    New entries with gaia_lang_version emit it in canonical order; older entries lacking the
+    field render unchanged (forward compat when appending).
+    """
     from gaia.cli.commands.register import _render_versions_toml
 
     versions = {
@@ -636,11 +639,12 @@ def test_render_versions_toml_emits_gaia_lang_version_when_present():
 
 
 def test_render_versions_toml_preserves_unknown_keys_with_types():
-    """Forward-compat: keys not in the canonical list are preserved AND their
-    native TOML type is respected (not silently coerced to strings). This
-    guards against the corruption mode where an older gaia reads a
-    Versions.toml with a bool/int field added by a newer gaia and re-emits it
-    as a quoted string.
+    """Verify render versions toml preserves unknown keys with types.
+
+    Forward-compat: keys not in the canonical list are preserved AND their native TOML type is
+    respected (not silently coerced to strings). This guards against the corruption mode where
+    an older gaia reads a Versions.toml with a bool/int field added by a newer gaia and re-emits
+    it as a quoted string.
 
     Regression test for Codex adversarial review Finding 3 (medium).
     """
@@ -686,9 +690,11 @@ def test_render_versions_toml_preserves_unknown_keys_with_types():
 
 
 def test_render_versions_toml_rejects_complex_types():
-    """Unsupported types (arrays, dicts, None) must raise ValueError rather
-    than silently corrupting the output. Explicit failure beats silent data
-    loss for the forward-compat path."""
+    """Verify render versions toml rejects complex types.
+
+    Unsupported types (arrays, dicts, None) must raise ValueError rather than silently
+    corrupting the output. Explicit failure beats silent data loss for the forward-compat path.
+    """
     import pytest as _pytest
 
     from gaia.cli.commands.register import _render_versions_toml
@@ -704,15 +710,16 @@ def test_render_versions_toml_rejects_complex_types():
                 "weird_field": bad_value,
             },
         }
-        with _pytest.raises(ValueError, match="Cannot render Versions.toml value of type"):
+        with _pytest.raises(ValueError, match=r"Cannot render Versions.toml value of type"):
             _render_versions_toml(versions)
 
 
 def test_read_gaia_lang_version_from_compile_metadata(tmp_path):
-    """Register reads gaia_lang_version from `.gaia/compile_metadata.json`
-    rather than from the live process environment. This makes registration
-    reproducible from a committed package state regardless of which gaia-lang
-    the operator has installed at register time.
+    """Verify read gaia lang version from compile metadata.
+
+    Register reads gaia_lang_version from `.gaia/compile_metadata.json` rather than from the
+    live process environment. This makes registration reproducible from a committed package
+    state regardless of which gaia-lang the operator has installed at register time.
 
     Covers all three branches of the helper:
     1. File present and well-formed → returns the recorded version

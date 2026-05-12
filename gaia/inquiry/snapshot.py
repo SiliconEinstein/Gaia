@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gaia.inquiry.state import inquiry_dir
 
@@ -19,6 +19,7 @@ _SAFE_MODE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def reviews_dir(pkg_path: str | Path) -> Path:
+    """Return the package review snapshot directory, creating it if needed."""
     d = inquiry_dir(pkg_path) / "reviews"
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -30,7 +31,7 @@ def mint_review_id(ir_hash: str | None, mode: str) -> str:
     Colons in the ISO timestamp are replaced with dashes so the id is usable
     as a path component on every platform.
     """
-    ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+    ts = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
     raw = ir_hash or "nohash"
     if ":" in raw:
         raw = raw.split(":", 1)[1]
@@ -45,7 +46,7 @@ def save_snapshot(
     review_id: str,
     created_at: str,
     ir_hash: str | None,
-    ir_dict: dict | None,
+    ir_dict: dict[str, Any] | None,
     beliefs: list[dict[str, Any]],
 ) -> Path:
     """Persist the minimal snapshot needed to diff future reviews."""
@@ -71,12 +72,13 @@ def save_snapshot(
     return path
 
 
-def load_snapshot(pkg_path: str | Path, review_id: str) -> dict | None:
+def load_snapshot(pkg_path: str | Path, review_id: str) -> dict[str, Any] | None:
+    """Load a persisted review snapshot by id, returning None if unavailable."""
     path = reviews_dir(pkg_path) / f"{review_id}.json"
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
     except (OSError, json.JSONDecodeError):
         return None
 

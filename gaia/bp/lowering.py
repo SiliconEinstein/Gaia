@@ -6,6 +6,7 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 from gaia.ir.formalize import formalize_named_strategy
@@ -69,7 +70,7 @@ def _next_fid(prefix: str, i: list[int]) -> str:
 
 def _review_target_allowed(
     target_id: str | None,
-    metadata: dict | None,
+    metadata: dict[str, Any] | None,
     review_manifest: ReviewManifest | None,
 ) -> bool:
     if review_manifest is None:
@@ -89,6 +90,136 @@ def _operator_asserts_relation(op: Operator) -> bool:
     # Its authored prior must remain live instead of being pinned as a hard
     # relation assertion.
     return (op.metadata or {}).get("formula_lowering") != "connective"
+
+
+def _helper_prior_filter_ids(canonical: LocalCanonicalGraph) -> tuple[set[str], set[str]]:
+    """Return helper IDs whose user/default priors should be ignored."""
+    helper_ids = {
+        k.id for k in canonical.knowledges if k.id and k.label and k.label.startswith("__")
+    }
+    expression_helper_ids = {
+        k.id for k in canonical.knowledges if k.id and is_structural_expression_helper(k)
+    }
+    return helper_ids | expression_helper_ids, expression_helper_ids
+
+
+def _metadata_priors(
+    canonical: LocalCanonicalGraph,
+    expression_helper_ids: set[str],
+) -> dict[str, float]:
+    """Collect metadata priors except for structural expression helpers."""
+    return {
+        k.id: float(k.metadata["prior"])
+        for k in canonical.knowledges
+        if k.id and k.metadata and "prior" in k.metadata and k.id not in expression_helper_ids
+    }
+
+
+def _review_allowed_operators(
+    canonical: LocalCanonicalGraph,
+    review_manifest: ReviewManifest | None,
+) -> list[Operator]:
+    """Return operators admitted by the optional review manifest."""
+    return [
+        op
+        for op in canonical.operators
+        if _review_target_allowed(op.operator_id, op.metadata, review_manifest)
+    ]
+
+
+def _relation_conclusion_ids(operators: list[Operator]) -> set[str]:
+    """Return conclusions whose relation operators assert the helper true."""
+    return {op.conclusion for op in operators if _operator_asserts_relation(op)}
+
+
+def _add_claim_variables(
+    fg: FactorGraph,
+    canonical: LocalCanonicalGraph,
+    *,
+    priors: dict[str, float],
+    expression_helper_ids: set[str],
+    relation_concl_ids: set[str],
+) -> set[str]:
+    """Register claim variables with the documented prior precedence rules."""
+    claim_ids = {k.id for k in canonical.knowledges if k.type == KnowledgeType.CLAIM and k.id}
+    for knowledge in canonical.knowledges:
+        if knowledge.type != KnowledgeType.CLAIM or not knowledge.id:
+            continue
+        metadata_prior = (knowledge.metadata or {}).get("prior") if knowledge.metadata else None
+        if knowledge.id in expression_helper_ids:
+            fg.add_variable(knowledge.id)
+        elif knowledge.id in relation_concl_ids:
+            fg.add_variable(knowledge.id, 1.0 - CROMWELL_EPS)
+        elif knowledge.id in priors:
+            fg.add_variable(knowledge.id, priors[knowledge.id])
+        elif metadata_prior is not None:
+            fg.add_variable(knowledge.id, float(metadata_prior))
+        else:
+            fg.add_variable(knowledge.id)
+    return claim_ids
+
+
+def _lower_operators(
+    fg: FactorGraph,
+    operators: list[Operator],
+    *,
+    priors: dict[str, float],
+    claim_ids: set[str],
+    expression_helper_ids: set[str],
+    ctr: list[int],
+) -> None:
+    """Lower review-admitted operators to factor-graph factors."""
+    for op in operators:
+        fid = _next_fid("op", ctr)
+        ft = _OPERATOR_MAP[op.operator]
+        for vid in op.variables:
+            _ensure_claim_var(fg, vid, priors, claim_ids)
+        conclusion = op.conclusion
+        if conclusion not in fg.variables:
+            if conclusion in expression_helper_ids:
+                fg.add_variable(conclusion)
+            elif _operator_asserts_relation(op):
+                fg.add_variable(conclusion, 1.0 - CROMWELL_EPS)
+            else:
+                fg.add_variable(conclusion, priors.get(conclusion))
+        fg.add_factor(fid, ft, op.variables, conclusion)
+
+
+def _lower_graph_strategies(
+    fg: FactorGraph,
+    canonical: LocalCanonicalGraph,
+    *,
+    strat_by_id: dict[str, Strategy],
+    priors: dict[str, float],
+    strat_params: dict[str, list[float]],
+    metadata_priors: dict[str, float],
+    expand_formal: bool,
+    infer_degraded: bool,
+    ctr: list[int],
+    claim_ids: set[str],
+    review_manifest: ReviewManifest | None,
+) -> None:
+    """Lower review-admitted strategies to factor-graph factors."""
+    seen_strategies: set[str] = set()
+    for strategy in canonical.strategies:
+        if not _review_target_allowed(strategy.strategy_id, strategy.metadata, review_manifest):
+            continue
+        _lower_strategy(
+            fg,
+            strategy,
+            strat_by_id,
+            priors,
+            strat_params,
+            metadata_priors,
+            expand_formal,
+            infer_degraded,
+            ctr,
+            claim_ids,
+            canonical.namespace,
+            canonical.package_name,
+            seen_strategies=seen_strategies,
+            review_manifest=review_manifest,
+        )
 
 
 def lower_local_graph(
@@ -124,97 +255,46 @@ def lower_local_graph(
         gated.
     """
     priors = node_priors or {}
-    # Auto-formalized helper claims (labels starting with ``__``, e.g.
-    # ``__disjunction_result_<hash>``, ``__equivalence_result_<hash>``)
-    # are persisted into ``ir["knowledges"]`` and consequently appear in
-    # most callers' ``node_priors`` (which default-fill every claim id).
-    # Their priors should NOT come from the user — they're determined by
-    # the operator semantics (relation operators → asserted; compositional
-    # operators → neutral 0.5).  Filter them out so the lowering branches
-    # below can apply the correct default.
-    helper_ids = {
-        k.id for k in canonical.knowledges if k.id and k.label and k.label.startswith("__")
-    }
-    expression_helper_ids = {
-        k.id for k in canonical.knowledges if k.id and is_structural_expression_helper(k)
-    }
-    no_user_prior_ids = helper_ids | expression_helper_ids
+    no_user_prior_ids, expression_helper_ids = _helper_prior_filter_ids(canonical)
     if no_user_prior_ids:
         priors = {k: v for k, v in priors.items() if k not in no_user_prior_ids}
-    metadata_priors = {
-        k.id: float(k.metadata["prior"])
-        for k in canonical.knowledges
-        if k.id and k.metadata and "prior" in k.metadata and k.id not in expression_helper_ids
-    }
+    metadata_priors = _metadata_priors(canonical, expression_helper_ids)
     strat_params = strategy_conditional_params or {}
     fg = FactorGraph()
     ctr = [0]
 
-    lowerable_operators = [
-        op
-        for op in canonical.operators
-        if _review_target_allowed(op.operator_id, op.metadata, review_manifest)
-    ]
-
-    relation_concl_ids: set[str] = set()
-    for op in lowerable_operators:
-        if _operator_asserts_relation(op):
-            relation_concl_ids.add(op.conclusion)
-
-    claim_ids = {k.id for k in canonical.knowledges if k.type == KnowledgeType.CLAIM and k.id}
-    for k in canonical.knowledges:
-        if k.type != KnowledgeType.CLAIM or not k.id:
-            continue
-        # Priority: node_priors > metadata["prior"] > structural default
-        metadata_prior = (k.metadata or {}).get("prior") if k.metadata else None
-        if k.id in expression_helper_ids:
-            fg.add_variable(k.id)
-        elif k.id in relation_concl_ids:
-            fg.add_variable(k.id, 1.0 - CROMWELL_EPS)
-        elif k.id in priors:
-            fg.add_variable(k.id, priors[k.id])
-        elif metadata_prior is not None:
-            fg.add_variable(k.id, float(metadata_prior))
-        else:
-            fg.add_variable(k.id)
+    lowerable_operators = _review_allowed_operators(canonical, review_manifest)
+    claim_ids = _add_claim_variables(
+        fg,
+        canonical,
+        priors=priors,
+        expression_helper_ids=expression_helper_ids,
+        relation_concl_ids=_relation_conclusion_ids(lowerable_operators),
+    )
 
     strat_by_id = {s.strategy_id: s for s in canonical.strategies if s.strategy_id}
 
-    for op in lowerable_operators:
-        fid = _next_fid("op", ctr)
-        ft = _OPERATOR_MAP[op.operator]
-        for vid in op.variables:
-            _ensure_claim_var(fg, vid, priors, claim_ids)
-        concl = op.conclusion
-        if concl not in fg.variables:
-            if concl in expression_helper_ids:
-                fg.add_variable(concl)
-            elif _operator_asserts_relation(op):
-                fg.add_variable(concl, 1.0 - CROMWELL_EPS)
-            else:
-                fg.add_variable(concl, priors[concl] if concl in priors else None)
-        fg.add_factor(fid, ft, op.variables, concl)
-
-    seen_strategies: set[str] = set()
-    for s in canonical.strategies:
-        if not _review_target_allowed(s.strategy_id, s.metadata, review_manifest):
-            continue
-        _lower_strategy(
-            fg,
-            s,
-            strat_by_id,
-            priors,
-            strat_params,
-            metadata_priors,
-            expand_formal,
-            infer_use_degraded_noisy_and,
-            ctr,
-            claim_ids,
-            canonical.namespace,
-            canonical.package_name,
-            seen_strategies=seen_strategies,
-            review_manifest=review_manifest,
-        )
+    _lower_operators(
+        fg,
+        lowerable_operators,
+        priors=priors,
+        claim_ids=claim_ids,
+        expression_helper_ids=expression_helper_ids,
+        ctr=ctr,
+    )
+    _lower_graph_strategies(
+        fg,
+        canonical,
+        strat_by_id=strat_by_id,
+        priors=priors,
+        strat_params=strat_params,
+        metadata_priors=metadata_priors,
+        expand_formal=expand_formal,
+        infer_degraded=infer_use_degraded_noisy_and,
+        ctr=ctr,
+        claim_ids=claim_ids,
+        review_manifest=review_manifest,
+    )
 
     return fg
 
@@ -222,9 +302,10 @@ def lower_local_graph(
 def _ensure_claim_var(
     fg: FactorGraph, vid: str, priors: dict[str, float], claim_ids: set[str]
 ) -> None:
+    del claim_ids
     if vid in fg.variables:
         return
-    fg.add_variable(vid, priors[vid] if vid in priors else None)
+    fg.add_variable(vid, priors.get(vid))
 
 
 def _clamp_probability(value: float) -> float:
@@ -375,7 +456,7 @@ def fold_composite_to_cpt(
     Returns a list of 2^k floats (k = number of premises), indexed by the
     binary encoding of the premise assignment (bit 0 = first premise).
     """
-    from gaia.bp.contraction import cpt_tensor_to_list, strategy_cpt
+    from gaia.bp.contraction import StrategyCptCacheValue, cpt_tensor_to_list, strategy_cpt
 
     if not expand_formal:
         raise NotImplementedError(
@@ -384,7 +465,10 @@ def fold_composite_to_cpt(
             "docs/foundations/gaia-ir/07-lowering.md §9."
         )
 
-    cache: dict = {}
+    if s.conclusion is None:
+        raise ValueError(f"CompositeStrategy {s.strategy_id} requires a conclusion for folding.")
+
+    cache: dict[str, StrategyCptCacheValue] = {}
     cpt_tensor, axes = strategy_cpt(
         s,
         strat_by_id=strat_by_id,
@@ -395,6 +479,413 @@ def fold_composite_to_cpt(
         cache=cache,
     )
     return cpt_tensor_to_list(cpt_tensor, axes, list(s.premises), s.conclusion)
+
+
+def _mark_strategy_seen(s: Strategy, seen_strategies: set[str] | None) -> bool:
+    """Return True when strategy lowering should continue after deduping."""
+    if seen_strategies is None or not s.strategy_id:
+        return True
+    if s.strategy_id in seen_strategies:
+        return False
+    seen_strategies.add(s.strategy_id)
+    return True
+
+
+def _lower_composite_strategy(
+    fg: FactorGraph,
+    s: CompositeStrategy,
+    strat_by_id: dict[str, Strategy],
+    priors: dict[str, float],
+    strat_params: dict[str, list[float]],
+    metadata_priors: dict[str, float],
+    expand_formal: bool,
+    infer_degraded: bool,
+    ctr: list[int],
+    claim_ids: set[str],
+    namespace: str,
+    package_name: str,
+    *,
+    seen_strategies: set[str] | None,
+    review_manifest: ReviewManifest | None,
+) -> None:
+    """Lower sub-strategies referenced by a CompositeStrategy."""
+    for sid in s.sub_strategies:
+        sub = strat_by_id.get(sid)
+        if sub is None:
+            raise KeyError(f"CompositeStrategy references missing strategy_id {sid!r}")
+        _lower_strategy(
+            fg,
+            sub,
+            strat_by_id,
+            priors,
+            strat_params,
+            metadata_priors,
+            expand_formal,
+            infer_degraded,
+            ctr,
+            claim_ids,
+            namespace,
+            package_name,
+            seen_strategies=seen_strategies,
+            review_manifest=review_manifest,
+        )
+
+
+def _lower_deduction_implication(
+    fg: FactorGraph,
+    s: FormalStrategy,
+    op: Operator,
+    fid: str,
+    priors: dict[str, float],
+    claim_ids: set[str],
+) -> None:
+    """Lower a deduction implication as a conditional factor."""
+    antecedent = op.variables[0]
+    consequent = op.variables[1]
+    _ensure_claim_var(fg, antecedent, priors, claim_ids)
+    _ensure_claim_var(fg, consequent, priors, claim_ids)
+    q = float((s.metadata or {}).get("false_premise_base_rate", _DEDUCTION_FALSE_PREMISE_BASE_RATE))
+    fg.add_factor(
+        fid,
+        FactorType.CONDITIONAL,
+        [antecedent],
+        consequent,
+        cpt=[q, 1.0 - CROMWELL_EPS],
+    )
+    fg.variables.pop(op.conclusion, None)
+    fg.unary_factors.pop(op.conclusion, None)
+
+
+def _lower_support_implication(
+    fg: FactorGraph,
+    op: Operator,
+    fid: str,
+    priors: dict[str, float],
+    metadata_priors: dict[str, float],
+    claim_ids: set[str],
+) -> None:
+    """Lower a support implication by marginalizing the helper prior."""
+    helper_prior = priors.get(op.conclusion, metadata_priors.get(op.conclusion, 1.0 - CROMWELL_EPS))
+    p1_eff = helper_prior * (1.0 - CROMWELL_EPS) + (1.0 - helper_prior) * 0.5
+    antecedent = op.variables[0]
+    consequent = op.variables[1]
+    _ensure_claim_var(fg, antecedent, priors, claim_ids)
+    _ensure_claim_var(fg, consequent, priors, claim_ids)
+    fg.add_factor(
+        fid,
+        FactorType.SOFT_ENTAILMENT,
+        [antecedent],
+        consequent,
+        p1=p1_eff,
+        p2=0.5,
+    )
+    fg.variables.pop(op.conclusion, None)
+    fg.unary_factors.pop(op.conclusion, None)
+
+
+def _lower_formal_operator_default(
+    fg: FactorGraph,
+    op: Operator,
+    fid: str,
+    priors: dict[str, float],
+    claim_ids: set[str],
+) -> None:
+    """Lower a formal operator with its direct factor mapping."""
+    fg.add_factor(fid, _OPERATOR_MAP[op.operator], op.variables, op.conclusion)
+    for vid in op.variables:
+        _ensure_claim_var(fg, vid, priors, claim_ids)
+    conclusion = op.conclusion
+    if conclusion not in fg.variables:
+        prior = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else priors.get(conclusion)
+        fg.add_variable(conclusion, prior)
+    elif op.operator in _RELATION_OPS:
+        fg.add_variable(conclusion, 1.0 - CROMWELL_EPS)
+
+
+def _lower_formal_strategy(
+    fg: FactorGraph,
+    s: FormalStrategy,
+    priors: dict[str, float],
+    metadata_priors: dict[str, float],
+    expand_formal: bool,
+    ctr: list[int],
+    claim_ids: set[str],
+) -> None:
+    """Lower a FormalStrategy by expanding each formal operator."""
+    if not expand_formal:
+        raise NotImplementedError(
+            "FormalStrategy fold (marginalize to CONDITIONAL) is not implemented yet. "
+            "See docs/foundations/bp/inference.md and docs/foundations/gaia-ir/07-lowering.md §9."
+        )
+    for index, op in enumerate(s.formal_expr.operators):
+        fid = _next_fid(f"fs_{s.strategy_id}_{index}", ctr)
+        if s.type == StrategyType.DEDUCTION and op.operator == OperatorType.IMPLICATION:
+            _lower_deduction_implication(fg, s, op, fid, priors, claim_ids)
+        elif s.type in _SOFT_IMPLICATION_TYPES and op.operator == OperatorType.IMPLICATION:
+            _lower_support_implication(fg, op, fid, priors, metadata_priors, claim_ids)
+        else:
+            _lower_formal_operator_default(fg, op, fid, priors, claim_ids)
+
+
+def _prepare_leaf_strategy_variables(
+    fg: FactorGraph,
+    s: Strategy,
+    priors: dict[str, float],
+    claim_ids: set[str],
+) -> tuple[str, str]:
+    """Validate and register leaf strategy variables."""
+    if s.conclusion is None:
+        raise ValueError(f"Leaf strategy {s.strategy_id} requires a conclusion for lowering.")
+    if s.strategy_id is None:
+        raise ValueError("Strategy requires a strategy_id for lowering.")
+    _ensure_claim_var(fg, s.conclusion, priors, claim_ids)
+    for premise_id in s.premises:
+        _ensure_claim_var(fg, premise_id, priors, claim_ids)
+    return s.conclusion, s.strategy_id
+
+
+def _lower_infer_strategy(
+    fg: FactorGraph,
+    s: Strategy,
+    conc: str,
+    strategy_id: str,
+    priors: dict[str, float],
+    strat_params: dict[str, list[float]],
+    metadata_priors: dict[str, float],
+    infer_degraded: bool,
+    ctr: list[int],
+) -> None:
+    """Lower an ``infer`` strategy to conditional or degraded soft-entailment factors."""
+    if s.premises:
+        _apply_inline_prior_provider(
+            fg,
+            variable_id=s.premises[0],
+            inline_prior=s.prior_hypothesis,
+            priors=priors,
+            metadata_priors=metadata_priors,
+            strategy_id=strategy_id,
+            field_name="prior_hypothesis",
+        )
+    _apply_inline_prior_provider(
+        fg,
+        variable_id=conc,
+        inline_prior=s.prior_evidence,
+        priors=priors,
+        metadata_priors=metadata_priors,
+        strategy_id=strategy_id,
+        field_name="prior_evidence",
+    )
+    cpt = (
+        s.conditional_probabilities
+        or strat_params.get(strategy_id)
+        or [0.5] * (1 << len(s.premises))
+    )
+    if infer_degraded:
+        _lower_degraded_infer(fg, s, conc, strategy_id, cpt, ctr)
+    else:
+        expected = 1 << len(s.premises)
+        if len(cpt) != expected:
+            raise ValueError(
+                f"infer strategy {s.strategy_id}: expected {expected} CPT entries, got {len(cpt)}"
+            )
+        fg.add_factor(_next_fid("infer", ctr), FactorType.CONDITIONAL, s.premises, conc, cpt=cpt)
+
+
+def _lower_degraded_infer(
+    fg: FactorGraph,
+    s: Strategy,
+    conc: str,
+    strategy_id: str,
+    cpt: list[float],
+    ctr: list[int],
+) -> None:
+    """Lower infer with the legacy degraded noisy-and-compatible path."""
+    if len(s.premises) == 1:
+        fg.add_factor(
+            _next_fid("infer_deg", ctr),
+            FactorType.SOFT_ENTAILMENT,
+            [s.premises[0]],
+            conc,
+            p1=float(cpt[1]),
+            p2=1.0 - float(cpt[0]),
+        )
+        return
+    full = (1 << len(s.premises)) - 1
+    m = f"_m_infer_{strategy_id}"
+    fg.add_variable(m)
+    fg.add_factor(_next_fid("infer_conj", ctr), FactorType.CONJUNCTION, s.premises, m)
+    fg.add_factor(
+        _next_fid("infer_se", ctr),
+        FactorType.SOFT_ENTAILMENT,
+        [m],
+        conc,
+        p1=float(cpt[full]),
+        p2=1.0 - float(cpt[0]),
+    )
+
+
+def _lower_noisy_and_strategy(
+    fg: FactorGraph,
+    s: Strategy,
+    conc: str,
+    strategy_id: str,
+    strat_params: dict[str, list[float]],
+    ctr: list[int],
+) -> None:
+    """Lower a deprecated noisy-and strategy."""
+    raw = s.conditional_probabilities or strat_params.get(strategy_id) or [0.5]
+    p = float(raw[0])
+    premises = list(s.premises)
+    if len(premises) == 1:
+        fg.add_factor(
+            _next_fid("na", ctr),
+            FactorType.SOFT_ENTAILMENT,
+            premises,
+            conc,
+            p1=p,
+            p2=1.0 - CROMWELL_EPS,
+        )
+        return
+    m = f"_m_na_{strategy_id}"
+    fg.add_variable(m)
+    fg.add_factor(_next_fid("na_conj", ctr), FactorType.CONJUNCTION, premises, m)
+    fg.add_factor(
+        _next_fid("na_se", ctr),
+        FactorType.SOFT_ENTAILMENT,
+        [m],
+        conc,
+        p1=p,
+        p2=1.0 - CROMWELL_EPS,
+    )
+
+
+def _lower_associate_strategy(
+    fg: FactorGraph,
+    s: Strategy,
+    conc: str,
+    priors: dict[str, float],
+    metadata_priors: dict[str, float],
+    ctr: list[int],
+) -> None:
+    """Lower an associate strategy as a pairwise potential."""
+    a, b, pi_a, pi_b, weights = _associate_pairwise_weights(s, priors, metadata_priors)
+    fg.variables.pop(conc, None)
+    fg.unary_factors.pop(conc, None)
+    fg.add_variable(a, pi_a)
+    fg.add_variable(b, pi_b)
+    fg.add_factor(_next_fid("assoc", ctr), FactorType.PAIRWISE_POTENTIAL, [a], b, cpt=weights)
+
+
+def _lower_named_formal_leaf(
+    fg: FactorGraph,
+    s: Strategy,
+    conc: str,
+    strat_by_id: dict[str, Strategy],
+    priors: dict[str, float],
+    strat_params: dict[str, list[float]],
+    metadata_priors: dict[str, float],
+    expand_formal: bool,
+    infer_degraded: bool,
+    ctr: list[int],
+    claim_ids: set[str],
+    namespace: str,
+    package_name: str,
+    *,
+    seen_strategies: set[str] | None,
+    review_manifest: ReviewManifest | None,
+) -> None:
+    """Auto-formalize and lower a named formal leaf strategy."""
+    ns = namespace if s.scope == "local" else None
+    pkg = package_name if s.scope == "local" else None
+    result = formalize_named_strategy(
+        scope=s.scope,
+        type_=s.type,
+        premises=list(s.premises),
+        conclusion=conc,
+        namespace=ns,
+        package_name=pkg,
+        background=s.background,
+        steps=s.steps,
+        metadata=s.metadata,
+    )
+    for knowledge in result.knowledges:
+        if knowledge.id and knowledge.metadata and "prior" in knowledge.metadata:
+            priors[knowledge.id] = float(knowledge.metadata["prior"])
+    for knowledge in result.knowledges:
+        if knowledge.id:
+            _ensure_claim_var(fg, knowledge.id, priors, claim_ids)
+    _lower_strategy(
+        fg,
+        result.strategy,
+        strat_by_id,
+        priors,
+        strat_params,
+        metadata_priors,
+        expand_formal,
+        infer_degraded,
+        ctr,
+        claim_ids,
+        namespace,
+        package_name,
+        seen_strategies=seen_strategies,
+        review_manifest=review_manifest,
+    )
+
+
+def _lower_leaf_strategy(
+    fg: FactorGraph,
+    s: Strategy,
+    strat_by_id: dict[str, Strategy],
+    priors: dict[str, float],
+    strat_params: dict[str, list[float]],
+    metadata_priors: dict[str, float],
+    expand_formal: bool,
+    infer_degraded: bool,
+    ctr: list[int],
+    claim_ids: set[str],
+    namespace: str,
+    package_name: str,
+    *,
+    seen_strategies: set[str] | None,
+    review_manifest: ReviewManifest | None,
+) -> None:
+    """Lower a non-composite, non-formal strategy."""
+    conc, strategy_id = _prepare_leaf_strategy_variables(fg, s, priors, claim_ids)
+    if s.type == StrategyType.INFER:
+        _lower_infer_strategy(
+            fg, s, conc, strategy_id, priors, strat_params, metadata_priors, infer_degraded, ctr
+        )
+        return
+    if s.type == StrategyType.NOISY_AND:
+        _lower_noisy_and_strategy(fg, s, conc, strategy_id, strat_params, ctr)
+        return
+    if s.type == StrategyType.ASSOCIATE:
+        _lower_associate_strategy(fg, s, conc, priors, metadata_priors, ctr)
+        return
+    if s.type in _FORMAL_STRATEGY_TYPES:
+        _lower_named_formal_leaf(
+            fg,
+            s,
+            conc,
+            strat_by_id,
+            priors,
+            strat_params,
+            metadata_priors,
+            expand_formal,
+            infer_degraded,
+            ctr,
+            claim_ids,
+            namespace,
+            package_name,
+            seen_strategies=seen_strategies,
+            review_manifest=review_manifest,
+        )
+        return
+    raise NotImplementedError(
+        f"Leaf strategy type {s.type!r} is deferred in Gaia IR core "
+        "(docs/foundations/gaia-ir/02-gaia-ir.md §3.3). "
+        "Supply a pre-formalized FormalStrategy, or use infer/noisy_and/associate."
+    )
 
 
 def _lower_strategy(
@@ -415,274 +906,14 @@ def _lower_strategy(
 ) -> None:
     if not _review_target_allowed(s.strategy_id, s.metadata, review_manifest):
         return
-
-    # Dedup: when ``seen_strategies`` is provided (lower_local_graph
-    # passes a fresh set), skip strategies that have already been
-    # lowered.  Composite strategies recursively lower their
-    # sub-strategies, but those subs are also top-level entries in
-    # ``canonical.strategies``, so without dedup the same strategy's
-    # factors get added twice.
-    if seen_strategies is not None and s.strategy_id:
-        if s.strategy_id in seen_strategies:
-            return
-        seen_strategies.add(s.strategy_id)
+    if not _mark_strategy_seen(s, seen_strategies):
+        return
     metadata_priors = metadata_priors or {}
 
     if isinstance(s, CompositeStrategy):
-        for sid in s.sub_strategies:
-            sub = strat_by_id.get(sid)
-            if sub is None:
-                raise KeyError(f"CompositeStrategy references missing strategy_id {sid!r}")
-            _lower_strategy(
-                fg,
-                sub,
-                strat_by_id,
-                priors,
-                strat_params,
-                metadata_priors,
-                expand_formal,
-                infer_degraded,
-                ctr,
-                claim_ids,
-                namespace,
-                package_name,
-                seen_strategies=seen_strategies,
-                review_manifest=review_manifest,
-            )
-        return
-
-    if isinstance(s, FormalStrategy):
-        if not expand_formal:
-            raise NotImplementedError(
-                "FormalStrategy fold (marginalize to CONDITIONAL) is not implemented yet. "
-                "See docs/foundations/bp/inference.md and docs/foundations/gaia-ir/07-lowering.md §9."
-            )
-        for i, op in enumerate(s.formal_expr.operators):
-            fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
-            ft = _OPERATOR_MAP[op.operator]
-
-            if s.type == StrategyType.DEDUCTION and op.operator == OperatorType.IMPLICATION:
-                antecedent = op.variables[0]
-                consequent = op.variables[1]
-                _ensure_claim_var(fg, antecedent, priors, claim_ids)
-                _ensure_claim_var(fg, consequent, priors, claim_ids)
-                q = float(
-                    (s.metadata or {}).get(
-                        "false_premise_base_rate",
-                        _DEDUCTION_FALSE_PREMISE_BASE_RATE,
-                    )
-                )
-                fg.add_factor(
-                    fid,
-                    FactorType.CONDITIONAL,
-                    [antecedent],
-                    consequent,
-                    cpt=[q, 1.0 - CROMWELL_EPS],
-                )
-                # The implication helper is a reviewed warrant for entering I,
-                # not an independent belief variable after lowering.
-                fg.variables.pop(op.conclusion, None)
-                fg.unary_factors.pop(op.conclusion, None)
-                continue
-
-            # Support implication operators → SOFT_ENTAILMENT CPT.
-            # The ternary implication factor (antecedent, conclusion, helper)
-            # is replaced by a binary CPT (antecedent → conclusion) with the
-            # helper's prior marginalized into p1_eff.
-            if s.type in _SOFT_IMPLICATION_TYPES and op.operator == OperatorType.IMPLICATION:
-                # Helper claim prior: use author-set prior if available,
-                # otherwise the relation assertion default (1-ε) since the
-                # implication helper is a relation operator conclusion.
-                helper_prior = priors.get(
-                    op.conclusion,
-                    metadata_priors.get(op.conclusion, 1.0 - CROMWELL_EPS),
-                )
-                p1_eff = helper_prior * (1.0 - CROMWELL_EPS) + (1.0 - helper_prior) * 0.5
-                # op.variables = [antecedent, actual_conclusion]
-                antecedent = op.variables[0]
-                consequent = op.variables[1]
-                _ensure_claim_var(fg, antecedent, priors, claim_ids)
-                _ensure_claim_var(fg, consequent, priors, claim_ids)
-                fg.add_factor(
-                    fid, FactorType.SOFT_ENTAILMENT, [antecedent], consequent, p1=p1_eff, p2=0.5
-                )
-                # Helper claim variable is marginalized into p1_eff, so it
-                # should not remain as an orphan in the factor graph.
-                fg.variables.pop(op.conclusion, None)
-                fg.unary_factors.pop(op.conclusion, None)
-                continue
-
-            fg.add_factor(fid, ft, op.variables, op.conclusion)
-            for vid in op.variables:
-                _ensure_claim_var(fg, vid, priors, claim_ids)
-            concl = op.conclusion
-            if concl not in fg.variables:
-                if op.operator in _RELATION_OPS:
-                    fg.add_variable(concl, 1.0 - CROMWELL_EPS)
-                else:
-                    fg.add_variable(concl, priors[concl] if concl in priors else None)
-            elif op.operator in _RELATION_OPS:
-                # Variable was pre-registered with wrong default (0.5) by
-                # _ensure_claim_var during auto-formalization.  Override to
-                # assertion unary factor for relation operator conclusions.
-                fg.add_variable(concl, 1.0 - CROMWELL_EPS)
-        return
-
-    # Leaf Strategy
-    if s.conclusion is None:
-        raise ValueError(f"Leaf strategy {s.strategy_id} requires a conclusion for lowering.")
-    conc = s.conclusion
-    _ensure_claim_var(fg, conc, priors, claim_ids)
-    for p in s.premises:
-        _ensure_claim_var(fg, p, priors, claim_ids)
-
-    if s.type == StrategyType.INFER:
-        if s.premises:
-            _apply_inline_prior_provider(
-                fg,
-                variable_id=s.premises[0],
-                inline_prior=s.prior_hypothesis,
-                priors=priors,
-                metadata_priors=metadata_priors,
-                strategy_id=s.strategy_id,
-                field_name="prior_hypothesis",
-            )
-        _apply_inline_prior_provider(
+        _lower_composite_strategy(
             fg,
-            variable_id=conc,
-            inline_prior=s.prior_evidence,
-            priors=priors,
-            metadata_priors=metadata_priors,
-            strategy_id=s.strategy_id,
-            field_name="prior_evidence",
-        )
-        cpt = s.conditional_probabilities or strat_params.get(s.strategy_id)
-        if not cpt:
-            cpt = [0.5] * (1 << len(s.premises))
-        if infer_degraded:
-            if len(s.premises) == 1:
-                p1 = float(cpt[1])
-                p2 = 1.0 - float(cpt[0])
-                fg.add_factor(
-                    _next_fid("infer_deg", ctr),
-                    FactorType.SOFT_ENTAILMENT,
-                    [s.premises[0]],
-                    conc,
-                    p1=p1,
-                    p2=p2,
-                )
-            else:
-                full = (1 << len(s.premises)) - 1
-                p1 = float(cpt[full])
-                p2 = 1.0 - float(cpt[0])
-                m = f"_m_infer_{s.strategy_id}"
-                fg.add_variable(m)
-                fg.add_factor(
-                    _next_fid("infer_conj", ctr),
-                    FactorType.CONJUNCTION,
-                    s.premises,
-                    m,
-                )
-                fg.add_factor(
-                    _next_fid("infer_se", ctr),
-                    FactorType.SOFT_ENTAILMENT,
-                    [m],
-                    conc,
-                    p1=p1,
-                    p2=p2,
-                )
-        else:
-            expected = 1 << len(s.premises)
-            if len(cpt) != expected:
-                raise ValueError(
-                    f"infer strategy {s.strategy_id}: expected {expected} CPT entries, got {len(cpt)}"
-                )
-            fg.add_factor(
-                _next_fid("infer", ctr),
-                FactorType.CONDITIONAL,
-                s.premises,
-                conc,
-                cpt=cpt,
-            )
-        return
-
-    if s.type == StrategyType.NOISY_AND:
-        raw = s.conditional_probabilities or strat_params.get(s.strategy_id) or [0.5]
-        p = float(raw[0])
-        premises = list(s.premises)
-        if len(premises) == 1:
-            fg.add_factor(
-                _next_fid("na", ctr),
-                FactorType.SOFT_ENTAILMENT,
-                premises,
-                conc,
-                p1=p,
-                p2=1.0 - CROMWELL_EPS,
-            )
-        else:
-            m = f"_m_na_{s.strategy_id}"
-            fg.add_variable(m)
-            fg.add_factor(_next_fid("na_conj", ctr), FactorType.CONJUNCTION, premises, m)
-            fg.add_factor(
-                _next_fid("na_se", ctr),
-                FactorType.SOFT_ENTAILMENT,
-                [m],
-                conc,
-                p1=p,
-                p2=1.0 - CROMWELL_EPS,
-            )
-        return
-
-    if s.type == StrategyType.ASSOCIATE:
-        a, b, pi_a, pi_b, weights = _associate_pairwise_weights(s, priors, metadata_priors)
-        fg.variables.pop(conc, None)
-        fg.unary_factors.pop(conc, None)
-        fg.add_variable(a, pi_a)
-        fg.add_variable(b, pi_b)
-        fg.add_factor(
-            _next_fid("assoc", ctr),
-            FactorType.PAIRWISE_POTENTIAL,
-            [a],
-            b,
-            cpt=weights,
-        )
-        return
-
-    # Named leaf strategy (not yet formalized into FormalStrategy) — auto-formalize.
-    # Supported: deduction, elimination, mathematical_induction, case_analysis,
-    #            abduction, analogy, extrapolation  (all entries in _FORMAL_STRATEGY_TYPES).
-    # Deferred per docs/foundations/gaia-ir/02-gaia-ir.md §3.3:
-    #   reductio, toolcall, proof (not in _FORMAL_STRATEGY_TYPES),
-    #   induction (not a StrategyType primitive).
-    if s.type in _FORMAL_STRATEGY_TYPES:
-        ns = namespace if s.scope == "local" else None
-        pkg = package_name if s.scope == "local" else None
-        result = formalize_named_strategy(
-            scope=s.scope,
-            type_=s.type,
-            premises=list(s.premises),
-            conclusion=conc,
-            namespace=ns,
-            package_name=pkg,
-            background=s.background,
-            steps=s.steps,
-            metadata=s.metadata,
-        )
-        # Register generated intermediate and interface claims as variables.
-        # If a helper claim has an author-set prior (currently soft families
-        # such as support; deduction keeps its legacy prior on the strategy),
-        # inject it into the priors dict so lowering uses it instead of the
-        # structural default.
-        for k in result.knowledges:
-            if k.id and k.metadata and "prior" in k.metadata:
-                priors[k.id] = float(k.metadata["prior"])
-        for k in result.knowledges:
-            if k.id:
-                _ensure_claim_var(fg, k.id, priors, claim_ids)
-        # Lower the auto-generated FormalStrategy via the expand path.
-        _lower_strategy(
-            fg,
-            result.strategy,
+            s,
             strat_by_id,
             priors,
             strat_params,
@@ -698,10 +929,25 @@ def _lower_strategy(
         )
         return
 
-    raise NotImplementedError(
-        f"Leaf strategy type {s.type!r} is deferred in Gaia IR core "
-        "(docs/foundations/gaia-ir/02-gaia-ir.md §3.3). "
-        "Supply a pre-formalized FormalStrategy, or use infer/noisy_and/associate."
+    if isinstance(s, FormalStrategy):
+        _lower_formal_strategy(fg, s, priors, metadata_priors, expand_formal, ctr, claim_ids)
+        return
+
+    _lower_leaf_strategy(
+        fg,
+        s,
+        strat_by_id,
+        priors,
+        strat_params,
+        metadata_priors,
+        expand_formal,
+        infer_degraded,
+        ctr,
+        claim_ids,
+        namespace,
+        package_name,
+        seen_strategies=seen_strategies,
+        review_manifest=review_manifest,
     )
 
 
@@ -731,11 +977,10 @@ def merge_factor_graphs(
         QID prefix for the local package, e.g. ``"github:my_pkg::"``.
         Variables starting with this prefix are owned by the local package.
 
-    Returns
-    -------
-    A merged :class:`FactorGraph` where shared QIDs map to a single
-    variable (dep-owned prior takes precedence for dep nodes) and all
-    factors coexist with prefixed IDs to avoid collision.
+    Returns:
+        A merged :class:`FactorGraph` where shared QIDs map to a single
+        variable (dep-owned prior takes precedence for dep nodes) and all
+        factors coexist with prefixed IDs to avoid collision.
     """
     merged = FactorGraph()
 
@@ -748,7 +993,7 @@ def merge_factor_graphs(
 
     # 1. Add dep variables first. A dep graph is authoritative only for
     # variables it owns; foreign references may carry neutral placeholder priors.
-    for dep_name, dep_fg, dep_prefix in dep_graphs:
+    for _dep_name, dep_fg, dep_prefix in dep_graphs:
         for var_id in dep_fg.variables:
             if var_id.startswith(dep_prefix) or var_id not in merged.variables:
                 _copy_variable(dep_fg, var_id)

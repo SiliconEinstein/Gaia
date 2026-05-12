@@ -12,6 +12,8 @@ from gaia.inquiry.state import (
 
 @dataclass
 class ObligationView:
+    """Display record for an IR or synthetic proof obligation."""
+
     qid: str
     target_qid: str | None
     content: str
@@ -22,6 +24,8 @@ class ObligationView:
 
 @dataclass
 class HypothesisView:
+    """Display record for an IR or synthetic proof hypothesis."""
+
     qid: str
     content: str
     scope_qid: str | None
@@ -30,6 +34,8 @@ class HypothesisView:
 
 @dataclass
 class RejectionView:
+    """Display record for a closed or rejected strategy branch."""
+
     qid: str
     target_strategy: str
     content: str
@@ -37,11 +43,14 @@ class RejectionView:
 
 @dataclass
 class ProofContext:
+    """Merged proof-state view shown in inquiry review reports."""
+
     obligations: list[ObligationView] = field(default_factory=list)
     hypotheses: list[HypothesisView] = field(default_factory=list)
     rejections: list[RejectionView] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the proof context as a JSON-compatible dictionary."""
         return {
             "obligations": [asdict(o) for o in self.obligations],
             "hypotheses": [asdict(h) for h in self.hypotheses],
@@ -49,7 +58,8 @@ class ProofContext:
         }
 
 
-def build_proof_context(graph, state: InquiryState) -> ProofContext:
+def build_proof_context(graph: Any, state: InquiryState) -> ProofContext:
+    """Build the merged IR and synthetic proof context for a package."""
     ctx = ProofContext()
 
     # IR side — question() becomes obligation view, setting() becomes hypothesis view.

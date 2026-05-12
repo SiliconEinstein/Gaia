@@ -4,12 +4,11 @@ import pytest
 
 from gaia.bp import BeliefPropagation, FactorGraph, FactorType
 from gaia.bp.bp import BPResult
-from gaia.bp.factor_graph import CROMWELL_EPS
+from gaia.bp.engine import EngineConfig, InferenceEngine
 from gaia.bp.exact import exact_inference
-from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
+from gaia.bp.factor_graph import CROMWELL_EPS
 from gaia.bp.gbp import GeneralizedBeliefPropagation, build_region_graph, detect_short_cycles
-from gaia.bp.engine import InferenceEngine, EngineConfig
-
+from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
 
 # ── Shared fixtures ──
 
@@ -177,22 +176,22 @@ class TestExactInference:
         assert 0 < beliefs["B"] < 1
 
     def test_implication_chain(self):
-        beliefs, Z = exact_inference(_implication_chain())
+        beliefs, _Z = exact_inference(_implication_chain())
         assert beliefs["B"] > 0.5
         assert beliefs["C"] > 0.5
 
     def test_contradiction(self):
-        beliefs, Z = exact_inference(_contradiction_graph())
+        beliefs, _Z = exact_inference(_contradiction_graph())
         assert beliefs["A"] > beliefs["B"]
 
     def test_diamond(self):
-        beliefs, Z = exact_inference(_diamond_graph())
+        beliefs, _Z = exact_inference(_diamond_graph())
         assert 0 < beliefs["D"] < 1
 
     def test_no_factors(self):
         fg = FactorGraph()
         fg.add_variable("X", 0.6)
-        beliefs, Z = exact_inference(fg)
+        beliefs, _Z = exact_inference(fg)
         assert beliefs["X"] == pytest.approx(0.6, abs=0.01)
 
 
@@ -212,7 +211,7 @@ class TestBPvsExact:
         ids=lambda p: p[0],
     )
     def graph_pair(self, request):
-        name, builder = request.param
+        _name, builder = request.param
         return builder()
 
     def test_bp_close_to_exact(self, graph_pair):
@@ -332,8 +331,11 @@ class TestInferenceEngine:
 
 
 class TestOscillationDiagnostics:
-    """Tests for BPDiagnostics.direction_changes — the oscillation detection
-    signal consumed by curation conflict discovery (m6-curation spec)."""
+    """Group oscillation diagnostics tests.
+
+    Tests for BPDiagnostics.direction_changes — the oscillation detection signal consumed by
+    curation conflict discovery (m6-curation spec).
+    """
 
     def test_frustrated_graph_has_direction_changes(self):
         """Chain + double contradiction creates tension in helper variables.

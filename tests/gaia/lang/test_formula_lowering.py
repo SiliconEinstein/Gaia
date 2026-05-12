@@ -7,8 +7,8 @@ from gaia.bp.factor_graph import FactorType
 from gaia.bp.lowering import lower_local_graph
 from gaia.lang import (
     Causes,
-    ClaimKind,
     ClaimAtom,
+    ClaimKind,
     Constant,
     Domain,
     Equals,

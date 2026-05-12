@@ -144,9 +144,9 @@ def test_deferred_distribution_params_are_audit_descriptors_not_binding_keys():
 def test_distribution_validation_rejects_invalid_parameters():
     from gaia.lang import bayes
 
-    with pytest.raises(ValueError, match="Binomial.*p.*\\[0, 1\\]"):
+    with pytest.raises(ValueError, match=r"Binomial.*p.*\[0, 1\]"):
         bayes.Binomial(n=10, p=1.1)
-    with pytest.raises(ValueError, match="Normal.*sigma.*> 0"):
+    with pytest.raises(ValueError, match=r"Normal.*sigma.*> 0"):
         bayes.Normal(mu=0.0, sigma=0.0)
     with pytest.raises(TypeError, match="discrete"):
         bayes.Binomial(n=10, p=0.5).logpdf(5)

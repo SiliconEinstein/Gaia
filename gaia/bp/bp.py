@@ -41,10 +41,10 @@ from itertools import product as cartesian_product
 import numpy as np
 from numpy.typing import NDArray
 
-from gaia.bp.factor_graph import FactorGraph
+from gaia.bp.factor_graph import Factor, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
-__all__ = ["BeliefPropagation", "BPDiagnostics", "BPResult"]
+__all__ = ["BPDiagnostics", "BPResult", "BeliefPropagation"]
 
 # 2-vector: [P(x=0), P(x=1)], always normalized to sum=1
 Msg = NDArray[np.float64]
@@ -57,12 +57,12 @@ Msg = NDArray[np.float64]
 
 def _uniform_msg() -> Msg:
     """Return uniform [0.5, 0.5] computational seed."""
-    return np.array([0.5, 0.5])
+    return np.array([0.5, 0.5], dtype=np.float64)
 
 
 def _prior_to_msg(pi: float) -> Msg:
     """Convert scalar prior π=P(x=1) to normalized 2-vector."""
-    return np.array([1.0 - pi, pi])
+    return np.array([1.0 - pi, pi], dtype=np.float64)
 
 
 def _normalize(msg: Msg) -> Msg:
@@ -93,8 +93,7 @@ def _normalize(msg: Msg) -> Msg:
 class BPDiagnostics:
     """Diagnostic information collected during a BP run.
 
-    Attributes
-    ----------
+    Attributes:
     converged:
         True if the run stopped due to belief change < convergence_threshold.
     iterations_run:
@@ -157,8 +156,7 @@ class BPDiagnostics:
 class BPResult:
     """Return value of BeliefPropagation.run().
 
-    Attributes
-    ----------
+    Attributes:
     beliefs:
         {var_id: posterior_belief} where belief = P(x=1) after BP.
     diagnostics:
@@ -206,7 +204,7 @@ def _compute_v2f(
 def _compute_f2v(
     factor_idx: int,
     target_var: str,
-    factor,  # Factor object
+    factor: Factor,
     v2f_msgs: dict[tuple[str, int], Msg],
 ) -> Msg:
     """Compute a single factor→variable message by marginalizing.
@@ -225,14 +223,14 @@ def _compute_f2v(
     all_vars = factor.all_vars
     other_vars = [v for v in all_vars if v != target_var]
 
-    msg_out = np.zeros(2)
+    msg_out = np.zeros(2, dtype=np.float64)
 
     for target_val in (0, 1):
         total = 0.0
         for other_vals in cartesian_product((0, 1), repeat=len(other_vars)):
             # Build full assignment
             assignment: dict[str, int] = {}
-            for v, val in zip(other_vars, other_vals):
+            for v, val in zip(other_vars, other_vals, strict=True):
                 assignment[v] = val
             assignment[target_var] = target_val
 
@@ -241,7 +239,7 @@ def _compute_f2v(
 
             # Product of incoming v2f messages from other variables
             weight = 1.0
-            for v, val in zip(other_vars, other_vals):
+            for v, val in zip(other_vars, other_vals, strict=True):
                 v2f = v2f_msgs.get((v, factor_idx))
                 if v2f is not None:
                     weight *= float(v2f[val])
@@ -253,6 +251,141 @@ def _compute_f2v(
         msg_out[target_val] = total
 
     return _normalize(msg_out)
+
+
+def _unfactored_beliefs(graph: FactorGraph) -> dict[str, float]:
+    """Return unary or neutral beliefs for a graph with no factors."""
+    return {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
+
+
+def _graph_prior_messages(graph: FactorGraph) -> dict[str, Msg]:
+    """Build per-variable prior message vectors from unary factors."""
+    return {
+        vid: _prior_to_msg(graph.unary_factors[vid])
+        if vid in graph.unary_factors
+        else _uniform_msg()
+        for vid in graph.variables
+    }
+
+
+def _initial_message_maps(
+    graph: FactorGraph,
+) -> tuple[dict[tuple[int, str], Msg], dict[tuple[str, int], Msg]]:
+    """Initialize every factor/variable edge message to uniform."""
+    f2v_msgs: dict[tuple[int, str], Msg] = {}
+    v2f_msgs: dict[tuple[str, int], Msg] = {}
+    for fi, factor in enumerate(graph.factors):
+        for vid in factor.all_vars:
+            if vid in graph.variables:
+                f2v_msgs[(fi, vid)] = _uniform_msg()
+                v2f_msgs[(vid, fi)] = _uniform_msg()
+    return f2v_msgs, v2f_msgs
+
+
+def _initialize_belief_history(graph: FactorGraph, diag: BPDiagnostics) -> dict[str, float]:
+    """Seed diagnostic belief history from unary factors only."""
+    prev_beliefs: dict[str, float] = {}
+    for vid in graph.variables:
+        pi = graph.unary_factors.get(vid, 0.5)
+        prev_beliefs[vid] = pi
+        diag.belief_history[vid] = [pi]
+    return prev_beliefs
+
+
+def _compute_all_v2f(
+    v2f_msgs: dict[tuple[str, int], Msg],
+    priors: dict[str, Msg],
+    var_to_factors: dict[str, list[int]],
+    f2v_msgs: dict[tuple[int, str], Msg],
+) -> dict[tuple[str, int], Msg]:
+    """Compute one synchronous sweep of variable-to-factor messages."""
+    return {
+        (vid, fi): _compute_v2f(
+            var=vid,
+            factor_idx=fi,
+            prior_msg=priors[vid],
+            var_to_factors=var_to_factors,
+            f2v_msgs=f2v_msgs,
+        )
+        for vid, fi in v2f_msgs
+    }
+
+
+def _compute_all_f2v(
+    graph: FactorGraph,
+    f2v_msgs: dict[tuple[int, str], Msg],
+    new_v2f: dict[tuple[str, int], Msg],
+) -> dict[tuple[int, str], Msg]:
+    """Compute one synchronous sweep of factor-to-variable messages."""
+    return {
+        (fi, vid): _compute_f2v(
+            factor_idx=fi,
+            target_var=vid,
+            factor=graph.factors[fi],
+            v2f_msgs=new_v2f,
+        )
+        for fi, vid in f2v_msgs
+    }
+
+
+def _blend_message(old: Msg, new: Msg, damping: float) -> Msg:
+    """Blend and normalize one damped message update."""
+    return _normalize(damping * new + (1.0 - damping) * old)
+
+
+def _damp_f2v_messages(
+    current: dict[tuple[int, str], Msg],
+    new: dict[tuple[int, str], Msg],
+    damping: float,
+) -> None:
+    """Blend new factor-to-variable messages into the existing map."""
+    for key in current:
+        current[key] = _blend_message(current[key], new[key], damping)
+
+
+def _damp_v2f_messages(
+    current: dict[tuple[str, int], Msg],
+    new: dict[tuple[str, int], Msg],
+    damping: float,
+) -> None:
+    """Blend new variable-to-factor messages into the existing map."""
+    for key in current:
+        current[key] = _blend_message(current[key], new[key], damping)
+
+
+def _compute_beliefs(
+    graph: FactorGraph,
+    priors: dict[str, Msg],
+    var_to_factors: dict[str, list[int]],
+    f2v_msgs: dict[tuple[int, str], Msg],
+    diag: BPDiagnostics,
+) -> dict[str, float]:
+    """Compute posterior beliefs from priors and incoming factor messages."""
+    beliefs: dict[str, float] = {}
+    for vid in graph.variables:
+        b = priors[vid].copy()
+        for fi in var_to_factors[vid]:
+            incoming = f2v_msgs.get((fi, vid))
+            if incoming is not None:
+                b = b * incoming
+        b = _normalize(b)
+        beliefs[vid] = float(b[1])
+        diag.belief_history[vid].append(beliefs[vid])
+    return beliefs
+
+
+def _complete_diagnostics(
+    diag: BPDiagnostics,
+    *,
+    converged: bool,
+    iterations_run: int,
+    max_change: float,
+) -> None:
+    """Finalize convergence fields and direction-change diagnostics."""
+    diag.converged = converged
+    diag.iterations_run = iterations_run
+    diag.max_change_at_stop = max_change
+    diag.compute_direction_changes()
 
 
 # ---------------------------------------------------------------------------
@@ -270,8 +403,7 @@ class BeliefPropagation:
     - Relation variables (CONTRADICTION/EQUIVALENCE) participate fully.
     - BPDiagnostics always collected (full belief history).
 
-    Parameters
-    ----------
+    Args:
     damping:
         α in bp.md §4. Default 0.5. Range (0, 1].
         1.0 = fully replace old message (fast, may oscillate).
@@ -289,6 +421,16 @@ class BeliefPropagation:
         max_iterations: int = 100,
         convergence_threshold: float = 1e-6,
     ) -> None:
+        """Initialize loopy BP with damping and convergence controls.
+
+        Args:
+            damping: Message damping factor in ``(0, 1]``.
+            max_iterations: Maximum number of synchronous BP sweeps.
+            convergence_threshold: Stop when the maximum belief change falls below this value.
+
+        Raises:
+            ValueError: If ``damping`` is outside ``(0, 1]``.
+        """
         if not (0.0 < damping <= 1.0):
             raise ValueError(f"damping must be in (0, 1], got {damping}")
         self._damping = damping
@@ -300,17 +442,13 @@ class BeliefPropagation:
 
         Always returns a BPResult with full diagnostics (never None).
 
-        Parameters
-        ----------
+        Args:
         graph:
             A validated FactorGraph. Variables referenced by factors must
             be registered. Cromwell clamping is enforced at graph construction.
 
-        Returns
-        -------
-        BPResult
-            .beliefs: dict[str, float] — posterior P(x=1) per variable.
-            .diagnostics: BPDiagnostics — full run record.
+        Returns:
+            A BPResult containing posterior ``P(x=1)`` beliefs and full run diagnostics.
         """
         diag = BPDiagnostics()
 
@@ -322,104 +460,54 @@ class BeliefPropagation:
         # --- Edge case: no factors — beliefs = unary factors or neutral measure ---
         if not graph.factors:
             diag.converged = True
-            beliefs = {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
-            for vid, p in beliefs.items():
+            initial_beliefs = _unfactored_beliefs(graph)
+            for vid, p in initial_beliefs.items():
                 diag.belief_history[vid] = [p]
-            return BPResult(beliefs=beliefs, diagnostics=diag)
+            return BPResult(beliefs=initial_beliefs, diagnostics=diag)
 
         # --- Build reverse index: var -> list of factor indices ---
         var_to_factors = graph.get_var_to_factors()
 
         # --- Initialize unary factors as 2-vectors ---
-        priors: dict[str, Msg] = {
-            vid: (
-                _prior_to_msg(graph.unary_factors[vid])
-                if vid in graph.unary_factors
-                else _uniform_msg()
-            )
-            for vid in graph.variables
-        }
+        priors = _graph_prior_messages(graph)
 
         # --- Initialize all messages to uniform [0.5, 0.5] ---
         # f2v_msgs[(fi, vid)] = message from factor fi to variable vid
         # v2f_msgs[(vid, fi)] = message from variable vid to factor fi
-        f2v_msgs: dict[tuple[int, str], Msg] = {}
-        v2f_msgs: dict[tuple[str, int], Msg] = {}
-
-        for fi, factor in enumerate(graph.factors):
-            for vid in factor.all_vars:
-                if vid in graph.variables:
-                    f2v_msgs[(fi, vid)] = _uniform_msg()
-                    v2f_msgs[(vid, fi)] = _uniform_msg()
+        f2v_msgs, v2f_msgs = _initial_message_maps(graph)
 
         # --- Compute initial beliefs from unary factors only ---
-        prev_beliefs: dict[str, float] = {}
-        for vid in graph.variables:
-            pi = graph.unary_factors.get(vid, 0.5)
-            prev_beliefs[vid] = pi
-            diag.belief_history[vid] = [pi]
+        prev_beliefs = _initialize_belief_history(graph, diag)
 
         max_change = 0.0
 
         # --- Main BP loop ---
         for iteration in range(self._max_iter):
             # Step 1: Compute all variable→factor messages (synchronous)
-            new_v2f: dict[tuple[str, int], Msg] = {}
-            for vid, fi in v2f_msgs:
-                new_v2f[(vid, fi)] = _compute_v2f(
-                    var=vid,
-                    factor_idx=fi,
-                    prior_msg=priors[vid],
-                    var_to_factors=var_to_factors,
-                    f2v_msgs=f2v_msgs,
-                )
+            new_v2f = _compute_all_v2f(v2f_msgs, priors, var_to_factors, f2v_msgs)
 
             # Step 2: Compute all factor→variable messages (synchronous)
-            new_f2v: dict[tuple[int, str], Msg] = {}
-            for fi, vid in f2v_msgs:
-                factor = graph.factors[fi]
-                new_f2v[(fi, vid)] = _compute_f2v(
-                    factor_idx=fi,
-                    target_var=vid,
-                    factor=factor,
-                    v2f_msgs=new_v2f,  # use freshly computed v2f
-                )
+            new_f2v = _compute_all_f2v(graph, f2v_msgs, new_v2f)
 
             # Step 3: Damp and normalize both sets of messages
-            for key in f2v_msgs:
-                blended = self._damping * new_f2v[key] + (1.0 - self._damping) * f2v_msgs[key]
-                f2v_msgs[key] = _normalize(blended)
-
-            for key in v2f_msgs:
-                blended = self._damping * new_v2f[key] + (1.0 - self._damping) * v2f_msgs[key]
-                v2f_msgs[key] = _normalize(blended)
+            _damp_f2v_messages(f2v_msgs, new_f2v, self._damping)
+            _damp_v2f_messages(v2f_msgs, new_v2f, self._damping)
 
             # Step 4: Compute beliefs
-            beliefs: dict[str, float] = {}
-            for vid in graph.variables:
-                b = priors[vid].copy()
-                for fi in var_to_factors[vid]:
-                    incoming = f2v_msgs.get((fi, vid))
-                    if incoming is not None:
-                        b = b * incoming
-                b = _normalize(b)
-                beliefs[vid] = float(b[1])
-                diag.belief_history[vid].append(beliefs[vid])
+            beliefs = _compute_beliefs(graph, priors, var_to_factors, f2v_msgs, diag)
 
             # Step 5: Check convergence
             max_change = max(abs(beliefs[vid] - prev_beliefs[vid]) for vid in beliefs)
             prev_beliefs = beliefs
 
             if max_change < self._threshold:
-                diag.converged = True
-                diag.iterations_run = iteration + 1
-                diag.max_change_at_stop = max_change
-                diag.compute_direction_changes()
+                _complete_diagnostics(
+                    diag, converged=True, iterations_run=iteration + 1, max_change=max_change
+                )
                 return BPResult(beliefs=beliefs, diagnostics=diag)
 
         # Did not converge within max_iterations
-        diag.converged = False
-        diag.iterations_run = self._max_iter
-        diag.max_change_at_stop = max_change
-        diag.compute_direction_changes()
+        _complete_diagnostics(
+            diag, converged=False, iterations_run=self._max_iter, max_change=max_change
+        )
         return BPResult(beliefs=prev_beliefs, diagnostics=diag)

@@ -1,7 +1,7 @@
-"""Tests for the remaining 5 §15.2 diagnostic kinds:
+"""Verify documented behavior.
 
-blocked_warrant_path / focus_unsupported / large_belief_drop /
-overstrong_strategy_without_provenance /
+Tests for the remaining 5 §15.2 diagnostic kinds blocked_warrant_path / focus_unsupported /
+large_belief_drop / overstrong_strategy_without_provenance /
 claim_with_evidence_but_no_focus_connection.
 """
 
@@ -23,7 +23,6 @@ from gaia.inquiry.diagnostics import (
 from gaia.inquiry.focus import FocusBinding
 from gaia.inquiry.ranking import _MODE_RANK, _UNKNOWN_KIND_RANK, supported_modes
 from gaia.inquiry.review import publish_blockers, run_review
-
 
 # --------------------------------------------------------------------------- #
 # Lightweight graph stubs                                                     #

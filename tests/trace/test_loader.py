@@ -1,9 +1,9 @@
-"""TR-1：loader 在 JSON / JSONL 双布局下的健壮性。"""
+"""TR-1：loader 在 JSON / JSONL 双布局下的健壮性。."""
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from gaia.trace.hashing import (
@@ -25,7 +25,7 @@ def _build_clean_trace() -> tuple[TraceManifest, list[TraceEvent]]:
             event_id=f"e{i}",
             seq=i,
             prev_hash=prev,
-            ts=datetime(2026, 4, 28, 0, 0, i, tzinfo=timezone.utc),
+            ts=datetime(2026, 4, 28, 0, 0, i, tzinfo=UTC),
             kind="decision",
             actor="arm",
             reason="grounded",
@@ -37,7 +37,7 @@ def _build_clean_trace() -> tuple[TraceManifest, list[TraceEvent]]:
         arm_id="arm",
         session_id="s1",
         trace_id="t1",
-        created_at=datetime(2026, 4, 28, tzinfo=timezone.utc),
+        created_at=datetime(2026, 4, 28, tzinfo=UTC),
         events_root=compute_events_root(events),
     )
     manifest = manifest.model_copy(update={"manifest_hash": compute_manifest_hash(manifest)})
@@ -129,7 +129,7 @@ def test_load_partial_single_json_keeps_manifest_when_one_event_invalid(tmp_path
 
 
 def test_canonical_bytes_match_loader_output(tmp_path: Path):
-    """加载后再 canonical_json，与原 model_dump canonical 应 byte-equal。"""
+    """加载后再 canonical_json，与原 model_dump canonical 应 byte-equal。."""
     manifest, events = _build_clean_trace()
     path = tmp_path / "trace.jsonl"
     _write_jsonl(path, manifest, events)

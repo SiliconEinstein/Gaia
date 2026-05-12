@@ -1,6 +1,8 @@
 """Tests for Operator data model — §2.4 inputs/conclusion separation."""
 
 import pytest
+from pydantic import ValidationError
+
 from gaia.ir import Operator, OperatorType
 
 
@@ -144,11 +146,11 @@ class TestConclusionRequired:
     """conclusion is now a required field (str, not str | None)."""
 
     def test_missing_conclusion_rejected(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Operator(operator="implication", variables=["a", "b"])
 
     def test_missing_conclusion_equivalence_rejected(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Operator(operator="equivalence", variables=["a", "b"])
 
 

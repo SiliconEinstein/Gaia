@@ -33,12 +33,11 @@ from __future__ import annotations
 import logging
 from collections import defaultdict, deque
 
-
 from gaia.bp.bp import BeliefPropagation, BPDiagnostics, BPResult
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
 
-__all__ = ["GeneralizedBeliefPropagation", "detect_short_cycles", "build_region_graph"]
+__all__ = ["GeneralizedBeliefPropagation", "build_region_graph", "detect_short_cycles"]
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +88,7 @@ def detect_short_cycles(graph: FactorGraph, max_cycle_len: int = 6) -> list[froz
                         seen.add(cycle_set)
                         cycles.append(cycle_set)
                 elif neighbor not in path:
-                    queue.append((neighbor, path + [neighbor]))
+                    queue.append((neighbor, [*path, neighbor]))
 
     return cycles
 
@@ -219,14 +218,14 @@ def _build_cross_region_graph(
 
     # Set priors from region beliefs (region-internal evidence)
     var_to_region: dict[str, int] = {}
-    for ri, region in enumerate(regions):
+    for region_idx, region in enumerate(regions):
         for v in region:
-            var_to_region[v] = ri
+            var_to_region[v] = region_idx
 
     for v in cross_vars:
-        ri = var_to_region.get(v)
-        if ri is not None and v in region_beliefs.get(ri, {}):
-            prior = region_beliefs[ri][v]
+        maybe_region_idx = var_to_region.get(v)
+        if maybe_region_idx is not None and v in region_beliefs.get(maybe_region_idx, {}):
+            prior = region_beliefs[maybe_region_idx][v]
             cross_fg.add_variable(v, prior=prior)
         elif v in graph.unary_factors:
             cross_fg.add_variable(v, prior=graph.unary_factors[v])
@@ -263,14 +262,18 @@ def _combine_beliefs(
     and renormalize), avoiding double-counting the prior.
     """
     var_to_region: dict[str, int] = {}
-    for ri, region in enumerate(regions):
+    for region_idx, region in enumerate(regions):
         for v in region:
-            var_to_region[v] = ri
+            var_to_region[v] = region_idx
 
     final: dict[str, float] = {}
     for v in graph.variables:
-        ri = var_to_region.get(v)
-        region_b = region_beliefs.get(ri, {}).get(v) if ri is not None else None
+        maybe_region_idx = var_to_region.get(v)
+        region_b = (
+            region_beliefs.get(maybe_region_idx, {}).get(v)
+            if maybe_region_idx is not None
+            else None
+        )
 
         if v not in cross_vars or cross_beliefs is None:
             # Variable only in intra-region: use region JT belief
@@ -280,7 +283,7 @@ def _combine_beliefs(
             # region_b encodes intra-region evidence
             # cross_b encodes cross-region evidence
             # To avoid double-counting the prior, we compute:
-            #   combined_odds = (region_odds) * (cross_likelihood_ratio)
+            # Combined odds multiply region odds by the cross likelihood ratio.
             # where cross_likelihood_ratio = cross_odds / prior_odds
             cross_b = cross_beliefs.get(v, graph.unary_factors.get(v, 0.5))
             prior = graph.unary_factors.get(v, 0.5)
@@ -345,6 +348,15 @@ class GeneralizedBeliefPropagation:
         bp_max_iter: int = 200,
         bp_threshold: float = 1e-8,
     ) -> None:
+        """Initialize GBP region-detection and fallback inference settings.
+
+        Args:
+            max_cycle_len: Maximum cycle length to group into GBP regions.
+            jt_threshold: Treewidth at or below which JT is used directly.
+            bp_damping: Damping factor for cross-region loopy BP.
+            bp_max_iter: Maximum cross-region BP iterations.
+            bp_threshold: Cross-region BP convergence threshold.
+        """
         self._max_cycle_len = max_cycle_len
         self._jt_threshold = jt_threshold
         self._jt = JunctionTreeInference()
@@ -384,7 +396,6 @@ class GeneralizedBeliefPropagation:
         diag: BPDiagnostics,
     ) -> BPResult:
         """Full region-graph GBP with inter-region message passing."""
-
         # Step 1: Build regions
         regions = build_region_graph(graph, self._max_cycle_len)
         n_regions = len(regions)
@@ -407,7 +418,7 @@ class GeneralizedBeliefPropagation:
         if not cross_factors:
             # No cross-region factors: regions are independent, combine directly
             final_beliefs: dict[str, float] = {}
-            for ri, beliefs in region_beliefs.items():
+            for _ri, beliefs in region_beliefs.items():
                 final_beliefs.update(beliefs)
             # Fill in any variables not assigned to regions
             for v in graph.variables:

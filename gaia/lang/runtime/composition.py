@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from functools import wraps
@@ -74,50 +74,56 @@ def _unique_knowledge(items: Iterable[Knowledge]) -> tuple[Knowledge, ...]:
     return tuple(result)
 
 
+def _binary_relation_inputs(
+    action: Equal | Contradict | Exclusive | Associate,
+) -> Iterable[Knowledge]:
+    if action.a is not None:
+        yield action.a
+    if action.b is not None:
+        yield action.b
+
+
+def _decompose_inputs(action: Decompose) -> Iterable[Knowledge]:
+    if action.whole is not None:
+        yield action.whole
+    yield from action.parts
+
+
+def _infer_action_inputs(action: Infer) -> Iterable[Knowledge]:
+    if action.hypothesis is not None:
+        yield action.hypothesis
+    if action.evidence is not None:
+        yield action.evidence
+    yield from action.given
+    if isinstance(action.p_e_given_h, Knowledge):
+        yield action.p_e_given_h
+    if isinstance(action.p_e_given_not_h, Knowledge):
+        yield action.p_e_given_not_h
+
+
 def _action_inputs(action: Action) -> Iterable[Knowledge]:
     if isinstance(action, Compose):
         yield from (item for item in action.inputs if isinstance(item, Knowledge))
     elif isinstance(action, Support):
         yield from action.given
     elif isinstance(action, Equal | Contradict | Exclusive):
-        if action.a is not None:
-            yield action.a
-        if action.b is not None:
-            yield action.b
+        yield from _binary_relation_inputs(action)
     elif isinstance(action, Decompose):
-        if action.whole is not None:
-            yield action.whole
-        yield from action.parts
+        yield from _decompose_inputs(action)
     elif isinstance(action, Infer):
-        if action.hypothesis is not None:
-            yield action.hypothesis
-        if action.evidence is not None:
-            yield action.evidence
-        yield from action.given
-        if isinstance(action.p_e_given_h, Knowledge):
-            yield action.p_e_given_h
-        if isinstance(action.p_e_given_not_h, Knowledge):
-            yield action.p_e_given_not_h
+        yield from _infer_action_inputs(action)
     elif isinstance(action, Associate):
-        if action.a is not None:
-            yield action.a
-        if action.b is not None:
-            yield action.b
+        yield from _binary_relation_inputs(action)
 
 
 def _action_outputs(action: Action) -> Iterable[Knowledge]:
-    if isinstance(action, Compose):
+    if isinstance(action, Compose | Support):
         if action.conclusion is not None:
             yield action.conclusion
-    elif isinstance(action, Support):
-        if action.conclusion is not None:
-            yield action.conclusion
-    elif isinstance(action, Equal | Contradict | Exclusive):
-        if action.helper is not None:
-            yield action.helper
-    elif isinstance(action, Infer | Associate):
-        if action.helper is not None:
-            yield action.helper
+    elif isinstance(action, Equal | Contradict | Exclusive | Infer | Associate) and (
+        action.helper is not None
+    ):
+        yield action.helper
     yield from action.warrants
 
 
@@ -150,12 +156,12 @@ def compose(
     warrants: list[Claim] | None = None,
     rationale: str = "",
     label: str | None = None,
-):
+) -> Callable[[Callable[..., Claim]], Callable[..., Claim]]:
     """Decorate a function as a Gaia action composition template."""
 
-    def decorator(fn):
+    def decorator(fn: Callable[..., Claim]) -> Callable[..., Claim]:
         @wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Claim:
             scope = _CompositionScope(name, version)
             token = _current_composition_scope.set(scope)
             try:

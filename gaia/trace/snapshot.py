@@ -1,4 +1,4 @@
-"""TraceReviewReport snapshot：JSON 写到 ``.gaia/trace/reviews/<id>.json``。"""
+"""Persist trace review report snapshots under `.gaia/trace/reviews`."""
 
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ def _default_dir() -> Path:
 
 
 def save_trace_review_snapshot(
-    report: "TraceReviewReport",
+    report: TraceReviewReport,
     *,
     snapshot_dir: str | Path | None = None,
 ) -> Path:
-    """把 review 写成 JSON snapshot，返回写入路径。
+    """Write a trace review JSON snapshot and return its path.
 
     与 inquiry snapshot 同样的目录布局，便于工具链统一遍历。
     """

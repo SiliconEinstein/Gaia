@@ -32,7 +32,7 @@ def compile_command(
         manifests = build_package_manifests(loaded, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     validation = validate_local_graph(LocalCanonicalGraph(**ir))
     for warning in validation.warnings:

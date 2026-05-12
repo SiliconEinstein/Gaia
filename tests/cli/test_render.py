@@ -89,7 +89,7 @@ def test_render_uses_metadata_priors_from_priors_py(tmp_path):
 
 
 def test_render_fails_when_ir_artifacts_missing(tmp_path):
-    """render before compile → error about missing compiled artifacts."""
+    """Render before compile → error about missing compiled artifacts."""
     pkg_dir = tmp_path / "no_compile"
     _write_base_package(pkg_dir, name="no_compile")
     _write_minimal_source(pkg_dir, "no_compile")
@@ -100,7 +100,7 @@ def test_render_fails_when_ir_artifacts_missing(tmp_path):
 
 
 def test_render_fails_when_ir_stale(tmp_path):
-    """render when source changed after compile → stale-artifact error."""
+    """Render when source changed after compile → stale-artifact error."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="stale_ir")
 
     # Mutate source so re-compile yields a different ir_hash
@@ -162,7 +162,7 @@ def test_render_target_all_degrades_to_docs_without_beliefs(tmp_path):
 
 
 def test_render_fails_when_beliefs_stale(tmp_path):
-    """render when beliefs.json has a wrong ir_hash → stale beliefs error."""
+    """Render when beliefs.json has a wrong ir_hash → stale beliefs error."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="stale_beliefs")
     beliefs_path = pkg_dir / ".gaia" / "beliefs.json"
     beliefs = json.loads(beliefs_path.read_text())

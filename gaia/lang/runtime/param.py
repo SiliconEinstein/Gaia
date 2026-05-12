@@ -9,9 +9,9 @@ from typing import Any
 class _Unbound:
     """Sentinel for unbound parameters. Not None."""
 
-    _instance = None
+    _instance: _Unbound | None = None
 
-    def __new__(cls):
+    def __new__(cls) -> _Unbound:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance

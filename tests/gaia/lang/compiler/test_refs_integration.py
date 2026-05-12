@@ -38,8 +38,11 @@ def _write_package(
 
 
 def test_compile_errors_on_label_citation_collision(tmp_path: Path) -> None:
-    """Per spec §3.5, a key that exists in both the label table and
-    references.json must cause a compile error."""
+    """Verify compile errors on label citation collision.
+
+    Per spec §3.5, a key that exists in both the label table and references.json must cause a
+    compile error.
+    """
     pkg = _write_package(
         tmp_path,
         name="collision_pkg",
@@ -125,8 +128,11 @@ def test_compile_tolerates_opportunistic_miss(tmp_path: Path) -> None:
 @pytest.mark.legacy_dsl
 @LEGACY_SUPPORT_WARNING
 def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
-    """Spec §3.2: sub_strategies of composite strategies must also be scanned
-    for references. A strict-form unknown ref in a sub_strategy must error."""
+    """Verify compile scans sub strategy reasons.
+
+    Spec §3.2: sub_strategies of composite strategies must also be scanned for references. A
+    strict-form unknown ref in a sub_strategy must error.
+    """
     pkg = _write_package(
         tmp_path,
         name="sub_strategy_refs_pkg",
@@ -137,7 +143,8 @@ def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
             'law = claim("A general law.")\n'
             # Create sub-strategies manually to test recursion
             "sub1 = support(premises=[law], conclusion=obs1)\n"
-            "sub2 = support(premises=[law], conclusion=obs2, reason='Justification [@missing_key]', prior=0.9)\n"
+            "sub2 = support(premises=[law], conclusion=obs2, "
+            "reason='Justification [@missing_key]', prior=0.9)\n"
             "induction(sub1, sub2, law)\n"
             '__all__ = ["law", "obs1", "obs2"]\n'
         ),
@@ -235,8 +242,10 @@ def two_package_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def test_imported_foreign_label_resolves_in_strict_form(
     two_package_setup: tuple,
 ) -> None:
-    """Spec §3.1 regression: foreign label imported into the compile closure
-    must resolve in strict ``[@foreign_lemma]`` form.
+    """Verify imported foreign label resolves in strict form.
+
+    Spec §3.1 regression: foreign label imported into the compile closure must resolve in strict
+    ``[@foreign_lemma]`` form.
 
     If someone later narrows label_to_id to local-only labels, the strict
     form will raise an "unknown reference key" error — this test is the
@@ -276,9 +285,10 @@ def test_imported_foreign_label_resolves_in_strict_form(
 def test_imported_foreign_label_resolves_in_opportunistic_form(
     two_package_setup: tuple,
 ) -> None:
-    """Spec §3.1 regression: foreign label imported into the compile closure
-    must also resolve in opportunistic ``@foreign_lemma`` form (bare @-ref in
-    a strategy reason).
+    """Verify imported foreign label resolves in opportunistic form.
+
+    Spec §3.1 regression: foreign label imported into the compile closure must also resolve in
+    opportunistic ``@foreign_lemma`` form (bare @-ref in a strategy reason).
 
     In opportunistic form an unknown key becomes a literal, so if the symbol
     table is missing the foreign label the reference silently disappears from
@@ -324,9 +334,10 @@ def test_imported_foreign_label_resolves_in_opportunistic_form(
 def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression for Codex review P1: consumer must not re-validate the
-    content of foreign (imported) knowledge nodes against its own symbol
-    table.
+    """Verify consumer compile tolerates dep content with unknown refs.
+
+    Regression for Codex review P1: consumer must not re-validate the content of foreign
+    (imported) knowledge nodes against its own symbol table.
 
     Scenario:
       - dep_pkg has a claim whose content contains ``[@Bell1964]``, a
@@ -389,9 +400,11 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
 def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression for Codex adversarial review finding #2: a bridge
-    package's fills() reason may contain citations, but those citations
-    must NOT be attributed to the foreign ``target`` node's IR metadata.
+    """Verify bridge reason does not leak provenance to foreign target.
+
+    Regression for Codex adversarial review finding #2: a bridge package's fills() reason may
+    contain citations, but those citations must NOT be attributed to the foreign ``target``
+    node's IR metadata.
 
     Scenario:
       - dep_pkg has a ``missing_lemma`` claim that is a local hole

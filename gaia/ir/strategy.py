@@ -78,7 +78,10 @@ def _compute_strategy_id(
     conclusion: str | None,
     structure_hash: str = "",
 ) -> str:
-    """Deterministic strategy ID: lcs_{sha256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}."""
+    """Return the deterministic strategy ID.
+
+    The ID is ``lcs_{sha256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}``.
+    """
     prefix = "lcs_"
     payload = f"{scope}|{type_}|{sorted(premises)}|{conclusion}|{structure_hash}"
     return f"{prefix}{_sha256_hex(payload)}"
@@ -141,6 +144,90 @@ def _canonical_formal_expr(formal_expr: FormalExpr) -> str:
         )
     ops.sort(key=lambda x: json.dumps(x, sort_keys=True))
     return json.dumps(ops, sort_keys=True, separators=(",", ":"))
+
+
+def _validate_strategy_scope_and_id(strategy: Strategy) -> None:
+    """Validate local strategy scope and ID prefix."""
+    if strategy.scope != "local":
+        raise ValueError("scope must be 'local'")
+
+    if strategy.strategy_id is not None and not strategy.strategy_id.startswith("lcs_"):
+        raise ValueError("local strategies must use a strategy_id with lcs_ prefix")
+
+
+def _assign_strategy_id(strategy: Strategy) -> None:
+    """Assign the deterministic strategy ID when omitted."""
+    if strategy.strategy_id is not None:
+        return
+    strategy.strategy_id = _compute_strategy_id(
+        strategy.scope,
+        strategy.type,
+        strategy.premises,
+        strategy.conclusion,
+        structure_hash=strategy._structure_hash(),
+    )
+
+
+def _validate_conditional_probabilities(strategy: Strategy) -> None:
+    """Validate and normalize strategy conditional probability parameters."""
+    if strategy.conditional_probabilities is None:
+        return
+
+    probabilities = _probability_list(
+        strategy.conditional_probabilities,
+        "conditional_probabilities",
+    )
+    if strategy.type == StrategyType.INFER:
+        expected = 1 << len(strategy.premises)
+        if len(probabilities) != expected:
+            raise ValueError(
+                f"infer strategy with {len(strategy.premises)} premises requires "
+                f"{expected} conditional_probabilities, got {len(probabilities)}"
+            )
+    elif strategy.type == StrategyType.NOISY_AND and len(probabilities) != 1:
+        raise ValueError(
+            f"noisy_and strategy requires 1 conditional_probability, got {len(probabilities)}"
+        )
+    object.__setattr__(strategy, "conditional_probabilities", probabilities)
+
+
+def _validate_infer_priors(strategy: Strategy) -> None:
+    """Validate optional infer prior metadata for non-composite strategies."""
+    if strategy.type != StrategyType.INFER or strategy.__class__.__name__ == "CompositeStrategy":
+        return
+    if strategy.prior_hypothesis is not None:
+        object.__setattr__(
+            strategy,
+            "prior_hypothesis",
+            _probability(strategy.prior_hypothesis, "prior_hypothesis"),
+        )
+    if strategy.prior_evidence is not None:
+        object.__setattr__(
+            strategy,
+            "prior_evidence",
+            _probability(strategy.prior_evidence, "prior_evidence"),
+        )
+
+
+def _validate_associate_parameters(strategy: Strategy) -> None:
+    """Validate pairwise association parameters for non-composite strategies."""
+    if (
+        strategy.type != StrategyType.ASSOCIATE
+        or strategy.__class__.__name__ == "CompositeStrategy"
+    ):
+        return
+    if len(strategy.premises) != 2:
+        raise ValueError("associate strategy requires exactly 2 premises")
+    if strategy.conclusion is None:
+        raise ValueError("associate strategy requires a helper conclusion")
+    if strategy.p_a_given_b is None or strategy.p_b_given_a is None:
+        raise ValueError("associate strategy requires p_a_given_b and p_b_given_a")
+    object.__setattr__(strategy, "p_a_given_b", _probability(strategy.p_a_given_b, "p_a_given_b"))
+    object.__setattr__(strategy, "p_b_given_a", _probability(strategy.p_b_given_a, "p_b_given_a"))
+    if strategy.prior_a is not None:
+        object.__setattr__(strategy, "prior_a", _probability(strategy.prior_a, "prior_a"))
+    if strategy.prior_b is not None:
+        object.__setattr__(strategy, "prior_b", _probability(strategy.prior_b, "prior_b"))
 
 
 class Strategy(BaseModel):
@@ -209,73 +296,11 @@ class Strategy(BaseModel):
 
     @model_validator(mode="after")
     def _compute_id_and_validate(self) -> Strategy:
-        if self.scope != "local":
-            raise ValueError("scope must be 'local'")
-
-        if self.strategy_id is not None:
-            if not self.strategy_id.startswith("lcs_"):
-                raise ValueError("local strategies must use a strategy_id with lcs_ prefix")
-
-        if self.strategy_id is None:
-            self.strategy_id = _compute_strategy_id(
-                self.scope,
-                self.type,
-                self.premises,
-                self.conclusion,
-                structure_hash=self._structure_hash(),
-            )
-        if self.conditional_probabilities is not None:
-            probabilities = _probability_list(
-                self.conditional_probabilities,
-                "conditional_probabilities",
-            )
-            if self.type == StrategyType.INFER:
-                expected = 1 << len(self.premises)
-                if len(probabilities) != expected:
-                    raise ValueError(
-                        f"infer strategy with {len(self.premises)} premises requires "
-                        f"{expected} conditional_probabilities, got {len(probabilities)}"
-                    )
-            elif self.type == StrategyType.NOISY_AND:
-                if len(probabilities) != 1:
-                    raise ValueError(
-                        f"noisy_and strategy requires 1 conditional_probability, got {len(probabilities)}"
-                    )
-            object.__setattr__(self, "conditional_probabilities", probabilities)
-        if self.type == StrategyType.INFER and self.__class__.__name__ != "CompositeStrategy":
-            if self.prior_hypothesis is not None:
-                object.__setattr__(
-                    self,
-                    "prior_hypothesis",
-                    _probability(self.prior_hypothesis, "prior_hypothesis"),
-                )
-            if self.prior_evidence is not None:
-                object.__setattr__(
-                    self,
-                    "prior_evidence",
-                    _probability(self.prior_evidence, "prior_evidence"),
-                )
-        if self.type == StrategyType.ASSOCIATE and self.__class__.__name__ != "CompositeStrategy":
-            if len(self.premises) != 2:
-                raise ValueError("associate strategy requires exactly 2 premises")
-            if self.conclusion is None:
-                raise ValueError("associate strategy requires a helper conclusion")
-            if self.p_a_given_b is None or self.p_b_given_a is None:
-                raise ValueError("associate strategy requires p_a_given_b and p_b_given_a")
-            object.__setattr__(
-                self,
-                "p_a_given_b",
-                _probability(self.p_a_given_b, "p_a_given_b"),
-            )
-            object.__setattr__(
-                self,
-                "p_b_given_a",
-                _probability(self.p_b_given_a, "p_b_given_a"),
-            )
-            if self.prior_a is not None:
-                object.__setattr__(self, "prior_a", _probability(self.prior_a, "prior_a"))
-            if self.prior_b is not None:
-                object.__setattr__(self, "prior_b", _probability(self.prior_b, "prior_b"))
+        _validate_strategy_scope_and_id(self)
+        _assign_strategy_id(self)
+        _validate_conditional_probabilities(self)
+        _validate_infer_priors(self)
+        _validate_associate_parameters(self)
         return self
 
     # No leaf type restriction — per §3.5.1, named strategies (deduction, abduction,

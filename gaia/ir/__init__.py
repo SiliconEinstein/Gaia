@@ -8,6 +8,9 @@ Parameterization (probability parameters) acts on LocalCanonicalGraph.
 Spec: docs/foundations/gaia-ir/
 """
 
+from gaia.ir.compose import Compose
+from gaia.ir.formalize import FormalizationResult, formalize_named_strategy
+from gaia.ir.graphs import LocalCanonicalGraph
 from gaia.ir.knowledge import (
     Knowledge,
     KnowledgeType,
@@ -16,17 +19,6 @@ from gaia.ir.knowledge import (
     make_qid,
 )
 from gaia.ir.operator import Operator, OperatorType
-from gaia.ir.compose import Compose
-from gaia.ir.strategy import (
-    CompositeStrategy,
-    FormalExpr,
-    FormalStrategy,
-    Step,
-    Strategy,
-    StrategyType,
-)
-from gaia.ir.graphs import LocalCanonicalGraph
-from gaia.ir.formalize import FormalizationResult, formalize_named_strategy
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
     ParameterizationSource,
@@ -39,50 +31,49 @@ from gaia.ir.schemas import (
     BUILTIN_DISTRIBUTION_KINDS,
     BuiltinDistributionKind,
     CallableRef,
-    DistributionParam,
     DistributionLiteral,
+    DistributionParam,
     QuantityLiteral,
+)
+from gaia.ir.strategy import (
+    CompositeStrategy,
+    FormalExpr,
+    FormalStrategy,
+    Step,
+    Strategy,
+    StrategyType,
 )
 
 __all__ = [
-    # Knowledge
-    "Knowledge",
-    "KnowledgeType",
-    "PackageRef",
-    "Parameter",
-    "make_qid",
-    # Operator
-    "Operator",
-    "OperatorType",
-    # Compose
-    "Compose",
-    # Strategy
-    "CompositeStrategy",
-    "FormalExpr",
-    "FormalStrategy",
-    "Step",
-    "Strategy",
-    "StrategyType",
-    # Graphs
-    "LocalCanonicalGraph",
-    # Formalization
-    "FormalizationResult",
-    "formalize_named_strategy",
-    # Parameterization
-    "CROMWELL_EPS",
-    "ParameterizationSource",
-    "PriorRecord",
-    "ResolutionPolicy",
-    "StrategyParamRecord",
-    # Schemas
-    "BUILTIN_DISTRIBUTION_KINDS",
-    "BuiltinDistributionKind",
-    "CallableRef",
-    "DistributionParam",
-    "DistributionLiteral",
-    "QuantityLiteral",
-    # Review
-    "Review",
-    "ReviewManifest",
-    "ReviewStatus",
+    "BUILTIN_DISTRIBUTION_KINDS",  # Schemas
+    "CROMWELL_EPS",  # Parameterization
+    "BuiltinDistributionKind",  # Schemas
+    "CallableRef",  # Schemas
+    "Compose",  # Compose
+    "CompositeStrategy",  # Strategy
+    "DistributionLiteral",  # Schemas
+    "DistributionParam",  # Schemas
+    "FormalExpr",  # Strategy
+    "FormalStrategy",  # Strategy
+    "FormalizationResult",  # Formalization
+    "Knowledge",  # Knowledge
+    "KnowledgeType",  # Knowledge
+    "LocalCanonicalGraph",  # Graphs
+    "Operator",  # Operator
+    "OperatorType",  # Operator
+    "PackageRef",  # Knowledge
+    "Parameter",  # Knowledge
+    "ParameterizationSource",  # Parameterization
+    "PriorRecord",  # Parameterization
+    "QuantityLiteral",  # Schemas
+    "ResolutionPolicy",  # Parameterization
+    "Review",  # Review
+    "ReviewManifest",  # Review
+    "ReviewStatus",  # Review
+    "Step",  # Strategy
+    "Strategy",  # Strategy
+    "StrategyParamRecord",  # Parameterization
+    "StrategyType",  # Strategy
+    "formalize_named_strategy",  # Formalization
+    "make_qid",  # Knowledge
 ]

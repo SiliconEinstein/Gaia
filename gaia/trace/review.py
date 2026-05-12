@@ -1,4 +1,4 @@
-"""TraceReviewReport：八段 review 容器（与 gaia.inquiry.ReviewReport 设计同质）。
+"""Trace review report assembly for the eight-section ARM review.
 
 字段命名尽量与 inquiry 平行：``trace_review_id`` / ``created_at`` / ``mode`` 等
 保持一致，方便用户读两种 review 输出无认知断层。
@@ -7,16 +7,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from gaia.inquiry.diagnostics import Diagnostic, NextEdit
-from gaia.trace.ranking import rank_diagnostics, rank_next_edits
 from gaia.inquiry.snapshot import mint_review_id
 from gaia.trace.diagnostics import (
-    ReviewIdResolver,
     RETRY_CHAIN_LIMIT_DEFAULT,
+    ReviewIdResolver,
     detect_actor,
     detect_claim_refs,
     detect_decision_grounds,
@@ -36,11 +35,12 @@ from gaia.trace.hashing import (
     recompute_chain,
 )
 from gaia.trace.loader import LoadResult, load_trace
+from gaia.trace.ranking import rank_diagnostics, rank_next_edits
 from gaia.trace.schema import Trace
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 # ============ 八段容器 ============
@@ -48,13 +48,14 @@ def _utcnow_iso() -> str:
 
 @dataclass
 class TraceReviewReport:
-    """ARM Trace 八段 review。
+    """Represent the eight-section ARM trace review report.
 
     section mapping（参 PLAN 与 gaia.inquiry.ReviewReport）：
     §1 Header        — trace_review_id / created_at / path / mode
     §2 Manifest      — manifest_status / manifest_hash / counts
     §3 Hash Chain    — hash_chain (ok / broken_at_seq / recomputed_root)
-    §4 Causal Health — causal_health (tool_pairing / decision_grounds / parent_links / actor_continuity)
+    §4 Causal Health — causal_health
+       (tool_pairing / decision_grounds / parent_links / actor_continuity)
     §5 Reference Validity — reference_validity (claim_ref 解析摘要)
     §6 Tampering Signals — tampering (篡改信号集中视图)
     §7 Execution Stats — execution_stats (actors / kind 分布 / retry / time_span)
@@ -92,6 +93,7 @@ class TraceReviewReport:
     next_edits_structured: list[NextEdit] = field(default_factory=list)
 
     def to_json_dict(self) -> dict[str, Any]:
+        """Return the JSON-compatible report payload."""
         d: dict[str, Any] = {
             "trace_review_id": self.trace_review_id,
             "created_at": self.created_at,
@@ -124,6 +126,11 @@ def _to_next_edit(d: Diagnostic) -> NextEdit:
         label=d.label,
         source_anchor=d.source_anchor,
     )
+
+
+def _diagnostic_kind(diagnostic: Diagnostic) -> str:
+    """Return the runtime diagnostic kind, including trace-specific extensions."""
+    return str(diagnostic.kind)
 
 
 # ============ §2/§3/§4/§5/§6/§7 各段汇总 ============
@@ -186,20 +193,26 @@ def _build_causal_health_section(diags: list[Diagnostic], trace: Trace | None) -
     return {
         "tool_pairing": {
             "calls": calls,
-            "unresolved": sum(1 for d in diags if d.kind == "tool_call_without_result"),
+            "unresolved": sum(
+                1 for d in diags if _diagnostic_kind(d) == "tool_call_without_result"
+            ),
         },
         "decision_grounds": {
             "decisions": decisions,
-            "ungrounded": sum(1 for d in diags if d.kind == "decision_without_grounds"),
+            "ungrounded": sum(
+                1 for d in diags if _diagnostic_kind(d) == "decision_without_grounds"
+            ),
         },
         "parent_links": {
-            "orphans": sum(1 for d in diags if d.kind == "orphan_event"),
+            "orphans": sum(1 for d in diags if _diagnostic_kind(d) == "orphan_event"),
         },
         "actor_continuity": {
-            "unexplained_switches": sum(1 for d in diags if d.kind == "actor_switch_unexplained"),
+            "unexplained_switches": sum(
+                1 for d in diags if _diagnostic_kind(d) == "actor_switch_unexplained"
+            ),
         },
         "retry": {
-            "diverged_chains": sum(1 for d in diags if d.kind == "retry_diverged"),
+            "diverged_chains": sum(1 for d in diags if _diagnostic_kind(d) == "retry_diverged"),
         },
     }
 
@@ -210,7 +223,7 @@ def _build_reference_section(
     if trace is None:
         return []
     # 用 detector 的 resolver 逻辑，但这里要全集（resolved 也列出）
-    from gaia.trace.diagnostics import _default_resolver_factory  # type: ignore
+    from gaia.trace.diagnostics import _default_resolver_factory
 
     res = resolver or _default_resolver_factory(package_path)
     out: list[dict[str, Any]] = []
@@ -235,7 +248,7 @@ def _build_reference_section(
 
 
 def _build_tampering_section(diags: list[Diagnostic]) -> list[dict[str, Any]]:
-    """收集所有 error 级、与篡改强相关的 diagnostic 摘要。"""
+    """Collect error-level diagnostics that strongly indicate tampering."""
     keep = {
         "trace_schema_violation",
         "trace_hash_chain_broken",
@@ -296,7 +309,7 @@ def run_trace_review(
     retry_chain_limit: int = RETRY_CHAIN_LIMIT_DEFAULT,
     snapshot_dir: str | Path | None = None,
 ) -> TraceReviewReport:
-    """加载 trace 文件 → 跑全部 detector → 汇总八段 → 写 snapshot → 返回 report。
+    """Load a trace, run detectors, build sections, and save a snapshot.
 
     ``mode`` 与 ranking 的 mode 表对齐；默认 ``"trace"``。
     ``mode == "publish"`` 时 ranking 套 publish 表，warning 也会被前置。

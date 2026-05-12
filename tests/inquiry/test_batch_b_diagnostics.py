@@ -1,13 +1,14 @@
-"""Tests for Batch B Inquiry diagnostics:
-stale_artifact / focus_low_posterior / prior_without_justification /
-unreviewed_warrant / rejected_warrant + publish_blockers strict gate.
+"""Verify documented behavior.
+
+Tests for Batch B Inquiry diagnostics stale_artifact / focus_low_posterior /
+prior_without_justification / unreviewed_warrant / rejected_warrant + publish_blockers strict
+gate.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-
 
 from gaia.cli.commands.check_core import HoleEntry, KnowledgeBreakdown
 from gaia.inquiry.diagnostics import (
@@ -19,7 +20,6 @@ from gaia.inquiry.diagnostics import (
 )
 from gaia.inquiry.ranking import rank_diagnostics, supported_modes
 from gaia.inquiry.review import publish_blockers, run_review
-
 
 # --------------------------------------------------------------------------- #
 # stale_artifact

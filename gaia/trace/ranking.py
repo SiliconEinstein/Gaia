@@ -1,4 +1,4 @@
-"""ARM Trace v1 — diagnostic / next-edit 排序。
+"""Rank ARM Trace diagnostics and next edits.
 
 独立于 ``gaia.inquiry.ranking``，避免污染 inquiry 模式表（inquiry 测试要求
 ``supported_modes`` 集合精确等于 inquiry 那一套）。语义上完全平移 inquiry
@@ -11,8 +11,9 @@
 
 from __future__ import annotations
 
-from gaia.inquiry.diagnostics import Diagnostic, NextEdit
+from collections.abc import Callable
 
+from gaia.inquiry.diagnostics import Diagnostic, NextEdit
 
 # 与 ARM Trace v1 §1.4 优先级对齐：schema-violation 必前；hash chain /
 # manifest hash 是抗作弊核心，紧随其后；causal / reference / observability
@@ -42,14 +43,15 @@ _UNKNOWN_KIND_RANK = 99
 
 
 def supported_modes() -> tuple[str, ...]:
+    """Return the supported trace review ranking modes."""
     return tuple(_MODE_RANK.keys())
 
 
-def _key(mode: str):
+def _key(mode: str) -> Callable[[Diagnostic | NextEdit], tuple[int, int, str]]:
     table = _MODE_RANK.get(mode, _MODE_RANK["trace"])
     publish = mode == "publish"
 
-    def _k(d: Diagnostic | NextEdit):
+    def _k(d: Diagnostic | NextEdit) -> tuple[int, int, str]:
         kind_rank = table.get(d.kind, _UNKNOWN_KIND_RANK)
         sev_rank = _SEVERITY_RANK.get(d.severity, 9)
         # publish：warning 与 error 同档（都是 0），保留 info 在后
@@ -61,8 +63,10 @@ def _key(mode: str):
 
 
 def rank_diagnostics(diags: list[Diagnostic], mode: str = "trace") -> list[Diagnostic]:
+    """Rank diagnostics for trace or publish review mode."""
     return sorted(diags, key=_key(mode))
 
 
 def rank_next_edits(edits: list[NextEdit], mode: str = "trace") -> list[NextEdit]:
+    """Rank suggested next edits for trace or publish review mode."""
     return sorted(edits, key=_key(mode))

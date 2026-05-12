@@ -1,4 +1,4 @@
-"""TR-3：run_trace_review + TraceReviewReport + render 三件套 + snapshot 端到端。
+"""TR-3：run_trace_review + TraceReviewReport + render 三件套 + snapshot 端到端。.
 
 策略：
 - 构造 clean / tampered / schema_broken 三段 fixture，跑 run_trace_review
@@ -11,9 +11,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-
 
 from gaia.trace.hashing import (
     GENESIS_PREV_HASH,
@@ -25,25 +24,24 @@ from gaia.trace.render import render_json, render_markdown, render_text
 from gaia.trace.review import TraceReviewReport, run_trace_review
 from gaia.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
 
-
 # ============ Fixture 工厂 ============
 
 
 def _ts(seq: int) -> datetime:
-    return datetime(2026, 4, 28, tzinfo=timezone.utc) + timedelta(seconds=seq)
+    return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:
-    base = dict(
-        event_id=f"e{seq}",
-        seq=seq,
-        prev_hash=prev_hash,
-        ts=_ts(seq),
-        kind="decision",
-        actor="arm",
-        reason="grounded by inputs",
-        inputs={"step": "inputs"},
-    )
+    base = {
+        "event_id": f"e{seq}",
+        "seq": seq,
+        "prev_hash": prev_hash,
+        "ts": _ts(seq),
+        "kind": "decision",
+        "actor": "arm",
+        "reason": "grounded by inputs",
+        "inputs": {"step": "inputs"},
+    }
     base.update(kw)
     return TraceEvent(**base)
 
@@ -74,7 +72,7 @@ def _write_clean_fixture(tmp: Path, n: int = 3) -> Path:
 
 
 def _write_tampered_fixture(tmp: Path) -> Path:
-    """中段事件被改动，prev_hash 不变 ⇒ 链断"""
+    """中段事件被改动，prev_hash 不变 ⇒ 链断."""
     t = _build_clean_trace(5)
     # 直接改 events[2].reason，使 events[3].prev_hash 不再匹配
     # 写到 JSON 后再修改 reason 字段；schema 仍合法但链断
@@ -86,7 +84,7 @@ def _write_tampered_fixture(tmp: Path) -> Path:
 
 
 def _write_schema_broken_fixture(tmp: Path) -> Path:
-    """events[1] 缺 event_id，loader 应给 schema_violation。"""
+    """events[1] 缺 event_id，loader 应给 schema_violation。."""
     t = _build_clean_trace(3)
     raw = json.loads(t.model_dump_json())
     del raw["events"][1]["event_id"]
@@ -152,11 +150,12 @@ def test_run_trace_review_writes_snapshot(tmp_path: Path):
 
 
 def test_run_trace_review_snapshot_failure_does_not_crash(tmp_path: Path, monkeypatch):
-    """snapshot 写盘失败时 review 仍然返回。"""
+    """Snapshot 写盘失败时 review 仍然返回。."""
     p = _write_clean_fixture(tmp_path)
     import gaia.trace.snapshot as snap_mod
 
     def boom(*a, **kw):
+        del a, kw
         raise OSError("disk full")
 
     monkeypatch.setattr(snap_mod, "save_trace_review_snapshot", boom)
@@ -226,7 +225,7 @@ def test_render_tampered_shows_tampering_signal(tmp_path: Path):
 
 
 def test_reference_validity_lists_all_claim_refs(tmp_path: Path):
-    """trace 含 ClaimRef，§5 reference_validity 应每条都列。"""
+    """Trace 含 ClaimRef，§5 reference_validity 应每条都列。."""
     events: list[TraceEvent] = []
     prev = GENESIS_PREV_HASH
     e0 = _ev(
@@ -254,7 +253,7 @@ def test_reference_validity_lists_all_claim_refs(tmp_path: Path):
     p.write_text(t.model_dump_json(indent=2), encoding="utf-8")
 
     # resolver 全 false ⇒ 仍要列出，但 resolved=False
-    report = run_trace_review(p, resolver=lambda r: False, snapshot_dir=tmp_path / "snap")
+    report = run_trace_review(p, resolver=lambda _r: False, snapshot_dir=tmp_path / "snap")
     assert len(report.reference_validity) == 2
     assert all(not r["resolved"] for r in report.reference_validity)
     # 同时产生 unresolved_claim_ref diagnostic

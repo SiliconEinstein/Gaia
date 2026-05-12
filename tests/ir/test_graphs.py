@@ -2,9 +2,9 @@
 
 from gaia.ir import (
     Knowledge,
+    LocalCanonicalGraph,
     Operator,
     Strategy,
-    LocalCanonicalGraph,
 )
 
 NS = "github"

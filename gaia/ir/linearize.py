@@ -8,6 +8,7 @@ are grouped together, independent of the Python module structure.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -65,8 +66,210 @@ def _union_find_group(
     return list(groups.values())
 
 
+@dataclass(frozen=True)
+class _NarrativeGraph:
+    """Intermediate graph indexes used for narrative linearization."""
+
+    kid_to_k: dict[str, dict[str, Any]]
+    exported_ids: set[str]
+    forward: dict[str, list[str]]
+    backward: dict[str, list[str]]
+    strategy_for_conclusion: dict[str, dict[str, Any]]
+    strategy_idx_for_conclusion: dict[str, int]
+    all_kids: set[str]
+
+
+def _narrative_graph_indexes(coarse: dict[str, Any]) -> _NarrativeGraph:
+    """Build adjacency and strategy lookup indexes for a coarse graph."""
+    kid_to_k = {k["id"]: k for k in coarse["knowledges"]}
+    exported_ids = {k["id"] for k in coarse["knowledges"] if k.get("exported")}
+    forward: dict[str, list[str]] = {}
+    backward: dict[str, list[str]] = {}
+    strategy_for_conclusion: dict[str, dict[str, Any]] = {}
+    strategy_idx_for_conclusion: dict[str, int] = {}
+
+    for i, strategy in enumerate(coarse["strategies"]):
+        conclusion = strategy["conclusion"]
+        strategy_for_conclusion[conclusion] = strategy
+        strategy_idx_for_conclusion[conclusion] = i
+        for premise in strategy["premises"]:
+            forward.setdefault(premise, []).append(conclusion)
+            backward.setdefault(conclusion, []).append(premise)
+
+    for operator in coarse.get("operators", []):
+        conclusion = operator.get("conclusion")
+        for variable in operator.get("variables", []):
+            if conclusion:
+                forward.setdefault(variable, []).append(conclusion)
+                backward.setdefault(conclusion, []).append(variable)
+
+    all_kids = {k["id"] for k in coarse["knowledges"] if not k.get("label", "").startswith("__")}
+    return _NarrativeGraph(
+        kid_to_k=kid_to_k,
+        exported_ids=exported_ids,
+        forward=forward,
+        backward=backward,
+        strategy_for_conclusion=strategy_for_conclusion,
+        strategy_idx_for_conclusion=strategy_idx_for_conclusion,
+        all_kids=all_kids,
+    )
+
+
+def _narrative_layers(graph: _NarrativeGraph) -> dict[str, int]:
+    """Assign topological layers to non-helper knowledge ids."""
+    in_degree: dict[str, int] = dict.fromkeys(graph.all_kids, 0)
+    for conclusion, premises in graph.backward.items():
+        if conclusion in graph.all_kids:
+            in_degree[conclusion] = len([p for p in premises if p in graph.all_kids])
+
+    layers: dict[str, int] = {}
+    queue = [kid for kid in graph.all_kids if in_degree.get(kid, 0) == 0]
+    layer = 0
+    while queue:
+        next_queue: list[str] = []
+        for kid in queue:
+            layers[kid] = layer
+        for kid in queue:
+            for neighbor in graph.forward.get(kid, []):
+                if neighbor in graph.all_kids and neighbor not in layers:
+                    in_degree[neighbor] -= 1
+                    if in_degree[neighbor] <= 0:
+                        next_queue.append(neighbor)
+        queue = next_queue
+        layer += 1
+
+    for kid in graph.all_kids:
+        if kid not in layers:
+            layers[kid] = layer
+    return layers
+
+
+def _narrative_entry(
+    knowledge: dict[str, Any],
+    graph: _NarrativeGraph,
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    mi_map: dict[int, float],
+) -> NarrativeEntry | None:
+    """Build one narrative entry, skipping helpers and non-outline nodes."""
+    kid = knowledge["id"]
+    label = knowledge.get("label", "")
+    if label.startswith("__") or kid not in graph.all_kids:
+        return None
+
+    derived_labels: list[str] = []
+    strategy_type = ""
+    mi = 0.0
+    if kid in graph.strategy_for_conclusion:
+        strategy = graph.strategy_for_conclusion[kid]
+        strategy_type = strategy.get("type", "")
+        derived_labels = [
+            graph.kid_to_k[p].get("label", "?") for p in strategy["premises"] if p in graph.kid_to_k
+        ]
+        idx = graph.strategy_idx_for_conclusion.get(kid)
+        if idx is not None:
+            mi = mi_map.get(idx, 0.0)
+
+    supports_labels = [
+        graph.kid_to_k[c].get("label", "?")
+        for c in graph.forward.get(kid, [])
+        if c in graph.kid_to_k
+    ]
+    return NarrativeEntry(
+        kid=kid,
+        label=label,
+        title=knowledge.get("title") or label,
+        type=knowledge.get("type", "claim"),
+        exported=kid in graph.exported_ids,
+        prior=priors.get(kid),
+        belief=beliefs.get(kid),
+        derived_from=derived_labels,
+        supports=supports_labels,
+        strategy_type=strategy_type,
+        mi_bits=mi,
+    )
+
+
+def _narrative_entries_by_kid(
+    coarse: dict[str, Any],
+    graph: _NarrativeGraph,
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    mi_map: dict[int, float],
+) -> dict[str, NarrativeEntry]:
+    """Build narrative entries keyed by knowledge id."""
+    entries: dict[str, NarrativeEntry] = {}
+    for knowledge in coarse["knowledges"]:
+        entry = _narrative_entry(knowledge, graph, beliefs, priors, mi_map)
+        if entry is not None:
+            entries[entry.kid] = entry
+    return entries
+
+
+def _layer_affinity_edges(
+    layer_kids: list[str],
+    graph: _NarrativeGraph,
+) -> list[tuple[str, str]]:
+    """Build connectivity edges among nodes in one narrative layer."""
+    affinity_edges: list[tuple[str, str]] = []
+    parent_to_children: dict[str, list[str]] = {}
+    for kid in layer_kids:
+        for parent in graph.backward.get(kid, []):
+            parent_to_children.setdefault(parent, []).append(kid)
+    for children in parent_to_children.values():
+        affinity_edges.extend(
+            (children[i], children[j])
+            for i in range(len(children))
+            for j in range(i + 1, len(children))
+        )
+
+    child_to_parents: dict[str, list[str]] = {}
+    for kid in layer_kids:
+        for child in graph.forward.get(kid, []):
+            child_to_parents.setdefault(child, []).append(kid)
+    for parents in child_to_parents.values():
+        affinity_edges.extend(
+            (parents[i], parents[j])
+            for i in range(len(parents))
+            for j in range(i + 1, len(parents))
+        )
+    return affinity_edges
+
+
+def _narrative_sections(
+    graph: _NarrativeGraph,
+    layers: dict[str, int],
+    entries_by_kid: dict[str, NarrativeEntry],
+) -> list[NarrativeSection]:
+    """Group narrative entries by layer and shared connectivity."""
+    sections: list[NarrativeSection] = []
+    max_layer = max(layers.values()) if layers else 0
+    for layer in range(max_layer + 1):
+        layer_kids = [
+            kid for kid in graph.all_kids if layers.get(kid) == layer and kid in entries_by_kid
+        ]
+        if not layer_kids:
+            continue
+        groups = _union_find_group(layer_kids, _layer_affinity_edges(layer_kids, graph))
+        for group in sorted(
+            groups,
+            key=lambda g: min(entries_by_kid[k].belief or 0 for k in g if k in entries_by_kid),
+        ):
+            group_entries = [entries_by_kid[kid] for kid in group if kid in entries_by_kid]
+            group_entries.sort(key=lambda e: (e.exported, e.belief or 0))
+            name_entry = group_entries[-1] if group_entries else None
+            sections.append(
+                NarrativeSection(
+                    title=name_entry.title if name_entry else f"Layer {layer}",
+                    layer=layer,
+                    entries=group_entries,
+                )
+            )
+    return sections
+
+
 def linearize_narrative(
-    coarse: dict,
+    coarse: dict[str, Any],
     beliefs: dict[str, float] | None = None,
     priors: dict[str, float] | None = None,
     mi_per_strategy: dict[int, float] | None = None,
@@ -84,153 +287,10 @@ def linearize_narrative(
     beliefs = beliefs or {}
     priors = priors or {}
     mi_map = mi_per_strategy or {}
-
-    kid_to_k = {k["id"]: k for k in coarse["knowledges"]}
-    exported_ids = {k["id"] for k in coarse["knowledges"] if k.get("exported")}
-
-    # Build adjacency
-    forward: dict[str, list[str]] = {}
-    backward: dict[str, list[str]] = {}
-    strategy_for_conclusion: dict[str, dict] = {}
-    strategy_idx_for_conclusion: dict[str, int] = {}
-
-    for i, s in enumerate(coarse["strategies"]):
-        conc = s["conclusion"]
-        strategy_for_conclusion[conc] = s
-        strategy_idx_for_conclusion[conc] = i
-        for p in s["premises"]:
-            forward.setdefault(p, []).append(conc)
-            backward.setdefault(conc, []).append(p)
-
-    for o in coarse.get("operators", []):
-        conc = o.get("conclusion")
-        for v in o.get("variables", []):
-            if conc:
-                forward.setdefault(v, []).append(conc)
-                backward.setdefault(conc, []).append(v)
-
-    # Topological sort → layer assignment
-    all_kids = {k["id"] for k in coarse["knowledges"] if not k.get("label", "").startswith("__")}
-    in_degree: dict[str, int] = {kid: 0 for kid in all_kids}
-    for conc, plist in backward.items():
-        if conc in all_kids:
-            in_degree[conc] = len([p for p in plist if p in all_kids])
-
-    layers: dict[str, int] = {}
-    queue = [kid for kid in all_kids if in_degree.get(kid, 0) == 0]
-    layer = 0
-    while queue:
-        next_queue: list[str] = []
-        for kid in queue:
-            layers[kid] = layer
-        for kid in queue:
-            for neighbor in forward.get(kid, []):
-                if neighbor in all_kids and neighbor not in layers:
-                    in_degree[neighbor] -= 1
-                    if in_degree[neighbor] <= 0:
-                        next_queue.append(neighbor)
-        queue = next_queue
-        layer += 1
-
-    for kid in all_kids:
-        if kid not in layers:
-            layers[kid] = layer
-
-    max_layer = max(layers.values()) if layers else 0
-
-    # Build narrative entries
-    entries_by_kid: dict[str, NarrativeEntry] = {}
-    for k in coarse["knowledges"]:
-        kid = k["id"]
-        label = k.get("label", "")
-        if label.startswith("__"):
-            continue
-        if kid not in all_kids:
-            continue
-
-        derived_labels = []
-        stype = ""
-        mi = 0.0
-        if kid in strategy_for_conclusion:
-            s = strategy_for_conclusion[kid]
-            stype = s.get("type", "")
-            derived_labels = [kid_to_k[p].get("label", "?") for p in s["premises"] if p in kid_to_k]
-            idx = strategy_idx_for_conclusion.get(kid)
-            if idx is not None:
-                mi = mi_map.get(idx, 0.0)
-
-        supports_labels = [
-            kid_to_k[c].get("label", "?") for c in forward.get(kid, []) if c in kid_to_k
-        ]
-
-        entries_by_kid[kid] = NarrativeEntry(
-            kid=kid,
-            label=label,
-            title=k.get("title") or label,
-            type=k.get("type", "claim"),
-            exported=kid in exported_ids,
-            prior=priors.get(kid),
-            belief=beliefs.get(kid),
-            derived_from=derived_labels,
-            supports=supports_labels,
-            strategy_type=stype,
-            mi_bits=mi,
-        )
-
-    # Group within each layer by shared connectivity
-    # Two nodes in the same layer are connected if they share a parent or child
-    sections: list[NarrativeSection] = []
-    for lyr in range(max_layer + 1):
-        layer_kids = [kid for kid in all_kids if layers.get(kid) == lyr and kid in entries_by_kid]
-        if not layer_kids:
-            continue
-
-        # Build affinity edges: two nodes are connected if they share
-        # a common premise, a common conclusion, or a common operator
-        affinity_edges: list[tuple[str, str]] = []
-        # Shared parent: two nodes derived from the same premise
-        parent_to_children: dict[str, list[str]] = {}
-        for kid in layer_kids:
-            for p in backward.get(kid, []):
-                parent_to_children.setdefault(p, []).append(kid)
-        for _parent, children in parent_to_children.items():
-            for i in range(len(children)):
-                for j in range(i + 1, len(children)):
-                    affinity_edges.append((children[i], children[j]))
-
-        # Shared child: two nodes that support the same conclusion
-        child_to_parents: dict[str, list[str]] = {}
-        for kid in layer_kids:
-            for c in forward.get(kid, []):
-                child_to_parents.setdefault(c, []).append(kid)
-        for _child, parents in child_to_parents.items():
-            for i in range(len(parents)):
-                for j in range(i + 1, len(parents)):
-                    affinity_edges.append((parents[i], parents[j]))
-
-        groups = _union_find_group(layer_kids, affinity_edges)
-
-        for group in sorted(
-            groups,
-            key=lambda g: min(entries_by_kid[k].belief or 0 for k in g if k in entries_by_kid),
-        ):
-            # Name the group by its most prominent entry
-            group_entries = [entries_by_kid[kid] for kid in group if kid in entries_by_kid]
-            group_entries.sort(key=lambda e: (e.exported, e.belief or 0))
-
-            # Pick a descriptive name: the highest-belief exported claim, or the first entry
-            name_entry = group_entries[-1] if group_entries else None
-            group_title = name_entry.title if name_entry else f"Layer {lyr}"
-
-            sections.append(
-                NarrativeSection(
-                    title=group_title,
-                    layer=lyr,
-                    entries=group_entries,
-                )
-            )
-
-    return sections
+    graph = _narrative_graph_indexes(coarse)
+    layers = _narrative_layers(graph)
+    entries_by_kid = _narrative_entries_by_kid(coarse, graph, beliefs, priors, mi_map)
+    return _narrative_sections(graph, layers, entries_by_kid)
 
 
 def render_narrative_outline(sections: list[NarrativeSection]) -> str:

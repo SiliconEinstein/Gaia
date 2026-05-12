@@ -1,15 +1,14 @@
-from gaia.lang.dsl.knowledge import claim, context, note, question, setting
+"""Public Gaia Lang DSL helper functions."""
+
 from gaia.lang.dsl.associate_verb import associate
 from gaia.lang.dsl.decompose import decompose
 from gaia.lang.dsl.formula import causes, equals, exists, forall, iff, implies, land, lnot, lor
 from gaia.lang.dsl.infer_verb import infer
+from gaia.lang.dsl.knowledge import claim, context, note, question, setting
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.propositional import and_, not_, or_
 from gaia.lang.dsl.relate import contradict, equal, exclusive
 from gaia.lang.dsl.scaffold import candidate_relation, depends_on, tension
-from gaia.lang.dsl.support import compute, derive, observe, predict
-from gaia.lang.dsl.sugar import causal, parameter
-from gaia.lang.runtime.composition import compose, composition
 from gaia.lang.dsl.strategies import (
     abduction,
     analogy,
@@ -23,36 +22,47 @@ from gaia.lang.dsl.strategies import (
     induction,
     mathematical_induction,
     noisy_and,
-    support,
 )
+from gaia.lang.dsl.strategies import (
+    support as _strategy_support,
+)
+from gaia.lang.dsl.sugar import causal, parameter
+from gaia.lang.dsl.support import compute, derive, observe, predict
+from gaia.lang.runtime.composition import compose, composition
+
+# Importing gaia.lang.dsl.support installs a same-named submodule on this package.
+support = _strategy_support
 
 __all__ = [
     "abduction",
     "analogy",
+    "and_",
     "associate",
-    "case_analysis",
     "candidate_relation",
+    "case_analysis",
+    "causal",
+    "causes",
     "claim",
-    "context",
-    "compute",
     "compare",
-    "composite",
-    "compose",
-    "composition",
     "complement",
+    "compose",
+    "composite",
+    "composition",
+    "compute",
+    "context",
     "contradict",
     "contradiction",
-    "deduction",
     "decompose",
+    "deduction",
     "depends_on",
     "derive",
     "disjunction",
+    "elimination",
     "equal",
     "equals",
-    "elimination",
-    "exists",
-    "exclusive",
     "equivalence",
+    "exclusive",
+    "exists",
     "extrapolation",
     "fills",
     "forall",
@@ -65,9 +75,6 @@ __all__ = [
     "lor",
     "mathematical_induction",
     "noisy_and",
-    "causes",
-    "causal",
-    "and_",
     "not_",
     "note",
     "observe",

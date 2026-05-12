@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import ClassVar
 
 import pytest
 from typer.testing import CliRunner
@@ -1021,8 +1022,11 @@ def test_replay_render_html_injects_payload():
 
 
 def test_replay_render_html_raises_when_placeholder_missing():
-    """Templates without the placeholder are rejected loudly — silent failure would
-    leave the frontend with no timeline data."""
+    """Verify replay render html raises when placeholder missing.
+
+    Templates without the placeholder are rejected loudly — silent failure would leave the
+    frontend with no timeline data.
+    """
     from gaia.cli.commands.starmap_replay import _render_html
 
     with pytest.raises(RuntimeError, match="placeholder"):
@@ -1126,8 +1130,11 @@ def test_replay_compute_round_beliefs_empty_ir_returns_empty():
 
 
 def test_replay_compute_dot_layout_parses_canned_json(monkeypatch):
-    """`compute_dot_layout` consumes Graphviz `-Tjson0` output: nodes get y-flipped,
-    cluster bounding boxes flatten into the clusters list."""
+    """Verify replay compute dot layout parses canned json.
+
+    `compute_dot_layout` consumes Graphviz `-Tjson0` output: nodes get y-flipped cluster
+    bounding boxes flatten into the clusters list.
+    """
     import subprocess as _subprocess
 
     from gaia.cli.commands import _replay_build as rb
@@ -1157,6 +1164,7 @@ def test_replay_compute_dot_layout_parses_canned_json(monkeypatch):
             self.stderr = stderr
 
     def _fake_run(cmd, **kwargs):
+        del cmd
         # Caller passes the dot source via stdin.
         assert kwargs.get("input")
         return _FakeProc(json.dumps(canned))
@@ -1239,8 +1247,11 @@ def test_starmap_replay_cli_reports_missing_logs(tmp_path):
 
 
 def test_replay_compute_round_beliefs_runs_inference_on_synthetic_ir():
-    """Two-claim IR + lkm-driven events: each round's truncation runs through
-    the BP engine and beliefs land at the priors (no edges)."""
+    """Verify replay compute round beliefs runs inference on synthetic ir.
+
+    Two-claim IR + lkm-driven events: each round's truncation runs through the BP engine and
+    beliefs land at the priors (no edges).
+    """
     from gaia.cli.commands._replay_build import compute_round_beliefs
 
     ir = {
@@ -1319,12 +1330,15 @@ def test_replay_collect_round_order_dedup_preserves_first_appearance():
 
 @pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
 def test_starmap_replay_cli_with_real_package_triggers_layout_pipeline(tmp_path):
-    """End-to-end: a compiled package + the bundled fixture's logs exercises the
-    full pipeline (dot layout, IR-side annotation, round beliefs).
+    """Verify starmap replay cli with real package triggers layout pipeline.
+
+    End-to-end: a compiled package + the bundled fixture's logs exercises the full pipeline (dot
+    layout, IR-side annotation, round beliefs).
 
     This is a smoke test — we don't assert the layout *contents* (those depend
     on the package's specific IR), only that the pipeline emits a payload with
-    a non-None final_layout when graphviz is available."""
+    a non-None final_layout when graphviz is available.
+    """
     import shutil as _shutil
 
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_replay_real")
@@ -1654,8 +1668,11 @@ def test_replay_collect_round_lkm_membership_is_cumulative():
 
 
 def test_replay_truncated_canonical_graph_filters_to_kept_ids():
-    """`_truncated_canonical_graph` returns None when the kept set is empty
-    or the result fails Pydantic validation; happy path keeps survivors."""
+    """Verify replay truncated canonical graph filters to kept ids.
+
+    `_truncated_canonical_graph` returns None when the kept set is empty or the result fails
+    Pydantic validation; happy path keeps survivors.
+    """
     from gaia.cli.commands._replay_build import _truncated_canonical_graph
 
     # Knowledge-only IR (no strategies / operators) avoids pydantic surface
@@ -1696,8 +1713,11 @@ def test_replay_truncated_canonical_graph_filters_to_kept_ids():
 
 
 def test_replay_annotate_ticks_with_survival_marks_orphans():
-    """Ticks whose `action.symbol` doesn't resolve to the final IR get
-    `survives_to_final=False` plus a warning."""
+    """Verify replay annotate ticks with survival marks orphans.
+
+    Ticks whose `action.symbol` doesn't resolve to the final IR get `survives_to_final=False`
+    plus a warning.
+    """
     from gaia.cli.commands._replay_build import annotate_ticks_with_survival
 
     layout = {
@@ -1788,8 +1808,11 @@ def test_replay_annotate_ticks_with_survival_skips_when_layout_nodes_not_dict():
 
 
 def test_replay_bridge_event_symbols_to_layout_aliases_strat_via_edge_signature():
-    """An event whose deduction edge matches an IR strategy's lkm-id signature
-    aliases ``gfac_*`` to ``strat_<i>`` and stamps `canonical_id`."""
+    """Verify replay bridge event symbols to layout aliases strat via edge signature.
+
+    An event whose deduction edge matches an IR strategy's lkm-id signature aliases ``gfac_*``
+    to ``strat_<i>`` and stamps `canonical_id`.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -1868,8 +1891,11 @@ def test_replay_topo_reorder_ticks_preserves_chronology_when_no_dep_pressure():
 
 
 def test_replay_topo_reorder_ticks_swaps_premature_strategy():
-    """A strategy tick fired before its premise/conclusion claims should be
-    moved past those claims by the topo reorder."""
+    """Verify replay topo reorder ticks swaps premature strategy.
+
+    A strategy tick fired before its premise/conclusion claims should be moved past those claims
+    by the topo reorder.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {
@@ -1926,8 +1952,11 @@ def test_replay_topo_reorder_ticks_swaps_premature_strategy():
 
 
 def test_replay_topo_reorder_ticks_keeps_orphans_in_place():
-    """Orphan ticks (`survives_to_final=False`) stay in their original slot
-    while surviving ticks pour through the reordered slots."""
+    """Verify replay topo reorder ticks keeps orphans in place.
+
+    Orphan ticks (`survives_to_final=False`) stay in their original slot while surviving ticks
+    pour through the reordered slots.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {"nodes": {"gcn_a": {"kind": "knowledge"}, "gcn_b": {"kind": "knowledge"}}}
@@ -1966,8 +1995,11 @@ def test_replay_topo_reorder_ticks_keeps_orphans_in_place():
 
 
 def test_replay_bridge_event_symbols_to_layout_pair_signature_match():
-    """`pair_signatures` route bridges support / contradiction / equivalence
-    events whose two-endpoint edge matches an IR operator's variable set."""
+    """Verify replay bridge event symbols to layout pair signature match.
+
+    `pair_signatures` route bridges support / contradiction / equivalence events whose two-
+    endpoint edge matches an IR operator's variable set.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -2043,6 +2075,7 @@ def test_replay_bridge_event_symbols_skips_when_already_in_layout():
 
 def test_replay_compute_dot_layout_real_graphviz_smoke(tmp_path):
     """End-to-end against a real graphviz dot binary: produces nodes + viewport."""
+    del tmp_path
     if not _has_graphviz():
         pytest.skip("graphviz not on PATH")
     from gaia.cli.commands._replay_build import compute_dot_layout
@@ -2067,7 +2100,7 @@ def test_replay_compute_dot_layout_raises_on_dot_failure(monkeypatch):
         stdout = ""
         stderr = "syntax error near token foo"
 
-    monkeypatch.setattr(rb.subprocess, "run", lambda *a, **k: _FakeProc())
+    monkeypatch.setattr(rb.subprocess, "run", lambda *_args, **_kwargs: _FakeProc())
     with pytest.raises(RuntimeError, match="dot -Tjson0"):
         rb.compute_dot_layout("digraph { a }")
 
@@ -2082,8 +2115,8 @@ def test_starmap_validation_error_exits_1(tmp_path, monkeypatch):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_validate_err")
 
     class _Result:
-        warnings = ["a soft note"]
-        errors = ["something is broken"]
+        warnings: ClassVar[list[str]] = ["a soft note"]
+        errors: ClassVar[list[str]] = ["something is broken"]
 
     monkeypatch.setattr(starmap_mod, "validate_local_graph", lambda _g: _Result())
     result = runner.invoke(app, ["starmap", str(pkg_dir)])
@@ -2128,8 +2161,11 @@ def test_starmap_stored_ir_mismatches_compiled_ir(tmp_path):
 
 
 def test_replay_bridge_event_symbols_file_symbol_name_fallback():
-    """Step B fallback: when no edge signature matches, action.file + symbol
-    name (matching the IR conclusion slug) bridges the symbol."""
+    """Verify replay bridge event symbols file symbol name fallback.
+
+    Step B fallback: when no edge signature matches, action.file + symbol name (matching the IR
+    conclusion slug) bridges the symbol.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -2176,8 +2212,11 @@ def test_replay_bridge_event_symbols_file_symbol_name_fallback():
 
 
 def test_replay_bridge_event_symbols_file_kind_uniqueness_fallback():
-    """Step C fallback: when no edge / name match, the sole IR strat/oper of
-    the right kind in the right module gets claimed."""
+    """Verify replay bridge event symbols file kind uniqueness fallback.
+
+    Step C fallback: when no edge / name match, the sole IR strat/oper of the right kind in the
+    right module gets claimed.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -2221,8 +2260,11 @@ def test_replay_bridge_event_symbols_file_kind_uniqueness_fallback():
 
 
 def test_replay_topo_reorder_with_operator_dependency():
-    """A contradiction operator tick depends on its variable claims; if it
-    fires before them, topo reorder pushes it past."""
+    """Verify replay topo reorder with operator dependency.
+
+    A contradiction operator tick depends on its variable claims; if it fires before them, topo
+    reorder pushes it past.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {
@@ -2274,9 +2316,11 @@ def test_replay_topo_reorder_with_operator_dependency():
 
 
 def test_replay_topo_reorder_prior_dep_keys_resolution():
-    """A `prior` action's dependency comes from its event's payload — the
-    `_prior_dep_keys` helper should pull `target_lkm_id` / `priors` /
-    `claim_ids` / prior edges correctly."""
+    """Verify replay topo reorder prior dep keys resolution.
+
+    A `prior` action's dependency comes from its event's payload — the `_prior_dep_keys` helper
+    should pull `target_lkm_id` / `priors` / `claim_ids` / prior edges correctly.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {
@@ -2337,9 +2381,11 @@ def test_replay_topo_reorder_prior_dep_keys_resolution():
 
 
 def test_replay_compute_round_beliefs_full_engine_path():
-    """`compute_round_beliefs` runs the BP engine on an IR with a deduction
-    edge. Each round's truncated graph yields a beliefs dict containing the
-    admitted claims."""
+    """Verify replay compute round beliefs full engine path.
+
+    `compute_round_beliefs` runs the BP engine on an IR with a deduction edge. Each round's
+    truncated graph yields a beliefs dict containing the admitted claims.
+    """
     from gaia.cli.commands._replay_build import compute_round_beliefs
 
     ir = {
@@ -2385,8 +2431,11 @@ def test_replay_compute_round_beliefs_full_engine_path():
 
 
 def test_replay_compute_round_beliefs_returns_empty_when_membership_empty():
-    """When no events have lkm_id-bearing nodes_added entries, every IR claim
-    is "always-present" and `cumulative` is empty → returns {}."""
+    """Verify replay compute round beliefs returns empty when membership empty.
+
+    When no events have lkm_id-bearing nodes_added entries, every IR claim is "always-present"
+    and `cumulative` is empty → returns {}.
+    """
     from gaia.cli.commands._replay_build import compute_round_beliefs
 
     ir = {

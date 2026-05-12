@@ -24,6 +24,7 @@ class Action:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        """Register the action with the active or inferred package."""
         from gaia.lang.runtime.knowledge import _current_package
 
         pkg = _current_package.get()
@@ -145,7 +146,7 @@ class Infer(Probabilistic):
     evidence: Claim | None = None
     given: tuple[Claim, ...] = ()
     p_e_given_h: float | Claim = 0.5
-    p_e_given_not_h: float | Claim = 0.5
+    p_e_given_not_h: float | Claim | None = 0.5
     prior_hypothesis: float | None = None
     prior_evidence: float | None = None
 
@@ -180,6 +181,7 @@ class Compose(Action):
         warrant_refs: list[str],
         background_refs: list[str] | None = None,
     ) -> str:
+        """Hash the canonical compose payload used for the IR compose ID."""
         payload = {
             "name": self.name,
             "version": self.version,

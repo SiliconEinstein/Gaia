@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gaia.cli._packages import GaiaCliError
 from gaia.cli.commands._inquiry import InquiryEdge, InquiryNode, build_goal_trees
@@ -35,7 +36,7 @@ def load_beliefs(pkg_path: str | Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text())
+        return cast(dict[str, Any], json.loads(path.read_text()))
     except (OSError, json.JSONDecodeError) as exc:
         raise GaiaCliError(f"Error: {path} is not valid JSON: {exc}") from exc
 
@@ -48,7 +49,7 @@ def _exported_claim_ids(ir: dict[str, Any]) -> set[str]:
     }
 
 
-def _walk(node: InquiryNode):
+def _walk(node: InquiryNode) -> Iterator[InquiryNode | InquiryEdge]:
     yield node
     for edge in node.incoming:
         if edge.kind == "candidate_relation":
@@ -90,6 +91,40 @@ def _unformalized_dependencies(trees: list[InquiryNode]) -> list[InquiryEdge]:
     return sorted(edges.values(), key=lambda edge: edge.label)
 
 
+def _beliefs_by_id(beliefs: dict[str, Any]) -> dict[str, float]:
+    """Extract numeric belief values from a beliefs.json payload."""
+    belief_by_id: dict[str, float] = {}
+    for entry in beliefs.get("beliefs", []):
+        if not isinstance(entry, dict):
+            continue
+        knowledge_id = entry.get("knowledge_id")
+        belief_value = entry.get("belief")
+        if isinstance(knowledge_id, str) and isinstance(belief_value, int | float):
+            belief_by_id[knowledge_id] = float(belief_value)
+    return belief_by_id
+
+
+def _posterior_failures(
+    *,
+    goals: set[str],
+    beliefs: dict[str, Any] | None,
+    min_posterior: float,
+) -> list[str]:
+    """Return min-posterior quality gate failures."""
+    if beliefs is None:
+        return ["Missing beliefs: run `gaia infer` before using min_posterior"]
+
+    failures: list[str] = []
+    belief_by_id = _beliefs_by_id(beliefs)
+    for knowledge_id in sorted(goals):
+        belief = belief_by_id.get(knowledge_id)
+        if belief is None:
+            failures.append(f"Missing belief: {knowledge_id}")
+        elif belief < min_posterior:
+            failures.append(f"Low posterior: {knowledge_id} = {belief:.3f} < {min_posterior}")
+    return failures
+
+
 def check_quality_gate(
     ir: dict[str, Any],
     beliefs: dict[str, Any] | None,
@@ -120,23 +155,12 @@ def check_quality_gate(
             )
 
     if config.min_posterior is not None:
-        if beliefs is None:
-            failures.append("Missing beliefs: run `gaia infer` before using min_posterior")
-        else:
-            belief_by_id = {
-                entry.get("knowledge_id"): float(entry.get("belief"))
-                for entry in beliefs.get("beliefs", [])
-                if isinstance(entry, dict)
-                and isinstance(entry.get("knowledge_id"), str)
-                and isinstance(entry.get("belief"), int | float)
-            }
-            for knowledge_id in sorted(goals):
-                belief = belief_by_id.get(knowledge_id)
-                if belief is None:
-                    failures.append(f"Missing belief: {knowledge_id}")
-                elif belief < config.min_posterior:
-                    failures.append(
-                        f"Low posterior: {knowledge_id} = {belief:.3f} < {config.min_posterior}"
-                    )
+        failures.extend(
+            _posterior_failures(
+                goals=goals,
+                beliefs=beliefs,
+                min_posterior=config.min_posterior,
+            )
+        )
 
     return failures

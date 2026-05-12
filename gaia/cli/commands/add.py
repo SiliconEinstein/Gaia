@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -12,13 +13,13 @@ from gaia.cli._packages import GaiaCliError
 from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_package
 
 
-def _run_uv(args: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+def _run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(args, text=True, capture_output=True, **kwargs)
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise GaiaCliError(
             "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-        )
+        ) from exc
 
 
 def add_command(
@@ -31,7 +32,7 @@ def add_command(
         resolved = resolve_package(package, version=version, registry=registry)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Normalize: ensure -gaia suffix for the dep spec
     canonical_name = package if package.endswith("-gaia") else f"{package}-gaia"
@@ -42,7 +43,7 @@ def add_command(
         result = _run_uv(["uv", "add", dep_spec])
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip()
         typer.echo(f"Error: uv add failed: {stderr}", err=True)

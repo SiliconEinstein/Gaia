@@ -1,12 +1,15 @@
 """Tests for Parameterization data models."""
 
+from datetime import UTC
+
 import pytest
+
 from gaia.ir import (
-    PriorRecord,
-    StrategyParamRecord,
-    ParameterizationSource,
-    ResolutionPolicy,
     CROMWELL_EPS,
+    ParameterizationSource,
+    PriorRecord,
+    ResolutionPolicy,
+    StrategyParamRecord,
 )
 
 
@@ -50,7 +53,7 @@ class TestStrategyParamRecord:
         assert r.conditional_probabilities == [0.85]
 
     def test_multi_param_cpt(self):
-        """infer with 2 premises: 2^2 = 4 parameters."""
+        """Infer with 2 premises: 2^2 = 4 parameters."""
         r = StrategyParamRecord(
             strategy_id="lcs_abc",
             conditional_probabilities=[0.9, 0.3, 0.4, 0.1],
@@ -78,24 +81,24 @@ class TestStrategyParamRecord:
 
 class TestParameterizationSource:
     def test_creation(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         s = ParameterizationSource(
             source_id="src_001",
             model="gpt-5-mini",
             policy="conservative",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         assert s.source_id == "src_001"
         assert s.model == "gpt-5-mini"
 
     def test_optional_fields(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         s = ParameterizationSource(
             source_id="src_002",
             model="claude-opus",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         assert s.policy is None
         assert s.config is None
@@ -116,8 +119,8 @@ class TestResolutionPolicy:
             ResolutionPolicy(strategy="source")
 
     def test_with_prior_cutoff(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        cutoff = datetime(2026, 3, 29, tzinfo=timezone.utc)
+        cutoff = datetime(2026, 3, 29, tzinfo=UTC)
         p = ResolutionPolicy(strategy="latest", prior_cutoff=cutoff)
         assert p.prior_cutoff == cutoff

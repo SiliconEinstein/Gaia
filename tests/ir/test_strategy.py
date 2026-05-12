@@ -1,14 +1,15 @@
 """Tests for Strategy data model (Strategy, CompositeStrategy, FormalStrategy)."""
 
 import pytest
+
 from gaia.ir import (
-    Strategy,
     CompositeStrategy,
-    FormalStrategy,
     FormalExpr,
-    StrategyType,
-    Step,
+    FormalStrategy,
     Operator,
+    Step,
+    Strategy,
+    StrategyType,
 )
 
 
@@ -34,12 +35,12 @@ class TestStrategyType:
         assert set(StrategyType) == expected
 
     def test_no_toolcall(self):
-        """toolcall is deferred per spec."""
+        """Toolcall is deferred per spec."""
         with pytest.raises(ValueError):
             StrategyType("toolcall")
 
     def test_no_proof(self):
-        """proof is deferred per spec."""
+        """Proof is deferred per spec."""
         with pytest.raises(ValueError):
             StrategyType("proof")
 
@@ -49,7 +50,7 @@ class TestStrategyType:
             StrategyType("soft_implication")
 
     def test_binding_deferred(self):
-        """binding is deferred outside Gaia IR core."""
+        """Binding is deferred outside Gaia IR core."""
         with pytest.raises(ValueError):
             StrategyType("binding")
 
@@ -59,7 +60,7 @@ class TestStrategyType:
             StrategyType("independent_evidence")
 
     def test_induction_exists(self):
-        """induction is a valid CompositeStrategy type."""
+        """Induction is a valid CompositeStrategy type."""
         assert StrategyType("induction") == StrategyType.INDUCTION
 
 
@@ -276,7 +277,7 @@ class TestCompositeStrategy:
         assert cs1.strategy_id != cs2.strategy_id
 
     def test_structure_hash_affects_id(self):
-        """CompositeStrategy ID differs from leaf Strategy ID with same scope/type/premises/conclusion."""
+        """CompositeStrategy ID differs from the equivalent leaf Strategy ID."""
         leaf = Strategy(scope="local", type="infer", premises=["a"], conclusion="b")
         comp = CompositeStrategy(
             scope="local",
@@ -510,7 +511,7 @@ class TestFormalStrategy:
         assert fs1.strategy_id != fs2.strategy_id
 
     def test_structure_hash_affects_id_vs_leaf(self):
-        """FormalStrategy ID differs from hypothetical leaf with same scope/type/premises/conclusion."""
+        """FormalStrategy ID differs from the equivalent hypothetical leaf ID."""
         fs = FormalStrategy(
             scope="local",
             type="deduction",

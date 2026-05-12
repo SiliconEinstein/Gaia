@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 
-class _MissingLabelDict(dict):
-    def __missing__(self, key):
+class _MissingLabelDict(dict[str, object]):
+    def __missing__(self, key: str) -> str:
         return "?"
 
 
@@ -19,13 +19,16 @@ _TEMPLATES = {
     ),
     "equal": "Are [@{a_label}] and [@{b_label}] truly equivalent?",
     "contradict": "Do [@{a_label}] and [@{b_label}] truly contradict?",
-    "exclusive": "Do [@{a_label}] and [@{b_label}] form a closed case split where exactly one is true?",
+    "exclusive": (
+        "Do [@{a_label}] and [@{b_label}] form a closed case split where exactly one is true?"
+    ),
     "decompose": "Does [@{whole_label}] faithfully decompose into [@{formula_label}]?",
     "compose": "Does this action DAG correctly establish [@{conclusion_label}]?",
 }
 
 
-def generate_audit_question(action_type: str, **labels) -> str:
+def generate_audit_question(action_type: str, **labels: object) -> str:
+    """Render the review audit question for an action type."""
     labels.setdefault("given_clause", "")
     template = _TEMPLATES.get(action_type, "Is this reasoning step valid?")
     return template.format_map(_MissingLabelDict(labels))

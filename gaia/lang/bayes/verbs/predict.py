@@ -20,6 +20,7 @@ def predict(
     label: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Claim:
+    """Create a Bayes predictive model through the deprecated alias."""
     warnings.warn(
         "bayes.predict(...) is deprecated; use bayes.model(...) for Bayes predictive models. "
         "from gaia.lang import predict now refers to the core Bayes-free prediction verb.",

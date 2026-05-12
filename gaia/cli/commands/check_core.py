@@ -11,11 +11,12 @@ No detection logic is duplicated in ``gaia.inquiry``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from gaia.cli.commands._classify import KnowledgeClassification, classify_ir, node_role
 
 
-def get_prior(k: dict) -> float | None:
+def get_prior(k: dict[str, Any]) -> float | None:
     """Return the prior stored in a knowledge node's metadata, or None."""
     meta = k.get("metadata") or {}
     return meta.get("prior")
@@ -33,6 +34,7 @@ class HoleEntry:
 
     @property
     def is_hole(self) -> bool:
+        """Return whether this independent claim is missing a prior."""
         return self.prior is None
 
 
@@ -51,14 +53,16 @@ class KnowledgeBreakdown:
 
     @property
     def holes(self) -> list[HoleEntry]:
+        """Return independent claims that still need priors."""
         return [e for e in self.independent if e.is_hole]
 
     @property
     def covered(self) -> list[HoleEntry]:
+        """Return independent claims that already have priors."""
         return [e for e in self.independent if not e.is_hole]
 
 
-def analyze_knowledge_breakdown(ir: dict) -> KnowledgeBreakdown:
+def analyze_knowledge_breakdown(ir: dict[str, Any]) -> KnowledgeBreakdown:
     """Walk the IR once and classify every knowledge node by structural role."""
     c = classify_ir(ir)
     out = KnowledgeBreakdown(classification=c)
@@ -98,7 +102,7 @@ def analyze_knowledge_breakdown(ir: dict) -> KnowledgeBreakdown:
     return out
 
 
-def find_possible_duplicate_claims(ir: dict) -> list[tuple[str, str]]:
+def find_possible_duplicate_claims(ir: dict[str, Any]) -> list[tuple[str, str]]:
     """Heuristic: pairs of claims with identical normalized content.
 
     Conservative — only exact-match after whitespace collapse. Per spec §8

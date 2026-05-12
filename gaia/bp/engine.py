@@ -33,13 +33,13 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
-from gaia.bp.bp import BeliefPropagation, BPResult
+from gaia.bp.bp import BeliefPropagation, BPDiagnostics, BPResult
 from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import FactorGraph
 from gaia.bp.gbp import GeneralizedBeliefPropagation
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
 
-__all__ = ["InferenceEngine", "EngineConfig", "MethodChoice"]
+__all__ = ["EngineConfig", "InferenceEngine", "MethodChoice"]
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,7 @@ EXACT_MAX_VARS: int = 26  # Brute-force enumeration limit (2^26 = 67M states)
 class EngineConfig:
     """Configuration for the unified inference engine.
 
-    Attributes
-    ----------
+    Attributes:
     jt_max_treewidth:
         Use JT (exact) when estimated treewidth ≤ this value.
     gbp_max_treewidth:
@@ -89,8 +88,7 @@ class InferenceResult:
 
     Wraps BPResult and adds engine-level diagnostics.
 
-    Attributes
-    ----------
+    Attributes:
     bp_result:
         The underlying BPResult (beliefs + diagnostics).
     method_used:
@@ -115,7 +113,7 @@ class InferenceResult:
         return self.bp_result.beliefs
 
     @property
-    def diagnostics(self):
+    def diagnostics(self) -> BPDiagnostics:
         """Shortcut to BPDiagnostics."""
         return self.bp_result.diagnostics
 
@@ -131,14 +129,18 @@ class InferenceEngine:
       2. GBP: jt_max_treewidth < tw ≤ gbp_max_treewidth → region decomposition
       3. BP: tw > gbp_max_treewidth → loopy BP approximation
 
-    Parameters
-    ----------
+    Args:
     config:
         EngineConfig controlling thresholds and algorithm parameters.
         Defaults to EngineConfig() with recommended settings.
     """
 
     def __init__(self, config: EngineConfig | None = None) -> None:
+        """Initialize the engine and its reusable inference backends.
+
+        Args:
+            config: Optional engine thresholds and algorithm parameters.
+        """
         self._config = config or EngineConfig()
         self._jt = JunctionTreeInference()
         self._gbp = GeneralizedBeliefPropagation(
@@ -160,8 +162,7 @@ class InferenceEngine:
     ) -> InferenceResult:
         """Run inference on *graph* using the specified or auto-selected method.
 
-        Parameters
-        ----------
+        Args:
         graph:
             A validated FactorGraph.
         method:
@@ -171,14 +172,9 @@ class InferenceEngine:
             'bp': force loopy BP (fast but approximate on cyclic graphs).
             'exact': force brute-force enumeration (only feasible for ≤26 vars).
 
-        Returns
-        -------
-        InferenceResult
-            .beliefs: dict[str, float] — posterior P(v=1) per variable
-            .method_used: which algorithm ran
-            .treewidth: estimated graph treewidth
-            .elapsed_ms: wall-clock time
-            .is_exact: whether the result is mathematically exact
+        Returns:
+            InferenceResult with posterior beliefs, selected method metadata,
+            estimated treewidth, elapsed time, and exactness flag.
         """
         cfg = self._config
         t0 = time.perf_counter()
@@ -194,9 +190,7 @@ class InferenceEngine:
                     f"exact inference (max {cfg.exact_max_vars}). "
                     "Use method='jt' for exact inference up to treewidth ~15."
                 )
-            beliefs, Z = exact_inference(graph)
-            from gaia.bp.bp import BPDiagnostics
-
+            beliefs, _Z = exact_inference(graph)
             diag = BPDiagnostics()
             diag.converged = True
             for v, b in beliefs.items():
@@ -212,7 +206,7 @@ class InferenceEngine:
                 is_exact=True,
             )
 
-        elif method == "jt" or (method == "auto" and tw <= cfg.jt_max_treewidth):
+        if method == "jt" or (method == "auto" and tw <= cfg.jt_max_treewidth):
             bp_result = self._jt.run(graph)
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: JT (exact), treewidth=%d, %.1fms", tw, elapsed)
@@ -224,7 +218,7 @@ class InferenceEngine:
                 is_exact=True,
             )
 
-        elif method == "gbp" or (method == "auto" and tw <= cfg.gbp_max_treewidth):
+        if method == "gbp" or (method == "auto" and tw <= cfg.gbp_max_treewidth):
             bp_result = self._gbp.run(graph)
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: GBP, treewidth=%d, %.1fms", tw, elapsed)
@@ -236,29 +230,29 @@ class InferenceEngine:
                 is_exact=(tw <= cfg.jt_max_treewidth),
             )
 
-        else:
-            # method == "bp" or treewidth > gbp_max_treewidth
-            bp_result = self._bp.run(graph)
-            elapsed = (time.perf_counter() - t0) * 1000
-            logger.info("InferenceEngine: loopy BP, treewidth=%d, %.1fms", tw, elapsed)
-            return InferenceResult(
-                bp_result=bp_result,
-                method_used="bp",
-                treewidth=tw,
-                elapsed_ms=elapsed,
-                is_exact=False,
-            )
+        # Fall through to loopy BP for explicit bp or high treewidth.
+        bp_result = self._bp.run(graph)
+        elapsed = (time.perf_counter() - t0) * 1000
+        logger.info("InferenceEngine: loopy BP, treewidth=%d, %.1fms", tw, elapsed)
+        return InferenceResult(
+            bp_result=bp_result,
+            method_used="bp",
+            treewidth=tw,
+            elapsed_ms=elapsed,
+            is_exact=False,
+        )
 
-    def benchmark(self, graph: FactorGraph) -> dict[str, dict]:
+    def benchmark(self, graph: FactorGraph) -> dict[str, dict[str, object]]:
         """Run all feasible methods and return a comparison dict.
 
         Returns dict: method_name -> {'beliefs': ..., 'elapsed_ms': ..., 'is_exact': ...}
         Skips exact brute-force if graph has > EXACT_MAX_VARS variables.
         """
-        results: dict[str, dict] = {}
+        results: dict[str, dict[str, object]] = {}
 
-        for method in ("jt", "gbp", "bp"):
-            r = self.run(graph, method=method)  # type: ignore
+        methods: tuple[Literal["jt", "gbp", "bp"], ...] = ("jt", "gbp", "bp")
+        for method in methods:
+            r = self.run(graph, method=method)
             results[method] = {
                 "beliefs": r.beliefs,
                 "elapsed_ms": r.elapsed_ms,

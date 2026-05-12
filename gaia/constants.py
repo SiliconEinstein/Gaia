@@ -28,8 +28,8 @@ proton_mass = m_p = (1 * ureg.proton_mass).to("kg")
 neutron_mass = m_n = (1 * ureg.neutron_mass).to("kg")
 
 __all__ = [
-    "G",
     "N_A",
+    "G",
     "R",
     "avogadro",
     "boltzmann",

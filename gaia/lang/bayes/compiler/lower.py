@@ -12,6 +12,8 @@ from gaia.ir import Knowledge as IrKnowledge
 from gaia.ir import Operator as IrOperator
 from gaia.ir import Strategy as IrStrategy
 from gaia.ir.knowledge import KnowledgeType, make_qid
+from gaia.ir.operator import OperatorType
+from gaia.ir.strategy import StrategyType
 from gaia.lang.bayes.distributions.base import _is_deferred_reference
 from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.lang.formula.connective import Land
@@ -22,6 +24,8 @@ from gaia.lang.runtime import Claim, Knowledge, Variable
 
 @dataclass(frozen=True)
 class BayesLoweringResult:
+    """IR additions and metadata updates emitted by Bayes action lowering."""
+
     knowledges: list[IrKnowledge] = field(default_factory=list)
     operators: list[IrOperator] = field(default_factory=list)
     strategies: list[IrStrategy] = field(default_factory=list)
@@ -40,6 +44,8 @@ def lower_bayes_claims(
     action_labels_by_object: dict[int, str] | None = None,
     existing_operators: list[IrOperator] | None = None,
 ) -> BayesLoweringResult:
+    """Lower Bayes predictive-model and likelihood actions into Gaia IR records."""
+    del knowledge_nodes
     knowledges: list[IrKnowledge] = []
     operators: list[IrOperator] = []
     strategies: list[IrStrategy] = []
@@ -198,7 +204,7 @@ def _lower_likelihood(
             metadata["action_label"] = action_label
         strategy = IrStrategy(
             scope="local",
-            type="infer",
+            type=StrategyType.INFER,
             premises=[h_id],
             conclusion=cmp_id,
             conditional_probabilities=[0.5, p1],
@@ -242,7 +248,7 @@ def _likelihoods(
                 raise ValueError("precomputed likelihood keys must be original hypothesis Claims")
         provided = set(action.precomputed)
         if provided != hypotheses:
-            missing = sorted((claim.label or claim.content for claim in hypotheses - provided))
+            missing = sorted(claim.label or claim.content for claim in hypotheses - provided)
             details = []
             if missing:
                 details.append(f"missing {missing}")
@@ -345,8 +351,8 @@ def _log_likelihood(distribution: Any, value: Any, data_claim: Claim) -> float:
     if noise_payload:
         return _log_likelihood_with_noise(distribution, value, noise_payload)
     if distribution.kind in {"binomial", "poisson"}:
-        return distribution.logpmf(value)
-    return distribution.logpdf(float(value))
+        return float(distribution.logpmf(value))
+    return float(distribution.logpdf(float(value)))
 
 
 def _log_likelihood_with_noise(
@@ -420,7 +426,7 @@ def _exhaustive_disjunction_operator(
     op = IrOperator(
         operator_id=_operator_id("disjunction", variables, helper_id),
         scope="local",
-        operator="disjunction",
+        operator=OperatorType.DISJUNCTION,
         variables=variables,
         conclusion=helper_id,
         metadata={"bayes": {"auto_generated_by": f"likelihood:{cmp_id}"}},

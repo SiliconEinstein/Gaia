@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
+from gaia.inquiry.focus import resolve_focus_target
 from gaia.inquiry.review import (
     publish_blockers,
     render_markdown,
@@ -22,7 +22,6 @@ from gaia.inquiry.review import (
     resolve_graph,
     run_review,
 )
-from gaia.inquiry.focus import resolve_focus_target
 from gaia.inquiry.state import (
     VALID_OBLIGATION_KINDS,
     SyntheticHypothesis,
@@ -64,13 +63,14 @@ inquiry_app.add_typer(tactics_app, name="tactics")
 
 @inquiry_app.command("focus")
 def focus_command(
-    target: Optional[str] = typer.Argument(None, help="Focus target."),
+    target: str | None = typer.Argument(None, help="Focus target."),
     clear: bool = typer.Option(False, "--clear", help="Clear current focus."),
     push: bool = typer.Option(False, "--push", help="Push current focus and set new."),
     pop: bool = typer.Option(False, "--pop", help="Pop saved focus off the stack."),
     show_stack: bool = typer.Option(False, "--stack", help="Print focus stack."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
+    """Inspect or update the current inquiry focus."""
     flags_set = sum([bool(clear), bool(push), bool(pop), bool(show_stack)])
     if flags_set > 1:
         typer.echo("Error: --clear/--push/--pop/--stack are mutually exclusive.", err=True)
@@ -161,6 +161,7 @@ def obligation_add(
     kind: str = typer.Option("other", "--kind", help="Diagnostic kind."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
+    """Add a synthetic obligation for an inquiry target."""
     if kind not in VALID_OBLIGATION_KINDS:
         typer.echo(
             f"Error: invalid --kind {kind!r}; allowed: {sorted(VALID_OBLIGATION_KINDS)}",
@@ -187,6 +188,7 @@ def obligation_list(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """List open synthetic obligations."""
     state = load_state(path)
     rows = [
         {
@@ -213,6 +215,7 @@ def obligation_close(
     qid: str = typer.Argument(...),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Close a synthetic obligation by QID."""
     state = load_state(path)
     before = len(state.synthetic_obligations)
     state.synthetic_obligations = [o for o in state.synthetic_obligations if o.qid != qid]
@@ -232,9 +235,10 @@ def obligation_close(
 @hypothesis_app.command("add")
 def hypothesis_add(
     content: str = typer.Argument(..., help="Hypothesis content."),
-    scope: Optional[str] = typer.Option(None, "--scope", help="Scope QID."),
+    scope: str | None = typer.Option(None, "--scope", help="Scope QID."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Add a working hypothesis to inquiry state."""
     state = load_state(path)
     qid = mint_qid("hyp")
     state.synthetic_hypotheses.append(
@@ -250,6 +254,7 @@ def hypothesis_list(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """List working hypotheses from inquiry state."""
     state = load_state(path)
     rows = [
         {
@@ -276,6 +281,7 @@ def hypothesis_remove(
     qid: str = typer.Argument(...),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Remove a working hypothesis by QID."""
     state = load_state(path)
     before = len(state.synthetic_hypotheses)
     state.synthetic_hypotheses = [h for h in state.synthetic_hypotheses if h.qid != qid]
@@ -298,6 +304,7 @@ def reject_command(
     content: str = typer.Option(..., "-c", "--content", help="Reason."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Record a synthetic rejection for a strategy."""
     state = load_state(path)
     qid = mint_qid("rej")
     state.synthetic_rejections.append(
@@ -318,6 +325,7 @@ def tactics_log(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
+    """Print the inquiry tactic event log."""
     from gaia.inquiry.state import read_tactic_log
 
     rows = read_tactic_log(path)
@@ -342,15 +350,16 @@ def tactics_log(
 @inquiry_app.command("review")
 def review_command(
     path: str = typer.Argument(".", help="Package path."),
-    focus_: Optional[str] = typer.Option(None, "--focus"),
+    focus_: str | None = typer.Option(None, "--focus"),
     mode: str = typer.Option("auto", "--mode"),
     no_infer: bool = typer.Option(False, "--no-infer"),
     depth: int = typer.Option(0, "--depth"),
-    since: Optional[str] = typer.Option(None, "--since"),
+    since: str | None = typer.Option(None, "--since"),
     json_out: bool = typer.Option(False, "--json"),
     markdown_out: bool = typer.Option(False, "--markdown"),
     strict: bool = typer.Option(False, "--strict"),
 ) -> None:
+    """Run the local semantic inquiry review."""
     if mode not in {"auto", "formalize", "explore", "verify", "publish"}:
         typer.echo(f"Error: invalid --mode {mode!r}.", err=True)
         raise typer.Exit(2)

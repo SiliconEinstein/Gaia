@@ -1,4 +1,4 @@
-"""Trace 文件加载——支持单 JSON 与 JSONL 两种布局，schema 失败统一降级。
+"""Trace file loading for JSON and JSONL layouts.
 
 reviewer 主流程不允许加载阶段 crash：任何破坏（非法 json、缺字段、类型错）
 都被翻译成 ``trace_schema_violation`` 诊断条目，正常进 ranking 流。
@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -17,18 +18,21 @@ from gaia.trace.schema import Trace, TraceEvent, TraceManifest
 
 @dataclass
 class SchemaIssue:
-    """加载/校验失败的统一表示——后续转成 Diagnostic。"""
+    """Represent one load or validation issue for later diagnostics."""
 
     message: str
     location: str = ""  # 例如 "events[3].kind"
-    raw: dict | None = field(default=None)
+    raw: dict[str, Any] | None = field(default=None)
 
 
 @dataclass
 class LoadResult:
-    """加载结果：要么 trace 非空，要么 issues 非空，二者也可同时存在
+    """Represent a trace load attempt.
+
+    要么 trace 非空，要么 issues 非空，二者也可同时存在
     （比如 manifest 校验通过但部分 event 损坏——loader 会把损坏 event 跳过、
-    其余装入 trace、在 issues 报告损坏行号）。"""
+    其余装入 trace、在 issues 报告损坏行号）。
+    """
 
     trace: Trace | None
     issues: list[SchemaIssue] = field(default_factory=list)
@@ -139,8 +143,8 @@ def _load_jsonl(path: Path) -> LoadResult:
     return LoadResult(trace=trace, issues=issues, raw_path=str(path))
 
 
-def _try_partial(data: dict, issues: list[SchemaIssue], path: Path) -> LoadResult:
-    """单 JSON 整体校验失败时退化：尽量保住 manifest，逐条解析 events。"""
+def _try_partial(data: dict[str, Any], issues: list[SchemaIssue], path: Path) -> LoadResult:
+    """Preserve valid manifest and events after whole-file validation fails."""
     manifest_raw = data.get("manifest")
     events_raw = data.get("events", [])
     manifest = None
@@ -167,7 +171,7 @@ def _try_partial(data: dict, issues: list[SchemaIssue], path: Path) -> LoadResul
 
 
 def _detect_layout(path: Path) -> str:
-    """通过文件后缀 + 首字符快速判断单 JSON 还是 JSONL。"""
+    """Infer whether a trace file uses JSON or JSONL layout."""
     suffix = path.suffix.lower()
     if suffix == ".jsonl" or suffix == ".ndjson":
         return "jsonl"
@@ -191,7 +195,7 @@ def _detect_layout(path: Path) -> str:
 
 
 def load_trace(path: str | Path) -> LoadResult:
-    """加载 trace 文件，自动识别 JSON 与 JSONL 布局。
+    """Load a trace file and detect JSON or JSONL layout automatically.
 
     永不抛异常——任何错误都进 ``LoadResult.issues``。
     """

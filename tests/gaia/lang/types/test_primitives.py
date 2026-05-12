@@ -47,4 +47,4 @@ def test_primitive_repr():
 def test_primitive_type_is_sealed():
     """Cannot construct ad-hoc PrimitiveType outside the four built-ins."""
     with pytest.raises(TypeError):
-        PrimitiveType("MadeUp", lambda v: True)
+        PrimitiveType("MadeUp", lambda _v: True)

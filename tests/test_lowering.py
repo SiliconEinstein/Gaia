@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 
 from gaia.bp import FactorType, lower_local_graph, lower_operator
-from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.exact import exact_inference, exact_joint_over
+from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
-from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
+from gaia.ir import CompositeStrategy, Knowledge, LocalCanonicalGraph, Operator, Strategy
 
 NS, PKG = "github", "lowertest"
 
@@ -574,7 +574,7 @@ def test_abduction_leaf_strategy_generates_interface_claim():
     fg = lower_local_graph(g)
     assert not fg.validate()
     ftypes = {f.factor_type for f in fg.factors}
-    # abduction skeleton: disjunction(H, Alt -> ExplainUnion) + equivalence(ExplainUnion, Obs -> EqH)
+    # Abduction skeleton includes disjunction and equivalence structure.
     assert FactorType.DISJUNCTION in ftypes
     assert FactorType.EQUIVALENCE in ftypes
     # The auto-generated AlternativeExplanationForObs must appear as a variable
@@ -641,7 +641,7 @@ def test_named_leaf_node_priors_respected():
     )
     # First pass: discover the auto-generated alt-explanation variable ID
     fg0 = lower_local_graph(g)
-    alt_id = [v for v in fg0.variables if "alternative_explanation" in v][0]
+    alt_id = next(v for v in fg0.variables if "alternative_explanation" in v)
 
     # Second pass: supply a custom prior for the auto-generated claim
     fg1 = lower_local_graph(g, node_priors={alt_id: 0.1})
@@ -696,9 +696,12 @@ def test_composite_strategy_expands_sub_strategies():
 
 
 def test_formal_expr_relation_conclusion_gets_assertion_prior():
-    """FormalExpr internal relation operator conclusions must get π=1-ε (assertion),
-    not the default 0.5.  Bug: lowering.py FormalExpr expand path uses
-    _ensure_claim_var for all conclusions, which defaults to 0.5."""
+    """Verify formal expr relation conclusion gets assertion prior.
+
+    FormalExpr internal relation operator conclusions must get π=1-ε (assertion) not the default
+    0.5. Bug: lowering.py FormalExpr expand path uses _ensure_claim_var for all conclusions,
+    which defaults to 0.5.
+    """
     from gaia.bp.factor_graph import CROMWELL_EPS
     from gaia.ir.strategy import FormalExpr, FormalStrategy
 
@@ -780,9 +783,12 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
 
 
 def test_auto_formalized_abduction_relation_conclusions_get_assertion_prior():
-    """Named strategy auto-formalization path: formalize_named_strategy generates
-    helper claims that are registered via _ensure_claim_var (π=0.5) BEFORE the
-    FormalStrategy expand path runs.  Relation conclusions must still get π=1-ε."""
+    """Verify auto formalized abduction relation conclusions get assertion prior.
+
+    Named strategy auto-formalization path: formalize_named_strategy generates helper claims
+    that are registered via _ensure_claim_var (π=0.5) BEFORE the FormalStrategy expand path
+    runs. Relation conclusions must still get π=1-ε.
+    """
     from gaia.bp.factor_graph import CROMWELL_EPS
 
     s = Strategy(
@@ -966,7 +972,7 @@ def test_e2e_single_premise_deduction_binary_implication():
     assert FactorType.CONJUNCTION not in ftypes
 
     # CONDITIONAL has 1 variable (premise) + conclusion
-    conditional_f = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL][0]
+    conditional_f = next(f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL)
     assert len(conditional_f.variables) == 1
 
     # Run inference
@@ -1247,7 +1253,7 @@ def test_e2e_induction_chain():
     assert ind_12.composition_warrant is not None
     assert ind_12.composition_warrant.metadata.get("helper_kind") == "composition_validity"
 
-    # Chain: induction(prev_induction, new_support, law)
+    # Then chain the previous induction with new support.
     ind_123 = dsl_induction(ind_12, s3, law=law, reason="flower color independent of seed traits")
     assert ind_123.type == "induction"
     assert ind_123.conclusion is law

@@ -1,4 +1,4 @@
-"""Canonical-json + sha256 链——trace 抗作弊的最底层算法。
+"""Canonical JSON and SHA-256 helpers for trace tamper checks.
 
 设计纪律（吸取 dz-fusion P0-1 教训：reviewer 不允许走"trace 自己说我没坏"
 的捷径，必须独立重算）：
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from gaia.trace.schema import TraceEvent, TraceManifest
@@ -33,7 +33,7 @@ GENESIS_PREV_HASH: str = ""
 
 
 def _to_jsonable(value: Any) -> Any:
-    """递归把 datetime 等非 JSON 原生类型转成确定性表示。
+    """Convert values into deterministic JSON-compatible structures.
 
     - datetime：先归一化到 UTC，再 isoformat（with 'Z'），byte-equal 不依赖 tz suffix
     - dict：按 key 递归（key 必须是 str；非 str key 抛 TypeError）
@@ -48,10 +48,7 @@ def _to_jsonable(value: Any) -> Any:
             raise ValueError("non-finite float in canonical_json input")
         return value
     if isinstance(value, datetime):
-        if value.tzinfo is None:
-            v = value.replace(tzinfo=timezone.utc)
-        else:
-            v = value.astimezone(timezone.utc)
+        v = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
         s = v.isoformat()
         if s.endswith("+00:00"):
             s = s[:-6] + "Z"
@@ -71,7 +68,7 @@ def _to_jsonable(value: Any) -> Any:
 
 
 def canonical_json(value: Any) -> bytes:
-    """跨平台、跨进程 byte-equal 的 JSON 编码。
+    """Encode JSON byte-identically across platforms and processes.
 
     用于 hash chain 与 events_root；任何调整都会让既有 trace 失效，需慎重升 schema。
     """
@@ -86,11 +83,12 @@ def canonical_json(value: Any) -> bytes:
 
 
 def sha256_hex(data: bytes) -> str:
+    """Return the hexadecimal SHA-256 digest for bytes."""
     return hashlib.sha256(data).hexdigest()
 
 
 def event_payload(event: TraceEvent) -> dict[str, Any]:
-    """链 hash 用的 event 投影：包含全部 schema 字段，但 ``prev_hash`` 不参与。
+    """Project an event into the payload used for chain hashing.
 
     把 prev_hash 从 hash 输入里剔除是关键：否则改 prev_hash 会让 hash 也变，
     chain 本身就形成自洽循环——reviewer 将检不出篡改。
@@ -101,11 +99,12 @@ def event_payload(event: TraceEvent) -> dict[str, Any]:
 
 
 def hash_event(event: TraceEvent) -> str:
+    """Hash one trace event after removing its `prev_hash` link."""
     return sha256_hex(canonical_json(event_payload(event)))
 
 
 def recompute_chain(events: list[TraceEvent]) -> list[str]:
-    """逐条独立算每条 event 的 hash，返回长度等于 events 的列表。
+    """Recompute each event hash independently.
 
     - 不读 event.prev_hash；reviewer 用返回值与 events[i+1].prev_hash 比对
     - 空 events → 空列表
@@ -114,20 +113,20 @@ def recompute_chain(events: list[TraceEvent]) -> list[str]:
 
 
 def compute_events_root(events: list[TraceEvent]) -> str:
-    """整段 events 的根 hash——独立于 chain，第二条校验路径。"""
+    """Compute the root hash for the full event sequence."""
     payload = [event_payload(ev) for ev in events]
     return sha256_hex(canonical_json(payload))
 
 
 def compute_manifest_hash(manifest: TraceManifest) -> str:
-    """manifest 自身 hash，``manifest_hash`` 字段不参与（避免 self-reference）。"""
+    """Compute the manifest hash with `manifest_hash` excluded."""
     d = manifest.model_dump()
     d.pop("manifest_hash", None)
     return sha256_hex(canonical_json(d))
 
 
 def verify_chain(events: list[TraceEvent]) -> tuple[bool, int | None]:
-    """链完整性快速检查：返回 (ok, broken_at_seq)。
+    """Check hash-chain integrity and return `(ok, broken_at_seq)`.
 
     - events[0].prev_hash 必须等于 ``GENESIS_PREV_HASH``
     - 第 i 条（i >= 1）的 prev_hash 必须等于 hash_event(events[i-1])

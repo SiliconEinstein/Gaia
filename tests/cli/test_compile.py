@@ -192,13 +192,15 @@ def test_compile_preserves_structured_steps_and_provenance(tmp_path):
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
         "from gaia.lang import Step, claim, noisy_and\n\n"
-        'evidence_a = claim("Evidence A.", provenance=[{"package_id": "paper:alpha", "version": "1.0.0"}])\n'
+        'evidence_a = claim("Evidence A.", provenance=[{"package_id": "paper:alpha", '
+        '"version": "1.0.0"}])\n'
         'evidence_b = claim("Evidence B.")\n'
         'hypothesis = claim("Hypothesis.")\n'
         "support = noisy_and(\n"
         "    premises=[evidence_a, evidence_b],\n"
         "    conclusion=hypothesis,\n"
-        '    reason=[Step(reason="Combine both evidence lines.", premises=[evidence_a, evidence_b])],\n'
+        '    reason=[Step(reason="Combine both evidence lines.", '
+        "premises=[evidence_a, evidence_b])],\n"
         ")\n"
         '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
     )
@@ -512,7 +514,8 @@ def test_compile_fills_emits_conditional_infer_bridge_metadata(tmp_path, monkeyp
         "from gaia.lang import claim, fills\n"
         "from dep_pkg import missing_lemma\n\n"
         'b_result = claim("B theorem.")\n'
-        'bridge = fills(source=b_result, target=missing_lemma, strength="conditional", mode="infer", reason="Only under extra assumptions.")\n'
+        "bridge = fills(source=b_result, target=missing_lemma, "
+        'strength="conditional", mode="infer", reason="Only under extra assumptions.")\n'
         '__all__ = ["b_result", "bridge"]\n'
     )
 
@@ -689,8 +692,11 @@ def test_compile_fills_requires_foreign_target(tmp_path):
 
 
 def test_compile_rejects_fills_strategy_with_multiple_premises(tmp_path):
-    """Bypass the fills() DSL to construct a bad strategy with 2 premises,
-    and verify compile rejects it with the 'exactly one source and one target' error."""
+    """Verify compile rejects fills strategy with multiple premises.
+
+    Bypass the fills() DSL to construct a bad strategy with 2 premises and verify compile
+    rejects it with the 'exactly one source and one target' error.
+    """
     pkg_dir = tmp_path / "bad_fills_arity_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -709,7 +715,8 @@ def test_compile_rejects_fills_strategy_with_multiple_premises(tmp_path):
         '    type="deduction",\n'
         "    premises=[source_a, source_b],\n"
         "    conclusion=target,\n"
-        '    metadata={"gaia": {"relation": {"type": "fills", "strength": "exact", "mode": "deduction"}}},\n'
+        '    metadata={"gaia": {"relation": {"type": "fills", "strength": "exact", '
+        '"mode": "deduction"}}},\n'
         ")\n"
         '__all__ = ["source_a", "source_b", "target"]\n'
     )
@@ -977,7 +984,8 @@ def test_compile_elimination_strategy_uses_ir_canonical_formalization(tmp_path):
         "    survivor=autoimmune,\n"
         '    reason="All alternative causes were excluded.",\n'
         ")\n"
-        '__all__ = ["exhaustive", "bacterial", "antibiotics_neg", "viral", "viral_test_neg", "autoimmune", "argument"]\n'
+        '__all__ = ["exhaustive", "bacterial", "antibiotics_neg", "viral", '
+        '"viral_test_neg", "autoimmune", "argument"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1085,7 +1093,8 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
         "    conclusion=final_claim,\n"
         "    sub_strategies=[inner, final_support],\n"
         ")\n"
-        '__all__ = ["evidence", "hypothesis", "intermediate", "final_claim", "step1", "step2", "inner", "final_support", "argument"]\n'
+        '__all__ = ["evidence", "hypothesis", "intermediate", "final_claim", '
+        '"step1", "step2", "inner", "final_support", "argument"]\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1230,7 +1239,8 @@ def test_compile_priors_py_new_knowledge_raises(tmp_path):
     pkg_src = pkg_dir / "prior_ghost_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        'from gaia.lang import claim\n\nmain_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
+        "from gaia.lang import claim\n\n"
+        'main_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
     )
     (pkg_src / "priors.py").write_text(
         "from gaia.lang import claim\n\n"
@@ -1253,7 +1263,8 @@ def test_compile_priors_py_out_of_range_prior_raises(tmp_path):
     pkg_src = pkg_dir / "bad_prior_value_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        'from gaia.lang import claim\n\nmain_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
+        "from gaia.lang import claim\n\n"
+        'main_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
     )
     (pkg_src / "priors.py").write_text(
         'from . import main_claim\n\nPRIORS = {main_claim: (2.5, "Invalid probability.")}\n'

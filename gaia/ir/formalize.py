@@ -9,17 +9,18 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from gaia.ir.knowledge import Knowledge, KnowledgeType, make_qid
-from gaia.ir.operator import Operator
+from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.strategy import (
+    _FORMAL_STRATEGY_TYPES,
     FormalExpr,
     FormalStrategy,
     Step,
     StrategyType,
-    _FORMAL_STRATEGY_TYPES,
 )
 
 _HELPER_KIND_BY_OPERATOR = {
@@ -43,6 +44,27 @@ class FormalizationResult:
 
 def _sha256_hex(data: str, length: int = 16) -> str:
     return hashlib.sha256(data.encode()).hexdigest()[:length]
+
+
+def _required_str(value: str | None) -> str:
+    """Return a generated identifier that must exist by construction."""
+    if value is None:
+        raise AssertionError("generated formalization nodes must carry concrete ids")
+    return value
+
+
+def _operator(
+    *,
+    operator: OperatorType | str,
+    variables: Sequence[str | None],
+    conclusion: str | None,
+) -> Operator:
+    """Construct an Operator while preserving runtime string-to-enum coercion."""
+    return Operator(
+        operator=OperatorType(operator),
+        variables=[_required_str(variable) for variable in variables],
+        conclusion=_required_str(conclusion),
+    )
 
 
 def _generated_claim_id(
@@ -143,7 +165,7 @@ class _TemplateBuilder:
             metadata=metadata,
         )
         self.knowledges.append(knowledge)
-        self.interface_roles[role].append(knowledge.id)
+        self.interface_roles[role].append(_required_str(knowledge.id))
         return knowledge
 
     def add_helper(self, operator_name: str, canonical_name: str) -> Knowledge:
@@ -206,7 +228,9 @@ def _any_true_name(variables: list[str]) -> str:
     return f"any_true({','.join(variables)})"
 
 
-def _same_truth_name(left: str, right: str) -> str:
+def _same_truth_name(left: str | None, right: str | None) -> str:
+    left = _required_str(left)
+    right = _required_str(right)
     return f"same_truth({left},{right})"
 
 
@@ -222,7 +246,9 @@ def _opposite_truth_name(left: str, right: str) -> str:
     return f"opposite_truth({left},{right})"
 
 
-def _implies_name(antecedent: str, consequent: str) -> str:
+def _implies_name(antecedent: str | None, consequent: str | None) -> str:
+    antecedent = _required_str(antecedent)
+    consequent = _required_str(consequent)
     return f"implies({antecedent},{consequent})"
 
 
@@ -244,7 +270,7 @@ def _build_deduction(builder: _TemplateBuilder) -> list[Operator]:
             "implication", _implies_name(antecedent, builder.conclusion)
         )
         return [
-            Operator(
+            _operator(
                 operator="implication",
                 variables=[antecedent, builder.conclusion],
                 conclusion=impl_helper.id,
@@ -255,8 +281,8 @@ def _build_deduction(builder: _TemplateBuilder) -> list[Operator]:
         "implication", _implies_name(conjunction.id, builder.conclusion)
     )
     return [
-        Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(
+        _operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
+        _operator(
             operator="implication",
             variables=[conjunction.id, builder.conclusion],
             conclusion=impl_helper.id,
@@ -272,8 +298,8 @@ def _build_mathematical_induction(builder: _TemplateBuilder) -> list[Operator]:
         "implication", _implies_name(conjunction.id, builder.conclusion)
     )
     return [
-        Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(
+        _operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
+        _operator(
             operator="implication",
             variables=[conjunction.id, builder.conclusion],
             conclusion=impl_helper.id,
@@ -284,7 +310,8 @@ def _build_mathematical_induction(builder: _TemplateBuilder) -> list[Operator]:
 def _build_elimination(builder: _TemplateBuilder) -> list[Operator]:
     if len(builder.premises) < 3 or len(builder.premises[1:]) % 2 != 0:
         raise ValueError(
-            "elimination formalization requires premises=[Exhaustiveness, Candidate1, Evidence1, ...]"
+            "elimination formalization requires "
+            "premises=[Exhaustiveness, Candidate1, Evidence1, ...]"
         )
     exhaustiveness = builder.premises[0]
     builder.interface_roles["exhaustiveness"].append(exhaustiveness)
@@ -310,12 +337,12 @@ def _build_elimination(builder: _TemplateBuilder) -> list[Operator]:
 
     elimination_gate_inputs = [exhaustiveness]
     operators = [
-        Operator(
+        _operator(
             operator="disjunction",
             variables=[candidate for candidate, _ in candidate_pairs] + [builder.conclusion],
             conclusion=disjunction.id,
         ),
-        Operator(
+        _operator(
             operator="equivalence",
             variables=[disjunction.id, exhaustiveness],
             conclusion=equivalence.id,
@@ -326,27 +353,27 @@ def _build_elimination(builder: _TemplateBuilder) -> list[Operator]:
         candidate_pairs, contradiction_results, strict=True
     ):
         operators.append(
-            Operator(
+            _operator(
                 operator="contradiction",
                 variables=[candidate, evidence],
                 conclusion=contradiction.id,
             )
         )
-        elimination_gate_inputs.extend([evidence, contradiction.id])
+        elimination_gate_inputs.extend([evidence, _required_str(contradiction.id)])
 
     conjunction = builder.add_helper("conjunction", _all_true_name(elimination_gate_inputs))
     impl_helper = builder.add_helper(
         "implication", _implies_name(conjunction.id, builder.conclusion)
     )
     operators.append(
-        Operator(
+        _operator(
             operator="conjunction",
             variables=elimination_gate_inputs,
             conclusion=conjunction.id,
         )
     )
     operators.append(
-        Operator(
+        _operator(
             operator="implication",
             variables=[conjunction.id, builder.conclusion],
             conclusion=impl_helper.id,
@@ -377,12 +404,12 @@ def _build_case_analysis(builder: _TemplateBuilder) -> list[Operator]:
         _same_truth_name(disjunction.id, exhaustiveness),
     )
     operators = [
-        Operator(
+        _operator(
             operator="disjunction",
             variables=[case_claim for case_claim, _ in case_pairs],
             conclusion=disjunction.id,
         ),
-        Operator(
+        _operator(
             operator="equivalence",
             variables=[disjunction.id, exhaustiveness],
             conclusion=equivalence.id,
@@ -398,14 +425,14 @@ def _build_case_analysis(builder: _TemplateBuilder) -> list[Operator]:
             _implies_name(conjunction.id, builder.conclusion),
         )
         operators.append(
-            Operator(
+            _operator(
                 operator="conjunction",
                 variables=[case_claim, support],
                 conclusion=conjunction.id,
             )
         )
         operators.append(
-            Operator(
+            _operator(
                 operator="implication",
                 variables=[conjunction.id, builder.conclusion],
                 conclusion=impl_helper.id,
@@ -428,14 +455,17 @@ def _build_abduction(builder: _TemplateBuilder) -> list[Operator]:
             f"alternative_explanation_for({observation})",
             anchor=observation,
         )
-        builder.premises.append(alternative_explanation.id)
-        alternative_explanation_id = alternative_explanation.id
+        alternative_explanation_id = _required_str(alternative_explanation.id)
+        builder.premises.append(alternative_explanation_id)
     else:
         alternative_explanation_id = builder.premises[1]
     builder.interface_roles["observation"].append(observation)
-    if len(builder.premises) == 2 and alternative_explanation_id == builder.premises[1]:
-        if not builder.interface_roles["alternative_explanation"]:
-            builder.interface_roles["alternative_explanation"].append(alternative_explanation_id)
+    if (
+        len(builder.premises) == 2
+        and alternative_explanation_id == builder.premises[1]
+        and not builder.interface_roles["alternative_explanation"]
+    ):
+        builder.interface_roles["alternative_explanation"].append(alternative_explanation_id)
     explanation_union = builder.add_helper(
         "disjunction",
         _explains_name(observation),
@@ -445,12 +475,12 @@ def _build_abduction(builder: _TemplateBuilder) -> list[Operator]:
         _same_truth_name(explanation_union.id, observation),
     )
     return [
-        Operator(
+        _operator(
             operator="disjunction",
             variables=[builder.conclusion, alternative_explanation_id],
             conclusion=explanation_union.id,
         ),
-        Operator(
+        _operator(
             operator="equivalence",
             variables=[explanation_union.id, observation],
             conclusion=equivalence.id,
@@ -466,8 +496,8 @@ def _build_analogy(builder: _TemplateBuilder) -> list[Operator]:
         "implication", _implies_name(conjunction.id, builder.conclusion)
     )
     return [
-        Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(
+        _operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
+        _operator(
             operator="implication",
             variables=[conjunction.id, builder.conclusion],
             conclusion=impl_helper.id,
@@ -483,8 +513,8 @@ def _build_extrapolation(builder: _TemplateBuilder) -> list[Operator]:
         "implication", _implies_name(conjunction.id, builder.conclusion)
     )
     return [
-        Operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
-        Operator(
+        _operator(operator="conjunction", variables=builder.premises, conclusion=conjunction.id),
+        _operator(
             operator="implication",
             variables=[conjunction.id, builder.conclusion],
             conclusion=impl_helper.id,
@@ -495,13 +525,13 @@ def _build_extrapolation(builder: _TemplateBuilder) -> list[Operator]:
 def _build_support(builder: _TemplateBuilder) -> list[Operator]:
     """Support: conjunction + forward IMPLIES (same structure as deduction)."""
     if len(builder.premises) == 1:
-        antecedent = builder.premises[0]
+        antecedent: str | None = builder.premises[0]
         ops: list[Operator] = []
     else:
         conj = builder.add_helper("conjunction", _all_true_name(builder.premises))
         antecedent = conj.id
         ops = [
-            Operator(
+            _operator(
                 operator="conjunction",
                 variables=builder.premises,
                 conclusion=conj.id,
@@ -512,7 +542,7 @@ def _build_support(builder: _TemplateBuilder) -> list[Operator]:
     _propagate_prior(builder, h_fwd, key="prior")
 
     ops.append(
-        Operator(
+        _operator(
             operator="implication",
             variables=[antecedent, builder.conclusion],
             conclusion=h_fwd.id,
@@ -539,17 +569,17 @@ def _build_compare(builder: _TemplateBuilder) -> list[Operator]:
     h_match1 = builder.add_helper("equivalence", _matches_name(pred_h, observation))
     h_match2 = builder.add_helper("equivalence", _matches_name(pred_alt, observation))
     return [
-        Operator(
+        _operator(
             operator="equivalence",
             variables=[pred_h, observation],
             conclusion=h_match1.id,
         ),
-        Operator(
+        _operator(
             operator="equivalence",
             variables=[pred_alt, observation],
             conclusion=h_match2.id,
         ),
-        Operator(
+        _operator(
             operator="implication",
             variables=[h_match2.id, h_match1.id],
             conclusion=builder.conclusion,

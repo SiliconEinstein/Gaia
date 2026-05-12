@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ReviewStatus(StrEnum):
+    """Lifecycle states for qualitative review records."""
+
     UNREVIEWED = "unreviewed"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
@@ -39,6 +41,7 @@ class ReviewManifest(BaseModel):
     reviews: list[Review] = []
 
     def latest_status(self, target_id: str) -> ReviewStatus | None:
+        """Return the most recent review status for a target, if one exists."""
         relevant = [review for review in self.reviews if review.target_id == target_id]
         if not relevant:
             return None

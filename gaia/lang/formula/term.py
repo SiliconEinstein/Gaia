@@ -15,7 +15,6 @@ from gaia.lang.formula.symbols import FunctionSymbol
 from gaia.lang.runtime.domain import Domain
 from gaia.lang.types.primitives import PrimitiveType
 
-
 _ARITH_OPS = frozenset({"+", "-", "*", "/"})
 
 
@@ -39,7 +38,9 @@ def _term_domain(t: Any) -> PrimitiveType | Domain | None:
     if isinstance(t, Constant):
         return t.primitive
     if hasattr(t, "domain"):  # Variable
-        return getattr(t, "domain")
+        domain = t.domain
+        if isinstance(domain, PrimitiveType | Domain):
+            return domain
     if isinstance(t, FunctionApp):
         return t.symbol.result_domain
     return None  # ArithOp — leave to compiler to type-check
@@ -55,6 +56,7 @@ class Constant:
     __gaia_term__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate the literal against its declared primitive type."""
         if not isinstance(self.primitive, PrimitiveType):
             raise TypeError(
                 f"primitive must be a PrimitiveType, got {type(self.primitive).__name__}"
@@ -75,6 +77,7 @@ class FunctionApp:
     __gaia_term__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate function symbol, arity, and argument domains."""
         if not isinstance(self.symbol, FunctionSymbol):
             raise TypeError(f"symbol must be a FunctionSymbol, got {type(self.symbol).__name__}")
         expected_arity = len(self.symbol.arg_domains)
@@ -83,7 +86,9 @@ class FunctionApp:
                 f"FunctionApp arity mismatch: {self.symbol.name} expects "
                 f"{expected_arity} args, got {len(self.args)}"
             )
-        for i, (arg, expected_domain) in enumerate(zip(self.args, self.symbol.arg_domains)):
+        for i, (arg, expected_domain) in enumerate(
+            zip(self.args, self.symbol.arg_domains, strict=True)
+        ):
             if not is_term(arg):
                 raise TypeError(f"FunctionApp argument {i} is not a Term: {arg!r}")
             actual = _term_domain(arg)
@@ -105,6 +110,7 @@ class ArithOp:
     __gaia_term__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate arithmetic operator and operands."""
         if self.op not in _ARITH_OPS:
             raise ValueError(f"op must be one of {_ARITH_OPS}, got {self.op!r}")
         if not is_term(self.left):

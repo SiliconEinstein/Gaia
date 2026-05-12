@@ -82,6 +82,7 @@ def test_invalid_obligation_kind_rejected():
 
 
 def test_focus_push_and_pop_roundtrip(tmp_path: Path):
+    del tmp_path
     s = InquiryState()
     s.focus = "a"
     push_focus_frame(s)

@@ -15,9 +15,10 @@ _SEALED = False
 class PrimitiveType:
     """A built-in typed sort. Construction is sealed once the module finishes loading."""
 
-    __slots__ = ("name", "_accept")
+    __slots__ = ("_accept", "name")
 
     def __init__(self, name: str, accept: Callable[[object], bool]) -> None:
+        """Create a primitive type token before the module is sealed."""
         if _SEALED:
             raise TypeError(
                 "PrimitiveType is sealed. Use the four built-ins: Nat, Real, Probability, Bool."
@@ -26,12 +27,15 @@ class PrimitiveType:
         self._accept = accept
 
     def accepts(self, value: object) -> bool:
+        """Return whether ``value`` belongs to this primitive type."""
         return self._accept(value)
 
     def __repr__(self) -> str:
+        """Return the primitive type name."""
         return self.name
 
-    def __reduce__(self):
+    def __reduce__(self) -> tuple[Callable[[str], PrimitiveType], tuple[str]]:
+        """Preserve primitive singleton identity when pickled."""
         return (_lookup_primitive, (self.name,))
 
 

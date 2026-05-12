@@ -4,23 +4,24 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import typer
 
+from gaia.bp import lower_local_graph
+from gaia.bp.engine import InferenceEngine
 from gaia.cli._packages import (
     GaiaCliError,
     apply_package_priors,
     build_package_manifests,
+    collect_foreign_node_priors,
+    compile_loaded_package_artifact,
     load_gaia_package,
+    render_manifest_json,
 )
-from gaia.cli._packages import compile_loaded_package_artifact
-from gaia.cli._packages import render_manifest_json
-from gaia.cli._packages import collect_foreign_node_priors
-from gaia.bp import lower_local_graph
-from gaia.bp.engine import InferenceEngine
 from gaia.ir import LocalCanonicalGraph
 from gaia.ir.validator import validate_local_graph
 
@@ -31,7 +32,7 @@ except ImportError:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _read_gaia_lang_version_from_compile_metadata(pkg_path: Path) -> str:
@@ -222,7 +223,9 @@ def _build_pr_body(
     return "\n".join(lines)
 
 
-def _prepare_exported_claims(ir: dict, exported_labels: list[str]) -> list[dict[str, str]]:
+def _prepare_exported_claims(
+    ir: dict[str, Any], exported_labels: list[str]
+) -> list[dict[str, str]]:
     knowledge_by_label = {
         item["label"]: item
         for item in ir["knowledges"]
@@ -237,7 +240,7 @@ def _prepare_exported_claims(ir: dict, exported_labels: list[str]) -> list[dict[
     return exported
 
 
-def _load_existing_versions(path: Path) -> dict[str, dict[str, str]]:
+def _load_existing_versions(path: Path) -> dict[str, dict[str, object]]:
     if not path.exists():
         return {}
     return dict(tomllib.loads(path.read_text()).get("versions", {}))
@@ -249,21 +252,8 @@ def _load_existing_deps(path: Path) -> dict[str, dict[str, str]]:
     return dict(tomllib.loads(path.read_text()).get("deps", {}))
 
 
-def register_command(
-    path: str = typer.Argument(".", help="Path to knowledge package directory"),
-    tag: str | None = typer.Option(None, help="Git tag to register. Defaults to v<version>."),
-    repo: str | None = typer.Option(
-        None, help="GitHub repository URL. Defaults to the git origin remote."
-    ),
-    registry_dir: str | None = typer.Option(
-        None, help="Path to a local checkout of the official registry repository."
-    ),
-    registry_repo: str = typer.Option(
-        "SiliconEinstein/gaia-registry", help="Registry GitHub repo slug for PR creation."
-    ),
-    create_pr: bool = typer.Option(False, help="Push the registry branch and open a GitHub PR."),
-) -> None:
-    """Prepare or submit a registration for a tagged GitHub-backed Gaia package."""
+def _load_registration_artifacts(path: str) -> tuple[Any, Any, dict[str, Any], dict[str, Any]]:
+    """Load, compile, and render manifest payloads for registration."""
     try:
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
@@ -272,14 +262,35 @@ def register_command(
         manifests = build_package_manifests(loaded, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
+    return loaded, compiled, ir, manifests
 
+
+def _validate_registration_ir(ir: dict[str, Any]) -> None:
+    """Validate the compiled IR before registration."""
     validation = validate_local_graph(LocalCanonicalGraph(**ir))
     if validation.errors:
         for error in validation.errors:
             typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1)
 
+
+def _validated_gaia_uuid(loaded: Any) -> str:
+    """Return a valid package UUID or exit with a CLI error."""
+    gaia_uuid = loaded.gaia_config.get("uuid")
+    if not isinstance(gaia_uuid, str) or not gaia_uuid:
+        typer.echo("Error: [tool.gaia].uuid is required for registration.", err=True)
+        raise typer.Exit(1)
+    try:
+        UUID(gaia_uuid)
+    except ValueError as exc:
+        typer.echo(f"Error: invalid [tool.gaia].uuid: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    return gaia_uuid
+
+
+def _validate_registration_package_config(loaded: Any, ir: dict[str, Any]) -> tuple[str, list[str]]:
+    """Validate project metadata and return UUID plus dependency specs."""
     ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
     if not ir_hash_path.exists():
         typer.echo("Error: missing .gaia/ir_hash; run `gaia compile` first.", err=True)
@@ -289,30 +300,24 @@ def register_command(
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
 
-    gaia_uuid = loaded.gaia_config.get("uuid")
-    if not isinstance(gaia_uuid, str) or not gaia_uuid:
-        typer.echo("Error: [tool.gaia].uuid is required for registration.", err=True)
-        raise typer.Exit(1)
-    try:
-        UUID(gaia_uuid)
-    except ValueError as exc:
-        typer.echo(f"Error: invalid [tool.gaia].uuid: {exc}", err=True)
-        raise typer.Exit(1)
-
+    gaia_uuid = _validated_gaia_uuid(loaded)
     if not loaded.project_name.endswith("-gaia"):
         typer.echo("Error: [project].name must end with '-gaia'.", err=True)
         raise typer.Exit(1)
-
-    package_name = loaded.project_name.removesuffix("-gaia")
-    version = loaded.project_config["version"]
-    tag_name = tag or f"v{version}"
-    description = str(loaded.project_config.get("description", ""))
     dependencies = loaded.project_config.get("dependencies", [])
     if not isinstance(dependencies, list):
         typer.echo("Error: [project].dependencies must be a list if set.", err=True)
         raise typer.Exit(1)
-    deps = _parse_gaia_dependencies(dependencies)
+    return gaia_uuid, dependencies
 
+
+def _validated_registration_git_state(
+    loaded: Any,
+    *,
+    tag_name: str,
+    repo: str | None,
+) -> tuple[str, str]:
+    """Validate package git state and return repository URL plus HEAD SHA."""
     try:
         _run(["git", "rev-parse", "--is-inside-work-tree"], cwd=loaded.pkg_path)
         worktree_state = _run(["git", "status", "--short"], cwd=loaded.pkg_path)
@@ -326,39 +331,76 @@ def register_command(
         if tag_sha != head_sha:
             raise GaiaCliError(f"Error: tag '{tag_name}' must point to HEAD before registration.")
         remote_tag = _run(
-            ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag_name}"], cwd=loaded.pkg_path
+            ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag_name}"],
+            cwd=loaded.pkg_path,
         )
         if not remote_tag.stdout.strip():
             raise GaiaCliError(f"Error: tag '{tag_name}' is not pushed to origin.")
-    except GaiaCliError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
-
-    try:
         repo_url = _normalize_github_url(repo or origin_url)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    return repo_url, tag_sha
+
+
+def _build_beliefs_manifest(
+    loaded: Any,
+    compiled: Any,
+    ir: dict[str, Any],
+    package_name: str,
+    version: str,
+) -> dict[str, Any]:
+    """Run inference and build the exported-beliefs release manifest."""
+    foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
+    factor_graph = lower_local_graph(compiled.graph, node_priors=foreign_priors or None)
+    fg_errors = factor_graph.validate()
+    if fg_errors:
+        for error in fg_errors:
+            typer.echo(f"Error (factor graph): {error}", err=True)
         raise typer.Exit(1)
 
-    exported_claims = _prepare_exported_claims(ir, loaded.package.exported)
-    registered_at = _utc_now()
-    pr_title = f"register: {loaded.project_name} {version}"
-    pr_body = _build_pr_body(
-        pypi_name=loaded.project_name,
-        version=version,
-        repo=repo_url,
-        tag=tag_name,
-        ir_hash=ir["ir_hash"],
-        exported=exported_claims,
-        deps=deps,
-    )
+    inference_result = InferenceEngine().run(factor_graph)
+    exported_qids = {k.id for k in compiled.graph.knowledges if k.id is not None and k.exported}
+    knowledge_by_id = {k.id: k for k in compiled.graph.knowledges}
+    return {
+        "manifest_schema_version": 1,
+        "package": package_name,
+        "version": version,
+        "ir_hash": ir["ir_hash"],
+        "beliefs": [
+            {
+                "knowledge_id": kid,
+                "label": knowledge_by_id[kid].label,
+                "belief": belief,
+            }
+            for kid, belief in sorted(inference_result.bp_result.beliefs.items())
+            if kid in exported_qids and kid in knowledge_by_id
+        ],
+    }
 
+
+def _registration_metadata_payloads(
+    *,
+    loaded: Any,
+    ir: dict[str, Any],
+    gaia_uuid: str,
+    package_name: str,
+    version: str,
+    tag_name: str,
+    tag_sha: str,
+    repo_url: str,
+    deps: dict[str, str],
+    manifests: dict[str, Any],
+    beliefs_manifest: dict[str, Any],
+) -> tuple[str, dict[str, dict[str, object]], dict[str, dict[str, str]], dict[str, str]]:
+    """Build registry metadata and release file payloads."""
+    registered_at = _utc_now()
     package_toml = _render_package_toml(
         uuid=gaia_uuid,
         name=package_name,
         pypi_name=loaded.project_name,
         repo=repo_url,
-        description=description,
+        description=str(loaded.project_config.get("description", "")),
         created_at=registered_at,
     )
     gaia_ver = _read_gaia_lang_version_from_compile_metadata(loaded.pkg_path)
@@ -383,53 +425,58 @@ def register_command(
         f"{release_dir}/{filename}": render_manifest_json(payload)
         for filename, payload in manifests.items()
     }
-
-    # ── Run inference to produce beliefs manifest ──
-    # The beliefs.json manifest records the package's inferred beliefs for
-    # exported claims, so downstream packages can use them as priors for
-    # foreign nodes instead of falling back to 0.5.
-    # Mirror infer_command: load dep_beliefs so foreign nodes get upstream priors.
-    foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
-    factor_graph = lower_local_graph(
-        compiled.graph,
-        node_priors=foreign_priors or None,
-    )
-    fg_errors = factor_graph.validate()
-    if fg_errors:
-        for error in fg_errors:
-            typer.echo(f"Error (factor graph): {error}", err=True)
-        raise typer.Exit(1)
-
-    engine = InferenceEngine()
-    inference_result = engine.run(factor_graph)
-    bp_result = inference_result.bp_result
-
-    exported_qids = {k.id for k in compiled.graph.knowledges if k.id is not None and k.exported}
-    knowledge_by_id = {k.id: k for k in compiled.graph.knowledges}
-    beliefs_manifest = {
-        "manifest_schema_version": 1,
-        "package": package_name,
-        "version": version,
-        "ir_hash": ir["ir_hash"],
-        "beliefs": [
-            {
-                "knowledge_id": kid,
-                "label": knowledge_by_id[kid].label,
-                "belief": belief,
-            }
-            for kid, belief in sorted(bp_result.beliefs.items())
-            if kid in exported_qids and kid in knowledge_by_id
-        ],
-    }
     release_files[f"{release_dir}/beliefs.json"] = render_manifest_json(beliefs_manifest)
+    return package_toml, versions, deps_payload, release_files
 
+
+def _build_registration_plan(
+    *,
+    loaded: Any,
+    compiled: Any,
+    ir: dict[str, Any],
+    manifests: dict[str, Any],
+    gaia_uuid: str,
+    tag_name: str,
+    tag_sha: str,
+    repo_url: str,
+    registry_repo: str,
+) -> tuple[dict[str, Any], dict[str, str], dict[str, dict[str, object]], dict[str, dict[str, str]]]:
+    """Build the registry plan and file payloads."""
+    package_name = loaded.project_name.removesuffix("-gaia")
+    version = loaded.project_config["version"]
+    deps = _parse_gaia_dependencies(loaded.project_config.get("dependencies", []))
+    exported_claims = _prepare_exported_claims(ir, loaded.package.exported)
+    pr_title = f"register: {loaded.project_name} {version}"
+    pr_body = _build_pr_body(
+        pypi_name=loaded.project_name,
+        version=version,
+        repo=repo_url,
+        tag=tag_name,
+        ir_hash=ir["ir_hash"],
+        exported=exported_claims,
+        deps=deps,
+    )
+    beliefs_manifest = _build_beliefs_manifest(loaded, compiled, ir, package_name, version)
+    package_toml, versions, deps_payload, release_files = _registration_metadata_payloads(
+        loaded=loaded,
+        ir=ir,
+        gaia_uuid=gaia_uuid,
+        package_name=package_name,
+        version=version,
+        tag_name=tag_name,
+        tag_sha=tag_sha,
+        repo_url=repo_url,
+        deps=deps,
+        manifests=manifests,
+        beliefs_manifest=beliefs_manifest,
+    )
     plan = {
         "package": {
             "uuid": gaia_uuid,
             "name": package_name,
             "pypi_name": loaded.project_name,
             "repo": repo_url,
-            "description": description,
+            "description": str(loaded.project_config.get("description", "")),
         },
         "version": {
             "version": version,
@@ -447,24 +494,25 @@ def register_command(
         },
         "pull_request": {"title": pr_title, "body": pr_body},
     }
+    return plan, deps, versions, deps_payload
 
-    if registry_dir is None:
-        typer.echo(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
-        return
 
+def _validate_registry_target(
+    registry_dir: str,
+    package_name: str,
+    version: str,
+    gaia_uuid: str,
+) -> tuple[Path, Path, Path, Path, Path, str]:
+    """Validate registry checkout and target package paths."""
     registry_path = Path(registry_dir).resolve()
     if not registry_path.exists():
         typer.echo(f"Error: registry directory does not exist: {registry_path}", err=True)
         raise typer.Exit(1)
-
-    # ── Pre-branch validation ──
-    # All read-only checks run BEFORE creating the branch so that failures
-    # don't leave an orphan branch that blocks retries.
+    branch_name = f"register/{package_name}-{version}"
     try:
         registry_status = _run(["git", "status", "--short"], cwd=registry_path)
         if registry_status.stdout.strip():
             raise GaiaCliError("Error: registry checkout must be clean before registration.")
-        branch_name = f"register/{package_name}-{version}"
         branch_exists = _run(
             ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
             cwd=registry_path,
@@ -474,46 +522,70 @@ def register_command(
             raise GaiaCliError(f"Error: registry branch already exists: {branch_name}")
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     package_dir = registry_path / "packages" / package_name
     release_path = package_dir / "releases" / version
     package_toml_path = package_dir / "Package.toml"
     versions_toml_path = package_dir / "Versions.toml"
     deps_toml_path = package_dir / "Deps.toml"
+    _validate_existing_registry_metadata(
+        package_toml_path, release_path, versions_toml_path, version, gaia_uuid
+    )
+    return registry_path, package_dir, release_path, versions_toml_path, deps_toml_path, branch_name
 
+
+def _validate_existing_registry_metadata(
+    package_toml_path: Path,
+    release_path: Path,
+    versions_toml_path: Path,
+    version: str,
+    gaia_uuid: str,
+) -> None:
+    """Validate existing registry metadata before creating a branch."""
     if package_toml_path.exists():
         existing_package = tomllib.loads(package_toml_path.read_text())
         if existing_package.get("uuid") != gaia_uuid:
             typer.echo("Error: registry package UUID does not match [tool.gaia].uuid.", err=True)
             raise typer.Exit(1)
-
     existing_versions = _load_existing_versions(versions_toml_path)
     if version in existing_versions:
         typer.echo(f"Error: version already exists in registry metadata: {version}", err=True)
         raise typer.Exit(1)
-
     if release_path.exists():
-        typer.echo(
-            f"Error: release directory already exists: {release_path}",
-            err=True,
-        )
+        typer.echo(f"Error: release directory already exists: {release_path}", err=True)
         raise typer.Exit(1)
 
-    # ── All validation passed — create branch and write ──
+
+def _write_registry_registration(
+    *,
+    registry_path: Path,
+    package_dir: Path,
+    release_path: Path,
+    versions_toml_path: Path,
+    deps_toml_path: Path,
+    branch_name: str,
+    loaded: Any,
+    package_name: str,
+    version: str,
+    plan: dict[str, Any],
+    deps: dict[str, str],
+    versions: dict[str, dict[str, object]],
+) -> None:
+    """Create registry branch, write files, and commit them."""
     try:
         _run(["git", "checkout", "-b", branch_name], cwd=registry_path)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     package_dir.mkdir(parents=True, exist_ok=True)
     release_path.mkdir(parents=True, exist_ok=False)
-
-    # Write metadata files.
+    package_toml_path = package_dir / "Package.toml"
     if not package_toml_path.exists():
-        package_toml_path.write_text(package_toml)
+        package_toml_path.write_text(plan["files"][f"packages/{package_name}/Package.toml"])
 
+    existing_versions = _load_existing_versions(versions_toml_path)
     existing_versions[version] = versions[version]
     versions_toml_path.write_text(_render_versions_toml(existing_versions))
 
@@ -521,9 +593,10 @@ def register_command(
     existing_deps[version] = deps
     deps_toml_path.write_text(_render_deps_toml(existing_deps))
 
-    for filename, payload in manifests.items():
-        (release_path / filename).write_text(render_manifest_json(payload))
-    (release_path / "beliefs.json").write_text(render_manifest_json(beliefs_manifest))
+    release_prefix = f"packages/{package_name}/releases/{version}/"
+    for filename, payload in plan["files"].items():
+        if filename.startswith(release_prefix):
+            (release_path / filename.removeprefix(release_prefix)).write_text(payload)
 
     try:
         _run(["git", "add", str(package_dir.relative_to(registry_path))], cwd=registry_path)
@@ -533,15 +606,22 @@ def register_command(
         )
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
-    typer.echo(f"Prepared registry branch: {branch_name}")
-    typer.echo(f"Updated metadata under: {package_dir}")
 
+def _maybe_create_registry_pr(
+    *,
+    registry_path: Path,
+    branch_name: str,
+    registry_repo: str,
+    pr_title: str,
+    pr_body: str,
+    create_pr: bool,
+) -> None:
+    """Print next step or create the registry PR."""
     if not create_pr:
         typer.echo("Next step: push the registry branch and open a pull request.")
         return
-
     try:
         _run(["git", "push", "-u", "origin", branch_name], cwd=registry_path)
         pr_result = _run(
@@ -564,6 +644,72 @@ def register_command(
         )
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
-
+        raise typer.Exit(1) from exc
     typer.echo(pr_result.stdout.strip())
+
+
+def register_command(
+    path: str = typer.Argument(".", help="Path to knowledge package directory"),
+    tag: str | None = typer.Option(None, help="Git tag to register. Defaults to v<version>."),
+    repo: str | None = typer.Option(
+        None, help="GitHub repository URL. Defaults to the git origin remote."
+    ),
+    registry_dir: str | None = typer.Option(
+        None, help="Path to a local checkout of the official registry repository."
+    ),
+    registry_repo: str = typer.Option(
+        "SiliconEinstein/gaia-registry", help="Registry GitHub repo slug for PR creation."
+    ),
+    create_pr: bool = typer.Option(False, help="Push the registry branch and open a GitHub PR."),
+) -> None:
+    """Prepare or submit a registration for a tagged GitHub-backed Gaia package."""
+    loaded, compiled, ir, manifests = _load_registration_artifacts(path)
+    _validate_registration_ir(ir)
+    gaia_uuid, _dependencies = _validate_registration_package_config(loaded, ir)
+    package_name = loaded.project_name.removesuffix("-gaia")
+    version = loaded.project_config["version"]
+    tag_name = tag or f"v{version}"
+    repo_url, tag_sha = _validated_registration_git_state(loaded, tag_name=tag_name, repo=repo)
+    plan, deps, versions, _deps_payload = _build_registration_plan(
+        loaded=loaded,
+        compiled=compiled,
+        ir=ir,
+        manifests=manifests,
+        gaia_uuid=gaia_uuid,
+        tag_name=tag_name,
+        tag_sha=tag_sha,
+        repo_url=repo_url,
+        registry_repo=registry_repo,
+    )
+
+    if registry_dir is None:
+        typer.echo(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
+        return
+
+    registry_path, package_dir, release_path, versions_toml_path, deps_toml_path, branch_name = (
+        _validate_registry_target(registry_dir, package_name, version, gaia_uuid)
+    )
+    _write_registry_registration(
+        registry_path=registry_path,
+        package_dir=package_dir,
+        release_path=release_path,
+        versions_toml_path=versions_toml_path,
+        deps_toml_path=deps_toml_path,
+        branch_name=branch_name,
+        loaded=loaded,
+        package_name=package_name,
+        version=version,
+        plan=plan,
+        deps=deps,
+        versions=versions,
+    )
+    typer.echo(f"Prepared registry branch: {branch_name}")
+    typer.echo(f"Updated metadata under: {package_dir}")
+    _maybe_create_registry_pr(
+        registry_path=registry_path,
+        branch_name=branch_name,
+        registry_repo=registry_repo,
+        pr_title=plan["pull_request"]["title"],
+        pr_body=plan["pull_request"]["body"],
+        create_pr=create_pr,
+    )

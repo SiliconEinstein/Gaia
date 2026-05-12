@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,15 +36,18 @@ VALID_OBLIGATION_KINDS = {
 
 
 def _utcnow() -> str:
-    return datetime.now(tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def mint_qid(prefix: str) -> str:
+    """Mint a short synthetic inquiry identifier with the given prefix."""
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
 
 @dataclass
 class SyntheticObligation:
+    """Synthetic obligation tracked outside compiled IR."""
+
     qid: str
     target_qid: str
     content: str
@@ -53,6 +56,7 @@ class SyntheticObligation:
     created_at: str | None = None
 
     def __post_init__(self) -> None:
+        """Fill creation time and validate the obligation kind."""
         if self.created_at is None:
             self.created_at = _utcnow()
         if self.diagnostic_kind not in VALID_OBLIGATION_KINDS:
@@ -64,30 +68,38 @@ class SyntheticObligation:
 
 @dataclass
 class SyntheticHypothesis:
+    """Synthetic hypothesis tracked outside compiled IR."""
+
     qid: str
     content: str
     scope_qid: str | None = None
     created_at: str | None = None
 
     def __post_init__(self) -> None:
+        """Fill creation time when the hypothesis is created."""
         if self.created_at is None:
             self.created_at = _utcnow()
 
 
 @dataclass
 class SyntheticRejection:
+    """Synthetic record for a rejected strategy branch."""
+
     qid: str
     target_strategy: str
     content: str
     created_at: str | None = None
 
     def __post_init__(self) -> None:
+        """Fill creation time when the rejection is created."""
         if self.created_at is None:
             self.created_at = _utcnow()
 
 
 @dataclass
 class InquiryState:
+    """Mutable Lean-style inquiry state stored under ``.gaia/inquiry``."""
+
     version: int = STATE_SCHEMA_VERSION
     focus: str | None = None
     focus_kind: str | None = None
@@ -101,6 +113,7 @@ class InquiryState:
     synthetic_rejections: list[SyntheticRejection] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the persisted state payload as a JSON-compatible dictionary."""
         return {
             "version": self.version,
             "focus": self.focus,
@@ -117,6 +130,7 @@ class InquiryState:
 
 
 def inquiry_dir(pkg_path: str | Path) -> Path:
+    """Return the package inquiry directory, creating it if needed."""
     d = Path(pkg_path).resolve() / ".gaia" / "inquiry"
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -131,6 +145,7 @@ def _tactics_path(pkg_path: str | Path) -> Path:
 
 
 def load_state(pkg_path: str | Path) -> InquiryState:
+    """Load the persisted inquiry state, or return the default empty state."""
     p = _state_path(pkg_path)
     if not p.exists():
         return InquiryState()
@@ -162,6 +177,7 @@ def load_state(pkg_path: str | Path) -> InquiryState:
 
 
 def save_state(pkg_path: str | Path, state: InquiryState) -> None:
+    """Persist inquiry state to ``.gaia/inquiry/state.json``."""
     p = _state_path(pkg_path)
     payload = state.to_dict()
     p.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -170,6 +186,7 @@ def save_state(pkg_path: str | Path, state: InquiryState) -> None:
 def append_tactic_event(
     pkg_path: str | Path, event: str, payload: dict[str, Any] | None = None
 ) -> None:
+    """Append one tactic event to the inquiry audit log."""
     rec = {
         "timestamp": _utcnow(),
         "event": event,
@@ -181,6 +198,7 @@ def append_tactic_event(
 
 
 def read_tactic_log(pkg_path: str | Path) -> list[dict[str, Any]]:
+    """Read the inquiry tactic log as JSON records."""
     p = _tactics_path(pkg_path)
     if not p.exists():
         return []

@@ -1,7 +1,7 @@
 from sympy import Symbol
 
-from gaia.lang import Claim, exclusive
 from gaia.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
+from gaia.lang import Claim, exclusive
 from gaia.lang.compiler import compile_package_artifact
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.logic import (

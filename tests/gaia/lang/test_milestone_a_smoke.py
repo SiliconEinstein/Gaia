@@ -93,7 +93,7 @@ def test_causal_claim():
 
 
 def test_compound_formula_round_trip():
-    """not (P and not Q) — connective composition."""
+    """Not (P and not Q) — connective composition."""
     P = Equals(left=Constant(1, Nat), right=Constant(1, Nat))
     Q = Equals(left=Constant(2, Nat), right=Constant(2, Nat))
     f = Lnot(operand=Land(operands=(P, Lnot(operand=Q))))

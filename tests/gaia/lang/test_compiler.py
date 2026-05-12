@@ -5,25 +5,25 @@ import pytest
 from gaia.lang import (
     Claim,
     Step,
+    abduction,
     claim,
     compare,
-    noisy_and,
-    setting,
     composite,
-    abduction,
     contradiction,
     derive,
     fills,
     induction,
+    noisy_and,
+    setting,
     support,
 )
 from gaia.lang.compiler.compile import (
-    compile_package_artifact,
+    _anonymous_label,
     _compile_reason,
+    _content_hash,
     _knowledge_id,
     _normalize_label,
-    _anonymous_label,
-    _content_hash,
+    compile_package_artifact,
 )
 from gaia.lang.runtime.package import CollectedPackage
 from gaia.unit import q
@@ -133,7 +133,7 @@ def test_knowledge_id_foreign_with_metadata_qid():
     k = claim("Foreign claim.")
     k.metadata["qid"] = "external:other_pkg::foreign_claim"
     # NOT in pkg.knowledge → foreign
-    kid, counter = _knowledge_id(k, pkg, local_anon_counter=0)
+    kid, _counter = _knowledge_id(k, pkg, local_anon_counter=0)
     assert kid == "external:other_pkg::foreign_claim"
 
 
@@ -143,7 +143,7 @@ def test_knowledge_id_foreign_with_package():
     k = claim("Foreign claim.")
     k.label = "fc"
     k._package = foreign_pkg
-    kid, counter = _knowledge_id(k, pkg, local_anon_counter=0)
+    kid, _counter = _knowledge_id(k, pkg, local_anon_counter=0)
     assert kid == "github:other_pkg::fc"
 
 
@@ -152,7 +152,7 @@ def test_knowledge_id_foreign_fallback():
     k = claim("Orphan claim.")
     k.label = "orphan"
     k._package = None
-    kid, counter = _knowledge_id(k, pkg, local_anon_counter=0)
+    kid, _counter = _knowledge_id(k, pkg, local_anon_counter=0)
     assert kid == "external:anonymous::orphan"
 
 

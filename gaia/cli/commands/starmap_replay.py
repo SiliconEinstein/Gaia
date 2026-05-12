@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -90,9 +91,9 @@ def _render_html(template: str, timeline_json: str) -> str:
     return template.replace(TIMELINE_PLACEHOLDER, injection, 1)
 
 
-def _read_jsonl(path: Path) -> list[dict]:
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     """Read newline-delimited JSON. Skip blank lines, raise on parse errors."""
-    events: list[dict] = []
+    events: list[dict[str, Any]] = []
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw.strip()
         if not line:
@@ -104,19 +105,17 @@ def _read_jsonl(path: Path) -> list[dict]:
     return events
 
 
-def _is_replayable(event: dict) -> bool:
+def _is_replayable(event: dict[str, Any]) -> bool:
     """Drop retry / failure events — replay ignores transient retries."""
     if event.get("retry_of_event_id"):
         return False
     if event.get("decision") == "retry":
         return False
     # response_code != 0 implies a failed retrieval — also skip.
-    if "response_code" in event and event.get("response_code") not in (None, 0):
-        return False
-    return True
+    return "response_code" not in event or event.get("response_code") in (None, 0)
 
 
-def _validate_schema(events: list[dict], source: str) -> list[str]:
+def _validate_schema(events: list[dict[str, Any]], source: str) -> list[str]:
     """Return a list of warning strings for events with non-"1" schema_version."""
     warnings: list[str] = []
     for event in events:
@@ -129,7 +128,9 @@ def _validate_schema(events: list[dict], source: str) -> list[str]:
     return warnings
 
 
-def merge_events(retrieval_events: list[dict], growth_events: list[dict]) -> list[dict]:
+def merge_events(
+    retrieval_events: list[dict[str, Any]], growth_events: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Merge two streams into one timeline.
 
     Sort key is ``(timestamp_utc, actor_id, seq)``. ISO-8601 timestamps with a
@@ -138,7 +139,7 @@ def merge_events(retrieval_events: list[dict], growth_events: list[dict]) -> lis
     we tag each with ``event_kind`` (``retrieval`` / ``growth``) before
     merging to disambiguate downstream.
     """
-    tagged: list[dict] = []
+    tagged: list[dict[str, Any]] = []
     for event in retrieval_events:
         # Note: we mutate via a shallow copy so the caller's list stays intact.
         e = dict(event)
@@ -159,7 +160,9 @@ def merge_events(retrieval_events: list[dict], growth_events: list[dict]) -> lis
     return tagged
 
 
-def _try_load_ir_artifacts(pkg_dir: Path) -> tuple[dict | None, dict | None, list[str]]:
+def _try_load_ir_artifacts(
+    pkg_dir: Path,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, list[str]]:
     """Best-effort load of compiled IR + DOT layout for a package.
 
     Returns ``(ir, layout, warnings)``. Either of ``ir``/``layout`` may
@@ -179,14 +182,14 @@ def _try_load_ir_artifacts(pkg_dir: Path) -> tuple[dict | None, dict | None, lis
     # used by `gaia starmap` / `gaia infer`. If compilation fails (no
     # pyproject.toml, missing src/, etc.), fall back to the on-disk
     # ``.gaia/ir.json`` if present.
-    ir: dict | None = None
+    ir: dict[str, Any] | None = None
     try:
         ensure_package_env(pkg_dir)
         loaded = load_gaia_package(str(pkg_dir))
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
-    except (GaiaCliError, Exception) as exc:  # noqa: BLE001 - we degrade
+    except (GaiaCliError, Exception) as exc:
         warnings.append(f"compilation skipped: {exc}")
         ir_json_path = pkg_dir / ".gaia" / "ir.json"
         if ir_json_path.is_file():
@@ -201,7 +204,7 @@ def _try_load_ir_artifacts(pkg_dir: Path) -> tuple[dict | None, dict | None, lis
 
     # Pinned layout requires a working IR + graphviz. Skip silently on
     # failure (warnings surface to the CLI caller).
-    layout: dict | None = None
+    layout: dict[str, Any] | None = None
     if ir is not None:
         try:
             param_data = param_data_from_ir_metadata(ir)
@@ -228,19 +231,19 @@ def _try_load_ir_artifacts(pkg_dir: Path) -> tuple[dict | None, dict | None, lis
             annotate_layout_with_kinds(layout, ir)
         except FileNotFoundError as exc:
             warnings.append(f"pinned layout skipped: {exc}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             warnings.append(f"pinned layout failed: {exc}")
 
     return ir, layout, warnings
 
 
 def build_timeline_payload(
-    retrieval_events: list[dict],
-    growth_events: list[dict],
+    retrieval_events: list[dict[str, Any]],
+    growth_events: list[dict[str, Any]],
     *,
     package_name: str | None = None,
     pkg_dir: Path | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Construct the JSON payload the frontend reads from ``window.TIMELINE_DATA``.
 
     Pulled out as a function so unit tests can call it on synthetic
@@ -251,13 +254,13 @@ def build_timeline_payload(
     merged = merge_events(replayable_retrievals, replayable_growths)
     ticks = split_into_ir_ticks(merged)
 
-    final_layout: dict | None = None
+    final_layout: dict[str, Any] | None = None
     round_beliefs: dict[str, dict[str, float]] = {}
     rounds_in_order: list[str] = collect_round_order(merged)
     build_warnings: list[str] = []
 
-    ir_for_survival: dict | None = None
-    layout_for_survival: dict | None = None
+    ir_for_survival: dict[str, Any] | None = None
+    layout_for_survival: dict[str, Any] | None = None
     if pkg_dir is not None:
         ir, layout, warns = _try_load_ir_artifacts(pkg_dir)
         build_warnings.extend(warns)
@@ -336,7 +339,6 @@ def starmap_replay_command(
     cumulative knowledge set.
 
     Examples:
-
       # Default — write .gaia/starmap-replay.html into the package:
       gaia starmap-replay path/to/pkg
 
@@ -387,14 +389,14 @@ def starmap_replay_command(
         content = _render_html(template, timeline_json)
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except FileNotFoundError as exc:
         typer.echo(
             "Error: starmap-replay template asset not found. The viz/ bundle "
             f"may not have been shipped: {exc}",
             err=True,
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     out_path = Path(out) if out is not None else Path(DEFAULT_OUT_RELATIVE)
     if not out_path.is_absolute():

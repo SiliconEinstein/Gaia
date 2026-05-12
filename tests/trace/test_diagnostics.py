@@ -1,11 +1,9 @@
-"""TR-2：11 个 detector 各自最小阳性 + 阴性 + ranking trace mode。"""
+"""TR-2：11 个 detector 各自最小阳性 + 阴性 + ranking trace mode。."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-
-from gaia.trace.ranking import _MODE_RANK, rank_diagnostics, supported_modes
 from gaia.trace.diagnostics import (
     detect_actor,
     detect_claim_refs,
@@ -27,24 +25,25 @@ from gaia.trace.hashing import (
     hash_event,
 )
 from gaia.trace.loader import LoadResult, SchemaIssue
+from gaia.trace.ranking import _MODE_RANK, rank_diagnostics, supported_modes
 from gaia.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
 
 
 def _ts(seq: int) -> datetime:
-    return datetime(2026, 4, 28, tzinfo=timezone.utc) + timedelta(seconds=seq)
+    return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:
-    base = dict(
-        event_id=f"e{seq}",
-        seq=seq,
-        prev_hash=prev_hash,
-        ts=_ts(seq),
-        kind="decision",
-        actor="arm",
-        reason="grounded by inputs",
-        inputs={"step": "inputs"},
-    )
+    base = {
+        "event_id": f"e{seq}",
+        "seq": seq,
+        "prev_hash": prev_hash,
+        "ts": _ts(seq),
+        "kind": "decision",
+        "actor": "arm",
+        "reason": "grounded by inputs",
+        "inputs": {"step": "inputs"},
+    }
     base.update(kw)
     return TraceEvent(**base)
 
@@ -244,7 +243,7 @@ def test_claim_ref_unresolved_when_resolver_returns_false():
         refs=[ClaimRef(claim_id="c1", review_id="rev-1", relation="asserts")],
     )
     m = TraceManifest(arm_id="a", session_id="s", trace_id="t", created_at=_ts(0))
-    diags = detect_claim_refs(Trace(manifest=m, events=[ev]), resolver=lambda r: False)
+    diags = detect_claim_refs(Trace(manifest=m, events=[ev]), resolver=lambda _r: False)
     assert any(d.kind == "unresolved_claim_ref" for d in diags)
 
 
@@ -255,7 +254,7 @@ def test_claim_ref_resolved_when_resolver_returns_true():
         refs=[ClaimRef(claim_id="c1", review_id="rev-1", relation="asserts")],
     )
     m = TraceManifest(arm_id="a", session_id="s", trace_id="t", created_at=_ts(0))
-    assert detect_claim_refs(Trace(manifest=m, events=[ev]), resolver=lambda r: True) == []
+    assert detect_claim_refs(Trace(manifest=m, events=[ev]), resolver=lambda _r: True) == []
 
 
 def test_claim_ref_resolver_exception_treated_as_unresolved():

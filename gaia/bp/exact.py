@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
+from numpy.typing import NDArray
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 
-__all__ = ["exact_inference", "exact_joint_over", "comparison_table"]
+__all__ = ["comparison_table", "exact_inference", "exact_joint_over"]
 
 CHUNK_BITS = 20
+FloatArray = NDArray[np.float64]
+type LogPotentialEvaluator = Callable[[Factor, np.ndarray, dict[str, int]], FloatArray]
+_HIGH = 1.0 - CROMWELL_EPS
+_LOW = CROMWELL_EPS
+
+
+def _float_array(values: object) -> FloatArray:
+    """Return a float64 ndarray while preserving runtime numpy semantics."""
+    return np.asarray(values, dtype=np.float64)
 
 
 def _enumerate_log_joint(
@@ -64,126 +76,137 @@ def _factor_log_potentials(
     factor: Factor,
     states: np.ndarray,
     var_idx: dict[str, int],
-) -> np.ndarray:
-    cs = states.shape[0]
-    h = 1.0 - CROMWELL_EPS
-    lo = CROMWELL_EPS
-    ft = factor.factor_type
+) -> FloatArray:
+    try:
+        evaluator = _LOG_POTENTIAL_EVALUATORS[factor.factor_type]
+    except KeyError as err:
+        raise ValueError(f"Unknown FactorType: {factor.factor_type}") from err
+    return evaluator(factor, states, var_idx)
+
+
+def _log_implication(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for implication factors."""
     vids = factor.variables
-    concl = factor.conclusion
+    a = states[:, var_idx[vids[0]]]
+    b = states[:, var_idx[vids[1]]]
+    helper = states[:, var_idx[factor.conclusion]]
+    std_impl = np.where((a == 1) & (b == 0), _LOW, _HIGH)
+    comp = np.where((a == 1) & (b == 0), _HIGH, _LOW)
+    return _float_array(np.log(np.where(helper == 1, std_impl, comp)))
 
-    if ft == FactorType.IMPLICATION:
-        a_idx = var_idx[vids[0]]
-        b_idx = var_idx[vids[1]]
-        h_idx = var_idx[concl]
-        a = states[:, a_idx]
-        b = states[:, b_idx]
-        hv = states[:, h_idx]
-        # H=1: standard implication (A=1,B=0 forbidden)
-        # H=0: complement (A=1,B=0 is the only HIGH row)
-        std_impl = np.where((a == 1) & (b == 0), lo, h)
-        comp = np.where((a == 1) & (b == 0), h, lo)
-        pot = np.where(hv == 1, std_impl, comp)
-        return np.log(pot)
 
-    if ft == FactorType.CONJUNCTION:
-        idxs = [var_idx[x] for x in vids]
-        m_idx = var_idx[concl]
-        all_one = np.ones(cs, dtype=bool)
-        for ii in idxs:
-            all_one &= states[:, ii] == 1
-        m = states[:, m_idx]
-        ok = (all_one & (m == 1)) | ((~all_one) & (m == 0))
-        pot = np.where(ok, h, lo)
-        return np.log(pot)
+def _log_conjunction(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for conjunction factors."""
+    all_one = np.ones(states.shape[0], dtype=bool)
+    for index in [var_idx[x] for x in factor.variables]:
+        all_one &= states[:, index] == 1
+    conclusion = states[:, var_idx[factor.conclusion]]
+    ok = (all_one & (conclusion == 1)) | ((~all_one) & (conclusion == 0))
+    return _float_array(np.log(np.where(ok, _HIGH, _LOW)))
 
-    if ft == FactorType.DISJUNCTION:
-        idxs = [var_idx[x] for x in vids]
-        d_idx = var_idx[concl]
-        any_one = np.zeros(cs, dtype=bool)
-        for ii in idxs:
-            any_one |= states[:, ii] == 1
-        d = states[:, d_idx]
-        ok = (any_one & (d == 1)) | ((~any_one) & (d == 0))
-        pot = np.where(ok, h, lo)
-        return np.log(pot)
 
-    if ft == FactorType.EQUIVALENCE:
-        a_idx = var_idx[vids[0]]
-        b_idx = var_idx[vids[1]]
-        h_idx = var_idx[concl]
-        target = (states[:, a_idx] == states[:, b_idx]).astype(np.int8)
-        ok = states[:, h_idx] == target
-        pot = np.where(ok, h, lo)
-        return np.log(pot)
+def _log_disjunction(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for disjunction factors."""
+    any_one = np.zeros(states.shape[0], dtype=bool)
+    for index in [var_idx[x] for x in factor.variables]:
+        any_one |= states[:, index] == 1
+    conclusion = states[:, var_idx[factor.conclusion]]
+    ok = (any_one & (conclusion == 1)) | ((~any_one) & (conclusion == 0))
+    return _float_array(np.log(np.where(ok, _HIGH, _LOW)))
 
-    if ft == FactorType.CONTRADICTION:
-        a_idx = var_idx[vids[0]]
-        b_idx = var_idx[vids[1]]
-        h_idx = var_idx[concl]
-        both = (states[:, a_idx] == 1) & (states[:, b_idx] == 1)
-        target = np.where(both, 0, 1).astype(np.int8)
-        ok = states[:, h_idx] == target
-        pot = np.where(ok, h, lo)
-        return np.log(pot)
 
-    if ft == FactorType.NEGATION:
-        a_idx = var_idx[vids[0]]
-        h_idx = var_idx[concl]
-        target = 1 - states[:, a_idx]
-        ok = states[:, h_idx] == target
-        pot = np.where(ok, h, lo)
-        return np.log(pot)
+def _log_equivalence(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for equivalence factors."""
+    vids = factor.variables
+    target = (states[:, var_idx[vids[0]]] == states[:, var_idx[vids[1]]]).astype(np.int8)
+    ok = states[:, var_idx[factor.conclusion]] == target
+    return _float_array(np.log(np.where(ok, _HIGH, _LOW)))
 
-    if ft == FactorType.COMPLEMENT:
-        a_idx = var_idx[vids[0]]
-        b_idx = var_idx[vids[1]]
-        h_idx = var_idx[concl]
-        xor = states[:, a_idx] != states[:, b_idx]
-        target = xor.astype(np.int8)
-        ok = states[:, h_idx] == target
-        pot = np.where(ok, h, lo)
-        return np.log(pot)
 
-    if ft == FactorType.SOFT_ENTAILMENT:
-        assert factor.p1 is not None and factor.p2 is not None
-        p1, p2 = factor.p1, factor.p2
-        m_idx = var_idx[vids[0]]
-        c_idx = var_idx[concl]
-        m = states[:, m_idx]
-        cv = states[:, c_idx]
-        pot = np.where(
-            m == 1,
-            np.where(cv == 1, p1, 1.0 - p1),
-            np.where(cv == 0, p2, 1.0 - p2),
-        )
-        return np.log(pot)
+def _log_contradiction(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for contradiction factors."""
+    vids = factor.variables
+    both = (states[:, var_idx[vids[0]]] == 1) & (states[:, var_idx[vids[1]]] == 1)
+    target = np.where(both, 0, 1).astype(np.int8)
+    ok = states[:, var_idx[factor.conclusion]] == target
+    return _float_array(np.log(np.where(ok, _HIGH, _LOW)))
 
-    if ft == FactorType.CONDITIONAL:
-        assert factor.cpt is not None
-        idxs = [var_idx[x] for x in vids]
-        c_idx = var_idx[concl]
-        cpt = np.array(factor.cpt, dtype=np.float64)
-        idx = np.zeros(cs, dtype=np.int64)
-        for i, ii in enumerate(idxs):
-            idx |= states[:, ii].astype(np.int64) << i
-        p_sel = cpt[idx]
-        cv = states[:, c_idx]
-        pot = np.where(cv == 1, p_sel, 1.0 - p_sel)
-        return np.log(pot)
 
-    if ft == FactorType.PAIRWISE_POTENTIAL:
-        assert factor.cpt is not None
-        a_idx = var_idx[vids[0]]
-        b_idx = var_idx[concl]
-        weights = np.array(factor.cpt, dtype=np.float64)
-        idx = states[:, a_idx].astype(np.int64) | (states[:, b_idx].astype(np.int64) << 1)
-        return np.log(weights[idx])
+def _log_negation(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for negation factors."""
+    target = 1 - states[:, var_idx[factor.variables[0]]]
+    ok = states[:, var_idx[factor.conclusion]] == target
+    return _float_array(np.log(np.where(ok, _HIGH, _LOW)))
 
-    raise ValueError(f"Unknown FactorType: {ft}")
+
+def _log_complement(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for complement factors."""
+    vids = factor.variables
+    target = (states[:, var_idx[vids[0]]] != states[:, var_idx[vids[1]]]).astype(np.int8)
+    ok = states[:, var_idx[factor.conclusion]] == target
+    return _float_array(np.log(np.where(ok, _HIGH, _LOW)))
+
+
+def _log_soft_entailment(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for soft-entailment factors."""
+    assert factor.p1 is not None and factor.p2 is not None
+    premise = states[:, var_idx[factor.variables[0]]]
+    conclusion = states[:, var_idx[factor.conclusion]]
+    pot = np.where(
+        premise == 1,
+        np.where(conclusion == 1, factor.p1, 1.0 - factor.p1),
+        np.where(conclusion == 0, factor.p2, 1.0 - factor.p2),
+    )
+    return _float_array(np.log(pot))
+
+
+def _log_conditional(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for conditional factors."""
+    assert factor.cpt is not None
+    cpt = np.array(factor.cpt, dtype=np.float64)
+    index = np.zeros(states.shape[0], dtype=np.int64)
+    for bit, variable_index in enumerate([var_idx[x] for x in factor.variables]):
+        index |= states[:, variable_index].astype(np.int64) << bit
+    p_sel = cpt[index]
+    conclusion = states[:, var_idx[factor.conclusion]]
+    return _float_array(np.log(np.where(conclusion == 1, p_sel, 1.0 - p_sel)))
+
+
+def _log_pairwise(factor: Factor, states: np.ndarray, var_idx: dict[str, int]) -> FloatArray:
+    """Vectorized log potentials for pairwise-potential factors."""
+    assert factor.cpt is not None
+    a_idx = var_idx[factor.variables[0]]
+    b_idx = var_idx[factor.conclusion]
+    weights = np.array(factor.cpt, dtype=np.float64)
+    index = states[:, a_idx].astype(np.int64) | (states[:, b_idx].astype(np.int64) << 1)
+    return _float_array(np.log(weights[index]))
+
+
+_LOG_POTENTIAL_EVALUATORS: dict[FactorType, LogPotentialEvaluator] = {
+    FactorType.IMPLICATION: _log_implication,
+    FactorType.CONJUNCTION: _log_conjunction,
+    FactorType.DISJUNCTION: _log_disjunction,
+    FactorType.EQUIVALENCE: _log_equivalence,
+    FactorType.CONTRADICTION: _log_contradiction,
+    FactorType.NEGATION: _log_negation,
+    FactorType.COMPLEMENT: _log_complement,
+    FactorType.SOFT_ENTAILMENT: _log_soft_entailment,
+    FactorType.CONDITIONAL: _log_conditional,
+    FactorType.PAIRWISE_POTENTIAL: _log_pairwise,
+}
 
 
 def exact_inference(graph: FactorGraph) -> tuple[dict[str, float], float]:
+    """Compute exact marginals and the partition function by enumeration.
+
+    Args:
+        graph: Factor graph to enumerate. Graphs with more than 26 variables
+            are rejected by the shared enumeration helper.
+
+    Returns:
+        A pair ``(beliefs, Z)`` where ``beliefs`` maps variable IDs to exact
+        posterior ``P(x=1)`` and ``Z`` is the unnormalized partition function.
+    """
     var_ids, _, all_log_joints = _enumerate_log_joint(graph)
     joint, z_shifted = _shifted_joint(all_log_joints)
     log_Z = all_log_joints.max() + np.log(z_shifted)
@@ -207,7 +230,7 @@ def exact_joint_over(graph: FactorGraph, free_vars: list[str]) -> np.ndarray:
     if not free_vars:
         return np.array([1.0], dtype=np.float64)
 
-    var_ids, var_idx, all_log_joints = _enumerate_log_joint(graph)
+    _var_ids, var_idx, all_log_joints = _enumerate_log_joint(graph)
     missing = [v for v in free_vars if v not in var_idx]
     if missing:
         raise KeyError(f"exact_joint_over: unknown free vars {missing!r}")
@@ -230,6 +253,19 @@ def comparison_table(
     title: str = "Exact vs BP Comparison",
     tolerance: float = 0.02,
 ) -> str:
+    """Render a side-by-side exact-vs-BP belief comparison table.
+
+    Args:
+        graph: Factor graph whose variables are displayed.
+        exact_beliefs: Exact posterior beliefs keyed by variable ID.
+        bp_beliefs: Approximate BP posterior beliefs keyed by variable ID.
+        Z: Exact partition function to show in the table header.
+        title: Header title for the rendered table.
+        tolerance: Absolute difference below which a row is counted as matching.
+
+    Returns:
+        A formatted multiline table for diagnostics and tests.
+    """
     var_ids = sorted(graph.variables.keys())
 
     lines = []

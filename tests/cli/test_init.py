@@ -20,7 +20,8 @@ runner = CliRunner()
 
 def _fake_uv_init(args, *, cwd, text, capture_output):
     """Simulate `uv init --lib <name>`: create the directory tree that uv would create."""
-    # args: ["uv", "init", "--lib", "<name>"]
+    del capture_output, text
+    # Invocation shape uses uv init --lib <name>.
     name = args[3]
     uv_import_name = name.replace("-", "_")
     pkg_dir = Path(cwd) / name
@@ -40,11 +41,13 @@ def _fake_uv_init(args, *, cwd, text, capture_output):
 
 def _fake_uv_add_ok(args, *, cwd, text, capture_output):
     """Simulate a successful `uv add gaia-lang`."""
+    del capture_output, cwd, text
     return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
 
 def _fake_uv_add_fail(args, *, cwd, text, capture_output):
     """Simulate a failing `uv add gaia-lang`."""
+    del capture_output, cwd, text
     return subprocess.CompletedProcess(args, 1, stdout="", stderr="package not found")
 
 

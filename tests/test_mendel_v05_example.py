@@ -12,7 +12,6 @@ from typer.testing import CliRunner
 
 from gaia.cli.main import app
 
-
 runner = CliRunner()
 
 
