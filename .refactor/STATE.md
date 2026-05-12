@@ -214,8 +214,8 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 | `uv run ruff check . --statistics` | **531** | **0** | **531** |
 | - of which C901 (max-complexity=9) | 103 | 0 | 103 → 68 after mccabe bump → 0 after refactor |
 | - of which `[*]` safe autofix | 194 | 0 | (covered by 2.5.1) |
-| - of which `[*]` unsafe-fix candidates | +62 hidden | 0 | (case-by-case in 2.5.1) |
-| - of which manual pattern-able non-C901 | ~233 | 0 | (covered by 2.5.2) |
+| - of which `[-]` unsafe-fix candidates | +62 hidden | 0 | **NOT auto-applied** — handled manually in 2.5.2 (user decision 2026-05-12: every unsafe fix gets human-eyes pattern review, no blanket `--unsafe-fixes` run) |
+| - of which manual pattern-able non-C901 | ~233 | 0 | (covered by 2.5.2; 2.5.2 also absorbs the 62 unsafe-fix candidates above) |
 | `uv run ruff format --check .` | clean | clean | 0 |
 | `uv run mypy` | 0 errors / 275 source files | 0 | 0 (preserve) |
 | `uv run pytest` | 1605 passed / 3 skipped | ≥ 1605 | preserve |
@@ -257,19 +257,20 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
   - Ref: spec § Pinned decision #2
 
-#### 2.5.1 — Global mechanical autofix sweep (cross-cutting)
+#### 2.5.1 — Global safe-autofix sweep (cross-cutting; safe-only, NO --unsafe-fixes)
 
-- [ ] **2.5.1** Run `uv run ruff check --fix .` to apply 194 safe fixes (I001 imports / UP017 datetime.timezone.utc / UP037 quoted-annotation / UP045 / C420 / SIM114 / UP035 / RUF100 / RET505 / RUF023 / UP012 / UP034 / B009 / B010). Then case-by-case audit `--unsafe-fixes` hidden 62 (executor judgment: apply if mechanical + runtime-equivalent + sample-diff confirms; skip otherwise). Verify: pytest 1605 stable + sample diff is purely mechanical.
+- [ ] **2.5.1** Run **`uv run ruff check --fix .`** (NO `--unsafe-fixes` flag) to apply only the 194 safe-fix items (I001 imports / UP017 datetime.timezone.utc / UP037 quoted-annotation / UP045 / C420 / SIM114 / UP035 / RUF100 / RET505 / RUF023 / UP012 / UP034 / B009 / B010 etc.). Do **NOT** pass `--unsafe-fixes`. The 62 hidden `[-]` unsafe-fix candidates (RUF022 unsorted-dunder-all + others) are deliberately left in the queue for human-eyes review in 2.5.2 — user-decided 2026-05-12 (no blanket unsafe-fix run, every unsafe transformation gets manual pattern review). Verify: pytest 1605 stable + sample diff is purely mechanical.
   - status: `pending`
-  - Authorization: orchestrator pre-confirmed user delegated unsafe-fix per-rule judgment to executor (user message 2026-05-12)
 
-#### 2.5.2 — Manual pattern-able cleanup (cross-cutting; 1-2 units)
+#### 2.5.2 — Manual pattern-able cleanup (cross-cutting; absorbs unsafe-fix candidates too; 2-3 units)
 
 - [ ] **2.5.2a** Manual cleanup pass A — high-volume categories: E501 line-too-long (43) · ARG001 unused-function-argument (35) · B904 raise-without-from (30) · RUF043 pytest-raises pattern (16) · ERA001 commented-out-code (14) · RUF059 unused-unpacked (12) · B007 unused loop var (10). Approach: rename to `_var` for unused / `raise ... from err` for B904 / delete commented-out code for ERA001 (or rationalize). Verify: pytest 1605 + sample diff.
   - status: `pending`
-- [ ] **2.5.2b** Manual cleanup pass B — remaining categories: SIM-series (SIM102 9 / SIM117 8 / SIM108 6 / SIM114 5 / SIM401 3 / SIM118 2 / SIM103 1) + ARG005 (7) + RUF015 (6) + B905 zip-strict (5) + UP040 type-alias (5) + ARG002 (4) + C408 (4) + RUF005 (3) + UP035 (3) + B017 (2) + RUF012 (2) + UP042 (2) + small singletons. Verify: pytest 1605 + sample diff.
+- [ ] **2.5.2b** Manual cleanup pass B — remaining manual categories: SIM-series (SIM102 9 / SIM117 8 / SIM108 6 / SIM114 5 / SIM401 3 / SIM118 2 / SIM103 1) + ARG005 (7) + RUF015 (6) + B905 zip-strict (5) + UP040 type-alias (5) + ARG002 (4) + C408 (4) + RUF005 (3) + UP035 (3) + B017 (2) + RUF012 (2) + UP042 (2) + small singletons. Verify: pytest 1605 + sample diff.
   - status: `pending`
-  - Note: may merge 2.5.2a + 2.5.2b into one round if executor finds queue compresses well.
+- [ ] **2.5.2c** Unsafe-fix candidates pass (was deferred from 2.5.1 per user decision 2026-05-12) — the 62 ruff `[-]` items (RUF022 unsorted-dunder-all 20 + remaining unsafe candidates surfaced by `ruff check . --statistics --exit-zero` after 2.5.2a+b land). For each rule: read 3-5 representative occurrences, decide pattern (apply `--unsafe-fixes` for this rule scoped, OR rewrite manually, OR escalate as doc-code contradiction if semantics-sensitive). Verify: pytest 1605 + sample diff + no behavioral drift.
+  - status: `pending`
+  - Note: 2.5.2a + 2.5.2b + 2.5.2c may merge or split based on executor's invoke budget; the unsafe-fix work is its own commit boundary regardless (separable from manual pattern cleanup).
 
 #### 2.5.3 — C901 complexity refactor (per-module + per-outlier units)
 
