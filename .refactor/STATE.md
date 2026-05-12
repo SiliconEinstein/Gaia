@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: **Phase 2.5 — Audit-driven full-select ruff alignment** (Phase 2 closed, Phase 2.4 hotfix `75d6d769` landed, rev2 audit Pillar 3 FAIL surfaced spec gap → Phase 2.5 added)
-**Last updated**: 2026-05-12 (2.5.3c-ir done; full Phase 2.5 gate green, 2.5.4 pending)
+**Last updated**: 2026-05-12 (Phase 2.5 close-out 2.5.4 green + Phase 3.1 sanity gate green → γ' checkpoint reached; awaiting user ship handshake)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`, current HEAD `75d6d769`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -41,12 +41,12 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Progress: 20 / 20 listed work units (type annotations + docstrings + coverage guard + close-out acceptance)
 - [x] **🚦 Checkpoint β (informational)**: Phase 2 complete — orchestrator phase-transition log; no autonomous stop
 - [x] **Phase 2.4-hotfix** — `75d6d769 fix(cli): preserve single backslash in starmap help examples` (surfaced by rev1 independent audit Pillar 1.3; raw-string conversion in Phase 2.2-cli left `\\` literals that rendered as `\\` in `gaia starmap --help`)
-- [ ] **Phase 2.5 — Audit-driven full-select ruff alignment** (new phase added 2026-05-12 post rev2 audit)
-  - **Why**: rev2 audit Pillar 3 FAIL — `uv run ruff check .` (CI command) reports 531 errors at HEAD `75d6d769`; spec gap = three ruff invocations diverged (Phase 0.5 baseline measured full select, Phase 2.2 close criteria narrowed to `--select D`, Phase 2.4 close-out used pre-commit's `--select E4,E7,E9,F`, CI runs full pyproject 15-select); PR opened to `v0.5` will red on CI. Phase 2.5 closes the gap by **aligning close-out gate to CI command + driving ruff full-select to 0 errors**.
+- [x] **Phase 2.5 — Audit-driven full-select ruff alignment** ✅ COMPLETE 2026-05-12 (entered post rev2 audit)
+  - **Why**: rev2 audit Pillar 3 FAIL — `uv run ruff check .` (CI command) reports 531 errors at HEAD `75d6d769`; spec gap = three ruff invocations diverged (Phase 0.5 baseline measured full select, Phase 2.2 close criteria narrowed to `--select D`, Phase 2.4 close-out used pre-commit's `--select E4,E7,E9,F`, CI runs full pyproject 15-select); PR opened to `v0.5` will red on CI. Phase 2.5 closed the gap by **aligning close-out gate to CI command + driving ruff full-select to 0 errors**.
   - **Path**: C-硬 (refactor, NOT noqa exception); 4 pinned decisions in § Phase 2.5 spec below.
-  - Progress: 16 / TBD work units (queue in § Phase 2.5 task queue)
-- [ ] **Phase 3 — Acceptance + PR** (γ rolled back, will redo with Phase 2.5 close-out command)
-- [ ] **🚦 Checkpoint γ'**: Phase 2.5 + Phase 3.1 close-out all green → PR body regen + user ship handshake
+  - **Final progress: 13 work units done over 16 cursor-agent rounds** + 2 orchestrator-side commits (RUF022 corrective revert `07497fdb` + M3 resolution `03fa6d4f`). Ruff full-select: **531 → 0** ✅. C901: **103 → 0** ✅. mypy 0 / 275 ✅. pytest 1605 / 1608 ✅. cov 91.57% ✅.
+- [x] **Phase 3.1 — Final acceptance gate** ✅ 2026-05-12 — orchestrator host-driven `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov`. Sanity check after 2.5.4; all 4 commands pass. Ruff drift between 2.5.4 and 3.1 = 0.
+- [ ] **🚦 Checkpoint γ' (current stop)**: Phase 2.5 + Phase 3.1 close-out all green → orchestrator regen PR body draft → STOP awaiting user ship handshake
 - [ ] **Cleanup R.x — after PR merge**: delete mortal banner + `.refactor/` + restore canon CD default
 
 ---
@@ -314,18 +314,18 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 
 #### 2.5.4 — Close-out acceptance gate
 
-- [ ] **2.5.4** Orchestrator host-driven (no commit unless tail fixup needed). Run **exactly**:
+- [x] **2.5.4** Orchestrator host-driven (no commit unless tail fixup needed). Run **exactly**:
   ```
   uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
   ```
   All 4 must pass; ruff full-select count = 0; mypy 0 errors / 275 source files; pytest 1605 / 1608; coverage ≥ 90. If green → enter Phase 3.1.
-  - status: `pending`
+  - status: `done` | run_by: orchestrator (host) | run_at: 2026-05-12 18:50 | result: `uv run ruff check .` => All checks passed!; `uv run ruff format --check .` => 280 files already formatted; `uv run mypy` => Success: no issues found in 275 source files; `uv run pytest --cov=gaia --cov-report=term -q` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 91.57%, required 90% reached. **Ruff full-select = 0** (from 531 at Phase 2.5 entry HEAD `75d6d769`). No tail fixup needed; clean close.
 
 > **Phase 2.5 done when**: 2.5.4 close-out gate is green.
 
 ### Phase 3 — Acceptance + PR (regen after Phase 2.5)
 
-- [ ] **3.1** Orchestrator host-driven final acceptance gate — same command as 2.5.4 close-out (sanity check; ruff drift should be zero between 2.5.4 and 3.1).
+- [x] **3.1** Orchestrator host-driven final acceptance gate — same command as 2.5.4 close-out. ✅ Sanity-checked 2026-05-12 18:50 immediately after 2.5.4; ruff drift between 2.5.4 and 3.1 = 0; all 4 commands pass with identical numbers as 2.5.4.
 - [ ] **3.2** 🚦 **Checkpoint γ'**: orchestrator regens `home_agent/projects/gaia/refactor-pr-body-draft.md` — delete the "ruff non-D backlog 531 errors disclosed in PR body" caveat; add Phase 2.5 narrative (spec gap + mccabe rationale + C-硬 refactor approach + outlier function list + close-out command alignment with CI); declare ruff full-select CLEAN.
 - [ ] **3.3** User pushes + opens PR — **requires user explicit "ship / PR / merge" handshake**. After Phase 2.5 close-out, user may also dispatch rev3 audit before approving ship.
 
