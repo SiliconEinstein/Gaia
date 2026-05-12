@@ -25,16 +25,16 @@ def _ts(seq: int) -> datetime:
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:
-    base = dict(
-        event_id=f"e{seq}",
-        seq=seq,
-        prev_hash=prev_hash,
-        ts=_ts(seq),
-        kind="decision",
-        actor="arm",
-        reason="grounded by inputs",
-        inputs={"step": "inputs"},
-    )
+    base = {
+        "event_id": f"e{seq}",
+        "seq": seq,
+        "prev_hash": prev_hash,
+        "ts": _ts(seq),
+        "kind": "decision",
+        "actor": "arm",
+        "reason": "grounded by inputs",
+        "inputs": {"step": "inputs"},
+    }
     base.update(kw)
     return TraceEvent(**base)
 

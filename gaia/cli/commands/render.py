@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import typer
@@ -20,7 +20,7 @@ from gaia.cli.commands._render_priors import param_data_from_ir_metadata
 from gaia.ir.validator import validate_local_graph
 
 
-class RenderTarget(str, Enum):
+class RenderTarget(StrEnum):
     """Supported presentation targets for `gaia render`."""
 
     docs = "docs"
@@ -29,18 +29,21 @@ class RenderTarget(str, Enum):
     all = "all"
 
 
+_TARGET_OPTION: Any = typer.Option(
+    RenderTarget.all,
+    "--target",
+    help=(
+        "What to render: 'docs' (renders from compiled IR alone; enriched "
+        "when beliefs are available), 'github' (requires beliefs from "
+        "`gaia infer`), or 'all' (default; docs unconditionally + github "
+        "when beliefs are available)."
+    ),
+)
+
+
 def render_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
-    target: RenderTarget = typer.Option(
-        RenderTarget.all,
-        "--target",
-        help=(
-            "What to render: 'docs' (renders from compiled IR alone; enriched "
-            "when beliefs are available), 'github' (requires beliefs from "
-            "`gaia infer`), or 'all' (default; docs unconditionally + github "
-            "when beliefs are available)."
-        ),
-    ),
+    target: RenderTarget = _TARGET_OPTION,
 ) -> None:
     """Render presentation outputs from a compiled package.
 

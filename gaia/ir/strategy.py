@@ -215,9 +215,8 @@ class Strategy(BaseModel):
         if self.scope != "local":
             raise ValueError("scope must be 'local'")
 
-        if self.strategy_id is not None:
-            if not self.strategy_id.startswith("lcs_"):
-                raise ValueError("local strategies must use a strategy_id with lcs_ prefix")
+        if self.strategy_id is not None and not self.strategy_id.startswith("lcs_"):
+            raise ValueError("local strategies must use a strategy_id with lcs_ prefix")
 
         if self.strategy_id is None:
             self.strategy_id = _compute_strategy_id(

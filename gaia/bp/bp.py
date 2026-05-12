@@ -230,7 +230,7 @@ def _compute_f2v(
         for other_vals in cartesian_product((0, 1), repeat=len(other_vars)):
             # Build full assignment
             assignment: dict[str, int] = {}
-            for v, val in zip(other_vars, other_vals):
+            for v, val in zip(other_vars, other_vals, strict=True):
                 assignment[v] = val
             assignment[target_var] = target_val
 
@@ -239,7 +239,7 @@ def _compute_f2v(
 
             # Product of incoming v2f messages from other variables
             weight = 1.0
-            for v, val in zip(other_vars, other_vals):
+            for v, val in zip(other_vars, other_vals, strict=True):
                 v2f = v2f_msgs.get((v, factor_idx))
                 if v2f is not None:
                     weight *= float(v2f[val])

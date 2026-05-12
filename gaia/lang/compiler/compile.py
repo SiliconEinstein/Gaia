@@ -550,7 +550,7 @@ def compile_package_artifact(
                     register_action_knowledge(child_action)
             if action.conclusion is not None:
                 register_knowledge(action.conclusion)
-        elif isinstance(action, Support) or isinstance(action, DependsOn):
+        elif isinstance(action, Support | DependsOn):
             for given in action.given:
                 register_knowledge(given)
             if action.conclusion is not None:

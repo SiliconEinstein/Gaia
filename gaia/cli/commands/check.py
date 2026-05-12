@@ -353,7 +353,7 @@ def _hypothesis_prior(node: dict[str, Any] | None) -> float:
         return 0.5
     try:
         return float(prior)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError):
         return 0.5
 
 

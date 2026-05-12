@@ -28,9 +28,11 @@ def test_support_basic():
 def test_support_requires_premise():
     """support() raises ValueError for empty premises."""
     b = claim("B.")
-    with pytest.warns(DeprecationWarning, match="support\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match="at least 1 premise"):
-            support(premises=[], conclusion=b)
+    with (
+        pytest.warns(DeprecationWarning, match="support\\(\\) is deprecated"),
+        pytest.raises(ValueError, match="at least 1 premise"),
+    ):
+        support(premises=[], conclusion=b)
 
 
 def test_support_multi_premise():
@@ -64,9 +66,11 @@ def test_support_prior_stored():
 
 def test_support_reason_without_prior_raises():
     """support() reason without prior raises ValueError."""
-    with pytest.warns(DeprecationWarning, match="support\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
-            support([claim("H")], claim("O"), reason="no prior given")
+    with (
+        pytest.warns(DeprecationWarning, match="support\\(\\) is deprecated"),
+        pytest.raises(ValueError, match=r"reason.*prior.*paired"),
+    ):
+        support([claim("H")], claim("O"), reason="no prior given")
 
 
 def test_support_no_reason_no_prior_ok():

@@ -70,13 +70,15 @@ def test_step_premise_validation():
     c = claim("C.")
     outside = claim("Not a premise.")
 
-    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match="not in the strategy's premise list"):
-            noisy_and(
-                premises=[a, b],
-                conclusion=c,
-                reason=[Step(reason="Bad step", premises=[outside])],
-            )
+    with (
+        pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"),
+        pytest.raises(ValueError, match="not in the strategy's premise list"),
+    ):
+        noisy_and(
+            premises=[a, b],
+            conclusion=c,
+            reason=[Step(reason="Bad step", premises=[outside])],
+        )
 
 
 def test_deduction():

@@ -554,10 +554,7 @@ def render_knowledge_nodes(
 
         for mod, nodes in segments:
             count = segment_counts[mod]
-            if mod == "Root":
-                heading = "Root"
-            else:
-                heading = module_titles.get(mod, mod)
+            heading = "Root" if mod == "Root" else module_titles.get(mod, mod)
             if count:
                 heading = f"{heading} (continued)"
             segment_counts[mod] += 1

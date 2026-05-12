@@ -112,9 +112,7 @@ def _is_replayable(event: dict[str, Any]) -> bool:
     if event.get("decision") == "retry":
         return False
     # response_code != 0 implies a failed retrieval — also skip.
-    if "response_code" in event and event.get("response_code") not in (None, 0):
-        return False
-    return True
+    return "response_code" not in event or event.get("response_code") in (None, 0)
 
 
 def _validate_schema(events: list[dict[str, Any]], source: str) -> list[str]:

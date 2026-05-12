@@ -44,9 +44,9 @@ def test_v6_knowledge_types_compile(tmp_path):
     types = {k["type"] for k in ir["knowledges"]}
     assert "note" in types
 
-    ctx_node = [k for k in ir["knowledges"] if k.get("label") == "ctx"][0]
+    ctx_node = next(k for k in ir["knowledges"] if k.get("label") == "ctx")
     assert ctx_node["format"] == "text"
 
-    hyp_node = [k for k in ir["knowledges"] if k.get("label") == "hyp"][0]
+    hyp_node = next(k for k in ir["knowledges"] if k.get("label") == "hyp")
     assert hyp_node["format"] == "markdown"
     assert hyp_node["metadata"]["prior"] == 0.5

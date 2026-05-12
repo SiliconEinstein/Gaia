@@ -32,16 +32,16 @@ def _ts(seq: int) -> datetime:
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:
-    base = dict(
-        event_id=f"e{seq}",
-        seq=seq,
-        prev_hash=prev_hash,
-        ts=_ts(seq),
-        kind="decision",
-        actor="arm",
-        reason="grounded by inputs",
-        inputs={"step": "inputs"},
-    )
+    base = {
+        "event_id": f"e{seq}",
+        "seq": seq,
+        "prev_hash": prev_hash,
+        "ts": _ts(seq),
+        "kind": "decision",
+        "actor": "arm",
+        "reason": "grounded by inputs",
+        "inputs": {"step": "inputs"},
+    }
     base.update(kw)
     return TraceEvent(**base)
 
@@ -253,7 +253,7 @@ def test_reference_validity_lists_all_claim_refs(tmp_path: Path):
     p.write_text(t.model_dump_json(indent=2), encoding="utf-8")
 
     # resolver 全 false ⇒ 仍要列出，但 resolved=False
-    report = run_trace_review(p, resolver=lambda r: False, snapshot_dir=tmp_path / "snap")
+    report = run_trace_review(p, resolver=lambda _r: False, snapshot_dir=tmp_path / "snap")
     assert len(report.reference_validity) == 2
     assert all(not r["resolved"] for r in report.reference_validity)
     # 同时产生 unresolved_claim_ref diagnostic

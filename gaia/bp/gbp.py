@@ -88,7 +88,7 @@ def detect_short_cycles(graph: FactorGraph, max_cycle_len: int = 6) -> list[froz
                         seen.add(cycle_set)
                         cycles.append(cycle_set)
                 elif neighbor not in path:
-                    queue.append((neighbor, path + [neighbor]))
+                    queue.append((neighbor, [*path, neighbor]))
 
     return cycles
 

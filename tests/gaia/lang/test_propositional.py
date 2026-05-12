@@ -46,12 +46,16 @@ def test_explicit_and_or_functions_accept_multiple_claims():
 
 def test_propositional_functions_reject_non_claim_inputs():
     a = Claim("A.")
-    with pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"):
-        with pytest.raises(TypeError, match="Claim"):
-            and_(a, object())
-    with pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"):
-        with pytest.raises(TypeError, match="Claim"):
-            or_(a, object())
+    with (
+        pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"),
+        pytest.raises(TypeError, match="Claim"),
+    ):
+        and_(a, object())
+    with (
+        pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"),
+        pytest.raises(TypeError, match="Claim"),
+    ):
+        or_(a, object())
 
 
 def test_compile_propositional_expression_helpers_to_nonreviewed_operators():

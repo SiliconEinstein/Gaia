@@ -269,11 +269,13 @@ class FactorGraph:
             raise ValueError(
                 f"DISJUNCTION '{factor_id}' requires at least 2 variables, got {len(v_list)}."
             )
-        if ft in (FactorType.EQUIVALENCE, FactorType.CONTRADICTION, FactorType.COMPLEMENT):
-            if len(v_list) != 2:
-                raise ValueError(
-                    f"{ft.name} '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
-                )
+        if (
+            ft in (FactorType.EQUIVALENCE, FactorType.CONTRADICTION, FactorType.COMPLEMENT)
+            and len(v_list) != 2
+        ):
+            raise ValueError(
+                f"{ft.name} '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
+            )
 
     def get_var_to_factors(self) -> dict[str, list[int]]:
         """Return a reverse index from variable ID to incident factor indices."""

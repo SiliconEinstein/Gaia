@@ -18,6 +18,7 @@ class _ContinuousDistribution(_BaseDistribution):
         return float(_to_scipy_dist(self.kind, self._resolved_params()).logpdf(float(x)))
 
     def logpmf(self, k: int) -> float:
+        del k
         raise TypeError(f"{self.__class__.__name__} is a continuous distribution; use .logpdf()")
 
     def support(self) -> tuple[float, float]:

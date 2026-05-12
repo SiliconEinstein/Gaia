@@ -18,15 +18,15 @@ from gaia.trace.schema import TraceEvent, TraceManifest
 
 
 def _ev(seq: int, prev_hash: str, *, kind="decision", actor="arm", **kw) -> TraceEvent:
-    base = dict(
-        event_id=f"e{seq}",
-        seq=seq,
-        prev_hash=prev_hash,
-        ts=datetime(2026, 4, 28, tzinfo=UTC).replace(second=seq),
-        kind=kind,
-        actor=actor,
-        reason="r" if kind == "decision" else None,
-    )
+    base = {
+        "event_id": f"e{seq}",
+        "seq": seq,
+        "prev_hash": prev_hash,
+        "ts": datetime(2026, 4, 28, tzinfo=UTC).replace(second=seq),
+        "kind": kind,
+        "actor": actor,
+        "reason": "r" if kind == "decision" else None,
+    }
     base.update(kw)
     return TraceEvent(**base)
 
@@ -63,7 +63,7 @@ def test_canonical_json_datetime_to_iso_z():
 
 
 def test_canonical_json_naive_datetime_assumed_utc():
-    dt = datetime(2026, 4, 28, 12, 0, 0)  # naive
+    dt = datetime(2026, 4, 28, 12, 0, 0, tzinfo=UTC).replace(tzinfo=None)
     assert canonical_json({"t": dt}) == b'{"t":"2026-04-28T12:00:00Z"}'
 
 

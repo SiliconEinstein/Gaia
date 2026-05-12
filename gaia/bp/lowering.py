@@ -193,7 +193,7 @@ def lower_local_graph(
             elif _operator_asserts_relation(op):
                 fg.add_variable(concl, 1.0 - CROMWELL_EPS)
             else:
-                fg.add_variable(concl, priors[concl] if concl in priors else None)
+                fg.add_variable(concl, priors.get(concl))
         fg.add_factor(fid, ft, op.variables, concl)
 
     seen_strategies: set[str] = set()
@@ -226,7 +226,7 @@ def _ensure_claim_var(
     del claim_ids
     if vid in fg.variables:
         return
-    fg.add_variable(vid, priors[vid] if vid in priors else None)
+    fg.add_variable(vid, priors.get(vid))
 
 
 def _clamp_probability(value: float) -> float:
@@ -531,7 +531,7 @@ def _lower_strategy(
                 if op.operator in _RELATION_OPS:
                     fg.add_variable(concl, 1.0 - CROMWELL_EPS)
                 else:
-                    fg.add_variable(concl, priors[concl] if concl in priors else None)
+                    fg.add_variable(concl, priors.get(concl))
             elif op.operator in _RELATION_OPS:
                 # Variable was pre-registered with wrong default (0.5) by
                 # _ensure_claim_var during auto-formalization.  Override to

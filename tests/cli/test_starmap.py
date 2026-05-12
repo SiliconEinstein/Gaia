@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import ClassVar
 
 import pytest
 from typer.testing import CliRunner
@@ -2099,7 +2100,7 @@ def test_replay_compute_dot_layout_raises_on_dot_failure(monkeypatch):
         stdout = ""
         stderr = "syntax error near token foo"
 
-    monkeypatch.setattr(rb.subprocess, "run", lambda *a, **k: _FakeProc())
+    monkeypatch.setattr(rb.subprocess, "run", lambda *_args, **_kwargs: _FakeProc())
     with pytest.raises(RuntimeError, match="dot -Tjson0"):
         rb.compute_dot_layout("digraph { a }")
 
@@ -2114,8 +2115,8 @@ def test_starmap_validation_error_exits_1(tmp_path, monkeypatch):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_validate_err")
 
     class _Result:
-        warnings = ["a soft note"]
-        errors = ["something is broken"]
+        warnings: ClassVar[list[str]] = ["a soft note"]
+        errors: ClassVar[list[str]] = ["something is broken"]
 
     monkeypatch.setattr(starmap_mod, "validate_local_graph", lambda _g: _Result())
     result = runner.invoke(app, ["starmap", str(pkg_dir)])

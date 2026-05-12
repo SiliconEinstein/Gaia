@@ -641,7 +641,7 @@ def test_named_leaf_node_priors_respected():
     )
     # First pass: discover the auto-generated alt-explanation variable ID
     fg0 = lower_local_graph(g)
-    alt_id = [v for v in fg0.variables if "alternative_explanation" in v][0]
+    alt_id = next(v for v in fg0.variables if "alternative_explanation" in v)
 
     # Second pass: supply a custom prior for the auto-generated claim
     fg1 = lower_local_graph(g, node_priors={alt_id: 0.1})
@@ -972,7 +972,7 @@ def test_e2e_single_premise_deduction_binary_implication():
     assert FactorType.CONJUNCTION not in ftypes
 
     # CONDITIONAL has 1 variable (premise) + conclusion
-    conditional_f = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL][0]
+    conditional_f = next(f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL)
     assert len(conditional_f.variables) == 1
 
     # Run inference

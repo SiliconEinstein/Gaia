@@ -208,10 +208,7 @@ def run_review(
 
     # Step 3: knowledge breakdown via check_core (single source of truth).
     ir_dict = _graph_to_ir_dict(graph)
-    if ir_dict is not None:
-        kb = analyze_knowledge_breakdown(ir_dict)
-    else:
-        kb = KnowledgeBreakdown()
+    kb = analyze_knowledge_breakdown(ir_dict) if ir_dict is not None else KnowledgeBreakdown()
 
     prior_holes = _build_prior_holes(kb)
     inquiry_tree = _build_inquiry_tree(kb, graph, review_manifest)

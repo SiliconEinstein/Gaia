@@ -86,7 +86,9 @@ class FunctionApp:
                 f"FunctionApp arity mismatch: {self.symbol.name} expects "
                 f"{expected_arity} args, got {len(self.args)}"
             )
-        for i, (arg, expected_domain) in enumerate(zip(self.args, self.symbol.arg_domains)):
+        for i, (arg, expected_domain) in enumerate(
+            zip(self.args, self.symbol.arg_domains, strict=True)
+        ):
             if not is_term(arg):
                 raise TypeError(f"FunctionApp argument {i} is not a Term: {arg!r}")
             actual = _term_domain(arg)

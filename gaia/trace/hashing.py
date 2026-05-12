@@ -48,10 +48,7 @@ def _to_jsonable(value: Any) -> Any:
             raise ValueError("non-finite float in canonical_json input")
         return value
     if isinstance(value, datetime):
-        if value.tzinfo is None:
-            v = value.replace(tzinfo=UTC)
-        else:
-            v = value.astimezone(UTC)
+        v = value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
         s = v.isoformat()
         if s.endswith("+00:00"):
             s = s[:-6] + "Z"

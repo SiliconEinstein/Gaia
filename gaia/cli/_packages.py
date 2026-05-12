@@ -859,7 +859,7 @@ def build_package_manifests(
         if premise["role"] == "local_hole"
     ]
 
-    manifests = {
+    return {
         "exports.json": {
             **_manifest_base(loaded, ir_hash=graph.ir_hash or ""),
             "exports": exports,
@@ -877,7 +877,6 @@ def build_package_manifests(
             "bridges": fills_relations,
         },
     }
-    return manifests
 
 
 def collect_foreign_node_priors(

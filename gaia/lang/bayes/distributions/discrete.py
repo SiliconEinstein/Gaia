@@ -45,6 +45,7 @@ class Binomial(_BaseDistribution):
 
     def logpdf(self, x: float) -> float:
         """Reject density evaluation for the discrete Binomial distribution."""
+        del x
         raise TypeError("Binomial is a discrete distribution; use .logpmf()")
 
     def support(self) -> tuple[int, int]:
@@ -79,6 +80,7 @@ class Poisson(_BaseDistribution):
 
     def logpdf(self, x: float) -> float:
         """Reject density evaluation for the discrete Poisson distribution."""
+        del x
         raise TypeError("Poisson is a discrete distribution; use .logpmf()")
 
     def support(self) -> tuple[int, float]:

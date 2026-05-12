@@ -1006,14 +1006,13 @@ def annotate_ticks_with_survival(
                     continue
                 if 0 <= idx < n_strats:
                     surviving_strat_keys.add(key)
-        elif kind == "operator":
-            if cid.startswith("oper_"):
-                try:
-                    idx = int(cid.split("_", 1)[1])
-                except (ValueError, IndexError):
-                    continue
-                if 0 <= idx < n_opers:
-                    surviving_oper_keys.add(key)
+        elif kind == "operator" and cid.startswith("oper_"):
+            try:
+                idx = int(cid.split("_", 1)[1])
+            except (ValueError, IndexError):
+                continue
+            if 0 <= idx < n_opers:
+                surviving_oper_keys.add(key)
 
     # Build the set of "knowledge symbols" that resolve to a final-IR
     # knowledge: every IR knowledge id + every IR knowledge metadata.lkm_id.
@@ -1042,7 +1041,7 @@ def annotate_ticks_with_survival(
             candidates.append(target_lkm)
         priors = payload.get("priors")
         if isinstance(priors, dict):
-            candidates.extend(k for k in priors.keys() if isinstance(k, str))
+            candidates.extend(k for k in priors if isinstance(k, str))
         claim_ids = payload.get("claim_ids")
         if isinstance(claim_ids, list):
             candidates.extend(c for c in claim_ids if isinstance(c, str))
@@ -1076,10 +1075,7 @@ def annotate_ticks_with_survival(
                 # admits the IR strategies anyway, so they're surviving.
                 survives = True
         elif kind in ("contradiction", "equivalence"):
-            if isinstance(symbol, str) and symbol:
-                survives = symbol in surviving_oper_keys
-            else:
-                survives = True
+            survives = symbol in surviving_oper_keys if isinstance(symbol, str) and symbol else True
         elif kind == "prior":
             ev_idx = tick.get("event_index")
             ev = events[ev_idx] if isinstance(ev_idx, int) and 0 <= ev_idx < len(events) else None
@@ -1257,7 +1253,7 @@ def topo_reorder_ticks(
             candidates.append(tlid)
         priors = payload.get("priors")
         if isinstance(priors, dict):
-            candidates.extend(k for k in priors.keys() if isinstance(k, str))
+            candidates.extend(k for k in priors if isinstance(k, str))
         cids = payload.get("claim_ids")
         if isinstance(cids, list):
             candidates.extend(c for c in cids if isinstance(c, str))

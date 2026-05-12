@@ -23,7 +23,7 @@ pytestmark = pytest.mark.legacy_dsl
 @pytest.mark.parametrize(
     ("call_name", "factory", "helper_kind"),
     [
-        ("not_", lambda a, b: not_(a), "negation_result"),
+        ("not_", lambda a, _b: not_(a), "negation_result"),
         ("and_", lambda a, b: and_(a, b), "conjunction_result"),
         ("or_", lambda a, b: or_(a, b), "disjunction_result"),
     ],

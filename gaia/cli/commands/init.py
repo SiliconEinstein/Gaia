@@ -126,7 +126,7 @@ def init_command(
     # --- add gaia-lang dependency (warn on failure) ----------------------------
     try:
         _run_uv(["uv", "add", "gaia-lang"], cwd=pkg_dir)
-    except GaiaCliError as exc:
+    except GaiaCliError:
         typer.echo(
             "Warning: could not add gaia-lang dependency. Run 'uv add gaia-lang' manually.",
             err=True,

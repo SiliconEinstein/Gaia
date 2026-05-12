@@ -67,6 +67,7 @@ class _BaseDistribution(BaseModel):
         return self.__class__(**params)
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        del kwargs
         concrete = {
             name: value for name, value in self.params.items() if not _is_deferred_reference(value)
         }

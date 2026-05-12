@@ -389,10 +389,7 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
         # Stellaris: shape-only (no text); type names live in the legend.
         # Light: keep type name as inline label (paper-friendly default).
         label = "" if th.name == "stellaris" else _escape_label(stype)
-        if stype == "support":
-            attrs = th.strategy.support
-        else:
-            attrs = th.strategy.ellipse
+        attrs = th.strategy.support if stype == "support" else th.strategy.ellipse
         out.append(f'{indent}{_quote_id(n["id"])} [label="{label}", {attrs}];')
 
     def _emit_operator_node(n: dict[str, Any], indent: str) -> None:
@@ -408,10 +405,7 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
             label = _escape_label(symbol)
         else:
             label = _escape_label(otype)
-        if otype == _CONTRADICTION:
-            attrs = th.operator.contradiction
-        else:
-            attrs = th.operator.neutral
+        attrs = th.operator.contradiction if otype == _CONTRADICTION else th.operator.neutral
         out.append(f'{indent}{_quote_id(n["id"])} [label="{label}", {attrs}];')
 
     def _emit_op_or_strat(n: dict[str, Any], indent: str) -> None:

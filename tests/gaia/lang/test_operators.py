@@ -95,9 +95,11 @@ def test_operator_reason_without_prior_raises():
 
     a = claim("A.")
     b = claim("B.")
-    with pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
-            contradiction(a, b, reason="incompatible")  # no prior!
+    with (
+        pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"),
+        pytest.raises(ValueError, match=r"reason.*prior.*paired"),
+    ):
+        contradiction(a, b, reason="incompatible")  # no prior!
 
 
 def test_operator_prior_without_reason_raises():
@@ -106,9 +108,11 @@ def test_operator_prior_without_reason_raises():
 
     a = claim("A.")
     b = claim("B.")
-    with pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
-            contradiction(a, b, prior=0.9)  # no reason!
+    with (
+        pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"),
+        pytest.raises(ValueError, match=r"reason.*prior.*paired"),
+    ):
+        contradiction(a, b, prior=0.9)  # no reason!
 
 
 def test_operator_prior_outside_cromwell_bounds_raises():
@@ -116,9 +120,11 @@ def test_operator_prior_outside_cromwell_bounds_raises():
 
     a = claim("A.")
     b = claim("B.")
-    with pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match="Cromwell bounds"):
-            contradiction(a, b, reason="invalid probability", prior=1.5)
+    with (
+        pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"),
+        pytest.raises(ValueError, match="Cromwell bounds"),
+    ):
+        contradiction(a, b, reason="invalid probability", prior=1.5)
 
 
 def test_operator_no_reason_no_prior_ok():

@@ -25,10 +25,7 @@ def _as_claim_tuple(
     value: Claim | list[Claim] | tuple[Claim, ...], *, name: str
 ) -> tuple[Claim, ...]:
     items: tuple[Claim, ...]
-    if isinstance(value, Claim):
-        items = (value,)
-    else:
-        items = tuple(value)
+    items = (value,) if isinstance(value, Claim) else tuple(value)
     if not items:
         raise ValueError(f"likelihood() requires at least one {name} claim")
     for item in items:

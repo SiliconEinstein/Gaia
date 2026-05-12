@@ -18,8 +18,6 @@ Spec: github.com/SiliconEinstein/Gaia/issues/357
 
 from __future__ import annotations
 
-from typing import TypeAlias
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -28,8 +26,8 @@ from gaia.ir.strategy import Strategy
 
 _HIGH: float = 1.0 - CROMWELL_EPS
 _LOW: float = CROMWELL_EPS
-FloatArray: TypeAlias = NDArray[np.float64]
-StrategyCpt: TypeAlias = tuple[FloatArray, list[str]]
+type FloatArray = NDArray[np.float64]
+type StrategyCpt = tuple[FloatArray, list[str]]
 
 __all__ = [
     "contract_to_cpt",
@@ -49,7 +47,7 @@ class _InProgress:
 
 
 _IN_PROGRESS = _InProgress()
-StrategyCptCacheValue: TypeAlias = StrategyCpt | _InProgress
+type StrategyCptCacheValue = StrategyCpt | _InProgress
 
 
 def _float_array(values: object) -> FloatArray:
@@ -266,7 +264,7 @@ def contract_to_cpt(
     # Build the opt_einsum args: alternating (operand, [integer axis indices]),
     # then a final list with the output index order.
     args: list[object] = []
-    for op, ax in zip(operands, operand_axes):
+    for op, ax in zip(operands, operand_axes, strict=True):
         args.append(op)
         args.append([var_to_idx[v] for v in ax])
     args.append([var_to_idx[v] for v in free_vars])
@@ -350,7 +348,7 @@ def cpt_tensor_to_list(
     t = np.transpose(tensor, perm)
     out: list[float] = []
     for assignment in range(1 << k):
-        idx = tuple(((assignment >> bit) & 1) for bit in range(k)) + (1,)
+        idx = (*(((assignment >> bit) & 1) for bit in range(k)), 1)
         out.append(float(t[idx]))
     return out
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, cast
 
 from gaia.lang.runtime.action import (
     Action,
@@ -43,7 +43,7 @@ class RoleOccurrence:
     source: str = "explicit_field"
 
 
-ActionGraph: TypeAlias = "CollectedPackage | Sequence[Action]"
+type ActionGraph = "CollectedPackage | Sequence[Action]"
 RoleAdder = Callable[[Claim | None, str], None]
 RoleHandler = Callable[[Action, RoleAdder], None]
 

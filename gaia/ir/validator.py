@@ -92,12 +92,11 @@ def _validate_knowledges(
 
     for k in knowledges:
         # ID format check
-        if scope == "local":
-            if k.id and not is_qid(k.id):
-                result.error(
-                    f"Knowledge '{k.id}': expected QID format "
-                    f"(namespace:package_name::label) in local graph"
-                )
+        if scope == "local" and k.id and not is_qid(k.id):
+            result.error(
+                f"Knowledge '{k.id}': expected QID format "
+                f"(namespace:package_name::label) in local graph"
+            )
 
         # uniqueness
         if k.id in lookup:
@@ -128,9 +127,8 @@ def _validate_knowledges(
                     )
 
         # local-layer shape rules
-        if scope == "local":
-            if k.content is None:
-                result.error(f"Knowledge '{k.id}': local layer requires content")
+        if scope == "local" and k.content is None:
+            result.error(f"Knowledge '{k.id}': local layer requires content")
 
     # label uniqueness check for local scope
     if scope == "local":
@@ -169,9 +167,8 @@ def _validate_operators(
                 "(embedded FormalExpr operators may omit them)"
             )
 
-        if top_level and op.operator_id is not None:
-            if not op.operator_id.startswith("lco_"):
-                result.error(f"Operator '{op.operator_id}': expected lco_ prefix in {scope} graph")
+        if top_level and op.operator_id is not None and not op.operator_id.startswith("lco_"):
+            result.error(f"Operator '{op.operator_id}': expected lco_ prefix in {scope} graph")
 
         # operator scope must be compatible with graph scope
         if op.scope is not None and op.scope != scope:
@@ -325,9 +322,8 @@ def _validate_composite_dag(
             if color[nb] == GRAY:
                 result.error(f"CompositeStrategy cycle detected involving '{node}' -> '{nb}'")
                 return True
-            if color[nb] == WHITE:
-                if dfs(nb):
-                    return True
+            if color[nb] == WHITE and dfs(nb):
+                return True
         color[node] = BLACK
         return False
 

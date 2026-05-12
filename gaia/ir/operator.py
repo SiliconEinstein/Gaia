@@ -79,8 +79,7 @@ class Operator(BaseModel):
             if len(self.variables) != 2:
                 raise ValueError(f"operator={self.operator} requires exactly 2 variables")
 
-        elif self.operator == OperatorType.DISJUNCTION:
-            if len(self.variables) < 2:
-                raise ValueError("operator=disjunction requires at least 2 variables")
+        elif self.operator == OperatorType.DISJUNCTION and len(self.variables) < 2:
+            raise ValueError("operator=disjunction requires at least 2 variables")
 
         return self

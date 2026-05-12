@@ -42,7 +42,6 @@ from __future__ import annotations
 
 import logging
 from itertools import product as cartesian_product
-from typing import TypeAlias
 
 from gaia.bp.bp import BPDiagnostics, BPResult
 from gaia.bp.factor_graph import Factor, FactorGraph
@@ -51,7 +50,7 @@ from gaia.bp.potentials import evaluate_potential
 __all__ = ["JunctionTreeInference", "jt_treewidth"]
 
 logger = logging.getLogger(__name__)
-PotentialTable: TypeAlias = dict[tuple[int, ...], float]
+type PotentialTable = dict[tuple[int, ...], float]
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +127,7 @@ def _triangulate_min_fill(
 
         # Record elimination clique: best + its remaining neighbors
         neighbors_remaining = [n for n in adj[best] if n in remaining]
-        clique = [best] + sorted(neighbors_remaining)
+        clique = [best, *sorted(neighbors_remaining)]
         elim_cliques.append(clique)
 
         # Add fill edges (make neighbors a clique in triangulated graph)
@@ -448,14 +447,14 @@ def _collect_distribute(
     # Messages: msg[(sender, receiver)] = separator-indexed table
     # Initially: uniform over separator
     messages: dict[tuple[int, int], tuple[PotentialTable, list[str]]] = {}
-    for i, j, separator in [
+    for clique_idx, j, separator in [
         (i, j, separator) for i in range(n_cliques) for j, separator in tree_adj[i]
     ]:
         sep_list = sorted(separator)
         uniform: PotentialTable = dict.fromkeys(
             cartesian_product((0, 1), repeat=len(sep_list)), 1.0
         )
-        messages[(i, j)] = (uniform, sep_list)
+        messages[(clique_idx, j)] = (uniform, sep_list)
 
     # Helper: compute message from clique i to clique j
     def compute_message(

@@ -27,7 +27,7 @@ from gaia.ir.validator import validate_local_graph
 
 try:
     import tomllib
-except ImportError as exc:
+except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
 
@@ -54,7 +54,7 @@ def _read_gaia_lang_version_from_compile_metadata(pkg_path: Path) -> str:
         return "unknown"
     try:
         data = json.loads(metadata_path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError):
         return "unknown"
     version = data.get("gaia_lang_version")
     return version if isinstance(version, str) else "unknown"
