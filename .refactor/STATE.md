@@ -1,8 +1,8 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
-**Current phase**: Checkpoint β pending — Phase 2 full backfill complete
-**Last updated**: 2026-05-12 11:06 (Phase 2.4 close-out acceptance complete)
-**Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
+**Current phase**: **Phase 2.5 — Audit-driven full-select ruff alignment** (Phase 2 closed, Phase 2.4 hotfix `75d6d769` landed, rev2 audit Pillar 3 FAIL surfaced spec gap → Phase 2.5 added)
+**Last updated**: 2026-05-12 (orchestrator-side setup for Phase 2.5 entry)
+**Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`, current HEAD `75d6d769`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
 
@@ -34,14 +34,19 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 
 - [x] **Phase 0 — Repo prepare** (Claude-led from home_agent side)
   - Done: 0.1 branch cut · 0.2 doc fidelity baseline · 0.3 mortal banner · 0.4 STATE.md framework · 0.5 baseline metrics · 0.6 commit + push · 0.7 iteration playbook
-- [x] **Phase 1 — Engineering baseline injection** (user dispatches in-repo agents serially)
+- [x] **Phase 1 — Engineering baseline injection** (orchestrator dispatches in-repo agents serially)
   - Progress: 9 / 9 work units
-- [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
-- [x] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
+- [x] **🚦 Checkpoint α (informational)**: Phase 1 complete — orchestrator phase-transition log; no autonomous stop
+- [x] **Phase 2 — Full backfill** (orchestrator dispatches in-repo agents serially through the task queue)
   - Progress: 20 / 20 listed work units (type annotations + docstrings + coverage guard + close-out acceptance)
-- [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
-- [ ] **Phase 3 — Acceptance + PR**
-- [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
+- [x] **🚦 Checkpoint β (informational)**: Phase 2 complete — orchestrator phase-transition log; no autonomous stop
+- [x] **Phase 2.4-hotfix** — `75d6d769 fix(cli): preserve single backslash in starmap help examples` (surfaced by rev1 independent audit Pillar 1.3; raw-string conversion in Phase 2.2-cli left `\\` literals that rendered as `\\` in `gaia starmap --help`)
+- [ ] **Phase 2.5 — Audit-driven full-select ruff alignment** (new phase added 2026-05-12 post rev2 audit)
+  - **Why**: rev2 audit Pillar 3 FAIL — `uv run ruff check .` (CI command) reports 531 errors at HEAD `75d6d769`; spec gap = three ruff invocations diverged (Phase 0.5 baseline measured full select, Phase 2.2 close criteria narrowed to `--select D`, Phase 2.4 close-out used pre-commit's `--select E4,E7,E9,F`, CI runs full pyproject 15-select); PR opened to `v0.5` will red on CI. Phase 2.5 closes the gap by **aligning close-out gate to CI command + driving ruff full-select to 0 errors**.
+  - **Path**: C-硬 (refactor, NOT noqa exception); 4 pinned decisions in § Phase 2.5 spec below.
+  - Progress: 0 / TBD work units (queue in § Phase 2.5 task queue)
+- [ ] **Phase 3 — Acceptance + PR** (γ rolled back, will redo with Phase 2.5 close-out command)
+- [ ] **🚦 Checkpoint γ'**: Phase 2.5 + Phase 3.1 close-out all green → PR body regen + user ship handshake
 - [ ] **Cleanup R.x — after PR merge**: delete mortal banner + `.refactor/` + restore canon CD default
 
 ---
@@ -169,11 +174,146 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 
 > **🚦 Checkpoint β — after Phase 2**: user returns to home_agent so Claude can verify (sampled doc fidelity cross-check + acceptance gate all green).
 
-### Phase 3 — Acceptance + PR
+### Phase 2.5 — Audit-driven full-select ruff alignment (NEW — added 2026-05-12 post rev2 audit)
 
-- [ ] **3.1** Run the full acceptance gate one more time.
-- [ ] **3.2** 🚦 **Checkpoint γ**: user returns to home_agent so Claude can draft the PR body.
-- [ ] **3.3** User pushes + opens PR — **requires user explicit "ship / PR" handshake**.
+#### Spec gap that caused Phase 2.5
+
+Three ruff invocations diverged during Phases 0-2; CI command was never gated:
+
+| Where | Command | Scope | Gate result at HEAD `75d6d769` |
+|---|---|---|---|
+| Phase 0.5 baseline measurement | `ruff check . --select <15-cat>` | full pyproject 15-select | 2563 (initial measurement before per-file ignores) |
+| Phase 2.2 completion criteria | `ruff check . --select D` | D-rules only | 0 ✅ |
+| Phase 2.4 close-out gate (via pre-commit hook) | `ruff check --select=E4,E7,E9,F` | narrow subset | 0 ✅ |
+| **CI** `.github/workflows/ci.yml:41-44` | `uv run ruff check .` | full pyproject 15-select | **531 ❌** |
+| PR-open requirement | match CI | full pyproject 15-select | 531 must → 0 |
+
+Phase 2.4 close-out was technically correct against the spec at the time, but the spec itself had a gap — pre-commit's narrow ruff hook didn't match CI's full ruff. Phase 2.5 closes the gap.
+
+#### Pinned decisions (user-confirmed 2026-05-12, not open for re-discussion)
+
+1. **Path: C-硬** — refactor every offending rule (including C901 complexity), not noqa exception or per-file ignore expansion. Lifts engineering quality genuinely.
+2. **mccabe `max-complexity` 9 → 12** — `[tool.ruff.lint.mccabe]` bump.
+   - **Rationale (must be canon-logged, rev3 audit will check)**: lbg-cli's 9 was inherited from a CLI-utility repo with no heavy algorithms; gaia has genuine algorithmic weight (BP message passing / IR coarsening / DSL compile-lower-link / inquiry orchestration). 12 is industry mainstream for Python codebases with mixed CLI + library + algorithmic surface. Anchored in PR body Phase 2.5 disclosure + AGENTS.md § Quality Gates.
+   - Effect: C901 from 103 → 68 (35 cut from the 10-12 marginal band).
+3. **Phase 2.5 close-out gate command (WRITES DOWN the spec to match CI exactly):**
+   ```
+   uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
+   ```
+   This is the gate orchestrator runs at 2.5.4 and again at Phase 3.1. Pre-commit hook stays at its narrow set during Phase 2.5; close-out at full set.
+4. **C901 refactors of ≥30 complexity band (22 functions including 5 ≥50 outliers): must be true algorithmic decomposition; noqa is not in the option set.**
+   - 5 ≥50 outliers (each = own work unit): `compile_package_artifact` (218) · `bridge_event_symbols_to_layout` (129) · `topo_reorder_ticks` (66) · `coarsen_ir` (63) · `_simulate_store_admission` (55)
+   - 17 in 30-39 band: also true refactor
+   - 13-29 band (~46 functions): true refactor at module granularity
+   - Public function signatures + CLI surface + IR schemas remain unchanged; refactor is internal (extract helpers / split private logic).
+
+#### Baseline metrics at Phase 2.5 entry (measured at HEAD `75d6d769`)
+
+| Metric | Current | Target | Gap |
+|--------|--------:|-------:|----:|
+| `uv run ruff check . --statistics` | **531** | **0** | **531** |
+| - of which C901 (max-complexity=9) | 103 | 0 | 103 → 68 after mccabe bump → 0 after refactor |
+| - of which `[*]` safe autofix | 194 | 0 | (covered by 2.5.1) |
+| - of which `[*]` unsafe-fix candidates | +62 hidden | 0 | (case-by-case in 2.5.1) |
+| - of which manual pattern-able non-C901 | ~233 | 0 | (covered by 2.5.2) |
+| `uv run ruff format --check .` | clean | clean | 0 |
+| `uv run mypy` | 0 errors / 275 source files | 0 | 0 (preserve) |
+| `uv run pytest` | 1605 passed / 3 skipped | ≥ 1605 | preserve |
+| coverage TOTAL | 90.27% | ≥ 90 | preserve |
+
+#### C901 band distribution at HEAD `75d6d769`
+
+| Band (complexity) | Count | Notes |
+|---|---:|---|
+| 10-12 (cut by mccabe bump to 12) | 35 | marginal — disappear without refactor when mccabe = 12 |
+| 13-15 | 21 | true refactor, module-grouped unit |
+| 16-19 | 17 | true refactor, module-grouped unit |
+| 20-29 | 7 | true refactor, module-grouped unit |
+| 30-39 | 17 | true refactor, each function gets attention; may be module-grouped if dense per module |
+| 50+ (outliers) | 5 | one-function-per-unit (compile_package_artifact 218 / bridge_event_symbols_to_layout 129 / topo_reorder_ticks 66 / coarsen_ir 63 / _simulate_store_admission 55) |
+
+#### Module distribution of all 103 C901 violations
+
+| Module | C901 count |
+|---|---:|
+| gaia/cli/commands | 44 |
+| gaia/ir | 14 |
+| gaia/bp | 12 |
+| gaia/inquiry | 9 |
+| gaia/cli | 5 |
+| gaia/trace | 4 |
+| gaia/lang/dsl | 4 |
+| gaia/lang/compiler | 4 |
+| gaia/lang/runtime | 3 |
+| gaia/logic | 1 |
+| gaia/lang/review | 1 |
+| gaia/lang/bayes/verbs | 1 |
+
+### Phase 2.5 task queue
+
+#### 2.5.0 — mccabe bump 9 → 12 (cross-cutting config)
+
+- [ ] **2.5.0** Edit `pyproject.toml` `[tool.ruff.lint.mccabe] max-complexity = 9 → 12`. Append a one-paragraph rationale to `AGENTS.md` § Quality Gates (durable post-merge canon — explain that 9 was inherited from lbg-cli CLI-utility scope; gaia has algorithmic weight in BP/IR/DSL compile/inquiry orchestration; 12 is industry mainstream for mixed CLI + library + algorithmic codebases). Commit message body must also carry the rationale (rev3 audit will grep). Verify ruff stats: C901 from 103 → ~68.
+  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+  - Ref: spec § Pinned decision #2
+
+#### 2.5.1 — Global mechanical autofix sweep (cross-cutting)
+
+- [ ] **2.5.1** Run `uv run ruff check --fix .` to apply 194 safe fixes (I001 imports / UP017 datetime.timezone.utc / UP037 quoted-annotation / UP045 / C420 / SIM114 / UP035 / RUF100 / RET505 / RUF023 / UP012 / UP034 / B009 / B010). Then case-by-case audit `--unsafe-fixes` hidden 62 (executor judgment: apply if mechanical + runtime-equivalent + sample-diff confirms; skip otherwise). Verify: pytest 1605 stable + sample diff is purely mechanical.
+  - status: `pending`
+  - Authorization: orchestrator pre-confirmed user delegated unsafe-fix per-rule judgment to executor (user message 2026-05-12)
+
+#### 2.5.2 — Manual pattern-able cleanup (cross-cutting; 1-2 units)
+
+- [ ] **2.5.2a** Manual cleanup pass A — high-volume categories: E501 line-too-long (43) · ARG001 unused-function-argument (35) · B904 raise-without-from (30) · RUF043 pytest-raises pattern (16) · ERA001 commented-out-code (14) · RUF059 unused-unpacked (12) · B007 unused loop var (10). Approach: rename to `_var` for unused / `raise ... from err` for B904 / delete commented-out code for ERA001 (or rationalize). Verify: pytest 1605 + sample diff.
+  - status: `pending`
+- [ ] **2.5.2b** Manual cleanup pass B — remaining categories: SIM-series (SIM102 9 / SIM117 8 / SIM108 6 / SIM114 5 / SIM401 3 / SIM118 2 / SIM103 1) + ARG005 (7) + RUF015 (6) + B905 zip-strict (5) + UP040 type-alias (5) + ARG002 (4) + C408 (4) + RUF005 (3) + UP035 (3) + B017 (2) + RUF012 (2) + UP042 (2) + small singletons. Verify: pytest 1605 + sample diff.
+  - status: `pending`
+  - Note: may merge 2.5.2a + 2.5.2b into one round if executor finds queue compresses well.
+
+#### 2.5.3 — C901 complexity refactor (per-module + per-outlier units)
+
+##### 2.5.3a — Outlier ≥50 (5 individual units, one function each)
+
+- [ ] **2.5.3a-compile_package_artifact** Refactor `compile_package_artifact` (218 complexity) — likely in `gaia/cli/commands/*`. Read `docs/foundations/**` for canonical algorithm spec. Extract helpers; preserve CLI surface + output formats + exit codes. Verify: pytest 1605 + characterization tests on this command's outputs (CLI snapshot tests if present) + diff sample.
+  - status: `pending`
+- [ ] **2.5.3a-bridge_event_symbols_to_layout** Refactor `bridge_event_symbols_to_layout` (129). Same approach.
+  - status: `pending`
+- [ ] **2.5.3a-topo_reorder_ticks** Refactor `topo_reorder_ticks` (66) in `gaia/ir`. Read `docs/foundations/gaia-ir/**` for topo invariants. Extract helpers; preserve IR schema + topo ordering semantics. Verify: pytest 1605 + IR-specific test subset + diff sample.
+  - status: `pending`
+- [ ] **2.5.3a-coarsen_ir** Refactor `coarsen_ir` (63) in `gaia/ir`. Same care as topo_reorder_ticks.
+  - status: `pending`
+- [ ] **2.5.3a-_simulate_store_admission** Refactor `_simulate_store_admission` (55). Read relevant docs/foundations for canonical semantics. Same approach.
+  - status: `pending`
+
+##### 2.5.3b — 30-39 band, 17 functions, module-grouped (~3-5 units)
+
+- [ ] **2.5.3b** Refactor remaining 30-39 complexity band C901 functions (17 functions) — executor groups by module (cli-commands / ir / bp / inquiry / lang as needed) within single invoke OR splits into sub-units if invoke budget tight. Same refactor discipline: extract private helpers; preserve public signatures + output behaviors; verify per-module pytest subset + diff sample.
+  - status: `pending`
+  - Note: executor may sub-divide into 2.5.3b-cli-commands / 2.5.3b-ir / 2.5.3b-bp / etc. and write the sub-units back into STATE.md before claiming them.
+
+##### 2.5.3c — 13-29 band, ~46 functions, module-grouped (~4-5 units)
+
+- [ ] **2.5.3c** Refactor 13-29 complexity band C901 (~46 functions across modules). Executor groups by module: 2.5.3c-cli-commands / 2.5.3c-ir / 2.5.3c-bp / 2.5.3c-inquiry / 2.5.3c-lang / 2.5.3c-trace / 2.5.3c-logic. Module-internal C901 functions handled together within each unit.
+  - status: `pending`
+  - Note: same sub-divide pattern as 2.5.3b — write sub-units before claim.
+
+#### 2.5.4 — Close-out acceptance gate
+
+- [ ] **2.5.4** Orchestrator host-driven (no commit unless tail fixup needed). Run **exactly**:
+  ```
+  uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
+  ```
+  All 4 must pass; ruff full-select count = 0; mypy 0 errors / 275 source files; pytest 1605 / 1608; coverage ≥ 90. If green → enter Phase 3.1.
+  - status: `pending`
+
+> **Phase 2.5 done when**: 2.5.4 close-out gate is green.
+
+### Phase 3 — Acceptance + PR (regen after Phase 2.5)
+
+- [ ] **3.1** Orchestrator host-driven final acceptance gate — same command as 2.5.4 close-out (sanity check; ruff drift should be zero between 2.5.4 and 3.1).
+- [ ] **3.2** 🚦 **Checkpoint γ'**: orchestrator regens `home_agent/projects/gaia/refactor-pr-body-draft.md` — delete the "ruff non-D backlog 531 errors disclosed in PR body" caveat; add Phase 2.5 narrative (spec gap + mccabe rationale + C-硬 refactor approach + outlier function list + close-out command alignment with CI); declare ruff full-select CLEAN.
+- [ ] **3.3** User pushes + opens PR — **requires user explicit "ship / PR / merge" handshake**. After Phase 2.5 close-out, user may also dispatch rev3 audit before approving ship.
 
 ### Cleanup R — Triggered separately after PR merges
 
@@ -188,9 +328,11 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 | Checkpoint | When | Outcome | Notes |
 |------------|------|---------|-------|
 | Phase 0 init | 2026-05-11 | done | branch cut · mortal banner · STATE framework · baseline metrics · doc fidelity baseline · M1 doc fix |
-| α (Phase 1 → 2) | (pending) | — | — |
-| β (Phase 2 → 3) | (pending) | — | — |
-| γ (Phase 3 PR-open) | (pending) | — | — |
+| α (Phase 1 → 2) | 2026-05-12 ~01:02 | done (informational) | Phase 1 9/9 — config + AGENTS.md rewrite committed; no autonomous stop |
+| β (Phase 2 → 3) | 2026-05-12 ~11:06 | done (informational) | Phase 2 20/20 — annotations + docstrings + close-out acceptance; no autonomous stop |
+| Phase 2.4 hotfix | 2026-05-12 ~11:58 | done | `75d6d769 fix(cli): preserve single backslash in starmap help examples` — surfaced by rev1 audit Pillar 1.3 |
+| γ first reach | 2026-05-12 ~11:13 | rolled back | Phase 3.1 4/4 gates green at narrow scope, BUT rev2 audit Pillar 3 caught full-select ruff 531 gap → Phase 2.5 added |
+| γ' (Phase 2.5 + Phase 3 PR-open) | (pending) | — | — |
 
 ---
 
