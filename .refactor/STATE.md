@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: **Phase 2.5 — Audit-driven full-select ruff alignment** (Phase 2 closed, Phase 2.4 hotfix `75d6d769` landed, rev2 audit Pillar 3 FAIL surfaced spec gap → Phase 2.5 added)
-**Last updated**: 2026-05-12 (orchestrator corrective revert — 2.5.2b RUF022 overreach in `gaia/ir/__init__.py`)
+**Last updated**: 2026-05-12 (2.5.3a compile_package_artifact done)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`, current HEAD `75d6d769`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -44,7 +44,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [ ] **Phase 2.5 — Audit-driven full-select ruff alignment** (new phase added 2026-05-12 post rev2 audit)
   - **Why**: rev2 audit Pillar 3 FAIL — `uv run ruff check .` (CI command) reports 531 errors at HEAD `75d6d769`; spec gap = three ruff invocations diverged (Phase 0.5 baseline measured full select, Phase 2.2 close criteria narrowed to `--select D`, Phase 2.4 close-out used pre-commit's `--select E4,E7,E9,F`, CI runs full pyproject 15-select); PR opened to `v0.5` will red on CI. Phase 2.5 closes the gap by **aligning close-out gate to CI command + driving ruff full-select to 0 errors**.
   - **Path**: C-硬 (refactor, NOT noqa exception); 4 pinned decisions in § Phase 2.5 spec below.
-  - Progress: 5 / TBD work units (queue in § Phase 2.5 task queue)
+  - Progress: 6 / TBD work units (queue in § Phase 2.5 task queue)
 - [ ] **Phase 3 — Acceptance + PR** (γ rolled back, will redo with Phase 2.5 close-out command)
 - [ ] **🚦 Checkpoint γ'**: Phase 2.5 + Phase 3.1 close-out all green → PR body regen + user ship handshake
 - [ ] **Cleanup R.x — after PR merge**: delete mortal banner + `.refactor/` + restore canon CD default
@@ -278,7 +278,7 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 ##### 2.5.3a — Outlier ≥50 (5 individual units, one function each)
 
 - [ ] **2.5.3a-compile_package_artifact** Refactor `compile_package_artifact` (218 complexity) at **`gaia/lang/compiler/compile.py:471`** — this is the DSL compile entry point, not a CLI command. Read **`docs/foundations/gaia-lang/**`** for canonical compile / lowering semantics. Extract private helpers; preserve public function signature + compile-output schema + emitted IR equivalence. Verify: full pytest 1605 + `tests/gaia/lang/**` test subset + diff sample (helpers compute the same intermediate values).
-  - status: `pending`
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 14:57 | completed_at: 2026-05-12 15:07 | breakpoint_notes: Refactored `gaia/lang/compiler/compile.py:compile_package_artifact` from a monolithic compiler body into private phase helpers/classes for knowledge closure collection, strategy lowering, action lowering, formula/Bayes lowering, compose lowering, and reference provenance scanning. Public signature, action-label maps, formalization manifest shape, emitted LocalCanonicalGraph schema, and Gaia Lang lowering semantics are preserved; no docs or protected-layer definitions changed. Verification: `uv run ruff check gaia/lang/compiler/compile.py --output-format=concise` => passed; `uv run mypy gaia/lang/compiler/compile.py --show-error-codes --no-pretty` => success for 1 source file; `uv run pytest tests/gaia/lang --no-cov` => 477 passed; `uv run mypy --show-error-codes --no-pretty` => success for 275 source files; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.46%, required 90% reached; `uv run ruff format --check .` => 280 files already formatted; `uv run ruff check . --statistics --exit-zero` => 64 remaining findings, all C901 reserved for later 2.5.3 units.
 - [ ] **2.5.3a-bridge_event_symbols_to_layout** Refactor `bridge_event_symbols_to_layout` (129) at **`gaia/cli/commands/_replay_build.py:374`** — replay-layout bridge logic. Doc-fidelity reference: `docs/foundations/` replay / starmap-related sections (NOT gaia-ir). Extract helpers; preserve replay output layout equivalence. Verify: full pytest 1605 + `tests/cli/test_starmap_replay.py` + `tests/cli/test_starmap*.py` subset + diff sample.
   - status: `pending`
 - [ ] **2.5.3a-topo_reorder_ticks** Refactor `topo_reorder_ticks` (66) at **`gaia/cli/commands/_replay_build.py:1104`** — this is replay tick ordering logic, **NOT** IR topo invariants. Doc-fidelity reference: `docs/foundations/` replay / inquiry / starmap chapters (NOT `docs/foundations/gaia-ir/`). Extract helpers; preserve replay tick ordering semantics. Verify: full pytest 1605 + `tests/cli/test_starmap_replay.py` subset + diff sample.

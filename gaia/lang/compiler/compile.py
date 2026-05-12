@@ -491,291 +491,344 @@ def _collect_refs_from_text(
     )
 
 
-def compile_package_artifact(
-    pkg: CollectedPackage,
-    *,
-    references: dict[str, Any] | None = None,
-) -> CompiledPackage:
-    """Compile collected declarations into Gaia IR plus runtime mappings."""
-    if references is None:
-        references = {}
-    # Build knowledge closure: local declarations + referenced foreign nodes.
-    knowledge_nodes: list[Knowledge] = []
-    seen_knowledge: set[int] = set()
-    formal_operators: set[int] = set()
+@dataclass
+class _KnowledgeCollection:
+    """Knowledge closure and formal operator markers collected from a package."""
 
-    def register_knowledge(k: Knowledge) -> None:
-        key = id(k)
-        if key in seen_knowledge:
+    nodes: list[Knowledge]
+    formal_operators: set[int]
+
+
+@dataclass
+class _KnowledgeCollector:
+    """Collect local and referenced Knowledge nodes before ID assignment."""
+
+    pkg: CollectedPackage
+    nodes: list[Knowledge] = field(default_factory=list)
+    seen: set[int] = field(default_factory=set)
+    formal_operators: set[int] = field(default_factory=set)
+
+    def collect(self) -> _KnowledgeCollection:
+        """Return the package Knowledge closure in declaration-preserving order."""
+        for knowledge in self.pkg.knowledge:
+            if _is_composition_warrant(knowledge):
+                continue
+            self.register_knowledge(knowledge)
+        for strategy in self.pkg.strategies:
+            self.register_strategy_knowledge(strategy)
+        for operator in self.pkg.operators:
+            for variable in operator.variables:
+                self.register_knowledge(variable)
+            if operator.conclusion is not None:
+                self.register_knowledge(operator.conclusion)
+        for action in getattr(self.pkg, "actions", []):
+            self.register_action_knowledge(action)
+        return _KnowledgeCollection(nodes=self.nodes, formal_operators=self.formal_operators)
+
+    def register_knowledge(self, knowledge: Knowledge) -> None:
+        """Register a Knowledge node and any Knowledge-valued parameters it owns."""
+        key = id(knowledge)
+        if key in self.seen:
             return
-        knowledge_nodes.append(k)
-        seen_knowledge.add(key)
-        for param in k.parameters:
+        self.nodes.append(knowledge)
+        self.seen.add(key)
+        for param in knowledge.parameters:
             value = param.get("value")
             if isinstance(value, Knowledge):
-                register_knowledge(value)
+                self.register_knowledge(value)
 
-    def register_strategy_knowledge(strategy: Any) -> None:
+    def register_strategy_knowledge(self, strategy: Any) -> None:
+        """Register Knowledge referenced by a legacy/runtime strategy tree."""
         for premise in strategy.premises:
-            register_knowledge(premise)
+            self.register_knowledge(premise)
         for background in strategy.background:
-            register_knowledge(background)
+            self.register_knowledge(background)
         if strategy.conclusion is not None:
-            register_knowledge(strategy.conclusion)
-        # composition_warrant is metadata-only, not a BP variable.
-        # Do NOT register it as knowledge — it has no prior, no lowering,
-        # no factor graph participation. Render tools will read it
-        # directly from the Strategy object.
+            self.register_knowledge(strategy.conclusion)
         if strategy.formal_expr:
-            for op in strategy.formal_expr:
-                formal_operators.add(id(op))
-                for variable in op.variables:
-                    register_knowledge(variable)
-                if op.conclusion is not None:
-                    register_knowledge(op.conclusion)
+            for operator in strategy.formal_expr:
+                self.formal_operators.add(id(operator))
+                for variable in operator.variables:
+                    self.register_knowledge(variable)
+                if operator.conclusion is not None:
+                    self.register_knowledge(operator.conclusion)
         for sub_strategy in strategy.sub_strategies:
-            register_strategy_knowledge(sub_strategy)
+            self.register_strategy_knowledge(sub_strategy)
 
-    def register_action_knowledge(action: Any) -> None:
-        for background in getattr(action, "background", []) or []:
-            register_knowledge(background)
-        for warrant in getattr(action, "warrants", []) or []:
-            register_knowledge(warrant)
+    def register_action_knowledge(self, action: Any) -> None:
+        """Register Knowledge referenced by an authoring action."""
+        self._register_action_context(action)
         if isinstance(action, Compose):
-            for item in action.inputs:
-                if isinstance(item, Knowledge):
-                    register_knowledge(item)
-            for child_action in action.actions:
-                if isinstance(child_action, Action):
-                    register_action_knowledge(child_action)
-            if action.conclusion is not None:
-                register_knowledge(action.conclusion)
+            self._register_compose_action(action)
         elif isinstance(action, Support | DependsOn):
-            for given in action.given:
-                register_knowledge(given)
-            if action.conclusion is not None:
-                register_knowledge(action.conclusion)
+            self._register_support_like_action(action)
         elif isinstance(action, CandidateRelation):
-            if action.a is not None:
-                register_knowledge(action.a)
-            if action.b is not None:
-                register_knowledge(action.b)
+            self._register_optional_claims(action.a, action.b)
         elif isinstance(action, Equal | Contradict | Exclusive):
-            if action.a is not None:
-                register_knowledge(action.a)
-            if action.b is not None:
-                register_knowledge(action.b)
-            if action.helper is not None:
-                register_knowledge(action.helper)
+            self._register_optional_claims(action.a, action.b, action.helper)
         elif isinstance(action, Decompose):
-            if action.whole is not None:
-                register_knowledge(action.whole)
-            for part in action.parts:
-                register_knowledge(part)
+            self._register_decompose_action(action)
         elif isinstance(action, InferAction):
-            if action.hypothesis is not None:
-                register_knowledge(action.hypothesis)
-            if action.evidence is not None:
-                register_knowledge(action.evidence)
-            for given in action.given:
-                register_knowledge(given)
-            if action.helper is not None:
-                register_knowledge(action.helper)
-            if isinstance(action.p_e_given_h, Knowledge):
-                register_knowledge(action.p_e_given_h)
-            if isinstance(action.p_e_given_not_h, Knowledge):
-                register_knowledge(action.p_e_given_not_h)
+            self._register_infer_action(action)
         elif isinstance(action, Associate):
-            if action.a is not None:
-                register_knowledge(action.a)
-            if action.b is not None:
-                register_knowledge(action.b)
-            if action.helper is not None:
-                register_knowledge(action.helper)
+            self._register_optional_claims(action.a, action.b, action.helper)
 
-    for k in pkg.knowledge:
-        if _is_composition_warrant(k):
-            continue
-        register_knowledge(k)
-    for s in pkg.strategies:
-        register_strategy_knowledge(s)
-    for o in pkg.operators:
-        for variable in o.variables:
-            register_knowledge(variable)
-        if o.conclusion is not None:
-            register_knowledge(o.conclusion)
-    for action in getattr(pkg, "actions", []):
-        register_action_knowledge(action)
+    def _register_action_context(self, action: Any) -> None:
+        for background in getattr(action, "background", []) or []:
+            self.register_knowledge(background)
+        for warrant in getattr(action, "warrants", []) or []:
+            self.register_knowledge(warrant)
 
-    # Assign stable IDs to all knowledge nodes, preserving foreign package identity when known.
-    knowledge_map: dict[int, str] = {}
-    local_anon_counter = 0
-    for k in knowledge_nodes:
-        knowledge_id, local_anon_counter = _knowledge_id(
-            k, pkg, local_anon_counter=local_anon_counter
-        )
-        knowledge_map[id(k)] = knowledge_id
+    def _register_optional_claims(self, *claims: Knowledge | None) -> None:
+        for claim in claims:
+            if claim is not None:
+                self.register_knowledge(claim)
 
-    exported_labels: set[str] = getattr(pkg, "_exported_labels", set())
-    ir_knowledges = [
-        IrKnowledge(
-            id=knowledge_map[id(k)],
-            label=k.label,
-            title=getattr(k, "title", None),
-            type=KnowledgeType(k.type),
-            format=getattr(k, "format", "markdown"),
-            content=k.content,
-            parameters=[_parameter_to_ir(p, knowledge_map) for p in k.parameters],
-            provenance=_knowledge_provenance(k),
-            metadata=_knowledge_metadata(k, knowledge_map),
-            module=getattr(k, "_source_module", None),
-            declaration_index=getattr(k, "_declaration_index", None),
-            exported=k.label in exported_labels if k.label else False,
-        )
-        for k in knowledge_nodes
-    ]
+    def _register_compose_action(self, action: Compose) -> None:
+        for item in action.inputs:
+            if isinstance(item, Knowledge):
+                self.register_knowledge(item)
+        for child_action in action.actions:
+            if isinstance(child_action, Action):
+                self.register_action_knowledge(child_action)
+        if action.conclusion is not None:
+            self.register_knowledge(action.conclusion)
 
-    ir_operators: list[IrOperator] = []
-    operator_target_ids_by_object: dict[int, str] = {}
-    for o in pkg.operators:
-        if id(o) in formal_operators:
-            continue
-        ir_operator = _operator_to_ir(o, knowledge_map, top_level=True)
-        ir_operators.append(ir_operator)
-        operator_target_ids_by_object[id(o)] = _required_id(
-            ir_operator.operator_id,
-            "operator_id",
-        )
+    def _register_support_like_action(self, action: Support | DependsOn) -> None:
+        for given in action.given:
+            self.register_knowledge(given)
+        if action.conclusion is not None:
+            self.register_knowledge(action.conclusion)
 
-    ir_strategies: list[IrStrategy] = []
-    generated_knowledges: list[IrKnowledge] = []
-    compiled_strategies: dict[int, IrStrategy] = {}
+    def _register_decompose_action(self, action: Decompose) -> None:
+        if action.whole is not None:
+            self.register_knowledge(action.whole)
+        for part in action.parts:
+            self.register_knowledge(part)
 
-    def compile_strategy(s: DslStrategy) -> IrStrategy:
-        strategy_key = id(s)
-        if strategy_key in compiled_strategies:
-            return compiled_strategies[strategy_key]
+    def _register_infer_action(self, action: InferAction) -> None:
+        self._register_optional_claims(action.hypothesis, action.evidence, action.helper)
+        for given in action.given:
+            self.register_knowledge(given)
+        if isinstance(action.p_e_given_h, Knowledge):
+            self.register_knowledge(action.p_e_given_h)
+        if isinstance(action.p_e_given_not_h, Knowledge):
+            self.register_knowledge(action.p_e_given_not_h)
 
-        steps = _compile_reason(s.reason, knowledge_map)
-        payload: dict[str, Any] = {
+
+@dataclass
+class _FormulaLoweringResult:
+    """Formula-lowering artifacts emitted after action lowering."""
+
+    knowledges: list[IrKnowledge]
+    operators: list[IrOperator]
+    strategies: list[IrStrategy]
+
+
+@dataclass
+class _StrategyCompiler:
+    """Compile runtime strategies while preserving generated helper state."""
+
+    pkg: CollectedPackage
+    knowledge_map: dict[int, str]
+    generated_knowledges: list[IrKnowledge]
+    compiled_strategies: dict[int, IrStrategy] = field(default_factory=dict)
+
+    def compile_strategy(self, strategy: DslStrategy) -> IrStrategy:
+        """Compile one strategy, recursively compiling nested strategy references."""
+        strategy_key = id(strategy)
+        if strategy_key in self.compiled_strategies:
+            return self.compiled_strategies[strategy_key]
+
+        steps = _compile_reason(strategy.reason, self.knowledge_map)
+        payload = self._strategy_payload(strategy, steps)
+        ir_strategy = self._strategy_from_payload(strategy, payload, steps)
+        self.compiled_strategies[strategy_key] = ir_strategy
+        return ir_strategy
+
+    def _strategy_payload(
+        self, strategy: DslStrategy, steps: list[IrStep] | None
+    ) -> dict[str, Any]:
+        return {
             "scope": "local",
-            "type": StrategyType(s.type),
-            "premises": [knowledge_map[id(p)] for p in s.premises],
-            "conclusion": knowledge_map[id(s.conclusion)] if s.conclusion is not None else None,
-            "background": [knowledge_map[id(b)] for b in s.background] or None,
+            "type": StrategyType(strategy.type),
+            "premises": [self.knowledge_map[id(p)] for p in strategy.premises],
+            "conclusion": (
+                self.knowledge_map[id(strategy.conclusion)]
+                if strategy.conclusion is not None
+                else None
+            ),
+            "background": [self.knowledge_map[id(b)] for b in strategy.background] or None,
             "steps": steps,
-            "metadata": _metadata_with_reason(s.metadata, s.reason),
+            "metadata": _metadata_with_reason(strategy.metadata, strategy.reason),
         }
-        if s.sub_strategies:
+
+    def _strategy_from_payload(
+        self,
+        strategy: DslStrategy,
+        payload: dict[str, Any],
+        steps: list[IrStep] | None,
+    ) -> IrStrategy:
+        if strategy.sub_strategies:
             payload["sub_strategies"] = [
-                _required_id(compile_strategy(sub_strategy).strategy_id, "strategy_id")
-                for sub_strategy in s.sub_strategies
+                _required_id(self.compile_strategy(sub_strategy).strategy_id, "strategy_id")
+                for sub_strategy in strategy.sub_strategies
             ]
-            ir_strategy: IrStrategy = IrCompositeStrategy(**payload)
-        elif s.formal_expr:
+            return IrCompositeStrategy(**payload)
+        if strategy.formal_expr:
             payload["formal_expr"] = IrFormalExpr(
                 operators=[
-                    _operator_to_ir(op, knowledge_map, top_level=False) for op in s.formal_expr
+                    _operator_to_ir(op, self.knowledge_map, top_level=False)
+                    for op in strategy.formal_expr
                 ]
             )
-            ir_strategy = IrFormalStrategy(**payload)
-        elif s.type in _COMPILE_TIME_FORMAL_STRATEGIES:
+            return IrFormalStrategy(**payload)
+        if strategy.type in _COMPILE_TIME_FORMAL_STRATEGIES:
             result = formalize_named_strategy(
                 scope="local",
-                type_=s.type,
+                type_=strategy.type,
                 premises=payload["premises"],
                 conclusion=payload["conclusion"],
-                namespace=pkg.namespace,
-                package_name=pkg.name,
+                namespace=self.pkg.namespace,
+                package_name=self.pkg.name,
                 background=payload["background"],
                 steps=steps,
                 metadata=payload["metadata"],
             )
-            generated_knowledges.extend(result.knowledges)
-            ir_strategy = result.strategy
-        else:
-            ir_strategy = IrStrategy(**payload)
+            self.generated_knowledges.extend(result.knowledges)
+            return result.strategy
+        return IrStrategy(**payload)
 
-        compiled_strategies[strategy_key] = ir_strategy
-        return ir_strategy
 
-    action_label_map: dict[str, str] = {}
-    target_action_labels_by_id: dict[str, str] = {}
+@dataclass
+class _ActionCompiler:
+    """Lower authoring actions into IR strategies, operators, and compose nodes."""
 
-    def _record_action_target(action_label: str, target_id: str | None) -> None:
+    pkg: CollectedPackage
+    knowledge_map: dict[int, str]
+    ir_knowledges: list[IrKnowledge]
+    ir_strategies: list[IrStrategy]
+    generated_knowledges: list[IrKnowledge]
+    action_label_map: dict[str, str] = field(default_factory=dict)
+    target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
+    action_operators: list[IrOperator] = field(default_factory=list)
+    action_target_ids_by_object: dict[int, str] = field(default_factory=dict)
+    formalization_dependencies: list[dict[str, Any]] = field(default_factory=list)
+
+    def compile_non_compose_actions(self) -> None:
+        """Lower every non-Compose action in package declaration order."""
+        for action_index, action in enumerate(getattr(self.pkg, "actions", [])):
+            if isinstance(action, Compose):
+                continue
+            if isinstance(action, DependsOn):
+                self.formalization_dependencies.append(
+                    self._compile_depends_on_action(action, action_index)
+                )
+                continue
+            if isinstance(action, CandidateRelation):
+                self.formalization_dependencies.append(
+                    self._compile_candidate_relation_action(action, action_index)
+                )
+                continue
+            self._record_lowered_action(action, action_index)
+
+    def compile_compose_actions(
+        self,
+        *,
+        strategy_target_ids_by_object: dict[int, str],
+        operator_target_ids_by_object: dict[int, str],
+    ) -> list[IrCompose]:
+        """Lower Compose actions after child actions and Bayes actions have targets."""
+        return [
+            self._compile_compose_action(
+                action,
+                action_index,
+                strategy_target_ids_by_object=strategy_target_ids_by_object,
+                operator_target_ids_by_object=operator_target_ids_by_object,
+            )
+            for action_index, action in enumerate(getattr(self.pkg, "actions", []))
+            if isinstance(action, Compose)
+        ]
+
+    def _record_action_target(self, action_label: str, target_id: str | None) -> None:
         if target_id is None:
             return
-        action_label_map[action_label] = target_id
-        target_action_labels_by_id[target_id] = action_label
+        self.action_label_map[action_label] = target_id
+        self.target_action_labels_by_id[target_id] = action_label
 
-    def _scaffold_label(action: DependsOn | CandidateRelation, action_index: int) -> str:
+    def _scaffold_label(self, action: DependsOn | CandidateRelation, action_index: int) -> str:
         return action.label or f"_anon_action_{action_index:03d}"
 
-    def _compile_depends_on_action(action: DependsOn, action_index: int) -> dict[str, Any]:
+    def _compile_depends_on_action(self, action: DependsOn, action_index: int) -> dict[str, Any]:
         if action.conclusion is None:
             raise ValueError("DependsOn action requires a conclusion")
         if not action.given:
             raise ValueError("DependsOn action requires at least one given Claim")
-        label = _scaffold_label(action, action_index)
+        label = self._scaffold_label(action, action_index)
         record: dict[str, Any] = {
-            "id": _make_scaffold_qid(pkg.namespace, pkg.name, label),
+            "id": _make_scaffold_qid(self.pkg.namespace, self.pkg.name, label),
             "kind": "depends_on",
             "label": label,
-            "conclusion": knowledge_map[id(action.conclusion)],
-            "given": [knowledge_map[id(given)] for given in action.given],
+            "conclusion": self.knowledge_map[id(action.conclusion)],
+            "given": [self.knowledge_map[id(given)] for given in action.given],
             "rationale": action.rationale,
             "status": "unformalized",
-            "metadata": _metadata_to_ir(dict(action.metadata or {}), knowledge_map),
+            "metadata": _metadata_to_ir(dict(action.metadata or {}), self.knowledge_map),
         }
-        background = [knowledge_map[id(bg)] for bg in action.background]
+        background = [self.knowledge_map[id(bg)] for bg in action.background]
         if background:
             record["background"] = background
         return record
 
     def _compile_candidate_relation_action(
+        self,
         action: CandidateRelation,
         action_index: int,
     ) -> dict[str, Any]:
         if action.a is None or action.b is None:
             raise ValueError("CandidateRelation action requires a and b")
-        label = _scaffold_label(action, action_index)
+        label = self._scaffold_label(action, action_index)
         record: dict[str, Any] = {
-            "id": _make_scaffold_qid(pkg.namespace, pkg.name, label),
+            "id": _make_scaffold_qid(self.pkg.namespace, self.pkg.name, label),
             "kind": "candidate_relation",
             "label": label,
             "proposed": action.proposed,
-            "claims": [knowledge_map[id(action.a)], knowledge_map[id(action.b)]],
+            "claims": [self.knowledge_map[id(action.a)], self.knowledge_map[id(action.b)]],
             "rationale": action.rationale,
             "status": action.status,
-            "metadata": _metadata_to_ir(dict(action.metadata or {}), knowledge_map),
+            "metadata": _metadata_to_ir(dict(action.metadata or {}), self.knowledge_map),
         }
-        background = [knowledge_map[id(bg)] for bg in action.background]
+        background = [self.knowledge_map[id(bg)] for bg in action.background]
         if background:
             record["background"] = background
         return record
 
-    def _warrant_ids(action: Any) -> list[str]:
-        return [knowledge_map[id(warrant)] for warrant in getattr(action, "warrants", []) or []]
+    def _warrant_ids(self, action: Any) -> list[str]:
+        return [
+            self.knowledge_map[id(warrant)] for warrant in getattr(action, "warrants", []) or []
+        ]
 
     def _attach_action_label_to_warrants(
+        self,
         action: Any,
         *,
         action_label: str,
         pattern: str,
     ) -> None:
         for warrant in getattr(action, "warrants", []) or []:
-            warrant_id = knowledge_map[id(warrant)]
-            for i, ir_k in enumerate(ir_knowledges):
+            warrant_id = self.knowledge_map[id(warrant)]
+            for i, ir_k in enumerate(self.ir_knowledges):
                 if ir_k.id != warrant_id:
                     continue
                 metadata = dict(ir_k.metadata or {})
                 metadata.setdefault("review", True)
                 metadata["action_label"] = action_label
                 metadata["pattern"] = pattern
-                ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+                self.ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
                 break
 
     def _attach_supported_by_action(
+        self,
         action: Support,
         *,
         action_label: str,
@@ -783,133 +836,142 @@ def compile_package_artifact(
         background_ids: list[str] | None,
         action_metadata: dict[str, Any],
     ) -> None:
-        for i, ir_k in enumerate(ir_knowledges):
+        for i, ir_k in enumerate(self.ir_knowledges):
             if ir_k.id != conclusion_id:
                 continue
             knowledge_metadata = dict(ir_k.metadata) if ir_k.metadata else {}
             supported_by = list(knowledge_metadata.get("supported_by") or [])
-            entry: dict[str, Any] = {
-                "action_label": action_label,
-                "pattern": "observation",
-            }
-            if action_metadata.get("warrants"):
-                entry["warrants"] = action_metadata["warrants"]
-            if background_ids:
-                entry["background"] = background_ids
-            if action.rationale:
-                entry["rationale"] = action.rationale
-            source_refs = action_metadata.get("source_refs")
-            if source_refs:
-                entry["source_refs"] = source_refs
+            entry = self._supported_by_entry(action, action_label, background_ids, action_metadata)
             supported_by.append(entry)
             knowledge_metadata["supported_by"] = supported_by
-            ir_knowledges[i] = ir_k.model_copy(update={"metadata": knowledge_metadata})
+            self.ir_knowledges[i] = ir_k.model_copy(update={"metadata": knowledge_metadata})
             return
 
-    def _compile_support_action(action: Support, action_index: int) -> IrStrategy | None:
+    def _supported_by_entry(
+        self,
+        action: Support,
+        action_label: str,
+        background_ids: list[str] | None,
+        action_metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        entry: dict[str, Any] = {"action_label": action_label, "pattern": "observation"}
+        if action_metadata.get("warrants"):
+            entry["warrants"] = action_metadata["warrants"]
+        if background_ids:
+            entry["background"] = background_ids
+        if action.rationale:
+            entry["rationale"] = action.rationale
+        source_refs = action_metadata.get("source_refs")
+        if source_refs:
+            entry["source_refs"] = source_refs
+        return entry
+
+    def _compile_support_action(self, action: Support, action_index: int) -> IrStrategy | None:
         if action.conclusion is None:
             raise ValueError("Support action requires a conclusion")
-        premise_ids = [knowledge_map[id(given)] for given in action.given]
-        conclusion_id = knowledge_map[id(action.conclusion)]
-        background_ids = [knowledge_map[id(bg)] for bg in action.background] or None
-        if isinstance(action, Observe):
-            pattern = "observation"
-        elif isinstance(action, Compute):
-            pattern = "computation"
-        elif isinstance(action, Predict):
-            pattern = "prediction"
-        else:
-            pattern = "derivation"
+        premise_ids = [self.knowledge_map[id(given)] for given in action.given]
+        conclusion_id = self.knowledge_map[id(action.conclusion)]
+        background_ids = [self.knowledge_map[id(bg)] for bg in action.background] or None
+        pattern = _support_action_pattern(action)
         extra = {"compute": _compute_metadata(action.fn)} if isinstance(action, Compute) else None
         action_label, metadata = _action_metadata(
             action,
-            pkg,
+            self.pkg,
             action_index,
             pattern=pattern,
             extra=extra,
         )
-        warrant_ids = _warrant_ids(action)
-        if warrant_ids:
-            metadata["warrants"] = warrant_ids
-        _attach_action_label_to_warrants(
-            action,
-            action_label=action_label,
-            pattern=pattern,
+        self._prepare_action_warrants(
+            action, action_label=action_label, pattern=pattern, metadata=metadata
         )
 
-        strategy: IrStrategy
         if isinstance(action, Observe) and not premise_ids:
-            _attach_supported_by_action(
+            self._attach_supported_by_action(
                 action,
                 action_label=action_label,
                 conclusion_id=conclusion_id,
                 background_ids=background_ids,
                 action_metadata=metadata,
             )
-            _record_action_target(action_label, conclusion_id)
+            self._record_action_target(action_label, conclusion_id)
             return None
 
+        strategy = self._support_strategy(
+            action,
+            premise_ids=premise_ids,
+            conclusion_id=conclusion_id,
+            background_ids=background_ids,
+            metadata=metadata,
+        )
+        self._record_action_target(action_label, strategy.strategy_id)
+        return strategy
+
+    def _prepare_action_warrants(
+        self,
+        action: Any,
+        *,
+        action_label: str,
+        pattern: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        warrant_ids = self._warrant_ids(action)
+        if warrant_ids:
+            metadata["warrants"] = warrant_ids
+        self._attach_action_label_to_warrants(action, action_label=action_label, pattern=pattern)
+
+    def _support_strategy(
+        self,
+        action: Support,
+        *,
+        premise_ids: list[str],
+        conclusion_id: str,
+        background_ids: list[str] | None,
+        metadata: dict[str, Any],
+    ) -> IrStrategy:
         if premise_ids:
             result = formalize_named_strategy(
                 scope="local",
                 type_="deduction",
                 premises=premise_ids,
                 conclusion=conclusion_id,
-                namespace=pkg.namespace,
-                package_name=pkg.name,
+                namespace=self.pkg.namespace,
+                package_name=self.pkg.name,
                 background=background_ids,
                 steps=_action_steps(action.rationale),
                 metadata=metadata,
             )
             _mark_formal_action_reviews(result.knowledges)
-            generated_knowledges.extend(result.knowledges)
-            strategy = result.strategy
-        else:
-            strategy = IrStrategy(
-                scope="local",
-                type=StrategyType.DEDUCTION,
-                premises=[],
-                conclusion=conclusion_id,
-                background=background_ids,
-                steps=_action_steps(action.rationale),
-                metadata=metadata,
-            )
-        _record_action_target(action_label, strategy.strategy_id)
-        return strategy
+            self.generated_knowledges.extend(result.knowledges)
+            return result.strategy
+        return IrStrategy(
+            scope="local",
+            type=StrategyType.DEDUCTION,
+            premises=[],
+            conclusion=conclusion_id,
+            background=background_ids,
+            steps=_action_steps(action.rationale),
+            metadata=metadata,
+        )
 
     def _compile_structural_relation_action(
+        self,
         action: Equal | Contradict | Exclusive,
         action_index: int,
     ) -> IrOperator:
         if action.a is None or action.b is None or action.helper is None:
             raise ValueError("Structural relation action requires a, b, and helper")
-        if isinstance(action, Equal):
-            operator = OperatorType.EQUIVALENCE
-            pattern = "equivalence"
-        elif isinstance(action, Contradict):
-            operator = OperatorType.CONTRADICTION
-            pattern = "contradiction"
-        elif isinstance(action, Exclusive):
-            operator = OperatorType.COMPLEMENT
-            pattern = "exclusive"
-        else:
-            raise ValueError(f"Unsupported structural relation action: {type(action).__name__}")
-        action_label, metadata = _action_metadata(action, pkg, action_index, pattern=pattern)
-        warrant_ids = _warrant_ids(action)
-        if warrant_ids:
-            metadata["warrants"] = warrant_ids
-        _attach_action_label_to_warrants(
-            action,
-            action_label=action_label,
-            pattern=pattern,
+        operator, pattern = _structural_action_operator(action)
+        action_label, metadata = _action_metadata(action, self.pkg, action_index, pattern=pattern)
+        self._prepare_action_warrants(
+            action, action_label=action_label, pattern=pattern, metadata=metadata
         )
         if action.rationale:
             metadata["reason"] = action.rationale
-        background_ids = [knowledge_map[id(bg)] for bg in action.background]
+        background_ids = [self.knowledge_map[id(bg)] for bg in action.background]
         if background_ids:
             metadata["background"] = background_ids
-        variables = [knowledge_map[id(action.a)], knowledge_map[id(action.b)]]
-        conclusion = knowledge_map[id(action.helper)]
+        variables = [self.knowledge_map[id(action.a)], self.knowledge_map[id(action.b)]]
+        conclusion = self.knowledge_map[id(action.helper)]
         ir_operator = IrOperator(
             operator_id=_operator_id_from_values(operator, variables, conclusion),
             scope="local",
@@ -918,14 +980,14 @@ def compile_package_artifact(
             conclusion=conclusion,
             metadata=metadata,
         )
-        _record_action_target(action_label, ir_operator.operator_id)
+        self._record_action_target(action_label, ir_operator.operator_id)
         return ir_operator
 
-    def _decompose_generated_label(action: Decompose, action_index: int, suffix: str) -> str:
+    def _decompose_generated_label(self, action: Decompose, action_index: int, suffix: str) -> str:
         action_label = action.label or f"_anon_action_{action_index:03d}"
         return f"__decompose_{_normalize_label(action_label)}_{suffix}"
 
-    def _compile_decompose_action(action: Decompose, action_index: int) -> IrOperator:
+    def _compile_decompose_action(self, action: Decompose, action_index: int) -> IrOperator:
         if action.whole is None:
             raise ValueError("Decompose action requires a whole Claim")
         if not action.parts:
@@ -934,75 +996,16 @@ def compile_package_artifact(
             raise ValueError("Decompose action requires a formula")
 
         action_label, metadata = _action_metadata(
-            action, pkg, action_index, pattern="decomposition"
+            action, self.pkg, action_index, pattern="decomposition"
         )
-        whole_id = knowledge_map[id(action.whole)]
-        part_ids = [knowledge_map[id(part)] for part in action.parts]
-
-        formula_label = _decompose_generated_label(action, action_index, "formula")
-        formula_id = _make_qid(pkg.namespace, pkg.name, formula_label)
-        formula_metadata = {
-            "generated": True,
-            "helper_kind": "decomposition_formula",
-            "generated_by": action_label,
-            "source_claim": whole_id,
-            "decomposition_parts": part_ids,
-            "review": False,
-        }
-        formula_proxy = SimpleNamespace(
-            content=f"Formula decomposition of {whole_id}",
-            formula=action.formula,
+        whole_id = self.knowledge_map[id(action.whole)]
+        part_ids = [self.knowledge_map[id(part)] for part in action.parts]
+        formula_id = self._emit_decomposition_formula(
+            action, action_index, action_label, whole_id, part_ids
         )
-        lowered = lower_claim_formula(
-            cast(Claim, formula_proxy),
-            claim_id=formula_id,
-            namespace=pkg.namespace,
-            package_name=pkg.name,
-            knowledge_map=knowledge_map,
+        equivalence_id = self._emit_decomposition_equivalence(
+            action, action_index, action_label, whole_id, formula_id
         )
-        formula_metadata.update(lowered.metadata_updates.get(formula_id, {}))
-        formula_parameters = lowered.parameter_updates.get(formula_id)
-        generated_knowledges.append(
-            IrKnowledge(
-                id=formula_id,
-                label=formula_label,
-                type=KnowledgeType.CLAIM,
-                content=f"Formula decomposition of {whole_id}",
-                parameters=formula_parameters or [],
-                metadata=formula_metadata,
-            )
-        )
-        generated_knowledges.extend(lowered.knowledges)
-        for operator in lowered.operators:
-            if operator.scope == "local" and operator.operator_id is None:
-                operator.operator_id = _operator_id_from_values(
-                    str(operator.operator),
-                    operator.variables,
-                    operator.conclusion,
-                )
-            action_operators.append(operator)
-        if lowered.strategies:
-            ir_strategies.extend(lowered.strategies)
-
-        equivalence_label = _decompose_generated_label(action, action_index, "equivalence")
-        equivalence_id = _make_qid(pkg.namespace, pkg.name, equivalence_label)
-        generated_knowledges.append(
-            IrKnowledge(
-                id=equivalence_id,
-                label=equivalence_label,
-                type=KnowledgeType.CLAIM,
-                content=f"{whole_id} is equivalent to its decomposition formula.",
-                metadata={
-                    "generated": True,
-                    "helper_kind": "decomposition_equivalence",
-                    "generated_by": action_label,
-                    "source_claim": whole_id,
-                    "formula_helper": formula_id,
-                    "review": False,
-                },
-            )
-        )
-
         metadata["decomposition"] = {
             "whole": whole_id,
             "parts": part_ids,
@@ -1020,46 +1023,115 @@ def compile_package_artifact(
             conclusion=equivalence_id,
             metadata=metadata,
         )
-        _record_action_target(action_label, ir_operator.operator_id)
+        self._record_action_target(action_label, ir_operator.operator_id)
         return ir_operator
 
-    def _infer_conditional_probabilities(
-        *,
-        p_e_given_h: float,
-        p_e_given_not_h: float,
-        given_count: int,
-    ) -> list[float]:
-        if given_count == 0:
-            return [p_e_given_not_h, p_e_given_h]
-        cpt = [0.5] * (1 << (1 + given_count))
-        gate_mask = sum(1 << i for i in range(1, 1 + given_count))
-        cpt[gate_mask] = p_e_given_not_h
-        cpt[gate_mask | 1] = p_e_given_h
-        return cpt
+    def _emit_decomposition_formula(
+        self,
+        action: Decompose,
+        action_index: int,
+        action_label: str,
+        whole_id: str,
+        part_ids: list[str],
+    ) -> str:
+        formula_label = self._decompose_generated_label(action, action_index, "formula")
+        formula_id = _make_qid(self.pkg.namespace, self.pkg.name, formula_label)
+        formula_proxy = SimpleNamespace(
+            content=f"Formula decomposition of {whole_id}", formula=action.formula
+        )
+        lowered = lower_claim_formula(
+            cast(Claim, formula_proxy),
+            claim_id=formula_id,
+            namespace=self.pkg.namespace,
+            package_name=self.pkg.name,
+            knowledge_map=self.knowledge_map,
+        )
+        formula_metadata = {
+            "generated": True,
+            "helper_kind": "decomposition_formula",
+            "generated_by": action_label,
+            "source_claim": whole_id,
+            "decomposition_parts": part_ids,
+            "review": False,
+        }
+        formula_metadata.update(lowered.metadata_updates.get(formula_id, {}))
+        self.generated_knowledges.append(
+            IrKnowledge(
+                id=formula_id,
+                label=formula_label,
+                type=KnowledgeType.CLAIM,
+                content=f"Formula decomposition of {whole_id}",
+                parameters=lowered.parameter_updates.get(formula_id) or [],
+                metadata=formula_metadata,
+            )
+        )
+        self.generated_knowledges.extend(lowered.knowledges)
+        self._record_decomposition_lowering(lowered)
+        return formula_id
 
-    def _compile_infer_action(action: InferAction, action_index: int) -> IrStrategy:
+    def _record_decomposition_lowering(self, lowered: Any) -> None:
+        for operator in lowered.operators:
+            if operator.scope == "local" and operator.operator_id is None:
+                operator.operator_id = _operator_id_from_values(
+                    str(operator.operator),
+                    operator.variables,
+                    operator.conclusion,
+                )
+            self.action_operators.append(operator)
+        if lowered.strategies:
+            self.ir_strategies.extend(lowered.strategies)
+
+    def _emit_decomposition_equivalence(
+        self,
+        action: Decompose,
+        action_index: int,
+        action_label: str,
+        whole_id: str,
+        formula_id: str,
+    ) -> str:
+        equivalence_label = self._decompose_generated_label(action, action_index, "equivalence")
+        equivalence_id = _make_qid(self.pkg.namespace, self.pkg.name, equivalence_label)
+        self.generated_knowledges.append(
+            IrKnowledge(
+                id=equivalence_id,
+                label=equivalence_label,
+                type=KnowledgeType.CLAIM,
+                content=f"{whole_id} is equivalent to its decomposition formula.",
+                metadata={
+                    "generated": True,
+                    "helper_kind": "decomposition_equivalence",
+                    "generated_by": action_label,
+                    "source_claim": whole_id,
+                    "formula_helper": formula_id,
+                    "review": False,
+                },
+            )
+        )
+        return equivalence_id
+
+    def _compile_infer_action(self, action: InferAction, action_index: int) -> IrStrategy:
         if action.hypothesis is None or action.evidence is None:
             raise ValueError("Infer action requires hypothesis and evidence")
-        action_label, metadata = _action_metadata(action, pkg, action_index, pattern="inference")
-        warrant_ids = _warrant_ids(action)
-        if warrant_ids:
-            metadata["warrants"] = warrant_ids
-        given_ids = [knowledge_map[id(given)] for given in action.given]
-        if given_ids:
-            metadata["given"] = given_ids
-        _attach_action_label_to_warrants(
+        action_label, metadata = _action_metadata(
+            action, self.pkg, action_index, pattern="inference"
+        )
+        self._prepare_action_warrants(
             action,
             action_label=action_label,
             pattern="inference",
+            metadata=metadata,
         )
+        given_ids = [self.knowledge_map[id(given)] for given in action.given]
+        if given_ids:
+            metadata["given"] = given_ids
         p_e_given_not_h = _probability_scalar(action.p_e_given_not_h, field_name="p_e_given_not_h")
         p_e_given_h = _probability_scalar(action.p_e_given_h, field_name="p_e_given_h")
         strategy = IrStrategy(
             scope="local",
             type=StrategyType.INFER,
-            premises=[knowledge_map[id(action.hypothesis)], *given_ids],
-            conclusion=knowledge_map[id(action.evidence)],
-            background=[knowledge_map[id(bg)] for bg in action.background] or None,
+            premises=[self.knowledge_map[id(action.hypothesis)], *given_ids],
+            conclusion=self.knowledge_map[id(action.evidence)],
+            background=[self.knowledge_map[id(bg)] for bg in action.background] or None,
             steps=_action_steps(action.rationale),
             conditional_probabilities=_infer_conditional_probabilities(
                 p_e_given_h=p_e_given_h,
@@ -1070,27 +1142,27 @@ def compile_package_artifact(
             prior_evidence=action.prior_evidence,
             metadata=metadata,
         )
-        _record_action_target(action_label, strategy.strategy_id)
+        self._record_action_target(action_label, strategy.strategy_id)
         return strategy
 
-    def _compile_associate_action(action: Associate, action_index: int) -> IrStrategy:
+    def _compile_associate_action(self, action: Associate, action_index: int) -> IrStrategy:
         if action.a is None or action.b is None or action.helper is None:
             raise ValueError("Associate action requires a, b, and helper")
-        action_label, metadata = _action_metadata(action, pkg, action_index, pattern="association")
-        warrant_ids = _warrant_ids(action)
-        if warrant_ids:
-            metadata["warrants"] = warrant_ids
-        _attach_action_label_to_warrants(
+        action_label, metadata = _action_metadata(
+            action, self.pkg, action_index, pattern="association"
+        )
+        self._prepare_action_warrants(
             action,
             action_label=action_label,
             pattern="association",
+            metadata=metadata,
         )
         strategy = IrStrategy(
             scope="local",
             type=StrategyType.ASSOCIATE,
-            premises=[knowledge_map[id(action.a)], knowledge_map[id(action.b)]],
-            conclusion=knowledge_map[id(action.helper)],
-            background=[knowledge_map[id(bg)] for bg in action.background] or None,
+            premises=[self.knowledge_map[id(action.a)], self.knowledge_map[id(action.b)]],
+            conclusion=self.knowledge_map[id(action.helper)],
+            background=[self.knowledge_map[id(bg)] for bg in action.background] or None,
             steps=_action_steps(action.rationale),
             p_a_given_b=action.p_a_given_b,
             p_b_given_a=action.p_b_given_a,
@@ -1098,106 +1170,92 @@ def compile_package_artifact(
             prior_b=action.prior_b,
             metadata=metadata,
         )
-        _record_action_target(action_label, strategy.strategy_id)
+        self._record_action_target(action_label, strategy.strategy_id)
         return strategy
 
-    def _is_bayes_action(action: Any) -> bool:
-        bayes_meta = dict(getattr(action, "metadata", {}) or {}).get("bayes")
-        if not isinstance(bayes_meta, dict):
-            return False
-        return bayes_meta.get("action") in {"predictive_model", "likelihood"}
+    def _record_lowered_action(self, action: Any, action_index: int) -> None:
+        target = self.compile_action(action, action_index)
+        if target is None:
+            action_label = _action_label(action, self.pkg, action_index)
+            target_id = self.action_label_map.get(action_label)
+            if target_id is not None:
+                self.action_target_ids_by_object[id(action)] = target_id
+            return
+        if isinstance(target, IrOperator):
+            self.action_operators.append(target)
+            self.action_target_ids_by_object[id(action)] = _required_id(
+                target.operator_id,
+                "operator_id",
+            )
+            return
+        self.ir_strategies.append(target)
+        self.action_target_ids_by_object[id(action)] = _required_id(
+            target.strategy_id, "strategy_id"
+        )
 
-    def compile_action(action: Any, action_index: int) -> IrStrategy | IrOperator | None:
+    def compile_action(self, action: Any, action_index: int) -> IrStrategy | IrOperator | None:
+        """Lower one non-scaffold action into its IR target."""
         if isinstance(action, DependsOn | CandidateRelation):
             return None
         if _is_bayes_action(action):
             return None
         if isinstance(action, Support):
-            return _compile_support_action(action, action_index)
+            return self._compile_support_action(action, action_index)
         if isinstance(action, Equal | Contradict | Exclusive):
-            return _compile_structural_relation_action(action, action_index)
+            return self._compile_structural_relation_action(action, action_index)
         if isinstance(action, Decompose):
-            return _compile_decompose_action(action, action_index)
+            return self._compile_decompose_action(action, action_index)
         if isinstance(action, InferAction):
-            return _compile_infer_action(action, action_index)
+            return self._compile_infer_action(action, action_index)
         if isinstance(action, Associate):
-            return _compile_associate_action(action, action_index)
+            return self._compile_associate_action(action, action_index)
         if isinstance(action, Compose):
             return None
         raise ValueError(f"Unsupported action type: {type(action).__name__}")
 
-    emitted_strategies: set[int] = set()
-    strategy_target_ids_by_object: dict[int, str] = {}
-    for s in pkg.strategies:
-        strategy_key = id(s)
-        if strategy_key in emitted_strategies:
-            continue
-        ir_strategy = compile_strategy(s)
-        ir_strategies.append(ir_strategy)
-        strategy_target_ids_by_object[strategy_key] = _required_id(
-            ir_strategy.strategy_id,
-            "strategy_id",
-        )
-        emitted_strategies.add(strategy_key)
-
-    action_operators: list[IrOperator] = []
-    action_target_ids_by_object: dict[int, str] = {}
-    formalization_dependencies: list[dict[str, Any]] = []
-    for action_index, action in enumerate(getattr(pkg, "actions", [])):
-        if isinstance(action, Compose):
-            continue
-        if isinstance(action, DependsOn):
-            formalization_dependencies.append(_compile_depends_on_action(action, action_index))
-            continue
-        if isinstance(action, CandidateRelation):
-            formalization_dependencies.append(
-                _compile_candidate_relation_action(action, action_index)
-            )
-            continue
-        target = compile_action(action, action_index)
-        if target is None:
-            action_label = _action_label(action, pkg, action_index)
-            target_id = action_label_map.get(action_label)
-            if target_id is not None:
-                action_target_ids_by_object[id(action)] = target_id
-            continue
-        if isinstance(target, IrOperator):
-            action_operators.append(target)
-            action_target_ids_by_object[id(action)] = _required_id(
-                target.operator_id,
-                "operator_id",
-            )
-        else:
-            ir_strategies.append(target)
-            action_target_ids_by_object[id(action)] = _required_id(
-                target.strategy_id,
-                "strategy_id",
-            )
-
-    ir_composes: list[IrCompose] = []
-
-    def _target_id(obj: Any) -> str:
+    def _target_id(
+        self,
+        obj: Any,
+        *,
+        strategy_target_ids_by_object: dict[int, str],
+        operator_target_ids_by_object: dict[int, str],
+    ) -> str:
         if isinstance(obj, str):
             return obj
         key = id(obj)
-        if key in knowledge_map:
-            return knowledge_map[key]
-        if key in action_target_ids_by_object:
-            return action_target_ids_by_object[key]
+        if key in self.knowledge_map:
+            return self.knowledge_map[key]
+        if key in self.action_target_ids_by_object:
+            return self.action_target_ids_by_object[key]
         if key in strategy_target_ids_by_object:
             return strategy_target_ids_by_object[key]
         if key in operator_target_ids_by_object:
             return operator_target_ids_by_object[key]
         raise ValueError(f"Compose child target was not compiled: {type(obj).__name__}")
 
-    def _compile_compose_action(action: Compose, action_index: int) -> IrCompose:
+    def _compile_compose_action(
+        self,
+        action: Compose,
+        action_index: int,
+        *,
+        strategy_target_ids_by_object: dict[int, str],
+        operator_target_ids_by_object: dict[int, str],
+    ) -> IrCompose:
         if action.conclusion is None:
             raise ValueError("Compose action requires a conclusion")
-        input_refs = [_target_id(item) for item in action.inputs]
-        background_refs = [_target_id(item) for item in action.background]
-        action_refs = [_target_id(child) for child in action.actions]
-        warrant_refs = [_target_id(warrant) for warrant in action.warrants]
-        conclusion_ref = _target_id(action.conclusion)
+
+        def target_id(item: Any) -> str:
+            return self._target_id(
+                item,
+                strategy_target_ids_by_object=strategy_target_ids_by_object,
+                operator_target_ids_by_object=operator_target_ids_by_object,
+            )
+
+        input_refs = [target_id(item) for item in action.inputs]
+        background_refs = [target_id(item) for item in action.background]
+        action_refs = [target_id(child) for child in action.actions]
+        warrant_refs = [target_id(warrant) for warrant in action.warrants]
+        conclusion_ref = target_id(action.conclusion)
         compose_hash = action.structure_hash(
             input_refs,
             action_refs,
@@ -1206,16 +1264,12 @@ def compile_package_artifact(
             background_refs,
         )
         compose_id = f"lcm_{compose_hash}"
-        action_label, metadata = _action_metadata(action, pkg, action_index, pattern="compose")
+        action_label, metadata = _action_metadata(action, self.pkg, action_index, pattern="compose")
         if action.rationale:
             metadata["reason"] = action.rationale
         if warrant_refs:
             metadata["warrants"] = warrant_refs
-        _attach_action_label_to_warrants(
-            action,
-            action_label=action_label,
-            pattern="compose",
-        )
+        self._attach_action_label_to_warrants(action, action_label=action_label, pattern="compose")
         ir_compose = IrCompose(
             compose_id=compose_id,
             name=action.name,
@@ -1227,91 +1281,74 @@ def compile_package_artifact(
             conclusion=conclusion_ref,
             metadata=metadata or None,
         )
-        _record_action_target(action_label, compose_id)
-        action_target_ids_by_object[id(action)] = compose_id
+        self._record_action_target(action_label, compose_id)
+        self.action_target_ids_by_object[id(action)] = compose_id
         return ir_compose
 
-    formula_generated_knowledges: list[IrKnowledge] = []
-    formula_generated_operators: list[IrOperator] = []
-    formula_generated_strategies: list[IrStrategy] = []
-    for k in knowledge_nodes:
-        if not _is_local(k, pkg):
-            continue
-        if not isinstance(k, Claim) or getattr(k, "formula", None) is None:
-            continue
-        lowered = lower_claim_formula(
-            k,
-            claim_id=knowledge_map[id(k)],
-            namespace=pkg.namespace,
-            package_name=pkg.name,
-            knowledge_map=knowledge_map,
-        )
-        formula_generated_knowledges.extend(lowered.knowledges)
-        formula_generated_operators.extend(lowered.operators)
-        formula_generated_strategies.extend(lowered.strategies)
-        _apply_formula_knowledge_updates(
-            ir_knowledges,
-            metadata_updates=lowered.metadata_updates,
-            parameter_updates=lowered.parameter_updates,
-        )
 
-    from gaia.lang.bayes.compiler import lower_bayes_claims
+@dataclass
+class _ReferenceScanner:
+    """Scan reference-bearing text and attach provenance metadata."""
 
-    action_labels_by_object = {
-        id(action): _action_label(action, pkg, action_index)
-        for action_index, action in enumerate(getattr(pkg, "actions", []))
-    }
-    bayes_lowered = lower_bayes_claims(
-        knowledge_nodes,
-        actions=tuple(getattr(pkg, "actions", ())),
-        namespace=pkg.namespace,
-        package_name=pkg.name,
-        knowledge_map=knowledge_map,
-        action_labels_by_object=action_labels_by_object,
-        existing_operators=[
-            *ir_operators,
-            *action_operators,
-            *formula_generated_operators,
-        ],
-    )
-    _apply_formula_knowledge_updates(
-        ir_knowledges,
-        metadata_updates=bayes_lowered.metadata_updates,
-        parameter_updates={},
-    )
-    action_label_map.update(bayes_lowered.action_label_map)
-    target_action_labels_by_id.update(bayes_lowered.target_action_labels_by_id)
-    for action in getattr(pkg, "actions", []):
-        if not _is_bayes_action(action):
-            continue
-        bayes_action_label = action_labels_by_object.get(id(action))
-        if bayes_action_label is None:
-            continue
-        target_id = bayes_lowered.action_label_map.get(bayes_action_label)
-        if target_id is not None:
-            action_target_ids_by_object[id(action)] = target_id
+    pkg: CollectedPackage
+    references: dict[str, Any]
+    knowledge_nodes: list[Knowledge]
+    knowledge_map: dict[int, str]
+    action_label_map: dict[str, str]
+    action_labels_by_object: dict[int, str]
+    ir_knowledges: list[IrKnowledge]
+    generated_knowledges: list[IrKnowledge]
+    formula_generated_knowledges: list[IrKnowledge]
+    bayes_lowered_knowledges: list[IrKnowledge]
+    ir_strategies: list[IrStrategy]
+    formula_generated_strategies: list[IrStrategy]
+    bayes_strategies: list[IrStrategy]
+    ir_operators: list[IrOperator]
+    action_operators: list[IrOperator]
+    formula_generated_operators: list[IrOperator]
+    bayes_operators: list[IrOperator]
+    ir_composes: list[IrCompose]
+    refs_by_knowledge: dict[int, tuple[set[str], set[str]]] = field(default_factory=dict)
 
-    for action_index, action in enumerate(getattr(pkg, "actions", [])):
-        if isinstance(action, Compose):
-            ir_composes.append(_compile_compose_action(action, action_index))
+    def scan(self) -> list[IrKnowledge]:
+        """Scan package text and return updated Bayes-generated knowledge nodes."""
+        label_to_id, knowledge_label_ids = self._build_knowledge_label_tables()
+        label_to_id.update(self._build_action_short_labels(knowledge_label_ids))
+        check_collisions(label_to_id, self.references)
+        self._scan_strategy_references(label_to_id)
+        self._scan_local_knowledge_content(label_to_id)
+        action_rationale_refs = self._collect_action_rationale_refs(label_to_id)
+        return self._apply_reference_metadata(action_rationale_refs)
 
-    # ========================================================================
-    # Reference scanning: now that all actions are lowered and action_label_map
-    # is complete, build the full label_to_id table (Knowledge + Action labels)
-    # and scan all reference-bearing text.
-    # ========================================================================
+    def _build_knowledge_label_tables(self) -> tuple[dict[str, str], dict[str, set[str]]]:
+        label_to_id: dict[str, str] = {}
+        knowledge_label_ids: dict[str, set[str]] = {}
+        for knowledge in self.knowledge_nodes:
+            if knowledge.label:
+                qid = self.knowledge_map[id(knowledge)]
+                label_to_id[knowledge.label] = qid
+                knowledge_label_ids.setdefault(knowledge.label, set()).add(qid)
+        return label_to_id, knowledge_label_ids
 
-    # Build label-to-QID table from the full knowledge closure (local + imported foreign nodes).
-    label_to_id: dict[str, str] = {}
-    knowledge_label_ids: dict[str, set[str]] = {}
-    for k in knowledge_nodes:
-        if k.label:
-            qid = knowledge_map[id(k)]
-            label_to_id[k.label] = qid
-            knowledge_label_ids.setdefault(k.label, set()).add(qid)
+    def _build_action_short_labels(
+        self, knowledge_label_ids: dict[str, set[str]]
+    ) -> dict[str, str]:
+        action_short_labels: dict[str, str] = {}
+        for action in getattr(self.pkg, "actions", []):
+            if not action.label:
+                continue
+            action_label_qid = self.action_labels_by_object.get(id(action))
+            if action_label_qid is None:
+                continue
+            target_qid = self.action_label_map.get(action_label_qid)
+            if target_qid is not None:
+                action_short_labels[action.label] = self._action_reference_target(
+                    action, target_qid
+                )
+        self._raise_label_collisions(action_short_labels, knowledge_label_ids)
+        return action_short_labels
 
-    def _action_reference_target(action: Action, default_target_qid: str) -> str:
-        """Return the QID an author-side action label should resolve to in text."""
+    def _action_reference_target(self, action: Action, default_target_qid: str) -> str:
         if not action.label:
             return default_target_qid
         if (
@@ -1319,300 +1356,559 @@ def compile_package_artifact(
             and action.conclusion is not None
             and action.conclusion.label == action.label
         ):
-            return knowledge_map[id(action.conclusion)]
+            return self.knowledge_map[id(action.conclusion)]
         helper = getattr(action, "helper", None)
         if helper is not None and getattr(helper, "label", None) == action.label:
-            helper_qid = knowledge_map.get(id(helper))
+            helper_qid = self.knowledge_map.get(id(helper))
             if helper_qid is not None:
                 return helper_qid
         return default_target_qid
 
-    # Check for Knowledge/Action label collisions before merging action labels.
-    # Build a map from short action labels to their target QIDs.
-    action_short_labels: dict[str, str] = {}
-    for action in getattr(pkg, "actions", []):
-        if not action.label:
-            continue
-        action_label_qid = action_labels_by_object.get(id(action))
-        if action_label_qid is None:
-            continue
-        target_qid = action_label_map.get(action_label_qid)
-        if target_qid is None:
-            continue
-        action_short_labels[action.label] = _action_reference_target(action, target_qid)
-
-    # Collision check: reject when the same author label points at distinct
-    # Knowledge and Action targets. If an action intentionally shares a label
-    # with its own conclusion/helper, both labels resolve to the same target and
-    # are therefore not ambiguous.
-    label_collisions = sorted(
-        label
-        for label, target_qid in action_short_labels.items()
-        if label in knowledge_label_ids and knowledge_label_ids[label] != {target_qid}
-    )
-    if label_collisions:
-        quoted = ", ".join(f"'{lbl}'" for lbl in label_collisions)
-        raise ValueError(
-            f"label collision(s) {quoted}: same identifier used as both "
-            f"a Knowledge label and an Action label. rename one side to disambiguate."
+    def _raise_label_collisions(
+        self,
+        action_short_labels: dict[str, str],
+        knowledge_label_ids: dict[str, set[str]],
+    ) -> None:
+        label_collisions = sorted(
+            label
+            for label, target_qid in action_short_labels.items()
+            if label in knowledge_label_ids and knowledge_label_ids[label] != {target_qid}
         )
+        if label_collisions:
+            quoted = ", ".join(f"'{label}'" for label in label_collisions)
+            raise ValueError(
+                f"label collision(s) {quoted}: same identifier used as both "
+                f"a Knowledge label and an Action label. rename one side to disambiguate."
+            )
 
-    # Extend label_to_id with action labels resolved to their lowered target QIDs.
-    # Per spec 2026-05-10-action-label-references-design.md, action labels become
-    # addressable via [@label] references, resolving to the conclusion Claim QID
-    # (for support actions), the warrant helper QID (for structural actions), or
-    # the compose node QID (for compose actions).
-    label_to_id.update(action_short_labels)
+    def _scan_strategy_references(self, label_to_id: dict[str, str]) -> None:
+        for strategy in self.pkg.strategies:
+            self._scan_strategy_refs(strategy, label_to_id)
 
-    # Spec §3.5: fail-fast on label / citation-key collision.
-    check_collisions(label_to_id, references)
+    def _scan_strategy_refs(self, strategy: DslStrategy, label_to_id: dict[str, str]) -> None:
+        target = strategy.conclusion
+        target_is_local = target is not None and _is_local(target, self.pkg)
+        for text in self._strategy_reference_texts(strategy):
+            if target_is_local and target is not None:
+                self._accumulate(target, text, label_to_id)
+            else:
+                _collect_refs_from_text(text, label_to_id, self.references)
+        for sub_strategy in strategy.sub_strategies:
+            self._scan_strategy_refs(sub_strategy, label_to_id)
 
-    # Spec §3.2 + §3.3: scan all text for references and accumulate per-node.
-    # Strategy reasons can be str, list[str | Step], or None.
-    from gaia.lang.runtime.nodes import Step as DslStep
+    def _strategy_reference_texts(self, strategy: DslStrategy) -> list[str]:
+        from gaia.lang.runtime.nodes import Step as DslStep
 
-    # Accumulate (knowledge_refs, citation_refs) per Knowledge node by id().
-    refs_by_knowledge: dict[int, tuple[set[str], set[str]]] = {}
+        if isinstance(strategy.reason, str):
+            return [strategy.reason] if strategy.reason else []
+        if not isinstance(strategy.reason, list):
+            return []
+        texts: list[str] = []
+        for entry in strategy.reason:
+            if isinstance(entry, str) and entry:
+                texts.append(entry)
+            elif isinstance(entry, DslStep) and entry.reason:
+                texts.append(entry.reason)
+        return texts
 
-    def _accumulate(k: Knowledge, text: str | None) -> None:
+    def _scan_local_knowledge_content(self, label_to_id: dict[str, str]) -> None:
+        for knowledge in self.knowledge_nodes:
+            if _is_local(knowledge, self.pkg):
+                self._accumulate(knowledge, knowledge.content, label_to_id)
+
+    def _accumulate(
+        self, knowledge: Knowledge, text: str | None, label_to_id: dict[str, str]
+    ) -> None:
         if not text:
             return
-        k_refs, c_refs = _collect_refs_from_text(text, label_to_id, references)
-        if k_refs or c_refs:
-            current = refs_by_knowledge.setdefault(id(k), (set(), set()))
-            current[0].update(k_refs)
-            current[1].update(c_refs)
+        knowledge_refs, citation_refs = _collect_refs_from_text(text, label_to_id, self.references)
+        if knowledge_refs or citation_refs:
+            current = self.refs_by_knowledge.setdefault(id(knowledge), (set(), set()))
+            current[0].update(knowledge_refs)
+            current[1].update(citation_refs)
 
-    def _scan_strategy_refs(s: DslStrategy) -> None:
-        """Recursively scan strategy and its sub_strategies for references.
-
-        Refs from the strategy's reason are attributed to ``s.conclusion``
-        (the Knowledge node whose metadata carries the provenance). If the
-        conclusion is foreign (e.g. a ``fills()`` bridge whose target is an
-        imported dep node) or ``None``, refs are still VALIDATED — mixed
-        groups and strict-form unknowns still fail compile — but they are
-        NOT accumulated into provenance. Bridge provenance belongs to the
-        local source or the bridge manifest, not the dep-owned target.
-        """
-        target = s.conclusion
-        target_is_local = target is not None and _is_local(target, pkg)
-
-        def _handle(text: str | None) -> None:
-            if not text:
-                return
-            if target_is_local and target is not None:
-                _accumulate(target, text)
-            else:
-                # Still run validation (mixed groups, strict misses) but
-                # drop provenance — we have no local node to attach it to.
-                _collect_refs_from_text(text, label_to_id, references)
-
-        if isinstance(s.reason, str):
-            _handle(s.reason)
-        elif isinstance(s.reason, list):
-            for entry in s.reason:
-                if isinstance(entry, str):
-                    _handle(entry)
-                elif isinstance(entry, DslStep):
-                    _handle(entry.reason)
-        for sub in s.sub_strategies:
-            _scan_strategy_refs(sub)
-
-    for s in pkg.strategies:
-        _scan_strategy_refs(s)
-
-    # Only scan content of LOCAL knowledge nodes. Foreign (imported) nodes
-    # were already validated when the dependency was compiled; re-validating
-    # them against the consumer's symbol table would break cross-package
-    # imports the moment a dep adopts the new reference syntax.
-    for k in knowledge_nodes:
-        if _is_local(k, pkg):
-            _accumulate(k, k.content)
-
-    # Scan Action rationale fields. References in action rationale are attributed
-    # to the action's lowered target Knowledge node (conclusion claim for support
-    # actions, warrant helper for structural actions, compose node for compose).
-    # Per spec 2026-05-10-action-label-references-design.md, action rationale is
-    # now reference-bearing text.
-    # Since action targets may be Strategy/Operator nodes, we need to resolve them
-    # to their corresponding Knowledge nodes (warrant helpers, conclusion claims).
-    action_rationale_refs: dict[
-        str, tuple[set[str], set[str]]
-    ] = {}  # target_knowledge_qid -> (k_refs, c_refs)
-
-    # Build a mapping from Strategy/Operator IDs to their warrant helper Knowledge IDs
-    # by scanning all strategies and operators for 'warrants' metadata.
-    all_strategies = [*ir_strategies, *formula_generated_strategies, *bayes_lowered.strategies]
-    all_operators = [
-        *ir_operators,
-        *action_operators,
-        *formula_generated_operators,
-        *bayes_lowered.operators,
-    ]
-
-    for action in getattr(pkg, "actions", []):
-        if not action.rationale:
-            continue
-        rationale_action_label = action_labels_by_object.get(id(action))
-        if rationale_action_label is None:
-            continue
-        target_id = action_label_map.get(rationale_action_label)
-        if target_id is None:
-            continue
-
-        # Collect references from rationale
-        k_refs, c_refs = _collect_refs_from_text(action.rationale, label_to_id, references)
-        if not k_refs and not c_refs:
-            continue
-
-        # Resolve target_id to Knowledge node(s):
-        # - For Strategy: look for 'warrants' in metadata
-        # - For Operator: look for 'warrants' in metadata
-        # - For Knowledge: use directly
-        # - For Compose: use the compose node itself (it's in ir_composes, not knowledges)
-        target_knowledge_ids: list[str] = []
-
-        # Check if it's a Strategy
-        for strat in all_strategies:
-            if strat.strategy_id == target_id:
-                warrants = strat.metadata.get("warrants", []) if strat.metadata else []
-                if warrants:
-                    target_knowledge_ids.extend(warrants)
-                else:
-                    # No warrant helpers, use conclusion
-                    if strat.conclusion:
-                        target_knowledge_ids.append(strat.conclusion)
-                break
-
-        # Check if it's an Operator
-        if not target_knowledge_ids:
-            for op in all_operators:
-                if op.operator_id == target_id:
-                    warrants = op.metadata.get("warrants", []) if op.metadata else []
-                    if warrants:
-                        target_knowledge_ids.extend(warrants)
-                    else:
-                        # No warrant helpers, use conclusion
-                        if op.conclusion:
-                            target_knowledge_ids.append(op.conclusion)
-                    break
-
-        # If still not found, assume it's a Knowledge ID directly
-        if not target_knowledge_ids:
-            target_knowledge_ids.append(target_id)
-
-        # Record refs for each target Knowledge node
-        for target_knowledge_id in target_knowledge_ids:
-            action_rationale_refs[target_knowledge_id] = (set(k_refs), set(c_refs))
-
-    # Write provenance metadata onto IR knowledge nodes.
-    # Belt-and-suspenders: never mutate foreign nodes' metadata even if
-    # refs_by_knowledge somehow picks them up — provenance belongs to the
-    # package that owns the node.
-    # Scan all IR knowledge lists: ir_knowledges, generated_knowledges,
-    # formula_generated_knowledges, and bayes_lowered.knowledges.
-    all_ir_knowledges = [
-        *ir_knowledges,
-        *generated_knowledges,
-        *formula_generated_knowledges,
-        *bayes_lowered.knowledges,
-    ]
-    for k in knowledge_nodes:
-        if not _is_local(k, pkg):
-            continue
-        refs = refs_by_knowledge.get(id(k))
-        if not refs:
-            continue
-        knowledge_refs, citation_refs = refs
-        if not knowledge_refs and not citation_refs:
-            continue
-        qid = knowledge_map[id(k)]
-        for i, ir_k in enumerate(all_ir_knowledges):
-            if ir_k.id != qid:
+    def _collect_action_rationale_refs(
+        self,
+        label_to_id: dict[str, str],
+    ) -> dict[str, tuple[set[str], set[str]]]:
+        action_rationale_refs: dict[str, tuple[set[str], set[str]]] = {}
+        for action in getattr(self.pkg, "actions", []):
+            target_id = self._action_rationale_target_id(action)
+            if not action.rationale or target_id is None:
                 continue
-            metadata = dict(ir_k.metadata) if ir_k.metadata else {}
+            knowledge_refs, citation_refs = _collect_refs_from_text(
+                action.rationale,
+                label_to_id,
+                self.references,
+            )
+            if not knowledge_refs and not citation_refs:
+                continue
+            for target_knowledge_id in self._target_knowledge_ids(target_id):
+                action_rationale_refs[target_knowledge_id] = (
+                    set(knowledge_refs),
+                    set(citation_refs),
+                )
+        return action_rationale_refs
+
+    def _action_rationale_target_id(self, action: Any) -> str | None:
+        rationale_action_label = self.action_labels_by_object.get(id(action))
+        if rationale_action_label is None:
+            return None
+        return self.action_label_map.get(rationale_action_label)
+
+    def _target_knowledge_ids(self, target_id: str) -> list[str]:
+        strategy_target = self._strategy_target_knowledge_ids(target_id)
+        if strategy_target:
+            return strategy_target
+        operator_target = self._operator_target_knowledge_ids(target_id)
+        if operator_target:
+            return operator_target
+        return [target_id]
+
+    def _strategy_target_knowledge_ids(self, target_id: str) -> list[str]:
+        for strategy in [
+            *self.ir_strategies,
+            *self.formula_generated_strategies,
+            *self.bayes_strategies,
+        ]:
+            if strategy.strategy_id != target_id:
+                continue
+            warrants = strategy.metadata.get("warrants", []) if strategy.metadata else []
+            if warrants:
+                return list(warrants)
+            return [strategy.conclusion] if strategy.conclusion else []
+        return []
+
+    def _operator_target_knowledge_ids(self, target_id: str) -> list[str]:
+        all_operators = [
+            *self.ir_operators,
+            *self.action_operators,
+            *self.formula_generated_operators,
+            *self.bayes_operators,
+        ]
+        for operator in all_operators:
+            if operator.operator_id != target_id:
+                continue
+            warrants = operator.metadata.get("warrants", []) if operator.metadata else []
+            if warrants:
+                return list(warrants)
+            return [operator.conclusion] if operator.conclusion else []
+        return []
+
+    def _apply_reference_metadata(
+        self,
+        action_rationale_refs: dict[str, tuple[set[str], set[str]]],
+    ) -> list[IrKnowledge]:
+        all_ir_knowledges = self._all_ir_knowledges()
+        self._apply_knowledge_refs(all_ir_knowledges)
+        self._apply_action_refs(all_ir_knowledges, action_rationale_refs)
+        return self._replace_ir_knowledge_lists(all_ir_knowledges)
+
+    def _all_ir_knowledges(self) -> list[IrKnowledge]:
+        return [
+            *self.ir_knowledges,
+            *self.generated_knowledges,
+            *self.formula_generated_knowledges,
+            *self.bayes_lowered_knowledges,
+        ]
+
+    def _apply_knowledge_refs(self, all_ir_knowledges: list[IrKnowledge]) -> None:
+        for knowledge in self.knowledge_nodes:
+            if not _is_local(knowledge, self.pkg):
+                continue
+            refs = self.refs_by_knowledge.get(id(knowledge))
+            if not refs or not any(refs):
+                continue
+            self._write_provenance(all_ir_knowledges, self.knowledge_map[id(knowledge)], refs)
+
+    def _apply_action_refs(
+        self,
+        all_ir_knowledges: list[IrKnowledge],
+        action_rationale_refs: dict[str, tuple[set[str], set[str]]],
+    ) -> None:
+        for target_qid, refs in action_rationale_refs.items():
+            self._write_provenance(all_ir_knowledges, target_qid, refs)
+
+    def _write_provenance(
+        self,
+        all_ir_knowledges: list[IrKnowledge],
+        target_qid: str,
+        refs: tuple[set[str], set[str]],
+    ) -> None:
+        knowledge_refs, citation_refs = refs
+        for i, ir_knowledge in enumerate(all_ir_knowledges):
+            if ir_knowledge.id != target_qid:
+                continue
+            metadata = dict(ir_knowledge.metadata) if ir_knowledge.metadata else {}
             gaia_meta = dict(metadata.get("gaia", {}))
             provenance: dict[str, Any] = dict(gaia_meta.get("provenance", {}))
             if citation_refs:
-                provenance["cited_refs"] = sorted(citation_refs)
+                existing_cites = set(provenance.get("cited_refs", []))
+                existing_cites.update(citation_refs)
+                provenance["cited_refs"] = sorted(existing_cites)
             if knowledge_refs:
-                provenance["referenced_claims"] = sorted(knowledge_refs)
+                existing_refs = set(provenance.get("referenced_claims", []))
+                existing_refs.update(knowledge_refs)
+                provenance["referenced_claims"] = sorted(existing_refs)
             gaia_meta["provenance"] = provenance
             metadata["gaia"] = gaia_meta
-            all_ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
+            all_ir_knowledges[i] = ir_knowledge.model_copy(update={"metadata": metadata})
             break
 
-    # Write provenance from action rationale to their target IR nodes.
-    # Action targets may be generated nodes (warrant helpers, compose nodes)
-    # that don't appear in knowledge_nodes, so we scan all_ir_knowledges by ID.
-    for target_qid, (knowledge_refs, citation_refs) in action_rationale_refs.items():
-        for i, ir_k in enumerate(all_ir_knowledges):
-            if ir_k.id != target_qid:
-                continue
-            metadata = dict(ir_k.metadata) if ir_k.metadata else {}
-            gaia_meta = dict(metadata.get("gaia", {}))
-            action_provenance: dict[str, Any] = dict(gaia_meta.get("provenance", {}))
-            # Merge with existing provenance (if any)
-            if citation_refs:
-                existing_cites = set(action_provenance.get("cited_refs", []))
-                existing_cites.update(citation_refs)
-                action_provenance["cited_refs"] = sorted(existing_cites)
-            if knowledge_refs:
-                existing_refs = set(action_provenance.get("referenced_claims", []))
-                existing_refs.update(knowledge_refs)
-                action_provenance["referenced_claims"] = sorted(existing_refs)
-            gaia_meta["provenance"] = action_provenance
-            metadata["gaia"] = gaia_meta
-            all_ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
-            break
+    def _replace_ir_knowledge_lists(
+        self, all_ir_knowledges: list[IrKnowledge]
+    ) -> list[IrKnowledge]:
+        num_ir = len(self.ir_knowledges)
+        num_generated = len(self.generated_knowledges)
+        num_formula = len(self.formula_generated_knowledges)
+        self.ir_knowledges[:] = all_ir_knowledges[:num_ir]
+        self.generated_knowledges[:] = all_ir_knowledges[num_ir : num_ir + num_generated]
+        self.formula_generated_knowledges[:] = all_ir_knowledges[
+            num_ir + num_generated : num_ir + num_generated + num_formula
+        ]
+        return all_ir_knowledges[num_ir + num_generated + num_formula :]
 
-    # Unpack the updated IR knowledge lists back
-    num_ir = len(ir_knowledges)
-    num_gen = len(generated_knowledges)
-    num_formula = len(formula_generated_knowledges)
-    ir_knowledges[:] = all_ir_knowledges[:num_ir]
-    generated_knowledges[:] = all_ir_knowledges[num_ir : num_ir + num_gen]
-    formula_generated_knowledges[:] = all_ir_knowledges[
-        num_ir + num_gen : num_ir + num_gen + num_formula
+
+def _assign_knowledge_ids(
+    pkg: CollectedPackage, knowledge_nodes: list[Knowledge]
+) -> dict[int, str]:
+    knowledge_map: dict[int, str] = {}
+    local_anon_counter = 0
+    for knowledge in knowledge_nodes:
+        knowledge_id, local_anon_counter = _knowledge_id(
+            knowledge,
+            pkg,
+            local_anon_counter=local_anon_counter,
+        )
+        knowledge_map[id(knowledge)] = knowledge_id
+    return knowledge_map
+
+
+def _build_ir_knowledges(
+    pkg: CollectedPackage,
+    knowledge_nodes: list[Knowledge],
+    knowledge_map: dict[int, str],
+) -> list[IrKnowledge]:
+    exported_labels: set[str] = getattr(pkg, "_exported_labels", set())
+    return [
+        IrKnowledge(
+            id=knowledge_map[id(knowledge)],
+            label=knowledge.label,
+            title=getattr(knowledge, "title", None),
+            type=KnowledgeType(knowledge.type),
+            format=getattr(knowledge, "format", "markdown"),
+            content=knowledge.content,
+            parameters=[_parameter_to_ir(param, knowledge_map) for param in knowledge.parameters],
+            provenance=_knowledge_provenance(knowledge),
+            metadata=_knowledge_metadata(knowledge, knowledge_map),
+            module=getattr(knowledge, "_source_module", None),
+            declaration_index=getattr(knowledge, "_declaration_index", None),
+            exported=knowledge.label in exported_labels if knowledge.label else False,
+        )
+        for knowledge in knowledge_nodes
     ]
-    bayes_lowered_knowledges_updated = all_ir_knowledges[num_ir + num_gen + num_formula :]
 
-    # ========================================================================
-    # End of reference scanning
-    # ========================================================================
 
+def _compile_top_level_operators(
+    pkg: CollectedPackage,
+    knowledge_map: dict[int, str],
+    formal_operators: set[int],
+) -> tuple[list[IrOperator], dict[int, str]]:
+    ir_operators: list[IrOperator] = []
+    operator_target_ids_by_object: dict[int, str] = {}
+    for operator in pkg.operators:
+        if id(operator) in formal_operators:
+            continue
+        ir_operator = _operator_to_ir(operator, knowledge_map, top_level=True)
+        ir_operators.append(ir_operator)
+        operator_target_ids_by_object[id(operator)] = _required_id(
+            ir_operator.operator_id,
+            "operator_id",
+        )
+    return ir_operators, operator_target_ids_by_object
+
+
+def _compile_package_strategies(
+    pkg: CollectedPackage,
+    strategy_compiler: _StrategyCompiler,
+) -> tuple[list[IrStrategy], dict[int, str]]:
+    ir_strategies: list[IrStrategy] = []
+    emitted_strategies: set[int] = set()
+    strategy_target_ids_by_object: dict[int, str] = {}
+    for strategy in pkg.strategies:
+        strategy_key = id(strategy)
+        if strategy_key in emitted_strategies:
+            continue
+        ir_strategy = strategy_compiler.compile_strategy(strategy)
+        ir_strategies.append(ir_strategy)
+        strategy_target_ids_by_object[strategy_key] = _required_id(
+            ir_strategy.strategy_id,
+            "strategy_id",
+        )
+        emitted_strategies.add(strategy_key)
+    return ir_strategies, strategy_target_ids_by_object
+
+
+def _support_action_pattern(action: Support) -> str:
+    if isinstance(action, Observe):
+        return "observation"
+    if isinstance(action, Compute):
+        return "computation"
+    if isinstance(action, Predict):
+        return "prediction"
+    return "derivation"
+
+
+def _structural_action_operator(
+    action: Equal | Contradict | Exclusive,
+) -> tuple[OperatorType, str]:
+    if isinstance(action, Equal):
+        return OperatorType.EQUIVALENCE, "equivalence"
+    if isinstance(action, Contradict):
+        return OperatorType.CONTRADICTION, "contradiction"
+    if isinstance(action, Exclusive):
+        return OperatorType.COMPLEMENT, "exclusive"
+    raise ValueError(f"Unsupported structural relation action: {type(action).__name__}")
+
+
+def _infer_conditional_probabilities(
+    *,
+    p_e_given_h: float,
+    p_e_given_not_h: float,
+    given_count: int,
+) -> list[float]:
+    if given_count == 0:
+        return [p_e_given_not_h, p_e_given_h]
+    cpt = [0.5] * (1 << (1 + given_count))
+    gate_mask = sum(1 << i for i in range(1, 1 + given_count))
+    cpt[gate_mask] = p_e_given_not_h
+    cpt[gate_mask | 1] = p_e_given_h
+    return cpt
+
+
+def _is_bayes_action(action: Any) -> bool:
+    bayes_meta = dict(getattr(action, "metadata", {}) or {}).get("bayes")
+    if not isinstance(bayes_meta, dict):
+        return False
+    return bayes_meta.get("action") in {"predictive_model", "likelihood"}
+
+
+def _lower_formula_claims(
+    pkg: CollectedPackage,
+    knowledge_nodes: list[Knowledge],
+    knowledge_map: dict[int, str],
+    ir_knowledges: list[IrKnowledge],
+) -> _FormulaLoweringResult:
+    result = _FormulaLoweringResult(knowledges=[], operators=[], strategies=[])
+    for knowledge in knowledge_nodes:
+        if not _is_local(knowledge, pkg):
+            continue
+        if not isinstance(knowledge, Claim) or getattr(knowledge, "formula", None) is None:
+            continue
+        lowered = lower_claim_formula(
+            knowledge,
+            claim_id=knowledge_map[id(knowledge)],
+            namespace=pkg.namespace,
+            package_name=pkg.name,
+            knowledge_map=knowledge_map,
+        )
+        result.knowledges.extend(lowered.knowledges)
+        result.operators.extend(lowered.operators)
+        result.strategies.extend(lowered.strategies)
+        _apply_formula_knowledge_updates(
+            ir_knowledges,
+            metadata_updates=lowered.metadata_updates,
+            parameter_updates=lowered.parameter_updates,
+        )
+    return result
+
+
+def _build_action_labels_by_object(pkg: CollectedPackage) -> dict[int, str]:
+    return {
+        id(action): _action_label(action, pkg, action_index)
+        for action_index, action in enumerate(getattr(pkg, "actions", []))
+    }
+
+
+def _lower_bayes_actions(
+    pkg: CollectedPackage,
+    knowledge_nodes: list[Knowledge],
+    knowledge_map: dict[int, str],
+    action_labels_by_object: dict[int, str],
+    existing_operators: list[IrOperator],
+) -> Any:
+    from gaia.lang.bayes.compiler import lower_bayes_claims
+
+    return lower_bayes_claims(
+        knowledge_nodes,
+        actions=tuple(getattr(pkg, "actions", ())),
+        namespace=pkg.namespace,
+        package_name=pkg.name,
+        knowledge_map=knowledge_map,
+        action_labels_by_object=action_labels_by_object,
+        existing_operators=existing_operators,
+    )
+
+
+def _record_bayes_action_targets(
+    pkg: CollectedPackage,
+    action_labels_by_object: dict[int, str],
+    bayes_action_label_map: dict[str, str],
+    action_target_ids_by_object: dict[int, str],
+) -> None:
+    for action in getattr(pkg, "actions", []):
+        if not _is_bayes_action(action):
+            continue
+        bayes_action_label = action_labels_by_object.get(id(action))
+        if bayes_action_label is None:
+            continue
+        target_id = bayes_action_label_map.get(bayes_action_label)
+        if target_id is not None:
+            action_target_ids_by_object[id(action)] = target_id
+
+
+def _build_graph(
+    pkg: CollectedPackage,
+    *,
+    ir_knowledges: list[IrKnowledge],
+    generated_knowledges: list[IrKnowledge],
+    formula_generated: _FormulaLoweringResult,
+    bayes_lowered: Any,
+    bayes_lowered_knowledges_updated: list[IrKnowledge],
+    ir_operators: list[IrOperator],
+    action_operators: list[IrOperator],
+    ir_strategies: list[IrStrategy],
+    ir_composes: list[IrCompose],
+) -> LocalCanonicalGraph:
     module_order = pkg._module_order if pkg._module_order else None
     module_titles = getattr(pkg, "_module_titles", None) or None
-    graph = LocalCanonicalGraph(
+    return LocalCanonicalGraph(
         namespace=pkg.namespace,
         package_name=pkg.name,
         knowledges=[
             *ir_knowledges,
             *generated_knowledges,
-            *formula_generated_knowledges,
+            *formula_generated.knowledges,
             *bayes_lowered_knowledges_updated,
         ],
         operators=[
             *ir_operators,
             *action_operators,
-            *formula_generated_operators,
+            *formula_generated.operators,
             *bayes_lowered.operators,
         ],
-        strategies=[*ir_strategies, *formula_generated_strategies, *bayes_lowered.strategies],
+        strategies=[*ir_strategies, *formula_generated.strategies, *bayes_lowered.strategies],
         composes=ir_composes,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
     )
 
+
+def compile_package_artifact(
+    pkg: CollectedPackage,
+    *,
+    references: dict[str, Any] | None = None,
+) -> CompiledPackage:
+    """Compile collected declarations into Gaia IR plus runtime mappings."""
+    if references is None:
+        references = {}
+
+    knowledge_collection = _KnowledgeCollector(pkg).collect()
+    knowledge_map = _assign_knowledge_ids(pkg, knowledge_collection.nodes)
+    ir_knowledges = _build_ir_knowledges(pkg, knowledge_collection.nodes, knowledge_map)
+    ir_operators, operator_target_ids_by_object = _compile_top_level_operators(
+        pkg,
+        knowledge_map,
+        knowledge_collection.formal_operators,
+    )
+
+    generated_knowledges: list[IrKnowledge] = []
+    strategy_compiler = _StrategyCompiler(pkg, knowledge_map, generated_knowledges)
+    ir_strategies, strategy_target_ids_by_object = _compile_package_strategies(
+        pkg,
+        strategy_compiler,
+    )
+
+    action_compiler = _ActionCompiler(
+        pkg=pkg,
+        knowledge_map=knowledge_map,
+        ir_knowledges=ir_knowledges,
+        ir_strategies=ir_strategies,
+        generated_knowledges=generated_knowledges,
+    )
+    action_compiler.compile_non_compose_actions()
+
+    formula_generated = _lower_formula_claims(
+        pkg, knowledge_collection.nodes, knowledge_map, ir_knowledges
+    )
+    action_labels_by_object = _build_action_labels_by_object(pkg)
+    bayes_lowered = _lower_bayes_actions(
+        pkg,
+        knowledge_collection.nodes,
+        knowledge_map,
+        action_labels_by_object,
+        [*ir_operators, *action_compiler.action_operators, *formula_generated.operators],
+    )
+    _apply_formula_knowledge_updates(
+        ir_knowledges,
+        metadata_updates=bayes_lowered.metadata_updates,
+        parameter_updates={},
+    )
+    action_compiler.action_label_map.update(bayes_lowered.action_label_map)
+    action_compiler.target_action_labels_by_id.update(bayes_lowered.target_action_labels_by_id)
+    _record_bayes_action_targets(
+        pkg,
+        action_labels_by_object,
+        bayes_lowered.action_label_map,
+        action_compiler.action_target_ids_by_object,
+    )
+
+    ir_composes = action_compiler.compile_compose_actions(
+        strategy_target_ids_by_object=strategy_target_ids_by_object,
+        operator_target_ids_by_object=operator_target_ids_by_object,
+    )
+    bayes_lowered_knowledges_updated = _ReferenceScanner(
+        pkg=pkg,
+        references=references,
+        knowledge_nodes=knowledge_collection.nodes,
+        knowledge_map=knowledge_map,
+        action_label_map=action_compiler.action_label_map,
+        action_labels_by_object=action_labels_by_object,
+        ir_knowledges=ir_knowledges,
+        generated_knowledges=generated_knowledges,
+        formula_generated_knowledges=formula_generated.knowledges,
+        bayes_lowered_knowledges=bayes_lowered.knowledges,
+        ir_strategies=ir_strategies,
+        formula_generated_strategies=formula_generated.strategies,
+        bayes_strategies=bayes_lowered.strategies,
+        ir_operators=ir_operators,
+        action_operators=action_compiler.action_operators,
+        formula_generated_operators=formula_generated.operators,
+        bayes_operators=bayes_lowered.operators,
+        ir_composes=ir_composes,
+    ).scan()
+
+    graph = _build_graph(
+        pkg,
+        ir_knowledges=ir_knowledges,
+        generated_knowledges=generated_knowledges,
+        formula_generated=formula_generated,
+        bayes_lowered=bayes_lowered,
+        bayes_lowered_knowledges_updated=bayes_lowered_knowledges_updated,
+        ir_operators=ir_operators,
+        action_operators=action_compiler.action_operators,
+        ir_strategies=ir_strategies,
+        ir_composes=ir_composes,
+    )
     compiled = CompiledPackage(
         graph=graph,
         knowledge_ids_by_object=dict(knowledge_map),
-        strategies_by_object=dict(compiled_strategies),
-        action_label_map=action_label_map,
-        target_action_labels_by_id=target_action_labels_by_id,
+        strategies_by_object=dict(strategy_compiler.compiled_strategies),
+        action_label_map=action_compiler.action_label_map,
+        target_action_labels_by_id=action_compiler.target_action_labels_by_id,
         formalization_manifest={
             "version": 1,
-            "dependencies": formalization_dependencies,
+            "dependencies": action_compiler.formalization_dependencies,
         },
     )
     from gaia.lang.review.manifest import generate_review_manifest
