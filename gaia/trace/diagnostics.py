@@ -1,4 +1,4 @@
-"""Trace 域 11 个确定性 detector。
+"""Trace-domain deterministic diagnostic detectors.
 
 设计纪律：
 - 每个 detector 是纯函数 ``(Trace, ...) -> list[Diagnostic]``，不抛异常
@@ -64,7 +64,7 @@ def _diag(
     suggested_edit: str = "",
     data: dict[str, Any] | None = None,
 ) -> Diagnostic:
-    """构造 Diagnostic（kind 走字符串，绕开 inquiry Literal 类型限制）。"""
+    """Construct a diagnostic while preserving trace-specific kind strings."""
     return Diagnostic(
         severity=severity,  # type: ignore[arg-type]
         kind=kind,  # type: ignore[arg-type]
@@ -81,7 +81,7 @@ def _diag(
 
 
 def from_schema_issues(issues: list[SchemaIssue]) -> list[Diagnostic]:
-    """把 loader 收集到的 SchemaIssue 转 Diagnostic。"""
+    """Convert loader schema issues into trace diagnostics."""
     out: list[Diagnostic] = []
     for issue in issues:
         out.append(
@@ -102,6 +102,14 @@ def from_schema_issues(issues: list[SchemaIssue]) -> list[Diagnostic]:
 
 
 def detect_hash_chain(trace: Trace) -> list[Diagnostic]:
+    """Detect broken event hash-chain links.
+
+    Args:
+        trace: Loaded trace to inspect.
+
+    Returns:
+        Diagnostics for genesis or previous-hash mismatches.
+    """
     events = trace.events
     if not events:
         return []
@@ -154,6 +162,14 @@ def detect_hash_chain(trace: Trace) -> list[Diagnostic]:
 
 
 def detect_manifest_hash(trace: Trace) -> list[Diagnostic]:
+    """Detect manifest hashes that no longer match trace contents.
+
+    Args:
+        trace: Loaded trace to inspect.
+
+    Returns:
+        Diagnostics for `events_root` or `manifest_hash` mismatches.
+    """
     out: list[Diagnostic] = []
     expected_root = compute_events_root(trace.events)
     if trace.manifest.events_root and trace.manifest.events_root != expected_root:
@@ -202,6 +218,14 @@ def detect_manifest_hash(trace: Trace) -> list[Diagnostic]:
 
 
 def detect_timestamps(trace: Trace) -> list[Diagnostic]:
+    """Detect event timestamps that move backward.
+
+    Args:
+        trace: Loaded trace to inspect.
+
+    Returns:
+        Diagnostics for timestamp ordering violations.
+    """
     out: list[Diagnostic] = []
     for i in range(1, len(trace.events)):
         prev_ts = trace.events[i - 1].ts
@@ -233,6 +257,14 @@ def detect_timestamps(trace: Trace) -> list[Diagnostic]:
 
 
 def detect_seq(trace: Trace) -> list[Diagnostic]:
+    """Detect non-contiguous event sequence numbers.
+
+    Args:
+        trace: Loaded trace to inspect.
+
+    Returns:
+        Diagnostics for missing or reordered sequence numbers.
+    """
     out: list[Diagnostic] = []
     if not trace.events:
         return out
@@ -276,6 +308,14 @@ def _tokenize(text: str) -> set[str]:
 
 
 def detect_decision_grounds(trace: Trace) -> list[Diagnostic]:
+    """Detect decision events whose reasons do not reference their inputs.
+
+    Args:
+        trace: Loaded trace to inspect.
+
+    Returns:
+        Diagnostics for missing or weakly grounded decision reasons.
+    """
     out: list[Diagnostic] = []
     for ev in trace.events:
         if ev.kind != "decision":
@@ -329,7 +369,7 @@ def detect_decision_grounds(trace: Trace) -> list[Diagnostic]:
 
 
 def detect_tool_pairing(trace: Trace) -> list[Diagnostic]:
-    """tool_call 之后必须出现匹配的 tool_result 或 retry 或带 error 的同 actor 事件。"""
+    """Require each tool call to be closed by a result, retry, or actor error."""
     out: list[Diagnostic] = []
     events = trace.events
     for i, ev in enumerate(events):
@@ -382,7 +422,7 @@ ReviewIdResolver = Callable[[str], bool]
 
 
 def _default_resolver_factory(package_path: str | Path | None) -> ReviewIdResolver:
-    """默认走 ``<pkg>/.gaia/inquiry/reviews/<review_id>.json`` 文件存在性。
+    """Resolve review IDs through package-local inquiry review snapshots.
 
     package_path 为 None ⇒ 永远 False（detector 会把所有 ref 标 unresolved）。
     """
@@ -408,7 +448,7 @@ def detect_claim_refs(
     resolver: ReviewIdResolver | None = None,
     package_path: str | Path | None = None,
 ) -> list[Diagnostic]:
-    """resolver 优先（测试可注入）；否则按 package_path 走文件系统检查。"""
+    """Detect claim references whose review IDs cannot be resolved."""
     res = resolver or _default_resolver_factory(package_path)
     out: list[Diagnostic] = []
     for ev in trace.events:
@@ -451,6 +491,14 @@ def detect_claim_refs(
 
 
 def detect_parent_links(trace: Trace) -> list[Diagnostic]:
+    """Detect parent links that point outside the current trace.
+
+    Args:
+        trace: Loaded trace to inspect.
+
+    Returns:
+        Diagnostics for dangling `parent_event_id` values.
+    """
     ids = {ev.event_id for ev in trace.events}
     out: list[Diagnostic] = []
     for ev in trace.events:
@@ -479,7 +527,7 @@ def detect_parent_links(trace: Trace) -> list[Diagnostic]:
 
 
 def detect_retry(trace: Trace, *, max_chain: int = RETRY_CHAIN_LIMIT_DEFAULT) -> list[Diagnostic]:
-    """从每个 retry 事件向上追 parent 链，链长 > max_chain 视为 diverged。"""
+    """Detect retry chains whose length exceeds the configured limit."""
     out: list[Diagnostic] = []
     by_id = {ev.event_id: ev for ev in trace.events}
     for ev in trace.events:
@@ -524,7 +572,7 @@ def detect_retry(trace: Trace, *, max_chain: int = RETRY_CHAIN_LIMIT_DEFAULT) ->
 
 
 def detect_actor(trace: Trace) -> list[Diagnostic]:
-    """同一 parent 链内 actor 切换且无 decision 解释 ⇒ info 提示。
+    """Detect unexplained actor switches within each parent-event group.
 
     分组依据：``parent_event_id``（None ⇒ 顶层组）；同一 group 内事件以 seq 升序
     扫描，前后 actor 不同且中间没有 decision 事件 ⇒ 标 actor_switch_unexplained。
@@ -581,7 +629,7 @@ def run_all_detectors(
     package_path: str | Path | None = None,
     retry_chain_limit: int = RETRY_CHAIN_LIMIT_DEFAULT,
 ) -> list[Diagnostic]:
-    """按固定顺序跑 11 个 detector。"""
+    """Run all trace detectors in their stable review order."""
     diags: list[Diagnostic] = []
     diags.extend(from_schema_issues(load_result.issues))
     if load_result.trace is None:

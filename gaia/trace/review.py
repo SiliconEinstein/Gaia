@@ -1,4 +1,4 @@
-"""TraceReviewReport：八段 review 容器（与 gaia.inquiry.ReviewReport 设计同质）。
+"""Trace review report assembly for the eight-section ARM review.
 
 字段命名尽量与 inquiry 平行：``trace_review_id`` / ``created_at`` / ``mode`` 等
 保持一致，方便用户读两种 review 输出无认知断层。
@@ -48,7 +48,7 @@ def _utcnow_iso() -> str:
 
 @dataclass
 class TraceReviewReport:
-    """ARM Trace 八段 review。
+    """Represent the eight-section ARM trace review report.
 
     section mapping（参 PLAN 与 gaia.inquiry.ReviewReport）：
     §1 Header        — trace_review_id / created_at / path / mode
@@ -92,6 +92,7 @@ class TraceReviewReport:
     next_edits_structured: list[NextEdit] = field(default_factory=list)
 
     def to_json_dict(self) -> dict[str, Any]:
+        """Return the JSON-compatible report payload."""
         d: dict[str, Any] = {
             "trace_review_id": self.trace_review_id,
             "created_at": self.created_at,
@@ -246,7 +247,7 @@ def _build_reference_section(
 
 
 def _build_tampering_section(diags: list[Diagnostic]) -> list[dict[str, Any]]:
-    """收集所有 error 级、与篡改强相关的 diagnostic 摘要。"""
+    """Collect error-level diagnostics that strongly indicate tampering."""
     keep = {
         "trace_schema_violation",
         "trace_hash_chain_broken",
@@ -307,7 +308,7 @@ def run_trace_review(
     retry_chain_limit: int = RETRY_CHAIN_LIMIT_DEFAULT,
     snapshot_dir: str | Path | None = None,
 ) -> TraceReviewReport:
-    """加载 trace 文件 → 跑全部 detector → 汇总八段 → 写 snapshot → 返回 report。
+    """Load a trace, run detectors, build sections, and save a snapshot.
 
     ``mode`` 与 ranking 的 mode 表对齐；默认 ``"trace"``。
     ``mode == "publish"`` 时 ranking 套 publish 表，warning 也会被前置。

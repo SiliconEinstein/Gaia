@@ -1,4 +1,4 @@
-"""Trace review 三件套渲染：text / markdown / json。
+"""Render trace review reports as text, Markdown, or JSON.
 
 设计原则：
 - 与 ``gaia.inquiry.render`` 一致的章节顺序（§1 → §8）与命名约定
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 
 def render_text(report: "TraceReviewReport") -> str:
+    """Render a trace review report as the plain-text CLI view."""
     out: list[str] = []
     out.append("=" * 72)
     out.append(f"ARM Trace Review  —  {report.trace_review_id}")
@@ -105,6 +106,7 @@ def render_text(report: "TraceReviewReport") -> str:
 
 
 def render_markdown(report: "TraceReviewReport") -> str:
+    """Render a trace review report as Markdown."""
     out: list[str] = []
     out.append(f"# ARM Trace Review — `{report.trace_review_id}`")
     out.append("")
@@ -181,11 +183,12 @@ def render_markdown(report: "TraceReviewReport") -> str:
 
 
 def to_json_dict(report: "TraceReviewReport") -> dict[str, Any]:
+    """Return the JSON-compatible mapping for a trace review report."""
     return report.to_json_dict()
 
 
 def render_json(report: "TraceReviewReport") -> str:
-    """决定性 JSON 渲染：sort_keys=True 保证跨运行 byte-equal。"""
+    """Render deterministic JSON with stable key ordering."""
     return json.dumps(
         report.to_json_dict(),
         ensure_ascii=False,

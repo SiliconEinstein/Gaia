@@ -1,4 +1,4 @@
-"""ARM Trace v1 schema（pydantic）。
+"""Pydantic schema for ARM Trace v1.
 
 字段语义参考 ARM 协议 v1 §7（Trace modality）：
 - 一段 trace 由 manifest（元信息 + hash 锚）和 events（事件流）构成
@@ -40,7 +40,7 @@ ClaimRefRelation = Literal["asserts", "uses", "contradicts"]
 
 
 class ClaimRef(BaseModel):
-    """单条 trace 事件指向的 gaia knowledge claim。"""
+    """Reference one Gaia knowledge claim from a trace event."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -50,7 +50,7 @@ class ClaimRef(BaseModel):
 
 
 class TraceEvent(BaseModel):
-    """ARM trace 的最小记账单位。
+    """Represent the smallest accounting unit in an ARM trace.
 
     - prev_hash：前一事件的 canonical-json sha256（首事件 ``""``）
     - seq：单调递增整数，从 0 起，reviewer 校验连续
@@ -76,7 +76,9 @@ class TraceEvent(BaseModel):
 
 
 class TraceManifest(BaseModel):
-    """Trace 元信息。``events_root`` / ``manifest_hash`` 在写入端计算后冻结，
+    """Describe trace metadata and hash anchors.
+
+    ``events_root`` / ``manifest_hash`` 在写入端计算后冻结，
     reviewer 端独立重算比对——任何字段被改 ⇒ 哈希不一致。
 
     ``signature`` 字段是 v2 hook，v1 不验签也不强求填。
@@ -95,7 +97,7 @@ class TraceManifest(BaseModel):
 
 
 class Trace(BaseModel):
-    """完整 trace = manifest + 有序 events。"""
+    """Represent a complete trace as a manifest plus ordered events."""
 
     model_config = ConfigDict(extra="forbid")
 

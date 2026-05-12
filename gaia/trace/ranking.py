@@ -1,4 +1,4 @@
-"""ARM Trace v1 — diagnostic / next-edit 排序。
+"""Rank ARM Trace diagnostics and next edits.
 
 独立于 ``gaia.inquiry.ranking``，避免污染 inquiry 模式表（inquiry 测试要求
 ``supported_modes`` 集合精确等于 inquiry 那一套）。语义上完全平移 inquiry
@@ -44,6 +44,7 @@ _UNKNOWN_KIND_RANK = 99
 
 
 def supported_modes() -> tuple[str, ...]:
+    """Return the supported trace review ranking modes."""
     return tuple(_MODE_RANK.keys())
 
 
@@ -63,8 +64,10 @@ def _key(mode: str) -> Callable[[Diagnostic | NextEdit], tuple[int, int, str]]:
 
 
 def rank_diagnostics(diags: list[Diagnostic], mode: str = "trace") -> list[Diagnostic]:
+    """Rank diagnostics for trace or publish review mode."""
     return sorted(diags, key=_key(mode))
 
 
 def rank_next_edits(edits: list[NextEdit], mode: str = "trace") -> list[NextEdit]:
+    """Rank suggested next edits for trace or publish review mode."""
     return sorted(edits, key=_key(mode))
