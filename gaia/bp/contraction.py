@@ -73,7 +73,7 @@ def factor_to_tensor(f: Factor) -> StrategyCpt:
     ft = f.factor_type
 
     if ft == FactorType.IMPLICATION:
-        # Ternary: axes = [antecedent, consequent, helper]
+        # Ternary factor axes are ordered as antecedent, consequent, helper.
         # H=1 (implication holds): standard A=>B (A=1,B=0 forbidden)
         # H=0 (implication fails): complement (A=1,B=0 is the only HIGH row)
         t = np.empty(shape, dtype=np.float64)
@@ -133,7 +133,7 @@ def factor_to_tensor(f: Factor) -> StrategyCpt:
             raise ValueError(f"SOFT_ENTAILMENT {f.factor_id!r} missing p1/p2")
         p1, p2 = f.p1, f.p2
         # p1 = P(C=1 | premise=1); p2 = P(C=0 | premise=0)
-        # Axes: [premise, conclusion]
+        # Axis order is premise, then conclusion.
         t = np.empty(shape, dtype=np.float64)
         t[0, 0] = p2
         t[0, 1] = 1.0 - p2

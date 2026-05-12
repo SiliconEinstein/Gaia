@@ -109,7 +109,7 @@ def test_factor_to_tensor_negation():
     )
     t, axes = factor_to_tensor(f)
     assert axes == ["A", "N"]
-    # N == NOT(A)
+    # N is true exactly when A is false.
     assert _almost(t[0, 1], _HIGH)
     assert _almost(t[0, 0], _LOW)
     assert _almost(t[1, 0], _HIGH)
@@ -125,7 +125,7 @@ def test_factor_to_tensor_equivalence():
     )
     t, axes = factor_to_tensor(f)
     assert axes == ["A", "B", "H"]
-    # H == (A == B)
+    # H is true exactly when A and B have the same truth value.
     assert _almost(t[0, 0, 1], _HIGH)
     assert _almost(t[0, 0, 0], _LOW)
     assert _almost(t[1, 1, 1], _HIGH)
@@ -491,7 +491,7 @@ def test_cpt_tensor_to_list_bit_ordering():
     t[1, 1, 0] = 0.56
     axes = ["A", "B", "C"]
     cpt_list = cpt_tensor_to_list(t, axes, premises=["A", "B"], conclusion="C")
-    # index = (A << 0) | (B << 1)
+    # Bit index uses A as bit 0 and B as bit 1.
     assert cpt_list == [0.11, 0.22, 0.33, 0.44]
 
 

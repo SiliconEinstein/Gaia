@@ -186,6 +186,7 @@ def _generate_module_section_page(
     label_for_id: dict[str, str],
 ) -> str:
     """Generate a section page for a DSL module, claims ordered by topo sort."""
+    del label_for_id
     exported_count = sum(1 for k in claims if k.get("exported"))
 
     fm = _render_frontmatter(
@@ -319,7 +320,8 @@ def _generate_index(
     n_notes = sum(1 for k in all_k if is_note_type(k["type"]))
     n_questions = sum(1 for k in all_k if k["type"] == "question")
     lines.append(
-        f"| Knowledge nodes | {len(all_k)} ({n_claims} claims, {n_notes} notes, {n_questions} questions) |"
+        f"| Knowledge nodes | {len(all_k)} "
+        f"({n_claims} claims, {n_notes} notes, {n_questions} questions) |"
     )
     lines.append(f"| Strategies | {len(ir.get('strategies', []))} |")
     lines.append(f"| Operators | {len(ir.get('operators', []))} |")
@@ -332,7 +334,7 @@ def _generate_index(
     lines.append("")
     lines.append("| # | Section | Claims |")
     lines.append("|---|---------|--------|")
-    for i, (mod, title, count) in enumerate(section_list, 1):
+    for i, (mod, _title, count) in enumerate(section_list, 1):
         lines.append(f"| {i:02d} | [[{mod}]] | {count} |")
     lines.append("")
 

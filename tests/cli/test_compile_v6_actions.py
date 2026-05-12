@@ -22,8 +22,10 @@ def test_compile_v6_actions_package(tmp_path):
         'data = observe("UV spectrum is finite.", rationale="Measured.", label="observe_uv")\n'
         'prediction = claim("Planck model predicts finite UV spectrum.")\n'
         'classical = claim("Classical model predicts divergent UV spectrum.")\n'
-        'agreement = equal(prediction, data, rationale="Prediction matches data.", label="match")\n'
-        'conflict = contradict(classical, data, rationale="Prediction conflicts.", label="conflict")\n'
+        'agreement = equal(prediction, data, rationale="Prediction matches data.", '
+        'label="match")\n'
+        'conflict = contradict(classical, data, rationale="Prediction conflicts.", '
+        'label="conflict")\n'
         "data = infer(\n"
         "    data,\n"
         "    hypothesis=prediction,\n"

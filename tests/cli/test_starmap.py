@@ -1163,6 +1163,7 @@ def test_replay_compute_dot_layout_parses_canned_json(monkeypatch):
             self.stderr = stderr
 
     def _fake_run(cmd, **kwargs):
+        del cmd
         # Caller passes the dot source via stdin.
         assert kwargs.get("input")
         return _FakeProc(json.dumps(canned))
@@ -2073,6 +2074,7 @@ def test_replay_bridge_event_symbols_skips_when_already_in_layout():
 
 def test_replay_compute_dot_layout_real_graphviz_smoke(tmp_path):
     """End-to-end against a real graphviz dot binary: produces nodes + viewport."""
+    del tmp_path
     if not _has_graphviz():
         pytest.skip("graphviz not on PATH")
     from gaia.cli.commands._replay_build import compute_dot_layout

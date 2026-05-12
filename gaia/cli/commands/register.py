@@ -27,7 +27,7 @@ from gaia.ir.validator import validate_local_graph
 
 try:
     import tomllib
-except ImportError:
+except ImportError as exc:
     import tomli as tomllib  # type: ignore[no-redef]
 
 
@@ -54,7 +54,7 @@ def _read_gaia_lang_version_from_compile_metadata(pkg_path: Path) -> str:
         return "unknown"
     try:
         data = json.loads(metadata_path.read_text())
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError) as exc:
         return "unknown"
     version = data.get("gaia_lang_version")
     return version if isinstance(version, str) else "unknown"
@@ -275,7 +275,7 @@ def register_command(
         manifests = build_package_manifests(loaded, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     validation = validate_local_graph(LocalCanonicalGraph(**ir))
     if validation.errors:
@@ -300,7 +300,7 @@ def register_command(
         UUID(gaia_uuid)
     except ValueError as exc:
         typer.echo(f"Error: invalid [tool.gaia].uuid: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if not loaded.project_name.endswith("-gaia"):
         typer.echo("Error: [project].name must end with '-gaia'.", err=True)
@@ -335,13 +335,13 @@ def register_command(
             raise GaiaCliError(f"Error: tag '{tag_name}' is not pushed to origin.")
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     try:
         repo_url = _normalize_github_url(repo or origin_url)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     exported_claims = _prepare_exported_claims(ir, loaded.package.exported)
     registered_at = _utc_now()
@@ -477,7 +477,7 @@ def register_command(
             raise GaiaCliError(f"Error: registry branch already exists: {branch_name}")
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     package_dir = registry_path / "packages" / package_name
     release_path = package_dir / "releases" / version
@@ -508,7 +508,7 @@ def register_command(
         _run(["git", "checkout", "-b", branch_name], cwd=registry_path)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     package_dir.mkdir(parents=True, exist_ok=True)
     release_path.mkdir(parents=True, exist_ok=False)
@@ -536,7 +536,7 @@ def register_command(
         )
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     typer.echo(f"Prepared registry branch: {branch_name}")
     typer.echo(f"Updated metadata under: {package_dir}")
@@ -567,6 +567,6 @@ def register_command(
         )
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     typer.echo(pr_result.stdout.strip())

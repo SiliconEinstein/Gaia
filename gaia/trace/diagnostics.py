@@ -205,7 +205,9 @@ def detect_manifest_hash(trace: Trace) -> list[Diagnostic]:
                     f"declared {trace.manifest.manifest_hash[:12]}..., "
                     f"recomputed {expected_manifest_hash[:12]}..."
                 ),
-                suggested_edit="Recompute manifest_hash = sha256(canonical_json(manifest \\ {manifest_hash})).",
+                suggested_edit=(
+                    "Recompute manifest_hash = sha256(canonical_json(manifest \\ {manifest_hash}))."
+                ),
                 data={
                     "declared": trace.manifest.manifest_hash,
                     "recomputed": expected_manifest_hash,

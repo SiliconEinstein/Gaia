@@ -77,7 +77,7 @@ class TestKnowledgeCreation:
         assert k.label == "x"
 
     def test_no_id_no_label_raises(self):
-        with pytest.raises(ValueError, match="id.*label"):
+        with pytest.raises(ValueError, match=r"id.*label"):
             Knowledge(type=KnowledgeType.CLAIM, content="test")
 
     def test_content_hash_auto_computed_with_id(self):

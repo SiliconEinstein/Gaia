@@ -45,6 +45,7 @@ def lower_bayes_claims(
     existing_operators: list[IrOperator] | None = None,
 ) -> BayesLoweringResult:
     """Lower Bayes predictive-model and likelihood actions into Gaia IR records."""
+    del knowledge_nodes
     knowledges: list[IrKnowledge] = []
     operators: list[IrOperator] = []
     strategies: list[IrStrategy] = []

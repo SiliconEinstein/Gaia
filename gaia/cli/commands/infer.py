@@ -57,7 +57,7 @@ def infer_command(
         review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     graph_validation = validate_local_graph(compiled.graph)
     for warning in graph_validation.warnings:
@@ -80,7 +80,7 @@ def infer_command(
         stored_ir = json.loads(ir_json_path.read_text())
     except json.JSONDecodeError as exc:
         typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != compiled_json:
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
@@ -91,7 +91,7 @@ def infer_command(
             dep_compiled = load_dependency_compiled_graphs(loaded.project_config, depth=depth)
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
         if not dep_compiled:
             typer.echo("No -gaia dependencies found; running local inference only")

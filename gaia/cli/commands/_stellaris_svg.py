@@ -228,7 +228,8 @@ def _build_legend_svg() -> str:
     parts.append('<g id="legend" transform="translate(20,20)">')
     parts.append(
         f'<rect x="0" y="0" width="{width}" height="{height}" rx="10" ry="10" '
-        f'fill="{_LEGEND_PANEL_FILL}" stroke="{_LEGEND_PANEL_STROKE}" stroke-width="1.2" opacity="0.92"/>'
+        f'fill="{_LEGEND_PANEL_FILL}" stroke="{_LEGEND_PANEL_STROKE}" '
+        'stroke-width="1.2" opacity="0.92"/>'
     )
     parts.append(
         f'<text x="{pad_x}" y="{pad_y + 14}" fill="{_LEGEND_TEXT}" '
@@ -273,7 +274,8 @@ def _build_legend_svg() -> str:
             symbol = label.split()[0]
             parts.append(
                 f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" '
-                f'fill="#ffd0d6" font-family="Helvetica" font-size="12" font-weight="bold">{symbol}</text>'
+                'fill="#ffd0d6" font-family="Helvetica" font-size="12" '
+                f'font-weight="bold">{symbol}</text>'
             )
         elif kind == "hex-neutral":
             r = 10.0
@@ -284,7 +286,8 @@ def _build_legend_svg() -> str:
             symbol = label.split()[0]
             parts.append(
                 f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" '
-                f'fill="#cdd5e8" font-family="Helvetica" font-size="12" font-weight="bold">{symbol}</text>'
+                'fill="#cdd5e8" font-family="Helvetica" font-size="12" '
+                f'font-weight="bold">{symbol}</text>'
             )
         # Row label
         parts.append(

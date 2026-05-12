@@ -391,14 +391,14 @@ def starmap_replay_command(
         content = _render_html(template, timeline_json)
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except FileNotFoundError as exc:
         typer.echo(
             "Error: starmap-replay template asset not found. The viz/ bundle "
             f"may not have been shipped: {exc}",
             err=True,
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     out_path = Path(out) if out is not None else Path(DEFAULT_OUT_RELATIVE)
     if not out_path.is_absolute():

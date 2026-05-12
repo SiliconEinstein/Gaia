@@ -224,7 +224,7 @@ def exact_joint_over(graph: FactorGraph, free_vars: list[str]) -> np.ndarray:
     if not free_vars:
         return np.array([1.0], dtype=np.float64)
 
-    var_ids, var_idx, all_log_joints = _enumerate_log_joint(graph)
+    _var_ids, var_idx, all_log_joints = _enumerate_log_joint(graph)
     missing = [v for v in free_vars if v not in var_idx]
     if missing:
         raise KeyError(f"exact_joint_over: unknown free vars {missing!r}")

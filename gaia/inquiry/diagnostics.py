@@ -183,7 +183,9 @@ def from_knowledge_breakdown(
                     target=label,
                     label=label,
                     message="Claim is not referenced by any strategy or operator.",
-                    suggested_edit=f"Either connect `{label}` to a strategy/operator, or remove it.",
+                    suggested_edit=(
+                        f"Either connect `{label}` to a strategy/operator, or remove it."
+                    ),
                 ),
                 anchors,
             )

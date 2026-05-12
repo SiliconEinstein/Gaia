@@ -97,7 +97,7 @@ def test_bayes_module_does_not_extend_factor_or_operator_enums():
 
 
 def test_model_and_likelihood_are_action_backed_helper_claims():
-    pkg, h_31, h_null, data, model_31, model_null, cmp_result = _compiled_mendel_bayes()
+    pkg, h_31, _h_null, data, model_31, model_null, cmp_result = _compiled_mendel_bayes()
 
     model_action = model_31.supports[0]
     assert isinstance(model_action, PredictiveModel)

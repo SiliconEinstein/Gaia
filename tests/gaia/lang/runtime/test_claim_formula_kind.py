@@ -1,4 +1,4 @@
-"""Tests for Claim.formula and Claim.kind extensions (additive — must not regress prior behavior)."""
+"""Tests for additive Claim.formula and Claim.kind extensions."""
 
 import pytest
 

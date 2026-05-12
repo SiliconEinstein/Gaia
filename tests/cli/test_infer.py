@@ -538,6 +538,7 @@ def _write_dep_package(dep_dir, *, name: str, monkeypatch):
 
 def test_infer_depth_0_unchanged(tmp_path, monkeypatch):
     """--depth 0 (default) uses flat prior injection, same as no flag."""
+    del monkeypatch
     pkg_dir = tmp_path / "depth0"
     _write_base_package(pkg_dir, name="depth0")
     (pkg_dir / "depth0" / "__init__.py").write_text(
@@ -554,6 +555,7 @@ def test_infer_depth_0_unchanged(tmp_path, monkeypatch):
 
 def test_infer_depth_1_no_deps_falls_back(tmp_path, monkeypatch):
     """--depth 1 with no deps falls back to local inference."""
+    del monkeypatch
     pkg_dir = tmp_path / "nodeps"
     _write_base_package(pkg_dir, name="nodeps")
     (pkg_dir / "nodeps" / "__init__.py").write_text(

@@ -126,7 +126,8 @@ def test_gate_fails_on_unreviewed(tmp_path):
         pkg_dir,
         "from gaia.lang import derive, observe\n\n"
         'data = observe("Data.", rationale="Measured.", label="observe_data")\n'
-        'conclusion = derive("Conclusion.", given=data, rationale="Data implies conclusion.", label="derive_c")\n'
+        'conclusion = derive("Conclusion.", given=data, '
+        'rationale="Data implies conclusion.", label="derive_c")\n'
         '__all__ = ["conclusion"]\n',
     )
 
@@ -255,7 +256,8 @@ def test_gate_passes_when_all_met(tmp_path):
         pkg_dir,
         "from gaia.lang import derive, observe\n\n"
         'data = observe("Data.", rationale="Measured.", label="observe_data")\n'
-        'conclusion = derive("Conclusion.", given=data, rationale="Data implies conclusion.", label="derive_c")\n'
+        'conclusion = derive("Conclusion.", given=data, '
+        'rationale="Data implies conclusion.", label="derive_c")\n'
         '__all__ = ["conclusion"]\n',
     )
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -314,7 +316,8 @@ def test_gate_ignores_unexported_unreachable_draft_actions(tmp_path):
         pkg_dir,
         "from gaia.lang import derive, observe\n\n"
         'data = observe("Data.", rationale="Measured.", label="observe_data")\n'
-        'conclusion = derive("Conclusion.", given=data, rationale="Data implies conclusion.", label="derive_c")\n'
+        'conclusion = derive("Conclusion.", given=data, '
+        'rationale="Data implies conclusion.", label="derive_c")\n'
         'draft = observe("Unrelated draft measurement.", rationale="Draft.", label="draft_obs")\n'
         '__all__ = ["conclusion"]\n',
     )

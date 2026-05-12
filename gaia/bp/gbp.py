@@ -283,7 +283,7 @@ def _combine_beliefs(
             # region_b encodes intra-region evidence
             # cross_b encodes cross-region evidence
             # To avoid double-counting the prior, we compute:
-            #   combined_odds = (region_odds) * (cross_likelihood_ratio)
+            # Combined odds multiply region odds by the cross likelihood ratio.
             # where cross_likelihood_ratio = cross_odds / prior_odds
             cross_b = cross_beliefs.get(v, graph.unary_factors.get(v, 0.5))
             prior = graph.unary_factors.get(v, 0.5)
@@ -418,7 +418,7 @@ class GeneralizedBeliefPropagation:
         if not cross_factors:
             # No cross-region factors: regions are independent, combine directly
             final_beliefs: dict[str, float] = {}
-            for ri, beliefs in region_beliefs.items():
+            for _ri, beliefs in region_beliefs.items():
                 final_beliefs.update(beliefs)
             # Fill in any variables not assigned to regions
             for v in graph.variables:

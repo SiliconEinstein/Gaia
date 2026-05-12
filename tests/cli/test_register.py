@@ -710,7 +710,7 @@ def test_render_versions_toml_rejects_complex_types():
                 "weird_field": bad_value,
             },
         }
-        with _pytest.raises(ValueError, match="Cannot render Versions.toml value of type"):
+        with _pytest.raises(ValueError, match=r"Cannot render Versions.toml value of type"):
             _render_versions_toml(versions)
 
 

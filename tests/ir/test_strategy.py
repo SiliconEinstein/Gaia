@@ -277,7 +277,7 @@ class TestCompositeStrategy:
         assert cs1.strategy_id != cs2.strategy_id
 
     def test_structure_hash_affects_id(self):
-        """CompositeStrategy ID differs from leaf Strategy ID with same scope/type/premises/conclusion."""
+        """CompositeStrategy ID differs from the equivalent leaf Strategy ID."""
         leaf = Strategy(scope="local", type="infer", premises=["a"], conclusion="b")
         comp = CompositeStrategy(
             scope="local",
@@ -511,7 +511,7 @@ class TestFormalStrategy:
         assert fs1.strategy_id != fs2.strategy_id
 
     def test_structure_hash_affects_id_vs_leaf(self):
-        """FormalStrategy ID differs from hypothetical leaf with same scope/type/premises/conclusion."""
+        """FormalStrategy ID differs from the equivalent hypothetical leaf ID."""
         fs = FormalStrategy(
             scope="local",
             type="deduction",

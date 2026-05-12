@@ -161,7 +161,8 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
         raise GaiaCliError(
             f"Error: package source directory '{import_name}/' not found.\n"
             f"  Derived from [project] name {project_name!r}.\n"
-            '  Derivation: strip trailing "-gaia" when present, then convert hyphens to underscores.\n'
+            '  Derivation: strip trailing "-gaia" when present, then convert '
+            "hyphens to underscores.\n"
             f"  Expected at one of: {expected_paths}"
         )
 
@@ -320,7 +321,8 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
             )
         if not isinstance(value, tuple) or len(value) != 2:
             raise GaiaCliError(
-                f"Error: PRIORS[{key.label or key.content!r}] must be a (prior, justification) tuple, "
+                f"Error: PRIORS[{key.label or key.content!r}] must be a "
+                "(prior, justification) tuple, "
                 f"got {type(value).__name__}."
             )
         prior_val, justification = value
@@ -972,7 +974,7 @@ def load_dependency_compiled_graphs(
     if _seen is None:
         _seen = set()
 
-    specs, import_to_dist = _parse_gaia_dependencies(project_config)
+    _specs, import_to_dist = _parse_gaia_dependencies(project_config)
     result: list[DependencyGraph] = []
 
     for import_name, dist_name in sorted(import_to_dist.items()):

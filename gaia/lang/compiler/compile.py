@@ -1198,7 +1198,14 @@ def compile_package_artifact(
         action_refs = [_target_id(child) for child in action.actions]
         warrant_refs = [_target_id(warrant) for warrant in action.warrants]
         conclusion_ref = _target_id(action.conclusion)
-        compose_id = f"lcm_{action.structure_hash(input_refs, action_refs, conclusion_ref, warrant_refs, background_refs)}"
+        compose_hash = action.structure_hash(
+            input_refs,
+            action_refs,
+            conclusion_ref,
+            warrant_refs,
+            background_refs,
+        )
+        compose_id = f"lcm_{compose_hash}"
         action_label, metadata = _action_metadata(action, pkg, action_index, pattern="compose")
         if action.rationale:
             metadata["reason"] = action.rationale

@@ -65,7 +65,7 @@ def test_support_prior_stored():
 def test_support_reason_without_prior_raises():
     """support() reason without prior raises ValueError."""
     with pytest.warns(DeprecationWarning, match="support\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match="reason.*prior.*paired"):
+        with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
             support([claim("H")], claim("O"), reason="no prior given")
 
 

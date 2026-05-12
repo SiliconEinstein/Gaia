@@ -16,10 +16,10 @@ from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_pa
 def _run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(args, text=True, capture_output=True, **kwargs)
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise GaiaCliError(
             "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-        )
+        ) from exc
 
 
 def add_command(
@@ -32,7 +32,7 @@ def add_command(
         resolved = resolve_package(package, version=version, registry=registry)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Normalize: ensure -gaia suffix for the dep spec
     canonical_name = package if package.endswith("-gaia") else f"{package}-gaia"
@@ -43,7 +43,7 @@ def add_command(
         result = _run_uv(["uv", "add", dep_spec])
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip()
         typer.echo(f"Error: uv add failed: {stderr}", err=True)
@@ -64,7 +64,7 @@ def _find_gaia_package_root() -> Path | None:
     """Walk up from cwd to find the nearest Gaia package root (pyproject.toml with [tool.gaia])."""
     try:
         import tomllib
-    except ImportError:
+    except ImportError as exc:
         import tomli as tomllib  # type: ignore[no-redef]
 
     current = Path.cwd().resolve()
@@ -73,7 +73,7 @@ def _find_gaia_package_root() -> Path | None:
         if pyproject.exists():
             try:
                 config = tomllib.loads(pyproject.read_text())
-            except Exception:
+            except Exception as exc:
                 continue
             if config.get("tool", {}).get("gaia", {}).get("type") == "knowledge-package":
                 return directory
@@ -96,7 +96,7 @@ def _fetch_dep_beliefs(
     # Validate it's valid JSON before writing
     try:
         json.loads(content)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
         typer.echo(f"Warning: beliefs manifest for {package_name} is not valid JSON; skipping")
         return
 

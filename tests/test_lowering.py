@@ -574,7 +574,7 @@ def test_abduction_leaf_strategy_generates_interface_claim():
     fg = lower_local_graph(g)
     assert not fg.validate()
     ftypes = {f.factor_type for f in fg.factors}
-    # abduction skeleton: disjunction(H, Alt -> ExplainUnion) + equivalence(ExplainUnion, Obs -> EqH)
+    # Abduction skeleton includes disjunction and equivalence structure.
     assert FactorType.DISJUNCTION in ftypes
     assert FactorType.EQUIVALENCE in ftypes
     # The auto-generated AlternativeExplanationForObs must appear as a variable
@@ -1253,7 +1253,7 @@ def test_e2e_induction_chain():
     assert ind_12.composition_warrant is not None
     assert ind_12.composition_warrant.metadata.get("helper_kind") == "composition_validity"
 
-    # Chain: induction(prev_induction, new_support, law)
+    # Then chain the previous induction with new support.
     ind_123 = dsl_induction(ind_12, s3, law=law, reason="flower color independent of seed traits")
     assert ind_123.type == "induction"
     assert ind_123.conclusion is law

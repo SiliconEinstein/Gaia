@@ -353,7 +353,7 @@ def _hypothesis_prior(node: dict[str, Any] | None) -> float:
         return 0.5
     try:
         return float(prior)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
         return 0.5
 
 
@@ -404,7 +404,7 @@ def _bayes_check_diagnostics(ir: dict[str, Any]) -> _BayesCheckDiagnostics:
                 "Variable or import observed data from another package."
             )
 
-    for comparison_id, comparison in comparisons.items():
+    for _comparison_id, comparison in comparisons.items():
         bayes = _bayes_metadata(comparison)
         comparison_name = _node_name(comparison)
         model_id = bayes.get("model")
@@ -743,7 +743,7 @@ def check_command(
         validate_fills_relations(loaded, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     errors: list[str] = []
     warnings: list[str] = []
@@ -801,7 +801,7 @@ def check_command(
             review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
     if hole or not (warrants and blind):
         boundary = _boundary_claim_analysis(
@@ -854,7 +854,7 @@ def check_command(
             )
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         if failures:
             typer.echo("")
             typer.echo("Quality gate failed:")

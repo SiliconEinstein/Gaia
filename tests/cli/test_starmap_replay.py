@@ -71,7 +71,7 @@ def test_starmap_replay_against_fixture(tmp_path):
     assert "ticks" in payload
     assert isinstance(payload["ticks"], list)
     # The fixture has a known set of IR-relevant gaia_actions
-    # (claim/deduction/support/contradiction/equivalence/prior); ticks
+    # with claim, deduction, support, contradiction, equivalence, and prior actions; ticks
     # must be non-empty and never exceed total gaia_actions count.
     assert len(payload["ticks"]) > 0
     total_actions = sum(len(e.get("gaia_actions") or []) for e in payload["events"])

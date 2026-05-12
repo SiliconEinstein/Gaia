@@ -39,7 +39,10 @@ def test_load_valid_full_entry(tmp_path: Path) -> None:
             {
                 "EPR1935": {
                     "type": "article-journal",
-                    "title": "Can Quantum-Mechanical Description of Physical Reality Be Considered Complete?",
+                    "title": (
+                        "Can Quantum-Mechanical Description of Physical Reality "
+                        "Be Considered Complete?"
+                    ),
                     "author": [
                         {"family": "Einstein", "given": "A."},
                         {"family": "Podolsky", "given": "B."},

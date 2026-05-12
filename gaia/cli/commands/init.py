@@ -34,10 +34,10 @@ def _run_uv(
 ) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise GaiaCliError(
             "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-        )
+        ) from exc
     if check and result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip() or "command failed"
         raise GaiaCliError(f"Error running {' '.join(args)}: {stderr}")
@@ -65,7 +65,7 @@ def init_command(
         _run_uv(["uv", "init", "--lib", name], cwd=cwd)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # --- compute import name early (needed for both pyproject patch and rename) --
     import_name = name.removesuffix("-gaia").replace("-", "_")
@@ -126,7 +126,7 @@ def init_command(
     # --- add gaia-lang dependency (warn on failure) ----------------------------
     try:
         _run_uv(["uv", "add", "gaia-lang"], cwd=pkg_dir)
-    except GaiaCliError:
+    except GaiaCliError as exc:
         typer.echo(
             "Warning: could not add gaia-lang dependency. Run 'uv add gaia-lang' manually.",
             err=True,

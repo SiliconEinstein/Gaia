@@ -814,7 +814,7 @@ def bridge_event_symbols_to_layout(
     if pending:
         fallback_warns: list[str] = []
         # Step B: file + symbol-name match.
-        for action, kind, symbol, module, _pos in pending:
+        for _action, kind, symbol, module, _pos in pending:
             if symbol in nodes:
                 continue
             already = _refresh_already_bridged()
@@ -836,7 +836,7 @@ def bridge_event_symbols_to_layout(
                     break
 
         # Step C: file + kind uniqueness — exactly one candidate left.
-        for action, kind, symbol, module, _pos in pending:
+        for _action, kind, symbol, module, _pos in pending:
             if symbol in nodes:
                 continue
             already = _refresh_already_bridged()
@@ -864,7 +864,7 @@ def bridge_event_symbols_to_layout(
         # entries in IR declaration order.
         # Re-walk pending to gather still-unbridged in stable order.
         by_bucket: dict[tuple[str, str], list[tuple[str, int]]] = {}
-        for action, kind, symbol, module, pos in pending:
+        for _action, kind, symbol, module, pos in pending:
             if symbol in nodes:
                 continue
             by_bucket.setdefault((module, kind), []).append((symbol, pos))
@@ -1431,7 +1431,8 @@ def compute_dot_layout(dot_source: str, *, dot_binary: str = "dot") -> dict[str,
     binary = shutil.which(dot_binary)
     if binary is None:
         raise FileNotFoundError(
-            f"Graphviz '{dot_binary}' binary not found on PATH; install graphviz to enable pinned layout."
+            f"Graphviz '{dot_binary}' binary not found on PATH; "
+            "install graphviz to enable pinned layout."
         )
 
     proc = subprocess.run(

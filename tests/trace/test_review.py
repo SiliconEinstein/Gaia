@@ -155,6 +155,7 @@ def test_run_trace_review_snapshot_failure_does_not_crash(tmp_path: Path, monkey
     import gaia.trace.snapshot as snap_mod
 
     def boom(*a, **kw):
+        del a, kw
         raise OSError("disk full")
 
     monkeypatch.setattr(snap_mod, "save_trace_review_snapshot", boom)

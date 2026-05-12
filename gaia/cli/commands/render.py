@@ -1,4 +1,4 @@
-"""gaia render -- generate presentation outputs (docs and/or GitHub site) from an inferred package."""
+"""gaia render command for package presentation outputs."""
 
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def render_command(
         compiled = compile_loaded_package_artifact(loaded)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Validate IR structure (same gate as compile/infer)
     graph_validation = validate_local_graph(compiled.graph)
@@ -84,7 +84,7 @@ def render_command(
         stored_ir = json.loads(ir_json_path.read_text())
     except json.JSONDecodeError as exc:
         typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != ir:
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
@@ -102,7 +102,7 @@ def render_command(
             beliefs_data = json.loads(beliefs_path.read_text())
         except json.JSONDecodeError as exc:
             typer.echo(f"Error: {beliefs_path} is not valid JSON: {exc}", err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
             typer.echo(
                 "Error: beliefs are stale; run `gaia infer` again.",

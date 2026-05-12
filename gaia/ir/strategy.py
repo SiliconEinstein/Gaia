@@ -78,7 +78,10 @@ def _compute_strategy_id(
     conclusion: str | None,
     structure_hash: str = "",
 ) -> str:
-    """Deterministic strategy ID: lcs_{sha256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}."""
+    """Return the deterministic strategy ID.
+
+    The ID is ``lcs_{sha256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}``.
+    """
     prefix = "lcs_"
     payload = f"{scope}|{type_}|{sorted(premises)}|{conclusion}|{structure_hash}"
     return f"{prefix}{_sha256_hex(payload)}"
@@ -239,7 +242,8 @@ class Strategy(BaseModel):
             elif self.type == StrategyType.NOISY_AND:
                 if len(probabilities) != 1:
                     raise ValueError(
-                        f"noisy_and strategy requires 1 conditional_probability, got {len(probabilities)}"
+                        "noisy_and strategy requires 1 conditional_probability, "
+                        f"got {len(probabilities)}"
                     )
             object.__setattr__(self, "conditional_probabilities", probabilities)
         if self.type == StrategyType.INFER and self.__class__.__name__ != "CompositeStrategy":

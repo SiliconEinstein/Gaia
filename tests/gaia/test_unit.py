@@ -34,5 +34,5 @@ def test_from_literal_roundtrips_quantity():
 
 
 def test_to_literal_rejects_non_quantity():
-    with pytest.raises(TypeError, match="Expected a gaia.unit.Quantity"):
+    with pytest.raises(TypeError, match=r"Expected a gaia.unit.Quantity"):
         to_literal(80)

@@ -353,7 +353,8 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
         "from gaia.lang import claim, deduction\n\n"
         'hypothesis = claim("Hypothesis.")\n'
         'observation = claim("Observation.")\n'
-        "deduction(premises=[hypothesis], conclusion=observation, reason='Hypothesis predicts observation.', prior=0.99)\n"
+        "deduction(premises=[hypothesis], conclusion=observation, "
+        "reason='Hypothesis predicts observation.', prior=0.99)\n"
         '__all__ = ["observation"]\n'
     )
     (pkg_src / "priors.py").write_text(
@@ -392,7 +393,9 @@ def test_check_hole_skips_decompose_whole_and_generated_helpers(tmp_path):
         "b.label = 'b'\n"
         "d = Claim('Atomic D.')\n"
         "d.label = 'd'\n"
-        "decompose(c, parts=(a, b, d), formula=land(ClaimAtom(a), implies(ClaimAtom(b), ClaimAtom(d))), label='split_c')\n"
+        "decompose(c, parts=(a, b, d), "
+        "formula=land(ClaimAtom(a), implies(ClaimAtom(b), ClaimAtom(d))), "
+        "label='split_c')\n"
         "__all__ = ['c']\n",
         encoding="utf-8",
     )

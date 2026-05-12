@@ -223,6 +223,7 @@ def lower_local_graph(
 def _ensure_claim_var(
     fg: FactorGraph, vid: str, priors: dict[str, float], claim_ids: set[str]
 ) -> None:
+    del claim_ids
     if vid in fg.variables:
         return
     fg.add_variable(vid, priors[vid] if vid in priors else None)
@@ -459,7 +460,8 @@ def _lower_strategy(
         if not expand_formal:
             raise NotImplementedError(
                 "FormalStrategy fold (marginalize to CONDITIONAL) is not implemented yet. "
-                "See docs/foundations/bp/inference.md and docs/foundations/gaia-ir/07-lowering.md §9."
+                "See docs/foundations/bp/inference.md and "
+                "docs/foundations/gaia-ir/07-lowering.md §9."
             )
         for i, op in enumerate(s.formal_expr.operators):
             fid = _next_fid(f"fs_{s.strategy_id}_{i}", ctr)
@@ -502,13 +504,18 @@ def _lower_strategy(
                     metadata_priors.get(op.conclusion, 1.0 - CROMWELL_EPS),
                 )
                 p1_eff = helper_prior * (1.0 - CROMWELL_EPS) + (1.0 - helper_prior) * 0.5
-                # op.variables = [antecedent, actual_conclusion]
+                # Operator variables are ordered as antecedent, actual conclusion.
                 antecedent = op.variables[0]
                 consequent = op.variables[1]
                 _ensure_claim_var(fg, antecedent, priors, claim_ids)
                 _ensure_claim_var(fg, consequent, priors, claim_ids)
                 fg.add_factor(
-                    fid, FactorType.SOFT_ENTAILMENT, [antecedent], consequent, p1=p1_eff, p2=0.5
+                    fid,
+                    FactorType.SOFT_ENTAILMENT,
+                    [antecedent],
+                    consequent,
+                    p1=p1_eff,
+                    p2=0.5,
                 )
                 # Helper claim variable is marginalized into p1_eff, so it
                 # should not remain as an orphan in the factor graph.
@@ -602,7 +609,8 @@ def _lower_strategy(
             expected = 1 << len(s.premises)
             if len(cpt) != expected:
                 raise ValueError(
-                    f"infer strategy {s.strategy_id}: expected {expected} CPT entries, got {len(cpt)}"
+                    f"infer strategy {s.strategy_id}: expected {expected} "
+                    f"CPT entries, got {len(cpt)}"
                 )
             fg.add_factor(
                 _next_fid("infer", ctr),
@@ -754,7 +762,7 @@ def merge_factor_graphs(
 
     # 1. Add dep variables first. A dep graph is authoritative only for
     # variables it owns; foreign references may carry neutral placeholder priors.
-    for dep_name, dep_fg, dep_prefix in dep_graphs:
+    for _dep_name, dep_fg, dep_prefix in dep_graphs:
         for var_id in dep_fg.variables:
             if var_id.startswith(dep_prefix) or var_id not in merged.variables:
                 _copy_variable(dep_fg, var_id)

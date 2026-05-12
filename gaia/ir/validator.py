@@ -87,6 +87,7 @@ def _validate_knowledges(
     graph_package_name: str | None = None,
 ) -> dict[str, Knowledge]:
     """Validate Knowledge nodes and return id→Knowledge lookup."""
+    del graph_namespace, graph_package_name
     lookup: dict[str, Knowledge] = {}
 
     for k in knowledges:
@@ -210,7 +211,8 @@ def _validate_operators(
         # conclusion must NOT be in variables (belt-and-suspenders, Pydantic also checks)
         if op.conclusion in op.variables:
             result.error(
-                f"Operator '{op.operator_id}': conclusion '{op.conclusion}' must not be in variables"
+                f"Operator '{op.operator_id}': conclusion '{op.conclusion}' "
+                "must not be in variables"
             )
 
 
@@ -235,7 +237,8 @@ def _validate_strategy(
             result.error(f"Strategy '{sid}': premise '{pid}' not found in graph")
         elif knowledge_lookup[pid].type != KnowledgeType.CLAIM:
             result.error(
-                f"Strategy '{sid}': premise '{pid}' is '{knowledge_lookup[pid].type}', must be claim"
+                f"Strategy '{sid}': premise '{pid}' is "
+                f"'{knowledge_lookup[pid].type}', must be claim"
             )
 
     # conclusion reference + type
@@ -291,7 +294,8 @@ def _validate_composite_sub_strategies(
     for sub_id in strategy.sub_strategies:
         if sub_id not in strategy_lookup:
             result.error(
-                f"CompositeStrategy '{sid}': sub_strategy '{sub_id}' not found as top-level strategy"
+                f"CompositeStrategy '{sid}': sub_strategy '{sub_id}' "
+                "not found as top-level strategy"
             )
 
 
@@ -346,6 +350,7 @@ def _validate_formal_expr_closure(
 
     Operator conclusion dependencies must form a DAG (no cycles).
     """
+    del knowledge_lookup
     sid = strategy.strategy_id or "<no-id>"
     allowed: set[str] = set(strategy.premises)
     if strategy.conclusion is not None:
@@ -503,6 +508,7 @@ def _validate_scope_consistency(
     result: ValidationResult,
 ) -> None:
     """Ensure all references use the correct ID format for the scope."""
+    del knowledge_lookup
 
     def _check_id_format(id_: str, context: str) -> None:
         if id_ and not is_qid(id_):
@@ -568,7 +574,8 @@ def _validate_composes(
 
         if compose.conclusion not in knowledge_lookup:
             result.error(
-                f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' not found in graph"
+                f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' "
+                "not found in graph"
             )
         elif knowledge_lookup[compose.conclusion].type != KnowledgeType.CLAIM:
             result.error(
@@ -579,7 +586,8 @@ def _validate_composes(
         for action_ref in compose.actions:
             if action_ref not in target_ids:
                 result.error(
-                    f"Compose '{compose.compose_id}': action target '{action_ref}' not found in graph"
+                    f"Compose '{compose.compose_id}': action target '{action_ref}' "
+                    "not found in graph"
                 )
                 continue
             if action_ref == compose.compose_id:

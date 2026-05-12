@@ -96,7 +96,7 @@ def test_operator_reason_without_prior_raises():
     a = claim("A.")
     b = claim("B.")
     with pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match="reason.*prior.*paired"):
+        with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
             contradiction(a, b, reason="incompatible")  # no prior!
 
 
@@ -107,7 +107,7 @@ def test_operator_prior_without_reason_raises():
     a = claim("A.")
     b = claim("B.")
     with pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"):
-        with pytest.raises(ValueError, match="reason.*prior.*paired"):
+        with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
             contradiction(a, b, prior=0.9)  # no reason!
 
 

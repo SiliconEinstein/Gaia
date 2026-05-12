@@ -307,7 +307,7 @@ def test_render_github_with_real_package(tmp_path):
     pkg_src = pkg_dir / "galileo_pkg"
     pkg_src.mkdir()
 
-    # Module: motivation
+    # Write the motivation module.
     (pkg_src / "motivation.py").write_text(
         '"""Motivation and Background"""\n'
         "from gaia.lang import setting, claim\n\n"
@@ -315,7 +315,7 @@ def test_render_github_with_real_package(tmp_path):
         'obs_equal_time = claim("Heavy and light objects fall in approximately equal time.")\n'
     )
 
-    # Module: analysis
+    # Write the analysis module.
     (pkg_src / "analysis.py").write_text(
         '"""Analysis of Falling Bodies"""\n'
         "from gaia.lang import claim, deduction, contradiction\n"

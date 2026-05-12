@@ -190,7 +190,7 @@ class InferenceEngine:
                     f"exact inference (max {cfg.exact_max_vars}). "
                     "Use method='jt' for exact inference up to treewidth ~15."
                 )
-            beliefs, Z = exact_inference(graph)
+            beliefs, _Z = exact_inference(graph)
             diag = BPDiagnostics()
             diag.converged = True
             for v, b in beliefs.items():
@@ -230,7 +230,7 @@ class InferenceEngine:
                 is_exact=(tw <= cfg.jt_max_treewidth),
             )
 
-        # method == "bp" or treewidth > gbp_max_treewidth
+        # Fall through to loopy BP for explicit bp or high treewidth.
         bp_result = self._bp.run(graph)
         elapsed = (time.perf_counter() - t0) * 1000
         logger.info("InferenceEngine: loopy BP, treewidth=%d, %.1fms", tw, elapsed)

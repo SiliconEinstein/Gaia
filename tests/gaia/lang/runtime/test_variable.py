@@ -31,18 +31,18 @@ def test_variable_with_custom_domain():
 
 
 def test_variable_value_must_be_in_primitive_domain():
-    with pytest.raises(ValueError, match="value .* not accepted"):
+    with pytest.raises(ValueError, match=r"value .* not accepted"):
         Variable(symbol="n", domain=Nat, value=-1)
 
 
 def test_variable_value_must_be_in_probability_range():
-    with pytest.raises(ValueError, match="value .* not accepted"):
+    with pytest.raises(ValueError, match=r"value .* not accepted"):
         Variable(symbol="p", domain=Probability, value=1.5)
 
 
 def test_variable_with_custom_domain_value_must_be_member():
     Particle = Domain(content="x", members=["p1", "p2"])
-    with pytest.raises(ValueError, match="value .* not in domain members"):
+    with pytest.raises(ValueError, match=r"value .* not in domain members"):
         Variable(symbol="x", domain=Particle, value="p3")
 
 

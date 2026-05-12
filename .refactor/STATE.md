@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: **Phase 2.5 — Audit-driven full-select ruff alignment** (Phase 2 closed, Phase 2.4 hotfix `75d6d769` landed, rev2 audit Pillar 3 FAIL surfaced spec gap → Phase 2.5 added)
-**Last updated**: 2026-05-12 (2.5.1 safe ruff autofix sweep)
+**Last updated**: 2026-05-12 (2.5.2a manual cleanup pass A)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`, current HEAD `75d6d769`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -44,7 +44,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 - [ ] **Phase 2.5 — Audit-driven full-select ruff alignment** (new phase added 2026-05-12 post rev2 audit)
   - **Why**: rev2 audit Pillar 3 FAIL — `uv run ruff check .` (CI command) reports 531 errors at HEAD `75d6d769`; spec gap = three ruff invocations diverged (Phase 0.5 baseline measured full select, Phase 2.2 close criteria narrowed to `--select D`, Phase 2.4 close-out used pre-commit's `--select E4,E7,E9,F`, CI runs full pyproject 15-select); PR opened to `v0.5` will red on CI. Phase 2.5 closes the gap by **aligning close-out gate to CI command + driving ruff full-select to 0 errors**.
   - **Path**: C-硬 (refactor, NOT noqa exception); 4 pinned decisions in § Phase 2.5 spec below.
-  - Progress: 2 / TBD work units (queue in § Phase 2.5 task queue)
+  - Progress: 3 / TBD work units (queue in § Phase 2.5 task queue)
 - [ ] **Phase 3 — Acceptance + PR** (γ rolled back, will redo with Phase 2.5 close-out command)
 - [ ] **🚦 Checkpoint γ'**: Phase 2.5 + Phase 3.1 close-out all green → PR body regen + user ship handshake
 - [ ] **Cleanup R.x — after PR merge**: delete mortal banner + `.refactor/` + restore canon CD default
@@ -264,8 +264,8 @@ Phase 2.4 close-out was technically correct against the spec at the time, but th
 
 #### 2.5.2 — Manual pattern-able cleanup (cross-cutting; absorbs unsafe-fix candidates too; 2-3 units)
 
-- [ ] **2.5.2a** Manual cleanup pass A — high-volume categories: E501 line-too-long (43) · ARG001 unused-function-argument (35) · B904 raise-without-from (30) · RUF043 pytest-raises pattern (16) · ERA001 commented-out-code (14) · RUF059 unused-unpacked (12) · B007 unused loop var (10). Approach: rename to `_var` for unused / `raise ... from err` for B904 / delete commented-out code for ERA001 (or rationalize). Verify: pytest 1605 + sample diff.
-  - status: `pending`
+- [x] **2.5.2a** Manual cleanup pass A — high-volume categories: E501 line-too-long (43) · ARG001 unused-function-argument (35) · B904 raise-without-from (30) · RUF043 pytest-raises pattern (16) · ERA001 commented-out-code (14) · RUF059 unused-unpacked (12) · B007 unused loop var (10). Approach: rename to `_var` for unused / `raise ... from err` for B904 / delete commented-out code for ERA001 (or rationalize). Verify: pytest 1605 + sample diff.
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 14:05 | completed_at: 2026-05-12 14:14 | breakpoint_notes: Cleared the pass-A high-volume rule set with manual, behavior-preserving edits: wrapped long strings/comments, preserved public and pytest-callable signatures while explicitly deleting unused arguments, added exception chaining for CLI error exits, converted pytest `match=` literals to raw strings with equivalent regex semantics, renamed unused unpack/loop variables, and rewrote code-looking comments as prose. Verification: `uv run ruff check . --select E501,ARG001,B904,RUF043,ERA001,RUF059,B007 --output-format=concise && uv run ruff format --check . && uv run mypy --show-error-codes --no-pretty && uv run pytest` => selected rules passed; 280 files formatted; mypy `Success: no issues found in 275 source files`; pytest `1605 passed, 3 skipped, 58 warnings`, TOTAL coverage 90.32%, required 90% reached. `uv run ruff check . --statistics --exit-zero` => 153 remaining Phase 2.5 findings: 68 C901 plus 85 non-C901 findings for 2.5.2b/2.5.2c.
 - [ ] **2.5.2b** Manual cleanup pass B — remaining manual categories: SIM-series (SIM102 9 / SIM117 8 / SIM108 6 / SIM114 5 / SIM401 3 / SIM118 2 / SIM103 1) + ARG005 (7) + RUF015 (6) + B905 zip-strict (5) + UP040 type-alias (5) + ARG002 (4) + C408 (4) + RUF005 (3) + UP035 (3) + B017 (2) + RUF012 (2) + UP042 (2) + small singletons. Verify: pytest 1605 + sample diff.
   - status: `pending`
 - [ ] **2.5.2c** Unsafe-fix candidates pass (was deferred from 2.5.1 per user decision 2026-05-12) — the 62 ruff `[-]` items (RUF022 unsorted-dunder-all 20 + remaining unsafe candidates surfaced by `ruff check . --statistics --exit-zero` after 2.5.2a+b land). For each rule: read 3-5 representative occurrences, decide pattern (apply `--unsafe-fixes` for this rule scoped, OR rewrite manually, OR escalate as doc-code contradiction if semantics-sensitive). Verify: pytest 1605 + sample diff + no behavioral drift.

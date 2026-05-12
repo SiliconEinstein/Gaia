@@ -197,7 +197,7 @@ def starmap_command(
         compiled = compile_loaded_package_artifact(loaded)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     graph_validation = validate_local_graph(compiled.graph)
     for warning in graph_validation.warnings:
@@ -223,7 +223,7 @@ def starmap_command(
         stored_ir = json.loads(ir_json_path.read_text())
     except json.JSONDecodeError as exc:
         typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != ir:
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
@@ -237,7 +237,7 @@ def starmap_command(
             beliefs_data = json.loads(beliefs_path.read_text())
         except json.JSONDecodeError as exc:
             typer.echo(f"Error: {beliefs_path} is not valid JSON: {exc}", err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
             typer.echo(
                 "Error: beliefs are stale; run `gaia infer` again.",
@@ -262,14 +262,14 @@ def starmap_command(
             content = _render_html(template, graph_json)
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
     elif fmt == "svg":
         dot_source = to_dot(graph_json, theme=theme)
         try:
             content = _render_svg(dot_source, theme=theme)
         except GaiaCliError as exc:
             typer.echo(str(exc), err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
     else:  # dot
         content = to_dot(graph_json, theme=theme)
 

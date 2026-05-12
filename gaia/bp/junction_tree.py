@@ -221,7 +221,7 @@ def _build_junction_tree(
             parent[px] = py
 
     tree_edges: list[tuple[int, int, frozenset[str]]] = []
-    for i, j, w, sep in edges:
+    for i, j, _w, sep in edges:
         if find(i) != find(j):
             union(i, j)
             tree_edges.append((i, j, sep))
@@ -421,6 +421,7 @@ def _collect_distribute(
 
     Returns list of calibrated clique potential tables (same indexing as input).
     """
+    del cliques
     if n_cliques == 1:
         return clique_potentials[:]
 
@@ -465,7 +466,7 @@ def _collect_distribute(
         var_list = list(clique_var_lists[sender])
 
         # Multiply in all incoming messages EXCEPT from receiver
-        for neighbor, neighbor_sep in tree_adj[sender]:
+        for neighbor, _neighbor_sep in tree_adj[sender]:
             if neighbor == receiver:
                 continue
             in_msg, in_vars = messages[(neighbor, sender)]
@@ -502,7 +503,7 @@ def _collect_distribute(
     for i in range(n_cliques):
         table = dict(clique_potentials[i])
         var_list = list(clique_var_lists[i])
-        for neighbor, sep in tree_adj[i]:
+        for neighbor, _sep in tree_adj[i]:
             in_msg, in_vars = messages[(neighbor, i)]
             table, var_list = _multiply_tables(table, var_list, in_msg, in_vars)
         # Re-index to sorted clique variable order

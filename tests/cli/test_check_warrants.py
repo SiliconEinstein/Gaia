@@ -17,7 +17,8 @@ def _write_v6_warrant_package(pkg_dir, *, with_prior: bool = False) -> None:
         "from gaia.lang import claim, derive, equal\n\n"
         'premise = claim("Evidence A is reliable.")\n'
         'evidence = claim("Evidence B matches Evidence A.")\n'
-        'same = equal(premise, evidence, rationale="The two evidence records match.", label="same_evidence")\n'
+        'same = equal(premise, evidence, rationale="The two evidence records match.", '
+        'label="same_evidence")\n'
         "conclusion = derive(\n"
         '    "The hypothesis is supported.",\n'
         "    given=(premise, same),\n"

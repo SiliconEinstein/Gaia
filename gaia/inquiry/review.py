@@ -159,6 +159,7 @@ def run_review(
     strict: bool = False,
 ) -> ReviewReport:
     """Run the inquiry review pipeline and persist a review snapshot."""
+    del strict
     pkg_path = Path(path).resolve()
     state = load_state(pkg_path)
     focus_raw = focus_override if focus_override is not None else state.focus

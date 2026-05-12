@@ -54,7 +54,8 @@ class TraceReviewReport:
     §1 Header        — trace_review_id / created_at / path / mode
     §2 Manifest      — manifest_status / manifest_hash / counts
     §3 Hash Chain    — hash_chain (ok / broken_at_seq / recomputed_root)
-    §4 Causal Health — causal_health (tool_pairing / decision_grounds / parent_links / actor_continuity)
+    §4 Causal Health — causal_health
+       (tool_pairing / decision_grounds / parent_links / actor_continuity)
     §5 Reference Validity — reference_validity (claim_ref 解析摘要)
     §6 Tampering Signals — tampering (篡改信号集中视图)
     §7 Execution Stats — execution_stats (actors / kind 分布 / retry / time_span)
