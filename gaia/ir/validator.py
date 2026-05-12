@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from gaia.ir.compose import Compose
 from gaia.ir.graphs import LocalCanonicalGraph, _canonical_json
 from gaia.ir.knowledge import (
     Knowledge,
@@ -78,6 +79,83 @@ class ValidationResult:
 # ---------------------------------------------------------------------------
 
 
+def _validate_knowledge_id_and_uniqueness(
+    knowledge: Knowledge,
+    scope: str,
+    lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate QID shape and duplicate Knowledge IDs."""
+    if scope == "local" and knowledge.id and not is_qid(knowledge.id):
+        result.error(
+            f"Knowledge '{knowledge.id}': expected QID format "
+            f"(namespace:package_name::label) in local graph"
+        )
+
+    if knowledge.id in lookup:
+        result.error(f"Knowledge '{knowledge.id}': duplicate ID")
+    if knowledge.id:
+        lookup[knowledge.id] = knowledge
+
+
+def _validate_metadata_prior(knowledge: Knowledge, result: ValidationResult) -> None:
+    """Validate legacy metadata prior shape and Cromwell bounds."""
+    metadata = knowledge.metadata or {}
+    if "prior" not in metadata:
+        return
+
+    prior = metadata["prior"]
+    if isinstance(prior, bool) or not isinstance(prior, (int, float)):
+        result.error(
+            f"Knowledge '{knowledge.id}': metadata prior must be a number, "
+            f"got {type(prior).__name__}"
+        )
+        return
+
+    prior_value = float(prior)
+    if not math.isfinite(prior_value):
+        result.error(f"Knowledge '{knowledge.id}': metadata prior must be finite")
+    elif prior_value < CROMWELL_EPS or prior_value > 1 - CROMWELL_EPS:
+        result.error(
+            f"Knowledge '{knowledge.id}': metadata prior {prior_value} outside Cromwell bounds "
+            f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
+        )
+
+
+def _validate_knowledge_node(
+    knowledge: Knowledge,
+    scope: str,
+    lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate one Knowledge node and update the ID lookup."""
+    _validate_knowledge_id_and_uniqueness(knowledge, scope, lookup, result)
+
+    if knowledge.type not in set(KnowledgeType):
+        result.error(f"Knowledge '{knowledge.id}': invalid type '{knowledge.type}'")
+
+    _validate_metadata_prior(knowledge, result)
+
+    if scope == "local" and knowledge.content is None:
+        result.error(f"Knowledge '{knowledge.id}': local layer requires content")
+
+
+def _validate_local_label_uniqueness(
+    knowledges: list[Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate local graph label uniqueness."""
+    labels = [knowledge.label for knowledge in knowledges if knowledge.label]
+    if len(labels) == len(set(labels)):
+        return
+
+    seen: set[str] = set()
+    for label in labels:
+        if label in seen:
+            result.error(f"Knowledge label '{label}': duplicate in local graph")
+        seen.add(label)
+
+
 def _validate_knowledges(
     knowledges: list[Knowledge],
     scope: str,
@@ -90,55 +168,12 @@ def _validate_knowledges(
     del graph_namespace, graph_package_name
     lookup: dict[str, Knowledge] = {}
 
-    for k in knowledges:
-        # ID format check
-        if scope == "local" and k.id and not is_qid(k.id):
-            result.error(
-                f"Knowledge '{k.id}': expected QID format "
-                f"(namespace:package_name::label) in local graph"
-            )
-
-        # uniqueness
-        if k.id in lookup:
-            result.error(f"Knowledge '{k.id}': duplicate ID")
-        if k.id:
-            lookup[k.id] = k
-
-        # type
-        if k.type not in set(KnowledgeType):
-            result.error(f"Knowledge '{k.id}': invalid type '{k.type}'")
-
-        metadata = k.metadata or {}
-        if "prior" in metadata:
-            prior = metadata["prior"]
-            if isinstance(prior, bool) or not isinstance(prior, (int, float)):
-                result.error(
-                    f"Knowledge '{k.id}': metadata prior must be a number, "
-                    f"got {type(prior).__name__}"
-                )
-            else:
-                prior_value = float(prior)
-                if not math.isfinite(prior_value):
-                    result.error(f"Knowledge '{k.id}': metadata prior must be finite")
-                elif prior_value < CROMWELL_EPS or prior_value > 1 - CROMWELL_EPS:
-                    result.error(
-                        f"Knowledge '{k.id}': metadata prior {prior_value} outside Cromwell bounds "
-                        f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
-                    )
-
-        # local-layer shape rules
-        if scope == "local" and k.content is None:
-            result.error(f"Knowledge '{k.id}': local layer requires content")
+    for knowledge in knowledges:
+        _validate_knowledge_node(knowledge, scope, lookup, result)
 
     # label uniqueness check for local scope
     if scope == "local":
-        labels = [k.label for k in knowledges if k.label]
-        if len(labels) != len(set(labels)):
-            seen: set[str] = set()
-            for label in labels:
-                if label in seen:
-                    result.error(f"Knowledge label '{label}': duplicate in local graph")
-                seen.add(label)
+        _validate_local_label_uniqueness(knowledges, result)
 
     # graph namespace is a free-form string (e.g. "github", "paper", "dp")
     # — no validation constraint on allowed values.
@@ -218,17 +253,13 @@ def _validate_operators(
 # ---------------------------------------------------------------------------
 
 
-def _validate_strategy(
+def _validate_strategy_premises(
     strategy: Strategy,
     knowledge_lookup: dict[str, Knowledge],
-    scope: str,
     result: ValidationResult,
-    strategy_lookup: dict[str, Strategy] | None = None,
 ) -> None:
-    """Validate a single Strategy (any form) against the knowledge set."""
+    """Validate Strategy premise references and claim types."""
     sid = strategy.strategy_id or "<no-id>"
-
-    # premise reference + type
     for pid in strategy.premises:
         if pid not in knowledge_lookup:
             result.error(f"Strategy '{sid}': premise '{pid}' not found in graph")
@@ -238,7 +269,14 @@ def _validate_strategy(
                 f"'{knowledge_lookup[pid].type}', must be claim"
             )
 
-    # conclusion reference + type
+
+def _validate_strategy_conclusion(
+    strategy: Strategy,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate Strategy conclusion reference, type, and self-loop."""
+    sid = strategy.strategy_id or "<no-id>"
     if strategy.conclusion is not None:
         if strategy.conclusion not in knowledge_lookup:
             result.error(f"Strategy '{sid}': conclusion '{strategy.conclusion}' not found in graph")
@@ -248,35 +286,73 @@ def _validate_strategy(
                 f"'{knowledge_lookup[strategy.conclusion].type}', must be claim"
             )
 
-    # no self-loop
     if strategy.conclusion is not None and strategy.conclusion in strategy.premises:
         result.error(f"Strategy '{sid}': conclusion in premises (self-loop)")
 
-    # background reference (any type OK, just must exist)
-    if strategy.background:
-        for bid in strategy.background:
-            if bid not in knowledge_lookup:
-                result.warn(f"Strategy '{sid}': background '{bid}' not found in graph")
 
-    # scope/prefix checks
+def _validate_strategy_background_refs(
+    strategy: Strategy,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate Strategy background references when present."""
+    if not strategy.background:
+        return
+    sid = strategy.strategy_id or "<no-id>"
+    for bid in strategy.background:
+        if bid not in knowledge_lookup:
+            result.warn(f"Strategy '{sid}': background '{bid}' not found in graph")
+
+
+def _validate_strategy_scope_and_prefix(
+    strategy: Strategy,
+    scope: str,
+    result: ValidationResult,
+) -> None:
+    """Validate Strategy scope compatibility and local ID prefix."""
+    sid = strategy.strategy_id or "<no-id>"
     if strategy.scope != scope:
         result.error(f"Strategy '{sid}': scope '{strategy.scope}' incompatible with {scope} graph")
     if strategy.strategy_id and not strategy.strategy_id.startswith("lcs_"):
         result.error(f"Strategy '{sid}': expected lcs_ prefix in {scope} graph")
+
+
+def _validate_form_strategy_operators(
+    strategy: FormalStrategy,
+    knowledge_lookup: dict[str, Knowledge],
+    scope: str,
+    result: ValidationResult,
+) -> None:
+    """Validate FormalStrategy embedded operators and closure."""
+    _validate_operators(
+        strategy.formal_expr.operators,
+        knowledge_lookup,
+        scope,
+        result,
+        top_level=False,
+    )
+    _validate_formal_expr_closure(strategy, knowledge_lookup, result)
+
+
+def _validate_strategy(
+    strategy: Strategy,
+    knowledge_lookup: dict[str, Knowledge],
+    scope: str,
+    result: ValidationResult,
+    strategy_lookup: dict[str, Strategy] | None = None,
+) -> None:
+    """Validate a single Strategy (any form) against the knowledge set."""
+    _validate_strategy_premises(strategy, knowledge_lookup, result)
+    _validate_strategy_conclusion(strategy, knowledge_lookup, result)
+    _validate_strategy_background_refs(strategy, knowledge_lookup, result)
+    _validate_strategy_scope_and_prefix(strategy, scope, result)
 
     # form-specific validation
     if isinstance(strategy, CompositeStrategy):
         _validate_composite_sub_strategies(strategy, strategy_lookup, result)
 
     if isinstance(strategy, FormalStrategy):
-        _validate_operators(
-            strategy.formal_expr.operators,
-            knowledge_lookup,
-            scope,
-            result,
-            top_level=False,
-        )
-        _validate_formal_expr_closure(strategy, knowledge_lookup, result)
+        _validate_form_strategy_operators(strategy, knowledge_lookup, scope, result)
 
 
 def _validate_composite_sub_strategies(
@@ -332,33 +408,23 @@ def _validate_composite_dag(
             dfs(sid)
 
 
-def _validate_formal_expr_closure(
-    strategy: FormalStrategy,
-    knowledge_lookup: dict[str, Knowledge],
-    result: ValidationResult,
-) -> None:
-    """Validate FormalExpr reference closure and DAG (§5 of 08-validation.md).
-
-    Each Operator's variables/conclusion must reference one of:
-    - The FormalStrategy's premises (interface input)
-    - The FormalStrategy's conclusion (interface output)
-    - Another Operator's conclusion in the same FormalExpr (internal intermediate)
-
-    Operator conclusion dependencies must form a DAG (no cycles).
-    """
-    del knowledge_lookup
-    sid = strategy.strategy_id or "<no-id>"
+def _formal_expr_reference_sets(strategy: FormalStrategy) -> tuple[set[str], set[str]]:
+    """Return full allowed refs and operator conclusions for a FormalExpr."""
     allowed: set[str] = set(strategy.premises)
     if strategy.conclusion is not None:
         allowed.add(strategy.conclusion)
 
-    # Collect all operator conclusions in this FormalExpr as internal intermediates
-    operator_conclusions: set[str] = set()
-    for op in strategy.formal_expr.operators:
-        operator_conclusions.add(op.conclusion)
+    operator_conclusions = {op.conclusion for op in strategy.formal_expr.operators}
+    return allowed | operator_conclusions, operator_conclusions
 
-    full_allowed = allowed | operator_conclusions
 
+def _validate_formal_expr_references(
+    strategy: FormalStrategy,
+    full_allowed: set[str],
+    result: ValidationResult,
+) -> None:
+    """Validate FormalExpr variables and conclusions are reference-closed."""
+    sid = strategy.strategy_id or "<no-id>"
     for op in strategy.formal_expr.operators:
         for var_id in op.variables:
             if var_id not in full_allowed:
@@ -372,12 +438,17 @@ def _validate_formal_expr_closure(
                 f"strategy premises/conclusion or operator conclusions (reference closure)"
             )
 
-    # DAG check: operator conclusion dependencies must not cycle (§5.3)
-    # Build adjacency: conclusion -> set of conclusions it depends on (via variables)
+
+def _validate_formal_expr_dag(
+    strategy: FormalStrategy,
+    operator_conclusions: set[str],
+    result: ValidationResult,
+) -> None:
+    """Validate that FormalExpr operator conclusion dependencies form a DAG."""
+    sid = strategy.strategy_id or "<no-id>"
     conclusion_to_deps: dict[str, set[str]] = {}
     for op in strategy.formal_expr.operators:
-        deps = {v for v in op.variables if v in operator_conclusions}
-        conclusion_to_deps[op.conclusion] = deps
+        conclusion_to_deps[op.conclusion] = {v for v in op.variables if v in operator_conclusions}
 
     WHITE, GRAY, BLACK = 0, 1, 2
     color: dict[str, int] = dict.fromkeys(conclusion_to_deps, WHITE)
@@ -398,9 +469,87 @@ def _validate_formal_expr_closure(
         color[node] = BLACK
         return False
 
-    for c in conclusion_to_deps:
-        if color[c] == WHITE:
-            dfs(c)
+    for conclusion in conclusion_to_deps:
+        if color[conclusion] == WHITE:
+            dfs(conclusion)
+
+
+def _validate_formal_expr_closure(
+    strategy: FormalStrategy,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate FormalExpr reference closure and DAG (§5 of 08-validation.md).
+
+    Each Operator's variables/conclusion must reference one of:
+    - The FormalStrategy's premises (interface input)
+    - The FormalStrategy's conclusion (interface output)
+    - Another Operator's conclusion in the same FormalExpr (internal intermediate)
+
+    Operator conclusion dependencies must form a DAG (no cycles).
+    """
+    del knowledge_lookup
+    full_allowed, operator_conclusions = _formal_expr_reference_sets(strategy)
+    _validate_formal_expr_references(strategy, full_allowed, result)
+    _validate_formal_expr_dag(strategy, operator_conclusions, result)
+
+
+def _collect_private_formal_nodes(strategies: list[Strategy]) -> dict[str, str]:
+    """Map private FormalExpr node IDs to their owning strategy IDs."""
+    private_nodes: dict[str, str] = {}
+    for strategy in strategies:
+        if not isinstance(strategy, FormalStrategy):
+            continue
+        sid = strategy.strategy_id or "<no-id>"
+        own_interface: set[str] = set(strategy.premises)
+        if strategy.conclusion is not None:
+            own_interface.add(strategy.conclusion)
+        for op in strategy.formal_expr.operators:
+            if op.conclusion not in own_interface:
+                private_nodes[op.conclusion] = sid
+    return private_nodes
+
+
+def _validate_strategy_private_refs(
+    strategy: Strategy,
+    private_nodes: dict[str, str],
+    result: ValidationResult,
+) -> None:
+    """Validate one Strategy does not reference another strategy's private nodes."""
+    sid = strategy.strategy_id or "<no-id>"
+    for pid in strategy.premises:
+        if pid in private_nodes and private_nodes[pid] != sid:
+            result.error(
+                f"Strategy '{sid}': premise '{pid}' is a private internal node "
+                f"of FormalStrategy '{private_nodes[pid]}'"
+            )
+    if strategy.conclusion is not None and strategy.conclusion in private_nodes:
+        owner = private_nodes[strategy.conclusion]
+        if owner != sid:
+            result.error(
+                f"Strategy '{sid}': conclusion '{strategy.conclusion}' is a private internal node "
+                f"of FormalStrategy '{owner}'"
+            )
+
+
+def _validate_operator_private_refs(
+    operator: Operator,
+    private_nodes: dict[str, str],
+    result: ValidationResult,
+) -> None:
+    """Validate one top-level Operator does not reference private FormalExpr nodes."""
+    oid = operator.operator_id or "<no-id>"
+    for var_id in operator.variables:
+        if var_id in private_nodes:
+            result.error(
+                f"Operator '{oid}': variable '{var_id}' is a private internal node "
+                f"of FormalStrategy '{private_nodes[var_id]}'"
+            )
+    if operator.conclusion in private_nodes:
+        result.error(
+            f"Operator '{oid}': conclusion '{operator.conclusion}' is a private internal node "
+            f"of FormalStrategy '{private_nodes[operator.conclusion]}'"
+        )
 
 
 def _validate_private_node_isolation(
@@ -414,50 +563,15 @@ def _validate_private_node_isolation(
     the owning FormalStrategy's own premises/conclusion interface. Such nodes
     must not be referenced by any other top-level strategy or top-level operator.
     """
-    # Collect private nodes per FormalStrategy: operator conclusions that are NOT
-    # in the owning strategy's premises or conclusion
-    private_nodes: dict[str, str] = {}  # node_id -> owning strategy_id
-    for s in strategies:
-        if isinstance(s, FormalStrategy):
-            sid = s.strategy_id or "<no-id>"
-            own_interface: set[str] = set(s.premises)
-            if s.conclusion is not None:
-                own_interface.add(s.conclusion)
-            for op in s.formal_expr.operators:
-                if op.conclusion not in own_interface:
-                    private_nodes[op.conclusion] = sid
+    private_nodes = _collect_private_formal_nodes(strategies)
 
     # Check: no other strategy references a private node
-    for s in strategies:
-        sid = s.strategy_id or "<no-id>"
-        for pid in s.premises:
-            if pid in private_nodes and private_nodes[pid] != sid:
-                result.error(
-                    f"Strategy '{sid}': premise '{pid}' is a private internal node "
-                    f"of FormalStrategy '{private_nodes[pid]}'"
-                )
-        if s.conclusion is not None and s.conclusion in private_nodes:
-            owner = private_nodes[s.conclusion]
-            if owner != sid:
-                result.error(
-                    f"Strategy '{sid}': conclusion '{s.conclusion}' is a private internal node "
-                    f"of FormalStrategy '{owner}'"
-                )
+    for strategy in strategies:
+        _validate_strategy_private_refs(strategy, private_nodes, result)
 
     # Check: no top-level operator references a private node
-    for op in operators:
-        oid = op.operator_id or "<no-id>"
-        for var_id in op.variables:
-            if var_id in private_nodes:
-                result.error(
-                    f"Operator '{oid}': variable '{var_id}' is a private internal node "
-                    f"of FormalStrategy '{private_nodes[var_id]}'"
-                )
-        if op.conclusion in private_nodes:
-            result.error(
-                f"Operator '{oid}': conclusion '{op.conclusion}' is a private internal node "
-                f"of FormalStrategy '{private_nodes[op.conclusion]}'"
-            )
+    for operator in operators:
+        _validate_operator_private_refs(operator, private_nodes, result)
 
 
 def _validate_strategies(
@@ -496,6 +610,78 @@ def _validate_strategies(
 # ---------------------------------------------------------------------------
 
 
+def _check_local_id_format(id_: str, context: str, scope: str, result: ValidationResult) -> None:
+    """Validate a local graph reference uses QID format."""
+    if id_ and not is_qid(id_):
+        result.error(
+            f"{context} has wrong format for {scope} graph (expected QID namespace:package::label)"
+        )
+
+
+def _validate_strategy_id_formats(
+    strategies: list[Strategy],
+    scope: str,
+    result: ValidationResult,
+) -> None:
+    """Validate Strategy premise and conclusion ID formats."""
+    for strategy in strategies:
+        for pid in strategy.premises:
+            _check_local_id_format(
+                pid,
+                f"Strategy '{strategy.strategy_id}': premise '{pid}'",
+                scope,
+                result,
+            )
+        if strategy.conclusion:
+            _check_local_id_format(
+                strategy.conclusion,
+                f"Strategy '{strategy.strategy_id}': conclusion '{strategy.conclusion}'",
+                scope,
+                result,
+            )
+
+
+def _validate_operator_id_formats(
+    operator: Operator,
+    context: str,
+    scope: str,
+    result: ValidationResult,
+) -> None:
+    """Validate one Operator's variable and conclusion ID formats."""
+    for var_id in operator.variables:
+        _check_local_id_format(
+            var_id,
+            f"{context} '{operator.operator_id}': variable '{var_id}'",
+            scope,
+            result,
+        )
+    if operator.conclusion:
+        _check_local_id_format(
+            operator.conclusion,
+            f"{context} '{operator.operator_id}': conclusion '{operator.conclusion}'",
+            scope,
+            result,
+        )
+
+
+def _validate_formal_expr_id_formats(
+    strategies: list[Strategy],
+    scope: str,
+    result: ValidationResult,
+) -> None:
+    """Validate ID formats for FormalExpr-embedded operators."""
+    for strategy in strategies:
+        if not isinstance(strategy, FormalStrategy):
+            continue
+        for operator in strategy.formal_expr.operators:
+            _validate_operator_id_formats(
+                operator,
+                f"FormalStrategy '{strategy.strategy_id}' operator",
+                scope,
+                result,
+            )
+
+
 def _validate_scope_consistency(
     knowledge_lookup: dict[str, Knowledge],
     operators: list[Operator],
@@ -506,37 +692,10 @@ def _validate_scope_consistency(
     """Ensure all references use the correct ID format for the scope."""
     del knowledge_lookup
 
-    def _check_id_format(id_: str, context: str) -> None:
-        if id_ and not is_qid(id_):
-            result.error(
-                f"{context} has wrong format for {scope} graph "
-                f"(expected QID namespace:package::label)"
-            )
-
-    for s in strategies:
-        for pid in s.premises:
-            _check_id_format(pid, f"Strategy '{s.strategy_id}': premise '{pid}'")
-        if s.conclusion:
-            _check_id_format(
-                s.conclusion, f"Strategy '{s.strategy_id}': conclusion '{s.conclusion}'"
-            )
-
-    def _check_operator_ids(op: Operator, context: str) -> None:
-        for var_id in op.variables:
-            _check_id_format(var_id, f"{context} '{op.operator_id}': variable '{var_id}'")
-        if op.conclusion:
-            _check_id_format(
-                op.conclusion, f"{context} '{op.operator_id}': conclusion '{op.conclusion}'"
-            )
-
-    for op in operators:
-        _check_operator_ids(op, "Operator")
-
-    # Also check FormalExpr-embedded operators
-    for s in strategies:
-        if isinstance(s, FormalStrategy):
-            for op in s.formal_expr.operators:
-                _check_operator_ids(op, f"FormalStrategy '{s.strategy_id}' operator")
+    _validate_strategy_id_formats(strategies, scope, result)
+    for operator in operators:
+        _validate_operator_id_formats(operator, "Operator", scope, result)
+    _validate_formal_expr_id_formats(strategies, scope, result)
 
 
 # ---------------------------------------------------------------------------
@@ -544,56 +703,104 @@ def _validate_scope_consistency(
 # ---------------------------------------------------------------------------
 
 
-def _validate_composes(
+def _compose_validation_indexes(
     graph: LocalCanonicalGraph,
     knowledge_lookup: dict[str, Knowledge],
-    result: ValidationResult,
-) -> None:
+) -> tuple[set[str], set[str], dict[str, list[str]]]:
+    """Build valid compose action targets and compose adjacency indexes."""
     target_ids = set(knowledge_lookup)
     target_ids.update(op.operator_id for op in graph.operators if op.operator_id)
     target_ids.update(strategy.strategy_id for strategy in graph.strategies if strategy.strategy_id)
     compose_ids = {compose.compose_id for compose in graph.composes}
     target_ids.update(compose_ids)
     compose_edges: dict[str, list[str]] = {compose_id: [] for compose_id in compose_ids}
+    return target_ids, compose_ids, compose_edges
 
-    for compose in graph.composes:
-        if not compose.compose_id.startswith("lcm_"):
-            result.error(f"Compose '{compose.compose_id}': expected lcm_ prefix in local graph")
 
-        for field_name in ("inputs", "background", "warrants"):
-            for ref in getattr(compose, field_name):
-                if ref not in knowledge_lookup:
-                    result.error(
-                        f"Compose '{compose.compose_id}': {field_name} reference "
-                        f"'{ref}' not found in graph"
-                    )
-
-        if compose.conclusion not in knowledge_lookup:
-            result.error(
-                f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' "
-                "not found in graph"
-            )
-        elif knowledge_lookup[compose.conclusion].type != KnowledgeType.CLAIM:
-            result.error(
-                f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' is "
-                f"'{knowledge_lookup[compose.conclusion].type}', must be claim"
-            )
-
-        for action_ref in compose.actions:
-            if action_ref not in target_ids:
+def _validate_compose_reference_fields(
+    compose: Compose,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate compose inputs/background/warrants reference Knowledge nodes."""
+    for field_name in ("inputs", "background", "warrants"):
+        for ref in getattr(compose, field_name):
+            if ref not in knowledge_lookup:
                 result.error(
-                    f"Compose '{compose.compose_id}': action target '{action_ref}' "
-                    "not found in graph"
+                    f"Compose '{compose.compose_id}': {field_name} reference "
+                    f"'{ref}' not found in graph"
                 )
-                continue
-            if action_ref == compose.compose_id:
-                result.error(
-                    f"Compose '{compose.compose_id}': cannot reference itself as an action"
-                )
-                continue
-            if action_ref in compose_ids:
-                compose_edges[compose.compose_id].append(action_ref)
 
+
+def _validate_compose_conclusion(
+    compose: Compose,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate compose conclusion exists and references a claim."""
+    if compose.conclusion not in knowledge_lookup:
+        result.error(
+            f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' not found in graph"
+        )
+    elif knowledge_lookup[compose.conclusion].type != KnowledgeType.CLAIM:
+        result.error(
+            f"Compose '{compose.compose_id}': conclusion '{compose.conclusion}' is "
+            f"'{knowledge_lookup[compose.conclusion].type}', must be claim"
+        )
+
+
+def _validate_compose_action_ref(
+    compose: Compose,
+    action_ref: str,
+    target_ids: set[str],
+    compose_ids: set[str],
+    compose_edges: dict[str, list[str]],
+    result: ValidationResult,
+) -> None:
+    """Validate one compose action target and record compose-to-compose edges."""
+    if action_ref not in target_ids:
+        result.error(
+            f"Compose '{compose.compose_id}': action target '{action_ref}' not found in graph"
+        )
+        return
+    if action_ref == compose.compose_id:
+        result.error(f"Compose '{compose.compose_id}': cannot reference itself as an action")
+        return
+    if action_ref in compose_ids:
+        compose_edges[compose.compose_id].append(action_ref)
+
+
+def _validate_one_compose(
+    compose: Compose,
+    knowledge_lookup: dict[str, Knowledge],
+    target_ids: set[str],
+    compose_ids: set[str],
+    compose_edges: dict[str, list[str]],
+    result: ValidationResult,
+) -> None:
+    """Validate one Compose record and collect nested compose edges."""
+    if not compose.compose_id.startswith("lcm_"):
+        result.error(f"Compose '{compose.compose_id}': expected lcm_ prefix in local graph")
+
+    _validate_compose_reference_fields(compose, knowledge_lookup, result)
+    _validate_compose_conclusion(compose, knowledge_lookup, result)
+    for action_ref in compose.actions:
+        _validate_compose_action_ref(
+            compose,
+            action_ref,
+            target_ids,
+            compose_ids,
+            compose_edges,
+            result,
+        )
+
+
+def _validate_compose_dag(
+    compose_ids: set[str],
+    compose_edges: dict[str, list[str]],
+    result: ValidationResult,
+) -> None:
+    """Validate compose-to-compose action references form a DAG."""
     visiting: set[str] = set()
     visited: set[str] = set()
     path: list[str] = []
@@ -617,6 +824,27 @@ def _validate_composes(
 
     for compose_id in compose_ids:
         visit(compose_id)
+
+
+def _validate_composes(
+    graph: LocalCanonicalGraph,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    """Validate Compose records, references, and nested compose DAGs."""
+    target_ids, compose_ids, compose_edges = _compose_validation_indexes(graph, knowledge_lookup)
+
+    for compose in graph.composes:
+        _validate_one_compose(
+            compose,
+            knowledge_lookup,
+            target_ids,
+            compose_ids,
+            compose_edges,
+            result,
+        )
+
+    _validate_compose_dag(compose_ids, compose_edges, result)
 
 
 # ---------------------------------------------------------------------------
