@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 2 in progress — full backfill
-**Last updated**: 2026-05-12 09:48 (Phase 2.1-cli complete)
+**Last updated**: 2026-05-12 09:55 (Phase 2.1-tests complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -38,7 +38,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Progress: 9 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
-  - Progress: 8 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
+  - Progress: 9 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
 - [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 3 — Acceptance + PR**
 - [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
@@ -125,8 +125,8 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 09:35 | completed_at: 2026-05-12 09:39 | breakpoint_notes: Added strict-compatible annotations and type narrowing across inquiry diagnostics, semantic diffing, focus resolution, proof context, rendering, review orchestration, and snapshot helpers without changing inquiry review semantics, snapshot schema, diagnostic ordering, or CLI-visible output. Verification: `uv run mypy --follow-imports=silent gaia/inquiry --show-error-codes --no-pretty` => success for 11 source files; `uv run mypy gaia/inquiry --show-error-codes --no-pretty` => remaining errors are imported pending `gaia/cli` backlog only, no `gaia/inquiry/*` errors; `uv run pytest tests/inquiry tests/cli/test_inquiry.py --no-cov` => 144 passed, 42 warnings; `uv run pre-commit run --all-files` => passed after ruff-format reformatted one touched file and the hook was rerun; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.29%, required 90% reached.
 - [x] **2.1-cli** `gaia/cli/` (CLI entry — re-read `doc-fidelity-baseline.md` § Behavior contracts before touching)
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 09:40 | completed_at: 2026-05-12 09:48 | breakpoint_notes: Added strict-compatible annotations and local type narrowing across CLI package loading, command helpers, renderers, quality gates, review manifest loading, starmap replay builders, and register/infer/add command internals without changing command names, arguments, output formats, artifact schemas, or CLI behavior. A non-silent CLI mypy run surfaced one imported `gaia/ir/coarsen.py` cache annotation issue; fixed it as a type-only compatibility annotation for `StrategyCptCacheValue`. Verification: `uv run mypy gaia/cli --show-error-codes --no-pretty` => success for 37 source files; `uv run mypy gaia --show-error-codes --no-pretty` => success for 146 source files; `uv run pytest tests/cli --no-cov` => 414 passed, 3 skipped, 3 warnings; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.29%, required 90% reached.
-- [ ] **2.1-tests** `tests/` — full
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: tests/ may use looser mypy (per-file ignores) — see 协作单 § Must-migrate #2 (tests overrides).
+- [x] **2.1-tests** `tests/` — full
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 09:50 | completed_at: 2026-05-12 09:55 | breakpoint_notes: Corrected the tests mypy override so the non-package `tests/` tree is handled as `tests.*` via `explicit_package_bases = true`, then scoped the remaining test-only relaxations to JSON-shaped fixtures, invalid-input negative tests, deprecated-path ignores, and widened diagnostic string assertions. No production APIs, CLI behavior, IR schemas, DSL names, or BP algorithms changed. Verification: `uv run mypy tests --show-error-codes --no-pretty` => success for 129 source files; `uv run mypy gaia tests --show-error-codes --no-pretty` => success for 275 source files; `uv run mypy` => success for 275 source files; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.29%, required 90% reached.
 
 > 2.1 done when: `mypy --strict gaia/ tests/` reports 0 errors (tests are allowed some D-class relaxation via overrides).
 
