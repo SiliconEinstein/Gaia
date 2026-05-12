@@ -46,6 +46,8 @@ _BindingMap = dict[int, dict[str, Any]]
 
 @dataclass(frozen=True)
 class FormulaLoweringResult:
+    """IR records and source-claim updates emitted by formula lowering."""
+
     knowledges: list[IrKnowledge] = field(default_factory=list)
     operators: list[IrOperator] = field(default_factory=list)
     strategies: list[IrStrategy] = field(default_factory=list)

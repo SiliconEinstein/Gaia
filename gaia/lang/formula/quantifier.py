@@ -23,19 +23,25 @@ def _check(variable: object, body: object) -> None:
 
 @dataclass(frozen=True)
 class Forall:
+    """Universal quantifier binding a free Variable in a Formula body."""
+
     variable: Variable
     body: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate the bound variable and body Formula."""
         _check(self.variable, self.body)
 
 
 @dataclass(frozen=True)
 class Exists:
+    """Existential quantifier binding a free Variable in a Formula body."""
+
     variable: Variable
     body: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate the bound variable and body Formula."""
         _check(self.variable, self.body)

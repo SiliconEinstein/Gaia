@@ -1,3 +1,5 @@
+"""Public Gaia Lang DSL helper functions."""
+
 from gaia.lang.dsl.knowledge import claim, context, note, question, setting
 from gaia.lang.dsl.associate_verb import associate
 from gaia.lang.dsl.decompose import decompose

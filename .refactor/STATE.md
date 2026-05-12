@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 2 in progress — full backfill
-**Last updated**: 2026-05-12 10:12 (Phase 2.2-bp complete)
+**Last updated**: 2026-05-12 10:23 (Phase 2.2-lang complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -38,7 +38,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Progress: 9 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
-  - Progress: 13 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
+  - Progress: 14 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
 - [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 3 — Acceptance + PR**
 - [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
@@ -140,7 +140,9 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 10:05 | completed_at: 2026-05-12 10:09 | breakpoint_notes: Added Google-style docstrings and fixed docstring section markers in IR coarsening, parameterization, review, and validator modules without changing IR schemas, public symbols, validators, hashing, validation behavior, or algorithms. Verification: `uv run ruff check gaia/ir --select D --output-format=concise` => passed; `uv run mypy --follow-imports=silent gaia/ir --show-error-codes --no-pretty` => success for 13 source files; `uv run pytest tests/ir tests/gaia/ir/test_review.py --no-cov` => 245 passed; `uv run ruff check . --select D --statistics --exit-zero` => 434 expected remaining Phase 2.2 docstring errors outside this unit; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.29%, required 90% reached; `uv run mypy --show-error-codes --no-pretty` => success for 275 source files.
 - [x] **2.2-bp** `gaia/bp/` (BP algorithm — re-read `doc-fidelity-baseline.md` § BP semantics before touching)
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 10:10 | completed_at: 2026-05-12 10:12 | breakpoint_notes: Added Google-style docstrings and fixed docstring section markers in BP diagnostics, factor graph, exact inference, engine, GBP, contraction, junction-tree, lowering, and potential dispatch code without changing BP algorithms, factor semantics, public APIs, or lowering behavior. Verification: `uv run ruff check gaia/bp --select D --output-format=concise` => passed; `uv run mypy gaia/bp --show-error-codes --no-pretty` => success for 10 source files; `uv run pytest tests/gaia/bp tests/test_lowering.py tests/test_contraction.py tests/test_bp_jaynes_contract.py --no-cov` => 211 passed; `uv run ruff check . --select D --statistics --exit-zero` => 407 expected remaining Phase 2.2 docstring errors outside this unit; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.29%, required 90% reached; `uv run mypy --show-error-codes --no-pretty` => success for 275 source files.
-- [ ] **2.2-lang** | [ ] **2.2-trace** | [ ] **2.2-inquiry** | [ ] **2.2-cli** | [ ] **2.2-tests**
+- [x] **2.2-lang** `gaia/lang/`
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 10:16 | completed_at: 2026-05-12 10:23 | breakpoint_notes: Added Google-style docstrings and fixed package/class/function/magic-method docstring gaps across Gaia Lang Bayes lowering/distribution literals, formula AST, DSL helpers, runtime dataclasses, compiler exports, review templates, refs errors, and primitive types without changing DSL APIs, compiler lowering, formula semantics, or Bayes behavior. Verification: `uv run ruff check gaia/lang --select D --output-format=concise` => passed; `uv run mypy gaia/lang --show-error-codes --no-pretty` => success for 60 source files; `uv run pytest tests/gaia/lang --no-cov` => 477 passed; `uv run ruff check . --select D --statistics --exit-zero` => 289 expected remaining Phase 2.2 docstring errors outside this unit; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.27%, required 90% reached; `uv run mypy --show-error-codes --no-pretty` => success for 275 source files.
+- [ ] **2.2-trace** | [ ] **2.2-inquiry** | [ ] **2.2-cli** | [ ] **2.2-tests**
   - Each remaining work unit uses the same field shape as 2.1 (status / claimed_by / claimed_at / completed_at / breakpoint_notes).
   - Brief shared across all: docstring content must **strictly match** what `docs/foundations/**` describes; empty docstrings must be filled with concrete content; no paraphrasing that adds new meaning; CN-language docstrings will trip RUF001/002/003 — handle per ruff config.
 

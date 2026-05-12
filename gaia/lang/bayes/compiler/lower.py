@@ -24,6 +24,8 @@ from gaia.lang.runtime import Claim, Knowledge, Variable
 
 @dataclass(frozen=True)
 class BayesLoweringResult:
+    """IR additions and metadata updates emitted by Bayes action lowering."""
+
     knowledges: list[IrKnowledge] = field(default_factory=list)
     operators: list[IrOperator] = field(default_factory=list)
     strategies: list[IrStrategy] = field(default_factory=list)
@@ -42,6 +44,7 @@ def lower_bayes_claims(
     action_labels_by_object: dict[int, str] | None = None,
     existing_operators: list[IrOperator] | None = None,
 ) -> BayesLoweringResult:
+    """Lower Bayes predictive-model and likelihood actions into Gaia IR records."""
     knowledges: list[IrKnowledge] = []
     operators: list[IrOperator] = []
     strategies: list[IrStrategy] = []

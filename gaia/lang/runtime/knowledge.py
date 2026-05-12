@@ -42,6 +42,7 @@ class Knowledge:
     _declaration_index: int | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        """Register the knowledge node with the active or inferred package."""
         pkg = _current_package.get()
         source_module = None
         if pkg is None:
@@ -54,6 +55,7 @@ class Knowledge:
             pkg._register_knowledge(self)
 
     def __hash__(self) -> int:
+        """Return object-identity hash for mutable runtime nodes."""
         return id(self)
 
 
@@ -62,6 +64,7 @@ class Note(Knowledge):
     """Non-probabilistic contextual material. Does not enter BP."""
 
     def __init__(self, content: str, *, format: str = "markdown", **kwargs: Any) -> None:
+        """Create a non-probabilistic note."""
         if "prior" in kwargs:
             raise TypeError("Note cannot have a prior.")
         super().__init__(content=content, type="note", format=format, **kwargs)
@@ -72,6 +75,7 @@ class Context(Note):
     """Deprecated compatibility alias for Note."""
 
     def __init__(self, content: str, *, format: str = "markdown", **kwargs: Any) -> None:
+        """Create a deprecated context note alias."""
         if "prior" in kwargs:
             raise TypeError("Context cannot have a prior.")
         metadata = dict(kwargs.pop("metadata", {}) or {})
@@ -84,6 +88,7 @@ class Setting(Note):
     """Deprecated compatibility alias for Note."""
 
     def __init__(self, content: str, *, format: str = "markdown", **kwargs: Any) -> None:
+        """Create a deprecated setting note alias."""
         if "prior" in kwargs:
             raise TypeError("Setting cannot have a prior.")
         metadata = dict(kwargs.pop("metadata", {}) or {})
@@ -121,6 +126,7 @@ class Claim(Knowledge):
     _param_fields: ClassVar[dict[str, Any]] = {}
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Collect subclass-specific parameter fields for templated claims."""
         super().__init_subclass__(**kwargs)
         base_fields = {
             "content",
@@ -147,6 +153,7 @@ class Claim(Knowledge):
         }
 
     def __bool__(self) -> bool:
+        """Reject accidental use of Claim objects in Python truth tests."""
         raise TypeError(
             "Claim objects do not have Python truth values. Use claim(formula=...) "
             "with ClaimAtom/land/lor/lnot to build structured formula claims; "
@@ -155,11 +162,13 @@ class Claim(Knowledge):
         )
 
     def __invert__(self) -> Claim:
+        """Create the deprecated propositional negation helper."""
         from gaia.lang.dsl.propositional import not_
 
         return not_(self)
 
     def __and__(self, other: Claim) -> Claim:
+        """Create the deprecated propositional conjunction helper."""
         if not isinstance(other, Claim):
             return NotImplemented
         from gaia.lang.dsl.propositional import and_
@@ -167,6 +176,7 @@ class Claim(Knowledge):
         return and_(self, other)
 
     def __or__(self, other: Claim) -> Claim:
+        """Create the deprecated propositional disjunction helper."""
         if not isinstance(other, Claim):
             return NotImplemented
         from gaia.lang.dsl.propositional import or_
@@ -184,6 +194,7 @@ class Claim(Knowledge):
         kind: ClaimKind = ClaimKind.GENERAL,
         **kwargs: Any,
     ) -> None:
+        """Create a probabilistic claim node."""
         if formula is not None:
             from gaia.lang.formula.predicate import is_formula
 
@@ -266,6 +277,7 @@ class Question(Knowledge):
     targets: list[Claim] = field(default_factory=list)
 
     def __init__(self, content: str, **kwargs: Any) -> None:
+        """Create a non-probabilistic question."""
         if "prior" in kwargs:
             raise TypeError("Question cannot have a prior.")
         targets = kwargs.pop("targets", [])

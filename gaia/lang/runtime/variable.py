@@ -43,6 +43,7 @@ class Variable(Knowledge):
         format: str = "markdown",
         **kwargs: Any,
     ) -> None:
+        """Create a typed authoring variable."""
         if not isinstance(symbol, str) or not symbol:
             raise TypeError("symbol must be a non-empty string")
         if not isinstance(domain, (PrimitiveType, Domain)):
@@ -60,6 +61,7 @@ class Variable(Knowledge):
         self.value = value
 
     def __post_init__(self) -> None:
+        """Associate the variable with package provenance without IR registration."""
         # Override Knowledge.__post_init__: associate with the package for provenance,
         # but DO NOT call pkg._register_knowledge — Variable is Lang-only (spec §2.4).
         pkg = _current_package.get()

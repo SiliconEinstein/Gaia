@@ -57,6 +57,7 @@ class Constant:
     __gaia_term__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate the literal against its declared primitive type."""
         if not isinstance(self.primitive, PrimitiveType):
             raise TypeError(
                 f"primitive must be a PrimitiveType, got {type(self.primitive).__name__}"
@@ -77,6 +78,7 @@ class FunctionApp:
     __gaia_term__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate function symbol, arity, and argument domains."""
         if not isinstance(self.symbol, FunctionSymbol):
             raise TypeError(f"symbol must be a FunctionSymbol, got {type(self.symbol).__name__}")
         expected_arity = len(self.symbol.arg_domains)
@@ -107,6 +109,7 @@ class ArithOp:
     __gaia_term__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate arithmetic operator and operands."""
         if self.op not in _ARITH_OPS:
             raise ValueError(f"op must be one of {_ARITH_OPS}, got {self.op!r}")
         if not is_term(self.left):

@@ -30,6 +30,7 @@ class Domain(Knowledge):
         format: str = "markdown",
         **kwargs: Any,
     ) -> None:
+        """Create a finite enumerable authoring domain."""
         if not isinstance(members, list):
             raise TypeError("members must be a list")
         if len(members) == 0:
@@ -38,6 +39,7 @@ class Domain(Knowledge):
         self.members = list(members)
 
     def __post_init__(self) -> None:
+        """Associate the domain with package provenance without IR registration."""
         # Override Knowledge.__post_init__: associate with the package for provenance,
         # but DO NOT call pkg._register_knowledge — Domain is Lang-only (spec §2.4).
         pkg = _current_package.get()

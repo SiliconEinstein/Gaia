@@ -26,6 +26,7 @@ _TEMPLATES = {
 
 
 def generate_audit_question(action_type: str, **labels: object) -> str:
+    """Render the review audit question for an action type."""
     labels.setdefault("given_clause", "")
     template = _TEMPLATES.get(action_type, "Is this reasoning step valid?")
     return template.format_map(_MissingLabelDict(labels))

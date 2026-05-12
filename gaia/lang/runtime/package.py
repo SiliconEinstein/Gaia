@@ -25,6 +25,7 @@ class CollectedPackage:
     """Internal collector for declarations belonging to a knowledge package."""
 
     def __init__(self, name: str, *, namespace: str = "github", version: str = "0.1.0") -> None:
+        """Create an empty declaration collector for a package."""
         self.name = name
         self.namespace = namespace
         self.version = version
@@ -38,6 +39,7 @@ class CollectedPackage:
         self._exported_labels: set[str] = set()
 
     def __enter__(self) -> CollectedPackage:
+        """Activate this package collector for module-scope declarations."""
         self._token = _current_package.set(self)
         return self
 
@@ -47,6 +49,7 @@ class CollectedPackage:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        """Deactivate this package collector."""
         if self._token is not None:
             _current_package.reset(self._token)
         self._token = None
@@ -84,6 +87,7 @@ class CollectedPackage:
 
     @property
     def exported(self) -> list[str]:
+        """Return exported knowledge labels in declaration order."""
         if self._exported_labels:
             return [k.label for k in self.knowledge if k.label in self._exported_labels]
         return [k.label for k in self.knowledge if k.label is not None]
@@ -106,6 +110,7 @@ def _find_pyproject(start: Path) -> Path | None:
 
 
 def pyproject_for_module(module_name: str) -> Path | None:
+    """Return the nearest pyproject.toml for a loaded module."""
     if module_name in _module_pyproject_cache:
         return _module_pyproject_cache[module_name]
 
@@ -170,6 +175,7 @@ def _caller_module_name() -> str | None:
 
 
 def infer_package_from_callstack() -> CollectedPackage | None:
+    """Infer the active knowledge package from the first non-Gaia caller."""
     pkg, _ = infer_package_and_module()
     return pkg
 
@@ -198,10 +204,12 @@ def infer_package_and_module() -> tuple[CollectedPackage | None, str | None]:
 
 
 def get_inferred_package(pyproject: Path) -> CollectedPackage | None:
+    """Return the cached inferred package for a pyproject path."""
     return _inferred_packages.get(pyproject.resolve())
 
 
 def reset_inferred_package(pyproject: Path, *, module_name: str | None = None) -> None:
+    """Clear inferred-package and module-to-pyproject caches."""
     pyproject = pyproject.resolve()
     _inferred_packages.pop(pyproject, None)
     stale = [name for name, cached in _module_pyproject_cache.items() if cached == pyproject]

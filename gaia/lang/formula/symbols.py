@@ -30,6 +30,7 @@ class FunctionSymbol:
     result_domain: PrimitiveType | Domain
 
     def __post_init__(self) -> None:
+        """Validate function symbol name, argument domains, and result domain."""
         if not self.name:
             raise ValueError("name must be a non-empty string")
         _validate_arg_domains(self.arg_domains)
@@ -48,6 +49,7 @@ class PredicateSymbol:
     arg_domains: tuple[PrimitiveType | Domain, ...]
 
     def __post_init__(self) -> None:
+        """Validate predicate symbol name and argument domains."""
         if not self.name:
             raise ValueError("name must be a non-empty string")
         _validate_arg_domains(self.arg_domains)

@@ -37,6 +37,7 @@ class Strategy:
     composition_warrant: Knowledge | None = None
 
     def __post_init__(self) -> None:
+        """Register the strategy with the active or inferred package."""
         pkg = _current_package.get()
         if pkg is None:
             from gaia.lang.runtime.package import infer_package_from_callstack
@@ -57,6 +58,7 @@ class Operator:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        """Register the operator with the active or inferred package."""
         pkg = _current_package.get()
         if pkg is None:
             from gaia.lang.runtime.package import infer_package_from_callstack

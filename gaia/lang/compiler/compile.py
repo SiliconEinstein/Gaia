@@ -96,6 +96,7 @@ class CompiledPackage:
     review: ReviewManifest | None = None
 
     def to_json(self) -> dict[str, Any]:
+        """Serialize the compiled graph as Gaia IR JSON."""
         return self.graph.model_dump(mode="json", exclude_none=True, serialize_as_any=True)
 
 

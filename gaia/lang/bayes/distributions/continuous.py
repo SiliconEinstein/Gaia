@@ -25,10 +25,13 @@ class _ContinuousDistribution(_BaseDistribution):
 
 
 class Normal(_ContinuousDistribution):
+    """Normal distribution literal with mean and standard deviation."""
+
     kind: str = "normal"
     _support = (-math.inf, math.inf)
 
     def __init__(self, *, mu: Any, sigma: Any) -> None:
+        """Create a Normal distribution literal."""
         super().__init__(kind="normal", params={"mu": mu, "sigma": sigma})
 
     @model_validator(mode="after")
@@ -40,10 +43,13 @@ class Normal(_ContinuousDistribution):
 
 
 class Beta(_ContinuousDistribution):
+    """Beta distribution literal over the unit interval."""
+
     kind: str = "beta"
     _support = (0.0, 1.0)
 
     def __init__(self, *, alpha: Any, beta: Any) -> None:
+        """Create a Beta distribution literal."""
         super().__init__(kind="beta", params={"alpha": alpha, "beta": beta})
 
     @model_validator(mode="after")
@@ -56,10 +62,13 @@ class Beta(_ContinuousDistribution):
 
 
 class Exponential(_ContinuousDistribution):
+    """Exponential distribution literal parameterized by rate."""
+
     kind: str = "exponential"
     _support = (0.0, math.inf)
 
     def __init__(self, *, rate: Any) -> None:
+        """Create an Exponential distribution literal."""
         super().__init__(kind="exponential", params={"rate": rate})
 
     @model_validator(mode="after")
@@ -71,10 +80,13 @@ class Exponential(_ContinuousDistribution):
 
 
 class LogNormal(_ContinuousDistribution):
+    """Log-normal distribution literal with log-space mean and scale."""
+
     kind: str = "lognormal"
     _support = (0.0, math.inf)
 
     def __init__(self, *, mu: Any, sigma: Any) -> None:
+        """Create a LogNormal distribution literal."""
         super().__init__(kind="lognormal", params={"mu": mu, "sigma": sigma})
 
     @model_validator(mode="after")
@@ -86,10 +98,13 @@ class LogNormal(_ContinuousDistribution):
 
 
 class StudentT(_ContinuousDistribution):
+    """Student's t distribution literal with location and scale."""
+
     kind: str = "studentt"
     _support = (-math.inf, math.inf)
 
     def __init__(self, *, df: Any, mu: Any = 0.0, sigma: Any = 1.0) -> None:
+        """Create a StudentT distribution literal."""
         super().__init__(kind="studentt", params={"df": df, "mu": mu, "sigma": sigma})
 
     @model_validator(mode="after")
@@ -102,10 +117,13 @@ class StudentT(_ContinuousDistribution):
 
 
 class Cauchy(_ContinuousDistribution):
+    """Cauchy distribution literal with location and scale."""
+
     kind: str = "cauchy"
     _support = (-math.inf, math.inf)
 
     def __init__(self, *, mu: Any, gamma: Any) -> None:
+        """Create a Cauchy distribution literal."""
         super().__init__(kind="cauchy", params={"mu": mu, "gamma": gamma})
 
     @model_validator(mode="after")
@@ -117,10 +135,13 @@ class Cauchy(_ContinuousDistribution):
 
 
 class Gamma(_ContinuousDistribution):
+    """Gamma distribution literal parameterized by shape and rate."""
+
     kind: str = "gamma"
     _support = (0.0, math.inf)
 
     def __init__(self, *, alpha: Any, rate: Any) -> None:
+        """Create a Gamma distribution literal."""
         super().__init__(kind="gamma", params={"alpha": alpha, "rate": rate})
 
     @model_validator(mode="after")
@@ -133,10 +154,13 @@ class Gamma(_ContinuousDistribution):
 
 
 class ChiSquared(_ContinuousDistribution):
+    """Chi-squared distribution literal parameterized by degrees of freedom."""
+
     kind: str = "chisquared"
     _support = (0.0, math.inf)
 
     def __init__(self, *, df: Any) -> None:
+        """Create a ChiSquared distribution literal."""
         super().__init__(kind="chisquared", params={"df": df})
 
     @model_validator(mode="after")

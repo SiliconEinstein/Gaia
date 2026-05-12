@@ -23,6 +23,7 @@ class Formula(Protocol):
 
 
 def is_formula(obj: object) -> bool:
+    """Return whether an object is explicitly tagged as a Formula node."""
     return getattr(obj, "__gaia_formula__", False) is True
 
 
@@ -33,66 +34,84 @@ def _check_term(name: str, value: object) -> None:
 
 @dataclass(frozen=True)
 class Equals:
+    """Term equality formula."""
+
     left: Any
     right: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate equality operands as Term nodes."""
         _check_term("left", self.left)
         _check_term("right", self.right)
 
 
 @dataclass(frozen=True)
 class NotEquals:
+    """Term inequality formula."""
+
     left: Any
     right: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate inequality operands as Term nodes."""
         _check_term("left", self.left)
         _check_term("right", self.right)
 
 
 @dataclass(frozen=True)
 class Greater:
+    """Greater-than relation over Term operands."""
+
     left: Any
     right: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate greater-than operands as Term nodes."""
         _check_term("left", self.left)
         _check_term("right", self.right)
 
 
 @dataclass(frozen=True)
 class GreaterEqual:
+    """Greater-than-or-equal relation over Term operands."""
+
     left: Any
     right: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate greater-than-or-equal operands as Term nodes."""
         _check_term("left", self.left)
         _check_term("right", self.right)
 
 
 @dataclass(frozen=True)
 class Less:
+    """Less-than relation over Term operands."""
+
     left: Any
     right: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate less-than operands as Term nodes."""
         _check_term("left", self.left)
         _check_term("right", self.right)
 
 
 @dataclass(frozen=True)
 class LessEqual:
+    """Less-than-or-equal relation over Term operands."""
+
     left: Any
     right: Any
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate less-than-or-equal operands as Term nodes."""
         _check_term("left", self.left)
         _check_term("right", self.right)
 
@@ -106,6 +125,7 @@ class UserPredicate:
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate predicate symbol, arity, and argument domains."""
         if not isinstance(self.symbol, PredicateSymbol):
             raise TypeError(f"symbol must be a PredicateSymbol, got {type(self.symbol).__name__}")
         expected_arity = len(self.symbol.arg_domains)
@@ -134,6 +154,7 @@ class Causes:
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate cause and effect operands as Term nodes."""
         _check_term("cause", self.cause)
         _check_term("effect", self.effect)
 
@@ -146,5 +167,6 @@ class ClaimAtom:
     __gaia_formula__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
+        """Validate that the atom wraps a Claim."""
         if not isinstance(self.claim, Claim):
             raise TypeError(f"ClaimAtom requires a Claim instance, got {type(self.claim).__name__}")
