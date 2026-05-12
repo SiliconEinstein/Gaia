@@ -439,6 +439,54 @@ def _render_node(
     return lines
 
 
+def _overview_dependencies(ir: dict[str, Any]) -> dict[str, set[str]]:
+    """Build a conclusion-to-premise dependency map for overview rendering."""
+    deps: dict[str, set[str]] = defaultdict(set)
+    for s in ir.get("strategies", []):
+        conc = s.get("conclusion")
+        if conc:
+            for p in s.get("premises", []):
+                deps[conc].add(p)
+    for o in ir.get("operators", []):
+        conc = o.get("conclusion")
+        if conc:
+            for v in o.get("variables", []):
+                deps[conc].add(v)
+    return deps
+
+
+def _nearest_exported_deps(
+    start: str,
+    *,
+    deps: dict[str, set[str]],
+    exported_ids: set[str],
+) -> set[str]:
+    """Find nearest exported dependencies reachable from one exported node."""
+    visited: set[str] = set()
+    stack = list(deps.get(start, set()))
+    result: set[str] = set()
+    while stack:
+        node = stack.pop()
+        if node in visited:
+            continue
+        visited.add(node)
+        if node in exported_ids:
+            result.add(node)
+        else:
+            stack.extend(deps.get(node, set()))
+    return result
+
+
+def _overview_edges(ir: dict[str, Any], exported_ids: set[str]) -> set[tuple[str, str]]:
+    """Return non-transitive exported dependency edges for the overview graph."""
+    deps = _overview_dependencies(ir)
+    edges: set[tuple[str, str]] = set()
+    for eid in exported_ids:
+        for dep_id in _nearest_exported_deps(eid, deps=deps, exported_ids=exported_ids):
+            edges.add((dep_id, eid))
+    return edges
+
+
 def _render_overview_graph(
     ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
@@ -453,41 +501,7 @@ def _render_overview_graph(
     if len(exported) < 2:
         return []
 
-    # Build dependency graph: conclusion → set of premise IDs
-    deps: dict[str, set[str]] = defaultdict(set)
-    for s in ir.get("strategies", []):
-        conc = s.get("conclusion")
-        if conc:
-            for p in s.get("premises", []):
-                deps[conc].add(p)
-    for o in ir.get("operators", []):
-        conc = o.get("conclusion")
-        if conc:
-            for v in o.get("variables", []):
-                deps[conc].add(v)
-
-    # For each exported node, find nearest exported dependencies via BFS
-    # (stop at exported nodes — no redundant transitive edges)
-    def find_exported_deps(start: str) -> set[str]:
-        visited: set[str] = set()
-        stack = list(deps.get(start, set()))
-        result: set[str] = set()
-        while stack:
-            node = stack.pop()
-            if node in visited:
-                continue
-            visited.add(node)
-            if node in exported_ids:
-                result.add(node)
-            else:
-                stack.extend(deps.get(node, set()))
-        return result
-
-    edges: set[tuple[str, str]] = set()
-    for eid in exported_ids:
-        for dep_id in find_exported_deps(eid):
-            edges.add((dep_id, eid))
-
+    edges = _overview_edges(ir, exported_ids)
     if not edges:
         return []
 

@@ -14,7 +14,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
+from gaia.cli.commands._classify import (
+    KnowledgeClassification,
+    classify_ir,
+    is_note_type,
+    node_role,
+)
 from gaia.cli.commands._detailed_reasoning import render_mermaid, topo_layers
 from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
 
@@ -406,23 +411,16 @@ def _generate_obsidian_config() -> str:
     return json.dumps(config, indent=2)
 
 
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
-
-
-def generate_obsidian_vault(
-    ir: dict[str, Any],
-    *,
-    beliefs_data: dict[str, Any] | None = None,
-    param_data: dict[str, Any] | None = None,
-) -> dict[str, str]:
-    """Generate Obsidian vault with numbered claims and module chapters."""
-    pages: dict[str, str] = {}
-
-    beliefs: dict[str, float] = {}
-    if beliefs_data:
-        beliefs = {b["knowledge_id"]: b["belief"] for b in beliefs_data.get("beliefs", [])}
+def _obsidian_belief_inputs(
+    beliefs_data: dict[str, Any] | None,
+    param_data: dict[str, Any] | None,
+) -> tuple[dict[str, float], dict[str, float], dict[str, str]]:
+    """Extract beliefs, priors, and justifications for Obsidian pages."""
+    beliefs = (
+        {b["knowledge_id"]: b["belief"] for b in beliefs_data.get("beliefs", [])}
+        if beliefs_data
+        else {}
+    )
     priors: dict[str, float] = {}
     justifications: dict[str, str] = {}
     if param_data:
@@ -430,51 +428,87 @@ def generate_obsidian_vault(
             priors[p["knowledge_id"]] = p["value"]
             if p.get("justification"):
                 justifications[p["knowledge_id"]] = p["justification"]
+    return beliefs, priors, justifications
 
-    strategies_by_conclusion: dict[str, list[dict[str, Any]]] = {}
-    strategies_by_premise: dict[str, list[dict[str, Any]]] = {}
-    for s in ir.get("strategies", []):
-        conc = s.get("conclusion")
+
+def _obsidian_strategy_indexes(
+    ir: dict[str, Any],
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+    """Index strategies by conclusion and premise for Obsidian pages."""
+    by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    by_premise: dict[str, list[dict[str, Any]]] = {}
+    for strategy in ir.get("strategies", []):
+        conc = strategy.get("conclusion")
         if conc:
-            strategies_by_conclusion.setdefault(conc, []).append(s)
-        for p in s.get("premises", []):
-            strategies_by_premise.setdefault(p, []).append(s)
+            by_conclusion.setdefault(conc, []).append(strategy)
+        for premise in strategy.get("premises", []):
+            by_premise.setdefault(premise, []).append(strategy)
+    return by_conclusion, by_premise
 
-    label_for_id: dict[str, str] = {}
+
+def _obsidian_label_for_id(ir: dict[str, Any]) -> dict[str, str]:
+    """Return display labels keyed by knowledge id."""
+    return {k["id"]: k.get("label", k["id"].split("::")[-1]) for k in ir["knowledges"]}
+
+
+def _obsidian_claim_role(
+    k: dict[str, Any],
+    *,
+    exported_ids: set[str],
+    classification: KnowledgeClassification,
+) -> str:
+    """Return the Obsidian claim subdirectory for one knowledge node."""
+    if k["id"] in exported_ids:
+        return "conclusions"
+    role = node_role(k["id"], k["type"], classification)
+    return {
+        "independent": "holes",
+        "derived": "intermediate",
+        "note": "context",
+        "background": "context",
+        "structural": "context",
+        "orphaned": "context",
+        "question": "conclusions",
+    }.get(role, "context")
+
+
+def _obsidian_modules(ir: dict[str, Any]) -> list[str]:
+    """Return module order followed by any modules discovered in knowledges."""
+    modules: list[str] = []
+    seen: set[str] = set()
+    for module in ir.get("module_order") or []:
+        if module not in seen:
+            modules.append(module)
+            seen.add(module)
     for k in ir["knowledges"]:
-        label_for_id[k["id"]] = k.get("label", k["id"].split("::")[-1])
+        mod = k.get("module", "Root")
+        if mod not in seen and not _is_helper(k.get("label", "")):
+            modules.append(mod)
+            seen.add(mod)
+    return modules
 
-    claim_numbers = _assign_claim_numbers(ir)
-    all_claims = [k for k in ir["knowledges"] if not _is_helper(k.get("label"))]
 
-    # Classify claims into roles using node_role from _classify.py
-    exported_ids = {k["id"] for k in ir["knowledges"] if k.get("exported")}
-    classification = classify_ir(ir)
-
-    _ROLE_TO_DIR = {
-        "independent": "holes",  # premise but not conclusion — true holes
-        "derived": "intermediate",  # conclusion of strategy, not exported
-        "note": "context",  # non-probabilistic notes
-        "background": "context",  # background knowledge
-        "structural": "context",  # operator conclusions
-        "orphaned": "context",  # not referenced by any strategy
-        "question": "conclusions",  # questions are interesting
-    }
-
-    def _claim_role(k: dict[str, Any]) -> str:
-        kid = k["id"]
-        if kid in exported_ids:
-            return "conclusions"
-        role = node_role(kid, k["type"], classification)
-        return _ROLE_TO_DIR.get(role, "context")
-
-    # Claim pages (sorted into role subdirectories)
+def _write_obsidian_claim_pages(
+    pages: dict[str, str],
+    *,
+    all_claims: list[dict[str, Any]],
+    exported_ids: set[str],
+    classification: KnowledgeClassification,
+    claim_numbers: dict[str, int],
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    justifications: dict[str, str],
+    strategies_by_conclusion: dict[str, list[dict[str, Any]]],
+    strategies_by_premise: dict[str, list[dict[str, Any]]],
+    label_for_id: dict[str, str],
+) -> None:
+    """Populate one Obsidian claim page per non-helper knowledge node."""
     for k in all_claims:
         kid = k["id"]
         label = k.get("label", "")
         title = k.get("title") or label.replace("_", " ")
         cn = claim_numbers.get(kid, 0)
-        role = _claim_role(k)
+        role = _obsidian_claim_role(k, exported_ids=exported_ids, classification=classification)
         fname = _sanitize_filename(f"{cn:02d} - {title}")
         pages[f"claims/{role}/{fname}.md"] = _generate_claim_page(
             k,
@@ -487,29 +521,27 @@ def generate_obsidian_vault(
             label_for_id,
             claim_numbers,
         )
-    # Section pages from DSL modules (module_order defines narrative arc)
-    module_titles: dict[str, str] = ir.get("module_titles") or {}
-    modules: list[str] = []
-    seen: set[str] = set()
-    module_order = ir.get("module_order") or []
-    for m in module_order:
-        if m not in seen:
-            modules.append(m)
-            seen.add(m)
-    # Add any modules not in module_order
-    for k in ir["knowledges"]:
-        mod = k.get("module", "Root")
-        if mod not in seen and not _is_helper(k.get("label", "")):
-            modules.append(mod)
-            seen.add(mod)
 
+
+def _write_obsidian_module_pages(
+    pages: dict[str, str],
+    *,
+    modules: list[str],
+    module_titles: dict[str, str],
+    all_claims: list[dict[str, Any]],
+    ir: dict[str, Any],
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    claim_numbers: dict[str, int],
+    label_for_id: dict[str, str],
+) -> int:
+    """Populate module section pages and return the next section number."""
     sec_num = 0
     for mod in modules:
         mod_claims = [k for k in all_claims if k.get("module", "Root") == mod]
         if not mod_claims:
             continue
         sec_num += 1
-        # Sort claims within module by topological order
         mod_claims.sort(key=lambda k: claim_numbers.get(k["id"], 0))
         title = module_titles.get(mod) or mod.replace("_", " ").title()
         fname = _sanitize_filename(f"{sec_num:02d} - {title}")
@@ -524,6 +556,62 @@ def generate_obsidian_vault(
             claim_numbers,
             label_for_id,
         )
+    return sec_num
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+
+def generate_obsidian_vault(
+    ir: dict[str, Any],
+    *,
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    """Generate Obsidian vault with numbered claims and module chapters."""
+    pages: dict[str, str] = {}
+
+    beliefs, priors, justifications = _obsidian_belief_inputs(beliefs_data, param_data)
+    strategies_by_conclusion, strategies_by_premise = _obsidian_strategy_indexes(ir)
+    label_for_id = _obsidian_label_for_id(ir)
+
+    claim_numbers = _assign_claim_numbers(ir)
+    all_claims = [k for k in ir["knowledges"] if not _is_helper(k.get("label"))]
+
+    exported_ids = {k["id"] for k in ir["knowledges"] if k.get("exported")}
+    classification = classify_ir(ir)
+
+    # Claim pages (sorted into role subdirectories)
+    _write_obsidian_claim_pages(
+        pages,
+        all_claims=all_claims,
+        exported_ids=exported_ids,
+        classification=classification,
+        claim_numbers=claim_numbers,
+        beliefs=beliefs,
+        priors=priors,
+        justifications=justifications,
+        strategies_by_conclusion=strategies_by_conclusion,
+        strategies_by_premise=strategies_by_premise,
+        label_for_id=label_for_id,
+    )
+
+    # Section pages from DSL modules (module_order defines narrative arc)
+    module_titles: dict[str, str] = ir.get("module_titles") or {}
+    modules = _obsidian_modules(ir)
+    sec_num = _write_obsidian_module_pages(
+        pages,
+        modules=modules,
+        module_titles=module_titles,
+        all_claims=all_claims,
+        ir=ir,
+        beliefs=beliefs,
+        priors=priors,
+        claim_numbers=claim_numbers,
+        label_for_id=label_for_id,
+    )
 
     # Weak Points section — claims with lowest belief
     if beliefs:

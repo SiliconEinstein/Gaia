@@ -59,6 +59,17 @@ class LoadedGaiaPackage:
     package: CollectedPackage
 
 
+@dataclass
+class _FillsContext:
+    loaded: LoadedGaiaPackage
+    compiled: CompiledPackage
+    dependency_specs: dict[str, str]
+    import_to_dist: dict[str, str]
+    knowledge_by_qid: dict[str, IrKnowledge]
+    manifest_cache: dict[str, dict[str, Any]]
+    seen_relation_keys: set[tuple[str, str, str]]
+
+
 def _import_fresh(import_name: str) -> ModuleType:
     stale_modules = [
         name for name in sys.modules if name == import_name or name.startswith(f"{import_name}.")
@@ -99,6 +110,73 @@ def _assign_labels_for_loaded_modules() -> None:
         _assign_labels(module, pkg)
 
 
+def _load_pyproject_config(pkg_path: Path) -> dict[str, Any]:
+    """Load pyproject.toml for a Gaia package path."""
+    pyproject = pkg_path / "pyproject.toml"
+    if not pyproject.exists():
+        raise GaiaCliError("Error: no pyproject.toml found.")
+    with open(pyproject, "rb") as f:
+        return tomllib.load(f)
+
+
+def _package_identity(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], str, str]:
+    """Validate and return project config, Gaia config, project name, and version."""
+    project_config = config.get("project", {})
+    gaia_config = config.get("tool", {}).get("gaia", {})
+    if gaia_config.get("type") != "knowledge-package":
+        raise GaiaCliError(
+            "Error: not a Gaia knowledge package ([tool.gaia].type != 'knowledge-package')."
+        )
+
+    project_name = project_config.get("name")
+    version = project_config.get("version")
+    if not isinstance(project_name, str) or not project_name:
+        raise GaiaCliError("Error: [project].name is required.")
+    if not isinstance(version, str) or not version:
+        raise GaiaCliError("Error: [project].version is required.")
+    return project_config, gaia_config, project_name, version
+
+
+def _source_root_for_package(pkg_path: Path, import_name: str, project_name: str) -> Path:
+    """Return the source root containing the package import module."""
+    package_roots = [pkg_path, pkg_path / "src"]
+    source_root = next((root for root in package_roots if (root / import_name).exists()), None)
+    if source_root is not None:
+        return source_root
+    expected_paths = ", ".join(
+        f"{candidate.relative_to(pkg_path)}/"
+        for candidate in (root / import_name for root in package_roots)
+    )
+    raise GaiaCliError(
+        f"Error: package source directory '{import_name}/' not found.\n"
+        f"  Derived from [project] name {project_name!r}.\n"
+        '  Derivation: strip trailing "-gaia" when present, then convert '
+        "hyphens to underscores.\n"
+        f"  Expected at one of: {expected_paths}"
+    )
+
+
+def _import_package_module(import_name: str) -> ModuleType:
+    """Import a Gaia package module with CLI error wrapping."""
+    try:
+        return _import_fresh(import_name)
+    except Exception as exc:
+        raise GaiaCliError(f"Error importing package: {exc}") from exc
+
+
+def _module_titles(import_name: str, pkg: CollectedPackage) -> dict[str, str]:
+    """Extract first-line docstrings for loaded package submodules."""
+    module_titles: dict[str, str] = {}
+    for mod_name in pkg._module_order:
+        sub = sys.modules.get(f"{import_name}.{mod_name}")
+        if sub is None:
+            continue
+        doc = getattr(sub, "__doc__", None)
+        if isinstance(doc, str) and doc.strip():
+            module_titles[mod_name] = doc.strip().split("\n")[0].strip()
+    return module_titles
+
+
 def ensure_package_env(pkg_path: Path) -> None:
     """Run ``uv sync`` in *pkg_path* so dependencies are importable.
 
@@ -128,53 +206,18 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
     """Load a Gaia knowledge package from a local directory."""
     pkg_path = Path(path).resolve()
     pyproject = pkg_path / "pyproject.toml"
-    if not pyproject.exists():
-        raise GaiaCliError("Error: no pyproject.toml found.")
-
-    with open(pyproject, "rb") as f:
-        config = tomllib.load(f)
-
-    project_config = config.get("project", {})
-    gaia_config = config.get("tool", {}).get("gaia", {})
-
-    if gaia_config.get("type") != "knowledge-package":
-        raise GaiaCliError(
-            "Error: not a Gaia knowledge package ([tool.gaia].type != 'knowledge-package')."
-        )
-
-    project_name = project_config.get("name")
-    version = project_config.get("version")
-    if not isinstance(project_name, str) or not project_name:
-        raise GaiaCliError("Error: [project].name is required.")
-    if not isinstance(version, str) or not version:
-        raise GaiaCliError("Error: [project].version is required.")
+    config = _load_pyproject_config(pkg_path)
+    project_config, gaia_config, project_name, version = _package_identity(config)
 
     import_name = project_name.removesuffix("-gaia").replace("-", "_")
     reset_inferred_package(pyproject, module_name=import_name)
-    package_roots = [pkg_path, pkg_path / "src"]
-    source_root = next((root for root in package_roots if (root / import_name).exists()), None)
-    if source_root is None:
-        expected_paths = ", ".join(
-            f"{candidate.relative_to(pkg_path)}/"
-            for candidate in (root / import_name for root in package_roots)
-        )
-        raise GaiaCliError(
-            f"Error: package source directory '{import_name}/' not found.\n"
-            f"  Derived from [project] name {project_name!r}.\n"
-            '  Derivation: strip trailing "-gaia" when present, then convert '
-            "hyphens to underscores.\n"
-            f"  Expected at one of: {expected_paths}"
-        )
+    source_root = _source_root_for_package(pkg_path, import_name, project_name)
 
     source_root_str = str(source_root)
     if source_root_str not in sys.path:
         sys.path.insert(0, source_root_str)
 
-    try:
-        module = _import_fresh(import_name)
-    except Exception as exc:
-        raise GaiaCliError(f"Error importing package: {exc}") from exc
-
+    module = _import_package_module(import_name)
     pkg = get_inferred_package(pyproject)
     if pkg is None:
         raise GaiaCliError(
@@ -189,16 +232,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
     if isinstance(export_names, list) and all(isinstance(n, str) for n in export_names):
         pkg._exported_labels = set(export_names)
 
-    # Extract module docstrings as titles
-    module_titles: dict[str, str] = {}
-    for mod_name in pkg._module_order:
-        full_name = f"{import_name}.{mod_name}"
-        sub = sys.modules.get(full_name)
-        if sub is not None:
-            doc = getattr(sub, "__doc__", None)
-            if isinstance(doc, str) and doc.strip():
-                # Use first line of docstring as title
-                module_titles[mod_name] = doc.strip().split("\n")[0].strip()
+    module_titles = _module_titles(import_name, pkg)
     if module_titles:
         pkg._module_titles = module_titles
 
@@ -512,140 +546,254 @@ def _relation_id(
     return f"bridge_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
 
 
+def _fills_relation_metadata(strategy: Strategy) -> dict[str, Any] | None:
+    """Return fills() relation metadata for a strategy, if present."""
+    relation = strategy.metadata.get("gaia", {}).get("relation", {})
+    if not isinstance(relation, dict):
+        return None
+    if relation.get("type") != "fills":
+        return None
+    if len(strategy.premises) != 1 or strategy.conclusion is None:
+        raise GaiaCliError("Error: fills() strategies must have exactly one source and one target.")
+    return cast(dict[str, Any], relation)
+
+
+def _validate_fills_owners(
+    *,
+    source: Knowledge,
+    target: Knowledge,
+    local_package: CollectedPackage,
+    import_to_dist: dict[str, str],
+    dependency_specs: dict[str, str],
+) -> None:
+    """Validate fills() source and target package ownership."""
+    source_owner = source._package
+    target_owner = target._package
+    if target_owner is None or target_owner == local_package:
+        raise GaiaCliError(
+            "Error: fills() target must be a foreign claim resolved from a dependency package."
+        )
+    if source_owner is not None and source_owner != local_package:
+        source_dist = import_to_dist.get(source_owner.name)
+        if source_dist is None or source_dist not in dependency_specs:
+            raise GaiaCliError(
+                f"Error: fills() source dependency '{source_owner.name}' is not declared in "
+                "[project].dependencies (no matching *-gaia distribution found)."
+            )
+    target_dist = import_to_dist.get(target_owner.name)
+    if target_dist is None or target_dist not in dependency_specs:
+        raise GaiaCliError(
+            f"Error: fills() target dependency '{target_owner.name}' is not declared in "
+            "[project].dependencies (no matching *-gaia distribution found)."
+        )
+
+
+def _dependency_premises_for_owner(
+    owner: CollectedPackage,
+    cache: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Load and cache the dependency premises manifest for a target owner."""
+    premises_manifest = cache.get(owner.name)
+    if premises_manifest is None:
+        _, premises_manifest = _resolve_dependency_premises_manifest(owner.name)
+        cache[owner.name] = premises_manifest
+    premises = premises_manifest.get("premises", [])
+    if not isinstance(premises, list):
+        raise GaiaCliError("Error: dependency premises manifest must contain a premises list.")
+    return premises_manifest
+
+
+def _fills_qids_and_source_hash(
+    *,
+    source: Knowledge,
+    target: Knowledge,
+    compiled: CompiledPackage,
+    knowledge_by_qid: dict[str, IrKnowledge],
+) -> tuple[str, str, str]:
+    """Resolve source/target QIDs and source content hash for a fills() relation."""
+    source_qid = compiled.knowledge_ids_by_object.get(id(source))
+    target_qid = compiled.knowledge_ids_by_object.get(id(target))
+    if source_qid is None or target_qid is None:
+        raise GaiaCliError("Error: could not resolve fills() source/target QID during compile.")
+    source_knowledge = knowledge_by_qid.get(source_qid)
+    if source_knowledge is None or source_knowledge.content_hash is None:
+        raise GaiaCliError(f"Error: could not resolve source content hash for '{source_qid}'.")
+    return source_qid, target_qid, source_knowledge.content_hash
+
+
+def _target_premise_entry(
+    *,
+    premises_manifest: dict[str, Any],
+    target_owner: CollectedPackage,
+    target_qid: str,
+) -> dict[str, Any]:
+    """Return the dependency local_hole entry for a fills() target QID."""
+    premises = premises_manifest.get("premises", [])
+    entry = next(
+        (
+            premise
+            for premise in premises
+            if isinstance(premise, dict) and premise.get("qid") == target_qid
+        ),
+        None,
+    )
+    if entry is None:
+        raise GaiaCliError(
+            f"Error: fills() target '{target_qid}' is not a public premise in dependency "
+            f"'{target_owner.name}'."
+        )
+    if entry.get("role") != "local_hole":
+        raise GaiaCliError(
+            f"Error: fills() target '{target_qid}' must resolve to a dependency local_hole, "
+            f"found role={entry.get('role')!r}."
+        )
+    return entry
+
+
+def _required_manifest_string(manifest: dict[str, Any], key: str, owner_name: str) -> str:
+    """Return a required string field from a dependency premises manifest."""
+    value = manifest.get(key)
+    if not isinstance(value, str) or not value:
+        raise GaiaCliError(
+            f"Error: dependency premises manifest for '{owner_name}' is missing {key}."
+        )
+    return value
+
+
+def _target_interface_hash(entry: dict[str, Any], target_qid: str) -> str:
+    """Return a target premise entry's required interface hash."""
+    interface_hash = entry.get("interface_hash")
+    if not isinstance(interface_hash, str) or not interface_hash:
+        raise GaiaCliError(f"Error: dependency premise '{target_qid}' is missing interface_hash.")
+    return interface_hash
+
+
+def _mark_unique_fills_relation(
+    seen_relation_keys: set[tuple[str, str, str]],
+    *,
+    source_qid: str,
+    target_qid: str,
+    target_interface_hash: str,
+) -> None:
+    """Record a fills() relation key and reject duplicates."""
+    relation_key = (source_qid, target_qid, target_interface_hash)
+    if relation_key in seen_relation_keys:
+        raise GaiaCliError(
+            f"Error: duplicate fills() relation for source '{source_qid}' and target "
+            f"'{target_qid}' on interface '{target_interface_hash}'."
+        )
+    seen_relation_keys.add(relation_key)
+
+
+def _build_fills_relation_record(
+    *,
+    ctx: _FillsContext,
+    strategy: Strategy,
+    relation: dict[str, Any],
+    source: Knowledge,
+    target: Knowledge,
+) -> dict[str, Any]:
+    """Build one serialized fills() bridge relation."""
+    target_owner = cast(CollectedPackage, target._package)
+    target_dist = ctx.import_to_dist[target_owner.name]
+    premises_manifest = _dependency_premises_for_owner(target_owner, ctx.manifest_cache)
+    source_qid, target_qid, source_content_hash = _fills_qids_and_source_hash(
+        source=source,
+        target=target,
+        compiled=ctx.compiled,
+        knowledge_by_qid=ctx.knowledge_by_qid,
+    )
+    entry = _target_premise_entry(
+        premises_manifest=premises_manifest,
+        target_owner=target_owner,
+        target_qid=target_qid,
+    )
+    target_interface_hash = _target_interface_hash(entry, target_qid)
+    _mark_unique_fills_relation(
+        ctx.seen_relation_keys,
+        source_qid=source_qid,
+        target_qid=target_qid,
+        target_interface_hash=target_interface_hash,
+    )
+    relation_type = str(relation.get("type"))
+    relation_record = {
+        "relation_id": _relation_id(
+            declaring_package=_manifest_package_name(ctx.loaded),
+            declaring_version=ctx.loaded.project_config["version"],
+            source_qid=source_qid,
+            source_content_hash=source_content_hash,
+            target_qid=target_qid,
+            target_interface_hash=target_interface_hash,
+            relation_type=relation_type,
+        ),
+        "relation_type": relation_type,
+        "source_qid": source_qid,
+        "source_content_hash": source_content_hash,
+        "target_qid": target_qid,
+        "target_package": _required_manifest_string(
+            premises_manifest, "package", target_owner.name
+        ),
+        "target_dependency_req": ctx.dependency_specs[target_dist],
+        "target_resolved_version": _required_manifest_string(
+            premises_manifest, "version", target_owner.name
+        ),
+        "target_role": entry["role"],
+        "target_interface_hash": target_interface_hash,
+        "strength": relation.get("strength"),
+        "mode": relation.get("mode"),
+        "declared_by_owner_of_source": source._package == ctx.loaded.package,
+    }
+    justification = _reason_to_text(strategy.reason)
+    if justification:
+        relation_record["justification"] = justification
+    return relation_record
+
+
+def _resolve_one_fills_relation(ctx: _FillsContext, strategy: Strategy) -> dict[str, Any] | None:
+    """Resolve one Strategy into a fills() bridge record when applicable."""
+    relation = _fills_relation_metadata(strategy)
+    if relation is None:
+        return None
+    source = strategy.premises[0]
+    target = cast(Knowledge, strategy.conclusion)
+    _validate_fills_owners(
+        source=source,
+        target=target,
+        local_package=ctx.loaded.package,
+        import_to_dist=ctx.import_to_dist,
+        dependency_specs=ctx.dependency_specs,
+    )
+    return _build_fills_relation_record(
+        ctx=ctx,
+        strategy=strategy,
+        relation=relation,
+        source=source,
+        target=target,
+    )
+
+
 def _resolve_fills_relations(
     loaded: LoadedGaiaPackage, compiled: CompiledPackage
 ) -> list[dict[str, Any]]:
     dependency_specs, import_to_dist = _parse_gaia_dependencies(loaded.project_config)
-    local_package = loaded.package
     knowledge_by_qid = {
         knowledge.id: knowledge for knowledge in compiled.graph.knowledges if knowledge.id
     }
-    dependency_manifest_cache: dict[str, dict[str, Any]] = {}
+    ctx = _FillsContext(
+        loaded=loaded,
+        compiled=compiled,
+        dependency_specs=dependency_specs,
+        import_to_dist=import_to_dist,
+        knowledge_by_qid=knowledge_by_qid,
+        manifest_cache={},
+        seen_relation_keys=set(),
+    )
     relations: list[dict[str, Any]] = []
-    seen_relation_keys: set[tuple[str, str, str]] = set()
 
     for strategy in loaded.package.strategies:
-        relation = strategy.metadata.get("gaia", {}).get("relation", {})
-        if relation.get("type") != "fills":
-            continue
-        if len(strategy.premises) != 1 or strategy.conclusion is None:
-            raise GaiaCliError(
-                "Error: fills() strategies must have exactly one source and one target."
-            )
-
-        source = strategy.premises[0]
-        target = strategy.conclusion
-        source_owner = source._package
-        target_owner = target._package
-
-        if target_owner is None or target_owner == local_package:
-            raise GaiaCliError(
-                "Error: fills() target must be a foreign claim resolved from a dependency package."
-            )
-
-        if source_owner is not None and source_owner != local_package:
-            source_dist = import_to_dist.get(source_owner.name)
-            if source_dist is None or source_dist not in dependency_specs:
-                raise GaiaCliError(
-                    f"Error: fills() source dependency '{source_owner.name}' is not declared in "
-                    "[project].dependencies (no matching *-gaia distribution found)."
-                )
-
-        target_dist = import_to_dist.get(target_owner.name)
-        if target_dist is None or target_dist not in dependency_specs:
-            raise GaiaCliError(
-                f"Error: fills() target dependency '{target_owner.name}' is not declared in "
-                "[project].dependencies (no matching *-gaia distribution found)."
-            )
-
-        premises_manifest = dependency_manifest_cache.get(target_owner.name)
-        if premises_manifest is None:
-            _, premises_manifest = _resolve_dependency_premises_manifest(target_owner.name)
-            dependency_manifest_cache[target_owner.name] = premises_manifest
-        premises = premises_manifest.get("premises", [])
-        if not isinstance(premises, list):
-            raise GaiaCliError("Error: dependency premises manifest must contain a premises list.")
-
-        source_qid = compiled.knowledge_ids_by_object.get(id(source))
-        target_qid = compiled.knowledge_ids_by_object.get(id(target))
-        if source_qid is None or target_qid is None:
-            raise GaiaCliError("Error: could not resolve fills() source/target QID during compile.")
-
-        source_knowledge = knowledge_by_qid.get(source_qid)
-        if source_knowledge is None or source_knowledge.content_hash is None:
-            raise GaiaCliError(f"Error: could not resolve source content hash for '{source_qid}'.")
-
-        entry = next(
-            (
-                premise
-                for premise in premises
-                if isinstance(premise, dict) and premise.get("qid") == target_qid
-            ),
-            None,
-        )
-        if entry is None:
-            raise GaiaCliError(
-                f"Error: fills() target '{target_qid}' is not a public premise in dependency "
-                f"'{target_owner.name}'."
-            )
-        if entry.get("role") != "local_hole":
-            raise GaiaCliError(
-                f"Error: fills() target '{target_qid}' must resolve to a dependency local_hole, "
-                f"found role={entry.get('role')!r}."
-            )
-
-        target_interface_hash = entry.get("interface_hash")
-        if not isinstance(target_interface_hash, str) or not target_interface_hash:
-            raise GaiaCliError(
-                f"Error: dependency premise '{target_qid}' is missing interface_hash."
-            )
-        target_resolved_version = premises_manifest.get("version")
-        if not isinstance(target_resolved_version, str) or not target_resolved_version:
-            raise GaiaCliError(
-                f"Error: dependency premises manifest for '{target_owner.name}' is missing version."
-            )
-        target_package = premises_manifest.get("package")
-        if not isinstance(target_package, str) or not target_package:
-            raise GaiaCliError(
-                f"Error: dependency premises manifest for '{target_owner.name}' is missing package."
-            )
-
-        relation_key = (source_qid, target_qid, target_interface_hash)
-        if relation_key in seen_relation_keys:
-            raise GaiaCliError(
-                f"Error: duplicate fills() relation for source '{source_qid}' and target "
-                f"'{target_qid}' on interface '{target_interface_hash}'."
-            )
-        seen_relation_keys.add(relation_key)
-
-        relation_type = str(relation.get("type"))
-        justification = _reason_to_text(strategy.reason)
-        relation_record = {
-            "relation_id": _relation_id(
-                declaring_package=_manifest_package_name(loaded),
-                declaring_version=loaded.project_config["version"],
-                source_qid=source_qid,
-                source_content_hash=source_knowledge.content_hash,
-                target_qid=target_qid,
-                target_interface_hash=target_interface_hash,
-                relation_type=relation_type,
-            ),
-            "relation_type": relation_type,
-            "source_qid": source_qid,
-            "source_content_hash": source_knowledge.content_hash,
-            "target_qid": target_qid,
-            "target_package": target_package,
-            "target_dependency_req": dependency_specs[target_dist],
-            "target_resolved_version": target_resolved_version,
-            "target_role": entry["role"],
-            "target_interface_hash": target_interface_hash,
-            "strength": relation.get("strength"),
-            "mode": relation.get("mode"),
-            "declared_by_owner_of_source": source_owner == local_package,
-        }
-        if justification:
-            relation_record["justification"] = justification
-        relations.append(relation_record)
+        relation_record = _resolve_one_fills_relation(ctx, strategy)
+        if relation_record is not None:
+            relations.append(relation_record)
 
     return sorted(relations, key=lambda item: item["relation_id"])
 
@@ -672,6 +820,214 @@ def validate_fills_relations(loaded: LoadedGaiaPackage, compiled: CompiledPackag
     where manifests are not needed — only validation matters.
     """
     _resolve_fills_relations(loaded, compiled)
+
+
+def _manifest_graph_sets(
+    graph: LocalCanonicalGraph,
+) -> tuple[dict[str, IrKnowledge], set[str], set[str]]:
+    """Return graph knowledge map, exported ids, and exported claim ids."""
+    knowledge_by_qid = {knowledge.id: knowledge for knowledge in graph.knowledges if knowledge.id}
+    exported_qids = {
+        knowledge.id
+        for knowledge in graph.knowledges
+        if knowledge.id is not None and knowledge.exported
+    }
+    exported_claim_qids = {
+        knowledge.id
+        for knowledge in graph.knowledges
+        if knowledge.id is not None and knowledge.exported and str(knowledge.type) == "claim"
+    }
+    return knowledge_by_qid, exported_qids, exported_claim_qids
+
+
+def _manifest_exports(graph: LocalCanonicalGraph) -> list[dict[str, Any]]:
+    """Return sorted exported-knowledge manifest entries."""
+    return [
+        _knowledge_manifest_entry(knowledge)
+        for knowledge in sorted(graph.knowledges, key=lambda item: item.id or "")
+        if knowledge.exported and knowledge.id is not None
+    ]
+
+
+def _local_support_indexes(
+    loaded: LoadedGaiaPackage,
+) -> tuple[set[int], dict[int, list[Strategy]], dict[int, list[Knowledge]]]:
+    """Index local strategy support edges by object id."""
+    local_knowledge_ids = {id(knowledge) for knowledge in loaded.package.knowledge}
+    local_supports_by_conclusion: dict[int, list[Strategy]] = defaultdict(list)
+    downstream_conclusions_by_premise: dict[int, list[Knowledge]] = defaultdict(list)
+    downstream_seen: dict[int, set[int]] = defaultdict(set)
+
+    for strategy in loaded.package.strategies:
+        conclusion = strategy.conclusion
+        if (
+            conclusion is None
+            or conclusion.type != "claim"
+            or id(conclusion) not in local_knowledge_ids
+        ):
+            continue
+        local_supports_by_conclusion[id(conclusion)].append(strategy)
+        for premise in strategy.premises:
+            if premise.type != "claim":
+                continue
+            premise_id = id(premise)
+            conclusion_id = id(conclusion)
+            if conclusion_id in downstream_seen[premise_id]:
+                continue
+            downstream_seen[premise_id].add(conclusion_id)
+            downstream_conclusions_by_premise[premise_id].append(conclusion)
+    return local_knowledge_ids, local_supports_by_conclusion, downstream_conclusions_by_premise
+
+
+def _public_premise_objects(
+    *,
+    loaded: LoadedGaiaPackage,
+    compiled: CompiledPackage,
+    exported_claim_qids: set[str],
+    local_knowledge_ids: set[int],
+    local_supports_by_conclusion: dict[int, list[Strategy]],
+) -> dict[int, Knowledge]:
+    """Collect leaf claims feeding exported local conclusions."""
+    public_premises: dict[int, Knowledge] = {}
+    visited_supported_claims: set[int] = set()
+
+    def walk_supported_claim(claim_node: Knowledge) -> None:
+        for strategy in local_supports_by_conclusion.get(id(claim_node), []):
+            for premise in strategy.premises:
+                if premise.type != "claim":
+                    continue
+                premise_id = id(premise)
+                if premise_id in local_knowledge_ids and local_supports_by_conclusion.get(
+                    premise_id
+                ):
+                    if premise_id in visited_supported_claims:
+                        continue
+                    visited_supported_claims.add(premise_id)
+                    walk_supported_claim(premise)
+                    continue
+                public_premises[premise_id] = premise
+
+    exported_claim_roots = [
+        knowledge
+        for knowledge in loaded.package.knowledge
+        if knowledge.type == "claim"
+        and compiled.knowledge_ids_by_object.get(id(knowledge)) in exported_claim_qids
+    ]
+    for root in exported_claim_roots:
+        root_id = id(root)
+        if root_id in visited_supported_claims:
+            continue
+        visited_supported_claims.add(root_id)
+        walk_supported_claim(root)
+    return public_premises
+
+
+def _required_by_exports(
+    *,
+    premise: Knowledge,
+    compiled: CompiledPackage,
+    downstream_conclusions_by_premise: dict[int, list[Knowledge]],
+    exported_claim_qids: set[str],
+) -> list[str]:
+    """Return exported conclusions downstream of a public premise."""
+    queue: deque[Knowledge] = deque([premise])
+    seen_claims = {id(premise)}
+    required_by_set: set[str] = set()
+    while queue:
+        current = queue.popleft()
+        for conclusion in downstream_conclusions_by_premise.get(id(current), []):
+            conclusion_id = id(conclusion)
+            if conclusion_id in seen_claims:
+                continue
+            seen_claims.add(conclusion_id)
+            conclusion_qid = compiled.knowledge_ids_by_object.get(conclusion_id)
+            if conclusion_qid is None:
+                continue
+            if conclusion_qid in exported_claim_qids:
+                required_by_set.add(conclusion_qid)
+                continue
+            queue.append(conclusion)
+    return sorted(required_by_set)
+
+
+def _premise_manifest_entry(
+    *,
+    premise: Knowledge,
+    compiled: CompiledPackage,
+    knowledge_by_qid: dict[str, IrKnowledge],
+    local_knowledge_ids: set[int],
+    exported_qids: set[str],
+    exported_claim_qids: set[str],
+    downstream_conclusions_by_premise: dict[int, list[Knowledge]],
+) -> dict[str, Any] | None:
+    """Build one premises.json entry for a public premise object."""
+    premise_qid = compiled.knowledge_ids_by_object.get(id(premise))
+    if premise_qid is None:
+        return None
+    knowledge = knowledge_by_qid.get(premise_qid)
+    if knowledge is None or knowledge.content_hash is None:
+        return None
+    role = "local_hole" if id(premise) in local_knowledge_ids else "foreign_dependency"
+    parameters = [parameter.model_dump(mode="json") for parameter in knowledge.parameters]
+    entry: dict[str, Any] = {
+        "qid": premise_qid,
+        "label": knowledge.label,
+        "content": knowledge.content,
+        "content_hash": knowledge.content_hash,
+        "role": role,
+        "interface_hash": _interface_hash(
+            qid=premise_qid,
+            content_hash=knowledge.content_hash,
+            role=role,
+            parameters=parameters,
+        ),
+        "exported": premise_qid in exported_qids,
+        "required_by": _required_by_exports(
+            premise=premise,
+            compiled=compiled,
+            downstream_conclusions_by_premise=downstream_conclusions_by_premise,
+            exported_claim_qids=exported_claim_qids,
+        ),
+    }
+    if parameters:
+        entry["parameters"] = parameters
+    return entry
+
+
+def _manifest_premises(
+    *,
+    loaded: LoadedGaiaPackage,
+    compiled: CompiledPackage,
+    knowledge_by_qid: dict[str, IrKnowledge],
+    exported_qids: set[str],
+    exported_claim_qids: set[str],
+) -> list[dict[str, Any]]:
+    """Build the premises.json entries for exported local conclusions."""
+    local_ids, supports_by_conclusion, downstream_by_premise = _local_support_indexes(loaded)
+    public_premises = _public_premise_objects(
+        loaded=loaded,
+        compiled=compiled,
+        exported_claim_qids=exported_claim_qids,
+        local_knowledge_ids=local_ids,
+        local_supports_by_conclusion=supports_by_conclusion,
+    )
+    entries: list[dict[str, Any]] = []
+    for premise in sorted(
+        public_premises.values(),
+        key=lambda item: compiled.knowledge_ids_by_object.get(id(item), ""),
+    ):
+        entry = _premise_manifest_entry(
+            premise=premise,
+            compiled=compiled,
+            knowledge_by_qid=knowledge_by_qid,
+            local_knowledge_ids=local_ids,
+            exported_qids=exported_qids,
+            exported_claim_qids=exported_claim_qids,
+            downstream_conclusions_by_premise=downstream_by_premise,
+        )
+        if entry is not None:
+            entries.append(entry)
+    return entries
 
 
 def build_package_manifests(
@@ -728,130 +1084,15 @@ def build_package_manifests(
     """
     fills_relations = _resolve_fills_relations(loaded, compiled)
     graph = compiled.graph
-    knowledge_by_qid = {knowledge.id: knowledge for knowledge in graph.knowledges if knowledge.id}
-    exported_qids = {
-        knowledge.id
-        for knowledge in graph.knowledges
-        if knowledge.id is not None and knowledge.exported
-    }
-    exported_claim_qids = {
-        knowledge.id
-        for knowledge in graph.knowledges
-        if knowledge.id is not None and knowledge.exported and str(knowledge.type) == "claim"
-    }
-
-    exports = [
-        _knowledge_manifest_entry(knowledge)
-        for knowledge in sorted(graph.knowledges, key=lambda item: item.id or "")
-        if knowledge.exported and knowledge.id is not None
-    ]
-
-    local_knowledge_ids = {id(knowledge) for knowledge in loaded.package.knowledge}
-    local_supports_by_conclusion: dict[int, list[Strategy]] = defaultdict(list)
-    downstream_conclusions_by_premise: dict[int, list[Knowledge]] = defaultdict(list)
-    downstream_seen: dict[int, set[int]] = defaultdict(set)
-
-    for strategy in loaded.package.strategies:
-        conclusion = strategy.conclusion
-        if (
-            conclusion is None
-            or conclusion.type != "claim"
-            or id(conclusion) not in local_knowledge_ids
-        ):
-            continue
-        local_supports_by_conclusion[id(conclusion)].append(strategy)
-        for premise in strategy.premises:
-            if premise.type != "claim":
-                continue
-            premise_id = id(premise)
-            conclusion_id = id(conclusion)
-            if conclusion_id in downstream_seen[premise_id]:
-                continue
-            downstream_seen[premise_id].add(conclusion_id)
-            downstream_conclusions_by_premise[premise_id].append(conclusion)
-
-    public_premise_objects: dict[int, Knowledge] = {}
-    visited_supported_claims: set[int] = set()
-
-    def walk_supported_claim(claim_node: Knowledge) -> None:
-        for strategy in local_supports_by_conclusion.get(id(claim_node), []):
-            for premise in strategy.premises:
-                if premise.type != "claim":
-                    continue
-                premise_id = id(premise)
-                if premise_id in local_knowledge_ids and local_supports_by_conclusion.get(
-                    premise_id
-                ):
-                    if premise_id in visited_supported_claims:
-                        continue
-                    visited_supported_claims.add(premise_id)
-                    walk_supported_claim(premise)
-                    continue
-                public_premise_objects[premise_id] = premise
-
-    exported_claim_roots = [
-        knowledge
-        for knowledge in loaded.package.knowledge
-        if knowledge.type == "claim"
-        and compiled.knowledge_ids_by_object.get(id(knowledge)) in exported_claim_qids
-    ]
-    for root in exported_claim_roots:
-        root_id = id(root)
-        if root_id in visited_supported_claims:
-            continue
-        visited_supported_claims.add(root_id)
-        walk_supported_claim(root)
-
-    premises: list[dict[str, Any]] = []
-    for premise in sorted(
-        public_premise_objects.values(),
-        key=lambda item: compiled.knowledge_ids_by_object.get(id(item), ""),
-    ):
-        premise_qid = compiled.knowledge_ids_by_object.get(id(premise))
-        if premise_qid is None:
-            continue
-        knowledge = knowledge_by_qid.get(premise_qid)
-        if knowledge is None or knowledge.content_hash is None:
-            continue
-        role = "local_hole" if id(premise) in local_knowledge_ids else "foreign_dependency"
-        queue: deque[Knowledge] = deque([premise])
-        seen_claims = {id(premise)}
-        required_by_set: set[str] = set()
-        while queue:
-            current = queue.popleft()
-            for conclusion in downstream_conclusions_by_premise.get(id(current), []):
-                conclusion_id = id(conclusion)
-                if conclusion_id in seen_claims:
-                    continue
-                seen_claims.add(conclusion_id)
-                conclusion_qid = compiled.knowledge_ids_by_object.get(conclusion_id)
-                if conclusion_qid is None:
-                    continue
-                if conclusion_qid in exported_claim_qids:
-                    required_by_set.add(conclusion_qid)
-                    continue
-                queue.append(conclusion)
-        required_by = sorted(required_by_set)
-
-        parameters = [parameter.model_dump(mode="json") for parameter in knowledge.parameters]
-        entry: dict[str, Any] = {
-            "qid": premise_qid,
-            "label": knowledge.label,
-            "content": knowledge.content,
-            "content_hash": knowledge.content_hash,
-            "role": role,
-            "interface_hash": _interface_hash(
-                qid=premise_qid,
-                content_hash=knowledge.content_hash,
-                role=role,
-                parameters=parameters,
-            ),
-            "exported": premise_qid in exported_qids,
-            "required_by": required_by,
-        }
-        if parameters:
-            entry["parameters"] = parameters
-        premises.append(entry)
+    knowledge_by_qid, exported_qids, exported_claim_qids = _manifest_graph_sets(graph)
+    exports = _manifest_exports(graph)
+    premises = _manifest_premises(
+        loaded=loaded,
+        compiled=compiled,
+        knowledge_by_qid=knowledge_by_qid,
+        exported_qids=exported_qids,
+        exported_claim_qids=exported_claim_qids,
+    )
 
     holes = [
         {key: value for key, value in premise.items() if key != "role" and key != "exported"}

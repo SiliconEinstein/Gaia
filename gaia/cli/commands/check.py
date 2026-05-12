@@ -23,7 +23,12 @@ from gaia.cli._packages import (
     load_gaia_package,
     validate_fills_relations,
 )
-from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
+from gaia.cli.commands._classify import (
+    KnowledgeClassification,
+    classify_ir,
+    is_note_type,
+    node_role,
+)
 from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees, render_inquiry
 from gaia.cli.commands._review_manifest import (
     latest_reviews,
@@ -70,6 +75,17 @@ class _InducedMaxEntSummary:
 class _BayesCheckDiagnostics:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class _KnowledgeBuckets:
+    independent: list[tuple[str, str]] = field(default_factory=list)
+    derived: list[str] = field(default_factory=list)
+    structural: list[str] = field(default_factory=list)
+    background_only: list[str] = field(default_factory=list)
+    scaffolded: list[str] = field(default_factory=list)
+    candidate_relation_endpoints: list[str] = field(default_factory=list)
+    orphaned: list[str] = field(default_factory=list)
 
 
 def _walk_inquiry_nodes(node: InquiryNode) -> Iterator[InquiryNode]:
@@ -357,6 +373,152 @@ def _hypothesis_prior(node: dict[str, Any] | None) -> float:
         return 0.5
 
 
+def _bayes_referenced_models(comparisons: dict[str, dict[str, Any]]) -> set[str]:
+    """Return model ids referenced by Bayes likelihood comparisons."""
+    referenced = {
+        model
+        for comparison in comparisons.values()
+        if isinstance((model := _bayes_metadata(comparison).get("model")), str)
+    }
+    for comparison in comparisons.values():
+        against = _bayes_metadata(comparison).get("against")
+        if isinstance(against, list):
+            referenced.update(model for model in against if isinstance(model, str))
+    return referenced
+
+
+def _bayes_observed_symbols(nodes: dict[str, dict[str, Any]]) -> set[str]:
+    """Return formula symbols with bound observation values."""
+    return {symbol for node in nodes.values() for symbol in _formula_binding_symbols(node)}
+
+
+def _check_bayes_prediction(
+    *,
+    ir: dict[str, Any],
+    prediction_id: str,
+    prediction: dict[str, Any],
+    referenced_models: set[str],
+    observed_symbols: set[str],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Append diagnostics for one Bayes prediction node."""
+    prediction_name = _node_name(prediction)
+    if _is_local_ir_id(ir, prediction_id) and prediction_id not in referenced_models:
+        diagnostics.warnings.append(
+            "bayes:dangling-prediction: "
+            f"PredictiveModel {prediction_name} is never referenced by likelihood(). "
+            "Fix: add bayes.likelihood(data, model=model, against=[...]) or remove the "
+            "unused model."
+        )
+
+    observable = _bayes_metadata(prediction).get("observable") or {}
+    symbol = observable.get("symbol") if isinstance(observable, dict) else None
+    if (
+        _is_local_ir_id(ir, prediction_id)
+        and isinstance(symbol, str)
+        and symbol not in observed_symbols
+    ):
+        diagnostics.warnings.append(
+            "bayes:unobserved-prediction-target: "
+            f"PredictiveModel {prediction_name} observable {symbol!r} has no "
+            "matching observation() value. Fix: declare an observation() for that "
+            "Variable or import observed data from another package."
+        )
+
+
+def _check_bayes_comparison_data(
+    *,
+    comparison_name: str,
+    bayes: dict[str, Any],
+    model_bayes: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Append missing-data diagnostics for a Bayes likelihood comparison."""
+    observable = model_bayes.get("observable") or {}
+    observable_symbol = observable.get("symbol") if isinstance(observable, dict) else None
+    for data_id in bayes.get("data") or []:
+        if not isinstance(data_id, str):
+            continue
+        data_node = nodes.get(data_id)
+        if data_node is None:
+            diagnostics.errors.append(
+                "bayes:likelihood-without-data: "
+                f"likelihood {comparison_name} references missing data {data_id}. "
+                "Fix: pass an observation() Claim that is compiled with the package."
+            )
+            continue
+        binding_symbols = _formula_binding_symbols(data_node)
+        if not binding_symbols or (
+            isinstance(observable_symbol, str) and observable_symbol not in binding_symbols
+        ):
+            diagnostics.errors.append(
+                "bayes:likelihood-without-data: "
+                f"likelihood {comparison_name} references data {_node_name(data_node)} "
+                f"without a bound value for observable {observable_symbol!r}. "
+                "Fix: use observation() for the measured Variable or pass "
+                "precomputed likelihoods with a reviewable observation Claim."
+            )
+
+
+def _check_bayes_prior_coherence(
+    *,
+    comparison_name: str,
+    bayes: dict[str, Any],
+    model_bayes: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> list[str]:
+    """Append prior-coherence diagnostics and return hypothesis ids."""
+    hypotheses = bayes.get("hypotheses") or model_bayes.get("hypotheses") or []
+    hypothesis_ids = [h for h in hypotheses if isinstance(h, str)]
+    if not hypothesis_ids:
+        return []
+    prior_sum = sum(_hypothesis_prior(nodes.get(hypothesis_id)) for hypothesis_id in hypothesis_ids)
+    exclusivity = bayes.get("exclusivity")
+    if exclusivity == "pairwise_contradiction" and prior_sum > 1.0 + CROMWELL_EPS:
+        diagnostics.errors.append(
+            "bayes:hypothesis-prior-coherence: "
+            f"likelihood {comparison_name} uses pairwise_contradiction over "
+            f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
+            "Fix: reduce the listed hypothesis priors so their at-most-one mass "
+            "does not exceed 1, or choose a different exclusivity mode."
+        )
+    elif exclusivity == "exhaustive_pairwise_complement" and abs(prior_sum - 1.0) > CROMWELL_EPS:
+        diagnostics.errors.append(
+            "bayes:hypothesis-prior-coherence: "
+            f"likelihood {comparison_name} uses exhaustive_pairwise_complement over "
+            f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
+            "Fix: set the exhaustive alternatives' priors to sum to 1."
+        )
+    return hypothesis_ids
+
+
+def _check_bayes_infer_overlap(
+    *,
+    comparison_name: str,
+    bayes: dict[str, Any],
+    hypothesis_ids: list[str],
+    strategies: list[dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Warn when hand-written infer() overlaps a Bayes likelihood factor."""
+    for strategy in strategies:
+        strategy_bayes = (strategy.get("metadata") or {}).get("bayes") or {}
+        if strategy_bayes.get("role") == "likelihood_factor" or strategy.get("type") != "infer":
+            continue
+        premises = set(strategy.get("premises") or [])
+        conclusion = strategy.get("conclusion")
+        if premises.intersection(hypothesis_ids) and conclusion in (bayes.get("data") or []):
+            diagnostics.warnings.append(
+                "bayes:infer-likelihood-overlap: "
+                f"likelihood {comparison_name} overlaps with a low-level infer() "
+                "strategy for the same hypothesis/data pair. Fix: keep either "
+                "bayes.likelihood() or the hand-written infer() CPT."
+            )
+            return
+
+
 def _bayes_check_diagnostics(ir: dict[str, Any]) -> _BayesCheckDiagnostics:
     diagnostics = _BayesCheckDiagnostics()
     nodes = {node["id"]: node for node in ir.get("knowledges", []) if node.get("id")}
@@ -367,42 +529,18 @@ def _bayes_check_diagnostics(ir: dict[str, Any]) -> _BayesCheckDiagnostics:
         node_id: node for node_id, node in nodes.items() if _bayes_role(node) == "comparison"
     }
 
-    referenced_models = {
-        model
-        for comparison in comparisons.values()
-        if isinstance((model := _bayes_metadata(comparison).get("model")), str)
-    }
-    for comparison in comparisons.values():
-        against = _bayes_metadata(comparison).get("against")
-        if isinstance(against, list):
-            referenced_models.update(model for model in against if isinstance(model, str))
-    observed_symbols = {
-        symbol for node in nodes.values() for symbol in _formula_binding_symbols(node)
-    }
+    referenced_models = _bayes_referenced_models(comparisons)
+    observed_symbols = _bayes_observed_symbols(nodes)
 
     for prediction_id, prediction in predictions.items():
-        prediction_name = _node_name(prediction)
-        if _is_local_ir_id(ir, prediction_id) and prediction_id not in referenced_models:
-            diagnostics.warnings.append(
-                "bayes:dangling-prediction: "
-                f"PredictiveModel {prediction_name} is never referenced by likelihood(). "
-                "Fix: add bayes.likelihood(data, model=model, against=[...]) or remove the "
-                "unused model."
-            )
-
-        observable = _bayes_metadata(prediction).get("observable") or {}
-        symbol = observable.get("symbol") if isinstance(observable, dict) else None
-        if (
-            _is_local_ir_id(ir, prediction_id)
-            and isinstance(symbol, str)
-            and symbol not in observed_symbols
-        ):
-            diagnostics.warnings.append(
-                "bayes:unobserved-prediction-target: "
-                f"PredictiveModel {prediction_name} observable {symbol!r} has no "
-                "matching observation() value. Fix: declare an observation() for that "
-                "Variable or import observed data from another package."
-            )
+        _check_bayes_prediction(
+            ir=ir,
+            prediction_id=prediction_id,
+            prediction=prediction,
+            referenced_models=referenced_models,
+            observed_symbols=observed_symbols,
+            diagnostics=diagnostics,
+        )
 
     for _comparison_id, comparison in comparisons.items():
         bayes = _bayes_metadata(comparison)
@@ -410,76 +548,230 @@ def _bayes_check_diagnostics(ir: dict[str, Any]) -> _BayesCheckDiagnostics:
         model_id = bayes.get("model")
         model = nodes.get(model_id) if isinstance(model_id, str) else None
         model_bayes = _bayes_metadata(model) if model is not None else {}
-        observable = model_bayes.get("observable") or {}
-        observable_symbol = observable.get("symbol") if isinstance(observable, dict) else None
 
-        for data_id in bayes.get("data") or []:
-            if not isinstance(data_id, str):
-                continue
-            data_node = nodes.get(data_id)
-            if data_node is None:
-                diagnostics.errors.append(
-                    "bayes:likelihood-without-data: "
-                    f"likelihood {comparison_name} references missing data {data_id}. "
-                    "Fix: pass an observation() Claim that is compiled with the package."
-                )
-                continue
-            binding_symbols = _formula_binding_symbols(data_node)
-            if not binding_symbols or (
-                isinstance(observable_symbol, str) and observable_symbol not in binding_symbols
-            ):
-                diagnostics.errors.append(
-                    "bayes:likelihood-without-data: "
-                    f"likelihood {comparison_name} references data {_node_name(data_node)} "
-                    f"without a bound value for observable {observable_symbol!r}. "
-                    "Fix: use observation() for the measured Variable or pass "
-                    "precomputed likelihoods with a reviewable observation Claim."
-                )
-
-        hypotheses = bayes.get("hypotheses") or model_bayes.get("hypotheses") or []
-        hypothesis_ids = [h for h in hypotheses if isinstance(h, str)]
+        _check_bayes_comparison_data(
+            comparison_name=comparison_name,
+            bayes=bayes,
+            model_bayes=model_bayes,
+            nodes=nodes,
+            diagnostics=diagnostics,
+        )
+        hypothesis_ids = _check_bayes_prior_coherence(
+            comparison_name=comparison_name,
+            bayes=bayes,
+            model_bayes=model_bayes,
+            nodes=nodes,
+            diagnostics=diagnostics,
+        )
         if not hypothesis_ids:
             continue
-        prior_sum = sum(
-            _hypothesis_prior(nodes.get(hypothesis_id)) for hypothesis_id in hypothesis_ids
+        _check_bayes_infer_overlap(
+            comparison_name=comparison_name,
+            bayes=bayes,
+            hypothesis_ids=hypothesis_ids,
+            strategies=ir.get("strategies", []),
+            diagnostics=diagnostics,
         )
-        exclusivity = bayes.get("exclusivity")
-        if exclusivity == "pairwise_contradiction" and prior_sum > 1.0 + CROMWELL_EPS:
-            diagnostics.errors.append(
-                "bayes:hypothesis-prior-coherence: "
-                f"likelihood {comparison_name} uses pairwise_contradiction over "
-                f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
-                "Fix: reduce the listed hypothesis priors so their at-most-one mass "
-                "does not exceed 1, or choose a different exclusivity mode."
-            )
-        elif (
-            exclusivity == "exhaustive_pairwise_complement" and abs(prior_sum - 1.0) > CROMWELL_EPS
-        ):
-            diagnostics.errors.append(
-                "bayes:hypothesis-prior-coherence: "
-                f"likelihood {comparison_name} uses exhaustive_pairwise_complement over "
-                f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
-                "Fix: set the exhaustive alternatives' priors to sum to 1."
-            )
-
-        for strategy in ir.get("strategies", []):
-            strategy_bayes = (strategy.get("metadata") or {}).get("bayes") or {}
-            if strategy_bayes.get("role") == "likelihood_factor":
-                continue
-            if strategy.get("type") != "infer":
-                continue
-            premises = set(strategy.get("premises") or [])
-            conclusion = strategy.get("conclusion")
-            if premises.intersection(hypothesis_ids) and conclusion in (bayes.get("data") or []):
-                diagnostics.warnings.append(
-                    "bayes:infer-likelihood-overlap: "
-                    f"likelihood {comparison_name} overlaps with a low-level infer() "
-                    "strategy for the same hypothesis/data pair. Fix: keep either "
-                    "bayes.likelihood() or the hand-written infer() CPT."
-                )
-                break
 
     return diagnostics
+
+
+def _bucket_knowledge_roles(
+    *,
+    claims: dict[str, dict[str, Any]],
+    classification: KnowledgeClassification,
+    boundary: _BoundaryAnalysis,
+    formalization_manifest: dict[str, Any] | None,
+) -> tuple[_KnowledgeBuckets, list[dict[str, Any]]]:
+    """Classify claims into the role buckets printed by `gaia check`."""
+    buckets = _KnowledgeBuckets()
+    scaffold_conclusions, scaffold_inputs = _formalization_dependency_claim_ids(
+        formalization_manifest
+    )
+    scaffold_connected = scaffold_conclusions | scaffold_inputs
+    candidate_relations = _candidate_relation_dependencies(formalization_manifest)
+    candidate_relation_claim_ids = _candidate_relation_claim_ids(candidate_relations)
+
+    for cid, claim in claims.items():
+        label = claim.get("label", cid.split("::")[-1])
+        role = node_role(cid, "claim", classification)
+        if role == "structural":
+            buckets.structural.append(label)
+        elif role == "derived":
+            buckets.derived.append(label)
+        elif cid in boundary.boundary_claim_ids:
+            buckets.independent.append((label, cid))
+        elif role == "background":
+            buckets.background_only.append(label)
+        elif cid in scaffold_connected:
+            buckets.scaffolded.append(label)
+        elif cid in candidate_relation_claim_ids:
+            buckets.candidate_relation_endpoints.append(label)
+        else:
+            buckets.orphaned.append(label)
+    return buckets, candidate_relations
+
+
+def _knowledge_summary_lines(
+    *,
+    claims: dict[str, dict[str, Any]],
+    notes: dict[str, dict[str, Any]],
+    questions: dict[str, dict[str, Any]],
+    buckets: _KnowledgeBuckets,
+    state_space: _MaxEntStateSpace,
+    induced_summary: _InducedMaxEntSummary | None,
+) -> list[str]:
+    """Return the top-level knowledge diagnostic summary lines."""
+    n_holes = sum(1 for _, cid in buckets.independent if _get_prior(claims[cid]) is None)
+    lines = [
+        "",
+        f"  Notes:     {len(notes)}",
+        f"  Questions: {len(questions)}",
+        f"  Claims:    {len(claims)}",
+        f"    Independent DOF:           {len(buckets.independent)}",
+    ]
+    if n_holes:
+        lines.append(f"      MaxEnt (no external prior): {n_holes}")
+        state_space_line = _state_space_line(state_space)
+        if state_space_line is not None:
+            lines.append(state_space_line)
+        induced_line = _induced_entropy_line(induced_summary or _InducedMaxEntSummary())
+        if induced_line is not None:
+            lines.append(induced_line)
+    lines.append(f"    Derived (BP propagates):   {len(buckets.derived)}")
+    lines.append(f"    Structural (deterministic): {len(buckets.structural)}")
+    if buckets.scaffolded:
+        lines.append(f"    Scaffolded (unformalized): {len(buckets.scaffolded)}")
+    if buckets.candidate_relation_endpoints:
+        lines.append(
+            f"    Candidate relation endpoints: {len(buckets.candidate_relation_endpoints)}"
+        )
+    if buckets.background_only:
+        lines.append(f"    Background-only:           {len(buckets.background_only)}")
+    if buckets.orphaned:
+        lines.append(f"    Orphaned (no connections): {len(buckets.orphaned)}")
+    return lines
+
+
+def _append_label_section(lines: list[str], title: str, labels: list[str]) -> None:
+    """Append a titled bullet list when labels are present."""
+    if not labels:
+        return
+    lines.append("")
+    lines.append(title)
+    for label in sorted(labels):
+        lines.append(f"    - {label}")
+
+
+def _append_independent_section(
+    lines: list[str],
+    independent: list[tuple[str, str]],
+    claims: dict[str, dict[str, Any]],
+) -> None:
+    """Append independent boundary premise details."""
+    if not independent:
+        return
+    lines.append("")
+    lines.append("  Independent boundary premises:")
+    for label, cid in sorted(independent):
+        prior = _get_prior(claims[cid])
+        if prior is not None:
+            lines.append(f"    - {label}  prior={prior}")
+        else:
+            lines.append(f"    - {label}  no external prior (MaxEnt)")
+
+
+def _append_candidate_relation_section(
+    lines: list[str],
+    candidate_relations: list[dict[str, Any]],
+    claims: dict[str, dict[str, Any]],
+) -> None:
+    """Append candidate-relation diagnostic lines."""
+    if not candidate_relations:
+        return
+    lines.append("")
+    lines.append("  Candidate relations (tracked in formalization manifest):")
+    for relation in sorted(
+        candidate_relations,
+        key=lambda item: str(item.get("label") or item.get("id") or ""),
+    ):
+        lines.append(_candidate_relation_line(relation, claims))
+
+
+def _partition_independent_priors(
+    claims: dict[str, dict[str, Any]],
+    boundary: _BoundaryAnalysis,
+) -> tuple[list[tuple[str, dict[str, Any]]], list[tuple[str, dict[str, Any]]]]:
+    """Split boundary claims into MaxEnt holes and prior-covered claims."""
+    holes: list[tuple[str, dict[str, Any]]] = []
+    covered: list[tuple[str, dict[str, Any]]] = []
+    for cid, claim in claims.items():
+        if cid not in boundary.boundary_claim_ids:
+            continue
+        if _get_prior(claim) is None:
+            holes.append((cid, claim))
+        else:
+            covered.append((cid, claim))
+    return holes, covered
+
+
+def _append_hole_header(
+    lines: list[str],
+    *,
+    holes: list[tuple[str, dict[str, Any]]],
+    covered: list[tuple[str, dict[str, Any]]],
+    state_space: _MaxEntStateSpace,
+    induced_summary: _InducedMaxEntSummary | None,
+) -> None:
+    """Append the independent DOF header for the hole report."""
+    lines.append("")
+    lines.append(
+        f"  Independent DOF analysis: {len(holes)} MaxEnt / "
+        f"{len(holes) + len(covered)} independent claims"
+    )
+    if not holes:
+        return
+    state_space_line = _state_space_line(state_space)
+    if state_space_line is not None:
+        lines.append(state_space_line)
+    induced_line = _induced_entropy_line(induced_summary or _InducedMaxEntSummary())
+    if induced_line is not None:
+        lines.append(induced_line)
+
+
+def _append_hole_details(lines: list[str], holes: list[tuple[str, dict[str, Any]]]) -> None:
+    """Append MaxEnt independent claim details."""
+    if not holes:
+        return
+    lines.append("")
+    lines.append("  MaxEnt independent claims (no external prior):")
+    for cid, claim in sorted(holes, key=lambda x: x[0]):
+        label = claim.get("label", cid.split("::")[-1])
+        content = claim.get("content", "")
+        preview = (content[:72] + "...") if len(content) > 75 else content
+        lines.append(f"    {label}")
+        lines.append(f"      id:      {cid}")
+        lines.append(f"      content: {preview}")
+        lines.append("      prior:   not externalized; MaxEnt over independent DOF")
+
+
+def _append_covered_prior_details(
+    lines: list[str],
+    covered: list[tuple[str, dict[str, Any]]],
+) -> None:
+    """Append prior-covered independent claim details."""
+    if not covered:
+        return
+    lines.append("")
+    lines.append("  Covered (independent claims with prior set):")
+    for cid, claim in sorted(covered, key=lambda x: x[0]):
+        label = claim.get("label", cid.split("::")[-1])
+        prior = _get_prior(claim)
+        justification = (claim.get("metadata") or {}).get("prior_justification", "")
+        lines.append(f"    {label}  prior={prior}")
+        if justification:
+            preview = (justification[:72] + "...") if len(justification) > 75 else justification
+            lines.append(f"      reason: {preview}")
 
 
 def _knowledge_diagnostics(
@@ -498,113 +790,43 @@ def _knowledge_diagnostics(
     c = classify_ir(ir)
     boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
 
-    independent: list[tuple[str, str]] = []  # goal-boundary load-bearing claims
-    derived = []
-    structural = []
-    background_only = []
-    scaffolded = []
-    candidate_relation_endpoints = []
-    orphaned = []
-    scaffold_conclusions, scaffold_inputs = _formalization_dependency_claim_ids(
-        formalization_manifest
+    buckets, candidate_relations = _bucket_knowledge_roles(
+        claims=claims,
+        classification=c,
+        boundary=boundary,
+        formalization_manifest=formalization_manifest,
     )
-    scaffold_connected = scaffold_conclusions | scaffold_inputs
-    candidate_relations = _candidate_relation_dependencies(formalization_manifest)
-    candidate_relation_claim_ids = _candidate_relation_claim_ids(candidate_relations)
-
-    for cid, k in claims.items():
-        label = k.get("label", cid.split("::")[-1])
-        role = node_role(cid, "claim", c)
-        if role == "structural":
-            structural.append(label)
-        elif role == "derived":
-            derived.append(label)
-        elif cid in boundary.boundary_claim_ids:
-            independent.append((label, cid))
-        elif role == "background":
-            background_only.append(label)
-        elif cid in scaffold_connected:
-            scaffolded.append(label)
-        elif cid in candidate_relation_claim_ids:
-            candidate_relation_endpoints.append(label)
-        else:
-            orphaned.append(label)
-
-    n_holes = sum(1 for _, cid in independent if _get_prior(claims[cid]) is None)
     state_space = _maxent_state_space(
         ir,
-        {cid for _, cid in independent if _get_prior(claims[cid]) is None},
+        {cid for _, cid in buckets.independent if _get_prior(claims[cid]) is None},
     )
 
-    # Summary
-    lines.append("")
-    lines.append(f"  Notes:     {len(notes)}")
-    lines.append(f"  Questions: {len(questions)}")
-    lines.append(f"  Claims:    {len(claims)}")
-    lines.append(f"    Independent DOF:           {len(independent)}")
-    if n_holes:
-        lines.append(f"      MaxEnt (no external prior): {n_holes}")
-        state_space_line = _state_space_line(state_space)
-        if state_space_line is not None:
-            lines.append(state_space_line)
-        induced_line = _induced_entropy_line(induced_summary or _InducedMaxEntSummary())
-        if induced_line is not None:
-            lines.append(induced_line)
-    lines.append(f"    Derived (BP propagates):   {len(derived)}")
-    lines.append(f"    Structural (deterministic): {len(structural)}")
-    if scaffolded:
-        lines.append(f"    Scaffolded (unformalized): {len(scaffolded)}")
-    if candidate_relation_endpoints:
-        lines.append(f"    Candidate relation endpoints: {len(candidate_relation_endpoints)}")
-    if background_only:
-        lines.append(f"    Background-only:           {len(background_only)}")
-    if orphaned:
-        lines.append(f"    Orphaned (no connections): {len(orphaned)}")
-
-    if independent:
-        lines.append("")
-        lines.append("  Independent boundary premises:")
-        for label, cid in sorted(independent):
-            prior = _get_prior(claims[cid])
-            if prior is not None:
-                lines.append(f"    - {label}  prior={prior}")
-            else:
-                lines.append(f"    - {label}  no external prior (MaxEnt)")
-
-    if derived:
-        lines.append("")
-        lines.append("  Derived conclusions (belief from BP, prior optional):")
-        for label in sorted(derived):
-            lines.append(f"    - {label}")
-
-    if background_only:
-        lines.append("")
-        lines.append(
-            "  Background-only claims (referenced in strategy background, not in BP graph):"
+    lines.extend(
+        _knowledge_summary_lines(
+            claims=claims,
+            notes=notes,
+            questions=questions,
+            buckets=buckets,
+            state_space=state_space,
+            induced_summary=induced_summary,
         )
-        for label in sorted(background_only):
-            lines.append(f"    - {label}")
-
-    if scaffolded:
-        lines.append("")
-        lines.append("  Scaffolded claims (tracked in formalization manifest):")
-        for label in sorted(scaffolded):
-            lines.append(f"    - {label}")
-
-    if candidate_relations:
-        lines.append("")
-        lines.append("  Candidate relations (tracked in formalization manifest):")
-        for relation in sorted(
-            candidate_relations,
-            key=lambda item: str(item.get("label") or item.get("id") or ""),
-        ):
-            lines.append(_candidate_relation_line(relation, claims))
-
-    if orphaned:
-        lines.append("")
-        lines.append("  Orphaned claims (not referenced anywhere):")
-        for label in sorted(orphaned):
-            lines.append(f"    - {label}")
+    )
+    _append_independent_section(lines, buckets.independent, claims)
+    _append_label_section(
+        lines,
+        "  Derived conclusions (belief from BP, prior optional):",
+        buckets.derived,
+    )
+    _append_label_section(
+        lines,
+        "  Background-only claims (referenced in strategy background, not in BP graph):",
+        buckets.background_only,
+    )
+    _append_label_section(
+        lines, "  Scaffolded claims (tracked in formalization manifest):", buckets.scaffolded
+    )
+    _append_candidate_relation_section(lines, candidate_relations, claims)
+    _append_label_section(lines, "  Orphaned claims (not referenced anywhere):", buckets.orphaned)
 
     return lines
 
@@ -619,56 +841,18 @@ def _hole_report(
     claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
     boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
     lines: list[str] = []
-    holes: list[tuple[str, dict[str, Any]]] = []
-    covered: list[tuple[str, dict[str, Any]]] = []
-
-    for cid, k in claims.items():
-        if cid not in boundary.boundary_claim_ids:
-            continue
-        prior = _get_prior(k)
-        if prior is None:
-            holes.append((cid, k))
-        else:
-            covered.append((cid, k))
-
+    holes, covered = _partition_independent_priors(claims, boundary)
     state_space = _maxent_state_space(ir, {cid for cid, _ in holes})
 
-    lines.append("")
-    lines.append(
-        f"  Independent DOF analysis: {len(holes)} MaxEnt / "
-        f"{len(holes) + len(covered)} independent claims"
+    _append_hole_header(
+        lines,
+        holes=holes,
+        covered=covered,
+        state_space=state_space,
+        induced_summary=induced_summary,
     )
-    if holes:
-        state_space_line = _state_space_line(state_space)
-        if state_space_line is not None:
-            lines.append(state_space_line)
-        induced_line = _induced_entropy_line(induced_summary or _InducedMaxEntSummary())
-        if induced_line is not None:
-            lines.append(induced_line)
-
-    if holes:
-        lines.append("")
-        lines.append("  MaxEnt independent claims (no external prior):")
-        for cid, k in sorted(holes, key=lambda x: x[0]):
-            label = k.get("label", cid.split("::")[-1])
-            content = k.get("content", "")
-            preview = (content[:72] + "...") if len(content) > 75 else content
-            lines.append(f"    {label}")
-            lines.append(f"      id:      {cid}")
-            lines.append(f"      content: {preview}")
-            lines.append("      prior:   not externalized; MaxEnt over independent DOF")
-
-    if covered:
-        lines.append("")
-        lines.append("  Covered (independent claims with prior set):")
-        for cid, k in sorted(covered, key=lambda x: x[0]):
-            label = k.get("label", cid.split("::")[-1])
-            prior = _get_prior(k)
-            justification = (k.get("metadata") or {}).get("prior_justification", "")
-            lines.append(f"    {label}  prior={prior}")
-            if justification:
-                preview = (justification[:72] + "...") if len(justification) > 75 else justification
-                lines.append(f"      reason: {preview}")
+    _append_hole_details(lines, holes)
+    _append_covered_prior_details(lines, covered)
 
     if not holes:
         lines.append("")

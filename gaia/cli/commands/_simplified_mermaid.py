@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._classify import KnowledgeClassification, classify_ir, node_role
 
 # ── Mermaid CSS class definitions (self-contained, not imported from _detailed_reasoning) ──
 
@@ -96,6 +96,212 @@ def _is_helper(label: str | None) -> bool:
     return label.startswith("__") or label.startswith("_anon")
 
 
+def _knowledge_by_id(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return knowledge nodes keyed by id."""
+    return {k["id"]: k for k in ir["knowledges"]}
+
+
+def _render_selected_knowledge_nodes(
+    *,
+    ir: dict[str, Any],
+    selected: set[str],
+    exported_ids: set[str],
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    classification: KnowledgeClassification,
+) -> tuple[list[str], set[str]]:
+    """Render selected non-helper knowledge nodes."""
+    lines: list[str] = []
+    rendered_labels: set[str] = set()
+    for k in ir["knowledges"]:
+        kid = k["id"]
+        if kid not in selected:
+            continue
+        label = k.get("label", "")
+        if _is_helper(label):
+            continue
+        title = k.get("title") or label
+        is_exported = kid in exported_ids
+        prior_val = priors.get(kid, 0.5)
+        annotation = f"{prior_val:.2f} \u2192 {beliefs.get(kid, prior_val):.2f}"
+        star = " \u2605" if is_exported else ""
+        display = f"{title}{star} ({annotation})"
+        display = display.replace('"', "#quot;").replace("*", "#ast;")
+        css = (
+            "exported"
+            if is_exported
+            else _ROLE_TO_CSS.get(node_role(kid, k["type"], classification), "orphan")
+        )
+        lines.append(f'    {label}["{display}"]:::{css}')
+        rendered_labels.add(label)
+    return lines, rendered_labels
+
+
+def _visible_strategy_labels(
+    ids: list[str],
+    *,
+    selected: set[str],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Return selected non-helper labels for strategy endpoint ids."""
+    labels: list[str] = []
+    for kid in ids:
+        if kid not in selected:
+            continue
+        label = knowledge_by_id.get(kid, {}).get("label", "")
+        if label and not _is_helper(label):
+            labels.append(label)
+    return labels
+
+
+def _render_strategy_edges(
+    *,
+    ir: dict[str, Any],
+    selected: set[str],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Render selected strategy edges for simplified Mermaid."""
+    lines: list[str] = []
+    for i, strategy in enumerate(ir.get("strategies", [])):
+        conclusion = strategy.get("conclusion")
+        if not conclusion or conclusion not in selected:
+            continue
+        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "")
+        if _is_helper(conc_label):
+            continue
+        visible_premises = _visible_strategy_labels(
+            strategy.get("premises", []), selected=selected, knowledge_by_id=knowledge_by_id
+        )
+        visible_bg = _visible_strategy_labels(
+            strategy.get("background") or [], selected=selected, knowledge_by_id=knowledge_by_id
+        )
+        if not visible_premises and not visible_bg:
+            continue
+        stype = strategy.get("type", "")
+        sid = f"strat_{i}"
+        css = "" if stype in _DETERMINISTIC_STRATEGIES else ":::weak"
+        lines.append(f'    {sid}(["{stype}"]){css}')
+        lines.extend(f"    {label} --> {sid}" for label in visible_premises)
+        lines.extend(f"    {label} -.-> {sid}" for label in visible_bg)
+        lines.append(f"    {sid} --> {conc_label}")
+    return lines
+
+
+def _render_pulled_node(
+    *,
+    kid: str,
+    label: str,
+    knowledge_by_id: dict[str, dict[str, Any]],
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    classification: KnowledgeClassification,
+) -> str:
+    """Render an unselected operator variable pulled into the graph."""
+    k = knowledge_by_id.get(kid, {})
+    title = k.get("title") or label
+    prior_val = priors.get(kid, 0.5)
+    belief_val = beliefs.get(kid, prior_val)
+    display = f"{title} ({prior_val:.2f} \u2192 {belief_val:.2f})"
+    display = display.replace('"', "#quot;").replace("*", "#ast;")
+    role = node_role(kid, k.get("type", "claim"), classification)
+    return f'    {label}["{display}"]:::{_ROLE_TO_CSS.get(role, "orphan")}'
+
+
+def _render_operator_edges(
+    *,
+    ir: dict[str, Any],
+    selected: set[str],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    rendered_labels: set[str],
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    classification: KnowledgeClassification,
+) -> list[str]:
+    """Render selected operator constraints for simplified Mermaid."""
+    lines: list[str] = []
+    for i, operator in enumerate(ir.get("operators", [])):
+        lines.extend(
+            _render_one_operator(
+                i=i,
+                operator=operator,
+                selected=selected,
+                knowledge_by_id=knowledge_by_id,
+                rendered_labels=rendered_labels,
+                beliefs=beliefs,
+                priors=priors,
+                classification=classification,
+            )
+        )
+    return lines
+
+
+def _render_one_operator(
+    *,
+    i: int,
+    operator: dict[str, Any],
+    selected: set[str],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    rendered_labels: set[str],
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    classification: KnowledgeClassification,
+) -> list[str]:
+    """Render one operator node and its variable/conclusion edges."""
+    conclusion = operator.get("conclusion")
+    conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
+    conc_visible = bool(conclusion and conclusion in selected and not _is_helper(conc_label))
+    variables = _operator_visible_variables(operator, selected, knowledge_by_id)
+    if not variables.any_selected and not conc_visible:
+        return []
+
+    otype = operator.get("operator", "")
+    oid = f"oper_{i}"
+    edge = " --- " if otype in _UNDIRECTED_OPERATORS else " --> "
+    css = ":::contra" if otype == "contradiction" else ""
+    lines = [f'    {oid}{{{{"{_OPERATOR_SYMBOLS.get(otype, otype)}"}}}}{css}']
+    for kid, label in variables.all_vars:
+        if kid not in selected and label not in rendered_labels:
+            lines.append(
+                _render_pulled_node(
+                    kid=kid,
+                    label=label,
+                    knowledge_by_id=knowledge_by_id,
+                    beliefs=beliefs,
+                    priors=priors,
+                    classification=classification,
+                )
+            )
+            rendered_labels.add(label)
+        lines.append(f"    {label}{edge}{oid}")
+    if conc_visible:
+        lines.append(f"    {oid}{edge}{conc_label}")
+    return lines
+
+
+class _OperatorVariables:
+    """Visible operator variables plus whether any were selected."""
+
+    def __init__(self, all_vars: list[tuple[str, str]], any_selected: bool) -> None:
+        self.all_vars = all_vars
+        self.any_selected = any_selected
+
+
+def _operator_visible_variables(
+    operator: dict[str, Any],
+    selected: set[str],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> _OperatorVariables:
+    """Collect non-helper operator variable labels."""
+    all_vars: list[tuple[str, str]] = []
+    any_selected = False
+    for variable in operator.get("variables", []):
+        label = knowledge_by_id.get(variable, {}).get("label", "")
+        if label and not _is_helper(label):
+            all_vars.append((variable, label))
+            any_selected = any_selected or variable in selected
+    return _OperatorVariables(all_vars, any_selected)
+
+
 def render_simplified_mermaid(
     ir: dict[str, Any],
     beliefs: dict[str, float],
@@ -111,130 +317,37 @@ def render_simplified_mermaid(
     """
     selected = select_simplified_nodes(beliefs, priors, exported_ids, max_nodes)
 
-    knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
-    c = classify_ir(ir)
+    knowledge_by_id = _knowledge_by_id(ir)
+    classification = classify_ir(ir)
 
     lines = ["```mermaid", "graph TD"]
-    _rendered_labels: set[str] = set()
-
-    # Render knowledge nodes
-    for k in ir["knowledges"]:
-        kid = k["id"]
-        if kid not in selected:
-            continue
-        label = k.get("label", "")
-        if _is_helper(label):
-            continue
-
-        title = k.get("title") or label
-        is_exported = kid in exported_ids
-        star = " \u2605" if is_exported else ""
-
-        prior_val = priors.get(kid, 0.5)
-        belief_val = beliefs.get(kid, prior_val)
-        annotation = f"{prior_val:.2f} \u2192 {belief_val:.2f}"
-
-        display = f"{title}{star} ({annotation})"
-        display = display.replace('"', "#quot;").replace("*", "#ast;")
-
-        if is_exported:
-            css = "exported"
-        else:
-            role = node_role(kid, k["type"], c)
-            css = _ROLE_TO_CSS.get(role, "orphan")
-
-        lines.append(f'    {label}["{display}"]:::{css}')
-        _rendered_labels.add(label)
-
-    # Render strategy edges between selected nodes
-    for i, s in enumerate(ir.get("strategies", [])):
-        conclusion = s.get("conclusion")
-        if not conclusion or conclusion not in selected:
-            continue
-        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "")
-        if _is_helper(conc_label):
-            continue
-
-        stype = s.get("type", "")
-        sid = f"strat_{i}"
-
-        visible_premises: list[str] = []
-        for p in s.get("premises", []):
-            if p not in selected:
-                continue
-            p_label = knowledge_by_id.get(p, {}).get("label", "")
-            if p_label and not _is_helper(p_label):
-                visible_premises.append(p_label)
-
-        visible_bg: list[str] = []
-        for b in s.get("background") or []:
-            if b not in selected:
-                continue
-            b_label = knowledge_by_id.get(b, {}).get("label", "")
-            if b_label and not _is_helper(b_label):
-                visible_bg.append(b_label)
-
-        if not visible_premises and not visible_bg:
-            continue
-
-        css = "" if stype in _DETERMINISTIC_STRATEGIES else ":::weak"
-        lines.append(f'    {sid}(["{stype}"]){css}')
-
-        for p_label in visible_premises:
-            lines.append(f"    {p_label} --> {sid}")
-        for b_label in visible_bg:
-            lines.append(f"    {b_label} -.-> {sid}")
-        lines.append(f"    {sid} --> {conc_label}")
-
-    # Render operator edges between selected nodes.
-    # When an operator has at least one selected variable, pull in the
-    # missing variables so the constraint renders completely.
-    for i, o in enumerate(ir.get("operators", [])):
-        conclusion = o.get("conclusion")
-        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
-        conc_visible = conclusion and conclusion in selected and not _is_helper(conc_label)
-
-        otype = o.get("operator", "")
-        symbol = _OPERATOR_SYMBOLS.get(otype, otype)
-        oid = f"oper_{i}"
-        is_undirected = otype in _UNDIRECTED_OPERATORS
-
-        # Collect all non-helper variable labels for this operator
-        all_vars: list[tuple[str, str]] = []  # (kid, label)
-        any_selected = False
-        for v in o.get("variables", []):
-            v_label = knowledge_by_id.get(v, {}).get("label", "")
-            if v_label and not _is_helper(v_label):
-                all_vars.append((v, v_label))
-                if v in selected:
-                    any_selected = True
-
-        if not any_selected and not conc_visible:
-            continue
-
-        css = ":::contra" if otype == "contradiction" else ""
-        lines.append(f'    {oid}{{{{"{symbol}"}}}}{css}')
-
-        # Render all variables (pull in unselected ones so the constraint
-        # is complete — e.g. both sides of a contradiction are shown)
-        edge = " --- " if is_undirected else " --> "
-        for v_kid, v_label in all_vars:
-            # Ensure pulled-in nodes have a node definition
-            if v_kid not in selected and v_label not in _rendered_labels:
-                k = knowledge_by_id.get(v_kid, {})
-                title = k.get("title") or v_label
-                prior_val = priors.get(v_kid, 0.5)
-                belief_val = beliefs.get(v_kid, prior_val)
-                annotation = f"{prior_val:.2f} \u2192 {belief_val:.2f}"
-                display = f"{title} ({annotation})"
-                display = display.replace('"', "#quot;").replace("*", "#ast;")
-                role = node_role(v_kid, k.get("type", "claim"), c)
-                node_css = _ROLE_TO_CSS.get(role, "orphan")
-                lines.append(f'    {v_label}["{display}"]:::{node_css}')
-                _rendered_labels.add(v_label)
-            lines.append(f"    {v_label}{edge}{oid}")
-        if conc_visible:
-            lines.append(f"    {oid}{edge}{conc_label}")
+    knowledge_lines, rendered_labels = _render_selected_knowledge_nodes(
+        ir=ir,
+        selected=selected,
+        exported_ids=exported_ids,
+        beliefs=beliefs,
+        priors=priors,
+        classification=classification,
+    )
+    lines.extend(knowledge_lines)
+    lines.extend(
+        _render_strategy_edges(
+            ir=ir,
+            selected=selected,
+            knowledge_by_id=knowledge_by_id,
+        )
+    )
+    lines.extend(
+        _render_operator_edges(
+            ir=ir,
+            selected=selected,
+            knowledge_by_id=knowledge_by_id,
+            rendered_labels=rendered_labels,
+            beliefs=beliefs,
+            priors=priors,
+            classification=classification,
+        )
+    )
 
     lines.append("")
     lines.append(_MERMAID_STYLES)

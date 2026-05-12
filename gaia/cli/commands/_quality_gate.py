@@ -91,6 +91,40 @@ def _unformalized_dependencies(trees: list[InquiryNode]) -> list[InquiryEdge]:
     return sorted(edges.values(), key=lambda edge: edge.label)
 
 
+def _beliefs_by_id(beliefs: dict[str, Any]) -> dict[str, float]:
+    """Extract numeric belief values from a beliefs.json payload."""
+    belief_by_id: dict[str, float] = {}
+    for entry in beliefs.get("beliefs", []):
+        if not isinstance(entry, dict):
+            continue
+        knowledge_id = entry.get("knowledge_id")
+        belief_value = entry.get("belief")
+        if isinstance(knowledge_id, str) and isinstance(belief_value, int | float):
+            belief_by_id[knowledge_id] = float(belief_value)
+    return belief_by_id
+
+
+def _posterior_failures(
+    *,
+    goals: set[str],
+    beliefs: dict[str, Any] | None,
+    min_posterior: float,
+) -> list[str]:
+    """Return min-posterior quality gate failures."""
+    if beliefs is None:
+        return ["Missing beliefs: run `gaia infer` before using min_posterior"]
+
+    failures: list[str] = []
+    belief_by_id = _beliefs_by_id(beliefs)
+    for knowledge_id in sorted(goals):
+        belief = belief_by_id.get(knowledge_id)
+        if belief is None:
+            failures.append(f"Missing belief: {knowledge_id}")
+        elif belief < min_posterior:
+            failures.append(f"Low posterior: {knowledge_id} = {belief:.3f} < {min_posterior}")
+    return failures
+
+
 def check_quality_gate(
     ir: dict[str, Any],
     beliefs: dict[str, Any] | None,
@@ -121,24 +155,12 @@ def check_quality_gate(
             )
 
     if config.min_posterior is not None:
-        if beliefs is None:
-            failures.append("Missing beliefs: run `gaia infer` before using min_posterior")
-        else:
-            belief_by_id: dict[str, float] = {}
-            for entry in beliefs.get("beliefs", []):
-                if not isinstance(entry, dict):
-                    continue
-                knowledge_id = entry.get("knowledge_id")
-                belief_value = entry.get("belief")
-                if isinstance(knowledge_id, str) and isinstance(belief_value, int | float):
-                    belief_by_id[knowledge_id] = float(belief_value)
-            for knowledge_id in sorted(goals):
-                belief = belief_by_id.get(knowledge_id)
-                if belief is None:
-                    failures.append(f"Missing belief: {knowledge_id}")
-                elif belief < config.min_posterior:
-                    failures.append(
-                        f"Low posterior: {knowledge_id} = {belief:.3f} < {config.min_posterior}"
-                    )
+        failures.extend(
+            _posterior_failures(
+                goals=goals,
+                beliefs=beliefs,
+                min_posterior=config.min_posterior,
+            )
+        )
 
     return failures

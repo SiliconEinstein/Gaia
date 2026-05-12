@@ -6,7 +6,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import typer
 
@@ -105,6 +105,104 @@ def _render_svg(dot_source: str, *, theme: str) -> str:
     return svg
 
 
+def _validate_starmap_options(fmt: str, theme: str) -> None:
+    """Validate `gaia starmap` format and theme options."""
+    if fmt not in _DEFAULT_OUT:
+        typer.echo(
+            f"Error: --format must be one of {sorted(_DEFAULT_OUT)}; got {fmt!r}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    if theme not in _VALID_THEMES:
+        typer.echo(
+            f"Error: --theme must be one of {sorted(_VALID_THEMES)}; got {theme!r}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+
+def _load_starmap_inputs(path: str) -> tuple[Any, Any]:
+    """Load and compile package inputs for starmap rendering."""
+    try:
+        loaded = load_gaia_package(path)
+        apply_package_priors(loaded)
+        compiled = compile_loaded_package_artifact(loaded)
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    return loaded, compiled
+
+
+def _emit_starmap_validation(compiled: Any) -> None:
+    """Validate compiled IR before rendering a starmap."""
+    graph_validation = validate_local_graph(compiled.graph)
+    for warning in graph_validation.warnings:
+        typer.echo(f"Warning: {warning}")
+    if graph_validation.errors:
+        for error in graph_validation.errors:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+
+def _require_starmap_artifacts_fresh(loaded: Any, compiled: Any, ir: dict[str, Any]) -> None:
+    """Require stored compile artifacts to match the in-memory compiled IR."""
+    gaia_dir = loaded.pkg_path / ".gaia"
+    ir_hash_path = gaia_dir / "ir_hash"
+    ir_json_path = gaia_dir / "ir.json"
+    if not ir_hash_path.exists() or not ir_json_path.exists():
+        typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
+        raise typer.Exit(1)
+    if ir_hash_path.read_text().strip() != compiled.graph.ir_hash:
+        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        raise typer.Exit(1)
+    try:
+        stored_ir = json.loads(ir_json_path.read_text())
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != ir:
+        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        raise typer.Exit(1)
+
+
+def _load_starmap_beliefs(loaded: Any, compiled: Any) -> dict[str, Any] | None:
+    """Load optional beliefs.json and require freshness when present."""
+    beliefs_path = loaded.pkg_path / ".gaia" / "beliefs.json"
+    if not beliefs_path.exists():
+        return None
+    try:
+        beliefs_data = cast(dict[str, Any], json.loads(beliefs_path.read_text()))
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: {beliefs_path} is not valid JSON: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
+        typer.echo(
+            "Error: beliefs are stale; run `gaia infer` again.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    return beliefs_data
+
+
+def _render_starmap_content(graph_json: str, *, fmt: str, theme: str) -> str:
+    """Render graph JSON into the requested starmap output format."""
+    if fmt == "html":
+        try:
+            return _render_html(_load_template(), graph_json)
+        except GaiaCliError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
+    if fmt == "svg":
+        dot_source = to_dot(graph_json, theme=theme)
+        try:
+            return _render_svg(dot_source, theme=theme)
+        except GaiaCliError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
+    return to_dot(graph_json, theme=theme)
+
+
 def starmap_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     out: str = typer.Option(
@@ -177,74 +275,15 @@ def starmap_command(
       # PDF for direct LaTeX \includegraphics inclusion:
       dot -Tpdf figures/starmap.dot -o figures/starmap.pdf
     """
-    if fmt not in _DEFAULT_OUT:
-        typer.echo(
-            f"Error: --format must be one of {sorted(_DEFAULT_OUT)}; got {fmt!r}.",
-            err=True,
-        )
-        raise typer.Exit(2)
-
-    if theme not in _VALID_THEMES:
-        typer.echo(
-            f"Error: --theme must be one of {sorted(_VALID_THEMES)}; got {theme!r}.",
-            err=True,
-        )
-        raise typer.Exit(2)
-
-    try:
-        loaded = load_gaia_package(path)
-        apply_package_priors(loaded)
-        compiled = compile_loaded_package_artifact(loaded)
-    except GaiaCliError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1) from exc
-
-    graph_validation = validate_local_graph(compiled.graph)
-    for warning in graph_validation.warnings:
-        typer.echo(f"Warning: {warning}")
-    if graph_validation.errors:
-        for error in graph_validation.errors:
-            typer.echo(f"Error: {error}", err=True)
-        raise typer.Exit(1)
-
+    _validate_starmap_options(fmt, theme)
+    loaded, compiled = _load_starmap_inputs(path)
+    _emit_starmap_validation(compiled)
     ir = compiled.to_json()
-
-    # Same compile-artifact freshness gate as `render`.
-    gaia_dir = loaded.pkg_path / ".gaia"
-    ir_hash_path = gaia_dir / "ir_hash"
-    ir_json_path = gaia_dir / "ir.json"
-    if not ir_hash_path.exists() or not ir_json_path.exists():
-        typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
-        raise typer.Exit(1)
-    if ir_hash_path.read_text().strip() != compiled.graph.ir_hash:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
-        raise typer.Exit(1)
-    try:
-        stored_ir = json.loads(ir_json_path.read_text())
-    except json.JSONDecodeError as exc:
-        typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != ir:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
-        raise typer.Exit(1)
+    _require_starmap_artifacts_fresh(loaded, compiled, ir)
 
     # Beliefs are optional — degrade gracefully when absent. When present they
     # MUST be fresh, mirroring `render`.
-    beliefs_data: dict[str, Any] | None = None
-    beliefs_path = gaia_dir / "beliefs.json"
-    if beliefs_path.exists():
-        try:
-            beliefs_data = json.loads(beliefs_path.read_text())
-        except json.JSONDecodeError as exc:
-            typer.echo(f"Error: {beliefs_path} is not valid JSON: {exc}", err=True)
-            raise typer.Exit(1) from exc
-        if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
-            typer.echo(
-                "Error: beliefs are stale; run `gaia infer` again.",
-                err=True,
-            )
-            raise typer.Exit(1)
-
+    beliefs_data = _load_starmap_beliefs(loaded, compiled)
     param_data = param_data_from_ir_metadata(ir)
     exported_ids = {k["id"] for k in ir.get("knowledges", []) if k.get("exported")}
 
@@ -255,23 +294,7 @@ def starmap_command(
         exported_ids=exported_ids,
     )
     graph_payload = json.loads(graph_json)
-
-    if fmt == "html":
-        try:
-            template = _load_template()
-            content = _render_html(template, graph_json)
-        except GaiaCliError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(1) from exc
-    elif fmt == "svg":
-        dot_source = to_dot(graph_json, theme=theme)
-        try:
-            content = _render_svg(dot_source, theme=theme)
-        except GaiaCliError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(1) from exc
-    else:  # dot
-        content = to_dot(graph_json, theme=theme)
+    content = _render_starmap_content(graph_json, fmt=fmt, theme=theme)
 
     out_path = Path(out) if out is not None else Path(_DEFAULT_OUT[fmt])
     if not out_path.is_absolute():

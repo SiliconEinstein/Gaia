@@ -1745,6 +1745,59 @@ def _truncated_canonical_graph(
         return None
 
 
+def _round_knowledge_membership(ir: dict[str, Any]) -> tuple[dict[str, str], set[str]]:
+    """Return `(lkm_id -> knowledge_id, always_present_knowledge_ids)`."""
+    lkm_to_kid: dict[str, str] = {}
+    always_present: set[str] = set()
+    for k in ir["knowledges"]:
+        kid = k.get("id")
+        if not kid:
+            continue
+        lid = (k.get("metadata") or {}).get("lkm_id")
+        if isinstance(lid, str) and lid:
+            lkm_to_kid[lid] = kid
+        else:
+            always_present.add(kid)
+    return lkm_to_kid, always_present
+
+
+def _round_keep_ids(
+    *,
+    lkm_set: set[str],
+    lkm_to_kid: dict[str, str],
+    always_present: set[str],
+) -> set[str]:
+    """Resolve cumulative LKM membership to knowledge ids kept in a replay round."""
+    keep = set(always_present)
+    for lid in lkm_set:
+        kid = lkm_to_kid.get(lid)
+        if kid:
+            keep.add(kid)
+    return keep
+
+
+def _infer_truncated_beliefs(
+    ir: dict[str, Any],
+    keep: set[str],
+    engine: InferenceEngine,
+) -> dict[str, float]:
+    """Run inference on a truncated round graph and return beliefs for kept ids."""
+    canonical = _truncated_canonical_graph(ir, keep)
+    if canonical is None:
+        return {}
+    try:
+        fg = lower_local_graph(canonical)
+        fg_errors = fg.validate()
+        if fg_errors:
+            return {}
+        result = engine.run(fg)
+    except Exception:
+        return {}
+    return {
+        kid: float(result.bp_result.beliefs[kid]) for kid in result.bp_result.beliefs if kid in keep
+    }
+
+
 def compute_round_beliefs(
     ir: dict[str, Any],
     events: list[dict[str, Any]],
@@ -1770,18 +1823,7 @@ def compute_round_beliefs(
         return {}
 
     # Group IR knowledges by their lkm_id (or None for "always present").
-    lkm_to_kid: dict[str, str] = {}
-    always_present: set[str] = set()
-    for k in ir["knowledges"]:
-        kid = k.get("id")
-        if not kid:
-            continue
-        lid = (k.get("metadata") or {}).get("lkm_id")
-        if isinstance(lid, str) and lid:
-            lkm_to_kid[lid] = kid
-        else:
-            always_present.add(kid)
-
+    lkm_to_kid, always_present = _round_knowledge_membership(ir)
     cumulative = collect_round_lkm_membership(events)
     if not cumulative:
         return {}
@@ -1789,28 +1831,13 @@ def compute_round_beliefs(
     out: dict[str, dict[str, float]] = {}
     engine = InferenceEngine()
     for round_id, lkm_set in cumulative.items():
-        keep = set(always_present)
-        for lid in lkm_set:
-            kid = lkm_to_kid.get(lid)
-            if kid:
-                keep.add(kid)
+        keep = _round_keep_ids(
+            lkm_set=lkm_set,
+            lkm_to_kid=lkm_to_kid,
+            always_present=always_present,
+        )
         if not keep:
             out[round_id] = {}
             continue
-        canonical = _truncated_canonical_graph(ir, keep)
-        if canonical is None:
-            out[round_id] = {}
-            continue
-        try:
-            fg = lower_local_graph(canonical)
-            fg_errors = fg.validate()
-            if fg_errors:
-                out[round_id] = {}
-                continue
-            result = engine.run(fg)
-            beliefs = result.bp_result.beliefs
-        except Exception:
-            out[round_id] = {}
-            continue
-        out[round_id] = {kid: float(beliefs[kid]) for kid in beliefs if kid in keep}
+        out[round_id] = _infer_truncated_beliefs(ir, keep, engine)
     return out

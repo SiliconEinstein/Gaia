@@ -459,6 +459,76 @@ def generate_brief_detail(ir: dict[str, Any], label: str) -> list[str]:
 # ── Warrant tree formatting ──
 
 
+def _visible_premise_labels(
+    strategy: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Return non-helper premise labels for a strategy."""
+    return [
+        _label_of(p, knowledge_by_id)
+        for p in strategy.get("premises", [])
+        if not _is_helper(_label_of(p, knowledge_by_id))
+    ]
+
+
+def _format_sub_warrant(
+    sub: dict[str, Any],
+    *,
+    is_last: bool,
+    knowledge_by_id: dict[str, dict[str, Any]],
+    pad: str,
+) -> list[str]:
+    """Format one composite sub-strategy and its warrant helpers."""
+    prefix = "\u2514\u2500" if is_last else "\u251c\u2500"
+    cont = "  " if is_last else "\u2502 "
+    sub_meta = sub.get("metadata") or {}
+    sub_prior = sub_meta.get("prior")
+    sub_prior_s = f", prior={sub_prior}" if sub_prior is not None else ""
+    sub_reason = sub_meta.get("reason", "")
+    sub_conc_label = _label_of(sub.get("conclusion", ""), knowledge_by_id)
+
+    lines = [
+        f"{pad}  {prefix} {sub.get('type', '?')}("
+        f"[{', '.join(_visible_premise_labels(sub, knowledge_by_id))}] "
+        f"\u2192 {sub_conc_label}{sub_prior_s})"
+    ]
+    if sub_reason:
+        lines.append(f'{pad}  {cont}  reason: "{_truncate(sub_reason, 60)}"')
+
+    sub_formal = sub.get("formal_expr")
+    if sub_formal:
+        for op in sub_formal.get("operators", []):
+            op_conc = op.get("conclusion", "")
+            helper = knowledge_by_id.get(op_conc, {})
+            h_prior = _get_prior(helper.get("metadata"))
+            if h_prior is not None:
+                h_name = (helper.get("metadata") or {}).get(
+                    "canonical_name", op_conc.split("::")[-1]
+                )
+                lines.append(f"{pad}  {cont}  warrant: {h_name} (prior={h_prior})")
+    return lines
+
+
+def _format_formal_warrant_lines(
+    formal_expr: dict[str, Any],
+    *,
+    knowledge_by_id: dict[str, dict[str, Any]],
+    pad: str,
+) -> list[str]:
+    """Format operator skeleton lines for a FormalStrategy."""
+    lines: list[str] = []
+    for op in formal_expr.get("operators", []):
+        op_type = op.get("operator", "?")
+        op_vars = [_label_of(v, knowledge_by_id) for v in op.get("variables", [])]
+        op_conc_id = op.get("conclusion", "")
+        op_conc_label = _label_of(op_conc_id, knowledge_by_id)
+        helper = knowledge_by_id.get(op_conc_id, {})
+        h_prior = _get_prior(helper.get("metadata"))
+        h_prior_s = f" (prior={h_prior})" if h_prior is not None else ""
+        lines.append(f"{pad}  {op_type}([{', '.join(op_vars)}] \u2192 {op_conc_label}{h_prior_s})")
+    return lines
+
+
 def _format_warrant_tree(
     strategy: dict[str, Any],
     knowledge_by_id: dict[str, dict[str, Any]],
@@ -475,11 +545,7 @@ def _format_warrant_tree(
     prior_s = f", prior={prior}" if prior is not None else ""
     reason = meta.get("reason", "")
 
-    premise_labels = [
-        _label_of(p, knowledge_by_id)
-        for p in strategy.get("premises", [])
-        if not _is_helper(_label_of(p, knowledge_by_id))
-    ]
+    premise_labels = _visible_premise_labels(strategy, knowledge_by_id)
     conc_label = _label_of(strategy.get("conclusion", ""), knowledge_by_id)
 
     # Check if this is a composite strategy
@@ -497,42 +563,14 @@ def _format_warrant_tree(
             if not sub:
                 lines.append(f"{pad}  \u251c\u2500 (unresolved: {sub_id})")
                 continue
-            sub_type = sub.get("type", "?")
-            sub_meta = sub.get("metadata") or {}
-            sub_prior = sub_meta.get("prior")
-            sub_prior_s = f", prior={sub_prior}" if sub_prior is not None else ""
-            sub_reason = sub_meta.get("reason", "")
-
-            sub_premise_labels = [
-                _label_of(p, knowledge_by_id)
-                for p in sub.get("premises", [])
-                if not _is_helper(_label_of(p, knowledge_by_id))
-            ]
-            sub_conc_label = _label_of(sub.get("conclusion", ""), knowledge_by_id)
-
-            is_last = i == len(sub_ids) - 1
-            prefix = "\u2514\u2500" if is_last else "\u251c\u2500"
-            cont = "  " if is_last else "\u2502 "
-
-            lines.append(
-                f"{pad}  {prefix} {sub_type}([{', '.join(sub_premise_labels)}]"
-                f" \u2192 {sub_conc_label}{sub_prior_s})"
+            lines.extend(
+                _format_sub_warrant(
+                    sub,
+                    is_last=i == len(sub_ids) - 1,
+                    knowledge_by_id=knowledge_by_id,
+                    pad=pad,
+                )
             )
-            if sub_reason:
-                lines.append(f'{pad}  {cont}  reason: "{_truncate(sub_reason, 60)}"')
-
-            # Show warrant helpers for sub-strategy's formal_expr
-            sub_formal = sub.get("formal_expr")
-            if sub_formal:
-                for op in sub_formal.get("operators", []):
-                    op_conc = op.get("conclusion", "")
-                    helper = knowledge_by_id.get(op_conc, {})
-                    h_prior = _get_prior(helper.get("metadata"))
-                    if h_prior is not None:
-                        h_name = (helper.get("metadata") or {}).get(
-                            "canonical_name", op_conc.split("::")[-1]
-                        )
-                        lines.append(f"{pad}  {cont}  warrant: {h_name} (prior={h_prior})")
 
     elif formal_expr:
         # FormalStrategy — show operator skeleton + warrant priors
@@ -542,19 +580,13 @@ def _format_warrant_tree(
         if reason:
             lines.append(f'{pad}  reason: "{_truncate(reason, 70)}"')
 
-        for op in formal_expr.get("operators", []):
-            op_type = op.get("operator", "?")
-            op_vars = [_label_of(v, knowledge_by_id) for v in op.get("variables", [])]
-            op_conc_id = op.get("conclusion", "")
-            op_conc_label = _label_of(op_conc_id, knowledge_by_id)
-
-            helper = knowledge_by_id.get(op_conc_id, {})
-            h_prior = _get_prior(helper.get("metadata"))
-            h_prior_s = f" (prior={h_prior})" if h_prior is not None else ""
-
-            lines.append(
-                f"{pad}  {op_type}([{', '.join(op_vars)}] \u2192 {op_conc_label}{h_prior_s})"
+        lines.extend(
+            _format_formal_warrant_lines(
+                formal_expr,
+                knowledge_by_id=knowledge_by_id,
+                pad=pad,
             )
+        )
 
     else:
         # Leaf strategy (infer)

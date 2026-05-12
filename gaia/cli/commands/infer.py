@@ -29,6 +29,146 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
 
 
+def _load_inference_inputs(path: str) -> tuple[Any, Any, Any]:
+    """Load package, compile it, and merge the review manifest for inference."""
+    try:
+        ensure_package_env(Path(path).resolve())
+        loaded = load_gaia_package(path)
+        apply_package_priors(loaded)
+        compiled = compile_loaded_package_artifact(loaded)
+        review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    return loaded, compiled, review_manifest
+
+
+def _emit_graph_validation_errors(compiled: Any) -> None:
+    """Validate compiled IR and raise Typer exit on errors."""
+    graph_validation = validate_local_graph(compiled.graph)
+    for warning in graph_validation.warnings:
+        typer.echo(f"Warning: {warning}")
+    if graph_validation.errors:
+        for error in graph_validation.errors:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+
+def _require_fresh_compile_artifacts(
+    loaded: Any,
+    compiled: Any,
+    compiled_json: dict[str, Any],
+) -> None:
+    """Require `.gaia/ir_hash` and `.gaia/ir.json` to match the compiled graph."""
+    ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
+    ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
+    if not ir_hash_path.exists() or not ir_json_path.exists():
+        typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
+        raise typer.Exit(1)
+    if ir_hash_path.read_text().strip() != compiled.graph.ir_hash:
+        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        raise typer.Exit(1)
+    try:
+        stored_ir = json.loads(ir_json_path.read_text())
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != compiled_json:
+        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        raise typer.Exit(1)
+
+
+def _dependency_factor_graphs(
+    loaded: Any,
+    *,
+    depth: int,
+) -> list[tuple[str, FactorGraph, str]]:
+    """Load dependency package factor graphs for joint inference."""
+    try:
+        dep_compiled = load_dependency_compiled_graphs(loaded.project_config, depth=depth)
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+    if not dep_compiled:
+        typer.echo("No -gaia dependencies found; running local inference only")
+
+    dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
+    for dep in dep_compiled:
+        dep_review_manifest = load_or_generate_review_manifest(dep.root, dep)
+        dep_fg = lower_local_graph(dep.graph, review_manifest=dep_review_manifest)
+        dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
+        dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
+        typer.echo(
+            f"Loaded dep '{dep.import_name}': "
+            f"{len(dep.graph.knowledges)} knowledge, "
+            f"{len(dep_fg.factors)} factors"
+        )
+    return dep_factor_graphs
+
+
+def _lower_inference_graph(
+    loaded: Any,
+    compiled: Any,
+    review_manifest: Any,
+    *,
+    depth: int,
+) -> FactorGraph:
+    """Lower the compiled graph according to local or joint inference depth."""
+    if depth == 0:
+        foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
+        if foreign_priors:
+            typer.echo(f"Loaded {len(foreign_priors)} upstream belief(s) for foreign nodes")
+        return lower_local_graph(
+            compiled.graph,
+            node_priors=foreign_priors or None,
+            review_manifest=review_manifest,
+        )
+
+    dep_factor_graphs = _dependency_factor_graphs(loaded, depth=depth)
+    local_fg = lower_local_graph(
+        compiled.graph,
+        review_manifest=review_manifest,
+    )
+    local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
+    if not dep_factor_graphs:
+        return local_fg
+    factor_graph = merge_factor_graphs(local_fg, dep_factor_graphs, local_prefix=local_prefix)
+    typer.echo(
+        f"Merged graph: {len(factor_graph.variables)} variables, "
+        f"{len(factor_graph.factors)} factors"
+    )
+    return factor_graph
+
+
+def _validate_factor_graph(factor_graph: FactorGraph) -> None:
+    """Validate a factor graph before inference."""
+    fg_errors = factor_graph.validate()
+    if fg_errors:
+        for error in fg_errors:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+
+def _beliefs_payload(compiled: Any, result: Any) -> dict[str, Any]:
+    """Build the persisted `.gaia/beliefs.json` payload."""
+    knowledge_by_id = {knowledge.id: knowledge for knowledge in compiled.graph.knowledges}
+    return {
+        "ir_hash": compiled.graph.ir_hash,
+        "gaia_lang_version": gaia_lang_version(),
+        "beliefs": [
+            {
+                "knowledge_id": knowledge_id,
+                "label": knowledge_by_id[knowledge_id].label,
+                "belief": belief,
+            }
+            for knowledge_id, belief in sorted(result.beliefs.items())
+            if knowledge_id in knowledge_by_id
+        ],
+        "diagnostics": asdict(result.diagnostics),
+    }
+
+
 def infer_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     depth: int = typer.Option(
@@ -49,98 +189,13 @@ def infer_command(
     merged for joint cross-package inference instead of using flat
     prior injection from dep_beliefs/.
     """
-    try:
-        ensure_package_env(Path(path).resolve())
-        loaded = load_gaia_package(path)
-        apply_package_priors(loaded)
-        compiled = compile_loaded_package_artifact(loaded)
-        review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
-    except GaiaCliError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1) from exc
-
-    graph_validation = validate_local_graph(compiled.graph)
-    for warning in graph_validation.warnings:
-        typer.echo(f"Warning: {warning}")
-    if graph_validation.errors:
-        for error in graph_validation.errors:
-            typer.echo(f"Error: {error}", err=True)
-        raise typer.Exit(1)
-
-    ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
-    ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
+    loaded, compiled, review_manifest = _load_inference_inputs(path)
+    _emit_graph_validation_errors(compiled)
     compiled_json = compiled.to_json()
-    if not ir_hash_path.exists() or not ir_json_path.exists():
-        typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
-        raise typer.Exit(1)
-    if ir_hash_path.read_text().strip() != compiled.graph.ir_hash:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
-        raise typer.Exit(1)
-    try:
-        stored_ir = json.loads(ir_json_path.read_text())
-    except json.JSONDecodeError as exc:
-        typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != compiled_json:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
-        raise typer.Exit(1)
+    _require_fresh_compile_artifacts(loaded, compiled, compiled_json)
 
-    if depth != 0:
-        # Joint cross-package inference: merge dependency factor graphs
-        try:
-            dep_compiled = load_dependency_compiled_graphs(loaded.project_config, depth=depth)
-        except GaiaCliError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(1) from exc
-
-        if not dep_compiled:
-            typer.echo("No -gaia dependencies found; running local inference only")
-
-        dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
-        for dep in dep_compiled:
-            dep_review_manifest = load_or_generate_review_manifest(dep.root, dep)
-            dep_fg = lower_local_graph(dep.graph, review_manifest=dep_review_manifest)
-            dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
-            dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
-            typer.echo(
-                f"Loaded dep '{dep.import_name}': "
-                f"{len(dep.graph.knowledges)} knowledge, "
-                f"{len(dep_fg.factors)} factors"
-            )
-
-        # Lower local graph WITHOUT foreign node priors — the dep graphs
-        # provide the full reasoning structure instead of flat priors
-        local_fg = lower_local_graph(
-            compiled.graph,
-            review_manifest=review_manifest,
-        )
-        local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
-
-        if dep_factor_graphs:
-            factor_graph = merge_factor_graphs(
-                local_fg, dep_factor_graphs, local_prefix=local_prefix
-            )
-            typer.echo(
-                f"Merged graph: {len(factor_graph.variables)} variables, "
-                f"{len(factor_graph.factors)} factors"
-            )
-        else:
-            factor_graph = local_fg
-    else:
-        # Default: flat prior injection from dep_beliefs/
-        foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
-        if foreign_priors:
-            typer.echo(f"Loaded {len(foreign_priors)} upstream belief(s) for foreign nodes")
-        factor_graph = lower_local_graph(
-            compiled.graph,
-            node_priors=foreign_priors or None,
-            review_manifest=review_manifest,
-        )
-    fg_errors = factor_graph.validate()
-    if fg_errors:
-        for error in fg_errors:
-            typer.echo(f"Error: {error}", err=True)
-        raise typer.Exit(1)
+    factor_graph = _lower_inference_graph(loaded, compiled, review_manifest, depth=depth)
+    _validate_factor_graph(factor_graph)
 
     engine = InferenceEngine()
     inference_result = engine.run(factor_graph)
@@ -149,24 +204,7 @@ def infer_command(
     gaia_dir = loaded.pkg_path / ".gaia"
     gaia_dir.mkdir(exist_ok=True)
 
-    gaia_ver = gaia_lang_version()
-
-    knowledge_by_id = {knowledge.id: knowledge for knowledge in compiled.graph.knowledges}
-    beliefs_payload = {
-        "ir_hash": compiled.graph.ir_hash,
-        "gaia_lang_version": gaia_ver,
-        "beliefs": [
-            {
-                "knowledge_id": knowledge_id,
-                "label": knowledge_by_id[knowledge_id].label,
-                "belief": belief,
-            }
-            for knowledge_id, belief in sorted(result.beliefs.items())
-            if knowledge_id in knowledge_by_id
-        ],
-        "diagnostics": asdict(result.diagnostics),
-    }
-    _write_json(gaia_dir / "beliefs.json", beliefs_payload)
+    _write_json(gaia_dir / "beliefs.json", _beliefs_payload(compiled, result))
 
     typer.echo(f"Inferred {len(result.beliefs)} beliefs")
     method_label = inference_result.method_used.upper()
