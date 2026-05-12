@@ -170,13 +170,13 @@ def starmap_command(
       gaia starmap path/to/pkg --format svg --out figures/starmap.svg
 
       # End-to-end paper figure with stellaris glow defs baked in:
-      gaia starmap path/to/pkg --format svg --theme stellaris \\
+      gaia starmap path/to/pkg --format svg --theme stellaris \
           --out figures/starmap_stellaris.svg
 
       # PNG preview at higher DPI from the dot source:
       dot -Tpng -Gdpi=200 figures/starmap.dot -o figures/starmap.png
 
-      # PDF for direct LaTeX \\includegraphics inclusion:
+      # PDF for direct LaTeX \includegraphics inclusion:
       dot -Tpdf figures/starmap.dot -o figures/starmap.pdf
     """
     if fmt not in _DEFAULT_OUT:
