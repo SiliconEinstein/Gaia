@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from gaia.inquiry.diagnostics import Diagnostic, NextEdit
 
 
@@ -45,11 +47,11 @@ def supported_modes() -> tuple[str, ...]:
     return tuple(_MODE_RANK.keys())
 
 
-def _key(mode: str):
+def _key(mode: str) -> Callable[[Diagnostic | NextEdit], tuple[int, int, str]]:
     table = _MODE_RANK.get(mode, _MODE_RANK["trace"])
     publish = mode == "publish"
 
-    def _k(d: Diagnostic | NextEdit):
+    def _k(d: Diagnostic | NextEdit) -> tuple[int, int, str]:
         kind_rank = table.get(d.kind, _UNKNOWN_KIND_RANK)
         sev_rank = _SEVERITY_RANK.get(d.severity, 9)
         # publish：warning 与 error 同档（都是 0），保留 info 在后

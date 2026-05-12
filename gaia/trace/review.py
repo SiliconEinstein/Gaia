@@ -126,6 +126,11 @@ def _to_next_edit(d: Diagnostic) -> NextEdit:
     )
 
 
+def _diagnostic_kind(diagnostic: Diagnostic) -> str:
+    """Return the runtime diagnostic kind, including trace-specific extensions."""
+    return str(diagnostic.kind)
+
+
 # ============ §2/§3/§4/§5/§6/§7 各段汇总 ============
 
 
@@ -186,20 +191,26 @@ def _build_causal_health_section(diags: list[Diagnostic], trace: Trace | None) -
     return {
         "tool_pairing": {
             "calls": calls,
-            "unresolved": sum(1 for d in diags if d.kind == "tool_call_without_result"),
+            "unresolved": sum(
+                1 for d in diags if _diagnostic_kind(d) == "tool_call_without_result"
+            ),
         },
         "decision_grounds": {
             "decisions": decisions,
-            "ungrounded": sum(1 for d in diags if d.kind == "decision_without_grounds"),
+            "ungrounded": sum(
+                1 for d in diags if _diagnostic_kind(d) == "decision_without_grounds"
+            ),
         },
         "parent_links": {
-            "orphans": sum(1 for d in diags if d.kind == "orphan_event"),
+            "orphans": sum(1 for d in diags if _diagnostic_kind(d) == "orphan_event"),
         },
         "actor_continuity": {
-            "unexplained_switches": sum(1 for d in diags if d.kind == "actor_switch_unexplained"),
+            "unexplained_switches": sum(
+                1 for d in diags if _diagnostic_kind(d) == "actor_switch_unexplained"
+            ),
         },
         "retry": {
-            "diverged_chains": sum(1 for d in diags if d.kind == "retry_diverged"),
+            "diverged_chains": sum(1 for d in diags if _diagnostic_kind(d) == "retry_diverged"),
         },
     }
 
@@ -210,7 +221,7 @@ def _build_reference_section(
     if trace is None:
         return []
     # 用 detector 的 resolver 逻辑，但这里要全集（resolved 也列出）
-    from gaia.trace.diagnostics import _default_resolver_factory  # type: ignore
+    from gaia.trace.diagnostics import _default_resolver_factory
 
     res = resolver or _default_resolver_factory(package_path)
     out: list[dict[str, Any]] = []

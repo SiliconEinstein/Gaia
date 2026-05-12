@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -21,7 +22,7 @@ class SchemaIssue:
 
     message: str
     location: str = ""  # 例如 "events[3].kind"
-    raw: dict | None = field(default=None)
+    raw: dict[str, Any] | None = field(default=None)
 
 
 @dataclass
@@ -139,7 +140,7 @@ def _load_jsonl(path: Path) -> LoadResult:
     return LoadResult(trace=trace, issues=issues, raw_path=str(path))
 
 
-def _try_partial(data: dict, issues: list[SchemaIssue], path: Path) -> LoadResult:
+def _try_partial(data: dict[str, Any], issues: list[SchemaIssue], path: Path) -> LoadResult:
     """单 JSON 整体校验失败时退化：尽量保住 manifest，逐条解析 events。"""
     manifest_raw = data.get("manifest")
     events_raw = data.get("events", [])
