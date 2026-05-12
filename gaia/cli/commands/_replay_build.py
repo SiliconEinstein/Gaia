@@ -31,6 +31,7 @@ tested directly so the integration tests don't have to spin up a real
 
 from __future__ import annotations
 
+import heapq
 import json
 import shutil
 import subprocess
@@ -1122,6 +1123,310 @@ def annotate_ticks_with_survival(
     return ticks, warnings
 
 
+@dataclass(frozen=True)
+class _TopoContext:
+    """Indexes used to derive replay tick dependencies."""
+
+    nodes: dict[str, Any]
+    id_to_layout_key: dict[str, str]
+    knowledge_layout_keys: set[str]
+    strategy_deps: dict[str, set[str]]
+    operator_deps: dict[str, set[str]]
+
+
+@dataclass(frozen=True)
+class _TopoTickPlan:
+    """Per-tick provide/dependency data before Kahn sorting."""
+
+    survivor_positions: list[int]
+    orphans_by_pos: dict[int, dict[str, Any]]
+    provides: dict[int, str | None]
+    deps: dict[int, set[str]]
+
+
+def _topo_knowledge_layout_index(
+    ir: dict[str, Any], nodes: dict[str, Any]
+) -> tuple[dict[str, str], set[str]]:
+    """Map IR knowledge ids into final replay layout keys."""
+    id_to_layout_key: dict[str, str] = {}
+    knowledge_layout_keys: set[str] = set()
+    for knowledge in ir.get("knowledges", []) or []:
+        kid = knowledge.get("id")
+        if not isinstance(kid, str):
+            continue
+        meta = knowledge.get("metadata") or {}
+        lid = meta.get("lkm_id")
+        if isinstance(lid, str) and lid and lid in nodes:
+            id_to_layout_key[kid] = lid
+            knowledge_layout_keys.add(lid)
+        elif kid in nodes:
+            id_to_layout_key[kid] = kid
+            knowledge_layout_keys.add(kid)
+    return id_to_layout_key, knowledge_layout_keys
+
+
+def _topo_ref_deps(refs: Any, id_to_layout_key: dict[str, str]) -> set[str]:
+    """Translate IR reference ids into replay layout dependency keys."""
+    deps: set[str] = set()
+    for ref in refs or []:
+        layout_key = id_to_layout_key.get(ref)
+        if layout_key:
+            deps.add(layout_key)
+    return deps
+
+
+def _topo_conclusion_dep(record: dict[str, Any], id_to_layout_key: dict[str, str]) -> set[str]:
+    """Return the layout dependency for a record conclusion, when present."""
+    conclusion = record.get("conclusion")
+    if not isinstance(conclusion, str):
+        return set()
+    layout_key = id_to_layout_key.get(conclusion)
+    return {layout_key} if layout_key else set()
+
+
+def _topo_strategy_deps(strategy: dict[str, Any], id_to_layout_key: dict[str, str]) -> set[str]:
+    """Return layout dependencies for one replay strategy tick."""
+    deps = _topo_ref_deps(strategy.get("premises"), id_to_layout_key)
+    deps.update(_topo_ref_deps(strategy.get("background"), id_to_layout_key))
+    deps.update(_topo_conclusion_dep(strategy, id_to_layout_key))
+    return deps
+
+
+def _topo_operator_deps(operator: dict[str, Any], id_to_layout_key: dict[str, str]) -> set[str]:
+    """Return layout dependencies for one replay operator tick."""
+    deps = _topo_ref_deps(operator.get("variables"), id_to_layout_key)
+    deps.update(_topo_conclusion_dep(operator, id_to_layout_key))
+    return deps
+
+
+def _build_topo_context(ir: dict[str, Any], nodes: dict[str, Any]) -> _TopoContext:
+    """Build dependency indexes for replay tick topological ordering."""
+    id_to_layout_key, knowledge_layout_keys = _topo_knowledge_layout_index(ir, nodes)
+
+    strategy_deps: dict[str, set[str]] = {}
+    for index, strategy in enumerate(ir.get("strategies", []) or []):
+        key = f"strat_{index}"
+        if key in nodes:
+            strategy_deps[key] = _topo_strategy_deps(strategy, id_to_layout_key)
+
+    operator_deps: dict[str, set[str]] = {}
+    for index, operator in enumerate(ir.get("operators", []) or []):
+        key = f"oper_{index}"
+        if key in nodes:
+            operator_deps[key] = _topo_operator_deps(operator, id_to_layout_key)
+
+    return _TopoContext(
+        nodes=nodes,
+        id_to_layout_key=id_to_layout_key,
+        knowledge_layout_keys=knowledge_layout_keys,
+        strategy_deps=strategy_deps,
+        operator_deps=operator_deps,
+    )
+
+
+def _canonical_topo_layout_key(nodes: dict[str, Any], symbol: str | None) -> str | None:
+    """Resolve event symbols to canonical ``strat_*`` / ``oper_*`` layout ids."""
+    if not isinstance(symbol, str) or not symbol:
+        return None
+    entry = nodes.get(symbol)
+    if not isinstance(entry, dict):
+        return None
+    canonical_id = entry.get("canonical_id")
+    if isinstance(canonical_id, str) and canonical_id in nodes:
+        return canonical_id
+    return symbol
+
+
+def _topo_prior_dep_keys(event: dict[str, Any], context: _TopoContext) -> set[str]:
+    """Best-effort: derive a prior tick's target claim layout keys."""
+    deps: set[str] = set()
+    if not isinstance(event, dict):
+        return deps
+
+    payload = event.get("payload") or {}
+    candidates: list[str] = []
+    target_lkm_id = payload.get("target_lkm_id")
+    if isinstance(target_lkm_id, str) and target_lkm_id:
+        candidates.append(target_lkm_id)
+
+    priors = payload.get("priors")
+    if isinstance(priors, dict):
+        candidates.extend(key for key in priors if isinstance(key, str))
+
+    claim_ids = payload.get("claim_ids")
+    if isinstance(claim_ids, list):
+        candidates.extend(claim_id for claim_id in claim_ids if isinstance(claim_id, str))
+
+    delta = event.get("graph_delta") or {}
+    for edge in delta.get("edges_added") or []:
+        if edge.get("kind") == "prior" and isinstance(edge.get("to"), str):
+            candidates.append(edge["to"])
+
+    for candidate in candidates:
+        if candidate in context.knowledge_layout_keys:
+            deps.add(candidate)
+        elif candidate in context.id_to_layout_key:
+            deps.add(context.id_to_layout_key[candidate])
+    return deps
+
+
+def _event_for_tick(tick: dict[str, Any], events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Return the parent event referenced by a replay tick."""
+    event_index = tick.get("event_index")
+    if isinstance(event_index, int) and 0 <= event_index < len(events):
+        return events[event_index]
+    return None
+
+
+def _topo_tick_provide_and_deps(
+    tick: dict[str, Any], events: list[dict[str, Any]], context: _TopoContext
+) -> tuple[str | None, set[str]]:
+    """Return the layout key provided by a tick and the keys it depends on."""
+    action = tick.get("action") or {}
+    kind = action.get("action")
+    symbol = action.get("symbol")
+    provides: str | None = None
+    deps: set[str] = set()
+
+    if kind == "claim":
+        if isinstance(symbol, str) and symbol in context.knowledge_layout_keys:
+            provides = symbol
+        elif isinstance(symbol, str) and symbol in context.id_to_layout_key:
+            provides = context.id_to_layout_key[symbol]
+    elif kind in ("deduction", "support"):
+        canonical = _canonical_topo_layout_key(context.nodes, symbol)
+        if canonical and canonical.startswith("strat_") and canonical in context.strategy_deps:
+            provides = canonical
+            deps = set(context.strategy_deps[canonical])
+    elif kind in ("contradiction", "equivalence"):
+        canonical = _canonical_topo_layout_key(context.nodes, symbol)
+        if canonical and canonical.startswith("oper_") and canonical in context.operator_deps:
+            provides = canonical
+            deps = set(context.operator_deps[canonical])
+    elif kind == "prior":
+        event = _event_for_tick(tick, events)
+        deps = _topo_prior_dep_keys(event, context) if event is not None else set()
+
+    if provides is not None:
+        deps.discard(provides)
+    return provides, deps
+
+
+def _plan_topo_ticks(
+    ticks: list[dict[str, Any]], events: list[dict[str, Any]], context: _TopoContext
+) -> _TopoTickPlan:
+    """Classify surviving ticks and compute per-tick dependency keys."""
+    survivor_positions: list[int] = []
+    orphans_by_pos: dict[int, dict[str, Any]] = {}
+    provides_by_pos: dict[int, str | None] = {}
+    deps_by_pos: dict[int, set[str]] = {}
+
+    for position, tick in enumerate(ticks):
+        if tick.get("survives_to_final") is False:
+            orphans_by_pos[position] = tick
+            continue
+        provides, deps = _topo_tick_provide_and_deps(tick, events, context)
+        provides_by_pos[position] = provides
+        deps_by_pos[position] = deps
+        survivor_positions.append(position)
+
+    return _TopoTickPlan(
+        survivor_positions=survivor_positions,
+        orphans_by_pos=orphans_by_pos,
+        provides=provides_by_pos,
+        deps=deps_by_pos,
+    )
+
+
+def _topo_providers_by_key(plan: _TopoTickPlan) -> dict[str, set[int]]:
+    """Return layout keys to the surviving ticks that provide them."""
+    providers_by_key: dict[str, set[int]] = {}
+    for position in plan.survivor_positions:
+        provided = plan.provides.get(position)
+        if provided is not None:
+            providers_by_key.setdefault(provided, set()).add(position)
+    return providers_by_key
+
+
+def _build_topo_edges(plan: _TopoTickPlan) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
+    """Build predecessor/successor edges between surviving replay ticks."""
+    providers_by_key = _topo_providers_by_key(plan)
+    in_edges: dict[int, set[int]] = {position: set() for position in plan.survivor_positions}
+    out_edges: dict[int, set[int]] = {position: set() for position in plan.survivor_positions}
+
+    for successor in plan.survivor_positions:
+        for dep_key in plan.deps.get(successor, ()):
+            for predecessor in providers_by_key.get(dep_key, ()):
+                if predecessor == successor:
+                    continue
+                if predecessor in out_edges and successor not in out_edges[predecessor]:
+                    out_edges[predecessor].add(successor)
+                    in_edges[successor].add(predecessor)
+    return in_edges, out_edges
+
+
+def _kahn_sort_topo_positions(
+    survivor_positions: list[int],
+    in_edges: dict[int, set[int]],
+    out_edges: dict[int, set[int]],
+    warnings: list[str],
+) -> list[int]:
+    """Topologically sort survivor positions with chronological tie-breaking."""
+    ready = [position for position in survivor_positions if not in_edges[position]]
+    heapq.heapify(ready)
+    sorted_positions: list[int] = []
+    remaining_in_edges = {position: set(edges) for position, edges in in_edges.items()}
+
+    while ready:
+        position = heapq.heappop(ready)
+        sorted_positions.append(position)
+        for successor in sorted(out_edges[position]):
+            remaining_in_edges[successor].discard(position)
+            if not remaining_in_edges[successor]:
+                heapq.heappush(ready, successor)
+
+    if len(sorted_positions) != len(survivor_positions):
+        reached = set(sorted_positions)
+        unresolved = [position for position in survivor_positions if position not in reached]
+        sorted_positions.extend(sorted(unresolved))
+        warnings.append(
+            "topo_reorder: dependency cycle detected among ticks "
+            f"{unresolved!r}; falling back to chronological order for cycle members."
+        )
+    return sorted_positions
+
+
+def _assemble_topo_ticks(
+    ticks: list[dict[str, Any]],
+    orphans_by_pos: dict[int, dict[str, Any]],
+    sorted_positions: list[int],
+) -> list[dict[str, Any]]:
+    """Fill survivor slots with sorted ticks while leaving orphan slots fixed."""
+    sorted_iter = iter(sorted_positions)
+    new_ticks: list[dict[str, Any]] = []
+    for original_position in range(len(ticks)):
+        if original_position in orphans_by_pos:
+            new_ticks.append(orphans_by_pos[original_position])
+            continue
+        try:
+            next_position = next(sorted_iter)
+        except StopIteration:  # pragma: no cover - defensive
+            break
+        new_ticks.append(ticks[next_position])
+    return new_ticks
+
+
+def _restamp_tick_indexes(ticks: list[dict[str, Any]]) -> int:
+    """Restamp tick indexes after replay topo sorting and return move count."""
+    swap_count = 0
+    for new_index, tick in enumerate(ticks):
+        old_index = tick.get("tick_index")
+        if isinstance(old_index, int) and old_index != new_index:
+            swap_count += 1
+        tick["tick_index"] = new_index
+    return swap_count
+
+
 def topo_reorder_ticks(
     ticks: list[dict[str, Any]],
     events: list[dict[str, Any]],
@@ -1185,233 +1490,17 @@ def topo_reorder_ticks(
     if not isinstance(layout_nodes, dict):
         return ticks, warnings
 
-    # ── Build helper lookups ──────────────────────────────────────────
-    # IR knowledge id → its layout key (lkm_id when available, else IR id).
-    id_to_layout_key: dict[str, str] = {}
-    knowledge_layout_keys: set[str] = set()
-    for k in ir.get("knowledges", []) or []:
-        kid = k.get("id")
-        if not isinstance(kid, str):
-            continue
-        meta = k.get("metadata") or {}
-        lid = meta.get("lkm_id")
-        if isinstance(lid, str) and lid and lid in layout_nodes:
-            id_to_layout_key[kid] = lid
-            knowledge_layout_keys.add(lid)
-        elif kid in layout_nodes:
-            id_to_layout_key[kid] = kid
-            knowledge_layout_keys.add(kid)
-
-    strategies = ir.get("strategies", []) or []
-    operators = ir.get("operators", []) or []
-
-    # symbol-or-canonical → canonical layout id (strat_<i>/oper_<i>).
-    def _canonical_of(sym: str | None) -> str | None:
-        if not isinstance(sym, str) or not sym:
-            return None
-        entry = layout_nodes.get(sym)
-        if not isinstance(entry, dict):
-            return None
-        cid = entry.get("canonical_id")
-        if isinstance(cid, str) and cid in layout_nodes:
-            return cid
-        # Already a canonical strat_/oper_ key, or a knowledge symbol.
-        return sym
-
-    # canonical strat/oper id → its dependency layout-key set
-    # (premises/variables/conclusion in layout-key space).
-    strat_deps: dict[str, set[str]] = {}
-    for i, s in enumerate(strategies):
-        key = f"strat_{i}"
-        if key not in layout_nodes:
-            continue
-        dep_keys: set[str] = set()
-        for p in s.get("premises") or []:
-            lk = id_to_layout_key.get(p)
-            if lk:
-                dep_keys.add(lk)
-        for b in s.get("background") or []:
-            lk = id_to_layout_key.get(b)
-            if lk:
-                dep_keys.add(lk)
-        concl = s.get("conclusion")
-        if isinstance(concl, str):
-            lk = id_to_layout_key.get(concl)
-            if lk:
-                dep_keys.add(lk)
-        strat_deps[key] = dep_keys
-
-    oper_deps: dict[str, set[str]] = {}
-    for i, o in enumerate(operators):
-        key = f"oper_{i}"
-        if key not in layout_nodes:
-            continue
-        oper_dep_keys: set[str] = set()
-        for v in o.get("variables") or []:
-            lk = id_to_layout_key.get(v)
-            if lk:
-                oper_dep_keys.add(lk)
-        concl = o.get("conclusion")
-        if isinstance(concl, str):
-            lk = id_to_layout_key.get(concl)
-            if lk:
-                oper_dep_keys.add(lk)
-        oper_deps[key] = oper_dep_keys
-
-    # ── Compute provides + deps for each surviving tick ───────────────
-    survivors: list[dict[str, Any]] = []
-    survivor_positions: list[int] = []  # positions in original ticks list
-    orphans_by_pos: dict[int, dict[str, Any]] = {}
-
-    provides: dict[int, str | None] = {}  # tick original_idx → layout key (or None)
-    tick_deps: dict[int, set[str]] = {}  # tick original_idx → set of layout keys
-
-    def _prior_dep_keys(ev: dict[str, Any]) -> set[str]:
-        """Best-effort: derive the prior's target claim layout key(s)."""
-        out: set[str] = set()
-        if not isinstance(ev, dict):
-            return out
-        payload = ev.get("payload") or {}
-        candidates: list[str] = []
-        tlid = payload.get("target_lkm_id")
-        if isinstance(tlid, str) and tlid:
-            candidates.append(tlid)
-        priors = payload.get("priors")
-        if isinstance(priors, dict):
-            candidates.extend(k for k in priors if isinstance(k, str))
-        cids = payload.get("claim_ids")
-        if isinstance(cids, list):
-            candidates.extend(c for c in cids if isinstance(c, str))
-        delta = ev.get("graph_delta") or {}
-        for e in delta.get("edges_added") or []:
-            if e.get("kind") == "prior" and isinstance(e.get("to"), str):
-                candidates.append(e["to"])
-        for c in candidates:
-            # If candidate is itself a layout key (likely a knowledge),
-            # use it directly; else look up via id_to_layout_key.
-            if c in knowledge_layout_keys:
-                out.add(c)
-            elif c in id_to_layout_key:
-                out.add(id_to_layout_key[c])
-        return out
-
-    for pos, tick in enumerate(ticks):
-        if tick.get("survives_to_final") is False:
-            orphans_by_pos[pos] = tick
-            continue
-        action = tick.get("action") or {}
-        kind = action.get("action")
-        symbol = action.get("symbol")
-
-        prov: str | None = None
-        d: set[str] = set()
-
-        if kind == "claim":
-            if isinstance(symbol, str) and symbol in knowledge_layout_keys:
-                prov = symbol
-            elif isinstance(symbol, str) and symbol in id_to_layout_key:
-                prov = id_to_layout_key[symbol]
-        elif kind in ("deduction", "support"):
-            canon = _canonical_of(symbol)
-            if canon and canon.startswith("strat_") and canon in strat_deps:
-                prov = canon
-                d = set(strat_deps[canon])
-        elif kind in ("contradiction", "equivalence"):
-            canon = _canonical_of(symbol)
-            if canon and canon.startswith("oper_") and canon in oper_deps:
-                prov = canon
-                d = set(oper_deps[canon])
-        elif kind == "prior":
-            ev_idx = tick.get("event_index")
-            ev = events[ev_idx] if isinstance(ev_idx, int) and 0 <= ev_idx < len(events) else None
-            if ev is not None:
-                d = _prior_dep_keys(ev)
-            prov = None
-        # Other action kinds: leave both empty.
-
-        # A tick should not list itself as a dependency.
-        if prov is not None:
-            d.discard(prov)
-
-        provides[pos] = prov
-        tick_deps[pos] = d
-        survivors.append(tick)
-        survivor_positions.append(pos)
-
-    if not survivors:
+    context = _build_topo_context(ir, layout_nodes)
+    plan = _plan_topo_ticks(ticks, events, context)
+    if not plan.survivor_positions:
         return ticks, warnings
 
-    # ── Build provider-of-key map (key → set of surviving tick positions) ─
-    providers_of: dict[str, set[int]] = {}
-    for pos in survivor_positions:
-        prov = provides.get(pos)
-        if prov is not None:
-            providers_of.setdefault(prov, set()).add(pos)
-
-    # Edges: predecessor_pos → successor_pos for each (dep on prov_pos).
-    # We also drop deps that no surviving tick provides (e.g. a claim
-    # that's "always present" or that's already on the canvas at t=0) —
-    # they impose no ordering constraint.
-    in_edges: dict[int, set[int]] = {pos: set() for pos in survivor_positions}
-    out_edges: dict[int, set[int]] = {pos: set() for pos in survivor_positions}
-    for succ_pos in survivor_positions:
-        for k in tick_deps.get(succ_pos, ()):
-            for pred_pos in providers_of.get(k, ()):
-                if pred_pos == succ_pos:
-                    continue
-                if pred_pos in out_edges and succ_pos not in out_edges[pred_pos]:
-                    out_edges[pred_pos].add(succ_pos)
-                    in_edges[succ_pos].add(pred_pos)
-
-    # ── Kahn's algorithm with chronological tiebreak ──────────────────
-    import heapq
-
-    ready: list[int] = [pos for pos in survivor_positions if not in_edges[pos]]
-    heapq.heapify(ready)
-    sorted_positions: list[int] = []
-    remaining_in_edges = {p: set(s) for p, s in in_edges.items()}
-    while ready:
-        pos = heapq.heappop(ready)
-        sorted_positions.append(pos)
-        for succ in sorted(out_edges[pos]):
-            remaining_in_edges[succ].discard(pos)
-            if not remaining_in_edges[succ]:
-                heapq.heappush(ready, succ)
-
-    # Cycle detection: any position not reached → it's part of a cycle.
-    if len(sorted_positions) != len(survivor_positions):
-        unresolved = [p for p in survivor_positions if p not in set(sorted_positions)]
-        # Append unresolved survivors in their original order.
-        sorted_positions.extend(sorted(unresolved))
-        warnings.append(
-            "topo_reorder: dependency cycle detected among ticks "
-            f"{unresolved!r}; falling back to chronological order for cycle members."
-        )
-
-    # ── Re-assemble final tick array ──────────────────────────────────
-    # Walk the original position slots: orphan slots stay put; survivor
-    # slots receive the next survivor from the topo-sorted list.
-    sorted_iter = iter(sorted_positions)
-    new_ticks: list[dict[str, Any]] = []
-    for orig_pos in range(len(ticks)):
-        if orig_pos in orphans_by_pos:
-            new_ticks.append(orphans_by_pos[orig_pos])
-        else:
-            try:
-                next_pos = next(sorted_iter)
-            except StopIteration:  # pragma: no cover - defensive
-                break
-            new_ticks.append(ticks[next_pos])
-
-    # Re-stamp tick_index (0..N-1) reflecting the new positions; preserve
-    # every other field.
-    swap_count = 0
-    for new_idx, tick in enumerate(new_ticks):
-        old_idx = tick.get("tick_index")
-        if isinstance(old_idx, int) and old_idx != new_idx:
-            swap_count += 1
-        tick["tick_index"] = new_idx
-
+    in_edges, out_edges = _build_topo_edges(plan)
+    sorted_positions = _kahn_sort_topo_positions(
+        plan.survivor_positions, in_edges, out_edges, warnings
+    )
+    new_ticks = _assemble_topo_ticks(ticks, plan.orphans_by_pos, sorted_positions)
+    swap_count = _restamp_tick_indexes(new_ticks)
     if swap_count:
         warnings.append(
             f"topo_reorder: moved {swap_count} tick(s) from their original "
