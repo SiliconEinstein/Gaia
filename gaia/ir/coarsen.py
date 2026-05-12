@@ -13,18 +13,14 @@ from typing import Any
 def coarsen_ir(ir: dict[str, Any], exported_ids: set[str]) -> dict[str, Any]:
     """Produce a coarse-grained IR with leaf premises and exported conclusions.
 
-    Parameters
-    ----------
-    ir:
-        Full compiled IR dict with knowledges, strategies, operators.
-    exported_ids:
-        Set of knowledge IDs that are exported conclusions.
+    Args:
+        ir: Full compiled IR dict with knowledges, strategies, operators.
+        exported_ids: Set of knowledge IDs that are exported conclusions.
 
-    Returns
-    -------
-    A new IR dict (same schema) containing only leaf premises + exported
-    conclusions, connected by ``infer`` strategies representing transitive
-    reasoning chains.
+    Returns:
+        A new IR dict (same schema) containing only leaf premises + exported
+        conclusions, connected by ``infer`` strategies representing transitive
+        reasoning chains.
     """
     # 1. Identify all nodes concluded by a strategy or operator
     strat_conclusions = {s["conclusion"] for s in ir["strategies"] if s.get("conclusion")}
@@ -273,16 +269,12 @@ def mutual_information(
 ) -> float:
     """Compute I(premises; conclusion) in bits from a coarse CPT.
 
-    Parameters
-    ----------
-    cpt:
-        CPT of length 2^k, indexed by binary encoding of premise assignment.
-    premise_priors:
-        Prior probability of each premise being true (length k).
+    Args:
+        cpt: CPT of length 2^k, indexed by binary encoding of premise assignment.
+        premise_priors: Prior probability of each premise being true (length k).
 
-    Returns
-    -------
-    Mutual information in bits.
+    Returns:
+        Mutual information in bits.
     """
     k = len(premise_priors)
     assert len(cpt) == (1 << k)

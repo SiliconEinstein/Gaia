@@ -50,18 +50,23 @@ _STRUCTURAL_HELPER_OPERATOR_TYPES = {
 
 @dataclass
 class ValidationResult:
+    """Accumulated structural validation result for Gaia IR objects."""
+
     valid: bool = True
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def error(self, msg: str) -> None:
+        """Record a validation error and mark the result invalid."""
         self.errors.append(msg)
         self.valid = False
 
     def warn(self, msg: str) -> None:
+        """Record a non-fatal validation warning."""
         self.warnings.append(msg)
 
     def merge(self, other: ValidationResult) -> None:
+        """Merge another validation result into this accumulator."""
         self.errors.extend(other.errors)
         self.warnings.extend(other.warnings)
         if not other.valid:
