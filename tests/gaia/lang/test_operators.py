@@ -90,7 +90,7 @@ def test_disjunction_prior_stored_in_metadata():
 
 
 def test_operator_reason_without_prior_raises():
-    """reason and prior must be paired — reason without prior is an error."""
+    """Reason and prior must be paired — reason without prior is an error."""
     import pytest
 
     a = claim("A.")
@@ -101,7 +101,7 @@ def test_operator_reason_without_prior_raises():
 
 
 def test_operator_prior_without_reason_raises():
-    """prior without reason is also an error."""
+    """Prior without reason is also an error."""
     import pytest
 
     a = claim("A.")

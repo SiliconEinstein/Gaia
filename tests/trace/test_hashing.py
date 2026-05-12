@@ -1,4 +1,4 @@
-"""TR-1：canonical_json 决定性 + chain 篡改检出。"""
+"""TR-1：canonical_json 决定性 + chain 篡改检出。."""
 
 from datetime import datetime, timezone
 
@@ -140,7 +140,7 @@ def test_verify_chain_empty_events_is_ok():
 
 
 def test_event_payload_excludes_prev_hash():
-    """关键性质：prev_hash 不进 hash 输入，否则 hash 与 prev_hash 形成自洽循环。"""
+    """关键性质：prev_hash 不进 hash 输入，否则 hash 与 prev_hash 形成自洽循环。."""
     e1 = _ev(0, prev_hash="")
     e2 = _ev(0, prev_hash="deadbeef")
     assert hash_event(e1) == hash_event(e2)

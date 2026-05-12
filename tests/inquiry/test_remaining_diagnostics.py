@@ -1,7 +1,7 @@
-"""Tests for the remaining 5 §15.2 diagnostic kinds:
+"""Verify documented behavior.
 
-blocked_warrant_path / focus_unsupported / large_belief_drop /
-overstrong_strategy_without_provenance /
+Tests for the remaining 5 §15.2 diagnostic kinds blocked_warrant_path / focus_unsupported /
+large_belief_drop / overstrong_strategy_without_provenance /
 claim_with_evidence_but_no_focus_connection.
 """
 

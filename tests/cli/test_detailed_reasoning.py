@@ -246,7 +246,7 @@ def test_generate_detailed_reasoning_with_beliefs():
 
 
 def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
-    """gaia render --target docs writes docs/detailed-reasoning.md."""
+    """Gaia render --target docs writes docs/detailed-reasoning.md."""
     pkg_dir = tmp_path / "docs_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(

@@ -1,3 +1,5 @@
+"""Prior records for the Galileo v0.5 example package."""
+
 from galileo_v0_5 import (
     aristotle_model,
     daily_observation,

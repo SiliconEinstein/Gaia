@@ -689,8 +689,11 @@ def test_compile_fills_requires_foreign_target(tmp_path):
 
 
 def test_compile_rejects_fills_strategy_with_multiple_premises(tmp_path):
-    """Bypass the fills() DSL to construct a bad strategy with 2 premises,
-    and verify compile rejects it with the 'exactly one source and one target' error."""
+    """Verify compile rejects fills strategy with multiple premises.
+
+    Bypass the fills() DSL to construct a bad strategy with 2 premises and verify compile
+    rejects it with the 'exactly one source and one target' error.
+    """
     pkg_dir = tmp_path / "bad_fills_arity_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(

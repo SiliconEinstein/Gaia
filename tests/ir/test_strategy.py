@@ -34,12 +34,12 @@ class TestStrategyType:
         assert set(StrategyType) == expected
 
     def test_no_toolcall(self):
-        """toolcall is deferred per spec."""
+        """Toolcall is deferred per spec."""
         with pytest.raises(ValueError):
             StrategyType("toolcall")
 
     def test_no_proof(self):
-        """proof is deferred per spec."""
+        """Proof is deferred per spec."""
         with pytest.raises(ValueError):
             StrategyType("proof")
 
@@ -49,7 +49,7 @@ class TestStrategyType:
             StrategyType("soft_implication")
 
     def test_binding_deferred(self):
-        """binding is deferred outside Gaia IR core."""
+        """Binding is deferred outside Gaia IR core."""
         with pytest.raises(ValueError):
             StrategyType("binding")
 
@@ -59,7 +59,7 @@ class TestStrategyType:
             StrategyType("independent_evidence")
 
     def test_induction_exists(self):
-        """induction is a valid CompositeStrategy type."""
+        """Induction is a valid CompositeStrategy type."""
         assert StrategyType("induction") == StrategyType.INDUCTION
 
 

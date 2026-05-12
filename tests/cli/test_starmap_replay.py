@@ -287,9 +287,11 @@ def test_payload_carries_ticks_and_rounds_for_synthetic_input():
 
 
 def test_rekey_layout_moves_knowledge_keys_to_lkm_ids():
-    """Knowledge layout entries get re-keyed to their metadata.lkm_id; helpers
-    without an lkm_id keep their namespaced key; strat_/oper_ entries are
-    untouched."""
+    """Verify rekey layout moves knowledge keys to lkm ids.
+
+    Knowledge layout entries get re-keyed to their metadata.lkm_id; helpers without an lkm_id
+    keep their namespaced key; strat_/oper_ entries are untouched.
+    """
     layout = {
         "viewport": {"width": 100, "height": 50},
         "nodes": {
@@ -392,8 +394,11 @@ def test_rekey_layout_overlaps_with_event_ids_after_fix():
 
 
 def test_bridge_event_symbols_to_layout_handles_deduction_and_operator():
-    """Strategy gfac_* and operator-symbol contradictions get aliased to
-    their strat_<i> / oper_<i> pinned positions."""
+    """Verify bridge event symbols to layout handles deduction and operator.
+
+    Strategy gfac_* and operator-symbol contradictions get aliased to their strat_<i> / oper_<i>
+    pinned positions.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -517,12 +522,12 @@ def test_bridge_handles_multiple_actions_per_event():
 
 
 def test_bridge_resolves_sparse_payload_via_file_kind_uniqueness():
-    """Regression: an `accepted_contradiction` event whose payload lacks a
-    `contradicts` list AND whose `graph_delta.edges_added` references gcns
-    that don't match any IR operator's variables (a stale/renamed
-    relation) must still bridge — via file-uniqueness fallback when the
-    IR has exactly one unbridged contradiction operator declared in the
-    same source file as the action.
+    """Verify bridge resolves sparse payload via file kind uniqueness.
+
+    Regression: an `accepted_contradiction` event whose payload lacks a `contradicts` list AND
+    whose `graph_delta.edges_added` references gcns that don't match any IR operator's variables
+    (a stale/renamed relation) must still bridge — via file-uniqueness fallback when the IR has
+    exactly one unbridged contradiction operator declared in the same source file as the action.
 
     This is the 2dheg `n_quarter_scaling_vs_shell_filling_noise` shape:
     package author renamed the contradiction in `cross_paper.py` after
@@ -600,10 +605,11 @@ def test_bridge_resolves_sparse_payload_via_file_kind_uniqueness():
 
 
 def test_bridge_positional_fallback_pairs_sparse_events_in_declaration_order():
-    """When the file has multiple unbridged operators of the same kind
-    and the symbol-name doesn't match any of them, the positional
-    fallback pairs the Nth pending event with the Nth unbridged IR
-    operator in declaration order.
+    """Verify bridge positional fallback pairs sparse events in declaration order.
+
+    When the file has multiple unbridged operators of the same kind and the symbol-name doesn't
+    match any of them, the positional fallback pairs the Nth pending event with the Nth
+    unbridged IR operator in declaration order.
     """
     layout = {
         "viewport": {"width": 100, "height": 100},
@@ -690,11 +696,12 @@ def test_bridge_positional_fallback_pairs_sparse_events_in_declaration_order():
 
 
 def test_bridge_skips_fallback_when_action_file_lacks_py_extension():
-    """Degenerate `action.file` (no `.py` extension, e.g.
-    `src/perovskite_arpes_polaron`) must not trigger the file/positional
-    fallbacks — those guard against false matches in packages where the
-    agent emitted under-specified structural events that should remain
-    orphans on the canvas.
+    """Verify bridge skips fallback when action file lacks py extension.
+
+    Degenerate `action.file` (no `.py` extension, e.g `src/perovskite_arpes_polaron`) must not
+    trigger the file/positional fallbacks — those guard against false matches in packages where
+    the agent emitted under-specified structural events that should remain orphans on the
+    canvas.
     """
     layout = {
         "viewport": {"width": 100, "height": 100},
@@ -759,7 +766,8 @@ def test_rekey_layout_idempotent_without_ir():
 
 
 def test_annotate_layout_with_kinds_marks_strategies_and_operators():
-    """annotate_layout_with_kinds stamps `kind` + subtype on every entry the
+    """annotate_layout_with_kinds stamps `kind` + subtype on every entry the.
+
     IR can identify, so the replay frontend renders strategies as ellipses
     and operators as hexagons (red for contradictions) at their pinned
     positions — matching the static DOT output.
@@ -855,9 +863,11 @@ def test_annotate_layout_idempotent_without_ir():
 
 
 def test_annotate_ticks_with_survival_flags_orphan_deduction():
-    """A deduction action whose symbol the bridge could not alias to a
-    `strat_<i>` (because the IR doesn't have a strategy with that
-    `(premises, conclusion)` signature) is flagged orphan."""
+    """Verify annotate ticks with survival flags orphan deduction.
+
+    A deduction action whose symbol the bridge could not alias to a `strat_<i>` (because the IR
+    doesn't have a strategy with that `(premises, conclusion)` signature) is flagged orphan.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -940,9 +950,11 @@ def test_annotate_ticks_with_survival_defaults_true_without_ir_or_layout():
 
 
 def test_annotate_ticks_with_survival_treats_symbol_less_deduction_as_surviving():
-    """Symbol-less deductions (skip-pivot collapse: one action covers many
-    edges) are treated as surviving — the reconcile-final-layout pass on
-    the frontend admits the IR strategies anyway."""
+    """Verify annotate ticks with survival treats symbol less deduction as surviving.
+
+    Symbol-less deductions (skip-pivot collapse: one action covers many edges) are treated as
+    surviving — the reconcile-final-layout pass on the frontend admits the IR strategies anyway.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {"strat_0": {"x": 0.0, "y": 0.0, "kind": "strategy", "canonical_id": "strat_0"}},
@@ -969,8 +981,11 @@ def test_annotate_ticks_with_survival_treats_symbol_less_deduction_as_surviving(
 
 
 def test_topo_reorder_promotes_dependent_after_dependency():
-    """A contradiction action whose variable claim hasn't been admitted yet
-    in chronological order must be reordered after the claim."""
+    """Verify topo reorder promotes dependent after dependency.
+
+    A contradiction action whose variable claim hasn't been admitted yet in chronological order
+    must be reordered after the claim.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -1033,8 +1048,11 @@ def test_topo_reorder_promotes_dependent_after_dependency():
 
 
 def test_topo_reorder_preserves_chronology_when_no_dependency():
-    """Independent claims keep their original chronological order — the
-    tiebreak on tick_index leaves a no-op when no dep forces a swap."""
+    """Verify topo reorder preserves chronology when no dependency.
+
+    Independent claims keep their original chronological order — the tiebreak on tick_index
+    leaves a no-op when no dep forces a swap.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -1074,9 +1092,12 @@ def test_topo_reorder_preserves_chronology_when_no_dependency():
 
 
 def test_topo_reorder_handles_cross_round():
-    """A strategy in round_0 whose premise is a claim from round_2 must be
-    pushed past the round_2 claim by topo reorder. Dependency wins over
-    round membership; we do NOT preserve round boundaries as a constraint."""
+    """Verify topo reorder handles cross round.
+
+    A strategy in round_0 whose premise is a claim from round_2 must be pushed past the round_2
+    claim by topo reorder. Dependency wins over round membership; we do NOT preserve round
+    boundaries as a constraint.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -1140,7 +1161,8 @@ def test_topo_reorder_handles_cross_round():
 
 
 def _simulate_store_admission(payload: dict) -> dict:
-    """Replicate `viz/src/replay/store.ts::applyTick` admission rules in
+    """Replicate `viz/src/replay/store.ts::applyTick` admission rules in.
+
     Python so we can assert the final-tick node set matches the static DOT
     rendering without spinning up a browser. Returns a dict counting the
     admitted node kinds (knowledge/strategy/operator/contradiction/
@@ -1344,8 +1366,10 @@ def _simulate_store_admission(payload: dict) -> dict:
 
 
 def _count_static_dot_shapes(dot_source: str) -> dict:
-    """Parse a Graphviz DOT source and count node shapes / edges. Used to
-    establish the ground-truth node set the replay's final state must match.
+    """Verify count static dot shapes.
+
+    Parse a Graphviz DOT source and count node shapes / edges. Used to establish the ground-
+    truth node set the replay's final state must match.
     """
     box = ellipse = hexagon = 0
     contradiction = equivalence = 0
@@ -1436,10 +1460,11 @@ def _final_state_parity(pkg_dir: Path) -> tuple[dict, dict]:
 
 
 def test_final_state_matches_static_dot_for_2dheg():
-    """Load-bearing parity check: the replay's final-tick node set has the
-    same count of knowledge boxes / strategy ellipses / operator hexagons
-    (and the same contradiction-vs-equivalence split) as the static DOT
-    from `gaia starmap --format dot` for the 2dheg package.
+    """Verify final state matches static dot for 2dheg.
+
+    Load-bearing parity check: the replay's final-tick node set has the same count of knowledge
+    boxes / strategy ellipses / operator hexagons (and the same contradiction-vs-equivalence
+    split) as the static DOT from `gaia starmap --format dot` for the 2dheg package.
 
     Skipped silently when the dev package isn't present locally — this is
     a developer-environment integration test.
@@ -1472,10 +1497,12 @@ def test_final_state_matches_static_dot_for_lcdm():
 
 
 def test_final_state_matches_static_dot_for_perovskite():
-    """Parity check for the perovskite package — the canonical orphan-tick
-    repro. Without `survives_to_final`, the seq=39 deduction ticks
-    (`gfac_c33c62750055451d` + `gfac_5e7aa7aa12474862`) would pile up at
-    the canvas centre and break parity."""
+    """Verify final state matches static dot for perovskite.
+
+    Parity check for the perovskite package — the canonical orphan-tick repro. Without
+    `survives_to_final`, the seq=39 deduction ticks (`gfac_c33c62750055451d` +
+    `gfac_5e7aa7aa12474862`) would pile up at the canvas centre and break parity.
+    """
     pkg_dir = _real_pkg_dir("perovskite-arpes-polaron-gaia")
     if pkg_dir is None:
         import pytest as _p

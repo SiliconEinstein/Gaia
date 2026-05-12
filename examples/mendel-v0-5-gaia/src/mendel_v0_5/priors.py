@@ -1,3 +1,5 @@
+"""Prior records for the Mendel v0.5 example package."""
+
 from mendel_v0_5 import (
     blending_inheritance_model,
     f1_uniform_dominant_observation,

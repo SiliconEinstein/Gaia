@@ -31,6 +31,8 @@ PRIOR_MENDELIAN_MODEL = 0.5
 
 
 class MendelCountAssociation(NamedTuple):
+    """Bayesian association parameters for Mendel's dominant-count observation."""
+
     p_count_given_mendelian: float
     p_count_given_diffuse: float
     prior_mendelian: float

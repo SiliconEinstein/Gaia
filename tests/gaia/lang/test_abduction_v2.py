@@ -26,7 +26,7 @@ def _make_abduction_triple():
 
 
 def test_abduction_ternary_composite():
-    """abduction takes 3 sub-strategies, returns CompositeStrategy."""
+    """Abduction takes 3 sub-strategies, returns CompositeStrategy."""
     sup_h, sup_alt, comp, *_ = _make_abduction_triple()
     s = abduction(sup_h, sup_alt, comp)
 
@@ -39,7 +39,7 @@ def test_abduction_ternary_composite():
 
 
 def test_abduction_conclusion_is_comparison_conclusion():
-    """conclusion is the comparison strategy's conclusion (comparison_claim)."""
+    """Conclusion is the comparison strategy's conclusion (comparison_claim)."""
     sup_h, sup_alt, comp, *_ = _make_abduction_triple()
     s = abduction(sup_h, sup_alt, comp)
 

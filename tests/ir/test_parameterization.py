@@ -50,7 +50,7 @@ class TestStrategyParamRecord:
         assert r.conditional_probabilities == [0.85]
 
     def test_multi_param_cpt(self):
-        """infer with 2 premises: 2^2 = 4 parameters."""
+        """Infer with 2 premises: 2^2 = 4 parameters."""
         r = StrategyParamRecord(
             strategy_id="lcs_abc",
             conditional_probabilities=[0.9, 0.3, 0.4, 0.1],

@@ -332,8 +332,11 @@ class TestInferenceEngine:
 
 
 class TestOscillationDiagnostics:
-    """Tests for BPDiagnostics.direction_changes — the oscillation detection
-    signal consumed by curation conflict discovery (m6-curation spec)."""
+    """Group oscillation diagnostics tests.
+
+    Tests for BPDiagnostics.direction_changes — the oscillation detection signal consumed by
+    curation conflict discovery (m6-curation spec).
+    """
 
     def test_frustrated_graph_has_direction_changes(self):
         """Chain + double contradiction creates tension in helper variables.

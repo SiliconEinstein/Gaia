@@ -1,6 +1,8 @@
-"""Tests for Batch B Inquiry diagnostics:
-stale_artifact / focus_low_posterior / prior_without_justification /
-unreviewed_warrant / rejected_warrant + publish_blockers strict gate.
+"""Verify documented behavior.
+
+Tests for Batch B Inquiry diagnostics stale_artifact / focus_low_posterior /
+prior_without_justification / unreviewed_warrant / rejected_warrant + publish_blockers strict
+gate.
 """
 
 from __future__ import annotations

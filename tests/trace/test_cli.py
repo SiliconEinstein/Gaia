@@ -1,4 +1,4 @@
-"""TR-4：CliRunner 端到端三命令。"""
+"""TR-4：CliRunner 端到端三命令。."""
 
 from __future__ import annotations
 

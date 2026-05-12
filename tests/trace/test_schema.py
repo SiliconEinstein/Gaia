@@ -1,4 +1,4 @@
-"""TR-1：schema 字段约束与 pydantic 校验。"""
+"""TR-1：schema 字段约束与 pydantic 校验。."""
 
 from datetime import datetime, timezone
 

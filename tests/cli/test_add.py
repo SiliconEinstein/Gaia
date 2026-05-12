@@ -178,7 +178,7 @@ def test_fetch_file_optional_returns_none_on_network_error(mock_get):
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional")
 def test_add_downloads_dep_beliefs(mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch):
-    """gaia add downloads beliefs.json into .gaia/dep_beliefs/."""
+    """Gaia add downloads beliefs.json into .gaia/dep_beliefs/."""
     # Create a minimal Gaia package root so _find_gaia_package_root works
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "test-gaia"\nversion = "1.0.0"\n\n'
@@ -202,7 +202,7 @@ def test_add_downloads_dep_beliefs(mock_fetch, mock_uv, mock_resolve, tmp_path, 
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional", return_value=None)
 def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve):
-    """gaia add succeeds even when beliefs.json is not available."""
+    """Gaia add succeeds even when beliefs.json is not available."""
     mock_uv.return_value = MagicMock(returncode=0)
     result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
@@ -213,7 +213,7 @@ def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional", return_value="not valid json {{{")
 def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
-    """gaia add gracefully handles invalid JSON in beliefs manifest."""
+    """Gaia add gracefully handles invalid JSON in beliefs manifest."""
     mock_uv.return_value = MagicMock(returncode=0)
     result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
@@ -226,7 +226,7 @@ def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
 def test_add_skips_dep_beliefs_outside_gaia_package(
     mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
 ):
-    """gaia add skips dep_beliefs if not inside a Gaia package."""
+    """Gaia add skips dep_beliefs if not inside a Gaia package."""
     # tmp_path has no pyproject.toml — _find_gaia_package_root returns None
     monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
@@ -242,7 +242,7 @@ def test_add_skips_dep_beliefs_outside_gaia_package(
 def test_add_writes_dep_beliefs_at_package_root_from_subdir(
     mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
 ):
-    """gaia add from a subdirectory writes dep_beliefs at the package root."""
+    """Gaia add from a subdirectory writes dep_beliefs at the package root."""
     # Create package root with pyproject.toml
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "test-gaia"\nversion = "1.0.0"\n\n'

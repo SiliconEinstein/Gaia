@@ -248,7 +248,7 @@ def test_wiki_inference_page_when_beliefs(tmp_path: Path):
 
 
 def test_render_github_flag(tmp_path):
-    """gaia render --target github generates .github-output/ with expected structure."""
+    """Gaia render --target github generates .github-output/ with expected structure."""
     pkg_dir = tmp_path / "github_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(

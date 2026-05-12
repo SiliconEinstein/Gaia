@@ -1,4 +1,4 @@
-"""TR-1：loader 在 JSON / JSONL 双布局下的健壮性。"""
+"""TR-1：loader 在 JSON / JSONL 双布局下的健壮性。."""
 
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ def test_load_partial_single_json_keeps_manifest_when_one_event_invalid(tmp_path
 
 
 def test_canonical_bytes_match_loader_output(tmp_path: Path):
-    """加载后再 canonical_json，与原 model_dump canonical 应 byte-equal。"""
+    """加载后再 canonical_json，与原 model_dump canonical 应 byte-equal。."""
     manifest, events = _build_clean_trace()
     path = tmp_path / "trace.jsonl"
     _write_jsonl(path, manifest, events)

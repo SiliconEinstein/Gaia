@@ -1,4 +1,4 @@
-"""TR-3：run_trace_review + TraceReviewReport + render 三件套 + snapshot 端到端。
+"""TR-3：run_trace_review + TraceReviewReport + render 三件套 + snapshot 端到端。.
 
 策略：
 - 构造 clean / tampered / schema_broken 三段 fixture，跑 run_trace_review
@@ -74,7 +74,7 @@ def _write_clean_fixture(tmp: Path, n: int = 3) -> Path:
 
 
 def _write_tampered_fixture(tmp: Path) -> Path:
-    """中段事件被改动，prev_hash 不变 ⇒ 链断"""
+    """中段事件被改动，prev_hash 不变 ⇒ 链断."""
     t = _build_clean_trace(5)
     # 直接改 events[2].reason，使 events[3].prev_hash 不再匹配
     # 写到 JSON 后再修改 reason 字段；schema 仍合法但链断
@@ -86,7 +86,7 @@ def _write_tampered_fixture(tmp: Path) -> Path:
 
 
 def _write_schema_broken_fixture(tmp: Path) -> Path:
-    """events[1] 缺 event_id，loader 应给 schema_violation。"""
+    """events[1] 缺 event_id，loader 应给 schema_violation。."""
     t = _build_clean_trace(3)
     raw = json.loads(t.model_dump_json())
     del raw["events"][1]["event_id"]
@@ -152,7 +152,7 @@ def test_run_trace_review_writes_snapshot(tmp_path: Path):
 
 
 def test_run_trace_review_snapshot_failure_does_not_crash(tmp_path: Path, monkeypatch):
-    """snapshot 写盘失败时 review 仍然返回。"""
+    """Snapshot 写盘失败时 review 仍然返回。."""
     p = _write_clean_fixture(tmp_path)
     import gaia.trace.snapshot as snap_mod
 
@@ -226,7 +226,7 @@ def test_render_tampered_shows_tampering_signal(tmp_path: Path):
 
 
 def test_reference_validity_lists_all_claim_refs(tmp_path: Path):
-    """trace 含 ClaimRef，§5 reference_validity 应每条都列。"""
+    """Trace 含 ClaimRef，§5 reference_validity 应每条都列。."""
     events: list[TraceEvent] = []
     prev = GENESIS_PREV_HASH
     e0 = _ev(

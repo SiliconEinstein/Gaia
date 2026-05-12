@@ -573,8 +573,11 @@ def test_strategy_cpt_composite_chain_with_bridge_var():
 
 
 def test_strategy_cpt_composite_populates_cache_for_subs():
-    """After folding a composite, all sub-strategies are in the cache,
-    and re-calling strategy_cpt on a sub returns the cached tensor object."""
+    """Verify strategy cpt composite populates cache for subs.
+
+    After folding a composite, all sub-strategies are in the cache and re-calling strategy_cpt
+    on a sub returns the cached tensor object.
+    """
     sub1 = Strategy(
         scope="local",
         type="noisy_and",
@@ -700,8 +703,11 @@ def test_strategy_cpt_nested_composite():
 
 
 def test_strategy_cpt_cycle_detection():
-    """A composite that references itself (via a manually forged strategy_id)
-    must raise ValueError instead of looping forever."""
+    """Verify strategy cpt cycle detection.
+
+    A composite that references itself (via a manually forged strategy_id) must raise ValueError
+    instead of looping forever.
+    """
     # Build a composite that references itself by reusing the same strategy_id
     # in its sub_strategies.  Since _compute_strategy_id is content-addressed,
     # the default auto-computed ID cannot be self-referential.  We construct
@@ -891,7 +897,8 @@ def test_equivalence_disjunction_and_contradiction():
 
 
 def test_compute_coarse_cpts_skips_composite_strategies():
-    """Regression for Codex P1: compute_coarse_cpts must NOT add a composite
+    """Regression for Codex P1: compute_coarse_cpts must NOT add a composite.
+
     CPT as a separate factor, because the composite is just an organizational
     wrapper around its sub-strategies.  Including it double-counts every path
     through the composite.
@@ -961,7 +968,8 @@ def test_compute_coarse_cpts_skips_composite_strategies():
 
 
 def test_contract_to_cpt_deep_chain_no_underflow():
-    """Regression for Codex P2: contract_to_cpt must handle deep chains of
+    """Regression for Codex P2: contract_to_cpt must handle deep chains of.
+
     Cromwell-low factors without the intermediate joint underflowing to 0.
 
     Builds a 150-factor IMPLICATION chain.  Each IMPLICATION factor has one
@@ -993,9 +1001,11 @@ def test_contract_to_cpt_deep_chain_no_underflow():
 
 
 def test_contract_to_cpt_allows_degenerate_free_var():
-    """Regression for Codex P2 (the third finding): a free variable that
-    doesn't appear in any input tensor must be handled gracefully as a
-    constant axis (uniform along that axis), not rejected with ValueError.
+    """Verify contract to cpt allows degenerate free var.
+
+    Regression for Codex P2 (the third finding): a free variable that doesn't appear in any
+    input tensor must be handled gracefully as a constant axis (uniform along that axis), not
+    rejected with ValueError.
 
     This happens for CompositeStrategy with interface premises that no
     sub-strategy actually touches.
@@ -1023,10 +1033,12 @@ def test_contract_to_cpt_allows_degenerate_free_var():
 
 
 def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
-    """Regression: induction creates cycles (law → obs via support, obs₁+obs₂ → law
-    via induction composite), making every node 'concluded'. Exported conclusions
-    reachable only through such cycles must still appear in the coarse graph via
-    surrogate leaf premises."""
+    """Verify coarsen ir induction cycle promotes surrogate leaves.
+
+    Regression: induction creates cycles (law → obs via support, obs₁+obs₂ → law via induction
+    composite), making every node 'concluded'. Exported conclusions reachable only through such
+    cycles must still appear in the coarse graph via surrogate leaf premises.
+    """
     from gaia.ir.coarsen import coarsen_ir
 
     # Minimal induction pattern:
@@ -1129,8 +1141,11 @@ def test_compiled_induction_coarsens_to_observations_and_cpt():
 
 
 def test_coarsen_ir_induction_to_downstream_export():
-    """Regression: an exported conclusion supported by an induction law (which is
-    itself in a cycle) should also be reachable via the surrogate leaves."""
+    """Verify coarsen ir induction to downstream export.
+
+    Regression: an exported conclusion supported by an induction law (which is itself in a
+    cycle) should also be reachable via the surrogate leaves.
+    """
     from gaia.ir.coarsen import coarsen_ir
 
     # law → obs1, law → obs2 (support)
@@ -1169,8 +1184,11 @@ def test_coarsen_ir_induction_to_downstream_export():
 
 
 def test_coarsen_ir_mixed_leaf_and_cycle():
-    """A graph with both normal leaf premises and induction cycles — the normal
-    leaf path should still work, and the cycle path should also produce edges."""
+    """Verify coarsen ir mixed leaf and cycle.
+
+    A graph with both normal leaf premises and induction cycles — the normal leaf path should
+    still work, and the cycle path should also produce edges.
+    """
     from gaia.ir.coarsen import coarsen_ir
 
     ir = {
@@ -1210,10 +1228,12 @@ def test_coarsen_ir_mixed_leaf_and_cycle():
 
 
 def test_compute_coarse_cpts_with_helper_claims():
-    """Regression: compute_coarse_cpts needs priors for ALL variables including
-    helper claims (__implication_result_*, etc.). If helper priors are missing,
-    tensor contraction fails. This test verifies that passing complete priors
-    (with helper claims at 1-ε) produces valid CPTs."""
+    """Verify compute coarse cpts with helper claims.
+
+    Regression: compute_coarse_cpts needs priors for ALL variables including helper claims
+    (__implication_result_*, etc.). If helper priors are missing, tensor contraction fails. This
+    test verifies that passing complete priors (with helper claims at 1-ε) produces valid CPTs.
+    """
     from gaia.ir.coarsen import compute_coarse_cpts, coarsen_ir
 
     # Build a support strategy (which auto-formalizes to conjunction + implication

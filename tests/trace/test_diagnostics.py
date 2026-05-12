@@ -1,4 +1,4 @@
-"""TR-2：11 个 detector 各自最小阳性 + 阴性 + ranking trace mode。"""
+"""TR-2：11 个 detector 各自最小阳性 + 阴性 + ranking trace mode。."""
 
 from __future__ import annotations
 

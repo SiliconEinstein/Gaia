@@ -696,9 +696,12 @@ def test_composite_strategy_expands_sub_strategies():
 
 
 def test_formal_expr_relation_conclusion_gets_assertion_prior():
-    """FormalExpr internal relation operator conclusions must get π=1-ε (assertion),
-    not the default 0.5.  Bug: lowering.py FormalExpr expand path uses
-    _ensure_claim_var for all conclusions, which defaults to 0.5."""
+    """Verify formal expr relation conclusion gets assertion prior.
+
+    FormalExpr internal relation operator conclusions must get π=1-ε (assertion) not the default
+    0.5. Bug: lowering.py FormalExpr expand path uses _ensure_claim_var for all conclusions,
+    which defaults to 0.5.
+    """
     from gaia.bp.factor_graph import CROMWELL_EPS
     from gaia.ir.strategy import FormalExpr, FormalStrategy
 
@@ -780,9 +783,12 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
 
 
 def test_auto_formalized_abduction_relation_conclusions_get_assertion_prior():
-    """Named strategy auto-formalization path: formalize_named_strategy generates
-    helper claims that are registered via _ensure_claim_var (π=0.5) BEFORE the
-    FormalStrategy expand path runs.  Relation conclusions must still get π=1-ε."""
+    """Verify auto formalized abduction relation conclusions get assertion prior.
+
+    Named strategy auto-formalization path: formalize_named_strategy generates helper claims
+    that are registered via _ensure_claim_var (π=0.5) BEFORE the FormalStrategy expand path
+    runs. Relation conclusions must still get π=1-ε.
+    """
     from gaia.bp.factor_graph import CROMWELL_EPS
 
     s = Strategy(

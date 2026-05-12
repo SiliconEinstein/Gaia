@@ -275,7 +275,7 @@ def test_infer_reattaches_stable_action_label_reviews_after_target_id_changes(tm
 
 
 def test_infer_uses_v6_infer_action_cpt(tmp_path):
-    """gaia infer must lower v6 InferAction CPTs from the compiled IR strategy."""
+    """Gaia infer must lower v6 InferAction CPTs from the compiled IR strategy."""
     from gaia.cli._packages import (
         apply_package_priors,
         compile_loaded_package_artifact,
