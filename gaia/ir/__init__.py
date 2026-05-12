@@ -45,35 +45,44 @@ from gaia.ir.strategy import (
 )
 
 __all__ = [
-    "BUILTIN_DISTRIBUTION_KINDS",
-    "CROMWELL_EPS",
-    "BuiltinDistributionKind",
-    "CallableRef",
-    "Compose",
-    "CompositeStrategy",
-    "DistributionLiteral",
-    "DistributionParam",
-    "FormalExpr",
-    "FormalStrategy",
-    "FormalizationResult",
+    # Knowledge
     "Knowledge",
     "KnowledgeType",
-    "LocalCanonicalGraph",
-    "Operator",
-    "OperatorType",
     "PackageRef",
     "Parameter",
+    "make_qid",
+    # Operator
+    "Operator",
+    "OperatorType",
+    # Compose
+    "Compose",
+    # Strategy
+    "CompositeStrategy",
+    "FormalExpr",
+    "FormalStrategy",
+    "Step",
+    "Strategy",
+    "StrategyType",
+    # Graphs
+    "LocalCanonicalGraph",
+    # Formalization
+    "FormalizationResult",
+    "formalize_named_strategy",
+    # Parameterization
+    "CROMWELL_EPS",
     "ParameterizationSource",
     "PriorRecord",
-    "QuantityLiteral",
     "ResolutionPolicy",
+    "StrategyParamRecord",
+    # Schemas
+    "BUILTIN_DISTRIBUTION_KINDS",
+    "BuiltinDistributionKind",
+    "CallableRef",
+    "DistributionParam",
+    "DistributionLiteral",
+    "QuantityLiteral",
+    # Review
     "Review",
     "ReviewManifest",
     "ReviewStatus",
-    "Step",
-    "Strategy",
-    "StrategyParamRecord",
-    "StrategyType",
-    "formalize_named_strategy",
-    "make_qid",
 ]
