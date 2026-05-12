@@ -74,13 +74,13 @@ while still requiring true decomposition of high-complexity functions.
 ## Push Pre-flight
 
 The pre-push hook runs the CI-byte-aligned gate (full ruff + format check + mypy + pytest
---cov) on every `git push`. This guarantees that if the hook is green, CI on the corresponding
-PR will be green for the same reasons.
+--cov) on every `git push`. If the hook is green, local state has passed the same commands
+that CI runs; GitHub may still catch environment, branch-protection, or service-side issues.
 
-**Do not bypass the pre-push hook** with `--no-verify`, `--no-gpg-sign`, or any other skip
-flag. If the hook fails, fix the underlying issue and create a new commit — do not skip the
-hook to "ship now, fix later". Bypassing produces silent drift between local and CI state and
-defeats the entire point of byte-aligning the gates.
+**Do not bypass the pre-push hook** with `--no-verify` or any other hook-skip flag. If the hook
+fails, fix the underlying issue and create a new commit — do not skip the hook to "ship now,
+fix later". Bypassing produces silent drift between local and CI state and defeats the entire
+point of byte-aligning the gates.
 
 This applies equally to in-repo agents (Claude Code, Cursor, Codex, etc.). Agents must not
 push without a green pre-push gate. Only the human contributor can override the hook in
