@@ -15,6 +15,17 @@ from math import isfinite
 logger = logging.getLogger(__name__)
 
 CROMWELL_EPS: float = 1e-3
+_DETERMINISTIC_FACTOR_TYPES = frozenset(
+    {
+        "IMPLICATION",
+        "NEGATION",
+        "CONJUNCTION",
+        "DISJUNCTION",
+        "EQUIVALENCE",
+        "CONTRADICTION",
+        "COMPLEMENT",
+    }
+)
 
 
 def _cromwell_clamp(value: float, label: str = "") -> float:
@@ -159,85 +170,14 @@ class FactorGraph:
                 f"Factor '{factor_id}': conclusion '{conclusion}' must not appear in variables."
             )
 
-        ft = factor_type
-        fp1: float | None = None
-        fp2: float | None = None
-        fcpt: tuple[float, ...] | None = None
-
-        if ft in (
-            FactorType.IMPLICATION,
-            FactorType.NEGATION,
-            FactorType.CONJUNCTION,
-            FactorType.DISJUNCTION,
-            FactorType.EQUIVALENCE,
-            FactorType.CONTRADICTION,
-            FactorType.COMPLEMENT,
-        ):
-            if p1 is not None or p2 is not None or cpt is not None:
-                raise ValueError(f"Deterministic factor '{factor_id}' must not set p1/p2/cpt.")
-            self._validate_deterministic(factor_id, ft, v_list)
-
-        elif ft == FactorType.SOFT_ENTAILMENT:
-            if cpt is not None:
-                raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' must not set cpt.")
-            if len(v_list) != 1:
-                raise ValueError(
-                    f"SOFT_ENTAILMENT '{factor_id}' requires exactly 1 premise variable, "
-                    f"got {len(v_list)}."
-                )
-            if p1 is None or p2 is None:
-                raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' requires p1 and p2.")
-            p1c = _cromwell_clamp(p1, label=f"factor '{factor_id}' p1")
-            p2c = _cromwell_clamp(p2, label=f"factor '{factor_id}' p2")
-            if p1c + p2c <= 1.0:
-                raise ValueError(
-                    f"SOFT_ENTAILMENT '{factor_id}' requires p1 + p2 > 1 "
-                    f"(after Cromwell clamp got {p1c + p2c})."
-                )
-            fp1, fp2 = p1c, p2c
-
-        elif ft == FactorType.CONDITIONAL:
-            if p1 is not None or p2 is not None:
-                raise ValueError(f"CONDITIONAL '{factor_id}' must not set p1/p2.")
-            if not v_list:
-                raise ValueError(
-                    f"CONDITIONAL '{factor_id}' requires at least one premise variable."
-                )
-            if cpt is None:
-                raise ValueError(f"CONDITIONAL '{factor_id}' requires cpt.")
-            expected = 1 << len(v_list)
-            fcpt = tuple(_cromwell_clamp(float(x), label=f"cpt[{i}]") for i, x in enumerate(cpt))
-            if len(fcpt) != expected:
-                raise ValueError(
-                    f"CONDITIONAL '{factor_id}': cpt length must be 2^k = {expected}, "
-                    f"got {len(fcpt)}."
-                )
-
-        elif ft == FactorType.PAIRWISE_POTENTIAL:
-            if p1 is not None or p2 is not None:
-                raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' must not set p1/p2.")
-            if len(v_list) != 1:
-                raise ValueError(
-                    f"PAIRWISE_POTENTIAL '{factor_id}' requires exactly 1 variable plus "
-                    f"the paired conclusion variable, got {len(v_list)} variables."
-                )
-            if cpt is None:
-                raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' requires cpt.")
-            fcpt = tuple(float(x) for x in cpt)
-            if len(fcpt) != 4:
-                raise ValueError(
-                    f"PAIRWISE_POTENTIAL '{factor_id}': cpt length must be 4, got {len(fcpt)}."
-                )
-            if any((not isfinite(x)) or x < 0.0 for x in fcpt):
-                raise ValueError(
-                    f"PAIRWISE_POTENTIAL '{factor_id}' requires finite non-negative weights."
-                )
-            if sum(fcpt) <= 0.0:
-                raise ValueError(
-                    f"PAIRWISE_POTENTIAL '{factor_id}' requires at least one positive weight."
-                )
-        else:
-            raise ValueError(f"Unknown FactorType: {ft!r}")
+        fp1, fp2, fcpt = self._validate_factor_parameters(
+            factor_id=factor_id,
+            factor_type=factor_type,
+            v_list=v_list,
+            p1=p1,
+            p2=p2,
+            cpt=cpt,
+        )
 
         self.factors.append(
             Factor(
@@ -250,6 +190,127 @@ class FactorGraph:
                 cpt=fcpt,
             )
         )
+
+    @staticmethod
+    def _validate_factor_parameters(
+        *,
+        factor_id: str,
+        factor_type: FactorType,
+        v_list: list[str],
+        p1: float | None,
+        p2: float | None,
+        cpt: Sequence[float] | None,
+    ) -> tuple[float | None, float | None, tuple[float, ...] | None]:
+        """Validate factor-family parameters and return normalized payloads."""
+        if factor_type.name in _DETERMINISTIC_FACTOR_TYPES:
+            return FactorGraph._validate_deterministic_parameters(
+                factor_id, factor_type, v_list, p1, p2, cpt
+            )
+        if factor_type == FactorType.SOFT_ENTAILMENT:
+            return FactorGraph._validate_soft_entailment_parameters(factor_id, v_list, p1, p2, cpt)
+        if factor_type == FactorType.CONDITIONAL:
+            return FactorGraph._validate_conditional_parameters(factor_id, v_list, p1, p2, cpt)
+        if factor_type == FactorType.PAIRWISE_POTENTIAL:
+            return FactorGraph._validate_pairwise_parameters(factor_id, v_list, p1, p2, cpt)
+        raise ValueError(f"Unknown FactorType: {factor_type!r}")
+
+    @staticmethod
+    def _validate_deterministic_parameters(
+        factor_id: str,
+        factor_type: FactorType,
+        v_list: list[str],
+        p1: float | None,
+        p2: float | None,
+        cpt: Sequence[float] | None,
+    ) -> tuple[None, None, None]:
+        """Validate deterministic factor arity and reject free parameters."""
+        if p1 is not None or p2 is not None or cpt is not None:
+            raise ValueError(f"Deterministic factor '{factor_id}' must not set p1/p2/cpt.")
+        FactorGraph._validate_deterministic(factor_id, factor_type, v_list)
+        return None, None, None
+
+    @staticmethod
+    def _validate_soft_entailment_parameters(
+        factor_id: str,
+        v_list: list[str],
+        p1: float | None,
+        p2: float | None,
+        cpt: Sequence[float] | None,
+    ) -> tuple[float, float, None]:
+        """Validate and Cromwell-clamp soft-entailment parameters."""
+        if cpt is not None:
+            raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' must not set cpt.")
+        if len(v_list) != 1:
+            raise ValueError(
+                f"SOFT_ENTAILMENT '{factor_id}' requires exactly 1 premise variable, "
+                f"got {len(v_list)}."
+            )
+        if p1 is None or p2 is None:
+            raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' requires p1 and p2.")
+        p1c = _cromwell_clamp(p1, label=f"factor '{factor_id}' p1")
+        p2c = _cromwell_clamp(p2, label=f"factor '{factor_id}' p2")
+        if p1c + p2c <= 1.0:
+            raise ValueError(
+                f"SOFT_ENTAILMENT '{factor_id}' requires p1 + p2 > 1 "
+                f"(after Cromwell clamp got {p1c + p2c})."
+            )
+        return p1c, p2c, None
+
+    @staticmethod
+    def _validate_conditional_parameters(
+        factor_id: str,
+        v_list: list[str],
+        p1: float | None,
+        p2: float | None,
+        cpt: Sequence[float] | None,
+    ) -> tuple[None, None, tuple[float, ...]]:
+        """Validate and Cromwell-clamp a conditional CPT."""
+        if p1 is not None or p2 is not None:
+            raise ValueError(f"CONDITIONAL '{factor_id}' must not set p1/p2.")
+        if not v_list:
+            raise ValueError(f"CONDITIONAL '{factor_id}' requires at least one premise variable.")
+        if cpt is None:
+            raise ValueError(f"CONDITIONAL '{factor_id}' requires cpt.")
+        expected = 1 << len(v_list)
+        fcpt = tuple(_cromwell_clamp(float(x), label=f"cpt[{i}]") for i, x in enumerate(cpt))
+        if len(fcpt) != expected:
+            raise ValueError(
+                f"CONDITIONAL '{factor_id}': cpt length must be 2^k = {expected}, got {len(fcpt)}."
+            )
+        return None, None, fcpt
+
+    @staticmethod
+    def _validate_pairwise_parameters(
+        factor_id: str,
+        v_list: list[str],
+        p1: float | None,
+        p2: float | None,
+        cpt: Sequence[float] | None,
+    ) -> tuple[None, None, tuple[float, ...]]:
+        """Validate pairwise potential weights without Cromwell clamping."""
+        if p1 is not None or p2 is not None:
+            raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' must not set p1/p2.")
+        if len(v_list) != 1:
+            raise ValueError(
+                f"PAIRWISE_POTENTIAL '{factor_id}' requires exactly 1 variable plus "
+                f"the paired conclusion variable, got {len(v_list)} variables."
+            )
+        if cpt is None:
+            raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' requires cpt.")
+        fcpt = tuple(float(x) for x in cpt)
+        if len(fcpt) != 4:
+            raise ValueError(
+                f"PAIRWISE_POTENTIAL '{factor_id}': cpt length must be 4, got {len(fcpt)}."
+            )
+        if any((not isfinite(x)) or x < 0.0 for x in fcpt):
+            raise ValueError(
+                f"PAIRWISE_POTENTIAL '{factor_id}' requires finite non-negative weights."
+            )
+        if sum(fcpt) <= 0.0:
+            raise ValueError(
+                f"PAIRWISE_POTENTIAL '{factor_id}' requires at least one positive weight."
+            )
+        return None, None, fcpt
 
     @staticmethod
     def _validate_deterministic(factor_id: str, ft: FactorType, v_list: list[str]) -> None:

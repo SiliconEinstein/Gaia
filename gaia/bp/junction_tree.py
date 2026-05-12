@@ -51,6 +51,7 @@ __all__ = ["JunctionTreeInference", "jt_treewidth"]
 
 logger = logging.getLogger(__name__)
 type PotentialTable = dict[tuple[int, ...], float]
+type JunctionMessages = dict[tuple[int, int], tuple[PotentialTable, list[str]]]
 
 
 # ---------------------------------------------------------------------------
@@ -403,6 +404,107 @@ def _divide_tables(
     return result, union_vars
 
 
+def _junction_tree_orders(
+    tree_adj: dict[int, list[tuple[int, frozenset[str]]]],
+    n_cliques: int,
+) -> tuple[dict[int, int | None], list[int], list[int]]:
+    """Return parent map plus collect and distribute traversal orders."""
+    visited = [False] * n_cliques
+    post_order: list[int] = []
+    parent: dict[int, int | None] = {0: None}
+
+    stack = [0]
+    while stack:
+        node = stack[-1]
+        if not visited[node]:
+            visited[node] = True
+            for child, _ in tree_adj[node]:
+                if not visited[child]:
+                    parent[child] = node
+                    stack.append(child)
+        else:
+            stack.pop()
+            post_order.append(node)
+
+    return parent, post_order, list(reversed(post_order))
+
+
+def _initial_separator_messages(
+    tree_adj: dict[int, list[tuple[int, frozenset[str]]]],
+    n_cliques: int,
+) -> JunctionMessages:
+    """Initialize all directed separator messages to uniform tables."""
+    messages: JunctionMessages = {}
+    for clique_idx in range(n_cliques):
+        for neighbor, separator in tree_adj[clique_idx]:
+            sep_list = sorted(separator)
+            uniform: PotentialTable = dict.fromkeys(
+                cartesian_product((0, 1), repeat=len(sep_list)), 1.0
+            )
+            messages[(clique_idx, neighbor)] = (uniform, sep_list)
+    return messages
+
+
+def _separator_between(
+    tree_adj: dict[int, list[tuple[int, frozenset[str]]]],
+    node: int,
+    parent: int,
+) -> frozenset[str]:
+    """Return the separator between two adjacent junction-tree cliques."""
+    for neighbor, separator in tree_adj[node]:
+        if neighbor == parent:
+            return separator
+    raise RuntimeError(f"Junction tree missing separator between {node} and {parent}")
+
+
+def _compute_junction_message(
+    sender: int,
+    receiver: int,
+    separator: frozenset[str],
+    *,
+    clique_potentials: list[PotentialTable],
+    clique_var_lists: list[list[str]],
+    tree_adj: dict[int, list[tuple[int, frozenset[str]]]],
+    messages: JunctionMessages,
+) -> tuple[PotentialTable, list[str]]:
+    """Compute one Shafer-Shenoy separator message."""
+    table = dict(clique_potentials[sender])
+    var_list = list(clique_var_lists[sender])
+
+    for neighbor, _neighbor_sep in tree_adj[sender]:
+        if neighbor == receiver:
+            continue
+        in_msg, in_vars = messages[(neighbor, sender)]
+        table, var_list = _multiply_tables(table, var_list, in_msg, in_vars)
+
+    return _marginalize(table, var_list, separator), sorted(separator)
+
+
+def _calibrate_cliques(
+    clique_potentials: list[PotentialTable],
+    clique_var_lists: list[list[str]],
+    tree_adj: dict[int, list[tuple[int, frozenset[str]]]],
+    messages: JunctionMessages,
+    n_cliques: int,
+) -> list[PotentialTable]:
+    """Multiply incoming separator messages into each clique potential."""
+    calibrated: list[PotentialTable] = []
+    for clique_idx in range(n_cliques):
+        table = dict(clique_potentials[clique_idx])
+        var_list = list(clique_var_lists[clique_idx])
+        for neighbor, _separator in tree_adj[clique_idx]:
+            in_msg, in_vars = messages[(neighbor, clique_idx)]
+            table, var_list = _multiply_tables(table, var_list, in_msg, in_vars)
+
+        target_vars = clique_var_lists[clique_idx]
+        reindexed: PotentialTable = {}
+        for vals, pot in table.items():
+            key = tuple(vals[var_list.index(variable)] for variable in target_vars)
+            reindexed[key] = reindexed.get(key, 0.0) + pot
+        calibrated.append(reindexed)
+    return calibrated
+
+
 def _collect_distribute(
     cliques: list[frozenset[str]],
     clique_potentials: list[PotentialTable],
@@ -425,95 +527,45 @@ def _collect_distribute(
         return clique_potentials[:]
 
     # Build DFS order rooted at 0
-    visited = [False] * n_cliques
-    post_order: list[int] = []  # collect order
-    parent: dict[int, int | None] = {0: None}
-
-    stack = [0]
-    while stack:
-        node = stack[-1]
-        if not visited[node]:
-            visited[node] = True
-            for child, _ in tree_adj[node]:
-                if not visited[child]:
-                    parent[child] = node
-                    stack.append(child)
-        else:
-            stack.pop()
-            post_order.append(node)
-
-    pre_order = list(reversed(post_order))
+    parent, post_order, pre_order = _junction_tree_orders(tree_adj, n_cliques)
 
     # Messages: msg[(sender, receiver)] = separator-indexed table
     # Initially: uniform over separator
-    messages: dict[tuple[int, int], tuple[PotentialTable, list[str]]] = {}
-    for clique_idx, j, separator in [
-        (i, j, separator) for i in range(n_cliques) for j, separator in tree_adj[i]
-    ]:
-        sep_list = sorted(separator)
-        uniform: PotentialTable = dict.fromkeys(
-            cartesian_product((0, 1), repeat=len(sep_list)), 1.0
-        )
-        messages[(clique_idx, j)] = (uniform, sep_list)
-
-    # Helper: compute message from clique i to clique j
-    def compute_message(
-        sender: int, receiver: int, sep: frozenset[str]
-    ) -> tuple[PotentialTable, list[str]]:
-        # Start with sender's initial potential
-        table = dict(clique_potentials[sender])
-        var_list = list(clique_var_lists[sender])
-
-        # Multiply in all incoming messages EXCEPT from receiver
-        for neighbor, _neighbor_sep in tree_adj[sender]:
-            if neighbor == receiver:
-                continue
-            in_msg, in_vars = messages[(neighbor, sender)]
-            table, var_list = _multiply_tables(table, var_list, in_msg, in_vars)
-
-        # Marginalize down to separator
-        sep_msg = _marginalize(table, var_list, sep)
-        return sep_msg, sorted(sep)
+    messages = _initial_separator_messages(tree_adj, n_cliques)
 
     # COLLECT: post-order (leaves to root)
     for node in post_order:
         par = parent.get(node)
         if par is not None:
-            # Find separator between node and par
-            sep: frozenset[str] | None = None
-            for neighbor, s in tree_adj[node]:
-                if neighbor == par:
-                    sep = s
-                    break
-            if sep is None:
-                raise RuntimeError(f"Junction tree missing separator between {node} and {par}")
-            msg_table, msg_vars = compute_message(node, par, sep)
+            sep = _separator_between(tree_adj, node, par)
+            msg_table, msg_vars = _compute_junction_message(
+                node,
+                par,
+                sep,
+                clique_potentials=clique_potentials,
+                clique_var_lists=clique_var_lists,
+                tree_adj=tree_adj,
+                messages=messages,
+            )
             messages[(node, par)] = (msg_table, msg_vars)
 
     # DISTRIBUTE: pre-order (root to leaves)
     for node in pre_order:
         for child, sep in tree_adj[node]:
             if parent.get(child) == node:
-                msg_table, msg_vars = compute_message(node, child, sep)
+                msg_table, msg_vars = _compute_junction_message(
+                    node,
+                    child,
+                    sep,
+                    clique_potentials=clique_potentials,
+                    clique_var_lists=clique_var_lists,
+                    tree_adj=tree_adj,
+                    messages=messages,
+                )
                 messages[(node, child)] = (msg_table, msg_vars)
 
     # Calibrate: multiply all incoming messages into each clique
-    calibrated: list[PotentialTable] = []
-    for i in range(n_cliques):
-        table = dict(clique_potentials[i])
-        var_list = list(clique_var_lists[i])
-        for neighbor, _sep in tree_adj[i]:
-            in_msg, in_vars = messages[(neighbor, i)]
-            table, var_list = _multiply_tables(table, var_list, in_msg, in_vars)
-        # Re-index to sorted clique variable order
-        target_vars = clique_var_lists[i]
-        reindexed: PotentialTable = {}
-        for vals, pot in table.items():
-            key = tuple(vals[var_list.index(v)] for v in target_vars)
-            reindexed[key] = reindexed.get(key, 0.0) + pot
-        calibrated.append(reindexed)
-
-    return calibrated
+    return _calibrate_cliques(clique_potentials, clique_var_lists, tree_adj, messages, n_cliques)
 
 
 # ---------------------------------------------------------------------------

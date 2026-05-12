@@ -92,6 +92,136 @@ def _operator_asserts_relation(op: Operator) -> bool:
     return (op.metadata or {}).get("formula_lowering") != "connective"
 
 
+def _helper_prior_filter_ids(canonical: LocalCanonicalGraph) -> tuple[set[str], set[str]]:
+    """Return helper IDs whose user/default priors should be ignored."""
+    helper_ids = {
+        k.id for k in canonical.knowledges if k.id and k.label and k.label.startswith("__")
+    }
+    expression_helper_ids = {
+        k.id for k in canonical.knowledges if k.id and is_structural_expression_helper(k)
+    }
+    return helper_ids | expression_helper_ids, expression_helper_ids
+
+
+def _metadata_priors(
+    canonical: LocalCanonicalGraph,
+    expression_helper_ids: set[str],
+) -> dict[str, float]:
+    """Collect metadata priors except for structural expression helpers."""
+    return {
+        k.id: float(k.metadata["prior"])
+        for k in canonical.knowledges
+        if k.id and k.metadata and "prior" in k.metadata and k.id not in expression_helper_ids
+    }
+
+
+def _review_allowed_operators(
+    canonical: LocalCanonicalGraph,
+    review_manifest: ReviewManifest | None,
+) -> list[Operator]:
+    """Return operators admitted by the optional review manifest."""
+    return [
+        op
+        for op in canonical.operators
+        if _review_target_allowed(op.operator_id, op.metadata, review_manifest)
+    ]
+
+
+def _relation_conclusion_ids(operators: list[Operator]) -> set[str]:
+    """Return conclusions whose relation operators assert the helper true."""
+    return {op.conclusion for op in operators if _operator_asserts_relation(op)}
+
+
+def _add_claim_variables(
+    fg: FactorGraph,
+    canonical: LocalCanonicalGraph,
+    *,
+    priors: dict[str, float],
+    expression_helper_ids: set[str],
+    relation_concl_ids: set[str],
+) -> set[str]:
+    """Register claim variables with the documented prior precedence rules."""
+    claim_ids = {k.id for k in canonical.knowledges if k.type == KnowledgeType.CLAIM and k.id}
+    for knowledge in canonical.knowledges:
+        if knowledge.type != KnowledgeType.CLAIM or not knowledge.id:
+            continue
+        metadata_prior = (knowledge.metadata or {}).get("prior") if knowledge.metadata else None
+        if knowledge.id in expression_helper_ids:
+            fg.add_variable(knowledge.id)
+        elif knowledge.id in relation_concl_ids:
+            fg.add_variable(knowledge.id, 1.0 - CROMWELL_EPS)
+        elif knowledge.id in priors:
+            fg.add_variable(knowledge.id, priors[knowledge.id])
+        elif metadata_prior is not None:
+            fg.add_variable(knowledge.id, float(metadata_prior))
+        else:
+            fg.add_variable(knowledge.id)
+    return claim_ids
+
+
+def _lower_operators(
+    fg: FactorGraph,
+    operators: list[Operator],
+    *,
+    priors: dict[str, float],
+    claim_ids: set[str],
+    expression_helper_ids: set[str],
+    ctr: list[int],
+) -> None:
+    """Lower review-admitted operators to factor-graph factors."""
+    for op in operators:
+        fid = _next_fid("op", ctr)
+        ft = _OPERATOR_MAP[op.operator]
+        for vid in op.variables:
+            _ensure_claim_var(fg, vid, priors, claim_ids)
+        conclusion = op.conclusion
+        if conclusion not in fg.variables:
+            if conclusion in expression_helper_ids:
+                fg.add_variable(conclusion)
+            elif _operator_asserts_relation(op):
+                fg.add_variable(conclusion, 1.0 - CROMWELL_EPS)
+            else:
+                fg.add_variable(conclusion, priors.get(conclusion))
+        fg.add_factor(fid, ft, op.variables, conclusion)
+
+
+def _lower_graph_strategies(
+    fg: FactorGraph,
+    canonical: LocalCanonicalGraph,
+    *,
+    strat_by_id: dict[str, Strategy],
+    priors: dict[str, float],
+    strat_params: dict[str, list[float]],
+    metadata_priors: dict[str, float],
+    expand_formal: bool,
+    infer_degraded: bool,
+    ctr: list[int],
+    claim_ids: set[str],
+    review_manifest: ReviewManifest | None,
+) -> None:
+    """Lower review-admitted strategies to factor-graph factors."""
+    seen_strategies: set[str] = set()
+    for strategy in canonical.strategies:
+        if not _review_target_allowed(strategy.strategy_id, strategy.metadata, review_manifest):
+            continue
+        _lower_strategy(
+            fg,
+            strategy,
+            strat_by_id,
+            priors,
+            strat_params,
+            metadata_priors,
+            expand_formal,
+            infer_degraded,
+            ctr,
+            claim_ids,
+            canonical.namespace,
+            canonical.package_name,
+            seen_strategies=seen_strategies,
+            review_manifest=review_manifest,
+        )
+
+
 def lower_local_graph(
     canonical: LocalCanonicalGraph,
     *,
@@ -125,97 +255,46 @@ def lower_local_graph(
         gated.
     """
     priors = node_priors or {}
-    # Auto-formalized helper claims (labels starting with ``__``, e.g.
-    # ``__disjunction_result_<hash>``, ``__equivalence_result_<hash>``)
-    # are persisted into ``ir["knowledges"]`` and consequently appear in
-    # most callers' ``node_priors`` (which default-fill every claim id).
-    # Their priors should NOT come from the user — they're determined by
-    # the operator semantics (relation operators → asserted; compositional
-    # operators → neutral 0.5).  Filter them out so the lowering branches
-    # below can apply the correct default.
-    helper_ids = {
-        k.id for k in canonical.knowledges if k.id and k.label and k.label.startswith("__")
-    }
-    expression_helper_ids = {
-        k.id for k in canonical.knowledges if k.id and is_structural_expression_helper(k)
-    }
-    no_user_prior_ids = helper_ids | expression_helper_ids
+    no_user_prior_ids, expression_helper_ids = _helper_prior_filter_ids(canonical)
     if no_user_prior_ids:
         priors = {k: v for k, v in priors.items() if k not in no_user_prior_ids}
-    metadata_priors = {
-        k.id: float(k.metadata["prior"])
-        for k in canonical.knowledges
-        if k.id and k.metadata and "prior" in k.metadata and k.id not in expression_helper_ids
-    }
+    metadata_priors = _metadata_priors(canonical, expression_helper_ids)
     strat_params = strategy_conditional_params or {}
     fg = FactorGraph()
     ctr = [0]
 
-    lowerable_operators = [
-        op
-        for op in canonical.operators
-        if _review_target_allowed(op.operator_id, op.metadata, review_manifest)
-    ]
-
-    relation_concl_ids: set[str] = set()
-    for op in lowerable_operators:
-        if _operator_asserts_relation(op):
-            relation_concl_ids.add(op.conclusion)
-
-    claim_ids = {k.id for k in canonical.knowledges if k.type == KnowledgeType.CLAIM and k.id}
-    for k in canonical.knowledges:
-        if k.type != KnowledgeType.CLAIM or not k.id:
-            continue
-        # Priority: node_priors > metadata["prior"] > structural default
-        metadata_prior = (k.metadata or {}).get("prior") if k.metadata else None
-        if k.id in expression_helper_ids:
-            fg.add_variable(k.id)
-        elif k.id in relation_concl_ids:
-            fg.add_variable(k.id, 1.0 - CROMWELL_EPS)
-        elif k.id in priors:
-            fg.add_variable(k.id, priors[k.id])
-        elif metadata_prior is not None:
-            fg.add_variable(k.id, float(metadata_prior))
-        else:
-            fg.add_variable(k.id)
+    lowerable_operators = _review_allowed_operators(canonical, review_manifest)
+    claim_ids = _add_claim_variables(
+        fg,
+        canonical,
+        priors=priors,
+        expression_helper_ids=expression_helper_ids,
+        relation_concl_ids=_relation_conclusion_ids(lowerable_operators),
+    )
 
     strat_by_id = {s.strategy_id: s for s in canonical.strategies if s.strategy_id}
 
-    for op in lowerable_operators:
-        fid = _next_fid("op", ctr)
-        ft = _OPERATOR_MAP[op.operator]
-        for vid in op.variables:
-            _ensure_claim_var(fg, vid, priors, claim_ids)
-        concl = op.conclusion
-        if concl not in fg.variables:
-            if concl in expression_helper_ids:
-                fg.add_variable(concl)
-            elif _operator_asserts_relation(op):
-                fg.add_variable(concl, 1.0 - CROMWELL_EPS)
-            else:
-                fg.add_variable(concl, priors.get(concl))
-        fg.add_factor(fid, ft, op.variables, concl)
-
-    seen_strategies: set[str] = set()
-    for s in canonical.strategies:
-        if not _review_target_allowed(s.strategy_id, s.metadata, review_manifest):
-            continue
-        _lower_strategy(
-            fg,
-            s,
-            strat_by_id,
-            priors,
-            strat_params,
-            metadata_priors,
-            expand_formal,
-            infer_use_degraded_noisy_and,
-            ctr,
-            claim_ids,
-            canonical.namespace,
-            canonical.package_name,
-            seen_strategies=seen_strategies,
-            review_manifest=review_manifest,
-        )
+    _lower_operators(
+        fg,
+        lowerable_operators,
+        priors=priors,
+        claim_ids=claim_ids,
+        expression_helper_ids=expression_helper_ids,
+        ctr=ctr,
+    )
+    _lower_graph_strategies(
+        fg,
+        canonical,
+        strat_by_id=strat_by_id,
+        priors=priors,
+        strat_params=strat_params,
+        metadata_priors=metadata_priors,
+        expand_formal=expand_formal,
+        infer_degraded=infer_use_degraded_noisy_and,
+        ctr=ctr,
+        claim_ids=claim_ids,
+        review_manifest=review_manifest,
+    )
 
     return fg
 
