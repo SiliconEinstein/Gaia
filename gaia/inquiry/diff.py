@@ -35,6 +35,7 @@ class ClaimDelta:
     after: str
 
     def to_dict(self) -> dict[str, str]:
+        """Return the delta record as a JSON-compatible dictionary."""
         return {
             "label": self.label,
             "field": self.field,
@@ -84,6 +85,7 @@ class SemanticDiff:
 
     @property
     def is_empty(self) -> bool:
+        """Return whether the diff contains no semantic deltas."""
         return not any(
             (
                 self.added_claims,
@@ -105,6 +107,7 @@ class SemanticDiff:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the full semantic diff as a JSON-compatible dictionary."""
         return {
             "baseline_review_id": self.baseline_review_id,
             "added_claims": list(self.added_claims),
@@ -126,6 +129,7 @@ class SemanticDiff:
 
 
 def empty_diff() -> SemanticDiff:
+    """Return an empty semantic diff for report defaults."""
     return SemanticDiff()
 
 

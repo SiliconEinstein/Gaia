@@ -74,6 +74,8 @@ def _utcnow_iso() -> str:
 
 @dataclass
 class ReviewReport:
+    """Passive container for the eight-section Gaia inquiry review report."""
+
     review_id: str
     created_at: str
     path: str
@@ -109,6 +111,7 @@ class ReviewReport:
     proof_context: ProofContext | None = None
 
     def to_json_dict(self) -> dict[str, Any]:
+        """Return the report in the shared JSON dictionary shape."""
         return _to_json_dict(self)
 
 
@@ -156,6 +159,7 @@ def run_review(
     since: str | None = None,
     strict: bool = False,
 ) -> ReviewReport:
+    """Run the inquiry review pipeline and persist a review snapshot."""
     pkg_path = Path(path).resolve()
     state = load_state(pkg_path)
     focus_raw = focus_override if focus_override is not None else state.focus

@@ -19,6 +19,7 @@ _SAFE_MODE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def reviews_dir(pkg_path: str | Path) -> Path:
+    """Return the package review snapshot directory, creating it if needed."""
     d = inquiry_dir(pkg_path) / "reviews"
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -72,6 +73,7 @@ def save_snapshot(
 
 
 def load_snapshot(pkg_path: str | Path, review_id: str) -> dict[str, Any] | None:
+    """Load a persisted review snapshot by id, returning None if unavailable."""
     path = reviews_dir(pkg_path) / f"{review_id}.json"
     if not path.exists():
         return None

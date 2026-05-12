@@ -151,6 +151,7 @@ _UNKNOWN_KIND_RANK = 99  # appended after known kinds, sorted by severity only.
 
 
 def supported_modes() -> tuple[str, ...]:
+    """Return the inquiry ranking modes supported by the priority tables."""
     return tuple(_MODE_RANK.keys())
 
 
@@ -176,5 +177,5 @@ def rank_diagnostics(diagnostics: list[Diagnostic], mode: str) -> list[Diagnosti
 
 
 def rank_next_edits(edits: list[NextEdit], mode: str) -> list[NextEdit]:
-    """Same ranking applied to structured next-edits (kept in lock-step)."""
+    """Return structured next-edits sorted with the diagnostic priority table."""
     return sorted(edits, key=_key(mode))

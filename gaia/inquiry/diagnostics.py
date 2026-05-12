@@ -63,6 +63,7 @@ class Diagnostic:
     source_anchor: SourceAnchor | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the diagnostic as a JSON-compatible dictionary."""
         d = asdict(self)
         if not d["data"]:
             d.pop("data")
@@ -73,7 +74,7 @@ class Diagnostic:
 
 @dataclass
 class NextEdit:
-    """Spec §8.8 / Round A2 — 结构化编辑建议。
+    """Spec §8.8 / Round A2 structured edit suggestion.
 
     ``text`` 是渲染给人看的 imperative 一行; ``source_anchor`` 在可定位时指向
     需要修改的源位置。其余字段复制自产生该 edit 的 Diagnostic。
@@ -87,6 +88,7 @@ class NextEdit:
     source_anchor: SourceAnchor | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the structured edit as a JSON-compatible dictionary."""
         d: dict[str, Any] = {
             "text": self.text,
             "kind": self.kind,
@@ -731,7 +733,7 @@ _PRIO = {"error": 0, "warning": 1, "info": 2}
 
 
 def format_diagnostics_as_next_edits(diags: list[Diagnostic]) -> list[str]:
-    """Spec §8 `Next edits` — 文本形式 (向后兼容 Step 2 的 str 列表)。
+    """Format diagnostics as the spec §8 text ``Next edits`` list.
 
     若 diagnostic 带 ``source_anchor``, 追加 ``(file:line)`` 到末尾,
     便于人眼直接定位源行。
@@ -751,7 +753,7 @@ def format_diagnostics_as_next_edits(diags: list[Diagnostic]) -> list[str]:
 
 
 def format_diagnostics_as_structured_edits(diags: list[Diagnostic]) -> list[NextEdit]:
-    """Round A2 — structured NextEdit 列表, 与文本版 dedup 语义一致。"""
+    """Format diagnostics as Round A2 structured ``NextEdit`` records."""
     seen: set[str] = set()
     out: list[NextEdit] = []
     for d in sorted(diags, key=lambda d: _PRIO.get(d.severity, 9)):

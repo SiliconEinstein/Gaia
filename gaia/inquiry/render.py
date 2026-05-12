@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 
 def render_text(report: ReviewReport) -> str:
+    """Render a review report as the spec §8 plain-text layout."""
     lines: list[str] = []
     lines.append("Gaia Inquiry Review")
     lines.append("─" * 20)
@@ -172,6 +173,7 @@ def render_text(report: ReviewReport) -> str:
 
 
 def to_json_dict(report: ReviewReport) -> dict[str, Any]:
+    """Serialize a review report to the spec §9.1 JSON dictionary shape."""
     return {
         "review_id": report.review_id,
         "created_at": report.created_at,
@@ -399,4 +401,5 @@ def render_markdown(report: ReviewReport) -> str:
 
 
 def render_json(report: ReviewReport) -> str:
+    """Render a review report as pretty JSON without ASCII escaping."""
     return json.dumps(to_json_dict(report), ensure_ascii=False, indent=2)

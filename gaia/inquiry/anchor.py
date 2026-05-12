@@ -1,4 +1,4 @@
-"""Source anchor —— 把 IR 里的 label 反向解析回源代码 (file, line)。
+"""Map IR labels back to package source locations.
 
 Gaia 的 Knowledge 只记录 ``module`` 名字，不记录行号。Inquiry 自己用
 ``ast`` 扫描 package 源代码，定位 ``<name> = claim(...) / derive(...) /
@@ -56,18 +56,19 @@ _DSL_CALLABLES = {
 
 @dataclass(frozen=True)
 class SourceAnchor:
-    """指向 package 内某个 DSL 声明的源位置。"""
+    """Source location for a DSL declaration inside a package."""
 
     file: str  # 相对 package_root 的 POSIX 风格路径
     line: int  # 1-based
     column: int  # 0-based, 与 ast.AST.col_offset 一致
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the JSON-compatible anchor payload."""
         return {"file": self.file, "line": self.line, "column": self.column}
 
 
 def _label_from_call(node: ast.Call) -> str | None:
-    """优先用 ``label="..."`` 关键字, 缺省时由调用者用变量名兜底。"""
+    """Return an explicit ``label=`` value, if the DSL call has one."""
     for kw in node.keywords:
         if (
             kw.arg == "label"
@@ -127,7 +128,7 @@ def _scan_module(py_file: Path, rel_file: str) -> dict[str, SourceAnchor]:
 
 
 def find_anchors(pkg_path: str | Path) -> dict[str, SourceAnchor]:
-    """扫描 package 下所有 .py, 返回 label → SourceAnchor 映射。
+    """Scan package Python files and return a label-to-anchor map.
 
     重复 label 取首次出现; 排除 .gaia/ 与隐藏目录。
     """
