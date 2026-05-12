@@ -6,6 +6,9 @@ Selects a bounded set of the most informative nodes and renders a compact
 
 from __future__ import annotations
 
+from typing import Any
+
+
 from gaia.cli.commands._classify import classify_ir, node_role
 
 # ── Mermaid CSS class definitions (self-contained, not imported from _detailed_reasoning) ──
@@ -95,7 +98,7 @@ def _is_helper(label: str | None) -> bool:
 
 
 def render_simplified_mermaid(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float],
     priors: dict[str, float],
     exported_ids: set[str],

@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from typing import Any, cast
 
 _CONTRADICTION = "contradiction"
 
@@ -247,6 +248,7 @@ def _belief_annotation(prior: float | None, belief: float | None) -> str:
         return f"\\n({round(prior, 2):.2f} → {round(belief, 2):.2f})"
     if belief is not None:
         return f"\\n({round(belief, 2):.2f})"
+    assert prior is not None
     return f"\\n({round(prior, 2):.2f})"
 
 
@@ -255,7 +257,7 @@ def _quote_id(raw: str) -> str:
     return '"' + raw.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _knowledge_class(n: dict, derived_ids: set[str]) -> str:
+def _knowledge_class(n: dict[str, Any], derived_ids: set[str]) -> str:
     """Classify a knowledge node into one of: setting, question, exported, derived, premise.
 
     ``exported`` wins over ``derived``/``premise`` when ``n["exported"]`` is true,
@@ -276,7 +278,7 @@ def _knowledge_class(n: dict, derived_ids: set[str]) -> str:
 
 def _knowledge_attrs(cls: str, theme: _Theme) -> str:
     palette = theme.knowledge
-    return getattr(palette, cls)
+    return cast(str, getattr(palette, cls))
 
 
 # ── Main entry point ────────────────────────────────────────────────────────
@@ -297,15 +299,15 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
     """
     th = _resolve_theme(theme)
     graph = json.loads(graph_json_str)
-    nodes: list[dict] = graph.get("nodes", [])
-    edges: list[dict] = graph.get("edges", [])
+    nodes: list[dict[str, Any]] = graph.get("nodes", [])
+    edges: list[dict[str, Any]] = graph.get("edges", [])
 
     # Partition nodes.
-    knowledge_nodes: list[dict] = [
+    knowledge_nodes: list[dict[str, Any]] = [
         n for n in nodes if n.get("type") not in ("strategy", "operator")
     ]
-    strategy_nodes: list[dict] = [n for n in nodes if n.get("type") == "strategy"]
-    operator_nodes: list[dict] = [n for n in nodes if n.get("type") == "operator"]
+    strategy_nodes: list[dict[str, Any]] = [n for n in nodes if n.get("type") == "strategy"]
+    operator_nodes: list[dict[str, Any]] = [n for n in nodes if n.get("type") == "operator"]
 
     # Derived ⇔ some strategy/operator-sourced edge points at it.
     op_or_strat_ids: set[str] = {
@@ -322,7 +324,7 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
     }
 
     # Group knowledge nodes by their module (None / empty → no_module bucket).
-    by_module: dict[str | None, list[dict]] = {}
+    by_module: dict[str | None, list[dict[str, Any]]] = {}
     for n in knowledge_nodes:
         mod = n.get("module") or None
         by_module.setdefault(mod, []).append(n)
@@ -352,7 +354,7 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
         else:
             shared_module[nid] = _FLOAT
 
-    op_strat_by_module: dict[object, list[dict]] = {}
+    op_strat_by_module: dict[object, list[dict[str, Any]]] = {}
     for n in strategy_nodes + operator_nodes:
         op_strat_by_module.setdefault(shared_module[n["id"]], []).append(n)
 
@@ -371,7 +373,7 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
     out.append(f"    {th.edge_global};")
     out.append("")
 
-    def _emit_knowledge_node(n: dict, indent: str) -> None:
+    def _emit_knowledge_node(n: dict[str, Any], indent: str) -> None:
         nid = n["id"]
         base = n.get("title") or n.get("label") or ""
         is_exported = bool(n.get("exported"))
@@ -382,7 +384,7 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
         attrs = _knowledge_attrs(cls, th)
         out.append(f'{indent}{_quote_id(nid)} [label="{label}", {attrs}];')
 
-    def _emit_strategy_node(n: dict, indent: str) -> None:
+    def _emit_strategy_node(n: dict[str, Any], indent: str) -> None:
         stype = n.get("strategy_type", "") or ""
         # Stellaris: shape-only (no text); type names live in the legend.
         # Light: keep type name as inline label (paper-friendly default).
@@ -393,7 +395,7 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
             attrs = th.strategy.ellipse
         out.append(f'{indent}{_quote_id(n["id"])} [label="{label}", {attrs}];')
 
-    def _emit_operator_node(n: dict, indent: str) -> None:
+    def _emit_operator_node(n: dict[str, Any], indent: str) -> None:
         otype = n.get("operator_type", "") or ""
         symbol = _OPERATOR_SYMBOLS.get(otype, "")
         # Stellaris: symbol-only (no type name); type names live in the legend.
@@ -412,14 +414,17 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
             attrs = th.operator.neutral
         out.append(f'{indent}{_quote_id(n["id"])} [label="{label}", {attrs}];')
 
-    def _emit_op_or_strat(n: dict, indent: str) -> None:
+    def _emit_op_or_strat(n: dict[str, Any], indent: str) -> None:
         if n.get("type") == "strategy":
             _emit_strategy_node(n, indent)
         else:
             _emit_operator_node(n, indent)
 
     def _emit_cluster(
-        cluster_name: str, label: str, knowledge: list[dict], op_strat: list[dict]
+        cluster_name: str,
+        label: str,
+        knowledge: list[dict[str, Any]],
+        op_strat: list[dict[str, Any]],
     ) -> None:
         out.append(f"    subgraph {cluster_name} {{")
         out.append(f'        label="{_escape_label(label)}";')
@@ -466,6 +471,8 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
     for e in edges:
         src = e.get("source")
         tgt = e.get("target")
+        if not isinstance(src, str) or not isinstance(tgt, str):
+            continue
         if src not in known_ids or tgt not in known_ids:
             continue
         if src in contra_op_ids or tgt in contra_op_ids:

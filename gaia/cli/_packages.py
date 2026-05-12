@@ -15,7 +15,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from gaia.lang.runtime import Claim, Knowledge, Strategy
 from gaia.lang.runtime.package import CollectedPackage
@@ -23,6 +23,11 @@ from gaia.lang.runtime.package import pyproject_for_module
 from gaia.lang.runtime.package import get_inferred_package, reset_inferred_package
 from gaia.ir.parameterization import CROMWELL_EPS
 from packaging.requirements import InvalidRequirement, Requirement
+
+if TYPE_CHECKING:
+    from gaia.ir.graphs import LocalCanonicalGraph
+    from gaia.ir.knowledge import Knowledge as IrKnowledge
+    from gaia.lang.compiler import CompiledPackage
 
 try:
     import tomllib
@@ -190,7 +195,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
                 # Use first line of docstring as title
                 module_titles[mod_name] = doc.strip().split("\n")[0].strip()
     if module_titles:
-        pkg._module_titles = module_titles
+        setattr(pkg, "_module_titles", module_titles)
 
     pkg.name = import_name
     pkg.version = version
@@ -217,7 +222,7 @@ def compile_loaded_package(loaded: LoadedGaiaPackage) -> dict[str, Any]:
     return compile_package(loaded.package)
 
 
-def compile_loaded_package_artifact(loaded: LoadedGaiaPackage):
+def compile_loaded_package_artifact(loaded: LoadedGaiaPackage) -> CompiledPackage:
     """Compile an already loaded Gaia package to IR plus runtime mappings."""
     from gaia.lang.compiler import compile_package_artifact
     from gaia.lang.refs import ReferenceError, load_references
@@ -403,7 +408,7 @@ def _import_module(import_name: str) -> ModuleType:
 
 def _load_json_file(path: Path, *, description: str) -> dict[str, Any]:
     try:
-        return json.loads(path.read_text())
+        return cast(dict[str, Any], json.loads(path.read_text()))
     except json.JSONDecodeError as exc:
         raise GaiaCliError(f"Error: {description} is not valid JSON: {exc}") from exc
 
@@ -501,7 +506,9 @@ def _relation_id(
     return f"bridge_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
 
 
-def _resolve_fills_relations(loaded: LoadedGaiaPackage, compiled) -> list[dict[str, Any]]:
+def _resolve_fills_relations(
+    loaded: LoadedGaiaPackage, compiled: CompiledPackage
+) -> list[dict[str, Any]]:
     dependency_specs, import_to_dist = _parse_gaia_dependencies(loaded.project_config)
     local_package = loaded.package
     knowledge_by_qid = {
@@ -637,8 +644,8 @@ def _resolve_fills_relations(loaded: LoadedGaiaPackage, compiled) -> list[dict[s
     return sorted(relations, key=lambda item: item["relation_id"])
 
 
-def _knowledge_manifest_entry(knowledge) -> dict[str, Any]:
-    entry = {
+def _knowledge_manifest_entry(knowledge: IrKnowledge) -> dict[str, Any]:
+    entry: dict[str, Any] = {
         "qid": knowledge.id,
         "label": knowledge.label,
         "type": str(knowledge.type),
@@ -651,7 +658,7 @@ def _knowledge_manifest_entry(knowledge) -> dict[str, Any]:
     return entry
 
 
-def validate_fills_relations(loaded: LoadedGaiaPackage, compiled) -> None:
+def validate_fills_relations(loaded: LoadedGaiaPackage, compiled: CompiledPackage) -> None:
     """Validate fills() relations without building full manifests.
 
     Raises GaiaCliError if any fills() strategy has an invalid source,
@@ -661,7 +668,9 @@ def validate_fills_relations(loaded: LoadedGaiaPackage, compiled) -> None:
     _resolve_fills_relations(loaded, compiled)
 
 
-def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, dict[str, Any]]:
+def build_package_manifests(
+    loaded: LoadedGaiaPackage, compiled: CompiledPackage
+) -> dict[str, dict[str, Any]]:
     """Build package-level interface manifests from compiled IR plus runtime package state.
 
     Emits four sibling manifest files under ``.gaia/manifests/``:
@@ -819,7 +828,7 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
         required_by = sorted(required_by_set)
 
         parameters = [parameter.model_dump(mode="json") for parameter in knowledge.parameters]
-        entry = {
+        entry: dict[str, Any] = {
             "qid": premise_qid,
             "label": knowledge.label,
             "content": knowledge.content,
@@ -866,7 +875,7 @@ def build_package_manifests(loaded: LoadedGaiaPackage, compiled) -> dict[str, di
 
 
 def collect_foreign_node_priors(
-    graph,
+    graph: LocalCanonicalGraph,
     pkg_path: Path,
 ) -> dict[str, float]:
     """Collect upstream beliefs for foreign knowledge nodes.

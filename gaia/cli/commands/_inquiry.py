@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,7 +34,8 @@ class InquiryNode:
 
 
 def _knowledge_label(knowledge: dict[str, Any]) -> str:
-    return knowledge.get("label") or knowledge.get("id", "").split("::")[-1]
+    label = knowledge.get("label") or str(knowledge.get("id", "")).split("::")[-1]
+    return str(label)
 
 
 def _action_label(metadata: dict[str, Any] | None, fallback: str) -> str:
@@ -283,7 +285,9 @@ def build_goal_trees(
     ]
 
 
-def _walk(node: InquiryNode, *, include_candidate_relations: bool = True):
+def _walk(
+    node: InquiryNode, *, include_candidate_relations: bool = True
+) -> Iterator[InquiryNode | InquiryEdge]:
     yield node
     for edge in node.incoming:
         if not include_candidate_relations and edge.kind == _CANDIDATE_RELATION_EDGE_KIND:

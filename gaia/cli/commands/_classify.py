@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+
 from dataclasses import dataclass, field
 
 NOTE_TYPES = frozenset({"note", "setting", "context"})
@@ -19,11 +22,11 @@ class KnowledgeClassification:
     decomposition_wholes: set[str] = field(default_factory=set)
 
 
-def classify_ir(ir: dict) -> KnowledgeClassification:
+def classify_ir(ir: dict[str, Any]) -> KnowledgeClassification:
     """Classify knowledge nodes by their role in the reasoning graph."""
     c = KnowledgeClassification()
 
-    def add_operator_roles(operators: list[dict]) -> None:
+    def add_operator_roles(operators: list[dict[str, Any]]) -> None:
         for o in operators:
             metadata = o.get("metadata") or {}
             decomposition = metadata.get("decomposition")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -14,7 +15,7 @@ from gaia.lang.review.manifest import generate_review_manifest
 REVIEW_MANIFEST_REL_PATH = Path(".gaia") / "review_manifest.json"
 
 
-def _generated_manifest(compiled) -> ReviewManifest:
+def _generated_manifest(compiled: Any) -> ReviewManifest:
     return getattr(compiled, "review", None) or generate_review_manifest(compiled)
 
 
@@ -81,7 +82,7 @@ def latest_reviews(manifest: ReviewManifest) -> list[Review]:
     return sorted(latest.values(), key=lambda review: review.action_label)
 
 
-def load_or_generate_review_manifest(pkg_path: str | Path, compiled) -> ReviewManifest:
+def load_or_generate_review_manifest(pkg_path: str | Path, compiled: Any) -> ReviewManifest:
     generated = _generated_manifest(compiled)
     path = Path(pkg_path) / REVIEW_MANIFEST_REL_PATH
     if not path.exists():

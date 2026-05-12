@@ -7,14 +7,17 @@ Top-level ``modules`` and ``cross_module_edges`` arrays are computed.
 
 from __future__ import annotations
 
+from typing import Any
+
+
 import json
 from collections import Counter
 
 
 def generate_graph_json(
-    ir: dict,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
     exported_ids: set[str] | None = None,
 ) -> str:
     """Return JSON string with nodes, edges, modules, and cross_module_edges."""
@@ -33,7 +36,7 @@ def generate_graph_json(
 
     module_order: list[str] = ir.get("module_order", [])
 
-    nodes: list[dict] = []
+    nodes: list[dict[str, Any]] = []
     for k in ir["knowledges"]:
         label = k.get("label", "")
         if label.startswith("__"):
@@ -54,7 +57,7 @@ def generate_graph_json(
             }
         )
 
-    edges: list[dict] = []
+    edges: list[dict[str, Any]] = []
     strategy_counts: Counter[str] = Counter()
     cross_module: Counter[tuple[str, str]] = Counter()
 

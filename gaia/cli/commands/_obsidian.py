@@ -11,6 +11,9 @@ Naming: filenames use titles, wikilinks use labels, aliases bridge them.
 
 from __future__ import annotations
 
+from typing import Any
+
+
 import json
 
 from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
@@ -35,7 +38,7 @@ def _is_helper(label: str | None) -> bool:
     return label.startswith("__") or label.startswith("_anon")
 
 
-def _render_frontmatter(fields: dict) -> str:
+def _render_frontmatter(fields: dict[str, Any]) -> str:
     lines = ["---"]
     for key, value in fields.items():
         if value is None:
@@ -59,7 +62,7 @@ def _render_frontmatter(fields: dict) -> str:
     return "\n".join(lines)
 
 
-def _assign_claim_numbers(ir: dict) -> dict[str, int]:
+def _assign_claim_numbers(ir: dict[str, Any]) -> dict[str, int]:
     """Assign sequential numbers by topological order (0=leaves, high=conclusions)."""
     layers = topo_layers(ir)
     module_order = ir.get("module_order") or []
@@ -67,7 +70,7 @@ def _assign_claim_numbers(ir: dict) -> dict[str, int]:
 
     claims = [k for k in ir["knowledges"] if not _is_helper(k.get("label"))]
 
-    def sort_key(k):
+    def sort_key(k: dict[str, Any]) -> tuple[int, int, Any]:
         kid = k["id"]
         return (
             layers.get(kid, 0),
@@ -85,13 +88,13 @@ def _assign_claim_numbers(ir: dict) -> dict[str, int]:
 
 
 def _generate_claim_page(
-    k: dict,
+    k: dict[str, Any],
     num: int,
     beliefs: dict[str, float],
     priors: dict[str, float],
     justifications: dict[str, str],
-    strategies_by_conclusion: dict[str, list[dict]],
-    strategies_by_premise: dict[str, list[dict]],
+    strategies_by_conclusion: dict[str, list[dict[str, Any]]],
+    strategies_by_premise: dict[str, list[dict[str, Any]]],
     label_for_id: dict[str, str],
     claim_numbers: dict[str, int],
 ) -> str:
@@ -178,8 +181,8 @@ def _generate_module_section_page(
     module_name: str,
     section_num: int,
     title: str,
-    claims: list[dict],
-    ir: dict,
+    claims: list[dict[str, Any]],
+    ir: dict[str, Any],
     beliefs: dict[str, float],
     priors: dict[str, float],
     claim_numbers: dict[str, int],
@@ -232,7 +235,7 @@ def _generate_module_section_page(
 
 
 def _generate_beliefs_page(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float],
     priors: dict[str, float],
     claim_numbers: dict[str, int],
@@ -268,7 +271,7 @@ def _generate_beliefs_page(
     return "\n".join(lines)
 
 
-def _generate_holes_page(leaves: list[dict], claim_numbers: dict[str, int]) -> str:
+def _generate_holes_page(leaves: list[dict[str, Any]], claim_numbers: dict[str, int]) -> str:
     lines = [
         "---",
         "type: meta",
@@ -295,8 +298,8 @@ def _generate_holes_page(leaves: list[dict], claim_numbers: dict[str, int]) -> s
 
 
 def _generate_index(
-    ir: dict,
-    all_claims: list[dict],
+    ir: dict[str, Any],
+    all_claims: list[dict[str, Any]],
     claim_numbers: dict[str, int],
     beliefs: dict[str, float],
     section_list: list[tuple[str, str, int]],
@@ -369,7 +372,9 @@ def _generate_index(
     return "\n".join(lines)
 
 
-def _generate_overview(ir: dict, beliefs: dict[str, float], priors: dict[str, float]) -> str:
+def _generate_overview(
+    ir: dict[str, Any], beliefs: dict[str, float], priors: dict[str, float]
+) -> str:
     pkg = ir.get("package_name", "Package")
     lines = ["---", "type: overview", "tags: [overview]", "---", ""]
     lines.append(f"# {pkg} — Overview")
@@ -408,10 +413,10 @@ def _generate_obsidian_config() -> str:
 
 
 def generate_obsidian_vault(
-    ir: dict,
+    ir: dict[str, Any],
     *,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Generate Obsidian vault with numbered claims and module chapters."""
     pages: dict[str, str] = {}
@@ -427,8 +432,8 @@ def generate_obsidian_vault(
             if p.get("justification"):
                 justifications[p["knowledge_id"]] = p["justification"]
 
-    strategies_by_conclusion: dict[str, list[dict]] = {}
-    strategies_by_premise: dict[str, list[dict]] = {}
+    strategies_by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    strategies_by_premise: dict[str, list[dict[str, Any]]] = {}
     for s in ir.get("strategies", []):
         conc = s.get("conclusion")
         if conc:
@@ -457,7 +462,7 @@ def generate_obsidian_vault(
         "question": "conclusions",  # questions are interesting
     }
 
-    def _claim_role(k: dict) -> str:
+    def _claim_role(k: dict[str, Any]) -> str:
         kid = k["id"]
         if kid in exported_ids:
             return "conclusions"

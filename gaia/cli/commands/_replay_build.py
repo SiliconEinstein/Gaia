@@ -52,7 +52,7 @@ _CONTRADICTION = "contradiction"
 # ── 1. Tick splitting ────────────────────────────────────────────────────────
 
 
-def split_into_ir_ticks(events: list[dict]) -> list[dict]:
+def split_into_ir_ticks(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Expand each event into one tick per IR-relevant ``gaia_actions[]``.
 
     The returned list preserves event order and, within an event, action
@@ -73,7 +73,7 @@ def split_into_ir_ticks(events: list[dict]) -> list[dict]:
     actions) contribute zero ticks. They still live on the timeline as
     markers — the frontend reads ``events`` for that.
     """
-    ticks: list[dict] = []
+    ticks: list[dict[str, Any]] = []
     tick_index = 0
     for ev_idx, event in enumerate(events):
         actions = event.get("gaia_actions") or []
@@ -138,7 +138,9 @@ def _parse_bb(bb: str) -> tuple[float, float, float, float] | None:
         return None
 
 
-def rekey_layout_to_lkm_ids(layout: dict, ir: dict) -> tuple[dict, list[str]]:
+def rekey_layout_to_lkm_ids(
+    layout: dict[str, Any], ir: dict[str, Any]
+) -> tuple[dict[str, Any], list[str]]:
     """Re-key knowledge node entries in *layout* by their ``metadata.lkm_id``.
 
     The pinned layout produced by ``compute_dot_layout`` keys knowledge nodes
@@ -172,7 +174,7 @@ def rekey_layout_to_lkm_ids(layout: dict, ir: dict) -> tuple[dict, list[str]]:
     seen_lkm_ids: dict[str, str] = {}  # lkm_id -> first IR id we saw it on
     for k in ir.get("knowledges", []) or []:
         kid = k.get("id")
-        if not kid:
+        if not isinstance(kid, str) or not kid:
             continue
         meta = k.get("metadata") or {}
         lid = meta.get("lkm_id")
@@ -188,8 +190,10 @@ def rekey_layout_to_lkm_ids(layout: dict, ir: dict) -> tuple[dict, list[str]]:
         ir_to_lkm[kid] = lid
 
     # Apply the re-key: move each pinned-layout entry from its IR id to lkm_id.
-    rekeyed: dict[str, dict] = {}
+    rekeyed: dict[str, dict[str, Any]] = {}
     for key, value in nodes.items():
+        if not isinstance(key, str) or not isinstance(value, dict):
+            continue
         new_key = ir_to_lkm.get(key, key)
         # If two IR ids unexpectedly collide on the same lkm_id (should be
         # caught above as a warning), keep the first and record the second.
@@ -203,7 +207,7 @@ def rekey_layout_to_lkm_ids(layout: dict, ir: dict) -> tuple[dict, list[str]]:
     return layout, warnings
 
 
-def annotate_layout_with_kinds(layout: dict, ir: dict) -> dict:
+def annotate_layout_with_kinds(layout: dict[str, Any], ir: dict[str, Any]) -> dict[str, Any]:
     """Decorate every layout node entry with kind + styling info from the IR.
 
     The pinned layout from ``compute_dot_layout`` only carries ``(x, y)`` for
@@ -237,8 +241,8 @@ def annotate_layout_with_kinds(layout: dict, ir: dict) -> dict:
 
     # Build (lkm_id-or-irid → IR knowledge dict) lookup, so we can decorate
     # both pre- and post-rekey knowledge entries.
-    ir_by_id: dict[str, dict] = {}
-    ir_by_lkm: dict[str, dict] = {}
+    ir_by_id: dict[str, dict[str, Any]] = {}
+    ir_by_lkm: dict[str, dict[str, Any]] = {}
     for k in ir.get("knowledges", []) or []:
         kid = k.get("id")
         if isinstance(kid, str):
@@ -264,7 +268,7 @@ def annotate_layout_with_kinds(layout: dict, ir: dict) -> dict:
         if isinstance(c, str):
             derived_ids.add(c)
 
-    def _knowledge_subkind(k: dict) -> str:
+    def _knowledge_subkind(k: dict[str, Any]) -> str:
         if k.get("type") == "setting":
             return "setting"
         if k.get("exported"):
@@ -368,10 +372,10 @@ def annotate_layout_with_kinds(layout: dict, ir: dict) -> dict:
 
 
 def bridge_event_symbols_to_layout(
-    layout: dict,
-    ir: dict,
-    events: list[dict],
-) -> tuple[dict, list[str]]:
+    layout: dict[str, Any],
+    ir: dict[str, Any],
+    events: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[str]]:
     """Add layout entries for event-side strategy / operator symbols.
 
     Events reference deduction-pivot nodes by ``gfac_*`` ids (the
@@ -457,10 +461,10 @@ def bridge_event_symbols_to_layout(
     #
     # Collisions kick the entry out of the dict; the bridge then silently
     # skips that match rather than mis-routing.
-    strategy_signatures: dict[tuple, str] = {}
-    pair_signatures: dict[tuple, str] = {}
+    strategy_signatures: dict[tuple[Any, ...], str] = {}
+    pair_signatures: dict[tuple[Any, ...], str] = {}
 
-    def _record(sig_dict: dict[tuple, str], sig: tuple, target: str) -> None:
+    def _record(sig_dict: dict[tuple[Any, ...], str], sig: tuple[Any, ...], target: str) -> None:
         # First write wins; a second collision marks the slot dead by
         # mapping to None so subsequent lookups skip it.
         existing = sig_dict.get(sig)
@@ -498,7 +502,7 @@ def bridge_event_symbols_to_layout(
         if len(var_lkms) >= 2:
             _record(pair_signatures, (kind, var_lkms), f"oper_{i}")
 
-    def _gcn(s) -> str | None:
+    def _gcn(s: Any) -> str | None:
         return s if isinstance(s, str) and s.startswith("gcn_") else None
 
     # Walk events looking for symbols to bridge. Within an event, we pair
@@ -516,7 +520,7 @@ def bridge_event_symbols_to_layout(
             continue
 
         # Pre-bucket edges by kind for positional pairing.
-        edges_by_kind: dict[str, list[dict]] = {}
+        edges_by_kind: dict[str, list[dict[str, Any]]] = {}
         for e in edges:
             edges_by_kind.setdefault(e.get("kind") or "", []).append(e)
         # Index of each action within its kind, used to pair with edges.
@@ -527,7 +531,7 @@ def bridge_event_symbols_to_layout(
                 continue
             kind = action.get("action")
             symbol = action.get("symbol")
-            if not isinstance(symbol, str) or not symbol:
+            if not isinstance(kind, str) or not isinstance(symbol, str) or not symbol:
                 continue
             pos_in_kind = kind_seen.get(kind, 0)
             kind_seen[kind] = pos_in_kind + 1
@@ -549,8 +553,8 @@ def bridge_event_symbols_to_layout(
                     f = _gcn(e.get("from"))
                     t = _gcn(e.get("to"))
                     if f and t:
-                        sig = ("strategy", frozenset({f}), t)
-                        candidate = strategy_signatures.get(sig)
+                        bridge_sig: tuple[Any, ...] = ("strategy", frozenset({f}), t)
+                        candidate = strategy_signatures.get(bridge_sig)
                 if not candidate:
                     gcns_from = {f for e in ded_edges if (f := _gcn(e.get("from")))}
                     gcns_to = {t for e in ded_edges if (t := _gcn(e.get("to")))}
@@ -558,8 +562,8 @@ def bridge_event_symbols_to_layout(
                     conclusions = gcns_to - gcns_from
                     if len(conclusions) == 1 and premises:
                         concl = next(iter(conclusions))
-                        sig = ("strategy", frozenset(premises), concl)
-                        candidate = strategy_signatures.get(sig)
+                        bridge_sig = ("strategy", frozenset(premises), concl)
+                        candidate = strategy_signatures.get(bridge_sig)
                 if candidate:
                     target = candidate
             elif kind in ("support", "contradiction", "equivalence"):
@@ -569,8 +573,8 @@ def bridge_event_symbols_to_layout(
                     f = _gcn(e.get("from"))
                     t = _gcn(e.get("to"))
                     if f and t:
-                        sig = (kind, frozenset({f, t}))
-                        candidate = pair_signatures.get(sig)
+                        pair_sig: tuple[Any, ...] = (kind, frozenset({f, t}))
+                        candidate = pair_signatures.get(pair_sig)
                         if candidate:
                             target = candidate
             if not target or target not in nodes:
@@ -669,7 +673,7 @@ def bridge_event_symbols_to_layout(
                 return False
             strats = ir.get("strategies", []) or []
             if 0 <= idx < len(strats):
-                return strats[idx].get("type") == "deduction"
+                return bool(strats[idx].get("type") == "deduction")
             return False
         if action_kind in ("support", "contradiction", "equivalence"):
             # Either an operator with matching ``operator`` or a
@@ -682,7 +686,7 @@ def bridge_event_symbols_to_layout(
                     return False
                 opers = ir.get("operators", []) or []
                 if 0 <= idx < len(opers):
-                    return opers[idx].get("operator") == action_kind
+                    return bool(opers[idx].get("operator") == action_kind)
                 return False
             if target.startswith("strat_"):
                 try:
@@ -691,7 +695,7 @@ def bridge_event_symbols_to_layout(
                     return False
                 strats = ir.get("strategies", []) or []
                 if 0 <= idx < len(strats):
-                    return strats[idx].get("type") == action_kind
+                    return bool(strats[idx].get("type") == action_kind)
                 return False
         return False
 
@@ -709,7 +713,7 @@ def bridge_event_symbols_to_layout(
             if not (0 <= idx < len(strats)):
                 return False
             s = strats[idx]
-            refs: list = []
+            refs: list[Any] = []
             concl = s.get("conclusion")
             if isinstance(concl, str):
                 refs.append(concl)
@@ -751,7 +755,7 @@ def bridge_event_symbols_to_layout(
                 already.add(cid)
         return already
 
-    def _action_module(action: dict) -> str | None:
+    def _action_module(action: dict[str, Any]) -> str | None:
         """Stem of ``action.file`` when it's a ``.py`` path; else None."""
         f = action.get("file")
         if not isinstance(f, str) or not f.endswith(".py"):
@@ -777,7 +781,9 @@ def bridge_event_symbols_to_layout(
     # tuple in event-stream order, plus a positional index tracking how
     # many same-kind actions in the same file have appeared earlier.
     file_kind_seen: dict[tuple[str, str], int] = {}
-    pending: list[tuple[dict, str, str, str, int]] = []  # (action, kind, symbol, module, pos)
+    pending: list[
+        tuple[dict[str, Any], str, str, str, int]
+    ] = []  # (action, kind, symbol, module, pos)
     for ev in events:
         for action in ev.get("gaia_actions") or []:
             if not isinstance(action, dict):
@@ -915,11 +921,11 @@ def bridge_event_symbols_to_layout(
 
 
 def annotate_ticks_with_survival(
-    ticks: list[dict],
-    events: list[dict],
-    layout: dict | None,
-    ir: dict | None,
-) -> tuple[list[dict], list[str]]:
+    ticks: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+    layout: dict[str, Any] | None,
+    ir: dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Stamp ``survives_to_final`` on each tick + return orphan-tick warnings.
 
     A tick "survives to final" iff its ``action.symbol`` resolves — via the
@@ -1013,7 +1019,7 @@ def annotate_ticks_with_survival(
         if isinstance(lid, str) and lid:
             surviving_knowledge_symbols.add(lid)
 
-    def _prior_target_survives(ev: dict) -> bool:
+    def _prior_target_survives(ev: dict[str, Any]) -> bool:
         """Best-effort prior survival check.
 
         Inspects the parent event's payload + graph_delta for any target
@@ -1088,11 +1094,11 @@ def annotate_ticks_with_survival(
 
 
 def topo_reorder_ticks(
-    ticks: list[dict],
-    events: list[dict],
-    layout: dict | None,
-    ir: dict | None,
-) -> tuple[list[dict], list[str]]:
+    ticks: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+    layout: dict[str, Any] | None,
+    ir: dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Topologically reorder surviving ticks by IR dependency.
 
     The growth log emits gaia_actions in *chronological* order, but the
@@ -1190,48 +1196,48 @@ def topo_reorder_ticks(
         key = f"strat_{i}"
         if key not in layout_nodes:
             continue
-        deps: set[str] = set()
+        dep_keys: set[str] = set()
         for p in s.get("premises") or []:
             lk = id_to_layout_key.get(p)
             if lk:
-                deps.add(lk)
+                dep_keys.add(lk)
         for b in s.get("background") or []:
             lk = id_to_layout_key.get(b)
             if lk:
-                deps.add(lk)
+                dep_keys.add(lk)
         concl = s.get("conclusion")
         if isinstance(concl, str):
             lk = id_to_layout_key.get(concl)
             if lk:
-                deps.add(lk)
-        strat_deps[key] = deps
+                dep_keys.add(lk)
+        strat_deps[key] = dep_keys
 
     oper_deps: dict[str, set[str]] = {}
     for i, o in enumerate(operators):
         key = f"oper_{i}"
         if key not in layout_nodes:
             continue
-        deps = set()
+        oper_dep_keys: set[str] = set()
         for v in o.get("variables") or []:
             lk = id_to_layout_key.get(v)
             if lk:
-                deps.add(lk)
+                oper_dep_keys.add(lk)
         concl = o.get("conclusion")
         if isinstance(concl, str):
             lk = id_to_layout_key.get(concl)
             if lk:
-                deps.add(lk)
-        oper_deps[key] = deps
+                oper_dep_keys.add(lk)
+        oper_deps[key] = oper_dep_keys
 
     # ── Compute provides + deps for each surviving tick ───────────────
-    survivors: list[dict] = []
+    survivors: list[dict[str, Any]] = []
     survivor_positions: list[int] = []  # positions in original ticks list
-    orphans_by_pos: dict[int, dict] = {}
+    orphans_by_pos: dict[int, dict[str, Any]] = {}
 
     provides: dict[int, str | None] = {}  # tick original_idx → layout key (or None)
-    deps: dict[int, set[str]] = {}  # tick original_idx → set of layout keys
+    tick_deps: dict[int, set[str]] = {}  # tick original_idx → set of layout keys
 
-    def _prior_dep_keys(ev: dict) -> set[str]:
+    def _prior_dep_keys(ev: dict[str, Any]) -> set[str]:
         """Best-effort: derive the prior's target claim layout key(s)."""
         out: set[str] = set()
         if not isinstance(ev, dict):
@@ -1299,7 +1305,7 @@ def topo_reorder_ticks(
             d.discard(prov)
 
         provides[pos] = prov
-        deps[pos] = d
+        tick_deps[pos] = d
         survivors.append(tick)
         survivor_positions.append(pos)
 
@@ -1320,7 +1326,7 @@ def topo_reorder_ticks(
     in_edges: dict[int, set[int]] = {pos: set() for pos in survivor_positions}
     out_edges: dict[int, set[int]] = {pos: set() for pos in survivor_positions}
     for succ_pos in survivor_positions:
-        for k in deps.get(succ_pos, ()):
+        for k in tick_deps.get(succ_pos, ()):
             for pred_pos in providers_of.get(k, ()):
                 if pred_pos == succ_pos:
                     continue
@@ -1357,7 +1363,7 @@ def topo_reorder_ticks(
     # Walk the original position slots: orphan slots stay put; survivor
     # slots receive the next survivor from the topo-sorted list.
     sorted_iter = iter(sorted_positions)
-    new_ticks: list[dict] = []
+    new_ticks: list[dict[str, Any]] = []
     for orig_pos in range(len(ticks)):
         if orig_pos in orphans_by_pos:
             new_ticks.append(orphans_by_pos[orig_pos])
@@ -1386,7 +1392,7 @@ def topo_reorder_ticks(
     return new_ticks, warnings
 
 
-def compute_dot_layout(dot_source: str, *, dot_binary: str = "dot") -> dict:
+def compute_dot_layout(dot_source: str, *, dot_binary: str = "dot") -> dict[str, Any]:
     """Run Graphviz ``dot -Tjson0`` against *dot_source* and return a
     layout dict shaped for the replay frontend.
 
@@ -1481,7 +1487,7 @@ def compute_dot_layout(dot_source: str, *, dot_binary: str = "dot") -> dict:
 # ── 3. Per-round belief snapshots ────────────────────────────────────────────
 
 
-def collect_round_order(events: list[dict]) -> list[str]:
+def collect_round_order(events: list[dict[str, Any]]) -> list[str]:
     """Return ``round_id`` values in the order they first appear."""
     seen: dict[str, None] = {}
     for ev in events:
@@ -1491,7 +1497,7 @@ def collect_round_order(events: list[dict]) -> list[str]:
     return list(seen.keys())
 
 
-def collect_round_lkm_membership(events: list[dict]) -> dict[str, set[str]]:
+def collect_round_lkm_membership(events: list[dict[str, Any]]) -> dict[str, set[str]]:
     """Map each ``round_id`` to the cumulative set of ``lkm_id`` values that
     have been added (in any ``graph_delta.nodes_added``) by end of that round.
 
@@ -1526,7 +1532,7 @@ def collect_round_lkm_membership(events: list[dict]) -> dict[str, set[str]]:
 
 
 def _truncated_canonical_graph(
-    ir: dict,
+    ir: dict[str, Any],
     keep_knowledge_ids: set[str],
 ) -> LocalCanonicalGraph | None:
     """Build a ``LocalCanonicalGraph`` from *ir* containing only the knowledges
@@ -1541,14 +1547,14 @@ def _truncated_canonical_graph(
     # kept set; their conclusions might be helper-claims (``__*``) which are
     # part of the IR knowledges list, so we may need to expand keep_knowledge_ids.
     kept_ids = set(keep_knowledge_ids)
-    operators_in: list[dict] = []
+    operators_in: list[dict[str, Any]] = []
     for op in ir.get("operators", []) or []:
         concl = op.get("conclusion")
         variables = list(op.get("variables", []) or [])
         if concl in kept_ids and all(v in kept_ids for v in variables):
             operators_in.append(op)
 
-    strategies_in: list[dict] = []
+    strategies_in: list[dict[str, Any]] = []
     for s in ir.get("strategies", []) or []:
         concl = s.get("conclusion")
         premises = list(s.get("premises", []) or [])
@@ -1577,8 +1583,8 @@ def _truncated_canonical_graph(
 
 
 def compute_round_beliefs(
-    ir: dict,
-    events: list[dict],
+    ir: dict[str, Any],
+    events: list[dict[str, Any]],
 ) -> dict[str, dict[str, float]]:
     """Run inference on a truncated IR for each ``round_id`` and return
     ``{round_id: {knowledge_id: belief}}``.

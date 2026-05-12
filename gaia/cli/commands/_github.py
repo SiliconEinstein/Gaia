@@ -6,6 +6,8 @@ a React SPA template, and a README skeleton into a single ``.github-output/`` di
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import shutil
 from pathlib import Path
@@ -44,8 +46,8 @@ def _copy_react_template(docs_dir: Path) -> None:
 
 def _write_meta_json(
     data_dir: Path,
-    ir: dict,
-    pkg_metadata: dict,
+    ir: dict[str, Any],
+    pkg_metadata: dict[str, Any],
 ) -> None:
     """Write ``meta.json`` with package identity and description."""
     meta = {
@@ -62,13 +64,13 @@ def _write_meta_json(
 
 
 def generate_github_output(
-    ir: dict,
+    ir: dict[str, Any],
     pkg_path: Path,
     *,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
     exported_ids: set[str] | None = None,
-    pkg_metadata: dict | None = None,
+    pkg_metadata: dict[str, Any] | None = None,
 ) -> Path:
     """Generate the full ``.github-output/`` tree and return its path.
 
@@ -261,12 +263,12 @@ def generate_github_output(
 
 
 def _render_coarse_mermaid(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float],
     priors: dict[str, float],
     exported_ids: set[str],
-    param_data: dict | None = None,
-) -> str:
+    param_data: dict[str, Any] | None = None,
+) -> tuple[str, float]:
     """Render a coarse-grained Mermaid graph: leaf premises → exported conclusions."""
     coarse = coarsen_ir(ir, exported_ids)
     kid_to_k = {k["id"]: k for k in coarse["knowledges"]}
@@ -417,12 +419,12 @@ def _render_coarse_mermaid(
 
 
 def _generate_readme_skeleton(
-    ir: dict,
+    ir: dict[str, Any],
     *,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
     exported_ids: set[str] | None = None,
-    pkg_metadata: dict | None = None,
+    pkg_metadata: dict[str, Any] | None = None,
 ) -> str:
     """Build a README.md with Mermaid overview, conclusion table, and placeholders."""
     exported = exported_ids or set()

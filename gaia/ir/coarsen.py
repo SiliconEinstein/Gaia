@@ -328,6 +328,7 @@ def compute_coarse_cpts(
     from gaia.bp.contraction import (
         contract_to_cpt,
         cpt_tensor_to_list,
+        StrategyCptCacheValue,
         factor_to_tensor,
         strategy_cpt,
     )
@@ -373,7 +374,7 @@ def compute_coarse_cpts(
     from gaia.ir.strategy import CompositeStrategy
 
     strat_by_id = {s.strategy_id: s for s in canon.strategies if s.strategy_id}
-    cache: dict[str, tuple[Any, list[str]]] = {}
+    cache: dict[str, StrategyCptCacheValue] = {}
     strategy_tensors: list[tuple[Any, list[str]]] = []
     for s in canon.strategies:
         # CompositeStrategy organizes sub-strategies; its CPT is already a

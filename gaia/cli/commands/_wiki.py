@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+
 from gaia.cli.commands._classify import classify_ir, node_role
 
 
-def generate_wiki_home(ir: dict, beliefs_data: dict | None = None) -> str:
+def generate_wiki_home(ir: dict[str, Any], beliefs_data: dict[str, Any] | None = None) -> str:
     """Generate Wiki Home.md with package overview and claim index."""
     pkg = ir.get("package_name", "Package")
     lines = [f"# {pkg}", ""]
 
     # Module index
-    modules: dict[str, list[dict]] = {}
+    modules: dict[str, list[dict[str, Any]]] = {}
     for k in ir["knowledges"]:
         mod = k.get("module", "Root")
         modules.setdefault(mod, []).append(k)
@@ -48,9 +51,9 @@ def generate_wiki_home(ir: dict, beliefs_data: dict | None = None) -> str:
 
 
 def generate_wiki_inference(
-    ir: dict,
-    beliefs_data: dict,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    beliefs_data: dict[str, Any],
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Generate an Inference Results wiki page with diagnostics and a belief table.
 
@@ -110,9 +113,9 @@ def generate_wiki_inference(
 
 
 def generate_all_wiki(
-    ir: dict,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Generate all wiki pages and return them as ``{filename: markdown_content}``.
 
@@ -145,11 +148,11 @@ def generate_all_wiki(
 
 
 def generate_wiki_module(
-    ir: dict,
+    ir: dict[str, Any],
     module_name: str,
     *,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Generate a structured Wiki page for a single module.
 
@@ -168,8 +171,8 @@ def generate_wiki_module(
         priors = {p["knowledge_id"]: p["value"] for p in param_data.get("priors", [])}
 
     # Index strategies by conclusion and by premise for cross-references
-    strategies_by_conclusion: dict[str, list[dict]] = {}
-    strategies_by_premise: dict[str, list[dict]] = {}
+    strategies_by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    strategies_by_premise: dict[str, list[dict[str, Any]]] = {}
     for s in ir.get("strategies", []):
         conc = s.get("conclusion")
         if conc:
@@ -178,7 +181,7 @@ def generate_wiki_module(
             strategies_by_premise.setdefault(p, []).append(s)
 
     # Index operators by premise/variable for cross-references
-    operators_by_variable: dict[str, list[dict]] = {}
+    operators_by_variable: dict[str, list[dict[str, Any]]] = {}
     for o in ir.get("operators", []):
         for v in o.get("variables", []):
             operators_by_variable.setdefault(v, []).append(o)

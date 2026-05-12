@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+
 import json
 from enum import Enum
 
@@ -90,7 +93,7 @@ def render_command(
     # beliefs.json lives at .gaia/beliefs.json (written by `gaia infer`).
     # If present it MUST be fresh (ir_hash matches compiled graph).
     # --target github requires beliefs; --target docs degrades gracefully.
-    beliefs_data: dict | None = None
+    beliefs_data: dict[str, Any] | None = None
     param_data = param_data_from_ir_metadata(ir)
 
     beliefs_path = gaia_dir / "beliefs.json"

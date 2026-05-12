@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 from datetime import datetime, timezone
 
 
 def generate_manifest(
-    ir: dict,
+    ir: dict[str, Any],
     exported_ids: set[str],
     wiki_pages: list[str],
     *,
@@ -28,11 +30,12 @@ def generate_manifest(
     - readme_placeholders: list of placeholder markers for future expansion
     """
     # Derive sections from unique modules unless explicitly provided
+    pages_sections: list[str]
     if sections is not None:
         pages_sections = list(sections)
     else:
         seen: set[str] = set()
-        pages_sections: list[str] = []
+        pages_sections = []
         for k in ir.get("knowledges", []):
             mod = k.get("module")
             if mod and mod not in seen:

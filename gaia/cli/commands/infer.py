@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -24,7 +25,7 @@ from gaia.cli.commands._review_manifest import load_or_generate_review_manifest
 from gaia.ir.validator import validate_local_graph
 
 
-def _write_json(path, payload) -> None:
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
 
 

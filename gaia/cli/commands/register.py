@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+
 import json
 import subprocess
 from datetime import datetime, timezone
@@ -222,7 +225,9 @@ def _build_pr_body(
     return "\n".join(lines)
 
 
-def _prepare_exported_claims(ir: dict, exported_labels: list[str]) -> list[dict[str, str]]:
+def _prepare_exported_claims(
+    ir: dict[str, Any], exported_labels: list[str]
+) -> list[dict[str, str]]:
     knowledge_by_label = {
         item["label"]: item
         for item in ir["knowledges"]
@@ -237,7 +242,7 @@ def _prepare_exported_claims(ir: dict, exported_labels: list[str]) -> list[dict[
     return exported
 
 
-def _load_existing_versions(path: Path) -> dict[str, dict[str, str]]:
+def _load_existing_versions(path: Path) -> dict[str, dict[str, object]]:
     if not path.exists():
         return {}
     return dict(tomllib.loads(path.read_text()).get("versions", {}))

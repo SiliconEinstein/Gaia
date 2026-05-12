@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+
 from collections import defaultdict
 
 from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
@@ -15,7 +18,7 @@ def _truncate(text: str, max_len: int = 80) -> str:
     return text[: max_len - 1] + "\u2026"
 
 
-def _label_of(kid: str, knowledge_by_id: dict[str, dict]) -> str:
+def _label_of(kid: str, knowledge_by_id: dict[str, dict[str, Any]]) -> str:
     k = knowledge_by_id.get(kid, {})
     return k.get("label") or kid.split("::")[-1]
 
@@ -26,7 +29,7 @@ def _is_helper(label: str | None) -> bool:
     return label.startswith("__")
 
 
-def _prior_str(metadata: dict | None) -> str:
+def _prior_str(metadata: dict[str, Any] | None) -> str:
     if not metadata:
         return ""
     p = metadata.get("prior")
@@ -35,15 +38,15 @@ def _prior_str(metadata: dict | None) -> str:
     return ""
 
 
-def _get_prior(metadata: dict | None) -> float | None:
+def _get_prior(metadata: dict[str, Any] | None) -> float | None:
     if not metadata:
         return None
     return metadata.get("prior")
 
 
-def _strategy_by_id(ir: dict) -> dict[str, dict]:
+def _strategy_by_id(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Build strategy_id → strategy dict mapping."""
-    result: dict[str, dict] = {}
+    result: dict[str, dict[str, Any]] = {}
     for s in ir.get("strategies", []):
         sid = s.get("strategy_id")
         if sid:
@@ -51,14 +54,14 @@ def _strategy_by_id(ir: dict) -> dict[str, dict]:
     return result
 
 
-def _strategies_for_conclusion(ir: dict) -> dict[str, dict]:
+def _strategies_for_conclusion(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Build conclusion_id → strategy dict mapping.
 
     When multiple strategies share the same conclusion (e.g. induction wrapping
     two support sub-strategies), prefer the composite strategy so that the
     brief output shows the full reasoning tree rather than a single leaf.
     """
-    result: dict[str, dict] = {}
+    result: dict[str, dict[str, Any]] = {}
     for s in ir.get("strategies", []):
         conc = s.get("conclusion")
         if not conc:
@@ -72,21 +75,21 @@ def _strategies_for_conclusion(ir: dict) -> dict[str, dict]:
     return result
 
 
-def _module_of(kid: str, knowledge_by_id: dict[str, dict]) -> str | None:
+def _module_of(kid: str, knowledge_by_id: dict[str, dict[str, Any]]) -> str | None:
     return knowledge_by_id.get(kid, {}).get("module")
 
 
 # ── Overview mode ──
 
 
-def generate_brief_overview(ir: dict) -> list[str]:
+def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
     """Per-module compact overview of all non-helper nodes and strategies."""
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
     c = classify_ir(ir)
     module_order = ir.get("module_order") or []
 
     # Group knowledges by module
-    by_module: dict[str, list[dict]] = defaultdict(list)
+    by_module: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for k in ir["knowledges"]:
         label = k.get("label", "")
         if _is_helper(label):
@@ -101,7 +104,7 @@ def generate_brief_overview(ir: dict) -> list[str]:
         for sid in s.get("sub_strategies") or []:
             sub_ids.add(sid)
 
-    best_per_conc: dict[str, dict] = {}
+    best_per_conc: dict[str, dict[str, Any]] = {}
     for s in ir.get("strategies", []):
         if s.get("strategy_id") in sub_ids:
             continue  # shown as part of their parent composite
@@ -116,7 +119,7 @@ def generate_brief_overview(ir: dict) -> list[str]:
         elif s.get("formal_expr") and not existing.get("formal_expr"):
             best_per_conc[conc] = s
 
-    strat_by_module: dict[str, list[dict]] = defaultdict(list)
+    strat_by_module: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for conc, s in best_per_conc.items():
         conc_label = _label_of(conc, knowledge_by_id)
         if _is_helper(conc_label):
@@ -125,7 +128,7 @@ def generate_brief_overview(ir: dict) -> list[str]:
         strat_by_module[mod].append(s)
 
     # Group top-level operators by conclusion's module
-    op_by_module: dict[str, list[dict]] = defaultdict(list)
+    op_by_module: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for o in ir.get("operators", []):
         if not o.get("operator_id"):
             continue  # skip embedded formal_expr operators
@@ -197,7 +200,7 @@ def generate_brief_overview(ir: dict) -> list[str]:
     return lines
 
 
-def _format_strategy_oneline(s: dict, knowledge_by_id: dict[str, dict]) -> str:
+def _format_strategy_oneline(s: dict[str, Any], knowledge_by_id: dict[str, dict[str, Any]]) -> str:
     stype = s.get("type", "?")
     premise_labels = [
         _label_of(p, knowledge_by_id)
@@ -216,7 +219,7 @@ def _format_strategy_oneline(s: dict, knowledge_by_id: dict[str, dict]) -> str:
     return line
 
 
-def _format_operator_oneline(o: dict, knowledge_by_id: dict[str, dict]) -> str:
+def _format_operator_oneline(o: dict[str, Any], knowledge_by_id: dict[str, dict[str, Any]]) -> str:
     otype = o.get("operator", "?")
     var_labels = [
         _label_of(v, knowledge_by_id)
@@ -238,7 +241,7 @@ def _format_operator_oneline(o: dict, knowledge_by_id: dict[str, dict]) -> str:
 # ── Module expansion mode ──
 
 
-def generate_brief_module(ir: dict, module_name: str) -> list[str]:
+def generate_brief_module(ir: dict[str, Any], module_name: str) -> list[str]:
     """Expand a module showing full content and recursive warrant trees."""
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
     c = classify_ir(ir)
@@ -316,7 +319,9 @@ def generate_brief_module(ir: dict, module_name: str) -> list[str]:
     return lines
 
 
-def _format_operator_expanded(o: dict, knowledge_by_id: dict[str, dict], indent: int = 4) -> str:
+def _format_operator_expanded(
+    o: dict[str, Any], knowledge_by_id: dict[str, dict[str, Any]], indent: int = 4
+) -> str:
     pad = " " * indent
     otype = o.get("operator", "?")
     var_labels = [_label_of(v, knowledge_by_id) for v in o.get("variables", [])]
@@ -335,7 +340,7 @@ def _format_operator_expanded(o: dict, knowledge_by_id: dict[str, dict], indent:
 # ── Detail mode (single claim/strategy) ──
 
 
-def generate_brief_detail(ir: dict, label: str) -> list[str]:
+def generate_brief_detail(ir: dict[str, Any], label: str) -> list[str]:
     """Expand the warrant tree for a specific claim or strategy label."""
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
     c = classify_ir(ir)
@@ -402,9 +407,9 @@ def generate_brief_detail(ir: dict, label: str) -> list[str]:
 
 
 def _format_warrant_tree(
-    strategy: dict,
-    knowledge_by_id: dict[str, dict],
-    sid_map: dict[str, dict],
+    strategy: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    sid_map: dict[str, dict[str, Any]],
     indent: int = 4,
 ) -> list[str]:
     """Recursively format a strategy's warrant tree."""
@@ -517,7 +522,7 @@ def _format_warrant_tree(
 # ── Review notes for composites ──
 
 
-def _review_notes(strategy: dict, sid_map: dict[str, dict]) -> list[str]:
+def _review_notes(strategy: dict[str, Any], sid_map: dict[str, dict[str, Any]]) -> list[str]:
     """Generate agent review notes for composite strategies."""
     stype = strategy.get("type", "")
     sub_ids = strategy.get("sub_strategies")
@@ -578,7 +583,7 @@ def _review_notes(strategy: dict, sid_map: dict[str, dict]) -> list[str]:
 # ── Dispatch for --show ──
 
 
-def dispatch_show(ir: dict, value: str) -> list[str]:
+def dispatch_show(ir: dict[str, Any], value: str) -> list[str]:
     """Dispatch --show value to module expansion or label detail."""
     module_order = ir.get("module_order") or []
     if value in module_order:

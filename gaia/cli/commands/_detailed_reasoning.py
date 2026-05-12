@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from collections import defaultdict
 
 from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
 
 
-def topo_layers(ir: dict) -> dict[str, int]:
+def topo_layers(ir: dict[str, Any]) -> dict[str, int]:
     """Assign each knowledge ID a topological layer (0 = no incoming edges)."""
     all_ids = {k["id"] for k in ir["knowledges"]}
     incoming: dict[str, set[str]] = defaultdict(set)
@@ -48,7 +50,7 @@ def _anchor_id(label: str) -> str:
     return label
 
 
-def _module_key(k: dict) -> str:
+def _module_key(k: dict[str, Any]) -> str:
     module = k.get("module")
     return module if module else "Root"
 
@@ -57,8 +59,8 @@ def _display_knowledge_type(ktype: str) -> str:
     return "note" if is_note_type(ktype) else ktype
 
 
-def _module_segments(nodes: list[dict]) -> list[tuple[str, list[dict]]]:
-    segments: list[tuple[str, list[dict]]] = []
+def _module_segments(nodes: list[dict[str, Any]]) -> list[tuple[str, list[dict[str, Any]]]]:
+    segments: list[tuple[str, list[dict[str, Any]]]] = []
     for node in nodes:
         module_key = _module_key(node)
         if segments and segments[-1][0] == module_key:
@@ -122,7 +124,7 @@ def _mermaid_node_line(
     label: str,
     kid: str,
     ktype: str,
-    classification,
+    classification: Any,
     beliefs: dict[str, float] | None,
     *,
     title: str | None = None,
@@ -140,7 +142,7 @@ def _mermaid_node_line(
 
 
 def render_mermaid(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
     *,
     node_ids: set[str] | None = None,
@@ -294,7 +296,7 @@ def render_mermaid(
 # ── Narrative ordering ──
 
 
-def _narrative_order(ir: dict) -> list[dict]:
+def _narrative_order(ir: dict[str, Any]) -> list[dict[str, Any]]:
     """Return knowledge nodes in narrative reading order."""
     nodes = [k for k in ir["knowledges"] if not _is_helper(k.get("label", ""))]
     module_order = ir.get("module_order")
@@ -302,18 +304,18 @@ def _narrative_order(ir: dict) -> list[dict]:
     if module_order and any(k.get("module") for k in nodes):
         module_rank = {m: i for i, m in enumerate(module_order)}
 
-        def sort_key(k):
+        def module_sort_key(k: dict[str, Any]) -> tuple[int, Any]:
             mod = k.get("module")
             idx = k.get("declaration_index", 0)
             mod_rank = module_rank.get(mod, 999) if mod else -1
             return (mod_rank, idx)
 
-        return sorted(nodes, key=sort_key)
+        return sorted(nodes, key=module_sort_key)
 
     # Fallback: topo sort (single-file or legacy packages)
     layers = topo_layers(ir)
 
-    def sort_key(k):
+    def fallback_sort_key(k: dict[str, Any]) -> tuple[int, int, Any]:
         kid = k["id"]
         ktype = k["type"]
         if ktype == "question":
@@ -322,16 +324,16 @@ def _narrative_order(ir: dict) -> list[dict]:
             return (-1, 0, k.get("label", ""))
         return (layers.get(kid, 0), 1, k.get("label", ""))
 
-    return sorted(nodes, key=sort_key)
+    return sorted(nodes, key=fallback_sort_key)
 
 
 # ── Knowledge node rendering ──
 
 
 def _render_node(
-    k: dict,
-    strategy_for: dict[str, dict],
-    knowledge_by_id: dict[str, dict],
+    k: dict[str, Any],
+    strategy_for: dict[str, dict[str, Any]],
+    knowledge_by_id: dict[str, dict[str, Any]],
     beliefs: dict[str, float],
     priors: dict[str, float],
     *,
@@ -405,7 +407,7 @@ def _render_node(
 
 
 def _render_overview_graph(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
 ) -> list[str]:
     """Render a summary Mermaid graph showing dependencies between exported conclusions."""
@@ -483,7 +485,7 @@ def _render_overview_graph(
 
 
 def _render_introduction(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float],
     priors: dict[str, float],
 ) -> list[str]:
@@ -499,7 +501,7 @@ def _render_introduction(
         return []
 
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
-    strategy_for: dict[str, dict] = {}
+    strategy_for: dict[str, dict[str, Any]] = {}
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
             strategy_for[s["conclusion"]] = s
@@ -526,7 +528,7 @@ def _render_introduction(
 
 
 def render_knowledge_nodes(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
     priors: dict[str, float] | None = None,
 ) -> str:
@@ -535,7 +537,7 @@ def render_knowledge_nodes(
     beliefs = beliefs or {}
     priors = priors or {}
 
-    strategy_for: dict[str, dict] = {}
+    strategy_for: dict[str, dict[str, Any]] = {}
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
             strategy_for[s["conclusion"]] = s
@@ -600,9 +602,9 @@ def render_knowledge_nodes(
 
 
 def render_inference_results(
-    ir: dict,
-    beliefs_data: dict,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    beliefs_data: dict[str, Any],
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Render inference results summary table."""
     lines = ["## Inference Results", ""]
@@ -642,10 +644,10 @@ def render_inference_results(
 
 
 def generate_detailed_reasoning(
-    ir: dict,
-    pkg_metadata: dict,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    pkg_metadata: dict[str, Any],
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Generate detailed-reasoning.md content from compiled IR and optional inference results."""
     beliefs: dict[str, float] | None = None

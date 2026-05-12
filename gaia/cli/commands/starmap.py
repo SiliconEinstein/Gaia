@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+
 import json
 import shutil
 import subprocess
@@ -230,7 +233,7 @@ def starmap_command(
 
     # Beliefs are optional — degrade gracefully when absent. When present they
     # MUST be fresh, mirroring `render`.
-    beliefs_data: dict | None = None
+    beliefs_data: dict[str, Any] | None = None
     beliefs_path = gaia_dir / "beliefs.json"
     if beliefs_path.exists():
         try:

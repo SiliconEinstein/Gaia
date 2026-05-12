@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from collections.abc import Iterator
+from typing import Any, cast
 
 from gaia.cli._packages import GaiaCliError
 from gaia.cli.commands._inquiry import InquiryEdge, InquiryNode, build_goal_trees
@@ -35,7 +36,7 @@ def load_beliefs(pkg_path: str | Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text())
+        return cast(dict[str, Any], json.loads(path.read_text()))
     except (OSError, json.JSONDecodeError) as exc:
         raise GaiaCliError(f"Error: {path} is not valid JSON: {exc}") from exc
 
@@ -48,7 +49,7 @@ def _exported_claim_ids(ir: dict[str, Any]) -> set[str]:
     }
 
 
-def _walk(node: InquiryNode):
+def _walk(node: InquiryNode) -> Iterator[InquiryNode | InquiryEdge]:
     yield node
     for edge in node.incoming:
         if edge.kind == "candidate_relation":
@@ -123,13 +124,14 @@ def check_quality_gate(
         if beliefs is None:
             failures.append("Missing beliefs: run `gaia infer` before using min_posterior")
         else:
-            belief_by_id = {
-                entry.get("knowledge_id"): float(entry.get("belief"))
-                for entry in beliefs.get("beliefs", [])
-                if isinstance(entry, dict)
-                and isinstance(entry.get("knowledge_id"), str)
-                and isinstance(entry.get("belief"), int | float)
-            }
+            belief_by_id: dict[str, float] = {}
+            for entry in beliefs.get("beliefs", []):
+                if not isinstance(entry, dict):
+                    continue
+                knowledge_id = entry.get("knowledge_id")
+                belief_value = entry.get("belief")
+                if isinstance(knowledge_id, str) and isinstance(belief_value, int | float):
+                    belief_by_id[knowledge_id] = float(belief_value)
             for knowledge_id in sorted(goals):
                 belief = belief_by_id.get(knowledge_id)
                 if belief is None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -12,7 +13,7 @@ from gaia.cli._packages import GaiaCliError
 from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_package
 
 
-def _run_uv(args: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+def _run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(args, text=True, capture_output=True, **kwargs)
     except FileNotFoundError:

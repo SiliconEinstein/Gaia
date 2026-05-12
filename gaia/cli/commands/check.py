@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from typing import Any
+
 import json
 from dataclasses import dataclass, field
 from math import log2
@@ -67,7 +70,7 @@ class _BayesCheckDiagnostics:
     warnings: list[str] = field(default_factory=list)
 
 
-def _walk_inquiry_nodes(node: InquiryNode):
+def _walk_inquiry_nodes(node: InquiryNode) -> Iterator[InquiryNode]:
     yield node
     for edge in node.incoming:
         if edge.kind == "candidate_relation":
@@ -77,9 +80,9 @@ def _walk_inquiry_nodes(node: InquiryNode):
 
 
 def _boundary_claim_analysis(
-    ir: dict,
+    ir: dict[str, Any],
     *,
-    formalization_manifest: dict | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
 ) -> _BoundaryAnalysis:
     """Identify load-bearing boundary claims for exported goals.
 
@@ -137,7 +140,7 @@ def _boundary_claim_analysis(
     )
 
 
-def _deterministic_operator_theory(graph: LocalCanonicalGraph):
+def _deterministic_operator_theory(graph: LocalCanonicalGraph) -> Any:
     constraints = []
     for operator in graph.operators:
         if not operator.conclusion:
@@ -152,7 +155,7 @@ def _deterministic_operator_theory(graph: LocalCanonicalGraph):
     return And(*constraints)
 
 
-def _maxent_state_space(ir: dict, claim_ids: set[str]) -> _MaxEntStateSpace:
+def _maxent_state_space(ir: dict[str, Any], claim_ids: set[str]) -> _MaxEntStateSpace:
     ordered_ids = sorted(claim_ids)
     total_assignments = 1 << len(ordered_ids)
     if not ordered_ids:
@@ -241,7 +244,7 @@ def _induced_entropy_line(summary: _InducedMaxEntSummary) -> str | None:
 
 
 def _formalization_dependency_claim_ids(
-    formalization_manifest: dict | None,
+    formalization_manifest: dict[str, Any] | None,
 ) -> tuple[set[str], set[str]]:
     conclusions: set[str] = set()
     inputs: set[str] = set()
@@ -260,16 +263,16 @@ def _formalization_dependency_claim_ids(
 
 
 def _candidate_relation_dependencies(
-    formalization_manifest: dict | None,
-) -> list[dict]:
-    relations: list[dict] = []
+    formalization_manifest: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    relations: list[dict[str, Any]] = []
     for dependency in (formalization_manifest or {}).get("dependencies", []):
         if isinstance(dependency, dict) and dependency.get("kind") == "candidate_relation":
             relations.append(dependency)
     return relations
 
 
-def _candidate_relation_claim_ids(relations: list[dict]) -> set[str]:
+def _candidate_relation_claim_ids(relations: list[dict[str, Any]]) -> set[str]:
     claim_ids: set[str] = set()
     for relation in relations:
         for claim_id in relation.get("claims", []):
@@ -278,7 +281,7 @@ def _candidate_relation_claim_ids(relations: list[dict]) -> set[str]:
     return claim_ids
 
 
-def _candidate_relation_line(relation: dict, claims: dict[str, dict]) -> str:
+def _candidate_relation_line(relation: dict[str, Any], claims: dict[str, dict[str, Any]]) -> str:
     label = relation.get("label") or relation.get("id") or "candidate_relation"
     proposed = relation.get("proposed") or "relation"
     status = relation.get("status") or "hypothesis"
@@ -291,30 +294,30 @@ def _candidate_relation_line(relation: dict, claims: dict[str, dict]) -> str:
     return f"    - {label} [{proposed}, {status}]: {endpoints}"
 
 
-def _get_prior(k: dict) -> float | None:
+def _get_prior(k: dict[str, Any]) -> float | None:
     """Extract prior from a knowledge node's metadata, or None if absent."""
     meta = k.get("metadata") or {}
     return meta.get("prior")
 
 
-def _node_name(node: dict | None, fallback: str | None = None) -> str:
+def _node_name(node: dict[str, Any] | None, fallback: str | None = None) -> str:
     if node is None:
         return fallback or "<missing>"
     return str(node.get("label") or node.get("id") or fallback or "<unknown>")
 
 
-def _bayes_metadata(node: dict) -> dict:
+def _bayes_metadata(node: dict[str, Any]) -> dict[str, Any]:
     metadata = node.get("metadata") or {}
     bayes = metadata.get("bayes") or {}
     return bayes if isinstance(bayes, dict) else {}
 
 
-def _bayes_role(node: dict) -> str | None:
+def _bayes_role(node: dict[str, Any]) -> str | None:
     role = _bayes_metadata(node).get("role")
     return role if isinstance(role, str) else None
 
 
-def _is_local_ir_id(ir: dict, qid: str) -> bool:
+def _is_local_ir_id(ir: dict[str, Any], qid: str) -> bool:
     namespace = ir.get("namespace")
     package_name = ir.get("package_name")
     if not isinstance(namespace, str) or not isinstance(package_name, str):
@@ -322,7 +325,7 @@ def _is_local_ir_id(ir: dict, qid: str) -> bool:
     return qid.startswith(f"{namespace}:{package_name}::")
 
 
-def _formula_binding_symbols(node: dict) -> set[str]:
+def _formula_binding_symbols(node: dict[str, Any]) -> set[str]:
     metadata = node.get("metadata") or {}
     bindings = metadata.get("formula_bindings") or []
     symbols: set[str] = set()
@@ -335,7 +338,7 @@ def _formula_binding_symbols(node: dict) -> set[str]:
     return symbols
 
 
-def _hypothesis_prior(node: dict | None) -> float:
+def _hypothesis_prior(node: dict[str, Any] | None) -> float:
     # Fallback to 0.5 when a hypothesis has no IR-level prior. This treats
     # un-priored hypotheses as maximally uninformative for the prior-coherence
     # sum, matching how authors typically read "no prior set yet". gaia check
@@ -352,7 +355,7 @@ def _hypothesis_prior(node: dict | None) -> float:
         return 0.5
 
 
-def _bayes_check_diagnostics(ir: dict) -> _BayesCheckDiagnostics:
+def _bayes_check_diagnostics(ir: dict[str, Any]) -> _BayesCheckDiagnostics:
     diagnostics = _BayesCheckDiagnostics()
     nodes = {node["id"]: node for node in ir.get("knowledges", []) if node.get("id")}
     predictions = {
@@ -478,10 +481,10 @@ def _bayes_check_diagnostics(ir: dict) -> _BayesCheckDiagnostics:
 
 
 def _knowledge_diagnostics(
-    ir: dict,
+    ir: dict[str, Any],
     *,
     induced_summary: _InducedMaxEntSummary | None = None,
-    formalization_manifest: dict | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
 ) -> list[str]:
     """Analyze the knowledge graph and return diagnostic lines."""
     lines: list[str] = []
@@ -605,17 +608,17 @@ def _knowledge_diagnostics(
 
 
 def _hole_report(
-    ir: dict,
+    ir: dict[str, Any],
     *,
     induced_summary: _InducedMaxEntSummary | None = None,
-    formalization_manifest: dict | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
 ) -> list[str]:
     """Return detailed report of all independent claims without priors (holes)."""
     claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
     boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
     lines: list[str] = []
-    holes: list[tuple[str, dict]] = []
-    covered: list[tuple[str, dict]] = []
+    holes: list[tuple[str, dict[str, Any]]] = []
+    covered: list[tuple[str, dict[str, Any]]] = []
 
     for cid, k in claims.items():
         if cid not in boundary.boundary_claim_ids:
@@ -672,7 +675,7 @@ def _hole_report(
     return lines
 
 
-def _warrant_report(manifest, *, blind: bool = False) -> list[str]:
+def _warrant_report(manifest: ReviewManifest, *, blind: bool = False) -> list[str]:
     reviews = latest_reviews(manifest)
     lines: list[str] = []
     lines.append("")
