@@ -20,6 +20,7 @@ from gaia.ir import Parameter as IrParameter
 from gaia.ir import Strategy as IrStrategy
 from gaia.ir.formalize import formalize_named_strategy
 from gaia.ir.knowledge import KnowledgeType, make_qid
+from gaia.ir.operator import OperatorType
 from gaia.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
 from gaia.lang.formula.predicate import (
     Causes,
@@ -286,7 +287,7 @@ def _lower_exists(
 
     exists_operator = IrOperator(
         scope="local",
-        operator="disjunction",
+        operator=OperatorType.DISJUNCTION,
         variables=instance_ids,
         conclusion=claim_id,
         metadata={
@@ -359,8 +360,8 @@ def _lower_formula_to_claim(
     state.lower(formula, target_id=target_id)
     formula_bindings = _formula_bindings(formula, bindings=bindings)
     binding_parameters = _binding_parameters(formula, bindings=bindings)
-    metadata_updates = {}
-    parameter_updates = {}
+    metadata_updates: dict[str, dict[str, Any]] = {}
+    parameter_updates: dict[str, list[IrParameter]] = {}
     if formula_bindings:
         metadata_updates[target_id] = {"formula_bindings": formula_bindings}
     if binding_parameters:
@@ -493,17 +494,17 @@ class _FormulaState:
         return label, make_qid(self.namespace, self.package_name, label)
 
 
-def _connective_operator(formula: Any) -> tuple[str | None, list[Any]]:
+def _connective_operator(formula: Any) -> tuple[OperatorType | None, list[Any]]:
     if isinstance(formula, Land):
-        return "conjunction", list(formula.operands)
+        return OperatorType.CONJUNCTION, list(formula.operands)
     if isinstance(formula, Lor):
-        return "disjunction", list(formula.operands)
+        return OperatorType.DISJUNCTION, list(formula.operands)
     if isinstance(formula, Lnot):
-        return "negation", [formula.operand]
+        return OperatorType.NEGATION, [formula.operand]
     if isinstance(formula, Implies):
-        return "implication", [formula.antecedent, formula.consequent]
+        return OperatorType.IMPLICATION, [formula.antecedent, formula.consequent]
     if isinstance(formula, Iff):
-        return "equivalence", [formula.left, formula.right]
+        return OperatorType.EQUIVALENCE, [formula.left, formula.right]
     return None, []
 
 
@@ -530,7 +531,7 @@ def _source_atom_metadata(
     knowledge_map: dict[int, str],
     bindings: _BindingMap | None = None,
 ) -> dict[str, Any]:
-    metadata = {
+    metadata: dict[str, Any] = {
         "formula_lowering": "atom",
         "formula_atom": _formula_descriptor(
             formula,
@@ -925,7 +926,7 @@ def _equivalence_result(
         operators=[
             IrOperator(
                 scope="local",
-                operator="equivalence",
+                operator=OperatorType.EQUIVALENCE,
                 variables=[left_id, right_id],
                 conclusion=helper_id,
                 metadata=operator_metadata,

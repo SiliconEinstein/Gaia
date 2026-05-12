@@ -66,7 +66,7 @@ class _BaseDistribution(BaseModel):
     def _replace_params(self, params: dict[str, Any]) -> "_BaseDistribution":
         return self.__class__(**params)
 
-    def model_dump(self, **kwargs: Any) -> dict[str, Any]:  # type: ignore[override]
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         concrete = {
             name: value for name, value in self.params.items() if not _is_deferred_reference(value)
         }

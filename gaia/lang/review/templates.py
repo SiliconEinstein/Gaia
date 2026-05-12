@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 
-class _MissingLabelDict(dict):
-    def __missing__(self, key):
+class _MissingLabelDict(dict[str, object]):
+    def __missing__(self, key: str) -> str:
         return "?"
 
 
@@ -25,7 +25,7 @@ _TEMPLATES = {
 }
 
 
-def generate_audit_question(action_type: str, **labels) -> str:
+def generate_audit_question(action_type: str, **labels: object) -> str:
     labels.setdefault("given_clause", "")
     template = _TEMPLATES.get(action_type, "Is this reasoning step valid?")
     return template.format_map(_MissingLabelDict(labels))

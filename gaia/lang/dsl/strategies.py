@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from gaia.lang.runtime import Knowledge, Step, Strategy
 from gaia.lang.runtime.nodes import ReasonInput
-from gaia.lang.runtime.nodes import _current_package
+from gaia.lang.runtime.knowledge import _current_package
 from gaia.lang.dsl.operators import _validate_reason_prior
 from gaia.lang.runtime.package import infer_package_from_callstack
+
+if TYPE_CHECKING:
+    from gaia.lang.runtime.package import CollectedPackage
 
 
 def _validate_step_premises(
@@ -31,7 +34,7 @@ def _validate_step_premises(
                     )
 
 
-def _authoring_package():
+def _authoring_package() -> CollectedPackage | None:
     pkg = _current_package.get()
     if pkg is None:
         pkg = infer_package_from_callstack()
@@ -53,7 +56,7 @@ def _named_strategy(
     conclusion: Knowledge,
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Strategy:
     _validate_step_premises(reason, premises)
     strategy = Strategy(
@@ -100,7 +103,7 @@ def _leaf_strategy(
     conclusion: Knowledge,
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Strategy:
     _validate_step_premises(reason, premises)
     strategy = Strategy(
@@ -179,7 +182,7 @@ def support(
     if len(premises) < 1:
         raise ValueError("support() requires at least 1 premise")
     _validate_reason_prior(reason, prior)
-    metadata: dict = {}
+    metadata: dict[str, Any] = {}
     if prior is not None:
         metadata["prior"] = prior
     return _named_strategy(
@@ -213,7 +216,7 @@ def compare(
     prior -> confidence for the comparison implication warrant.
     """
     _validate_reason_prior(reason, prior)
-    metadata: dict = {}
+    metadata: dict[str, Any] = {}
     if prior is not None:
         metadata["prior"] = prior
     comparison_claim = Knowledge(
@@ -317,7 +320,7 @@ def deduction(
     if len(premises) < 1:
         raise ValueError("deduction() requires at least 1 premise")
     _validate_reason_prior(reason, prior)
-    metadata: dict | None = None
+    metadata: dict[str, Any] | None = None
     if prior is not None:
         metadata = {"prior": prior}
     return _named_strategy(
@@ -574,7 +577,7 @@ def induction(
         )
 
     # Auto-create composition warrant
-    warrant_metadata: dict = {"helper_kind": "composition_validity", "generated": True}
+    warrant_metadata: dict[str, Any] = {"helper_kind": "composition_validity", "generated": True}
     if isinstance(reason, str) and reason:
         warrant_metadata["warrant"] = reason
     composition_warrant = Knowledge(

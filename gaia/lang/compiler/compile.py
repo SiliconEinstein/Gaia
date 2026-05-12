@@ -6,9 +6,10 @@ import hashlib
 import inspect
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 from gaia.ir import (
     Compose as IrCompose,
@@ -26,6 +27,9 @@ from gaia.ir import (
     formalize_named_strategy,
     make_qid,
 )
+from gaia.ir.knowledge import KnowledgeType
+from gaia.ir.operator import OperatorType
+from gaia.ir.strategy import StrategyType
 from gaia.lang.refs import (
     ReferenceError,
     check_collisions,
@@ -34,7 +38,8 @@ from gaia.lang.refs import (
     validate_groups,
 )
 from gaia.lang.compiler.lower_formula import lower_claim_formula
-from gaia.lang.runtime import Knowledge, Operator
+from gaia.lang.runtime import Claim, Knowledge, Operator
+from gaia.lang.runtime.nodes import ReasonInput, Strategy as DslStrategy
 from gaia.lang.runtime.action import (
     Action,
     Associate,
@@ -68,6 +73,12 @@ _COMPILE_TIME_FORMAL_STRATEGIES = frozenset(
         "compare",
     }
 )
+
+
+def _required_id(value: str | None, label: str) -> str:
+    if value is None:
+        raise ValueError(f"{label} was not assigned by IR validation")
+    return value
 
 
 @dataclass
@@ -198,7 +209,7 @@ def _knowledge_provenance(k: Knowledge) -> list[IrPackageRef] | None:
 
 
 def _metadata_with_reason(
-    metadata: dict[str, Any], reason: str | list | None
+    metadata: dict[str, Any], reason: ReasonInput | None
 ) -> dict[str, Any] | None:
     merged = dict(metadata)
     if isinstance(reason, str) and reason:
@@ -255,7 +266,7 @@ def _operator_to_ir(
     top_level: bool,
 ) -> IrOperator:
     payload: dict[str, Any] = {
-        "operator": o.operator,
+        "operator": OperatorType(o.operator),
         "variables": [knowledge_map[id(v)] for v in o.variables],
         "conclusion": knowledge_map[id(o.conclusion)],
         "metadata": _metadata_with_reason(o.metadata, o.reason),
@@ -302,7 +313,7 @@ def _step_ref(
 
 
 def _step_refs(
-    values: list[Knowledge | str] | None,
+    values: Sequence[Knowledge | str] | None,
     knowledge_map: dict[int, str],
 ) -> list[str] | None:
     if not values:
@@ -312,7 +323,7 @@ def _step_refs(
 
 
 def _compile_reason(
-    reason: str | list,
+    reason: ReasonInput,
     knowledge_map: dict[int, str],
 ) -> list[IrStep] | None:
     """Compile a reason (str or list[str | Step]) into IR Steps."""
@@ -393,15 +404,17 @@ def _compute_metadata(fn: Any) -> dict[str, Any]:
     }
 
 
-def _probability_scalar(value: float | Knowledge, *, field_name: str) -> float:
+def _probability_scalar(value: float | Knowledge | None, *, field_name: str) -> float:
+    if value is None:
+        raise TypeError(f"{field_name} must be a probability scalar or Claim")
     if not isinstance(value, Knowledge):
         return float(value)
 
-    matches = [
-        param.get("value")
-        for param in value.parameters
-        if param.get("name") == "value" and isinstance(param.get("value"), int | float)
-    ]
+    matches: list[int | float] = []
+    for param in value.parameters:
+        param_value = param.get("value")
+        if param.get("name") == "value" and isinstance(param_value, int | float):
+            matches.append(param_value)
     if len(matches) != 1:
         raise ValueError(
             f"{field_name} Claim must define exactly one numeric parameter named 'value'"
@@ -584,13 +597,13 @@ def compile_package_artifact(
         )
         knowledge_map[id(k)] = knowledge_id
 
-    exported_labels = getattr(pkg, "_exported_labels", set())
+    exported_labels: set[str] = getattr(pkg, "_exported_labels", set())
     ir_knowledges = [
         IrKnowledge(
             id=knowledge_map[id(k)],
             label=k.label,
             title=getattr(k, "title", None),
-            type=k.type,
+            type=KnowledgeType(k.type),
             format=getattr(k, "format", "markdown"),
             content=k.content,
             parameters=[_parameter_to_ir(p, knowledge_map) for p in k.parameters],
@@ -610,13 +623,16 @@ def compile_package_artifact(
             continue
         ir_operator = _operator_to_ir(o, knowledge_map, top_level=True)
         ir_operators.append(ir_operator)
-        operator_target_ids_by_object[id(o)] = ir_operator.operator_id
+        operator_target_ids_by_object[id(o)] = _required_id(
+            ir_operator.operator_id,
+            "operator_id",
+        )
 
     ir_strategies: list[IrStrategy] = []
     generated_knowledges: list[IrKnowledge] = []
     compiled_strategies: dict[int, IrStrategy] = {}
 
-    def compile_strategy(s) -> IrStrategy:
+    def compile_strategy(s: DslStrategy) -> IrStrategy:
         strategy_key = id(s)
         if strategy_key in compiled_strategies:
             return compiled_strategies[strategy_key]
@@ -624,7 +640,7 @@ def compile_package_artifact(
         steps = _compile_reason(s.reason, knowledge_map)
         payload: dict[str, Any] = {
             "scope": "local",
-            "type": s.type,
+            "type": StrategyType(s.type),
             "premises": [knowledge_map[id(p)] for p in s.premises],
             "conclusion": knowledge_map[id(s.conclusion)] if s.conclusion is not None else None,
             "background": [knowledge_map[id(b)] for b in s.background] or None,
@@ -633,9 +649,10 @@ def compile_package_artifact(
         }
         if s.sub_strategies:
             payload["sub_strategies"] = [
-                compile_strategy(sub_strategy).strategy_id for sub_strategy in s.sub_strategies
+                _required_id(compile_strategy(sub_strategy).strategy_id, "strategy_id")
+                for sub_strategy in s.sub_strategies
             ]
-            ir_strategy = IrCompositeStrategy(**payload)
+            ir_strategy: IrStrategy = IrCompositeStrategy(**payload)
         elif s.formal_expr:
             payload["formal_expr"] = IrFormalExpr(
                 operators=[
@@ -672,7 +689,7 @@ def compile_package_artifact(
         action_label_map[action_label] = target_id
         target_action_labels_by_id[target_id] = action_label
 
-    def _scaffold_label(action: DependsOn, action_index: int) -> str:
+    def _scaffold_label(action: DependsOn | CandidateRelation, action_index: int) -> str:
         return action.label or f"_anon_action_{action_index:03d}"
 
     def _compile_depends_on_action(action: DependsOn, action_index: int) -> dict[str, Any]:
@@ -681,7 +698,7 @@ def compile_package_artifact(
         if not action.given:
             raise ValueError("DependsOn action requires at least one given Claim")
         label = _scaffold_label(action, action_index)
-        record = {
+        record: dict[str, Any] = {
             "id": _make_scaffold_qid(pkg.namespace, pkg.name, label),
             "kind": "depends_on",
             "label": label,
@@ -703,7 +720,7 @@ def compile_package_artifact(
         if action.a is None or action.b is None:
             raise ValueError("CandidateRelation action requires a and b")
         label = _scaffold_label(action, action_index)
-        record = {
+        record: dict[str, Any] = {
             "id": _make_scaffold_qid(pkg.namespace, pkg.name, label),
             "kind": "candidate_relation",
             "label": label,
@@ -752,7 +769,7 @@ def compile_package_artifact(
                 continue
             knowledge_metadata = dict(ir_k.metadata) if ir_k.metadata else {}
             supported_by = list(knowledge_metadata.get("supported_by") or [])
-            entry = {
+            entry: dict[str, Any] = {
                 "action_label": action_label,
                 "pattern": "observation",
             }
@@ -801,6 +818,7 @@ def compile_package_artifact(
             pattern=pattern,
         )
 
+        strategy: IrStrategy
         if isinstance(action, Observe) and not premise_ids:
             _attach_supported_by_action(
                 action,
@@ -830,7 +848,7 @@ def compile_package_artifact(
         else:
             strategy = IrStrategy(
                 scope="local",
-                type="deduction",
+                type=StrategyType.DEDUCTION,
                 premises=[],
                 conclusion=conclusion_id,
                 background=background_ids,
@@ -847,13 +865,13 @@ def compile_package_artifact(
         if action.a is None or action.b is None or action.helper is None:
             raise ValueError("Structural relation action requires a, b, and helper")
         if isinstance(action, Equal):
-            operator = "equivalence"
+            operator = OperatorType.EQUIVALENCE
             pattern = "equivalence"
         elif isinstance(action, Contradict):
-            operator = "contradiction"
+            operator = OperatorType.CONTRADICTION
             pattern = "contradiction"
         elif isinstance(action, Exclusive):
-            operator = "complement"
+            operator = OperatorType.COMPLEMENT
             pattern = "exclusive"
         else:
             raise ValueError(f"Unsupported structural relation action: {type(action).__name__}")
@@ -917,7 +935,7 @@ def compile_package_artifact(
             formula=action.formula,
         )
         lowered = lower_claim_formula(
-            formula_proxy,
+            cast(Claim, formula_proxy),
             claim_id=formula_id,
             namespace=pkg.namespace,
             package_name=pkg.name,
@@ -929,7 +947,7 @@ def compile_package_artifact(
             IrKnowledge(
                 id=formula_id,
                 label=formula_label,
-                type="claim",
+                type=KnowledgeType.CLAIM,
                 content=f"Formula decomposition of {whole_id}",
                 parameters=formula_parameters or [],
                 metadata=formula_metadata,
@@ -953,7 +971,7 @@ def compile_package_artifact(
             IrKnowledge(
                 id=equivalence_id,
                 label=equivalence_label,
-                type="claim",
+                type=KnowledgeType.CLAIM,
                 content=f"{whole_id} is equivalent to its decomposition formula.",
                 metadata={
                     "generated": True,
@@ -978,7 +996,7 @@ def compile_package_artifact(
                 "equivalence", [whole_id, formula_id], equivalence_id
             ),
             scope="local",
-            operator="equivalence",
+            operator=OperatorType.EQUIVALENCE,
             variables=[whole_id, formula_id],
             conclusion=equivalence_id,
             metadata=metadata,
@@ -1019,7 +1037,7 @@ def compile_package_artifact(
         p_e_given_h = _probability_scalar(action.p_e_given_h, field_name="p_e_given_h")
         strategy = IrStrategy(
             scope="local",
-            type="infer",
+            type=StrategyType.INFER,
             premises=[knowledge_map[id(action.hypothesis)], *given_ids],
             conclusion=knowledge_map[id(action.evidence)],
             background=[knowledge_map[id(bg)] for bg in action.background] or None,
@@ -1050,7 +1068,7 @@ def compile_package_artifact(
         )
         strategy = IrStrategy(
             scope="local",
-            type="associate",
+            type=StrategyType.ASSOCIATE,
             premises=[knowledge_map[id(action.a)], knowledge_map[id(action.b)]],
             conclusion=knowledge_map[id(action.helper)],
             background=[knowledge_map[id(bg)] for bg in action.background] or None,
@@ -1097,7 +1115,10 @@ def compile_package_artifact(
             continue
         ir_strategy = compile_strategy(s)
         ir_strategies.append(ir_strategy)
-        strategy_target_ids_by_object[strategy_key] = ir_strategy.strategy_id
+        strategy_target_ids_by_object[strategy_key] = _required_id(
+            ir_strategy.strategy_id,
+            "strategy_id",
+        )
         emitted_strategies.add(strategy_key)
 
     action_operators: list[IrOperator] = []
@@ -1123,10 +1144,16 @@ def compile_package_artifact(
             continue
         if isinstance(target, IrOperator):
             action_operators.append(target)
-            action_target_ids_by_object[id(action)] = target.operator_id
+            action_target_ids_by_object[id(action)] = _required_id(
+                target.operator_id,
+                "operator_id",
+            )
         else:
             ir_strategies.append(target)
-            action_target_ids_by_object[id(action)] = target.strategy_id
+            action_target_ids_by_object[id(action)] = _required_id(
+                target.strategy_id,
+                "strategy_id",
+            )
 
     ir_composes: list[IrCompose] = []
 
@@ -1184,7 +1211,7 @@ def compile_package_artifact(
     for k in knowledge_nodes:
         if not _is_local(k, pkg):
             continue
-        if getattr(k, "formula", None) is None:
+        if not isinstance(k, Claim) or getattr(k, "formula", None) is None:
             continue
         lowered = lower_claim_formula(
             k,
@@ -1231,10 +1258,10 @@ def compile_package_artifact(
     for action in getattr(pkg, "actions", []):
         if not _is_bayes_action(action):
             continue
-        action_label = action_labels_by_object.get(id(action))
-        if action_label is None:
+        bayes_action_label = action_labels_by_object.get(id(action))
+        if bayes_action_label is None:
             continue
-        target_id = bayes_lowered.action_label_map.get(action_label)
+        target_id = bayes_lowered.action_label_map.get(bayes_action_label)
         if target_id is not None:
             action_target_ids_by_object[id(action)] = target_id
 
@@ -1330,7 +1357,7 @@ def compile_package_artifact(
             current[0].update(k_refs)
             current[1].update(c_refs)
 
-    def _scan_strategy_refs(s) -> None:
+    def _scan_strategy_refs(s: DslStrategy) -> None:
         """Recursively scan strategy and its sub_strategies for references.
 
         Refs from the strategy's reason are attributed to ``s.conclusion``
@@ -1347,7 +1374,7 @@ def compile_package_artifact(
         def _handle(text: str | None) -> None:
             if not text:
                 return
-            if target_is_local:
+            if target_is_local and target is not None:
                 _accumulate(target, text)
             else:
                 # Still run validation (mixed groups, strict misses) but
@@ -1400,10 +1427,10 @@ def compile_package_artifact(
     for action in getattr(pkg, "actions", []):
         if not action.rationale:
             continue
-        action_label = action_labels_by_object.get(id(action))
-        if action_label is None:
+        rationale_action_label = action_labels_by_object.get(id(action))
+        if rationale_action_label is None:
             continue
-        target_id = action_label_map.get(action_label)
+        target_id = action_label_map.get(rationale_action_label)
         if target_id is None:
             continue
 
@@ -1470,8 +1497,8 @@ def compile_package_artifact(
         refs = refs_by_knowledge.get(id(k))
         if not refs:
             continue
-        k_refs, c_refs = refs
-        if not k_refs and not c_refs:
+        knowledge_refs, citation_refs = refs
+        if not knowledge_refs and not citation_refs:
             continue
         qid = knowledge_map[id(k)]
         for i, ir_k in enumerate(all_ir_knowledges):
@@ -1480,10 +1507,10 @@ def compile_package_artifact(
             metadata = dict(ir_k.metadata) if ir_k.metadata else {}
             gaia_meta = dict(metadata.get("gaia", {}))
             provenance: dict[str, Any] = dict(gaia_meta.get("provenance", {}))
-            if c_refs:
-                provenance["cited_refs"] = sorted(c_refs)
-            if k_refs:
-                provenance["referenced_claims"] = sorted(k_refs)
+            if citation_refs:
+                provenance["cited_refs"] = sorted(citation_refs)
+            if knowledge_refs:
+                provenance["referenced_claims"] = sorted(knowledge_refs)
             gaia_meta["provenance"] = provenance
             metadata["gaia"] = gaia_meta
             all_ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
@@ -1492,23 +1519,23 @@ def compile_package_artifact(
     # Write provenance from action rationale to their target IR nodes.
     # Action targets may be generated nodes (warrant helpers, compose nodes)
     # that don't appear in knowledge_nodes, so we scan all_ir_knowledges by ID.
-    for target_qid, (k_refs, c_refs) in action_rationale_refs.items():
+    for target_qid, (knowledge_refs, citation_refs) in action_rationale_refs.items():
         for i, ir_k in enumerate(all_ir_knowledges):
             if ir_k.id != target_qid:
                 continue
             metadata = dict(ir_k.metadata) if ir_k.metadata else {}
             gaia_meta = dict(metadata.get("gaia", {}))
-            provenance: dict[str, Any] = dict(gaia_meta.get("provenance", {}))
+            action_provenance: dict[str, Any] = dict(gaia_meta.get("provenance", {}))
             # Merge with existing provenance (if any)
-            if c_refs:
-                existing_cites = set(provenance.get("cited_refs", []))
-                existing_cites.update(c_refs)
-                provenance["cited_refs"] = sorted(existing_cites)
-            if k_refs:
-                existing_refs = set(provenance.get("referenced_claims", []))
-                existing_refs.update(k_refs)
-                provenance["referenced_claims"] = sorted(existing_refs)
-            gaia_meta["provenance"] = provenance
+            if citation_refs:
+                existing_cites = set(action_provenance.get("cited_refs", []))
+                existing_cites.update(citation_refs)
+                action_provenance["cited_refs"] = sorted(existing_cites)
+            if knowledge_refs:
+                existing_refs = set(action_provenance.get("referenced_claims", []))
+                existing_refs.update(knowledge_refs)
+                action_provenance["referenced_claims"] = sorted(existing_refs)
+            gaia_meta["provenance"] = action_provenance
             metadata["gaia"] = gaia_meta
             all_ir_knowledges[i] = ir_k.model_copy(update={"metadata": metadata})
             break

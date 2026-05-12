@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import warnings
+from typing import Any
 
 from gaia.lang.runtime.action import Infer as InferAction
 from gaia.lang.runtime.knowledge import Claim, Knowledge
+from gaia.lang.runtime.nodes import Strategy
 
 
 def _claim_ref(claim: Claim) -> str:
@@ -24,8 +26,8 @@ def _as_given_tuple(given: Claim | tuple[Claim, ...] | list[Claim] | None) -> tu
 
 
 def infer(
-    evidence_or_legacy=None,
-    *args,
+    evidence_or_legacy: Claim | str | list[Knowledge] | tuple[Knowledge, ...] | None = None,
+    *args: Any,
     hypothesis: Claim | None = None,
     evidence: Claim | str | None = None,
     given: Claim | tuple[Claim, ...] | list[Claim] | None = (),
@@ -36,8 +38,8 @@ def infer(
     prior_evidence: float | None = None,
     rationale: str = "",
     label: str | None = None,
-    **legacy_kwargs,
-) -> Claim:
+    **legacy_kwargs: Any,
+) -> Claim | Strategy:
     """Bayesian inference. Returns the evidence Claim.
 
     The canonical v6 shape is ``infer(evidence, hypothesis=..., ...)``. The old
@@ -54,7 +56,7 @@ def infer(
             DeprecationWarning,
             stacklevel=2,
         )
-        return legacy_infer(evidence_or_legacy, *args, **legacy_kwargs)
+        return legacy_infer(list(evidence_or_legacy), *args, **legacy_kwargs)
 
     if args:
         raise TypeError("v6 infer() accepts only one positional evidence argument")

@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 _current_package: ContextVar[CollectedPackage | None] = ContextVar("_current_package", default=None)
 
 
-class _SafeFormatDict(dict):
+class _SafeFormatDict(dict[str, object]):
     """Return {key} for missing keys instead of raising KeyError."""
 
-    def __missing__(self, key):
+    def __missing__(self, key: str) -> str:
         return f"{{{key}}}"
 
 
@@ -32,7 +32,7 @@ class Knowledge:
     type: str = "knowledge"
     title: str | None = None
     background: list[Knowledge] = field(default_factory=list)
-    parameters: list[dict] = field(default_factory=list)
+    parameters: list[dict[str, Any]] = field(default_factory=list)
     provenance: list[dict[str, str]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None
@@ -41,7 +41,7 @@ class Knowledge:
     _source_module: str | None = field(default=None, init=False, repr=False, compare=False)
     _declaration_index: int | None = field(default=None, init=False, repr=False, compare=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         pkg = _current_package.get()
         source_module = None
         if pkg is None:
@@ -61,7 +61,7 @@ class Knowledge:
 class Note(Knowledge):
     """Non-probabilistic contextual material. Does not enter BP."""
 
-    def __init__(self, content: str, *, format: str = "markdown", **kwargs):
+    def __init__(self, content: str, *, format: str = "markdown", **kwargs: Any) -> None:
         if "prior" in kwargs:
             raise TypeError("Note cannot have a prior.")
         super().__init__(content=content, type="note", format=format, **kwargs)
@@ -71,7 +71,7 @@ class Note(Knowledge):
 class Context(Note):
     """Deprecated compatibility alias for Note."""
 
-    def __init__(self, content: str, *, format: str = "markdown", **kwargs):
+    def __init__(self, content: str, *, format: str = "markdown", **kwargs: Any) -> None:
         if "prior" in kwargs:
             raise TypeError("Context cannot have a prior.")
         metadata = dict(kwargs.pop("metadata", {}) or {})
@@ -83,7 +83,7 @@ class Context(Note):
 class Setting(Note):
     """Deprecated compatibility alias for Note."""
 
-    def __init__(self, content: str, *, format: str = "markdown", **kwargs):
+    def __init__(self, content: str, *, format: str = "markdown", **kwargs: Any) -> None:
         if "prior" in kwargs:
             raise TypeError("Setting cannot have a prior.")
         metadata = dict(kwargs.pop("metadata", {}) or {})
@@ -120,7 +120,7 @@ class Claim(Knowledge):
     kind: ClaimKind = ClaimKind.GENERAL
     _param_fields: ClassVar[dict[str, Any]] = {}
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         base_fields = {
             "content",
@@ -182,8 +182,8 @@ class Claim(Knowledge):
         supports: list[Any] | None = None,
         formula: Any = None,
         kind: ClaimKind = ClaimKind.GENERAL,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         if formula is not None:
             from gaia.lang.formula.predicate import is_formula
 
@@ -265,7 +265,7 @@ class Question(Knowledge):
 
     targets: list[Claim] = field(default_factory=list)
 
-    def __init__(self, content: str, **kwargs):
+    def __init__(self, content: str, **kwargs: Any) -> None:
         if "prior" in kwargs:
             raise TypeError("Question cannot have a prior.")
         targets = kwargs.pop("targets", [])

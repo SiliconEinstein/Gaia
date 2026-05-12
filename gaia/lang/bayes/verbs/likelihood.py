@@ -24,6 +24,7 @@ _LABEL_RE = re.compile(r"[^a-z0-9_]")
 def _as_claim_tuple(
     value: Claim | list[Claim] | tuple[Claim, ...], *, name: str
 ) -> tuple[Claim, ...]:
+    items: tuple[Claim, ...]
     if isinstance(value, Claim):
         items = (value,)
     else:

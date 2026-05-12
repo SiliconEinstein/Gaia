@@ -36,8 +36,8 @@ def _validate_reason_prior(reason: str | Any, prior: float | None) -> None:
     _validate_prior_range(prior)
 
 
-def _helper_metadata(helper_kind: str, prior: float | None) -> dict:
-    meta: dict = {"helper_kind": helper_kind}
+def _helper_metadata(helper_kind: str, prior: float | None) -> dict[str, Any]:
+    meta: dict[str, Any] = {"helper_kind": helper_kind}
     if prior is not None:
         meta["prior"] = prior
     return meta

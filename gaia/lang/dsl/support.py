@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, cast
 
 from gaia.ir.parameterization import CROMWELL_EPS
 from gaia.lang.runtime.action import Compute, Derive, Observe, Predict
@@ -123,7 +123,7 @@ def _wrap_result(return_type: type[Claim], result_value: Any) -> Claim:
     return return_type(value=result_value)
 
 
-def _bound_given(sig: inspect.Signature, *args, **kwargs) -> tuple[Knowledge, ...]:
+def _bound_given(sig: inspect.Signature, *args: Any, **kwargs: Any) -> tuple[Claim, ...]:
     bound = sig.bind(*args, **kwargs)
     bound.apply_defaults()
     given: list[Knowledge] = []
@@ -136,7 +136,7 @@ def _bound_given(sig: inspect.Signature, *args, **kwargs) -> tuple[Knowledge, ..
         else:
             values = (value,)
         given.extend(item for item in values if isinstance(item, Knowledge))
-    return tuple(given)
+    return cast(tuple[Claim, ...], tuple(given))
 
 
 def _compute_call(
@@ -191,7 +191,7 @@ def compute(
             raise TypeError("@compute requires a Claim return annotation")
 
         @wraps(wrapped_fn)
-        def wrapper(*args, **kwargs) -> Claim:
+        def wrapper(*args: Any, **kwargs: Any) -> Claim:
             result_value = wrapped_fn(*args, **kwargs)
             conclusion = _wrap_result(return_type, result_value)
             given_tuple = _bound_given(sig, *args, **kwargs)

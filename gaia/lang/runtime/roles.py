@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, TypeAlias, cast
 
 from gaia.lang.runtime.action import (
     Action,
@@ -26,6 +26,9 @@ from gaia.lang.runtime.action import (
 )
 from gaia.lang.runtime.knowledge import Claim
 
+if TYPE_CHECKING:
+    from gaia.lang.runtime.package import CollectedPackage
+
 
 @dataclass(frozen=True)
 class RoleOccurrence:
@@ -40,7 +43,7 @@ class RoleOccurrence:
     source: str = "explicit_field"
 
 
-ActionGraph = "CollectedPackage | Sequence[Action]"
+ActionGraph: TypeAlias = "CollectedPackage | Sequence[Action]"
 RoleAdder = Callable[[Claim | None, str], None]
 RoleHandler = Callable[[Action, RoleAdder], None]
 
@@ -91,7 +94,7 @@ def roles_for_package(
 
 
 def _graph_actions(graph: ActionGraph) -> Sequence[Action]:
-    return tuple(getattr(graph, "actions", graph))
+    return tuple(cast(Sequence[Action], getattr(graph, "actions", graph)))
 
 
 def _iter_role_occurrences(

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import inspect
 import sys
+from contextvars import Token
 from pathlib import Path
+from types import TracebackType
 from typing import TYPE_CHECKING
 
 from gaia.lang.runtime.knowledge import Knowledge, _current_package
@@ -22,7 +24,7 @@ except ImportError:
 class CollectedPackage:
     """Internal collector for declarations belonging to a knowledge package."""
 
-    def __init__(self, name: str, *, namespace: str = "github", version: str = "0.1.0"):
+    def __init__(self, name: str, *, namespace: str = "github", version: str = "0.1.0") -> None:
         self.name = name
         self.namespace = namespace
         self.version = version
@@ -30,20 +32,26 @@ class CollectedPackage:
         self.strategies: list[Strategy] = []
         self.operators: list[Operator] = []
         self.actions: list[Action] = []
-        self._token = None
+        self._token: Token[CollectedPackage | None] | None = None
         self._module_counters: dict[str | None, int] = {}
         self._module_order: list[str] = []
         self._exported_labels: set[str] = set()
 
-    def __enter__(self):
+    def __enter__(self) -> CollectedPackage:
         self._token = _current_package.set(self)
         return self
 
-    def __exit__(self, *exc):
-        _current_package.reset(self._token)
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        if self._token is not None:
+            _current_package.reset(self._token)
         self._token = None
 
-    def _register_knowledge(self, k: Knowledge):
+    def _register_knowledge(self, k: Knowledge) -> None:
         self.knowledge.append(k)
         from gaia.lang.runtime.composition import _capture_registered
 
@@ -56,19 +64,19 @@ class CollectedPackage:
         k._declaration_index = self._module_counters[module]
         self._module_counters[module] += 1
 
-    def _register_strategy(self, s: Strategy):
+    def _register_strategy(self, s: Strategy) -> None:
         self.strategies.append(s)
         from gaia.lang.runtime.composition import _capture_registered
 
         _capture_registered(s)
 
-    def _register_operator(self, o: Operator):
+    def _register_operator(self, o: Operator) -> None:
         self.operators.append(o)
         from gaia.lang.runtime.composition import _capture_registered
 
         _capture_registered(o)
 
-    def _register_action(self, a: Action):
+    def _register_action(self, a: Action) -> None:
         self.actions.append(a)
         from gaia.lang.runtime.composition import _capture_registered
 

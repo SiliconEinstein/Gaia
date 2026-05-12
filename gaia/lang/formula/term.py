@@ -39,7 +39,9 @@ def _term_domain(t: Any) -> PrimitiveType | Domain | None:
     if isinstance(t, Constant):
         return t.primitive
     if hasattr(t, "domain"):  # Variable
-        return getattr(t, "domain")
+        domain = getattr(t, "domain")
+        if isinstance(domain, PrimitiveType | Domain):
+            return domain
     if isinstance(t, FunctionApp):
         return t.symbol.result_domain
     return None  # ArithOp — leave to compiler to type-check

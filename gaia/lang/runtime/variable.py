@@ -6,8 +6,8 @@ registration. Carries the Term protocol marker so it can appear in formulas.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, ClassVar
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, cast
 
 from gaia.lang.runtime.domain import Domain
 from gaia.lang.runtime.knowledge import Knowledge, _current_package
@@ -29,8 +29,8 @@ class Variable(Knowledge):
     # Term protocol marker — see gaia.lang.formula.term.is_term (Milestone A Task 5)
     __gaia_term__: ClassVar[bool] = True
 
-    symbol: str
-    domain: PrimitiveType | Domain
+    symbol: str = field(default="")
+    domain: PrimitiveType | Domain = field(default=cast(PrimitiveType, None))
     value: Any | None = None
 
     def __init__(
@@ -41,8 +41,8 @@ class Variable(Knowledge):
         value: Any | None = None,
         content: str | None = None,
         format: str = "markdown",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         if not isinstance(symbol, str) or not symbol:
             raise TypeError("symbol must be a non-empty string")
         if not isinstance(domain, (PrimitiveType, Domain)):
@@ -59,7 +59,7 @@ class Variable(Knowledge):
         self.domain = domain
         self.value = value
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Override Knowledge.__post_init__: associate with the package for provenance,
         # but DO NOT call pkg._register_knowledge — Variable is Lang-only (spec §2.4).
         pkg = _current_package.get()

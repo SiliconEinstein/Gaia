@@ -32,11 +32,11 @@ class Strategy:
     reason: ReasonInput = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     label: str | None = None
-    formal_expr: list | None = None
+    formal_expr: list[Any] | None = None
     sub_strategies: list[Strategy] = field(default_factory=list)
     composition_warrant: Knowledge | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         pkg = _current_package.get()
         if pkg is None:
             from gaia.lang.runtime.package import infer_package_from_callstack
@@ -56,7 +56,7 @@ class Operator:
     reason: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         pkg = _current_package.get()
         if pkg is None:
             from gaia.lang.runtime.package import infer_package_from_callstack

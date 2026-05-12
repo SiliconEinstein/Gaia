@@ -31,7 +31,7 @@ class PrimitiveType:
     def __repr__(self) -> str:
         return self.name
 
-    def __reduce__(self):
+    def __reduce__(self) -> tuple[Callable[[str], PrimitiveType], tuple[str]]:
         return (_lookup_primitive, (self.name,))
 
 

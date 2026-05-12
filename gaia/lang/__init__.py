@@ -1,6 +1,7 @@
 """Gaia Lang v5 — Python DSL for knowledge authoring."""
 
 from importlib import import_module
+from types import ModuleType
 
 from gaia.lang.dsl import (
     abduction,
@@ -121,7 +122,7 @@ from gaia.lang.runtime import (
 from gaia.lang.types.primitives import Bool, Nat, Probability, Real
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> ModuleType:
     if name == "bayes":
         module = import_module("gaia.lang.bayes")
         globals()["bayes"] = module

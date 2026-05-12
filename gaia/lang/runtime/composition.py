@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from functools import wraps
@@ -150,12 +150,12 @@ def compose(
     warrants: list[Claim] | None = None,
     rationale: str = "",
     label: str | None = None,
-):
+) -> Callable[[Callable[..., Claim]], Callable[..., Claim]]:
     """Decorate a function as a Gaia action composition template."""
 
-    def decorator(fn):
+    def decorator(fn: Callable[..., Claim]) -> Callable[..., Claim]:
         @wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Claim:
             scope = _CompositionScope(name, version)
             token = _current_composition_scope.set(scope)
             try:

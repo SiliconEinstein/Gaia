@@ -12,6 +12,8 @@ from gaia.ir import Knowledge as IrKnowledge
 from gaia.ir import Operator as IrOperator
 from gaia.ir import Strategy as IrStrategy
 from gaia.ir.knowledge import KnowledgeType, make_qid
+from gaia.ir.operator import OperatorType
+from gaia.ir.strategy import StrategyType
 from gaia.lang.bayes.distributions.base import _is_deferred_reference
 from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.lang.formula.connective import Land
@@ -198,7 +200,7 @@ def _lower_likelihood(
             metadata["action_label"] = action_label
         strategy = IrStrategy(
             scope="local",
-            type="infer",
+            type=StrategyType.INFER,
             premises=[h_id],
             conclusion=cmp_id,
             conditional_probabilities=[0.5, p1],
@@ -345,8 +347,8 @@ def _log_likelihood(distribution: Any, value: Any, data_claim: Claim) -> float:
     if noise_payload:
         return _log_likelihood_with_noise(distribution, value, noise_payload)
     if distribution.kind in {"binomial", "poisson"}:
-        return distribution.logpmf(value)
-    return distribution.logpdf(float(value))
+        return float(distribution.logpmf(value))
+    return float(distribution.logpdf(float(value)))
 
 
 def _log_likelihood_with_noise(
@@ -420,7 +422,7 @@ def _exhaustive_disjunction_operator(
     op = IrOperator(
         operator_id=_operator_id("disjunction", variables, helper_id),
         scope="local",
-        operator="disjunction",
+        operator=OperatorType.DISJUNCTION,
         variables=variables,
         conclusion=helper_id,
         metadata={"bayes": {"auto_generated_by": f"likelihood:{cmp_id}"}},
