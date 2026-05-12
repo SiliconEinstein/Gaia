@@ -92,7 +92,6 @@ show_error_codes = true
 pretty = true
 explicit_package_bases = true
 exclude = [
-    "^\\.refactor/",
     "^tmp/",
     "^\\.venv/",
     "^viz/node_modules/",
@@ -133,7 +132,6 @@ disable_error_code = [
 line-length = 100
 target-version = "py312"
 extend-exclude = [
-    ".refactor",
     "tmp",
 ]
 

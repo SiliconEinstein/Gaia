@@ -1,21 +1,3 @@
-<!-- BEGIN REFACTOR MORTAL BANNER · started 2026-05-11 -->
-
-> 🚧 **REFACTOR IN PROGRESS — v0.5 engineering quality baseline alignment**
->
-> This repo is mid-refactor. Every in-repo agent / contributor MUST follow these rules before touching anything:
->
-> 1. **STATE document**: `.refactor/STATE.md` is the live progress doc for this refactor. **First action on session start = read STATE.md**, find the next `pending` work unit in the task queue. **Last action before exit = update STATE.md** (mark `done` or record `breakpoint_notes`).
-> 2. **Doc fidelity is the top discipline**: all code / type annotations / docstrings / tests MUST strictly match the logic and semantics described in `docs/foundations/**` and `docs/specs/**`. Read `.refactor/doc-fidelity-baseline.md` on agent startup.
-> 3. **Refactor boundary**: **DO NOT change** IR / semantics / DSL surface / API signatures / algorithms / naming. This refactor only does: engineering baseline injection (ruff / mypy / pytest / pre-commit config + CI) + adding type annotations + adding Google docstrings + adding tests.
-> 4. **🚨 Doc-code contradiction = record + skip + claim next**: if you find a semantic / behavioral **contradiction** between repo docs and code (not just missing annotations / docstrings — actual logic disagreement), record under the current task's `breakpoint_notes` in `.refactor/STATE.md` (doc paragraph reference + code file:line + contradiction description + impact area), set that task's status to `blocked`, **then claim the next non-blocked pending unit and continue**. Do NOT decide "which side is right" yourself, and do NOT "fix it up in passing" — the refactor branch only does engineering baseline; semantic-layer contradictions accumulate in STATE.md and are batched to the user at the next phase checkpoint (α/β) for resolution.
-> 5. **协作单**: this refactor is driven by Feishu 协作单 `AM15dZDhjooNyaxZRhNc1Sawnce`; decisions + ❓ escalation flow through it. Kanban entry: `GAIA-LKM kanban` (`IUvrwMmwliAUDukbXfUcwwxEnmf`).
-> 6. **No PR during refactor — commit + push to `feat/v05-quality-baseline_rsw` only**. This repo's `CLAUDE.md § Workflow` rule "open a PR after every commit" is overridden during the refactor with "commit + push feat branch is enough"; PR opens at Phase 3 only, after the user gives an explicit "ship / PR" handshake.
-> 7. **Orchestrator mode active**: this refactor is driven by an external orchestrator (the user's home_agent Claude session). The orchestrator triggers an in-repo agent (cursor-agent or equivalent) **one work unit per invocation**, verifies each commit, and pushes to origin in batches. As an in-repo agent you do not need to know the orchestrator exists; your job is exactly: read STATE.md → claim ONE pending unit → execute → commit + update STATE.md → exit. The orchestrator handles cross-unit coordination, push cadence, fresh-eyes audits, and user check-ins at checkpoints α/β/γ. **Do not claim more than one unit per invocation.**
->
-> **This banner + `.refactor/` directory are temporary refactor artifacts.** Both will be deleted in a final cleanup PR after the refactor PR merges AND the user explicitly says "clean up refactor artifacts".
-
-<!-- END REFACTOR MORTAL BANNER -->
-
 # CLAUDE.md
 
 This file follows the Claude Code `/init` convention: it gives agents the repo-specific
@@ -82,27 +64,6 @@ BP message passing, IR coarsening, DSL compile/lower/link passes, and inquiry or
 limit of 12 is a mainstream Python threshold for mixed CLI + library + algorithmic codebases
 while still requiring true decomposition of high-complexity functions.
 
-During the v0.5 refactor, strict mypy and full ruff select may still have known backlog items.
-Do not weaken the configuration to make a work unit pass; record the state in `.refactor/STATE.md`
-when the refactor queue says a gate is expected to remain red.
-
-## Current Refactor Workflow
-
-The v0.5 quality baseline refactor overrides the normal "open a PR after every commit" habit.
-While the mortal banner is present:
-
-1. Read `.refactor/STATE.md` first.
-2. Read `.refactor/doc-fidelity-baseline.md`.
-3. Claim exactly one pending unit in `STATE.md`.
-4. Keep the work inside the stated refactor boundary.
-5. Verify the unit with the relevant local gates.
-6. Commit the unit on `feat/v05-quality-baseline_rsw`.
-7. Update `STATE.md` as the last action before exit.
-
-Do not open a PR during this refactor unless the user explicitly gives the Phase 3 ship/PR
-handshake. Outside this temporary refactor, follow the regular branch-to-PR workflow for
-feature work.
-
 ## Engineering Rules
 
 - Preserve public APIs, CLI command names, arguments, output formats, persisted artifact shapes,
@@ -136,10 +97,9 @@ If you find a semantic contradiction between docs and code:
 
 1. Do not decide which side is right.
 2. Do not fix it in passing.
-3. Mark the current refactor unit `blocked` in `.refactor/STATE.md`.
-4. Record the doc reference, code location, contradiction, and impact in both the task notes and
-   the Doc-Code Contradiction Log.
-5. Tell the user so the issue can be escalated through the collaboration doc.
+3. Stop work on the affected unit and record the doc reference, code location, contradiction,
+   and impact area.
+4. Tell the user so the issue can be escalated and resolved before the code change lands.
 
 Missing annotations, missing docstrings, and normal test gaps are not contradictions; actual
 behavioral or semantic disagreement is.

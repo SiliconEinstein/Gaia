@@ -66,8 +66,9 @@ Python 3.12, Google-style docstrings, and Pydantic v2 APIs (`model_dump`, `model
 
 ## Refactor Discipline
 
-The v0.5 quality baseline refactor is intentionally scoped to tooling, type annotations,
-docstrings, and tests. Do not change Gaia IR semantics, DSL surface, CLI command behavior,
-algorithms, public names, or persisted artifact shapes as part of quality cleanup. If code appears
-to contradict `docs/foundations/**` or `docs/specs/**`, record the contradiction in
-`.refactor/STATE.md` instead of resolving semantics in passing.
+When working on engineering quality, tooling, type annotations, or docstring cleanup, keep the
+change scoped to those surfaces. Do not change Gaia IR semantics, DSL surface, CLI command
+behavior, algorithms, public names, or persisted artifact shapes as part of quality cleanup. If
+code appears to contradict `docs/foundations/**` or `docs/specs/**`, stop and surface the
+contradiction to the user (in a PR comment, issue, or design doc) rather than resolving
+semantics in passing.

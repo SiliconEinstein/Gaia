@@ -17,10 +17,8 @@ or render SVG. The corresponding dot emission lives in :mod:`._dot`; the
 SVG translation as a ``class`` attribute on the per-node ``<g>`` element,
 which the injected ``<style>`` block then selects.
 
-The defs and legend payload is forked from
-``home_agent/tmp/starmap-recon/figures/regen_starmap_stellaris.py`` (the
-prototype). Equivalence-glow has been renamed to ``support-glow`` so the same
-filter applies to the support diamond, matching the new dot palette.
+Equivalence-glow has been renamed to ``support-glow`` so the same filter applies
+to the support diamond, matching the new dot palette.
 """
 
 from __future__ import annotations

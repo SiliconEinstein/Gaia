@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -1481,14 +1482,17 @@ def _real_pkg_dir(name: str) -> Path | None:
     """Resolve a real Gaia knowledge package directory for parity tests.
 
     Returns None when the package isn't present — the caller skips the
-    test. We probe a couple of likely locations for the dev packages.
+    test. The probe directory is read from the ``GAIA_DEV_PACKAGES_ROOT``
+    environment variable; set it to the directory containing the sibling
+    dev packages (each package directory is expected to live directly
+    under this root and contain a ``pyproject.toml``).
     """
-    candidates = [
-        Path.home() / "ThisIsDP" / "dev" / name,
-    ]
-    for p in candidates:
-        if (p / "pyproject.toml").is_file():
-            return p
+    env_root = os.environ.get("GAIA_DEV_PACKAGES_ROOT")
+    if not env_root:
+        return None
+    candidate = Path(env_root).expanduser() / name
+    if (candidate / "pyproject.toml").is_file():
+        return candidate
     return None
 
 
@@ -1551,7 +1555,9 @@ def test_final_state_matches_static_dot_for_2dheg():
     if pkg_dir is None:
         import pytest as _p
 
-        _p.skip("twodheg-effective-mass-gaia not found at ~/ThisIsDP/dev/")
+        _p.skip(
+            "twodheg-effective-mass-gaia not found (set GAIA_DEV_PACKAGES_ROOT to run this test)"
+        )
     static_counts, replay_counts = _final_state_parity(pkg_dir)
     # Final-state parity: counts must match exactly.
     for key in ("knowledge", "strategy", "operator", "contradiction", "equivalence", "edges"):
@@ -1566,7 +1572,7 @@ def test_final_state_matches_static_dot_for_lcdm():
     if pkg_dir is None:
         import pytest as _p
 
-        _p.skip("lcdm-hubble-tension-gaia not found at ~/ThisIsDP/dev/")
+        _p.skip("lcdm-hubble-tension-gaia not found (set GAIA_DEV_PACKAGES_ROOT to run this test)")
     static_counts, replay_counts = _final_state_parity(pkg_dir)
     for key in ("knowledge", "strategy", "operator", "contradiction", "equivalence", "edges"):
         assert replay_counts[key] == static_counts[key], (
@@ -1585,7 +1591,9 @@ def test_final_state_matches_static_dot_for_perovskite():
     if pkg_dir is None:
         import pytest as _p
 
-        _p.skip("perovskite-arpes-polaron-gaia not found at ~/ThisIsDP/dev/")
+        _p.skip(
+            "perovskite-arpes-polaron-gaia not found (set GAIA_DEV_PACKAGES_ROOT to run this test)"
+        )
     static_counts, replay_counts = _final_state_parity(pkg_dir)
     for key in ("knowledge", "strategy", "operator", "contradiction", "equivalence", "edges"):
         assert replay_counts[key] == static_counts[key], (
