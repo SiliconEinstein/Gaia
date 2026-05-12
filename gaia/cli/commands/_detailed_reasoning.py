@@ -119,6 +119,75 @@ _OPERATOR_SYMBOLS = {
 _UNDIRECTED_OPERATORS = frozenset({"equivalence", "contradiction", "complement", "implication"})
 
 
+def _visible_mermaid_ids(
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    node_ids: set[str] | None,
+) -> tuple[set[str], set[str]]:
+    """Return all visible node ids plus external ids for a scoped diagram."""
+    if node_ids is None:
+        return set(knowledge_by_id.keys()), set()
+
+    external_ids: set[str] = set()
+    _add_strategy_external_ids(external_ids, ir, knowledge_by_id, node_ids)
+    _add_operator_external_ids(external_ids, ir, knowledge_by_id, node_ids)
+    return node_ids | external_ids, external_ids
+
+
+def _add_strategy_external_ids(
+    external_ids: set[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    node_ids: set[str],
+) -> None:
+    """Add scoped-diagram external ids from strategy premises/background."""
+    for strategy in ir.get("strategies", []):
+        conclusion = strategy.get("conclusion")
+        if not (conclusion and conclusion in node_ids):
+            continue
+        for ref in [*strategy.get("premises", []), *(strategy.get("background") or [])]:
+            label = knowledge_by_id.get(ref, {}).get("label", "")
+            if ref not in node_ids and not _is_helper(label):
+                external_ids.add(ref)
+
+
+def _add_operator_external_ids(
+    external_ids: set[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    node_ids: set[str],
+) -> None:
+    """Add scoped-diagram external ids from operator variables/conclusions."""
+    for operator in ir.get("operators", []):
+        variables = operator.get("variables", [])
+        conclusion = operator.get("conclusion")
+        if not ((conclusion and conclusion in node_ids) or any(v in node_ids for v in variables)):
+            continue
+        for variable in variables:
+            label = knowledge_by_id.get(variable, {}).get("label", "")
+            if variable not in node_ids and not _is_helper(label):
+                external_ids.add(variable)
+        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
+        if conclusion and conclusion not in node_ids and not _is_helper(conc_label):
+            external_ids.add(conclusion)
+
+
+def _visible_labeled_refs(
+    refs: list[str],
+    all_visible: set[str],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Return visible, non-helper labels for a list of knowledge ids."""
+    labels: list[str] = []
+    for ref in refs:
+        if ref not in all_visible:
+            continue
+        label = knowledge_by_id.get(ref, {}).get("label", "")
+        if label and not _is_helper(label):
+            labels.append(label)
+    return labels
+
+
 def _mermaid_node_line(
     label: str,
     kid: str,
@@ -140,6 +209,96 @@ def _mermaid_node_line(
     return f'    {label}["{display}"]:::{css}'
 
 
+def _append_mermaid_knowledge_nodes(
+    lines: list[str],
+    ir: dict[str, Any],
+    classification: Any,
+    beliefs: dict[str, float] | None,
+    all_visible: set[str],
+    external_ids: set[str],
+) -> None:
+    """Append visible knowledge nodes."""
+    for k in ir["knowledges"]:
+        kid = k["id"]
+        if kid not in all_visible:
+            continue
+        label = k.get("label", "")
+        if _is_helper(label):
+            continue
+        css_override = "external" if kid in external_ids else None
+        lines.append(
+            _mermaid_node_line(
+                label,
+                kid,
+                k["type"],
+                classification,
+                beliefs,
+                title=k.get("title"),
+                css_class_override=css_override,
+            )
+        )
+
+
+def _append_mermaid_strategy_edges(
+    lines: list[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    all_visible: set[str],
+) -> None:
+    """Append strategy intermediate nodes and edges."""
+    for i, s in enumerate(ir.get("strategies", [])):
+        conclusion = s.get("conclusion")
+        if not conclusion or conclusion not in all_visible:
+            continue
+        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "")
+        if _is_helper(conc_label):
+            continue
+
+        premises = _visible_labeled_refs(s.get("premises", []), all_visible, knowledge_by_id)
+        backgrounds = _visible_labeled_refs(s.get("background") or [], all_visible, knowledge_by_id)
+        if not premises and not backgrounds:
+            continue
+
+        stype = s.get("type", "")
+        sid = f"strat_{i}"
+        css = "" if stype in _DETERMINISTIC_STRATEGIES else ":::weak"
+        lines.append(f'    {sid}(["{stype}"]){css}')
+        for p_label in premises:
+            lines.append(f"    {p_label} --> {sid}")
+        for b_label in backgrounds:
+            lines.append(f"    {b_label} -.-> {sid}")
+        lines.append(f"    {sid} --> {conc_label}")
+
+
+def _append_mermaid_operator_edges(
+    lines: list[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    all_visible: set[str],
+) -> None:
+    """Append operator intermediate nodes and edges."""
+    for i, o in enumerate(ir.get("operators", [])):
+        conclusion = o.get("conclusion")
+        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
+        conc_visible = bool(conclusion and conclusion in all_visible and not _is_helper(conc_label))
+
+        otype = o.get("operator", "")
+        visible_vars = _visible_labeled_refs(o.get("variables", []), all_visible, knowledge_by_id)
+        if not visible_vars and not conc_visible:
+            continue
+
+        oid = f"oper_{i}"
+        symbol = _OPERATOR_SYMBOLS.get(otype, otype)
+        css = ":::contra" if otype == "contradiction" else ""
+        lines.append(f'    {oid}{{{{"{symbol}"}}}}{css}')
+
+        edge = " --- " if otype in _UNDIRECTED_OPERATORS else " --> "
+        for v_label in visible_vars:
+            lines.append(f"    {v_label}{edge}{oid}")
+        if conc_visible:
+            lines.append(f"    {oid}{edge}{conc_label}")
+
+
 def render_mermaid(
     ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
@@ -154,137 +313,12 @@ def render_mermaid(
     """
     lines = ["```mermaid", "graph TD"]
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
-    c = classify_ir(ir)
+    classification = classify_ir(ir)
+    all_visible, external_ids = _visible_mermaid_ids(ir, knowledge_by_id, node_ids)
 
-    # Determine which nodes to render
-    if node_ids is not None:
-        external_ids: set[str] = set()
-        for s in ir.get("strategies", []):
-            conc = s.get("conclusion")
-            if conc and conc in node_ids:
-                for p in s.get("premises", []):
-                    if p not in node_ids:
-                        p_label = knowledge_by_id.get(p, {}).get("label", "")
-                        if not _is_helper(p_label):
-                            external_ids.add(p)
-                for b in s.get("background") or []:
-                    if b not in node_ids:
-                        b_label = knowledge_by_id.get(b, {}).get("label", "")
-                        if not _is_helper(b_label):
-                            external_ids.add(b)
-        for o in ir.get("operators", []):
-            vars_list = o.get("variables", [])
-            conc = o.get("conclusion")
-            conc_label = knowledge_by_id.get(conc, {}).get("label", "") if conc else ""
-            conc_in_module = conc and conc in node_ids
-            any_var_in_module = any(v in node_ids for v in vars_list)
-            if conc_in_module or any_var_in_module:
-                for v in vars_list:
-                    if v not in node_ids:
-                        v_label = knowledge_by_id.get(v, {}).get("label", "")
-                        if not _is_helper(v_label):
-                            external_ids.add(v)
-                if conc and conc not in node_ids and not _is_helper(conc_label):
-                    external_ids.add(conc)
-        all_visible = node_ids | external_ids
-    else:
-        external_ids = set()
-        all_visible = set(knowledge_by_id.keys())
-
-    # Render knowledge nodes
-    for k in ir["knowledges"]:
-        kid = k["id"]
-        if kid not in all_visible:
-            continue
-        label = k.get("label", "")
-        if _is_helper(label):
-            continue
-        css_override = "external" if kid in external_ids else None
-        lines.append(
-            _mermaid_node_line(
-                label,
-                kid,
-                k["type"],
-                c,
-                beliefs,
-                title=k.get("title"),
-                css_class_override=css_override,
-            )
-        )
-
-    # Render strategy intermediate nodes and edges
-    for i, s in enumerate(ir.get("strategies", [])):
-        conclusion = s.get("conclusion")
-        if not conclusion or conclusion not in all_visible:
-            continue
-        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "")
-        if _is_helper(conc_label):
-            continue
-
-        stype = s.get("type", "")
-        sid = f"strat_{i}"
-
-        # Collect visible premises and background
-        premises: list[str] = []
-        for p in s.get("premises", []):
-            if p not in all_visible:
-                continue
-            p_label = knowledge_by_id.get(p, {}).get("label", "")
-            if p_label and not _is_helper(p_label):
-                premises.append(p_label)
-        backgrounds: list[str] = []
-        for b in s.get("background") or []:
-            if b not in all_visible:
-                continue
-            b_label = knowledge_by_id.get(b, {}).get("label", "")
-            if b_label and not _is_helper(b_label):
-                backgrounds.append(b_label)
-
-        if not premises and not backgrounds:
-            continue
-
-        # Strategy node (stadium shape): deterministic or weakpoint
-        css = "" if stype in _DETERMINISTIC_STRATEGIES else ":::weak"
-        lines.append(f'    {sid}(["{stype}"]){css}')
-
-        for p_label in premises:
-            lines.append(f"    {p_label} --> {sid}")
-        for b_label in backgrounds:
-            lines.append(f"    {b_label} -.-> {sid}")
-        lines.append(f"    {sid} --> {conc_label}")
-
-    # Render operator intermediate nodes and edges
-    for i, o in enumerate(ir.get("operators", [])):
-        conclusion = o.get("conclusion")
-        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
-        conc_is_helper = _is_helper(conc_label)
-        conc_visible = conclusion and conclusion in all_visible and not conc_is_helper
-
-        otype = o.get("operator", "")
-        symbol = _OPERATOR_SYMBOLS.get(otype, otype)
-        oid = f"oper_{i}"
-        is_undirected = otype in _UNDIRECTED_OPERATORS
-
-        visible_vars: list[str] = []
-        for v in o.get("variables", []):
-            if v not in all_visible:
-                continue
-            v_label = knowledge_by_id.get(v, {}).get("label", "")
-            if v_label and not _is_helper(v_label):
-                visible_vars.append(v_label)
-
-        if not visible_vars and not conc_visible:
-            continue
-
-        # Operator node (hexagon shape)
-        css = ":::contra" if otype == "contradiction" else ""
-        lines.append(f'    {oid}{{{{"{symbol}"}}}}{css}')
-
-        edge = " --- " if is_undirected else " --> "
-        for v_label in visible_vars:
-            lines.append(f"    {v_label}{edge}{oid}")
-        if conc_visible:
-            lines.append(f"    {oid}{edge}{conc_label}")
+    _append_mermaid_knowledge_nodes(lines, ir, classification, beliefs, all_visible, external_ids)
+    _append_mermaid_strategy_edges(lines, ir, knowledge_by_id, all_visible)
+    _append_mermaid_operator_edges(lines, ir, knowledge_by_id, all_visible)
 
     lines.append("")
     lines.append(_MERMAID_STYLES)

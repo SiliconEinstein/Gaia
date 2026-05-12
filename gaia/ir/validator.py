@@ -666,6 +666,174 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
 # ---------------------------------------------------------------------------
 
 
+def _claims_without_prior_requirement(graph: LocalCanonicalGraph) -> tuple[set[str], set[str]]:
+    """Return prohibited-prior claims and all prior-exempt claims."""
+    no_prior_allowed: set[str] = set()
+    for operator in graph.operators:
+        if operator.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
+            no_prior_allowed.add(operator.conclusion)
+
+    for strategy in graph.strategies:
+        if not isinstance(strategy, FormalStrategy):
+            continue
+        own_interface: set[str] = set(strategy.premises)
+        if strategy.conclusion is not None:
+            own_interface.add(strategy.conclusion)
+        for operator in strategy.formal_expr.operators:
+            if operator.conclusion not in own_interface:
+                no_prior_allowed.add(operator.conclusion)
+
+    strategy_conclusions = {
+        strategy.conclusion for strategy in graph.strategies if strategy.conclusion is not None
+    }
+    return no_prior_allowed, no_prior_allowed | strategy_conclusions
+
+
+def _parameterized_strategy_ids(graph: LocalCanonicalGraph) -> tuple[set[str], set[str]]:
+    """Return all strategy ids and the subset that require parameter records."""
+    parameterized_ids: set[str] = set()
+    all_strategy_ids: set[str] = set()
+    for strategy in graph.strategies:
+        if not strategy.strategy_id:
+            continue
+        all_strategy_ids.add(strategy.strategy_id)
+        if isinstance(strategy, CompositeStrategy):
+            continue
+        if strategy.type in _PARAMETERIZED_TYPES:
+            parameterized_ids.add(strategy.strategy_id)
+    return all_strategy_ids, parameterized_ids
+
+
+def _validate_prior_coverage(
+    result: ValidationResult,
+    *,
+    claim_ids: set[str],
+    prior_exempt: set[str],
+    priors: list[PriorRecord],
+) -> None:
+    """Validate that independent claims have PriorRecord coverage."""
+    prior_knowledge_ids = {record.knowledge_id for record in priors}
+    for cid in claim_ids:
+        if cid in prior_exempt:
+            continue
+        if cid not in prior_knowledge_ids:
+            result.error(f"Claim '{cid}': missing PriorRecord")
+
+
+def _validate_prohibited_priors(
+    result: ValidationResult,
+    *,
+    priors: list[PriorRecord],
+    no_prior_allowed: set[str],
+) -> None:
+    """Reject PriorRecords on private or structural helper claims."""
+    for prior_record in priors:
+        if prior_record.knowledge_id in no_prior_allowed:
+            result.error(
+                f"PriorRecord '{prior_record.knowledge_id}': private or structural helper claim "
+                f"must not have independent PriorRecord"
+            )
+
+
+def _validate_strategy_param_coverage(
+    result: ValidationResult,
+    *,
+    strategy_params: list[StrategyParamRecord],
+    all_strategy_ids: set[str],
+    parameterized_ids: set[str],
+) -> None:
+    """Validate StrategyParamRecord coverage and unnecessary records."""
+    param_strategy_ids = {record.strategy_id for record in strategy_params}
+    for strategy_id in parameterized_ids:
+        if strategy_id not in param_strategy_ids:
+            result.error(f"Strategy '{strategy_id}': missing StrategyParamRecord")
+
+    for record in strategy_params:
+        if record.strategy_id in all_strategy_ids - parameterized_ids:
+            result.warn(
+                f"StrategyParamRecord '{record.strategy_id}': strategy type is not parameterized "
+                f"(only infer/noisy_and need params)"
+            )
+
+
+def _validate_strategy_param_arity(
+    result: ValidationResult,
+    graph: LocalCanonicalGraph,
+    strategy_params: list[StrategyParamRecord],
+) -> None:
+    """Validate conditional-probability arity for parameterized strategies."""
+    strategy_lookup = {
+        strategy.strategy_id: strategy for strategy in graph.strategies if strategy.strategy_id
+    }
+    for strategy_param in strategy_params:
+        strategy = strategy_lookup.get(strategy_param.strategy_id)
+        if strategy is None or strategy.type not in _PARAMETERIZED_TYPES:
+            continue
+        actual = len(strategy_param.conditional_probabilities)
+        if strategy.type == StrategyType.INFER:
+            expected = 2 ** len(strategy.premises)
+            if actual != expected:
+                result.error(
+                    f"StrategyParamRecord '{strategy_param.strategy_id}': infer strategy with "
+                    f"{len(strategy.premises)} premises requires "
+                    f"2^{len(strategy.premises)}={expected} "
+                    f"conditional_probabilities, got {actual}"
+                )
+        elif strategy.type == StrategyType.NOISY_AND and actual != 1:
+            result.error(
+                f"StrategyParamRecord '{strategy_param.strategy_id}': noisy_and strategy "
+                f"requires 1 conditional_probability, got {actual}"
+            )
+
+
+def _validate_cromwell_bounds(
+    result: ValidationResult,
+    *,
+    priors: list[PriorRecord],
+    strategy_params: list[StrategyParamRecord],
+) -> None:
+    """Validate Cromwell bounds for priors and strategy parameters."""
+    for prior_record in priors:
+        if prior_record.value < CROMWELL_EPS or prior_record.value > 1 - CROMWELL_EPS:
+            result.error(
+                f"PriorRecord '{prior_record.knowledge_id}': value {prior_record.value} "
+                f"outside Cromwell bounds "
+                f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
+            )
+
+    for strategy_param in strategy_params:
+        for index, probability in enumerate(strategy_param.conditional_probabilities):
+            if probability < CROMWELL_EPS or probability > 1 - CROMWELL_EPS:
+                result.error(
+                    f"StrategyParamRecord '{strategy_param.strategy_id}': "
+                    f"conditional_probabilities[{index}]={probability} outside Cromwell bounds"
+                )
+
+
+def _validate_parameterization_dangling_refs(
+    result: ValidationResult,
+    *,
+    graph: LocalCanonicalGraph,
+    priors: list[PriorRecord],
+    strategy_params: list[StrategyParamRecord],
+    all_strategy_ids: set[str],
+) -> None:
+    """Warn about parameterization records that reference missing IR objects."""
+    all_knowledge_ids = {knowledge.id for knowledge in graph.knowledges if knowledge.id}
+    for prior_record in priors:
+        if prior_record.knowledge_id not in all_knowledge_ids:
+            result.warn(
+                f"PriorRecord '{prior_record.knowledge_id}': references non-existent Knowledge"
+            )
+
+    for strategy_param in strategy_params:
+        if strategy_param.strategy_id not in all_strategy_ids:
+            result.warn(
+                f"StrategyParamRecord '{strategy_param.strategy_id}': "
+                "references non-existent Strategy"
+            )
+
+
 def validate_parameterization(
     graph: LocalCanonicalGraph,
     priors: list[PriorRecord],
@@ -698,136 +866,26 @@ def validate_parameterization(
     """
     result = ValidationResult()
 
-    # collect claim knowledge_ids
     claim_ids = {k.id for k in graph.knowledges if k.type == KnowledgeType.CLAIM and k.id}
+    no_prior_allowed, prior_exempt = _claims_without_prior_requirement(graph)
+    all_strategy_ids, parameterized_ids = _parameterized_strategy_ids(graph)
 
-    # --- Identify claims exempt from PriorRecord requirements ---
-
-    # (a) Claims that MUST NOT have PriorRecords (prohibited)
-    no_prior_allowed: set[str] = set()
-
-    # Top-level structural helper claims — conclusions of structural operators
-    for op in graph.operators:
-        if op.operator in _STRUCTURAL_HELPER_OPERATOR_TYPES:
-            no_prior_allowed.add(op.conclusion)
-
-    # FormalExpr private nodes — operator conclusions inside FormalExpr
-    # that are NOT in the owning strategy's premises/conclusion interface
-    for s in graph.strategies:
-        if isinstance(s, FormalStrategy):
-            own_interface: set[str] = set(s.premises)
-            if s.conclusion is not None:
-                own_interface.add(s.conclusion)
-            for op in s.formal_expr.operators:
-                if op.conclusion not in own_interface:
-                    no_prior_allowed.add(op.conclusion)
-
-    # (b) Claims that don't NEED PriorRecords but may optionally have them
-    # Strategy conclusions — their belief derives from premises via BP
-    strategy_conclusions: set[str] = set()
-    for s in graph.strategies:
-        if s.conclusion is not None:
-            strategy_conclusions.add(s.conclusion)
-
-    # Combined: all claims exempt from the "must have prior" check
-    prior_exempt = no_prior_allowed | strategy_conclusions
-
-    # collect strategy ids, split by parameterized vs not
-    parameterized_ids: set[str] = set()
-    all_strategy_ids: set[str] = set()
-    for s in graph.strategies:
-        if s.strategy_id:
-            all_strategy_ids.add(s.strategy_id)
-            if isinstance(s, CompositeStrategy):
-                continue  # composite delegates to sub-strategies, no own params
-            if s.type in _PARAMETERIZED_TYPES:
-                parameterized_ids.add(s.strategy_id)
-
-    # check prior coverage (exclude exempt claims)
-    prior_knowledge_ids = {r.knowledge_id for r in priors}
-    for cid in claim_ids:
-        if cid in prior_exempt:
-            continue  # derived or structural — no prior needed
-        if cid not in prior_knowledge_ids:
-            result.error(f"Claim '{cid}': missing PriorRecord")
-
-    # prohibited claims must NOT have PriorRecords (spec §4 of 04-helper-claims.md)
-    for r_prior in priors:
-        if r_prior.knowledge_id in no_prior_allowed:
-            result.error(
-                f"PriorRecord '{r_prior.knowledge_id}': private or structural helper claim "
-                f"must not have independent PriorRecord"
-            )
-
-    # check strategy param coverage — only for parameterized types
-    param_strategy_ids = {r.strategy_id for r in strategy_params}
-    for sid in parameterized_ids:
-        if sid not in param_strategy_ids:
-            result.error(f"Strategy '{sid}': missing StrategyParamRecord")
-
-    # warn if StrategyParamRecord exists for non-parameterized type
-    non_parameterized_ids = all_strategy_ids - parameterized_ids
-    for r in strategy_params:
-        if r.strategy_id in non_parameterized_ids:
-            result.warn(
-                f"StrategyParamRecord '{r.strategy_id}': strategy type is not parameterized "
-                f"(only infer/noisy_and need params)"
-            )
-
-    # check conditional_probabilities arity — only for infer/noisy_and
-    strategy_lookup = {s.strategy_id: s for s in graph.strategies if s.strategy_id}
-    for strategy_param in strategy_params:
-        strategy = strategy_lookup.get(strategy_param.strategy_id)
-        if strategy is None:
-            continue  # dangling ref handled below
-        if strategy.type not in _PARAMETERIZED_TYPES:
-            continue  # non-parameterized, already warned
-        actual = len(strategy_param.conditional_probabilities)
-        if strategy.type == StrategyType.INFER:
-            expected = 2 ** len(strategy.premises)
-            if actual != expected:
-                result.error(
-                    f"StrategyParamRecord '{strategy_param.strategy_id}': infer strategy with "
-                    f"{len(strategy.premises)} premises requires "
-                    f"2^{len(strategy.premises)}={expected} "
-                    f"conditional_probabilities, got {actual}"
-                )
-        elif strategy.type == StrategyType.NOISY_AND:
-            if actual != 1:
-                result.error(
-                    f"StrategyParamRecord '{strategy_param.strategy_id}': noisy_and strategy "
-                    f"requires 1 conditional_probability, got {actual}"
-                )
-
-    # Cromwell bounds on priors
-    for prior_record in priors:
-        if prior_record.value < CROMWELL_EPS or prior_record.value > 1 - CROMWELL_EPS:
-            result.error(
-                f"PriorRecord '{prior_record.knowledge_id}': value {prior_record.value} "
-                f"outside Cromwell bounds "
-                f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]"
-            )
-
-    # Cromwell bounds on strategy params
-    for r in strategy_params:
-        for i, p in enumerate(r.conditional_probabilities):
-            if p < CROMWELL_EPS or p > 1 - CROMWELL_EPS:
-                result.error(
-                    f"StrategyParamRecord '{r.strategy_id}': "
-                    f"conditional_probabilities[{i}]={p} outside Cromwell bounds"
-                )
-
-    # dangling references: priors for non-existent claims
-    all_knowledge_ids = {k.id for k in graph.knowledges if k.id}
-    for prior_record in priors:
-        if prior_record.knowledge_id not in all_knowledge_ids:
-            result.warn(
-                f"PriorRecord '{prior_record.knowledge_id}': references non-existent Knowledge"
-            )
-
-    # dangling references: params for non-existent strategies
-    for r in strategy_params:
-        if r.strategy_id not in all_strategy_ids:
-            result.warn(f"StrategyParamRecord '{r.strategy_id}': references non-existent Strategy")
+    _validate_prior_coverage(result, claim_ids=claim_ids, prior_exempt=prior_exempt, priors=priors)
+    _validate_prohibited_priors(result, priors=priors, no_prior_allowed=no_prior_allowed)
+    _validate_strategy_param_coverage(
+        result,
+        strategy_params=strategy_params,
+        all_strategy_ids=all_strategy_ids,
+        parameterized_ids=parameterized_ids,
+    )
+    _validate_strategy_param_arity(result, graph, strategy_params)
+    _validate_cromwell_bounds(result, priors=priors, strategy_params=strategy_params)
+    _validate_parameterization_dangling_refs(
+        result,
+        graph=graph,
+        priors=priors,
+        strategy_params=strategy_params,
+        all_strategy_ids=all_strategy_ids,
+    )
 
     return result

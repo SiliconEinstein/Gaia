@@ -24,7 +24,7 @@ from gaia.cli._packages import (
     validate_fills_relations,
 )
 from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
-from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees
+from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees, render_inquiry
 from gaia.cli.commands._review_manifest import (
     latest_reviews,
     load_or_generate_review_manifest,
@@ -697,6 +697,222 @@ def _warrant_report(manifest: ReviewManifest, *, blind: bool = False) -> list[st
     return lines
 
 
+def _load_check_artifacts(path: str) -> tuple[Any, Any, dict[str, Any]]:
+    """Load, compile, and validate package-specific references for check."""
+    try:
+        loaded = load_gaia_package(path)
+        apply_package_priors(loaded)
+        compiled = compile_loaded_package_artifact(loaded)
+        ir = compiled.to_json()
+        validate_fills_relations(loaded, compiled)
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    return loaded, compiled, ir
+
+
+def _collect_check_diagnostics(loaded: Any, ir: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Collect structural and artifact-state diagnostics for ``gaia check``."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not loaded.project_name.endswith("-gaia"):
+        errors.append("Project name must end with '-gaia'.")
+
+    validation = validate_local_graph(LocalCanonicalGraph(**ir))
+    errors.extend(validation.errors)
+    warnings.extend(validation.warnings)
+    bayes_diagnostics = _bayes_check_diagnostics(ir)
+    errors.extend(bayes_diagnostics.errors)
+    warnings.extend(bayes_diagnostics.warnings)
+    _collect_compiled_artifact_diagnostics(loaded, ir, errors, warnings)
+    return errors, warnings
+
+
+def _collect_compiled_artifact_diagnostics(
+    loaded: Any,
+    ir: dict[str, Any],
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    """Check stored compile artifacts against the freshly compiled IR."""
+    ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
+    ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
+    if ir_hash_path.exists():
+        stored_hash = ir_hash_path.read_text().strip()
+        if stored_hash != ir["ir_hash"]:
+            errors.append("Compiled artifacts are stale; run `gaia compile` again.")
+        if not ir_json_path.exists():
+            errors.append("Found .gaia/ir_hash but missing .gaia/ir.json.")
+    else:
+        warnings.append("Compiled artifacts missing; run `gaia compile` before `gaia register`.")
+
+    if not ir_json_path.exists():
+        return
+    try:
+        stored_ir = json.loads(ir_json_path.read_text())
+    except json.JSONDecodeError as exc:
+        errors.append(f".gaia/ir.json is not valid JSON: {exc}")
+    else:
+        if stored_ir.get("ir_hash") != ir["ir_hash"]:
+            errors.append("Stored .gaia/ir.json does not match current source; run `gaia compile`.")
+
+
+def _emit_check_diagnostics(errors: list[str], warnings: list[str]) -> None:
+    """Print diagnostics and exit on errors."""
+    for warning in warnings:
+        typer.echo(f"Warning: {warning}")
+    if errors:
+        for error in errors:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+
+def _check_review_manifest_needed(
+    *,
+    warrants: bool,
+    inquiry: bool,
+    gate: bool,
+    hole: bool,
+    blind: bool,
+) -> bool:
+    """Return whether check needs a ReviewManifest."""
+    return warrants or inquiry or gate or hole or not (warrants and blind)
+
+
+def _load_check_review_manifest(loaded: Any, compiled: Any) -> ReviewManifest:
+    """Load or generate a review manifest with CLI error handling."""
+    try:
+        return load_or_generate_review_manifest(loaded.pkg_path, compiled)
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+
+def _check_induced_summary(
+    ir: dict[str, Any],
+    compiled: Any,
+    review_manifest: ReviewManifest | None,
+) -> _InducedMaxEntSummary:
+    """Build induced MaxEnt summary for prior diagnostics."""
+    boundary = _boundary_claim_analysis(
+        ir,
+        formalization_manifest=compiled.formalization_manifest,
+    )
+    maxent_claim_ids = {
+        cid
+        for cid in boundary.boundary_claim_ids
+        if (node := next((k for k in ir["knowledges"] if k.get("id") == cid), None))
+        and _get_prior(node) is None
+    }
+    return _induced_maxent_summary(
+        compiled.graph,
+        review_manifest=review_manifest,
+        claim_ids=maxent_claim_ids,
+    )
+
+
+def _emit_warrant_and_inquiry_sections(
+    *,
+    ir: dict[str, Any],
+    compiled: Any,
+    review_manifest: ReviewManifest,
+    warrants: bool,
+    blind: bool,
+    inquiry: bool,
+) -> None:
+    """Print optional warrant and inquiry sections."""
+    if warrants:
+        for line in _warrant_report(review_manifest, blind=blind):
+            typer.echo(line)
+    if inquiry:
+        trees = build_goal_trees(
+            ir,
+            review_manifest,
+            formalization_manifest=compiled.formalization_manifest,
+        )
+        typer.echo("")
+        typer.echo(render_inquiry(trees))
+
+
+def _run_check_quality_gate(
+    *,
+    ir: dict[str, Any],
+    loaded: Any,
+    compiled: Any,
+    review_manifest: ReviewManifest,
+) -> None:
+    """Run the quality gate and print its result."""
+    from gaia.cli.commands._quality_gate import (
+        check_quality_gate,
+        load_beliefs,
+        load_quality_config,
+    )
+
+    try:
+        config = load_quality_config(loaded.gaia_config.get("quality"))
+        beliefs = load_beliefs(loaded.pkg_path)
+        failures = check_quality_gate(
+            ir,
+            beliefs,
+            review_manifest,
+            config,
+            formalization_manifest=compiled.formalization_manifest,
+        )
+    except GaiaCliError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if failures:
+        typer.echo("")
+        typer.echo("Quality gate failed:")
+        for failure in failures:
+            typer.echo(f"  - {failure}")
+        raise typer.Exit(1)
+    typer.echo("")
+    typer.echo("Quality gate passed")
+
+
+def _emit_check_brief_sections(ir: dict[str, Any], *, brief: bool, show: str | None) -> None:
+    """Print optional brief and show sections."""
+    from gaia.cli.commands._brief import (
+        dispatch_show,
+        generate_brief_overview,
+    )
+
+    if brief:
+        for line in generate_brief_overview(ir):
+            typer.echo(line)
+    if show:
+        for line in dispatch_show(ir, show):
+            typer.echo(line)
+
+
+def _emit_prior_diagnostic_sections(
+    *,
+    ir: dict[str, Any],
+    compiled: Any,
+    induced_summary: _InducedMaxEntSummary | None,
+    blind: bool,
+    warrants: bool,
+    hole: bool,
+) -> None:
+    """Print knowledge and hole diagnostics."""
+    if not (warrants and blind):
+        for line in _knowledge_diagnostics(
+            ir,
+            induced_summary=induced_summary,
+            formalization_manifest=compiled.formalization_manifest,
+        ):
+            typer.echo(line)
+
+    if hole:
+        for line in _hole_report(
+            ir,
+            induced_summary=induced_summary,
+            formalization_manifest=compiled.formalization_manifest,
+        ):
+            typer.echo(line)
+
+
 def check_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     brief: bool = typer.Option(
@@ -735,58 +951,9 @@ def check_command(
     ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package."""
-    try:
-        loaded = load_gaia_package(path)
-        apply_package_priors(loaded)
-        compiled = compile_loaded_package_artifact(loaded)
-        ir = compiled.to_json()
-        validate_fills_relations(loaded, compiled)
-    except GaiaCliError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1) from exc
-
-    errors: list[str] = []
-    warnings: list[str] = []
-
-    if not loaded.project_name.endswith("-gaia"):
-        errors.append("Project name must end with '-gaia'.")
-
-    validation = validate_local_graph(LocalCanonicalGraph(**ir))
-    errors.extend(validation.errors)
-    warnings.extend(validation.warnings)
-    bayes_diagnostics = _bayes_check_diagnostics(ir)
-    errors.extend(bayes_diagnostics.errors)
-    warnings.extend(bayes_diagnostics.warnings)
-
-    ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
-    ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
-    if ir_hash_path.exists():
-        stored_hash = ir_hash_path.read_text().strip()
-        if stored_hash != ir["ir_hash"]:
-            errors.append("Compiled artifacts are stale; run `gaia compile` again.")
-        if not ir_json_path.exists():
-            errors.append("Found .gaia/ir_hash but missing .gaia/ir.json.")
-    else:
-        warnings.append("Compiled artifacts missing; run `gaia compile` before `gaia register`.")
-
-    if ir_json_path.exists():
-        try:
-            stored_ir = json.loads(ir_json_path.read_text())
-        except json.JSONDecodeError as exc:
-            errors.append(f".gaia/ir.json is not valid JSON: {exc}")
-        else:
-            if stored_ir.get("ir_hash") != ir["ir_hash"]:
-                errors.append(
-                    "Stored .gaia/ir.json does not match current source; run `gaia compile`."
-                )
-
-    for warning in warnings:
-        typer.echo(f"Warning: {warning}")
-
-    if errors:
-        for error in errors:
-            typer.echo(f"Error: {error}", err=True)
-        raise typer.Exit(1)
+    loaded, compiled, ir = _load_check_artifacts(path)
+    errors, warnings = _collect_check_diagnostics(loaded, ir)
+    _emit_check_diagnostics(errors, warnings)
 
     typer.echo(
         f"Check passed: {len(ir['knowledges'])} knowledge, "
@@ -796,102 +963,48 @@ def check_command(
 
     review_manifest = None
     induced_summary = None
-    if warrants or inquiry or gate or hole or not (warrants and blind):
-        try:
-            review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
-        except GaiaCliError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(1) from exc
+    if _check_review_manifest_needed(
+        warrants=warrants,
+        inquiry=inquiry,
+        gate=gate,
+        hole=hole,
+        blind=blind,
+    ):
+        review_manifest = _load_check_review_manifest(loaded, compiled)
 
     if hole or not (warrants and blind):
-        boundary = _boundary_claim_analysis(
-            ir,
-            formalization_manifest=compiled.formalization_manifest,
-        )
-        maxent_claim_ids = {
-            cid
-            for cid in boundary.boundary_claim_ids
-            if (node := next((k for k in ir["knowledges"] if k.get("id") == cid), None))
-            and _get_prior(node) is None
-        }
-        induced_summary = _induced_maxent_summary(
-            compiled.graph,
+        induced_summary = _check_induced_summary(ir, compiled, review_manifest)
+
+    if review_manifest is not None:
+        _emit_warrant_and_inquiry_sections(
+            ir=ir,
+            compiled=compiled,
             review_manifest=review_manifest,
-            claim_ids=maxent_claim_ids,
+            warrants=warrants,
+            blind=blind,
+            inquiry=inquiry,
         )
-
-    if warrants:
-        for line in _warrant_report(review_manifest, blind=blind):
-            typer.echo(line)
-
-    if inquiry:
-        from gaia.cli.commands._inquiry import build_goal_trees, render_inquiry
-
-        trees = build_goal_trees(
-            ir,
-            review_manifest,
-            formalization_manifest=compiled.formalization_manifest,
-        )
-        typer.echo("")
-        typer.echo(render_inquiry(trees))
 
     if gate:
-        from gaia.cli.commands._quality_gate import (
-            check_quality_gate,
-            load_beliefs,
-            load_quality_config,
+        assert review_manifest is not None
+        _run_check_quality_gate(
+            ir=ir,
+            loaded=loaded,
+            compiled=compiled,
+            review_manifest=review_manifest,
         )
-
-        try:
-            config = load_quality_config(loaded.gaia_config.get("quality"))
-            beliefs = load_beliefs(loaded.pkg_path)
-            failures = check_quality_gate(
-                ir,
-                beliefs,
-                review_manifest,
-                config,
-                formalization_manifest=compiled.formalization_manifest,
-            )
-        except GaiaCliError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(1) from exc
-        if failures:
-            typer.echo("")
-            typer.echo("Quality gate failed:")
-            for failure in failures:
-                typer.echo(f"  - {failure}")
-            raise typer.Exit(1)
-        typer.echo("")
-        typer.echo("Quality gate passed")
 
     if warrants and blind and not (brief or show or hole):
         return
 
-    if not (warrants and blind):
-        for line in _knowledge_diagnostics(
-            ir,
-            induced_summary=induced_summary,
-            formalization_manifest=compiled.formalization_manifest,
-        ):
-            typer.echo(line)
-
     if brief or show:
-        from gaia.cli.commands._brief import (
-            dispatch_show,
-            generate_brief_overview,
-        )
+        _emit_check_brief_sections(ir, brief=brief, show=show)
 
-        if brief:
-            for line in generate_brief_overview(ir):
-                typer.echo(line)
-        if show:
-            for line in dispatch_show(ir, show):
-                typer.echo(line)
-
-    if hole:
-        for line in _hole_report(
-            ir,
-            induced_summary=induced_summary,
-            formalization_manifest=compiled.formalization_manifest,
-        ):
-            typer.echo(line)
+    _emit_prior_diagnostic_sections(
+        ir=ir,
+        compiled=compiled,
+        induced_summary=induced_summary,
+        blind=blind,
+        warrants=warrants,
+        hole=hole,
+    )

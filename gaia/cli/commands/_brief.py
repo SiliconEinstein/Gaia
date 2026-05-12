@@ -80,13 +80,8 @@ def _module_of(kid: str, knowledge_by_id: dict[str, dict[str, Any]]) -> str | No
 # ── Overview mode ──
 
 
-def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
-    """Per-module compact overview of all non-helper nodes and strategies."""
-    knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
-    c = classify_ir(ir)
-    module_order = ir.get("module_order") or []
-
-    # Group knowledges by module
+def _brief_knowledges_by_module(ir: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Group visible knowledge nodes by display module."""
     by_module: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for k in ir["knowledges"]:
         label = k.get("label", "")
@@ -94,9 +89,11 @@ def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
             continue
         mod = k.get("module") or "Root"
         by_module[mod].append(k)
+    return by_module
 
-    # Group strategies by conclusion's module, skipping sub-strategies of composites
-    # and deduplicating per-conclusion (prefer composite > formal > leaf).
+
+def _brief_top_level_strategies(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return best top-level strategy per conclusion for overview rendering."""
     sub_ids: set[str] = set()
     for s in ir.get("strategies", []):
         for sid in s.get("sub_strategies") or []:
@@ -116,7 +113,14 @@ def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
             or (s.get("formal_expr") and not existing.get("formal_expr"))
         ):
             best_per_conc[conc] = s
+    return best_per_conc
 
+
+def _brief_strategies_by_module(
+    best_per_conc: dict[str, dict[str, Any]],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Group rendered strategies by their conclusion module."""
     strat_by_module: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for conc, s in best_per_conc.items():
         conc_label = _label_of(conc, knowledge_by_id)
@@ -124,8 +128,14 @@ def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
             continue
         mod = _module_of(conc, knowledge_by_id) or "Root"
         strat_by_module[mod].append(s)
+    return strat_by_module
 
-    # Group top-level operators by conclusion's module
+
+def _brief_operators_by_module(
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Group rendered top-level operators by their conclusion module."""
     op_by_module: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for o in ir.get("operators", []):
         if not o.get("operator_id"):
@@ -138,8 +148,16 @@ def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
             continue
         mod = _module_of(conc, knowledge_by_id) or "Root"
         op_by_module[mod].append(o)
+    return op_by_module
 
-    # Determine module iteration order
+
+def _brief_module_order(
+    module_order: list[str],
+    by_module: dict[str, list[dict[str, Any]]],
+    strat_by_module: dict[str, list[dict[str, Any]]],
+    op_by_module: dict[str, list[dict[str, Any]]],
+) -> list[str]:
+    """Compute stable module order for brief output."""
     modules = []
     for m in module_order:
         if m in by_module or m in strat_by_module or m in op_by_module:
@@ -147,53 +165,90 @@ def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
     for m in by_module:
         if m not in modules:
             modules.append(m)
+    return modules
+
+
+def _append_brief_module(
+    lines: list[str],
+    mod: str,
+    nodes: list[dict[str, Any]],
+    strats: list[dict[str, Any]],
+    ops: list[dict[str, Any]],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    classification: Any,
+) -> None:
+    """Append one module block to the compact overview."""
+    lines.append("")
+    lines.append(f"\u2500\u2500 Module: {mod} " + "\u2500" * max(1, 50 - len(mod)))
+    lines.append("")
+
+    notes = [k for k in nodes if is_note_type(k["type"])]
+    claims = [k for k in nodes if k["type"] == "claim"]
+    questions = [k for k in nodes if k["type"] == "question"]
+
+    if notes:
+        lines.append("  Notes:")
+        for k in notes:
+            label = k.get("label", "?")
+            content = _truncate(k.get("content", ""), 60)
+            lines.append(f'    {label}: "{content}"')
+
+    if claims:
+        lines.append("  Claims:")
+        for k in claims:
+            label = k.get("label", "?")
+            role = node_role(k["id"], "claim", classification)
+            prior = _get_prior(k.get("metadata"))
+            prior_s = f", prior={prior}" if prior is not None else ""
+            content = _truncate(k.get("content", ""), 50)
+            lines.append(f'    {label} [{role}{prior_s}]: "{content}"')
+
+    if questions:
+        lines.append("  Questions:")
+        for k in questions:
+            label = k.get("label", "?")
+            content = _truncate(k.get("content", ""), 60)
+            lines.append(f'    {label}: "{content}"')
+
+    if strats:
+        lines.append("  Strategies:")
+        for s in strats:
+            lines.append(_format_strategy_oneline(s, knowledge_by_id))
+
+    if ops:
+        lines.append("  Operators:")
+        for o in ops:
+            lines.append(_format_operator_oneline(o, knowledge_by_id))
+
+
+def generate_brief_overview(ir: dict[str, Any]) -> list[str]:
+    """Per-module compact overview of all non-helper nodes and strategies."""
+    knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    classification = classify_ir(ir)
+    by_module = _brief_knowledges_by_module(ir)
+    strat_by_module = _brief_strategies_by_module(
+        _brief_top_level_strategies(ir),
+        knowledge_by_id,
+    )
+    op_by_module = _brief_operators_by_module(ir, knowledge_by_id)
+    modules = _brief_module_order(
+        ir.get("module_order") or [],
+        by_module,
+        strat_by_module,
+        op_by_module,
+    )
 
     lines: list[str] = []
     for mod in modules:
-        lines.append("")
-        lines.append(f"\u2500\u2500 Module: {mod} " + "\u2500" * max(1, 50 - len(mod)))
-        lines.append("")
-
-        nodes = by_module.get(mod, [])
-        notes = [k for k in nodes if is_note_type(k["type"])]
-        claims = [k for k in nodes if k["type"] == "claim"]
-        questions = [k for k in nodes if k["type"] == "question"]
-
-        if notes:
-            lines.append("  Notes:")
-            for k in notes:
-                label = k.get("label", "?")
-                content = _truncate(k.get("content", ""), 60)
-                lines.append(f'    {label}: "{content}"')
-
-        if claims:
-            lines.append("  Claims:")
-            for k in claims:
-                label = k.get("label", "?")
-                role = node_role(k["id"], "claim", c)
-                prior = _get_prior(k.get("metadata"))
-                prior_s = f", prior={prior}" if prior is not None else ""
-                content = _truncate(k.get("content", ""), 50)
-                lines.append(f'    {label} [{role}{prior_s}]: "{content}"')
-
-        if questions:
-            lines.append("  Questions:")
-            for k in questions:
-                label = k.get("label", "?")
-                content = _truncate(k.get("content", ""), 60)
-                lines.append(f'    {label}: "{content}"')
-
-        strats = strat_by_module.get(mod, [])
-        if strats:
-            lines.append("  Strategies:")
-            for s in strats:
-                lines.append(_format_strategy_oneline(s, knowledge_by_id))
-
-        ops = op_by_module.get(mod, [])
-        if ops:
-            lines.append("  Operators:")
-            for o in ops:
-                lines.append(_format_operator_oneline(o, knowledge_by_id))
+        _append_brief_module(
+            lines,
+            mod,
+            by_module.get(mod, []),
+            strat_by_module.get(mod, []),
+            op_by_module.get(mod, []),
+            knowledge_by_id,
+            classification,
+        )
 
     return lines
 

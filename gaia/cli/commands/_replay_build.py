@@ -209,6 +209,148 @@ def rekey_layout_to_lkm_ids(
     return layout, warnings
 
 
+def _layout_knowledge_indexes(
+    ir: dict[str, Any],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Build raw-IR-id and lkm-id knowledge indexes."""
+    ir_by_id: dict[str, dict[str, Any]] = {}
+    ir_by_lkm: dict[str, dict[str, Any]] = {}
+    for knowledge in ir.get("knowledges", []) or []:
+        kid = knowledge.get("id")
+        if isinstance(kid, str):
+            ir_by_id[kid] = knowledge
+        lid = (knowledge.get("metadata") or {}).get("lkm_id")
+        if isinstance(lid, str) and lid:
+            ir_by_lkm[lid] = knowledge
+    return ir_by_id, ir_by_lkm
+
+
+def _layout_derived_knowledge_ids(
+    strategies: list[dict[str, Any]], operators: list[dict[str, Any]]
+) -> set[str]:
+    """Return knowledge ids concluded by strategy or operator entries."""
+    derived_ids: set[str] = set()
+    for strategy in strategies:
+        conclusion = strategy.get("conclusion")
+        if isinstance(conclusion, str):
+            derived_ids.add(conclusion)
+    for operator in operators:
+        conclusion = operator.get("conclusion")
+        if isinstance(conclusion, str):
+            derived_ids.add(conclusion)
+    return derived_ids
+
+
+def _layout_id_to_key(ir: dict[str, Any], nodes: dict[str, Any]) -> dict[str, str]:
+    """Map IR knowledge ids to their post-rekey layout keys."""
+    id_to_layout_key: dict[str, str] = {}
+    for knowledge in ir.get("knowledges", []) or []:
+        kid = knowledge.get("id")
+        if not isinstance(kid, str):
+            continue
+        lid = (knowledge.get("metadata") or {}).get("lkm_id")
+        if isinstance(lid, str) and lid and lid in nodes:
+            id_to_layout_key[kid] = lid
+        elif kid in nodes:
+            id_to_layout_key[kid] = kid
+    return id_to_layout_key
+
+
+def _layout_knowledge_subkind(knowledge: dict[str, Any], derived_ids: set[str]) -> str:
+    """Classify knowledge for replay layout rendering."""
+    if knowledge.get("type") == "setting":
+        return "setting"
+    if knowledge.get("exported"):
+        return "exported"
+    if knowledge.get("id") in derived_ids:
+        return "derived"
+    return "claim"
+
+
+def _annotate_strategy_layout_node(
+    key: str,
+    value: dict[str, Any],
+    strategies: list[dict[str, Any]],
+    id_to_layout_key: dict[str, str],
+) -> bool:
+    """Annotate a ``strat_<i>`` layout entry; return whether key was handled."""
+    if not key.startswith("strat_"):
+        return False
+    try:
+        idx = int(key.split("_", 1)[1])
+    except (ValueError, IndexError):
+        return True
+    if 0 <= idx < len(strategies):
+        strategy = strategies[idx]
+        stype = strategy.get("type", "") or ""
+        value["kind"] = "strategy"
+        value["strategy_type"] = stype
+        value["label"] = stype
+        concl_layout_key = id_to_layout_key.get(strategy.get("conclusion") or "")
+        if concl_layout_key:
+            value["conclusion_id"] = concl_layout_key
+        premise_keys = [
+            id_to_layout_key[p] for p in (strategy.get("premises") or []) if p in id_to_layout_key
+        ]
+        if premise_keys:
+            value["premise_ids"] = premise_keys
+    return True
+
+
+def _annotate_operator_layout_node(
+    key: str,
+    value: dict[str, Any],
+    operators: list[dict[str, Any]],
+    id_to_layout_key: dict[str, str],
+) -> bool:
+    """Annotate an ``oper_<i>`` layout entry; return whether key was handled."""
+    if not key.startswith("oper_"):
+        return False
+    try:
+        idx = int(key.split("_", 1)[1])
+    except (ValueError, IndexError):
+        return True
+    if 0 <= idx < len(operators):
+        operator = operators[idx]
+        otype = operator.get("operator", "") or ""
+        value["kind"] = "operator"
+        value["operator_type"] = otype
+        value["label"] = "⊗ contradiction" if otype == _CONTRADICTION else f"⊙ {otype}".rstrip()
+        concl_layout_key = id_to_layout_key.get(operator.get("conclusion") or "")
+        if concl_layout_key:
+            value["conclusion_id"] = concl_layout_key
+        variable_keys = [
+            id_to_layout_key[v] for v in (operator.get("variables") or []) if v in id_to_layout_key
+        ]
+        if variable_keys:
+            value["variable_ids"] = variable_keys
+    return True
+
+
+def _annotate_knowledge_layout_node(
+    key: str,
+    value: dict[str, Any],
+    ir_by_id: dict[str, dict[str, Any]],
+    ir_by_lkm: dict[str, dict[str, Any]],
+    derived_ids: set[str],
+) -> None:
+    """Annotate a knowledge layout entry if it maps back to IR."""
+    knowledge = ir_by_lkm.get(key) or ir_by_id.get(key)
+    if knowledge is None:
+        return
+    value["kind"] = "knowledge"
+    value["sub_kind"] = _layout_knowledge_subkind(knowledge, derived_ids)
+    title = knowledge.get("title") or knowledge.get("label") or ""
+    value["label"] = ("★ " if knowledge.get("exported") else "") + str(title)
+    value["exported"] = bool(knowledge.get("exported"))
+    value["module"] = knowledge.get("module")
+    prior = (knowledge.get("metadata") or {}).get("prior")
+    if isinstance(prior, (int, float)):
+        value["prior"] = float(prior)
+    elif isinstance(knowledge.get("prior"), (int, float)):
+        value["prior"] = float(knowledge["prior"])
+
+
 def annotate_layout_with_kinds(layout: dict[str, Any], ir: dict[str, Any]) -> dict[str, Any]:
     """Decorate every layout node entry with kind + styling info from the IR.
 
@@ -241,134 +383,20 @@ def annotate_layout_with_kinds(layout: dict[str, Any], ir: dict[str, Any]) -> di
     if not isinstance(nodes, dict):
         return layout
 
-    # Build (lkm_id-or-irid → IR knowledge dict) lookup, so we can decorate
-    # both pre- and post-rekey knowledge entries.
-    ir_by_id: dict[str, dict[str, Any]] = {}
-    ir_by_lkm: dict[str, dict[str, Any]] = {}
-    for k in ir.get("knowledges", []) or []:
-        kid = k.get("id")
-        if isinstance(kid, str):
-            ir_by_id[kid] = k
-        meta = k.get("metadata") or {}
-        lid = meta.get("lkm_id")
-        if isinstance(lid, str) and lid:
-            ir_by_lkm[lid] = k
-
     strategies = ir.get("strategies", []) or []
     operators = ir.get("operators", []) or []
-
-    # Track which knowledge ids are derived (a strategy or operator
-    # concludes them); knowledge nodes that aren't `setting`, `exported`,
-    # or `derived` fall through to `premise`.
-    derived_ids: set[str] = set()
-    for s in strategies:
-        c = s.get("conclusion")
-        if isinstance(c, str):
-            derived_ids.add(c)
-    for o in operators:
-        c = o.get("conclusion")
-        if isinstance(c, str):
-            derived_ids.add(c)
-
-    def _knowledge_subkind(k: dict[str, Any]) -> str:
-        if k.get("type") == "setting":
-            return "setting"
-        if k.get("exported"):
-            return "exported"
-        if k.get("id") in derived_ids:
-            return "derived"
-        return "claim"
-
-    # Map IR knowledge id → its lkm_id (or fall through to id when the
-    # knowledge doesn't carry one) so we can resolve operator/strategy
-    # conclusion ids to their post-rekey layout keys.
-    id_to_layout_key: dict[str, str] = {}
-    for k in ir.get("knowledges", []) or []:
-        kid = k.get("id")
-        if not isinstance(kid, str):
-            continue
-        meta = k.get("metadata") or {}
-        lid = meta.get("lkm_id")
-        if isinstance(lid, str) and lid and lid in nodes:
-            id_to_layout_key[kid] = lid
-        elif kid in nodes:
-            id_to_layout_key[kid] = kid
+    ir_by_id, ir_by_lkm = _layout_knowledge_indexes(ir)
+    derived_ids = _layout_derived_knowledge_ids(strategies, operators)
+    id_to_layout_key = _layout_id_to_key(ir, nodes)
 
     for key, value in list(nodes.items()):
         if not isinstance(value, dict):
             continue
-        # Strategy entry.
-        if key.startswith("strat_"):
-            try:
-                idx = int(key.split("_", 1)[1])
-            except (ValueError, IndexError):
-                continue
-            if 0 <= idx < len(strategies):
-                s = strategies[idx]
-                stype = s.get("type", "") or ""
-                value["kind"] = "strategy"
-                value["strategy_type"] = stype
-                value["label"] = stype
-                # Link to its conclusion + premises in layout-key space so
-                # the replay store can co-admit the strategy's incident
-                # claims when this strategy lands.
-                concl_layout_key = id_to_layout_key.get(s.get("conclusion") or "")
-                if concl_layout_key:
-                    value["conclusion_id"] = concl_layout_key
-                premise_keys = [
-                    id_to_layout_key[p] for p in (s.get("premises") or []) if p in id_to_layout_key
-                ]
-                if premise_keys:
-                    value["premise_ids"] = premise_keys
+        if _annotate_strategy_layout_node(key, value, strategies, id_to_layout_key):
             continue
-        # Operator entry.
-        if key.startswith("oper_"):
-            try:
-                idx = int(key.split("_", 1)[1])
-            except (ValueError, IndexError):
-                continue
-            if 0 <= idx < len(operators):
-                o = operators[idx]
-                otype = o.get("operator", "") or ""
-                value["kind"] = "operator"
-                value["operator_type"] = otype
-                if otype == _CONTRADICTION:
-                    value["label"] = "⊗ contradiction"
-                else:
-                    value["label"] = f"⊙ {otype}".rstrip()
-                # Link to its conclusion + variables in layout-key space.
-                # Important for contradiction / equivalence — the static
-                # DOT renders both the operator hexagon AND the helper
-                # claim that holds the conclusion as a knowledge box, so
-                # the replay must admit both in tandem when the operator
-                # action lands.
-                concl_layout_key = id_to_layout_key.get(o.get("conclusion") or "")
-                if concl_layout_key:
-                    value["conclusion_id"] = concl_layout_key
-                variable_keys = [
-                    id_to_layout_key[v] for v in (o.get("variables") or []) if v in id_to_layout_key
-                ]
-                if variable_keys:
-                    value["variable_ids"] = variable_keys
+        if _annotate_operator_layout_node(key, value, operators, id_to_layout_key):
             continue
-        # Knowledge entry — try lkm_id first (post-rekey), then raw IR id.
-        k = ir_by_lkm.get(key) or ir_by_id.get(key)
-        if k is None:
-            continue
-        sub = _knowledge_subkind(k)
-        value["kind"] = "knowledge"
-        value["sub_kind"] = sub
-        title = k.get("title") or k.get("label") or ""
-        value["label"] = ("★ " if k.get("exported") else "") + str(title)
-        value["exported"] = bool(k.get("exported"))
-        value["module"] = k.get("module")
-        prior = (k.get("metadata") or {}).get("prior")
-        if isinstance(prior, (int, float)):
-            value["prior"] = float(prior)
-        # Defensive: if IR knowledge dict carries `prior` directly (some
-        # tooling stamps it at the top level rather than under metadata).
-        elif isinstance(k.get("prior"), (int, float)):
-            value["prior"] = float(k["prior"])
+        _annotate_knowledge_layout_node(key, value, ir_by_id, ir_by_lkm, derived_ids)
 
     return layout
 
@@ -954,6 +982,115 @@ def bridge_event_symbols_to_layout(
     return layout, warnings
 
 
+def _mark_all_ticks_surviving(ticks: list[dict[str, Any]]) -> None:
+    """Set the survival flag to True for all ticks."""
+    for tick in ticks:
+        tick["survives_to_final"] = True
+
+
+def _surviving_layout_entity_keys(
+    layout_nodes: dict[str, Any],
+    ir: dict[str, Any],
+) -> tuple[set[str], set[str]]:
+    """Return layout keys for final-IR strategy and operator entries."""
+    surviving_strat_keys: set[str] = set()
+    surviving_oper_keys: set[str] = set()
+    n_strats = len(ir.get("strategies", []) or [])
+    n_opers = len(ir.get("operators", []) or [])
+    for key, value in layout_nodes.items():
+        if not isinstance(value, dict):
+            continue
+        kind = value.get("kind")
+        cid = value.get("canonical_id") or key
+        if kind == "strategy" and cid.startswith("strat_"):
+            _add_indexed_survivor(key, cid, n_strats, surviving_strat_keys)
+        elif kind == "operator" and cid.startswith("oper_"):
+            _add_indexed_survivor(key, cid, n_opers, surviving_oper_keys)
+    return surviving_strat_keys, surviving_oper_keys
+
+
+def _add_indexed_survivor(key: str, canonical_id: str, limit: int, survivors: set[str]) -> None:
+    """Add key when canonical ``prefix_<idx>`` is within the final IR range."""
+    try:
+        idx = int(canonical_id.split("_", 1)[1])
+    except (ValueError, IndexError):
+        return
+    if 0 <= idx < limit:
+        survivors.add(key)
+
+
+def _surviving_knowledge_symbols(ir: dict[str, Any]) -> set[str]:
+    """Return IR ids and lkm ids that resolve to final-IR knowledge."""
+    symbols: set[str] = set()
+    for knowledge in ir.get("knowledges", []) or []:
+        kid = knowledge.get("id")
+        if isinstance(kid, str) and kid:
+            symbols.add(kid)
+        lid = (knowledge.get("metadata") or {}).get("lkm_id")
+        if isinstance(lid, str) and lid:
+            symbols.add(lid)
+    return symbols
+
+
+def _prior_target_survives(ev: dict[str, Any], surviving_knowledge_symbols: set[str]) -> bool:
+    """Best-effort prior survival check."""
+    payload = ev.get("payload") or {}
+    candidates: list[str] = []
+    target_lkm = payload.get("target_lkm_id")
+    if isinstance(target_lkm, str) and target_lkm:
+        candidates.append(target_lkm)
+    priors = payload.get("priors")
+    if isinstance(priors, dict):
+        candidates.extend(k for k in priors if isinstance(k, str))
+    claim_ids = payload.get("claim_ids")
+    if isinstance(claim_ids, list):
+        candidates.extend(c for c in claim_ids if isinstance(c, str))
+    delta = ev.get("graph_delta") or {}
+    for edge in delta.get("edges_added") or []:
+        if edge.get("kind") == "prior" and isinstance(edge.get("to"), str):
+            candidates.append(edge["to"])
+    if not candidates:
+        return True
+    return any(candidate in surviving_knowledge_symbols for candidate in candidates)
+
+
+def _tick_survives_to_final(
+    tick: dict[str, Any],
+    *,
+    events: list[dict[str, Any]],
+    surviving_knowledge_symbols: set[str],
+    surviving_strat_keys: set[str],
+    surviving_oper_keys: set[str],
+) -> bool:
+    """Return whether one tick resolves to the final IR/layout."""
+    action = tick.get("action") or {}
+    kind = action.get("action")
+    symbol = action.get("symbol")
+
+    if kind == "claim":
+        return symbol in surviving_knowledge_symbols if isinstance(symbol, str) and symbol else True
+    if kind in ("deduction", "support"):
+        return symbol in surviving_strat_keys if isinstance(symbol, str) and symbol else True
+    if kind in ("contradiction", "equivalence"):
+        return symbol in surviving_oper_keys if isinstance(symbol, str) and symbol else True
+    if kind == "prior":
+        ev_idx = tick.get("event_index")
+        ev = events[ev_idx] if isinstance(ev_idx, int) and 0 <= ev_idx < len(events) else None
+        return _prior_target_survives(ev, surviving_knowledge_symbols) if ev is not None else True
+    return True
+
+
+def _orphan_tick_warning(tick: dict[str, Any]) -> str:
+    """Return the orphan warning for a non-surviving tick."""
+    action = tick.get("action") or {}
+    return (
+        f"orphan IR-tick {tick.get('tick_index')!r} "
+        f"(event {tick.get('event_id')!r}, action={action.get('action')!r}, "
+        f"symbol={action.get('symbol')!r}) — symbol does not resolve to the final IR; "
+        f"hidden from canvas, marker desaturated on timeline."
+    )
+
+
 def annotate_ticks_with_survival(
     ticks: list[dict[str, Any]],
     events: list[dict[str, Any]],
@@ -998,127 +1135,28 @@ def annotate_ticks_with_survival(
     # When we don't have enough context to judge, default everything True
     # (matches pre-fix behaviour for fixtures without IR / layout).
     if not layout or not ir:
-        for t in ticks:
-            t["survives_to_final"] = True
+        _mark_all_ticks_surviving(ticks)
         return ticks, warnings
 
     layout_nodes = layout.get("nodes") or {}
     if not isinstance(layout_nodes, dict):
-        for t in ticks:
-            t["survives_to_final"] = True
+        _mark_all_ticks_surviving(ticks)
         return ticks, warnings
 
-    # Build the set of layout keys that map to a surviving strategy /
-    # operator. The bridge stamps ``canonical_id`` on aliased entries; we
-    # accept either form (canonical or alias) as "this strategy/operator
-    # is in the final IR".
-    surviving_strat_keys: set[str] = set()
-    surviving_oper_keys: set[str] = set()
-    n_strats = len(ir.get("strategies", []) or [])
-    n_opers = len(ir.get("operators", []) or [])
-    for key, value in layout_nodes.items():
-        if not isinstance(value, dict):
-            continue
-        kind = value.get("kind")
-        cid = value.get("canonical_id") or key
-        if kind == "strategy":
-            # canonical_id should be strat_<i> for both the canonical entry
-            # and any bridged aliases. Accept the entry only if its
-            # underlying strategy index is in range of the final IR.
-            if cid.startswith("strat_"):
-                try:
-                    idx = int(cid.split("_", 1)[1])
-                except (ValueError, IndexError):
-                    continue
-                if 0 <= idx < n_strats:
-                    surviving_strat_keys.add(key)
-        elif kind == "operator" and cid.startswith("oper_"):
-            try:
-                idx = int(cid.split("_", 1)[1])
-            except (ValueError, IndexError):
-                continue
-            if 0 <= idx < n_opers:
-                surviving_oper_keys.add(key)
-
-    # Build the set of "knowledge symbols" that resolve to a final-IR
-    # knowledge: every IR knowledge id + every IR knowledge metadata.lkm_id.
-    surviving_knowledge_symbols: set[str] = set()
-    for k in ir.get("knowledges", []) or []:
-        kid = k.get("id")
-        if isinstance(kid, str) and kid:
-            surviving_knowledge_symbols.add(kid)
-        meta = k.get("metadata") or {}
-        lid = meta.get("lkm_id")
-        if isinstance(lid, str) and lid:
-            surviving_knowledge_symbols.add(lid)
-
-    def _prior_target_survives(ev: dict[str, Any]) -> bool:
-        """Best-effort prior survival check.
-
-        Inspects the parent event's payload + graph_delta for any target
-        node id that resolves to a final-IR knowledge. Returns True when
-        at least one target survives, OR when no targets can be located
-        at all (priors are a side channel; default to surviving).
-        """
-        payload = ev.get("payload") or {}
-        candidates: list[str] = []
-        target_lkm = payload.get("target_lkm_id")
-        if isinstance(target_lkm, str) and target_lkm:
-            candidates.append(target_lkm)
-        priors = payload.get("priors")
-        if isinstance(priors, dict):
-            candidates.extend(k for k in priors if isinstance(k, str))
-        claim_ids = payload.get("claim_ids")
-        if isinstance(claim_ids, list):
-            candidates.extend(c for c in claim_ids if isinstance(c, str))
-        delta = ev.get("graph_delta") or {}
-        for e in delta.get("edges_added") or []:
-            if e.get("kind") == "prior" and isinstance(e.get("to"), str):
-                candidates.append(e["to"])
-        if not candidates:
-            return True
-        return any(c in surviving_knowledge_symbols for c in candidates)
+    surviving_strat_keys, surviving_oper_keys = _surviving_layout_entity_keys(layout_nodes, ir)
+    surviving_knowledge_symbols = _surviving_knowledge_symbols(ir)
 
     for tick in ticks:
-        action = tick.get("action") or {}
-        kind = action.get("action")
-        symbol = action.get("symbol")
-
-        survives = True
-        if kind == "claim":
-            if isinstance(symbol, str) and symbol:
-                survives = symbol in surviving_knowledge_symbols
-            else:
-                # No symbol — defer to default True (no canvas content
-                # is admitted by the action either way).
-                survives = True
-        elif kind in ("deduction", "support"):
-            if isinstance(symbol, str) and symbol:
-                survives = symbol in surviving_strat_keys
-            else:
-                # Symbol-less deductions are a known shape (one action
-                # covering several edges); the reconcile-final pass
-                # admits the IR strategies anyway, so they're surviving.
-                survives = True
-        elif kind in ("contradiction", "equivalence"):
-            survives = symbol in surviving_oper_keys if isinstance(symbol, str) and symbol else True
-        elif kind == "prior":
-            ev_idx = tick.get("event_index")
-            ev = events[ev_idx] if isinstance(ev_idx, int) and 0 <= ev_idx < len(events) else None
-            survives = _prior_target_survives(ev) if ev is not None else True
-        else:
-            # Anything else (metadata_update, contradiction_prior_modified,
-            # ...) doesn't add canvas content; treat as surviving.
-            survives = True
-
+        survives = _tick_survives_to_final(
+            tick,
+            events=events,
+            surviving_knowledge_symbols=surviving_knowledge_symbols,
+            surviving_strat_keys=surviving_strat_keys,
+            surviving_oper_keys=surviving_oper_keys,
+        )
         tick["survives_to_final"] = survives
         if not survives:
-            warnings.append(
-                f"orphan IR-tick {tick.get('tick_index')!r} "
-                f"(event {tick.get('event_id')!r}, action={kind!r}, "
-                f"symbol={symbol!r}) — symbol does not resolve to the final IR; "
-                f"hidden from canvas, marker desaturated on timeline."
-            )
+            warnings.append(_orphan_tick_warning(tick))
 
     return ticks, warnings
 

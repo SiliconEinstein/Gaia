@@ -32,6 +32,19 @@ class InquiryNode:
         return not any(edge.kind != _CANDIDATE_RELATION_EDGE_KIND for edge in self.incoming)
 
 
+@dataclass(frozen=True)
+class _GoalTreeIndexes:
+    """Precomputed lookup tables for goal-tree construction."""
+
+    knowledge_by_id: dict[str, dict[str, Any]]
+    strategies_by_conclusion: dict[str, list[dict[str, Any]]]
+    operators_by_conclusion: dict[str, list[dict[str, Any]]]
+    composes_by_conclusion: dict[str, list[dict[str, Any]]]
+    scaffolds_by_conclusion: dict[str, list[dict[str, Any]]]
+    candidate_relations_by_claim: dict[str, list[dict[str, Any]]]
+    actions_by_warrant: dict[str, list[dict[str, Any]]]
+
+
 def _knowledge_label(knowledge: dict[str, Any]) -> str:
     label = knowledge.get("label") or str(knowledge.get("id", "")).split("::")[-1]
     return str(label)
@@ -84,30 +97,26 @@ def _exported_claim_ids(ir: dict[str, Any]) -> set[str]:
     }
 
 
-def build_goal_trees(
-    ir: dict[str, Any],
-    review_manifest: ReviewManifest,
-    exported_ids: set[str] | None = None,
-    formalization_manifest: dict[str, Any] | None = None,
-) -> list[InquiryNode]:
-    """Build dependency trees by walking backward from exported Claims."""
-    goal_ids = exported_ids or _exported_claim_ids(ir)
-    knowledge_by_id = {
+def _goal_tree_knowledge_index(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return claim knowledge nodes keyed by id."""
+    return {
         knowledge["id"]: knowledge
         for knowledge in ir.get("knowledges", [])
         if knowledge.get("id") and knowledge.get("type") == "claim"
     }
 
+
+def _goal_tree_strategy_indexes(
+    ir: dict[str, Any],
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+    """Build strategy conclusion and warrant indexes."""
     strategies_by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    actions_by_warrant: dict[str, list[dict[str, Any]]] = {}
     for strategy in ir.get("strategies", []):
         conclusion = strategy.get("conclusion")
         if conclusion:
             strategies_by_conclusion.setdefault(conclusion, []).append(strategy)
-
-    actions_by_warrant: dict[str, list[dict[str, Any]]] = {}
-    for strategy in ir.get("strategies", []):
         strategy_id = strategy.get("strategy_id")
-        conclusion = strategy.get("conclusion")
         dependencies = [*strategy.get("premises", []), conclusion]
         for warrant in _metadata_warrants(strategy.get("metadata")):
             if warrant != conclusion:
@@ -120,7 +129,14 @@ def build_goal_trees(
                         "dependencies": dependencies,
                     }
                 )
+    return strategies_by_conclusion, actions_by_warrant
 
+
+def _goal_tree_operator_indexes(
+    ir: dict[str, Any],
+    actions_by_warrant: dict[str, list[dict[str, Any]]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Build operator conclusion index and append warrant actions."""
     operators_by_conclusion: dict[str, list[dict[str, Any]]] = {}
     for operator in ir.get("operators", []):
         conclusion = operator.get("conclusion")
@@ -138,13 +154,23 @@ def build_goal_trees(
                         "dependencies": dependencies,
                     }
                 )
+    return operators_by_conclusion
 
+
+def _goal_tree_compose_index(ir: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Build compose conclusion index."""
     composes_by_conclusion: dict[str, list[dict[str, Any]]] = {}
     for compose in ir.get("composes", []):
         conclusion = compose.get("conclusion")
         if conclusion:
             composes_by_conclusion.setdefault(conclusion, []).append(compose)
+    return composes_by_conclusion
 
+
+def _goal_tree_scaffold_indexes(
+    formalization_manifest: dict[str, Any] | None,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+    """Index depends_on and candidate-relation scaffold entries."""
     scaffolds_by_conclusion: dict[str, list[dict[str, Any]]] = {}
     candidate_relations_by_claim: dict[str, list[dict[str, Any]]] = {}
     for dependency in (formalization_manifest or {}).get("dependencies", []):
@@ -162,124 +188,241 @@ def build_goal_trees(
             for claim_id in claims:
                 if isinstance(claim_id, str) and claim_id:
                     candidate_relations_by_claim.setdefault(claim_id, []).append(dependency)
+    return scaffolds_by_conclusion, candidate_relations_by_claim
 
-    def build_node(knowledge_id: str, seen: set[str]) -> InquiryNode:
-        knowledge = knowledge_by_id.get(knowledge_id, {"id": knowledge_id, "content": ""})
-        node = InquiryNode(
-            knowledge_id=knowledge_id,
-            label=_knowledge_label(knowledge),
-            content=knowledge.get("content", ""),
-        )
-        if knowledge_id in seen:
-            return node
-        next_seen = {*seen, knowledge_id}
 
-        for entry in _observation_support_entries(knowledge):
-            action_label = entry.get("action_label")
-            target_id = action_label if isinstance(action_label, str) and action_label else None
-            node.incoming.append(
-                InquiryEdge(
-                    kind="observe",
-                    label=_action_label({"action_label": action_label}, "observe"),
-                    target_id=target_id,
-                    status=_review_status(review_manifest, target_id),
-                    inputs=[],
-                )
+def _goal_tree_indexes(
+    ir: dict[str, Any],
+    formalization_manifest: dict[str, Any] | None,
+) -> _GoalTreeIndexes:
+    """Build all goal-tree lookup tables."""
+    strategies_by_conclusion, actions_by_warrant = _goal_tree_strategy_indexes(ir)
+    scaffolds_by_conclusion, candidate_relations_by_claim = _goal_tree_scaffold_indexes(
+        formalization_manifest
+    )
+    return _GoalTreeIndexes(
+        knowledge_by_id=_goal_tree_knowledge_index(ir),
+        strategies_by_conclusion=strategies_by_conclusion,
+        operators_by_conclusion=_goal_tree_operator_indexes(ir, actions_by_warrant),
+        composes_by_conclusion=_goal_tree_compose_index(ir),
+        scaffolds_by_conclusion=scaffolds_by_conclusion,
+        candidate_relations_by_claim=candidate_relations_by_claim,
+        actions_by_warrant=actions_by_warrant,
+    )
+
+
+def _append_observation_edges(
+    node: InquiryNode,
+    knowledge: dict[str, Any],
+    review_manifest: ReviewManifest,
+) -> None:
+    """Append observation support entries attached to a knowledge node."""
+    for entry in _observation_support_entries(knowledge):
+        action_label = entry.get("action_label")
+        target_id = action_label if isinstance(action_label, str) and action_label else None
+        node.incoming.append(
+            InquiryEdge(
+                kind="observe",
+                label=_action_label({"action_label": action_label}, "observe"),
+                target_id=target_id,
+                status=_review_status(review_manifest, target_id),
+                inputs=[],
             )
+        )
 
-        for strategy in strategies_by_conclusion.get(knowledge_id, []):
-            strategy_id = strategy.get("strategy_id")
-            edge = InquiryEdge(
+
+def _append_strategy_edges(
+    node: InquiryNode,
+    knowledge_id: str,
+    next_seen: set[str],
+    indexes: _GoalTreeIndexes,
+    review_manifest: ReviewManifest,
+) -> None:
+    """Append strategy edges that conclude a node."""
+    for strategy in indexes.strategies_by_conclusion.get(knowledge_id, []):
+        strategy_id = strategy.get("strategy_id")
+        node.incoming.append(
+            InquiryEdge(
                 kind="strategy",
                 label=_action_label(strategy.get("metadata"), strategy_id or "strategy"),
                 target_id=strategy_id,
                 status=_review_status(review_manifest, strategy_id),
                 inputs=[
-                    build_node(premise, next_seen)
+                    _build_goal_node(premise, next_seen, indexes, review_manifest)
                     for premise in strategy.get("premises", [])
                     if premise
                 ],
             )
-            node.incoming.append(edge)
+        )
 
-        for operator in operators_by_conclusion.get(knowledge_id, []):
-            operator_id = operator.get("operator_id")
-            edge = InquiryEdge(
+
+def _append_operator_edges(
+    node: InquiryNode,
+    knowledge_id: str,
+    next_seen: set[str],
+    indexes: _GoalTreeIndexes,
+    review_manifest: ReviewManifest,
+) -> None:
+    """Append operator edges that conclude a node."""
+    for operator in indexes.operators_by_conclusion.get(knowledge_id, []):
+        operator_id = operator.get("operator_id")
+        node.incoming.append(
+            InquiryEdge(
                 kind="operator",
                 label=_action_label(operator.get("metadata"), operator_id or "operator"),
                 target_id=operator_id,
                 status=_review_status(review_manifest, operator_id),
                 inputs=[
-                    build_node(variable, next_seen)
+                    _build_goal_node(variable, next_seen, indexes, review_manifest)
                     for variable in operator.get("variables", [])
                     if variable
                 ],
             )
-            node.incoming.append(edge)
+        )
 
-        for compose in composes_by_conclusion.get(knowledge_id, []):
-            compose_id = compose.get("compose_id")
-            dependencies = [
-                ref for ref in [*compose.get("inputs", []), *compose.get("warrants", [])] if ref
-            ]
-            edge = InquiryEdge(
+
+def _append_compose_edges(
+    node: InquiryNode,
+    knowledge_id: str,
+    next_seen: set[str],
+    indexes: _GoalTreeIndexes,
+    review_manifest: ReviewManifest,
+) -> None:
+    """Append compose edges that conclude a node."""
+    for compose in indexes.composes_by_conclusion.get(knowledge_id, []):
+        compose_id = compose.get("compose_id")
+        dependencies = [
+            ref for ref in [*compose.get("inputs", []), *compose.get("warrants", [])] if ref
+        ]
+        node.incoming.append(
+            InquiryEdge(
                 kind="compose",
                 label=_action_label(compose.get("metadata"), compose_id or "compose"),
                 target_id=compose_id,
                 status=_review_status(review_manifest, compose_id),
-                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(dependencies)],
+                inputs=[
+                    _build_goal_node(ref, next_seen, indexes, review_manifest)
+                    for ref in dict.fromkeys(dependencies)
+                ],
             )
-            node.incoming.append(edge)
+        )
 
-        for scaffold in scaffolds_by_conclusion.get(knowledge_id, []):
-            label = scaffold.get("label") or scaffold.get("id") or "depends_on"
-            inputs = [ref for ref in scaffold.get("given", []) if isinstance(ref, str) and ref]
-            edge = InquiryEdge(
+
+def _append_scaffold_edges(
+    node: InquiryNode,
+    knowledge_id: str,
+    seen: set[str],
+    next_seen: set[str],
+    indexes: _GoalTreeIndexes,
+    review_manifest: ReviewManifest,
+) -> None:
+    """Append formalization scaffold edges."""
+    for scaffold in indexes.scaffolds_by_conclusion.get(knowledge_id, []):
+        label = scaffold.get("label") or scaffold.get("id") or "depends_on"
+        inputs = [ref for ref in scaffold.get("given", []) if isinstance(ref, str) and ref]
+        node.incoming.append(
+            InquiryEdge(
                 kind="scaffold",
                 label=str(label),
                 target_id=scaffold.get("id") if isinstance(scaffold.get("id"), str) else None,
                 status=scaffold.get("status") if isinstance(scaffold.get("status"), str) else None,
-                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(inputs)],
+                inputs=[
+                    _build_goal_node(ref, next_seen, indexes, review_manifest)
+                    for ref in dict.fromkeys(inputs)
+                ],
             )
-            node.incoming.append(edge)
+        )
 
-        for scaffold in candidate_relations_by_claim.get(knowledge_id, []):
-            claims = scaffold.get("claims") or []
-            inputs = [ref for ref in claims if isinstance(ref, str) and ref and ref != knowledge_id]
-            if any(ref in seen for ref in inputs):
-                continue
-            edge = InquiryEdge(
+    for scaffold in indexes.candidate_relations_by_claim.get(knowledge_id, []):
+        claims = scaffold.get("claims") or []
+        inputs = [ref for ref in claims if isinstance(ref, str) and ref and ref != knowledge_id]
+        if any(ref in seen for ref in inputs):
+            continue
+        node.incoming.append(
+            InquiryEdge(
                 kind=_CANDIDATE_RELATION_EDGE_KIND,
                 label=_candidate_relation_label(scaffold),
                 target_id=scaffold.get("id") if isinstance(scaffold.get("id"), str) else None,
                 status=scaffold.get("status") if isinstance(scaffold.get("status"), str) else None,
-                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(inputs)],
+                inputs=[
+                    _build_goal_node(ref, next_seen, indexes, review_manifest)
+                    for ref in dict.fromkeys(inputs)
+                ],
             )
-            node.incoming.append(edge)
+        )
 
-        seen_targets = {edge.target_id for edge in node.incoming if edge.target_id}
-        for action in actions_by_warrant.get(knowledge_id, []):
-            target_id = action.get("target_id")
-            if target_id in seen_targets:
-                continue
-            dependencies = [
-                ref for ref in action.get("dependencies", []) if isinstance(ref, str) and ref
-            ]
-            edge = InquiryEdge(
+
+def _append_warrant_edges(
+    node: InquiryNode,
+    knowledge_id: str,
+    next_seen: set[str],
+    indexes: _GoalTreeIndexes,
+    review_manifest: ReviewManifest,
+) -> None:
+    """Append metadata warrant edges not already represented by target id."""
+    seen_targets = {edge.target_id for edge in node.incoming if edge.target_id}
+    for action in indexes.actions_by_warrant.get(knowledge_id, []):
+        target_id = action.get("target_id")
+        if target_id in seen_targets:
+            continue
+        dependencies = [
+            ref for ref in action.get("dependencies", []) if isinstance(ref, str) and ref
+        ]
+        node.incoming.append(
+            InquiryEdge(
                 kind=action.get("kind", "warrant"),
                 label=_action_label(action.get("metadata"), action.get("fallback", "warrant")),
                 target_id=target_id,
                 status=_review_status(review_manifest, target_id),
-                inputs=[build_node(ref, next_seen) for ref in dict.fromkeys(dependencies)],
+                inputs=[
+                    _build_goal_node(ref, next_seen, indexes, review_manifest)
+                    for ref in dict.fromkeys(dependencies)
+                ],
             )
-            node.incoming.append(edge)
-            if target_id:
-                seen_targets.add(target_id)
+        )
+        if target_id:
+            seen_targets.add(target_id)
 
+
+def _build_goal_node(
+    knowledge_id: str,
+    seen: set[str],
+    indexes: _GoalTreeIndexes,
+    review_manifest: ReviewManifest,
+) -> InquiryNode:
+    """Recursively build one inquiry goal node."""
+    knowledge = indexes.knowledge_by_id.get(knowledge_id, {"id": knowledge_id, "content": ""})
+    node = InquiryNode(
+        knowledge_id=knowledge_id,
+        label=_knowledge_label(knowledge),
+        content=knowledge.get("content", ""),
+    )
+    if knowledge_id in seen:
         return node
+    next_seen = {*seen, knowledge_id}
 
+    _append_observation_edges(node, knowledge, review_manifest)
+    _append_strategy_edges(node, knowledge_id, next_seen, indexes, review_manifest)
+    _append_operator_edges(node, knowledge_id, next_seen, indexes, review_manifest)
+    _append_compose_edges(node, knowledge_id, next_seen, indexes, review_manifest)
+    _append_scaffold_edges(node, knowledge_id, seen, next_seen, indexes, review_manifest)
+    _append_warrant_edges(node, knowledge_id, next_seen, indexes, review_manifest)
+    return node
+
+
+def build_goal_trees(
+    ir: dict[str, Any],
+    review_manifest: ReviewManifest,
+    exported_ids: set[str] | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
+) -> list[InquiryNode]:
+    """Build dependency trees by walking backward from exported Claims."""
+    goal_ids = exported_ids or _exported_claim_ids(ir)
+    indexes = _goal_tree_indexes(ir, formalization_manifest)
     return [
-        build_node(goal_id, set()) for goal_id in sorted(goal_ids) if goal_id in knowledge_by_id
+        _build_goal_node(goal_id, set(), indexes, review_manifest)
+        for goal_id in sorted(goal_ids)
+        if goal_id in indexes.knowledge_by_id
     ]
 
 
