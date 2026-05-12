@@ -35,34 +35,105 @@ def _spec(kind: DistributionKind, **params: Any) -> DistributionLiteral:
 
 
 def Normal(*, sigma: Any, mu: Any = 0.0) -> DistributionLiteral:
+    """Create a metadata literal for a normal distribution.
+
+    Args:
+        sigma: Distribution scale parameter, either numeric or a Gaia quantity.
+        mu: Distribution location parameter, either numeric or a Gaia quantity.
+
+    Returns:
+        A distribution literal with kind ``normal``.
+    """
     return _spec("normal", mu=mu, sigma=sigma)
 
 
 def LogNormal(*, sigma: Any, mu: Any = 0.0) -> DistributionLiteral:
+    """Create a metadata literal for a log-normal distribution.
+
+    Args:
+        sigma: Distribution scale parameter, either numeric or a Gaia quantity.
+        mu: Distribution log-location parameter, either numeric or a Gaia quantity.
+
+    Returns:
+        A distribution literal with kind ``lognormal``.
+    """
     return _spec("lognormal", mu=mu, sigma=sigma)
 
 
 def StudentT(*, df: float, sigma: Any, mu: Any = 0.0) -> DistributionLiteral:
+    """Create a metadata literal for a Student's t distribution.
+
+    Args:
+        df: Degrees of freedom.
+        sigma: Distribution scale parameter, either numeric or a Gaia quantity.
+        mu: Distribution location parameter, either numeric or a Gaia quantity.
+
+    Returns:
+        A distribution literal with kind ``student_t``.
+    """
     return _spec("student_t", df=df, mu=mu, sigma=sigma)
 
 
 def Cauchy(*, gamma: Any, mu: Any = 0.0) -> DistributionLiteral:
+    """Create a metadata literal for a Cauchy distribution.
+
+    Args:
+        gamma: Distribution scale parameter, either numeric or a Gaia quantity.
+        mu: Distribution location parameter, either numeric or a Gaia quantity.
+
+    Returns:
+        A distribution literal with kind ``cauchy``.
+    """
     return _spec("cauchy", mu=mu, gamma=gamma)
 
 
 def Binomial(*, n: int, p: float) -> DistributionLiteral:
+    """Create a metadata literal for a binomial distribution.
+
+    Args:
+        n: Number of Bernoulli trials.
+        p: Success probability for each trial.
+
+    Returns:
+        A distribution literal with kind ``binomial``.
+    """
     return _spec("binomial", n=n, p=p)
 
 
 def Poisson(*, rate: Any) -> DistributionLiteral:
+    """Create a metadata literal for a Poisson distribution.
+
+    Args:
+        rate: Expected event rate, either numeric or a Gaia quantity.
+
+    Returns:
+        A distribution literal with kind ``poisson``.
+    """
     return _spec("poisson", rate=rate)
 
 
 def Exponential(*, rate: Any) -> DistributionLiteral:
+    """Create a metadata literal for an exponential distribution.
+
+    Args:
+        rate: Event rate parameter, either numeric or a Gaia quantity.
+
+    Returns:
+        A distribution literal with kind ``exponential``.
+    """
     return _spec("exponential", rate=rate)
 
 
 def Beta(*, alpha: float, beta: float) -> DistributionLiteral:
+    """Create a metadata literal for a beta distribution.
+
+    Args:
+        alpha: First positive shape parameter.
+        beta: Second positive shape parameter.
+
+    Returns:
+        A distribution literal with kind ``beta``.
+    """
     return _spec("beta", alpha=alpha, beta=beta)
 
 
@@ -83,6 +154,18 @@ def custom_distribution(
     params: dict[str, Any] | None = None,
     purity: Literal["pure", "impure", "unknown"] = "unknown",
 ) -> DistributionLiteral:
+    """Create a metadata literal for an author-provided distribution function.
+
+    Args:
+        fn: Callable that implements or identifies the distribution.
+        name: Stable distribution name for the callable reference.
+        version: Optional version string for the callable reference.
+        params: Optional literal parameters to store with the distribution.
+        purity: Purity declaration for downstream execution policy.
+
+    Returns:
+        A custom distribution literal carrying a callable reference.
+    """
     callable_ref = CallableRef(
         name=name,
         version=version,

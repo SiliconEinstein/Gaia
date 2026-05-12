@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 2 in progress — full backfill
-**Last updated**: 2026-05-12 09:55 (Phase 2.1-tests complete)
+**Last updated**: 2026-05-12 10:00 (Phase 2.2-top complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -38,7 +38,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Progress: 9 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
-  - Progress: 9 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
+  - Progress: 10 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
 - [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 3 — Acceptance + PR**
 - [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
@@ -132,7 +132,9 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
 
 #### 2.2 Google docstrings until `ruff D` is clean (same ordering as 2.1)
 
-- [ ] **2.2-top** | [ ] **2.2-logic** | [ ] **2.2-ir** | [ ] **2.2-bp** | [ ] **2.2-lang** | [ ] **2.2-trace** | [ ] **2.2-inquiry** | [ ] **2.2-cli** | [ ] **2.2-tests**
+- [x] **2.2-top** gaia top-level files (`__init__.py`, `constants.py`, `stats.py`, `unit.py`)
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 09:58 | completed_at: 2026-05-12 10:00 | breakpoint_notes: Added the package docstring for `gaia/__init__.py` and Google-style docstrings for the public distribution literal factories in `gaia/stats.py`. No behavior, API, IR, DSL, CLI, or algorithm changes made. Verification: `uv run ruff check gaia/__init__.py gaia/constants.py gaia/stats.py gaia/unit.py --select D` => passed; `uv run mypy gaia/__init__.py gaia/constants.py gaia/stats.py gaia/unit.py --show-error-codes --no-pretty` => success for 4 source files; `uv run ruff check . --select D --statistics --exit-zero` => 451 expected remaining Phase 2.2 docstring errors outside this unit; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.29%, required 90% reached.
+- [ ] **2.2-logic** | [ ] **2.2-ir** | [ ] **2.2-bp** | [ ] **2.2-lang** | [ ] **2.2-trace** | [ ] **2.2-inquiry** | [ ] **2.2-cli** | [ ] **2.2-tests**
   - Each work unit uses the same field shape as 2.1 (status / claimed_by / claimed_at / completed_at / breakpoint_notes).
   - Brief shared across all: docstring content must **strictly match** what `docs/foundations/**` describes; empty docstrings must be filled with concrete content; no paraphrasing that adds new meaning; CN-language docstrings will trip RUF001/002/003 — handle per ruff config.
 
