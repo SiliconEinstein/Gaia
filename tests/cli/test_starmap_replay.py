@@ -1160,174 +1160,231 @@ def test_topo_reorder_handles_cross_round():
     assert any("topo_reorder: moved" in w for w in warnings)
 
 
-def _simulate_store_admission(payload: dict) -> dict:
-    """Replicate `viz/src/replay/store.ts::applyTick` admission rules in.
+def _admit_linked_layout_nodes(
+    layout_nodes: dict[str, dict], admitted_ids: set[str], anchor_id: str
+) -> None:
+    """Admit knowledge nodes linked from a strategy/operator layout entry."""
+    entry = layout_nodes.get(anchor_id) or {}
+    for key in ("conclusion_id",):
+        value = entry.get(key)
+        if isinstance(value, str) and value in layout_nodes:
+            admitted_ids.add(value)
+    for key in ("premise_ids", "variable_ids"):
+        for value in entry.get(key) or []:
+            if value in layout_nodes:
+                admitted_ids.add(value)
 
-    Python so we can assert the final-tick node set matches the static DOT
-    rendering without spinning up a browser. Returns a dict counting the
-    admitted node kinds (knowledge/strategy/operator/contradiction/
-    equivalence) plus admitted edges.
-    """
-    layout = payload.get("final_layout") or {}
-    layout_nodes: dict[str, dict] = layout.get("nodes") or {}
 
-    admitted_ids: set[str] = set()
-    admitted_edges: set[tuple] = set()
+def _canonical_layout_id(layout_nodes: dict[str, dict], symbol: str | None) -> str | None:
+    """Resolve an action symbol to a canonical layout id."""
+    if not symbol:
+        return None
+    entry = layout_nodes.get(symbol) or {}
+    canonical_id = entry.get("canonical_id")
+    if canonical_id and canonical_id in layout_nodes:
+        return canonical_id
+    return symbol
 
-    def _co_admit_linked(anchor_id: str) -> None:
-        entry = layout_nodes.get(anchor_id) or {}
-        for k in ("conclusion_id",):
-            v = entry.get(k)
-            if isinstance(v, str) and v in layout_nodes:
-                admitted_ids.add(v)
-        for k in ("premise_ids", "variable_ids"):
-            for v in entry.get(k) or []:
-                if v in layout_nodes:
-                    admitted_ids.add(v)
 
-    def _canonical_of(sym: str | None) -> str | None:
-        """Resolve action symbol → canonical layout id (strat_<i>/oper_<i>)."""
-        if not sym:
-            return None
-        entry = layout_nodes.get(sym) or {}
-        cid = entry.get("canonical_id")
-        if cid and cid in layout_nodes:
-            return cid
-        return sym
+def _admit_routed_edge(
+    edge: dict,
+    *,
+    kind: str,
+    canonical_symbol: str,
+    layout_nodes: dict[str, dict],
+    admitted_edges: set[tuple],
+) -> None:
+    """Admit an edge routed through the canonical strategy/operator hub."""
+    src = edge["from"]
+    tgt = edge["to"]
+    src_canon = _canonical_layout_id(layout_nodes, src) or src
+    tgt_canon = _canonical_layout_id(layout_nodes, tgt) or tgt
+    if src_canon == canonical_symbol:
+        admitted_edges.add((canonical_symbol, tgt, kind))
+    elif tgt_canon == canonical_symbol:
+        admitted_edges.add((src, canonical_symbol, kind))
+    else:
+        admitted_edges.add((src, canonical_symbol, kind))
+        admitted_edges.add((canonical_symbol, tgt, kind))
 
-    events = payload.get("events", [])
-    for tick in payload.get("ticks", []):
-        # Mirror the frontend's orphan-tick guard: ticks that don't
-        # survive to the final IR are skipped entirely (no node, no
-        # edge admission). The CLI flagged these on `survives_to_final`.
-        if tick.get("survives_to_final") is False:
+
+def _admit_claim_tick(action: dict, delta: dict, admitted_ids: set[str]) -> None:
+    """Admit the claim node carried by a replay tick."""
+    symbol = action.get("symbol")
+    if symbol:
+        admitted_ids.add(symbol)
+    for node in delta.get("nodes_added") or []:
+        if (node.get("kind") or "claim") != "claim":
             continue
-        ev_idx = tick["event_index"]
-        if ev_idx >= len(events):
+        if node["id"].startswith("inquiry:"):
             continue
-        ev = events[ev_idx]
-        action = tick["action"]
-        kind = action.get("action")
-        symbol = action.get("symbol")
-        canonical_symbol = _canonical_of(symbol)
-        delta = ev.get("graph_delta") or {}
-        edges = delta.get("edges_added") or []
-        nodes_added = {n["id"]: n for n in (delta.get("nodes_added") or [])}
+        admitted_ids.add(node["id"])
 
-        if kind == "claim":
-            if symbol:
-                admitted_ids.add(symbol)
-            for n in delta.get("nodes_added") or []:
-                if (n.get("kind") or "claim") != "claim":
-                    continue
-                if n["id"].startswith("inquiry:"):
-                    continue
-                admitted_ids.add(n["id"])
-        elif kind == "deduction":
-            if canonical_symbol:
-                admitted_ids.add(canonical_symbol)
-                _co_admit_linked(canonical_symbol)
-            for e in edges:
-                if e.get("kind") != "deduction":
-                    continue
-                if not (canonical_symbol and canonical_symbol in layout_nodes):
-                    continue
-                # Some lkm-to-gaia worker variants emit two-leg edges
-                # already (gcn_premise → gfac → gcn_conclusion); others
-                # emit a single direct edge (gcn_premise → gcn_conclusion).
-                # Translate either form to the canonical
-                # (premise → strat → conclusion) by replacing the gfac-
-                # endpoint with the canonical symbol.
-                src = e["from"]
-                tgt = e["to"]
-                src_canon = _canonical_of(src) or src
-                tgt_canon = _canonical_of(tgt) or tgt
-                if src_canon == canonical_symbol:
-                    # Outgoing leg (hub → conclusion).
-                    admitted_edges.add((canonical_symbol, tgt, "deduction"))
-                elif tgt_canon == canonical_symbol:
-                    # Incoming leg (premise → hub).
-                    admitted_edges.add((src, canonical_symbol, "deduction"))
-                else:
-                    # Single-leg form: split into two routed legs.
-                    admitted_edges.add((src, canonical_symbol, "deduction"))
-                    admitted_edges.add((canonical_symbol, tgt, "deduction"))
-        elif kind in ("support", "contradiction", "equivalence"):
-            if canonical_symbol:
-                admitted_ids.add(canonical_symbol)
-                _co_admit_linked(canonical_symbol)
-            kind_edges = [e for e in edges if e.get("kind") == kind]
-            pos = -1
-            for a in ev.get("gaia_actions") or []:
-                if a.get("action") == kind:
-                    pos += 1
-                if a is action:
-                    break
-            if 0 <= pos < len(kind_edges) and kind == "support":
-                e = kind_edges[pos]
-                if canonical_symbol and canonical_symbol in layout_nodes:
-                    src = e["from"]
-                    tgt = e["to"]
-                    src_canon = _canonical_of(src) or src
-                    tgt_canon = _canonical_of(tgt) or tgt
-                    if src_canon == canonical_symbol:
-                        admitted_edges.add((canonical_symbol, tgt, kind))
-                    elif tgt_canon == canonical_symbol:
-                        admitted_edges.add((src, canonical_symbol, kind))
-                    else:
-                        admitted_edges.add((src, canonical_symbol, kind))
-                        admitted_edges.add((canonical_symbol, tgt, kind))
-        # `prior` admits no node/edge; metadata-only updates ignored.
-        _ = nodes_added  # silence linter; kept for parity with store.ts
 
-    # Final-state reconciliation: mirror `store.ts::reconcileFinalLayout`
-    # — at the last tick, force-admit every layout-known strat_/oper_
-    # entry plus its linked knowledge. The canonical_id collapse already
-    # happened at tick time, so we just walk strat_/oper_ entries and
-    # admit any that haven't been admitted yet (lossy events, etc.).
-    if payload.get("ticks"):
-        for nid, entry in layout_nodes.items():
-            if entry.get("kind") not in ("strategy", "operator"):
-                continue
-            if not (nid.startswith("strat_") or nid.startswith("oper_")):
-                continue
-            if nid in admitted_ids:
-                continue
-            admitted_ids.add(nid)
-            _co_admit_linked(nid)
-        # Edge reconciliation: ensure every strat_/oper_ has its
-        # premise/variable + conclusion edges admitted, anchored on the
-        # canonical layout id (matching the static DOT). Idempotent —
-        # duplicates are de-duped by the set semantics.
-        for nid, entry in layout_nodes.items():
-            if entry.get("kind") not in ("strategy", "operator"):
-                continue
-            if not (nid.startswith("strat_") or nid.startswith("oper_")):
-                continue
-            if nid not in admitted_ids:
-                continue
-            edge_kind = (
-                entry.get("operator_type") or "contradiction"
-                if entry.get("kind") == "operator"
-                else entry.get("strategy_type") or "deduction"
-            )
-            concl = entry.get("conclusion_id")
-            if concl and concl in admitted_ids:
-                admitted_edges.add((nid, concl, edge_kind))
-            incoming = (
-                entry.get("variable_ids")
-                if entry.get("kind") == "operator"
-                else entry.get("premise_ids")
-            )
-            for upstream in incoming or []:
-                if upstream in admitted_ids:
-                    admitted_edges.add((upstream, nid, edge_kind))
+def _admit_deduction_tick(
+    edges: list[dict],
+    *,
+    canonical_symbol: str | None,
+    layout_nodes: dict[str, dict],
+    admitted_ids: set[str],
+    admitted_edges: set[tuple],
+) -> None:
+    """Admit a deduction tick and any routed deduction edges."""
+    if canonical_symbol:
+        admitted_ids.add(canonical_symbol)
+        _admit_linked_layout_nodes(layout_nodes, admitted_ids, canonical_symbol)
+    for edge in edges:
+        if edge.get("kind") != "deduction":
+            continue
+        if not (canonical_symbol and canonical_symbol in layout_nodes):
+            continue
+        _admit_routed_edge(
+            edge,
+            kind="deduction",
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_edges=admitted_edges,
+        )
 
-    # Bucket admitted ids by what the layout entry says they are. Strategy
-    # and operator entries are deduped by `canonical_id` (set by the
-    # bridge): each strat_<i>/oper_<i> contributes at most one
-    # ellipse/hexagon to the final canvas, regardless of how many event-
-    # symbol aliases the bridge admitted at the same coordinates.
+
+def _action_position_in_event(event: dict, action: dict, kind: str) -> int:
+    """Return the zero-based position of an action among same-kind event actions."""
+    position = -1
+    for candidate in event.get("gaia_actions") or []:
+        if candidate.get("action") == kind:
+            position += 1
+        if candidate is action:
+            break
+    return position
+
+
+def _admit_structural_tick(
+    event: dict,
+    action: dict,
+    edges: list[dict],
+    *,
+    kind: str,
+    canonical_symbol: str | None,
+    layout_nodes: dict[str, dict],
+    admitted_ids: set[str],
+    admitted_edges: set[tuple],
+) -> None:
+    """Admit support/contradiction/equivalence ticks."""
+    if canonical_symbol:
+        admitted_ids.add(canonical_symbol)
+        _admit_linked_layout_nodes(layout_nodes, admitted_ids, canonical_symbol)
+    kind_edges = [edge for edge in edges if edge.get("kind") == kind]
+    position = _action_position_in_event(event, action, kind)
+    if not (0 <= position < len(kind_edges) and kind == "support"):
+        return
+    if canonical_symbol and canonical_symbol in layout_nodes:
+        _admit_routed_edge(
+            kind_edges[position],
+            kind=kind,
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_edges=admitted_edges,
+        )
+
+
+def _admit_replay_tick(
+    tick: dict,
+    events: list[dict],
+    *,
+    layout_nodes: dict[str, dict],
+    admitted_ids: set[str],
+    admitted_edges: set[tuple],
+) -> None:
+    """Apply one replay tick's node and edge admission rules."""
+    # Mirror the frontend's orphan-tick guard: ticks that don't survive
+    # to the final IR are skipped entirely (no node, no edge admission).
+    if tick.get("survives_to_final") is False:
+        return
+    event_index = tick["event_index"]
+    if event_index >= len(events):
+        return
+    event = events[event_index]
+    action = tick["action"]
+    kind = action.get("action")
+    canonical_symbol = _canonical_layout_id(layout_nodes, action.get("symbol"))
+    delta = event.get("graph_delta") or {}
+    edges = delta.get("edges_added") or []
+    nodes_added = {node["id"]: node for node in (delta.get("nodes_added") or [])}
+
+    if kind == "claim":
+        _admit_claim_tick(action, delta, admitted_ids)
+    elif kind == "deduction":
+        _admit_deduction_tick(
+            edges,
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_ids=admitted_ids,
+            admitted_edges=admitted_edges,
+        )
+    elif kind in ("support", "contradiction", "equivalence"):
+        _admit_structural_tick(
+            event,
+            action,
+            edges,
+            kind=kind,
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_ids=admitted_ids,
+            admitted_edges=admitted_edges,
+        )
+    # `prior` admits no node/edge; metadata-only updates ignored.
+    _ = nodes_added  # kept for parity with store.ts input validation
+
+
+def _is_final_layout_hub(node_id: str, entry: dict) -> bool:
+    """Return whether a layout entry is a canonical strategy/operator hub."""
+    return entry.get("kind") in ("strategy", "operator") and (
+        node_id.startswith("strat_") or node_id.startswith("oper_")
+    )
+
+
+def _reconciled_edge_kind(entry: dict) -> str:
+    """Return the frontend fallback edge kind for a reconciled hub."""
+    if entry.get("kind") == "operator":
+        return entry.get("operator_type") or "contradiction"
+    return entry.get("strategy_type") or "deduction"
+
+
+def _reconcile_final_layout(
+    layout_nodes: dict[str, dict], admitted_ids: set[str], admitted_edges: set[tuple]
+) -> None:
+    """Force-admit final strat_/oper_ entries and their canonical edges."""
+    for node_id, entry in layout_nodes.items():
+        if not _is_final_layout_hub(node_id, entry):
+            continue
+        if node_id in admitted_ids:
+            continue
+        admitted_ids.add(node_id)
+        _admit_linked_layout_nodes(layout_nodes, admitted_ids, node_id)
+
+    for node_id, entry in layout_nodes.items():
+        if not _is_final_layout_hub(node_id, entry):
+            continue
+        if node_id not in admitted_ids:
+            continue
+        edge_kind = _reconciled_edge_kind(entry)
+        conclusion = entry.get("conclusion_id")
+        if conclusion and conclusion in admitted_ids:
+            admitted_edges.add((node_id, conclusion, edge_kind))
+        incoming = (
+            entry.get("variable_ids")
+            if entry.get("kind") == "operator"
+            else entry.get("premise_ids")
+        )
+        for upstream in incoming or []:
+            if upstream in admitted_ids:
+                admitted_edges.add((upstream, node_id, edge_kind))
+
+
+def _count_admitted_layout_entries(
+    layout_nodes: dict[str, dict], admitted_ids: set[str], admitted_edges: set[tuple]
+) -> dict:
+    """Bucket admitted ids by the final-layout entry kind."""
     counts = {
         "knowledge": 0,
         "strategy": 0,
@@ -1337,32 +1394,53 @@ def _simulate_store_admission(payload: dict) -> dict:
         "unknown": 0,
         "edges": len(admitted_edges),
     }
-    for nid in admitted_ids:
-        entry = layout_nodes.get(nid) or {}
-        ekind = entry.get("kind")
-        if ekind == "strategy":
-            # Only canonical (strat_<i>) entries contribute; bridged
-            # event-symbol aliases would over-count.
-            if not nid.startswith("strat_"):
+    for node_id in admitted_ids:
+        entry = layout_nodes.get(node_id) or {}
+        entry_kind = entry.get("kind")
+        if entry_kind == "strategy":
+            # Only canonical (strat_<i>) entries contribute; bridged event-symbol aliases
+            # would over-count.
+            if not node_id.startswith("strat_"):
                 continue
             counts["strategy"] += 1
-        elif ekind == "operator":
-            if not nid.startswith("oper_"):
+        elif entry_kind == "operator":
+            if not node_id.startswith("oper_"):
                 continue
-            otype = entry.get("operator_type")
+            operator_type = entry.get("operator_type")
             counts["operator"] += 1
-            if otype == "contradiction":
+            if operator_type == "contradiction":
                 counts["contradiction"] += 1
-            elif otype == "equivalence":
+            elif operator_type == "equivalence":
                 counts["equivalence"] += 1
-        elif ekind == "knowledge":
+        elif entry_kind == "knowledge":
             counts["knowledge"] += 1
-        else:
-            # Inquiry hypotheses, helper claims with no IR mapping, etc.
-            # The static DOT excludes inquiry:* nodes too.
-            if not nid.startswith("inquiry:"):
-                counts["unknown"] += 1
+        elif not node_id.startswith("inquiry:"):
+            counts["unknown"] += 1
     return counts
+
+
+def _simulate_store_admission(payload: dict) -> dict:
+    """Replicate `viz/src/replay/store.ts::applyTick` admission rules."""
+    layout = payload.get("final_layout") or {}
+    layout_nodes: dict[str, dict] = layout.get("nodes") or {}
+    admitted_ids: set[str] = set()
+    admitted_edges: set[tuple] = set()
+    events = payload.get("events", [])
+    ticks = payload.get("ticks", [])
+
+    for tick in ticks:
+        _admit_replay_tick(
+            tick,
+            events,
+            layout_nodes=layout_nodes,
+            admitted_ids=admitted_ids,
+            admitted_edges=admitted_edges,
+        )
+
+    if ticks:
+        _reconcile_final_layout(layout_nodes, admitted_ids, admitted_edges)
+
+    return _count_admitted_layout_entries(layout_nodes, admitted_ids, admitted_edges)
 
 
 def _count_static_dot_shapes(dot_source: str) -> dict:
