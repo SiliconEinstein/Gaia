@@ -49,7 +49,7 @@ class ProofContext:
         }
 
 
-def build_proof_context(graph, state: InquiryState) -> ProofContext:
+def build_proof_context(graph: Any, state: InquiryState) -> ProofContext:
     ctx = ProofContext()
 
     # IR side — question() becomes obligation view, setting() becomes hypothesis view.

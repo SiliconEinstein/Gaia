@@ -11,7 +11,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gaia.inquiry.state import inquiry_dir
 
@@ -45,7 +45,7 @@ def save_snapshot(
     review_id: str,
     created_at: str,
     ir_hash: str | None,
-    ir_dict: dict | None,
+    ir_dict: dict[str, Any] | None,
     beliefs: list[dict[str, Any]],
 ) -> Path:
     """Persist the minimal snapshot needed to diff future reviews."""
@@ -71,12 +71,12 @@ def save_snapshot(
     return path
 
 
-def load_snapshot(pkg_path: str | Path, review_id: str) -> dict | None:
+def load_snapshot(pkg_path: str | Path, review_id: str) -> dict[str, Any] | None:
     path = reviews_dir(pkg_path) / f"{review_id}.json"
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
     except (OSError, json.JSONDecodeError):
         return None
 

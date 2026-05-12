@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from gaia.inquiry.focus import FocusBinding
 from gaia.inquiry.proof_state import ProofContext
 
+if TYPE_CHECKING:
+    from gaia.inquiry.review import ReviewReport
 
-def render_text(report: "ReviewReport") -> str:  # noqa: F821 - forward ref from review.py
+
+def render_text(report: ReviewReport) -> str:
     lines: list[str] = []
     lines.append("Gaia Inquiry Review")
     lines.append("─" * 20)
@@ -168,7 +171,7 @@ def render_text(report: "ReviewReport") -> str:  # noqa: F821 - forward ref from
     return "\n".join(lines)
 
 
-def to_json_dict(report: "ReviewReport") -> dict[str, Any]:  # noqa: F821
+def to_json_dict(report: ReviewReport) -> dict[str, Any]:
     return {
         "review_id": report.review_id,
         "created_at": report.created_at,
@@ -211,7 +214,7 @@ def _proof_context_to_dict(pc: ProofContext | None) -> dict[str, Any]:
     }
 
 
-def render_markdown(report) -> str:
+def render_markdown(report: ReviewReport) -> str:
     """Spec §17.2 Markdown renderer.
 
     Mirrors the eight-section text layout but uses Markdown headings, bullet
@@ -382,7 +385,6 @@ def render_markdown(report) -> str:
     if not report.next_edits_structured and not report.next_edits:
         md.append("_no suggested edits_")
     else:
-        items = report.next_edits_structured or [None for _ in report.next_edits]
         for i, edit in enumerate(report.next_edits_structured, 1):
             anchor = ""
             if edit.source_anchor is not None:
@@ -390,11 +392,11 @@ def render_markdown(report) -> str:
                 anchor = f" — `{a.file}:{a.line}`"
             md.append(f"{i}. _[{edit.kind}/{edit.severity}]_ {edit.text}{anchor}")
         if not report.next_edits_structured:
-            for i, edit in enumerate(report.next_edits, 1):
-                md.append(f"{i}. {edit}")
+            for i, edit_text in enumerate(report.next_edits, 1):
+                md.append(f"{i}. {edit_text}")
 
     return "\n".join(md)
 
 
-def render_json(report) -> str:
+def render_json(report: ReviewReport) -> str:
     return json.dumps(to_json_dict(report), ensure_ascii=False, indent=2)

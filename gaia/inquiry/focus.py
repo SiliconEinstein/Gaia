@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -12,7 +13,7 @@ class FocusBinding:
     resolved_label: str | None = None
     kind: str = "freeform"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str | None]:
         return {
             "raw": self.raw,
             "resolved_id": self.resolved_id,
@@ -21,7 +22,7 @@ class FocusBinding:
         }
 
 
-def resolve_focus_target(target: str | None, graph) -> FocusBinding:
+def resolve_focus_target(target: str | None, graph: Any) -> FocusBinding:
     if target is None:
         return FocusBinding(raw=None, kind="none")
     t = str(target).strip()

@@ -17,6 +17,7 @@ readable display. The diff is report-only — it cannot be applied (Non-Goals §
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 # --------------------------------------------------------------------------- #
@@ -33,7 +34,7 @@ class ClaimDelta:
     before: str
     after: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str]:
         return {
             "label": self.label,
             "field": self.field,
@@ -103,7 +104,7 @@ class SemanticDiff:
             )
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "baseline_review_id": self.baseline_review_id,
             "added_claims": list(self.added_claims),
@@ -133,35 +134,39 @@ def empty_diff() -> SemanticDiff:
 # --------------------------------------------------------------------------- #
 
 
-def _knowledges_by_type_id(ir: dict, kind: str) -> dict[str, dict]:
+def _knowledges_by_type_id(ir: dict[str, Any], kind: str) -> dict[str, dict[str, Any]]:
     return {k["id"]: k for k in ir.get("knowledges", []) or [] if k.get("type") == kind}
 
 
-def _strategies_by_id(ir: dict) -> dict[str, dict]:
+def _strategies_by_id(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {s["id"]: s for s in ir.get("strategies", []) or []}
 
 
-def _operators_by_id(ir: dict) -> dict[str, dict]:
+def _operators_by_id(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {o["id"]: o for o in ir.get("operators", []) or []}
 
 
-def _label(item: dict) -> str:
-    return item.get("label") or item.get("id", "").split("::")[-1]
+def _label(item: dict[str, Any]) -> str:
+    label = item.get("label")
+    if isinstance(label, str) and label:
+        return label
+    item_id = item.get("id", "")
+    return str(item_id).split("::")[-1]
 
 
-def _prior(k: dict):
+def _prior(k: dict[str, Any]) -> Any:
     meta = k.get("metadata") or {}
     return meta.get("prior")
 
 
-def _exported(k: dict) -> bool:
+def _exported(k: dict[str, Any]) -> bool:
     if "exported" in k:
         return bool(k["exported"])
     meta = k.get("metadata") or {}
     return bool(meta.get("exported", False))
 
 
-def _fmt(v) -> str:
+def _fmt(v: Any) -> str:
     return "∅" if v is None else str(v)
 
 
@@ -171,8 +176,8 @@ def _fmt(v) -> str:
 
 
 def compute_semantic_diff(
-    current_ir: dict | None,
-    baseline_snapshot: dict | None,
+    current_ir: dict[str, Any] | None,
+    baseline_snapshot: dict[str, Any] | None,
 ) -> SemanticDiff:
     """Return all 16 §14.2 category deltas between two snapshots."""
     if baseline_snapshot is None or current_ir is None:
@@ -197,7 +202,7 @@ def compute_semantic_diff(
 # --------------------------------------------------------------------------- #
 
 
-def _diff_claims(diff: SemanticDiff, cur: dict, base: dict) -> None:
+def _diff_claims(diff: SemanticDiff, cur: dict[str, Any], base: dict[str, Any]) -> None:
     """added/removed/changed_claims + changed_priors + changed_exports."""
     cur_c = _knowledges_by_type_id(cur, "claim")
     base_c = _knowledges_by_type_id(base, "claim")
@@ -229,7 +234,7 @@ def _diff_claims(diff: SemanticDiff, cur: dict, base: dict) -> None:
             diff.changed_exports.append(ClaimDelta(label, "exported", _fmt(ea), _fmt(eb)))
 
 
-def _diff_questions(diff: SemanticDiff, cur: dict, base: dict) -> None:
+def _diff_questions(diff: SemanticDiff, cur: dict[str, Any], base: dict[str, Any]) -> None:
     cur_q = _knowledges_by_type_id(cur, "question")
     base_q = _knowledges_by_type_id(base, "question")
     for qid in sorted(cur_q.keys() - base_q.keys()):
@@ -238,7 +243,7 @@ def _diff_questions(diff: SemanticDiff, cur: dict, base: dict) -> None:
         diff.removed_questions.append(_label(base_q[qid]))
 
 
-def _diff_settings(diff: SemanticDiff, cur: dict, base: dict) -> None:
+def _diff_settings(diff: SemanticDiff, cur: dict[str, Any], base: dict[str, Any]) -> None:
     cur_s = _knowledges_by_type_id(cur, "setting")
     base_s = _knowledges_by_type_id(base, "setting")
     for sid in sorted(cur_s.keys() - base_s.keys()):
@@ -247,7 +252,7 @@ def _diff_settings(diff: SemanticDiff, cur: dict, base: dict) -> None:
         diff.removed_settings.append(_label(base_s[sid]))
 
 
-def _diff_strategies(diff: SemanticDiff, cur: dict, base: dict) -> None:
+def _diff_strategies(diff: SemanticDiff, cur: dict[str, Any], base: dict[str, Any]) -> None:
     cur_st = _strategies_by_id(cur)
     base_st = _strategies_by_id(base)
     for sid in sorted(cur_st.keys() - base_st.keys()):
@@ -274,7 +279,7 @@ def _diff_strategies(diff: SemanticDiff, cur: dict, base: dict) -> None:
             )
 
 
-def _diff_operators(diff: SemanticDiff, cur: dict, base: dict) -> None:
+def _diff_operators(diff: SemanticDiff, cur: dict[str, Any], base: dict[str, Any]) -> None:
     cur_op = _operators_by_id(cur)
     base_op = _operators_by_id(base)
     for oid in sorted(cur_op.keys() - base_op.keys()):

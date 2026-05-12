@@ -117,7 +117,7 @@ class ReviewReport:
 # --------------------------------------------------------------------------- #
 
 
-def resolve_graph(path: str | Path):
+def resolve_graph(path: str | Path) -> Any:
     """Compile a package and return its LocalCanonicalGraph (or None on failure)."""
     try:
         ensure_package_env(Path(path).resolve())
@@ -320,7 +320,7 @@ def run_review(
     return report
 
 
-def _annotate_belief_deltas(belief_report: dict, baseline_snap: dict) -> None:
+def _annotate_belief_deltas(belief_report: dict[str, Any], baseline_snap: dict[str, Any]) -> None:
     """Compute per-claim belief deltas vs baseline; fill focus/largest_*."""
     base_by_id = {b["knowledge_id"]: b["belief"] for b in baseline_snap.get("beliefs", [])}
     deltas: list[tuple[str, str, float, float, float]] = []
@@ -363,7 +363,7 @@ def _annotate_belief_deltas(belief_report: dict, baseline_snap: dict) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _graph_to_ir_dict(graph) -> dict | None:
+def _graph_to_ir_dict(graph: Any) -> dict[str, Any] | None:
     """Convert a LocalCanonicalGraph to the dict shape consumed by check_core.
 
     check_core was written against the JSON IR shape. The compiled graph holds
@@ -405,11 +405,11 @@ def _graph_to_ir_dict(graph) -> dict | None:
     return {"knowledges": knowledges, "strategies": strategies, "operators": operators}
 
 
-def _strategy_id(strategy) -> str:
+def _strategy_id(strategy: Any) -> str:
     return getattr(strategy, "strategy_id", None) or getattr(strategy, "id", None) or ""
 
 
-def _operator_id(operator) -> str:
+def _operator_id(operator: Any) -> str:
     return getattr(operator, "operator_id", None) or getattr(operator, "id", None) or ""
 
 
@@ -422,7 +422,7 @@ def _normalize_type(t: Any) -> str:
 
 def _build_graph_health(
     kb: KnowledgeBreakdown,
-    ir_dict: dict | None,
+    ir_dict: dict[str, Any] | None,
     warnings: list[str],
     errors: list[str],
 ) -> dict[str, Any]:
@@ -453,7 +453,7 @@ def _build_prior_holes(kb: KnowledgeBreakdown) -> list[dict[str, Any]]:
 
 
 def _strategy_review_status(
-    strategy,
+    strategy: Any,
     review_manifest: ReviewManifest | None,
 ) -> ReviewStatus | None:
     sid = _strategy_id(strategy)
@@ -464,7 +464,7 @@ def _strategy_review_status(
 
 def _build_inquiry_tree(
     kb: KnowledgeBreakdown,
-    graph,
+    graph: Any,
     review_manifest: ReviewManifest | None = None,
 ) -> dict[str, Any]:
     accepted_warrants = 0
@@ -497,14 +497,14 @@ def _build_inquiry_tree(
 
 
 def _build_belief_report(
-    graph,
+    graph: Any,
     pkg_path: Path,
     no_infer: bool,
     errors: list[str],
     focus: FocusBinding,
     *,
-    loaded=None,
-    compiled=None,
+    loaded: Any = None,
+    compiled: Any = None,
     review_manifest: ReviewManifest | None = None,
     depth: int = 0,
 ) -> dict[str, Any]:

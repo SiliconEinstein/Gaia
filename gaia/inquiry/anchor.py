@@ -13,6 +13,7 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # Gaia DSL 顶层构造器；这些调用的赋值目标即为该节点 label 的默认值。
 _DSL_CALLABLES = {
@@ -61,7 +62,7 @@ class SourceAnchor:
     line: int  # 1-based
     column: int  # 0-based, 与 ast.AST.col_offset 一致
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {"file": self.file, "line": self.line, "column": self.column}
 
 

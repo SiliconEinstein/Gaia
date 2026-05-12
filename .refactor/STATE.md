@@ -1,7 +1,7 @@
 # Refactor STATE — v0.5 Quality Baseline Alignment
 
 **Current phase**: Phase 2 in progress — full backfill
-**Last updated**: 2026-05-12 09:34 (Phase 2.1-trace complete)
+**Last updated**: 2026-05-12 09:39 (Phase 2.1-inquiry complete)
 **Branch**: `feat/v05-quality-baseline_rsw` (cut from `origin/v0.5` HEAD `8e8e771f`)
 **协作单**: Feishu doc_token `AM15dZDhjooNyaxZRhNc1Sawnce` — decisions, ❓ escalation, and Caveats live there
 **Kanban entry**: GAIA-LKM kanban (`IUvrwMmwliAUDukbXfUcwwxEnmf`)
@@ -38,7 +38,7 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - Progress: 9 / 9 work units
 - [ ] **🚦 Checkpoint α**: Phase 1 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 2 — Full backfill** (user dispatches in-repo agents serially through the task queue)
-  - Progress: 6 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
+  - Progress: 7 / 25 work units (8 modules × type annotations + 8 × docstrings + tests + coverage guard)
 - [ ] **🚦 Checkpoint β**: Phase 2 complete → user returns to home_agent for Claude to verify
 - [ ] **Phase 3 — Acceptance + PR**
 - [ ] **🚦 Checkpoint γ**: PR body drafting + ship handshake
@@ -119,10 +119,10 @@ CLAUDE.md mortal banner auto-loads → agent gets refactor discipline + boundary
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 01:23 | completed_at: 2026-05-12 01:29 | breakpoint_notes: Added strict-compatible annotations and local type narrowing across BP inference, contraction, exact enumeration, lowering, junction-tree, GBP, and engine modules without changing message-passing algorithms or potential-function semantics. Verification: `uv run mypy gaia/bp` => success for 10 source files; `uv run pytest tests/gaia/bp tests/test_lowering.py tests/test_contraction.py tests/test_bp_jaynes_contract.py --no-cov` => 211 passed; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.30%, required 90% reached.
 - [x] **2.1-lang** `gaia/lang/` (DSL — large module with sub-dirs: dsl/, formula/, refs/, review/, runtime/, types/)
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 09:18 | completed_at: 2026-05-12 09:34 | breakpoint_notes: Added strict-compatible annotations and local type narrowing across Gaia Lang runtime, DSL helpers, compiler lowering, formula lowering, and Bayes lowering without changing documented DSL/API signatures or emitted IR semantics. Runtime string fields are now narrowed to IR enum types at construction boundaries; generated strategy/operator IDs are checked before storing in action/strategy maps. Verification: `uv run mypy gaia/lang --show-error-codes --no-pretty` => success for 60 source files; `uv run pytest tests/gaia/lang --no-cov` => 477 passed; `uv run pre-commit run --all-files` => passed after ruff-format reformatted one touched file and the hook was rerun; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.30%, required 90% reached.
-- [ ] **2.1-trace** `gaia/trace/`
+- [x] **2.1-trace** `gaia/trace/`
   - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 09:31 | completed_at: 2026-05-12 09:34 | breakpoint_notes: Added strict-compatible annotations and type narrowing in `gaia/trace/loader.py`, `gaia/trace/ranking.py`, and `gaia/trace/review.py` without changing trace schema, diagnostic ordering, review rendering, or snapshot behavior. Shared inquiry `Diagnostic.kind` remains runtime-compatible with trace-specific diagnostic strings; review aggregation now narrows that value through a local helper for mypy only. Verification: `uv run mypy --follow-imports=silent gaia/trace --show-error-codes --no-pretty` => success for 9 source files; `uv run mypy gaia/trace --show-error-codes --no-pretty` => remaining errors are imported pending `gaia/inquiry`/`gaia/cli` backlog only, no `gaia/trace/*` errors; `uv run pytest tests/trace --no-cov` => 92 passed; `uv run pre-commit run --all-files` => passed; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.30%, required 90% reached.
-- [ ] **2.1-inquiry** `gaia/inquiry/`
-  - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: —
+- [x] **2.1-inquiry** `gaia/inquiry/`
+  - status: `done` | claimed_by: Cursor GPT-5.5 | claimed_at: 2026-05-12 09:35 | completed_at: 2026-05-12 09:39 | breakpoint_notes: Added strict-compatible annotations and type narrowing across inquiry diagnostics, semantic diffing, focus resolution, proof context, rendering, review orchestration, and snapshot helpers without changing inquiry review semantics, snapshot schema, diagnostic ordering, or CLI-visible output. Verification: `uv run mypy --follow-imports=silent gaia/inquiry --show-error-codes --no-pretty` => success for 11 source files; `uv run mypy gaia/inquiry --show-error-codes --no-pretty` => remaining errors are imported pending `gaia/cli` backlog only, no `gaia/inquiry/*` errors; `uv run pytest tests/inquiry tests/cli/test_inquiry.py --no-cov` => 144 passed, 42 warnings; `uv run pre-commit run --all-files` => passed after ruff-format reformatted one touched file and the hook was rerun; `uv run pytest` => 1605 passed, 3 skipped, 58 warnings, TOTAL coverage 90.29%, required 90% reached.
 - [ ] **2.1-cli** `gaia/cli/` (CLI entry — re-read `doc-fidelity-baseline.md` § Behavior contracts before touching)
   - status: `pending` | claimed_by: — | claimed_at: — | completed_at: — | breakpoint_notes: ⚠️ CLI surface is a user-visible behavior contract; do not change command names / args / output formats.
 - [ ] **2.1-tests** `tests/` — full
