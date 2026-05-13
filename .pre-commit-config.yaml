@@ -9,10 +9,10 @@ repos:
       - id: check-yaml
         stages: [pre-commit]
       - id: end-of-file-fixer
-        files: ^(\.pre-commit-config\.yaml|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+        files: ^(\.pre-commit-config\.yaml|\.github/|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|CODE_OF_CONDUCT\.md|SECURITY\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
         stages: [pre-commit]
       - id: trailing-whitespace
-        files: ^(\.pre-commit-config\.yaml|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+        files: ^(\.pre-commit-config\.yaml|\.github/|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|CODE_OF_CONDUCT\.md|SECURITY\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
         stages: [pre-commit]
       - id: detect-private-key
         stages: [pre-commit]
@@ -62,3 +62,9 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.16.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

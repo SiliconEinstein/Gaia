@@ -1,9 +1,10 @@
-# CLAUDE.md
+# Contributor and Agent Guide
 
-This file follows the Claude Code `/init` convention: it gives agents the repo-specific
-operating rules that are not obvious from reading the code. `CLAUDE.md` is a symlink to
-`AGENTS.md`, so these instructions apply to Claude Code, Cursor, Codex, and other in-repo
-agents.
+This file is the canonical operating guide for both human contributors and in-repo agents
+(Claude Code, Cursor, Codex, and any other agent driving the repo). `CLAUDE.md` is a symlink
+to this file so Claude Code auto-loads it; `CONTRIBUTING.md` is a short stub that points
+back here. Edit this file directly — never the symlink, and never duplicate guidance into
+`CONTRIBUTING.md`.
 
 For product overview, architecture, CLI behavior, and DSL reference, start with `README.md`
 and then read the relevant canonical documents under `docs/foundations/`. This guide is only
@@ -30,7 +31,7 @@ Use `uv` for all dependency management. Do not install repo dependencies with `p
 
 ```bash
 uv sync --extra dev
-uv run pre-commit install --hook-type pre-commit --hook-type pre-push
+uv run pre-commit install --hook-type pre-commit --hook-type pre-push --hook-type commit-msg
 ```
 
 The same setup is available through:
@@ -39,17 +40,19 @@ The same setup is available through:
 make bootstrap
 ```
 
-Install **both** the pre-commit and pre-push hooks (as `make bootstrap` does). The pre-push
-hook runs the CI-byte-aligned gate locally so red CI is caught before the push leaves your
-machine.
+`make bootstrap` installs all three hook stages — `pre-commit`, `pre-push`, and `commit-msg`.
+The pre-push hook runs the CI-byte-aligned gate locally so red CI is caught before the push
+leaves your machine; the commit-msg hook enforces Conventional Commits on every commit.
 
 ## Quality Gates
 
-Local hooks split work between commit time and push time:
+Local hooks split work across three stages:
 
 - **pre-commit** (fast, per commit): hygiene hooks (trailing whitespace / EOF newline /
   merge-conflict / detect-private-key), `ruff check` narrow select + `--fix`, `ruff format`,
   `mypy --strict`, and the `CLAUDE.md` symlink check.
+- **commit-msg** (per commit): `commitizen` validates the commit message against the
+  Conventional Commits format. Merge and revert commits are exempt by commitizen defaults.
 - **pre-push** (CI-byte-aligned, per push): `ruff check .` full 15-cat select,
   `ruff format --check .`, `mypy`, `pytest --cov-report=xml tests -v -m "not integration_api"`,
   plus the symlink check again.
@@ -91,17 +94,35 @@ PR description.
 
 `CLAUDE.md` is a symlink to `AGENTS.md`. The pre-commit + pre-push hooks both verify this
 relationship. Editing `AGENTS.md` is the canonical action; `CLAUDE.md` is never edited as a
-separate file. If you ever find the two diverging (the symlink replaced by a real file copy),
-restore with:
+separate file. `CONTRIBUTING.md` is a short stub that points back here — it intentionally
+does not duplicate any guidance, so all contributor and agent rules stay in one place. If
+you ever find `CLAUDE.md` diverging (the symlink replaced by a real file copy), restore with:
 
 ```bash
 rm CLAUDE.md && ln -sf AGENTS.md CLAUDE.md
 ```
 
+## Commits
+
+This repo uses **Conventional Commits**. Every commit subject must follow:
+
+```
+<type>(<scope>): <imperative summary>
+```
+
+Allowed `<type>` values: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `style`,
+`perf`, `build`, `ci`. `<scope>` is free-form, lower-kebab (for example `bp`, `cli`,
+`gaia-ir`, `docs-foundations`). The subject must be ≤ 72 characters and must not end with a
+period. Use the body (separated by a blank line) for context, motivation, and breaking-change
+notes (`BREAKING CHANGE: …`).
+
+Enforcement is two-sided: a local `commit-msg` hook runs `commitizen` on every commit, and a
+CI job runs `cz check` over every commit in a pull request. Merge commits and revert commits
+are exempt by commitizen defaults, so normal `git merge` and `git revert` workflows are not
+blocked.
+
 ## Engineering Rules
 
-- Preserve public APIs, CLI command names, arguments, output formats, persisted artifact shapes,
-  DSL names, IR schemas, and BP algorithms unless the user explicitly approves a design change.
 - Follow the design docs exactly. If a requested implementation would downgrade or diverge from
   a documented design, stop and ask before coding.
 - Keep plans aligned with specs step by step; omitting a spec requirement is not an acceptable
@@ -230,12 +251,21 @@ If you run a background script, inspect its log before reporting results.
 
 ## Git and Worktrees
 
-Work in a branch or an isolated worktree unless the user explicitly asks otherwise. Worktrees live
-under `.worktrees/`, which is gitignored:
+Work in a branch or an isolated worktree unless the user explicitly asks otherwise. Worktrees
+live under `.worktrees/<slug>`, which is gitignored:
 
 ```bash
-git worktree add .worktrees/<name> -b feature/<name>
+git worktree add .worktrees/<slug> -b feature/<slug>
 ```
 
-Never use destructive git commands, force-push shared branches, or revert user changes unless the
-user explicitly requests it.
+Never use destructive git commands, force-push shared branches, or revert user changes unless
+the user explicitly requests it.
+
+## Community
+
+- License: MIT, see [`LICENSE`](LICENSE).
+- Code of conduct: see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+- Security: report vulnerabilities via GitHub private vulnerability reporting — see
+  [`SECURITY.md`](SECURITY.md).
+- Contributing: this file is the canonical guide; [`CONTRIBUTING.md`](CONTRIBUTING.md) is a
+  short stub pointer.

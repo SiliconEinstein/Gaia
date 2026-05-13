@@ -56,3 +56,22 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           fail_ci_if_error: false
+
+  commit-lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Validate PR commits follow Conventional Commits
+        run: |
+          uv run cz check --rev-range origin/${{ github.base_ref }}..HEAD
