@@ -12,8 +12,8 @@ The statistical comparison is between two clearly identified alternatives:
 Every number produced by this module is therefore traceable to ``MENDELIAN_P``
 and the uniform-over-``p`` reference measure. There is no tolerance window,
 no post-hoc ratio band, and no strawman binomial with an arbitrary second
-``p``. The likelihood handed to ``associate`` is the pointwise binomial PMF
-evaluated at the observed count.
+``p``. The point hypothesis is represented by ``bayes.Binomial`` and the
+diffuse alternative by ``bayes.BetaBinomial(n, 1, 1)`` in the example package.
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ MENDELIAN_DOMINANT_PROBABILITY = 3 / 4
 PRIOR_MENDELIAN_MODEL = 0.5
 
 
-class MendelCountAssociation(NamedTuple):
-    """Bayesian association parameters for Mendel's dominant-count observation."""
+class MendelCountLikelihood(NamedTuple):
+    """Bayesian likelihood parameters for Mendel's dominant-count observation."""
 
     p_count_given_mendelian: float
     p_count_given_diffuse: float
@@ -54,8 +54,8 @@ def diffuse_count_marginal(*, n: int) -> float:
     return 1.0 / (n + 1)
 
 
-def mendel_count_association_parameters() -> MendelCountAssociation:
-    """Compute Bayes-consistent ``associate`` parameters for the Mendel ↔ count relation.
+def mendel_count_likelihood_parameters() -> MendelCountLikelihood:
+    """Compute reference likelihoods for the Mendel count comparison.
 
     The posterior is formed by marginalising over the Mendelian point hypothesis
     and the diffuse alternative:
@@ -75,7 +75,7 @@ def mendel_count_association_parameters() -> MendelCountAssociation:
     )
     p_mendelian_given_count = PRIOR_MENDELIAN_MODEL * p_count_given_mendelian / prior_count
 
-    return MendelCountAssociation(
+    return MendelCountLikelihood(
         p_count_given_mendelian=p_count_given_mendelian,
         p_count_given_diffuse=p_count_given_diffuse,
         prior_mendelian=PRIOR_MENDELIAN_MODEL,

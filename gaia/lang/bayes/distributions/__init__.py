@@ -12,7 +12,7 @@ from gaia.lang.bayes.distributions.continuous import (
     Normal,
     StudentT,
 )
-from gaia.lang.bayes.distributions.discrete import Binomial, Poisson
+from gaia.lang.bayes.distributions.discrete import BetaBinomial, Binomial, Poisson
 from gaia.lang.bayes.distributions.protocol import (
     DistParam,
     Distribution,
@@ -21,6 +21,7 @@ from gaia.lang.bayes.distributions.protocol import (
 
 __all__ = [
     "Beta",
+    "BetaBinomial",
     "Binomial",
     "Cauchy",
     "ChiSquared",

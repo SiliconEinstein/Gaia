@@ -10,56 +10,25 @@ Two theories compete for the same single-factor cross:
 * ``blending_inheritance_model`` — continuous averaging of parental traits;
   denies that discrete dominant/recessive classes exist in F2 at all.
 
-These two theories differ in **kind**, and that difference is reflected in
-how they engage with the data:
+The quantitative count comparison is expressed through ``gaia.lang.bayes``:
 
-* Mendel participates **probabilistically**: it is a generative model and
-  therefore engages with the observed F2 count through a single ``associate``
-  that uses the pointwise binomial PMF as its likelihood.
-* Blending participates **categorically**: it denies the very framework in
-  which one would count dominant vs. recessive individuals, so its conflicts
-  with the data are expressed through ``contradict`` edges at the qualitative
-  framework level, not through a binomial likelihood it cannot produce.
+* Mendel is represented by ``bayes.Binomial(n=395, p=3/4)``.
+* The diffuse alternative is represented by
+  ``bayes.BetaBinomial(n=395, alpha=1, beta=1)``, which is the predictive
+  distribution obtained by integrating ``Binomial(n, p)`` over
+  ``p ~ Uniform[0, 1]``.
 
-Every probability in this package is traceable to two well-defined settings:
-``MENDELIAN_DOMINANT_PROBABILITY = 3/4`` and a uniform prior ``p ~ U[0, 1]``
-as the diffuse alternative (see ``probabilities.py``).
-
-Why an intermediate ``f2_dominant_count_specific`` node exists
---------------------------------------------------------------
-
-Semantically the ``associate`` below should relate ``mendelian_segregation_model``
-directly to ``f2_count_observation``. In v0.5 that triggers a framework-level
-collision: ``metadata.prior`` on a Claim is asked to encode two genuinely
-different quantities at once —
-
-* the **reliability / subjective prior** of the observation (0.95, meaning "I
-  trust Mendel's record"), supplied via the ``PRIORS`` dict;
-* the **Bayesian marginal** ``P(count) = Σ_H P(count | H) P(H)`` of the count
-  event (≈ 0.024 for the 295/395 outcome under the {Mendel, diffuse}
-  mixture), supplied through the ``PRIORS`` entry for a separate count-event
-  claim.
-
-These are two different concepts living on the same field, so the inference
-engine sees them as "conflicting marginal providers" and refuses to compile.
-
-As a workaround this package introduces ``f2_dominant_count_specific`` — a
-plain ``derive`` node that carries only the specific numerical event and is
-entered into ``PRIORS`` with the Bayes marginal — and routes the ``associate``
-through it.
-This leaves the observation's ``reliability`` prior untouched on
-``f2_count_observation`` and lets the Bayesian marginal live cleanly on the
-derived node. This is a v0.5 compatibility workaround, not the long-term
-authoring pattern for model-derived marginals; new structured model-data
-comparisons should use ``gaia.lang.bayes``. No other semantic is introduced by
-this node. See issue #485 for the design discussion.
+The observed count remains a normal observation with a reliability prior. The
+Bayes likelihood values are attached as structured metadata by the Bayes
+lowering pass, not placed in the observation's content or hidden behind an
+intermediate count-event claim.
 """
 
 from gaia.lang import (
     Constant,
     Nat,
     Variable,
-    associate,
+    bayes,
     claim,
     contradict,
     derive,
@@ -73,12 +42,10 @@ from gaia.lang import (
 
 from .probabilities import (
     DOMINANT_COUNT,
+    MENDELIAN_DOMINANT_PROBABILITY,
     RECESSIVE_COUNT,
     TOTAL_COUNT,
-    mendel_count_association_parameters,
 )
-
-association_parameters = mendel_count_association_parameters()
 
 f2_total_count = Variable(symbol="n_f2", domain=Nat, value=TOTAL_COUNT)
 f2_dominant_count = Variable(symbol="k_dominant", domain=Nat, value=DOMINANT_COUNT)
@@ -226,53 +193,56 @@ mendel_predicts_three_to_one_ratio = derive(
 )
 
 # -----------------------------------------------------------------------------
-# A single derived data event carrying the specific count for the probabilistic
-# comparison. This is deliberately NOT a tolerance window around the observed
-# ratio; it is just the specific observed value, reified as a proposition.
-#
-# The node exists only to carry the Bayesian marginal ``P(count = 295/395)``
-# on a separate Claim from ``f2_count_observation``, which already carries the
-# reliability prior 0.95 via ``PRIORS``. See the module docstring above, and
-# issue #485, for the underlying framework design (``metadata.prior`` doing
-# double duty as both "reliability" and "marginal"). New structured
-# model-derived marginals should move to ``gaia.lang.bayes`` rather than using
-# this workaround.
+# Quantitative count comparison via gaia.lang.bayes
 # -----------------------------------------------------------------------------
 
-f2_dominant_count_specific = derive(
-    f"F2 显性表型计数的具体数值为 {DOMINANT_COUNT} / {DOMINANT_COUNT + RECESSIVE_COUNT}。",
-    given=f2_count_observation,
-    background=[monohybrid_cross_setup, finite_sample_background],
-    rationale="把定性观测中的具体计数提取为一个命题，作为 Mendel 与数据进行"
-    "概率比较时使用的数据事件；这里也起到把 Bayes 边际和观测可靠性两个概念"
-    "分开存放在两个不同 Claim 上的作用，规避 v0.5 framework 中 metadata.prior"
-    "的一号多用。",
-    label="f2_dominant_count_specific",
+mendel_count_model = bayes.model(
+    mendelian_segregation_model,
+    observable=f2_dominant_count,
+    distribution=bayes.Binomial(
+        n=TOTAL_COUNT,
+        p=MENDELIAN_DOMINANT_PROBABILITY,
+    ),
+    background=[monohybrid_cross_setup, dominance_background, finite_sample_background],
+    rationale=(
+        "孟德尔分离模型给出 F2 每个个体以概率 3/4 表现显性的生成模型，"
+        "因此显性计数服从 Binomial(N, 3/4)。"
+    ),
+    label="mendel_count_model",
 )
 
-# -----------------------------------------------------------------------------
-# Mendel: the one quantitative link — associate(model, count) via pointwise PMF
-# -----------------------------------------------------------------------------
-
-mendel_count_association = associate(
-    mendelian_segregation_model,
-    f2_dominant_count_specific,
-    background=[monohybrid_cross_setup, finite_sample_background],
-    p_a_given_b=association_parameters.p_mendelian_given_count,
-    p_b_given_a=association_parameters.p_count_given_mendelian,
-    rationale=(
-        "用在观测计数处的点似然 Binomial(N, 3/4).pmf(295) 作为 p(count | Mendel)；"
-        "对照项用 p ~ Uniform[0, 1] 的 diffuse 先验，其任意单点计数的边际概率"
-        "为解析解 1 / (N + 1)。这样所有参数都来自两个明确的假设，"
-        "既没有 tolerance 窗口，也没有人为指定的替代二项参数。"
+diffuse_count_model = bayes.model(
+    blending_inheritance_model,
+    observable=f2_dominant_count,
+    distribution=bayes.BetaBinomial(
+        n=TOTAL_COUNT,
+        alpha=1.0,
+        beta=1.0,
     ),
-    label="mendel_count_association",
+    background=[monohybrid_cross_setup, finite_sample_background],
+    rationale=(
+        "把对照项写成 p ~ Uniform[0, 1] 下的 BetaBinomial(N, 1, 1) 预测分布；"
+        "它给出任意具体计数的边际概率 1 / (N + 1)，不人为指定第二个二项参数。"
+    ),
+    label="diffuse_count_model",
+)
+
+mendel_count_likelihood = bayes.likelihood(
+    f2_count_observation,
+    model=mendel_count_model,
+    against=[diffuse_count_model],
+    background=[monohybrid_cross_setup, finite_sample_background],
+    rationale=(
+        "直接比较观测到的 F2 显性计数在 Mendel 点模型和 diffuse 参考模型下的"
+        "log likelihood；观测可靠性仍留在 f2_count_observation 的 prior 中。"
+    ),
+    exclusivity="none",
+    label="mendel_count_likelihood",
 )
 
 # -----------------------------------------------------------------------------
 # Blending: three qualitative predictions, each clashing with a qualitative
-# observation via contradict. Blending does NOT participate in associate, by
-# design: it is not a generative model for the dominant/recessive count.
+# observation via contradict.
 # -----------------------------------------------------------------------------
 
 blending_predicts_intermediate_f1 = derive(
@@ -333,18 +303,19 @@ __all__ = [
     "blending_predicts_intermediate_f1",
     "blending_predicts_no_recessive_reappearance",
     "competing_models",
+    "diffuse_count_model",
     "f1_blending_conflict",
     "f1_mendel_match",
     "f1_uniform_dominant_observation",
     "f2_count_observation",
     "f2_discrete_classes_blending_conflict",
     "f2_discrete_classes_mendel_match",
-    "f2_dominant_count_specific",
     "f2_has_discrete_classes_observation",
     "f2_reappearance_blending_conflict",
     "f2_reappearance_mendel_match",
     "f2_recessive_reappears_observation",
-    "mendel_count_association",
+    "mendel_count_likelihood",
+    "mendel_count_model",
     "mendel_predicts_discrete_classes",
     "mendel_predicts_f1_dominance",
     "mendel_predicts_recessive_reappearance",

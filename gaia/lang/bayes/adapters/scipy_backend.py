@@ -10,6 +10,7 @@ import scipy.stats as stats
 
 _BUILDERS: dict[str, Callable[[dict[str, float]], Any]] = {
     "beta": lambda p: stats.beta(a=p["alpha"], b=p["beta"]),
+    "betabinomial": lambda p: stats.betabinom(n=int(p["n"]), a=p["alpha"], b=p["beta"]),
     "binomial": lambda p: stats.binom(n=int(p["n"]), p=p["p"]),
     "cauchy": lambda p: stats.cauchy(loc=p["mu"], scale=p["gamma"]),
     "chisquared": lambda p: stats.chi2(df=p["df"]),

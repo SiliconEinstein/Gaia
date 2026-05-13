@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from gaia.lang.bayes.distributions import (
     Beta,
+    BetaBinomial,
     Binomial,
     Cauchy,
     ChiSquared,
@@ -49,6 +50,7 @@ _register_bayes_roles()
 
 __all__ = [
     "Beta",
+    "BetaBinomial",
     "Binomial",
     "Cauchy",
     "ChiSquared",

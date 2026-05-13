@@ -62,9 +62,9 @@ Bayes models are authored through `bayes.model(...)`. There is no
 v0.5; use `derive(...)` for ordinary support steps and `bayes.model(...)` when
 declaring a predictive distribution for a hypothesis.
 
-The v1 distribution set is:
+The v1 hypothesis-comparison distribution set is:
 
-- `Binomial`, `Poisson`
+- `Binomial`, `BetaBinomial`, `Poisson`
 - `Normal`, `Beta`, `Exponential`, `LogNormal`, `StudentT`, `Cauchy`, `Gamma`,
   `ChiSquared`
 
@@ -72,6 +72,13 @@ Each distribution delegates numeric evaluation to `scipy.stats`. Parameters may
 be concrete numbers or `Variable` objects (PR #505). Deferred variable parameters
 are resolved by the compiler from hypothesis formulas; their serialized
 descriptors are audit metadata, not identity keys.
+
+`BetaBinomial(n, alpha, beta)` delegates to `scipy.stats.betabinom`. It is the
+minimal wrapper for a common model-comparison pattern: integrate
+`Binomial(n, p)` over `p ~ Beta(alpha, beta)` instead of hand-writing a
+precomputed likelihood. The Mendel example package uses
+`BetaBinomial(n=395, alpha=1, beta=1)` for the diffuse `p ~ Uniform[0, 1]`
+alternative, where every exact count has marginal likelihood `1 / (n + 1)`.
 
 ## Verbs at a Glance
 
@@ -494,6 +501,9 @@ non-fatal — packages compile successfully.
 
 ### Source code
 
+- `gaia/lang/bayes/distributions/` — hypothesis-comparison distribution
+  literals (`Binomial`, `BetaBinomial`, `Poisson`, continuous families) backed
+  by `scipy.stats`
 - `gaia/lang/runtime/distribution.py` — Distribution Knowledge wrapper
   + family factories (`Normal`, `LogNormal`, `Beta`, `Gamma`, `Exponential`,
   `StudentT`, `Cauchy`, `ChiSquared`, `Binomial`, `Poisson`)

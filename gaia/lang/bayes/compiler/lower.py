@@ -350,7 +350,7 @@ def _log_likelihood(distribution: Any, value: Any, data_claim: Claim) -> float:
     noise_payload = ((data_claim.metadata or {}).get("bayes") or {}).get("noise")
     if noise_payload:
         return _log_likelihood_with_noise(distribution, value, noise_payload)
-    if distribution.kind in {"binomial", "poisson"}:
+    if distribution.kind in {"betabinomial", "binomial", "poisson"}:
         return float(distribution.logpmf(value))
     return float(distribution.logpdf(float(value)))
 
@@ -364,7 +364,7 @@ def _log_likelihood_with_noise(
 
     noise = Normal(**noise_payload.get("params", {}))
     low, high = distribution.support()
-    if distribution.kind in {"binomial", "poisson"}:
+    if distribution.kind in {"betabinomial", "binomial", "poisson"}:
         if not math.isfinite(high):
             high = max(int(value + 10 * noise.params["sigma"]), int(value) + 50)
         terms = []

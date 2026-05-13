@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+import scipy.stats as stats
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -60,26 +61,26 @@ def _load_probability_module(package: Path):
     return module
 
 
-def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Path):
+def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path: Path):
     package = _copy_mendel_example(tmp_path)
     probabilities = _load_probability_module(package)
 
     compile_result = runner.invoke(app, ["compile", str(package)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    association_parameters = probabilities.mendel_count_association_parameters()
+    likelihood_parameters = probabilities.mendel_count_likelihood_parameters()
 
     ir = json.loads((package / ".gaia" / "ir.json").read_text())
     knowledge_by_label = {item["label"]: item for item in ir["knowledges"] if item.get("label")}
     strategy_types = {item["type"] for item in ir["strategies"]}
-    association = knowledge_by_label["mendel_count_association"]
     count_observation = knowledge_by_label["f2_count_observation"]
-    count_specific = knowledge_by_label["f2_dominant_count_specific"]
+    likelihood = knowledge_by_label["mendel_count_likelihood"]
 
-    # The package uses a single associate (Mendel ↔ count) and three qualitative
-    # contradict edges against blending. It declares no `infer` strategy of its own.
-    assert "infer" not in strategy_types
-    assert "associate" in strategy_types
+    # The package uses the Bayes module for the quantitative count comparison,
+    # not the old associate workaround node that conflated observation
+    # reliability with the count marginal.
+    assert "associate" not in strategy_types
+    assert "infer" in strategy_types
 
     # Core claims and observations are present.
     for label in (
@@ -93,7 +94,9 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
         "mendel_predicts_discrete_classes",
         "mendel_predicts_recessive_reappearance",
         "mendel_predicts_three_to_one_ratio",
-        "f2_dominant_count_specific",
+        "mendel_count_model",
+        "diffuse_count_model",
+        "mendel_count_likelihood",
         "f1_mendel_match",
         "f2_discrete_classes_mendel_match",
         "f2_reappearance_mendel_match",
@@ -106,27 +109,24 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     ):
         assert label in knowledge_by_label, f"missing knowledge {label}"
 
-    # The Mendel↔count associate stores only the conditional link parameters.
-    # Node priors live in the priors layer instead of on the associate call.
-    assert association["metadata"]["helper_kind"] == "association"
-    assert association["metadata"]["relation"]["p_a_given_b"] == pytest.approx(
-        association_parameters.p_mendelian_given_count
-    )
-    assert association["metadata"]["relation"]["p_b_given_a"] == pytest.approx(
-        association_parameters.p_count_given_mendelian
-    )
-    assert "prior_a" not in association["metadata"]["relation"]
-    assert "prior_b" not in association["metadata"]["relation"]
+    assert "f2_dominant_count_specific" not in knowledge_by_label
+    assert "mendel_count_association" not in knowledge_by_label
+
+    # The quantitative comparison stores executable Bayes likelihood metadata.
+    assert likelihood["metadata"]["helper_kind"] == "model_preference"
+    likelihoods = likelihood["metadata"]["bayes"]["likelihoods"]
+    mendel_id = knowledge_by_label["mendelian_segregation_model"]["id"]
+    blending_id = knowledge_by_label["blending_inheritance_model"]["id"]
+    assert likelihoods[mendel_id] == pytest.approx(stats.binom.logpmf(295, n=395, p=3 / 4))
+    assert likelihoods[blending_id] == pytest.approx(stats.betabinom.logpmf(295, n=395, a=1, b=1))
     assert count_observation["metadata"]["prior"] == pytest.approx(0.95)
-    assert count_specific["metadata"]["prior"] == pytest.approx(association_parameters.prior_count)
 
     # The diffuse alternative has the closed-form marginal 1/(N+1).
-    assert association_parameters.p_count_given_diffuse == pytest.approx(1.0 / (295 + 100 + 1))
+    assert likelihood_parameters.p_count_given_diffuse == pytest.approx(1.0 / (295 + 100 + 1))
     # Sanity-check direction: a point likelihood peaked near the Mendelian mode
     # must beat a Uniform(p) reference measure at the same count.
     assert (
-        association_parameters.p_count_given_mendelian
-        > association_parameters.p_count_given_diffuse
+        likelihood_parameters.p_count_given_mendelian > likelihood_parameters.p_count_given_diffuse
     )
 
     assert {
@@ -151,10 +151,8 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     # Directional belief checks: Mendel should rise above its prior and dominate
     # blending. We avoid hard-coded posterior values to stay robust to future
     # changes in the inference engine's numerical details.
-    assert beliefs["mendelian_segregation_model"] > association_parameters.prior_mendelian
+    assert beliefs["mendelian_segregation_model"] > likelihood_parameters.prior_mendelian
     assert beliefs["mendelian_segregation_model"] > 0.8
     assert beliefs["blending_inheritance_model"] < 0.2
     assert beliefs["mendelian_segregation_model"] > beliefs["blending_inheritance_model"]
-    # The specific count event is the marginal provider for the associate; the
-    # observation itself keeps its independent reliability prior.
-    assert beliefs["f2_dominant_count_specific"] > association_parameters.prior_count
+    assert beliefs["mendel_count_likelihood"] > 0.99
