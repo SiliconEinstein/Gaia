@@ -8,9 +8,9 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 
 ## theory/ — 理论基础
 
-推导链：plausible-reasoning → maxent-grounding → propositional-operators → reasoning-strategies → formalization-methodology → factor-graphs → belief-propagation
+推导链：plausible-reasoning → maxent-grounding → propositional-operators → reasoning-strategies → formalization-methodology → factor-graphs → belief-propagation → causality-and-jaynes
 
-**三层结构：**
+**四层结构：**
 
 **Layer 1 — Jaynes 理论（纯理论，不涉及因子图/BP）：**
 - [`01-plausible-reasoning.md`](theory/01-plausible-reasoning.md) — Cox 定理、概率唯一性、弱三段论
@@ -24,6 +24,9 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 **Layer 3 — 计算方法（因子图 + BP 作为大规模近似）：**
 - [`06-factor-graphs.md`](theory/06-factor-graphs.md) — 命题网络到因子图的映射、势函数
 - [`07-belief-propagation.md`](theory/07-belief-propagation.md) — BP 近似推理算法
+
+**Layer 4 — 本体扩展（v0.6+，因果机制作为平行本体）：**
+- [`08-causality-and-jaynes.md`](theory/08-causality-and-jaynes.md) — 三层本体（命题 / 推理步 / 世界结构）、Mechanism 与 Jaynesian 命题层的边界、do() 查询语义
 
 ## 生态系统 — 设计哲学（极少变更）
 

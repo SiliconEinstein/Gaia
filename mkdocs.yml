@@ -68,6 +68,7 @@ nav:
           - Formalization Methodology: foundations/theory/05-formalization-methodology.md
           - Factor Graphs: foundations/theory/06-factor-graphs.md
           - Belief Propagation: foundations/theory/07-belief-propagation.md
+          - Causality And Jaynes: foundations/theory/08-causality-and-jaynes.md
       - Ecosystem:
           - Product Scope: foundations/ecosystem/01-product-scope.md
           - Decentralized Architecture: foundations/ecosystem/02-decentralized-architecture.md
