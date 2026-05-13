@@ -264,7 +264,6 @@ the user explicitly requests it.
 ## Community
 
 - License: MIT, see [`LICENSE`](LICENSE).
-- Code of conduct: see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 - Security: report vulnerabilities via GitHub private vulnerability reporting — see
   [`SECURITY.md`](SECURITY.md).
 - Contributing: this file is the canonical guide; [`CONTRIBUTING.md`](CONTRIBUTING.md) is a
