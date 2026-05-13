@@ -44,7 +44,7 @@ from itertools import product as cartesian_product
 import numpy as np
 from numpy.typing import NDArray
 
-from gaia.bp.factor_graph import FactorGraph
+from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
 __all__ = ["TRWBeliefPropagation", "TRWResult", "TRWDiagnostics"]
@@ -57,6 +57,7 @@ _LOG_EPS = np.log(1e-300)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _uniform_msg() -> Msg:
     return np.array([0.5, 0.5], dtype=np.float64)
@@ -90,6 +91,7 @@ def _log_normalize(log_msg: Msg) -> Msg:
 # Factor weights
 # ---------------------------------------------------------------------------
 
+
 def _compute_factor_weights(
     graph: FactorGraph,
     var_to_factors: dict[str, list[int]],
@@ -108,7 +110,8 @@ def _compute_factor_weights(
     n_soft = sum(1 for v in graph.variables if v not in hard)
 
     soft_factor_ids = [
-        fi for fi, factor in enumerate(graph.factors)
+        fi
+        for fi, factor in enumerate(graph.factors)
         if any(v not in hard for v in factor.all_vars if v in graph.variables)
     ]
     F_soft = len(soft_factor_ids)
@@ -130,6 +133,7 @@ def _compute_factor_weights(
 # ---------------------------------------------------------------------------
 # Message computations
 # ---------------------------------------------------------------------------
+
 
 def _compute_v2f_trw(
     var: str,
@@ -235,6 +239,7 @@ def _compute_beliefs_trw(
 # Diagnostics
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class TRWDiagnostics:
     """Diagnostics from a TRW-BP run."""
@@ -255,6 +260,7 @@ class TRWDiagnostics:
                 if d_prev * d_curr < 0:
                     changes += 1
             self.direction_changes[vid] = changes
+
     def belief_table(self, variables: list[str] | None = None) -> str:
         """返回 belief history 的格式化表格。"""
         vids = variables if variables is not None else sorted(self.belief_history)
@@ -282,6 +288,7 @@ class TRWResult:
 # ---------------------------------------------------------------------------
 # TRWBeliefPropagation
 # ---------------------------------------------------------------------------
+
 
 class TRWBeliefPropagation:
     """Tree-Reweighted Belief Propagation (Wainwright et al. 2003/2005).
@@ -312,9 +319,13 @@ class TRWBeliefPropagation:
         if not (0.0 < damping <= 1.0):
             raise ValueError(f"damping must be in (0, 1], got {damping}")
         if schedule not in ("synchronous",):
-            raise ValueError(f"schedule must be 'synchronous', got {schedule!r}. Residual schedule for TRW-BP is not yet stable.")
+            raise ValueError(
+                f"schedule must be 'synchronous', got {schedule!r}. Residual schedule for TRW-BP is not yet stable."
+            )
         if schedule not in ("synchronous",):
-            raise ValueError(f"schedule must be 'synchronous', got {schedule!r}. Residual schedule for TRW-BP is not yet stable.")
+            raise ValueError(
+                f"schedule must be 'synchronous', got {schedule!r}. Residual schedule for TRW-BP is not yet stable."
+            )
         self._damping = damping
         self._max_iter = max_iterations
         self._threshold = convergence_threshold
@@ -332,7 +343,9 @@ class TRWBeliefPropagation:
             beliefs = {}
             for vid in graph.variables:
                 if vid in graph.hard_evidence:
-                    beliefs[vid] = 1.0 if graph.hard_evidence[vid] == 1 else 0.0
+                    beliefs[vid] = (
+                        (1.0 - CROMWELL_EPS) if graph.hard_evidence[vid] == 1 else CROMWELL_EPS
+                    )
                 else:
                     beliefs[vid] = graph.unary_factors.get(vid, 0.5)
             for vid, b in beliefs.items():
@@ -342,12 +355,19 @@ class TRWBeliefPropagation:
         var_to_factors = graph.get_var_to_factors()
         rho = _compute_factor_weights(graph, var_to_factors)
         if rho:
-            diag.rho = next(v for v in rho.values() if v < 1.0) if any(v < 1.0 for v in rho.values()) else 1.0
+            diag.rho = (
+                next(v for v in rho.values() if v < 1.0)
+                if any(v < 1.0 for v in rho.values())
+                else 1.0
+            )
 
         def _prior_for(vid: str) -> Msg:
             if vid in graph.hard_evidence:
                 v = graph.hard_evidence[vid]
-                return np.array([1.0, 0.0], dtype=np.float64) if v == 0 else np.array([0.0, 1.0], dtype=np.float64)
+                # Cromwell-clamped {ε, 1-ε} per Gaia's adjusted Jaynes Class I
+                if v == 0:
+                    return np.array([1.0 - CROMWELL_EPS, CROMWELL_EPS], dtype=np.float64)
+                return np.array([CROMWELL_EPS, 1.0 - CROMWELL_EPS], dtype=np.float64)
             if vid in graph.unary_factors:
                 return _prior_to_msg(graph.unary_factors[vid])
             return _uniform_msg()
@@ -365,7 +385,7 @@ class TRWBeliefPropagation:
         prev_beliefs: dict[str, float] = {}
         for vid in graph.variables:
             if vid in graph.hard_evidence:
-                pi = 1.0 if graph.hard_evidence[vid] == 1 else 0.0
+                pi = (1.0 - CROMWELL_EPS) if graph.hard_evidence[vid] == 1 else CROMWELL_EPS
             else:
                 pi = graph.unary_factors.get(vid, 0.5)
             prev_beliefs[vid] = pi
@@ -399,7 +419,11 @@ class TRWBeliefPropagation:
             for vid, fi in v2f_msgs:
                 if vid in graph.hard_evidence:
                     v = graph.hard_evidence[vid]
-                    new_v2f[(vid, fi)] = np.array([1.0, 0.0]) if v == 0 else np.array([0.0, 1.0])
+                    # Cromwell-clamped Class I message
+                    if v == 0:
+                        new_v2f[(vid, fi)] = np.array([1.0 - CROMWELL_EPS, CROMWELL_EPS])
+                    else:
+                        new_v2f[(vid, fi)] = np.array([CROMWELL_EPS, 1.0 - CROMWELL_EPS])
                 else:
                     new_v2f[(vid, fi)] = _compute_v2f_trw(
                         vid, fi, priors[vid], var_to_factors, f2v_msgs, rho
@@ -463,7 +487,11 @@ class TRWBeliefPropagation:
         for vid, fi in v2f_msgs:
             if vid in graph.hard_evidence:
                 v = graph.hard_evidence[vid]
-                new_v2f_init[(vid, fi)] = np.array([1.0, 0.0]) if v == 0 else np.array([0.0, 1.0])
+                # Cromwell-clamped Class I message
+                if v == 0:
+                    new_v2f_init[(vid, fi)] = np.array([1.0 - CROMWELL_EPS, CROMWELL_EPS])
+                else:
+                    new_v2f_init[(vid, fi)] = np.array([CROMWELL_EPS, 1.0 - CROMWELL_EPS])
             else:
                 new_v2f_init[(vid, fi)] = _compute_v2f_trw(
                     vid, fi, priors[vid], var_to_factors, f2v_msgs, rho
@@ -478,20 +506,20 @@ class TRWBeliefPropagation:
             vid = key[0]
             if vid in graph.hard_evidence:
                 v2f_msgs[key] = new_v2f_init[key]
-                heapq.heappush(heap, (-1.0, 'v2f', key))
+                heapq.heappush(heap, (-1.0, "v2f", key))
             else:
                 old = v2f_msgs[key]
                 blended = self._damping * new_v2f_init[key] + (1.0 - self._damping) * old
                 v2f_msgs[key] = _normalize(blended)
                 residual = float(np.abs(v2f_msgs[key] - old).max())
-                heapq.heappush(heap, (-max(residual, 1e-10), 'v2f', key))
+                heapq.heappush(heap, (-max(residual, 1e-10), "v2f", key))
 
         for key in list(f2v_msgs.keys()):
             old = f2v_msgs[key]
             blended = self._damping * new_f2v_init[key] + (1.0 - self._damping) * old
             f2v_msgs[key] = _normalize(blended)
             residual = float(np.abs(f2v_msgs[key] - old).max())
-            heapq.heappush(heap, (-max(residual, 1e-10), 'f2v', key))
+            heapq.heappush(heap, (-max(residual, 1e-10), "f2v", key))
 
         total_updates = 0
         check_interval = max(1, len(f2v_msgs) + len(v2f_msgs))
@@ -511,7 +539,7 @@ class TRWBeliefPropagation:
                 diag.converged = True
                 break
 
-            if msg_type == 'f2v':
+            if msg_type == "f2v":
                 fi, vid = key
                 factor = graph.factors[fi]
                 new_msg = _compute_f2v_trw(fi, vid, factor, v2f_msgs, rho)
@@ -522,7 +550,7 @@ class TRWBeliefPropagation:
                 for fi2 in var_to_factors[vid]:
                     affected = (vid, fi2)
                     if affected in v2f_msgs and vid not in graph.hard_evidence:
-                        heapq.heappush(heap, (-max(new_residual, 1e-10), 'v2f', affected))
+                        heapq.heappush(heap, (-max(new_residual, 1e-10), "v2f", affected))
             else:
                 vid, fi = key
                 if vid in graph.hard_evidence:
@@ -538,7 +566,7 @@ class TRWBeliefPropagation:
                     if v in graph.variables:
                         affected = (fi, v)
                         if affected in f2v_msgs:
-                            heapq.heappush(heap, (-max(new_residual, 1e-10), 'f2v', affected))
+                            heapq.heappush(heap, (-max(new_residual, 1e-10), "f2v", affected))
 
             total_updates += 1
 

@@ -44,7 +44,7 @@ import logging
 from itertools import product as cartesian_product
 
 from gaia.bp.trw_bp import TRWDiagnostics, TRWResult
-from gaia.bp.factor_graph import Factor, FactorGraph
+from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
 __all__ = ["JunctionTreeInference", "jt_treewidth"]
@@ -673,11 +673,13 @@ class JunctionTreeInference:
         if not graph.factors:
             # No factors: beliefs are explicit unary factors or neutral MaxEnt.
             diag.converged = True
+
             # Priority: hard_evidence > unary_factors > neutral MaxEnt
             def _belief0(vid: str) -> float:
                 if vid in graph.hard_evidence:
-                    return 1.0 if graph.hard_evidence[vid] == 1 else 0.0
+                    return (1.0 - CROMWELL_EPS) if graph.hard_evidence[vid] == 1 else CROMWELL_EPS
                 return graph.unary_factors.get(vid, 0.5)
+
             beliefs = {vid: _belief0(vid) for vid in graph.variables}
             for vid, p in beliefs.items():
                 diag.belief_history[vid] = [p]
@@ -724,7 +726,9 @@ class JunctionTreeInference:
                 # Priority: hard_evidence > unary_factors
                 if v in graph.hard_evidence and v not in unary_assigned:
                     # Hard evidence: use δ function (0.0 or 1.0, no Cromwell ε)
-                    local_priors[v] = 1.0 if graph.hard_evidence[v] == 1 else 0.0
+                    local_priors[v] = (
+                        (1.0 - CROMWELL_EPS) if graph.hard_evidence[v] == 1 else CROMWELL_EPS
+                    )
                     unary_assigned.add(v)
                 elif v in graph.unary_factors and v not in unary_assigned:
                     local_priors[v] = graph.unary_factors[v]

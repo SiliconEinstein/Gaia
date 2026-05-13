@@ -47,8 +47,14 @@ def _enumerate_log_joint(
         log_j = np.zeros(cs, dtype=np.float64)
         for i, p in unary_idxs:
             log_j += np.where(states[:, i] == 1, np.log(p), np.log(1.0 - p))
+        # Cromwell-clamped hard evidence (Gaia adjusted Jaynes Class I):
+        # hard evidence contributes a strong soft prior {ε, 1-ε} rather than
+        # a strict δ, preserving Bayesian updatability. Log-probability
+        # contribution: log(1-ε) for matching states, log(ε) for non-matching.
+        _log_hard_match = np.log(1.0 - CROMWELL_EPS)
+        _log_hard_miss = np.log(CROMWELL_EPS)
         for i, val in hard_idxs:
-            log_j = np.where(states[:, i] == val, log_j, -np.inf)
+            log_j = log_j + np.where(states[:, i] == val, _log_hard_match, _log_hard_miss)
 
         for factor in graph.factors:
             log_j += _factor_log_potentials(factor, states, var_idx)

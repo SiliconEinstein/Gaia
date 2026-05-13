@@ -9,6 +9,8 @@ IR lowering: docs/foundations/gaia-ir/07-lowering.md
   mean_field     → n > 2000，大图快速近似
 """
 
+import warnings
+
 from gaia.bp.engine import EngineConfig, InferenceEngine, InferenceResult
 from gaia.bp.exact import comparison_table, exact_inference, exact_joint_over
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
@@ -71,6 +73,25 @@ def infer(
     if method == "auto":
         n = len(graph.variables)
         if n > _MF_NODE_LIMIT:
+            # Large-graph inference is under active research. Mean Field VI
+            # is the only currently-implemented algorithm capable of scaling
+            # past ~2000 nodes, but empirically produces 30%~79% error on
+            # Gaia's hard-constraint factor graphs (delta-like IMPLICATION /
+            # EQUIVALENCE potentials violate the q(x) = Πq_i(x_i) independence
+            # assumption). Until hierarchical / distributed TRW-BP is landed,
+            # we fall back to Mean Field with a loud warning so large-graph
+            # callers know their beliefs are not production-grade.
+            warnings.warn(
+                f"Large graph inference (n={n} > {_MF_NODE_LIMIT}) falls back "
+                f"to Mean Field VI, which has 30%~79% error on hard-constraint "
+                f"graphs (Jaynes Class I + IMPLICATION/EQUIVALENCE). Results "
+                f"are NOT production-grade. Planned replacement: hierarchical "
+                f"(schema/ground) or distributed TRW-BP. "
+                f"Pass method='trw_bp' explicitly to bypass and use TRW-BP "
+                f"anyway (slower on large n, but accurate).",
+                category=UserWarning,
+                stacklevel=2,
+            )
             method = "mean_field"
         else:
             tw = jt_treewidth(graph)
@@ -91,6 +112,4 @@ def infer(
         result = mf.run(graph)
         return result.beliefs
 
-    raise ValueError(
-        f"method must be auto, junction_tree, trw_bp, or mean_field; got {method!r}"
-    )
+    raise ValueError(f"method must be auto, junction_tree, trw_bp, or mean_field; got {method!r}")

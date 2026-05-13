@@ -25,14 +25,14 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 - **`gaia/bp/trw_bp.py`** — TRW-BP (Tree-Reweighted Belief Propagation)，默认近似推理算法，支持 residual 调度
 - **`gaia/bp/junction_tree.py`** — Junction Tree exact inference，用于 treewidth ≤ 20 的图
-- **`gaia/bp/mean_field.py`** — Mean Field Variational Inference (CAVI)，用于大图（n > 2000）
+- **`gaia/bp/mean_field.py`** — Mean Field Variational Inference (CAVI)，大图（n > 2000）的 fallback，硬约束图精度不足（详见「推理算法 / Mean Field VI」）
 - **`gaia/bp/exact.py`** — 小图 brute-force，用于测试和验证
 - **`gaia/bp/engine.py`** — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
 - **`gaia/bp/__init__.py`** — `infer(graph, method=auto)`：统一推理入口
 - **`gaia/bp/lowering.py`** — `lower_local_graph()`：Gaia IR → FactorGraph 的入口
 
 **算法选择策略（`method=auto`）：**
-1. 如果 n > 2000 → Mean Field VI
+1. 如果 n > 2000 → **fallback 到 Mean Field VI 并发出 `UserWarning`**。大图推理仍在调研中，MF 在 Gaia 硬约束图上有 30%~79% 系统误差，不是生产级；显式 `method="trw_bp"` 可绕过（慢但准确）。
 2. 否则估计 treewidth：
    - treewidth ≤ 20 → Junction Tree（精确）
    - treewidth > 20 → TRW-BP（近似）
@@ -64,14 +64,21 @@ Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
 
 **关键约束**：只有通过 `observe()` 或 `node_priors` 显式声明的 Claim 才能有非 MaxEnt prior。直接写 `Claim(prior=0.7)` 的 prior 会被忽略（除非同时在 `node_priors` 中出现）。
 
-这确保了 Jaynes 严格语义：
-- **Class I (Hard Evidence)**：`add_evidence(var, {0, 1})`，确定性事实
+这确保了 Jaynes 严格语义（Gaia 做了一个工程性调整）：
+- **Class I (Hard Evidence)**：`add_evidence(var, {0, 1})`。Gaia 把严格 δ {0, 1} **调整为** Cromwell 钳制 {ε, 1-ε}（ε = `CROMWELL_EPS` = 1e-3），保留贝叶斯可更新性，避免 log(0) = -∞ 在消息传递中污染整条链。代价：hard-evidence 变量 belief 上限 1-ε 而非 1.0，与原教旨 Jaynes Class I 存在 O(ε) 系统偏差（参考实现 `jaynes_ref/` 仍保持严格 δ 作为 ground truth）。
 - **Class IV (Unary Priors)**：`observe()` 或 `node_priors`，观测到的不确定信息
 - **Class V (MaxEnt Free)**：其他所有待推断变量，默认 0.5
 
 ### Cromwell's rule
 
-所有先验概率和 factor 概率被钳制到 `[epsilon, 1 - epsilon]`，其中 `epsilon = 1e-3`（见 `factor_graph.py:CROMWELL_EPS`）。这可防止 BP 期间出现退化的零配分函数状态，零概率会阻断所有后续证据更新。
+所有先验概率、factor 概率，以及 `add_evidence()` 产生的 Class I hard evidence 都被钳制到 `[epsilon, 1 - epsilon]`，其中 `epsilon = 1e-3`（见 `factor_graph.py:CROMWELL_EPS`）。这防止 BP 期间出现退化的零配分函数状态（零概率会阻断所有后续贝叶斯更新），并保持 TRW-BP / JT / MF / exact 所有路径在数值上是一致的 soft-prior 处理。
+
+**实现位置**：
+- `factor_graph.py::add_evidence` — 写入 `variables[v] = 1-ε` 或 `ε`
+- `trw_bp.py` — v→f 消息、`_prior_for`、早期 return 路径全部返回 `[1-ε, ε]` / `[ε, 1-ε]`
+- `junction_tree.py` — seeding clique potentials 与边际 prior 使用同一值
+- `mean_field.py` — CAVI 初始 `mu[v] = 1-ε` 或 `ε`，并从 soft-var 列表中排除
+- `exact.py` — brute-force log-joint 用 `log(1-ε)` / `log(ε)` 代替严格 -∞ mask
 
 ## 推理算法
 
@@ -99,12 +106,12 @@ Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
 
 ### Mean Field VI
 
-**快速近似**，用于大图（n > 2000）。
+**大图 fallback（带警告）**，n > 2000 时的 last resort。
 
 - **原理**：假设 q(x) = ∏ q_i(x_i) 完全分解，CAVI 坐标上升优化 ELBO
 - **复杂度**：O(n · F · 2^k) per sweep，k 是最大 factor arity
 - **收敛性**：ELBO 单调非递减，保证收敛
-- **限制**：对 Gaia 的硬约束图（delta potential {0,1}）精度较低，但不会崩溃
+- **精度限制（严重）**：Gaia 的硬约束（IMPLICATION/EQUIVALENCE）是 delta-like 势函数，本质强相关，直接违反 MF 的完全分解假设。实测在 5 组硬约束图上误差 3%~79%（Diamond loopy 79%，Chain-3 71%）。**不是生产级算法**。大图 auto 路由到 MF 时会发出 `UserWarning`，调研中的替代方案：分层推理（schema/ground 分离）、分布式 TRW-BP、GPU 加速 TRW-BP
 - **参数**：
   - `max_iterations`: 500
   - `convergence_threshold`: 1e-6
@@ -213,7 +220,7 @@ Package B:  F_inst_b: premises=[V_schema], conclusion=V_ground_b
 - `gaia/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
 - `gaia/bp/trw_bp.py` — `TRWBeliefPropagation`，默认近似推理
 - `gaia/bp/junction_tree.py` — Junction Tree exact inference
-- `gaia/bp/mean_field.py` — Mean Field VI，大图快速近似
+- `gaia/bp/mean_field.py` — Mean Field VI（大图 fallback，硬约束图精度不足，warning）
 - `gaia/bp/exact.py` — brute-force exact inference for small graphs
 - `gaia/bp/engine.py` — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
 - `gaia/bp/__init__.py` — `infer()`：统一推理入口

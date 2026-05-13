@@ -18,9 +18,10 @@ CAVI update for variable i (holding all others fixed):
 For binary variables with {0,1} potentials (delta-like), the expectation
 reduces to a sum over factor assignments weighted by the current q values.
 
-Hard evidence (Class I):
-    Variables in graph.hard_evidence are clamped: mu_i = 0 or 1.
-    They are excluded from the update loop.
+Hard evidence (Class I) — Gaia adjusted Jaynes:
+    Variables in graph.hard_evidence are clamped to {ε, 1-ε} (Cromwell)
+    rather than strict {0, 1}. They are excluded from the CAVI update
+    loop (treated as fixed strong prior).
 
 Convergence:
     ELBO is non-decreasing under CAVI (guaranteed).
@@ -37,7 +38,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from numpy.typing import NDArray
 
-from gaia.bp.factor_graph import FactorGraph
+from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
 __all__ = ["MeanFieldVI", "MFResult", "MFDiagnostics"]
@@ -59,6 +60,7 @@ def _clamp(mu: float) -> float:
 # ---------------------------------------------------------------------------
 # ELBO computation
 # ---------------------------------------------------------------------------
+
 
 def _compute_elbo(
     graph: FactorGraph,
@@ -110,6 +112,7 @@ def _compute_elbo(
 # ---------------------------------------------------------------------------
 # CAVI update
 # ---------------------------------------------------------------------------
+
 
 def _cavi_update(
     var: str,
@@ -170,6 +173,7 @@ def _cavi_update(
 # Diagnostics
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class MFDiagnostics:
     """Diagnostics from a Mean Field VI run."""
@@ -192,6 +196,7 @@ class MFResult:
 # ---------------------------------------------------------------------------
 # MeanFieldVI
 # ---------------------------------------------------------------------------
+
 
 class MeanFieldVI:
     """Coordinate Ascent Variational Inference (CAVI) for binary factor graphs.
@@ -228,11 +233,12 @@ class MeanFieldVI:
 
         var_to_factors = graph.get_var_to_factors()
 
-        # Initialise mu: hard_evidence -> clamped delta, others -> prior or 0.5
+        # Initialise mu: hard_evidence -> Cromwell-clamped {ε, 1-ε},
+        # others -> prior or 0.5
         mu: dict[str, float] = {}
         for vid in graph.variables:
             if vid in graph.hard_evidence:
-                mu[vid] = float(graph.hard_evidence[vid])  # 0.0 or 1.0
+                mu[vid] = (1.0 - CROMWELL_EPS) if graph.hard_evidence[vid] == 1 else CROMWELL_EPS
             elif vid in graph.unary_factors:
                 mu[vid] = _clamp(graph.unary_factors[vid])
             else:
