@@ -112,7 +112,7 @@ def test_lowering_relation_helper_is_assertion_not_default_prior():
 
     fg = lower_local_graph(graph)
 
-    assert fg.unary_factors["github:jaynes::same"] == pytest.approx(1.0 - CROMWELL_EPS)
+    assert fg.hard_evidence["github:jaynes::same"] == 1
     assert fg.factors[0].factor_type == FactorType.EQUIVALENCE
 
 
@@ -193,7 +193,12 @@ def test_deduction_conclusion_evidence_raises_premise_by_bayes():
     beliefs, _ = exact_inference(fg)
 
     assert beliefs["github:jaynes::a"] > 0.5
-    assert beliefs["github:jaynes::a"] == pytest.approx(0.6426529445)
+    # V2 fix (Jaynes D3): the deduction CPT's false-premise branch now
+    # inherits π_C=0.9 (not the legacy hard-coded 0.5). This eliminates the
+    # spurious base-rate / leaf-prior conflict that previously inflated P(A)
+    # to ~0.6427. Correct posterior is ~0.523 — only mild leak from C's
+    # high prior, as Jaynes demands.
+    assert beliefs["github:jaynes::a"] == pytest.approx(0.5230339693, abs=1e-6)
 
 
 def test_deduction_ignores_helper_prior_for_hard_logic():
@@ -234,3 +239,89 @@ def test_deduction_ignores_helper_prior_for_hard_logic():
     assert len(fg.factors) == 1
     assert fg.factors[0].factor_type == FactorType.CONDITIONAL
     assert fg.factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
+
+
+# ---------------------------------------------------------------------------
+# V9 (Jaynes D2): structural deduplication of top-level operators
+# ---------------------------------------------------------------------------
+
+
+def test_d2_symmetric_equivalence_reorder_dedup():
+    """EQUIVALENCE(A,B) and EQUIVALENCE(B,A) into the same helper → one factor."""
+    graph = LocalCanonicalGraph(
+        namespace="github",
+        package_name="jaynes",
+        knowledges=[
+            Knowledge(id="github:jaynes::a", type="claim", content="A"),
+            Knowledge(id="github:jaynes::b", type="claim", content="B"),
+            Knowledge(id="github:jaynes::same", type="claim", content="A iff B"),
+        ],
+        operators=[
+            Operator(operator="equivalence",
+                     variables=["github:jaynes::a", "github:jaynes::b"],
+                     conclusion="github:jaynes::same"),
+            Operator(operator="equivalence",
+                     variables=["github:jaynes::b", "github:jaynes::a"],
+                     conclusion="github:jaynes::same"),
+        ],
+    )
+
+    fg = lower_local_graph(graph)
+
+    assert len(fg.factors) == 1
+    assert len(fg.dedup_audit) == 1
+    assert fg.dedup_audit[0]["op"].endswith("equivalence")
+    assert fg.dedup_audit[0]["conclusion"] == "github:jaynes::same"
+
+
+def test_d2_symmetric_conflicting_conclusions_raises():
+    """CONJUNCTION(A,B,C) and CONJUNCTION(C,B,A) into different helpers → raise."""
+    graph = LocalCanonicalGraph(
+        namespace="github",
+        package_name="jaynes",
+        knowledges=[
+            Knowledge(id="github:jaynes::a", type="claim", content="A"),
+            Knowledge(id="github:jaynes::b", type="claim", content="B"),
+            Knowledge(id="github:jaynes::c", type="claim", content="C"),
+            Knowledge(id="github:jaynes::h1", type="claim", content="all"),
+            Knowledge(id="github:jaynes::h2", type="claim", content="all (alt)"),
+        ],
+        operators=[
+            Operator(operator="conjunction",
+                     variables=["github:jaynes::a", "github:jaynes::b", "github:jaynes::c"],
+                     conclusion="github:jaynes::h1"),
+            Operator(operator="conjunction",
+                     variables=["github:jaynes::c", "github:jaynes::b", "github:jaynes::a"],
+                     conclusion="github:jaynes::h2"),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="D2 violation"):
+        lower_local_graph(graph)
+
+
+def test_d2_asymmetric_implication_reverse_is_independent():
+    """IMPLICATION(A,B) and IMPLICATION(B,A) are different relations; both kept."""
+    graph = LocalCanonicalGraph(
+        namespace="github",
+        package_name="jaynes",
+        knowledges=[
+            Knowledge(id="github:jaynes::a", type="claim", content="A"),
+            Knowledge(id="github:jaynes::b", type="claim", content="B"),
+            Knowledge(id="github:jaynes::ab", type="claim", content="A→B"),
+            Knowledge(id="github:jaynes::ba", type="claim", content="B→A"),
+        ],
+        operators=[
+            Operator(operator="implication",
+                     variables=["github:jaynes::a", "github:jaynes::b"],
+                     conclusion="github:jaynes::ab"),
+            Operator(operator="implication",
+                     variables=["github:jaynes::b", "github:jaynes::a"],
+                     conclusion="github:jaynes::ba"),
+        ],
+    )
+
+    fg = lower_local_graph(graph)
+
+    assert len(fg.factors) == 2
+    assert fg.dedup_audit == []

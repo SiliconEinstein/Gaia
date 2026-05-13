@@ -3,27 +3,22 @@
 Exposes a single InferenceEngine.run() method that chooses among:
 
   - JunctionTreeInference: exact, O(n * 2^w), best for treewidth ≤ JT_MAX_TREEWIDTH
-  - GeneralizedBeliefPropagation: near-exact for graphs with identifiable short
-    cycles, best for JT_MAX_TREEWIDTH < treewidth ≤ GBP_MAX_TREEWIDTH
-  - BeliefPropagation: loopy BP approximation, always runs but may have errors
-    on short cycles; fallback for very large/dense graphs
+  - TRWBeliefPropagation: bounded approximate, default for n ≤ MF_NODE_LIMIT
+  - MeanFieldVI: fast approximate, for n > MF_NODE_LIMIT
 
 Decision thresholds (tunable):
-  JT_MAX_TREEWIDTH = 15   — JT is exact and fast up to treewidth 15
-  GBP_MAX_TREEWIDTH = 30  — GBP handles higher treewidths via region decomposition
-
-For Gaia's factor graphs (typically n ≤ 200, treewidth ≤ 10), JT is almost
-always selected, giving exact results in milliseconds.
+  JT_MAX_TREEWIDTH = 20   — JT is exact and fast up to treewidth 20
+  MF_NODE_LIMIT = 2000    — Mean Field for very large graphs
 
 Usage:
     from gaia.bp.engine import InferenceEngine
 
     engine = InferenceEngine()
-    result = engine.run(graph)           # auto-select
-    result = engine.run(graph, method="jt")    # force JT
-    result = engine.run(graph, method="gbp")   # force GBP
-    result = engine.run(graph, method="bp")    # force loopy BP
-    result = engine.run(graph, method="exact") # force brute-force (small graphs only)
+    result = engine.run(graph)              # auto-select
+    result = engine.run(graph, method="jt")       # force JT
+    result = engine.run(graph, method="trw_bp")   # force TRW-BP
+    result = engine.run(graph, method="mean_field") # force Mean Field
+    result = engine.run(graph, method="exact")    # force brute-force (small graphs only)
 """
 
 from __future__ import annotations
@@ -33,75 +28,72 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
-from gaia.bp.bp import BeliefPropagation, BPDiagnostics, BPResult
 from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import FactorGraph
-from gaia.bp.gbp import GeneralizedBeliefPropagation
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
+from gaia.bp.mean_field import MeanFieldVI, MFDiagnostics, MFResult
+from gaia.bp.trw_bp import TRWBeliefPropagation, TRWDiagnostics, TRWResult
 
-__all__ = ["EngineConfig", "InferenceEngine", "MethodChoice"]
+__all__ = ["EngineConfig", "InferenceEngine", "InferenceResult", "MethodChoice"]
 
 logger = logging.getLogger(__name__)
 
-MethodChoice = Literal["auto", "jt", "gbp", "bp", "exact"]
+MethodChoice = Literal["auto", "jt", "trw_bp", "mean_field", "exact"]
 
-# Treewidth thresholds for automatic algorithm selection
-JT_MAX_TREEWIDTH: int = 15  # JT exact: 2^15 = 32K states per clique, fast
-GBP_MAX_TREEWIDTH: int = 30  # GBP region decomposition covers most practical cases
-EXACT_MAX_VARS: int = 26  # Brute-force enumeration limit (2^26 = 67M states)
+# 算法路由阈值
+JT_MAX_TREEWIDTH: int = 20   # JT 精确推断上限
+MF_NODE_LIMIT: int = 2000    # 超过此节点数用 Mean Field
+EXACT_MAX_VARS: int = 26     # 暴力枚举上限（2^26 ≈ 67M 状态）
 
 
 @dataclass
 class EngineConfig:
-    """Configuration for the unified inference engine.
+    """InferenceEngine 的配置参数。
 
     Attributes:
     jt_max_treewidth:
-        Use JT (exact) when estimated treewidth ≤ this value.
-    gbp_max_treewidth:
-        Use GBP when jt_max_treewidth < treewidth ≤ gbp_max_treewidth.
-        Above this threshold, fall back to loopy BP.
-    gbp_max_cycle_len:
-        Maximum cycle length to detect in GBP's region graph construction.
-    bp_damping:
-        Damping factor for loopy BP and inter-region GBP.
-    bp_max_iter:
-        Maximum iterations for loopy BP.
-    bp_threshold:
-        Convergence threshold for loopy BP.
+        treewidth ≤ 此值时使用 JT（精确）。
+    mf_node_limit:
+        节点数 > 此值时使用 Mean Field VI。
+    trw_damping:
+        TRW-BP 阻尼系数。
+    trw_max_iter:
+        TRW-BP 最大迭代次数。
+    trw_threshold:
+        TRW-BP 收敛阈值。
+    mf_max_iter:
+        Mean Field 最大迭代次数。
     exact_max_vars:
-        Maximum variables for brute-force exact inference.
+        暴力枚举最大变量数。
     """
 
     jt_max_treewidth: int = JT_MAX_TREEWIDTH
-    gbp_max_treewidth: int = GBP_MAX_TREEWIDTH
-    gbp_max_cycle_len: int = 6
-    bp_damping: float = 0.5
-    bp_max_iter: int = 200
-    bp_threshold: float = 1e-8
+    mf_node_limit: int = MF_NODE_LIMIT
+    trw_damping: float = 0.5
+    trw_max_iter: int = 200
+    trw_threshold: float = 1e-8
+    mf_max_iter: int = 500
     exact_max_vars: int = EXACT_MAX_VARS
 
 
 @dataclass
 class InferenceResult:
-    """Extended result from InferenceEngine with algorithm metadata.
-
-    Wraps BPResult and adds engine-level diagnostics.
+    """InferenceEngine 的返回值，包含推断结果和算法元数据。
 
     Attributes:
-    bp_result:
-        The underlying BPResult (beliefs + diagnostics).
+    result:
+        底层算法的结果（TRWResult 或 MFResult）。
     method_used:
-        Which algorithm was selected: 'jt', 'gbp', 'bp', or 'exact'.
+        实际使用的算法：'jt', 'trw_bp', 'mean_field', 或 'exact'。
     treewidth:
-        Estimated treewidth of the factor graph (-1 if not computed).
+        因子图的估计树宽（未计算时为 -1）。
     elapsed_ms:
-        Wall-clock time for inference in milliseconds.
+        推断耗时（毫秒）。
     is_exact:
-        True if the algorithm is guaranteed to return exact marginals.
+        True 表示算法保证返回精确边缘概率。
     """
 
-    bp_result: BPResult
+    result: TRWResult | MFResult
     method_used: str = "unknown"
     treewidth: int = -1
     elapsed_ms: float = 0.0
@@ -109,157 +101,136 @@ class InferenceResult:
 
     @property
     def beliefs(self) -> dict[str, float]:
-        """Shortcut to beliefs dict."""
-        return self.bp_result.beliefs
+        """快捷访问 beliefs 字典。"""
+        return self.result.beliefs
 
     @property
-    def diagnostics(self) -> BPDiagnostics:
-        """Shortcut to BPDiagnostics."""
-        return self.bp_result.diagnostics
+    def diagnostics(self) -> TRWDiagnostics | MFDiagnostics:
+        """快捷访问 diagnostics。"""
+        return self.result.diagnostics
 
 
 class InferenceEngine:
-    """Unified inference engine with automatic algorithm selection.
+    """统一推断引擎，自动选择最优算法。
 
-    Chooses the most accurate algorithm that is computationally feasible
-    for the given factor graph.
-
-    Priority (when method='auto'):
-      1. JT: treewidth ≤ jt_max_treewidth → exact, fastest for small treewidth
-      2. GBP: jt_max_treewidth < tw ≤ gbp_max_treewidth → region decomposition
-      3. BP: tw > gbp_max_treewidth → loopy BP approximation
+    自动路由策略（method='auto'）：
+      1. n > mf_node_limit → Mean Field VI（大图快速近似）
+      2. treewidth ≤ jt_max_treewidth → JT（精确）
+      3. 其他 → TRW-BP（有界近似）
 
     Args:
     config:
-        EngineConfig controlling thresholds and algorithm parameters.
-        Defaults to EngineConfig() with recommended settings.
+        EngineConfig，控制路由阈值和算法参数。
     """
 
     def __init__(self, config: EngineConfig | None = None) -> None:
-        """Initialize the engine and its reusable inference backends.
-
-        Args:
-            config: Optional engine thresholds and algorithm parameters.
-        """
         self._config = config or EngineConfig()
+        cfg = self._config
         self._jt = JunctionTreeInference()
-        self._gbp = GeneralizedBeliefPropagation(
-            max_cycle_len=self._config.gbp_max_cycle_len,
-            bp_damping=self._config.bp_damping,
-            bp_max_iter=self._config.bp_max_iter,
-            bp_threshold=self._config.bp_threshold,
+        self._trw = TRWBeliefPropagation(
+            damping=cfg.trw_damping,
+            max_iterations=cfg.trw_max_iter,
+            convergence_threshold=cfg.trw_threshold,
         )
-        self._bp = BeliefPropagation(
-            damping=self._config.bp_damping,
-            max_iterations=self._config.bp_max_iter,
-            convergence_threshold=self._config.bp_threshold,
-        )
+        self._mf = MeanFieldVI(max_iterations=cfg.mf_max_iter)
 
     def run(
         self,
         graph: FactorGraph,
         method: MethodChoice = "auto",
     ) -> InferenceResult:
-        """Run inference on *graph* using the specified or auto-selected method.
+        """在 graph 上运行推断。
 
         Args:
         graph:
-            A validated FactorGraph.
+            已 lower 好的 FactorGraph。
         method:
-            'auto' (default): automatically select based on treewidth.
-            'jt': force Junction Tree (exact, may be slow for high treewidth).
-            'gbp': force Generalized BP (region decomposition).
-            'bp': force loopy BP (fast but approximate on cyclic graphs).
-            'exact': force brute-force enumeration (only feasible for ≤26 vars).
+            'auto'（默认）：按 n 和 treewidth 自动选择。
+            'jt'：强制 JT（精确，treewidth ≤ 20）。
+            'trw_bp'：强制 TRW-BP。
+            'mean_field'：强制 Mean Field VI。
+            'exact'：强制暴力枚举（仅适用于小图）。
 
         Returns:
-            InferenceResult with posterior beliefs, selected method metadata,
-            estimated treewidth, elapsed time, and exactness flag.
+            InferenceResult，包含边缘概率、算法元数据和耗时。
         """
         cfg = self._config
         t0 = time.perf_counter()
-
-        # Compute treewidth once (fast, O(n^2))
-        tw = jt_treewidth(graph) if method in ("auto", "jt", "gbp") else -1
 
         if method == "exact":
             n = len(graph.variables)
             if n > cfg.exact_max_vars:
                 raise ValueError(
-                    f"Graph has {n} variables, too many for brute-force "
-                    f"exact inference (max {cfg.exact_max_vars}). "
-                    "Use method='jt' for exact inference up to treewidth ~15."
+                    f"图有 {n} 个变量，超过暴力枚举上限 {cfg.exact_max_vars}。"
+                    "请使用 method='jt' 进行精确推断。"
                 )
             beliefs, _Z = exact_inference(graph)
-            diag = BPDiagnostics()
+            diag = TRWDiagnostics()
             diag.converged = True
             for v, b in beliefs.items():
                 diag.belief_history[v] = [b]
-            bp_result = BPResult(beliefs=beliefs, diagnostics=diag)
+            result = TRWResult(beliefs=beliefs, diagnostics=diag)
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: exact, %d vars, %.1fms", n, elapsed)
             return InferenceResult(
-                bp_result=bp_result,
-                method_used="exact",
-                treewidth=-1,
-                elapsed_ms=elapsed,
-                is_exact=True,
+                result=result, method_used="exact",
+                treewidth=-1, elapsed_ms=elapsed, is_exact=True,
             )
 
-        if method == "jt" or (method == "auto" and tw <= cfg.jt_max_treewidth):
-            bp_result = self._jt.run(graph)
+        if method == "auto":
+            n = len(graph.variables)
+            if n > cfg.mf_node_limit:
+                method = "mean_field"
+            else:
+                tw = jt_treewidth(graph)
+                method = "jt" if tw <= cfg.jt_max_treewidth else "trw_bp"
+
+        if method == "jt":
+            tw = jt_treewidth(graph)
+            result = self._jt.run(graph)
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: JT (exact), treewidth=%d, %.1fms", tw, elapsed)
             return InferenceResult(
-                bp_result=bp_result,
-                method_used="jt",
-                treewidth=tw,
-                elapsed_ms=elapsed,
-                is_exact=True,
+                result=result, method_used="jt",
+                treewidth=tw, elapsed_ms=elapsed, is_exact=True,
             )
 
-        if method == "gbp" or (method == "auto" and tw <= cfg.gbp_max_treewidth):
-            bp_result = self._gbp.run(graph)
+        if method == "trw_bp":
+            tw = jt_treewidth(graph) if len(graph.variables) <= cfg.mf_node_limit else -1
+            result = self._trw.run(graph)
             elapsed = (time.perf_counter() - t0) * 1000
-            logger.info("InferenceEngine: GBP, treewidth=%d, %.1fms", tw, elapsed)
+            logger.info("InferenceEngine: TRW-BP, treewidth=%d, %.1fms", tw, elapsed)
             return InferenceResult(
-                bp_result=bp_result,
-                method_used="gbp",
-                treewidth=tw,
-                elapsed_ms=elapsed,
-                is_exact=(tw <= cfg.jt_max_treewidth),
+                result=result, method_used="trw_bp",
+                treewidth=tw, elapsed_ms=elapsed, is_exact=False,
             )
 
-        # Fall through to loopy BP for explicit bp or high treewidth.
-        bp_result = self._bp.run(graph)
-        elapsed = (time.perf_counter() - t0) * 1000
-        logger.info("InferenceEngine: loopy BP, treewidth=%d, %.1fms", tw, elapsed)
-        return InferenceResult(
-            bp_result=bp_result,
-            method_used="bp",
-            treewidth=tw,
-            elapsed_ms=elapsed,
-            is_exact=False,
+        if method == "mean_field":
+            result = self._mf.run(graph)
+            elapsed = (time.perf_counter() - t0) * 1000
+            logger.info("InferenceEngine: Mean Field, %d vars, %.1fms",
+                        len(graph.variables), elapsed)
+            return InferenceResult(
+                result=result, method_used="mean_field",
+                treewidth=-1, elapsed_ms=elapsed, is_exact=False,
+            )
+
+        raise ValueError(
+            f"method 必须是 'auto', 'jt', 'trw_bp', 'mean_field', 或 'exact'；"
+            f"收到 {method!r}"
         )
 
     def benchmark(self, graph: FactorGraph) -> dict[str, dict[str, object]]:
-        """Run all feasible methods and return a comparison dict.
-
-        Returns dict: method_name -> {'beliefs': ..., 'elapsed_ms': ..., 'is_exact': ...}
-        Skips exact brute-force if graph has > EXACT_MAX_VARS variables.
-        """
+        """运行所有可行算法并返回对比结果。"""
         results: dict[str, dict[str, object]] = {}
-
-        methods: tuple[Literal["jt", "gbp", "bp"], ...] = ("jt", "gbp", "bp")
-        for method in methods:
-            r = self.run(graph, method=method)
-            results[method] = {
+        for m in ("jt", "trw_bp", "mean_field"):
+            r = self.run(graph, method=m)  # type: ignore[arg-type]
+            results[m] = {
                 "beliefs": r.beliefs,
                 "elapsed_ms": r.elapsed_ms,
                 "is_exact": r.is_exact,
                 "treewidth": r.treewidth,
             }
-
         if len(graph.variables) <= self._config.exact_max_vars:
             r = self.run(graph, method="exact")
             results["exact"] = {
@@ -268,5 +239,4 @@ class InferenceEngine:
                 "is_exact": True,
                 "treewidth": -1,
             }
-
         return results

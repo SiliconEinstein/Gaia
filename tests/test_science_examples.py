@@ -7,7 +7,7 @@ and runs BP to verify belief propagation produces sensible posteriors.
 from __future__ import annotations
 
 from gaia.bp import lower_local_graph
-from gaia.bp.bp import BeliefPropagation
+from gaia.bp.trw_bp import TRWBeliefPropagation
 from gaia.bp.exact import exact_inference
 from gaia.ir import Knowledge, LocalCanonicalGraph, Operator, Strategy
 
@@ -200,7 +200,7 @@ class TestGalileoFine:
             },
             strategy_conditional_params=sp,
         )
-        bp = BeliefPropagation(damping=0.5, max_iterations=100)
+        bp = TRWBeliefPropagation(damping=0.5, max_iterations=100)
         result = bp.run(fg)
         assert result.diagnostics.converged
 
@@ -410,6 +410,6 @@ class TestEinsteinContradiction:
                 _qid("einstein", "mercury_perihelion"): 0.98,
             },
         )
-        bp = BeliefPropagation(damping=0.5, max_iterations=100)
+        bp = TRWBeliefPropagation(damping=0.5, max_iterations=100)
         result = bp.run(fg)
         assert result.diagnostics.converged

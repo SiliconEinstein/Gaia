@@ -1,6 +1,6 @@
 # Gaia IR 上的 BP 推理
 
-> **Status:** Current canonical (v0.5)
+> **Status:** Current canonical (v0.5 + BP refactor 2026-05-13)
 
 本文档描述 belief propagation 如何在 Gaia IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。backend-facing lowering 边界见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。`gaia infer` CLI 入口与 priors / dep_beliefs / depth 见 [../cli/inference.md](../cli/inference.md)。
 
@@ -23,18 +23,25 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 `gaia/bp/factor_graph.py` 是当前实现：使用字符串 ID、十种 `FactorType`（七种确定性 + SOFT_ENTAILMENT + CONDITIONAL + PAIRWISE_POTENTIAL）、`variables` + `conclusion` 结构。势函数见 [potentials.md](potentials.md)。配套算法分模块：
 
-- `gaia/bp/bp.py` — loopy BP (sum-product) 与诊断
-- `gaia/bp/junction_tree.py` — Junction Tree exact inference
-- `gaia/bp/gbp.py` — Generalized BP
-- `gaia/bp/exact.py` — 小图 brute-force
-- `gaia/bp/engine.py` — `InferenceEngine`：根据 treewidth 自动选择算法（JT 当 tw ≤ 15，GBP 当 tw ≤ 30，否则 loopy BP）
-- `gaia/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph 的入口
+- **`gaia/bp/trw_bp.py`** — TRW-BP (Tree-Reweighted Belief Propagation)，默认近似推理算法，支持 residual 调度
+- **`gaia/bp/junction_tree.py`** — Junction Tree exact inference，用于 treewidth ≤ 20 的图
+- **`gaia/bp/mean_field.py`** — Mean Field Variational Inference (CAVI)，用于大图（n > 2000）
+- **`gaia/bp/exact.py`** — 小图 brute-force，用于测试和验证
+- **`gaia/bp/engine.py`** — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
+- **`gaia/bp/__init__.py`** — `infer(graph, method=auto)`：统一推理入口
+- **`gaia/bp/lowering.py`** — `lower_local_graph()`：Gaia IR → FactorGraph 的入口
+
+**算法选择策略（`method=auto`）：**
+1. 如果 n > 2000 → Mean Field VI
+2. 否则估计 treewidth：
+   - treewidth ≤ 20 → Junction Tree（精确）
+   - treewidth > 20 → TRW-BP（近似）
 
 ### 从 Gaia IR 构建
 
 `gaia.bp.lowering.lower_local_graph(graph, node_priors=None)` 把 `LocalCanonicalGraph` lower 成 `FactorGraph`：
 
-- 每个 `Knowledge` 节点变成一个二值变量，prior 来自 `metadata["prior"]` 或 `node_priors` 覆盖。
+- 每个 `Knowledge` 节点变成一个二值变量，prior 来源见下节Prior 赋值规则。
 - 每个 `Operator` 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE / CONTRADICTION / COMPLEMENT），CPT 由真值表决定（详见 [formal-strategy-lowering.md](formal-strategy-lowering.md)）。
 - 每个 `Strategy(type=infer)` 变成 CONDITIONAL 因子，CPT 来自作者的 `p_e_given_h` / `p_e_given_not_h`（含 `given` 时按 v0.5 gating 收缩为 MaxEnt）。
 - 每个 `Strategy(type=associate)` 变成 PAIRWISE_POTENTIAL 因子，直接连接两个 Claim 变量（无 helper conclusion），joint weights 由 `p_a_given_b` / `p_b_given_a` 和至少一个边际 prior 推导。
@@ -45,11 +52,73 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 契约详见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md) 和 [cli/inference.md](../cli/inference.md)。
 
+### Prior 赋值规则（Jaynes 严格语义）
+
+Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
+
+1. **Expression helper**（`~A`, `A & B` 等结构化辅助变量）→ 无 prior（MaxEnt 0.5）
+2. **Relation conclusion**（EQUIVALENCE/CONTRADICTION/COMPLEMENT/IMPLICATION 的 conclusion）→ `add_evidence(1)`（hard evidence，Cromwell-softened 为 `1 - ε`）
+3. **`node_priors` 字典**（调用方显式传入）→ 用户指定值
+4. **`metadata[prior]` + `metadata[supported_by]` 同时存在**（零前提 `observe()` 产生）→ 使用 `metadata[prior]`
+5. **默认**（无任何 prior）→ MaxEnt（0.5）
+
+**关键约束**：只有通过 `observe()` 或 `node_priors` 显式声明的 Claim 才能有非 MaxEnt prior。直接写 `Claim(prior=0.7)` 的 prior 会被忽略（除非同时在 `node_priors` 中出现）。
+
+这确保了 Jaynes 严格语义：
+- **Class I (Hard Evidence)**：`add_evidence(var, {0, 1})`，确定性事实
+- **Class IV (Unary Priors)**：`observe()` 或 `node_priors`，观测到的不确定信息
+- **Class V (MaxEnt Free)**：其他所有待推断变量，默认 0.5
+
 ### Cromwell's rule
 
 所有先验概率和 factor 概率被钳制到 `[epsilon, 1 - epsilon]`，其中 `epsilon = 1e-3`（见 `factor_graph.py:CROMWELL_EPS`）。这可防止 BP 期间出现退化的零配分函数状态，零概率会阻断所有后续证据更新。
 
-## 消息计算
+## 推理算法
+
+### TRW-BP (Tree-Reweighted Belief Propagation)
+
+**默认算法**，用于中等规模图（n ≤ 2000，treewidth > 20）。
+
+- **原理**：通过 edge weights ρ_e ∈ (0,1] 对消息加权，保证 ELBO 单调上升（有界近似）
+- **调度**：支持 synchronous（同步）和 residual（残差优先队列）
+- **收敛性**：比 loopy BP 更稳定，residual 调度可加速 5-10 倍
+- **参数**：
+  - `damping`: 0.5（默认）
+  - `max_iterations`: 200
+  - `convergence_threshold`: 1e-8
+  - `schedule`: synchronous | residual
+
+### Junction Tree
+
+**精确推理**，用于 treewidth ≤ 20 的图。
+
+- **原理**：将图三角化为树结构，在 clique tree 上精确传播
+- **复杂度**：O(n · 2^tw)，tw 是 treewidth
+- **限制**：tw > 20 时内存和时间开销过大
+- **Treewidth 估计**：使用 min-fill heuristic（`jt_treewidth()`）
+
+### Mean Field VI
+
+**快速近似**，用于大图（n > 2000）。
+
+- **原理**：假设 q(x) = ∏ q_i(x_i) 完全分解，CAVI 坐标上升优化 ELBO
+- **复杂度**：O(n · F · 2^k) per sweep，k 是最大 factor arity
+- **收敛性**：ELBO 单调非递减，保证收敛
+- **限制**：对 Gaia 的硬约束图（delta potential {0,1}）精度较低，但不会崩溃
+- **参数**：
+  - `max_iterations`: 500
+  - `convergence_threshold`: 1e-6
+  - `track_elbo`: False（开启会增加 O(F·2^k) 开销）
+
+### Exact Inference
+
+**Brute-force**，仅用于小图测试和验证。
+
+- **原理**：枚举所有 2^n 种赋值，计算精确边际概率
+- **限制**：n > 20 时不可行
+- **用途**：作为其他算法的 ground truth
+
+## 消息计算（TRW-BP）
 
 消息是 2 维向量 `[p(x=0), p(x=1)]`，始终归一化使总和为 1。这是 `Msg` 类型（NumPy `NDArray[float64]`，形状 `(2,)`）。
 
@@ -57,9 +126,9 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 每次迭代：
 
-1. **Variable-to-factor 消息**：对每条 `(variable, factor)` 边，消息是该变量的先验乘以所有传入的 factor-to-var 消息的乘积（排除当前 factor——排除自身规则）。
+1. **Variable-to-factor 消息**：对每条 `(variable, factor)` 边，消息是该变量的先验乘以所有传入的 factor-to-var 消息的乘积（排除当前 factor——排除自身规则），再加 ρ 权重。
 
-2. **Factor-to-variable 消息**：对每条 `(factor, variable)` 边，遍历其他变量的所有 2^(n-1) 种赋值，以 factor potential 和传入的 var-to-factor 消息加权进行边际化。
+2. **Factor-to-variable 消息**：对每条 `(factor, variable)` 边，遍历其他变量的所有 2^(n-1) 种赋值，以 factor potential 和传入的 var-to-factor 消息加权进行边际化，再加 ρ 权重。
 
 3. **Damping 和归一化**：新消息通过 `damping * new + (1 - damping) * old` 与旧消息混合，然后归一化。
 
@@ -67,27 +136,50 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 5. **检查收敛**：如果任何信念值的最大绝对变化低于阈值，则停止。
 
+### Residual 调度
+
+维护一个优先队列，每次只更新残差最大的消息：
+
+- **残差定义**：`residual(msg) = ||new_msg - old_msg||_∞`
+- **更新策略**：更新一条消息后，将受影响的邻居消息重新加入队列
+- **收敛判断**：当队列顶部残差 < 阈值时停止
+- **优势**：Murphy et al. 1999 实验显示 5-10 倍加速
+
 ### Conclusion 先验与约束激活
 
-每个 Operator 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE / CONTRADICTION / COMPLEMENT），使用 Cromwell-softened 势函数（`HIGH = 1 - ε`, `LOW = ε`）。Relation operator（equivalence / contradiction / complement）的 conclusion 使用 $\pi = 1-\varepsilon$（断言"关系成立"），约束自然激活。Directed operator（conjunction / disjunction / implication / negation）的 conclusion 使用 $\pi = 0.5$（计算输出），belief 由 variables 决定。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
+每个 Operator 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE / CONTRADICTION / COMPLEMENT），使用 Cromwell-softened 势函数（`HIGH = 1 - ε`, `LOW = ε`）。Relation operator（equivalence / contradiction / complement）的 conclusion 使用 `add_evidence(1)`（断言关系成立），约束自然激活。Directed operator（conjunction / disjunction / implication / negation）的 conclusion 使用 π = 0.5（计算输出），belief 由 variables 决定。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
 
 ## 参数
 
-| 参数 | 默认值 | 描述 |
-|---|---|---|
-| `damping` | 0.5 | 消息更新的混合因子。1.0 = 完全替换，0.0 = 保持旧值。 |
-| `max_iterations` | 50 | 消息传递轮次的上限。 |
-| `convergence_threshold` | 1e-6 | 当最大信念变化低于此值时停止。 |
+| 参数 | TRW-BP | Junction Tree | Mean Field |
+|---|---|---|---|
+| `damping` | 0.5 | N/A | N/A |
+| `max_iterations` | 200 | N/A | 500 |
+| `convergence_threshold` | 1e-8 | N/A | 1e-6 |
+| `schedule` | synchronous | N/A | N/A |
+| `track_elbo` | N/A | N/A | False |
 
 ## 诊断
 
-`run_with_diagnostics()` 返回一个 `BPDiagnostics` 对象，包含：
+### TRWDiagnostics
+
+`TRWBeliefPropagation.run()` 返回 `TRWResult`，包含 `TRWDiagnostics`：
 
 - **`iterations_run`**：执行了多少次迭代。
 - **`converged`**：是否达到收敛阈值。
 - **`max_change_at_stop`**：最终迭代中的最大信念变化。
-- **`belief_history: dict[int, list[float]]`**：每个变量跨迭代的信念轨迹。用于可视化和调试。
-- **`direction_changes: dict[int, int]`**：每个变量信念增量的符号反转次数。高计数表示振荡，这是冲突检测的信号——该变量从图的不同部分接收到矛盾证据。
+- **`belief_history: dict[str, list[float]]`**：每个变量跨迭代的信念轨迹。用于可视化和调试。
+- **`direction_changes: dict[str, int]`**：每个变量信念增量的符号反转次数。高计数表示振荡，这是冲突检测的信号——该变量从图的不同部分接收到矛盾证据。
+
+### MFDiagnostics
+
+`MeanFieldVI.run()` 返回 `MFResult`，包含 `MFDiagnostics`：
+
+- **`iterations_run`**：执行了多少次 CAVI sweep。
+- **`converged`**：是否达到收敛阈值。
+- **`max_change_at_stop`**：最终迭代中的最大 μ 变化。
+- **`elbo_history: list[float]`**：每次迭代的 ELBO 值（如果 `track_elbo=True`）。
+- **`belief_history: dict[str, list[float]]`**：每个变量的 μ_i 轨迹。
 
 ## Schema/Ground 交互
 
@@ -119,10 +211,11 @@ Package B:  F_inst_b: premises=[V_schema], conclusion=V_ground_b
 
 - `gaia/bp/factor_graph.py` — `FactorGraph`, `FactorType`, `CROMWELL_EPS`
 - `gaia/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
-- `gaia/bp/bp.py` — `BeliefPropagation`, `run_with_diagnostics()`
+- `gaia/bp/trw_bp.py` — `TRWBeliefPropagation`，默认近似推理
 - `gaia/bp/junction_tree.py` — Junction Tree exact inference
-- `gaia/bp/gbp.py` — Generalized BP
+- `gaia/bp/mean_field.py` — Mean Field VI，大图快速近似
 - `gaia/bp/exact.py` — brute-force exact inference for small graphs
-- `gaia/bp/engine.py` — `InferenceEngine`：根据 treewidth 自动选择算法
+- `gaia/bp/engine.py` — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
+- `gaia/bp/__init__.py` — `infer()`：统一推理入口
 - `gaia/bp/potentials.py` — 各 FactorType 的势函数
 - `gaia/bp/contraction.py` — 张量收缩工具（用于 fold-composite 等）

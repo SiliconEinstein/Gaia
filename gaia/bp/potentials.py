@@ -1,27 +1,37 @@
-"""Factor potential functions — theory 06-factor-graphs.md + IR infer CPT."""
+"""Factor potential functions — theory 06-factor-graphs.md + IR infer CPT.
+
+Jaynes class I (logical assertion) potentials are STRICT delta {0, 1};
+Cromwell ε is reserved for class IV (unary soft evidence) only.
+
+This file exposes _HIGH / _LOW historical aliases for backwards
+compatibility with downstream callers that import them, but deterministic
+operator potentials below use strict 0.0 / 1.0 — no Cromwell softening.
+Soft factors (SOFT_ENTAILMENT / CONDITIONAL / PAIRWISE_POTENTIAL) carry
+their own author-supplied probabilities and are unaffected.
+"""
 
 from __future__ import annotations
-
-from collections.abc import Callable
 
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
 
 __all__ = [
-    "complement_potential",
-    "conditional_potential",
-    "conjunction_potential",
-    "contradiction_potential",
-    "disjunction_potential",
-    "equivalence_potential",
-    "evaluate_potential",
     "implication_potential",
     "negation_potential",
-    "pairwise_potential",
+    "conjunction_potential",
+    "disjunction_potential",
+    "equivalence_potential",
+    "contradiction_potential",
+    "complement_potential",
     "soft_entailment_potential",
+    "conditional_potential",
+    "pairwise_potential",
+    "evaluate_potential",
 ]
 
 Assignment = dict[str, int]
-type PotentialEvaluator = Callable[[Factor, Assignment], float]
+
+_DELTA_HIGH: float = 1.0
+_DELTA_LOW: float = 0.0
 
 _HIGH = 1.0 - CROMWELL_EPS
 _LOW = CROMWELL_EPS
@@ -30,58 +40,45 @@ _LOW = CROMWELL_EPS
 def implication_potential(
     assignment: Assignment, antecedent: str, consequent: str, helper: str
 ) -> float:
-    """Ternary implication with helper claim H.
-
-    H=1 (implication holds): standard A=>B — forbid A=1,B=0.
-    H=0 (implication fails): complement — forbid A=1,B=0 being HIGH.
-    """
     a, b, h = assignment[antecedent], assignment[consequent], assignment[helper]
     if h == 1:
-        # Standard implication: A=1,B=0 forbidden
-        return _LOW if (a == 1 and b == 0) else _HIGH
-    # Complement: A=1,B=0 is the only HIGH row
-    return _HIGH if (a == 1 and b == 0) else _LOW
+        return _DELTA_LOW if (a == 1 and b == 0) else _DELTA_HIGH
+    return _DELTA_HIGH if (a == 1 and b == 0) else _DELTA_LOW
 
 
 def conjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:
-    """M = AND(inputs)."""
     all_one = all(assignment[v] == 1 for v in inputs)
     m = assignment[conclusion]
     ok = (all_one and m == 1) or ((not all_one) and m == 0)
-    return _HIGH if ok else _LOW
+    return _DELTA_HIGH if ok else _DELTA_LOW
 
 
 def negation_potential(assignment: Assignment, a: str, conclusion: str) -> float:
-    """N = NOT(A)."""
     target = 0 if assignment[a] == 1 else 1
-    return _HIGH if assignment[conclusion] == target else _LOW
+    return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
 
 def disjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:
-    """D = OR(inputs)."""
     any_one = any(assignment[v] == 1 for v in inputs)
     d = assignment[conclusion]
     ok = (any_one and d == 1) or ((not any_one) and d == 0)
-    return _HIGH if ok else _LOW
+    return _DELTA_HIGH if ok else _DELTA_LOW
 
 
 def equivalence_potential(assignment: Assignment, a: str, b: str, conclusion: str) -> float:
-    """Helper = (A == B)."""
     target = 1 if assignment[a] == assignment[b] else 0
-    return _HIGH if assignment[conclusion] == target else _LOW
+    return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
 
 def contradiction_potential(assignment: Assignment, a: str, b: str, conclusion: str) -> float:
-    """Helper = NOT(A AND B) as binary: 0 iff both true."""
     both_one = assignment[a] == 1 and assignment[b] == 1
     target = 0 if both_one else 1
-    return _HIGH if assignment[conclusion] == target else _LOW
+    return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
 
 def complement_potential(assignment: Assignment, a: str, b: str, conclusion: str) -> float:
-    """Helper = (A XOR B)."""
     target = 1 if assignment[a] != assignment[b] else 0
-    return _HIGH if assignment[conclusion] == target else _LOW
+    return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
 
 def soft_entailment_potential(
@@ -91,7 +88,6 @@ def soft_entailment_potential(
     p1: float,
     p2: float,
 ) -> float:
-    """Theory §3.7: ψ on (M,C). Rows normalized per row for M."""
     m = assignment[premise]
     c = assignment[conclusion]
     if m == 1:
@@ -105,7 +101,6 @@ def conditional_potential(
     conclusion: str,
     cpt: tuple[float, ...],
 ) -> float:
-    """P(C=1|parents) from CPT; idx = binary encoding in premise order."""
     idx = 0
     for i, v in enumerate(premises):
         if assignment[v] == 1:
@@ -120,103 +115,40 @@ def pairwise_potential(
     b: str,
     weights: tuple[float, ...],
 ) -> float:
-    """Symmetric pairwise potential, indexed [00, 10, 01, 11]."""
     idx = assignment[a] | (assignment[b] << 1)
     return weights[idx]
 
 
-def _evaluate_implication(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate an implication factor through the public potential helper."""
-    v = factor.variables
-    return implication_potential(assignment, v[0], v[1], factor.conclusion)
-
-
-def _evaluate_conjunction(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a conjunction factor through the public potential helper."""
-    return conjunction_potential(assignment, factor.variables, factor.conclusion)
-
-
-def _evaluate_negation(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a negation factor through the public potential helper."""
-    return negation_potential(assignment, factor.variables[0], factor.conclusion)
-
-
-def _evaluate_disjunction(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a disjunction factor through the public potential helper."""
-    return disjunction_potential(assignment, factor.variables, factor.conclusion)
-
-
-def _evaluate_equivalence(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate an equivalence factor through the public potential helper."""
-    v = factor.variables
-    return equivalence_potential(assignment, v[0], v[1], factor.conclusion)
-
-
-def _evaluate_contradiction(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a contradiction factor through the public potential helper."""
-    v = factor.variables
-    return contradiction_potential(assignment, v[0], v[1], factor.conclusion)
-
-
-def _evaluate_complement(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a complement factor through the public potential helper."""
-    v = factor.variables
-    return complement_potential(assignment, v[0], v[1], factor.conclusion)
-
-
-def _evaluate_soft_entailment(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a soft-entailment factor after checking required parameters."""
-    if factor.p1 is None or factor.p2 is None:
-        raise ValueError(f"SOFT_ENTAILMENT '{factor.factor_id}' missing p1/p2.")
-    return soft_entailment_potential(
-        assignment, factor.variables[0], factor.conclusion, factor.p1, factor.p2
-    )
-
-
-def _evaluate_conditional(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a conditional factor after checking its CPT."""
-    if factor.cpt is None:
-        raise ValueError(f"CONDITIONAL '{factor.factor_id}' missing cpt.")
-    return conditional_potential(assignment, factor.variables, factor.conclusion, factor.cpt)
-
-
-def _evaluate_pairwise(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate a pairwise-potential factor after checking its weights."""
-    if factor.cpt is None:
-        raise ValueError(f"PAIRWISE_POTENTIAL '{factor.factor_id}' missing cpt.")
-    return pairwise_potential(assignment, factor.variables[0], factor.conclusion, factor.cpt)
-
-
-_POTENTIAL_EVALUATORS: dict[FactorType, PotentialEvaluator] = {
-    FactorType.IMPLICATION: _evaluate_implication,
-    FactorType.CONJUNCTION: _evaluate_conjunction,
-    FactorType.NEGATION: _evaluate_negation,
-    FactorType.DISJUNCTION: _evaluate_disjunction,
-    FactorType.EQUIVALENCE: _evaluate_equivalence,
-    FactorType.CONTRADICTION: _evaluate_contradiction,
-    FactorType.COMPLEMENT: _evaluate_complement,
-    FactorType.SOFT_ENTAILMENT: _evaluate_soft_entailment,
-    FactorType.CONDITIONAL: _evaluate_conditional,
-    FactorType.PAIRWISE_POTENTIAL: _evaluate_pairwise,
-}
-
-
 def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
-    """Evaluate ``factor`` for a complete binary variable assignment.
+    ft = factor.factor_type
+    v = factor.variables
+    c = factor.conclusion
 
-    Args:
-        factor: Factor whose potential family and parameters are dispatched.
-        assignment: Mapping from every factor variable ID to ``0`` or ``1``.
+    if ft == FactorType.IMPLICATION:
+        return implication_potential(assignment, v[0], v[1], c)
+    if ft == FactorType.CONJUNCTION:
+        return conjunction_potential(assignment, v, c)
+    if ft == FactorType.NEGATION:
+        return negation_potential(assignment, v[0], c)
+    if ft == FactorType.DISJUNCTION:
+        return disjunction_potential(assignment, v, c)
+    if ft == FactorType.EQUIVALENCE:
+        return equivalence_potential(assignment, v[0], v[1], c)
+    if ft == FactorType.CONTRADICTION:
+        return contradiction_potential(assignment, v[0], v[1], c)
+    if ft == FactorType.COMPLEMENT:
+        return complement_potential(assignment, v[0], v[1], c)
+    if ft == FactorType.SOFT_ENTAILMENT:
+        if factor.p1 is None or factor.p2 is None:
+            raise ValueError(f"SOFT_ENTAILMENT '{factor.factor_id}' missing p1/p2.")
+        return soft_entailment_potential(assignment, v[0], c, factor.p1, factor.p2)
+    if ft == FactorType.CONDITIONAL:
+        if factor.cpt is None:
+            raise ValueError(f"CONDITIONAL '{factor.factor_id}' missing cpt.")
+        return conditional_potential(assignment, v, c, factor.cpt)
+    if ft == FactorType.PAIRWISE_POTENTIAL:
+        if factor.cpt is None:
+            raise ValueError(f"PAIRWISE_POTENTIAL '{factor.factor_id}' missing cpt.")
+        return pairwise_potential(assignment, v[0], c, factor.cpt)
 
-    Returns:
-        The scalar potential weight for the assignment.
-
-    Raises:
-        ValueError: If required factor parameters are missing or the factor
-            type is unknown.
-    """
-    try:
-        evaluator = _POTENTIAL_EVALUATORS[factor.factor_type]
-    except KeyError as err:
-        raise ValueError(f"Unknown FactorType: {factor.factor_type!r}") from err
-    return evaluator(factor, assignment)
+    raise ValueError(f"Unknown FactorType: {ft!r}")
