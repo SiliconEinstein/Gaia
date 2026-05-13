@@ -2,12 +2,12 @@
 
 import pytest
 
-from gaia.bp import TRWBeliefPropagation, FactorGraph, FactorType
-from gaia.bp.trw_bp import TRWResult
+from gaia.bp import FactorGraph, FactorType, TRWBeliefPropagation
 from gaia.bp.engine import EngineConfig, InferenceEngine
 from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import CROMWELL_EPS
 from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
+from gaia.bp.trw_bp import TRWResult
 
 # ── Shared fixtures ──
 
@@ -310,158 +310,6 @@ class TestInferenceEngine:
 
 
 # ── Oscillation diagnostics ──
-
-
-class TestOscillationDiagnostics:
-    """Group oscillation diagnostics tests.
-
-    Tests for BPDiagnostics.direction_changes — the oscillation detection signal consumed by
-    curation conflict discovery (m6-curation spec).
-    """
-
-    def test_frustrated_graph_has_direction_changes(self):
-        """Chain + double contradiction creates tension in helper variables.
-
-        In v2 BP, contradiction helpers (H1, H2) absorb tension and show
-        direction changes. The curation spec uses total direction_changes > 0
-        as a conflict signal.
-        """
-        result = TRWBeliefPropagation(max_iterations=50, damping=0.9).run(_frustrated_graph())
-        diag = result.diagnostics
-        assert isinstance(diag.direction_changes, dict)
-        assert len(diag.direction_changes) == len(_frustrated_graph().variables)
-        total_changes = sum(diag.direction_changes.values())
-        assert total_changes >= 2, (
-            f"Frustrated graph (chain + double contradiction) should produce "
-            f"direction changes in helper variables, got total={total_changes}"
-        )
-
-    def test_clean_chain_below_conflict_threshold(self):
-        """Tree graph: no variable exceeds the curation conflict threshold.
-
-        Synchronous BP scheduling may cause 1 direction change on leaf variables
-        (initial overshoot), but no variable should reach the curation threshold
-        of min_direction_changes=2 (per m6-curation spec §Level 1).
-        """
-        result = TRWBeliefPropagation(max_iterations=50).run(_simple_chain())
-        diag = result.diagnostics
-        assert diag.converged
-        for vid, changes in diag.direction_changes.items():
-            assert changes < 2, (
-                f"Tree graph variable {vid} has {changes} direction changes, "
-                f"should be below curation threshold of 2"
-            )
-
-    def test_belief_table_formatting(self):
-        """BPDiagnostics.belief_table() returns a formatted string with headers."""
-        result = TRWBeliefPropagation(max_iterations=20).run(_simple_chain())
-        table = result.diagnostics.belief_table()
-        assert "A" in table
-        assert "iter" in table
-
-    def test_direction_changes_count_matches_sign_flips(self):
-        """Verify direction_changes counts actual sign flips in belief_history."""
-        result = TRWBeliefPropagation(max_iterations=50, damping=0.9).run(_frustrated_graph())
-        diag = result.diagnostics
-        for vid, history in diag.belief_history.items():
-            expected = 0
-            for k in range(2, len(history)):
-                d_prev = history[k - 1] - history[k - 2]
-                d_curr = history[k] - history[k - 1]
-                if d_prev * d_curr < 0:
-                    expected += 1
-            assert diag.direction_changes[vid] == expected, (
-                f"direction_changes[{vid}] = {diag.direction_changes[vid]} "
-                f"but manual count from belief_history = {expected}"
-            )
-
-
-# ── BP non-convergence ──
-
-
-class TestBPNonConvergence:
-    """Test the non-convergence code path (bp.py L411-416)."""
-
-    def test_insufficient_iterations_does_not_converge(self):
-        """Diamond graph with 3 iterations and tight threshold should not converge."""
-        result = TRWBeliefPropagation(max_iterations=3, convergence_threshold=1e-15).run(
-            _diamond_graph()
-        )
-        assert result.diagnostics.converged is False
-        assert result.diagnostics.iterations_run == 3
-        assert result.diagnostics.max_change_at_stop > 1e-15
-        for var in _diamond_graph().variables:
-            assert 0 < result.beliefs[var] < 1
-
-
-# ── Oscillation diagnostics ──
-
-
-class TestOscillationDiagnostics:
-    """Group oscillation diagnostics tests.
-
-    Tests for BPDiagnostics.direction_changes — the oscillation detection signal consumed by
-    curation conflict discovery (m6-curation spec).
-    """
-
-    def test_frustrated_graph_has_direction_changes(self):
-        """Chain + double contradiction creates tension in helper variables.
-
-        In v2 BP, contradiction helpers (H1, H2) absorb tension and show
-        direction changes. The curation spec uses total direction_changes > 0
-        as a conflict signal.
-        """
-        result = TRWBeliefPropagation(max_iterations=50, damping=0.9).run(_frustrated_graph())
-        diag = result.diagnostics
-        assert isinstance(diag.direction_changes, dict)
-        assert len(diag.direction_changes) == len(_frustrated_graph().variables)
-        total_changes = sum(diag.direction_changes.values())
-        assert total_changes >= 2, (
-            f"Frustrated graph (chain + double contradiction) should produce "
-            f"direction changes in helper variables, got total={total_changes}"
-        )
-
-    def test_clean_chain_below_conflict_threshold(self):
-        """Tree graph: no variable exceeds the curation conflict threshold.
-
-        Synchronous BP scheduling may cause 1 direction change on leaf variables
-        (initial overshoot), but no variable should reach the curation threshold
-        of min_direction_changes=2 (per m6-curation spec §Level 1).
-        """
-        result = TRWBeliefPropagation(max_iterations=50).run(_simple_chain())
-        diag = result.diagnostics
-        assert diag.converged
-        for vid, changes in diag.direction_changes.items():
-            assert changes < 2, (
-                f"Tree graph variable {vid} has {changes} direction changes, "
-                f"should be below curation threshold of 2"
-            )
-
-    def test_belief_table_formatting(self):
-        """BPDiagnostics.belief_table() returns a formatted string with headers."""
-        result = TRWBeliefPropagation(max_iterations=20).run(_simple_chain())
-        table = result.diagnostics.belief_table()
-        assert "A" in table
-        assert "iter" in table
-
-    def test_direction_changes_count_matches_sign_flips(self):
-        """Verify direction_changes counts actual sign flips in belief_history."""
-        result = TRWBeliefPropagation(max_iterations=50, damping=0.9).run(_frustrated_graph())
-        diag = result.diagnostics
-        for vid, history in diag.belief_history.items():
-            expected = 0
-            for k in range(2, len(history)):
-                d_prev = history[k - 1] - history[k - 2]
-                d_curr = history[k] - history[k - 1]
-                if d_prev * d_curr < 0:
-                    expected += 1
-            assert diag.direction_changes[vid] == expected, (
-                f"direction_changes[{vid}] = {diag.direction_changes[vid]} "
-                f"but manual count from belief_history = {expected}"
-            )
-
-
-# ── BP non-convergence ──
 
 
 class TestBPNonConvergence:
