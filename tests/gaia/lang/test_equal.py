@@ -44,4 +44,4 @@ def test_equal_helper_usable_as_premise():
     b = Claim("Obs.")
     helper = equal(a, b, rationale="Match.")
     c = derive("Theory valid.", given=helper, rationale="Matches imply valid.")
-    assert c.supports[0].given == (helper,)
+    assert c.from_actions[0].given == (helper,)

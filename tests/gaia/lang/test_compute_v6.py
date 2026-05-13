@@ -25,9 +25,9 @@ def test_compute_function():
     )
     assert isinstance(result, SumResult)
     assert result.value == 7
-    assert len(result.supports) == 1
-    assert isinstance(result.supports[0], Compute)
-    assert result.supports[0].given == (a, b)
+    assert len(result.from_actions) == 1
+    assert isinstance(result.from_actions[0], Compute)
+    assert result.from_actions[0].given == (a, b)
 
 
 def test_compute_decorator():
@@ -41,9 +41,9 @@ def test_compute_decorator():
     result = add(a, b)
     assert isinstance(result, SumResult)
     assert result.value == 7
-    assert len(result.supports) == 1
-    assert isinstance(result.supports[0], Compute)
-    assert result.supports[0].rationale == "Add two integers."
+    assert len(result.from_actions) == 1
+    assert isinstance(result.from_actions[0], Compute)
+    assert result.from_actions[0].rationale == "Add two integers."
 
 
 def test_compute_decorator_keyword_args_record_given_claims():
@@ -60,7 +60,7 @@ def test_compute_decorator_keyword_args_record_given_claims():
         result = add(a=a, b=b)
         result.label = "sum"
 
-    assert result.supports[0].given == (a, b)
+    assert result.from_actions[0].given == (a, b)
 
     compiled = compile_package_artifact(pkg)
     strategy = compiled.graph.strategies[0]
@@ -76,7 +76,7 @@ def test_compute_creates_reviewable_implication_warrant():
         given=(a, b),
         rationale="Addition.",
     )
-    action = result.supports[0]
+    action = result.from_actions[0]
     assert len(action.warrants) == 1
     warrant = action.warrants[0]
     assert warrant.metadata["generated"] is True

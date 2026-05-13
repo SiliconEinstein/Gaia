@@ -166,5 +166,5 @@ def infer(
         helper=helper,
     )
     action.warrants.append(helper)
-    evidence.supported_by.append(action)
+    evidence.from_actions.append(action)
     return evidence

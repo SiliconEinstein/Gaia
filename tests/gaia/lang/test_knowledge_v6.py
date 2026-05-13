@@ -32,7 +32,7 @@ def test_claim_creation():
     assert c.type == "claim"
     assert c.format == "markdown"
     assert c.prior == 0.5
-    assert c.supports == []
+    assert c.from_actions == []
 
 
 def test_claim_accepts_format():
@@ -45,10 +45,34 @@ def test_claim_no_prior():
     assert c.prior is None
 
 
-def test_claim_supports_is_legacy_alias_for_supported_by():
+def test_claim_from_actions_is_the_canonical_action_backref():
     c = Claim("UV data.")
-    assert c.supported_by == []
-    assert c.supports is c.supported_by
+    assert c.from_actions == []
+    assert not hasattr(c, "supported_by")
+    assert not hasattr(c, "supports")
+
+
+def test_claim_rejects_legacy_supports_kwarg():
+    with pytest.raises(TypeError, match="supports"):
+        Claim("UV data.", supports=[])
+
+
+def test_claim_rejects_legacy_supported_by_kwarg():
+    with pytest.raises(TypeError, match="supported_by"):
+        Claim("UV data.", supported_by=[])
+
+
+def test_claim_subclasses_cannot_reintroduce_legacy_action_backrefs():
+    class LegacyNamesClaim(Claim):
+        """Legacy names should not become templated claim parameters."""
+
+        supports: str
+        supported_by: str
+
+    with pytest.raises(TypeError, match="supports"):
+        LegacyNamesClaim(supports="old")
+    with pytest.raises(TypeError, match="supported_by"):
+        LegacyNamesClaim(supported_by="old")
 
 
 def test_claim_is_hashable_for_priors_dict():

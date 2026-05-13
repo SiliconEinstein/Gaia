@@ -8,17 +8,17 @@ def test_observe_with_given():
     calibrated = Claim("Calibration OK.", prior=0.95)
     data = observe("UV spectrum data.", given=calibrated, rationale="Measured.")
     assert isinstance(data, Claim)
-    assert len(data.supports) == 1
-    assert isinstance(data.supports[0], Observe)
-    assert data.supports[0].given == (calibrated,)
+    assert len(data.from_actions) == 1
+    assert isinstance(data.from_actions[0], Observe)
+    assert data.from_actions[0].given == (calibrated,)
 
 
 def test_observe_root_fact_pins_prior_and_adds_reviewable_action():
     data = observe("UV spectrum data.", rationale="Measured at 5 points.")
     assert data.prior == 1.0 - CROMWELL_EPS
-    assert len(data.supports) == 1
-    assert isinstance(data.supports[0], Observe)
-    assert data.supports[0].given == ()
+    assert len(data.from_actions) == 1
+    assert isinstance(data.from_actions[0], Observe)
+    assert data.from_actions[0].given == ()
 
 
 def test_observe_root_fact_rejects_conflicting_prior():
@@ -34,7 +34,7 @@ def test_observe_root_fact_rejects_conflicting_prior():
 def test_observe_creates_reviewable_implication_warrant():
     calibrated = Claim("Calibration OK.", prior=0.95)
     data = observe("UV spectrum data.", given=calibrated, rationale="Measured.")
-    action = data.supports[0]
+    action = data.from_actions[0]
     assert len(action.warrants) == 1
     warrant = action.warrants[0]
     assert warrant.metadata["generated"] is True

@@ -123,7 +123,7 @@ def _prediction_metadata(
 
 
 def _model_action(helper: Claim) -> PredictiveModel:
-    for action in helper.supports:
+    for action in helper.from_actions:
         if isinstance(action, PredictiveModel) and action.helper is helper:
             return action
     raise ValueError(f"{helper.label or helper.content!r} is not a bayes.model() helper")

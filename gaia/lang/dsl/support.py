@@ -79,7 +79,7 @@ def derive(
         conclusion=conclusion,
         given=given_tuple,
     )
-    conclusion.supported_by.append(action)
+    conclusion.from_actions.append(action)
     return conclusion
 
 
@@ -113,7 +113,7 @@ def observe(
     )
     if not given_tuple:
         _pin_observed_claim(conclusion)
-    conclusion.supported_by.append(action)
+    conclusion.from_actions.append(action)
     return conclusion
 
 
@@ -166,7 +166,7 @@ def _compute_call(
         given=given_tuple,
         fn=fn,
     )
-    conclusion.supported_by.append(action)
+    conclusion.from_actions.append(action)
     return conclusion
 
 
@@ -211,7 +211,7 @@ def compute(
                 given=given_tuple,
                 fn=wrapped_fn,
             )
-            conclusion.supported_by.append(action)
+            conclusion.from_actions.append(action)
             return conclusion
 
         return wrapper
