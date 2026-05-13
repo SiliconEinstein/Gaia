@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -454,6 +454,11 @@ stats = [
     { name = "scipy" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "scipy-stubs" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "commitizen", marker = "extra == 'dev'", specifier = ">=4.0,<5" },
@@ -479,6 +484,9 @@ requires-dist = [
     { name = "typer", extras = ["all"], specifier = ">=0.12" },
 ]
 provides-extras = ["stats", "dev", "docs"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "scipy-stubs", specifier = ">=1.17.1.4" }]
 
 [[package]]
 name = "ghp-import"
