@@ -7,7 +7,7 @@ no message passing, no approximation — intended as the golden reference
 against which gaia.bp is validated.
 """
 
-from jaynes_ref.ap_distribution import (
+from gaia.jaynes_ref.ap_distribution import (
     ApDistribution,
     beta_ap,
     credible_interval,
@@ -16,7 +16,7 @@ from jaynes_ref.ap_distribution import (
     uniform_ap,
     update_with_bernoulli,
 )
-from jaynes_ref.constraints import (
+from gaia.jaynes_ref.constraints import (
     CPT,
     Likelihood,
     LogicalConstraint,
@@ -30,7 +30,7 @@ from jaynes_ref.constraints import (
     negation,
     pairwise_weight,
 )
-from jaynes_ref.decision import (
+from gaia.jaynes_ref.decision import (
     DecisionResult,
     asymmetric_loss,
     bayes_action,
@@ -38,8 +38,8 @@ from jaynes_ref.decision import (
     quadratic_loss,
     zero_one_loss,
 )
-from jaynes_ref.information import CROMWELL_EPS, InformationSet
-from jaynes_ref.maxent import (
+from gaia.jaynes_ref.information import CROMWELL_EPS, InformationSet
+from gaia.jaynes_ref.maxent import (
     MaxEntFit,
     MomentConstraint,
     correlation_constraint,
@@ -49,7 +49,7 @@ from jaynes_ref.maxent import (
     marginal_from_fit,
     maxent_from_info,
 )
-from jaynes_ref.queries import (
+from gaia.jaynes_ref.queries import (
     entropy,
     kl_divergence,
     map_assignment,

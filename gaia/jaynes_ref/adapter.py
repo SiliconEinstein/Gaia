@@ -23,11 +23,11 @@ Layer-0 coverage:
 
 from __future__ import annotations
 
-from jaynes_ref import (
+from gaia.jaynes_ref import (
     CPT,
     InformationSet,
 )
-from jaynes_ref.strategies import (
+from gaia.jaynes_ref.strategies import (
     StrategyLoweringContext,
     _logical_constraint_for_op,
     lower_strategy,

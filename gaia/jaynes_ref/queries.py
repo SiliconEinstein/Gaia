@@ -11,8 +11,8 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from jaynes_ref.exact import _MAX_N, _enumerate_states, _fold_likelihoods, _log_joint
-from jaynes_ref.information import InformationSet
+from gaia.jaynes_ref.exact import _MAX_N, _enumerate_states, _fold_likelihoods, _log_joint
+from gaia.jaynes_ref.information import InformationSet
 
 
 def _log_w_and_idx(info: InformationSet) -> tuple[np.ndarray, list[str], dict[str, int]]:

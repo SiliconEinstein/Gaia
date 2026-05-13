@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from jaynes_ref.information import InformationSet
+from gaia.jaynes_ref.information import InformationSet
 
 _MAX_N = 20
 
