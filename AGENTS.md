@@ -30,19 +30,23 @@ Key entry points:
 Use `uv` for all dependency management. Do not install repo dependencies with `pip`.
 
 ```bash
-uv sync --extra dev
-uv run pre-commit install --hook-type pre-commit --hook-type pre-push --hook-type commit-msg
-```
-
-The same setup is available through:
-
-```bash
 make bootstrap
 ```
 
-`make bootstrap` installs all three hook stages — `pre-commit`, `pre-push`, and `commit-msg`.
-The pre-push hook runs the CI-byte-aligned gate locally so red CI is caught before the push
+`make bootstrap` runs `uv sync --extra dev`, enables `extensions.worktreeConfig`, installs
+all three hook stages — `pre-commit`, `pre-push`, and `commit-msg` — into the worktree-local
+`.githooks/` directory, and sets `core.hooksPath` per worktree so git picks them up. The
+pre-push hook runs the CI-byte-aligned gate locally so red CI is caught before the push
 leaves your machine; the commit-msg hook enforces Conventional Commits on every commit.
+
+Hooks live in `<worktree>/.githooks/` rather than the shared `.git/hooks/` directory, and
+the convention applies whether or not you use additional worktrees — single clones get their
+own `.githooks/` just the same. The rationale is that in a bare-hub-with-worktrees setup
+`.git/hooks/` is shared across every worktree, while `pre-commit install` stubs hardcode the
+installing worktree's `.venv/bin/python`. Per-worktree `.githooks/` makes each worktree's
+hooks point at its own venv, so removing one worktree never leaves stale stubs that break
+commits in another. Existing contributors migrate by re-running `make bootstrap` once; the
+target is idempotent.
 
 ## Quality Gates
 

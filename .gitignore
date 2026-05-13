@@ -29,6 +29,9 @@ coverage.xml
 # Worktrees
 .worktrees/
 
+# Per-worktree git hooks (populated by `make bootstrap` via core.hooksPath)
+.githooks/
+
 # Logs
 logs/
 *.log
