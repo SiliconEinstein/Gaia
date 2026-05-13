@@ -9,7 +9,6 @@ render / brief consumers.
 """
 
 from gaia.lang import register_prior
-
 from mendel_v0_5 import (
     blending_inheritance_model,
     f1_uniform_dominant_observation,

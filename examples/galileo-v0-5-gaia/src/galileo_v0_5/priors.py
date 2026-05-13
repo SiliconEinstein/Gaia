@@ -9,7 +9,6 @@ render / brief consumers.
 """
 
 from gaia.lang import register_prior
-
 from galileo_v0_5 import (
     aristotle_model,
     daily_observation,
