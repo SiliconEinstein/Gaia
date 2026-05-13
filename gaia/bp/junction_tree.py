@@ -43,9 +43,9 @@ from __future__ import annotations
 import logging
 from itertools import product as cartesian_product
 
-from gaia.bp.bp import BPDiagnostics, BPResult
-from gaia.bp.factor_graph import Factor, FactorGraph
+from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
 from gaia.bp.potentials import evaluate_potential
+from gaia.bp.trw_bp import TRWDiagnostics, TRWResult
 
 __all__ = ["JunctionTreeInference", "jt_treewidth"]
 
@@ -648,10 +648,10 @@ class JunctionTreeInference:
     This fixes loopy BP's double-counting error on graphs with short cycles.
     For Gaia's factor graphs (treewidth ≤ ~15), this is the preferred engine.
 
-    Returns the same BPResult interface as BeliefPropagation for drop-in use.
+    Returns the same TRWResult interface as BeliefPropagation for drop-in use.
     """
 
-    def run(self, graph: FactorGraph) -> BPResult:
+    def run(self, graph: FactorGraph) -> TRWResult:
         """Run exact Junction Tree inference on *graph*.
 
         Parameters
@@ -661,22 +661,29 @@ class JunctionTreeInference:
             must be registered.
 
         Returns:
-            BPResult containing exact marginal ``P(v=1)`` beliefs and
+            TRWResult containing exact marginal ``P(v=1)`` beliefs and
             diagnostics recording treewidth and clique count.
         """
-        diag = BPDiagnostics()
+        diag = TRWDiagnostics()
 
         if not graph.variables:
             diag.converged = True
-            return BPResult(beliefs={}, diagnostics=diag)
+            return TRWResult(beliefs={}, diagnostics=diag)
 
         if not graph.factors:
             # No factors: beliefs are explicit unary factors or neutral MaxEnt.
             diag.converged = True
-            beliefs = {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
+
+            # Priority: hard_evidence > unary_factors > neutral MaxEnt
+            def _belief0(vid: str) -> float:
+                if vid in graph.hard_evidence:
+                    return (1.0 - CROMWELL_EPS) if graph.hard_evidence[vid] == 1 else CROMWELL_EPS
+                return graph.unary_factors.get(vid, 0.5)
+
+            beliefs = {vid: _belief0(vid) for vid in graph.variables}
             for vid, p in beliefs.items():
                 diag.belief_history[vid] = [p]
-            return BPResult(beliefs=beliefs, diagnostics=diag)
+            return TRWResult(beliefs=beliefs, diagnostics=diag)
 
         # Step 1: Moral graph
         moral_adj = _build_moral_graph(graph)
@@ -716,7 +723,13 @@ class JunctionTreeInference:
             # Determine which explicit unary factors to apply in this clique.
             local_priors: dict[str, float] = {}
             for v in var_list:
-                if v in graph.unary_factors and v not in unary_assigned:
+                if v in graph.hard_evidence and v not in unary_assigned:
+                    # Hard evidence: use δ function (0.0 or 1.0, no Cromwell ε)
+                    local_priors[v] = (
+                        (1.0 - CROMWELL_EPS) if graph.hard_evidence[v] == 1 else CROMWELL_EPS
+                    )
+                    unary_assigned.add(v)
+                elif v in graph.unary_factors and v not in unary_assigned:
                     local_priors[v] = graph.unary_factors[v]
                     unary_assigned.add(v)
 
@@ -746,4 +759,4 @@ class JunctionTreeInference:
         diag.converged = True
         diag.max_change_at_stop = 0.0
 
-        return BPResult(beliefs=beliefs, diagnostics=diag)
+        return TRWResult(beliefs=beliefs, diagnostics=diag)
