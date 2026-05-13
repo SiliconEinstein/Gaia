@@ -257,12 +257,16 @@ def test_d2_symmetric_equivalence_reorder_dedup():
             Knowledge(id="github:jaynes::same", type="claim", content="A iff B"),
         ],
         operators=[
-            Operator(operator="equivalence",
-                     variables=["github:jaynes::a", "github:jaynes::b"],
-                     conclusion="github:jaynes::same"),
-            Operator(operator="equivalence",
-                     variables=["github:jaynes::b", "github:jaynes::a"],
-                     conclusion="github:jaynes::same"),
+            Operator(
+                operator="equivalence",
+                variables=["github:jaynes::a", "github:jaynes::b"],
+                conclusion="github:jaynes::same",
+            ),
+            Operator(
+                operator="equivalence",
+                variables=["github:jaynes::b", "github:jaynes::a"],
+                conclusion="github:jaynes::same",
+            ),
         ],
     )
 
@@ -287,12 +291,16 @@ def test_d2_symmetric_conflicting_conclusions_raises():
             Knowledge(id="github:jaynes::h2", type="claim", content="all (alt)"),
         ],
         operators=[
-            Operator(operator="conjunction",
-                     variables=["github:jaynes::a", "github:jaynes::b", "github:jaynes::c"],
-                     conclusion="github:jaynes::h1"),
-            Operator(operator="conjunction",
-                     variables=["github:jaynes::c", "github:jaynes::b", "github:jaynes::a"],
-                     conclusion="github:jaynes::h2"),
+            Operator(
+                operator="conjunction",
+                variables=["github:jaynes::a", "github:jaynes::b", "github:jaynes::c"],
+                conclusion="github:jaynes::h1",
+            ),
+            Operator(
+                operator="conjunction",
+                variables=["github:jaynes::c", "github:jaynes::b", "github:jaynes::a"],
+                conclusion="github:jaynes::h2",
+            ),
         ],
     )
 
@@ -312,12 +320,16 @@ def test_d2_asymmetric_implication_reverse_is_independent():
             Knowledge(id="github:jaynes::ba", type="claim", content="B→A"),
         ],
         operators=[
-            Operator(operator="implication",
-                     variables=["github:jaynes::a", "github:jaynes::b"],
-                     conclusion="github:jaynes::ab"),
-            Operator(operator="implication",
-                     variables=["github:jaynes::b", "github:jaynes::a"],
-                     conclusion="github:jaynes::ba"),
+            Operator(
+                operator="implication",
+                variables=["github:jaynes::a", "github:jaynes::b"],
+                conclusion="github:jaynes::ab",
+            ),
+            Operator(
+                operator="implication",
+                variables=["github:jaynes::b", "github:jaynes::a"],
+                conclusion="github:jaynes::ba",
+            ),
         ],
     )
 

@@ -99,7 +99,5 @@ def apply_cromwell_clamp(info: InformationSet, eps: float = CROMWELL_EPS) -> Inf
     class III CPTs / constraints are NOT clamped (they are exact
     assertions, per Jaynes).
     """
-    clamped = {
-        v: min(1.0 - eps, max(eps, pi)) for v, pi in info.unary_priors.items()
-    }
+    clamped = {v: min(1.0 - eps, max(eps, pi)) for v, pi in info.unary_priors.items()}
     return replace(info, unary_priors=clamped)

@@ -36,12 +36,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
-from numpy.typing import NDArray
 
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
-__all__ = ["MeanFieldVI", "MFResult", "MFDiagnostics"]
+__all__ = ["MFDiagnostics", "MFResult", "MeanFieldVI"]
 
 from itertools import product as cartesian_product
 
@@ -65,7 +64,7 @@ def _clamp(mu: float) -> float:
 def _compute_elbo(
     graph: FactorGraph,
     mu: dict[str, float],
-    var_to_factors: dict[str, list[int]],
+    _var_to_factors: dict[str, list[int]],
 ) -> float:
     """Compute the Evidence Lower BOund (ELBO).
 
@@ -77,10 +76,10 @@ def _compute_elbo(
     """
     # Expected log-potential term
     elbo = 0.0
-    for fi, factor in enumerate(graph.factors):
+    for _fi, factor in enumerate(graph.factors):
         all_vars = factor.all_vars
         for vals in cartesian_product((0, 1), repeat=len(all_vars)):
-            assignment = {v: val for v, val in zip(all_vars, vals, strict=True)}
+            assignment = dict(zip(all_vars, vals, strict=True))
             pot = evaluate_potential(factor, assignment)
             if pot <= 0.0:
                 continue
@@ -142,7 +141,7 @@ def _cavi_update(
         # For each value of x_i, compute E_{q_{-i}}[log psi_f]
         for x_i, sign in ((1, +1.0), (0, -1.0)):
             for other_vals in cartesian_product((0, 1), repeat=len(other_vars)):
-                assignment = {v: val for v, val in zip(other_vars, other_vals, strict=True)}
+                assignment = dict(zip(other_vars, other_vals, strict=True))
                 assignment[var] = x_i
 
                 pot = evaluate_potential(factor, assignment)

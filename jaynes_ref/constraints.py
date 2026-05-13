@@ -7,9 +7,9 @@ this is what makes the D2 structural dedup tractable.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import product
-from typing import Iterable
 
 
 @dataclass(frozen=True)
@@ -49,7 +49,9 @@ class CPT:
         if not isinstance(self.child, str) or not self.child:
             raise ValueError(f"CPT.child must be a non-empty str, got {self.child!r}")
         if self.child in self.parents:
-            raise ValueError(f"CPT.child {self.child!r} must not appear in parents {self.parents!r}")
+            raise ValueError(
+                f"CPT.child {self.child!r} must not appear in parents {self.parents!r}"
+            )
         for p in self.parents:
             if not isinstance(p, str) or not p:
                 raise ValueError(f"CPT.parents must be non-empty strs, got {p!r}")
@@ -154,27 +156,31 @@ def complement(a: str, b: str) -> LogicalConstraint:
 
 
 def conjunction(xs: Iterable[str], out: str) -> LogicalConstraint:
-    """out = AND(xs): allow assignments where out matches ∧xs."""
+    """Out = AND(xs): allow assignments where out matches ∧xs."""
     xs_t = tuple(xs)
-    vars_ = xs_t + (out,)
+    vars_ = (*xs_t, out)
     n = len(xs_t)
     allowed = set()
     for assign in _all_assignments(n):
         target = 1 if all(a == 1 for a in assign) else 0
-        allowed.add(assign + (target,))
-    return LogicalConstraint(variables=vars_, allowed=frozenset(allowed), label=f"{out} = AND({xs_t})")
+        allowed.add((*assign, target))
+    return LogicalConstraint(
+        variables=vars_, allowed=frozenset(allowed), label=f"{out} = AND({xs_t})"
+    )
 
 
 def disjunction(xs: Iterable[str], out: str) -> LogicalConstraint:
-    """out = OR(xs)."""
+    """Out = OR(xs)."""
     xs_t = tuple(xs)
-    vars_ = xs_t + (out,)
+    vars_ = (*xs_t, out)
     n = len(xs_t)
     allowed = set()
     for assign in _all_assignments(n):
         target = 1 if any(a == 1 for a in assign) else 0
-        allowed.add(assign + (target,))
-    return LogicalConstraint(variables=vars_, allowed=frozenset(allowed), label=f"{out} = OR({xs_t})")
+        allowed.add((*assign, target))
+    return LogicalConstraint(
+        variables=vars_, allowed=frozenset(allowed), label=f"{out} = OR({xs_t})"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -230,4 +236,6 @@ def pairwise_weight(a: str, b: str, weights: tuple[float, ...]) -> WeightedFacto
     """
     if len(weights) != 4:
         raise ValueError(f"pairwise_weight requires 4 weights, got {len(weights)}")
-    return WeightedFactor(variables=(a, b), weights=tuple(float(w) for w in weights), label=f"pair({a},{b})")
+    return WeightedFactor(
+        variables=(a, b), weights=tuple(float(w) for w in weights), label=f"pair({a},{b})"
+    )

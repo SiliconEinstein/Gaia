@@ -16,10 +16,9 @@ import math
 
 import pytest
 
-from gaia.bp import TRWBeliefPropagation, JunctionTreeInference, exact_inference
+from gaia.bp import JunctionTreeInference, TRWBeliefPropagation, exact_inference
 from gaia.bp.lowering import lower_local_graph
 from gaia.ir import (
-    CompositeStrategy,
     FormalExpr,
     FormalStrategy,
     Knowledge,
@@ -192,7 +191,7 @@ def test_op_equivalence_chain_5():
     helpers = [_claim(f"e{i}") for i in range(4)]
     ops = [
         Operator(operator="equivalence", variables=[_id(l), _id(r)], conclusion=_id(f"e{i}"))
-        for i, (l, r) in enumerate(zip("abcd", "bcde"))
+        for i, (l, r) in enumerate(zip("abcd", "bcde", strict=False))
     ]
     g = _graph(nodes + helpers, ops)
     _full_match(g, {_id("a"): 0.9})
@@ -588,7 +587,7 @@ def test_lbp_converges_on_diamond_implication():
             Operator(operator="conjunction", variables=[_id("c1"), _id("c2")], conclusion=_id("m")),
         ],
     )
-    eb, jb, trw = _bp_triple(g, {_id("a"): 0.6}, lbp_strict=False)
+    _eb, _jb, trw = _bp_triple(g, {_id("a"): 0.6}, lbp_strict=False)
     assert trw.diagnostics.converged, "TRW-BP must converge on diamond"
 
 
@@ -605,5 +604,5 @@ def test_lbp_converges_on_long_implication_chain():
         for i in range(n - 1)
     ]
     g = _graph(nodes + helpers, ops)
-    eb, jb, trw = _bp_triple(g, {_id("v0"): 0.7})
+    _eb, _jb, trw = _bp_triple(g, {_id("v0"): 0.7})
     assert trw.diagnostics.converged

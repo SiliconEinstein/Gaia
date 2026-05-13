@@ -41,14 +41,14 @@ logger = logging.getLogger(__name__)
 MethodChoice = Literal["auto", "jt", "trw_bp", "mean_field", "exact"]
 
 # 算法路由阈值
-JT_MAX_TREEWIDTH: int = 20   # JT 精确推断上限
-MF_NODE_LIMIT: int = 2000    # 超过此节点数用 Mean Field
-EXACT_MAX_VARS: int = 26     # 暴力枚举上限（2^26 ≈ 67M 状态）
+JT_MAX_TREEWIDTH: int = 20  # JT 精确推断上限
+MF_NODE_LIMIT: int = 2000  # 超过此节点数用 Mean Field
+EXACT_MAX_VARS: int = 26  # 暴力枚举上限（2^26 ≈ 67M 状态）
 
 
 @dataclass
 class EngineConfig:
-    """InferenceEngine 的配置参数。
+    """InferenceEngine 的配置参数。.
 
     Attributes:
     jt_max_treewidth:
@@ -78,7 +78,7 @@ class EngineConfig:
 
 @dataclass
 class InferenceResult:
-    """InferenceEngine 的返回值，包含推断结果和算法元数据。
+    """InferenceEngine 的返回值，包含推断结果和算法元数据。.
 
     Attributes:
     result:
@@ -101,17 +101,17 @@ class InferenceResult:
 
     @property
     def beliefs(self) -> dict[str, float]:
-        """快捷访问 beliefs 字典。"""
+        """快捷访问 beliefs 字典。."""
         return self.result.beliefs
 
     @property
     def diagnostics(self) -> TRWDiagnostics | MFDiagnostics:
-        """快捷访问 diagnostics。"""
+        """快捷访问 diagnostics。."""
         return self.result.diagnostics
 
 
 class InferenceEngine:
-    """统一推断引擎，自动选择最优算法。
+    """统一推断引擎，自动选择最优算法。.
 
     自动路由策略（method='auto'）：
       1. n > mf_node_limit → Mean Field VI（大图快速近似）
@@ -139,7 +139,7 @@ class InferenceEngine:
         graph: FactorGraph,
         method: MethodChoice = "auto",
     ) -> InferenceResult:
-        """在 graph 上运行推断。
+        """在 graph 上运行推断。.
 
         Args:
         graph:
@@ -173,8 +173,11 @@ class InferenceEngine:
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: exact, %d vars, %.1fms", n, elapsed)
             return InferenceResult(
-                result=result, method_used="exact",
-                treewidth=-1, elapsed_ms=elapsed, is_exact=True,
+                result=result,
+                method_used="exact",
+                treewidth=-1,
+                elapsed_ms=elapsed,
+                is_exact=True,
             )
 
         if method == "auto":
@@ -191,8 +194,11 @@ class InferenceEngine:
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: JT (exact), treewidth=%d, %.1fms", tw, elapsed)
             return InferenceResult(
-                result=result, method_used="jt",
-                treewidth=tw, elapsed_ms=elapsed, is_exact=True,
+                result=result,
+                method_used="jt",
+                treewidth=tw,
+                elapsed_ms=elapsed,
+                is_exact=True,
             )
 
         if method == "trw_bp":
@@ -201,27 +207,33 @@ class InferenceEngine:
             elapsed = (time.perf_counter() - t0) * 1000
             logger.info("InferenceEngine: TRW-BP, treewidth=%d, %.1fms", tw, elapsed)
             return InferenceResult(
-                result=result, method_used="trw_bp",
-                treewidth=tw, elapsed_ms=elapsed, is_exact=False,
+                result=result,
+                method_used="trw_bp",
+                treewidth=tw,
+                elapsed_ms=elapsed,
+                is_exact=False,
             )
 
         if method == "mean_field":
             result = self._mf.run(graph)
             elapsed = (time.perf_counter() - t0) * 1000
-            logger.info("InferenceEngine: Mean Field, %d vars, %.1fms",
-                        len(graph.variables), elapsed)
+            logger.info(
+                "InferenceEngine: Mean Field, %d vars, %.1fms", len(graph.variables), elapsed
+            )
             return InferenceResult(
-                result=result, method_used="mean_field",
-                treewidth=-1, elapsed_ms=elapsed, is_exact=False,
+                result=result,
+                method_used="mean_field",
+                treewidth=-1,
+                elapsed_ms=elapsed,
+                is_exact=False,
             )
 
         raise ValueError(
-            f"method 必须是 'auto', 'jt', 'trw_bp', 'mean_field', 或 'exact'；"
-            f"收到 {method!r}"
+            f"method 必须是 'auto', 'jt', 'trw_bp', 'mean_field', 或 'exact'；收到 {method!r}"
         )
 
     def benchmark(self, graph: FactorGraph) -> dict[str, dict[str, object]]:
-        """运行所有可行算法并返回对比结果。"""
+        """运行所有可行算法并返回对比结果。."""
         results: dict[str, dict[str, object]] = {}
         for m in ("jt", "trw_bp", "mean_field"):
             r = self.run(graph, method=m)  # type: ignore[arg-type]

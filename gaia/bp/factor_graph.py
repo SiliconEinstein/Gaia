@@ -7,10 +7,10 @@ IR: docs/foundations/gaia-ir/02-gaia-ir.md (Operator variables + conclusion)
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from math import isfinite
-from typing import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ class FactorGraph:
         self.dedup_audit: list[dict] = []
 
     def add_variable(self, var_id: str, prior: float | None = None) -> None:
-        """Register a binary variable, optionally with an explicit unary factor.
+        r"""Register a binary variable, optionally with an explicit unary factor.
 
         ``variables`` records the neutral display/initial measure for every
         variable. Only ``unary_factors`` is a Jaynes-style class IV soft prior

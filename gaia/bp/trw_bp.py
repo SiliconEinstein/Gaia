@@ -47,7 +47,7 @@ from numpy.typing import NDArray
 from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.bp.potentials import evaluate_potential
 
-__all__ = ["TRWBeliefPropagation", "TRWResult", "TRWDiagnostics"]
+__all__ = ["TRWBeliefPropagation", "TRWDiagnostics", "TRWResult"]
 
 Msg = NDArray[np.float64]
 
@@ -94,7 +94,7 @@ def _log_normalize(log_msg: Msg) -> Msg:
 
 def _compute_factor_weights(
     graph: FactorGraph,
-    var_to_factors: dict[str, list[int]],
+    _var_to_factors: dict[str, list[int]],
 ) -> dict[int, float]:
     """Compute TRW factor appearance probabilities rho_f.
 
@@ -116,10 +116,7 @@ def _compute_factor_weights(
     ]
     F_soft = len(soft_factor_ids)
 
-    if F_soft == 0 or n_soft <= 1:
-        rho_soft = 1.0
-    else:
-        rho_soft = min(1.0, (n_soft - 1) / F_soft)
+    rho_soft = 1.0 if F_soft == 0 or n_soft <= 1 else min(1.0, (n_soft - 1) / F_soft)
 
     weights: dict[int, float] = {}
     for fi in range(len(graph.factors)):
@@ -141,7 +138,7 @@ def _compute_v2f_trw(
     prior_msg: Msg,
     var_to_factors: dict[str, list[int]],
     f2v_msgs: dict[tuple[int, str], Msg],
-    rho: dict[int, float],
+    _rho: dict[int, float],
 ) -> Msg:
     """Variable->factor message (standard sum-product, no rho in v->f).
 
@@ -183,9 +180,7 @@ def _compute_f2v_trw(
     for target_val in (0, 1):
         log_terms = []
         for other_vals in cartesian_product((0, 1), repeat=len(other_vars)):
-            assignment: dict[str, int] = {
-                v: val for v, val in zip(other_vars, other_vals, strict=True)
-            }
+            assignment: dict[str, int] = dict(zip(other_vars, other_vals, strict=True))
             assignment[target_var] = target_val
 
             pot = evaluate_potential(factor, assignment)
@@ -216,7 +211,7 @@ def _compute_beliefs_trw(
     priors: dict[str, Msg],
     var_to_factors: dict[str, list[int]],
     f2v_msgs: dict[tuple[int, str], Msg],
-    rho: dict[int, float],
+    _rho: dict[int, float],
 ) -> dict[str, float]:
     """Compute beliefs: b(v) ∝ prior(v) * prod_f msg(f->v).
 
@@ -262,7 +257,7 @@ class TRWDiagnostics:
             self.direction_changes[vid] = changes
 
     def belief_table(self, variables: list[str] | None = None) -> str:
-        """返回 belief history 的格式化表格。"""
+        """返回 belief history 的格式化表格。."""
         vids = variables if variables is not None else sorted(self.belief_history)
         if not vids:
             return "(no belief history)"
@@ -395,10 +390,9 @@ class TRWBeliefPropagation:
             return self._run_synchronous(
                 graph, diag, priors, var_to_factors, f2v_msgs, v2f_msgs, prev_beliefs, rho
             )
-        else:
-            return self._run_residual(
-                graph, diag, priors, var_to_factors, f2v_msgs, v2f_msgs, prev_beliefs, rho
-            )
+        return self._run_residual(
+            graph, diag, priors, var_to_factors, f2v_msgs, v2f_msgs, prev_beliefs, rho
+        )
 
     def _run_synchronous(
         self,

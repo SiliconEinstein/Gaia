@@ -58,19 +58,17 @@ from jaynes_ref.queries import (
     mutual_information,
 )
 
-
 __all__ = [
-    "ApDistribution",
     "CPT",
     "CROMWELL_EPS",
+    "ApDistribution",
     "DecisionResult",
     "InformationSet",
     "Likelihood",
     "LogicalConstraint",
-    "WeightedFactor",
-    "pairwise_weight",
     "MaxEntFit",
     "MomentConstraint",
+    "WeightedFactor",
     "asymmetric_loss",
     "bayes_action",
     "beta_ap",
@@ -96,6 +94,7 @@ __all__ = [
     "maxent_from_info",
     "mutual_information",
     "negation",
+    "pairwise_weight",
     "predictive_probability",
     "quadratic_loss",
     "uniform_ap",

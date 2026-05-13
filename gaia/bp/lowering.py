@@ -64,13 +64,15 @@ _OPERATOR_MAP: dict[OperatorType, FactorType] = {
 }
 
 
-_SYMMETRIC_OPS = frozenset({
-    OperatorType.EQUIVALENCE,
-    OperatorType.CONTRADICTION,
-    OperatorType.COMPLEMENT,
-    OperatorType.DISJUNCTION,
-    OperatorType.CONJUNCTION,
-})
+_SYMMETRIC_OPS = frozenset(
+    {
+        OperatorType.EQUIVALENCE,
+        OperatorType.CONTRADICTION,
+        OperatorType.COMPLEMENT,
+        OperatorType.DISJUNCTION,
+        OperatorType.CONJUNCTION,
+    }
+)
 
 
 def _canonical_op_key(op: Operator) -> tuple:
@@ -81,10 +83,7 @@ def _canonical_op_key(op: Operator) -> tuple:
     structural enforcement only; deeper semantic equivalence belongs
     to Archon / SAT verifiers.
     """
-    if op.operator in _SYMMETRIC_OPS:
-        args = frozenset(op.variables)
-    else:
-        args = tuple(op.variables)
+    args = frozenset(op.variables) if op.operator in _SYMMETRIC_OPS else tuple(op.variables)
     return (op.operator, args)
 
 
@@ -106,13 +105,17 @@ def _dedup_operators(
         if key in seen:
             prev_concl, _prev_idx = seen[key]
             if prev_concl == op.conclusion:
-                dedup_audit.append({
-                    "context": context,
-                    "op": str(op.operator),
-                    "args": sorted(op.variables) if op.operator in _SYMMETRIC_OPS else list(op.variables),
-                    "conclusion": op.conclusion,
-                    "dropped_index": len(out) + (len(seen) - 1),
-                })
+                dedup_audit.append(
+                    {
+                        "context": context,
+                        "op": str(op.operator),
+                        "args": sorted(op.variables)
+                        if op.operator in _SYMMETRIC_OPS
+                        else list(op.variables),
+                        "conclusion": op.conclusion,
+                        "dropped_index": len(out) + (len(seen) - 1),
+                    }
+                )
                 continue
             raise ValueError(
                 f"D2 violation [{context}]: operator {op.operator.value} over "

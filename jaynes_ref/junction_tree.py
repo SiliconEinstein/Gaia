@@ -14,14 +14,13 @@ good enough for the sparse chains and trees produced by Gaia lowering.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 import numpy as np
 
 from jaynes_ref.exact import InferenceResult, _fold_likelihoods
 from jaynes_ref.information import InformationSet
-
 
 __all__ = ["jt_infer"]
 
@@ -61,22 +60,21 @@ def _build_factors(
 
     for v, pi in effective_unary.items():
         arr = np.array(
-            [np.log(1.0 - pi) if (1.0 - pi) > 0 else -np.inf,
-             np.log(pi) if pi > 0 else -np.inf],
+            [np.log(1.0 - pi) if (1.0 - pi) > 0 else -np.inf, np.log(pi) if pi > 0 else -np.inf],
             dtype=np.float64,
         )
         factors.append(_Factor((v,), arr))
 
     for cpt in info.cpts:
-        scope = tuple(cpt.parents) + (cpt.child,)
+        scope = (*tuple(cpt.parents), cpt.child)
         k = len(cpt.parents)
         table = np.asarray(cpt.table, dtype=np.float64)
         tensor = np.empty((2,) * len(scope), dtype=np.float64)
         for pa_idx in range(1 << k):
             pa_bits = tuple(((pa_idx >> b) & 1) for b in range(k))
             p1 = float(table[pa_idx])
-            tensor[pa_bits + (0,)] = np.log(1.0 - p1) if (1.0 - p1) > 0 else -np.inf
-            tensor[pa_bits + (1,)] = np.log(p1) if p1 > 0 else -np.inf
+            tensor[(*pa_bits, 0)] = np.log(1.0 - p1) if (1.0 - p1) > 0 else -np.inf
+            tensor[(*pa_bits, 1)] = np.log(p1) if p1 > 0 else -np.inf
         factors.append(_Factor(scope, tensor))
 
     for c in info.constraints:
@@ -107,7 +105,8 @@ def _build_factors(
 
 def _broadcast_to_union(factor: _Factor, union_scope: Scope) -> np.ndarray:
     """Reshape ``factor.log_tensor`` so it broadcasts cleanly against any
-    other factor over a superset of its scope."""
+    other factor over a superset of its scope.
+    """
     positions = [union_scope.index(v) for v in factor.scope]
     rank = len(union_scope)
     if positions != sorted(positions):
@@ -143,7 +142,7 @@ def _product(factors: list[_Factor]) -> _Factor:
 
 def _sum_out(factor: _Factor, var: str) -> _Factor:
     axis = factor.scope.index(var)
-    new_scope = factor.scope[:axis] + factor.scope[axis + 1:]
+    new_scope = factor.scope[:axis] + factor.scope[axis + 1 :]
     t = factor.log_tensor
     m = np.max(t, axis=axis)
     m_finite = np.isfinite(m)
@@ -162,9 +161,7 @@ def _sum_out(factor: _Factor, var: str) -> _Factor:
 # ---------------------------------------------------------------------------
 
 
-def _min_neighbors_order(
-    variables: Iterable[str], factors: list[_Factor]
-) -> list[str]:
+def _min_neighbors_order(variables: Iterable[str], factors: list[_Factor]) -> list[str]:
     var_set = set(variables)
     neighbors: dict[str, set[str]] = {v: set() for v in var_set}
     for f in factors:
@@ -206,9 +203,7 @@ def _final_log_Z(remaining: list[_Factor]) -> float:
     total = 0.0
     for f in remaining:
         if f.scope:
-            raise RuntimeError(
-                f"_final_log_Z: unexpected residual factor with scope {f.scope}"
-            )
+            raise RuntimeError(f"_final_log_Z: unexpected residual factor with scope {f.scope}")
         total += float(f.log_tensor)
     return total
 
@@ -226,17 +221,17 @@ def jt_infer(info: InformationSet) -> InferenceResult:
     vars_in_factors = set()
     for f in base_factors:
         vars_in_factors.update(f.scope)
-    
+
     # Isolated variables: in variables but not in any factor
     isolated_vars = set(variables) - vars_in_factors
-    
+
     order_full = _min_neighbors_order(variables, base_factors)
     remaining = _ve_run(base_factors, order_full)
     log_Z = _final_log_Z(remaining)
-    
+
     # Each isolated variable contributes log(2) to Z (two possible states)
     log_Z += len(isolated_vars) * np.log(2.0)
-    
+
     if not np.isfinite(log_Z):
         raise RuntimeError(
             "Z = 0: asserted information set is logically inconsistent. "
@@ -250,7 +245,7 @@ def jt_infer(info: InformationSet) -> InferenceResult:
             # Isolated variable: uniform prior
             beliefs[target] = 0.5
             continue
-            
+
         others = [v for v in variables if v != target]
         rem = _ve_run(base_factors, _min_neighbors_order(others, base_factors))
         targeted = [f for f in rem if f.scope]
@@ -261,17 +256,13 @@ def jt_infer(info: InformationSet) -> InferenceResult:
         prod = _product(targeted)
         if prod.scope != (target,):
             raise RuntimeError(
-                f"jt_infer: residual product scope {prod.scope!r} is not just "
-                f"({target!r},)"
+                f"jt_infer: residual product scope {prod.scope!r} is not just ({target!r},)"
             )
         t = prod.log_tensor
         m = t.max()
         if not np.isfinite(m):
-            raise RuntimeError(
-                f"jt_infer: Z=0 slice found while computing marginal for {target!r}"
-            )
+            raise RuntimeError(f"jt_infer: Z=0 slice found while computing marginal for {target!r}")
         w = np.exp(t - m)
         beliefs[target] = float(w[1] / w.sum())
 
     return InferenceResult(beliefs=beliefs, log_Z=log_Z, likelihood_audit=audit)
-

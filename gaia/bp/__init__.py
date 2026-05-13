@@ -53,7 +53,7 @@ def infer(
     graph: FactorGraph,
     method: str = "auto",
 ) -> dict[str, float]:
-    """推断 FactorGraph 中所有变量的边缘概率。
+    """推断 FactorGraph 中所有变量的边缘概率。.
 
     Parameters
     ----------
@@ -65,7 +65,7 @@ def infer(
         "trw_bp"      — 强制 TRW-BP
         "mean_field"  — 强制 Mean Field VI
 
-    Returns
+    Returns:
     -------
     dict[str, float]
         变量 ID → P(x=1) 的边缘概率。

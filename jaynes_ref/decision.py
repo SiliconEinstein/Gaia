@@ -12,18 +12,18 @@ computed (exact, MaxEnt, or A_p predictive).
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Callable, Mapping, Sequence
 
 import numpy as np
 
 __all__ = [
     "DecisionResult",
+    "asymmetric_loss",
     "bayes_action",
     "expected_loss",
-    "zero_one_loss",
     "quadratic_loss",
-    "asymmetric_loss",
+    "zero_one_loss",
 ]
 
 
@@ -79,6 +79,7 @@ def bayes_action(
 # Loss factories
 # ---------------------------------------------------------------------
 
+
 def zero_one_loss() -> Callable[[object, object], float]:
     """L(a, s) = 0 if a == s else 1.
 
@@ -102,9 +103,7 @@ def quadratic_loss() -> Callable[[float, float], float]:
     return loss
 
 
-def asymmetric_loss(
-    false_positive: float, false_negative: float
-) -> Callable[[int, int], float]:
+def asymmetric_loss(false_positive: float, false_negative: float) -> Callable[[int, int], float]:
     """Binary loss matrix for actions/states in {0, 1}.
 
     L(action=1, state=0) = false_positive

@@ -57,7 +57,6 @@ from jaynes_ref.constraints import (
     negation,
 )
 
-
 _ASSOCIATE_TOLERANCE = 1e-6
 
 
@@ -88,7 +87,8 @@ def _ensure_var(ctx: StrategyLoweringContext, var: str) -> None:
 
 def _drop_helper(ctx: StrategyLoweringContext, helper: str) -> None:
     """Remove a helper claim from variables/unary/hard once its warrant
-    is folded into the actual relation."""
+    is folded into the actual relation.
+    """
     ctx.variables.discard(helper)
     ctx.hard_evidence.pop(helper, None)
     ctx.unary_priors.pop(helper, None)
@@ -133,9 +133,7 @@ def _set_prior(
             )
         ctx.unary_priors[var] = p
     else:
-        raise ValueError(
-            f"strategy {strategy_id!r} {field_name}={p} out of [0, 1]"
-        )
+        raise ValueError(f"strategy {strategy_id!r} {field_name}={p} out of [0, 1]")
 
 
 def _resolve_prior(
@@ -146,7 +144,8 @@ def _resolve_prior(
     ctx: StrategyLoweringContext,
 ) -> float | None:
     """Return existing π_var from (in priority order):
-       node_priors > metadata.prior > ctx state. None if unknown."""
+    node_priors > metadata.prior > ctx state. None if unknown.
+    """
     if var in priors:
         return float(priors[var])
     if var in metadata_priors:
@@ -214,10 +213,7 @@ def _lower_formal(
             _ensure_var(ctx, op.conclusion)
 
         # DEDUCTION + IMPLICATION: helper warrant folded into A → C.
-        if (
-            s.type == StrategyType.DEDUCTION
-            and op.operator == OperatorType.IMPLICATION
-        ):
+        if s.type == StrategyType.DEDUCTION and op.operator == OperatorType.IMPLICATION:
             antecedent, consequent = op.variables[0], op.variables[1]
             ctx.constraints.append(implication(antecedent, consequent))
             _drop_helper(ctx, op.conclusion)
@@ -225,19 +221,13 @@ def _lower_formal(
 
         # SUPPORT + IMPLICATION: soft warrant kept as a real variable;
         # ternary constraint forbids (helper=1, A=1, C=0).
-        if (
-            s.type == StrategyType.SUPPORT
-            and op.operator == OperatorType.IMPLICATION
-        ):
+        if s.type == StrategyType.SUPPORT and op.operator == OperatorType.IMPLICATION:
             antecedent, consequent = op.variables[0], op.variables[1]
             helper = op.conclusion
             _ensure_var(ctx, helper)
 
             # helper_prior: node_priors > metadata.prior; default class-V free.
-            helper_prior = (
-                priors[helper] if helper in priors
-                else (metadata_priors[helper] if helper in metadata_priors else None)
-            )
+            helper_prior = priors[helper] if helper in priors else (metadata_priors.get(helper))
             _set_prior(ctx, helper, helper_prior, strategy_id=sid, field_name="helper_prior")
 
             allowed = frozenset(
@@ -275,8 +265,8 @@ def _lower_infer(
     s,
     *,
     ctx: StrategyLoweringContext,
-    priors: dict[str, float],
-    metadata_priors: dict[str, float],
+    _priors: dict[str, float],
+    _metadata_priors: dict[str, float],
     strat_params: dict[str, list[float]],
 ) -> None:
     sid = s.strategy_id
@@ -294,7 +284,11 @@ def _lower_infer(
             field_name="prior_hypothesis",
         )
     _set_prior(
-        ctx, conc, s.prior_evidence, strategy_id=sid, field_name="prior_evidence",
+        ctx,
+        conc,
+        s.prior_evidence,
+        strategy_id=sid,
+        field_name="prior_evidence",
     )
 
     table = s.conditional_probabilities or strat_params.get(sid)
@@ -332,9 +326,7 @@ def _lower_noisy_and(
         raise ValueError(f"noisy_and strategy {sid!r}: requires >= 1 premise")
     table = [0.0] * (1 << k)
     table[-1] = p  # only all-premises-true row produces C=1
-    ctx.cpts.append(
-        CPT(parents=tuple(s.premises), child=conc, table=tuple(table))
-    )
+    ctx.cpts.append(CPT(parents=tuple(s.premises), child=conc, table=tuple(table)))
 
 
 def _resolve_associate_marginal(
@@ -343,7 +335,7 @@ def _resolve_associate_marginal(
     *,
     priors: dict[str, float],
     metadata_priors: dict[str, float],
-    ctx: StrategyLoweringContext,
+    _ctx: StrategyLoweringContext,
     strategy_id: str | None,
     field_name: str,
 ) -> float | None:
@@ -378,9 +370,7 @@ def _lower_associate(
     if len(s.premises) != 2:
         raise ValueError(f"associate strategy {sid!r}: requires exactly 2 premises")
     if s.p_a_given_b is None or s.p_b_given_a is None:
-        raise ValueError(
-            f"associate strategy {sid!r}: requires p_a_given_b and p_b_given_a"
-        )
+        raise ValueError(f"associate strategy {sid!r}: requires p_a_given_b and p_b_given_a")
 
     a, b = s.premises
     p_a_given_b = float(s.p_a_given_b)
@@ -391,19 +381,25 @@ def _lower_associate(
             f"p_a_given_b={p_a_given_b}, p_b_given_a={p_b_given_a}"
         )
     pi_a = _resolve_associate_marginal(
-        a, s.prior_a,
-        priors=priors, metadata_priors=metadata_priors,
-        ctx=ctx, strategy_id=sid, field_name="prior_a",
+        a,
+        s.prior_a,
+        priors=priors,
+        metadata_priors=metadata_priors,
+        ctx=ctx,
+        strategy_id=sid,
+        field_name="prior_a",
     )
     pi_b = _resolve_associate_marginal(
-        b, s.prior_b,
-        priors=priors, metadata_priors=metadata_priors,
-        ctx=ctx, strategy_id=sid, field_name="prior_b",
+        b,
+        s.prior_b,
+        priors=priors,
+        metadata_priors=metadata_priors,
+        ctx=ctx,
+        strategy_id=sid,
+        field_name="prior_b",
     )
     if pi_a is None and pi_b is None:
-        raise ValueError(
-            f"associate strategy {sid!r}: missing marginal prior for {a!r} or {b!r}"
-        )
+        raise ValueError(f"associate strategy {sid!r}: missing marginal prior for {a!r} or {b!r}")
     if pi_a is None:
         pi_a = pi_b * p_a_given_b / p_b_given_a  # type: ignore[operator]
     if pi_b is None:
@@ -522,8 +518,10 @@ def lower_strategy(
 
     if s.type == StrategyType.INFER:
         _lower_infer(
-            s, ctx=ctx,
-            priors=priors, metadata_priors=metadata_priors,
+            s,
+            ctx=ctx,
+            priors=priors,
+            metadata_priors=metadata_priors,
             strat_params=strat_params,
         )
         return

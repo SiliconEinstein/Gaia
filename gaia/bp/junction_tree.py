@@ -43,9 +43,9 @@ from __future__ import annotations
 import logging
 from itertools import product as cartesian_product
 
-from gaia.bp.trw_bp import TRWDiagnostics, TRWResult
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
 from gaia.bp.potentials import evaluate_potential
+from gaia.bp.trw_bp import TRWDiagnostics, TRWResult
 
 __all__ = ["JunctionTreeInference", "jt_treewidth"]
 

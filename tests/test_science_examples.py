@@ -7,8 +7,8 @@ and runs BP to verify belief propagation produces sensible posteriors.
 from __future__ import annotations
 
 from gaia.bp import lower_local_graph
-from gaia.bp.trw_bp import TRWBeliefPropagation
 from gaia.bp.exact import exact_inference
+from gaia.bp.trw_bp import TRWBeliefPropagation
 from gaia.ir import Knowledge, LocalCanonicalGraph, Operator, Strategy
 
 NS, PKG_G, PKG_N, PKG_E = "github", "galileo", "newton", "einstein"

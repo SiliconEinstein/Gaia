@@ -23,14 +23,13 @@ directly. Returns the full joint p* and the fitted lam.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Sequence
 
 import numpy as np
 
 from jaynes_ref.exact import _MAX_N, _enumerate_states
 from jaynes_ref.information import InformationSet
-
 
 # A moment constraint is described by (feature function on full state, target mu).
 MomentFeature = Callable[[np.ndarray], np.ndarray]  # (N, n_vars) int8 -> (N,) float
@@ -129,7 +128,8 @@ def maxent_from_info(
     **kwargs,
 ) -> MaxEntFit:
     """Wrapper that pins n to info.variables. Constraint features must
-    consume a (N, n) int8 array indexed by sorted(info.variables)."""
+    consume a (N, n) int8 array indexed by sorted(info.variables).
+    """
     info.validate()
     n = len(info.variables)
     return fit_maxent(n, constraints, **kwargs)

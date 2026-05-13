@@ -26,7 +26,6 @@ from __future__ import annotations
 from jaynes_ref import (
     CPT,
     InformationSet,
-    LogicalConstraint,
 )
 from jaynes_ref.strategies import (
     StrategyLoweringContext,
@@ -77,8 +76,7 @@ def from_local_graph(
     for k in graph.knowledges:
         if k.type != KnowledgeType.CLAIM:
             raise NotImplementedError(
-                f"Knowledge type {k.type!r} not in Jaynes Layer 0; "
-                f"only CLAIM is supported."
+                f"Knowledge type {k.type!r} not in Jaynes Layer 0; only CLAIM is supported."
             )
         if not k.id:
             raise ValueError("Every CLAIM knowledge must have an id.")
@@ -134,7 +132,7 @@ def from_local_graph(
             strat_params=strat_params,
         )
 
-    info = InformationSet(
+    return InformationSet(
         variables=set(ctx.variables),
         hard_evidence=dict(ctx.hard_evidence),
         unary_priors=dict(ctx.unary_priors),
@@ -142,4 +140,3 @@ def from_local_graph(
         cpts=list(ctx.cpts) + (list(cpts) if cpts else []),
         weighted_factors=list(ctx.weighted_factors),
     )
-    return info

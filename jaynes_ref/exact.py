@@ -22,8 +22,8 @@ Algorithm (PTLoS §4, §11):
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
 
 import numpy as np
 
@@ -96,9 +96,7 @@ def _log_joint(
     # Class IV (incl. folded class II)
     for v, pi in effective_unary.items():
         i = var_idx[v]
-        log_w = log_w + np.where(
-            states[:, i] == 1, np.log(pi), np.log(1.0 - pi)
-        )
+        log_w = log_w + np.where(states[:, i] == 1, np.log(pi), np.log(1.0 - pi))
 
     # Class III: P(child | parents)
     with np.errstate(divide="ignore"):

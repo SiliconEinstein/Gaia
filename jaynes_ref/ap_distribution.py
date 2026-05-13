@@ -23,18 +23,17 @@ is not supported here — that needs continuous-variable Layer 1.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 
 __all__ = [
     "ApDistribution",
-    "uniform_ap",
     "beta_ap",
-    "update_with_bernoulli",
-    "predictive_probability",
-    "entropy_ap",
     "credible_interval",
+    "entropy_ap",
+    "predictive_probability",
+    "uniform_ap",
+    "update_with_bernoulli",
 ]
 
 
@@ -133,7 +132,7 @@ def entropy_ap(ap: ApDistribution) -> float:
     return float(-np.sum(d[nz] * np.log(d[nz])))
 
 
-def credible_interval(ap: ApDistribution, mass: float = 0.95) -> Tuple[float, float]:
+def credible_interval(ap: ApDistribution, mass: float = 0.95) -> tuple[float, float]:
     """Equal-tailed credible interval (lo, hi) holding 'mass' total probability."""
     if not (0.0 < mass < 1.0):
         raise ValueError("mass must be in (0, 1)")
