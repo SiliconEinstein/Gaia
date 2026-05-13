@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import Any, cast
 
 from gaia.lang.runtime.action import Infer as InferAction
 from gaia.lang.runtime.knowledge import Claim, Knowledge
@@ -42,17 +42,10 @@ def _legacy_infer(
     return legacy_infer(list(premises), *args, **legacy_kwargs)
 
 
-def _resolve_evidence(
-    evidence_or_legacy: Claim | str | list[Knowledge] | tuple[Knowledge, ...] | None,
-    evidence: Claim | str | None,
-) -> Claim | str | None:
-    if evidence_or_legacy is None:
-        return evidence
-    if isinstance(evidence_or_legacy, (list, tuple)):
+def _resolve_evidence(evidence: Claim | str | None) -> Claim | str | None:
+    if isinstance(evidence, (list, tuple)):
         raise TypeError("legacy infer form must be handled before evidence resolution")
-    if evidence is not None:
-        raise TypeError("infer() got evidence both positionally and by keyword")
-    return evidence_or_legacy
+    return evidence
 
 
 def _validate_infer_claims(
@@ -105,10 +98,9 @@ def _infer_relation(
 
 
 def infer(
-    evidence_or_legacy: Claim | str | list[Knowledge] | tuple[Knowledge, ...] | None = None,
+    evidence: Claim | str | None = None,
     *args: Any,
     hypothesis: Claim | None = None,
-    evidence: Claim | str | None = None,
     given: Claim | tuple[Claim, ...] | list[Claim] | None = (),
     background: list[Knowledge] | None = None,
     p_e_given_h: float | Claim | None = None,
@@ -125,15 +117,16 @@ def infer(
     v5 ``infer([premises], conclusion, ...)`` form is preserved as a deprecated
     compatibility path.
     """
-    if isinstance(evidence_or_legacy, (list, tuple)):
-        return _legacy_infer(evidence_or_legacy, args, legacy_kwargs)
+    legacy_evidence = cast(Any, evidence)
+    if isinstance(legacy_evidence, (list, tuple)):
+        return _legacy_infer(legacy_evidence, args, legacy_kwargs)
 
     if args:
         raise TypeError("v6 infer() accepts only one positional evidence argument")
     if legacy_kwargs:
         unexpected = next(iter(legacy_kwargs))
         raise TypeError(f"infer() got an unexpected keyword argument: '{unexpected}'")
-    evidence = _resolve_evidence(evidence_or_legacy, evidence)
+    evidence = _resolve_evidence(evidence)
     evidence, hypothesis, given_tuple = _validate_infer_claims(
         hypothesis=hypothesis,
         evidence=evidence,

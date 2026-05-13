@@ -384,6 +384,44 @@ def _action_label(action: Any, pkg: CollectedPackage, action_index: int) -> str:
     return _make_action_qid(pkg.namespace, pkg.name, label)
 
 
+def _action_label_display(action_label: str) -> str:
+    return action_label.rsplit("::action::", maxsplit=1)[-1]
+
+
+def _record_action_label_target(
+    action_label_map: dict[str, str],
+    target_action_labels_by_id: dict[str, str],
+    action_label: str,
+    target_id: str | None,
+) -> None:
+    if target_id is None:
+        return
+    existing_target_id = action_label_map.get(action_label)
+    if existing_target_id is not None:
+        raise ValueError(
+            f"duplicate action label '{_action_label_display(action_label)}' "
+            f"targets both {existing_target_id!r} and {target_id!r}"
+        )
+    action_label_map[action_label] = target_id
+    target_action_labels_by_id[target_id] = action_label
+
+
+def _merge_action_label_targets(
+    action_label_map: dict[str, str],
+    target_action_labels_by_id: dict[str, str],
+    incoming_action_label_map: dict[str, str],
+    incoming_target_action_labels_by_id: dict[str, str],
+) -> None:
+    for action_label, target_id in incoming_action_label_map.items():
+        _record_action_label_target(
+            action_label_map,
+            target_action_labels_by_id,
+            action_label,
+            target_id,
+        )
+    target_action_labels_by_id.update(incoming_target_action_labels_by_id)
+
+
 def _action_metadata(
     action: Any,
     pkg: CollectedPackage,
@@ -751,10 +789,12 @@ class _ActionCompiler:
         ]
 
     def _record_action_target(self, action_label: str, target_id: str | None) -> None:
-        if target_id is None:
-            return
-        self.action_label_map[action_label] = target_id
-        self.target_action_labels_by_id[target_id] = action_label
+        _record_action_label_target(
+            self.action_label_map,
+            self.target_action_labels_by_id,
+            action_label,
+            target_id,
+        )
 
     def _scaffold_label(self, action: DependsOn | CandidateRelation, action_index: int) -> str:
         return action.label or f"_anon_action_{action_index:03d}"
@@ -1854,8 +1894,12 @@ def compile_package_artifact(
         metadata_updates=bayes_lowered.metadata_updates,
         parameter_updates={},
     )
-    action_compiler.action_label_map.update(bayes_lowered.action_label_map)
-    action_compiler.target_action_labels_by_id.update(bayes_lowered.target_action_labels_by_id)
+    _merge_action_label_targets(
+        action_compiler.action_label_map,
+        action_compiler.target_action_labels_by_id,
+        bayes_lowered.action_label_map,
+        bayes_lowered.target_action_labels_by_id,
+    )
     _record_bayes_action_targets(
         pkg,
         action_labels_by_object,

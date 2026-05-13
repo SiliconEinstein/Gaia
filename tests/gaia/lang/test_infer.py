@@ -1,3 +1,5 @@
+import inspect
+
 import pytest
 
 from gaia.lang import infer
@@ -168,6 +170,17 @@ def test_infer_registers_action_and_warrant():
     assert action in e.supports
     assert action.helper is not None
     assert action.warrants == [action.helper]
+
+
+def test_infer_public_signature_is_evidence_first_without_legacy_list_shape():
+    signature = inspect.signature(infer)
+    first_parameter = next(iter(signature.parameters.values()))
+
+    assert first_parameter.name == "evidence"
+    annotation = str(first_parameter.annotation)
+    assert "list" not in annotation
+    assert "tuple" not in annotation
+    assert "Knowledge" not in annotation
 
 
 @pytest.mark.legacy_dsl
