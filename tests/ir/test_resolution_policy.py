@@ -53,13 +53,12 @@ def test_explicit_priority_user_priors_beats_continuous_inference():
 
 
 def test_explicit_priority_calibration_beats_user_priors_when_present():
-    """DEFAULT_PRIORITY_ORDER puts calibration_* second above user_priors."""
+    """DEFAULT_PRIORITY_ORDER lets retrospective calibration override authors."""
     # Reverse order so we know it's not "first in input list".
     user = _record(0.5, "user_priors")
     calib = _record(0.62, "calibration_2026q2")
     winner = default_resolution_policy().resolve([user, calib])
-    # Default order: user_priors > calibration_* — so user wins.
-    assert winner is user
+    assert winner is calib
 
 
 def test_explicit_priority_continuous_inference_beats_agent():
@@ -114,8 +113,10 @@ def test_invalid_wildcard_in_pattern_raises_at_construction():
         ResolutionPolicy(strategy="explicit_priority", priority_order=["us*er_priors"])
 
 
-def test_default_priority_order_has_user_priors_first():
-    assert DEFAULT_PRIORITY_ORDER[0] == "user_priors"
+def test_default_priority_order_places_calibration_above_user_priors():
+    assert DEFAULT_PRIORITY_ORDER.index("calibration_*") < DEFAULT_PRIORITY_ORDER.index(
+        "user_priors"
+    )
     assert "claim_inline" in DEFAULT_PRIORITY_ORDER
     assert DEFAULT_PRIORITY_ORDER.index("user_priors") < DEFAULT_PRIORITY_ORDER.index(
         "claim_inline"

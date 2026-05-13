@@ -427,6 +427,7 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
     to those declared in ``priors.py``.
     """
     policy = _load_resolution_policy(loaded)
+    loaded.package._resolution_policy = policy
     try:
         resolve_priors_to_metadata(loaded.package.knowledge, policy)
     except (TypeError, ValueError) as exc:

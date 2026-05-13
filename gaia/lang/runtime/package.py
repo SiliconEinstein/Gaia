@@ -7,7 +7,7 @@ import sys
 from contextvars import Token
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from gaia.lang.runtime.knowledge import Knowledge, _current_package
 from gaia.lang.runtime.nodes import Operator, Strategy
@@ -38,6 +38,7 @@ class CollectedPackage:
         self._module_order: list[str] = []
         self._module_titles: dict[str, str] | None = None
         self._exported_labels: set[str] = set()
+        self._resolution_policy: Any | None = None
 
     def __enter__(self) -> CollectedPackage:
         """Activate this package collector for module-scope declarations."""

@@ -1156,6 +1156,42 @@ def test_compile_priors_py_injects_metadata_prior(tmp_path):
     assert "prior" not in c_meta
 
 
+def test_compile_respects_custom_resolution_policy(tmp_path):
+    """A package-level RESOLUTION_POLICY must survive the compiler safety net."""
+    pkg_dir = tmp_path / "custom_policy_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "custom-policy-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "custom_policy_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from gaia.ir import ResolutionPolicy\n"
+        "from gaia.lang import register_prior\n\n"
+        "from . import my_claim\n\n"
+        'RESOLUTION_POLICY = ResolutionPolicy(strategy="source", source_id="reviewer_alice")\n'
+        'register_prior(my_claim, value=0.2, justification="Author prior.")\n'
+        "register_prior(\n"
+        "    my_claim,\n"
+        "    value=0.8,\n"
+        '    source_id="reviewer_alice",\n'
+        '    justification="Reviewer override.",\n'
+        ")\n"
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+    ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
+    claim_meta = next(k for k in ir["knowledges"] if k.get("label") == "my_claim")["metadata"]
+    assert claim_meta["prior"] == 0.8
+    assert claim_meta["prior_justification"] == "Reviewer override."
+
+
 def test_compile_no_priors_py_is_noop(tmp_path):
     """Packages without priors.py compile normally — no error."""
     pkg_dir = tmp_path / "no_priors_pkg"

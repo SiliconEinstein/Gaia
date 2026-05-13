@@ -1857,20 +1857,21 @@ def compile_package_artifact(
 ) -> CompiledPackage:
     """Compile collected declarations into Gaia IR plus runtime mappings.
 
-    As the first step, applies the package-default :class:`ResolutionPolicy`
+    As the first step, applies the package's :class:`ResolutionPolicy`
     over any per-claim ``metadata['prior_records']`` populated by
     ``register_prior()`` calls (or by the ``claim(prior=...)`` shortcut, which
     routes through the ``"claim_inline"`` source). The winning value is
     written to ``metadata['prior']`` so downstream BP / render / brief
     consumers see a single resolved prior even when callers bypass the CLI's
     :func:`gaia.cli._packages.apply_package_priors` step. CLI flows that have
-    already invoked ``apply_package_priors`` re-run the same idempotent
-    resolution here at no semantic cost.
+    already invoked ``apply_package_priors`` store the package-level policy on
+    the package, so this safety net re-runs the same idempotent resolution
+    instead of falling back to the default policy.
     """
     if references is None:
         references = {}
 
-    _resolve_pkg_priors_with_default_policy(pkg)
+    _resolve_pkg_priors_with_package_policy(pkg)
 
     knowledge_collection = _KnowledgeCollector(pkg).collect()
     knowledge_map = _assign_knowledge_ids(pkg, knowledge_collection.nodes)
@@ -1989,16 +1990,15 @@ def compile_package(
     return compile_package_artifact(pkg, references=references).to_json()
 
 
-def _resolve_pkg_priors_with_default_policy(pkg: CollectedPackage) -> None:
-    """Apply the default ResolutionPolicy to every Claim with prior_records.
+def _resolve_pkg_priors_with_package_policy(pkg: CollectedPackage) -> None:
+    """Apply the package ResolutionPolicy to every Claim with prior_records.
 
-    Idempotent: if the CLI has already resolved priors via
-    :func:`gaia.cli._packages.apply_package_priors` (with a possibly
-    customised RESOLUTION_POLICY), this re-resolves with the default policy.
-    Both runs produce the same winner because the prior_records list is
-    unchanged by resolution.
+    The CLI stores any priors.py ``RESOLUTION_POLICY`` on the package before
+    calling the compiler. Direct in-memory callers usually do not, so they get
+    the default policy as a safety net.
     """
     from gaia.ir import default_resolution_policy
     from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
 
-    resolve_priors_to_metadata(pkg.knowledge, default_resolution_policy())
+    policy = pkg._resolution_policy or default_resolution_policy()
+    resolve_priors_to_metadata(pkg.knowledge, policy)

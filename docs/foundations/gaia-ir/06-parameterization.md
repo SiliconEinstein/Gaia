@@ -82,8 +82,8 @@ ParameterizationSource:
 
 ```python
 DEFAULT_PRIORITY_ORDER = (
-    "user_priors",            # 1. 作者用 register_prior() 默认 source
-    "calibration_*",          # 2. 历史校准（未来 feature）
+    "calibration_*",          # 1. 历史校准（未来 feature）
+    "user_priors",            # 2. 作者用 register_prior() 默认 source
     "reviewer_*",             # 3. 人工 reviewer 估计
     "continuous_inference",   # 4. 连续参数推断引擎（issue #581）
     "evidence_factor_*",      # 5. EvidenceFactor 派生（issue #560）
@@ -96,7 +96,7 @@ DEFAULT_PRIORITY_ORDER = (
 **核心排序原则**：
 
 1. **明确审议大于便利 shortcut**——任何显式 `register_prior()` 调用（`user_priors` 及之后）都比 `claim(prior=X)` 内联 shortcut 优先；后者作为低优先级 source 存在，方便作者快速写一个估计但允许后续覆盖。
-2. **作者意图大于引擎产出，但 retrospective calibration 例外**——`user_priors`（作者手写）排在最前；当存在校准数据时（`calibration_*`），它可以覆盖作者，因为它带有作者写时不知道的事后证据；之后是人工 reviewer、引擎产出（`continuous_inference`、`evidence_factor_*`）、自动 agent 建议。
+2. **作者意图大于引擎产出，但 retrospective calibration 例外**——`calibration_*` 排在 `user_priors` 前面，因为它带有作者写时不知道的事后证据，可以覆盖作者手写先验；`user_priors` 之后是人工 reviewer、引擎产出（`continuous_inference`、`evidence_factor_*`）、自动 agent 建议。
 
 作者可以在 `priors.py` 中导出自定义 `RESOLUTION_POLICY` 覆盖默认策略：
 

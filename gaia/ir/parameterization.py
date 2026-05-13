@@ -29,8 +29,8 @@ def _clamp(value: float) -> float:
 
 
 DEFAULT_PRIORITY_ORDER: tuple[str, ...] = (
-    "user_priors",  # Explicit register_prior() with default source
     "calibration_*",  # Historical calibration outputs (future feature)
+    "user_priors",  # Explicit register_prior() with default source
     "reviewer_*",  # Human reviewer overrides
     "continuous_inference",  # #581 continuous parameter inference engine
     "evidence_factor_*",  # #560 EvidenceFactor-derived priors
@@ -49,13 +49,12 @@ The ranking embodies two principles:
    is an auto-generated placeholder, so a properly documented ``register_prior``
    call should always be able to override it.
 2. **Author intent outranks engine output, except for retrospective
-   calibration.** ``user_priors`` (author's hand-written register_prior)
-   sits at the top; calibration based on real outcome data is allowed to
-   override the author when present, since it incorporates evidence the
-   author may not have had at write-time. Reviewer overrides come next, then
-   engine outputs (``continuous_inference``, ``evidence_factor_*``), then
-   automated agent suggestions, then the ``claim_inline`` shortcut, then a
-   catch-all.
+   calibration.** Calibration based on real outcome data sits above
+   ``user_priors`` because it incorporates evidence the author may not have
+   had at write-time. The author's hand-written ``register_prior`` comes next,
+   ahead of reviewer overrides, engine outputs (``continuous_inference``,
+   ``evidence_factor_*``), automated agent suggestions, the ``claim_inline``
+   shortcut, and finally the catch-all.
 
 Authors may override this ranking per-package by exporting a custom
 ``RESOLUTION_POLICY`` in ``priors.py``.
