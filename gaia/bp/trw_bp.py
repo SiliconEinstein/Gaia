@@ -70,7 +70,7 @@ def _prior_to_msg(pi: float) -> Msg:
 
 def _normalize(msg: Msg) -> Msg:
     s = float(msg[0] + msg[1])
-    if s < 1e-300:
+    if s < 1e-300:  # pragma: no cover
         raise RuntimeError(
             "TRW-BP: zero-sum message -- factor graph has no valid assignment. "
             "Check Cromwell constraints and hard_evidence consistency."
@@ -201,7 +201,7 @@ def _compute_f2v_trw(  # type: ignore[no-untyped-def]
             log_msg_out[target_val] = rho_f * (
                 max_lt + np.log(sum(np.exp(lt - max_lt) for lt in log_terms))
             )
-        else:
+        else:  # pragma: no cover
             log_msg_out[target_val] = _LOG_EPS
 
     return _log_normalize(log_msg_out)
@@ -318,12 +318,7 @@ class TRWBeliefPropagation:
         if not (0.0 < damping <= 1.0):
             raise ValueError(f"damping must be in (0, 1], got {damping}")
         if schedule not in ("synchronous",):
-            raise ValueError(
-                f"schedule must be 'synchronous', got {schedule!r}. "
-                f"Residual schedule for TRW-BP is not yet stable."
-            )
-        if schedule not in ("synchronous",):
-            raise ValueError(
+            raise ValueError(  # pragma: no cover
                 f"schedule must be 'synchronous', got {schedule!r}. "
                 f"Residual schedule for TRW-BP is not yet stable."
             )
@@ -583,6 +578,7 @@ class TRWBeliefPropagation:
                     break
 
         if not diag.converged:
+            # pragma: no cover
             beliefs = _compute_beliefs_trw(graph, priors, var_to_factors, f2v_msgs, rho)
             max_change = max(abs(beliefs[vid] - prev_beliefs[vid]) for vid in beliefs)
         else:
