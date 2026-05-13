@@ -1,14 +1,15 @@
 """BoolExpr — boolean expression over Distribution objects (and constants).
 
 The dataclasses in this module are produced by Distribution operator overloads
-(``k > 1e-3``, ``k == A * exp(-Ea / (R * T))``, ``A * exp(-Ea / R / T)``).
+(``k > 1e-3``, ``y == baseline + slope * x``, ``A / B``).
 They carry no semantic meaning on their own — they are intermediate values
 that ``claim(content, expr)`` accepts as a structured proposition.
 
 At compile time the BoolExpr is lowered into Claim metadata
 (``metadata['predicate']`` or ``metadata['equation']``) which the BP layer
-reads to compute the predicate's prior via the underlying distribution's CDF
-or to install a hard/soft constraint on the joint distribution.
+reads to compute inequality predicate priors via the underlying distribution's
+CDF. Equation propositions are currently metadata plus an author/default prior;
+joint-distribution constraint lowering is future work.
 
 ``BoolExpr.__bool__`` raises with a helpful message — analogous to
 :meth:`gaia.lang.runtime.knowledge.Claim.__bool__` — so accidental use in
@@ -27,12 +28,11 @@ ArithmeticOp = Literal["+", "-", "*", "/"]
 
 @dataclass(eq=False)
 class DerivedDistribution:
-    """Arithmetic combination of distributions / scalars (e.g. ``A * exp(-Ea/RT)``).
+    """Arithmetic combination of distributions / scalars (e.g. ``baseline + slope * x``).
 
     Used as the right-hand side of an :class:`Equation` proposition. Carries no
-    runtime sampling logic — it is a syntactic placeholder that the lowering
-    layer interprets to install the correct constraint on the joint
-    distribution of the involved quantities.
+    runtime sampling logic — it is a syntactic placeholder retained in
+    equation metadata for audit and future constraint lowering.
 
     Constants (Python ``int`` / ``float`` / ``Quantity``) and other
     DerivedDistributions may appear on either operand position.
@@ -90,7 +90,7 @@ class DerivedDistribution:
         """Unary negation producing ``-self`` derived expression."""
         return DerivedDistribution("-", 0, self)
 
-    # Comparison operators — produce BoolExpr (so ``A * exp(-x) == k`` works).
+    # Comparison operators — produce BoolExpr (so ``baseline + slope * x == y`` works).
     def __gt__(self, other: Any) -> BoolExpr:
         """Greater-than comparison returning a BoolExpr proposition."""
         return BoolExpr(">", self, other)
@@ -121,11 +121,11 @@ class BoolExpr:
     """Boolean proposition over Distribution objects.
 
     Created by Distribution comparison operators (``k > 1e-3``,
-    ``k == A * exp(-x)``). ``claim(content, expr)`` accepts a BoolExpr as the
+    ``y == baseline + slope * x``). ``claim(content, expr)`` accepts a BoolExpr as the
     second argument and lowers it to claim metadata so the compiler can
     compute the resulting prior via the underlying distribution's CDF (for
-    inequality predicates) or install a constraint (for equality / equation
-    predicates).
+    inequality predicates). Equality / equation predicates are preserved in
+    metadata with author/default priors; constraint lowering is future work.
 
     The :meth:`__bool__` override raises so accidental Python control-flow use
     (``if k > 1e-3: ...``) surfaces immediately rather than silently always

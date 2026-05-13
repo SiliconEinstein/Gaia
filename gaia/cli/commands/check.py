@@ -759,19 +759,85 @@ def _append_covered_prior_details(
     lines: list[str],
     covered: list[tuple[str, dict[str, Any]]],
 ) -> None:
-    """Append prior-covered independent claim details."""
+    """Append prior-covered independent claim details with multi-source view.
+
+    For each independent claim with a registered prior, prints the resolution
+    winner on the headline and (when more than one record exists) the
+    overridden records as ``↪ also: ...`` follow-up lines so the author can
+    see which sources were ignored at a glance.
+    """
     if not covered:
         return
     lines.append("")
     lines.append("  Covered (independent claims with prior set):")
     for cid, claim in sorted(covered, key=lambda x: x[0]):
         label = claim.get("label", cid.split("::")[-1])
-        prior = _get_prior(claim)
-        justification = (claim.get("metadata") or {}).get("prior_justification", "")
-        lines.append(f"    {label}  prior={prior}")
+        winning_prior = _get_prior(claim)
+        metadata = claim.get("metadata") or {}
+        records = metadata.get("prior_records") or []
+        winning_source = metadata.get("prior_source_id") or _winning_source_id(
+            records, winning_prior
+        )
+        justification = metadata.get("prior_justification", "")
+        suffix = f" (source: {winning_source})" if winning_source else ""
+        lines.append(f"    {label}  prior={winning_prior}{suffix}")
         if justification:
             preview = (justification[:72] + "...") if len(justification) > 75 else justification
             lines.append(f"      reason: {preview}")
+        if isinstance(records, list) and len(records) > 1:
+            for line in _overridden_record_lines(records, winning_prior):
+                lines.append(line)
+
+
+def _winning_source_id(records: Any, winning_prior: Any) -> str | None:
+    """Identify the source_id of the record matching the resolution winner.
+
+    Returns the matching source_id, or None when records is empty / malformed
+    / when the winner cannot be unambiguously matched (e.g. two records share
+    the winning value).
+    """
+    if not isinstance(records, list) or not records:
+        return None
+    try:
+        target = float(winning_prior)
+    except (TypeError, ValueError):
+        return None
+    matches = [
+        r
+        for r in records
+        if isinstance(r, dict) and "value" in r and abs(float(r["value"]) - target) < 1e-9
+    ]
+    if len(matches) == 1:
+        return str(matches[0].get("source_id", "")) or None
+    if not matches:
+        return None
+    # Multiple records share the winning value — surface the latest one (the
+    # ResolutionPolicy tiebreaker), but only as a best-effort annotation.
+    latest = max(matches, key=lambda r: str(r.get("created_at", "")))
+    return str(latest.get("source_id", "")) or None
+
+
+def _overridden_record_lines(records: list[Any], winning_prior: Any) -> list[str]:
+    """Render overridden PriorRecords as `↪ also:` follow-up lines."""
+    try:
+        target = float(winning_prior)
+    except (TypeError, ValueError):
+        return []
+    overridden = [
+        r
+        for r in records
+        if isinstance(r, dict) and "value" in r and abs(float(r["value"]) - target) > 1e-9
+    ]
+    if not overridden:
+        return []
+    sorted_records = sorted(
+        overridden,
+        key=lambda r: (str(r.get("source_id", "")), str(r.get("created_at", ""))),
+    )
+    return [
+        f"      ↪ also: {float(r['value']):.3f} (source: {r.get('source_id', '?')}, overridden)"
+        for r in sorted_records
+    ]
 
 
 def _knowledge_diagnostics(

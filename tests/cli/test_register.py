@@ -133,10 +133,9 @@ def _write_package_with_v6_infer(pkg_dir) -> None:
     )
     (pkg_src / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    hypothesis: (0.2, "Low base rate."),\n'
-        '    evidence: (0.9, "Observed evidence."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(hypothesis, value=0.2, justification="Low base rate.")\n'
+        'register_prior(evidence, value=0.9, justification="Observed evidence.")\n'
     )
 
 

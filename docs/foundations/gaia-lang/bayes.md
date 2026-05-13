@@ -13,7 +13,7 @@ question:
 | You want to … | Use this surface | Mental model |
 |---|---|---|
 | Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.lang.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **Hypothesis comparison** via likelihood ratios |
-| Estimate a single uncertain quantity and ask threshold / equation questions about it (T_c > 100 K, Arrhenius `k = A·exp(-Ea/RT)`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` (since v0.6) | **Quantity with predicates** via prior CDF + constraint propagation |
+| Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` (since v0.6) | **Quantity with predicates** via generated prior records and equation metadata |
 
 Both surfaces ride on the same scipy-backed distribution machinery
 (``gaia.lang.bayes.distributions``); the difference is the authoring shape
@@ -274,15 +274,18 @@ three concepts:
 1. **Distribution** — a named continuous (or discrete) quantity with a prior
    distribution attached.
 2. **`claim(content, BoolExpr)`** — a Claim whose proposition is an
-   inequality (`k > 1e-2`) or equation (`k == A * exp(-Ea/RT)`) over
+   inequality (`k > 1e-2`) or arithmetic equation (`y == baseline + slope * x`) over
    Distributions.
 3. **`observe(dist, value=v, error=σ)`** — records a measurement event for
    the quantity with optional noise.
 
 The compiler computes the prior of an inequality predicate from the
-underlying Distribution's CDF, Cromwell-clamps it, and writes it to
-``Claim.prior`` so the rest of the BP pipeline sees a familiar
-``claim(prior=…)`` shape with no further changes.
+underlying Distribution's CDF, Cromwell-clamps it, and registers a
+``prior_records`` entry with ``source_id="continuous_inference"``. The
+package's ResolutionPolicy writes the resolved value to ``metadata["prior"]``
+before IR emission. This means generated CDF priors outrank the low-friction
+``claim(prior=...)`` inline shortcut, while documented ``register_prior(...)``
+author priors still override them.
 
 ### Worked example — H₃S high-temperature superconductivity
 
@@ -307,10 +310,10 @@ measurement = observe(T_c, value=q(203, "K"), error=q(5, "K"),
 # unit, converts it to the distribution's canonical unit, and computes the
 # prior from T_c's CDF.
 high_Tc = claim("H3S is a high-temperature superconductor", T_c > q(77, "K"))
-# After compile: high_Tc.prior ≈ 0.993
+# After compile: high_Tc.metadata["prior"] ≈ 0.993 in the emitted IR.
 ```
 
-`high_Tc` enters BP as an ordinary Claim with a numeric prior. Downstream
+`high_Tc` enters BP as an ordinary Claim with a resolved numeric prior. Downstream
 ``derive`` / ``contradict`` / ``equal`` actions operate on it identically to
 prose claims with hand-set priors.
 
@@ -320,42 +323,39 @@ visible to ``gaia check`` and downstream renderers without losing the unit.
 
 ### Equation claims — laws and tolerances
 
-For theoretical equations (Arrhenius, Boltzmann, ideal-gas, …) use the `==`
-operator and an explicit prior expressing the author's belief in the law:
+For simple algebraic equations, use the `==` operator and an explicit prior
+expressing the author's belief in the law or model:
 
 ```python
-from gaia.lang import LogNormal, Normal, claim
-import math
+from gaia.lang import Normal, claim
 
-A  = LogNormal("Arrhenius prefactor",  mu=math.log(1e10), sigma=2)
-Ea = Normal("activation energy / kJ·mol⁻¹", mu=50, sigma=10)
-T  = 298.15
-R  = 8.314e-3  # kJ·mol⁻¹·K⁻¹
-k  = LogNormal("reaction rate k", mu=math.log(1e-3), sigma=4)
+baseline = Normal("baseline response", mu=10, sigma=1)
+slope = Normal("pressure coefficient", mu=2, sigma=0.5)
+response = Normal("response at 10 GPa", mu=30, sigma=3)
 
-# Hard equation (default tolerance=None) — the equation holds exactly when
-# the claim is true. Author's prior reflects confidence in the law.
-arrhenius = claim(
-    "Arrhenius's law holds for this reaction",
-    k == A * (-Ea / (R * T)),
+# Hard equation (default tolerance=None). The author's prior reflects
+# confidence in the equation/model, not a value derived from the operands.
+linear_response = claim(
+    "linear pressure response holds at 10 GPa",
+    response == baseline + slope * 10,
     prior=0.85,
 )
 
-# Soft equation — Gaussian noise of std σ around the equation, useful for
-# empirical fits.
-arrhenius_loose = claim(
-    "Arrhenius approximately holds",
-    k == A * (-Ea / (R * T)),
+# Soft equation — tolerance metadata for future equation-lowering work.
+linear_response_loose = claim(
+    "linear pressure response approximately holds at 10 GPa",
+    response == baseline + slope * 10,
     tolerance=0.1,
     prior=0.85,
 )
 ```
 
-The author's `prior=` reflects belief in the *law* itself. The
-distributions on each operand carry the marginal uncertainty of the
-parameters; constraint propagation between them (when the equation is
-asserted true) is part of the BP factor graph and the inference engine
-applies it during posterior computation.
+The author's prior reflects belief in the *law/model* itself. The
+distributions on each operand carry marginal uncertainty of the parameters.
+Current PR1 lowering preserves the equation and optional tolerance in
+metadata and registers a neutral 0.5 default when no prior source is present;
+it does not yet propagate constraints between operands or derive a prior from
+the equation.
 
 ### `observe(distribution, value, error)` — measurement events
 
@@ -394,8 +394,9 @@ Distribution factories accept ``gaia.unit.Quantity`` values via
 | Family | Location/scale group | Dimensionless params |
 |---|---|---|
 | ``Normal``, ``StudentT``, ``Cauchy`` | mu, sigma / mu, gamma — must share a unit | (``df`` for StudentT) |
-| ``Exponential``, ``Poisson`` | n/a | n/a — ``rate`` carries unit (typically 1/time) |
-| ``Gamma`` | n/a — ``rate`` carries unit | ``alpha`` |
+| ``Exponential`` | n/a — ``rate`` may carry inverse random-variable unit (for example ``1 / second``), so ``metadata["unit"]`` becomes ``second`` | n/a |
+| ``Gamma`` | n/a — ``rate`` may carry inverse random-variable unit | ``alpha`` |
+| ``Poisson`` | n/a | ``rate`` is the dimensionless expected count for the modeled interval |
 | ``LogNormal``, ``Beta``, ``ChiSquared``, ``Binomial`` | n/a | All — pass bare scalars; encode the random variable's unit in the content string |
 
 Authors writing scientific code typically pair Quantity-typed distribution
@@ -463,9 +464,11 @@ Two warning categories surface common authoring mistakes / known limitations:
   predicate prior is currently computed from the prior CDF directly without
   incorporating the observation. This is a real correctness gap that the
   posterior-CDF work (tracked separately, see project issues) will close.
-  Until then, set `prior=` explicitly on the predicate claim to reflect the
-  post-observation belief, or express the inference via
-  `gaia.lang.bayes.likelihood()`.
+  Until then, use `register_prior(predicate_claim, value, justification=...)`
+  to record a documented post-observation belief, or express the inference via
+  `gaia.lang.bayes.likelihood()`. The inline `claim(prior=...)` shortcut is
+  deliberately lower priority than the generated CDF prior and will not
+  suppress this warning by itself.
 
 Both warnings emit through `warnings.warn` so they appear in pytest output,
 the Gaia CLI, and any standard `warnings.catch_warnings` capture. They are
@@ -482,7 +485,8 @@ non-fatal — packages compile successfully.
   inequality to `metadata['predicate']`
 - `gaia/lang/dsl/support.py` — `observe(distribution, value, error, ...)`
   polymorphism
-- `gaia/lang/compiler/predicate_lowering.py` — predicate → CDF prior at
-  compile time; equation → default neutral prior with author override
+- `gaia/lang/compiler/predicate_lowering.py` — predicate → generated
+  `continuous_inference` prior record at compile time; equation → low-priority
+  default neutral prior record
 - `gaia/lang/compiler/distribution_diagnostics.py` — dead-quantity and
   observation-not-updating-predicate detectors

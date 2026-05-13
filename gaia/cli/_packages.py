@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
-import math
 import subprocess
 import sys
 from collections import defaultdict, deque
@@ -19,8 +18,12 @@ from typing import TYPE_CHECKING, Any, cast
 
 from packaging.requirements import InvalidRequirement, Requirement
 
-from gaia.ir.parameterization import CROMWELL_EPS
-from gaia.lang.runtime import Claim, Knowledge, Strategy
+from gaia.ir.parameterization import (
+    ResolutionPolicy,
+    default_resolution_policy,
+)
+from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+from gaia.lang.runtime import Knowledge, Strategy
 from gaia.lang.runtime.package import (
     CollectedPackage,
     get_inferred_package,
@@ -337,37 +340,21 @@ def _knowledge_display_name(knowledge: Knowledge) -> str:
     return knowledge.label or knowledge.content or repr(knowledge)
 
 
-def _validate_prior_value(value: Any, *, label: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise GaiaCliError(
-            f"Error: PRIORS[{label!r}] prior must be a number, got {type(value).__name__}."
-        )
-    prior = float(value)
-    if not math.isfinite(prior):
-        raise GaiaCliError(f"Error: PRIORS[{label!r}] prior must be finite, got {prior!r}.")
-    if prior < CROMWELL_EPS or prior > 1 - CROMWELL_EPS:
-        raise GaiaCliError(
-            f"Error: PRIORS[{label!r}] prior {prior} outside Cromwell bounds "
-            f"[{CROMWELL_EPS}, {1 - CROMWELL_EPS}]."
-        )
-    return prior
+def _load_resolution_policy(loaded: LoadedGaiaPackage) -> ResolutionPolicy:
+    """Auto-import ``priors.py`` (if present) and read the package's ResolutionPolicy.
 
+    Importing the module triggers any ``register_prior()`` calls inside it,
+    populating ``claim.metadata['prior_records']`` as a side effect. If the
+    module additionally exports ``RESOLUTION_POLICY``, that policy is used in
+    place of :func:`default_resolution_policy`.
 
-def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
-    """Discover priors.py and inject prior+justification into Knowledge metadata.
-
-    The priors.py module must export a ``PRIORS`` dict mapping Claim objects
-    to ``(prior_value, justification_string)`` tuples.  Each entry is injected
-    into the Knowledge object's ``.metadata`` dict as ``prior`` and
-    ``prior_justification`` before compilation, so lowering can read them from
-    ``metadata["prior"]``.
-
-    No-op when the package has no ``priors.py``.
+    Rejects the legacy ``PRIORS = {...}`` dict with a migration error pointing
+    to ``register_prior``.
     """
     priors_module_name = f"{loaded.import_name}.priors"
     priors_path = loaded.source_root / loaded.import_name / "priors.py"
     if not priors_path.exists():
-        return
+        return default_resolution_policy()
 
     existing_knowledge_ids = {id(k) for k in loaded.package.knowledge}
 
@@ -386,48 +373,65 @@ def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
             f"New declarations: {names}{suffix}."
         )
 
-    priors_dict = getattr(module, "PRIORS", None)
-    if priors_dict is None:
+    if hasattr(module, "PRIORS"):
         raise GaiaCliError(
-            "Error: priors.py must export PRIORS = {Claim: (prior, justification), ...}."
+            "Error: priors.py exports a `PRIORS = {...}` dict, which is no longer "
+            "supported (removed in v0.5+). Set priors with register_prior() instead:\n\n"
+            "    from gaia.lang import register_prior\n"
+            "    from . import my_claim\n\n"
+            '    register_prior(my_claim, value=0.7, justification="literature consensus")\n\n'
+            "register_prior() supports multiple sources per claim (user, reviewer, "
+            "engine, agent, calibration) with explicit provenance and Cromwell-checked "
+            "values. See docs/foundations/gaia-ir/06-parameterization.md for the "
+            "migration guide and the multi-source prior model."
         )
-    if not isinstance(priors_dict, dict):
-        raise GaiaCliError("Error: priors.py PRIORS must be a dict.")
 
-    for key, value in priors_dict.items():
-        if not isinstance(key, Knowledge):
+    if hasattr(module, "RESOLUTION_POLICY"):
+        policy = module.RESOLUTION_POLICY
+        if not isinstance(policy, ResolutionPolicy):
             raise GaiaCliError(
-                f"Error: PRIORS key {key!r} is not a Knowledge object. "
-                "Keys must be claim objects from the package.\n"
-                "  Hint: import the claim object and use it directly, not its string label.\n"
-                "  Example: from . import my_claim\n"
-                '           PRIORS = {my_claim: (0.85, "reason")}'
+                "Error: priors.py exports RESOLUTION_POLICY but it is not a "
+                f"ResolutionPolicy instance ({type(policy).__name__}). "
+                "Use:\n\n"
+                "    from gaia.ir import ResolutionPolicy\n"
+                '    RESOLUTION_POLICY = ResolutionPolicy(strategy="explicit_priority", ...)'
             )
-        if id(key) not in existing_knowledge_ids:
-            raise GaiaCliError(
-                f"Error: PRIORS key {_knowledge_display_name(key)!r} is not an "
-                "already-declared Knowledge object from this package."
-            )
-        if not isinstance(key, Claim):
-            raise GaiaCliError(
-                f"Error: PRIORS key {_knowledge_display_name(key)!r} is a "
-                f"{key.type!r} Knowledge object. PRIORS may only annotate claims."
-            )
-        if not isinstance(value, tuple) or len(value) != 2:
-            raise GaiaCliError(
-                f"Error: PRIORS[{key.label or key.content!r}] must be a "
-                "(prior, justification) tuple, "
-                f"got {type(value).__name__}."
-            )
-        prior_val, justification = value
-        prior = _validate_prior_value(prior_val, label=_knowledge_display_name(key))
-        if not isinstance(justification, str):
-            raise GaiaCliError(
-                f"Error: PRIORS[{key.label or key.content!r}] justification must be a string, "
-                f"got {type(justification).__name__}."
-            )
-        key.metadata["prior"] = prior
-        key.metadata["prior_justification"] = justification
+        return policy
+
+    return default_resolution_policy()
+
+
+def apply_package_priors(loaded: LoadedGaiaPackage) -> None:
+    """Resolve multi-source priors and inject the winning value into metadata.
+
+    Pipeline:
+
+    1. Auto-import ``priors.py`` if present. This runs any
+       ``register_prior(...)`` calls inside the module, populating
+       ``claim.metadata['prior_records']`` as a side effect. The legacy
+       ``PRIORS = {...}`` dict is rejected with a migration error.
+    2. Read the package's optional ``RESOLUTION_POLICY`` from ``priors.py``,
+       falling back to :func:`default_resolution_policy` when absent.
+    3. Walk every ``Claim`` in the package. For each claim with one or more
+       records under ``metadata['prior_records']``, run the policy and write
+       the winning value/justification to ``metadata['prior']`` /
+       ``metadata['prior_justification']``.
+
+    All records (winner and losers) are preserved in ``prior_records`` for
+    audit purposes and for the ``prior_dissent`` / ``prior_overridden``
+    diagnostics.
+
+    Authors may also call ``register_prior`` directly from ``__init__.py`` or
+    any other module imported during package load — those calls populate
+    ``prior_records`` before this function runs, and are resolved identically
+    to those declared in ``priors.py``.
+    """
+    policy = _load_resolution_policy(loaded)
+    loaded.package._resolution_policy = policy
+    try:
+        resolve_priors_to_metadata(loaded.package.knowledge, policy)
+    except (TypeError, ValueError) as exc:
+        raise GaiaCliError(f"Error resolving priors: {exc}") from exc
 
 
 def _manifest_package_name(loaded: LoadedGaiaPackage) -> str:

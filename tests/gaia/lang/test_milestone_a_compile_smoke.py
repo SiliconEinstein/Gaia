@@ -46,6 +46,15 @@ def test_package_with_variables_and_domains_compiles_cleanly():
 
 
 def _compile_claim_metadata(make_claim):
+    """Compile a single-claim package and return the IR metadata of that claim.
+
+    Runs the same prior-resolution step as ``apply_package_priors`` (in CLI
+    flows) so DSL-level inline priors and explicit ``register_prior`` calls
+    both surface as ``metadata['prior']`` in the IR.
+    """
+    from gaia.ir import default_resolution_policy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
     pkg = CollectedPackage(name="t_prior_smoke", namespace="t")
     token = _current_package.set(pkg)
     try:
@@ -53,15 +62,25 @@ def _compile_claim_metadata(make_claim):
     finally:
         _current_package.reset(token)
 
+    resolve_priors_to_metadata(pkg.knowledge, default_resolution_policy())
     artifact = compile_package_artifact(pkg)
     claims = [k for k in artifact.graph.knowledges if str(k.type) == "claim"]
     assert len(claims) == 1
     return claims[0].metadata or {}
 
 
-def test_dsl_claim_prior_compiles_to_ir_metadata():
+def test_dsl_claim_inline_prior_compiles_to_ir_metadata():
+    """claim(prior=X) routes through register_prior(claim_inline).
+
+    Resolution at compile time writes the resulting value to
+    metadata['prior'] for downstream BP / render / brief consumers.
+    """
     metadata = _compile_claim_metadata(lambda: claim("A prior-bearing claim.", prior=0.85))
     assert metadata["prior"] == 0.85
+    records = metadata.get("prior_records") or []
+    assert len(records) == 1
+    assert records[0]["source_id"] == "claim_inline"
+    assert records[0]["value"] == 0.85
 
 
 def test_runtime_claim_prior_compiles_to_ir_metadata():

@@ -111,30 +111,26 @@ def claim(
     tolerance: float | None = None,
     **metadata: Any,
 ) -> Claim:
-    """Declare a scientific assertion. The only knowledge type carrying probability.
+    """Declare a scientific assertion.
 
     Three authoring shapes:
 
     1. **Prose claim** — ``claim("Heliocentric model is correct.", prior=0.8)``.
-       The proposition is conveyed in natural language; ``prior`` is the
-       author's degree of belief in its truth.
+       The proposition is conveyed in natural language. The optional ``prior``
+       keyword is a low-priority shortcut routed through ``register_prior()``
+       with ``source_id="claim_inline"``.
     2. **Predicate claim** — ``claim("Reaction is fast", k > 1e-2)``. The
        second positional argument is a :class:`BoolExpr` produced by
-       comparing a :class:`Distribution` against a constant or another
-       quantity. The compiler computes the prior at lowering time using the
-       underlying distribution's CDF (for inequality predicates) or as an
-       integral / constraint (for equality / equation predicates).
+       comparing a :class:`Distribution` against a constant. The compiler
+       registers a CDF-derived prior record for inequality predicates.
        See :class:`gaia.lang.Distribution` for how to declare the underlying
        continuous quantity.
     3. **Formula claim** — ``claim(content, formula=Forall(...))`` for the
        predicate-logic surface (unchanged from v0.5).
 
     The ``tolerance`` keyword applies only when ``proposition`` is an equation
-    (``k == A * exp(...)``). With ``tolerance=None`` (default) the equation is
-    a hard constraint conditional on the claim being true; with
-    ``tolerance=sigma`` it becomes a soft Gaussian-noise constraint of standard
-    deviation ``sigma`` (in log-scale for LogNormal-typed quantities, otherwise
-    absolute).
+    (``lhs == rhs``). PR1 stores equation metadata and a neutral default prior;
+    equation constraint lowering is deferred.
     """
     raw_metadata = _flatten_metadata(metadata)
     if proposition is not None:
@@ -163,7 +159,7 @@ def claim(
             if slot != "equation":
                 raise TypeError(
                     "claim(tolerance=...) only applies to equation propositions "
-                    "(``k == A * exp(...)``); for inequality predicates the "
+                    "(``y == baseline + slope * x``); for inequality predicates the "
                     "prior is exact via CDF integration."
                 )
             if not isinstance(tolerance, (int, float)) or float(tolerance) <= 0.0:
@@ -176,15 +172,30 @@ def claim(
             "claim(tolerance=...) requires a proposition (equation BoolExpr). "
             "It does nothing on a prose or formula claim."
         )
-    return Claim(
+    c = Claim(
         content=content.strip(),
         format=format,
         title=title,
         background=background or [],
         parameters=parameters or [],
         provenance=provenance or [],
-        prior=prior,
+        prior=None,
         formula=formula,
         kind=kind,
         metadata=raw_metadata,
     )
+    if prior is not None:
+        # Route through register_prior so the inline value participates in the
+        # same multi-source PriorRecord pipeline as everything else. The
+        # "claim_inline" shortcut is intentionally low priority, below
+        # generated continuous-inference priors and documented register_prior()
+        # calls.
+        from gaia.lang.dsl.register_prior import register_prior
+
+        register_prior(
+            c,
+            prior,
+            source_id="claim_inline",
+            justification="(inline default declared at claim() call site)",
+        )
+    return c

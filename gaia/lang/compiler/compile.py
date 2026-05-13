@@ -249,6 +249,19 @@ def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str
     if prior is not None and "prior" not in metadata:
         # priors.py writes metadata["prior"] before compilation; that parameterization wins.
         metadata["prior"] = prior
+    # Strip per-record `created_at` from prior_records before serialising to
+    # IR — created_at is wall-clock at register_prior() call time, so leaving
+    # it in the IR JSON makes ir_hash unstable across runs and breaks the
+    # `gaia infer` stale-artifact guard. Resolution has already consumed the
+    # timestamp (as the recency tiebreaker) by this point; the IR-side records
+    # only need to carry value/source_id/justification for diagnostics and
+    # `gaia check --hole` rendering.
+    records = metadata.get("prior_records")
+    if isinstance(records, list):
+        metadata["prior_records"] = [
+            {k: v for k, v in r.items() if k != "created_at"} if isinstance(r, dict) else r
+            for r in records
+        ]
     metadata = _metadata_to_ir(metadata, knowledge_map)
     return metadata or None
 
@@ -1884,11 +1897,12 @@ def compile_package_artifact(
 ) -> CompiledPackage:
     """Compile collected declarations into Gaia IR plus runtime mappings.
 
-    Runs predicate / equation lowering as the first step so any Claim that
-    carries a BoolExpr proposition (``claim("k is fast", k > 1e-2)``) gets a
-    CDF-derived prior written to ``Claim.prior`` before the rest of the LANG →
-    IR pipeline reads it. Claims with explicit ``prior=`` are left alone; the
-    CDF-derived value is stashed in ``metadata['predicate_audit']`` for review.
+    First, predicate / equation lowering registers any CDF-derived predicate
+    prior records. Then the package's :class:`ResolutionPolicy` resolves all
+    per-claim ``metadata['prior_records']`` populated by ``register_prior()``,
+    predicate lowering, or the ``claim(prior=...)`` shortcut. The winning value
+    is written to ``metadata['prior']`` so downstream BP / render / brief
+    consumers see a single resolved prior.
     """
     if references is None:
         references = {}
@@ -1897,6 +1911,7 @@ def compile_package_artifact(
     from gaia.lang.compiler.predicate_lowering import lower_predicate_priors
 
     lower_predicate_priors(pkg)
+    _resolve_pkg_priors_with_package_policy(pkg)
     emit_distribution_warnings(pkg)
 
     knowledge_collection = _KnowledgeCollector(pkg).collect()
@@ -2014,3 +2029,17 @@ def compile_package(
 ) -> dict[str, Any]:
     """Compile collected declarations into LocalCanonicalGraph JSON."""
     return compile_package_artifact(pkg, references=references).to_json()
+
+
+def _resolve_pkg_priors_with_package_policy(pkg: CollectedPackage) -> None:
+    """Apply the package ResolutionPolicy to every Claim with prior_records.
+
+    The CLI stores any priors.py ``RESOLUTION_POLICY`` on the package before
+    calling the compiler. Direct in-memory callers usually do not, so they get
+    the default policy as a safety net.
+    """
+    from gaia.ir import default_resolution_policy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    policy = pkg._resolution_policy or default_resolution_policy()
+    resolve_priors_to_metadata(pkg.knowledge, policy)

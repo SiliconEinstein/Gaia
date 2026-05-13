@@ -112,9 +112,9 @@ def observe(
        :class:`Claim` representing the observation event (pinned to
        ``1 - CROMWELL_EPS`` since the measurement was made), with metadata
        linking back to the underlying distribution. The compiler reads this
-       linkage at lowering time to update predicate priors via the
-       posterior CDF (closed-form when the prior + noise are conjugate,
-       numerical otherwise).
+       linkage for audit and future posterior-CDF lowering. The current
+       predicate-prior lowering still uses the Distribution's prior CDF and
+       emits a warning when an observation targets the same Distribution.
 
        ``value`` is the measured numeric value; ``error`` is either ``None``
        for a noise-free observation, a scalar interpreted as the Gaussian
@@ -223,6 +223,41 @@ def _coerce_observation_scalar(
     return float(raw), None
 
 
+def _validate_noise_distribution_unit(noise: Distribution, *, target: Distribution) -> None:
+    """Ensure a Distribution-valued noise model uses the target quantity's unit."""
+    from gaia.unit import ureg
+
+    target_unit: str | None = (target.metadata or {}).get("unit")
+    noise_unit: str | None = (noise.metadata or {}).get("unit")
+    if target_unit is None:
+        if noise_unit is not None:
+            raise TypeError(
+                "observe(distribution, error=<Distribution>) got a unit-typed "
+                f"noise distribution {noise_unit!r} for unitless target "
+                f"{target.label or target.content[:40]!r}."
+            )
+        return
+    if noise_unit is None:
+        raise TypeError(
+            "observe(distribution, error=<Distribution>) noise distribution "
+            f"must carry unit {target_unit!r} because the target distribution "
+            f"{target.label or target.content[:40]!r} carries that unit."
+        )
+    try:
+        (1 * ureg.parse_units(noise_unit)).to(ureg.parse_units(target_unit))
+    except Exception as err:
+        raise ValueError(
+            f"observe(distribution, error=<Distribution>) noise distribution unit "
+            f"{noise_unit!r} is not compatible with target unit {target_unit!r}: {err}"
+        ) from err
+    if noise_unit != target_unit:
+        raise ValueError(
+            f"observe(distribution, error=<Distribution>) noise distribution unit "
+            f"{noise_unit!r} must match target unit {target_unit!r}; pass a noise "
+            "Distribution already expressed in the target's canonical unit."
+        )
+
+
 def _observe_continuous(
     target: Distribution,
     *,
@@ -240,6 +275,7 @@ def _observe_continuous(
     if error is None:
         coerced_error = None
     elif isinstance(error, Distribution):
+        _validate_noise_distribution_unit(error, target=target)
         coerced_error = error
     else:
         coerced_error_scalar, _ = _coerce_observation_scalar(error, target=target, role="error")

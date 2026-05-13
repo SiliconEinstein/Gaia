@@ -1130,10 +1130,9 @@ def test_compile_priors_py_injects_metadata_prior(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import premise_a, premise_b\n\n"
-        "PRIORS = {\n"
-        '    premise_a: (0.95, "Well-established premise A."),\n'
-        '    premise_b: (0.80, "Moderate confidence in B."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(premise_a, value=0.95, justification="Well-established premise A.")\n'
+        'register_prior(premise_b, value=0.80, justification="Moderate confidence in B.")\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1157,6 +1156,43 @@ def test_compile_priors_py_injects_metadata_prior(tmp_path):
     assert "prior" not in c_meta
 
 
+def test_compile_respects_custom_resolution_policy(tmp_path):
+    """A package-level RESOLUTION_POLICY must survive the compiler safety net."""
+    pkg_dir = tmp_path / "custom_policy_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "custom-policy-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "custom_policy_pkg"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from gaia.ir import ResolutionPolicy\n"
+        "from gaia.lang import register_prior\n\n"
+        "from . import my_claim\n\n"
+        'RESOLUTION_POLICY = ResolutionPolicy(strategy="source", source_id="reviewer_alice")\n'
+        'register_prior(my_claim, value=0.2, justification="Author prior.")\n'
+        "register_prior(\n"
+        "    my_claim,\n"
+        "    value=0.8,\n"
+        '    source_id="reviewer_alice",\n'
+        '    justification="Reviewer override.",\n'
+        ")\n"
+    )
+
+    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+
+    ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
+    claim_meta = next(k for k in ir["knowledges"] if k.get("label") == "my_claim")["metadata"]
+    assert claim_meta["prior"] == 0.8
+    assert claim_meta["prior_justification"] == "Reviewer override."
+    assert claim_meta["prior_source_id"] == "reviewer_alice"
+
+
 def test_compile_no_priors_py_is_noop(tmp_path):
     """Packages without priors.py compile normally — no error."""
     pkg_dir = tmp_path / "no_priors_pkg"
@@ -1175,28 +1211,33 @@ def test_compile_no_priors_py_is_noop(tmp_path):
     assert result.exit_code == 0, f"Failed: {result.output}"
 
 
-def test_compile_priors_py_invalid_key_raises(tmp_path):
-    """PRIORS dict with non-Knowledge key should error."""
-    pkg_dir = tmp_path / "bad_priors_pkg"
+def test_compile_priors_py_dict_form_rejected_with_migration_message(tmp_path):
+    """Reject legacy PRIORS dict; point the author at register_prior().
+
+    The dict form ``PRIORS = {claim: (value, justification)}`` was the
+    pre-v0.5 way to set priors. v0.5+ requires register_prior() calls so
+    multi-source resolution can take effect.
+    """
+    pkg_dir = tmp_path / "legacy_priors_dict_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
-        '[project]\nname = "bad-priors-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[project]\nname = "legacy-priors-dict-pkg-gaia"\nversion = "1.0.0"\n\n'
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
-    pkg_src = pkg_dir / "bad_priors_pkg"
+    pkg_src = pkg_dir / "legacy_priors_dict_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
         'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
     )
-    (pkg_src / "priors.py").write_text('PRIORS = {\n    "my_claim": (0.5, "invalid"),\n}\n')
+    (pkg_src / "priors.py").write_text(
+        'from . import my_claim\n\nPRIORS = {\n    my_claim: (0.5, "invalid legacy form"),\n}\n'
+    )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert result.exit_code != 0
-    assert "PRIORS key 'my_claim' is not a Knowledge object" in result.output
-    assert "import the claim object and use it directly" in result.output
-    assert "not its string label" in result.output
-    assert "from . import my_claim" in result.output
-    assert 'PRIORS = {my_claim: (0.85, "reason")}' in result.output
+    assert "no longer supported" in result.output
+    assert "register_prior" in result.output
+    assert "06-parameterization.md" in result.output
 
 
 def test_compile_priors_py_note_key_raises(tmp_path):
@@ -1217,9 +1258,9 @@ def test_compile_priors_py_note_key_raises(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import ctx\n\n"
-        "PRIORS = {\n"
-        '    ctx: (0.8, "Notes are context, not probabilistic claims."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        "register_prior(ctx, value=0.8, "
+        'justification="Notes are context, not probabilistic claims.")\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1245,7 +1286,9 @@ def test_compile_priors_py_new_knowledge_raises(tmp_path):
     (pkg_src / "priors.py").write_text(
         "from gaia.lang import claim\n\n"
         'ghost = claim("Ghost prior-only claim.")\n'
-        'PRIORS = {ghost: (0.9, "Accidental new claim.")}\n'
+        "from gaia.lang import register_prior\n\n"
+        "register_prior(ghost, value=0.9, "
+        'justification="Accidental new claim.")\n\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1267,7 +1310,10 @@ def test_compile_priors_py_out_of_range_prior_raises(tmp_path):
         'main_claim = claim("Main claim.")\n__all__ = ["main_claim"]\n'
     )
     (pkg_src / "priors.py").write_text(
-        'from . import main_claim\n\nPRIORS = {main_claim: (2.5, "Invalid probability.")}\n'
+        "from . import main_claim\n\n"
+        "from gaia.lang import register_prior\n\n"
+        "register_prior(main_claim, value=2.5, "
+        'justification="Invalid probability.")\n\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -1275,23 +1321,25 @@ def test_compile_priors_py_out_of_range_prior_raises(tmp_path):
     assert "Cromwell bounds" in result.output
 
 
-def test_compile_priors_py_reason_prior_pairing(tmp_path):
-    """PRIORS values must be (float, str) tuples."""
-    pkg_dir = tmp_path / "malformed_priors_pkg"
+def test_compile_register_prior_missing_justification_raises(tmp_path):
+    """register_prior() requires a non-empty justification."""
+    pkg_dir = tmp_path / "missing_justification_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
-        '[project]\nname = "malformed-priors-pkg-gaia"\nversion = "1.0.0"\n\n'
+        '[project]\nname = "missing-justification-pkg-gaia"\nversion = "1.0.0"\n\n'
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
-    pkg_src = pkg_dir / "malformed_priors_pkg"
+    pkg_src = pkg_dir / "missing_justification_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
         'from gaia.lang import claim\n\nmy_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
     )
     (pkg_src / "priors.py").write_text(
-        "from . import my_claim\n\nPRIORS = {\n    my_claim: 0.5,  # missing justification\n}\n"
+        "from . import my_claim\n\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(my_claim, value=0.5, justification="")  # empty justification\n'
     )
 
     result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert result.exit_code != 0
-    assert "tuple" in result.output.lower() or "justification" in result.output.lower()
+    assert "justification" in result.output.lower()

@@ -70,10 +70,196 @@ ParameterizationSource:
 
 | policy | 说明 |
 |--------|------|
-| **latest** | 每个 Knowledge/Strategy 取最新的记录（按 `created_at`） |
-| **source:\<source_id\>** | 指定使用某个 ParameterizationSource 的记录 |
+| **explicit_priority**（默认） | 按 `priority_order` 模式列表中第一个匹配的 source 选；同 source 内 recency tiebreaker。模式支持 trailing wildcard（`reviewer_*`）和 catch-all（`*`） |
+| **latest** | 每个 Knowledge/Strategy 取最新的记录（按 `created_at`），source-agnostic |
+| **source:\<source_id\>** | 只使用某个 ParameterizationSource 的记录，同 source 内 recency tiebreaker |
 
 组装过程是**现算的**，不持久化。组装时使用 `prior_cutoff` 时间戳过滤记录——只取该时间点之前的记录，确保结果可重现（见 [../bp/belief-state.md](../bp/belief-state.md)）。
+
+### 默认 priority_order
+
+`ResolutionPolicy` 的默认策略 `explicit_priority` 配合下列默认 `priority_order`（定义在 `gaia.ir.DEFAULT_PRIORITY_ORDER`）：
+
+```python
+DEFAULT_PRIORITY_ORDER = (
+    "calibration_*",          # 1. 历史校准（未来 feature）
+    "user_priors",            # 2. 作者用 register_prior() 默认 source
+    "reviewer_*",             # 3. 人工 reviewer 估计
+    "continuous_inference",   # 4. 连续参数推断引擎（issue #581）
+    "evidence_factor_*",      # 5. EvidenceFactor 派生（issue #560）
+    "agent_*",                # 6. LLM agent 自动建议
+    "claim_inline",           # 7. claim(prior=X) 内联 shortcut
+    "*",                      # 8. catch-all
+)
+```
+
+**核心排序原则**：
+
+1. **明确审议大于便利 shortcut**——任何显式 `register_prior()` 调用（`user_priors` 及之后）都比 `claim(prior=X)` 内联 shortcut 优先；后者作为低优先级 source 存在，方便作者快速写一个估计但允许后续覆盖。
+2. **作者意图大于引擎产出，但 retrospective calibration 例外**——`calibration_*` 排在 `user_priors` 前面，因为它带有作者写时不知道的事后证据，可以覆盖作者手写先验；`user_priors` 之后是人工 reviewer、引擎产出（`continuous_inference`、`evidence_factor_*`）、自动 agent 建议。
+
+作者可以在 `priors.py` 中导出自定义 `RESOLUTION_POLICY` 覆盖默认策略：
+
+```python
+from gaia.ir import ResolutionPolicy
+
+RESOLUTION_POLICY = ResolutionPolicy(
+    strategy="explicit_priority",
+    priority_order=["calibration_2026q2", "user_priors", "continuous_inference"],
+)
+```
+
+### 算法
+
+```python
+def resolve(records: list[PriorRecord]) -> PriorRecord | None:
+    # Step 0: cutoff 过滤
+    candidates = [r for r in records if cutoff is None or r.created_at <= cutoff]
+    if not candidates:
+        return None
+
+    # Step 1: 按 strategy 分派
+    if strategy == "latest":
+        return max(candidates, key=lambda r: r.created_at)
+    if strategy == "source":
+        matching = [r for r in candidates if r.source_id == self.source_id]
+        return max(matching, key=lambda r: r.created_at) if matching else None
+    if strategy == "explicit_priority":
+        for pattern in priority_order or DEFAULT_PRIORITY_ORDER:
+            matching = [r for r in candidates if _matches(r.source_id, pattern)]
+            if matching:
+                return max(matching, key=lambda r: r.created_at)
+        return max(candidates, key=lambda r: r.created_at)  # tail fallback
+```
+
+resolve 是**幂等**的：同一组 records 在同一 policy 下永远产出同一个 winner。
+
+## 作者面 API
+
+Prior 是 Bayesian 推理唯一的非数据输入，承载作者所有的主观判断、领域知识和不确定性立场。Gaia v0.5+ 提供两个作者面入口（**没有第三个**——`PRIORS = {...}` dict 已移除）：
+
+### `register_prior` — 唯一规范的 prior 入口
+
+```python
+from gaia.lang import register_prior
+
+register_prior(
+    claim_obj,
+    value=0.7,
+    justification="literature consensus from Doll-Hill 1956 + replications",
+    source_id="user_priors",   # 默认值；engine/reviewer/agent 用不同 namespace
+)
+```
+
+**契约**：
+
+- `claim_obj` 必须是 v0.5 现有 `Claim` 实例；
+- `value` 必须落在 `[CROMWELL_EPS, 1 - CROMWELL_EPS]`；超界**报错**而非 silent clamp（engine 写超界值通常是 bug）；
+- `justification` 必须非空；空字符串拒绝（设 prior 是 methodologically heavy 的动作，必须留下原因）；
+- `source_id` 默认 `"user_priors"`；engines/agents/reviewers 必须传入显式的 namespaced id；
+- 多次调用同一 claim 会 append 多条记录；resolution 时仲裁。
+
+编译时，winning record 会写入 `metadata["prior"]`, `metadata["prior_justification"]`,
+`metadata["prior_source_id"]`；所有候选 record 继续保留在 `metadata["prior_records"]`
+供 audit / diagnostics 使用。
+
+**source_id 命名约定**：
+
+| 命名空间 | 来源 |
+|---------|------|
+| `user_priors` | 作者 register_prior() 默认 |
+| `claim_inline` | `claim(prior=X)` shortcut（自动写入） |
+| `calibration_*` | 历史校准（未来） |
+| `reviewer_*` | 人工 reviewer（如 `reviewer_alice`） |
+| `continuous_inference` | issue #581 连续推断引擎 |
+| `evidence_factor_*` | issue #560 EvidenceFactor 派生 |
+| `agent_*` | LLM agent（如 `agent_codex`） |
+
+### `claim(prior=X)` — 低优先级便利 shortcut
+
+```python
+my_claim = claim("Subject p smokes daily.", prior=0.3)
+```
+
+等价于：
+
+```python
+my_claim = claim("Subject p smokes daily.")
+register_prior(
+    my_claim, value=0.3,
+    source_id="claim_inline",
+    justification="(inline default declared at claim() call site)",
+)
+```
+
+inline shortcut 在默认 `priority_order` 中排在 `user_priors` **之后**——任何显式 `register_prior()` 调用都会覆盖它。用 inline 写"草稿先验"，用 `register_prior` 写"经过审议的先验"。
+
+### `priors.py` 文件约定
+
+`priors.py` 在 `gaia compile` / `gaia infer` 时被自动 import，触发其中的 `register_prior` 调用作为 side effect。文件可以同时导出可选的 `RESOLUTION_POLICY`。**不再支持 `PRIORS = {claim: (value, justification)}` dict 格式**——检测到该 dict 会报 migration error。
+
+```python
+# priors.py — 推荐组织方式
+from gaia.lang import register_prior
+from gaia.ir import ResolutionPolicy
+
+from . import aristotle_model, daily_observation, medium_model
+
+# 可选：自定义 resolution policy
+# RESOLUTION_POLICY = ResolutionPolicy(...)
+
+register_prior(daily_observation, 0.90,
+               justification="empirical background in air")
+register_prior(aristotle_model, 0.50,
+               justification="neutral before thought experiment")
+register_prior(medium_model, 0.50,
+               justification="neutral before thought experiment")
+```
+
+## 从 PRIORS dict 迁移
+
+v0.5+ 移除了 `PRIORS = {Claim: (value, justification)}` 字典约定。迁移步骤：
+
+```python
+# 旧（拒绝）：
+PRIORS = {
+    daily_observation: (0.9, "empirical background in air"),
+    aristotle_model: (0.5, "neutral before thought experiment"),
+}
+
+# 新（推荐）：
+from gaia.lang import register_prior
+
+register_prior(daily_observation, 0.9,
+               justification="empirical background in air")
+register_prior(aristotle_model, 0.5,
+               justification="neutral before thought experiment")
+```
+
+**两条路径的实质区别**：
+
+- 旧 PRIORS dict：单源、单值、单 justification；engines / reviewers 没有写入位置。
+- 新 register_prior：多源（每个 source_id 独立 record）；engines / reviewers / agents / 历史校准都用同一 API、不同 namespace；resolution 时按 priority_order 仲裁；所有 source 都保留在 IR 里供 audit。
+
+## 诊断
+
+`gaia inquiry review` 在多源场景下额外发出两类 diagnostic：
+
+| Diagnostic | Severity | 触发条件 |
+|-----------|----------|---------|
+| `prior_dissent` | warning | 同一 claim 有 ≥ 2 条 PriorRecord 且 `max(values) - min(values) > PRIOR_DISSENT_THRESHOLD`（默认 `0.2`）。message 列出所有冲突 record 的 source/value/justification，便于 reviewer 审视分歧而不是默认接受 winner |
+| `prior_overridden` | info | 同一 claim 有 ≥ 2 条 PriorRecord 且 ResolutionPolicy 选了一个、忽略了其他。message 显示被覆盖的 source/value 列表，让作者看到引擎输出 / agent 建议 / reviewer 估计被吃掉了 |
+
+`gaia check --hole` 在显示已覆盖的独立 claim 时也会展示所有 source：
+
+```
+- aristotle_model    prior=0.5 (source: user_priors)
+- daily_observation  prior=0.9 (source: user_priors)
+                       ↪ also: 0.85 (source: continuous_inference, overridden)
+- some_predicate     prior=0.27 (source: continuous_inference)
+```
+
+让作者直接看到所有来源，不需要去 IR 里翻 `metadata['prior_records']`。
 
 ## 多分辨率支持
 
@@ -145,5 +331,11 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 ## 源代码
 
-- `gaia/ir/parameterization.py` -- `PriorRecord`, `StrategyParamRecord`, `ResolutionPolicy`, `ParameterizationSource`
-- `gaia/ir/strategy.py` -- `Strategy`, `StrategyType`（type 决定参数模型）
+- `gaia/ir/parameterization.py` — `PriorRecord`, `StrategyParamRecord`, `ResolutionPolicy`, `ParameterizationSource`, `DEFAULT_PRIORITY_ORDER`, `default_resolution_policy`
+- `gaia/ir/strategy.py` — `Strategy`, `StrategyType`（type 决定参数模型）
+- `gaia/lang/dsl/register_prior.py` — `register_prior()` 作者面 API、`resolve_priors_to_metadata()` resolution 步骤、`PRIOR_RECORDS_METADATA_KEY` metadata schema 常量
+- `gaia/lang/dsl/knowledge.py` — `claim(prior=X)` shortcut（路由到 `register_prior(source_id="claim_inline")`）
+- `gaia/cli/_packages.py` — `apply_package_priors()` CLI 步骤：auto-import `priors.py`、读 `RESOLUTION_POLICY`、调用 resolution
+- `gaia/lang/compiler/compile.py` — `compile_package_artifact()` 入口处的 idempotent resolution 兜底
+- `gaia/inquiry/diagnostics.py` — `detect_prior_dissent()`, `detect_prior_overridden()`
+- `gaia/cli/commands/check.py` — `_append_covered_prior_details` 的多源输出格式

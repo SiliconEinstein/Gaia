@@ -47,11 +47,10 @@ def _write_two_module_package(pkg_dir):
     )
     (pkg_dir / name / "priors.py").write_text(
         "from . import obs_a, obs_b, hypothesis, alt\n\n"
-        "PRIORS = {\n"
-        '    obs_a: (0.9, "Measured directly."),\n'
-        '    obs_b: (0.85, "Reported observation."),\n'
-        '    alt: (0.3, "Weak alternative."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(obs_a, value=0.9, justification="Measured directly.")\n'
+        'register_prior(obs_b, value=0.85, justification="Reported observation.")\n'
+        'register_prior(alt, value=0.3, justification="Weak alternative.")\n'
     )
 
 
@@ -73,12 +72,11 @@ def _write_induction_package(pkg_dir):
     )
     (pkg_dir / name / "priors.py").write_text(
         "from . import law, obs1, obs2, obs3\n\n"
-        "PRIORS = {\n"
-        '    law: (0.5, "To be determined by induction."),\n'
-        '    obs1: (0.9, "Confirmed."),\n'
-        '    obs2: (0.9, "Confirmed."),\n'
-        '    obs3: (0.9, "Confirmed."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(law, value=0.5, justification="To be determined by induction.")\n'
+        'register_prior(obs1, value=0.9, justification="Confirmed.")\n'
+        'register_prior(obs2, value=0.9, justification="Confirmed.")\n'
+        'register_prior(obs3, value=0.9, justification="Confirmed.")\n'
     )
 
 
@@ -463,7 +461,9 @@ def _write_question_package(pkg_dir):
         'obs = claim("Observation recorded.")\n'
     )
     (pkg_dir / name / "priors.py").write_text(
-        'from . import obs\n\nPRIORS = {\n    obs: (0.9, "Measured."),\n}\n'
+        "from . import obs\n\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(obs, value=0.9, justification="Measured.")\n'
     )
 
 
@@ -561,12 +561,11 @@ def _write_abduction_package(pkg_dir):
     )
     (pkg_dir / name / "priors.py").write_text(
         "from . import obs, hyp, alt_pred, alt\n\n"
-        "PRIORS = {\n"
-        '    obs: (0.95, "Measured."),\n'
-        '    hyp: (0.6, "Prior hypothesis."),\n'
-        '    alt_pred: (0.4, "Alt prediction."),\n'
-        '    alt: (0.3, "Prior alternative."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(obs, value=0.95, justification="Measured.")\n'
+        'register_prior(hyp, value=0.6, justification="Prior hypothesis.")\n'
+        'register_prior(alt_pred, value=0.4, justification="Alt prediction.")\n'
+        'register_prior(alt, value=0.3, justification="Prior alternative.")\n'
     )
 
 
@@ -631,12 +630,11 @@ def _write_abduction_close_priors_package(pkg_dir):
     )
     (pkg_dir / name / "priors.py").write_text(
         "from . import obs, hyp, alt_pred, alt\n\n"
-        "PRIORS = {\n"
-        '    obs: (0.95, "Measured."),\n'
-        '    hyp: (0.6, "Prior."),\n'
-        '    alt_pred: (0.5, "Prior."),\n'
-        '    alt: (0.55, "Prior."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(obs, value=0.95, justification="Measured.")\n'
+        'register_prior(hyp, value=0.6, justification="Prior.")\n'
+        'register_prior(alt_pred, value=0.5, justification="Prior.")\n'
+        'register_prior(alt, value=0.55, justification="Prior.")\n'
     )
 
 
@@ -724,10 +722,9 @@ def _write_infer_package(pkg_dir):
     )
     (pkg_dir / name / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    evidence: (0.8, "Known."),\n'
-        '    hypothesis: (0.5, "To determine."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(evidence, value=0.8, justification="Known.")\n'
+        'register_prior(hypothesis, value=0.5, justification="To determine.")\n'
     )
 
 
@@ -771,10 +768,9 @@ def _write_deduction_package(pkg_dir):
     )
     (pkg_dir / name / "priors.py").write_text(
         "from . import axiom, socrates\n\n"
-        "PRIORS = {\n"
-        '    axiom: (0.99, "Universal truth."),\n'
-        '    socrates: (0.99, "Known fact."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(axiom, value=0.99, justification="Universal truth.")\n'
+        'register_prior(socrates, value=0.99, justification="Known fact.")\n'
     )
 
 

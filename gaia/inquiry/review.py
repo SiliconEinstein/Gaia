@@ -37,6 +37,8 @@ from gaia.inquiry.diagnostics import (
     detect_focus_unsupported,
     detect_large_belief_drop,
     detect_overstrong_strategy_without_provenance,
+    detect_prior_dissent,
+    detect_prior_overridden,
     detect_prior_without_justification,
     detect_stale_artifact,
     detect_warrant_status,
@@ -242,6 +244,8 @@ def run_review(
     if ir_dict is not None:
         diagnostics.extend(from_knowledge_breakdown(kb, ir_dict, focus, anchors))
         diagnostics.extend(detect_prior_without_justification(kb, anchors))
+        diagnostics.extend(detect_prior_dissent(ir_dict, anchors=anchors))
+        diagnostics.extend(detect_prior_overridden(ir_dict, anchors=anchors))
     diagnostics.extend(detect_stale_artifact(pkg_path, ir_hash))
     diagnostics.extend(detect_focus_low_posterior(belief_report))
     rejected_targets = {r.target_strategy for r in getattr(state, "synthetic_rejections", []) or []}

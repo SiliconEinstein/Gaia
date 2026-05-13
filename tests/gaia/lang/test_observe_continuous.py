@@ -12,6 +12,7 @@ import pytest
 
 from gaia.ir.parameterization import CROMWELL_EPS
 from gaia.lang import Normal, claim, observe
+from gaia.unit import q
 
 
 def test_observe_distribution_returns_pinned_observation_claim():
@@ -47,6 +48,20 @@ def test_observe_distribution_accepts_distribution_as_noise_model():
     obs = observe(T_c, value=203, error=noise)
     payload = obs.metadata["observation"]
     assert payload["error"] is noise
+
+
+def test_observe_distribution_rejects_noise_distribution_with_incompatible_unit():
+    T_c = Normal("T_c", mu=q(200, "K"), sigma=q(50, "K"))
+    noise = Normal("length noise", mu=q(0, "m"), sigma=q(1, "m"))
+    with pytest.raises(ValueError, match="noise distribution unit"):
+        observe(T_c, value=q(203, "K"), error=noise)
+
+
+def test_observe_distribution_rejects_unitless_noise_for_unit_typed_target():
+    T_c = Normal("T_c", mu=q(200, "K"), sigma=q(50, "K"))
+    noise = Normal("unitless noise", mu=0, sigma=5)
+    with pytest.raises(TypeError, match="noise distribution must carry unit"):
+        observe(T_c, value=q(203, "K"), error=noise)
 
 
 def test_observe_distribution_records_source_refs():

@@ -5,6 +5,7 @@ import pytest
 from gaia.bp.exact import exact_inference
 from gaia.bp.factor_graph import FactorType
 from gaia.bp.lowering import lower_local_graph
+from gaia.ir import default_resolution_policy
 from gaia.lang import (
     Causes,
     ClaimAtom,
@@ -23,8 +24,10 @@ from gaia.lang import (
     forall,
     implies,
     land,
+    register_prior,
 )
 from gaia.lang.compiler.compile import compile_package_artifact
+from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
 from gaia.lang.runtime.knowledge import _current_package
 from gaia.lang.runtime.package import CollectedPackage
 
@@ -314,19 +317,22 @@ def test_top_level_implies_formula_preserves_source_claim_prior():
     pkg = CollectedPackage(name="formula_implies_pkg", namespace="t")
     token = _current_package.set(pkg)
     try:
-        a = claim("A.", prior=0.6)
+        a = claim("A.")
         a.label = "a"
-        b = claim("B.", prior=0.4)
+        register_prior(a, 0.6, justification="test fixture")
+        b = claim("B.")
         b.label = "b"
+        register_prior(b, 0.4, justification="test fixture")
         rule = claim(
             "A implies B.",
             formula=implies(ClaimAtom(a), ClaimAtom(b)),
-            prior=0.7,
         )
         rule.label = "a_implies_b"
+        register_prior(rule, 0.7, justification="test fixture")
     finally:
         _current_package.reset(token)
 
+    resolve_priors_to_metadata(pkg.knowledge, default_resolution_policy())
     artifact = compile_package_artifact(pkg)
     rule_id = "t:formula_implies_pkg::a_implies_b"
     op = next(
@@ -347,13 +353,16 @@ def test_top_level_claim_atom_lowers_to_equivalence_alias():
     pkg = CollectedPackage(name="formula_claim_atom_pkg", namespace="t")
     token = _current_package.set(pkg)
     try:
-        a = claim("A.", prior=0.8)
+        a = claim("A.")
         a.label = "a"
-        alias = claim("Alias of A.", formula=ClaimAtom(a), prior=0.2)
+        register_prior(a, 0.8, justification="test fixture")
+        alias = claim("Alias of A.", formula=ClaimAtom(a))
         alias.label = "alias"
+        register_prior(alias, 0.2, justification="test fixture")
     finally:
         _current_package.reset(token)
 
+    resolve_priors_to_metadata(pkg.knowledge, default_resolution_policy())
     artifact = compile_package_artifact(pkg)
     alias_id = "t:formula_claim_atom_pkg::alias"
     source = next(k for k in artifact.graph.knowledges if k.id == alias_id)

@@ -7,6 +7,12 @@ from gaia.lang.dsl.infer_verb import infer
 from gaia.lang.dsl.knowledge import claim, context, note, question, setting
 from gaia.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.lang.dsl.propositional import and_, not_, or_
+from gaia.lang.dsl.register_prior import (
+    DEFAULT_SOURCE_ID,
+    PRIOR_RECORDS_METADATA_KEY,
+    get_prior_records,
+    register_prior,
+)
 from gaia.lang.dsl.relate import contradict, equal, exclusive
 from gaia.lang.dsl.scaffold import candidate_relation, depends_on, tension
 from gaia.lang.dsl.strategies import (
@@ -81,6 +87,7 @@ __all__ = [
     "or_",
     "parameter",
     "question",
+    "register_prior",
     "setting",
     "support",
     "tension",

@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from gaia.lang import LogNormal, Normal, claim
+from gaia.lang import Binomial, LogNormal, Normal, Poisson, claim, register_prior
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.runtime.knowledge import _current_package
 from gaia.lang.runtime.package import CollectedPackage
@@ -76,10 +76,47 @@ def test_predicate_claim_lognormal_cdf():
     assert 0.05 < prior < 0.25
 
 
-def test_predicate_claim_explicit_prior_overrides_cdf():
-    """If author sets prior= alongside a predicate, author wins.
+def test_predicate_claim_discrete_inclusive_boundaries_include_point_mass():
+    def make() -> None:
+        count = Poisson("count", rate=3)
+        at_least_three = claim("count at least three", count >= 3)
+        at_least_three.label = "at_least_three"
+        at_most_three = claim("count at most three", count <= 3)
+        at_most_three.label = "at_most_three"
 
-    The CDF-derived value is stashed in audit metadata for review.
+    knowledges = _compile_with(make)
+    # Poisson(lambda=3): P(X >= 3) = 1 - CDF(2), while P(X <= 3) = CDF(3).
+    assert math.isclose(
+        knowledges["at_least_three"].metadata["prior"],
+        0.5768,
+        abs_tol=1e-3,
+    )
+    assert math.isclose(
+        knowledges["at_most_three"].metadata["prior"],
+        0.6472,
+        abs_tol=1e-3,
+    )
+
+
+def test_predicate_claim_discrete_non_integer_thresholds_use_integer_support():
+    def make() -> None:
+        successes = Binomial("successes", n=10, p=0.5)
+        more_than_two_point_five = claim("more than 2.5", successes > 2.5)
+        more_than_two_point_five.label = "gt_2_5"
+        fewer_than_two_point_five = claim("fewer than 2.5", successes < 2.5)
+        fewer_than_two_point_five.label = "lt_2_5"
+
+    knowledges = _compile_with(make)
+    # For integer support, X > 2.5 means X >= 3 and X < 2.5 means X <= 2.
+    assert math.isclose(knowledges["gt_2_5"].metadata["prior"], 0.9453, abs_tol=1e-3)
+    assert math.isclose(knowledges["lt_2_5"].metadata["prior"], 0.0547, abs_tol=1e-3)
+
+
+def test_predicate_claim_inline_prior_loses_to_cdf_generated_prior():
+    """``claim(prior=...)`` is only an inline shortcut, below generated CDF.
+
+    The inline record is still kept for audit, but ResolutionPolicy ranks the
+    generated ``continuous_inference`` record above ``claim_inline``.
     """
 
     def make() -> None:
@@ -88,9 +125,35 @@ def test_predicate_claim_explicit_prior_overrides_cdf():
         c.label = "high_Tc_explicit"
 
     knowledges = _compile_with(make)
-    assert knowledges["high_Tc_explicit"].metadata["prior"] == 0.5
-    # CDF-derived value still computed and recorded for audit
-    audit = knowledges["high_Tc_explicit"].metadata.get("predicate_audit", {})
+    metadata = knowledges["high_Tc_explicit"].metadata
+    assert math.isclose(metadata["prior"], 0.9931, abs_tol=1e-3)
+    assert metadata["prior_source_id"] == "continuous_inference"
+    assert {record["source_id"] for record in metadata["prior_records"]} == {
+        "claim_inline",
+        "continuous_inference",
+    }
+    audit = metadata.get("predicate_audit", {})
+    assert "cdf_derived_prior" in audit
+
+
+def test_predicate_claim_register_prior_overrides_cdf_generated_prior():
+    """Documented author priors outrank generated continuous inference."""
+
+    def make() -> None:
+        T_c = Normal("T_c", mu=200, sigma=50)
+        c = claim("high Tc explicit", T_c > 77)
+        c.label = "high_Tc_explicit"
+        register_prior(c, 0.5, justification="post-observation author override")
+
+    knowledges = _compile_with(make)
+    metadata = knowledges["high_Tc_explicit"].metadata
+    assert metadata["prior"] == 0.5
+    assert metadata["prior_source_id"] == "user_priors"
+    assert {record["source_id"] for record in metadata["prior_records"]} == {
+        "user_priors",
+        "continuous_inference",
+    }
+    audit = metadata.get("predicate_audit", {})
     assert "cdf_derived_prior" in audit
 
 
@@ -115,6 +178,23 @@ def test_predicate_metadata_serializes_to_ir_dict():
     assert pred["rhs"] == 77
     # Round-trips through JSON
     json.dumps(knowledges["high_Tc"].model_dump(mode="json"))
+
+
+def test_compile_package_artifact_is_idempotent_for_predicate_priors():
+    pkg = CollectedPackage(name="predicate_idempotence_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        T_c = Normal("T_c", mu=200, sigma=50)
+        c = claim("high T_c", T_c > 77)
+        c.label = "high_Tc"
+    finally:
+        _current_package.reset(token)
+
+    first = compile_package_artifact(pkg)
+    second = compile_package_artifact(pkg)
+    first_meta = next(k.metadata for k in first.graph.knowledges if k.label == "high_Tc")
+    second_meta = next(k.metadata for k in second.graph.knowledges if k.label == "high_Tc")
+    assert second_meta == first_meta
 
 
 def test_claim_rejects_non_boolexpr_proposition():

@@ -94,7 +94,7 @@ def test_exponential_records_rate_unit():
     e = Exponential("decay", rate=q(2, "1/s"))
     assert e.metadata == {
         "units": {"rate": "1 / second"},
-        "unit": "1 / second",
+        "unit": "second",
     }
 
 
@@ -102,7 +102,7 @@ def test_gamma_alpha_dimensionless_rate_unit():
     g = Gamma("g", alpha=2, rate=q(1, "1/s"))
     assert g.metadata == {
         "units": {"rate": "1 / second"},
-        "unit": "1 / second",
+        "unit": "second",
     }
 
 
@@ -112,9 +112,8 @@ def test_gamma_rejects_quantity_on_alpha():
 
 
 def test_poisson_records_rate_unit():
-    p = Poisson("counts", rate=q(3, "count / second"))
-    assert "rate" in p.metadata["units"]
-    assert "unit" in p.metadata
+    with pytest.raises(ValueError, match="dimensionless"):
+        Poisson("counts", rate=q(3, "count / second"))
 
 
 def test_lognormal_rejects_quantity_on_log_space_params():
@@ -198,6 +197,25 @@ def test_predicate_quantity_threshold_serialises_to_ir():
     knowledges = _compile_with(make)
     rhs = knowledges["high_Tc"].metadata["predicate"]["rhs"]
     assert rhs == {"kind": "quantity", "value": 77.0, "unit": "kelvin"}
+
+
+def test_exponential_rate_unit_uses_random_variable_unit_for_predicates():
+    def make() -> None:
+        lifetime = Exponential("lifetime", rate=q(2, "1/s"))
+        c = claim("lifetime exceeds one second", lifetime > q(1, "s"))
+        c.label = "long_lived"
+
+    knowledges = _compile_with(make)
+    assert math.isclose(knowledges["long_lived"].metadata["prior"], math.exp(-2), abs_tol=1e-3)
+
+
+def test_gamma_rate_unit_uses_random_variable_unit_for_observations():
+    lifetime = Gamma("lifetime", alpha=2, rate=q(1, "1/s"))
+    obs = observe(lifetime, value=q(2, "s"), error=q(0.1, "s"))
+    payload = obs.metadata["observation"]
+    assert payload["value"] == 2.0
+    assert payload["error"] == 0.1
+    assert payload["unit"] == "second"
 
 
 # --------------------------------------------------------------------------- #

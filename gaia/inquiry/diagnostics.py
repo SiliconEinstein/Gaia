@@ -39,6 +39,8 @@ DiagnosticKind = Literal[
     "stale_artifact",
     "focus_low_posterior",
     "prior_without_justification",
+    "prior_dissent",
+    "prior_overridden",
     "unreviewed_warrant",
     "rejected_warrant",
     "blocked_warrant_path",
@@ -748,6 +750,161 @@ def detect_claim_with_evidence_but_no_focus_connection(
                 f"Either connect `{label}` into a strategy that touches the "
                 f"focus subgraph, or remove the dangling background reference."
             ),
+        )
+        out.append(_attach_anchor(d, anchors))
+    return out
+
+
+PRIOR_DISSENT_THRESHOLD: float = 0.2
+"""Default absolute spread threshold for the ``prior_dissent`` diagnostic.
+
+When multiple PriorRecords for the same claim differ by more than this in
+absolute value, ``detect_prior_dissent`` emits a warning so the author can
+review the disagreement instead of silently accepting the resolution winner.
+"""
+
+
+def detect_prior_dissent(
+    ir: dict[str, Any],
+    *,
+    threshold: float = PRIOR_DISSENT_THRESHOLD,
+    anchors: dict[str, SourceAnchor] | None = None,
+) -> list[Diagnostic]:
+    """Emit warnings when multiple prior sources disagree above ``threshold``.
+
+    Walks every claim Knowledge in the IR. When ``metadata['prior_records']``
+    contains two or more records and the spread (max − min of values) exceeds
+    ``threshold``, emits a single warning summarising every contributing
+    record so the author can inspect the disagreement before relying on the
+    resolution winner.
+    """
+    out: list[Diagnostic] = []
+    for k in ir.get("knowledges", []) or []:
+        if k.get("type") != "claim":
+            continue
+        metadata = k.get("metadata") or {}
+        records = metadata.get("prior_records") or []
+        if not isinstance(records, list) or len(records) < 2:
+            continue
+        values = [float(r["value"]) for r in records if isinstance(r, dict) and "value" in r]
+        if len(values) < 2:
+            continue
+        spread = max(values) - min(values)
+        if spread <= threshold:
+            continue
+        kid = k.get("id", "")
+        label = k.get("label") or (kid.split("::")[-1] if kid else "")
+        # Sorted listing keeps diagnostic output deterministic for snapshot tests.
+        sorted_records = sorted(
+            records,
+            key=lambda r: (str(r.get("source_id", "")), str(r.get("created_at", ""))),
+        )
+        record_lines = "\n".join(
+            f"  - {float(r['value']):.3f} (source: {r.get('source_id', '?')}; "
+            f"justification: {str(r.get('justification', ''))[:80]})"
+            for r in sorted_records
+            if isinstance(r, dict) and "value" in r
+        )
+        d = Diagnostic(
+            severity="warning",
+            kind="prior_dissent",
+            target=kid or label,
+            label=label,
+            message=(
+                f"Claim `{label}` has {len(values)} prior records spanning "
+                f"{min(values):.3f}–{max(values):.3f} (spread {spread:.3f} > "
+                f"{threshold:.2f}):\n{record_lines}"
+            ),
+            suggested_edit=(
+                f"Review the disagreeing prior sources for `{label}`. The resolution "
+                "policy will pick one winner, but a spread this large suggests the "
+                "sources are answering different questions or one is miscalibrated."
+            ),
+            data={
+                "spread": spread,
+                "min_value": min(values),
+                "max_value": max(values),
+                "n_records": len(values),
+                "threshold": threshold,
+            },
+        )
+        out.append(_attach_anchor(d, anchors))
+    return out
+
+
+def detect_prior_overridden(
+    ir: dict[str, Any],
+    *,
+    anchors: dict[str, SourceAnchor] | None = None,
+) -> list[Diagnostic]:
+    """Emit info diagnostic when ResolutionPolicy picks one record over others.
+
+    Walks every claim Knowledge in the IR. When ``metadata['prior_records']``
+    contains more than one record, the resolution winner has already been
+    written to ``metadata['prior']``; this detector surfaces the overridden
+    records so engine output / agent suggestions / reviewer estimates that
+    were ignored remain visible to the author.
+
+    Severity is ``info`` — being overridden is the expected behaviour of the
+    explicit-priority policy, but the author should know it is happening.
+    """
+    out: list[Diagnostic] = []
+    for k in ir.get("knowledges", []) or []:
+        if k.get("type") != "claim":
+            continue
+        metadata = k.get("metadata") or {}
+        records = metadata.get("prior_records") or []
+        if not isinstance(records, list) or len(records) < 2:
+            continue
+        winning_value = metadata.get("prior")
+        if winning_value is None:
+            continue
+        try:
+            winning_value_f = float(winning_value)
+        except (TypeError, ValueError):
+            continue
+        # A record is "overridden" when its value differs from the winner — we
+        # do not attempt to recover the exact winning record (timestamps may
+        # tie). Same-value records are not flagged because the choice between
+        # them is observationally indistinguishable.
+        overridden = [
+            r
+            for r in records
+            if isinstance(r, dict)
+            and "value" in r
+            and abs(float(r["value"]) - winning_value_f) > 1e-9
+        ]
+        if not overridden:
+            continue
+        kid = k.get("id", "")
+        label = k.get("label") or (kid.split("::")[-1] if kid else "")
+        sorted_overridden = sorted(
+            overridden,
+            key=lambda r: (str(r.get("source_id", "")), str(r.get("created_at", ""))),
+        )
+        record_lines = "\n".join(
+            f"  - {float(r['value']):.3f} (source: {r.get('source_id', '?')})"
+            for r in sorted_overridden
+        )
+        d = Diagnostic(
+            severity="info",
+            kind="prior_overridden",
+            target=kid or label,
+            label=label,
+            message=(
+                f"Claim `{label}` prior {winning_value_f:.3f} was selected by the "
+                f"resolution policy; {len(overridden)} other record(s) were "
+                f"overridden:\n{record_lines}"
+            ),
+            suggested_edit=(
+                f"If an overridden prior should win for `{label}`, adjust the "
+                "RESOLUTION_POLICY priority_order in priors.py, or remove the "
+                "stale register_prior() call from the losing source."
+            ),
+            data={
+                "winning_value": winning_value_f,
+                "n_overridden": len(overridden),
+            },
         )
         out.append(_attach_anchor(d, anchors))
     return out

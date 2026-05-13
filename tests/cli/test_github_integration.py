@@ -268,11 +268,10 @@ def test_render_github_flag(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import a, b, c\n\n"
-        "PRIORS: dict = {\n"
-        '    a: (0.8, "ok"),\n'
-        '    b: (0.8, "ok"),\n'
-        '    c: (0.4, "ok"),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(a, value=0.8, justification="ok")\n'
+        'register_prior(b, value=0.8, justification="ok")\n'
+        'register_prior(c, value=0.4, justification="ok")\n'
     )
 
     assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
@@ -339,11 +338,10 @@ def test_render_github_with_real_package(tmp_path):
     (pkg_src / "priors.py").write_text(
         "from .motivation import obs_equal_time\n"
         "from .analysis import aristotle_hyp, galileo_hyp\n\n"
-        "PRIORS: dict = {\n"
-        '    obs_equal_time: (0.9, "ok"),\n'
-        '    aristotle_hyp: (0.2, "ok"),\n'
-        '    galileo_hyp: (0.6, "ok"),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(obs_equal_time, value=0.9, justification="ok")\n'
+        'register_prior(aristotle_hyp, value=0.2, justification="ok")\n'
+        'register_prior(galileo_hyp, value=0.6, justification="ok")\n'
     )
 
     # Create an artifact file to test asset copying

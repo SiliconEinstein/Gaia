@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from gaia.lang import Normal, claim, observe
+from gaia.lang import Normal, claim, observe, register_prior
 from gaia.lang.compiler.compile import compile_package_artifact
 from gaia.lang.compiler.distribution_diagnostics import (
     DeadContinuousQuantityWarning,
@@ -137,6 +137,19 @@ def test_detect_observation_not_updating_predicate_no_overlap():
     assert detect_observation_not_updating_predicate(pkg) == []
 
 
+def test_detect_observation_not_updating_predicate_skips_explicit_prior_override():
+    def make() -> None:
+        T_c = Normal("T_c", mu=200, sigma=50)
+        observe(T_c, value=203, error=5)
+        high = claim("high T_c posterior belief", T_c > 77)
+        high.label = "high"
+        register_prior(high, 0.99, justification="posterior-aware author override")
+
+    pkg = _build(make)
+    compile_package_artifact(pkg)
+    assert detect_observation_not_updating_predicate(pkg) == []
+
+
 def test_detect_observation_not_updating_predicate_multiple_observations():
     """Multiple observations of the same target collapse to a single warning.
 
@@ -182,6 +195,34 @@ def test_compile_emits_observation_not_updating_predicate_warning():
         T_c = Normal("T_c", mu=200, sigma=50)
         observe(T_c, value=203, error=5)
         high = claim("high T_c", T_c > 77)
+        high.label = "high"
+
+    pkg = _build(make)
+    with pytest.warns(ObservationNotUpdatingPredicateWarning, match="high"):
+        compile_package_artifact(pkg)
+
+
+def test_compile_does_not_warn_for_observed_predicate_with_explicit_prior_override():
+    def make() -> None:
+        T_c = Normal("T_c", mu=200, sigma=50)
+        observe(T_c, value=203, error=5)
+        high = claim("high T_c posterior belief", T_c > 77)
+        high.label = "high"
+        register_prior(high, 0.99, justification="posterior-aware author override")
+
+    pkg = _build(make)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        compile_package_artifact(pkg)
+    relevant = [w for w in caught if issubclass(w.category, ObservationNotUpdatingPredicateWarning)]
+    assert relevant == []
+
+
+def test_compile_still_warns_when_only_inline_prior_is_present():
+    def make() -> None:
+        T_c = Normal("T_c", mu=200, sigma=50)
+        observe(T_c, value=203, error=5)
+        high = claim("high T_c inline guess", T_c > 77, prior=0.99)
         high.label = "high"
 
     pkg = _build(make)

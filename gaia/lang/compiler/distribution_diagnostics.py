@@ -26,6 +26,10 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
+from gaia.lang.compiler.predicate_lowering import (
+    PREDICATE_LOWERING_SOURCE_ID,
+    PREDICATE_PRIOR_GENERATED_ATTR,
+)
 from gaia.lang.dsl.bool_expr import BoolExpr, DerivedDistribution
 from gaia.lang.runtime.distribution import Distribution
 from gaia.lang.runtime.knowledge import Claim
@@ -107,6 +111,14 @@ def _predicated_distribution_to_pred_claims(
             continue
         predicate = (knowledge.metadata or {}).get("predicate")
         if isinstance(predicate, BoolExpr) and isinstance(predicate.left, Distribution):
+            prior_was_generated = bool(getattr(knowledge, PREDICATE_PRIOR_GENERATED_ATTR, False))
+            if knowledge.prior is not None and not prior_was_generated:
+                continue
+            if knowledge.metadata.get("prior_source_id") not in {
+                None,
+                PREDICATE_LOWERING_SOURCE_ID,
+            }:
+                continue
             out.setdefault(id(predicate.left), []).append(knowledge)
     return out
 

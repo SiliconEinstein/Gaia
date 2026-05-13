@@ -15,7 +15,7 @@ claim/action metadata that the BP layer consumes.
 Operator overloading on Distribution produces :class:`BoolExpr` (for
 comparisons used as claim propositions / equations) and
 :class:`DerivedDistribution` (for arithmetic combinations such as
-``A * exp(-Ea / (R * T))`` inside an Arrhenius-style equation).
+``baseline + slope * x`` inside an equation proposition).
 """
 
 from __future__ import annotations
@@ -119,6 +119,13 @@ def _attach_units(
     if shared_unit is not None:
         meta.setdefault("unit", shared_unit)
     return meta
+
+
+def _inverse_unit(unit: str) -> str:
+    """Return the canonical inverse unit string for a Pint unit literal."""
+    from gaia.unit import ureg
+
+    return str((1 / ureg.parse_units(unit)).units)
 
 
 @dataclass(init=False, eq=False)
@@ -372,9 +379,13 @@ class Distribution(Knowledge):
 #
 # Per-distribution unit semantics:
 # ``Normal``, ``StudentT``, ``Cauchy``           — location/scale share a unit
-# ``Gamma`` (alpha, rate)                        — alpha dimensionless,
-#                                                   ``rate`` carries unit (1/x)
-# ``Exponential`` (rate), ``Poisson`` (rate)     — ``rate`` carries unit (1/x)
+# ``Gamma`` (alpha, rate)                        — alpha dimensionless;
+#                                                   ``rate`` carries inverse
+#                                                   random-variable unit
+# ``Exponential`` (rate)                         — ``rate`` carries inverse
+#                                                   random-variable unit
+# ``Poisson`` (rate)                             — dimensionless expected
+#                                                   count; no unit-typed rate
 # ``LogNormal``, ``Beta``, ``ChiSquared``,       — all parameters are
 #   ``Binomial``                                   conventionally dimensionless;
 #                                                   raise if a Quantity is
@@ -391,6 +402,7 @@ def _build_distribution(
     raw_params: dict[str, Any],
     location_scale_group: tuple[str, ...] = (),
     unit_carriers: tuple[str, ...] = (),
+    inverse_unit_carriers: tuple[str, ...] = (),
     dimensionless_params: tuple[str, ...] = (),
     distribution_name: str,
     kwargs: dict[str, Any],
@@ -414,10 +426,15 @@ def _build_distribution(
     impl = impl_cls(**magnitudes)
     new_kwargs = dict(kwargs)
     new_kwargs["metadata"] = _attach_units(new_kwargs.get("metadata"), units, shared_unit)
-    if not unit_carriers and not location_scale_group and units:
-        # Distribution with a single unit-carrying rate parameter — use that
-        # parameter's unit as the surfaced metadata['unit'] for downstream
-        # consumers (predicate / observe consistency check).
+    if inverse_unit_carriers:
+        carrier_units = {p: units[p] for p in inverse_unit_carriers if p in units}
+        if carrier_units:
+            new_kwargs["metadata"] = _attach_units(
+                new_kwargs.get("metadata"), {}, _inverse_unit(next(iter(carrier_units.values())))
+            )
+    elif not unit_carriers and not location_scale_group and units:
+        # Distribution with a single unit-carrying parameter whose unit is also
+        # the random variable's unit.
         new_kwargs["metadata"] = _attach_units(
             new_kwargs.get("metadata"), {}, next(iter(units.values()))
         )
@@ -512,8 +529,8 @@ def Exponential(
 
     ``rate`` may be a bare scalar or a :class:`gaia.unit.Quantity` (typically
     ``1 / time``). The corresponding random variable's unit is the inverse of
-    ``rate``'s unit; for predicate / observe consistency we record ``rate``'s
-    unit on metadata.
+    ``rate``'s unit; for predicate / observe consistency we record that
+    inverse unit as the distribution's canonical ``metadata["unit"]``.
     """
     from gaia.lang.bayes.distributions.continuous import Exponential as _BaseExponential
 
@@ -521,7 +538,7 @@ def Exponential(
         content,
         impl_cls=_BaseExponential,
         raw_params={"rate": rate},
-        unit_carriers=("rate",),
+        inverse_unit_carriers=("rate",),
         distribution_name="Exponential",
         kwargs=kwargs,
     )
@@ -536,7 +553,8 @@ def Gamma(
 ) -> Distribution:
     """Create a Gamma-distributed continuous quantity with a name.
 
-    ``alpha`` is dimensionless; ``rate`` may carry a unit (typically ``1 / x``).
+    ``alpha`` is dimensionless; ``rate`` may carry the inverse unit of the
+    underlying random variable (typically ``1 / x``).
     """
     from gaia.lang.bayes.distributions.continuous import Gamma as _BaseGamma
 
@@ -545,7 +563,7 @@ def Gamma(
         impl_cls=_BaseGamma,
         raw_params={"alpha": alpha, "rate": rate},
         dimensionless_params=("alpha",),
-        unit_carriers=("rate",),
+        inverse_unit_carriers=("rate",),
         distribution_name="Gamma",
         kwargs=kwargs,
     )
@@ -654,7 +672,8 @@ def Poisson(
 ) -> Distribution:
     """Create a Poisson-distributed discrete quantity with a name.
 
-    ``rate`` may carry a unit (typically ``count / time``).
+    ``rate`` is the dimensionless expected count for the interval encoded by
+    the quantity name. Pass a bare scalar; unit-typed rates are rejected.
     """
     from gaia.lang.bayes.distributions.discrete import Poisson as _BasePoisson
 
@@ -662,7 +681,7 @@ def Poisson(
         content,
         impl_cls=_BasePoisson,
         raw_params={"rate": rate},
-        unit_carriers=("rate",),
+        dimensionless_params=("rate",),
         distribution_name="Poisson",
         kwargs=kwargs,
     )
