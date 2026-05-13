@@ -1793,9 +1793,7 @@ def _infer_truncated_beliefs(
         result = engine.run(fg)
     except Exception:
         return {}
-    return {
-        kid: float(result.bp_result.beliefs[kid]) for kid in result.bp_result.beliefs if kid in keep
-    }
+    return {kid: float(result.result.beliefs[kid]) for kid in result.result.beliefs if kid in keep}
 
 
 def compute_round_beliefs(
