@@ -55,7 +55,16 @@ class Binomial(_BaseDistribution):
 
 
 class BetaBinomial(_BaseDistribution):
-    """Beta-binomial distribution literal for integer success counts."""
+    """Beta-binomial distribution literal for integer success counts.
+
+    Predictive distribution obtained by integrating ``Binomial(n, p)`` over
+    ``p ~ Beta(alpha, beta)``. Useful as a model-comparison reference when
+    the success probability has a Beta prior rather than a fixed value.
+
+    The special case ``BetaBinomial(n, alpha=1, beta=1)`` corresponds to
+    ``p ~ Uniform[0, 1]`` and gives the closed-form uniform marginal
+    ``P(k) = 1 / (n + 1)`` for every ``k ∈ [0, n]``.
+    """
 
     kind: str = "betabinomial"
 

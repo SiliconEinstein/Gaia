@@ -168,3 +168,25 @@ def test_distribution_validation_rejects_invalid_parameters():
         bayes.Binomial(n=10, p=0.5).logpdf(5)
     with pytest.raises(TypeError, match="continuous"):
         bayes.Normal(mu=0.0, sigma=1.0).logpmf(0)
+
+
+def test_betabinomial_uniform_alpha_beta_equals_one_over_n_plus_one():
+    """BetaBinomial(n, 1, 1) recovers the integrate-over-Uniform[0, 1] marginal 1/(n+1).
+
+    This identity is the mathematical foundation of the Mendel example's
+    diffuse alternative: the closed-form uniform marginal ``P(k) = 1/(n+1)``
+    is exactly ``BetaBinomial(n, alpha=1, beta=1)`` evaluated at any
+    ``k ∈ [0, n]``. Pin the invariant here so future scipy / numerical
+    changes cannot silently break the example's stated derivation.
+    """
+    from gaia.lang import bayes
+
+    for n in (10, 100, 395):
+        bb = bayes.BetaBinomial(n=n, alpha=1.0, beta=1.0)
+        expected_logpmf = -math.log(n + 1)
+        for k in (0, n // 3, n // 2, n - 1, n):
+            assert bb.logpmf(k) == pytest.approx(expected_logpmf), (
+                f"BetaBinomial({n}, 1, 1).logpmf({k}) should equal -log({n + 1})"
+            )
+        assert bb.logpmf(n + 1) == -math.inf
+        assert bb.logpmf(-1) == -math.inf
