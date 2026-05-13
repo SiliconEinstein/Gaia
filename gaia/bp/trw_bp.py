@@ -245,6 +245,7 @@ class TRWDiagnostics:
     belief_history: dict[str, list[float]] = field(default_factory=dict)
     direction_changes: dict[str, int] = field(default_factory=dict)
     rho: float = 1.0  # factor weight used (uniform scheme)
+    treewidth: int | None = None  # junction tree width (JT only)
 
     def compute_direction_changes(self) -> None:
         """Compute direction changes in belief updates for oscillation detection."""

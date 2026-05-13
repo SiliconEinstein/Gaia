@@ -199,7 +199,7 @@ def infer_command(
 
     engine = InferenceEngine()
     inference_result = engine.run(factor_graph)
-    result = inference_result.bp_result
+    result = inference_result.result
 
     gaia_dir = loaded.pkg_path / ".gaia"
     gaia_dir.mkdir(exist_ok=True)

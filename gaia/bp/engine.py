@@ -237,7 +237,7 @@ class InferenceEngine:
         """运行所有可行算法并返回对比结果。."""
         results: dict[str, dict[str, object]] = {}
         for m in ("jt", "trw_bp", "mean_field"):
-            r = self.run(graph, method=m)  # type: ignore[arg-type]
+            r = self.run(graph, method=m)
             results[m] = {
                 "beliefs": r.beliefs,
                 "elapsed_ms": r.elapsed_ms,
