@@ -192,7 +192,7 @@ Action verbs are the v0.5 main path for connecting claims. Support verbs, `infer
 | `compute(ClaimType, *, fn=None, given=(), background=None, rationale="")` | A deterministic Python computation produces the conclusion |
 | `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, rationale="")` | A probabilistic prediction/evidence link remains; returns the evidence claim and keeps an internal likelihood warrant |
 | `decompose(whole, *, parts, formula, rationale="")` | A composite claim's truth condition is a formula over atomic part claims; returns the whole claim |
-| `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, rationale="")` | A symmetric probabilistic association remains; returns an association helper claim |
+| `associate(a, b, *, p_a_given_b, p_b_given_a, rationale="")` | A symmetric probabilistic association remains; returns an association helper claim |
 | `depends_on(conclusion, *, given, background=None, rationale="")` | A conclusion has load-bearing dependencies that still need formalization |
 | `candidate_relation(a, b, *, proposed, background=None, rationale="")` | Two claims may have a relation, but the relation is not formalized yet |
 | `tension(a, b, *, background=None, rationale="")` | Shorthand for a candidate scientific tension between two claims |

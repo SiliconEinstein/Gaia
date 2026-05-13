@@ -159,9 +159,9 @@ Bayesian update: given a hypothesis Claim `H`, evidence Claim `E`, and explicit 
 
 Returns the evidence Claim. The author should prefer `bayes.model(...) + bayes.likelihood(...)` (see [§6 Bayes Module](#6-bayes-module)) when the probability is an instance of a predictive distribution.
 
-#### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, ...)`
+#### `associate(a, b, *, p_a_given_b, p_b_given_a, ...)`
 
-Symmetric pairwise potential between two Claims. At least one of `prior_a / prior_b` (or the priors already declared on `a` / `b`) must resolve so the joint table is well-defined. Returns the association warrant helper Claim.
+Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.lang.bayes`. Returns the association warrant helper Claim.
 
 ### 3.3 Structural — hard constraint between Claims
 

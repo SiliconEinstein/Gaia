@@ -16,7 +16,7 @@ import math
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from gaia.ir.operator import Operator, OperatorType
 
@@ -191,24 +191,6 @@ def _validate_conditional_probabilities(strategy: Strategy) -> None:
     object.__setattr__(strategy, "conditional_probabilities", probabilities)
 
 
-def _validate_infer_priors(strategy: Strategy) -> None:
-    """Validate optional infer prior metadata for non-composite strategies."""
-    if strategy.type != StrategyType.INFER or strategy.__class__.__name__ == "CompositeStrategy":
-        return
-    if strategy.prior_hypothesis is not None:
-        object.__setattr__(
-            strategy,
-            "prior_hypothesis",
-            _probability(strategy.prior_hypothesis, "prior_hypothesis"),
-        )
-    if strategy.prior_evidence is not None:
-        object.__setattr__(
-            strategy,
-            "prior_evidence",
-            _probability(strategy.prior_evidence, "prior_evidence"),
-        )
-
-
 def _validate_associate_parameters(strategy: Strategy) -> None:
     """Validate pairwise association parameters for non-composite strategies."""
     if (
@@ -224,10 +206,6 @@ def _validate_associate_parameters(strategy: Strategy) -> None:
         raise ValueError("associate strategy requires p_a_given_b and p_b_given_a")
     object.__setattr__(strategy, "p_a_given_b", _probability(strategy.p_a_given_b, "p_a_given_b"))
     object.__setattr__(strategy, "p_b_given_a", _probability(strategy.p_b_given_a, "p_b_given_a"))
-    if strategy.prior_a is not None:
-        object.__setattr__(strategy, "prior_a", _probability(strategy.prior_a, "prior_a"))
-    if strategy.prior_b is not None:
-        object.__setattr__(strategy, "prior_b", _probability(strategy.prior_b, "prior_b"))
 
 
 class Strategy(BaseModel):
@@ -235,6 +213,8 @@ class Strategy(BaseModel):
 
     Can be instantiated directly for basic strategies (infer, noisy_and).
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     strategy_id: str | None = None
     scope: str  # "local"
@@ -248,12 +228,8 @@ class Strategy(BaseModel):
     # local layer
     steps: list[Step] | None = None  # reasoning process (local only, None at global)
     conditional_probabilities: list[float] | None = None  # infer/noisy_and CPT parameters
-    prior_hypothesis: float | None = None
-    prior_evidence: float | None = None
     p_a_given_b: float | None = None
     p_b_given_a: float | None = None
-    prior_a: float | None = None
-    prior_b: float | None = None
 
     # traceability
     metadata: dict[str, Any] | None = None
@@ -299,7 +275,6 @@ class Strategy(BaseModel):
         _validate_strategy_scope_and_id(self)
         _assign_strategy_id(self)
         _validate_conditional_probabilities(self)
-        _validate_infer_priors(self)
         _validate_associate_parameters(self)
         return self
 

@@ -851,8 +851,6 @@ evidence_positive = infer(
     given=calibration_reliable, # OPTIONAL. Switch condition; enters BP as a gate.
     p_e_given_h=0.95,           # REQUIRED. Cromwell-clamped.
     p_e_given_not_h=0.10,       # OPTIONAL. Defaults to neutral 0.5.
-    prior_hypothesis=0.10,      # OPTIONAL. Population prevalence of disease in this context.
-    prior_evidence=None,        # OPTIONAL. Rarely needed — usually closes from the factor.
     background=[assumption_a, assumption_b],   # §13
     source_id="lab:test_T",
     data_id="patient_001.test_T.pass_1",
@@ -868,13 +866,12 @@ evidence_positive = infer(
 
 **Required arguments:** `p_e_given_h`. `p_e_given_not_h` defaults to `0.5`, the soft-implication neutral baseline. Cromwell clamp `(ε, 1-ε)` applies at compile time.
 
-**Optional prior arguments** (`prior_hypothesis`, `prior_evidence`). Authors writing an `infer` are often in the same epistemic context where the hypothesis's prior is being estimated — the paper, the cohort, the domain-expert judgment that justifies the CPT pair usually justifies the marginal too. Co-locating these numbers at the `infer` call site keeps related judgments together in the IR and in the reviewer's view.
+**No inline prior arguments.** `infer(...)` records the CPT constraint `P(E|H)` / `P(E|¬H)`. It does not accept `prior_hypothesis` or `prior_evidence`. Marginal priors belong to the Claim / package priors layer, or to a separate model object that makes the marginal explicit.
 
-These are **constraint contributions**, not overrides. Under the soft-constraint framework, a prior can be provided by any of:
+Under the soft-constraint framework, a prior can be provided by:
 
 - the Claim declaration (`Claim("disease", prior=0.10)`)
 - `priors.py` at package level
-- the `infer(..., prior_hypothesis=...)` argument
 - an earlier action whose output pins the marginal
 
 `gaia check` (§17 item 11e) reports the outcome across all providers:
@@ -887,7 +884,7 @@ Redundancy is **not a risk** — it is a natural consequence of authors capturin
 
 **Return value:** `infer()` returns the evidence Claim `E`. The action also creates a generated helper Claim whose `helper_kind` is `"likelihood"`; that helper remains attached as the reviewable warrant for the probability estimate. When a composition ends in `infer(...)`, `Compose.conclusion` points at the evidence Claim, not the helper.
 
-IR lowering follows the v0.5 shape — `type="infer"`, `premises=[H_qid]`, `conclusion=E_qid`, `conditional_probabilities=[P(E|¬H), P(E|H)]` inline. With `given=G`, lowering uses `premises=[H_qid, G_qid]` and `conditional_probabilities=[0.5, 0.5, P(E|¬H,G), P(E|H,G)]`, so the relation is neutral when the gate is false. Well-known metadata keys remain under `metadata["evidence"] = {source_id, data_id, data_hash, rationale}`. The optional priors, when provided, become additional entries in the package's prior-provider graph for `hypothesis` / `evidence`, with `source_id = "from:{infer_action_qid}"` so `gaia check` can attribute them.
+IR lowering follows the v0.5 shape — `type="infer"`, `premises=[H_qid]`, `conclusion=E_qid`, `conditional_probabilities=[P(E|¬H), P(E|H)]` inline. With `given=G`, lowering uses `premises=[H_qid, G_qid]` and `conditional_probabilities=[0.5, 0.5, P(E|¬H,G), P(E|H,G)]`, so the relation is neutral when the gate is false. Well-known metadata keys remain under `metadata["evidence"] = {source_id, data_id, data_hash, rationale}`.
 
 ### 11.3 Why forced CPT pair, no LR-only path
 
@@ -925,8 +922,6 @@ assoc_claim = associate(
     smoking, lung_cancer,
     p_a_given_b=0.75,           # P(smoker | lung_cancer, I)
     p_b_given_a=0.20,           # P(lung_cancer | smoker, I)
-    prior_a=0.25,               # OPTIONAL. P(smoker | I) — cohort-derived marginal.
-    prior_b=None,               # OPTIONAL. If None, closed from A's marginal + Bayes.
     background=[cohort],        # I
     rationale=(
         "From cohort study C, Table 2: in diagnosed cases, 75% were smokers; "
@@ -944,11 +939,10 @@ assoc_claim = associate(
 
 **Why both `p_a_given_b` and `p_b_given_a`, not just one?** Under Jaynesian framework, each of these is a legitimate conditional probability the author might have from data. Observational studies routinely report both directions (e.g., "in cases, 75% had exposure; in exposed, 20% developed outcome"). The data is symmetric in presentation; the signature reflects that.
 
-**Optional marginal priors (`prior_a`, `prior_b`).** The same context that provides the two conditionals often also provides marginal prevalences — the cohort paper that reports "75% of cases were smokers" usually also reports "25% smoking prevalence in the cohort". Authors can record that marginal at the `associate` call site, co-locating all related probabilistic context in one IR node.
+**No inline marginal priors.** `associate(...)` records only the two conditional constraints. It does not accept `prior_a` or `prior_b`. Independent marginal prevalences belong to `Claim(..., prior=...)`, `priors.py`, or another explicit provider. Model-derived marginals belong to a structured model in `gaia.lang.bayes`.
 
 **Soft-constraint semantics (auto + `gaia check`):** `associate` contributes two conditional constraints on the joint `φ(A, B | I)`, which has 3 free parameters (4 entries summing to 1). One more constraint — A's marginal, B's marginal, or one joint entry — closes the factor. That closing constraint can come from:
 
-- the optional `prior_a` / `prior_b` arguments on this call,
 - the Claim declaration (`Claim("smoking", prior=0.25)`),
 - `priors.py` at package level,
 - other actions whose outputs pin the marginals.
@@ -956,14 +950,14 @@ assoc_claim = associate(
 `gaia check` (§17 item 11e) reports the outcome across all providers:
 
 - **Hole** — no path provides the missing marginal; BP cannot form the factor. Hard error.
-- **Redundant** — multiple sources agree (e.g., `associate(..., prior_a=0.25)` plus `Claim("smoking", prior=0.25)`). Informational; author confirms intentional over-specification. **Not a risk** — the extra source is audit-friendly context, not a conflict.
+- **Redundant** — multiple sources agree (e.g., `Claim("smoking", prior=0.25)` plus `priors.py` with the same value). Informational; author confirms intentional over-specification. **Not a risk** — the extra source is audit-friendly context, not a conflict.
 - **Conflict** — multiple sources disagree (Bayes-violation). Hard error.
 
 These three categories apply to **any** probabilistic factor — not just `associate`. `gaia check` is the kernel's factor-graph coherence tool (§15.1 audit role).
 
 **BP factor lowering contract (normative).** To avoid ambiguity and double-counting, `associate` lowers to a **pairwise association potential**, not a full joint factor. The construction uses closed-form equations:
 
-1. **`gaia check` resolves one consistent marginal for each of A and B** from the prior-provider graph (Claim declaration, `priors.py`, `prior_a`/`prior_b` args on this or other actions, outputs of other actions). Let the resolved values be `P(A|I) = π_a`, `P(B|I) = π_b`. If more than one provider is consistent, any one is used (redundancy already reported by `gaia check`). If only one marginal is provided, the other is derived via Bayes: `π_b = π_a · p_b_given_a / p_a_given_b` (and vice versa).
+1. **`gaia check` resolves one consistent marginal for each of A and B** from the prior-provider graph (Claim declaration, `priors.py`, outputs of other actions). Let the resolved values be `P(A|I) = π_a`, `P(B|I) = π_b`. If more than one provider is consistent, any one is used (redundancy already reported by `gaia check`). If only one marginal is provided, the other is derived via Bayes: `π_b = π_a · p_b_given_a / p_a_given_b` (and vice versa).
 
 2. **Bayes-consistency gate** (compile-time check):
     ```
@@ -990,9 +984,8 @@ These three categories apply to **any** probabilistic factor — not just `assoc
 
 6. **No double-counting invariant**: `associate`'s factor contributes only the **normalised pairwise interaction**, not any marginal mass. The joint that BP reconstructs is `P(A, B | I) = P(A|I) · P(B|I) · ψ(A, B | I)`, which by construction equals the closed-form joint from step 3.
 
-This rule has two consequences worth calling out:
+This rule has one consequence worth calling out:
 
-- **`prior_a` / `prior_b` on the `associate` call contribute to the prior-provider graph like any other prior source** — they are resolved through the same `gaia check` path as `Claim.prior` / `priors.py`, not injected directly into BP as a second unary factor. Any one resolved provider is consumed by step 1 above; additional consistent providers show up as `redundant`.
 - **Two `associate` actions sharing a Claim do not double-count that Claim's marginal** — each uses the resolved `π_a` from the prior-provider graph for its own ψ computation. Multiple pairwise ψ factors and one unary prior factor per Claim is the canonical BP decomposition.
 
 Future **Causal family** verbs (§18 open point) will use an analogous lowering contract with do-calculus / interventional semantics, factored through unary priors and interventional pairwise factors to preserve the same no-double-counting invariant.
@@ -1341,7 +1334,7 @@ IR schema changes belong in change-controlled PRs against `docs/foundations/gaia
 
 11c. **`[new]`** Introduce the Correlate action family per §11. Add abstract base class `Correlate(Action)` in `gaia/lang/runtime/action.py`. Migrate `Infer` to subclass `Correlate` (from current direct `Action` subclass). This creates a shared home for shared concerns across probabilistic 2-Claim actions — parameter validation, `gaia check` hooks, audit metadata conventions — without altering existing Infer semantics.
 
-11d. **`[new]`** Add `associate()` DSL function + `Associate(Correlate)` runtime dataclass + `AssociateStrategy` IR node (§11.4). DSL: `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background, rationale, label) -> Claim`. Runtime: `Associate` inherits from `Correlate` with `a`, `b`, `p_a_given_b`, `p_b_given_a`, `prior_a`, `prior_b`, `helper` fields. DSL returns a generated helper Claim with `metadata["helper_kind"] = "association"`. IR lowering: `type="associate"`, `premises=[A_qid, B_qid]` (no directional premise/conclusion split — both symmetric premises), the two conditionals stored in a dedicated schema field. BP factor lowering: 2×2 symmetric factor, parameters derived from `(p_a_given_b, p_b_given_a)` plus marginals obtained via graph closure (`gaia check` validates coherence; see item 11e). Optional `prior_a` / `prior_b` contribute to the prior-provider graph for A and B as additional sources, source-tagged `"from:{associate_action_qid}"`. Similarly, `infer()` accepts optional `prior_hypothesis` / `prior_evidence` arguments that contribute to the hypothesis's / evidence's prior-provider graph (§11.2); this is an authoring ergonomics feature, not a separate mechanism — the soft-constraint model treats all prior providers uniformly.
+11d. **`[new]`** Add `associate()` DSL function + `Associate(Correlate)` runtime dataclass + `AssociateStrategy` IR node (§11.4). DSL: `associate(a, b, *, p_a_given_b, p_b_given_a, background, rationale, label) -> Claim`. Runtime: `Associate` inherits from `Correlate` with `a`, `b`, `p_a_given_b`, `p_b_given_a`, `helper` fields. DSL returns a generated helper Claim with `metadata["helper_kind"] = "association"`. IR lowering: `type="associate"`, `premises=[A_qid, B_qid]` (no directional premise/conclusion split — both symmetric premises), the two conditionals stored in a dedicated schema field. BP factor lowering: 2×2 symmetric factor, parameters derived from `(p_a_given_b, p_b_given_a)` plus marginals obtained via graph closure (`gaia check` validates coherence; see item 11e). `associate()` and `infer()` do not accept inline prior arguments; they record soft probabilistic constraints, while independent marginals remain Claim / `priors.py` responsibilities and model-derived marginals belong in `gaia.lang.bayes`.
 
 11e. **`[new]`** Extend `gaia check` to report factor-graph coherence for any probabilistic factor (Infer, Associate, and future Correlate / Causal members). Three outcomes to surface:
     - **Hole** — factor parameter has no provider (no constraint path supplies the needed marginal or joint entry). Hard error.

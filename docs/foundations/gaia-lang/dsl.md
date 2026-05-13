@@ -250,9 +250,9 @@ Returns the evidence claim. The action still creates an internal likelihood help
 
 Without `given`, the compiled BP factor is `H -> E` with CPT `[P(E|not H), P(E|H)]`. With `given=G`, the compiled factor uses premises `[H, G]` and CPT `[0.5, 0.5, P(E|not H,G), P(E|H,G)]`, so the relation becomes neutral when `G` is false. `p_e_given_not_h` defaults to `0.5`, the soft-implication baseline.
 
-### `associate(a, b, *, p_a_given_b, p_b_given_a, prior_a=None, prior_b=None, background=None, rationale="", label=None)`
+### `associate(a, b, *, p_a_given_b, p_b_given_a, background=None, rationale="", label=None)`
 
-Symmetric probabilistic association between two claims. Returns a generated association helper claim and lowers to a pairwise potential between `a` and `b`. At least one marginal prior for `a` or `b` must be available, either from the claim/priors layer or from `prior_a` / `prior_b`.
+Symmetric probabilistic association between two claims. Returns a generated association helper claim and lowers to a pairwise potential between `a` and `b`. At least one independent marginal prior for `a` or `b` must resolve from the claim/priors layer. Statistical model-derived marginals should be represented through `gaia.lang.bayes` outputs, not inline `associate(...)` arguments.
 
 ### `decompose(whole, *, parts, formula, background=None, rationale="", label=None, metadata=None)`
 

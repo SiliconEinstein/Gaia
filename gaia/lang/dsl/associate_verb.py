@@ -18,8 +18,6 @@ def associate(
     *,
     p_a_given_b: float,
     p_b_given_a: float,
-    prior_a: float | None = None,
-    prior_b: float | None = None,
     background: list[Knowledge] | None = None,
     rationale: str = "",
     label: str | None = None,
@@ -42,8 +40,6 @@ def associate(
                 "b": b,
                 "p_a_given_b": p_a_given_b,
                 "p_b_given_a": p_b_given_a,
-                "prior_a": prior_a,
-                "prior_b": prior_b,
             },
         },
     )
@@ -55,8 +51,6 @@ def associate(
         b=b,
         p_a_given_b=p_a_given_b,
         p_b_given_a=p_b_given_a,
-        prior_a=prior_a,
-        prior_b=prior_b,
         helper=helper,
     )
     action.warrants.append(helper)

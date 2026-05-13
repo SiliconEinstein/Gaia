@@ -74,6 +74,7 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     strategy_types = {item["type"] for item in ir["strategies"]}
     association = knowledge_by_label["mendel_count_association"]
     count_observation = knowledge_by_label["f2_count_observation"]
+    count_specific = knowledge_by_label["f2_dominant_count_specific"]
 
     # The package uses a single associate (Mendel ↔ count) and three qualitative
     # contradict edges against blending. It declares no `infer` strategy of its own.
@@ -105,9 +106,8 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     ):
         assert label in knowledge_by_label, f"missing knowledge {label}"
 
-    # The Mendel↔count associate uses the pointwise binomial PMF on one side and
-    # the Bayes-consistent posterior on the other. All four numbers are fully
-    # determined by ``MENDELIAN_DOMINANT_PROBABILITY`` and a uniform prior on p.
+    # The Mendel↔count associate stores only the conditional link parameters.
+    # Node priors live in the priors layer instead of on the associate call.
     assert association["metadata"]["helper_kind"] == "association"
     assert association["metadata"]["relation"]["p_a_given_b"] == pytest.approx(
         association_parameters.p_mendelian_given_count
@@ -115,12 +115,10 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     assert association["metadata"]["relation"]["p_b_given_a"] == pytest.approx(
         association_parameters.p_count_given_mendelian
     )
-    assert association["metadata"]["relation"]["prior_a"] == pytest.approx(
-        association_parameters.prior_mendelian
-    )
-    assert association["metadata"]["relation"]["prior_b"] == pytest.approx(
-        association_parameters.prior_count
-    )
+    assert "prior_a" not in association["metadata"]["relation"]
+    assert "prior_b" not in association["metadata"]["relation"]
+    assert count_observation["metadata"]["prior"] == pytest.approx(0.95)
+    assert count_specific["metadata"]["prior"] == pytest.approx(association_parameters.prior_count)
 
     # The diffuse alternative has the closed-form marginal 1/(N+1).
     assert association_parameters.p_count_given_diffuse == pytest.approx(1.0 / (295 + 100 + 1))
@@ -157,6 +155,6 @@ def test_mendel_fixture_models_competing_theories_with_association(tmp_path: Pat
     assert beliefs["mendelian_segregation_model"] > 0.8
     assert beliefs["blending_inheritance_model"] < 0.2
     assert beliefs["mendelian_segregation_model"] > beliefs["blending_inheritance_model"]
-    # The count observation's belief is driven upward by the associate and by
-    # the prior we placed on it.
-    assert beliefs["f2_count_observation"] > association_parameters.prior_count
+    # The specific count event is the marginal provider for the associate; the
+    # observation itself keeps its independent reliability prior.
+    assert beliefs["f2_dominant_count_specific"] > association_parameters.prior_count

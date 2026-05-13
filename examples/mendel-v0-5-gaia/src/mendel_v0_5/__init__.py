@@ -37,19 +37,22 @@ different quantities at once —
   trust Mendel's record"), supplied via the ``PRIORS`` dict;
 * the **Bayesian marginal** ``P(count) = Σ_H P(count | H) P(H)`` of the count
   event (≈ 0.024 for the 295/395 outcome under the {Mendel, diffuse}
-  mixture), supplied via ``associate(..., prior_b=...)``.
+  mixture), supplied through the ``PRIORS`` entry for a separate count-event
+  claim.
 
 These are two different concepts living on the same field, so the inference
 engine sees them as "conflicting marginal providers" and refuses to compile.
 
 As a workaround this package introduces ``f2_dominant_count_specific`` — a
 plain ``derive`` node that carries only the specific numerical event and is
-**not** entered into ``PRIORS`` — and routes the ``associate`` through it.
+entered into ``PRIORS`` with the Bayes marginal — and routes the ``associate``
+through it.
 This leaves the observation's ``reliability`` prior untouched on
 ``f2_count_observation`` and lets the Bayesian marginal live cleanly on the
-derived node. No other semantic is introduced by this node; it would go away
-once the framework separates the ``reliability`` / ``marginal`` / ``belief``
-roles on a Claim. See issue #485 for the design discussion.
+derived node. This is a v0.5 compatibility workaround, not the long-term
+authoring pattern for model-derived marginals; new structured model-data
+comparisons should use ``gaia.lang.bayes``. No other semantic is introduced by
+this node. See issue #485 for the design discussion.
 """
 
 from gaia.lang import (
@@ -231,9 +234,9 @@ mendel_predicts_three_to_one_ratio = derive(
 # on a separate Claim from ``f2_count_observation``, which already carries the
 # reliability prior 0.95 via ``PRIORS``. See the module docstring above, and
 # issue #485, for the underlying framework design (``metadata.prior`` doing
-# double duty as both "reliability" and "marginal"). Once the framework
-# separates those two semantics, this intermediate node can be deleted and
-# ``associate`` can target ``f2_count_observation`` directly.
+# double duty as both "reliability" and "marginal"). New structured
+# model-derived marginals should move to ``gaia.lang.bayes`` rather than using
+# this workaround.
 # -----------------------------------------------------------------------------
 
 f2_dominant_count_specific = derive(
@@ -257,8 +260,6 @@ mendel_count_association = associate(
     background=[monohybrid_cross_setup, finite_sample_background],
     p_a_given_b=association_parameters.p_mendelian_given_count,
     p_b_given_a=association_parameters.p_count_given_mendelian,
-    prior_a=association_parameters.prior_mendelian,
-    prior_b=association_parameters.prior_count,
     rationale=(
         "用在观测计数处的点似然 Binomial(N, 3/4).pmf(295) 作为 p(count | Mendel)；"
         "对照项用 p ~ Uniform[0, 1] 的 diffuse 先验，其任意单点计数的边际概率"

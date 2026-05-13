@@ -142,8 +142,6 @@ class Infer(Probabilistic):
     given: tuple[Claim, ...] = ()
     p_e_given_h: float | Claim = 0.5
     p_e_given_not_h: float | Claim | None = 0.5
-    prior_hypothesis: float | None = None
-    prior_evidence: float | None = None
 
 
 @dataclass
@@ -154,8 +152,6 @@ class Associate(Probabilistic):
     b: Claim | None = None
     p_a_given_b: float = 0.5
     p_b_given_a: float = 0.5
-    prior_a: float | None = None
-    prior_b: float | None = None
 
 
 @dataclass

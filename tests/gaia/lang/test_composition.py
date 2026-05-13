@@ -135,8 +135,6 @@ def test_compose_keeps_own_background_and_warrants_separate_from_child_warrants(
                 right,
                 p_a_given_b=0.75,
                 p_b_given_a=0.25,
-                prior_a=0.5,
-                prior_b=1 / 6,
                 label="assoc_ab",
             )
 

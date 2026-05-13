@@ -315,7 +315,6 @@ def _clamp_probability(value: float) -> float:
 def _resolve_associate_marginal(
     *,
     variable_id: str,
-    action_prior: float | None,
     priors: dict[str, float],
     metadata_priors: dict[str, float],
     strategy_id: str | None,
@@ -325,8 +324,6 @@ def _resolve_associate_marginal(
         providers.append(("node_priors", _clamp_probability(priors[variable_id])))
     if variable_id in metadata_priors:
         providers.append(("metadata.prior", _clamp_probability(metadata_priors[variable_id])))
-    if action_prior is not None:
-        providers.append(("associate prior", _clamp_probability(action_prior)))
 
     if not providers:
         return None
@@ -339,33 +336,6 @@ def _resolve_associate_marginal(
                 f"{variable_id!r}: {first_source}={first_value:g}, {source}={value:g}"
             )
     return first_value
-
-
-def _apply_inline_prior_provider(
-    fg: FactorGraph,
-    *,
-    variable_id: str,
-    inline_prior: float | None,
-    priors: dict[str, float],
-    metadata_priors: dict[str, float],
-    strategy_id: str | None,
-    field_name: str,
-) -> None:
-    if inline_prior is None:
-        return
-    inline = _clamp_probability(inline_prior)
-    providers: list[tuple[str, float]] = []
-    if variable_id in priors:
-        providers.append(("node_priors", _clamp_probability(priors[variable_id])))
-    if variable_id in metadata_priors:
-        providers.append(("metadata.prior", _clamp_probability(metadata_priors[variable_id])))
-    for source, value in providers:
-        if abs(value - inline) > _ASSOCIATE_TOLERANCE:
-            raise ValueError(
-                f"infer strategy {strategy_id}: conflicting prior providers for "
-                f"{variable_id!r}: {source}={value:g}, {field_name}={inline:g}"
-            )
-    fg.add_variable(variable_id, inline)
 
 
 def _associate_pairwise_weights(
@@ -385,14 +355,12 @@ def _associate_pairwise_weights(
     p_b_given_a = _clamp_probability(s.p_b_given_a)
     pi_a = _resolve_associate_marginal(
         variable_id=a,
-        action_prior=s.prior_a,
         priors=priors,
         metadata_priors=metadata_priors,
         strategy_id=s.strategy_id,
     )
     pi_b = _resolve_associate_marginal(
         variable_id=b,
-        action_prior=s.prior_b,
         priors=priors,
         metadata_priors=metadata_priors,
         strategy_id=s.strategy_id,
@@ -649,32 +617,11 @@ def _lower_infer_strategy(
     s: Strategy,
     conc: str,
     strategy_id: str,
-    priors: dict[str, float],
     strat_params: dict[str, list[float]],
-    metadata_priors: dict[str, float],
     infer_degraded: bool,
     ctr: list[int],
 ) -> None:
     """Lower an ``infer`` strategy to conditional or degraded soft-entailment factors."""
-    if s.premises:
-        _apply_inline_prior_provider(
-            fg,
-            variable_id=s.premises[0],
-            inline_prior=s.prior_hypothesis,
-            priors=priors,
-            metadata_priors=metadata_priors,
-            strategy_id=strategy_id,
-            field_name="prior_hypothesis",
-        )
-    _apply_inline_prior_provider(
-        fg,
-        variable_id=conc,
-        inline_prior=s.prior_evidence,
-        priors=priors,
-        metadata_priors=metadata_priors,
-        strategy_id=strategy_id,
-        field_name="prior_evidence",
-    )
     cpt = (
         s.conditional_probabilities
         or strat_params.get(strategy_id)
@@ -852,9 +799,7 @@ def _lower_leaf_strategy(
     """Lower a non-composite, non-formal strategy."""
     conc, strategy_id = _prepare_leaf_strategy_variables(fg, s, priors, claim_ids)
     if s.type == StrategyType.INFER:
-        _lower_infer_strategy(
-            fg, s, conc, strategy_id, priors, strat_params, metadata_priors, infer_degraded, ctr
-        )
+        _lower_infer_strategy(fg, s, conc, strategy_id, strat_params, infer_degraded, ctr)
         return
     if s.type == StrategyType.NOISY_AND:
         _lower_noisy_and_strategy(fg, s, conc, strategy_id, strat_params, ctr)
