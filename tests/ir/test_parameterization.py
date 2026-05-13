@@ -9,8 +9,14 @@ from gaia.ir import (
     ParameterizationSource,
     PriorRecord,
     ResolutionPolicy,
-    StrategyParamRecord,
 )
+
+
+def test_strategy_param_record_is_not_public_ir_contract():
+    """Strategy probabilities live inline on Strategy in the v0.5 IR contract."""
+    import gaia.ir as ir
+
+    assert not hasattr(ir, "StrategyParamRecord")
 
 
 class TestCromwellEps:
@@ -40,43 +46,6 @@ class TestPriorRecord:
     def test_in_range_unchanged(self):
         r = PriorRecord(knowledge_id="github:test::k1", value=0.5, source_id="s")
         assert r.value == 0.5
-
-
-class TestStrategyParamRecord:
-    def test_single_param(self):
-        """noisy_and: single conditional probability."""
-        r = StrategyParamRecord(
-            strategy_id="lcs_abc",
-            conditional_probabilities=[0.85],
-            source_id="src_001",
-        )
-        assert r.conditional_probabilities == [0.85]
-
-    def test_multi_param_cpt(self):
-        """Infer with 2 premises: 2^2 = 4 parameters."""
-        r = StrategyParamRecord(
-            strategy_id="lcs_abc",
-            conditional_probabilities=[0.9, 0.3, 0.4, 0.1],
-            source_id="src_001",
-        )
-        assert len(r.conditional_probabilities) == 4
-
-    def test_cromwell_clamping(self):
-        r = StrategyParamRecord(
-            strategy_id="lcs_1",
-            conditional_probabilities=[0.0, 1.0],
-            source_id="s",
-        )
-        assert r.conditional_probabilities[0] == CROMWELL_EPS
-        assert r.conditional_probabilities[1] == 1 - CROMWELL_EPS
-
-    def test_auto_timestamp(self):
-        r = StrategyParamRecord(
-            strategy_id="lcs_1",
-            conditional_probabilities=[0.5],
-            source_id="s",
-        )
-        assert r.created_at is not None
 
 
 class TestParameterizationSource:

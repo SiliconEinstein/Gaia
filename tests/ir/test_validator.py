@@ -1170,62 +1170,6 @@ class TestParameterizationValidation:
         )
 
     def test_complete_parameterization(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = self._graph()
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
-            ],
-        )
-        assert r.valid
-
-    def test_strategy_conclusion_does_not_require_prior(self):
-        """Strategy conclusions are exempt from PriorRecord requirement."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = self._graph()
-        sid = g.strategies[0].strategy_id
-        # b is the conclusion of a noisy_and — no prior needed
-        r = validate_parameterization(
-            g,
-            priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
-            ],
-        )
-        assert r.valid, r.errors
-
-    def test_missing_prior_for_independent_premise(self):
-        """Independent premises (not strategy conclusions) still require priors."""
-        from gaia.ir import StrategyParamRecord
-
-        g = self._graph()
-        sid = g.strategies[0].strategy_id
-        # a is an independent premise — missing prior should be an error
-        r = validate_parameterization(
-            g,
-            priors=[],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
-            ],
-        )
-        assert not r.valid
-        assert any("github:test::a" in e and "missing PriorRecord" in e for e in r.errors)
-
-    def test_missing_strategy_param_for_parameterized(self):
         from gaia.ir import PriorRecord
 
         g = self._graph()
@@ -1235,13 +1179,47 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
             ],
-            strategy_params=[],
+        )
+        assert r.valid
+
+    def test_strategy_conclusion_does_not_require_prior(self):
+        """Strategy conclusions are exempt from PriorRecord requirement."""
+        from gaia.ir import PriorRecord
+
+        g = self._graph()
+        # b is the conclusion of a noisy_and — no prior needed
+        r = validate_parameterization(
+            g,
+            priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
+        )
+        assert r.valid, r.errors
+
+    def test_missing_prior_for_independent_premise(self):
+        """Independent premises (not strategy conclusions) still require priors."""
+        g = self._graph()
+        # a is an independent premise — missing prior should be an error
+        r = validate_parameterization(
+            g,
+            priors=[],
         )
         assert not r.valid
-        assert any("missing StrategyParamRecord" in e for e in r.errors)
+        assert any("github:test::a" in e and "missing PriorRecord" in e for e in r.errors)
+
+    def test_parameterized_strategy_uses_inline_params_not_param_records(self):
+        from gaia.ir import PriorRecord
+
+        g = self._graph()
+        r = validate_parameterization(
+            g,
+            priors=[
+                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
+                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
+            ],
+        )
+        assert r.valid
 
     def test_formal_strategy_without_params_passes(self):
-        """FormalStrategy types do not need StrategyParamRecord."""
+        """FormalStrategy types do not need any separate strategy parameter record."""
         from gaia.ir import PriorRecord
 
         g = _local_graph(
@@ -1277,7 +1255,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::m", value=0.5, source_id="s"),
             ],
-            strategy_params=[],  # no params needed for deduction
         )
         assert r.valid
 
@@ -1326,7 +1303,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 # no prior for reg:test::m
             ],
-            strategy_params=[],
         )
         assert r.valid
 
@@ -1373,7 +1349,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::m", value=0.5, source_id="s"),  # prohibited!
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any("private or structural helper claim" in e for e in r.errors)
@@ -1427,7 +1402,6 @@ class TestParameterizationValidation:
                     knowledge_id="github:test::h1", value=0.5, source_id="s"
                 ),  # prohibited!
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any("github:test::h1" in e and "private or structural helper" in e for e in r.errors)
@@ -1475,7 +1449,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::mid", value=0.5, source_id="s"),
                 # github:test::h1 and h2 are private -- no prior needed
             ],
-            strategy_params=[],
         )
         assert r.valid
 
@@ -1509,7 +1482,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::obs", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::h", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any(alternative_explanation.id in e and "missing PriorRecord" in e for e in r.errors)
@@ -1545,7 +1517,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::h", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id=alternative_explanation.id, value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid
 
@@ -1588,7 +1559,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::e2", value=0.9, source_id="s"),
                 PriorRecord(knowledge_id="github:test::h3", value=0.2, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid
 
@@ -1618,7 +1588,6 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid
 
@@ -1649,73 +1618,22 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::eq", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any(
             "github:test::eq" in e and "private or structural helper claim" in e for e in r.errors
         )
 
-    def test_param_for_non_parameterized_type_warns(self):
-        """StrategyParamRecord for a FormalStrategy type should warn."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(
-            knowledges=[
-                _claim("github:test::a"),
-                _claim("github:test::b"),
-                _claim("github:test::h"),
-            ],
-            strategies=[
-                FormalStrategy(
-                    scope="local",
-                    type="deduction",
-                    premises=["github:test::a"],
-                    conclusion="github:test::b",
-                    formal_expr=FormalExpr(
-                        operators=[
-                            Operator(
-                                operator="implication",
-                                variables=["github:test::a", "github:test::b"],
-                                conclusion="github:test::h",
-                            ),
-                        ]
-                    ),
-                ),
-            ],
-        )
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.5], source_id="s"
-                ),
-            ],
-        )
-        assert r.valid  # warning, not error
-        assert any("not parameterized" in w for w in r.warnings)
-
     def test_setting_does_not_need_prior(self):
         """Settings don't carry probability -- no PriorRecord needed."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
+        from gaia.ir import PriorRecord
 
         g = self._graph()
-        sid = g.strategies[0].strategy_id
         r = validate_parameterization(
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
             ],
         )
         assert r.valid  # reg:test::s (setting) doesn't need a prior
@@ -1731,7 +1649,6 @@ class TestParameterizationValidation:
         r = validate_parameterization(
             g,
             priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
-            strategy_params=[],
         )
         assert r.valid
 
@@ -1745,129 +1662,17 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::nonexistent", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid  # warning, not error
         assert any("non-existent" in w for w in r.warnings)
 
-    def test_dangling_strategy_param_warning(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(knowledges=[_claim("github:test::a")])
-        r = validate_parameterization(
-            g,
-            priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id="lcs_ghost", conditional_probabilities=[0.5], source_id="s"
-                ),
-            ],
-        )
-        assert r.valid
-        assert any("non-existent" in w for w in r.warnings)
-
     def test_empty_graph_no_requirements(self):
-        r = validate_parameterization(_local_graph(), [], [])
+        r = validate_parameterization(_local_graph(), [])
         assert r.valid
 
-    def test_noisy_and_wrong_arity_rejected(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = self._graph()
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid,
-                    conditional_probabilities=[0.2, 0.3, 0.4, 0.5],
-                    source_id="s",
-                ),
-            ],
-        )
-        assert not r.valid
-        assert any("noisy_and" in e and "requires 1" in e for e in r.errors)
-
-    def test_infer_wrong_arity_rejected(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(
-            knowledges=[
-                _claim("github:test::a"),
-                _claim("github:test::b"),
-                _claim("github:test::c"),
-            ],
-            strategies=[
-                Strategy(
-                    scope="local",
-                    type="infer",
-                    premises=["github:test::a", "github:test::b"],
-                    conclusion="github:test::c",
-                ),
-            ],
-        )
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid,
-                    conditional_probabilities=[0.8, 0.9],  # needs 2^2=4
-                    source_id="s",
-                ),
-            ],
-        )
-        assert not r.valid
-        assert any("2^2=4" in e for e in r.errors)
-
-    def test_infer_correct_arity_passes(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(
-            knowledges=[
-                _claim("github:test::a"),
-                _claim("github:test::b"),
-                _claim("github:test::c"),
-            ],
-            strategies=[
-                Strategy(
-                    scope="local",
-                    type="infer",
-                    premises=["github:test::a", "github:test::b"],
-                    conclusion="github:test::c",
-                ),
-            ],
-        )
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid,
-                    conditional_probabilities=[0.8, 0.7, 0.6, 0.9],
-                    source_id="s",
-                ),
-            ],
-        )
-        assert r.valid
-
-    def test_composite_strategy_does_not_require_strategy_param(self):
-        """CompositeStrategy delegates to sub-strategies; no own params needed."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
+    def test_composite_strategy_does_not_require_param_record(self):
+        """CompositeStrategy delegates to sub-strategies; no separate params needed."""
+        from gaia.ir import PriorRecord
 
         sub = Strategy(
             scope="local",
@@ -1889,18 +1694,10 @@ class TestParameterizationValidation:
             ],
             strategies=[sub, comp],
         )
-        # Only provide param for the leaf sub-strategy, not the composite
         r = validate_parameterization(
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sub.strategy_id,
-                    conditional_probabilities=[0.9],
-                    source_id="s",
-                ),
             ],
         )
         assert r.valid, r.errors

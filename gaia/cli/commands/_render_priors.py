@@ -22,4 +22,4 @@ def param_data_from_ir_metadata(ir: dict[str, Any]) -> dict[str, Any] | None:
         priors.append(record)
     if not priors:
         return None
-    return {"priors": priors, "strategy_params": []}
+    return {"priors": priors}

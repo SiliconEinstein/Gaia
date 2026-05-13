@@ -137,20 +137,6 @@ def _default_outline_priors(
     return node_priors
 
 
-def _strategy_params_from_param_data(param_data: dict[str, Any] | None) -> dict[str, list[float]]:
-    """Extract strategy CPT parameters for coarse narrative helpers."""
-    strategy_params: dict[str, list[float]] = {}
-    if not param_data:
-        return strategy_params
-    for s in param_data.get("strategy_params", []):
-        sid = s.get("strategy_id", "")
-        if s.get("conditional_probabilities"):
-            strategy_params[sid] = s["conditional_probabilities"]
-        elif s.get("conditional_probability") is not None:
-            strategy_params[sid] = [s["conditional_probability"]]
-    return strategy_params
-
-
 def _write_narrative_outline(
     *,
     ir: dict[str, Any],
@@ -179,7 +165,6 @@ def _write_narrative_outline(
                 ir=ir,
                 coarse_for_outline=coarse_for_outline,
                 node_priors=node_priors,
-                param_data=param_data,
             ),
         )
         (output_dir / "narrative-outline.md").write_text(
@@ -194,7 +179,6 @@ def _outline_mi_map(
     ir: dict[str, Any],
     coarse_for_outline: dict[str, Any],
     node_priors: dict[str, float],
-    param_data: dict[str, Any] | None,
 ) -> dict[int, float]:
     """Best-effort MI map for the narrative outline."""
     try:
@@ -204,7 +188,6 @@ def _outline_mi_map(
             ir,
             coarse_for_outline,
             node_priors=node_priors,
-            strategy_params=_strategy_params_from_param_data(param_data),
         )
         return {
             i: mutual_information(
@@ -324,7 +307,6 @@ def _render_coarse_mermaid(
     beliefs: dict[str, float],
     priors: dict[str, float],
     exported_ids: set[str],
-    param_data: dict[str, Any] | None = None,
 ) -> tuple[str, float]:
     """Render a coarse-grained Mermaid graph: leaf premises → exported conclusions."""
     coarse = coarsen_ir(ir, exported_ids)
@@ -368,7 +350,6 @@ def _render_coarse_mermaid(
         kid_to_k=kid_to_k,
         beliefs=beliefs,
         priors=priors,
-        param_data=param_data,
     )
     lines.extend(strategy_lines)
     lines.extend(_coarse_operator_lines(coarse, kid_to_k))
@@ -389,7 +370,6 @@ def _coarse_strategy_lines(
     kid_to_k: dict[str, dict[str, Any]],
     beliefs: dict[str, float],
     priors: dict[str, float],
-    param_data: dict[str, Any] | None,
 ) -> tuple[list[str], float]:
     """Render strategy intermediate nodes and return accumulated MI."""
     deterministic = {
@@ -399,7 +379,7 @@ def _coarse_strategy_lines(
         "mathematical_induction",
         "case_analysis",
     }
-    coarse_cpts = _coarse_cpts_for_mermaid(ir, coarse, beliefs, priors, param_data)
+    coarse_cpts = _coarse_cpts_for_mermaid(ir, coarse, beliefs, priors)
     total_mi = 0.0
     lines: list[str] = []
     for i, s in enumerate(coarse["strategies"]):
@@ -427,7 +407,6 @@ def _coarse_cpts_for_mermaid(
     coarse: dict[str, Any],
     beliefs: dict[str, float],
     priors: dict[str, float],
-    param_data: dict[str, Any] | None,
 ) -> dict[int, list[float]]:
     """Compute coarse CPTs for Mermaid MI annotations when beliefs are available."""
     if not beliefs:
@@ -441,7 +420,6 @@ def _coarse_cpts_for_mermaid(
             ir,
             coarse,
             node_priors=node_priors,
-            strategy_params=_strategy_params_from_param_data(param_data),
         )
     except Exception:
         return {}
@@ -523,7 +501,6 @@ def _generate_readme_skeleton(
             beliefs,
             priors,
             exported,
-            param_data=param_data,
         )
         if total_mi > 0:
             lines.append("> [!TIP]")

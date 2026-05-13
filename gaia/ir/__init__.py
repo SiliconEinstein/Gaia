@@ -25,7 +25,6 @@ from gaia.ir.parameterization import (
     ParameterizationSource,
     PriorRecord,
     ResolutionPolicy,
-    StrategyParamRecord,
     default_resolution_policy,
 )
 from gaia.ir.review import Review, ReviewManifest, ReviewStatus
@@ -75,7 +74,6 @@ __all__ = [
     "ReviewStatus",  # Review
     "Step",  # Strategy
     "Strategy",  # Strategy
-    "StrategyParamRecord",  # Parameterization
     "StrategyType",  # Strategy
     "default_resolution_policy",  # Parameterization
     "formalize_named_strategy",  # Formalization

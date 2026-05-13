@@ -138,7 +138,7 @@ any_true(A,B,...)
 
 ## 6. 与 Parameterization 的关系
 
-Helper claim 不引入新的 `StrategyParamRecord` 规则。
+Helper claim 不引入新的 strategy-parameter 记录规则；Parameterization 只为 claim prior 建记录。
 
 **硬性规则：**
 

@@ -124,7 +124,7 @@ lowering 时有两种合法方式：
 
 具体选哪种，由 backend 的展开策略决定。
 
-> **Open question：CompositeStrategy 折叠时的参数来源。** 当前 contract 只定义了参数化 leaf Strategy（读 StrategyParamRecord）和 FormalStrategy（从 FormalExpr + claim prior 导出）的折叠路径。CompositeStrategy 折叠为单个单元时的条件概率来源尚未定义——是需要显式 StrategyParamRecord，还是从 sub_strategies 自动 marginalize，或禁止折叠？待后续设计明确。
+> **Open question：CompositeStrategy 折叠时的参数来源。** 当前 contract 只定义了参数化 leaf Strategy（读 Strategy inline 参数）和 FormalStrategy（从 FormalExpr + claim prior 导出）的折叠路径。CompositeStrategy 折叠为单个单元时的条件概率来源尚未定义——是从 sub_strategies 自动 marginalize，还是禁止折叠？待后续设计明确。
 
 ### 4.3 FormalStrategy
 
@@ -161,7 +161,7 @@ Lowering 只消费参数层，不定义参数层。
 
 当前 contract 下：
 
-- 参数化 Strategy 从 `StrategyParamRecord` 读取外部条件参数
+- 参数化 Strategy 从 `Strategy` inline 字段读取条件参数
 - 普通 claim 从 `PriorRecord` 读取外部 prior
 - 结构型 helper claim **禁止**携带独立 PriorRecord（见 [04-helper-claims.md](04-helper-claims.md)）
 

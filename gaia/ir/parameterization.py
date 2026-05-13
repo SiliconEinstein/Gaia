@@ -1,4 +1,4 @@
-"""Parameterization — probability parameters for Gaia IR graphs.
+"""Parameterization — claim prior records for Gaia IR graphs.
 
 Implements docs/foundations/gaia-ir/06-parameterization.md.
 
@@ -104,33 +104,6 @@ class PriorRecord(BaseModel):
         object.__setattr__(self, "value", _clamp(self.value))
 
 
-class StrategyParamRecord(BaseModel):
-    """Conditional probability parameters for a Strategy.
-
-    Only parameterized strategies need StrategyParamRecord:
-    - infer: 2^k values (full CPT, one per premise truth-value combination)
-    - noisy_and: 1 value (P(conclusion=true | all premises=true))
-
-    FormalStrategy types (deduction, abduction, etc.) derive behavior from
-    FormalExpr + interface-claim priors — no independent StrategyParamRecord.
-
-    All values are Cromwell-clamped.
-    """
-
-    strategy_id: str  # lcs_ prefix
-    conditional_probabilities: list[float]
-    source_id: str
-    justification: str = ""
-    created_at: datetime = None  # type: ignore[assignment]
-
-    def model_post_init(self, __context: Any) -> None:
-        """Set default timestamp and clamp every conditional probability."""
-        if self.created_at is None:
-            object.__setattr__(self, "created_at", datetime.now(UTC))
-        clamped = [_clamp(p) for p in self.conditional_probabilities]
-        object.__setattr__(self, "conditional_probabilities", clamped)
-
-
 class ParameterizationSource(BaseModel):
     """Metadata about the model/policy that produced a batch of records."""
 
@@ -157,8 +130,8 @@ class ResolutionPolicy(BaseModel):
       latest within that source.
 
     ``prior_cutoff`` filters records to those created at or before the given
-    timestamp before any strategy runs, enabling reproducible BP runs against
-    a historical snapshot of the parameterization layer.
+    timestamp, enabling reproducible BP runs against a historical snapshot of
+    the claim-prior layer.
     """
 
     strategy: Literal["explicit_priority", "latest", "source"] = "explicit_priority"

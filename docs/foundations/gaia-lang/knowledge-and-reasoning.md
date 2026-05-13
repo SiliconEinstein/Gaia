@@ -420,7 +420,8 @@ Reference: [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md), [Lower
 All probabilities in Gaia IR are clamped to `[eps, 1 - eps]` where `CROMWELL_EPS = 1e-3` (defined in `gaia/ir/parameterization.py` and `gaia/bp/factor_graph.py`). This applies to:
 
 - `PriorRecord.value` (claim priors)
-- `StrategyParamRecord.conditional_probabilities` (CPT entries on `infer` / `associate` strategies)
+- `Strategy.conditional_probabilities` (CPT entries on `infer` / `noisy_and` strategies)
+- `Strategy.p_a_given_b` / `Strategy.p_b_given_a` (conditional entries on `associate` strategies)
 - All factor potential values (truth-table entries use `1 - eps` instead of 1, `eps` instead of 0)
 - Author-supplied `p_e_given_h` / `p_e_given_not_h` on `infer`
 
