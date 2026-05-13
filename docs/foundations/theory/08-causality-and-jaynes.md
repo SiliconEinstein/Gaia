@@ -63,7 +63,7 @@ v0.5 的命题层框架不承载这种信息。引入因果原语就是为了承
 
 为容纳因果机制，Gaia 在 v0.6 把知识从 v0.5 的"全部都是命题"扩展到**三层本体**（参见 [mechanism-first-class spec](https://github.com/SiliconEinstein/Gaia/blob/v0.5/docs/specs/2026-05-06-causal-mechanism-first-class-design.md) §0）：
 
-| 本体类型 | Knowledge type | 例子 | 真值结构 | 是否进 BP |
+| 本体类型 | Gaia object | 例子 | 真值结构 | 是否进 BP |
 |---------|---------------|------|---------|----------|
 | **命题（Proposition）** | `Claim` | "H₃S 在 200 GPa 下是高温超导体" | 有真值，有 `prior = P(true)` | 是，作为 `ProbabilityFactor` |
 | **推理步（Reasoning step）** | `Action`（`derive` / `infer` / `equal` / `contradict` / `associate` / …） | "由 X 逻辑推出 Y" | 没有真值（行为不是命题），其结论 claim 才有真值 | 间接，通过其结论 claim 进 BP |
@@ -260,11 +260,11 @@ P(Y_{x'} | E, I)
 | "X 是 Y 的统计证据（似然比）" | `infer(evidence=X, hypothesis=Y, p_e_given_h=..., p_e_given_not_h=...)` | 命题层 Bayes update |
 | "X 与 Y 等价" | `equal(X, Y)` | 命题层等价 |
 | "X 与 Y 不能并存" | `contradict(X, Y)` | 命题层互斥 |
-| "X 与 Y 关联但方向不明" | `associate(X, Y, ...)` | 命题层对称关联 |
+| "X 与 Y 关联但方向不明" | `associate(X, Y, p_a_given_b=..., p_b_given_a=...)` | 命题层对称关联 |
 | **"X 是 Y 的因，机制 CPD 是 (α, β)"** | **`mechanism(cause=X, effect=Y, cpd=(α, β))`** | **结构层声明，可触发 do() 查询** |
 | "如果干预把 X 设为 x，Y 会是什么" | `do(X=x).query(Y)` | 干预性查询 |
 | "现实是 E，假如 X 当时是 x'，Y 会是什么" | `do(X=x').counterfactual(observed=E).query(Y)` | 反事实查询 |
-| "假说 H 预测可观测量 Z 服从分布 D" | `bayes.likelihood(H, observable=Z, distribution=D)` | model comparison（命题层） |
+| "假说 H 预测可观测量 Z 服从分布 D，并用数据 E 做模型比较" | `bayes.model(H, observable=Z, distribution=D)` + `bayes.likelihood(E, model=..., against=[...])` | model comparison（命题层） |
 
 ### 8.1 何时该选 `mechanism()` vs `derive()` 的关键差别
 
