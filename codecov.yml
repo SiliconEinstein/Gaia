@@ -1,10 +1,5 @@
 coverage:
   status:
-    project:
-      default:
-        # CI already enforces --cov-fail-under=90; keep Codecov aligned.
-        target: 90%
-        threshold: 0%
     patch:
       default:
         target: 80%
