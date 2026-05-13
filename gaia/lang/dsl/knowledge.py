@@ -108,16 +108,39 @@ def claim(
     kind: ClaimKind = ClaimKind.GENERAL,
     **metadata: Any,
 ) -> Claim:
-    """Declare a scientific assertion. The only type carrying probability."""
-    return Claim(
+    """Declare a scientific assertion.
+
+    The optional ``prior`` keyword is a convenience shortcut equivalent to
+    immediately calling :func:`gaia.lang.register_prior` with
+    ``source_id="claim_inline"``. Inline priors are intentionally ranked
+    **below** every explicit ``register_prior()`` call in the default
+    :data:`gaia.ir.DEFAULT_PRIORITY_ORDER`, so any author / reviewer / engine
+    estimate registered later overrides the inline shortcut. Use the inline
+    shortcut for a quick first-pass guess; promote to ``register_prior()`` when
+    the prior is load-bearing and deserves a documented justification.
+    """
+    c = Claim(
         content=content.strip(),
         format=format,
         title=title,
         background=background or [],
         parameters=parameters or [],
         provenance=provenance or [],
-        prior=prior,
+        prior=None,
         formula=formula,
         kind=kind,
         metadata=_flatten_metadata(metadata),
     )
+    if prior is not None:
+        # Route through register_prior so the inline value participates in the
+        # same multi-source PriorRecord pipeline as everything else, just at
+        # the lowest "claim_inline" priority.
+        from gaia.lang.dsl.register_prior import register_prior
+
+        register_prior(
+            c,
+            prior,
+            source_id="claim_inline",
+            justification="(inline default declared at claim() call site)",
+        )
+    return c

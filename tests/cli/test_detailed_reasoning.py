@@ -266,11 +266,10 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import a, b, c\n\n"
-        "PRIORS: dict = {\n"
-        '    a: (0.8, "ok"),\n'
-        '    b: (0.8, "ok"),\n'
-        '    c: (0.4, "ok"),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(a, value=0.8, justification="ok")\n'
+        'register_prior(b, value=0.8, justification="ok")\n'
+        'register_prior(c, value=0.4, justification="ok")\n'
     )
 
     assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0

@@ -40,7 +40,9 @@ def test_check_applies_priors_py_before_stale_check(tmp_path):
     pkg_dir = tmp_path / "check_demo"
     _write_package(pkg_dir)
     (pkg_dir / "check_demo" / "priors.py").write_text(
-        'from . import main_claim\n\nPRIORS = {main_claim: (0.8, "Reviewed premise.")}\n'
+        "from . import main_claim\n\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(main_claim, value=0.8, justification="Reviewed premise.")\n\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -131,7 +133,9 @@ def _write_multi_claim_package(pkg_dir, *, with_priors: bool = False) -> None:
     if with_priors:
         (pkg_src / "priors.py").write_text(
             "from . import premise_a\n\n"
-            'PRIORS = {premise_a: (0.85, "Strong experimental evidence.")}\n'
+            "from gaia.lang import register_prior\n\n"
+            "register_prior(premise_a, value=0.85, "
+            'justification="Strong experimental evidence.")\n\n'
         )
 
 
@@ -171,10 +175,9 @@ def test_check_no_hole_count_when_all_covered(tmp_path):
     pkg_src = pkg_dir / "check_holes"
     (pkg_src / "priors.py").write_text(
         "from . import premise_a, premise_b\n\n"
-        "PRIORS = {\n"
-        '    premise_a: (0.85, "Strong evidence."),\n'
-        '    premise_b: (0.70, "Moderate evidence."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(premise_a, value=0.85, justification="Strong evidence.")\n'
+        'register_prior(premise_b, value=0.70, justification="Moderate evidence.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -214,10 +217,9 @@ def test_check_hole_flag_all_covered(tmp_path):
     pkg_src = pkg_dir / "check_holes"
     (pkg_src / "priors.py").write_text(
         "from . import premise_a, premise_b\n\n"
-        "PRIORS = {\n"
-        '    premise_a: (0.85, "Strong evidence."),\n'
-        '    premise_b: (0.70, "Moderate evidence."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(premise_a, value=0.85, justification="Strong evidence.")\n'
+        'register_prior(premise_b, value=0.70, justification="Moderate evidence.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -359,9 +361,8 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import observation\n\n"
-        "PRIORS = {\n"
-        '    observation: (0.99, "Observation was made."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(observation, value=0.99, justification="Observation was made.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])

@@ -1,5 +1,14 @@
-"""Prior records for the Mendel v0.5 example package."""
+"""Prior records for the Mendel v0.5 example package.
 
+Priors are registered through :func:`gaia.lang.register_prior` rather than the
+legacy ``PRIORS = {...}`` dict (removed in v0.5+). Each call records a
+multi-source ``PriorRecord``; the package-default ``ResolutionPolicy`` (see
+:func:`gaia.ir.default_resolution_policy`) selects the winning value at
+compile time and writes it to ``metadata['prior']`` for downstream BP /
+render / brief consumers.
+"""
+
+from gaia.lang import register_prior
 from mendel_v0_5 import (
     blending_inheritance_model,
     f1_uniform_dominant_observation,
@@ -14,34 +23,41 @@ from mendel_v0_5.probabilities import PRIOR_MENDELIAN_MODEL
 
 association_parameters = mendel_count_association_parameters()
 
-PRIORS = {
-    mendelian_segregation_model: (
-        PRIOR_MENDELIAN_MODEL,
-        "在观察单因子杂交结果之前，让孟德尔分离模型保持中性先验。",
-    ),
-    blending_inheritance_model: (
-        1.0 - PRIOR_MENDELIAN_MODEL,
-        "在观察单因子杂交结果之前，让混合遗传模型保持中性先验。",
-    ),
-    f1_uniform_dominant_observation: (
-        0.95,
-        "把 F1 统一显性作为可靠的实验观察。",
-    ),
-    f2_has_discrete_classes_observation: (
-        0.95,
-        "把 F2 呈两类离散表型作为可靠的实验观察。",
-    ),
-    f2_recessive_reappears_observation: (
-        0.95,
-        "把 F2 隐性表型重新出现作为可靠的实验观察。",
-    ),
-    f2_count_observation: (
-        0.95,
-        "把 F2 显性/隐性计数作为可靠的实验观察。",
-    ),
-    f2_dominant_count_specific: (
-        association_parameters.prior_count,
+register_prior(
+    mendelian_segregation_model,
+    value=PRIOR_MENDELIAN_MODEL,
+    justification="在观察单因子杂交结果之前，让孟德尔分离模型保持中性先验。",
+)
+register_prior(
+    blending_inheritance_model,
+    value=1.0 - PRIOR_MENDELIAN_MODEL,
+    justification="在观察单因子杂交结果之前，让混合遗传模型保持中性先验。",
+)
+register_prior(
+    f1_uniform_dominant_observation,
+    value=0.95,
+    justification="把 F1 统一显性作为可靠的实验观察。",
+)
+register_prior(
+    f2_has_discrete_classes_observation,
+    value=0.95,
+    justification="把 F2 呈两类离散表型作为可靠的实验观察。",
+)
+register_prior(
+    f2_recessive_reappears_observation,
+    value=0.95,
+    justification="把 F2 隐性表型重新出现作为可靠的实验观察。",
+)
+register_prior(
+    f2_count_observation,
+    value=0.95,
+    justification="把 F2 显性/隐性计数作为可靠的实验观察。",
+)
+register_prior(
+    f2_dominant_count_specific,
+    value=association_parameters.prior_count,
+    justification=(
         "把具体计数事件在 {Mendel, diffuse} 混合模型下的 Bayes 边际作为"
-        "该中间命题的 prior；它不是观测报告可靠性。",
+        "该中间命题的 prior；它不是观测报告可靠性。"
     ),
-}
+)

@@ -45,11 +45,10 @@ def _write_minimal_source(pkg_dir, name: str) -> None:
 def _write_priors(pkg_dir, name: str) -> None:
     (pkg_dir / name / "priors.py").write_text(
         "from . import evidence_a, evidence_b, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    evidence_a: (0.9, "Direct observation."),\n'
-        '    evidence_b: (0.8, "Supporting observation."),\n'
-        '    hypothesis: (0.4, "Base rate."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(evidence_a, value=0.9, justification="Direct observation.")\n'
+        'register_prior(evidence_b, value=0.8, justification="Supporting observation.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
 

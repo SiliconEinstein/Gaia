@@ -30,7 +30,9 @@ def _write_v6_warrant_package(pkg_dir, *, with_prior: bool = False) -> None:
     if with_prior:
         (pkg_src / "priors.py").write_text(
             "from . import premise\n\n"
-            'PRIORS = {premise: (0.83, "Author confidence in the observed evidence.")}\n'
+            "from gaia.lang import register_prior\n\n"
+            "register_prior(premise, value=0.83, "
+            'justification="Author confidence in the observed evidence.")\n\n'
         )
 
 

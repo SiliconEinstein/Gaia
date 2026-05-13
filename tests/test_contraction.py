@@ -1099,22 +1099,31 @@ def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
 def test_compiled_induction_coarsens_to_observations_and_cpt():
     """Compiled DSL induction should expose observations, not law -> law."""
     from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts
-    from gaia.lang import claim, support
+    from gaia.lang import claim, register_prior, support
     from gaia.lang.compiler.compile import compile_package_artifact
     from gaia.lang.dsl.strategies import induction
     from gaia.lang.runtime.package import CollectedPackage
 
     pkg = CollectedPackage("induction_demo", namespace="github", version="1.0.0")
     with pkg:
-        law = claim("Law.", prior=0.5)
+        law = claim("Law.")
         law.label = "law"
-        obs1 = claim("Observation 1.", prior=0.9)
+        register_prior(law, 0.5, justification="test fixture: neutral law prior")
+        obs1 = claim("Observation 1.")
         obs1.label = "obs1"
-        obs2 = claim("Observation 2.", prior=0.9)
+        register_prior(obs1, 0.9, justification="test fixture: strong observation")
+        obs2 = claim("Observation 2.")
         obs2.label = "obs2"
+        register_prior(obs2, 0.9, justification="test fixture: strong observation")
         sup1 = support([law], obs1, reason="law predicts obs1", prior=0.9)
         sup2 = support([law], obs2, reason="law predicts obs2", prior=0.9)
         induction(sup1, sup2, law=law, reason="independent observations")
+
+    # Resolve register_prior records into metadata["prior"] so coarsen_ir can read them.
+    from gaia.ir import default_resolution_policy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    resolve_priors_to_metadata(pkg.knowledge, default_resolution_policy())
 
     compiled = compile_package_artifact(pkg)
     ir = compiled.to_json()

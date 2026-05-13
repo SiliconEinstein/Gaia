@@ -21,10 +21,12 @@ from gaia.ir.knowledge import (
 from gaia.ir.operator import Operator, OperatorType
 from gaia.ir.parameterization import (
     CROMWELL_EPS,
+    DEFAULT_PRIORITY_ORDER,
     ParameterizationSource,
     PriorRecord,
     ResolutionPolicy,
     StrategyParamRecord,
+    default_resolution_policy,
 )
 from gaia.ir.review import Review, ReviewManifest, ReviewStatus
 from gaia.ir.schemas import (
@@ -47,6 +49,7 @@ from gaia.ir.strategy import (
 __all__ = [
     "BUILTIN_DISTRIBUTION_KINDS",  # Schemas
     "CROMWELL_EPS",  # Parameterization
+    "DEFAULT_PRIORITY_ORDER",  # Parameterization
     "BuiltinDistributionKind",  # Schemas
     "CallableRef",  # Schemas
     "Compose",  # Compose
@@ -74,6 +77,7 @@ __all__ = [
     "Strategy",  # Strategy
     "StrategyParamRecord",  # Parameterization
     "StrategyType",  # Strategy
+    "default_resolution_policy",  # Parameterization
     "formalize_named_strategy",  # Formalization
     "make_qid",  # Knowledge
 ]

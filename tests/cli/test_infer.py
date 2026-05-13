@@ -34,10 +34,9 @@ def test_infer_with_priors_py(tmp_path):
     )
     (pkg_dir / "priors_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    evidence: (0.9, "Direct observation."),\n'
-        '    hypothesis: (0.4, "Base rate."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -110,10 +109,9 @@ def test_infer_with_deduction_strategy(tmp_path):
     )
     (pkg_dir / "deduction_demo" / "priors.py").write_text(
         "from . import law, instance\n\n"
-        "PRIORS = {\n"
-        '    law: (0.9, "Well established."),\n'
-        '    instance: (0.5, "Follows from law."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(law, value=0.9, justification="Well established.")\n'
+        'register_prior(instance, value=0.5, justification="Follows from law.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -140,10 +138,9 @@ def test_infer_gates_unreviewed_v6_actions(tmp_path):
     )
     (pkg_dir / "v6_review_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    evidence: (0.9, "Direct observation."),\n'
-        '    hypothesis: (0.4, "Base rate."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -181,10 +178,9 @@ def test_infer_uses_accepted_review_manifest(tmp_path):
     )
     (pkg_dir / "v6_review_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    evidence: (0.9, "Direct observation."),\n'
-        '    hypothesis: (0.4, "Base rate."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -235,10 +231,9 @@ def test_infer_reattaches_stable_action_label_reviews_after_target_id_changes(tm
     )
     (pkg_dir / "v6_review_retarget" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    evidence: (0.9, "Direct observation."),\n'
-        '    hypothesis: (0.4, "Base rate."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -301,10 +296,9 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
     )
     (pkg_dir / "v6_cpt_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    hypothesis: (0.2, "Low base rate."),\n'
-        '    evidence: (0.9, "Observed evidence."),\n'
-        "}\n"
+        "from gaia.lang import register_prior\n"
+        'register_prior(hypothesis, value=0.2, justification="Low base rate.")\n'
+        'register_prior(evidence, value=0.9, justification="Observed evidence.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -347,7 +341,9 @@ def test_infer_with_accepted_root_observe_review(tmp_path):
         '__all__ = ["root"]\n'
     )
     (pkg_dir / "root_observe_infer" / "priors.py").write_text(
-        'from . import root\n\nPRIORS = {\n    root: (0.82, "Measurement reliability."),\n}\n'
+        "from . import root\n\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(root, value=0.82, justification="Measurement reliability.")\n'
     )
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
@@ -531,7 +527,9 @@ def _write_dep_package(dep_dir, *, name: str, monkeypatch):
     )
     # Write priors.py to give evidence a high prior
     (src / "priors.py").write_text(
-        'from . import evidence\n\nPRIORS = {evidence: (0.85, "Strong evidence")}\n'
+        "from . import evidence\n\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(evidence, value=0.85, justification="Strong evidence")\n\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir))
 

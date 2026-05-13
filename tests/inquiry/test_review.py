@@ -300,7 +300,9 @@ def _write_dep_package(dep_dir: Path, *, name: str, monkeypatch) -> None:
         encoding="utf-8",
     )
     (src / "priors.py").write_text(
-        'from . import evidence\n\nPRIORS = {evidence: (0.85, "Strong evidence")}\n',
+        "from . import evidence\n\n"
+        "from gaia.lang import register_prior\n\n"
+        'register_prior(evidence, value=0.85, justification="Strong evidence")\n\n',
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(dep_dir))

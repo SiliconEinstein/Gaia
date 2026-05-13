@@ -209,6 +209,19 @@ def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str
     if prior is not None and "prior" not in metadata:
         # priors.py writes metadata["prior"] before compilation; that parameterization wins.
         metadata["prior"] = prior
+    # Strip per-record `created_at` from prior_records before serialising to
+    # IR — created_at is wall-clock at register_prior() call time, so leaving
+    # it in the IR JSON makes ir_hash unstable across runs and breaks the
+    # `gaia infer` stale-artifact guard. Resolution has already consumed the
+    # timestamp (as the recency tiebreaker) by this point; the IR-side records
+    # only need to carry value/source_id/justification for diagnostics and
+    # `gaia check --hole` rendering.
+    records = metadata.get("prior_records")
+    if isinstance(records, list):
+        metadata["prior_records"] = [
+            {k: v for k, v in r.items() if k != "created_at"} if isinstance(r, dict) else r
+            for r in records
+        ]
     metadata = _metadata_to_ir(metadata, knowledge_map)
     return metadata or None
 
@@ -1842,9 +1855,23 @@ def compile_package_artifact(
     *,
     references: dict[str, Any] | None = None,
 ) -> CompiledPackage:
-    """Compile collected declarations into Gaia IR plus runtime mappings."""
+    """Compile collected declarations into Gaia IR plus runtime mappings.
+
+    As the first step, applies the package's :class:`ResolutionPolicy`
+    over any per-claim ``metadata['prior_records']`` populated by
+    ``register_prior()`` calls (or by the ``claim(prior=...)`` shortcut, which
+    routes through the ``"claim_inline"`` source). The winning value is
+    written to ``metadata['prior']`` so downstream BP / render / brief
+    consumers see a single resolved prior even when callers bypass the CLI's
+    :func:`gaia.cli._packages.apply_package_priors` step. CLI flows that have
+    already invoked ``apply_package_priors`` store the package-level policy on
+    the package, so this safety net re-runs the same idempotent resolution
+    instead of falling back to the default policy.
+    """
     if references is None:
         references = {}
+
+    _resolve_pkg_priors_with_package_policy(pkg)
 
     knowledge_collection = _KnowledgeCollector(pkg).collect()
     knowledge_map = _assign_knowledge_ids(pkg, knowledge_collection.nodes)
@@ -1961,3 +1988,17 @@ def compile_package(
 ) -> dict[str, Any]:
     """Compile collected declarations into LocalCanonicalGraph JSON."""
     return compile_package_artifact(pkg, references=references).to_json()
+
+
+def _resolve_pkg_priors_with_package_policy(pkg: CollectedPackage) -> None:
+    """Apply the package ResolutionPolicy to every Claim with prior_records.
+
+    The CLI stores any priors.py ``RESOLUTION_POLICY`` on the package before
+    calling the compiler. Direct in-memory callers usually do not, so they get
+    the default policy as a safety net.
+    """
+    from gaia.ir import default_resolution_policy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    policy = pkg._resolution_policy or default_resolution_policy()
+    resolve_priors_to_metadata(pkg.knowledge, policy)
