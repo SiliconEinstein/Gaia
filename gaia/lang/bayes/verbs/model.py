@@ -62,5 +62,5 @@ def model(
         distribution=distribution,
         helper=helper,
     )
-    helper.supports.append(action)
+    helper.from_actions.append(action)
     return helper

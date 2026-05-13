@@ -193,7 +193,7 @@ class Claim(Knowledge):
     """Proposition with prior. Participates in BP."""
 
     prior: float | None = None
-    supported_by: list[Action] = field(default_factory=list)
+    from_actions: list[Action] = field(default_factory=list)
     formula: Any = None
     kind: ClaimKind = ClaimKind.GENERAL
     _param_fields: ClassVar[dict[str, Any]] = {}
@@ -213,6 +213,7 @@ class Claim(Knowledge):
             "label",
             "strategy",
             "prior",
+            "from_actions",
             "supported_by",
             "supports",
             "targets",
@@ -261,8 +262,7 @@ class Claim(Knowledge):
         content: str | None = None,
         *,
         prior: float | None = None,
-        supported_by: list[Any] | None = None,
-        supports: list[Any] | None = None,
+        from_actions: list[Any] | None = None,
         formula: Any = None,
         kind: ClaimKind = ClaimKind.GENERAL,
         **kwargs: Any,
@@ -291,21 +291,10 @@ class Claim(Knowledge):
             parameters=params or knowledge_kwargs.pop("parameters", []),
             **knowledge_kwargs,
         )
-        if supported_by is not None and supports is not None:
-            raise TypeError("Pass either supported_by or legacy supports, not both")
         self.prior = prior
-        self.supported_by = list(supported_by if supported_by is not None else supports or [])
+        self.from_actions = list(from_actions or [])
         self.formula = formula
         self.kind = kind
-
-    @property
-    def supports(self) -> list[Action]:
-        """Compatibility alias for the renamed action back-reference."""
-        return self.supported_by
-
-    @supports.setter
-    def supports(self, value: list[Action]) -> None:
-        self.supported_by = value
 
 
 @dataclass(init=False, eq=False)

@@ -28,7 +28,7 @@ def test_infer_returns_evidence_and_keeps_likelihood_warrant_on_action():
     assert action.hypothesis is h
     assert action.prior_hypothesis == 0.4
     assert action.prior_evidence == 0.3
-    assert action in e.supports
+    assert action in e.from_actions
     assert action.helper is not None
     assert action.helper is not e
     assert action.helper.metadata.get("generated") is True
@@ -59,7 +59,7 @@ def test_infer_returns_evidence_claim_and_defaults_not_h_to_neutral():
 
     action = pkg.actions[0]
     assert result is e
-    assert action in e.supports
+    assert action in e.from_actions
     assert action.evidence is e
     assert action.hypothesis is h
     assert action.p_e_given_h == 0.8
@@ -100,7 +100,7 @@ def test_infer_keyword_evidence_also_returns_evidence():
         p_e_given_not_h=0.05,
         rationale="Strong evidence.",
     )
-    action = result.supports[0]
+    action = result.from_actions[0]
     assert action.evidence is e
     assert action.helper is not None
     assert action.helper.metadata["helper_kind"] == "likelihood"
@@ -126,7 +126,7 @@ def test_infer_string_evidence_creates_and_returns_evidence():
     action = pkg.actions[0]
     assert action.evidence.content == "Planck spectrum observed."
     assert action.hypothesis is h
-    assert action in action.evidence.supports
+    assert action in action.evidence.from_actions
     assert action.helper is not None
     assert action.helper.metadata["helper_kind"] == "likelihood"
     assert (
@@ -167,7 +167,7 @@ def test_infer_registers_action_and_warrant():
     assert action.background == [bg]
     assert action.p_e_given_h == 0.8
     assert action.p_e_given_not_h == 0.2
-    assert action in e.supports
+    assert action in e.from_actions
     assert action.helper is not None
     assert action.warrants == [action.helper]
 

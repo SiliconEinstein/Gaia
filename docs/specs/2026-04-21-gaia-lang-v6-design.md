@@ -255,7 +255,7 @@ s = derive("Energy is quantized.", given=(A, B), rationale="...", label="planck_
 
 At compile time, the label is stored in the compiled target's `metadata.action_label`. Strategy targets retain hash-based `strategy_id` values (`lcs_...`); Operator targets retain hash-based `operator_id` values (`lco_...`). The compiler maintains a bidirectional `action_label ↔ target_id` mapping.
 
-Actions are registered in the collected package when created. `Claim.supports` is a convenience index for InquiryState and user inspection, not the compiler's only source of truth.
+Actions are registered in the collected package when created. `Claim.from_actions` is a convenience index for InquiryState and user inspection, not the compiler's only source of truth.
 
 **Warrants:** `warrants` tracks the helper Claims that explain what a reviewer is accepting (e.g., `Implies(AllTrue(A,B), C)` for derive). ReviewManifest entries are generated for reviewable action targets such as the compiled Strategy or Operator; those entries may reference helper Claims as warrants.
 
@@ -271,7 +271,7 @@ Claim("AllTrue(A, B).", metadata={"generated": True, "helper_kind": "conjunction
 
 No subclass hierarchy for helpers — the `metadata.review` flag distinguishes warrants from mechanical helpers. Only `metadata.review == True` helper Claims go into `Action.warrants`; ReviewManifest entries are generated per reviewable Action target and may reference those helper Claims in the audit question.
 
-### 4.3 Claim.supports
+### 4.3 Claim.from_actions
 
 Each Claim tracks which Actions support it:
 
@@ -279,7 +279,7 @@ Each Claim tracks which Actions support it:
 class Claim(Knowledge):
     content: str
     prior: float | None = None
-    supports: list[Action] = []    # Actions that support this Claim
+    from_actions: list[Action] = []  # Actions that produced/support this Claim
 ```
 
 A Claim can have multiple support paths:
@@ -289,10 +289,10 @@ quantum_hyp = Claim("Energy exchange is quantized.")
 derive(quantum_hyp, given=(planck_result, uv_data), rationale="Planck resolves UV catastrophe.")
 derive(quantum_hyp, given=(photoelectric,), rationale="Photoelectric effect confirms.")
 
-len(quantum_hyp.supports)  # 2
+len(quantum_hyp.from_actions)  # 2
 ```
 
-InquiryState traverses `claim.supports` to build the dependency tree.
+InquiryState traverses `claim.from_actions` to build the dependency tree.
 
 ### 4.4 Lowering
 

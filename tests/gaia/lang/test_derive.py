@@ -23,8 +23,8 @@ def test_derive_attaches_to_supports():
     a = Claim("Premise.")
     c = Claim("Conclusion.")
     derive(c, given=a, rationale="Test.")
-    assert len(c.supports) == 1
-    assert isinstance(c.supports[0], Derive)
+    assert len(c.from_actions) == 1
+    assert isinstance(c.from_actions[0], Derive)
 
 
 def test_derive_multiple_supports():
@@ -33,40 +33,40 @@ def test_derive_multiple_supports():
     c = Claim("C.")
     derive(c, given=a, rationale="From A.")
     derive(c, given=b, rationale="From B.")
-    assert len(c.supports) == 2
+    assert len(c.from_actions) == 2
 
 
 def test_derive_single_given_not_tuple():
     a = Claim("Premise.")
     c = derive("Conclusion.", given=a, rationale="Test.")
-    assert isinstance(c.supports[0].given, tuple)
-    assert len(c.supports[0].given) == 1
+    assert isinstance(c.from_actions[0].given, tuple)
+    assert len(c.from_actions[0].given) == 1
 
 
 def test_derive_with_label():
     a = Claim("Premise.")
     c = derive("Conclusion.", given=a, rationale="Test.", label="my_step")
-    assert c.supports[0].label == "my_step"
+    assert c.from_actions[0].label == "my_step"
 
 
 def test_derive_with_background():
     a = Claim("Premise.")
     bg = Setting("Lab conditions.")
     c = derive("Conclusion.", given=a, background=[bg], rationale="Test.")
-    assert c.supports[0].background == [bg]
+    assert c.from_actions[0].background == [bg]
 
 
 def test_derive_registers_action_with_package():
     with CollectedPackage("v6_test") as pkg:
         a = Claim("Premise.")
         c = derive("Conclusion.", given=a, rationale="Test.")
-    assert pkg.actions == [c.supports[0]]
+    assert pkg.actions == [c.from_actions[0]]
 
 
 def test_derive_creates_reviewable_implication_warrant():
     a = Claim("Premise.")
     c = derive("Conclusion.", given=a, rationale="A implies C.")
-    action = c.supports[0]
+    action = c.from_actions[0]
     assert len(action.warrants) == 1
     warrant = action.warrants[0]
     assert warrant.metadata["generated"] is True

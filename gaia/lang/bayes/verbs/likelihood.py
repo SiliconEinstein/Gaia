@@ -35,7 +35,7 @@ def _as_claim_tuple(
 
 
 def _model_action(helper: Claim) -> PredictiveModel:
-    for action in helper.supports:
+    for action in helper.from_actions:
         if isinstance(action, PredictiveModel) and action.helper is helper:
             return action
     raise TypeError("likelihood() model entries must be Claims returned by bayes.model()")
@@ -251,5 +251,5 @@ def likelihood(
         precomputed=dict(precomputed) if precomputed is not None else None,
         log_likelihoods=log_likelihoods,
     )
-    helper.supports.append(action)
+    helper.from_actions.append(action)
     return helper

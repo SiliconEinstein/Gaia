@@ -138,7 +138,7 @@ class Likelihood(Probabilistic):
 
 `helper` (inherited from `Probabilistic`) carries the Bayes judgment: `"Given <data summary>, <model.label> is preferred over <against labels> (BF≈…)"`. Its `metadata["helper_kind"] = "model_preference"` and `metadata["relation"]` carry the structured comparison record (per-model log-likelihoods, pairwise BFs, exclusivity mode). This mirrors `infer()`'s helper convention exactly.
 
-**Field types are `Claim`, not `PredictiveModel`.** Following `Infer`'s storage pattern (which stores `hypothesis: Claim`, `evidence: Claim`), `Likelihood` stores the **helper Claims** returned by `bayes.model(...)`. The owning `PredictiveModel` Action is reachable via `Claim.supports`. This keeps the `roles.py` projection uniform — Bayes fields are Claim references like every other Action — and lets `roles_for_claim(M_3to1_helper, pkg)` naturally surface its `compared_model` role inside `Likelihood`.
+**Field types are `Claim`, not `PredictiveModel`.** Following `Infer`'s storage pattern (which stores `hypothesis: Claim`, `evidence: Claim`), `Likelihood` stores the **helper Claims** returned by `bayes.model(...)`. The owning `PredictiveModel` Action is reachable via `Claim.from_actions`. This keeps the `roles.py` projection uniform — Bayes fields are Claim references like every other Action — and lets `roles_for_claim(M_3to1_helper, pkg)` naturally surface its `compared_model` role inside `Likelihood`.
 
 ---
 
@@ -197,7 +197,7 @@ bayes.likelihood(
 ) -> Claim       # returns helper Claim ("M_a is preferred over M_b given D")
 ```
 
-Note: `model=` and `against=` are typed as `Claim` because what the user passes is the **return value** of `bayes.model(...)` — which is the PredictiveModel Action's helper Claim. The Likelihood lowering walks back from the helper Claim to its owning `PredictiveModel` Action via `Claim.supports`. Type-checking that this Claim was produced by a `PredictiveModel` (and not, say, a plain `Predict`) is enforced at compile time, not by Python's static type system.
+Note: `model=` and `against=` are typed as `Claim` because what the user passes is the **return value** of `bayes.model(...)` — which is the PredictiveModel Action's helper Claim. The Likelihood lowering walks back from the helper Claim to its owning `PredictiveModel` Action via `Claim.from_actions`. Type-checking that this Claim was produced by a `PredictiveModel` (and not, say, a plain `Predict`) is enforced at compile time, not by Python's static type system.
 
 `precomputed=` is still keyed by the original **hypothesis Claims**, not by the
 model-helper Claims passed through `model=` / `against=`. The new Action shape
@@ -268,7 +268,7 @@ Step 2: Build the helper Claim ("M_a preferred over M_b given D"), populate
         helper.metadata["helper_kind"] = "model_preference".
 
 Step 3: Construct the Likelihood Action with helper, model, against, data,
-        log_likelihoods. Append to data[0].supports (and to the package).
+        log_likelihoods. Append to data[0].from_actions (and to the package).
 
 Step 4: Per H_i, emit an IR `infer` strategy with
         StrategyParamRecord.conditional_probabilities = [0.5, p1_i]
@@ -423,7 +423,7 @@ cmp = bayes.likelihood(
 # (unclamped BF≈7e21); the existing BP CPT clamp yields posterior odds≈498.
 # cmp.metadata["helper_kind"] == "model_preference"
 # cmp.metadata["relation"]    == { log_likelihoods, pairwise_bf, exclusivity, ... }
-# cmp.supports                == [Likelihood Action]
+# cmp.from_actions           == [Likelihood Action]
 ```
 
 Auto-generated `Exclusive` between H_3to1 and H_null is appended to the package
@@ -524,8 +524,8 @@ The design is implemented when:
 2. `from gaia.lang import bayes` exposes `bayes.model`, `bayes.likelihood`, and the distribution literals, while importing `gaia.lang` alone does not eagerly import `gaia.lang.bayes` or scipy.
 3. `gaia.lang.runtime.action.Predict` exists; `gaia.lang.runtime.action` imports nothing from `gaia.lang.bayes`.
 4. `gaia.lang.bayes.runtime.actions.PredictiveModel` and `Likelihood` exist and pass `isinstance(_, Action)` checks; `Likelihood` additionally passes `isinstance(_, Probabilistic)`.
-5. `bayes.model(...)` returns a Claim whose `.supports` contains a `PredictiveModel` Action with populated `hypothesis / observable / distribution / helper`.
-6. `bayes.likelihood(...)` returns a Claim whose `.metadata["helper_kind"] == "model_preference"` and whose `.supports` contains a `Likelihood` Action with populated `model / against / data / log_likelihoods`.
+5. `bayes.model(...)` returns a Claim whose `.from_actions` contains a `PredictiveModel` Action with populated `hypothesis / observable / distribution / helper`.
+6. `bayes.likelihood(...)` returns a Claim whose `.metadata["helper_kind"] == "model_preference"` and whose `.from_actions` contains a `Likelihood` Action with populated `model / against / data / log_likelihoods`.
 7. `Predict` compiles with `pattern="prediction"` and the generated review prompt is a prediction-specific prompt, not the derive prompt.
 8. `roles_for_package(pkg)` surfaces all six Bayes role names from §9 for the canonical Mendel package.
 9. The Mendel golden pipeline (per #523 §7.4) passes in both documented modes: illustrative `precomputed={H_a: -1.2, H_b: -5.1}` recovers odds≈47, and the real Binomial(395, p) pipeline records raw log-likelihoods in metadata while BP posterior odds are clamp-limited around 498.

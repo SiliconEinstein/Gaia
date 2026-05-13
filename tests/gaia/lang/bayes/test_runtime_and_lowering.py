@@ -99,7 +99,7 @@ def test_bayes_module_does_not_extend_factor_or_operator_enums():
 def test_model_and_likelihood_are_action_backed_helper_claims():
     pkg, h_31, _h_null, data, model_31, model_null, cmp_result = _compiled_mendel_bayes()
 
-    model_action = model_31.supports[0]
+    model_action = model_31.from_actions[0]
     assert isinstance(model_action, PredictiveModel)
     assert model_action.hypothesis is h_31
     assert model_action.observable.symbol == "k"
@@ -107,7 +107,7 @@ def test_model_and_likelihood_are_action_backed_helper_claims():
     assert model_31.metadata["helper_kind"] == "predictive_model"
     assert model_31.metadata["bayes"]["role"] == "prediction"
 
-    cmp_action = cmp_result.supports[0]
+    cmp_action = cmp_result.from_actions[0]
     assert isinstance(cmp_action, Likelihood)
     assert cmp_action.model is model_31
     assert cmp_action.against == (model_null,)
@@ -148,7 +148,7 @@ def test_observation_noise_metadata_serializes_distribution_literal():
 
 def test_likelihood_compiles_to_reviewable_infer_strategies_and_exhaustive_complement():
     pkg, h_31, h_null, _data, _model_31, _model_null, cmp_result = _compiled_mendel_bayes()
-    cmp_result.supports[0].precomputed = {h_31: -1.2, h_null: -5.1}
+    cmp_result.from_actions[0].precomputed = {h_31: -1.2, h_null: -5.1}
 
     compiled = compile_package_artifact(pkg)
     graph = compiled.graph
@@ -240,7 +240,7 @@ def test_likelihood_precomputed_requires_every_model_hypothesis():
     finally:
         _current_package.reset(token)
 
-    _cmp_result.supports[0].precomputed = {h_31: -1.0}
+    _cmp_result.from_actions[0].precomputed = {h_31: -1.0}
     with pytest.raises(ValueError, match="precomputed likelihoods must cover"):
         compile_package_artifact(pkg)
 
