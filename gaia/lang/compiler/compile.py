@@ -1177,8 +1177,6 @@ class _ActionCompiler:
                 p_e_given_not_h=p_e_given_not_h,
                 given_count=len(given_ids),
             ),
-            prior_hypothesis=action.prior_hypothesis,
-            prior_evidence=action.prior_evidence,
             metadata=metadata,
         )
         self._record_action_target(action_label, strategy.strategy_id)
@@ -1205,8 +1203,6 @@ class _ActionCompiler:
             steps=_action_steps(action.rationale),
             p_a_given_b=action.p_a_given_b,
             p_b_given_a=action.p_b_given_a,
-            prior_a=action.prior_a,
-            prior_b=action.prior_b,
             metadata=metadata,
         )
         self._record_action_target(action_label, strategy.strategy_id)

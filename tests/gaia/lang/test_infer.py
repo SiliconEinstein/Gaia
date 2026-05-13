@@ -17,8 +17,6 @@ def test_infer_returns_evidence_and_keeps_likelihood_warrant_on_action():
             hypothesis=h,
             p_e_given_h=0.9,
             p_e_given_not_h=0.05,
-            prior_hypothesis=0.4,
-            prior_evidence=0.3,
             rationale="Strong evidence.",
         )
 
@@ -26,8 +24,6 @@ def test_infer_returns_evidence_and_keeps_likelihood_warrant_on_action():
     assert result is e
     assert action.evidence is e
     assert action.hypothesis is h
-    assert action.prior_hypothesis == 0.4
-    assert action.prior_evidence == 0.3
     assert action in e.from_actions
     assert action.helper is not None
     assert action.helper is not e
@@ -40,10 +36,29 @@ def test_infer_returns_evidence_and_keeps_likelihood_warrant_on_action():
         "evidence": e,
         "p_e_given_h": 0.9,
         "p_e_given_not_h": 0.05,
-        "prior_hypothesis": 0.4,
-        "prior_evidence": 0.3,
     }
     assert action.warrants == [action.helper]
+
+
+def test_infer_rejects_inline_prior_keywords():
+    h = Claim("H.")
+    e = Claim("E.")
+
+    with pytest.raises(TypeError, match="prior_hypothesis"):
+        infer(
+            e,
+            hypothesis=h,
+            p_e_given_h=0.9,
+            prior_hypothesis=0.4,
+        )
+
+    with pytest.raises(TypeError, match="prior_evidence"):
+        infer(
+            e,
+            hypothesis=h,
+            p_e_given_h=0.9,
+            prior_evidence=0.3,
+        )
 
 
 def test_infer_returns_evidence_claim_and_defaults_not_h_to_neutral():

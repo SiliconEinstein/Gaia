@@ -106,7 +106,7 @@ def test_associate_lowers_to_pairwise_potential_without_double_counting_marginal
     helper = "github:lowertest::assoc"
     g = _lg(
         knowledges=[
-            Knowledge(id=a, type="claim", content="A"),
+            Knowledge(id=a, type="claim", content="A", metadata={"prior": 0.25}),
             Knowledge(id=b, type="claim", content="B"),
             Knowledge(id=helper, type="claim", content="A is associated with B"),
         ],
@@ -118,7 +118,6 @@ def test_associate_lowers_to_pairwise_potential_without_double_counting_marginal
                 conclusion=helper,
                 p_a_given_b=0.75,
                 p_b_given_a=0.20,
-                prior_a=0.25,
             )
         ],
     )
@@ -159,8 +158,8 @@ def test_associate_lowering_rejects_bayes_inconsistent_marginals():
     helper = "github:lowertest::assoc"
     g = _lg(
         knowledges=[
-            Knowledge(id=a, type="claim", content="A"),
-            Knowledge(id=b, type="claim", content="B"),
+            Knowledge(id=a, type="claim", content="A", metadata={"prior": 0.25}),
+            Knowledge(id=b, type="claim", content="B", metadata={"prior": 0.50}),
             Knowledge(id=helper, type="claim", content="A is associated with B"),
         ],
         strategies=[
@@ -171,8 +170,6 @@ def test_associate_lowering_rejects_bayes_inconsistent_marginals():
                 conclusion=helper,
                 p_a_given_b=0.75,
                 p_b_given_a=0.20,
-                prior_a=0.25,
-                prior_b=0.50,
             )
         ],
     )
@@ -181,13 +178,13 @@ def test_associate_lowering_rejects_bayes_inconsistent_marginals():
         lower_local_graph(g)
 
 
-def test_infer_inline_priors_lower_as_unary_providers():
+def test_infer_claim_metadata_priors_lower_as_unary_providers():
     h = "github:lowertest::h"
     e = "github:lowertest::e"
     g = _lg(
         knowledges=[
-            Knowledge(id=h, type="claim", content="H"),
-            Knowledge(id=e, type="claim", content="E"),
+            Knowledge(id=h, type="claim", content="H", metadata={"prior": 0.25}),
+            Knowledge(id=e, type="claim", content="E", metadata={"prior": 0.1}),
         ],
         strategies=[
             Strategy(
@@ -196,8 +193,6 @@ def test_infer_inline_priors_lower_as_unary_providers():
                 premises=[h],
                 conclusion=e,
                 conditional_probabilities=[0.2, 0.8],
-                prior_hypothesis=0.25,
-                prior_evidence=0.1,
             )
         ],
     )
@@ -206,30 +201,6 @@ def test_infer_inline_priors_lower_as_unary_providers():
 
     assert fg.unary_factors[h] == pytest.approx(0.25)
     assert fg.unary_factors[e] == pytest.approx(0.1)
-
-
-def test_infer_inline_prior_conflicts_with_existing_prior():
-    h = "github:lowertest::h"
-    e = "github:lowertest::e"
-    g = _lg(
-        knowledges=[
-            Knowledge(id=h, type="claim", content="H", metadata={"prior": 0.6}),
-            Knowledge(id=e, type="claim", content="E"),
-        ],
-        strategies=[
-            Strategy(
-                scope="local",
-                type="infer",
-                premises=[h],
-                conclusion=e,
-                conditional_probabilities=[0.2, 0.8],
-                prior_hypothesis=0.25,
-            )
-        ],
-    )
-
-    with pytest.raises(ValueError, match="conflicting prior providers"):
-        lower_local_graph(g)
 
 
 def test_infer_given_switch_cpt_is_neutral_when_gate_unlikely():

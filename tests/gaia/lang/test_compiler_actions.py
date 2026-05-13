@@ -166,8 +166,6 @@ def test_compile_infer_action_to_strategy_cpt():
             background=[bg],
             p_e_given_h=0.8,
             p_e_given_not_h=0.2,
-            prior_hypothesis=0.4,
-            prior_evidence=0.3,
             rationale="Bayes.",
             label="bayes_update",
         )
@@ -185,8 +183,6 @@ def test_compile_infer_action_to_strategy_cpt():
     assert strategy.metadata["action_label"] == "github:v6_actions::action::bayes_update"
     assert strategy.steps[0].reasoning == "Bayes."
     assert strategy.conditional_probabilities == [0.2, 0.8]
-    assert strategy.prior_hypothesis == 0.4
-    assert strategy.prior_evidence == 0.3
     assert not hasattr(compiled, "strategy_param_records")
 
     stat_support = _knowledge_by_label(compiled)["likelihood_helper"]
@@ -198,8 +194,6 @@ def test_compile_infer_action_to_strategy_cpt():
         "evidence": "github:v6_actions::e",
         "p_e_given_h": 0.8,
         "p_e_given_not_h": 0.2,
-        "prior_hypothesis": 0.4,
-        "prior_evidence": 0.3,
     }
 
 
@@ -283,8 +277,6 @@ def test_compile_associate_action_to_association_strategy():
             b,
             p_a_given_b=0.75,
             p_b_given_a=0.20,
-            prior_a=0.25,
-            prior_b=1 / 15,
             rationale="Observed cohort association.",
             label="assoc_ab",
         )
@@ -295,8 +287,6 @@ def test_compile_associate_action_to_association_strategy():
             "b": b,
             "p_a_given_b": 0.75,
             "p_b_given_a": 0.20,
-            "prior_a": 0.25,
-            "prior_b": 1 / 15,
         }
 
     compiled = compile_package_artifact(pkg)
@@ -306,8 +296,6 @@ def test_compile_associate_action_to_association_strategy():
     assert strategy.conclusion == "github:v6_actions::association_helper"
     assert strategy.p_a_given_b == 0.75
     assert strategy.p_b_given_a == 0.20
-    assert strategy.prior_a == 0.25
-    assert strategy.prior_b == 1 / 15
     assert strategy.metadata["action_label"] == "github:v6_actions::action::assoc_ab"
     assert strategy.metadata["pattern"] == "association"
 
@@ -320,9 +308,30 @@ def test_compile_associate_action_to_association_strategy():
         "b": "github:v6_actions::b",
         "p_a_given_b": 0.75,
         "p_b_given_a": 0.20,
-        "prior_a": 0.25,
-        "prior_b": 1 / 15,
     }
+
+
+def test_associate_rejects_inline_prior_keywords():
+    a = Claim("A.", prior=0.25)
+    b = Claim("B.", prior=1 / 15)
+
+    with pytest.raises(TypeError, match="prior_a"):
+        associate(
+            a,
+            b,
+            p_a_given_b=0.75,
+            p_b_given_a=0.20,
+            prior_a=0.25,
+        )
+
+    with pytest.raises(TypeError, match="prior_b"):
+        associate(
+            a,
+            b,
+            p_a_given_b=0.75,
+            p_b_given_a=0.20,
+            prior_b=1 / 15,
+        )
 
 
 def test_compile_depends_on_action_to_formalization_manifest_only():

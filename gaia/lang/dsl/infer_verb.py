@@ -80,8 +80,6 @@ def _infer_relation(
     given_tuple: tuple[Claim, ...],
     p_e_given_h: float | Claim | None,
     p_e_given_not_h: float | Claim | None,
-    prior_hypothesis: float | None,
-    prior_evidence: float | None,
 ) -> dict[str, Any]:
     relation: dict[str, Any] = {
         "type": "infer",
@@ -89,8 +87,6 @@ def _infer_relation(
         "evidence": evidence,
         "p_e_given_h": p_e_given_h,
         "p_e_given_not_h": p_e_given_not_h,
-        "prior_hypothesis": prior_hypothesis,
-        "prior_evidence": prior_evidence,
     }
     if given_tuple:
         relation["given"] = given_tuple
@@ -105,8 +101,6 @@ def infer(
     background: list[Knowledge] | None = None,
     p_e_given_h: float | Claim | None = None,
     p_e_given_not_h: float | Claim | None = 0.5,
-    prior_hypothesis: float | None = None,
-    prior_evidence: float | None = None,
     rationale: str = "",
     label: str | None = None,
     **legacy_kwargs: Any,
@@ -140,8 +134,6 @@ def infer(
         given_tuple=given_tuple,
         p_e_given_h=p_e_given_h,
         p_e_given_not_h=p_e_given_not_h,
-        prior_hypothesis=prior_hypothesis,
-        prior_evidence=prior_evidence,
     )
     helper = Claim(
         f"{_claim_ref(evidence)} statistically supports {_claim_ref(hypothesis)}.",
@@ -161,8 +153,6 @@ def infer(
         given=given_tuple,
         p_e_given_h=p_e_given_h,
         p_e_given_not_h=p_e_given_not_h,
-        prior_hypothesis=prior_hypothesis,
-        prior_evidence=prior_evidence,
         helper=helper,
     )
     action.warrants.append(helper)
