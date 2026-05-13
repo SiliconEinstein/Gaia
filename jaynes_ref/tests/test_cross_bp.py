@@ -486,7 +486,8 @@ def test_strategy_deduction_chain_two_steps():
 
 
 def test_jt_handles_hard_evidence_correctly():
-    """gaia.bp.JunctionTreeInference correctly applies ``graph.hard_evidence``
+    """gaia.bp.JunctionTreeInference correctly applies ``graph.hard_evidence``.
+
     when seeding clique potentials.  This test verifies that JT matches exact
     inference on graphs with hard-pinned conclusions (relational operators).
     """
@@ -515,7 +516,8 @@ def test_jt_handles_hard_evidence_correctly():
 
 
 def test_deduction_bp_strict_gap_documented():
-    """Deduction sits on a known divergence: BP keeps V2-style CPT(π_C, 1-ε)
+    """Deduction sits on a known divergence: BP keeps V2-style CPT(π_C, 1-ε).
+
     plus a class-IV unary on C, while jaynes-strict uses a δ LogicalConstraint
     and drops C's unary as a soft prior.  Both are internally consistent;
     they encode different information.  Pin the numerical gap so any fix
@@ -541,7 +543,8 @@ def test_deduction_bp_strict_gap_documented():
 
 
 def test_support_bp_strict_gap_documented():
-    """Class-III' SUPPORT also diverges: BP collapses helper to a hard
+    """Class-III' SUPPORT also diverges: BP collapses helper to a hard.
+
     SOFT_ENTAILMENT/CONDITIONAL with V3 p1_eff, jaynes-strict keeps the
     helper as a real 3-variable LogicalConstraint with its own π_imp.
     Pin both sides numerically.

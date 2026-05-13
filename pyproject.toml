@@ -189,6 +189,7 @@ ignore = [
     "RUF002",
     "RUF003",
 ]
+"jaynes_ref/tests/**/*.py" = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "RUF001", "RUF002", "RUF003", "E741"]
 "gaia/trace/**/*.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/bp/*.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/inquiry/**/*.py" = ["RUF001", "RUF002", "RUF003"]

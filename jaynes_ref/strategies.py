@@ -268,8 +268,8 @@ def _lower_infer(
     s,
     *,
     ctx: StrategyLoweringContext,
-    _priors: dict[str, float],
-    _metadata_priors: dict[str, float],
+    priors: dict[str, float],  # noqa: ARG001
+    metadata_priors: dict[str, float],  # noqa: ARG001
     strat_params: dict[str, list[float]],
 ) -> None:
     sid = s.strategy_id
@@ -338,7 +338,7 @@ def _resolve_associate_marginal(
     *,
     priors: dict[str, float],
     metadata_priors: dict[str, float],
-    _ctx: StrategyLoweringContext,
+    ctx: StrategyLoweringContext,  # noqa: ARG001
     strategy_id: str | None,
     field_name: str,
 ) -> float | None:
