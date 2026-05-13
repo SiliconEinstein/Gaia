@@ -13,6 +13,8 @@ In v0.5+ the prior pipeline is multi-source. Two author-facing entry points:
 Any explicit ``register_prior()`` call wins over the inline shortcut.
 """
 
+from datetime import UTC, datetime
+
 import pytest
 
 from gaia.lang import (
@@ -27,6 +29,7 @@ from gaia.lang import (
 from gaia.lang.dsl.register_prior import (
     DEFAULT_SOURCE_ID,
     PRIOR_RECORDS_METADATA_KEY,
+    get_prior_records,
 )
 
 
@@ -112,6 +115,34 @@ def test_register_prior_appends_record_with_default_source():
     assert "created_at" in records[0]
 
 
+def test_get_prior_records_returns_copy_and_rejects_non_claim():
+    c = claim("Subject S smokes daily.")
+    register_prior(c, value=0.3, justification="literature base rate")
+
+    records = get_prior_records(c)
+    assert records == c.metadata[PRIOR_RECORDS_METADATA_KEY]
+    records.append({"value": 0.9, "source_id": "agent_x"})
+    assert len(c.metadata[PRIOR_RECORDS_METADATA_KEY]) == 1
+
+    with pytest.raises(TypeError, match="expects a Claim"):
+        get_prior_records("not a claim")  # type: ignore[arg-type]
+
+
+def test_get_prior_records_returns_empty_for_malformed_metadata():
+    c = claim("Subject S smokes daily.")
+    c.metadata[PRIOR_RECORDS_METADATA_KEY] = "reserved key collision"
+
+    assert get_prior_records(c) == []
+
+
+def test_register_prior_rejects_reserved_metadata_collision():
+    c = claim("Subject S smokes daily.")
+    c.metadata[PRIOR_RECORDS_METADATA_KEY] = "reserved key collision"
+
+    with pytest.raises(TypeError, match="reserved"):
+        register_prior(c, value=0.3, justification="literature base rate")
+
+
 def test_register_prior_supports_multiple_named_sources():
     """Calling register_prior twice with different sources yields two records."""
     c = claim("Subject S smokes daily.")
@@ -161,3 +192,91 @@ def test_register_prior_rejects_bool_value():
     c = claim("Bool test.")
     with pytest.raises(TypeError, match="numeric scalar"):
         register_prior(c, True, justification="bad")  # type: ignore[arg-type]
+
+
+def test_register_prior_rejects_nan_value():
+    c = claim("NaN test.")
+    with pytest.raises(ValueError, match="finite"):
+        register_prior(c, float("nan"), justification="bad")
+
+
+def test_resolve_priors_to_metadata_ignores_non_claims_and_claims_without_records():
+    from gaia.ir import default_resolution_policy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    c = claim("No prior records.")
+
+    resolve_priors_to_metadata([object(), c], default_resolution_policy())  # type: ignore[list-item]
+
+    assert "prior" not in c.metadata
+    assert "prior_source_id" not in c.metadata
+
+
+def test_resolve_priors_to_metadata_handles_datetime_and_missing_created_at():
+    from gaia.ir import ResolutionPolicy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    c = claim("Subject S smokes daily.")
+    c.metadata[PRIOR_RECORDS_METADATA_KEY] = [
+        {
+            "value": 0.3,
+            "source_id": "agent_old",
+            "justification": "legacy IR record",
+        },
+        {
+            "value": 0.7,
+            "source_id": "agent_new",
+            "justification": "fresh record",
+            "created_at": datetime(2026, 1, 1, tzinfo=UTC),
+        },
+    ]
+
+    resolve_priors_to_metadata([c], ResolutionPolicy(strategy="latest"))
+
+    assert c.metadata["prior"] == 0.7
+    assert c.metadata["prior_source_id"] == "agent_new"
+
+
+def test_resolve_priors_to_metadata_rejects_malformed_prior_records():
+    from gaia.ir import default_resolution_policy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    c = claim("Subject S smokes daily.")
+    c.metadata[PRIOR_RECORDS_METADATA_KEY] = "reserved key collision"
+
+    with pytest.raises(TypeError, match="reserved"):
+        resolve_priors_to_metadata([c], default_resolution_policy())
+
+
+def test_resolve_priors_to_metadata_rejects_malformed_created_at():
+    from gaia.ir import default_resolution_policy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    c = claim("Subject S smokes daily.")
+    c.metadata[PRIOR_RECORDS_METADATA_KEY] = [
+        {
+            "value": 0.3,
+            "source_id": "agent_x",
+            "justification": "bad timestamp",
+            "created_at": 123,
+        }
+    ]
+
+    with pytest.raises(ValueError, match="malformed created_at"):
+        resolve_priors_to_metadata([c], default_resolution_policy())
+
+
+def test_resolve_priors_to_metadata_leaves_metadata_when_policy_has_no_winner():
+    from gaia.ir import ResolutionPolicy
+    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    c = claim("Subject S smokes daily.")
+    register_prior(c, value=0.3, justification="literature base rate")
+
+    resolve_priors_to_metadata(
+        [c],
+        ResolutionPolicy(strategy="source", source_id="missing_source"),
+    )
+
+    assert "prior" not in c.metadata
+    assert "prior_source_id" not in c.metadata
