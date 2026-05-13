@@ -3,9 +3,9 @@
 > **Status:** Current canonical
 
 > 相关文档：
-> - [01-overview.md](../gaia-ir/01-overview.md)
+> - [Gaia IR design](../gaia-ir/01-overview.md)
 > - [../theory/04-reasoning-strategies.md](../theory/04-reasoning-strategies.md)
-> - [../gaia-lang/dsl.md](../gaia-lang/dsl.md)
+> - [Gaia Lang design](../gaia-lang/knowledge-and-reasoning.md)
 
 ## 目的
 

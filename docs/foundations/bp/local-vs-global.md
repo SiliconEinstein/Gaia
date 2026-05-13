@@ -96,7 +96,7 @@ Global 推理的 FactorGraph 是持久化的——integrate 时写入存储，BP
 
 ## 相关文档
 
-- [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md) -- 覆盖层 schema 和完整性校验
+- [Gaia IR validation](../gaia-ir/08-validation.md) -- 覆盖层 schema 和完整性校验
 - [inference.md](inference.md) -- BP 如何在 Gaia IR 上运行（算法细节）
 - [potentials.md](potentials.md) -- factor potential 函数
 

@@ -1,6 +1,10 @@
 # 基础文档
 
-Gaia 的规范参考文档，按架构层级组织。
+Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Gaia IR 设计、推理后端、审查管线和 CLI 工作流组织。
+
+与 Python 模块一一对应的 per-name API 文档不在这里维护；请看
+[Python API Reference](../reference/python-api.md)，它从当前代码的 docstring
+和 type hints 自动生成。这里保留的是心智模型、设计边界、持久化契约和跨模块语义。
 
 ## theory/ — 理论基础
 
@@ -24,13 +28,20 @@ Gaia 的规范参考文档，按架构层级组织。
 ## 生态系统 — 设计哲学（极少变更）
 
 - [产品范围](ecosystem/01-product-scope.md) — Gaia 是什么、为何存在
-- [架构概览](gaia-ir/01-overview.md) — 三层管线、CLI↔LKM 契约、IR/参数/信念分层
 - [去中心化架构](ecosystem/02-decentralized-architecture.md) — 去中心化包管理和推理架构
 - [包的创建与发布](ecosystem/03-authoring-and-publishing.md) — 作者从创建包到发布的旅程
 - [Registry 运作](ecosystem/04-registry-operations.md) — 注册、去重、推理链激活
 - [审核与策展](ecosystem/05-review-and-curation.md) — Review Server + LKM curation
 - [多级推理与质量涌现](ecosystem/06-belief-flow-and-quality.md) — 三级推理、错误修正
 - [文档维护策略](../documentation-policy.md) — 文档维护规则
+
+## Gaia Lang — 编著语言设计
+
+- [知识类型与推理语义](gaia-lang/knowledge-and-reasoning.md) — Gaia Lang 的心智模型、Action 层、helper claim 和 legacy 边界
+- [谓词逻辑](gaia-lang/predicate-logic.md) — Variable、Domain、Formula AST、forall/exists 与 grounding/lowering 边界
+- [Bayes 语义](gaia-lang/bayes.md) — 模型、预测分布、似然和 Bayes action 的语义边界
+- [包模型](gaia-lang/package.md) — pyproject.toml、命名规范、目录布局、priors.py
+- [Python API Reference](../reference/python-api.md) — per-name API、signature 和 docstring 自动生成
 
 ## Gaia IR — CLI 与 LKM 之间的共享契约
 
@@ -42,13 +53,7 @@ Gaia 的规范参考文档，按架构层级组织。
 - [参数定义](gaia-ir/06-parameterization.md) — 原子记录、resolution policy
 - [Lowering](gaia-ir/07-lowering.md) — Gaia IR 被 backend 消费时的 lowering 边界
 - [Validation](gaia-ir/08-validation.md) — Gaia IR 的结构校验与分层边界
-
-## Gaia Lang — 编著语言
-
-- [DSL 参考](gaia-lang/dsl.md) — Python DSL 完整参考（claim/setting/question、operators、strategies）
-- [包模型](gaia-lang/package.md) — pyproject.toml、命名规范、目录布局、priors.py
-- [知识类型与推理语义](gaia-lang/knowledge-and-reasoning.md) — 知识类型语义、算子势函数、策略展开、DSL→IR 映射
-- [谓词逻辑](gaia-lang/predicate-logic.md) — Variable、Domain、Formula AST、forall/exists 与 grounding/lowering 边界
+- [Gaia IR API](../reference/ir.md) — Pydantic models、字段、类型签名和源码入口自动生成
 
 ## BP — 基于 Gaia IR 的计算
 

@@ -54,7 +54,7 @@ LKM 内部可能区分快速增量更新（snapshot）和定期全量收敛（gl
 
 1. **带合格 assigned review reports 的包版本被 Official Registry 接收** — 新命题的 prior 和推理链参数进入输入
 2. **curation 包合并** — duplicate / contradiction / refinement / connection 的结构变更进入图
-3. **撤回 / 修正合并**（未引入，见 [Gaia IR §5](../gaia-ir/02-gaia-ir.md#5-retraction-deferred)） — 已有参数或结构被回收，需要回到保守状态
+3. **撤回 / 修正合并**（未引入，见 [Gaia IR design](../gaia-ir/01-overview.md)） — 已有参数或结构被回收，需要回到保守状态
 4. **定期全量收敛** — 处理增量更新无法完整覆盖的长链传播和跨 Registry 关系
 
 ### 做什么

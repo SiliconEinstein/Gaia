@@ -1,4 +1,4 @@
-.PHONY: bootstrap lint typecheck test check
+.PHONY: bootstrap lint typecheck test docs-build docs-serve check
 
 UV ?= uv
 PYTEST_ARGS ?=
@@ -23,5 +23,11 @@ typecheck:
 
 test:
 	$(UV) run pytest $(PYTEST_ARGS)
+
+docs-build:
+	$(UV) run --extra docs mkdocs build --strict
+
+docs-serve:
+	$(UV) run --extra docs mkdocs serve
 
 check: lint test

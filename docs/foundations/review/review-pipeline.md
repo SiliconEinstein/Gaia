@@ -170,7 +170,7 @@ The `--mode publish` ranking weighs diagnostics differently: it is meant to gate
          everything else stays at MaxEnt)
 ```
 
-For the BP semantics of accepted vs unreviewed warrants see [../bp/inference.md](../bp/inference.md) and [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md).
+For the BP semantics of accepted vs unreviewed warrants see [../bp/inference.md](../bp/inference.md) and the [Gaia IR parameterization contract](../gaia-ir/06-parameterization.md).
 
 ## 8. Code Map
 

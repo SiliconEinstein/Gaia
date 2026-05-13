@@ -2,13 +2,13 @@
 
 > **Status:** Current canonical (v0.5)
 
-本文档描述 belief propagation 如何在 Gaia IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。backend-facing lowering 边界见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。`gaia infer` CLI 入口与 priors / dep_beliefs / depth 见 [../cli/inference.md](../cli/inference.md)。
+本文档描述 belief propagation 如何在 Gaia IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。backend-facing lowering 设计见 [Gaia IR lowering](../gaia-ir/07-lowering.md)。`gaia infer` CLI 入口与 priors / dep_beliefs / depth 见 [../cli/inference.md](../cli/inference.md)。
 
 ## FactorGraph
 
 ### 概念
 
-FactorGraph 是 variable node（变量节点）和 factor node（因子节点）之间的二部图。它是 BP 算法操作的数据结构，由 Gaia IR 经过 [lowering](../gaia-ir/07-lowering.md) 产生。
+FactorGraph 是 variable node（变量节点）和 factor node（因子节点）之间的二部图。它是 BP 算法操作的数据结构，由 Gaia IR lowering API 产生。
 
 FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 - CLI 本地推理时，FactorGraph 在内存中临时构建
@@ -43,7 +43,7 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 - `Compose` 不产生 BP 因子（它是 IR 一等节点但语义上是 authoring container）。
 - 已废弃的 `noisy_and` 仍然支持：lower 为 CONJUNCTION + SOFT_ENTAILMENT。
 
-契约详见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md) 和 [cli/inference.md](../cli/inference.md)。
+契约详见 [Gaia IR lowering](../gaia-ir/07-lowering.md) 和 [cli/inference.md](../cli/inference.md)。
 
 ### Cromwell's rule
 

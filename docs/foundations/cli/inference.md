@@ -345,7 +345,7 @@ Strategies are lowered by type. In v0.5 the canonical authoring path is through 
 - **`CompositeStrategy`**: recursively lowers each sub-strategy.
 - **`Compose`**: not a strategy — preserved as a first-class IR node (`composes: list[Compose]`) and does not produce a BP factor directly; its child actions retain their own lowerings.
 
-Reference: [Lowering](../gaia-ir/07-lowering.md), [BP factor potentials](../bp/potentials.md), [BP formal-strategy lowering](../bp/formal-strategy-lowering.md).
+Reference: [Gaia IR lowering](../gaia-ir/07-lowering.md), [BP factor potentials](../bp/potentials.md), [BP formal-strategy lowering](../bp/formal-strategy-lowering.md).
 
 ## Package Environment Setup
 

@@ -146,7 +146,7 @@ FormalExpr 内部节点是严格私有的（禁止外部引用），因此 Forma
 
 ## 5. FormalExpr 内部节点与 Lowering
 
-FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。封装规则和概率语义见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装) 和 [06-parameterization.md](06-parameterization.md)。
+FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。封装规则和概率语义见 [04-helper-claims.md](04-helper-claims.md) 和 [06-parameterization.md](06-parameterization.md)。
 
 Lowering 时，后端对每个 FormalStrategy 可以选择：
 
@@ -163,7 +163,7 @@ Lowering 只消费参数层，不定义参数层。
 
 - 参数化 Strategy 从 `StrategyParamRecord` 读取外部条件参数
 - 普通 claim 从 `PriorRecord` 读取外部 prior
-- 结构型 helper claim **禁止**携带独立 PriorRecord（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
+- 结构型 helper claim **禁止**携带独立 PriorRecord（见 [04-helper-claims.md](04-helper-claims.md)）
 
 对直接 FormalStrategy：
 

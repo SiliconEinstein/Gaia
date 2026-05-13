@@ -237,7 +237,7 @@ Author-side `[@label]` and `@label` references in claim content, action `rationa
 
 A label collision between a Claim and an Action in the same package is a compile error (`ambiguous reference key`). `DependsOn` labels are intentionally not addressable. Cross-package action references follow the same rules as cross-package Claim references once the registry supports them.
 
-Reference: [Action Label References Design](../../specs/2026-05-10-action-label-references-design.md), issue #539.
+Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539.
 
 ---
 
@@ -265,7 +265,7 @@ Three sugar helpers in `gaia/lang/dsl/sugar.py` map directly onto `ClaimKind`:
 
 Only `parameter` and `observation` participate in the lifted Bayes pipeline (see [§6](#6-bayes-module)). `causal` is a structural marker in v0.5 and does not yet imply Pearl-style intervention semantics; the causal extension specs in `docs/specs/2026-05-05-causal-reasoning-design.md` and the 2026-05-06 series capture the planned promotion path (Mechanism → first-class Knowledge type, Counterfactual / Population / Transport actions).
 
-Schema reference: [Claim Formula Schema](../../specs/2026-05-04-claim-formula-schema-design.md).
+Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
 
 ---
 
@@ -279,7 +279,7 @@ Schema reference: [Claim Formula Schema](../../specs/2026-05-04-claim-formula-sc
 
 `bayes.model / bayes.likelihood` actions go through the standard action lowering pipeline ([§4](#4-action-lowering)); they share the `action_label_map` table and emit warrant helper Claims that the reviewer sees. See [bayes.md](bayes.md) for the executable Mendel example, the full distribution list, and `gaia check` diagnostics.
 
-Spec references: [Bayes Module Design](../../specs/2026-05-04-bayes-module-design.md), [Bayes Actions Design](../../specs/2026-05-05-bayes-actions-design.md).
+Spec references: `docs/specs/2026-05-04-bayes-module-design.md` and `docs/specs/2026-05-05-bayes-actions-design.md`.
 
 ---
 

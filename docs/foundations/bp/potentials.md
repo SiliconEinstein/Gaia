@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical（与 `gaia/bp/` v2 实现及 theory 对齐）
 
-本文档定义 `gaia.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 契约：[../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)、[../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。
+本文档定义 `gaia.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 设计：[Gaia IR lowering](../gaia-ir/07-lowering.md)。
 
 势函数对因子所连变量的联合赋值返回非负权重；无需归一化，仅比值有意义。所有经验概率遵守 Cromwell 规则（`CROMWELL_EPS = 1e-3`）。
 
@@ -83,5 +83,5 @@ IR 参照：02-gaia-ir §3.4 `infer` 类型。
 
 - 消息传递与弱三段论：[../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)
 - 算子到势函数映射：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)
-- Lowering 契约：[../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)
+- Lowering design：[Gaia IR lowering](../gaia-ir/07-lowering.md)
 - 推理入口：[inference.md](inference.md)

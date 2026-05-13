@@ -50,7 +50,7 @@ validation 的职责是**验证结构合法性**。
 4. 若某处把它当作可取真值命题引用，则其 `type` 必须是 `claim`
 5. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
 6. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
-7. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
+7. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md](04-helper-claims.md)）
 8. `label` 在同一 `LocalCanonicalGraph` 内必须唯一
 9. `LocalCanonicalGraph.namespace` / `package_name` 约束自动生成的本地 QID；显式写入的 foreign QID 允许作为 external reference 出现在 graph 中
 10. graph-level closure 的对象是“显式出现在 graph 中的节点集合”，因此 imported external occurrence 若被引用，也必须作为 `Knowledge` 显式存在于该 graph 中
@@ -64,7 +64,7 @@ validation 的职责是**验证结构合法性**。
 3. `variables` 中的 Knowledge 必须全部是 `claim`
 4. `conclusion` 必须引用同 graph 中存在的 `claim`
 5. `conclusion` 不得出现在 `variables` 中——`variables` 只放输入，`conclusion` 独立承载输出
-6. Operator 分为两类（见 [02-gaia-ir.md §2.4](02-gaia-ir.md#24-不变量)）：
+6. Operator 分为两类（见 [02-gaia-ir.md](02-gaia-ir.md)）：
    - **Directed（`implication`、`conjunction`）**：`implication` 的 `conclusion` 是结构型 implication helper claim（variables=[A, B]，conclusion=`implies(A,B)` 型 helper）；`conjunction` 的 `conclusion` 是合取输出 claim `M`
    - **Relation（`equivalence`、`contradiction`、`complement`、`disjunction`）**：`conclusion` 是结构型 helper claim
 7. 关系型 Operator 的 `conclusion` 不允许被作者借来手写任意主观结论
@@ -103,7 +103,7 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 2. 所有内部 Operator 满足各自的 Operator 校验规则
 3. 内部 Operator 引用关系必须构成 DAG（无环）
 4. 其引用到的中间 claim 必须在同 graph 中显式存在
-5. 私有中间节点（不出现在任何 Strategy 的 `premises`/`conclusion` 中）**禁止**被外部 Strategy 引用——违反时报 error（见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装)）
+5. 私有中间节点（不出现在任何 Strategy 的 `premises`/`conclusion` 中）**禁止**被外部 Strategy 引用——违反时报 error（见 [04-helper-claims.md](04-helper-claims.md)）
 6. **引用闭合性**：FormalExpr 内每个 Operator 的 `variables` 和 `conclusion` 所引用的 claim，必须属于以下三类之一——否则报 error：
    - 该 FormalStrategy 的 `premises`（接口输入）
    - 该 FormalStrategy 的 `conclusion`（接口输出）
