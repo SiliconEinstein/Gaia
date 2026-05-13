@@ -39,7 +39,6 @@ logs/
 trace.md
 
 # Agent sidecar state
-.claude/state/
 
 # Temporary test/review artifacts
 review_*.json
