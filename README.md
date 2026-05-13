@@ -163,57 +163,6 @@ Python DSL  →  gaia compile  →  Gaia IR (factor graph)  →  gaia infer  →
 
 The system implements a Jaynes-style Robot architecture: you (or an AI agent) provide the information set; the engine computes the posterior implied by that information. Construction can be wrong — and that is useful. Bad structure shows up as surprising beliefs, uncovered priors, failed gates, or contradictions that force you to expose hidden assumptions.
 
-## Use with AI Agent
-
-Gaia is agent-ready. A [Claude Code](https://claude.ai/code) plugin provides skills that guide the full workflow — from reading a paper to publishing a knowledge package.
-
-```bash
-# Add the Gaia marketplace (one-time setup)
-/plugin marketplace add SiliconEinstein/Gaia
-
-# Install the gaia plugin
-/plugin install gaia
-```
-
-### Codex CLI
-
-Gaia skills also work with [OpenAI Codex CLI](https://developers.openai.com/codex/cli). The same `SKILL.md` files are recognized by both agents.
-
-```bash
-# Add the Gaia marketplace
-codex marketplace add https://github.com/SiliconEinstein/Gaia
-
-# Or manually clone and copy skills
-git clone https://github.com/SiliconEinstein/Gaia.git
-cp -r Gaia/skills/* ~/.codex/skills/
-```
-
-After installation, invoke skills with the `$` prefix:
-- `$gaia formalization` — Formalize a paper into a Gaia package
-- `$gaia review` — Refine priors after inspecting BP results
-- `$gaia publish` — Generate GitHub presentation and push
-
-### Formalize a Paper End-to-End
-
-1. **`/gaia:formalization`** — Point Claude at your paper (PDF or text in `artifacts/`). The skill guides a six-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, refine strategy types, verify structural integrity, and polish for readability. Output: a compilable Gaia package with `priors.py`.
-
-2. **`/gaia:review`** — Refine priors after inspecting BP results. Use this when you want to iterate on `priors.py` values, re-run `gaia compile && gaia infer`, and watch how beliefs change.
-
-3. **`/gaia:publish`** — After `gaia render --target github` generates the skeleton, this skill fills in the narrative README, writes section summaries, and pushes to GitHub. Your repo gets a human-readable presentation of the formalized knowledge with interactive graphs.
-
-4. **`gaia register`** — Submit the package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) so others can `gaia add` it as a dependency.
-
-### All Skills
-
-| Skill | Purpose |
-|-------|---------|
-| `/gaia` | Entry point — routes to the right skill based on your request |
-| `/gaia:formalization` | Six-pass paper formalization: extract nodes → connect strategies → check completeness → refine types → verify structure → polish |
-| `/gaia:gaia-cli` | CLI reference — `gaia init`, `compile`, `infer`, `check`, `register`, `add` |
-| `/gaia:gaia-lang` | DSL reference — knowledge types, operators, strategies, metadata, package structure |
-| `/gaia:review` | Refine priors — adjust `priors.py`, re-run inference, iterate on beliefs |
-| `/gaia:publish` | Generate GitHub presentation (`render --target github` skeleton → narrative README → push) |
-
 ## Install
 
 ```bash
