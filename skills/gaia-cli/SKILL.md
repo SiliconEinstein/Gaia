@@ -228,6 +228,32 @@ gaia infer . --depth -1
 
 With `--depth 0`, foreign nodes (references to claims in other packages) get flat priors unless a `dep_beliefs/` directory provides upstream belief files. With `--depth 1` or `-1`, the dependency packages' full factor graphs are merged into a single graph for joint inference, replacing flat prior injection with structural reasoning.
 
+### Programmatic BP API
+
+Prefer `gaia infer` for normal package workflows. Use the Python API only when debugging lowering, inspecting factor graphs, or running notebook experiments against a compiled package:
+
+```python
+from gaia.bp.engine import InferenceEngine
+from gaia.bp.lowering import lower_local_graph
+from gaia.cli._packages import (
+    apply_package_priors,
+    compile_loaded_package_artifact,
+    load_gaia_package,
+)
+
+loaded = load_gaia_package(".")
+apply_package_priors(loaded)
+compiled = compile_loaded_package_artifact(loaded)
+
+factor_graph = lower_local_graph(compiled.graph)
+result = InferenceEngine().run(factor_graph)
+
+beliefs = result.beliefs
+diagnostics = result.diagnostics
+```
+
+`lower_local_graph()` converts `LocalCanonicalGraph` to a `FactorGraph`. `InferenceEngine().run()` auto-selects exact junction tree, GBP, loopy BP, or brute-force exact inference using the same policy as the CLI.
+
 ## 8. gaia register
 
 Publishes a package to the Gaia registry. Requires a git tag pushed to GitHub.
