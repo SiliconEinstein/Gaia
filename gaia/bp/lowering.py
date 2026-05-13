@@ -75,7 +75,7 @@ _SYMMETRIC_OPS = frozenset(
 )
 
 
-def _canonical_op_key(op: Operator) -> tuple:
+def _canonical_op_key(op: Operator) -> tuple[str, frozenset[str] | tuple[str, ...]]:
     """Structural canonical key for D2 duplicate detection.
 
     V9 (Jaynes D2): two operators sharing this key encode the same
@@ -90,7 +90,7 @@ def _canonical_op_key(op: Operator) -> tuple:
 def _dedup_operators(
     ops: Sequence[Operator],
     *,
-    dedup_audit: list[dict],
+    dedup_audit: list[dict[str, object]],
     context: str,
 ) -> list[Operator]:
     """L1 D2 dedup: drop later operators matching an earlier canonical key.
@@ -98,7 +98,7 @@ def _dedup_operators(
     * Same key AND same conclusion -> silently drop, record in dedup_audit.
     * Same key but DIFFERENT conclusion -> raise ValueError (D1+D2 violation).
     """
-    seen: dict[tuple, tuple[str, int]] = {}
+    seen: dict[tuple[str, frozenset[str] | tuple[str, ...]], tuple[str, int]] = {}
     out: list[Operator] = []
     for op in ops:
         key = _canonical_op_key(op)
@@ -223,7 +223,7 @@ def _add_claim_variables(
         elif knowledge.id in priors:
             fg.add_variable(knowledge.id, priors[knowledge.id])
         elif is_observed:
-            fg.add_variable(knowledge.id, float(metadata_prior))
+            fg.add_variable(knowledge.id, float(metadata_prior or 0.5))
         else:
             fg.add_variable(knowledge.id)
     return claim_ids

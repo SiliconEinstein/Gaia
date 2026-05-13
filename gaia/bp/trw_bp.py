@@ -40,6 +40,7 @@ from __future__ import annotations
 import heapq
 from dataclasses import dataclass, field
 from itertools import product as cartesian_product
+from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -78,13 +79,13 @@ def _normalize(msg: Msg) -> Msg:
 
 
 def _safe_log(msg: Msg) -> Msg:
-    return np.log(np.maximum(msg, 1e-300))
+    return np.log(np.maximum(msg, 1e-300))  # type: ignore[no-any-return]
 
 
 def _log_normalize(log_msg: Msg) -> Msg:
     log_msg = log_msg - log_msg.max()
     msg = np.exp(log_msg)
-    return msg / msg.sum()
+    return msg / msg.sum()  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +157,7 @@ def _compute_v2f_trw(
     return _log_normalize(log_msg)
 
 
-def _compute_f2v_trw(
+def _compute_f2v_trw(  # type: ignore[no-untyped-def]
     factor_idx: int,
     target_var: str,
     factor,
@@ -435,17 +436,17 @@ class TRWBeliefPropagation:
                 new_f2v[(fi, vid)] = _compute_f2v_trw(fi, vid, factor, new_v2f, rho)
 
             # Damp
-            for key in f2v_msgs:
-                blended = self._damping * new_f2v[key] + (1.0 - self._damping) * f2v_msgs[key]
-                f2v_msgs[key] = _normalize(blended)
+            for fkey in f2v_msgs:
+                blended = self._damping * new_f2v[fkey] + (1.0 - self._damping) * f2v_msgs[fkey]
+                f2v_msgs[fkey] = _normalize(blended)
 
-            for key in v2f_msgs:
-                vid = key[0]
+            for vkey in v2f_msgs:
+                vid = vkey[0]
                 if vid in graph.hard_evidence:
-                    v2f_msgs[key] = new_v2f[key]
+                    v2f_msgs[vkey] = new_v2f[vkey]
                 else:
-                    blended = self._damping * new_v2f[key] + (1.0 - self._damping) * v2f_msgs[key]
-                    v2f_msgs[key] = _normalize(blended)
+                    blended = self._damping * new_v2f[vkey] + (1.0 - self._damping) * v2f_msgs[vkey]
+                    v2f_msgs[vkey] = _normalize(blended)
 
             # Beliefs + convergence
             beliefs = _compute_beliefs_trw(graph, priors, var_to_factors, f2v_msgs, rho)
@@ -479,7 +480,7 @@ class TRWBeliefPropagation:
         prev_beliefs: dict[str, float],
         rho: dict[int, float],
     ) -> TRWResult:
-        heap: list[tuple[float, str, tuple]] = []
+        heap: list[tuple[float, str, tuple[int, str] | tuple[str, int]]] = []
 
         # Bootstrap sweep
         new_v2f_init: dict[tuple[str, int], Msg] = {}
@@ -501,24 +502,24 @@ class TRWBeliefPropagation:
             factor = graph.factors[fi]
             new_f2v_init[(fi, vid)] = _compute_f2v_trw(fi, vid, factor, new_v2f_init, rho)
 
-        for key in list(v2f_msgs.keys()):
-            vid = key[0]
+        for vkey in list(v2f_msgs.keys()):
+            vid = vkey[0]
             if vid in graph.hard_evidence:
-                v2f_msgs[key] = new_v2f_init[key]
-                heapq.heappush(heap, (-1.0, "v2f", key))
+                v2f_msgs[vkey] = new_v2f_init[vkey]
+                heapq.heappush(heap, (-1.0, "v2f", vkey))
             else:
-                old = v2f_msgs[key]
-                blended = self._damping * new_v2f_init[key] + (1.0 - self._damping) * old
-                v2f_msgs[key] = _normalize(blended)
-                residual = float(np.abs(v2f_msgs[key] - old).max())
-                heapq.heappush(heap, (-max(residual, 1e-10), "v2f", key))
+                old_msg = v2f_msgs[vkey]
+                blended = self._damping * new_v2f_init[vkey] + (1.0 - self._damping) * old_msg
+                v2f_msgs[vkey] = _normalize(blended)
+                residual = float(np.abs(v2f_msgs[vkey] - old_msg).max())
+                heapq.heappush(heap, (-max(residual, 1e-10), "v2f", vkey))
 
-        for key in list(f2v_msgs.keys()):
-            old = f2v_msgs[key]
-            blended = self._damping * new_f2v_init[key] + (1.0 - self._damping) * old
-            f2v_msgs[key] = _normalize(blended)
-            residual = float(np.abs(f2v_msgs[key] - old).max())
-            heapq.heappush(heap, (-max(residual, 1e-10), "f2v", key))
+        for fkey in list(f2v_msgs.keys()):
+            old_msg = f2v_msgs[fkey]
+            blended = self._damping * new_f2v_init[fkey] + (1.0 - self._damping) * old_msg
+            f2v_msgs[fkey] = _normalize(blended)
+            residual = float(np.abs(f2v_msgs[fkey] - old_msg).max())
+            heapq.heappush(heap, (-max(residual, 1e-10), "f2v", fkey))
 
         total_updates = 0
         check_interval = max(1, len(f2v_msgs) + len(v2f_msgs))
@@ -539,32 +540,34 @@ class TRWBeliefPropagation:
                 break
 
             if msg_type == "f2v":
-                fi, vid = key
+                fkey = cast(tuple[int, str], key)
+                fi, vid = fkey
                 factor = graph.factors[fi]
                 new_msg = _compute_f2v_trw(fi, vid, factor, v2f_msgs, rho)
-                old_msg = f2v_msgs[key]
+                old_msg = f2v_msgs[fkey]
                 blended = self._damping * new_msg + (1.0 - self._damping) * old_msg
-                f2v_msgs[key] = _normalize(blended)
-                new_residual = float(np.abs(f2v_msgs[key] - old_msg).max())
+                f2v_msgs[fkey] = _normalize(blended)
+                new_residual = float(np.abs(f2v_msgs[fkey] - old_msg).max())
                 for fi2 in var_to_factors[vid]:
                     affected = (vid, fi2)
                     if affected in v2f_msgs and vid not in graph.hard_evidence:
                         heapq.heappush(heap, (-max(new_residual, 1e-10), "v2f", affected))
             else:
-                vid, fi = key
+                vkey = cast(tuple[str, int], key)
+                vid, fi = vkey
                 if vid in graph.hard_evidence:
                     total_updates += 1
                     continue
                 new_msg = _compute_v2f_trw(vid, fi, priors[vid], var_to_factors, f2v_msgs, rho)
-                old_msg = v2f_msgs[key]
+                old_msg = v2f_msgs[vkey]
                 blended = self._damping * new_msg + (1.0 - self._damping) * old_msg
-                v2f_msgs[key] = _normalize(blended)
-                new_residual = float(np.abs(v2f_msgs[key] - old_msg).max())
+                v2f_msgs[vkey] = _normalize(blended)
+                new_residual = float(np.abs(v2f_msgs[vkey] - old_msg).max())
                 factor = graph.factors[fi]
-                for v in factor.all_vars:
-                    if v in graph.variables:
-                        affected = (fi, v)
-                        if affected in f2v_msgs:
+                for v in factor.all_vars:  # type: ignore[assignment]
+                    if v in graph.variables:  # type: ignore[comparison-overlap]
+                        affected = (fi, v)  # type: ignore[assignment]
+                        if affected in f2v_msgs:  # type: ignore[comparison-overlap]
                             heapq.heappush(heap, (-max(new_residual, 1e-10), "f2v", affected))
 
             total_updates += 1

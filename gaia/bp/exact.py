@@ -167,7 +167,7 @@ def _factor_log_potentials(  # noqa: C901
             np.where(cv == 1, p1, 1.0 - p1),
             np.where(cv == 0, p2, 1.0 - p2),
         )
-        return np.log(pot)
+        return np.log(pot)  # type: ignore[no-any-return]
 
     if ft == FactorType.CONDITIONAL:
         assert factor.cpt is not None
@@ -180,7 +180,7 @@ def _factor_log_potentials(  # noqa: C901
         p_sel = cpt[idx]
         cv = states[:, c_idx]
         pot = np.where(cv == 1, p_sel, 1.0 - p_sel)
-        return np.log(pot)
+        return np.log(pot)  # type: ignore[no-any-return]
 
     if ft == FactorType.PAIRWISE_POTENTIAL:
         assert factor.cpt is not None

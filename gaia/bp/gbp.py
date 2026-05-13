@@ -384,7 +384,7 @@ class GeneralizedBeliefPropagation:
             result = self._jt.run(graph)
             return BPResult(
                 beliefs=result.beliefs,
-                diagnostics=result.diagnostics,
+                diagnostics=result.diagnostics,  # type: ignore[arg-type]
             )
 
         # High treewidth: region decomposition

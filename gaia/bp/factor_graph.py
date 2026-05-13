@@ -80,7 +80,7 @@ class FactorGraph:
         # V9 audit trail: D2 structural deduplications performed during
         # lowering. Each entry: {"op", "args", "conclusion", "dropped_count"}.
         # Populated by lowering, untouched by inference.
-        self.dedup_audit: list[dict] = []
+        self.dedup_audit: list[dict[str, object]] = []
 
     def add_variable(self, var_id: str, prior: float | None = None) -> None:
         r"""Register a binary variable, optionally with an explicit unary factor.
