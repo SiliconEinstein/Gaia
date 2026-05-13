@@ -28,8 +28,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from jaynes_ref.exact import _MAX_N, _enumerate_states
-from jaynes_ref.information import InformationSet
+from gaia.jaynes_ref.exact import _MAX_N, _enumerate_states
+from gaia.jaynes_ref.information import InformationSet
 
 # A moment constraint is described by (feature function on full state, target mu).
 MomentFeature = Callable[[np.ndarray], np.ndarray]  # (N, n_vars) int8 -> (N,) float

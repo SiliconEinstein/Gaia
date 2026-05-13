@@ -45,7 +45,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from jaynes_ref.constraints import (
+from gaia.jaynes_ref.constraints import (
     CPT,
     LogicalConstraint,
     WeightedFactor,

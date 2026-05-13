@@ -64,9 +64,9 @@ class CPT:
                 f"CPT({self.child}|{self.parents}).table has {len(self.table)} "
                 f"entries, expected 2**{len(self.parents)} = {expected}"
             )
-        for p in self.table:
-            if not (0.0 <= p <= 1.0):
-                raise ValueError(f"CPT entry out of [0,1]: {p}")
+        for v in self.table:
+            if not (0.0 <= v <= 1.0):
+                raise ValueError(f"CPT entry out of [0,1]: {v}")
 
 
 @dataclass(frozen=True)

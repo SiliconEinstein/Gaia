@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from jaynes_ref.constraints import CPT, LogicalConstraint, WeightedFactor
-from jaynes_ref.information import InformationSet
+from gaia.jaynes_ref.constraints import CPT, LogicalConstraint, WeightedFactor
+from gaia.jaynes_ref.information import InformationSet
 
 
 def canonical_constraint_key(c: LogicalConstraint) -> tuple:

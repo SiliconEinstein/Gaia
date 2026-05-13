@@ -26,9 +26,9 @@ from gaia.ir import (
     Operator,
     Strategy,
 )
-from jaynes_ref.adapter import from_local_graph
-from jaynes_ref.exact import infer as jaynes_brute
-from jaynes_ref.junction_tree import jt_infer as jaynes_jt
+from gaia.jaynes_ref.adapter import from_local_graph
+from gaia.jaynes_ref.exact import infer as jaynes_brute
+from gaia.jaynes_ref.junction_tree import jt_infer as jaynes_jt
 
 EXACT_TOL = 1e-9
 BP_CONVERGED_TOL = 1e-4

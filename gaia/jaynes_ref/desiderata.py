@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from jaynes_ref.information import CROMWELL_EPS, InformationSet
+from gaia.jaynes_ref.information import CROMWELL_EPS, InformationSet
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,7 @@ def audit(info: InformationSet, *, cromwell_eps: float = CROMWELL_EPS) -> AuditR
                 f"is not in its allowed set — Z will be 0 at inference (D5 precheck)."
             )
 
-    from jaynes_ref.dedup import canonical_constraint_key
+    from gaia.jaynes_ref.dedup import canonical_constraint_key
 
     seen: dict = {}
     dup = 0

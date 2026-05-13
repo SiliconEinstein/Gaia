@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from jaynes_ref.constraints import CPT, Likelihood, LogicalConstraint, WeightedFactor
+from gaia.jaynes_ref.constraints import CPT, Likelihood, LogicalConstraint, WeightedFactor
 
 # Cromwell floor for class-IV soft priors. NOT enforced at construction —
 # used only by the optional desiderata.apply_cromwell_clamp step.

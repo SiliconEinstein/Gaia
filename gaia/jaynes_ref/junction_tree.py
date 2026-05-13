@@ -19,8 +19,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from jaynes_ref.exact import InferenceResult, _fold_likelihoods
-from jaynes_ref.information import InformationSet
+from gaia.jaynes_ref.exact import InferenceResult, _fold_likelihoods
+from gaia.jaynes_ref.information import InformationSet
 
 __all__ = ["jt_infer"]
 
@@ -220,7 +220,7 @@ def jt_infer(info: InformationSet) -> InferenceResult:
     base_factors = _build_factors(info, effective_unary)
 
     # Find variables that appear in at least one factor
-    vars_in_factors = set()
+    vars_in_factors: set[str] = set()
     for f in base_factors:
         vars_in_factors.update(f.scope)
 
