@@ -192,6 +192,46 @@ def _knowledge_id(
 
 
 def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
+    from gaia.lang.dsl.bool_expr import BoolExpr, DerivedDistribution
+    from gaia.lang.runtime.distribution import Distribution
+    from gaia.unit import is_quantity, to_literal
+
+    if is_quantity(value):
+        # Pint Quantities flow through metadata when authors write predicates
+        # like ``T_c > q(77, "K")``; convert to the IR-stable QuantityLiteral
+        # shape so the downstream LocalCanonicalGraph serialization succeeds
+        # and the audit-side `gaia check` can render the unit verbatim.
+        literal = to_literal(value)
+        return {
+            "kind": "quantity",
+            "value": literal.value,
+            "unit": literal.unit,
+        }
+    if isinstance(value, Distribution):
+        # Inline-serialize the Distribution descriptor so IR consumers can
+        # render / audit which continuous quantity is being referenced
+        # without needing to walk back to the original Lang object.
+        return {
+            "kind": "distribution",
+            "label": value.label,
+            "content": value.content,
+            "distribution_kind": value.kind,
+            "params": value.params,
+        }
+    if isinstance(value, BoolExpr):
+        return {
+            "kind": "bool_expr",
+            "op": value.op,
+            "lhs": _metadata_to_ir(value.left, knowledge_map),
+            "rhs": _metadata_to_ir(value.right, knowledge_map),
+        }
+    if isinstance(value, DerivedDistribution):
+        return {
+            "kind": "derived_distribution",
+            "op": value.op,
+            "lhs": _metadata_to_ir(value.left, knowledge_map),
+            "rhs": _metadata_to_ir(value.right, knowledge_map),
+        }
     if isinstance(value, Knowledge):
         return knowledge_map[id(value)]
     if isinstance(value, dict):
@@ -1857,21 +1897,22 @@ def compile_package_artifact(
 ) -> CompiledPackage:
     """Compile collected declarations into Gaia IR plus runtime mappings.
 
-    As the first step, applies the package's :class:`ResolutionPolicy`
-    over any per-claim ``metadata['prior_records']`` populated by
-    ``register_prior()`` calls (or by the ``claim(prior=...)`` shortcut, which
-    routes through the ``"claim_inline"`` source). The winning value is
-    written to ``metadata['prior']`` so downstream BP / render / brief
-    consumers see a single resolved prior even when callers bypass the CLI's
-    :func:`gaia.cli._packages.apply_package_priors` step. CLI flows that have
-    already invoked ``apply_package_priors`` store the package-level policy on
-    the package, so this safety net re-runs the same idempotent resolution
-    instead of falling back to the default policy.
+    First, predicate / equation lowering registers any CDF-derived predicate
+    prior records. Then the package's :class:`ResolutionPolicy` resolves all
+    per-claim ``metadata['prior_records']`` populated by ``register_prior()``,
+    predicate lowering, or the ``claim(prior=...)`` shortcut. The winning value
+    is written to ``metadata['prior']`` so downstream BP / render / brief
+    consumers see a single resolved prior.
     """
     if references is None:
         references = {}
 
+    from gaia.lang.compiler.distribution_diagnostics import emit_distribution_warnings
+    from gaia.lang.compiler.predicate_lowering import lower_predicate_priors
+
+    lower_predicate_priors(pkg)
     _resolve_pkg_priors_with_package_policy(pkg)
+    emit_distribution_warnings(pkg)
 
     knowledge_collection = _KnowledgeCollector(pkg).collect()
     knowledge_map = _assign_knowledge_ids(pkg, knowledge_collection.nodes)

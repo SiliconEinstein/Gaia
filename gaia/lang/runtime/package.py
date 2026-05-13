@@ -14,6 +14,7 @@ from gaia.lang.runtime.nodes import Operator, Strategy
 
 if TYPE_CHECKING:
     from gaia.lang.runtime.action import Action
+    from gaia.lang.runtime.distribution import Distribution
 
 try:
     import tomllib
@@ -33,6 +34,12 @@ class CollectedPackage:
         self.strategies: list[Strategy] = []
         self.operators: list[Operator] = []
         self.actions: list[Action] = []
+        # Lang-only registry of Distribution objects declared while this
+        # package was active. Distributions are NOT added to ``knowledge``
+        # (they are not IR-bound — see gaia/lang/runtime/distribution.py),
+        # but the declaration list lets compile-time diagnostics detect
+        # quantities that are declared but never referenced.
+        self.distributions: list[Distribution] = []
         self._token: Token[CollectedPackage | None] | None = None
         self._module_counters: dict[str | None, int] = {}
         self._module_order: list[str] = []
