@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from gaia.lang.dsl.bool_expr import BoolExpr
 from gaia.lang.runtime import Claim, Knowledge, Note, Question
 from gaia.lang.runtime.knowledge import ClaimKind
 
@@ -97,6 +98,7 @@ def _flatten_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
 
 def claim(
     content: str,
+    proposition: BoolExpr | None = None,
     *,
     title: str | None = None,
     format: str = "markdown",
@@ -106,9 +108,74 @@ def claim(
     prior: float | None = None,
     formula: Any = None,
     kind: ClaimKind = ClaimKind.GENERAL,
+    tolerance: float | None = None,
     **metadata: Any,
 ) -> Claim:
-    """Declare a scientific assertion. The only type carrying probability."""
+    """Declare a scientific assertion. The only knowledge type carrying probability.
+
+    Three authoring shapes:
+
+    1. **Prose claim** — ``claim("Heliocentric model is correct.", prior=0.8)``.
+       The proposition is conveyed in natural language; ``prior`` is the
+       author's degree of belief in its truth.
+    2. **Predicate claim** — ``claim("Reaction is fast", k > 1e-2)``. The
+       second positional argument is a :class:`BoolExpr` produced by
+       comparing a :class:`Distribution` against a constant or another
+       quantity. The compiler computes the prior at lowering time using the
+       underlying distribution's CDF (for inequality predicates) or as an
+       integral / constraint (for equality / equation predicates).
+       See :class:`gaia.lang.Distribution` for how to declare the underlying
+       continuous quantity.
+    3. **Formula claim** — ``claim(content, formula=Forall(...))`` for the
+       predicate-logic surface (unchanged from v0.5).
+
+    The ``tolerance`` keyword applies only when ``proposition`` is an equation
+    (``k == A * exp(...)``). With ``tolerance=None`` (default) the equation is
+    a hard constraint conditional on the claim being true; with
+    ``tolerance=sigma`` it becomes a soft Gaussian-noise constraint of standard
+    deviation ``sigma`` (in log-scale for LogNormal-typed quantities, otherwise
+    absolute).
+    """
+    raw_metadata = _flatten_metadata(metadata)
+    if proposition is not None:
+        if not isinstance(proposition, BoolExpr):
+            raise TypeError(
+                "claim() second positional argument must be a BoolExpr produced "
+                "by comparing a Distribution against another value (e.g. "
+                "k > 1e-2). Got "
+                f"{type(proposition).__name__}. For prose claims, omit the "
+                "second argument; for predicate-logic claims, use the "
+                "`formula=` keyword."
+            )
+        # The full lowering of predicate / equation propositions to claim
+        # priors happens in `gaia.lang.compiler.compile`; here we just stash
+        # the BoolExpr on metadata for the compiler to read.
+        if "predicate" in raw_metadata or "equation" in raw_metadata:
+            raise TypeError(
+                "claim() received both a proposition argument and a manually "
+                "set metadata['predicate'] / metadata['equation'] entry — pick "
+                "one."
+            )
+        slot = "equation" if proposition.op in {"==", "!="} else "predicate"
+        raw_metadata = dict(raw_metadata)
+        raw_metadata[slot] = proposition
+        if tolerance is not None:
+            if slot != "equation":
+                raise TypeError(
+                    "claim(tolerance=...) only applies to equation propositions "
+                    "(``k == A * exp(...)``); for inequality predicates the "
+                    "prior is exact via CDF integration."
+                )
+            if not isinstance(tolerance, (int, float)) or float(tolerance) <= 0.0:
+                raise ValueError(
+                    f"claim(tolerance=...) must be a positive number, got {tolerance!r}."
+                )
+            raw_metadata["equation_tolerance"] = float(tolerance)
+    elif tolerance is not None:
+        raise TypeError(
+            "claim(tolerance=...) requires a proposition (equation BoolExpr). "
+            "It does nothing on a prose or formula claim."
+        )
     return Claim(
         content=content.strip(),
         format=format,
@@ -119,5 +186,5 @@ def claim(
         prior=prior,
         formula=formula,
         kind=kind,
-        metadata=_flatten_metadata(metadata),
+        metadata=raw_metadata,
     )

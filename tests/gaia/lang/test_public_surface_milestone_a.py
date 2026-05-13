@@ -51,12 +51,17 @@ def test_milestone_a_public_surface():
 def test_gaia_lang_does_not_export_core_predict_verb():
     import gaia.lang as lang
 
+    # `predict` and `likelihood` remain bayes-specific verbs in
+    # `gaia.lang.bayes` and must not pollute the top-level namespace.
     assert "predict" not in dir(lang)
     assert "predict" not in lang.__all__
     assert not hasattr(lang, "Predict")
-    assert "Binomial" not in lang.__all__
     assert "likelihood" not in lang.__all__
     assert "Predict" not in lang.__all__
+    # Distribution family names (Normal, LogNormal, Beta, ..., Binomial) are
+    # intentionally top-level since v0.6 — they construct first-class
+    # continuous-quantity Distributions for the predicate / equation surface.
+    # See gaia.lang.runtime.distribution.
 
 
 def test_bayes_surface_uses_model_not_predict_alias():

@@ -20,6 +20,7 @@ from gaia.lang.runtime.action import (
     Support,
 )
 from gaia.lang.runtime.composition import Composition, compose, composition
+from gaia.lang.runtime.distribution import Distribution
 from gaia.lang.runtime.domain import Domain
 from gaia.lang.runtime.knowledge import (
     Claim,
@@ -53,6 +54,7 @@ __all__ = [
     "Decompose",
     "DependsOn",
     "Derive",
+    "Distribution",
     "Domain",
     "Equal",
     "Exclusive",

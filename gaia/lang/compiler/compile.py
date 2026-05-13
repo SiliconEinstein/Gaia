@@ -192,6 +192,34 @@ def _knowledge_id(
 
 
 def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
+    from gaia.lang.dsl.bool_expr import BoolExpr, DerivedDistribution
+    from gaia.lang.runtime.distribution import Distribution
+
+    if isinstance(value, Distribution):
+        # Inline-serialize the Distribution descriptor so IR consumers can
+        # render / audit which continuous quantity is being referenced
+        # without needing to walk back to the original Lang object.
+        return {
+            "kind": "distribution",
+            "label": value.label,
+            "content": value.content,
+            "distribution_kind": value.kind,
+            "params": value.params,
+        }
+    if isinstance(value, BoolExpr):
+        return {
+            "kind": "bool_expr",
+            "op": value.op,
+            "lhs": _metadata_to_ir(value.left, knowledge_map),
+            "rhs": _metadata_to_ir(value.right, knowledge_map),
+        }
+    if isinstance(value, DerivedDistribution):
+        return {
+            "kind": "derived_distribution",
+            "op": value.op,
+            "lhs": _metadata_to_ir(value.left, knowledge_map),
+            "rhs": _metadata_to_ir(value.right, knowledge_map),
+        }
     if isinstance(value, Knowledge):
         return knowledge_map[id(value)]
     if isinstance(value, dict):
@@ -1842,9 +1870,20 @@ def compile_package_artifact(
     *,
     references: dict[str, Any] | None = None,
 ) -> CompiledPackage:
-    """Compile collected declarations into Gaia IR plus runtime mappings."""
+    """Compile collected declarations into Gaia IR plus runtime mappings.
+
+    Runs predicate / equation lowering as the first step so any Claim that
+    carries a BoolExpr proposition (``claim("k is fast", k > 1e-2)``) gets a
+    CDF-derived prior written to ``Claim.prior`` before the rest of the LANG →
+    IR pipeline reads it. Claims with explicit ``prior=`` are left alone; the
+    CDF-derived value is stashed in ``metadata['predicate_audit']`` for review.
+    """
     if references is None:
         references = {}
+
+    from gaia.lang.compiler.predicate_lowering import lower_predicate_priors
+
+    lower_predicate_priors(pkg)
 
     knowledge_collection = _KnowledgeCollector(pkg).collect()
     knowledge_map = _assign_knowledge_ids(pkg, knowledge_collection.nodes)
