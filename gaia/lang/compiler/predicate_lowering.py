@@ -50,14 +50,24 @@ def _clamp(value: float) -> float:
     return max(CROMWELL_EPS, min(1.0 - CROMWELL_EPS, value))
 
 
-def _resolve_threshold(value: Any) -> float:
-    """Coerce a literal threshold (int / float) to a finite float.
+def _resolve_threshold(value: Any, distribution: Distribution) -> float:
+    """Coerce a literal threshold to a finite float in the distribution's unit.
 
-    Distributions on the right-hand side of an inequality are not yet supported
-    — those would require a joint distribution over ``(lhs, rhs)``. PR1 limits
-    the right-hand side to a numeric scalar so the predicate is a 1-D CDF
-    query against the LHS distribution's marginal.
+    Accepts either a bare numeric scalar or a :class:`gaia.unit.Quantity`. When
+    the LHS distribution carries a ``metadata['unit']``, the threshold MUST be
+    a Quantity with a dimensionally-compatible unit (it is converted via
+    Pint's ``.to()`` to the distribution's unit before extraction). When the
+    distribution is unitless, the threshold MUST be a bare scalar — passing a
+    Quantity in that case is a type error since the comparison would be
+    ill-defined.
+
+    Distributions on the right-hand side of an inequality are not yet
+    supported — those would require a joint distribution over ``(lhs, rhs)``.
     """
+    from gaia.unit import is_quantity, ureg
+
+    distribution_unit: str | None = (distribution.metadata or {}).get("unit")
+
     if isinstance(value, Distribution):
         raise NotImplementedError(
             "Predicate with a Distribution on both sides is not yet supported. "
@@ -66,11 +76,36 @@ def _resolve_threshold(value: Any) -> float:
             "require joint marginalisation, which is deferred to a "
             "follow-up release."
         )
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise TypeError(
-            f"Predicate threshold must be a numeric scalar; got {type(value).__name__}: {value!r}."
-        )
-    threshold = float(value)
+    if is_quantity(value):
+        if distribution_unit is None:
+            raise TypeError(
+                "Predicate threshold is a unit-typed Quantity but the LHS "
+                f"distribution {distribution.label or distribution.content[:40]!r} "
+                "is unitless. Pass a bare scalar threshold or attach a unit "
+                "to the distribution by passing Quantity-typed parameters."
+            )
+        try:
+            converted = value.to(ureg.parse_units(distribution_unit))
+        except Exception as err:  # pint raises a variety of subclasses
+            raise ValueError(
+                f"Predicate threshold unit {value.units!s} is not compatible "
+                f"with the LHS distribution unit {distribution_unit!r}: {err}"
+            ) from err
+        threshold = float(converted.magnitude)
+    else:
+        if distribution_unit is not None:
+            raise TypeError(
+                f"Predicate threshold must be a Quantity in {distribution_unit!r} "
+                f"because the LHS distribution "
+                f"{distribution.label or distribution.content[:40]!r} carries "
+                f"that unit; got bare scalar {value!r}."
+            )
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(
+                "Predicate threshold must be a numeric scalar; "
+                f"got {type(value).__name__}: {value!r}."
+            )
+        threshold = float(value)
     if threshold != threshold:  # NaN
         raise ValueError("Predicate threshold must be finite, got NaN.")
     return threshold
@@ -111,8 +146,14 @@ def _lower_predicate_claim(claim: Claim) -> None:
         # predicate (e.g. claim("X", k > 1e-3, prior=0.4)) means "I know the
         # CDF says one thing but I'm asserting a different belief". Keep
         # the author's value and stash the CDF-derived value as audit info.
+        cdf_derived: float | None
         try:
-            cdf_derived = _predicate_prior(expr.left, expr.op, _resolve_threshold(expr.right))
+            if isinstance(expr.left, Distribution):
+                cdf_derived = _predicate_prior(
+                    expr.left, expr.op, _resolve_threshold(expr.right, expr.left)
+                )
+            else:
+                cdf_derived = None
         except (TypeError, ValueError, NotImplementedError):
             cdf_derived = None
         meta = dict(claim.metadata)
@@ -125,7 +166,7 @@ def _lower_predicate_claim(claim: Claim) -> None:
             f"got {type(expr.left).__name__}. The proposition is "
             f"`{expr.left!r} {expr.op} {expr.right!r}`."
         )
-    threshold = _resolve_threshold(expr.right)
+    threshold = _resolve_threshold(expr.right, expr.left)
     claim.prior = _predicate_prior(expr.left, expr.op, threshold)
 
 

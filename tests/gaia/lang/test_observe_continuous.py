@@ -21,7 +21,7 @@ def test_observe_distribution_returns_pinned_observation_claim():
     assert obs.prior == 1.0 - CROMWELL_EPS
     assert obs.content.startswith("Observed T_c")
     assert "203" in obs.content
-    assert "± 5" in obs.content
+    assert "+/- 5" in obs.content
 
 
 def test_observation_metadata_links_back_to_distribution():

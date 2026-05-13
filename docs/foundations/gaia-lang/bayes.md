@@ -288,22 +288,35 @@ underlying Distribution's CDF, Cromwell-clamps it, and writes it to
 
 ```python
 from gaia.lang import Normal, claim, observe
+from gaia.unit import q
 
-# Declare T_c as a Distribution-typed continuous quantity with a prior.
-T_c = Normal("T_c of H3S at 200 GPa", mu=200, sigma=50)
+# Declare T_c as a Distribution-typed continuous quantity with a unit-aware
+# prior. Distribution factories accept either bare scalars or
+# gaia.unit.Quantity values; mixing the two for location/scale parameters
+# raises a clear error.
+T_c = Normal("T_c of H3S at 200 GPa", mu=q(200, "K"), sigma=q(50, "K"))
 
 # Record the published measurement (Drozdov et al. 2015) with its
-# experimental uncertainty.
-measurement = observe(T_c, value=203, error=5, source_refs=["Drozdov 2015"])
+# experimental uncertainty. observe() infers the unit from the target
+# distribution and accepts compatible units (Celsius is auto-converted).
+measurement = observe(T_c, value=q(203, "K"), error=q(5, "K"),
+                      source_refs=["Drozdov 2015"])
 
-# Predicate claim — the prior is computed from T_c's CDF at compile time.
-high_Tc = claim("H₃S is a high-temperature superconductor", T_c > 77)
+# Predicate claim with a Quantity-typed threshold. The compiler checks that
+# the threshold's unit is dimensionally compatible with the distribution's
+# unit, converts it to the distribution's canonical unit, and computes the
+# prior from T_c's CDF.
+high_Tc = claim("H3S is a high-temperature superconductor", T_c > q(77, "K"))
 # After compile: high_Tc.prior ≈ 0.993
 ```
 
 `high_Tc` enters BP as an ordinary Claim with a numeric prior. Downstream
 ``derive`` / ``contradict`` / ``equal`` actions operate on it identically to
 prose claims with hand-set priors.
+
+The unit-typed Quantity flows through to IR — ``high_Tc.metadata['predicate']
+['rhs']`` becomes ``{'kind': 'quantity', 'value': 77.0, 'unit': 'kelvin'}``,
+visible to ``gaia check`` and downstream renderers without losing the unit.
 
 ### Equation claims — laws and tolerances
 
@@ -372,6 +385,35 @@ update is a follow-up PR — see `gaia/lang/compiler/predicate_lowering.py`
 ``PREDICATE_LOWERING_SOURCE_ID`` docstring). Until then, predicate priors
 reflect the prior CDF directly; observed measurement events are visible in
 IR (and to `gaia check`) but do not yet update the predicate prior.
+
+### Unit-aware parameters
+
+Distribution factories accept ``gaia.unit.Quantity`` values via
+``gaia.unit.q``. Per-distribution semantics (raise on mismatch):
+
+| Family | Location/scale group | Dimensionless params |
+|---|---|---|
+| ``Normal``, ``StudentT``, ``Cauchy`` | mu, sigma / mu, gamma — must share a unit | (``df`` for StudentT) |
+| ``Exponential``, ``Poisson`` | n/a | n/a — ``rate`` carries unit (typically 1/time) |
+| ``Gamma`` | n/a — ``rate`` carries unit | ``alpha`` |
+| ``LogNormal``, ``Beta``, ``ChiSquared``, ``Binomial`` | n/a | All — pass bare scalars; encode the random variable's unit in the content string |
+
+Authors writing scientific code typically pair Quantity-typed distribution
+parameters with Quantity-typed predicate thresholds and observation values:
+
+```python
+from gaia.lang import Normal, claim, observe
+from gaia.unit import q
+
+reaction_rate = Normal("k for reaction X", mu=q(1.0e-3, "1/s"), sigma=q(2.0e-4, "1/s"))
+fast = claim("reaction is fast", reaction_rate > q(5.0e-4, "1/s"))
+observe(reaction_rate, value=q(1.1e-3, "1/s"), error=q(1.0e-4, "1/s"))
+```
+
+Unitless distributions (``Normal("k", mu=0, sigma=1)``) continue to work with
+bare scalar predicates / observations. Mixing the two — passing a Quantity
+threshold against a unitless distribution, or vice versa — raises a clear
+error rather than silently dropping the unit.
 
 ### Operator overloading rules
 

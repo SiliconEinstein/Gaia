@@ -175,6 +175,54 @@ def observe(
     return conclusion
 
 
+def _coerce_observation_scalar(
+    raw: Any,
+    *,
+    target: Distribution,
+    role: str,
+) -> tuple[float, str | None]:
+    """Coerce ``observe(...)`` ``value=`` or ``error=`` to (magnitude, unit).
+
+    Mirrors the predicate-threshold rules — a unit-typed Distribution requires
+    a Quantity-typed observation (and the unit must be dimensionally
+    compatible); a unitless Distribution requires bare scalars.
+    """
+    from gaia.unit import is_quantity, ureg
+
+    distribution_unit: str | None = (target.metadata or {}).get("unit")
+    if is_quantity(raw):
+        if distribution_unit is None:
+            raise TypeError(
+                f"observe(distribution, {role}=...) is a unit-typed Quantity "
+                f"but the target distribution "
+                f"{target.label or target.content[:40]!r} is unitless. Pass a "
+                f"bare scalar {role} or attach a unit to the distribution by "
+                f"passing Quantity-typed parameters."
+            )
+        try:
+            converted = raw.to(ureg.parse_units(distribution_unit))
+        except Exception as err:
+            raise ValueError(
+                f"observe(distribution, {role}=...) unit {raw.units!s} is not "
+                f"compatible with the target distribution unit "
+                f"{distribution_unit!r}: {err}"
+            ) from err
+        return float(converted.magnitude), distribution_unit
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise TypeError(
+            f"observe(distribution, {role}=...) must be a numeric scalar or "
+            f"a gaia.unit.Quantity, got {type(raw).__name__}: {raw!r}."
+        )
+    if distribution_unit is not None:
+        raise TypeError(
+            f"observe(distribution, {role}=...) must be a Quantity in "
+            f"{distribution_unit!r} because the target distribution "
+            f"{target.label or target.content[:40]!r} carries that unit; got "
+            f"bare scalar {raw!r}."
+        )
+    return float(raw), None
+
+
 def _observe_continuous(
     target: Distribution,
     *,
@@ -186,39 +234,37 @@ def _observe_continuous(
     label: str | None,
 ) -> Claim:
     """Build the observation Claim for a continuous quantity measurement."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise TypeError(
-            f"observe(distribution, value=...) must be a numeric scalar, "
-            f"got {type(value).__name__}: {value!r}."
-        )
-    if error is not None and not isinstance(error, Distribution):
-        if isinstance(error, bool) or not isinstance(error, (int, float)):
-            raise TypeError(
-                "observe(distribution, error=...) must be a numeric scalar "
-                "(Gaussian sigma), a Distribution (custom noise model), or "
-                f"None (noise-free), got {type(error).__name__}: {error!r}."
-            )
-        if float(error) <= 0.0:
+    coerced_value, value_unit = _coerce_observation_scalar(value, target=target, role="value")
+
+    coerced_error: Any
+    if error is None:
+        coerced_error = None
+    elif isinstance(error, Distribution):
+        coerced_error = error
+    else:
+        coerced_error_scalar, _ = _coerce_observation_scalar(error, target=target, role="error")
+        if coerced_error_scalar <= 0.0:
             raise ValueError(
                 f"observe(distribution, error=sigma) requires sigma > 0, got {error!r}."
             )
+        coerced_error = coerced_error_scalar
 
     label_part = target.label or target.content[:40]
-    error_part = ""
+    unit_suffix = f" {value_unit}" if value_unit else ""
     if isinstance(error, Distribution):
         error_part = f" with noise {error.kind}"
-    elif error is not None:
-        error_part = f" ± {error}"
-    content = f"Observed {label_part} = {value}{error_part}"
-    if error is None or isinstance(error, Distribution):
-        coerced_error: Any = error
+    elif error is None:
+        error_part = ""
     else:
-        coerced_error = float(error)
+        error_part = f" +/- {coerced_error}{unit_suffix}"
+    content = f"Observed {label_part} = {coerced_value}{unit_suffix}{error_part}"
+
     obs_metadata: dict[str, Any] = {
         "observation": {
             "target_distribution": target,
-            "value": float(value),
+            "value": coerced_value,
             "error": coerced_error,
+            "unit": value_unit,
             "kind": "continuous_observation",
         },
     }

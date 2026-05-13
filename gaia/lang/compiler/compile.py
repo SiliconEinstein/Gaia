@@ -194,7 +194,19 @@ def _knowledge_id(
 def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
     from gaia.lang.dsl.bool_expr import BoolExpr, DerivedDistribution
     from gaia.lang.runtime.distribution import Distribution
+    from gaia.unit import is_quantity, to_literal
 
+    if is_quantity(value):
+        # Pint Quantities flow through metadata when authors write predicates
+        # like ``T_c > q(77, "K")``; convert to the IR-stable QuantityLiteral
+        # shape so the downstream LocalCanonicalGraph serialization succeeds
+        # and the audit-side `gaia check` can render the unit verbatim.
+        literal = to_literal(value)
+        return {
+            "kind": "quantity",
+            "value": literal.value,
+            "unit": literal.unit,
+        }
     if isinstance(value, Distribution):
         # Inline-serialize the Distribution descriptor so IR consumers can
         # render / audit which continuous quantity is being referenced

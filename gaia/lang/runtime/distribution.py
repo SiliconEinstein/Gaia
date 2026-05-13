@@ -33,6 +33,94 @@ if TYPE_CHECKING:
     from gaia.lang.dsl.bool_expr import BoolExpr, DerivedDistribution
 
 
+# ---------------------------------------------------------------------------
+# Unit-aware parameter coercion
+# ---------------------------------------------------------------------------
+# The pydantic-backed ``_BaseDistribution`` only accepts numeric scalars (or
+# deferred references with a ``.symbol`` attribute) as parameter values.
+# Authors writing scientific-domain code naturally reach for unit-aware values
+# (e.g. ``Normal("T_c", mu=q(200, "K"), sigma=q(50, "K"))``); this helper
+# strips the unit, hands the magnitude to the pydantic constructor, and
+# returns the per-param unit dict so the factory can stash it on the
+# Distribution's metadata for downstream audit and consistency checks.
+
+
+def _coerce_quantity_params(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    """Strip Pint Quantity values from a parameter dict.
+
+    Returns a pair ``(magnitudes, units)`` where ``magnitudes`` is the same
+    keys with ``.magnitude`` extracted from any Quantity-typed values
+    (non-Quantity values pass through unchanged), and ``units`` is the
+    subset of keys whose value carried a unit, mapped to the canonical
+    Pint unit string (e.g. ``"kelvin"``, ``"meter / second"``).
+    """
+    from gaia.unit import is_quantity, to_literal
+
+    magnitudes: dict[str, Any] = {}
+    units: dict[str, str] = {}
+    for name, value in params.items():
+        if is_quantity(value):
+            literal = to_literal(value)
+            magnitudes[name] = literal.value
+            units[name] = literal.unit
+        else:
+            magnitudes[name] = value
+    return magnitudes, units
+
+
+def _validate_shared_unit(
+    units: dict[str, str], group: tuple[str, ...], distribution_name: str
+) -> str | None:
+    """Verify that all parameters in ``group`` share the same unit (or none).
+
+    Returns the shared unit string when the group has a unit, ``None`` when
+    no parameter in the group carries a unit. Raises ``ValueError`` when
+    parameters in the group disagree (some unit-typed, some not, or different
+    unit strings) — this catches mistakes like
+    ``Normal("T", mu=q(200, "K"), sigma=50)`` early.
+    """
+    in_group = {name: units[name] for name in group if name in units}
+    if not in_group:
+        return None
+    unit_set = set(in_group.values())
+    if len(unit_set) > 1:
+        raise ValueError(
+            f"{distribution_name} location/scale parameters {sorted(in_group)} "
+            f"must share a single unit; got {in_group}."
+        )
+    missing = [name for name in group if name not in units]
+    if missing:
+        raise ValueError(
+            f"{distribution_name} location/scale parameters disagree on "
+            f"unit-aware-ness: {sorted(in_group)} carry units, "
+            f"{sorted(missing)} do not. Pass either all unitless scalars or "
+            "all gaia.unit.Quantity values."
+        )
+    return next(iter(unit_set))
+
+
+def _attach_units(
+    metadata_kwarg: dict[str, Any] | None,
+    units: dict[str, str],
+    shared_unit: str | None,
+) -> dict[str, Any] | None:
+    """Merge per-param units (and optional shared unit) into metadata.
+
+    Returns the updated metadata dict (a fresh copy when units are present,
+    or the original ``metadata_kwarg`` when nothing changes).
+    """
+    if not units and shared_unit is None:
+        return metadata_kwarg
+    meta = dict(metadata_kwarg or {})
+    if units:
+        existing_units = dict(meta.get("units") or {})
+        existing_units.update(units)
+        meta["units"] = existing_units
+    if shared_unit is not None:
+        meta.setdefault("unit", shared_unit)
+    return meta
+
+
 @dataclass(init=False, eq=False)
 class Distribution(Knowledge):
     """Knowledge-wrapped continuous quantity with a probability distribution.
@@ -270,10 +358,73 @@ class Distribution(Knowledge):
 # ---------------------------------------------------------------------------
 # Family-specific factories — top-level author API
 #
-# These are the canonical author-facing entry points. They match the parameter
-# shapes of ``gaia.lang.bayes.distributions.<Name>`` so authors familiar with
-# the existing bayes module find no surprises in the parameter names.
+# These are the canonical author-facing entry points. They accept either bare
+# numeric scalars or :class:`gaia.unit.Quantity` values for parameters. When
+# Quantities are supplied, the unit string is recorded on the resulting
+# Distribution's ``metadata['units']`` (per-param) and, for distributions
+# with a shared location/scale, ``metadata['unit']`` (the unit of the
+# underlying random variable). The pydantic ``_BaseDistribution`` continues
+# to receive only numeric magnitudes so its frozen-Pydantic validation pass
+# is unchanged.
+#
+# Per-distribution unit semantics:
+# ``Normal``, ``StudentT``, ``Cauchy``           — location/scale share a unit
+# ``Gamma`` (alpha, rate)                        — alpha dimensionless,
+#                                                   ``rate`` carries unit (1/x)
+# ``Exponential`` (rate), ``Poisson`` (rate)     — ``rate`` carries unit (1/x)
+# ``LogNormal``, ``Beta``, ``ChiSquared``,       — all parameters are
+#   ``Binomial``                                   conventionally dimensionless;
+#                                                   raise if a Quantity is
+#                                                   passed (use the content
+#                                                   string to convey the unit
+#                                                   of the underlying RV).
 # ---------------------------------------------------------------------------
+
+
+def _build_distribution(
+    content: str,
+    *,
+    impl_cls: type[_BaseDistribution],
+    raw_params: dict[str, Any],
+    location_scale_group: tuple[str, ...] = (),
+    unit_carriers: tuple[str, ...] = (),
+    dimensionless_params: tuple[str, ...] = (),
+    distribution_name: str,
+    kwargs: dict[str, Any],
+) -> Distribution:
+    """Common factory body — coerce Quantities, validate units, construct."""
+    magnitudes, units = _coerce_quantity_params(raw_params)
+    if dimensionless_params:
+        offending = {p: units[p] for p in dimensionless_params if p in units}
+        if offending:
+            raise ValueError(
+                f"{distribution_name} parameters {sorted(offending)} are "
+                "dimensionless and must be passed as bare scalars; got "
+                f"unit-typed values {offending}. Encode the random "
+                "variable's unit in the content string instead."
+            )
+    shared_unit = (
+        _validate_shared_unit(units, location_scale_group, distribution_name)
+        if location_scale_group
+        else None
+    )
+    impl = impl_cls(**magnitudes)
+    new_kwargs = dict(kwargs)
+    new_kwargs["metadata"] = _attach_units(new_kwargs.get("metadata"), units, shared_unit)
+    if not unit_carriers and not location_scale_group and units:
+        # Distribution with a single unit-carrying rate parameter — use that
+        # parameter's unit as the surfaced metadata['unit'] for downstream
+        # consumers (predicate / observe consistency check).
+        new_kwargs["metadata"] = _attach_units(
+            new_kwargs.get("metadata"), {}, next(iter(units.values()))
+        )
+    elif unit_carriers:
+        carrier_units = {p: units[p] for p in unit_carriers if p in units}
+        if carrier_units:
+            new_kwargs["metadata"] = _attach_units(
+                new_kwargs.get("metadata"), {}, next(iter(carrier_units.values()))
+            )
+    return Distribution(content, impl=impl, **new_kwargs)
 
 
 def Normal(
@@ -283,10 +434,21 @@ def Normal(
     sigma: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Normal-distributed continuous quantity with a name."""
+    """Create a Normal-distributed continuous quantity with a name.
+
+    ``mu`` and ``sigma`` may both be bare scalars or both be
+    :class:`gaia.unit.Quantity` values sharing a unit; mixing them raises.
+    """
     from gaia.lang.bayes.distributions.continuous import Normal as _BaseNormal
 
-    return Distribution(content, impl=_BaseNormal(mu=mu, sigma=sigma), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseNormal,
+        raw_params={"mu": mu, "sigma": sigma},
+        location_scale_group=("mu", "sigma"),
+        distribution_name="Normal",
+        kwargs=kwargs,
+    )
 
 
 def LogNormal(
@@ -296,10 +458,22 @@ def LogNormal(
     sigma: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a LogNormal-distributed continuous quantity with a name."""
+    """Create a LogNormal-distributed continuous quantity with a name.
+
+    The LogNormal parameters live in log-space; ``mu`` and ``sigma`` must be
+    dimensionless scalars. Encode the unit of the underlying random variable
+    in the content string (e.g. ``LogNormal("k / s^-1", mu=log(1e-3), sigma=2)``).
+    """
     from gaia.lang.bayes.distributions.continuous import LogNormal as _BaseLogNormal
 
-    return Distribution(content, impl=_BaseLogNormal(mu=mu, sigma=sigma), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseLogNormal,
+        raw_params={"mu": mu, "sigma": sigma},
+        dimensionless_params=("mu", "sigma"),
+        distribution_name="LogNormal",
+        kwargs=kwargs,
+    )
 
 
 def Beta(
@@ -309,10 +483,20 @@ def Beta(
     beta: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Beta-distributed continuous quantity with a name."""
+    """Create a Beta-distributed continuous quantity with a name.
+
+    Beta shape parameters ``alpha`` and ``beta`` are dimensionless.
+    """
     from gaia.lang.bayes.distributions.continuous import Beta as _BaseBeta
 
-    return Distribution(content, impl=_BaseBeta(alpha=alpha, beta=beta), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseBeta,
+        raw_params={"alpha": alpha, "beta": beta},
+        dimensionless_params=("alpha", "beta"),
+        distribution_name="Beta",
+        kwargs=kwargs,
+    )
 
 
 def Exponential(
@@ -321,10 +505,23 @@ def Exponential(
     rate: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create an Exponential-distributed continuous quantity with a name."""
+    """Create an Exponential-distributed continuous quantity with a name.
+
+    ``rate`` may be a bare scalar or a :class:`gaia.unit.Quantity` (typically
+    ``1 / time``). The corresponding random variable's unit is the inverse of
+    ``rate``'s unit; for predicate / observe consistency we record ``rate``'s
+    unit on metadata.
+    """
     from gaia.lang.bayes.distributions.continuous import Exponential as _BaseExponential
 
-    return Distribution(content, impl=_BaseExponential(rate=rate), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseExponential,
+        raw_params={"rate": rate},
+        unit_carriers=("rate",),
+        distribution_name="Exponential",
+        kwargs=kwargs,
+    )
 
 
 def Gamma(
@@ -334,10 +531,21 @@ def Gamma(
     rate: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Gamma-distributed continuous quantity with a name."""
+    """Create a Gamma-distributed continuous quantity with a name.
+
+    ``alpha`` is dimensionless; ``rate`` may carry a unit (typically ``1 / x``).
+    """
     from gaia.lang.bayes.distributions.continuous import Gamma as _BaseGamma
 
-    return Distribution(content, impl=_BaseGamma(alpha=alpha, rate=rate), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseGamma,
+        raw_params={"alpha": alpha, "rate": rate},
+        dimensionless_params=("alpha",),
+        unit_carriers=("rate",),
+        distribution_name="Gamma",
+        kwargs=kwargs,
+    )
 
 
 def StudentT(
@@ -348,10 +556,22 @@ def StudentT(
     sigma: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Student-t distributed continuous quantity with a name."""
+    """Create a Student-t distributed continuous quantity with a name.
+
+    ``df`` is dimensionless; ``mu`` and ``sigma`` share the location/scale
+    unit of the underlying random variable.
+    """
     from gaia.lang.bayes.distributions.continuous import StudentT as _BaseStudentT
 
-    return Distribution(content, impl=_BaseStudentT(df=df, mu=mu, sigma=sigma), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseStudentT,
+        raw_params={"df": df, "mu": mu, "sigma": sigma},
+        location_scale_group=("mu", "sigma"),
+        dimensionless_params=("df",),
+        distribution_name="StudentT",
+        kwargs=kwargs,
+    )
 
 
 def Cauchy(
@@ -361,10 +581,21 @@ def Cauchy(
     gamma: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Cauchy-distributed continuous quantity with a name."""
+    """Create a Cauchy-distributed continuous quantity with a name.
+
+    ``mu`` and ``gamma`` share the location/scale unit of the underlying
+    random variable.
+    """
     from gaia.lang.bayes.distributions.continuous import Cauchy as _BaseCauchy
 
-    return Distribution(content, impl=_BaseCauchy(mu=mu, gamma=gamma), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseCauchy,
+        raw_params={"mu": mu, "gamma": gamma},
+        location_scale_group=("mu", "gamma"),
+        distribution_name="Cauchy",
+        kwargs=kwargs,
+    )
 
 
 def ChiSquared(
@@ -373,10 +604,20 @@ def ChiSquared(
     df: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Chi-squared distributed continuous quantity with a name."""
+    """Create a Chi-squared distributed continuous quantity with a name.
+
+    ``df`` is dimensionless.
+    """
     from gaia.lang.bayes.distributions.continuous import ChiSquared as _BaseChiSquared
 
-    return Distribution(content, impl=_BaseChiSquared(df=df), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseChiSquared,
+        raw_params={"df": df},
+        dimensionless_params=("df",),
+        distribution_name="ChiSquared",
+        kwargs=kwargs,
+    )
 
 
 def Binomial(
@@ -386,10 +627,20 @@ def Binomial(
     p: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Binomial-distributed discrete quantity with a name."""
+    """Create a Binomial-distributed discrete quantity with a name.
+
+    ``n`` and ``p`` are dimensionless.
+    """
     from gaia.lang.bayes.distributions.discrete import Binomial as _BaseBinomial
 
-    return Distribution(content, impl=_BaseBinomial(n=n, p=p), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BaseBinomial,
+        raw_params={"n": n, "p": p},
+        dimensionless_params=("n", "p"),
+        distribution_name="Binomial",
+        kwargs=kwargs,
+    )
 
 
 def Poisson(
@@ -398,10 +649,20 @@ def Poisson(
     rate: Any,
     **kwargs: Any,
 ) -> Distribution:
-    """Create a Poisson-distributed discrete quantity with a name."""
+    """Create a Poisson-distributed discrete quantity with a name.
+
+    ``rate`` may carry a unit (typically ``count / time``).
+    """
     from gaia.lang.bayes.distributions.discrete import Poisson as _BasePoisson
 
-    return Distribution(content, impl=_BasePoisson(rate=rate), **kwargs)
+    return _build_distribution(
+        content,
+        impl_cls=_BasePoisson,
+        raw_params={"rate": rate},
+        unit_carriers=("rate",),
+        distribution_name="Poisson",
+        kwargs=kwargs,
+    )
 
 
 __all__ = [
