@@ -5,7 +5,7 @@
 | 版本 | 0.1 |
 | 日期 | 2026-03-22 |
 | 状态 | **Current canonical** |
-| 关联文档 | [README.md](../README.md), [01-product-scope.md](foundations/ecosystem/01-product-scope.md) |
+| 关联文档 | [docs/README.md](README.md), [01-product-scope.md](foundations/ecosystem/01-product-scope.md) |
 
 ## 1. 目的
 

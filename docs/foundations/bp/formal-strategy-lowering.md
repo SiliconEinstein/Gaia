@@ -10,7 +10,7 @@
 
 ### 1.1 所有 Operator 都是 CONDITIONAL 三元因子
 
-IR 中每个 Operator 有 `variables` 和 `conclusion`（[02-gaia-ir.md §2](../gaia-ir/02-gaia-ir.md)）。Lowering 时，**所有** Operator 统一映射为 CONDITIONAL 三元因子 $f(\text{variables}, \text{conclusion})$，CPT 编码真值表：
+IR 中每个 Operator 有 `variables` 和 `conclusion`（见 [Gaia IR structure](../gaia-ir/02-gaia-ir.md)）。Lowering 时，**所有** Operator 统一映射为 CONDITIONAL 三元因子 $f(\text{variables}, \text{conclusion})$，CPT 编码真值表：
 
 $$\psi = \text{cpt}[idx] \text{ 当 } H=1, \quad \psi = 1 - \text{cpt}[idx] \text{ 当 } H=0$$
 
@@ -353,6 +353,6 @@ for op in formal_expr.operators:
 
 - 因子图理论：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)
 - BP 算法：[../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)
-- IR Operator 定义：[../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md) §2
-- Helper claim 语义：[../gaia-ir/04-helper-claims.md](../gaia-ir/04-helper-claims.md)
+- IR Operator 定义：[Gaia IR structure](../gaia-ir/02-gaia-ir.md)
+- Helper claim 语义：[Helper Claims](../gaia-ir/04-helper-claims.md)
 - Factor potential 定义：[potentials.md](potentials.md)

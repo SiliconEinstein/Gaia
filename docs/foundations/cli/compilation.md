@@ -104,7 +104,7 @@ For foreign nodes, the compiler checks in order:
 
 Anonymous counter is sequential per compilation, producing deterministic IDs for unlabeled local nodes.
 
-QID format is defined in [Identity and Hashing](../gaia-ir/03-identity-and-hashing.md).
+QID semantics are defined in [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md); generated helper signatures are available in [Gaia IR API](../../reference/ir.md).
 
 #### Named Strategy Formalization
 
@@ -155,11 +155,11 @@ The `LocalCanonicalGraph` model validator (`gaia/ir/graphs.py`) automatically co
 
 The hash covers knowledges, operators, and strategies -- the full graph closure including foreign references.
 
-Reference: [Identity and Hashing](../gaia-ir/03-identity-and-hashing.md) and [Canonicalization](../gaia-ir/05-canonicalization.md).
+Reference: [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md) and [Validation](../gaia-ir/08-validation.md).
 
 ### Step 5: Validate and Write
 
-The compile command runs `validate_local_graph()` (`gaia/ir/validator.py`) on the constructed `LocalCanonicalGraph`. The validator checks (see [Validation](../gaia-ir/08-validation.md) for the full contract):
+The compile command runs `validate_local_graph()` (`gaia/ir/validator.py`) on the constructed `LocalCanonicalGraph`. The validator checks:
 
 **Knowledge checks:**
 - All IDs are valid QID format

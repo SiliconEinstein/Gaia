@@ -70,7 +70,7 @@ gaia compile [PATH]
 
 1. Loads the package from `pyproject.toml` (requires `[tool.gaia].type = "knowledge-package"`).
 2. Imports the Python module, collects `Knowledge`, `Action` (including `Compose`), `Strategy`, and `Operator` declarations registered to the active `CollectedPackage`.
-3. Assigns labels from Python variable names to unlabeled objects (Knowledge labels and Action labels share a single namespace per package; collision is a compile error — see [../gaia-lang/knowledge-and-reasoning.md §4.3](../gaia-lang/knowledge-and-reasoning.md#43-action-label-references)).
+3. Assigns labels from Python variable names to unlabeled objects (Knowledge labels and Action labels share a single namespace per package; collision is a compile error — see [Gaia Lang design](../gaia-lang/knowledge-and-reasoning.md)).
 4. Compiles the collected package to Gaia IR via `gaia.lang.compiler.compile_package`. Action lowering, formula lowering, and bayes lowering all run as part of this step.
 5. Validates the resulting `LocalCanonicalGraph` (warnings printed, errors abort).
 6. Generates a baseline `ReviewManifest` over every action target and attaches it in memory to `CompiledPackage.review`. The manifest is not persisted by `gaia compile`; it is read/merged later by `gaia inquiry review` and `gaia infer` when `.gaia/review_manifest.json` exists.
@@ -327,7 +327,7 @@ Exit codes:
 
 `--mode publish` weighs diagnostics more strictly for release-gate use; `--mode trace` is the authoring-time view. `--package <pkg>` cross-references `claim_ref` events against the package's `Review` records.
 
-Reference: [../review/review-pipeline.md §6](../review/review-pipeline.md#6-cli-gaia-trace-verify--review--show).
+Reference: [../review/review-pipeline.md §6](../review/review-pipeline.md#6-cli-gaia-trace-verify-review-show).
 
 ### `gaia starmap`
 

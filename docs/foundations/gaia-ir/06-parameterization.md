@@ -108,9 +108,9 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 
 对含不确定性的命名策略（如 abduction），不确定性也应落在**接口 claim** 上，而不是私有内部节点上。例如 abduction 中承载自由度的是 public interface claim `AlternativeExplanationForObs`；内部的 `disjunction_result` / `equivalence_result` 仍是纯结构型 helper claim。marginalization 只是把这些私有 helper 节点安全消去，而不会为 private node 发明新的 prior。
 
-这是精确的数学操作，属于 IR 的概率语义定义；具体推理后端可以用精确或近似算法实现（见 [bp/](../bp/) 层）。
+这是精确的数学操作，属于 IR 的概率语义定义；具体推理后端可以用精确或近似算法实现（见 [BP inference](../bp/inference.md)）。
 
-由于 FormalExpr 内部节点是严格私有的（禁止外部引用，见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装)），FormalStrategy **总是可以被折叠的**——所有内部变量都可以安全消去。
+由于 FormalExpr 内部节点是严格私有的（禁止外部引用，见 [04-helper-claims.md](04-helper-claims.md)），FormalStrategy **总是可以被折叠的**——所有内部变量都可以安全消去。
 
 哪些 Strategy 折叠、哪些展开，由推理引擎的 `expand_set` 决定。对直接 FormalStrategy，折叠视图应由其内部结构现算出等效行为，而不是读取独立的 StrategyParamRecord。
 
@@ -122,9 +122,9 @@ P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
 - 每个参数化 Strategy 都必须有 StrategyParamRecord
 - 每个直接 FormalStrategy 所依赖的相关 interface claim 都必须有 PriorRecord；这包括 formalization 自动补齐的 public interface claim（如 abduction 的 `AlternativeExplanationForObs`）
 
-结构型 helper claim **禁止**携带独立 PriorRecord——它们的分布完全由 Operator 确定性约束决定，没有自由度（详细解释见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）。
+结构型 helper claim **禁止**携带独立 PriorRecord——它们的分布完全由 Operator 确定性约束决定，没有自由度（详细解释见 [04-helper-claims.md](04-helper-claims.md)）。
 
-**Operator 不属于 parameterization 的范围。** Operator 纯确定性，不携带任何概率参数。Parameterization 只管两类输入：claim 的 PriorRecord 和参数化 Strategy 的 StrategyParamRecord。每种 Operator 的行为完全由其真值表定义（见 [02-gaia-ir.md §2.2](02-gaia-ir.md#22-算子类型与真值表)），例如 conjunction 的约束是 `M=1 iff 所有输入=1`，implication 的约束是 `A=1 时 B 必须=1`——这些都是确定性关系，不需要额外的概率参数。
+**Operator 不属于 parameterization 的范围。** Operator 纯确定性，不携带任何概率参数。Parameterization 只管两类输入：claim 的 PriorRecord 和参数化 Strategy 的 StrategyParamRecord。每种 Operator 的行为完全由其真值表定义（见 [02-gaia-ir.md](02-gaia-ir.md)），例如 conjunction 的约束是 `M=1 iff 所有输入=1`，implication 的约束是 `A=1 时 B 必须=1`——这些都是确定性关系，不需要额外的概率参数。
 
 否则拒绝运行。
 

@@ -23,11 +23,11 @@ operator enums. `PredictiveModel` and `Likelihood` are action-shaped runtime
 objects; their helper claims carry `metadata["bayes"]["role"]` values
 `"prediction"` and `"comparison"` respectively. Both action subclasses go
 through the standard action lowering pipeline (see
-[knowledge-and-reasoning.md §4](knowledge-and-reasoning.md#4-action-lowering)),
+[knowledge-and-reasoning.md](knowledge-and-reasoning.md)),
 share the package-wide `action_label_map`, and emit warrant helper Claims
-that are addressable via `[@label]` references. Specs:
-[Bayes Module Design](../../specs/2026-05-04-bayes-module-design.md),
-[Bayes Actions Design](../../specs/2026-05-05-bayes-actions-design.md).
+that are addressable via `[@label]` references. Historical design records live at
+`docs/specs/2026-05-04-bayes-module-design.md` and
+`docs/specs/2026-05-05-bayes-actions-design.md`.
 
 ## Import Surface
 
