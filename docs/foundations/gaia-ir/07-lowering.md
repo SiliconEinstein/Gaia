@@ -21,12 +21,14 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 
 对**需要概率参数**的运行时后端，常见还会额外输入：
 
-- 与 graph 匹配的参数输入
+- claim prior 参数输入
 - `ResolutionPolicy`
 - `prior_cutoff`
 - backend 自己的运行配置
 
-对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic backend，规范输入是 `LocalCanonicalGraph + Parameterization`。
+对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic
+backend，规范输入是 `LocalCanonicalGraph + claim Parameterization`；
+Strategy 条件概率参数来自 graph 内的 inline Strategy 字段。
 
 lowering 的输出不是新的 Gaia IR，而是**后端的数据表示**。
 在当前 BP 后端里，这个输出是 `FactorGraph`（variable nodes + factor nodes 的二部图）；在其他后端里，也可以是别的表示。
@@ -109,7 +111,7 @@ Strategy 是不确定性承载层。lowering 时，需要决定：
 
 - `premises`
 - `conclusion`
-- parameterization 层提供的外部参数
+- `Strategy` inline 概率参数
 
 共同决定。
 

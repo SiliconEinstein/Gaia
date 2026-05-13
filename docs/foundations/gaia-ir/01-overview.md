@@ -148,7 +148,8 @@ CompositeStrategy
 - **FormalStrategy**：折叠时由内部 Operator 结构 + 相关 claim prior 导出等效条件概率；展开时 Operator 作为确定性硬约束进入 runtime graph
 - **Operator**：纯确定性（真值表），不携带概率参数
 
-最终，后端（如 BP）消费 lowering 的输出（如 `FactorGraph`）加上 Parameterization，产出后验信念。
+最终，后端（如 BP）消费 lowering 的输出（如 `FactorGraph`）、claim
+prior 以及 Strategy inline 参数，产出后验信念。
 
 Lowering 的详细契约见 [07-lowering.md](07-lowering.md)。
 
@@ -261,7 +262,10 @@ IR 级别不为 imported 节点新增 primitive：它们仍然是普通 `Knowled
 | **CompositeStrategy**(Strategy) | 含子策略，可递归嵌套 | `sub_strategies: list[str]`（child `strategy_id` 列表） |
 | **FormalStrategy**(Strategy) | 含确定性 Operator 展开 | `formal_expr: FormalExpr` |
 
-所有形态折叠时均编译为 ↝（概率参数来自 [parameterization](06-parameterization.md) 层）。展开时进入内部结构（子策略或确定性 Operator）。这支持**多分辨率 BP**——同一图在不同粒度做推理。
+所有形态折叠时均编译为 ↝：叶子 Strategy 的概率参数来自
+`Strategy` inline 字段，FormalStrategy 的等效条件视图由内部结构与
+interface claim prior 导出。展开时进入内部结构（子策略或确定性
+Operator）。这支持**多分辨率 BP**——同一图在不同粒度做推理。
 
 `type` 表示**推理语义家族**，`形态` 表示**展开程度/组织方式**。二者不是同一个维度；命名策略本体可以直接是 `FormalStrategy`，而 `CompositeStrategy` 用来组合这些子结构并保留 hierarchy。
 
