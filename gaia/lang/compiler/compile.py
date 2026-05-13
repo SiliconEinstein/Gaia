@@ -1893,9 +1893,11 @@ def compile_package_artifact(
     if references is None:
         references = {}
 
+    from gaia.lang.compiler.distribution_diagnostics import emit_distribution_warnings
     from gaia.lang.compiler.predicate_lowering import lower_predicate_priors
 
     lower_predicate_priors(pkg)
+    emit_distribution_warnings(pkg)
 
     knowledge_collection = _KnowledgeCollector(pkg).collect()
     knowledge_map = _assign_knowledge_ids(pkg, knowledge_collection.nodes)

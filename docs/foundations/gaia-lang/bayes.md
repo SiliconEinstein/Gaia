@@ -448,6 +448,29 @@ A rough decision rule:
 You can mix both — use Distribution-backed observations to feed evidence
 that a `bayes.likelihood` comparison consumes.
 
+### Compile-time diagnostics
+
+Two warning categories surface common authoring mistakes / known limitations:
+
+* `DeadContinuousQuantityWarning` — a `Distribution` was declared but never
+  referenced in any claim's predicate / equation / observation. Catches
+  typos like declaring `T_c2` and then writing `claim("...", T_c > q(77, "K"))`
+  with the wrong identifier. Suppress with `warnings.filterwarnings("ignore",
+  category=DeadContinuousQuantityWarning)` for intentional placeholders.
+
+* `ObservationNotUpdatingPredicateWarning` — both `observe(d, value=..., error=...)`
+  and `claim("...", d > c)` reference the same `Distribution`, but the
+  predicate prior is currently computed from the prior CDF directly without
+  incorporating the observation. This is a real correctness gap that the
+  posterior-CDF work (tracked separately, see project issues) will close.
+  Until then, set `prior=` explicitly on the predicate claim to reflect the
+  post-observation belief, or express the inference via
+  `gaia.lang.bayes.likelihood()`.
+
+Both warnings emit through `warnings.warn` so they appear in pytest output,
+the Gaia CLI, and any standard `warnings.catch_warnings` capture. They are
+non-fatal — packages compile successfully.
+
 ### Source code
 
 - `gaia/lang/runtime/distribution.py` — Distribution Knowledge wrapper
@@ -461,3 +484,5 @@ that a `bayes.likelihood` comparison consumes.
   polymorphism
 - `gaia/lang/compiler/predicate_lowering.py` — predicate → CDF prior at
   compile time; equation → default neutral prior with author override
+- `gaia/lang/compiler/distribution_diagnostics.py` — dead-quantity and
+  observation-not-updating-predicate detectors

@@ -176,6 +176,8 @@ class Distribution(Knowledge):
         Mirrors the Lang-only treatment in :class:`Variable` and :class:`Domain`
         — distributions exist for the author and Lang-side compiler, but the
         IR sees them only through claim/action metadata that references them.
+        Appending to ``pkg.distributions`` lets compile-time diagnostics
+        detect quantities declared but never referenced.
         """
         pkg = _current_package.get()
         source_module = None
@@ -187,6 +189,7 @@ class Distribution(Knowledge):
             self._source_module = source_module
             self._package = pkg
             # NO pkg._register_knowledge(self) — Lang-only.
+            pkg.distributions.append(self)
 
     # Object identity (not structural equality) so this Distribution can sit in
     # set/dict containers even though __eq__ returns a BoolExpr below.
