@@ -38,6 +38,7 @@ MomentFeature = Callable[[np.ndarray], np.ndarray]  # (N, n_vars) int8 -> (N,) f
 @dataclass(frozen=True)
 class MomentConstraint:
     """Moment constraint for maximum entropy problem."""
+
     label: str
     feature: MomentFeature
     target: float
@@ -46,6 +47,7 @@ class MomentConstraint:
 @dataclass(frozen=True)
 class MaxEntFit:
     """Maximum entropy distribution fit result."""
+
     p: np.ndarray  # length 2**n
     lam: np.ndarray  # length n_constraints
     log_Z: float

@@ -30,6 +30,7 @@ __all__ = [
 @dataclass(frozen=True)
 class DecisionResult:
     """Result of decision-theoretic inference."""
+
     action: object
     expected_loss: float
     loss_by_action: dict[object, float]

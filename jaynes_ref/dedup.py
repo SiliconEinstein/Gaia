@@ -79,7 +79,6 @@ def dedup_cpts(info: InformationSet) -> tuple[InformationSet, list[dict]]:
     return replace(info, cpts=kept), audit
 
 
-
 def canonical_weighted_factor_key(wf: WeightedFactor) -> tuple:
     """Order-invariant key over variables; weights are permuted to match.
 
@@ -99,8 +98,6 @@ def canonical_weighted_factor_key(wf: WeightedFactor) -> tuple:
             new_idx |= bits[old_pos] << new_pos
         new_weights[new_idx] = wf.weights[old_idx]
     return (sorted_vars, tuple(new_weights))
-
-
 
 
 def dedup_weighted_factors(info: InformationSet) -> tuple[InformationSet, list[dict]]:

@@ -26,6 +26,7 @@ def _cromwell_clamp(value: float, label: str = "") -> float:
 
 class FactorType(Enum):
     """Enumeration of factor types in the factor graph."""
+
     IMPLICATION = auto()
     NEGATION = auto()
     CONJUNCTION = auto()
@@ -41,6 +42,7 @@ class FactorType(Enum):
 @dataclass(frozen=True)
 class Factor:
     """Factor in a factor graph with variables and potential function."""
+
     factor_id: str
     factor_type: FactorType
     variables: list[str]
@@ -63,6 +65,7 @@ class Factor:
 
 class FactorGraph:
     """Factor graph for probabilistic inference."""
+
     def __init__(self) -> None:
         """Initialize an empty factor graph."""
         self.variables: dict[str, float] = {}
