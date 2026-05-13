@@ -25,6 +25,7 @@ def _cromwell_clamp(value: float, label: str = "") -> float:
 
 
 class FactorType(Enum):
+    """Enumeration of factor types in the factor graph."""
     IMPLICATION = auto()
     NEGATION = auto()
     CONJUNCTION = auto()
@@ -39,6 +40,7 @@ class FactorType(Enum):
 
 @dataclass(frozen=True)
 class Factor:
+    """Factor in a factor graph with variables and potential function."""
     factor_id: str
     factor_type: FactorType
     variables: list[str]
@@ -49,6 +51,7 @@ class Factor:
 
     @property
     def all_vars(self) -> list[str]:
+        """Return all variables involved in this factor."""
         seen: set[str] = set()
         out: list[str] = []
         for v in (*self.variables, self.conclusion):
@@ -59,7 +62,9 @@ class Factor:
 
 
 class FactorGraph:
+    """Factor graph for probabilistic inference."""
     def __init__(self) -> None:
+        """Initialize an empty factor graph."""
         self.variables: dict[str, float] = {}
         self.unary_factors: dict[str, float] = {}
         self.hard_evidence: dict[str, int] = {}
@@ -173,7 +178,7 @@ class FactorGraph:
             }
         )
 
-    def add_factor(
+    def add_factor(  # noqa: C901
         self,
         factor_id: str,
         factor_type: FactorType,
@@ -184,6 +189,7 @@ class FactorGraph:
         p2: float | None = None,
         cpt: Sequence[float] | None = None,
     ) -> None:
+        """Add a factor to the graph with specified type and variables."""
         v_list = list(variables)
         if conclusion in v_list:
             raise ValueError(
@@ -300,13 +306,16 @@ class FactorGraph:
             raise ValueError(
                 f"DISJUNCTION '{factor_id}' requires at least 2 variables, got {len(v_list)}."
             )
-        if ft in (FactorType.EQUIVALENCE, FactorType.CONTRADICTION, FactorType.COMPLEMENT):
-            if len(v_list) != 2:
-                raise ValueError(
-                    f"{ft.name} '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
-                )
+        if (
+            ft in (FactorType.EQUIVALENCE, FactorType.CONTRADICTION, FactorType.COMPLEMENT)
+            and len(v_list) != 2
+        ):
+            raise ValueError(
+                f"{ft.name} '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
+            )
 
     def get_var_to_factors(self) -> dict[str, list[int]]:
+        """Return mapping from variable names to factor indices."""
         index: dict[str, list[int]] = {vid: [] for vid in self.variables}
         for fi, factor in enumerate(self.factors):
             for vid in factor.all_vars:
@@ -321,6 +330,7 @@ class FactorGraph:
         return index
 
     def validate(self) -> list[str]:
+        """Validate the factor graph and return list of errors."""
         errors: list[str] = []
         for fi, factor in enumerate(self.factors):
             seen: set[str] = set()
@@ -338,6 +348,7 @@ class FactorGraph:
         return errors
 
     def summary(self) -> str:
+        """Generate summary string of the factor graph."""
         lines = [f"FactorGraph: {len(self.variables)} variables, {len(self.factors)} factors"]
         lines.append("Variables:")
         for vid, measure in sorted(self.variables.items()):

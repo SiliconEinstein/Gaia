@@ -37,6 +37,7 @@ MomentFeature = Callable[[np.ndarray], np.ndarray]  # (N, n_vars) int8 -> (N,) f
 
 @dataclass(frozen=True)
 class MomentConstraint:
+    """Moment constraint for maximum entropy problem."""
     label: str
     feature: MomentFeature
     target: float
@@ -44,6 +45,7 @@ class MomentConstraint:
 
 @dataclass(frozen=True)
 class MaxEntFit:
+    """Maximum entropy distribution fit result."""
     p: np.ndarray  # length 2**n
     lam: np.ndarray  # length n_constraints
     log_Z: float
@@ -99,7 +101,6 @@ def fit_maxent(
         log_Z = float(m + np.log(Z))
         p = w / Z
 
-        # E_p[f]
         Ef = F.T @ p if K else np.zeros(0)
         grad = Ef - mu  # dPsi/dlam_k = E[f_k] - mu_k
         gnorm = float(np.linalg.norm(grad, ord=np.inf)) if K else 0.0
@@ -127,7 +128,8 @@ def maxent_from_info(
     constraints: Sequence[MomentConstraint],
     **kwargs,
 ) -> MaxEntFit:
-    """Wrapper that pins n to info.variables. Constraint features must
+    """Wrapper that pins n to info.variables. Constraint features must.
+
     consume a (N, n) int8 array indexed by sorted(info.variables).
     """
     info.validate()

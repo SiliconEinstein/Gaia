@@ -723,7 +723,6 @@ class JunctionTreeInference:
             # Determine which explicit unary factors to apply in this clique.
             local_priors: dict[str, float] = {}
             for v in var_list:
-                # Priority: hard_evidence > unary_factors
                 if v in graph.hard_evidence and v not in unary_assigned:
                     # Hard evidence: use δ function (0.0 or 1.0, no Cromwell ε)
                     local_priors[v] = (

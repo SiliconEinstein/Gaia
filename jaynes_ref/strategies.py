@@ -1,4 +1,5 @@
-"""Strategy lowering: Gaia Strategy / CompositeStrategy / FormalStrategy
+"""Strategy lowering: Gaia Strategy / CompositeStrategy / FormalStrategy.
+
 → jaynes_ref entities (LogicalConstraint / CPT / WeightedFactor / unary).
 
 Jaynes-strict semantics — no Cromwell ε on CPT entries, no implicit
@@ -86,7 +87,8 @@ def _ensure_var(ctx: StrategyLoweringContext, var: str) -> None:
 
 
 def _drop_helper(ctx: StrategyLoweringContext, helper: str) -> None:
-    """Remove a helper claim from variables/unary/hard once its warrant
+    """Remove a helper claim from variables/unary/hard once its warrant.
+
     is folded into the actual relation.
     """
     ctx.variables.discard(helper)
@@ -143,7 +145,8 @@ def _resolve_prior(
     metadata_priors: dict[str, float],
     ctx: StrategyLoweringContext,
 ) -> float | None:
-    """Return existing π_var from (in priority order):
+    """Return existing π_var from (in priority order).
+
     node_priors > metadata.prior > ctx state. None if unknown.
     """
     if var in priors:

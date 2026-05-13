@@ -77,7 +77,7 @@ def _shifted_joint(log_joints: np.ndarray) -> tuple[np.ndarray, float]:
     return joint, float(z_shifted)
 
 
-def _factor_log_potentials(
+def _factor_log_potentials(  # noqa: C901
     factor: Factor,
     states: np.ndarray,
     var_idx: dict[str, int],
@@ -194,6 +194,7 @@ def _factor_log_potentials(
 
 
 def exact_inference(graph: FactorGraph) -> tuple[dict[str, float], float]:
+    """Compute exact marginal beliefs via enumeration over joint distribution."""
     var_ids, _, all_log_joints = _enumerate_log_joint(graph)
     joint, z_shifted = _shifted_joint(all_log_joints)
     log_Z = all_log_joints.max() + np.log(z_shifted)
@@ -240,6 +241,7 @@ def comparison_table(
     title: str = "Exact vs BP Comparison",
     tolerance: float = 0.02,
 ) -> str:
+    """Generate comparison table between exact and approximate beliefs."""
     var_ids = sorted(graph.variables.keys())
 
     lines = []

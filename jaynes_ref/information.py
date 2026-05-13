@@ -51,13 +51,14 @@ class InformationSet:
     weighted_factors: list[WeightedFactor] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        """Validate information state after initialization."""
         self.validate()
 
     # ------------------------------------------------------------------
     # Validation — structural only
     # ------------------------------------------------------------------
 
-    def validate(self) -> None:
+    def validate(self) -> None:  # noqa: C901
         """Re-run structural validation after any mutation."""
         for v in self.variables:
             if not isinstance(v, str) or not v:

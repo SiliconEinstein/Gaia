@@ -17,7 +17,8 @@ from jaynes_ref.information import InformationSet
 
 
 def canonical_constraint_key(c: LogicalConstraint) -> tuple:
-    """Order-invariant key: sort variables lexicographically and
+    """Order-invariant key: sort variables lexicographically and.
+
     re-project the allowed set under that permutation.
     """
     order = sorted(range(len(c.variables)), key=lambda i: c.variables[i])
@@ -27,7 +28,8 @@ def canonical_constraint_key(c: LogicalConstraint) -> tuple:
 
 
 def canonical_cpt_key(cpt: CPT) -> tuple:
-    """CPT is parent-ordered (bit packing depends on order). We canonicalize
+    """CPT is parent-ordered (bit packing depends on order). We canonicalize.
+
     only (parents, child); conflicting tables at the same key are a D2
     violation and must raise.
     """
@@ -54,7 +56,8 @@ def dedup_constraints(info: InformationSet) -> tuple[InformationSet, list[dict]]
 
 
 def dedup_cpts(info: InformationSet) -> tuple[InformationSet, list[dict]]:
-    """Same (parents, child) with identical table → dedup; conflicting
+    """Same (parents, child) with identical table → dedup; conflicting.
+
     tables on the same key → raise (two different conditional
     distributions for the same fact, D2 violation).
     """
@@ -76,8 +79,10 @@ def dedup_cpts(info: InformationSet) -> tuple[InformationSet, list[dict]]:
     return replace(info, cpts=kept), audit
 
 
+
 def canonical_weighted_factor_key(wf: WeightedFactor) -> tuple:
     """Order-invariant key over variables; weights are permuted to match.
+
     Two pairwise factors that disagree on weights under the same key are
     a D2 violation (two different soft factors for the same fact).
     """
@@ -96,8 +101,11 @@ def canonical_weighted_factor_key(wf: WeightedFactor) -> tuple:
     return (sorted_vars, tuple(new_weights))
 
 
+
+
 def dedup_weighted_factors(info: InformationSet) -> tuple[InformationSet, list[dict]]:
-    """Same canonical key + identical permuted weights → dedup;
+    """Same canonical key + identical permuted weights → dedup.
+
     conflicting weights → raise (D2).
     """
     seen: dict = {}

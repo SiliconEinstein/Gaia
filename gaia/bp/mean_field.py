@@ -101,7 +101,7 @@ def _compute_elbo(
         elbo += m * np.log(p_c) + (1.0 - m) * np.log(1.0 - p_c)
 
     # Entropy term: H(q) = -sum_i [mu_i log mu_i + (1-mu_i) log(1-mu_i)]
-    for vid, m in mu.items():
+    for _vid, m in mu.items():
         m_c = _clamp(m)
         elbo -= m_c * np.log(m_c) + (1.0 - m_c) * np.log(1.0 - m_c)
 
@@ -219,6 +219,7 @@ class MeanFieldVI:
         convergence_threshold: float = 1e-6,
         track_elbo: bool = False,
     ) -> None:
+        """Initialize mean field inference state."""
         self._max_iter = max_iterations
         self._threshold = convergence_threshold
         self._track_elbo = track_elbo

@@ -1,4 +1,5 @@
-"""Constraint value types: class II likelihood, class III CPT, and
+"""Constraint value types: class II likelihood, class III CPT, and.
+
 deterministic logical potentials.
 
 All three are frozen dataclasses so they can be hashed and compared —
@@ -24,6 +25,7 @@ class Likelihood:
     ratio: float
 
     def __post_init__(self) -> None:
+        """Validate logical constraint after initialization."""
         if not isinstance(self.variable, str) or not self.variable:
             raise ValueError(f"Likelihood.variable must be a non-empty str, got {self.variable!r}")
         if self.ratio <= 0:
@@ -46,6 +48,7 @@ class CPT:
     table: tuple[float, ...]
 
     def __post_init__(self) -> None:
+        """Validate CPT after initialization."""
         if not isinstance(self.child, str) or not self.child:
             raise ValueError(f"CPT.child must be a non-empty str, got {self.child!r}")
         if self.child in self.parents:
@@ -83,6 +86,7 @@ class LogicalConstraint:
     label: str = ""
 
     def __post_init__(self) -> None:
+        """Validate weighted factor after initialization."""
         for v in self.variables:
             if not isinstance(v, str) or not v:
                 raise ValueError(f"LogicalConstraint.variables must be non-empty strs, got {v!r}")
@@ -209,6 +213,7 @@ class WeightedFactor:
     label: str = ""
 
     def __post_init__(self) -> None:
+        """Validate information set after initialization."""
         for v in self.variables:
             if not isinstance(v, str) or not v:
                 raise ValueError(f"WeightedFactor.variables must be non-empty strs, got {v!r}")

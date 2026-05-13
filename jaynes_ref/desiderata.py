@@ -34,6 +34,7 @@ class AuditReport:
     d2_duplicate_constraints: int = 0
 
     def is_clean(self) -> bool:
+        """Check if desiderata validation passed without errors."""
         return not (
             self.d1_warnings
             or self.d4_near_boundary

@@ -119,7 +119,8 @@ def _dedup_operators(
                 continue
             raise ValueError(
                 f"D2 violation [{context}]: operator {op.operator.value} over "
-                f"args={sorted(op.variables) if op.operator in _SYMMETRIC_OPS else list(op.variables)} "
+                f"args="
+                f"{sorted(op.variables) if op.operator in _SYMMETRIC_OPS else list(op.variables)} "
                 f"is declared with two different conclusions: "
                 f"'{prev_concl}' (first) vs '{op.conclusion}' (duplicate). "
                 f"The same logical relation cannot assert into two distinct helper claims."

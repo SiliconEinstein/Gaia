@@ -29,6 +29,7 @@ __all__ = [
 
 @dataclass(frozen=True)
 class DecisionResult:
+    """Result of decision-theoretic inference."""
     action: object
     expected_loss: float
     loss_by_action: dict[object, float]
@@ -67,10 +68,10 @@ def bayes_action(
     best_a = actions[0]
     best_l = float("inf")
     for a in actions:
-        l = expected_loss(a, posterior, loss)
-        losses[a] = l
-        if l < best_l:
-            best_l = l
+        loss_val = expected_loss(a, posterior, loss)
+        losses[a] = loss_val
+        if loss_val < best_l:
+            best_l = loss_val
             best_a = a
     return DecisionResult(action=best_a, expected_loss=best_l, loss_by_action=losses)
 

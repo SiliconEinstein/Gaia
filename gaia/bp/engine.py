@@ -124,6 +124,7 @@ class InferenceEngine:
     """
 
     def __init__(self, config: EngineConfig | None = None) -> None:
+        """Initialize the inference engine with optional configuration."""
         self._config = config or EngineConfig()
         cfg = self._config
         self._jt = JunctionTreeInference()

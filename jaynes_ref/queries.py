@@ -68,7 +68,8 @@ def marginal_entropy(info: InformationSet, variables: Sequence[str]) -> float:
 
 
 def marginal(info: InformationSet, variables: Sequence[str]) -> np.ndarray:
-    """Normalized marginal over variables with nuisance variables
+    """Normalized marginal over variables with nuisance variables.
+
     summed out. Index: bit_i = variables[i] (LSB first).
     """
     log_w, var_ids, var_idx = _log_w_and_idx(info)
@@ -101,7 +102,8 @@ def mutual_information(
 
 
 def kl_divergence(p: np.ndarray, q: np.ndarray) -> float:
-    """KL(p || q) in nats. p and q must have the same length and
+    """KL(p || q) in nats. p and q must have the same length and.
+
     sum to 1. q=0 where p>0 returns +inf.
     """
     if p.shape != q.shape:

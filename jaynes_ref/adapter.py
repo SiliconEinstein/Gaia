@@ -34,7 +34,7 @@ from jaynes_ref.strategies import (
 )
 
 
-def from_local_graph(
+def from_local_graph(  # noqa: C901
     graph,
     *,
     node_priors: dict[str, float] | None = None,

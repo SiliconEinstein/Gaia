@@ -50,6 +50,7 @@ class ApDistribution:
     density: np.ndarray
 
     def __post_init__(self) -> None:
+        """Validate AP distribution parameters after initialization."""
         if self.theta_grid.shape != self.density.shape:
             raise ValueError("theta_grid and density must have same shape")
         if self.theta_grid.ndim != 1:

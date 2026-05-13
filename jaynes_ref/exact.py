@@ -140,6 +140,7 @@ def _log_joint(
 
 
 def infer(info: InformationSet) -> InferenceResult:
+    """Compute exact posterior via junction tree algorithm."""
     info.validate()
     var_ids = sorted(info.variables)
     n = len(var_ids)

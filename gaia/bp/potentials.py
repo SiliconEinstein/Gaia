@@ -40,6 +40,7 @@ _LOW = CROMWELL_EPS
 def implication_potential(
     assignment: Assignment, antecedent: str, consequent: str, helper: str
 ) -> float:
+    """Compute potential for implication factor: A → B."""
     a, b, h = assignment[antecedent], assignment[consequent], assignment[helper]
     if h == 1:
         return _DELTA_LOW if (a == 1 and b == 0) else _DELTA_HIGH
@@ -47,6 +48,7 @@ def implication_potential(
 
 
 def conjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:
+    """Compute potential for conjunction factor: A ∧ B ∧ ...."""
     all_one = all(assignment[v] == 1 for v in inputs)
     m = assignment[conclusion]
     ok = (all_one and m == 1) or ((not all_one) and m == 0)
@@ -54,11 +56,13 @@ def conjunction_potential(assignment: Assignment, inputs: list[str], conclusion:
 
 
 def negation_potential(assignment: Assignment, a: str, conclusion: str) -> float:
+    """Compute potential for negation factor: ¬A."""
     target = 0 if assignment[a] == 1 else 1
     return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
 
 def disjunction_potential(assignment: Assignment, inputs: list[str], conclusion: str) -> float:
+    """Compute potential for disjunction factor: A ∨ B ∨ ...."""
     any_one = any(assignment[v] == 1 for v in inputs)
     d = assignment[conclusion]
     ok = (any_one and d == 1) or ((not any_one) and d == 0)
@@ -66,17 +70,20 @@ def disjunction_potential(assignment: Assignment, inputs: list[str], conclusion:
 
 
 def equivalence_potential(assignment: Assignment, a: str, b: str, conclusion: str) -> float:
+    """Compute potential for equivalence factor: A ↔ B."""
     target = 1 if assignment[a] == assignment[b] else 0
     return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
 
 def contradiction_potential(assignment: Assignment, a: str, b: str, conclusion: str) -> float:
+    """Compute potential for contradiction factor: A ⊕ B (XOR)."""
     both_one = assignment[a] == 1 and assignment[b] == 1
     target = 0 if both_one else 1
     return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
 
 def complement_potential(assignment: Assignment, a: str, b: str, conclusion: str) -> float:
+    """Compute potential for complement factor: A + B = 1."""
     target = 1 if assignment[a] != assignment[b] else 0
     return _DELTA_HIGH if assignment[conclusion] == target else _DELTA_LOW
 
@@ -88,6 +95,7 @@ def soft_entailment_potential(
     p1: float,
     p2: float,
 ) -> float:
+    """Compute soft entailment potential with confidence parameter."""
     m = assignment[premise]
     c = assignment[conclusion]
     if m == 1:
@@ -101,6 +109,7 @@ def conditional_potential(
     conclusion: str,
     cpt: tuple[float, ...],
 ) -> float:
+    """Compute conditional probability potential P(B|A)."""
     idx = 0
     for i, v in enumerate(premises):
         if assignment[v] == 1:
@@ -115,11 +124,13 @@ def pairwise_potential(
     b: str,
     weights: tuple[float, ...],
 ) -> float:
+    """Compute pairwise potential between two variables."""
     idx = assignment[a] | (assignment[b] << 1)
     return weights[idx]
 
 
-def evaluate_potential(factor: Factor, assignment: Assignment) -> float:
+def evaluate_potential(factor: Factor, assignment: Assignment) -> float:  # noqa: C901
+    """Evaluate potential function for given factor type and variable assignment."""
     ft = factor.factor_type
     v = factor.variables
     c = factor.conclusion

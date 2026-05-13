@@ -247,6 +247,7 @@ class TRWDiagnostics:
     rho: float = 1.0  # factor weight used (uniform scheme)
 
     def compute_direction_changes(self) -> None:
+        """Compute direction changes in belief updates for oscillation detection."""
         for vid, history in self.belief_history.items():
             changes = 0
             for k in range(2, len(history)):
@@ -311,22 +312,25 @@ class TRWBeliefPropagation:
         convergence_threshold: float = 1e-6,
         schedule: str = "synchronous",
     ) -> None:
+        """Initialize TRW-BP oscillation diagnostic state."""
         if not (0.0 < damping <= 1.0):
             raise ValueError(f"damping must be in (0, 1], got {damping}")
         if schedule not in ("synchronous",):
             raise ValueError(
-                f"schedule must be 'synchronous', got {schedule!r}. Residual schedule for TRW-BP is not yet stable."
+                f"schedule must be 'synchronous', got {schedule!r}. "
+                f"Residual schedule for TRW-BP is not yet stable."
             )
         if schedule not in ("synchronous",):
             raise ValueError(
-                f"schedule must be 'synchronous', got {schedule!r}. Residual schedule for TRW-BP is not yet stable."
+                f"schedule must be 'synchronous', got {schedule!r}. "
+                f"Residual schedule for TRW-BP is not yet stable."
             )
         self._damping = damping
         self._max_iter = max_iterations
         self._threshold = convergence_threshold
         self._schedule = schedule
 
-    def run(self, graph: FactorGraph) -> TRWResult:
+    def run(self, graph: FactorGraph) -> TRWResult:  # noqa: C901
         """Run TRW-BP on graph and return beliefs + diagnostics."""
         diag = TRWDiagnostics()
 
@@ -463,7 +467,7 @@ class TRWBeliefPropagation:
         diag.compute_direction_changes()
         return TRWResult(beliefs=prev_beliefs, diagnostics=diag)
 
-    def _run_residual(
+    def _run_residual(  # noqa: C901
         self,
         graph: FactorGraph,
         diag: TRWDiagnostics,

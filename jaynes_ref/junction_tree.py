@@ -104,7 +104,8 @@ def _build_factors(
 
 
 def _broadcast_to_union(factor: _Factor, union_scope: Scope) -> np.ndarray:
-    """Reshape ``factor.log_tensor`` so it broadcasts cleanly against any
+    """Reshape ``factor.log_tensor`` so it broadcasts cleanly against any.
+
     other factor over a superset of its scope.
     """
     positions = [union_scope.index(v) for v in factor.scope]
@@ -209,6 +210,7 @@ def _final_log_Z(remaining: list[_Factor]) -> float:
 
 
 def jt_infer(info: InformationSet) -> InferenceResult:
+    """Build junction tree and perform exact inference."""
     info.validate()
     variables = sorted(info.variables)
     if not variables:
