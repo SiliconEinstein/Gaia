@@ -38,6 +38,7 @@ stats = [
     "scipy>=1.12",
 ]
 dev = [
+    "commitizen>=4.0,<5",
     "mypy>=2.0.0",
     "pre-commit>=4.6.0",
     "pytest>=8.0",
@@ -196,3 +197,10 @@ max-complexity = 12
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = false

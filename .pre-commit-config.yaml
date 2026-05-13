@@ -9,10 +9,10 @@ repos:
       - id: check-yaml
         stages: [pre-commit]
       - id: end-of-file-fixer
-        files: ^(\.pre-commit-config\.yaml|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+        files: ^(\.pre-commit-config\.yaml|\.github/|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|SECURITY\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
         stages: [pre-commit]
       - id: trailing-whitespace
-        files: ^(\.pre-commit-config\.yaml|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+        files: ^(\.pre-commit-config\.yaml|\.github/|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|SECURITY\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
         stages: [pre-commit]
       - id: detect-private-key
         stages: [pre-commit]
@@ -58,7 +58,13 @@ repos:
 
       - id: pytest-cov
         name: pytest --cov (CI byte-aligned)
-        entry: uv run pytest --cov-report=xml tests -v -m "not integration_api"
+        entry: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_REFLOG_ACTION uv run pytest --cov-report=xml tests -v -m "not integration_api"
         language: system
         pass_filenames: false
         stages: [pre-push]
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.16.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
