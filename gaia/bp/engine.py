@@ -157,6 +157,7 @@ class InferenceEngine:
         """
         cfg = self._config
         t0 = time.perf_counter()
+        result: TRWResult | MFResult
 
         if method == "exact":
             n = len(graph.variables)

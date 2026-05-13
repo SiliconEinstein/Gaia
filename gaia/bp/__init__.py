@@ -97,6 +97,8 @@ def infer(
             tw = jt_treewidth(graph)
             method = "junction_tree" if tw <= _JT_TREEWIDTH_LIMIT else "trw_bp"
 
+    result: TRWResult | MFResult
+
     if method == "junction_tree":
         jt = JunctionTreeInference()
         result = jt.run(graph)
