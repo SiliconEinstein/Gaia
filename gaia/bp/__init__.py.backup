@@ -6,12 +6,11 @@ IR lowering: docs/foundations/gaia-ir/07-lowering.md
 算法路由（infer 自动 dispatch）：
   junction_tree  → treewidth ≤ 20，精确
   trw_bp         → 默认近似，n ≤ 2000
-  loopy_bp       → n > 2000，大图高精度近似（与 TRW-BP 等价但快 3 倍）
+  mean_field     → n > 2000，大图快速近似
 """
 
 import warnings
 
-from gaia.bp.bp import BeliefPropagation, BPDiagnostics, BPResult
 from gaia.bp.engine import EngineConfig, InferenceEngine, InferenceResult
 from gaia.bp.exact import comparison_table, exact_inference, exact_joint_over
 from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
@@ -22,9 +21,6 @@ from gaia.bp.trw_bp import TRWBeliefPropagation, TRWDiagnostics, TRWResult
 
 __all__ = [
     "CROMWELL_EPS",
-    "BPDiagnostics",
-    "BPResult",
-    "BeliefPropagation",
     "EngineConfig",
     "Factor",
     "FactorGraph",
@@ -50,7 +46,7 @@ __all__ = [
 
 # 路由阈值
 _JT_TREEWIDTH_LIMIT = 20
-_LOOPY_BP_NODE_LIMIT = 2000  # n > 2000 使用 Loopy BP 而非 TRW-BP（速度快 3 倍，精度相同）
+_MF_NODE_LIMIT = 2000
 
 
 def infer(
@@ -67,8 +63,7 @@ def infer(
         "auto"        — 按 treewidth / n 自动选择算法
         "junction_tree" — 强制 JT（精确，treewidth ≤ 20）
         "trw_bp"      — 强制 TRW-BP
-        "loopy_bp"    — 强制 Loopy BP（大图推荐，与 TRW-BP 精度相同但快 3 倍）
-        "mean_field"  — 强制 Mean Field VI（不推荐，误差 ~30%）
+        "mean_field"  — 强制 Mean Field VI
 
     Returns:
     -------
@@ -77,16 +72,32 @@ def infer(
     """
     if method == "auto":
         n = len(graph.variables)
-        if n > _LOOPY_BP_NODE_LIMIT:
-            # 大图使用 Loopy BP：测试表明在 n=6399 时与 TRW-BP 精度完全相同
-            # （差异 0.000000），但速度快 3 倍（4.8s vs 14.8s）。
-            # Loopy BP 在 Gaia 的 DAG 结构上收敛快速（15 次迭代）且稳定。
-            method = "loopy_bp"
+        if n > _MF_NODE_LIMIT:
+            # Large-graph inference is under active research. Mean Field VI
+            # is the only currently-implemented algorithm capable of scaling
+            # past ~2000 nodes, but empirically produces 30%~79% error on
+            # Gaia's hard-constraint factor graphs (delta-like IMPLICATION /
+            # EQUIVALENCE potentials violate the q(x) = Πq_i(x_i) independence
+            # assumption). Until hierarchical / distributed TRW-BP is landed,
+            # we fall back to Mean Field with a loud warning so large-graph
+            # callers know their beliefs are not production-grade.
+            warnings.warn(
+                f"Large graph inference (n={n} > {_MF_NODE_LIMIT}) falls back "
+                f"to Mean Field VI, which has 30%~79% error on hard-constraint "
+                f"graphs (Jaynes Class I + IMPLICATION/EQUIVALENCE). Results "
+                f"are NOT production-grade. Planned replacement: hierarchical "
+                f"(schema/ground) or distributed TRW-BP. "
+                f"Pass method='trw_bp' explicitly to bypass and use TRW-BP "
+                f"anyway (slower on large n, but accurate).",
+                category=UserWarning,
+                stacklevel=2,
+            )
+            method = "mean_field"
         else:
             tw = jt_treewidth(graph)
             method = "junction_tree" if tw <= _JT_TREEWIDTH_LIMIT else "trw_bp"
 
-    result: TRWResult | MFResult | BPResult
+    result: TRWResult | MFResult
 
     if method == "junction_tree":
         jt = JunctionTreeInference()
@@ -98,16 +109,9 @@ def infer(
         result = trw.run(graph)
         return result.beliefs
 
-    if method == "loopy_bp":
-        bp = BeliefPropagation(damping=0.5, max_iterations=500, convergence_threshold=1e-6)
-        result = bp.run(graph)
-        return result.beliefs
-
     if method == "mean_field":
         mf = MeanFieldVI()
         result = mf.run(graph)
         return result.beliefs
 
-    raise ValueError(
-        f"method must be auto, junction_tree, trw_bp, loopy_bp, or mean_field; got {method!r}"
-    )
+    raise ValueError(f"method must be auto, junction_tree, trw_bp, or mean_field; got {method!r}")

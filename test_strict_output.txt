@@ -1,0 +1,25 @@
+/root/Gaia/test_loopy_bp_strict.py:87: SyntaxWarning: invalid escape sequence '\ '
+  """构建菱形 DAG 结构（经典的多路径测试）
+======================================================================
+Loopy BP 严格验证：真实 DAG + 10^5 规模
+======================================================================
+======================================================================
+真实 DAG 结构测试
+======================================================================
+
+======================================================================
+配置: 5 层 × 20 节点/层 × 2 fan_in
+======================================================================
+Traceback (most recent call last):
+  File "/root/Gaia/test_loopy_bp_strict.py", line 308, in <module>
+    main()
+  File "/root/Gaia/test_loopy_bp_strict.py", line 298, in main
+    test_realistic_dag()
+  File "/root/Gaia/test_loopy_bp_strict.py", line 181, in test_realistic_dag
+    fg = build_realistic_dag(num_layers, nodes_per_layer, fan_in)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Gaia/test_loopy_bp_strict.py", line 73, in build_realistic_dag
+    fg.add_factor(
+  File "/root/Gaia/gaia/bp/factor_graph.py", line 251, in add_factor
+    raise ValueError(
+ValueError: CONDITIONAL 'L1_n0_factor': cpt length must be 2^k = 8, got 4.

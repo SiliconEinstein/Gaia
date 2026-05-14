@@ -5,6 +5,7 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any
 
@@ -61,6 +62,72 @@ _OPERATOR_MAP: dict[OperatorType, FactorType] = {
     OperatorType.CONTRADICTION: FactorType.CONTRADICTION,
     OperatorType.COMPLEMENT: FactorType.COMPLEMENT,
 }
+
+
+_SYMMETRIC_OPS = frozenset(
+    {
+        OperatorType.EQUIVALENCE,
+        OperatorType.CONTRADICTION,
+        OperatorType.COMPLEMENT,
+        OperatorType.DISJUNCTION,
+        OperatorType.CONJUNCTION,
+    }
+)
+
+
+def _canonical_op_key(op: Operator) -> tuple[str, frozenset[str] | tuple[str, ...]]:
+    """Structural canonical key for D2 duplicate detection.
+
+    V9 (Jaynes D2): two operators sharing this key encode the same
+    class-I information (up to the operator's known symmetry). L1
+    structural enforcement only; deeper semantic equivalence belongs
+    to Archon / SAT verifiers.
+    """
+    args = frozenset(op.variables) if op.operator in _SYMMETRIC_OPS else tuple(op.variables)
+    return (op.operator, args)
+
+
+def _dedup_operators(
+    ops: Sequence[Operator],
+    *,
+    dedup_audit: list[dict[str, object]],
+    context: str,
+) -> list[Operator]:
+    """L1 D2 dedup: drop later operators matching an earlier canonical key.
+
+    * Same key AND same conclusion -> silently drop, record in dedup_audit.
+    * Same key but DIFFERENT conclusion -> raise ValueError (D1+D2 violation).
+    """
+    seen: dict[tuple[str, frozenset[str] | tuple[str, ...]], tuple[str, int]] = {}
+    out: list[Operator] = []
+    for op in ops:
+        key = _canonical_op_key(op)
+        if key in seen:
+            prev_concl, _prev_idx = seen[key]
+            if prev_concl == op.conclusion:
+                dedup_audit.append(
+                    {
+                        "context": context,
+                        "op": str(op.operator),
+                        "args": sorted(op.variables)
+                        if op.operator in _SYMMETRIC_OPS
+                        else list(op.variables),
+                        "conclusion": op.conclusion,
+                        "dropped_index": len(out) + (len(seen) - 1),
+                    }
+                )
+                continue
+            raise ValueError(
+                f"D2 violation [{context}]: operator {op.operator.value} over "
+                f"args="
+                f"{sorted(op.variables) if op.operator in _SYMMETRIC_OPS else list(op.variables)} "
+                f"is declared with two different conclusions: "
+                f"'{prev_concl}' (first) vs '{op.conclusion}' (duplicate). "
+                f"The same logical relation cannot assert into two distinct helper claims."
+            )
+        seen[key] = (op.conclusion, len(out))
+        out.append(op)
+    return out
 
 
 def _next_fid(prefix: str, i: list[int]) -> str:
@@ -145,11 +212,13 @@ def _add_claim_variables(
     for knowledge in canonical.knowledges:
         if knowledge.type != KnowledgeType.CLAIM or not knowledge.id:
             continue
-        metadata_prior = (knowledge.metadata or {}).get("prior") if knowledge.metadata else None
+        meta = knowledge.metadata or {}
+        metadata_prior = meta.get("prior")
         if knowledge.id in expression_helper_ids:
             fg.add_variable(knowledge.id)
         elif knowledge.id in relation_concl_ids:
-            fg.add_variable(knowledge.id, 1.0 - CROMWELL_EPS)
+            fg.add_variable(knowledge.id)
+            fg.add_evidence(knowledge.id, 1)
         elif knowledge.id in priors:
             fg.add_variable(knowledge.id, priors[knowledge.id])
         elif metadata_prior is not None:
@@ -179,7 +248,8 @@ def _lower_operators(
             if conclusion in expression_helper_ids:
                 fg.add_variable(conclusion)
             elif _operator_asserts_relation(op):
-                fg.add_variable(conclusion, 1.0 - CROMWELL_EPS)
+                fg.add_variable(conclusion)
+                fg.add_evidence(conclusion, 1)
             else:
                 fg.add_variable(conclusion, priors.get(conclusion))
         fg.add_factor(fid, ft, op.variables, conclusion)
@@ -264,6 +334,11 @@ def lower_local_graph(
     ctr = [0]
 
     lowerable_operators = _review_allowed_operators(canonical, review_manifest)
+    lowerable_operators = _dedup_operators(
+        lowerable_operators,
+        dedup_audit=fg.dedup_audit,
+        context="graph_operators",
+    )
     claim_ids = _add_claim_variables(
         fg,
         canonical,
@@ -512,7 +587,18 @@ def _lower_deduction_implication(
     consequent = op.variables[1]
     _ensure_claim_var(fg, antecedent, priors, claim_ids)
     _ensure_claim_var(fg, consequent, priors, claim_ids)
-    q = float((s.metadata or {}).get("false_premise_base_rate", _DEDUCTION_FALSE_PREMISE_BASE_RATE))
+    # V2 (Jaynes D3): false-premise branch inherits consequent leaf prior π_C.
+    # When premise is false, the deduction warrant carries no information
+    # about C, so the CPT must reproduce π_C and add nothing. Falls back to
+    # 0.5 (MaxEnt) only when consequent has no leaf prior. metadata override
+    # remains for authors who model a custom base rate.
+    explicit_q = (s.metadata or {}).get("false_premise_base_rate")
+    if explicit_q is not None:
+        q = float(explicit_q)
+    elif consequent in priors:
+        q = float(priors[consequent])
+    else:
+        q = _DEDUCTION_FALSE_PREMISE_BASE_RATE
     fg.add_factor(
         fid,
         FactorType.CONDITIONAL,
@@ -566,7 +652,8 @@ def _lower_formal_operator_default(
     if conclusion not in fg.variables:
         prior = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else priors.get(conclusion)
         fg.add_variable(conclusion, prior)
-    elif op.operator in _RELATION_OPS:
+    elif op.operator in _RELATION_OPS and conclusion not in fg.unary_factors:
+        # Only assert relation default when no user-set prior exists (D1 guard).
         fg.add_variable(conclusion, 1.0 - CROMWELL_EPS)
 
 
@@ -585,7 +672,12 @@ def _lower_formal_strategy(
             "FormalStrategy fold (marginalize to CONDITIONAL) is not implemented yet. "
             "See docs/foundations/bp/inference.md and docs/foundations/gaia-ir/07-lowering.md §9."
         )
-    for index, op in enumerate(s.formal_expr.operators):
+    fe_ops = _dedup_operators(
+        s.formal_expr.operators,
+        dedup_audit=fg.dedup_audit,
+        context=f"formal_strategy:{s.strategy_id}",
+    )
+    for index, op in enumerate(fe_ops):
         fid = _next_fid(f"fs_{s.strategy_id}_{index}", ctr)
         if s.type == StrategyType.DEDUCTION and op.operator == OperatorType.IMPLICATION:
             _lower_deduction_implication(fg, s, op, fid, priors, claim_ids)
@@ -902,7 +994,7 @@ def lower_operator(graph: FactorGraph, op: Operator, factor_id: str) -> None:
     graph.add_factor(factor_id, ft, op.variables, op.conclusion)
 
 
-def merge_factor_graphs(
+def merge_factor_graphs(  # noqa: C901
     local_fg: FactorGraph,
     dep_graphs: list[tuple[str, FactorGraph, str]],
     *,
@@ -929,25 +1021,28 @@ def merge_factor_graphs(
     """
     merged = FactorGraph()
 
-    def _copy_variable(source: FactorGraph, var_id: str) -> None:
+    def _copy_variable(source: FactorGraph, var_id: str, *, force: bool = False) -> None:
         if var_id in source.unary_factors:
-            merged.add_variable(var_id, source.unary_factors[var_id])
+            prior = source.unary_factors[var_id]
+            if force or var_id not in merged.unary_factors:
+                merged.variables[var_id] = prior
+                merged.unary_factors[var_id] = prior
         else:
-            merged.variables[var_id] = source.variables.get(var_id, 0.5)
-            merged.unary_factors.pop(var_id, None)
+            if force or var_id not in merged.variables:
+                merged.variables[var_id] = source.variables.get(var_id, 0.5)
+                merged.unary_factors.pop(var_id, None)
 
-    # 1. Add dep variables first. A dep graph is authoritative only for
-    # variables it owns; foreign references may carry neutral placeholder priors.
+    # 1. Add dep variables first. Owner dep is authoritative; non-owner references
+    # are placeholders that must not overwrite the owner prior.
     for _dep_name, dep_fg, dep_prefix in dep_graphs:
         for var_id in dep_fg.variables:
-            if var_id.startswith(dep_prefix) or var_id not in merged.variables:
-                _copy_variable(dep_fg, var_id)
+            _copy_variable(dep_fg, var_id, force=var_id.startswith(dep_prefix))
 
     # 2. Add local variables — overwrite only for locally-owned nodes
     for var_id in local_fg.variables:
         if var_id.startswith(local_prefix):
             # Local owns this node — always use local prior
-            _copy_variable(local_fg, var_id)
+            _copy_variable(local_fg, var_id, force=True)
         elif var_id not in merged.variables:
             # New variable only seen locally (e.g. intermediate _m_ vars)
             _copy_variable(local_fg, var_id)

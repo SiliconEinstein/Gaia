@@ -373,7 +373,7 @@ def _build_beliefs_manifest(
                 "label": knowledge_by_id[kid].label,
                 "belief": belief,
             }
-            for kid, belief in sorted(inference_result.bp_result.beliefs.items())
+            for kid, belief in sorted(inference_result.result.beliefs.items())
             if kid in exported_qids and kid in knowledge_by_id
         ],
     }
