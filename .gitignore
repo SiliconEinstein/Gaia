@@ -63,3 +63,8 @@ gaia/cli/templates/pages/node_modules/
 gaia/cli/templates/pages/package-lock.json
 pipeline.local.toml
 .superpowers/
+
+# Stray scratch outputs accidentally committed during BP work; see chore: remove stray test artifacts
+/BP_LARGE_SCALE_TEST_REPORT.md
+/loopy_bp_test_results.txt
+/test_strict_output.txt
