@@ -83,8 +83,11 @@ def _factor_log_potentials(  # noqa: C901
     var_idx: dict[str, int],
 ) -> np.ndarray:
     cs = states.shape[0]
-    h_log = 0.0
-    lo_log = -np.inf
+    # Cromwell clamp for deterministic factor potentials, matching contraction.py
+    # and the hard-evidence handling above. Pure δ {0, 1} is replaced by {ε, 1-ε}
+    # so that no assignment is logically forbidden (Gaia adjusted Jaynes Class I).
+    h_log = float(np.log(1.0 - CROMWELL_EPS))
+    lo_log = float(np.log(CROMWELL_EPS))
     ft = factor.factor_type
     vids = factor.variables
     concl = factor.conclusion

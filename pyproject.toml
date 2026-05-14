@@ -93,6 +93,11 @@ markers = [
 [project.scripts]
 gaia = "gaia.cli.main:app"
 
+[tool.coverage.run]
+omit = [
+    "gaia/jaynes_ref/*",
+]
+
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",

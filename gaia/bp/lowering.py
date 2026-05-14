@@ -214,7 +214,6 @@ def _add_claim_variables(
             continue
         meta = knowledge.metadata or {}
         metadata_prior = meta.get("prior")
-        is_observed = metadata_prior is not None and meta.get("supported_by") is not None
         if knowledge.id in expression_helper_ids:
             fg.add_variable(knowledge.id)
         elif knowledge.id in relation_concl_ids:
@@ -222,8 +221,8 @@ def _add_claim_variables(
             fg.add_evidence(knowledge.id, 1)
         elif knowledge.id in priors:
             fg.add_variable(knowledge.id, priors[knowledge.id])
-        elif is_observed:
-            fg.add_variable(knowledge.id, float(metadata_prior or 0.5))
+        elif metadata_prior is not None:
+            fg.add_variable(knowledge.id, float(metadata_prior))
         else:
             fg.add_variable(knowledge.id)
     return claim_ids
@@ -653,7 +652,8 @@ def _lower_formal_operator_default(
     if conclusion not in fg.variables:
         prior = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else priors.get(conclusion)
         fg.add_variable(conclusion, prior)
-    elif op.operator in _RELATION_OPS:
+    elif op.operator in _RELATION_OPS and conclusion not in fg.unary_factors:
+        # Only assert relation default when no user-set prior exists (D1 guard).
         fg.add_variable(conclusion, 1.0 - CROMWELL_EPS)
 
 
@@ -994,7 +994,7 @@ def lower_operator(graph: FactorGraph, op: Operator, factor_id: str) -> None:
     graph.add_factor(factor_id, ft, op.variables, op.conclusion)
 
 
-def merge_factor_graphs(
+def merge_factor_graphs(  # noqa: C901
     local_fg: FactorGraph,
     dep_graphs: list[tuple[str, FactorGraph, str]],
     *,
@@ -1021,25 +1021,28 @@ def merge_factor_graphs(
     """
     merged = FactorGraph()
 
-    def _copy_variable(source: FactorGraph, var_id: str) -> None:
+    def _copy_variable(source: FactorGraph, var_id: str, *, force: bool = False) -> None:
         if var_id in source.unary_factors:
-            merged.add_variable(var_id, source.unary_factors[var_id])
+            prior = source.unary_factors[var_id]
+            if force or var_id not in merged.unary_factors:
+                merged.variables[var_id] = prior
+                merged.unary_factors[var_id] = prior
         else:
-            merged.variables[var_id] = source.variables.get(var_id, 0.5)
-            merged.unary_factors.pop(var_id, None)
+            if force or var_id not in merged.variables:
+                merged.variables[var_id] = source.variables.get(var_id, 0.5)
+                merged.unary_factors.pop(var_id, None)
 
-    # 1. Add dep variables first. A dep graph is authoritative only for
-    # variables it owns; foreign references may carry neutral placeholder priors.
+    # 1. Add dep variables first. Owner dep is authoritative; non-owner references
+    # are placeholders that must not overwrite the owner prior.
     for _dep_name, dep_fg, dep_prefix in dep_graphs:
         for var_id in dep_fg.variables:
-            if var_id.startswith(dep_prefix) or var_id not in merged.variables:
-                _copy_variable(dep_fg, var_id)
+            _copy_variable(dep_fg, var_id, force=var_id.startswith(dep_prefix))
 
     # 2. Add local variables — overwrite only for locally-owned nodes
     for var_id in local_fg.variables:
         if var_id.startswith(local_prefix):
             # Local owns this node — always use local prior
-            _copy_variable(local_fg, var_id)
+            _copy_variable(local_fg, var_id, force=True)
         elif var_id not in merged.variables:
             # New variable only seen locally (e.g. intermediate _m_ vars)
             _copy_variable(local_fg, var_id)

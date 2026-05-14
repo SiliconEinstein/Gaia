@@ -557,7 +557,7 @@ def _run_factor_graph_inference(fg: Any) -> Any:
 
 def _append_belief_entries(out: dict[str, Any], graph: Any, result: Any) -> None:
     kbyid = {knowledge.id: knowledge for knowledge in graph.knowledges}
-    for kid, belief in sorted(result.bp_result.beliefs.items()):
+    for kid, belief in sorted(result.beliefs.items()):
         if kid in kbyid:
             out["beliefs"].append(
                 {"knowledge_id": kid, "label": kbyid[kid].label, "belief": belief}
