@@ -153,22 +153,19 @@ prior 应写成 `register_prior(...)`。
 ```python
 from gaia.lang import register_prior
 
-from . import aristotle_model, daily_observation
+from . import daily_observation
 
 register_prior(
     daily_observation,
     0.90,
     justification="empirical background in air",
 )
-register_prior(
-    aristotle_model,
-    0.50,
-    justification="neutral before thought experiment",
-)
 ```
 
 不再支持 `PRIORS = {claim: (value, justification)}` dict 格式；检测到该
-dict 会报 migration error。
+dict 会报 migration error。不要为了表达“中立”而注册 `0.5` prior；如果
+一个独立模型假设暂时没有外部信息来源，应保持 unset，由 MaxEnt 给出中立
+起点。
 
 ## 诊断
 
@@ -182,9 +179,9 @@ dict 会报 migration error。
 `gaia check --hole` 在显示已覆盖的独立 claim 时也会展示所有 source：
 
 ```text
-- aristotle_model    prior=0.5 (source: user_priors)
 - daily_observation  prior=0.9 (source: user_priors)
                        ↪ also: 0.85 (source: continuous_inference, overridden)
+- aristotle_model    no external prior (MaxEnt)
 - some_predicate     prior=0.27 (source: continuous_inference)
 ```
 
@@ -206,15 +203,19 @@ Parameterization 只管 claim prior；Strategy 概率参数留在 IR 的 Strateg
 
 ## 完整性检查
 
-推理运行前验证组装结果的完整性：
+本地 `gaia infer` 和发布 / LKM 摄入应区分：
 
-- 每个承载外生不确定性的 `type=claim` Knowledge 都必须有 PriorRecord；
-- Strategy 结论 claim 的 belief 由对应 Strategy / BP 推导，不要求独立 prior；
-- 结构型 helper claim 禁止携带独立 PriorRecord；
-- FormalExpr private node 禁止携带独立 PriorRecord；
-- public interface helper claim 仍按普通 claim 处理，需要 PriorRecord。
-
-否则拒绝运行。
+- 本地 preview 允许独立 claim 缺少外部 PriorRecord；这些自由变量按
+  MaxEnt 进入推理，用于帮助作者发现还没有覆盖的输入。
+- `gaia check --gate` / 发布流程可以要求更严格的完整性：structural
+  holes、unformalized dependencies、unaccepted review warrants 或低 posterior
+  都可以阻断发布质量 gate。
+- Strategy 结论 claim 的 belief 由对应 Strategy / BP 推导，不要求独立
+  prior。
+- 结构型 helper claim 和 FormalExpr private node 禁止携带独立 PriorRecord。
+- 如果某个 public interface helper 被设计成普通独立 claim，它应按普通
+  claim 处理；但 relation/decompose/infer 生成的 helper 通常是 review target
+  或结构变量，不应获得外部 prior。
 
 ## 源代码
 

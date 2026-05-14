@@ -35,8 +35,9 @@ _TARGET_OPTION: Any = typer.Option(
     help=(
         "What to render: 'docs' (renders from compiled IR alone; enriched "
         "when beliefs are available), 'github' (requires beliefs from "
-        "`gaia infer`), or 'all' (default; docs unconditionally + github "
-        "when beliefs are available)."
+        "`gaia infer`), 'obsidian' (writes gaia-wiki/; beliefs optional), "
+        "or 'all' (default; docs unconditionally + github when beliefs are "
+        "available)."
     ),
 )
 
@@ -209,6 +210,8 @@ def render_command(
     alone; when `gaia infer` has also been run, the output is enriched with
     belief and prior values. `--target github` strictly requires inference
     results and emits the full `.github-output/` presentation site.
+    `--target obsidian` writes `gaia-wiki/` and enriches pages with beliefs
+    when fresh inference results are available.
     `--target all` (default) always renders docs and adds github when
     inference results are available, emitting a warning when they are not.
     """

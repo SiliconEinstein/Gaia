@@ -61,6 +61,10 @@ from gaia.lang import (
     contradict, equal, exclusive,                         # Reviewable relations
     depends_on, candidate_relation, tension,              # Scaffold annotations
     observe, derive, compute, infer, decompose,            # Recommended actions
+    register_prior,                                       # External prior records
+    Normal, LogNormal, Beta, Exponential, Gamma,          # Distribution factories
+    StudentT, Cauchy, ChiSquared, Binomial, Poisson,
+    Distribution, BoolExpr, DerivedDistribution, bayes,    # Continuous/Bayes helpers
 
     # Compatibility aliases and legacy/experimental APIs
     setting, context,
@@ -69,6 +73,12 @@ from gaia.lang import (
     analogy, extrapolation, elimination, case_analysis,
     mathematical_induction, composite, fills,
 )
+```
+
+For unit-aware continuous quantities, import quantities from `gaia.unit`:
+
+```python
+from gaia.unit import q
 ```
 
 ## Knowledge Types
@@ -113,6 +123,145 @@ titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 ```
 
 **Content supports markdown:** tables, `$...$` math, bullet points, bold/italic.
+
+## Continuous Quantities and Bayes Helpers
+
+Gaia has two related surfaces for probabilistic quantities:
+
+- Use `Distribution` objects when you want to describe one uncertain quantity
+  and make threshold or equation claims about it.
+- Use `gaia.lang.bayes` when you want to compare competing hypotheses by the
+  likelihood of observed data under each hypothesis.
+
+These are ordinary Python authoring helpers. They compile into regular Gaia
+claims, helper claims, metadata, priors, and reviewable relations; they do not
+introduce a separate IR dialect.
+
+### Distribution factories
+
+The top-level `gaia.lang` import exposes named distribution factories:
+`Normal`, `LogNormal`, `Beta`, `Exponential`, `Gamma`, `StudentT`, `Cauchy`,
+`ChiSquared`, `Binomial`, and `Poisson`.
+
+Use them when the uncertain object is a scalar quantity:
+
+```python
+from gaia.lang import Normal, claim, register_prior
+from gaia.unit import q
+
+T_c = Normal("T_c of H3S at 200 GPa", mu=q(200, "K"), sigma=q(50, "K"))
+
+high_Tc = claim(
+    "The material is high-temperature superconducting.",
+    T_c > q(77, "K"),
+)
+```
+
+During compilation, a predicate claim such as `T_c > 77 K` is lowered through
+the distribution CDF. Gaia writes a generated prior record with
+`source_id="continuous_inference"` on the predicate claim. For the example
+above, the prior is `P(T_c > 77 K)` under the declared `Normal` distribution.
+
+If you have a stronger author judgment for the same predicate, use
+`register_prior(...)`; the prior resolver will pick the winning source and keep
+the other records in `metadata["prior_records"]` for audit:
+
+```python
+register_prior(
+    high_Tc,
+    0.8,
+    justification="The reported sample quality makes the CDF-only estimate too optimistic.",
+)
+```
+
+Unit rules are strict:
+
+- If a distribution has a unit, predicate thresholds must be `gaia.unit.q(...)`
+  quantities compatible with that unit. Gaia will convert compatible units such
+  as Celsius to Kelvin.
+- If a distribution is unitless, thresholds must be bare numeric scalars.
+- Distribution-vs-distribution thresholds are not implemented; compare one
+  distribution against a scalar threshold, or introduce an explicit model.
+
+### Continuous observations
+
+`observe(...)` is polymorphic. With a `Claim`, it marks the claim as observed.
+With a `Distribution`, it records a measurement event and returns a new pinned
+observation claim:
+
+```python
+from gaia.lang import Normal, observe
+from gaia.unit import q
+
+T_c = Normal("T_c of H3S at 200 GPa", mu=q(200, "K"), sigma=q(50, "K"))
+
+measured_Tc = observe(
+    T_c,
+    value=q(203, "K"),
+    error=q(5, "K"),
+    source_refs=["Drozdov 2015"],
+    rationale="Reported superconducting transition temperature.",
+)
+```
+
+The returned claim is pinned to `1 - CROMWELL_EPS` because the measurement
+event happened. Its metadata links back to the target distribution and records
+the measured value, optional error, unit, and source references. `error=` may
+be omitted, may be a positive scalar or unit-aware quantity, or may be another
+`Distribution` used as a custom noise model.
+
+Continuous observations are unconditional measurement events. Do not pass
+`given=` to `observe(distribution, value=...)`; if a measurement depends on a
+premise, model that premise as a separate claim.
+
+### Bayes hypothesis comparison
+
+Use `bayes.model(...)` and `bayes.likelihood(...)` when the problem is not
+"what is the probability this quantity exceeds a threshold?" but rather "which
+hypothesis predicts the observed data better?"
+
+```python
+from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
+
+theta = Variable(symbol="theta", domain=Probability)
+k = Variable(symbol="k", domain=Nat, value=295)
+n = 395
+
+h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.", prior=0.5)
+h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.", prior=0.5)
+
+data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
+observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
+
+model_3_1 = bayes.model(
+    h_3_1,
+    observable=k,
+    distribution=bayes.Binomial(n=n, p=theta),
+    rationale="If h_3_1 holds, k follows Binomial(n=395, p=0.75).",
+)
+model_null = bayes.model(
+    h_null,
+    observable=k,
+    distribution=bayes.Binomial(n=n, p=theta),
+    rationale="If h_null holds, k follows Binomial(n=395, p=0.5).",
+)
+
+comparison = bayes.likelihood(
+    data,
+    model=model_3_1,
+    against=[model_null],
+    exclusivity="exhaustive_pairwise_complement",
+    rationale="Compare the observed count under the two competing models.",
+)
+```
+
+`bayes.model(...)` returns a predictive-model helper claim. `bayes.likelihood(...)`
+returns a comparison helper claim and can also emit reviewable exclusivity or
+contradiction relations among the compared hypotheses. Use
+`exclusivity="none"` when Gaia should not add any structural relation;
+`"pairwise_contradiction"` when at most one hypothesis can be true; and
+`"exhaustive_pairwise_complement"` when exactly one listed hypothesis should be
+true.
 
 ## Structured Formula Claims
 
@@ -376,7 +525,10 @@ Legacy strict logical entailment. In new packages, prefer `derive(...)` for this
 
 **Key test:** "If all premises are definitely true, is the conclusion **necessarily** true?" Yes -> deduction. No -> support.
 
-`prior` is legacy-only for deduction. Current BP lowering treats accepted deduction as hard conditional implication, so review gates whether the warrant participates; it does not set a numeric prior for the proof step.
+`prior` is legacy-only for deduction. Current BP lowering treats deduction as a
+hard conditional implication. Review decides whether the warrant satisfies
+publication-quality gates; it does not set a numeric prior for the proof step,
+and it does not suppress `gaia infer` local preview output.
 
 ```python
 deduction(
@@ -483,9 +635,11 @@ composite(
 
 Legacy general CPT strategy. Prefer the current `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=0.5)` action form. The old sidecar-based parameterization path has been removed from the authoring surface.
 
-### `fills(source, target, *, strength, reason, background=None)`
+### `fills(source, target, *, mode=None, strength="exact", reason="", background=None)`
 
-Cross-package interface bridging. `strength` is `"exact"` | `"partial"` | `"conditional"`.
+Cross-package interface bridging. `strength` is `"exact"` | `"partial"` |
+`"conditional"`. `mode` is optional legacy metadata (`"deduction"` or
+`"infer"` when used).
 
 ```python
 fills(local_evidence, imported_claim, strength="exact")
@@ -534,17 +688,36 @@ abd_main = abduction(...)    # gets label "abd_main"
 
 External priors belong only on independent probabilistic inputs to exported goals. A zero-premise `observe(...)` claim is already pinned to `1 - CROMWELL_EPS`; do not give it a separate external prior. Claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)` get their belief from the graph.
 
-Use `priors.py` for those inputs:
+Use `priors.py` for those inputs, and call `register_prior(...)` on claims that
+already exist in the package:
 
 ```python
 # src/my_package/priors.py
+from gaia.lang import register_prior
+
 from . import obs, hypothesis
 
-PRIORS: dict = {
-    obs: (0.9, "Well-documented experimental result."),
-    hypothesis: (0.5, "Theoretical prediction, not yet confirmed."),
-}
+register_prior(
+    obs,
+    0.9,
+    justification="Well-documented experimental result.",
+)
+
+register_prior(
+    hypothesis,
+    0.5,
+    justification="Theoretical prediction, not yet confirmed.",
+)
 ```
+
+Each call records a source-specific prior on the claim. The default
+`source_id` is `user_priors`; engines, reviewers, calibration jobs, and agents
+can register other source IDs. At compile time, Gaia applies the package's
+`ResolutionPolicy`, writes the winning value to `metadata["prior"]`, and keeps
+all records in `metadata["prior_records"]`.
+
+Do not export `PRIORS = {...}` from `priors.py`. v0.5+ rejects that legacy dict
+with a migration error because it cannot preserve per-source provenance.
 
 Do not assign manual priors to derived claims, structural expression helpers, relation helper claims, or generated formalization internals. Run `gaia check --hole .` to inspect the independent degrees of freedom. Any independent input left without an external prior is handled by MaxEnt, subject to the package's hard logical constraints.
 
@@ -555,6 +728,7 @@ Do not assign manual priors to derived claims, structural expression helpers, re
 | `setting` or `question` as strategy premises | Use `background=` parameter |
 | Manually setting `.label = "name"` | Assign to a named variable |
 | Assigning priors to derived/helper claims | Put priors only on independent probabilistic inputs |
+| `PRIORS = {...}` in `priors.py` | Use `register_prior(claim, value, justification=...)` |
 | `reason` without `prior` in legacy APIs (or vice versa) | Provide both or neither |
 | `__all__` in submodules | Only define in `__init__.py` |
 | `from gaia.gaia_ir import ...` | Use `from gaia.ir import ...` |

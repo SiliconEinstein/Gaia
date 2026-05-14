@@ -23,7 +23,7 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 `gaia/bp/factor_graph.py` 是当前实现：使用字符串 ID、十种 `FactorType`（七种确定性 + SOFT_ENTAILMENT + CONDITIONAL + PAIRWISE_POTENTIAL）、`variables` + `conclusion` 结构。势函数见 [potentials.md](potentials.md)。配套算法分模块：
 
-- **`gaia/bp/trw_bp.py`** — TRW-BP (Tree-Reweighted Belief Propagation)，默认近似推理算法，支持 residual 调度
+- **`gaia/bp/trw_bp.py`** — TRW-BP (Tree-Reweighted Belief Propagation)，默认近似推理算法；当前启用 synchronous 调度，residual 调度代码尚未稳定开放
 - **`gaia/bp/junction_tree.py`** — Junction Tree exact inference，用于 treewidth ≤ 20 的图
 - **`gaia/bp/mean_field.py`** — Mean Field Variational Inference (CAVI)，大图（n > 2000）的 fallback，硬约束图精度不足（详见「推理算法 / Mean Field VI」）
 - **`gaia/bp/exact.py`** — 小图 brute-force，用于测试和验证
@@ -39,7 +39,7 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 ### 从 Gaia IR 构建
 
-`gaia.bp.lowering.lower_local_graph(graph, node_priors=None)` 把 `LocalCanonicalGraph` lower 成 `FactorGraph`：
+`gaia.bp.lowering.lower_local_graph(graph, node_priors=None, review_manifest=None)` 把 `LocalCanonicalGraph` lower 成 `FactorGraph`：
 
 - 每个 `Knowledge` 节点变成一个二值变量，prior 来源见下节Prior 赋值规则。
 - 每个 `Operator` 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE / CONTRADICTION / COMPLEMENT），CPT 由真值表决定（详见 [formal-strategy-lowering.md](formal-strategy-lowering.md)）。
@@ -49,6 +49,10 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 - `CompositeStrategy` 递归 lower 子策略。
 - `Compose` 不产生 BP 因子（它是 IR 一等节点但语义上是 authoring container）。
 - 已废弃的 `noisy_and` 仍然支持：lower 为 CONJUNCTION + SOFT_ENTAILMENT。
+- `review_manifest` 是可选的 publish/inquiry 视图参数：传入时，未
+  accepted 的 action-backed strategy/operator targets 会被跳过。CLI
+  `gaia infer` 传 `None`，所以本地 preview 不因 review 状态抑制 belief
+  输出。
 
 契约详见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md) 和 [cli/inference.md](../cli/inference.md)。
 
@@ -57,12 +61,16 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
 
 1. **Expression helper**（`~A`, `A & B` 等结构化辅助变量）→ 无 prior（MaxEnt 0.5）
-2. **Relation conclusion**（EQUIVALENCE/CONTRADICTION/COMPLEMENT/IMPLICATION 的 conclusion）→ `add_evidence(1)`（hard evidence，Cromwell-softened 为 `1 - ε`）
+2. **Relation conclusion**（EQUIVALENCE/CONTRADICTION/COMPLEMENT/IMPLICATION 的 conclusion）→ `add_evidence(1)`（hard evidence，Cromwell-softened 为 `1 - ε`）；graph relation assertion 优先于 `node_priors`
 3. **`node_priors` 字典**（调用方显式传入）→ 用户指定值
-4. **`metadata[prior]` + `metadata[supported_by]` 同时存在**（零前提 `observe()` 产生）→ 使用 `metadata[prior]`
+4. **`metadata[prior]`** → 使用编译后的 claim prior。它可能来自 `priors.py`、inline `claim(prior=...)` compatibility shortcut、continuous predicate records、或 legacy `reason+prior` compatibility paths
 5. **默认**（无任何 prior）→ MaxEnt（0.5）
 
-**关键约束**：只有通过 `observe()` 或 `node_priors` 显式声明的 Claim 才能有非 MaxEnt prior。直接写 `Claim(prior=0.7)` 的 prior 会被忽略（除非同时在 `node_priors` 中出现）。
+**关键约束**：只有独立 probabilistic input 应该拥有外部 prior。直接写
+`claim(prior=0.7)` 仍会生效，但只是低优先级 compatibility shortcut；
+新包应优先把有来源的 prior 写进 `priors.py`。零前提 `observe(...)` 会给
+结论一个默认 pin；如果同一 claim 有 resolved `metadata["prior"]`，编译后
+的 metadata prior 会作为本地 preview 的数值来源。
 
 这确保了 Jaynes 严格语义（Gaia 做了一个工程性调整）：
 - **Class I (Hard Evidence)**：`add_evidence(var, {0, 1})`。Gaia 把严格 δ {0, 1} **调整为** Cromwell 钳制 {ε, 1-ε}（ε = `CROMWELL_EPS` = 1e-3），保留贝叶斯可更新性，避免 log(0) = -∞ 在消息传递中污染整条链。代价：hard-evidence 变量 belief 上限 1-ε 而非 1.0，与原教旨 Jaynes Class I 存在 O(ε) 系统偏差（参考实现 `jaynes_ref/` 仍保持严格 δ 作为 ground truth）。
@@ -71,7 +79,12 @@ Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
 
 ### Cromwell's rule
 
-所有先验概率、factor 概率，以及 `add_evidence()` 产生的 Class I hard evidence 都被钳制到 `[epsilon, 1 - epsilon]`，其中 `epsilon = 1e-3`（见 `factor_graph.py:CROMWELL_EPS`）。这防止 BP 期间出现退化的零配分函数状态（零概率会阻断所有后续贝叶斯更新），并保持 TRW-BP / JT / MF / exact 所有路径在数值上是一致的 soft-prior 处理。
+所有 unary prior / evidence 和 soft probability 参数都被钳制到
+`[epsilon, 1 - epsilon]`，其中 `epsilon = 1e-3`（见
+`factor_graph.py:CROMWELL_EPS`）。确定性 operator potential 本身仍是 strict
+0/1 truth table。Cromwell clamp 防止 prior/evidence 侧出现不可更新的
+绝对 0 或 1，并保持 TRW-BP / JT / MF / exact 所有路径在数值上是一致的
+soft-prior 处理。
 
 **实现位置**：
 - `factor_graph.py::add_evidence` — 写入 `variables[v] = 1-ε` 或 `ε`
@@ -87,13 +100,13 @@ Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
 **默认算法**，用于中等规模图（n ≤ 2000，treewidth > 20）。
 
 - **原理**：通过 edge weights ρ_e ∈ (0,1] 对消息加权，保证 ELBO 单调上升（有界近似）
-- **调度**：支持 synchronous（同步）和 residual（残差优先队列）
-- **收敛性**：比 loopy BP 更稳定，residual 调度可加速 5-10 倍
+- **调度**：当前公开支持 synchronous（同步）。Residual priority queue 仍在代码中实验，但构造器会拒绝 `schedule="residual"`，因为该路径尚未稳定。
+- **收敛性**：比 loopy BP 更稳定；residual 加速不是当前可用的用户承诺
 - **参数**：
   - `damping`: 0.5（默认）
   - `max_iterations`: 200
   - `convergence_threshold`: 1e-8
-  - `schedule`: synchronous | residual
+  - `schedule`: synchronous
 
 ### Junction Tree
 
@@ -145,16 +158,21 @@ Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
 
 ### Residual 调度
 
-维护一个优先队列，每次只更新残差最大的消息：
-
-- **残差定义**：`residual(msg) = ||new_msg - old_msg||_∞`
-- **更新策略**：更新一条消息后，将受影响的邻居消息重新加入队列
-- **收敛判断**：当队列顶部残差 < 阈值时停止
-- **优势**：Murphy et al. 1999 实验显示 5-10 倍加速
+Residual priority-queue 调度仍保留在实现中用于后续实验，但当前
+`TRWBeliefPropagation(schedule="residual")` 会报错。用户可依赖的 TRW-BP
+路径是 synchronous sweep。
 
 ### Conclusion 先验与约束激活
 
-每个 Operator 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE / CONTRADICTION / COMPLEMENT），使用 Cromwell-softened 势函数（`HIGH = 1 - ε`, `LOW = ε`）。Relation operator（equivalence / contradiction / complement）的 conclusion 使用 `add_evidence(1)`（断言关系成立），约束自然激活。Directed operator（conjunction / disjunction / implication / negation）的 conclusion 使用 π = 0.5（计算输出），belief 由 variables 决定。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
+每个 Operator 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType
+（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE /
+CONTRADICTION / COMPLEMENT）。确定性势函数本身是 strict delta
+`{0, 1}`；Cromwell clamp 用在 unary evidence / prior 和 soft 参数上。
+Relation operator（equivalence / contradiction / complement）的 conclusion
+使用 `add_evidence(1)`（断言关系成立），约束自然激活。Directed operator
+（conjunction / disjunction / implication / negation）的 conclusion 使用
+π = 0.5（计算输出），belief 由 variables 决定。详见
+[formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
 
 ## 参数
 

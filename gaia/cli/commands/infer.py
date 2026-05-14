@@ -21,7 +21,6 @@ from gaia.cli._packages import (
     load_dependency_compiled_graphs,
     load_gaia_package,
 )
-from gaia.cli.commands._review_manifest import load_or_generate_review_manifest
 from gaia.ir.validator import validate_local_graph
 
 
@@ -29,18 +28,17 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
 
 
-def _load_inference_inputs(path: str) -> tuple[Any, Any, Any]:
-    """Load package, compile it, and merge the review manifest for inference."""
+def _load_inference_inputs(path: str) -> tuple[Any, Any]:
+    """Load package and compile it for inference preview."""
     try:
         ensure_package_env(Path(path).resolve())
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
-        review_manifest = load_or_generate_review_manifest(loaded.pkg_path, compiled)
     except GaiaCliError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
-    return loaded, compiled, review_manifest
+    return loaded, compiled
 
 
 def _emit_graph_validation_errors(compiled: Any) -> None:
@@ -95,8 +93,7 @@ def _dependency_factor_graphs(
 
     dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
     for dep in dep_compiled:
-        dep_review_manifest = load_or_generate_review_manifest(dep.root, dep)
-        dep_fg = lower_local_graph(dep.graph, review_manifest=dep_review_manifest)
+        dep_fg = lower_local_graph(dep.graph)
         dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
         dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
         typer.echo(
@@ -110,7 +107,6 @@ def _dependency_factor_graphs(
 def _lower_inference_graph(
     loaded: Any,
     compiled: Any,
-    review_manifest: Any,
     *,
     depth: int,
 ) -> FactorGraph:
@@ -122,14 +118,10 @@ def _lower_inference_graph(
         return lower_local_graph(
             compiled.graph,
             node_priors=foreign_priors or None,
-            review_manifest=review_manifest,
         )
 
     dep_factor_graphs = _dependency_factor_graphs(loaded, depth=depth)
-    local_fg = lower_local_graph(
-        compiled.graph,
-        review_manifest=review_manifest,
-    )
+    local_fg = lower_local_graph(compiled.graph)
     local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
     if not dep_factor_graphs:
         return local_fg
@@ -181,20 +173,21 @@ def infer_command(
     """Run BP inference on a compiled knowledge package.
 
     Priors come from claim metadata (set by priors.py and reason+prior
-    DSL pairing during compilation). For v6 action-backed Strategy/Operator
-    targets, ReviewManifest gates whether the target participates in BP;
-    review status is qualitative and never supplies numeric priors.
+    DSL pairing during compilation). Review status is qualitative and never
+    supplies numeric priors; `gaia infer` previews the compiled graph without
+    gating unreviewed warrants. Use `gaia check --gate` or `gaia inquiry review`
+    for publish-quality review gating.
 
     With ``--depth N`` (N>0), dependency packages' factor graphs are
     merged for joint cross-package inference instead of using flat
     prior injection from dep_beliefs/.
     """
-    loaded, compiled, review_manifest = _load_inference_inputs(path)
+    loaded, compiled = _load_inference_inputs(path)
     _emit_graph_validation_errors(compiled)
     compiled_json = compiled.to_json()
     _require_fresh_compile_artifacts(loaded, compiled, compiled_json)
 
-    factor_graph = _lower_inference_graph(loaded, compiled, review_manifest, depth=depth)
+    factor_graph = _lower_inference_graph(loaded, compiled, depth=depth)
     _validate_factor_graph(factor_graph)
 
     engine = InferenceEngine()

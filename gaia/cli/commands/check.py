@@ -421,8 +421,9 @@ def _check_bayes_prediction(
         diagnostics.warnings.append(
             "bayes:unobserved-prediction-target: "
             f"PredictiveModel {prediction_name} observable {symbol!r} has no "
-            "matching observation() value. Fix: declare an observation() for that "
-            "Variable or import observed data from another package."
+            "matching observed formula claim. Fix: declare a claim whose formula "
+            "binds that Variable and mark it with observe(...), or import observed "
+            "data from another package."
         )
 
 
@@ -445,7 +446,7 @@ def _check_bayes_comparison_data(
             diagnostics.errors.append(
                 "bayes:likelihood-without-data: "
                 f"likelihood {comparison_name} references missing data {data_id}. "
-                "Fix: pass an observation() Claim that is compiled with the package."
+                "Fix: pass an observed formula Claim that is compiled with the package."
             )
             continue
         binding_symbols = _formula_binding_symbols(data_node)
@@ -456,8 +457,9 @@ def _check_bayes_comparison_data(
                 "bayes:likelihood-without-data: "
                 f"likelihood {comparison_name} references data {_node_name(data_node)} "
                 f"without a bound value for observable {observable_symbol!r}. "
-                "Fix: use observation() for the measured Variable or pass "
-                "precomputed likelihoods with a reviewable observation Claim."
+                "Fix: use claim(..., formula=...) plus observe(...) for the measured "
+                "Variable, or pass precomputed likelihoods with a reviewable "
+                "observation Claim."
             )
 
 

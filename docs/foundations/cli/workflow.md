@@ -73,14 +73,19 @@ gaia compile [PATH]
 3. Assigns labels from Python variable names to unlabeled objects (Knowledge labels and Action labels share a single namespace per package; collision is a compile error — see [Gaia Lang design](../gaia-lang/knowledge-and-reasoning.md)).
 4. Compiles the collected package to Gaia IR via `gaia.lang.compiler.compile_package`. Action lowering, formula lowering, and bayes lowering all run as part of this step.
 5. Validates the resulting `LocalCanonicalGraph` (warnings printed, errors abort).
-6. Generates a baseline `ReviewManifest` over every action target and attaches it in memory to `CompiledPackage.review`. The manifest is not persisted by `gaia compile`; it is read/merged later by `gaia inquiry review` and `gaia infer` when `.gaia/review_manifest.json` exists.
-7. Writes `.gaia/ir.json` and `.gaia/ir_hash` to the package directory.
+6. Generates a baseline `ReviewManifest` over every action target and attaches it in memory to `CompiledPackage.review`. The manifest is not persisted by `gaia compile`; it is read/merged later by `gaia inquiry review` and review/gate commands when `.gaia/review_manifest.json` exists.
+7. Writes `.gaia/ir.json`, `.gaia/ir_hash`, compile metadata, the
+   formalization manifest, and package interface manifests to `.gaia/`.
 
 Compilation is deterministic: same source produces the same `ir_hash`. No LLM
-calls, no network access.
+calls are made. The compile command does run a best-effort `uv sync --quiet`
+when `uv` is available, so dependency resolution may touch the package
+environment before the deterministic import/compile step starts.
 
 **Key output:** `.gaia/ir.json` (full IR), `.gaia/ir_hash` (content hash for
-staleness detection).
+staleness detection), `.gaia/compile_metadata.json`,
+`.gaia/formalization_manifest.json`, and
+`.gaia/manifests/{exports,premises,holes,bridges}.json`.
 
 Reference: [Compilation](compilation.md) for internals.
 
@@ -108,7 +113,8 @@ gaia check --hole [PATH]
 
 **What it does:**
 
-1. Loads and compiles the package (same as `gaia compile`).
+1. Loads and compiles the package in memory using the same loader/compiler path
+   as `gaia compile` (but without the compile command's best-effort `uv sync`).
 2. Checks that `[project].name` ends with `-gaia`.
 3. Validates the `LocalCanonicalGraph` (schema and structural checks).
 4. If `.gaia/ir_hash` exists, verifies it matches the current compilation output.
@@ -143,14 +149,21 @@ gaia add <PACKAGE> [--version VERSION] [--registry REPO]
 **What it does:**
 
 1. Queries registry metadata via the GitHub API to resolve the package and version.
-2. Resolves the version to a specific git tag and SHA.
-3. Calls `uv add` with a pinned git URL pointing to the resolved tag.
+2. Resolves the version to a specific git tag and immutable git SHA.
+3. Calls `uv add` with a pinned git URL pointing to the resolved SHA. The tag
+   remains registry metadata; the dependency lock uses the SHA for
+   reproducibility.
+4. When run inside a Gaia package, downloads the upstream release's
+   `beliefs.json` into `.gaia/dep_beliefs/<import_name>.json` if the registry
+   release provides one. This cache feeds the default `gaia infer --depth 0`
+   flat prior injection for foreign nodes.
 
 The package is added as a standard Python dependency in `pyproject.toml` and
 installed into the project environment.
 
-**Key output:** updated `pyproject.toml` `[project].dependencies` and
-`uv.lock` with the pinned Gaia package dependency.
+**Key output:** updated `pyproject.toml` `[project].dependencies`, `uv.lock`
+with the pinned Gaia package dependency, and optionally
+`.gaia/dep_beliefs/<import_name>.json`.
 
 
 ### `gaia infer [PATH] [--depth N]`
@@ -171,16 +184,20 @@ gaia infer [PATH] [--depth N]
 1. Runs `uv sync` to ensure the environment is up to date.
 2. Loads and compiles the package to a `LocalCanonicalGraph`.
 3. Verifies `.gaia/ir_hash` and `.gaia/ir.json` are present and not stale.
-4. Collects metadata priors from claim metadata (`priors.py` and DSL
-   `reason`+`prior` fields).
-5. Lowers the graph to a factor graph via `lower_local_graph`.
+4. Collects metadata priors from resolved `register_prior(...)` records,
+   generated continuous-inference records, inline compatibility priors, and
+   legacy DSL `reason`+`prior` fields.
+5. Lowers the graph to a factor graph via `lower_local_graph`. This is a local
+   numerical preview of the compiled graph and does not read
+   `.gaia/review_manifest.json`; unreviewed warrants still participate in the
+   preview factor graph.
 6. At `--depth 0` (default): injects flat priors from `dep_beliefs/` for
    dependency claims. At `--depth N>0`: merges dependency factor graphs for
    joint cross-package inference.
 7. Runs `InferenceEngine()` (from `gaia/bp/engine.py`), which auto-selects the
-   algorithm based on factor-graph treewidth: JT (exact) for treewidth <= 15,
-   GBP for treewidth <= 30, or loopy BP otherwise. Defaults:
-   `bp_max_iter=200, bp_threshold=1e-8`.
+   algorithm: Mean Field VI for graphs with more than 2000 variables, exact JT
+   for graphs with treewidth <= 20, and TRW-BP for the remaining wider graphs.
+   Defaults: `bp_max_iter=200, bp_threshold=1e-8`.
 8. Writes results to `.gaia/beliefs.json` — per-knowledge beliefs and
    convergence diagnostics.
 
@@ -198,35 +215,37 @@ Render presentation outputs (detailed-reasoning docs and/or a GitHub presentatio
 site) from a compiled package.
 
 ```
-gaia render [PATH] [--target docs|github|all]
+gaia render [PATH] [--target docs|github|obsidian|all]
 ```
 
 | Argument / Option | Default | Description |
 |-------------------|---------|-------------|
 | `PATH`            | `.`     | Path to knowledge package directory |
-| `--target TARGET` | `all`   | `docs` writes `docs/detailed-reasoning.md`; `github` writes `.github-output/`; `all` (default) writes both when possible. |
+| `--target TARGET` | `all`   | `docs` writes `docs/detailed-reasoning.md`; `github` writes `.github-output/`; `obsidian` writes `gaia-wiki/`; `all` (default) writes docs and adds GitHub when possible. |
 
 **Strictness by target:**
 
 - `--target docs`: renders from the compiled IR alone. When a fresh
-  `beliefs.json` and `parameterization.json` are available they are loaded and
-  used to enrich the output; otherwise a warning is emitted and the docs are
-  written without belief values. This is the author-facing workflow — useful
-  during iteration on DSL code before inference has been run.
+  `beliefs.json` is available it is loaded and used to enrich the output;
+  otherwise a warning is emitted and the docs are written without belief
+  values. Prior display is derived from compiled IR metadata, not from a
+  separate `parameterization.json` file. This is the author-facing workflow —
+  useful during iteration on DSL code before inference has been run.
 - `--target github`: strictly requires a matching `beliefs.json`. Missing or
   stale inference results are hard errors. This is the external-presentation
   workflow — a published site without belief values would be misleading.
+- `--target obsidian`: renders `gaia-wiki/` from the compiled IR. Beliefs are
+  optional; when present and fresh they enrich the pages.
 - `--target all` (default): always renders docs, and adds the GitHub target
   when inference results are available. When beliefs are missing, it degrades
   to docs-only with a warning rather than failing.
 
 **What it does:**
 
-1. Loads and compiles the package (same gate as `gaia compile`).
+1. Loads and compiles the package in memory.
 2. Verifies `.gaia/ir_hash` and `.gaia/ir.json` are present and not stale.
 3. If `beliefs.json` is present, verifies its `ir_hash` matches the current
-   compiled graph; same check applied to `parameterization.json` if present.
-   Any stale artifact is a hard error.
+   compiled graph. Any stale belief artifact is a hard error.
 4. Dispatches to the selected targets, emitting warnings when `--target all`
    or `--target docs` runs without inference results.
 
@@ -236,6 +255,7 @@ been run for `--target github` and for the `github` portion of `--target all`.
 **Key output:**
 - `docs/detailed-reasoning.md` (when target includes `docs`)
 - `.github-output/` (when target includes `github` and beliefs are available)
+- `gaia-wiki/` (when target is `obsidian`)
 
 
 ### `gaia register [PATH] [OPTIONS]`
@@ -269,8 +289,8 @@ gaia register [PATH] [--tag TAG] [--repo URL] [--registry-dir PATH]
 4. Parses `[project].dependencies` for Gaia package deps (names ending in
    `-gaia`).
 5. Prepares exported claims from the IR based on the package's `exported` list.
-6. Builds a registration plan containing `Package.toml`, `Versions.toml`, and
-   `Deps.toml` content.
+6. Builds a registration plan containing `Package.toml`, `Versions.toml`,
+   `Deps.toml`, release interface manifests, and exported release beliefs.
 
 **Three modes of operation:**
 
@@ -286,6 +306,12 @@ gaia register [PATH] [--tag TAG] [--repo URL] [--registry-dir PATH]
 - `packages/<name>/Package.toml` -- package identity (uuid, name, repo, description).
 - `packages/<name>/Versions.toml` -- version entries (ir_hash, git_tag, git_sha, timestamp).
 - `packages/<name>/Deps.toml` -- per-version Gaia package dependencies.
+- `packages/<name>/releases/<version>/exports.json` -- exported claim interface.
+- `packages/<name>/releases/<version>/premises.json` -- public premise interface.
+- `packages/<name>/releases/<version>/holes.json` -- local-hole subset of premises.
+- `packages/<name>/releases/<version>/bridges.json` -- `fills(...)` bridge records.
+- `packages/<name>/releases/<version>/beliefs.json` -- exported beliefs generated
+  by running local inference at registration time.
 
 Reference: [Registration](registration.md) for details.
 
@@ -317,7 +343,7 @@ ARM (Auditable Reasoning Manifest) trace reviewer. Inference and other agent-sid
 
 ```
 gaia trace verify <PATH>                                  # schema + hash-chain check
-gaia trace review <PATH> [--mode trace|publish] [--package PKG] [--json|--markdown] [--strict]
+gaia trace review <PATH> [--mode trace|publish] [--package PKG] [--json|--markdown] [--strict] [--snapshot-dir DIR]
 gaia trace show <PATH> [--kind KIND] [--limit N] [--json]
 ```
 
@@ -326,6 +352,8 @@ Exit codes:
 - `review`: 0 clean / 1 error diagnostic (or `--strict` warning) / 2 invalid CLI args.
 
 `--mode publish` weighs diagnostics more strictly for release-gate use; `--mode trace` is the authoring-time view. `--package <pkg>` cross-references `claim_ref` events against the package's `Review` records.
+`gaia trace review` persists review snapshots under `.gaia/trace/reviews/` by
+default; use `--snapshot-dir` to write them elsewhere.
 
 Reference: [../review/review-pipeline.md §6](../review/review-pipeline.md#6-cli-gaia-trace-verify-review-show).
 
@@ -343,7 +371,10 @@ gaia starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--ou
 | `--theme` | `light` | Visual theme: `light` (flat paper-friendly), `stellaris` / `dark` (deep-space dark with glow filters for svg) |
 | `--out` | `.gaia/starmap.{html,dot,svg}` | Output destination |
 
-`gaia starmap-replay` is an experimental sibling that renders an animated playback of declaration order.
+`gaia starmap-replay` is an experimental sibling that renders an animated
+playback of an LKM discovery run. It expects
+`artifacts/lkm-discovery/retrieval_log.jsonl` and
+`artifacts/lkm-discovery/graph_growth_log.jsonl`.
 
 
 ## Artifacts by Stage
@@ -351,15 +382,15 @@ gaia starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--ou
 | Stage    | Command          | Key Artifacts |
 |----------|------------------|---------------|
 | Init     | `gaia init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
-| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/compile_metadata.json`, `.gaia/formalization_manifest.json` |
+| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/compile_metadata.json`, `.gaia/formalization_manifest.json`, `.gaia/manifests/{exports,premises,holes,bridges}.json` |
 | Check    | `gaia check`     | (validation only) |
 | Add      | `gaia add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
 | Inquiry  | `gaia inquiry`   | `.gaia/inquiry/state.json`, `.gaia/inquiry/tactics.jsonl`, `.gaia/inquiry/reviews/<review_id>.json`, `.gaia/review_manifest.json` (persisted by inquiry review) |
-| Infer    | `gaia infer`     | `.gaia/beliefs.json`, trace under `.gaia/trace/`, `.gaia/review_manifest.json` (merged/persisted if reviews exist) |
-| Trace    | `gaia trace`     | (audit only; reads trace files) |
-| Render   | `gaia render`    | `docs/detailed-reasoning.md`, `.github-output/` |
+| Infer    | `gaia infer`     | `.gaia/beliefs.json` |
+| Trace    | `gaia trace`     | reads trace files; `review` also writes snapshots under `.gaia/trace/reviews/` unless `--snapshot-dir` is used |
+| Render   | `gaia render`    | `docs/detailed-reasoning.md`, `.github-output/`, or `gaia-wiki/` depending on target |
 | Starmap  | `gaia starmap`   | `.gaia/starmap.{html,dot,svg}` |
-| Register | `gaia register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml` (in registry repo) |
+| Register | `gaia register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml`, and `releases/<version>/{exports,premises,holes,bridges,beliefs}.json` in the registry repo |
 
 
 ## Package Requirements

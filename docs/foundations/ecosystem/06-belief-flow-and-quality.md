@@ -1,6 +1,12 @@
 # 多级推理与质量涌现
 
-> **Status:** Current canonical
+> **Status:** Ecosystem architecture with v0.5 implementation notes
+
+> 当前 v0.5 CLI 的 Level 0 是 `gaia infer` 本地 numerical preview：它允许
+> MaxEnt inputs，并且不因 review manifest 未 accepted 而抑制 belief 输出。
+> `gaia check --gate` 才负责 publication-quality gate。本文的 Level 1/LKM
+> snapshot、validated review reports 和 official belief flow 是生态层设计，
+> 不代表当前 CLI 已实现的服务端流程。
 
 本文档描述 Gaia 的多级推理架构——可信度如何在不同层级流动，错误如何被发现和修正，知识质量如何从去中心化的贡献中涌现。
 
@@ -24,7 +30,7 @@ LKM 内部可能区分快速增量更新（snapshot）和定期全量收敛（gl
 
 ### 什么时候运行
 
-作者在本地运行 `gaia infer`，通常在编译（`gaia build`）之后。编译和推理的详细流程见 [03 包的创建与发布](03-authoring-and-publishing.md)。
+作者在本地运行 `gaia infer`，通常在编译（`gaia compile`）之后。编译和推理的详细流程见 [03 包的创建与发布](03-authoring-and-publishing.md)。
 
 ### 做什么
 
@@ -188,7 +194,7 @@ Official Registry 记录新版本
   "你的包依赖 X v3.0.0，X 已发布 v4.0.0（MAJOR 更新）"
   ↓
 下游维护者决定：
-  a. 更新依赖 → gaia build + gaia infer → 重新注册
+  a. 更新依赖 → gaia compile + gaia infer → 重新注册
   b. 暂不更新 → 继续使用旧版本（可信度基于旧数据）
   c. 不再需要该依赖 → 移除引用
 ```

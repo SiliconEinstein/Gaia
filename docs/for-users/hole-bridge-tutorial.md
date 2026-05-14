@@ -58,7 +58,6 @@ main_theorem = claim("A theorem that depends on the missing lemma.")
 deduction(
     premises=[missing_lemma],
     conclusion=main_theorem,
-    reason="The theorem requires the missing lemma.",
 )
 
 __all__ = ["main_theorem"]
@@ -80,6 +79,17 @@ Expected result:
 ## Package B: Fill The Hole
 
 Package B depends on package A.
+
+If you are following this tutorial locally before package A is registered,
+make package A importable inside package B's environment after compiling A:
+
+```bash
+cd ../paper-b-gaia
+uv add --editable ../paper-a-gaia
+```
+
+For an already registered dependency, `gaia add paper-a-gaia` is the preferred
+path; it installs the pinned package version and caches any release beliefs.
 
 `pyproject.toml`:
 

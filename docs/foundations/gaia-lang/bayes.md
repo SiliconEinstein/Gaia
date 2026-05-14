@@ -13,7 +13,7 @@ question:
 | You want to … | Use this surface | Mental model |
 |---|---|---|
 | Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.lang.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **Hypothesis comparison** via likelihood ratios |
-| Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` (since v0.6) | **Quantity with predicates** via generated prior records and equation metadata |
+| Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` | **Quantity with predicates** via generated prior records and equation metadata |
 
 Both surfaces ride on the same scipy-backed distribution machinery
 (``gaia.lang.bayes.distributions``); the difference is the authoring shape

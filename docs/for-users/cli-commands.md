@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-Reference for the Gaia Lang v5 CLI. The installed entrypoint is `gaia`.
+Reference for the Gaia Lang v0.5 CLI. The installed entrypoint is `gaia`.
 
 ## Command Set
 
@@ -14,6 +14,11 @@ gaia infer      Run belief propagation inference
 gaia render     Generate documentation and presentation outputs
 gaia add        Install a registered package from the registry
 gaia register   Submit a package to the official registry
+gaia starmap    Visualize a compiled package as html, dot, or svg
+gaia starmap-replay
+                Render an HTML replay of an LKM discovery run
+gaia inquiry    Manage the semantic review / inquiry loop
+gaia trace      Verify, review, and inspect ARM execution traces
 ```
 
 ## `gaia init`
@@ -39,7 +44,8 @@ Creates:
 
 ## `gaia compile`
 
-Compile a Gaia Python package into `.gaia/ir.json` and `.gaia/ir_hash`.
+Compile a Gaia Python package into `.gaia/ir.json`, `.gaia/ir_hash`, and
+package interface manifests.
 
 ```bash
 gaia compile [path]
@@ -56,6 +62,9 @@ What it does:
 - executes the Gaia DSL declarations (including `priors.py` if present)
 - emits a `LocalCanonicalGraph` to `.gaia/ir.json`
 - writes the deterministic graph hash to `.gaia/ir_hash`
+- writes `.gaia/compile_metadata.json` and `.gaia/formalization_manifest.json`
+- writes `.gaia/manifests/{exports,premises,holes,bridges}.json` for
+  cross-package interfaces and `fills(...)` validation
 
 ## `gaia check`
 
@@ -66,6 +75,10 @@ gaia check [path]
 gaia check --brief [path]
 gaia check --show <module|label> [path]
 gaia check --hole [path]
+gaia check --warrants [path]
+gaia check --warrants --blind [path]
+gaia check --inquiry [path]
+gaia check --gate [path]
 ```
 
 | Option | Description |
@@ -73,15 +86,51 @@ gaia check --hole [path]
 | `--brief`, `-b` | Per-module overview: claims (with roles), strategies, operators |
 | `--show`, `-s` | Expand a specific module or claim/strategy label with full warrant trees |
 | `--hole` | Detailed prior contract report: MaxEnt independent DOF + covered inputs |
+| `--warrants` | Show v6 `ReviewManifest` warrants and audit questions for reviewable actions |
+| `--blind` | With `--warrants`, hide status values and prior diagnostics to reduce anchoring |
+| `--inquiry` | Show goal-oriented reasoning progress and review status |
+| `--gate` | Run quality-gate checks and exit non-zero when the package is not publishable |
 
 What it checks:
 
 - `pyproject.toml` and `[tool.gaia]` metadata exist
 - `.gaia/ir.json` matches the current source (`ir_hash` check)
 - compiled IR validates against the current schema
-- package identity fields (`name`, `version`, `uuid`) are present and consistent
+- package name ends with `-gaia`
+
+`gaia check` does not prove that a package can be registered: registration also
+requires a valid `[tool.gaia].uuid`, a clean git worktree, a pushed tag that
+points at `HEAD`, and a clean registry checkout.
 
 The default output annotates each independent boundary premise with `prior=X` or `no external prior (MaxEnt)`, and shows a "MaxEnt (no external prior): N" summary. When the boundary includes deterministic logical constraints, `gaia check` reports the effective MaxEnt state space (feasible assignments and entropy in bits). It also computes the induced MaxEnt entropy of those boundary claims under the current full joint distribution, so you can see how much uncertainty the existing graph actually removes without changing the package structure.
+
+Use the variants for different review loops:
+
+- `gaia check --brief .` when you want a compact map of modules, claims,
+  roles, and action warrants.
+- `gaia check --show high_Tc .` when a single claim or module needs a full
+  warrant tree.
+- `gaia check --hole .` before inference, to see which independent inputs have
+  author priors and which remain MaxEnt.
+- `gaia check --warrants .` when you want a review sheet for strategies,
+  operators, and other reviewable actions.
+- `gaia check --warrants --blind .` when a reviewer should inspect warrants
+  without seeing author status or prior diagnostics first.
+- `gaia check --inquiry .` when you want a goal-oriented progress view: exported
+  claims, review status, open gaps, and blocked reasoning steps.
+- `gaia check --gate .` in CI or before publication. Treat a non-zero exit as a
+  package-quality failure, not as an inference failure.
+
+`--gate` fails by default on structural holes, unformalized `depends_on(...)`
+scaffold dependencies, and reachable unaccepted review warrants. Optional
+`[tool.gaia.quality]` settings can relax selected checks or add a belief floor:
+
+```toml
+[tool.gaia.quality]
+allow_holes = false
+allow_unformalized_dependencies = false
+min_posterior = 0.7  # optional; omit for no posterior threshold
+```
 
 ### Prior assignment contract
 
@@ -114,13 +163,31 @@ gaia infer --depth 1 [path]
 |--------|---------|-------------|
 | `--depth` | `0` | Dependency depth for joint inference. `0` = flat priors, `1` = merge direct deps, `-1` = all transitive deps |
 
-Priors come from `priors.py` and inline `reason`+`prior` pairing in the DSL. Algorithm is auto-selected based on factor graph treewidth:
+Priors come from `register_prior(...)` calls in `priors.py`, inline
+`claim(prior=...)` compatibility shortcuts, generated continuous-inference
+records, and dependency beliefs. The resolver writes the winning value into
+claim metadata before lowering to the factor graph.
 
-| Treewidth | Algorithm | Type |
+Action-backed strategies and operators are lowered for local preview even when
+their generated review targets are still `unreviewed`. `gaia infer` does not
+read `.gaia/review_manifest.json` to decide whether a reasoning edge may
+participate in the factor graph. Treat the output as "what the current compiled
+graph implies numerically", not as a publication-quality approval. Use
+`gaia check --warrants`, `gaia check --gate`, and `gaia inquiry review` to see
+which warrants still need review before publishing or registering the package.
+
+Algorithm selection is automatic:
+
+- If the graph has more than 2000 variables, Gaia uses Mean Field VI.
+- Otherwise, Gaia estimates treewidth. If treewidth is at most 20, Gaia uses
+  exact Junction Tree inference.
+- For remaining graphs, Gaia uses TRW-BP as a bounded approximate method.
+
+| Condition | Algorithm | Type |
 |-----------|-----------|------|
-| <= 15 | Junction tree | Exact |
-| 16-30 | Generalized BP | Region decomposition |
-| > 30 | Loopy BP | Approximate |
+| `n > 2000` variables | Mean Field VI | Fast approximate |
+| `n <= 2000` and treewidth `<= 20` | Junction Tree | Exact |
+| `n <= 2000` and treewidth `> 20` | TRW-BP | Bounded approximate |
 
 Output: `.gaia/beliefs.json`
 
@@ -139,7 +206,7 @@ gaia render [path]                       # --target all (default)
 |--------|------------------|--------|
 | `docs` | Optional (enriched when available) | `docs/detailed-reasoning.md` with per-module Mermaid graphs |
 | `github` | Required | `.github-output/` with README skeleton, narrative outline, manifest |
-| `obsidian` | Required | `gaia-wiki/` Obsidian vault with claim pages and sections |
+| `obsidian` | Optional (enriched when available) | `gaia-wiki/` Obsidian vault with claim pages and sections |
 | `all` | Optional | `docs` always + `github` when beliefs are available |
 
 ## `gaia add`
@@ -156,12 +223,138 @@ gaia add <package> --version 1.0.0
 | `--version`, `-v` | Pin to a specific version |
 | `--registry` | Override registry repo (default: `SiliconEinstein/gaia-registry`) |
 
+What it does:
+
+- resolves the package and version from the registry index to a git tag and
+  immutable git SHA
+- adds the package dependency to the current Python project using a SHA-pinned
+  git URL
+- when run inside a Gaia package, downloads the upstream release's
+  `beliefs.json` into `.gaia/dep_beliefs/<import_name>.json` if the registry
+  has one; this cache is written at the nearest Gaia package root, not
+  necessarily the shell's current subdirectory
+
+That cached `dep_beliefs` file is used by `gaia infer --depth 0` as a flat
+prior source for foreign nodes. If the registry release has no beliefs file, the
+command prints a note and still installs the dependency.
+
+## `gaia starmap`
+
+Generate a package graph visualization from the compiled IR.
+
+```bash
+gaia starmap [path]
+gaia starmap [path] --format html
+gaia starmap [path] --format dot --out figures/package.dot
+gaia starmap [path] --format svg --theme stellaris --out figures/package.svg
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--format` | `html` | `html` for a self-contained interactive Sigma.js viewer, `dot` for Graphviz source, `svg` for a rendered figure |
+| `--theme` | `light` | `light`, `stellaris`, or `dark`; the dark aliases use the deep-space visual style |
+| `--out` | `.gaia/starmap.<format>` | Output path; absolute paths are honored |
+
+Typical use:
+
+- Use `html` while authoring, because it opens directly in a browser and does
+  not require a local server.
+- Use `dot` when you want to post-process the graph yourself with Graphviz.
+- Use `svg` when you need a paper-ready or slide-ready static figure.
+
+## `gaia starmap-replay`
+
+Render an animated HTML replay of an LKM discovery run.
+
+```bash
+gaia starmap-replay [path]
+gaia starmap-replay [path] --out figures/replay.html
+```
+
+Input files:
+
+- `artifacts/lkm-discovery/retrieval_log.jsonl`
+- `artifacts/lkm-discovery/graph_growth_log.jsonl`
+
+Output: `.gaia/starmap-replay.html` by default.
+
+This command is useful after an LKM-to-Gaia run. It merges retrieval and graph
+growth events, drops retry/failure events, replays each emitted Gaia action on a
+pinned layout, and recomputes round-by-round beliefs from the truncated IR.
+
+## `gaia inquiry`
+
+Manage the semantic review loop for a package. Inquiry state is stored in the
+package's `.gaia` state files; these commands do not edit Python source,
+compiled IR, priors, or beliefs.
+
+```bash
+gaia inquiry review [path]
+gaia inquiry review [path] --mode publish --markdown --strict
+gaia inquiry review [path] --focus github:pkg::claim --depth 1
+gaia inquiry focus <target> --path .
+gaia inquiry focus --clear --path .
+gaia inquiry obligation add <target-qid> --content "What must be shown" --kind other --path .
+gaia inquiry obligation list --path .
+gaia inquiry obligation close <obligation-qid> --path .
+gaia inquiry hypothesis add "Alternative mechanism" --path .
+gaia inquiry hypothesis list --path .
+gaia inquiry reject <strategy-label-or-id> --content "Why this path is rejected" --path .
+gaia inquiry tactics log --path .
+```
+
+`gaia inquiry review` options:
+
+| Option | Description |
+|--------|-------------|
+| `--focus <target>` | Review one focus claim instead of the whole package |
+| `--mode auto|formalize|explore|verify|publish` | Ranking profile for diagnostics and next edits |
+| `--no-infer` | Skip the inference-backed diagnostics |
+| `--depth N` | Dependency depth for inference-backed diagnostics |
+| `--since <review-id>` | Diff against a previous review snapshot |
+| `--json` | Emit JSON |
+| `--markdown` | Emit Markdown |
+| `--strict` | Exit non-zero on strict warnings/errors |
+
+Use it when a package is structurally valid but the scientific reasoning still
+needs review work: tracking a current focus claim, recording open obligations,
+adding temporary working hypotheses, rejecting a path with a reason, and
+printing the tactic log for the inquiry.
+
+## `gaia trace`
+
+Verify and review ARM execution traces.
+
+```bash
+gaia trace verify trace.jsonl
+gaia trace verify trace.jsonl --quiet
+gaia trace review trace.jsonl --mode trace
+gaia trace review trace.jsonl --mode publish --package .
+gaia trace review trace.jsonl --markdown
+gaia trace review trace.jsonl --snapshot-dir .gaia/trace/reviews
+gaia trace show trace.jsonl --limit 20
+gaia trace show trace.jsonl --kind tool_call --json
+```
+
+| Subcommand | Purpose | Exit codes |
+|------------|---------|------------|
+| `verify` | Validate schema, event hash chain, events root, and manifest hash | `0` clean, `1` tampered/hash mismatch, `2` schema or bad args |
+| `review` | Run the full trace review and print text, JSON, or Markdown | `0` clean, `1` error diagnostics or strict warnings, `2` bad args |
+| `show` | Print the event stream, optionally filtered by kind | `0` clean, `2` un-loadable schema |
+
+Use `verify` as the fast fail-fast check. Use `review` when you need the full
+diagnostic report; by default it also saves a review snapshot under
+`.gaia/trace/reviews/`, or under `--snapshot-dir` when provided. Use `show`
+when you want to inspect the raw event sequence.
+
 ## `gaia register`
 
 Submit a package to the official registry. Requires a git tag pushed to GitHub.
 
 ```bash
-gaia register [path] --create-pr
+gaia register [path]
+gaia register [path] --registry-dir ../gaia-registry
+gaia register [path] --registry-dir ../gaia-registry --create-pr
 ```
 
 | Option | Description |
@@ -169,13 +362,22 @@ gaia register [path] --create-pr
 | `--tag` | Git tag to register (default: `v<version>`) |
 | `--repo` | Override the GitHub repository URL |
 | `--registry-dir` | Path to a local checkout of the registry repo |
-| `--create-pr` | Create the registry branch and open a PR |
+| `--create-pr` | Create the registry branch and open a PR; requires `--registry-dir` |
 
 Prerequisites:
 
 - `gaia compile` and `gaia check` pass
+- `[tool.gaia].uuid` is set and is a valid UUID
 - package source is pushed to GitHub
-- target tag is pushed
+- git worktree is clean
+- target tag exists, points to `HEAD`, and is pushed to origin
+- registry checkout is clean when `--registry-dir` is used
+- registry branch `register/<name>-<version>` does not already exist
+
+Without `--registry-dir`, `gaia register` is always a dry-run: it prints a JSON
+plan and does not create a local registry branch, even if `--create-pr` is
+present. Use `--registry-dir ../gaia-registry --create-pr` for the full push/PR
+path.
 
 Example:
 
@@ -188,7 +390,8 @@ git push origin v1.0.0
 gaia register . --tag v1.0.0 --registry-dir ../gaia-registry --create-pr
 ```
 
-**Note:** `--create-pr` creates the registry branch locally but does not automatically push to your fork. After running, manually push and create the PR:
+Without `--create-pr`, `gaia register` creates and commits the registry branch
+locally, then prints the manual next step:
 
 ```bash
 cd ../gaia-registry
@@ -196,6 +399,23 @@ git push origin register/<name>-<version>
 gh pr create --repo SiliconEinstein/gaia-registry --base main \
   --head <your-user>:register/<name>-<version> --title "register: <name> <version>"
 ```
+
+With `--create-pr`, Gaia runs the push and `gh pr create` step for you.
+
+Registry write mode creates or updates:
+
+- `packages/<name>/Package.toml`
+- `packages/<name>/Versions.toml`
+- `packages/<name>/Deps.toml`
+- `packages/<name>/releases/<version>/exports.json`
+- `packages/<name>/releases/<version>/premises.json`
+- `packages/<name>/releases/<version>/holes.json`
+- `packages/<name>/releases/<version>/bridges.json`
+- `packages/<name>/releases/<version>/beliefs.json`
+
+The release `beliefs.json` is generated by local inference at registration
+time and contains exported claims only. It is distinct from local
+`.gaia/beliefs.json`, which is an authoring artifact and remains gitignored.
 
 ## Typical Workflow
 
@@ -209,5 +429,5 @@ gaia compile .                     # 6. Re-compile with priors
 gaia infer .                       # 7. Run inference
 gaia render . --target docs        # 8. Generate documentation
 gaia render . --target github      # 9. Generate presentation
-gaia register . --create-pr        # 10. Publish to registry
+gaia register . --registry-dir ../gaia-registry --create-pr  # 10. Publish
 ```

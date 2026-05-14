@@ -6,7 +6,11 @@ since: v0.5
 
 # Review Pipeline
 
-Gaia separates **structural compilation** (objective, deterministic) from **review** (qualitative judgment about whether an authored action's warrant should enter the information set used by BP). Review is a per-action decision: a reviewer reads each action's audit question and accepts, rejects, defers, or asks for more inputs.
+Gaia separates **structural compilation** (objective, deterministic) from
+**review** (qualitative judgment about whether an authored action's warrant is
+acceptable for publication-quality workflows). Review is a per-action decision:
+a reviewer reads each action's audit question and accepts, rejects, defers, or
+asks for more inputs. It is not a numeric prior.
 
 In v0.5 review is fully local. The CLI generates a **review manifest** at compile time, an inquiry loop guides the author through outstanding actions, and the trace produced by `gaia infer` can be independently audited. There is no central review server today.
 
@@ -68,7 +72,10 @@ For each compiled action target, the manifest builder:
 3. Builds a templated audit question via `gaia.lang.review.templates.generate_audit_question(action_type, **labels)`.
 4. Mints a deterministic `review_id` per `(target_kind, target_id)` so re-compiles do not invalidate stored reviews of unchanged targets.
 
-The result is attached to the `CompiledPackage`. `gaia infer` and `gaia inquiry review` later merge it with the package's persisted `.gaia/review_manifest.json` (see §5).
+The result is attached to the `CompiledPackage`. `gaia inquiry review` and
+review/gate commands later merge it with the package's persisted
+`.gaia/review_manifest.json` (see §5). `gaia infer` does not read the persisted
+manifest; it previews the compiled graph numerically.
 
 ## 4. CLI: `gaia inquiry review`
 
@@ -121,9 +128,34 @@ def merge_review_manifests(generated: ReviewManifest, stored: ReviewManifest) ->
 def latest_reviews(manifest: ReviewManifest) -> list[Review]
 ```
 
-`load_or_generate_review_manifest()` reads `.gaia/review_manifest.json` if it exists, then merges stored entries with the generated baseline by `review_id`. New targets appear as `UNREVIEWED`; targets that disappeared from the IR are dropped on the next compile. `latest_reviews()` returns the highest-round status per target, suitable for downstream gating.
+`load_or_generate_review_manifest()` reads `.gaia/review_manifest.json` if it
+exists, then merges stored entries with the generated baseline. Exact
+`review_id` matches are preserved. When target IDs churn because compilation
+changed a generated helper ID, Gaia can reattach by stable review keys such as
+`(action_label, target_kind, audit_question)` or the fallback action key. New
+targets appear as `UNREVIEWED`; targets that disappeared from the IR are
+dropped on the next compile. `latest_reviews()` returns the highest-round
+status per target, suitable for downstream gating.
 
-The merged manifest is what `gaia infer` consults when deciding which warrant claims enter the information set `I` — accepted reviews promote their warrant helper claim to a hard observation; `UNREVIEWED` and `NEEDS_INPUTS` warrants stay at MaxEnt.
+The merged manifest is what `gaia inquiry review`, `gaia check --gate`, and
+publish/register quality checks consult when deciding whether an authored
+warrant has passed review. `gaia infer` is deliberately more permissive: it
+lowers the compiled graph for a local numerical preview regardless of manifest
+status. Accepted, rejected, and unreviewed are qualitative states, not hidden
+probability parameters.
+
+### Quality Gate Criteria
+
+`gaia check --gate` is the current publish-quality gate. By default it fails on:
+
+- exported structural holes without a warrant chain;
+- unformalized scaffold dependencies from `depends_on(...)`;
+- reachable reviewable warrants whose latest status is not `ACCEPTED`;
+- optional low posterior checks when `[tool.gaia.quality].min_posterior` is set.
+
+`[tool.gaia.quality]` can explicitly allow holes or unformalized dependencies
+for draft workflows, but those settings do not change `gaia infer`; they only
+change the gate result.
 
 ## 6. CLI: `gaia trace verify / review / show`
 
@@ -163,14 +195,18 @@ The `--mode publish` ranking weighs diagnostics differently: it is meant to gate
          ▼                                       ▼
    .gaia/review_manifest.json (per package)  trace snapshots in .gaia/trace/
 
-         ↓ both feed ↓
+         ↓ feeds ↓
 
-                  gaia infer
-        (ACCEPTED warrants enter the information set;
-         everything else stays at MaxEnt)
+        review/gate and publish/register checks
+        (ACCEPTED warrants pass; rejected or missing reviews block release)
+
+   gaia infer is parallel to this gate: it lowers the compiled graph for a
+   local numerical preview and writes `.gaia/beliefs.json` without requiring
+   accepted reviews.
 ```
 
-For the BP semantics of accepted vs unreviewed warrants see [../bp/inference.md](../bp/inference.md) and the [Gaia IR parameterization contract](../gaia-ir/06-parameterization.md).
+For BP lowering and prior semantics see [../bp/inference.md](../bp/inference.md)
+and the [Gaia IR parameterization contract](../gaia-ir/06-parameterization.md).
 
 ## 8. Code Map
 

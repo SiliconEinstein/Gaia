@@ -119,28 +119,62 @@ Check reports structural errors, independent premises, derived conclusions, and 
 
 Use `gaia check --brief .` for a per-module overview, or `gaia check --hole .` for a detailed prior coverage report.
 
-## Assign Priors
+## Check Prior Coverage
 
-Independent probabilistic inputs need external priors. Derived claims and relation helper claims do not. Create `src/my_first/priors.py`:
+Independent probabilistic inputs need either a sourced external prior or an
+explicit decision to leave them MaxEnt. Derived claims and relation helper
+claims do not need external priors.
+
+For this minimal tied-body example, `aristotle_law` is the independent model
+claim under test. If you do not have sourced prior information about that model,
+do **not** create `priors.py` just to write `0.5`. Leaving it unset tells Gaia
+to use the maximum-entropy neutral starting point.
+
+Inspect that state with:
+
+```bash
+gaia check --hole .
+```
+
+The report should show `aristotle_law` as an independent MaxEnt degree of
+freedom. In that no-prior branch, inference starts from MaxEnt for that claim.
+
+When you do have an informative prior, create `src/my_first/priors.py` and call
+`register_prior(...)` on the already-declared claim:
 
 ```python
 """Priors for independent premises."""
 
+from gaia.lang import register_prior
+
 from . import aristotle_law
 
-PRIORS: dict = {
-    aristotle_law: (0.5, "Neutral before inspecting the tied-body contradiction."),
-}
+register_prior(
+    aristotle_law,
+    0.3,
+    justification="Use a sourced rationale here; do not use 0.5 as a neutral placeholder.",
+)
 ```
 
-Each entry maps an independent claim to `(prior_probability, justification)`. Priors follow Cromwell bounds, so use values between 0.001 and 0.999 rather than exact 0 or 1.
+`register_prior(...)` attaches a named prior record to an existing claim. The
+default source is `user_priors`; generated records from engines and reviewer
+records can coexist on the same claim, and Gaia's resolution policy preserves
+the losing records for audit. Priors follow Cromwell bounds, so use values
+between 0.001 and 0.999 rather than exact 0 or 1.
 
-Re-compile to pick up the priors:
+Do not write the old `PRIORS = {...}` dict. In v0.5+, `gaia compile` rejects it
+with a migration error because it has no explicit source provenance and cannot
+participate in multi-source prior resolution.
+
+If you created or changed `priors.py`, re-compile to pick up the priors:
 
 ```bash
 gaia compile .
 gaia check --hole .    # Shows covered inputs and any MaxEnt independent DOF
 ```
+
+In this with-priors branch, `gaia check --hole .` should show
+`aristotle_law` as covered by `prior=0.3`, not as a MaxEnt input.
 
 ## Infer
 
@@ -150,18 +184,26 @@ Run belief propagation to compute posterior beliefs:
 gaia infer .
 ```
 
-Sample output:
+`gaia infer` is a local preview: it lowers the compiled graph and reports the
+posterior implied by your current declarations, even before generated warrants
+have been reviewed. Review still matters for quality gates and publication, so
+run `gaia check --warrants`, `gaia check --gate`, or `gaia inquiry review` when
+you need to know whether the package is ready to publish.
+
+The CLI prints a short summary and writes the detailed posterior records to
+`.gaia/beliefs.json`:
 
 ```
-Algorithm: junction_tree (exact, treewidth=2)
-Converged after 2 iterations
-
-Beliefs:
-  aristotle_law:  prior=0.50  ->  belief decreases after the contradiction
-  tied_balls:     no prior    ->  relation helper is constrained by contradict()
+Inferred 6 beliefs
+Method: JT (exact), ...
+Converged: True after ... iterations
 ```
 
-The contradiction is not a prior by itself. It is a reviewable relation that constrains the graph; BP then computes how the model belief moves. See the README for the fuller Galileo example that adds the medium-resistance model and the vacuum prediction.
+The contradiction is not a prior by itself. It is a reviewable relation that
+constrains the graph; BP then computes the posterior implied by the current
+compiled graph. Inspect `.gaia/beliefs.json` to see each claim's posterior. See
+the README for the fuller Galileo example that adds the medium-resistance model
+and the vacuum prediction.
 
 ## Render
 

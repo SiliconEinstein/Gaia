@@ -105,10 +105,17 @@ galileo-falling-bodies-gaia/
 │       ├── __init__.py          # Package entry: exports + DSL declarations
 │       ├── premises.py          # Background knowledge and observations
 │       ├── reasoning.py         # Reasoning strategies
-│       └── priors.py            # Prior assignments (PRIORS dict)
+│       └── priors.py            # Prior records via register_prior(...)
 └── .gaia/                       # Compiled artifacts (git-tracked)
     ├── ir.json                  # LocalCanonicalGraph JSON
-    └── ir_hash                  # SHA-256 integrity hash
+    ├── ir_hash                  # SHA-256 integrity hash
+    ├── compile_metadata.json    # gaia-lang version + compile timestamp
+    ├── formalization_manifest.json
+    └── manifests/
+        ├── exports.json
+        ├── premises.json
+        ├── holes.json
+        └── bridges.json
 ```
 
 ### Flat layout (also supported)
@@ -126,15 +133,20 @@ The CLI auto-detects which layout is in use by checking whether `<import_name>/`
 
 ## Visibility
 
-Three visibility levels control what the compiler exports and how labels are assigned:
+Visibility has two separate concepts: what is **compiled** into the local graph
+and what is **exported** as the cross-package interface.
 
 | Level | Mechanism | Effect |
 |-------|-----------|--------|
-| **Exported** | Listed in `__all__` | Cross-package visible. Variable name becomes the label. Compiled into IR. |
-| **Public** | No `_` prefix, not necessarily in `__all__` | Package-internal. Variable name becomes the label. Compiled into IR. |
-| **Private** | `_` prefix | Not labeled by the CLI. Still compiled into IR as anonymous nodes. Local helpers only. |
+| **Exported** | Listed in the package root `__all__` | Cross-package visible. Exported labels appear in `exports.json` and release manifests. |
+| **Compiled local declaration** | Any local Gaia object registered during import of the package root or source modules | Compiled into IR and labelable from its Python variable name, even when not exported. |
+| **Anonymous helper** | Generated helper or object without an assignable module variable | Compiled with generated or anonymous identity. |
 
-Labels are assigned automatically from variable names during package loading. If a `Knowledge` or `Action` object is bound to a module-level variable and listed in `__all__` (or is public with no `__all__`), its variable name becomes its `.label` field. The label then forms the final segment of the object's QID. Action labels are addressable via `[@label]` references the same way Knowledge labels are; see [knowledge-and-reasoning.md §4.3](knowledge-and-reasoning.md#43-action-label-references).
+Labels are assigned automatically from loaded module variable names during
+package loading. `__all__` does not limit discovery or compilation; it marks the
+exported interface. The label then forms the final segment of the object's QID.
+Action labels are addressable via `[@label]` references the same way Knowledge
+labels are; see [knowledge-and-reasoning.md §4.3](knowledge-and-reasoning.md#43-action-label-references).
 
 Example:
 
@@ -185,7 +197,11 @@ At compile time, imported Knowledge objects retain their foreign QIDs (e.g., `gi
 
 ## Priors
 
-Prior probabilities for BP inference are assigned through `priors.py`. Exports a `PRIORS: dict` mapping independent probabilistic input claims to `(prior, justification)` tuples.
+Prior probabilities for BP inference are assigned through `priors.py`. The file
+imports existing independent probabilistic input claims and calls
+`register_prior(...)` on them. Each call records a source-specific prior record;
+the compile-time resolution policy chooses the winning value and preserves all
+records for audit.
 
 The v0.5 contract is:
 
@@ -194,21 +210,34 @@ The v0.5 contract is:
 - do not assign priors to derived claims, structural expression helpers, relation helper claims, or generated formalization helpers;
 - use `gaia check --hole` to decide which independent degrees of freedom are covered and which intentionally rely on MaxEnt.
 
-Legacy strategy/operator APIs may still accept paired `reason+prior` arguments for compatibility. New packages should prefer `priors.py` for input priors and action/relation verbs for warrants.
+Legacy strategy/operator APIs may still accept paired `reason+prior` arguments for compatibility. New packages should prefer `register_prior(...)` in `priors.py` for input priors and action/relation verbs for warrants.
 
 ### priors.py
 
 ```python
 # src/<package>/priors.py
+from gaia.lang import register_prior
+
 from . import evidence, hypothesis
 
-PRIORS: dict = {
-    evidence: (0.9, "Direct observation."),
-    hypothesis: (0.5, "Theoretical prediction, not yet confirmed."),
-}
+register_prior(
+    evidence,
+    0.9,
+    justification="Direct observation.",
+)
+
+register_prior(
+    hypothesis,
+    0.65,
+    justification="Sourced model prior from a domain review.",
+)
 ```
 
-`apply_package_priors()` discovers `priors.py` automatically at load time and injects these values into claim metadata before compilation.
+`apply_package_priors()` discovers `priors.py` automatically at load time. The
+import runs `register_prior(...)` calls, then Gaia applies the package
+`RESOLUTION_POLICY` or the default policy and injects the winning prior into
+claim metadata before compilation. Do not export the removed legacy
+`PRIORS = {...}` dict; v0.5+ rejects it with a migration error.
 
 ### Removed Review Sidecar
 
@@ -225,13 +254,19 @@ All artifacts are written to `.gaia/` within the package root.
 |----------|-----------|-----------------|----------|
 | `.gaia/ir.json` | `gaia compile` | yes | `LocalCanonicalGraph` -- the complete compiled IR |
 | `.gaia/ir_hash` | `gaia compile` | yes | SHA-256 hash of the canonical IR serialization |
+| `.gaia/compile_metadata.json` | `gaia compile` | yes | `gaia_lang_version`, compile timestamp, and IR hash provenance |
+| `.gaia/formalization_manifest.json` | `gaia compile` | yes | Scaffold/formalization records such as `depends_on(...)`, `candidate_relation(...)`, and `tension(...)` |
+| `.gaia/manifests/exports.json` | `gaia compile` | yes | Exported claims and interface hashes |
+| `.gaia/manifests/premises.json` | `gaia compile` | yes | Public premise interface, including local holes and foreign dependencies |
+| `.gaia/manifests/holes.json` | `gaia compile` | yes | `local_hole` subset of `premises.json` |
+| `.gaia/manifests/bridges.json` | `gaia compile` | yes | `fills(...)` bridge records |
 | `.gaia/beliefs.json` | `gaia infer` | no (gitignored) | BP inference output: posterior beliefs per knowledge node |
-| `.gaia/dep_beliefs/` | `gaia infer` | no (gitignored) | cached posterior beliefs from upstream `*-gaia` dependencies |
+| `.gaia/dep_beliefs/` | `gaia add` | no (gitignored) | cached posterior beliefs from upstream `*-gaia` dependencies |
 
-The first two artifacts must travel with the source so that registry
-clients can verify the compiled graph; the inference outputs are
-reproducible from source + priors and are intentionally regenerated.
-`gaia init` writes both ignore patterns into `.gitignore` automatically.
+The compile artifacts must travel with the source so that registry clients can
+verify the compiled graph and cross-package interface. The inference outputs
+are reproducible from source + priors and are intentionally regenerated.
+`gaia init` writes the ignore patterns for local belief caches automatically.
 
 ## Package Lifecycle
 
@@ -250,7 +285,12 @@ init --> authored --> compiled --> checked --> priors assigned --> inferred --> 
 | **Tagged** | `git tag v<version> && git push origin v<version>` | A git tag marks the release. The tag must point to HEAD and be pushed to origin before registration. |
 | **Registered** | `gaia register` | Prepares (or submits) a metadata PR against the official Gaia registry. Requires a valid `[tool.gaia].uuid`, clean git worktree, and pushed tag. |
 
-`gaia register` does not publish artifacts directly. It creates registry metadata (Package.toml, Versions.toml, Deps.toml) that reference the GitHub-tagged source release.
+`gaia register` creates registry metadata (`Package.toml`, `Versions.toml`,
+`Deps.toml`) that reference the GitHub-tagged source release, and writes release
+interface files under `packages/<name>/releases/<version>/`. Those release
+files are `exports.json`, `premises.json`, `holes.json`, `bridges.json`, and
+an exported-only `beliefs.json` generated by local inference at registration
+time.
 
 ### Validation summary (`gaia check`)
 

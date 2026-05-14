@@ -29,7 +29,6 @@ Knowledge
 │     kind: ClaimKind
 │       GENERAL
 │       PARAMETER
-│       OBSERVATION
 │       QUANTIFIED
 │       CAUSAL
 ├── Note  (no prior)
@@ -81,7 +80,6 @@ Each `Claim` has a **shape discriminator** `kind: ClaimKind` and an optional str
 |---|---|---|
 | `GENERAL` | default; opaque content, formula optional | bare `claim(...)` |
 | `PARAMETER` | asserts a `Variable` takes a specific value | `parameter(var, value, ...)` sugar |
-| `OBSERVATION` | records observed values for one or more `Variables` | `observation(...)` sugar |
 | `QUANTIFIED` | top-level `Forall` / `Exists` in `formula` | `claim(formula=Forall(...))` |
 | `CAUSAL` | top-level `Causes(cause, effect)` predicate | `causal(cause, effect, ...)` sugar |
 
@@ -131,7 +129,7 @@ Actions are author-facing verbs that connect claims. Every action is dataclass-s
 | Verb | Subclass | Intended use |
 |---|---|---|
 | `derive(c, given=..., rationale=...)` | `Derive` | Logical derivation from accepted premises |
-| `observe(c, given=..., rationale=...)` | `Observe` | Empirical observation. `given=()` is allowed and still produces a reviewable warrant; the conclusion's `Grounding` records the observation |
+| `observe(c, given=..., rationale=...)` | `Observe` | Empirical observation. `given=()` is allowed and still produces a reviewable warrant; Python runtime records the action on `Claim.from_actions`, and compiled IR records the review metadata under `metadata["supported_by"]` |
 | `compute(C, fn=..., given=..., rationale=...)` or `@compute` | `Compute` | Deterministic code execution; `code_hash` records the function source SHA-256 |
 
 Support actions return the **conclusion** Claim. Authors typically chain calls by name:
@@ -147,7 +145,7 @@ derive(heliocentric, given=evidence, rationale="Parallax confirms orbital motion
 
 ### 3.2 Probabilistic — soft probabilistic constraint
 
-Probabilistic actions carry author-specified conditional probabilities and lower to a `CONDITIONAL` factor. They each emit a warrant **helper claim** that reviewers gate; the helper is what `[@label]` references resolve to (see [§4.3 Action Label References](#43-action-label-references)).
+Probabilistic actions carry author-specified conditional probabilities and lower to probabilistic factors. They emit warrant metadata/helper claims that reviewers gate. `infer(...)` returns the evidence claim; `associate(...)` returns its association helper because the relation itself is the authored semantic object (see [§4.3 Action Label References](#43-action-label-references)).
 
 #### `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, ...)`
 
@@ -181,8 +179,11 @@ Structural actions assert that the truth values of the named Claims jointly sati
 Scaffold actions exist purely as authoring breadcrumbs and **do not enter IR or BP**. They are not reviewable warrants. Currently:
 
 - `depends_on(conclusion, given=...)` (`DependsOn`) — marks unformalized dependencies that the author intends to formalize later.
+- `candidate_relation(a, b, proposed=...)` (`CandidateRelation`) — records a hypothesized relation such as `"equal"`, `"contradict"`, `"associate"`, or `"tension"` before the author is ready to formalize it.
+- `tension(a, b)` — thin wrapper for `candidate_relation(..., proposed="tension")`.
 
-Scaffold actions are **not addressable** via `[@label]` references because they leave no IR target.
+Scaffold actions compile only into `.gaia/formalization_manifest.json`. They are
+**not addressable** via `[@label]` references because they leave no IR target.
 
 ### 3.5 Compose — action-level composition
 
@@ -255,15 +256,22 @@ For a reader-facing explanation of the predicate-logic model, including the diff
 
 The compiler handles formula claims via `gaia/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
 
-Three sugar helpers in `gaia/lang/dsl/sugar.py` map directly onto `ClaimKind`:
+Two sugar helpers in `gaia/lang/dsl/sugar.py` map directly onto non-default
+`ClaimKind` values:
 
 | Sugar | Produces | `ClaimKind` |
 |---|---|---|
 | `parameter(var, value, prior=...)` | `Equals(var, Constant(value))` | `PARAMETER` |
-| `observation(name=var_with_value, ...)` | conjunction of `Equals(var_i, Constant(var_i.value))` | `OBSERVATION` |
 | `causal(cause, effect, ...)` | `Causes(cause, effect)` | `CAUSAL` |
 
-Only `parameter` and `observation` participate in the lifted Bayes pipeline (see [§6](#6-bayes-module)). `causal` is a structural marker in v0.5 and does not yet imply Pearl-style intervention semantics; the causal extension specs in `docs/specs/2026-05-05-causal-reasoning-design.md` and the 2026-05-06 series capture the planned promotion path (Mechanism → first-class Knowledge type, Counterfactual / Population / Transport actions).
+Structured observed values are authored as formula claims and then marked with
+the `observe(...)` action; observation is an action/role, not a `ClaimKind`.
+`parameter(...)` and observed formula claims participate in the lifted Bayes
+pipeline (see [§6](#6-bayes-module)). `causal` is a structural marker in v0.5
+and does not yet imply Pearl-style intervention semantics; the causal extension
+specs in `docs/specs/2026-05-05-causal-reasoning-design.md` and the 2026-05-06
+series capture the planned promotion path (Mechanism → first-class Knowledge
+type, Counterfactual / Population / Transport actions).
 
 Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
 

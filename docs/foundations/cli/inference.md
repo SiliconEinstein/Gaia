@@ -31,17 +31,23 @@ Pipeline:
 ```
 ensure_package_env()          # uv sync --quiet
   -> load_gaia_package()      # import package module, collect declarations
-  -> apply_package_priors()   # inject priors.py entries into Knowledge.metadata["prior"]
+  -> apply_package_priors()   # resolve register_prior records into metadata["prior"]
   -> compile                  # produce LocalCanonicalGraph
   -> staleness check          # verify ir_hash matches .gaia/ir_hash
   -> validate IR structure
   -> lower to factor graph    # lower_local_graph(), optionally merge deps
   -> validate factor graph
-  -> InferenceEngine.run()    # auto-select JT / GBP / loopy BP
+  -> InferenceEngine.run()    # auto-select JT / TRW-BP / Mean Field VI
   -> write .gaia/beliefs.json
 ```
 
 Source: `gaia/cli/commands/infer.py`
+
+`gaia infer` intentionally does **not** consult `.gaia/review_manifest.json`.
+It is the authoring-time numerical preview of the compiled graph. Review
+manifests remain qualitative gating artifacts for `gaia check --gate`,
+`gaia inquiry review`, trace review, and publish/register workflows; they do
+not supply priors and they do not suppress preview beliefs.
 
 ## Prior Sources And MaxEnt Contract
 
@@ -52,7 +58,9 @@ separate parameterization or review sidecar step.
 The v0.5 contract is:
 
 - external priors belong only on independent probabilistic inputs to exported goals;
-- zero-premise `observe(...)` claims are pinned to `1 - CROMWELL_EPS`;
+- zero-premise `observe(...)` claims get a default pin to
+  `1 - CROMWELL_EPS`; a resolved `metadata["prior"]` from the priors layer can
+  still override that value in local preview;
 - derived claims and helper claims do not receive manual priors;
 - claims without an explicit unary prior do not get a synthetic `0.5` factor. They remain unconstrained variables, and the exact-inference layer applies maximum entropy over the remaining independent degrees of freedom subject to declared hard constraints.
 
@@ -65,13 +73,12 @@ two branches depending on whether the claim is a **relation conclusion**
 **Relation conclusions:**
 
 ```
-node_priors > structural default (1 - CROMWELL_EPS)
+structural relation assertion (add_evidence(1))
 ```
 
-If `node_priors` has an explicit override, use it. Otherwise, the structural
-default `1 - CROMWELL_EPS` applies unconditionally — `metadata["prior"]` is
-**not consulted**. Relation conclusions are asserted true by construction; any
-author-supplied prior on them is ignored unless injected via `node_priors`.
+The structural default applies unconditionally — neither `node_priors` nor
+`metadata["prior"]` is consulted for graph relation conclusions. Relation
+conclusions are asserted true by construction.
 
 **Regular claims:**
 
@@ -81,36 +88,56 @@ node_priors > metadata["prior"] > no unary prior
 
 1. **`node_priors`** — explicit overrides passed into `lower_local_graph()`,
    used for foreign node flat prior injection from `dep_beliefs/` (see below).
-2. **`metadata["prior"]`** — set by `priors.py` or legacy `reason+prior` DSL pairing.
+2. **`metadata["prior"]`** — winning resolved value from `register_prior(...)`
+   records, inline `claim(prior=...)` compatibility shortcuts, generated
+   continuous-inference records, or legacy `reason+prior` DSL pairing.
 3. **No unary prior** — the variable is left free; MaxEnt is applied at the joint-distribution level, not by multiplying every unassigned claim by an independent 0.5 prior factor.
 
 ### priors.py
 
-Each package may contain a `priors.py` module that exports a `PRIORS` dict
-mapping Knowledge objects to `(prior_value, justification_string)` tuples.
-`apply_package_priors()` injects these values into `Knowledge.metadata["prior"]`
-and `Knowledge.metadata["prior_justification"]` **before** compilation.
+Each package may contain a `priors.py` module that imports existing package
+claims and calls `register_prior(...)` on independent probabilistic inputs.
+Importing `priors.py` runs those calls, appending records under
+`Claim.metadata["prior_records"]`. `apply_package_priors()` then applies the
+package `RESOLUTION_POLICY` (or the default policy) and writes the winning value
+to `Knowledge.metadata["prior"]` and
+`Knowledge.metadata["prior_justification"]` **before** compilation.
 
 ```python
 # my_package/priors.py
+from gaia.lang import register_prior
+
 from my_package import claim_A, claim_B
 
-PRIORS = {
-    claim_A: (0.7, "Widely reproduced experimental result"),
-    claim_B: (0.4, "Preliminary evidence, single study"),
-}
+register_prior(
+    claim_A,
+    0.7,
+    justification="Widely reproduced experimental result",
+)
+
+register_prior(
+    claim_B,
+    0.4,
+    justification="Preliminary evidence, single study",
+)
 ```
 
 Rules:
 
 - `priors.py` must NOT declare new Knowledge objects — it may only reference
   claims already declared by the package.
+- `priors.py` must NOT export the legacy `PRIORS = {...}` dict. v0.5+ rejects
+  it with a migration error because it cannot preserve source provenance.
 - Prior values must satisfy Cromwell's rule: `[CROMWELL_EPS, 1 - CROMWELL_EPS]`
   where `CROMWELL_EPS = 1e-3`.
-- Justification must be a string.
+- `justification=` must be a non-empty string.
+- `source_id=` defaults to `user_priors`; engines, reviewers, calibration jobs,
+  and agents should pass explicit source IDs so the resolution policy can rank
+  them.
 - No-op when the package has no `priors.py`.
 
-Source: `gaia/cli/_packages.py :: apply_package_priors()`
+Source: `gaia/cli/_packages.py :: apply_package_priors()` and
+`gaia/lang/dsl/register_prior.py :: resolve_priors_to_metadata()`.
 
 ### Legacy reason+prior DSL pairing
 
@@ -250,13 +277,14 @@ algorithm based on the factor graph's treewidth:
 
 | Method | Condition (auto mode) | Exactness | Typical use |
 |--------|----------------------|-----------|-------------|
-| **JT** (Junction Tree) | treewidth <= 15 | Exact | Most Gaia packages (n <= 200, tw <= 10) |
-| **GBP** (Generalized BP) | 15 < treewidth <= 30 | Near-exact | Graphs with identifiable short cycles |
-| **BP** (Loopy BP) | treewidth > 30 | Approximate | Very large/dense graphs |
-| **Exact** (brute-force) | forced only, <= 26 vars | Exact | Testing/validation |
+| **Mean Field VI** | `n > 2000` variables | Approximate | Very large graphs where treewidth computation and exact inference are too costly |
+| **JT** (Junction Tree) | `n <= 2000` and treewidth `<= 20` | Exact | Small and medium graphs with modest treewidth |
+| **TRW-BP** | `n <= 2000` and treewidth `> 20` | Bounded approximate | Dense or cyclic graphs that are too wide for JT |
 
-For Gaia's typical factor graphs (n <= 200 variables, treewidth <= 10), JT is
-almost always selected, giving exact results in milliseconds.
+For Gaia's typical factor graphs with modest treewidth, JT is usually selected,
+giving exact results in milliseconds. Wide or very large graphs are routed to
+TRW-BP or Mean Field VI instead of failing just because exact inference is too
+expensive.
 
 ### Default parameters
 
@@ -265,8 +293,8 @@ almost always selected, giving exact results in milliseconds.
 | `bp_damping` | 0.5 | Blending coefficient alpha. 1.0 = full replacement, 0.5 = half-step. |
 | `bp_max_iter` | 200 | Upper bound on sweep iterations |
 | `bp_threshold` | 1e-8 | Convergence threshold |
-| `jt_max_treewidth` | 15 | JT selected when treewidth <= this |
-| `gbp_max_treewidth` | 30 | GBP selected when treewidth <= this |
+| `jt_max_treewidth` | 20 | JT selected when treewidth <= this |
+| `mf_node_limit` | 2000 | Mean Field VI selected when variable count exceeds this |
 
 ### Convergence
 
@@ -308,7 +336,8 @@ the priority order described in the Prior Sources section above.
 
 Helper claims (labels starting with `__`) are excluded from user-supplied
 `node_priors` — their priors are determined by operator semantics (relation
-operators get `1 - CROMWELL_EPS`, compositional operators get `0.5`).
+operators are asserted through `add_evidence(1)`, compositional operators get
+`0.5`).
 
 ### Factor types
 
@@ -316,7 +345,7 @@ The `FactorType` enum defines 10 factor types:
 
 | FactorType | Parameters | Arity constraint |
 |------------|-----------|-----------------|
-| `IMPLICATION` | none (deterministic) | exactly 1 premise |
+| `IMPLICATION` | none (deterministic) | exactly 2 variables: antecedent and consequent, plus helper conclusion |
 | `NEGATION` | none (deterministic) | exactly 1 premise |
 | `CONJUNCTION` | none (deterministic) | 2+ premises |
 | `DISJUNCTION` | none (deterministic) | 2+ premises |
@@ -325,17 +354,18 @@ The `FactorType` enum defines 10 factor types:
 | `COMPLEMENT` | none (deterministic) | exactly 2 premises |
 | `SOFT_ENTAILMENT` | `p1`, `p2` (require `p1 + p2 > 1`) | exactly 1 premise |
 | `CONDITIONAL` | `cpt` (length `2^k`) | 1+ premises |
-| `PAIRWISE_POTENTIAL` | `cpt` (length 4: joint weights) | exactly 2 variables (no conclusion) |
+| `PAIRWISE_POTENTIAL` | `cpt` (length 4: joint weights) | exactly 1 variable plus the paired conclusion variable |
 
-Deterministic factors use Cromwell-softened potentials (`HIGH = 1 - EPS`,
-`LOW = EPS`).
+Deterministic factors use strict `{0, 1}` delta potentials. Cromwell clamping
+applies to unary evidence/priors and soft probability parameters, not to the
+deterministic truth-table potential itself.
 
 ### Strategy lowering
 
 Strategies are lowered by type. In v0.5 the canonical authoring path is through Action verbs (`derive` / `observe` / `compute` / `infer` / `associate` / `equal` / `contradict` / `exclusive` / `decompose`) plus the lifted `bayes.model(...)` / `bayes.likelihood(...)` helpers for predictive distributions; the entries below describe how each underlying strategy type lowers, regardless of whether it came from an Action verb or a legacy v5 strategy verb.
 
 - **`infer`**: `CONDITIONAL` factor with full CPT. With `given=G` on the action, the CPT gates on `G` so that the relation collapses to MaxEnt (0.5) when any of `G` is false (the *infer-with-given gating* introduced in v0.5). When `infer_use_degraded_noisy_and=True`, falls back to `CONJUNCTION + SOFT_ENTAILMENT`.
-- **`deduction`** (lowering target of `derive` and the deprecated `deduction` strategy): `CONJUNCTION` for multiple premises, then a hard `CONDITIONAL` implication with CPT `[0.5, 1 - EPS]`. Review gates whether the warrant enters the information set; it does not supply a numeric prior.
+- **`deduction`** (lowering target of `derive` and the deprecated `deduction` strategy): `CONJUNCTION` for multiple premises, then deterministic `IMPLICATION`. Review gates publication quality; it does not supply a numeric prior and does not suppress `gaia infer` local preview output.
 - **`support`** (deprecated v5 strategy; lowering preserved for compatibility): soft implication via `SOFT_ENTAILMENT`; legacy `prior=` folds into its effective `p1`.
 - **`noisy_and`** (deprecated): `CONJUNCTION + SOFT_ENTAILMENT`. Single premise omits conjunction.
 - **`associate`**: `PAIRWISE_POTENTIAL` factor over two Claims with joint weights derived from `p_a_given_b`, `p_b_given_a`, and at least one marginal prior. No helper conclusion variable.

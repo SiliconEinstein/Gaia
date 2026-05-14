@@ -276,7 +276,7 @@ def detect_stale_artifact(
                 f"compiled graph ({current_ir_hash[:12]}...)."
             ),
             suggested_edit=(
-                "Re-run `gaia build` (or the package equivalent) to refresh "
+                "Re-run `gaia compile` (or the package equivalent) to refresh "
                 "cached artifacts; otherwise downstream tools may read stale state."
             ),
             data={"recorded": recorded, "current": current_ir_hash},

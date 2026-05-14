@@ -45,6 +45,8 @@ __all__ = ["h", "model"]
     assert "model" in result.output
     assert "bayes:unobserved-prediction-target" in result.output
     assert "k" in result.output
+    assert "observe(...)" in result.output
+    assert "observation()" not in result.output
 
 
 def test_check_errors_when_pairwise_hypothesis_priors_exceed_one(tmp_path: Path):
@@ -144,3 +146,5 @@ __all__ = ["h1", "h2", "data", "model1", "model2", "cmp"]
     assert result.exit_code != 0
     assert "bayes:likelihood-without-data" in result.output
     assert "data" in result.output
+    assert "observe(...)" in result.output
+    assert "observation()" not in result.output

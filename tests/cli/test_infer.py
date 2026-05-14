@@ -121,8 +121,8 @@ def test_infer_with_deduction_strategy(tmp_path):
     assert result.exit_code == 0, result.output
 
 
-def test_infer_gates_unreviewed_v6_actions(tmp_path):
-    """Unreviewed v6 actions do not update beliefs during infer."""
+def test_infer_runs_unreviewed_v6_actions_for_local_preview(tmp_path):
+    """Gaia infer previews the compiled graph even before warrants are reviewed."""
     pkg_dir = tmp_path / "v6_review_infer"
     _write_base_package(pkg_dir, name="v6_review_infer")
     (pkg_dir / "v6_review_infer" / "__init__.py").write_text(
@@ -148,14 +148,15 @@ def test_infer_gates_unreviewed_v6_actions(tmp_path):
 
     result = runner.invoke(app, ["infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
+    assert "no strategies or operators were lowered" not in result.output
 
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
     belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
-    assert belief_by_label["hypothesis"] == pytest.approx(0.4)
+    assert belief_by_label["hypothesis"] > 0.4
 
 
-def test_infer_uses_accepted_review_manifest(tmp_path):
-    """Accepted persisted reviews allow v6 actions to participate in infer."""
+def test_infer_ignores_rejected_review_manifest_for_local_preview(tmp_path):
+    """Persisted review status does not suppress gaia infer's local preview."""
     from gaia.cli._packages import (
         apply_package_priors,
         compile_loaded_package_artifact,
@@ -190,13 +191,13 @@ def test_infer_uses_accepted_review_manifest(tmp_path):
     apply_package_priors(loaded)
     compiled = compile_loaded_package_artifact(loaded)
     assert compiled.review is not None
-    accepted = [
-        review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
+    rejected = [
+        review.model_copy(update={"status": ReviewStatus.REJECTED, "round": 2})
         for review in compiled.review.reviews
     ]
     review_path = pkg_dir / ".gaia" / "review_manifest.json"
     review_path.write_text(
-        json.dumps(ReviewManifest(reviews=accepted).model_dump(mode="json"), indent=2)
+        json.dumps(ReviewManifest(reviews=rejected).model_dump(mode="json"), indent=2)
     )
 
     result = runner.invoke(app, ["infer", str(pkg_dir)])
@@ -207,8 +208,8 @@ def test_infer_uses_accepted_review_manifest(tmp_path):
     assert belief_by_label["hypothesis"] > 0.4
 
 
-def test_infer_reattaches_stable_action_label_reviews_after_target_id_changes(tmp_path):
-    """Accepted reviews should survive target-id churn when the action is unchanged."""
+def test_infer_ignores_stale_review_manifest_target_ids_for_local_preview(tmp_path):
+    """Stale review target IDs do not affect gaia infer's local preview."""
     from gaia.cli._packages import (
         apply_package_priors,
         compile_loaded_package_artifact,
@@ -243,10 +244,10 @@ def test_infer_reattaches_stable_action_label_reviews_after_target_id_changes(tm
     apply_package_priors(loaded)
     compiled = compile_loaded_package_artifact(loaded)
     assert compiled.review is not None
-    accepted_with_old_target_ids = [
+    rejected_with_old_target_ids = [
         review.model_copy(
             update={
-                "status": ReviewStatus.ACCEPTED,
+                "status": ReviewStatus.REJECTED,
                 "round": 2,
                 "target_id": f"old::{review.target_id}",
             }
@@ -256,7 +257,7 @@ def test_infer_reattaches_stable_action_label_reviews_after_target_id_changes(tm
     review_path = pkg_dir / ".gaia" / "review_manifest.json"
     review_path.write_text(
         json.dumps(
-            ReviewManifest(reviews=accepted_with_old_target_ids).model_dump(mode="json"),
+            ReviewManifest(reviews=rejected_with_old_target_ids).model_dump(mode="json"),
             indent=2,
         )
     )
@@ -271,13 +272,6 @@ def test_infer_reattaches_stable_action_label_reviews_after_target_id_changes(tm
 
 def test_infer_uses_v6_infer_action_cpt(tmp_path):
     """Gaia infer must lower v6 InferAction CPTs from the compiled IR strategy."""
-    from gaia.cli._packages import (
-        apply_package_priors,
-        compile_loaded_package_artifact,
-        load_gaia_package,
-    )
-    from gaia.ir import ReviewManifest, ReviewStatus
-
     pkg_dir = tmp_path / "v6_cpt_infer"
     _write_base_package(pkg_dir, name="v6_cpt_infer")
     (pkg_dir / "v6_cpt_infer" / "__init__.py").write_text(
@@ -304,18 +298,6 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    loaded = load_gaia_package(pkg_dir)
-    apply_package_priors(loaded)
-    compiled = compile_loaded_package_artifact(loaded)
-    assert compiled.review is not None
-    accepted = [
-        review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
-        for review in compiled.review.reviews
-    ]
-    (pkg_dir / ".gaia" / "review_manifest.json").write_text(
-        json.dumps(ReviewManifest(reviews=accepted).model_dump(mode="json"), indent=2)
-    )
-
     result = runner.invoke(app, ["infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
@@ -324,15 +306,8 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
     assert belief_by_label["hypothesis"] > 0.5
 
 
-def test_infer_with_accepted_root_observe_review(tmp_path):
-    """Accepted no-premise observe reviews should not lower as empty deductions."""
-    from gaia.cli._packages import (
-        apply_package_priors,
-        compile_loaded_package_artifact,
-        load_gaia_package,
-    )
-    from gaia.ir import ReviewManifest, ReviewStatus
-
+def test_infer_with_root_observe(tmp_path):
+    """No-premise observe actions should not lower as empty deductions."""
     pkg_dir = tmp_path / "root_observe_infer"
     _write_base_package(pkg_dir, name="root_observe_infer")
     (pkg_dir / "root_observe_infer" / "__init__.py").write_text(
@@ -348,19 +323,6 @@ def test_infer_with_accepted_root_observe_review(tmp_path):
 
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
-
-    loaded = load_gaia_package(pkg_dir)
-    apply_package_priors(loaded)
-    compiled = compile_loaded_package_artifact(loaded)
-    assert compiled.review is not None
-    assert [review.target_kind for review in compiled.review.reviews] == ["action"]
-    accepted = [
-        review.model_copy(update={"status": ReviewStatus.ACCEPTED, "round": 2})
-        for review in compiled.review.reviews
-    ]
-    (pkg_dir / ".gaia" / "review_manifest.json").write_text(
-        json.dumps(ReviewManifest(reviews=accepted).model_dump(mode="json"), indent=2)
-    )
 
     result = runner.invoke(app, ["infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output

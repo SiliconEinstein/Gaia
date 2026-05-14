@@ -19,6 +19,10 @@ behavior is documented in [CLI Commands](../for-users/cli-commands.md).
 
 ::: gaia.cli.commands.render
 
+::: gaia.cli.commands.starmap
+
+::: gaia.cli.commands.starmap_replay
+
 ::: gaia.cli.commands.add
 
 ::: gaia.cli.commands.register

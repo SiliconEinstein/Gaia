@@ -32,7 +32,10 @@ Hard evidence (Class I, Jaynes):
 
 Schedules:
   "synchronous"  -- standard parallel sweep (default)
-  "residual"     -- priority-queue residual BP (Murphy 1999)
+
+Residual priority-queue BP is kept in this module for experimentation, but the
+public constructor currently rejects schedule="residual" because that path is
+not stable enough for user-facing inference.
 """
 
 from __future__ import annotations
@@ -304,7 +307,7 @@ class TRWBeliefPropagation:
         Stop when max|delta_belief| < threshold.
     schedule:
         "synchronous" -- standard parallel sweep (default).
-        "residual"    -- priority-queue residual schedule (Murphy 1999).
+        "residual"    -- currently rejected; residual TRW-BP is not yet stable.
     """
 
     def __init__(

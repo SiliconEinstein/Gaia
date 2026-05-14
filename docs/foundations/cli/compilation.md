@@ -59,16 +59,26 @@ The loader performs a fresh dynamic import of the package module (`gaia/cli/_pac
 2. **Invalidate bytecode** -- calls `importlib.invalidate_caches()` and sets `sys.dont_write_bytecode = True` during import
 3. **Import** -- calls `importlib.import_module(import_name)`
 
-Before import, the loader calls `reset_inferred_package()` to prime the callstack-based package registry (`gaia/lang/runtime/package.py`). This ensures DSL objects created during module execution register to the correct `CollectedPackage`.
+Before import, `gaia compile` first runs a best-effort `uv sync --quiet` when
+`uv` is available. That step is dependency-environment maintenance, not part of
+IR construction. After that, the loader calls `reset_inferred_package()` to
+prime the callstack-based package registry (`gaia/lang/runtime/package.py`).
+This ensures DSL objects created during module execution register to the
+correct `CollectedPackage`.
 
 **Auto-registration via contextvars:** each DSL dataclass (`Knowledge`, `Strategy`, `Operator` in `gaia/lang/runtime/nodes.py`) has a `__post_init__` that looks up the current `CollectedPackage` from the `_current_package` context variable. If set, the object registers itself immediately. If not set, it falls back to `infer_package_from_callstack()`, which walks the call stack to find the nearest non-`gaia.lang` module, locates its `pyproject.toml`, and loads (or retrieves) the corresponding `CollectedPackage`.
 
-**Label inference** (`_assign_labels` in `gaia/cli/_packages.py`): after import completes, the loader scans module attributes to assign labels to unlabeled DSL objects:
+**Label inference** (`_assign_labels` in `gaia/cli/_packages.py`): after import completes, the loader imports the package root and all non-helper source modules, then scans loaded module attributes to assign labels to unlabeled DSL objects:
 
-- If `__all__` is defined and is a list of strings, only those names are scanned for `Knowledge` objects
-- Otherwise, all non-underscore-prefixed attributes are scanned
-- For `Strategy` objects, all non-underscore-prefixed attributes are always scanned (regardless of `__all__`)
-- Only objects that belong to the current package (by identity) and have `label is None` receive a label from the variable name
+- `__all__` controls which labels become exported cross-package interface
+  labels; it does **not** limit which declarations are discovered or compiled.
+- Any assignable module variable name can receive a label; `__dunder__` names
+  are skipped. A single leading underscore is a Python convention but does not
+  by itself prevent labeling or compilation. Unbound/generated helpers enter
+  the IR with generated or anonymous identity.
+- For `Strategy` objects, all assignable loaded-module attributes are scanned.
+- Only objects that belong to the current package (by identity) and have
+  `label is None` receive a label from the variable name.
 
 ### Step 3: Compile to IR
 
@@ -224,7 +234,8 @@ If `.gaia/ir_hash` does not exist, check reports a warning (artifacts missing, r
 The same source code always produces the same `ir_hash`, provided the package's DSL declarations are side-effect-free (no network calls, no randomness, no environment-dependent logic). The compiler itself introduces no non-determinism:
 
 - **No LLM calls** -- compilation is purely mechanical
-- **No network access** -- all inputs are local files
+- **No network access during IR construction** -- all compiler inputs are local
+  files after the command's optional `uv sync --quiet` environment refresh
 - **No randomness** -- no random number generation anywhere in the pipeline
 - **Deterministic IDs** -- QIDs are derived from (namespace, package_name, label); anonymous IDs use sequential counters in stable iteration order; strategy and operator IDs are content-addressed hashes
 - **Canonical serialization** -- JSON output is sorted at every level, making `ir_hash` independent of Python dict ordering or object creation order

@@ -1,14 +1,18 @@
 # 审查报告契约
 
-> **Status:** Current canonical
+> **Status:** Legacy / future-service contract, not the current v0.5 local CLI path
 
-本文档定义审查报告（ReviewOutput）的数据契约。该契约是 agent self-review（CLI 端）和 ReviewService（LKM 端）共享的输出格式，供 BP 推理消费。
+本文档定义旧版 `ReviewOutput` 审查报告的数据契约。它描述的是早期
+agent self-review / future ReviewService 可能输出的概率化报告格式，不是
+当前 v0.5 `gaia infer` 的输入。当前本地 `gaia infer` 直接读取 compiled
+IR、`priors.py` 写入的 claim metadata、连续推断记录和 dependency beliefs；
+它不消费 `ReviewOutput`，也不因为缺少审查报告而跳过 belief 输出。
 
 ## 产出方与消费方
 
 | 场景 | 产出方 | 消费方 |
 |------|--------|--------|
-| 本地工作流 | Agent self-review（调用 `ReviewClient`） | `gaia infer` |
+| 旧本地工作流（已移出当前 CLI） | Agent self-review（调用 `ReviewClient`） | 旧 `pipeline_infer()` |
 | 服务端工作流 | ReviewService（多 agent 审查） | 全局推理 pipeline |
 | 测试 | 预备的 fixture 文件 | 测试中的 `pipeline_infer()` |
 
@@ -78,19 +82,19 @@ class FactorParams:
 
 ## 文件格式
 
-CLI 端审查报告保存为 `.gaia/review/review_output.json`，JSON 序列化的 ReviewOutput。
+旧 CLI 端审查报告保存为 `.gaia/review/review_output.json`，JSON 序列化的
+ReviewOutput。当前 v0.5 本地 CLI 不再生成或读取该文件。
 
 ## 跨层引用
 
-- **参数化模型**（ReviewOutput 如何转换为 LocalParameterization）：参见 [Gaia IR parameterization](../gaia-ir/06-parameterization.md)
-- **CLI 消费**（`gaia infer` 如何加载审查报告）：参见 [../cli/inference.md](../cli/inference.md)
+- **当前本地推理**（`gaia infer` 如何从 compiled IR 和 priors 构造 factor graph）：参见 [../cli/inference.md](../cli/inference.md)
 - **LKM 产出**（ReviewService 如何生成审查报告）：参见 [gaia-lkm](https://github.com/SiliconEinstein/gaia-lkm) 仓库
 
 ## 代码路径
 
 | 组件 | 文件 |
 |------|------|
-| ReviewOutput 定义 | `libs/pipeline.py:ReviewOutput` |
-| FactorParams 定义 | `libs/graph_ir/models.py:FactorParams` |
-| 先验构建器 | `libs/pipeline.py:_build_node_priors()` |
-| 因子参数构建器 | `libs/pipeline.py:_build_factor_params()` |
+| ReviewOutput 定义 | legacy / future service contract; no current `gaia/` implementation |
+| 当前本地 infer 入口 | `gaia/cli/commands/infer.py` |
+| 当前 IR → FactorGraph lowering | `gaia/bp/lowering.py` |
+| 当前推理引擎 | `gaia/bp/engine.py` |

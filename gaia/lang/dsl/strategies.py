@@ -314,8 +314,8 @@ def deduction(
     """Deduction lowered via the canonical IR formalizer at compile time.
 
     ``prior`` is accepted for legacy source compatibility. Current BP lowering
-    treats accepted deduction as hard Jaynes conditional implication; review
-    gates whether the warrant enters the information set, not its probability.
+    treats deduction as hard Jaynes conditional implication; review gates
+    publication quality, not the local inference preview or proof probability.
     """
     if len(premises) < 1:
         raise ValueError("deduction() requires at least 1 premise")

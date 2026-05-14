@@ -26,7 +26,7 @@ from gaia.lang import (
     # Action verbs (recommended v0.5 surface)
     observe, derive, compute, infer, associate,
     equal, contradict, exclusive, decompose,
-    depends_on,            # scaffold-only, not addressable via @label
+    depends_on, candidate_relation, tension,  # scaffold-only, not addressable via @label
     compose,               # @compose decorator
     # Lifted Bayes module (lazy-loaded)
     bayes,
@@ -46,22 +46,29 @@ The runtime dataclasses `Knowledge`, `Claim`, `Note`, `Question`, `Action`, `Com
 
 ## Knowledge Declarations
 
-All knowledge functions return a `Knowledge` dataclass. The three types correspond to the Gaia IR taxonomy in [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md).
+Knowledge functions return `Knowledge` dataclasses. `claim(...)` returns `Claim`; `note(...)` returns `Note`; `question(...)` returns `Question`. The three types correspond to the Gaia IR taxonomy in [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md).
 
 ### `claim()`
 
 ```python
 def claim(
-    content: str, *,
+    content: str,
+    proposition: BoolExpr | None = None,
+    *,
     title: str | None = None,
+    format: str = "markdown",
     background: list[Knowledge] | None = None,
     parameters: list[dict] | None = None,
     provenance: list[dict[str, str]] | None = None,
+    prior: float | None = None,
+    formula: Any = None,
+    kind: ClaimKind = ClaimKind.GENERAL,
+    tolerance: float | None = None,
     **metadata,
-) -> Knowledge
+) -> Claim
 ```
 
-The only knowledge type carrying probability in BP. `background` attaches notes without making them logical premises. `parameters` records lightweight parameter metadata on an opaque prose claim; use `formula=forall(...)` / `formula=exists(...)` when Gaia should actually inspect and lower a quantified predicate formula. `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use action verbs (`observe`, `derive`, `compute`, `infer`) and relation verbs (`equal`, `contradict`, `exclusive`) to connect claims in new v0.5 packages.
+The only knowledge type carrying probability in BP. `background` attaches notes without making them logical premises. `parameters` records lightweight parameter metadata on an opaque prose claim; use `formula=forall(...)` / `formula=exists(...)` when Gaia should actually inspect and lower a quantified predicate formula. `proposition` is the continuous-predicate shorthand produced by comparing a `Distribution` to a value. Inline `prior=` is a compatibility shortcut routed through `register_prior(..., source_id="claim_inline")`; packages that need provenance-rich priors should prefer `priors.py`. `provenance` records source attribution as `[{"package_id": ..., "version": ...}]`. Use action verbs (`observe`, `derive`, `compute`, `infer`) and relation verbs (`equal`, `contradict`, `exclusive`) to connect claims in new v0.5 packages.
 
 ```python
 orbit = claim("The Earth orbits the Sun.")
@@ -186,26 +193,29 @@ c = causal(co2, temp, describe="Rising CO2 causes warming.", prior=0.9)
 ### `gaia.lang.bayes`
 
 Use `gaia.lang.bayes` for structured model-data likelihood updates. It replaces
-ad hoc evidence helpers with three explicit authoring atoms:
+ad hoc evidence helpers with explicit hypothesis, data, model, and likelihood
+atoms:
 
 ```python
-from gaia.lang import Nat, Probability, Variable, bayes, observation, parameter
+from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=295)
+n = 395
 
 h_3_1 = parameter(theta, 0.75, prior=0.5, label="h_3_1")
 h_null = parameter(theta, 0.5, prior=0.5, label="h_null")
-data = observation(count=k, prior=0.999, label="data")
+data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
+observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
 model_3_1 = bayes.model(
     h_3_1,
     observable=k,
-    distribution=bayes.Binomial(n=395, p=theta),
+    distribution=bayes.Binomial(n=n, p=theta),
 )
 model_null = bayes.model(
     h_null,
     observable=k,
-    distribution=bayes.Binomial(n=395, p=theta),
+    distribution=bayes.Binomial(n=n, p=theta),
 )
 comparison = bayes.likelihood(
     data,
@@ -217,20 +227,29 @@ comparison = bayes.likelihood(
 
 `bayes.likelihood(...)` lowers to existing `infer` strategies plus rigid
 relation operators. See [bayes.md](bayes.md) for the executable example,
-distribution list, and `gaia check` diagnostics.
+distribution list, and `gaia check` diagnostics. There is no public
+`observation(...)` helper in v0.5; structured measured values are normal formula
+claims marked by the `observe(...)` action.
 
 ---
 
 ## Recommended Action Verbs
 
 Action verbs are the canonical v0.5 way to turn explicit premises into reviewable warrants.
-Support verbs (`observe`, `derive`, `compute`) return the produced conclusion claim.
-Correlate verbs (`infer`, `associate`) return a generated reviewable helper claim,
-because the relation itself is the semantic object reviewers inspect.
+Support verbs (`observe`, `derive`, `compute`) and `infer(...)` return the produced or affected claim.
+`associate(...)` and formal relation verbs return generated reviewable helper claims because the relation itself is the semantic object reviewers inspect.
 
 ### `observe(conclusion, *, given=(), background=None, rationale="", label=None)`
 
-Empirical observation. With no `given`, it pins the conclusion to `1 - CROMWELL_EPS` and creates a reviewable observation warrant on the claim's `supported_by` metadata. With `given`, it lowers as an observation-pattern support edge from the premises to the conclusion and does not assign a prior.
+Empirical observation. With no `given`, it pins the conclusion to `1 - CROMWELL_EPS` and appends an `Observe` action to `Claim.from_actions`; the compiled IR records the reviewable observation warrant in `metadata["supported_by"]`. With `given`, it lowers as an observation-pattern support edge from the premises to the conclusion and does not assign a prior.
+
+There is a second overload for continuous measurements:
+
+```python
+observe(distribution, *, value, error=None, source_refs=None, rationale="", label=None)
+```
+
+It produces an observed claim and continuous-likelihood metadata for the distribution diagnostics.
 
 ### `derive(conclusion, *, given=(), background=None, rationale="", label=None)`
 
@@ -256,7 +275,7 @@ Symmetric probabilistic association between two claims. Returns a generated asso
 
 ### `decompose(whole, *, parts, formula, background=None, rationale="", label=None, metadata=None)`
 
-Declares `whole` as propositionally equivalent to a `Formula` over atomic `parts`. The compiler checks that the formula's `ClaimAtom` set exactly matches `parts`, that `whole` does not appear in the formula, and that no decomposition cycle exists. Returns the `whole` claim; also emits a decomposition helper Claim that reviewers gate. See [decompose action design](../../specs/2026-05-05-decompose-action-design.md).
+Declares `whole` as propositionally equivalent to a `Formula` over atomic `parts`. The compiler checks that the formula's `ClaimAtom` set exactly matches `parts`, that `whole` does not appear in the formula, and that no decomposition cycle exists. Returns the `whole` claim. The compiler emits formula/equivalence helper nodes for lowering, but the generated helper claims themselves are not direct review targets; the review manifest gates the decomposition equivalence operator/action. See [decompose action design](../../specs/2026-05-05-decompose-action-design.md).
 
 ```python
 from gaia.lang import ClaimAtom, claim, decompose, implies, land
@@ -275,6 +294,14 @@ decompose(
 ### `depends_on(conclusion, *, given=..., rationale="", label=None)`
 
 Scaffold-only action marking unformalized dependencies. **Does not enter IR or BP** and is not addressable via `[@label]` references. Use it while drafting a package to record "I know the full formalization will go here; here is what the conclusion depends on."
+
+### `candidate_relation(a, b, *, proposed, background=None, rationale="", label=None)`
+
+Scaffold-only action for a hypothesized relation that is worth recording but not yet ready to enter formal semantics. `proposed` is a short label such as `"equal"`, `"contradict"`, `"exclusive"`, `"associate"`, or `"tension"`. It writes only to `.gaia/formalization_manifest.json`.
+
+### `tension(a, b, *, background=None, rationale="", label=None)`
+
+Thin wrapper for `candidate_relation(a, b, proposed="tension", ...)`.
 
 ### `@compose(name, version, background=None, warrants=None, rationale="", label=None)`
 
@@ -388,7 +415,11 @@ support(premises=[a, b], conclusion=h,
 
 Legacy rigid deduction based on the directed `implication` operator: premises logically entail the conclusion. Same skeleton as `support` (conjunction + directed implication), but semantically a deterministic logical derivation. Requires at least 1 premise. In new packages, prefer `derive(...)`.
 
-`prior` is accepted for legacy compatibility, but current BP lowering ignores it for deduction. Accepted review makes the deduction warrant part of the information set `I`; it does not assign a numeric confidence to the deduction step.
+`prior` is accepted for legacy compatibility, but current BP lowering ignores it
+for deduction. Deduction lowers as a hard conditional implication. Review
+decides whether the warrant passes publication-quality gates; it does not
+assign a numeric confidence to the deduction step, and it does not suppress
+`gaia infer` local preview output.
 
 ```python
 law = claim("forall {x}. P({x})", parameters=[{"name": "x", "type": "material"}])

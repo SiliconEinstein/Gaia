@@ -14,9 +14,11 @@
 - `conclusion`：输出变量 ID（与 `variables` 不交）。
 - 参数化因子额外携带：`SOFT_ENTAILMENT` 使用 `p1`, `p2`；`CONDITIONAL` 使用 `cpt`（长度 `2^k`）。
 
-## 确定性算子（Cromwell 软化）
+## 确定性算子（strict delta）
 
-真值表一致时 ψ = `1 - CROMWELL_EPS`，否则 ψ = `CROMWELL_EPS`（代替硬 0/1）。
+真值表一致时 ψ = `1.0`，否则 ψ = `0.0`。Cromwell clamp 用于 unary
+evidence / priors 和 soft 概率参数；确定性 operator potential 本身保持硬
+0/1。
 
 | FactorType | 语义 | 理论参照 |
 |------------|------|---------|
@@ -28,7 +30,7 @@
 | **CONTRADICTION** | `variables=[A,B]`, `conclusion=H`：H = 0 当且仅当 A=B=1；否则 H=1 | §3.5 |
 | **COMPLEMENT** | `variables=[A,B]`, `conclusion=H`：H = XOR(A,B) | §3.1 / §3.6 |
 
-所有确定性算子在因子图中统一为无自由参数的条件势函数，上表中的真值语义对应各自的 CPT 模板。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT / IMPLICATION）的 conclusion 是断言（$\pi = 1-\varepsilon$，激活约束）；**expression operator**（NEGATION / CONJUNCTION / DISJUNCTION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
+所有确定性算子在因子图中保留专门的 `FactorType`。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT / IMPLICATION）的 conclusion 是断言（通过 `add_evidence(1)` 激活约束）；**expression operator**（NEGATION / CONJUNCTION / DISJUNCTION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
 
 ## SOFT_ENTAILMENT（软蕴含 ↝）
 

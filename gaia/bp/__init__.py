@@ -3,10 +3,14 @@
 Theory: docs/foundations/theory/06-factor-graphs.md, 07-belief-propagation.md
 IR lowering: docs/foundations/gaia-ir/07-lowering.md
 
-算法路由（infer 自动 dispatch）：
+CLI 主路径使用 `InferenceEngine.run()` 自动 dispatch：
   junction_tree  → treewidth ≤ 20，精确
-  trw_bp         → 默认近似，n ≤ 2000
-  loopy_bp       → n > 2000，大图高精度近似（与 TRW-BP 等价但快 3 倍）
+  trw_bp         → n ≤ 2000 且 treewidth > 20，有界近似
+  mean_field     → n > 2000，大图快速近似
+
+本模块下方的 `infer()` 是旧的便利函数，仍保留 `loopy_bp` 强制模式和
+大图 loopy-BP fallback 以兼容旧调用；新代码需要和 `gaia infer` 一致时，
+应直接使用 `InferenceEngine`。
 """
 
 import warnings
@@ -48,16 +52,18 @@ __all__ = [
     "merge_factor_graphs",
 ]
 
-# 路由阈值
+# 旧便利函数的路由阈值；CLI 使用 InferenceEngine.EngineConfig。
 _JT_TREEWIDTH_LIMIT = 20
-_LOOPY_BP_NODE_LIMIT = 2000  # n > 2000 使用 Loopy BP 而非 TRW-BP（速度快 3 倍，精度相同）
+_LOOPY_BP_NODE_LIMIT = 2000  # legacy infer(): n > 2000 使用 Loopy BP fallback
 
 
 def infer(
     graph: FactorGraph,
     method: str = "auto",
 ) -> dict[str, float]:
-    """推断 FactorGraph 中所有变量的边缘概率。.
+    """Legacy convenience wrapper: infer FactorGraph marginals.
+
+    Prefer :class:`InferenceEngine` for new code and CLI-parity behavior.
 
     Parameters
     ----------
@@ -67,8 +73,8 @@ def infer(
         "auto"        — 按 treewidth / n 自动选择算法
         "junction_tree" — 强制 JT（精确，treewidth ≤ 20）
         "trw_bp"      — 强制 TRW-BP
-        "loopy_bp"    — 强制 Loopy BP（大图推荐，与 TRW-BP 精度相同但快 3 倍）
-        "mean_field"  — 强制 Mean Field VI（不推荐，误差 ~30%）
+        "loopy_bp"    — legacy force Loopy BP
+        "mean_field"  — force Mean Field VI
 
     Returns:
     -------
@@ -78,9 +84,8 @@ def infer(
     if method == "auto":
         n = len(graph.variables)
         if n > _LOOPY_BP_NODE_LIMIT:
-            # 大图使用 Loopy BP：测试表明在 n=6399 时与 TRW-BP 精度完全相同
-            # （差异 0.000000），但速度快 3 倍（4.8s vs 14.8s）。
-            # Loopy BP 在 Gaia 的 DAG 结构上收敛快速（15 次迭代）且稳定。
+            # Legacy convenience fallback. The CLI's InferenceEngine routes
+            # n > 2000 to Mean Field VI instead.
             method = "loopy_bp"
         else:
             tw = jt_treewidth(graph)

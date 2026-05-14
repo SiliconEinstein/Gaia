@@ -2,7 +2,11 @@
 
 > **Status:** Current canonical
 
-`BeliefPropagation` 类同时用于 local、joint 和 global 推理。本文档描述三者共享的部分、差异，以及各模式的配置方式。
+Local、joint 和 global 推理共享 `FactorGraph`、lowering 规则和
+`InferenceEngine` 路由。旧的 `BeliefPropagation` loopy-BP 类仍保留为
+legacy/低层实现，但 `gaia infer` 的主路径经由 `InferenceEngine` 自动选择
+Junction Tree、TRW-BP 或 Mean Field VI。本文档描述三者共享的部分、差异，
+以及各模式的配置方式。
 
 ## Local 推理（`gaia infer`）
 
@@ -63,8 +67,8 @@ Global 推理的 FactorGraph 是持久化的——integrate 时写入存储，BP
 
 | 方面 | 是否共享？ |
 |---|---|
-| 算法 | 是——相同的 `BeliefPropagation` 类 |
-| 消息调度 | 是——同步 sum-product |
+| 算法 | 是——相同的 `InferenceEngine` 路由和 backend 实现族 |
+| 消息调度 | 部分共享——TRW-BP 当前使用 synchronous sweep；JT/MF 有各自执行路径 |
 | Factor potential | 是——所有 factor 类型使用相同的 potential 函数 |
 | Damping、收敛、Cromwell's rule | 是——相同的参数 |
 | 诊断 | 是——`belief_history`、`direction_changes` 在所有模式下均可用 |
@@ -102,7 +106,8 @@ Global 推理的 FactorGraph 是持久化的——integrate 时写入存储，BP
 
 ## 源代码
 
-- `gaia/bp/bp.py` -- `BeliefPropagation`（共享类）
+- `gaia/bp/engine.py` -- `InferenceEngine`（CLI 主路径自动路由）
+- `gaia/bp/bp.py` -- `BeliefPropagation`（legacy loopy-BP 实现）
 - `gaia/bp/lowering.py` -- `lower_local_graph()`、`merge_factor_graphs()`（从 local 或 global graph 构建 `FactorGraph`，联合跨包合并）
 - `gaia/cli/commands/infer.py` -- `gaia infer` 命令（`--depth` 参数）
 - `gaia/cli/_packages.py` -- `load_dependency_compiled_graphs()`、`collect_foreign_node_priors()`

@@ -359,7 +359,7 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 | **`infer`** | 完整条件概率表（CPT）：2^k 参数（默认 MaxEnt 0.5） | Strategy | 未分类的粗推理；`↝` 摘要的默认承载形态 |
 | **`noisy_and`**（deprecated） | ∧ + 单参数 p | Strategy | **已废弃，使用 `support` 替代。** 前提联合必要的叶子推理 |
 | **`support`** | 无独立 strategy-level 参数 | FormalStrategy | 软推导（soft deduction）。基于 directed `implication` operator，与 deduction 结构相同（conjunction + directed implication），但 implication warrant 的 prior 由作者指定，表达经验性支持而非逻辑必然。替代原 `noisy_and` |
-| **`deduction`** | 无独立 strategy-level 参数 | FormalStrategy | 严格确定性推导（数学证明、逻辑三段论）。BP lowering 将 accepted deduction 解释为 hard conditional implication：`P(C|premises)=1-ε`，`P(C|not premises)=0.5`（MaxEnt baseline）。推导步骤本身不引入不确定性；review 只决定该 warrant 是否进入信息集 `I`。如果推理有不确定性（计算误差、经验推断、省略前提），应使用 `support` 或 `infer` |
+| **`deduction`** | 无独立 strategy-level 参数 | FormalStrategy | 严格确定性推导（数学证明、逻辑三段论）。BP lowering 将 deduction 解释为 hard conditional implication：`P(C|premises)=1-ε`，`P(C|not premises)=0.5`（MaxEnt baseline）。推导步骤本身不引入不确定性；review 只判断该 warrant 是否可用于发布质量门禁。`gaia infer` 的本地预览不会因为未 review 而跳过它。如果推理有不确定性（计算误差、经验推断、省略前提），应使用 `support` 或 `infer` |
 | **`compare`** | 无独立 strategy-level 参数 | FormalStrategy | 预测比较：两个预测分别与观测做 equivalence 匹配，再以 implication 表达推理排序。条件行为由 2 equivalence + 1 implication skeleton 确定 |
 | **`abduction`** | 无独立 strategy-level 参数 | FormalStrategy | 有效条件概率由 `Obs ≡ (H ∨ AlternativeExplanationForObs)` 与相关 interface prior 现算导出 |
 | **`induction`** | 无独立 strategy-level 参数 | CompositeStrategy | 包装 n 条共享同一 conclusion 的 `support` 子策略；归纳效应（观测累积→Law 置信度上升）由因子图拓扑涌现 |
@@ -585,7 +585,7 @@ Strategy(
 
 **支持（support）**：`premises=[A₁,...,Aₖ], conclusion=C`
 
-基于 directed `implication` operator，与 deduction 共享同一 skeleton（conjunction + directed implication），是 deduction 的 soft 版本。区别：deduction 被 review accepted 后作为 hard conditional implication 进入信息集 `I`；support 的 warrant prior 由作者指定（经验性支持）。
+基于 directed `implication` operator，与 deduction 共享同一 skeleton（conjunction + directed implication），是 deduction 的 soft 版本。区别：deduction 在 BP lowering 中作为 hard conditional implication；support 的 warrant prior 由作者指定（经验性支持）。Review 只决定它们是否满足发布质量门禁，不决定 `gaia infer` 本地预览是否输出 belief。
 
 ```
 FormalStrategy(type=support, premises=[A₁,...,Aₖ], conclusion=C):

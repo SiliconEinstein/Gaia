@@ -17,7 +17,7 @@ active Python modules expose today.
 | [Compiler](compiler.md) | `gaia.lang.compiler` | Package compilation entrypoints |
 | [References](refs.md) | `gaia.lang.refs` | Reference extraction, resolution, loading, and collision checks |
 | [Gaia IR](ir.md) | `gaia.ir` | Pydantic IR models, graph contracts, strategies, operators, parameterization, and schemas |
-| [Belief Propagation](bp.md) | `gaia.bp` | Factor graph lowering, exact inference, junction tree, GBP, loopy BP, and engine results |
+| [Belief Propagation](bp.md) | `gaia.bp` | Factor graph lowering, exact inference, junction tree, TRW-BP, Mean Field VI, and engine results |
 | [CLI Internals](cli.md) | `gaia.cli` | Typer app wiring and command implementation entrypoints |
 | [Logic Utilities](logic.md) | `gaia.logic` | Propositional logic helpers used as computation backends |
 
