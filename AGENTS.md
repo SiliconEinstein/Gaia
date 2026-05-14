@@ -72,11 +72,11 @@ make typecheck   # strict mypy over gaia and tests
 
 Pytest is configured with strict markers, coverage for `gaia`, and `--cov-fail-under=90`.
 
-Ruff's mccabe complexity limit is set to 12. The earlier limit of 9 was inherited from
-`lbg-cli`, a CLI-utility repo with much less algorithmic weight; Gaia mixes CLI workflows with
-BP message passing, IR coarsening, DSL compile/lower/link passes, and inquiry orchestration. A
-limit of 12 is a mainstream Python threshold for mixed CLI + library + algorithmic codebases
-while still requiring true decomposition of high-complexity functions.
+Ruff's mccabe complexity limit is set to 12. An earlier limit of 9 proved too tight for
+Gaia's mix of CLI workflows with BP message passing, IR coarsening, DSL compile/lower/link
+passes, and inquiry orchestration. A limit of 12 is a mainstream Python threshold for mixed
+CLI + library + algorithmic codebases while still requiring true decomposition of
+high-complexity functions.
 
 ## Push Pre-flight
 
