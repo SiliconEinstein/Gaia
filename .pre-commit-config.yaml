@@ -47,7 +47,7 @@ repos:
         entry: uv run python scripts/check_suppression_budget.py
         language: system
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [pre-commit, pre-push]
 
       - id: ruff-check-full
         name: ruff check . (full 15-cat select, CI byte-aligned)

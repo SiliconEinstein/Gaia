@@ -46,6 +46,9 @@ jobs:
       - name: Type check
         run: uv run mypy
 
+      - name: Suppression budget
+        run: uv run python scripts/check_suppression_budget.py
+
       - name: Run tests
         run: uv run pytest --cov-report=xml tests -v -m "not integration_api"
 
