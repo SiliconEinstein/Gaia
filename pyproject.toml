@@ -103,6 +103,7 @@ python_version = "3.12"
 files = ["gaia", "tests"]
 strict = true
 warn_unused_configs = true
+warn_unused_ignores = true
 show_error_codes = true
 pretty = true
 explicit_package_bases = true
@@ -163,6 +164,7 @@ select = [
     "ERA",
     "F",
     "I",
+    "PGH",
     "RET",
     "RUF",
     "SIM",
