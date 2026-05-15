@@ -10,14 +10,12 @@ import typer
 
 from gaia.engine.packaging import GaiaPackagingError
 
-# NOTE: The DSL template emits the *legacy* import path `from gaia.lang import ...`
-# to keep `tests/baseline/test_init_scaffold_tree_snapshot.json` byte-identical
-# during the Stage B engine refactor (Q4 literal-path = A3 sacred). Stage C
-# owns updating the scaffold template + migration guide so that newly-init'd
-# packages emit the canonical `gaia.engine.lang` path. See
-# `home_agent/projects/gaia/alpha-0/plan.md` Stage C.
+# The DSL template emits the alpha-0 canonical import path
+# `from gaia.engine.lang import ...`. The legacy top-level `gaia.lang`
+# namespace is tombstoned in Stage B; new packages should never see it.
+# See `docs/migration.md` for the user-side import migration guide.
 _DSL_TEMPLATE = """\
-from gaia.lang import claim, derive, note
+from gaia.engine.lang import claim, derive, note
 
 context = note("Background context for this package.")
 hypothesis = claim("A scientific hypothesis.")
