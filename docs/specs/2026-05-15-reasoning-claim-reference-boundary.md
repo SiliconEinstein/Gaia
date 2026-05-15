@@ -3,6 +3,7 @@
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
 **Branch:** off `v0.5`
+**Related PRs:** #606
 **Refines:**
 `docs/specs/2026-05-15-gaia-graph-scaffold-reasoning-design.md` and
 `docs/specs/2026-05-15-causal-cleanup-reasoning-shapes.md`
@@ -59,6 +60,11 @@ Current code uses the following shapes:
 | `bayes.model`, `bayes.likelihood` | Return helper claims, store those same helpers in `action.warrants`, and append the actions to `helper.from_actions`. |
 | `depends_on` | Currently appends scaffold to `conclusion.from_actions`; the GaiaGraph scaffold spec changes this to return scaffold records instead. |
 
+The active field name is `Claim.from_actions`, both in the current branch and
+in `origin/v0.5`. This spec intentionally keeps that name for the first
+migration. A separate future cleanup may rename it to something clearer, but
+that is not part of this design.
+
 Those facts show two inconsistencies:
 
 1. relation helpers are returned but cannot be resolved back to their producing
@@ -94,8 +100,10 @@ The rules are:
 
 This gives `materialize(scaffold, by=returned_claim)` a clean lookup rule:
 if the returned claim has exactly one attached reasoning record in
-`from_actions`, Gaia can use it; if it has none or more than one, the author
-must pass a label.
+`from_actions` for which the claim is the primary attachment, Gaia can use it;
+if it has none or more than one, the author must pass a label. Records where
+the claim appears only as an input, `given`, relation operand, decomposition
+part, background, or warrant are consumers, not producers.
 
 ## 4. Primary Attachment Rules
 
@@ -118,6 +126,10 @@ to the reasoning record.
 | Bayes record | `bayes.likelihood` | likelihood helper claim | `helper.from_actions += action` | no self-warrant; use only separate warrants if needed |
 | Scaffold | `depends_on` | scaffold record | no claim `from_actions` write | scaffold has no warrants |
 | Scaffold | `candidate_relation` | scaffold record | no claim `from_actions` write | scaffold has no warrants |
+
+There is no core `Predict` row because the active tree does not have a core
+`Predict` runtime class or public `predict(...)` verb, and this spec does not
+add one.
 
 The phrase "primary attachment" is deliberately weaker than "produced claim."
 For example, `infer` attaches to the evidence claim because that is the current
@@ -158,14 +170,18 @@ For each lowered reasoning record:
 
 1. assign or resolve the `action_label`;
 2. lower the reasoning record to the existing strategy/operator/compose shape;
-3. attach `action_label` and `pattern` metadata to the primary attached claim
-   when that claim is reviewable;
-4. attach `action_label` and `pattern` metadata to each separate warrant claim;
-5. write `metadata["warrants"]` only for separate warrant claims.
+3. identify the primary attached claim/helper, if any;
+4. identify separate warrant claims, excluding the primary attachment;
+5. write `metadata["warrants"]` only for those separate warrant claims;
+6. attach `action_label` and `pattern` metadata to the primary attached claim
+   and to each separate warrant claim when those claims are reviewable.
 
-This means `_prepare_action_warrants(...)` should not be the only path that
-marks claims as reviewable. Relation helpers and Bayes helpers need review
-metadata because they are primary helper claims, not because they are warrants.
+In the current compiler, `_prepare_action_warrants(...)` both projects
+`action.warrants` into IR `metadata["warrants"]` and attaches
+`action_label`/`pattern` metadata to those warrant claims. That remains useful
+for separate warrants. The cleanup needs a sibling path for primary helper
+claims, because relation helpers and Bayes helpers should be reviewable as the
+primary attachment, not by being listed as their own warrant.
 
 The first migration can keep the existing IR target shapes:
 
@@ -214,6 +230,10 @@ DSL:
   record in `result.from_actions`.
 - Update scaffold verbs according to the GaiaGraph scaffold spec: return
   scaffold records and do not append scaffold to claim `from_actions`.
+- Do not change compose input/output inference accidentally. In particular,
+  adding `helper.from_actions` for relation helpers should not make helper
+  claims appear as external compose inputs when `_action_outputs(...)` already
+  treats them as outputs of relation actions.
 
 Bayes:
 
@@ -230,6 +250,8 @@ Compiler and review:
 - Ensure `metadata["warrants"]` contains only separate warrant claim IDs.
 - Update review-manifest generation if it currently assumes every reviewable
   helper must appear in `metadata["warrants"]`.
+- Keep Bayes lowering keyed from helper `from_actions`, because
+  `bayes.likelihood(...)` already recovers `PredictiveModel` actions that way.
 
 ## 8. Tests
 
@@ -252,12 +274,17 @@ Minimum tests for the migration:
   `whole.from_actions`.
 - `compose(...)` appends the compose reasoning record to the returned result
   claim.
+- Relation helper `from_actions` links do not change inferred compose inputs or
+  bloat `Compose.actions`.
 - `depends_on(...)` and `candidate_relation(...)` return scaffold records and
   do not write to claim `from_actions`.
 - `materialize(scaffold, by=returned_helper)` can resolve a relation helper
   with exactly one `from_actions` producer.
 - `materialize(scaffold, by=returned_helper)` asks for a label when the helper
   has zero or multiple attached reasoning records.
+- `gaia check` and `gaia inquiry` review-manifest counts remain stable after
+  removing relation/Bayes self-warrants, except for the intentional difference
+  between primary helper review targets and separate warrants.
 
 ## 9. Deferred Work
 
@@ -268,6 +295,8 @@ The following are compatible with this cleanup but intentionally out of scope:
 - changing `infer` to return a likelihood helper instead of evidence;
 - redesigning the review manifest;
 - adding a new produced-by relation type distinct from `from_actions`.
+- renaming `Claim.from_actions` to a clearer reverse-index name such as
+  `attached_reasoning`.
 
 Those changes may become useful later, but the first cleanup only needs one
 invariant: a claim can be the primary attachment of a reasoning record, or a

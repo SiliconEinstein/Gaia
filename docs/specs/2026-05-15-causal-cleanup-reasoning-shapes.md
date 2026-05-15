@@ -3,6 +3,7 @@
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
 **Branch:** off `v0.5`
+**Related PRs:** #606
 **Scope:** Delete the current Gaia Lang causal marker surface and refactor the runtime `Reasoning` hierarchy around graph shape.
 **Refines:** `docs/specs/2026-05-15-gaia-graph-scaffold-reasoning-design.md`
 **Non-goals:** No causal graph implementation, no do-calculus, no BP lowering changes, no public DSL return-value migration, and no persistent IR schema redesign.
@@ -19,8 +20,15 @@ Action
     Equal / Contradict / Exclusive / Decompose
   Probabilistic
     Infer / Associate
+  Scaffold
+    DependsOn / CandidateRelation
   Compose
 ```
+
+`Action` is the legacy runtime base name. This proposal uses `Reasoning` as
+the new public/runtime base name for formal reasoning records; scaffold moves
+out of that hierarchy into `GaiaGraph`, as described in the GaiaGraph scaffold
+spec.
 
 That shape is hard to explain because it mixes two different axes:
 
@@ -43,6 +51,12 @@ The inheritance tree should follow graph shape. Whether something is hard,
 empirical, computed, or probabilistic should be handled by the concrete class
 and lowering logic, not by the top-level family.
 
+One rule is more important than the class sketch: shape is not lowering. The
+compiler must not replace concrete dispatch with broad `Directed` or
+`Relation` dispatch. A safe implementation keeps targeted dispatch in the
+compiler, role projection, and Bayes lowering paths, then uses the shape
+classes for the mental model, graph display, and extension placement.
+
 The causal marker surface has a related problem. Current code exposes
 `Causes`, `causes(...)`, `causal(...)`, and `ClaimKind.CAUSAL`, but these are
 only marker claims/formulas. They do not provide a formal GaiaGraph record,
@@ -63,6 +77,14 @@ The active Python causal surface is limited to:
 | `ClaimKind.CAUSAL` | `gaia/lang/runtime/knowledge.py` | Classifies a top-level causal marker claim. |
 | formula lowering metadata | `gaia/lang/compiler/lower_formula.py` | Records metadata such as `formula_atom.kind = "causes"` and `metadata["causal"]`. |
 | public exports | `gaia/lang/__init__.py`, `gaia/lang/dsl/__init__.py`, `gaia/lang/formula/__init__.py` | Expose causal marker names. |
+
+The active tree does not contain a core `Predict` runtime class or public
+`predict(...)` verb. This refactor should not introduce one. Historical specs
+that mention `Predict` are rejected or deferred design notes.
+
+For Bayes, the active tree has two opt-in runtime records with different
+parents today: `PredictiveModel(Action)` and `Likelihood(Probabilistic)`.
+Only `Likelihood` currently inherits from `Probabilistic`.
 
 There is no active `gaia/causal` runtime package in the current tree. The
 `gaia/trace/*` "Causal Health" text is trace-review rubric content, not Gaia
@@ -95,6 +117,10 @@ Reasoning
 `Reasoning` is both the code-facing and user-facing base name. It keeps the
 public mental model simple: these records are formal reasoning records, not
 generic operations.
+
+This hierarchy intentionally does not include `Predict`. A future
+prediction-specific directed reasoning record can be added by a separate spec
+if Gaia needs that authoring distinction.
 
 ### 3.1 Directed
 
@@ -253,18 +279,27 @@ is_hard_relation = isinstance(action, Equal | Contradict | Exclusive)
 graph display, and future extension placement. They are not a substitute for
 lowering-specific dispatch.
 
+Implementation should audit at least these dispatch-sensitive areas:
+
+- action registration and lowering in `gaia/lang/compiler/compile.py`;
+- role projection in `gaia/lang/runtime/roles.py`;
+- compose input/output inference in `gaia/lang/runtime/composition.py`;
+- Bayes lowering in `gaia/lang/bayes/compiler/lower.py`;
+- inquiry/check code that reads action labels, warrants, or review targets.
+
 ### 4.2 Bayes opt-in records
 
 Bayes records should not keep importing `Probabilistic` after this refactor.
 They should choose the smallest existing shape:
 
-- `PredictiveModel`: `Directed` if treated as a model declaration from a
-  hypothesis to a model-helper claim; otherwise direct `Reasoning` until a more
-  precise model-declaration shape exists.
+- `PredictiveModel`: phase 1 should be direct `Reasoning`. That preserves its
+  current direct-`Action` parent without pretending it is a support-like
+  directed update.
 - `Likelihood`: `Directed`, because data/model inputs point toward a
   model-preference helper claim.
 
-Do not add a Bayes-specific top-level family as part of this refactor.
+Do not add a Bayes-specific top-level family or a core `Predict` record as part
+of this refactor.
 
 ## 5. Causal Marker Code Deletion
 
@@ -280,8 +315,11 @@ Remove:
   - `gaia/lang/formula/__init__.py`;
   - `gaia/lang/dsl/__init__.py`;
   - `gaia/lang/__init__.py`;
-- `Causes` lowering branches and `metadata["causal"]` emission from
-  `gaia/lang/compiler/lower_formula.py`;
+- `Causes` lowering branches from `gaia/lang/compiler/lower_formula.py`,
+  including both `metadata["causal"]` emission and the `_term_descriptor`
+  descriptor branch that emits `kind = "causes"`;
+- user-facing imports and examples that present `causal`, `causes`, or
+  `Causes` as active Gaia Lang APIs;
 - tests that assert the marker surface exists.
 
 Update or delete tests:
@@ -292,6 +330,7 @@ Update or delete tests:
 - `tests/gaia/lang/test_milestone_a_smoke.py::test_causal_claim`;
 - public-surface tests that include `Causes`, `causes`, `causal`, or
   `ClaimKind.CAUSAL`.
+- docs/examples smoke checks that import `causal`, `causes`, or `Causes`.
 
 Do not delete:
 
@@ -325,11 +364,18 @@ GaiaGraph
 
 ```python
 rel = candidate_relation(claims=[exposure, outcome], pattern=None)
-edge = causes(exposure, outcome, label="exposure_causes_outcome")
+edge = causes(
+    exposure,
+    outcome,
+    mechanism=mechanism_claim,
+    label="exposure_causes_outcome",
+)
 materialize(rel, by=edge)
 ```
 
-This future edge is not necessarily `Reasoning`. It may have its own
+This is a future `CausalEdge` API sketch, not today's marker-only
+`causes(...)` formula helper. This future edge is not necessarily `Reasoning`.
+It may have its own
 interventional semantics and later projections into causal graphs, BP factors,
 or do-calculus engines.
 
@@ -341,7 +387,10 @@ Runtime hierarchy:
 - Move `Derive`, `Observe`, `Compute`, and `Infer` under `Directed`.
 - Move `Equal`, `Contradict`, `Exclusive`, and `Associate` under `Relation`.
 - Move `Decompose` and `Compose` directly under `Reasoning`.
+- Move `PredictiveModel` to direct `Reasoning` and `Likelihood` to `Directed`
+  in the opt-in Bayes module.
 - Remove or de-publicize `Support`, `Structural`, and `Probabilistic`.
+- Do not add a core `Predict` class in this refactor.
 - Keep fields and DSL return values unchanged.
 
 Compiler and roles:
@@ -360,7 +409,9 @@ Causal deletion:
 - Remove the causal marker formula and sugar code listed in §5.
 - Remove causal marker exports.
 - Remove causal marker lowering metadata.
+- Remove the `_term_descriptor` `kind = "causes"` branch.
 - Remove/update causal marker tests.
+- Remove active user-guide and example imports of the marker-only causal API.
 - Leave trace causal-health text and historical causal specs alone.
 
 ## 8. Test Plan
@@ -371,15 +422,20 @@ Minimum tests:
 - `issubclass(Observe, Directed)`.
 - `issubclass(Compute, Directed)`.
 - `issubclass(Infer, Directed)`.
+- No core `Predict` class or public `predict(...)` verb is introduced.
 - `issubclass(Equal, Relation)`.
 - `issubclass(Contradict, Relation)`.
 - `issubclass(Exclusive, Relation)`.
 - `issubclass(Associate, Relation)`.
 - `issubclass(Decompose, Reasoning)` and not `issubclass(Decompose, Relation)`.
 - `issubclass(Compose, Reasoning)`.
+- `issubclass(PredictiveModel, Reasoning)` and not `issubclass(PredictiveModel, Directed)`.
+- `issubclass(Likelihood, Directed)`.
 - `Decompose.parts` remains `tuple[Claim, ...]` and non-Claim parts still fail.
 - Causal marker names are no longer exported from `gaia.lang`.
 - A formula with `Causes(...)` can no longer be constructed through public DSL.
+- `Compose.actions` does not contain `DependsOn` or other scaffold records
+  after the GaiaGraph scaffold migration.
 - Existing compile/lower tests for derive, observe, compute, infer, associate,
   equal, contradict, exclusive, decompose, and compose still pass.
 - Bayes likelihood tests still pass after removing `Probabilistic`.
