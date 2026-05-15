@@ -1,10 +1,10 @@
-# GaiaGraph, Scaffold, and Reasoning Design
+# GaiaGraph, Scaffold, Materialization, and Reasoning Design
 
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
 **Branch:** off `v0.5`
-**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Reasoning`, scaffold formalization targets, `candidate_relation`, `associate(pattern=...)`, and `compose`.
-**Non-goals:** No graph engine, no causal graph hierarchy, no `materialize()` DSL verb, no automatic scaffold-to-reasoning conversion.
+**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Materialization`, `Reasoning`, `candidate_relation`, `associate(pattern=...)`, and `compose`.
+**Non-goals:** No graph engine, no causal graph hierarchy, no automatic scaffold-to-formal-record conversion, and no assumption that scaffold can only be formalized by reasoning.
 
 ## 1. Goal
 
@@ -19,16 +19,23 @@ GaiaGraph
     DependsOn
     CandidateRelation
 
+  Materialization
+
   Reasoning
     Support / Infer / Associate
     Equal / Contradict / Exclusive / Decompose
     Compose
+
+  Future formal graph records
+    CausalEdge / MeasurementLink / other extensions
 ```
 
 The important separation is:
 
 - `Knowledge` is what the package talks about.
 - `Scaffold` is a graph mark that says "this still needs formalization."
+- `Materialization` links a scaffold record to the formal graph record that
+  handles it.
 - `Reasoning` is a formal reasoning step that can participate in review,
   lowering, or inference.
 - `Compose` is a compound `Reasoning` made from other reasoning records.
@@ -81,8 +88,12 @@ depends_on(
 )
 ```
 
-Meaning: the package still needs a formal reasoning path from `given` to
-`conclusion`.
+Meaning: the package still needs a formal directed graph record or graph path
+from `given` to `conclusion`. Today that is usually reasoning, but the scaffold
+does not assume reasoning is the only possible formalization target.
+
+`depends_on` should return the `DependsOn` scaffold record, not the conclusion
+claim. That lets the author pass the scaffold to `materialize(...)` later.
 
 ### 3.2 `candidate_relation`
 
@@ -110,30 +121,123 @@ There is no `tension` pattern. If the author knows the shape, use
 `"contradict"` or `"exclusive"`. If the author only knows that something is
 odd, use `pattern=None`.
 
-## 4. Minimal Formalization Targets
+## 4. Materialization
 
-The scaffold-to-reasoning mapping should stay minimal. It is a target table,
-not a materialization system.
+`materialize` is the only explicit bridge from scaffold to formal graph
+records.
 
-When Gaia records scaffold, it should be able to explain what kind of reasoning
-the scaffold is waiting for:
+```python
+materialize(
+    scaffold,
+    *,
+    by=formal_graph_record,
+    rationale="...",
+)
+```
 
-| Scaffold | Target reasoning |
+It records: "this scaffold has been formalized by that graph record." It does
+not create the formal record, does not change BP, and does not turn scaffold
+into reasoning.
+
+The `by` argument should accept a single record or a list of records. It should
+not be limited to `Reasoning`, because future Gaia graph records may include
+causal edges, measurement links, definition links, or other formal records that
+are not reasoning actions.
+
+```python
+gap = depends_on(
+    conclusion=hypothesis,
+    given=[evidence],
+    rationale="The likelihood link still needs to be written.",
+)
+
+infer(
+    evidence,
+    hypothesis=hypothesis,
+    p_e_given_h=0.9,
+    p_e_given_not_h=0.2,
+    label="evidence_likelihood",
+)
+
+materialize(gap, by="evidence_likelihood")
+```
+
+For relation scaffold:
+
+```python
+rel = candidate_relation(
+    claims=[a, b],
+    pattern="equal",
+    rationale="These may be two statements of the same mechanism.",
+)
+
+same = equal(a, b, label="same_mechanism")
+materialize(rel, by=same)
+```
+
+Future causal example:
+
+```python
+rel = candidate_relation(claims=[exposure, outcome], pattern=None)
+
+edge = causes(exposure, outcome, label="exposure_causes_outcome")
+materialize(rel, by=edge)
+```
+
+### 4.1 Return and reference rule
+
+`materialize` needs a concrete scaffold record, so scaffold constructors return
+scaffold records:
+
+```python
+gap = depends_on(...)
+rel = candidate_relation(...)
+```
+
+Reasoning verbs may keep their current user-facing return values. For example,
+`derive` returns its conclusion claim, `infer` returns its evidence claim, and
+relation verbs return helper claims. To avoid a broad return-value migration,
+`materialize(..., by=...)` can resolve `by` in three small ways:
+
+| `by` value | Resolution rule |
 |---|---|
-| `depends_on(conclusion=c, given=[...])` | A future directed reasoning path from `given` to `c`, such as `derive`, `support`, `infer`, or a `compose` workflow. |
-| `candidate_relation(claims=[...], pattern=None)` | A future relation reasoning whose pattern is not classified yet. |
-| `candidate_relation(..., pattern="equal")` | A future equality-shaped relation. Soft evidence can be `associate(..., pattern="equal")`; hard reasoning is `equal(...)`. |
-| `candidate_relation(..., pattern="contradict")` | A future contradiction-shaped relation. Soft evidence can be `associate(..., pattern="contradict")`; hard reasoning is `contradict(...)`. |
-| `candidate_relation(..., pattern="exclusive")` | A future exclusivity-shaped relation. Soft evidence can be `associate(..., pattern="exclusive")`; hard reasoning is `exclusive(...)`. |
+| `GaiaGraph` record | use it directly |
+| label string | resolve it through the shared GaiaGraph label table |
+| returned `Claim` | use the producing graph record when the claim has exactly one producer; otherwise require a label |
 
-This table is a reader-facing and tooling-facing contract only. It does not
-add a `materialize()` function, a scaffold resolution state, or an automatic
-coverage algorithm. The first implementation can derive the target text from
-the scaffold kind and `pattern` field.
+This keeps the bridge explicit without forcing every reasoning verb to return a
+different object.
 
-The scaffold remains a scaffold until the author edits the package. Adding a
-matching reasoning record does not automatically delete, close, or mutate the
-scaffold record.
+### 4.2 Checks
+
+`materialize` should do checks, but only the minimum checks needed to prevent
+obvious misuse:
+
+1. `scaffold` must be a `Scaffold`.
+2. `by` must resolve to one or more formal `GaiaGraph` records.
+3. `by` must not be another `Scaffold` or `Materialization`.
+4. `by` must reference at least one of the scaffold's core claims.
+5. If `candidate_relation.pattern` is not `None` and `by` declares a relation
+   pattern, the patterns must match.
+6. If `by` is ambiguous, for example a returned claim has multiple producing
+   graph records, the author must use a label.
+
+These checks are deliberately not a proof that the formalization is correct.
+They catch unrelated or contradictory links while leaving the scientific
+judgment to the author and reviewer.
+
+### 4.3 What `materialize` does not do
+
+`materialize` does not:
+
+- create `infer`, `equal`, `causes`, or any other formal record;
+- infer that a scaffold is resolved automatically;
+- remove or mutate the scaffold record;
+- contribute a factor to BP;
+- imply the formal record is accepted by review;
+- require the formal record to be a `Reasoning`.
+
+It is bookkeeping plus sanity checks.
 
 ## 5. Reasoning
 
@@ -275,6 +379,19 @@ For open scaffold:
 }
 ```
 
+Materialization records should be recorded alongside scaffold records, not in
+the BP-facing IR:
+
+```json
+{
+  "kind": "materialization",
+  "label": "mechanism_forms_materialized",
+  "scaffold": "pkg::scaffold::mechanism_forms_may_match",
+  "by": ["pkg::graph::same_mechanism"],
+  "rationale": "The equality relation makes the candidate relation explicit."
+}
+```
+
 For reasoning records, existing compiler output can remain structurally similar
 at first. The public naming should move from "action" to "reasoning", but the
 initial implementation does not need to redesign the IR or BP schemas.
@@ -286,6 +403,8 @@ Runtime:
 - Add a thin `GaiaGraph` base for graph records.
 - Keep `Knowledge` independent from `GaiaGraph`.
 - Move `Scaffold` under `GaiaGraph`, not under reasoning.
+- Add a `Materialization` graph record that links one scaffold to one or more
+  formal graph records.
 - Rename the public concept currently called `Action` to `Reasoning`.
 - Make `Compose` a `Reasoning`.
 - Keep the implementation migration as small as possible; do not add a new
@@ -296,12 +415,16 @@ DSL:
 - Change `candidate_relation(a, b, proposed=...)` to
   `candidate_relation(claims=[...], pattern=None | "equal" | "contradict" | "exclusive")`.
 - Make `candidate_relation.pattern` default to `None`.
+- Make scaffold constructors return scaffold records so they can be passed to
+  `materialize(...)`.
 - Allow `candidate_relation(pattern="equal")` and
   `candidate_relation(pattern="exclusive")` to accept two or more claims.
 - Restrict `candidate_relation(pattern="contradict")` to exactly two claims.
 - Remove public `tension`.
 - Add `associate(..., pattern=None | "equal" | "contradict" | "exclusive")`.
 - Validate `associate(pattern=...)` against `p_a_given_b` and `p_b_given_a`.
+- Add `materialize(scaffold, by=...)`, accepting a graph record, graph label,
+  producer claim, or list of those values.
 - Consider extending `equal` and `exclusive` to two-or-more claims, while
   keeping `contradict` binary.
 
@@ -313,8 +436,9 @@ Compiler and CLI:
 - Ensure scaffold records are not counted as reasoning in review, lowering, or
   BP.
 - Ensure `compose` captures only reasoning records.
-- Display scaffold formalization targets from the scaffold kind and `pattern`
-  field; do not add resolution states or coverage algorithms.
+- Emit materialization records outside the BP-facing IR.
+- Validate `materialize(...)` with the minimum type, claim-reference, ambiguity,
+  and pattern-consistency checks in §4.2.
 - Update `gaia check` and `gaia inquiry` output for multi-claim candidate
   relations and `pattern=None`.
 
@@ -326,8 +450,13 @@ Tests:
 - `candidate_relation(claims=[a, b, c], pattern="exclusive")` is accepted.
 - `candidate_relation(claims=[a, b, c], pattern="contradict")` fails.
 - Public `tension` import is removed.
-- Scaffold target text is derived from `depends_on` or
-  `candidate_relation.pattern` without mutating the scaffold.
+- `depends_on(...)` and `candidate_relation(...)` return scaffold records.
+- `materialize(scaffold, by=reasoning_label)` records a materialization entry.
+- `materialize(...)` rejects scaffold-to-scaffold links.
+- `materialize(...)` rejects a `by` record that references none of the
+  scaffold's core claims.
+- `materialize(...)` rejects an ambiguous producer claim and asks for a label.
+- `materialize(...)` rejects known relation-pattern conflicts.
 - `associate(..., pattern=None)` preserves current association behavior.
 - `associate(..., pattern="equal")` requires both conditionals above `0.5`.
 - `associate(..., pattern="contradict")` requires both conditionals below
@@ -344,8 +473,8 @@ Docs:
 - Remove `tension` from public docs.
 - Explain that `associate(pattern=...)` is a soft probabilistic hint, not a
   hard relation.
-- Explain scaffold-to-reasoning mapping as formalization targets, not
-  automatic materialization.
+- Explain `materialize(...)` as explicit bookkeeping and checking, not a
+  reasoning primitive.
 - Keep foundations docs aligned with the new `Knowledge` vs `GaiaGraph`
   split.
 
@@ -357,8 +486,7 @@ scope for the first change:
 - `gaia graph` export command.
 - Causal graph projection.
 - Automatic scaffold resolution.
-- A `materialize()` DSL function.
 - A new persistent graph schema.
 
-Those can be derived later from the same `Knowledge + Scaffold + Reasoning`
-records if the need becomes concrete.
+Those can be derived later from the same `Knowledge + Scaffold +
+Materialization + Reasoning` records if the need becomes concrete.
