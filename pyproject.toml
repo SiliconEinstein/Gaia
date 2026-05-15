@@ -46,6 +46,7 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.3",
     "scipy-stubs>=1.17.1.4",
+    "syrupy>=5.1",
 ]
 docs = [
     "mkdocs>=1.6,<2",
