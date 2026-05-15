@@ -4,8 +4,8 @@
 
 > 当前 v0.5 Gaia CLI 没有实现 registry-side reviewer assignment、review
 > report PR 自动提交、`.gaia/reviews/` 入库验收，或 LKM curation package 的
-> 强制流程。当前本地 review surface 是 `gaia check --warrants`、
-> `gaia check --gate`、`gaia inquiry review` 和
+> 强制流程。当前本地 review surface 是 `gaia build check --warrants`、
+> `gaia build check --gate`、`gaia inquiry review` 和
 > `.gaia/review_manifest.json`。本文描述的是生态层目标流程。
 
 本文档描述 Review Server 和 LKM / 人类 curation 的业务逻辑——reviewer 如何被 Registry 指派，review reports 如何产生并进入包，官方 prior / strategy 如何在注册时生效，跨包关系如何被发现、调查和确认。
@@ -52,7 +52,7 @@ Review Server **不**审核：
 ### 审核的具体流程
 
 ```
-作者完成 gaia compile + gaia infer，push/tag 到自己的 Knowledge Repo
+作者完成 gaia build compile + gaia run infer，push/tag 到自己的 Knowledge Repo
   ↓
 ① 作者向 Official Registry 发起注册 / 审核请求
   ↓

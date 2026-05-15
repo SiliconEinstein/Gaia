@@ -41,6 +41,21 @@ def test_namespace_tombstones_have_engine_targets() -> None:
         importlib.import_module(new_ns)
 
 
+@pytest.mark.parametrize(
+    "old_path,new_path",
+    [
+        ("gaia.bp.factor_graph", "gaia.engine.bp.factor_graph"),
+        ("gaia.lang.runtime", "gaia.engine.lang.runtime"),
+        ("gaia.ir.operator", "gaia.engine.ir.operator"),
+        ("gaia.trace.schema", "gaia.engine.trace.schema"),
+    ],
+)
+def test_submodule_tombstones_raise_redirect_import_error(old_path: str, new_path: str) -> None:
+    """Direct old submodule imports should fail with the same redirect contract."""
+    with pytest.raises(ImportError, match=new_path.replace(".", r"\.")):
+        importlib.import_module(old_path)
+
+
 def test_symbol_tombstones_resolve_to_real_symbols() -> None:
     """Every per-symbol redirect's destination must exist."""
     for mapping in TOMBSTONED_SYMBOLS.values():

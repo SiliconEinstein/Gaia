@@ -8,7 +8,7 @@ since: v0.5
 
 ## Overview
 
-`gaia infer` runs local (or cross-package joint) inference on a compiled
+`gaia run infer` runs local (or cross-package joint) inference on a compiled
 knowledge package. External priors come from **claim metadata** set by
 `priors.py` during compilation, plus dependency beliefs injected through
 `node_priors`. Legacy `reason+prior` DSL pairing is still recognized for
@@ -18,7 +18,7 @@ assignment path.
 Command signature:
 
 ```
-gaia infer [PATH] [--depth N]
+gaia run infer [PATH] [--depth N]
 ```
 
 | Argument / Option | Default | Description |
@@ -43,9 +43,9 @@ ensure_package_env()          # uv sync --quiet
 
 Source: `gaia/cli/commands/infer.py`
 
-`gaia infer` intentionally does **not** consult `.gaia/review_manifest.json`.
+`gaia run infer` intentionally does **not** consult `.gaia/review_manifest.json`.
 It is the authoring-time numerical preview of the compiled graph. Review
-manifests remain qualitative gating artifacts for `gaia check --gate`,
+manifests remain qualitative gating artifacts for `gaia build check --gate`,
 `gaia inquiry review`, trace review, and publish/register workflows; they do
 not supply priors and they do not suppress preview beliefs.
 
@@ -105,7 +105,7 @@ to `Knowledge.metadata["prior"]` and
 
 ```python
 # my_package/priors.py
-from gaia.lang import register_prior
+from gaia.engine.lang import register_prior
 
 from my_package import claim_A, claim_B
 
@@ -137,7 +137,7 @@ Rules:
 - No-op when the package has no `priors.py`.
 
 Source: `gaia/cli/_packages.py :: apply_package_priors()` and
-`gaia/lang/dsl/register_prior.py :: resolve_priors_to_metadata()`.
+`gaia/engine/lang/dsl/register_prior.py :: resolve_priors_to_metadata()`.
 
 ### Legacy reason+prior DSL pairing
 
@@ -147,7 +147,7 @@ prefer `priors.py` for independent input priors and action/relation verbs for
 warrants.
 
 ```python
-from gaia.lang import support, equivalence
+from gaia.engine.lang import support, equivalence
 
 # Legacy soft support with warrant prior
 support([A, B], C, reason="Evidence converges", prior=0.85)
@@ -252,22 +252,22 @@ Output is written to `.gaia/beliefs.json` under the package directory.
 
 | Field | Purpose |
 |-------|---------|
-| `ir_hash` | Content hash of the compiled IR. Must match `.gaia/ir_hash` when downstream commands (`gaia render`, `gaia register`) verify freshness. |
+| `ir_hash` | Content hash of the compiled IR. Must match `.gaia/ir_hash` when downstream commands (`gaia run render`, `gaia pkg register`) verify freshness. |
 | `gaia_lang_version` | Which `gaia-lang` version produced these beliefs. Useful for detecting numerical drift across patch releases. |
 | `beliefs` | Array sorted by `knowledge_id`. Includes only knowledge nodes present in the compiled graph (internal auxiliary variables are excluded). Each entry has `knowledge_id`, `label`, and posterior `belief` (P(claim=1)). |
 | `diagnostics` | BP convergence information — see Inference Engine section below. |
 
 ## Staleness Detection
 
-Before lowering, `gaia infer` performs a three-part staleness check:
+Before lowering, `gaia run infer` performs a three-part staleness check:
 
-1. `.gaia/ir_hash` must exist — otherwise `gaia compile` has not been run.
+1. `.gaia/ir_hash` must exist — otherwise `gaia build compile` has not been run.
 2. `.gaia/ir.json` must exist and be valid JSON.
 3. The stored `ir_hash` must match the freshly recompiled `compiled.graph.ir_hash`,
    AND the stored IR JSON must match the fresh compiled JSON byte-for-byte.
 
 If any check fails, the command exits with an error directing the user to run
-`gaia compile` again. This ensures inference always runs against the latest
+`gaia build compile` again. This ensures inference always runs against the latest
 compiled artifacts.
 
 ## Inference Engine
@@ -316,7 +316,7 @@ The `diagnostics` object in `beliefs.json` records:
 
 ### Console output
 
-After inference completes, `gaia infer` prints:
+After inference completes, `gaia run infer` prints:
 
 ```
 Inferred 42 beliefs
@@ -365,7 +365,7 @@ deterministic truth-table potential itself.
 Strategies are lowered by type. In v0.5 the canonical authoring path is through Action verbs (`derive` / `observe` / `compute` / `infer` / `associate` / `equal` / `contradict` / `exclusive` / `decompose`) plus the lifted `bayes.model(...)` / `bayes.likelihood(...)` helpers for predictive distributions; the entries below describe how each underlying strategy type lowers, regardless of whether it came from an Action verb or a legacy v5 strategy verb.
 
 - **`infer`**: `CONDITIONAL` factor with full CPT. With `given=G` on the action, the CPT gates on `G` so that the relation collapses to MaxEnt (0.5) when any of `G` is false (the *infer-with-given gating* introduced in v0.5). When `infer_use_degraded_noisy_and=True`, falls back to `CONJUNCTION + SOFT_ENTAILMENT`.
-- **`deduction`** (lowering target of `derive` and the deprecated `deduction` strategy): `CONJUNCTION` for multiple premises, then deterministic `IMPLICATION`. Review gates publication quality; it does not supply a numeric prior and does not suppress `gaia infer` local preview output.
+- **`deduction`** (lowering target of `derive` and the deprecated `deduction` strategy): `CONJUNCTION` for multiple premises, then deterministic `IMPLICATION`. Review gates publication quality; it does not supply a numeric prior and does not suppress `gaia run infer` local preview output.
 - **`support`** (deprecated v5 strategy; lowering preserved for compatibility): soft implication via `SOFT_ENTAILMENT`; legacy `prior=` folds into its effective `p1`.
 - **`noisy_and`** (deprecated): `CONJUNCTION + SOFT_ENTAILMENT`. Single premise omits conjunction.
 - **`associate`**: `PAIRWISE_POTENTIAL` factor over two Claims with joint weights derived from `p_a_given_b`, `p_b_given_a`, and at least one marginal prior. No helper conclusion variable.

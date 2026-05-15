@@ -4,24 +4,24 @@
 
 Local、joint 和 global 推理共享 `FactorGraph`、lowering 规则和
 `InferenceEngine` 路由。旧的 `BeliefPropagation` loopy-BP 类仍保留为
-legacy/低层实现，但 `gaia infer` 的主路径经由 `InferenceEngine` 自动选择
+legacy/低层实现，但 `gaia run infer` 的主路径经由 `InferenceEngine` 自动选择
 Junction Tree、TRW-BP 或 Mean Field VI。本文档描述三者共享的部分、差异，
 以及各模式的配置方式。
 
-## Local 推理（`gaia infer`）
+## Local 推理（`gaia run infer`）
 
 **范围**：单个包。
 
 Local 推理运行在 **LocalCanonicalGraph** 上，使用 Knowledge metadata 中的 `prior` 字段作为概率来源（由 `priors.py` 和 DSL `reason+prior` 对设定）。
 
-- **图**：来自 `gaia compile` 的 `.gaia/ir.json`。
+- **图**：来自 `gaia build compile` 的 `.gaia/ir.json`。
 - **参数化**：Knowledge metadata 中的 `prior` 字段（由 `priors.py` 和 DSL `reason+prior` 对设定），包含节点先验概率和 factor 条件概率。
 - **输出**：信念预览，位于 `.gaia/beliefs.json`。这些仅供预览，不在发布时提交。
 - **目的**：让作者在发布前查看 BP 如何评估其推理结构。结论的低信念值可能表示前提缺失或推理薄弱。
 
-当 `--depth 0`（默认）时，local 推理不查询或修改全局图。外部节点的先验来自 `dep_beliefs/` 中的扁平信念值（由 `gaia add` 下载），不包含依赖包的推理结构。
+当 `--depth 0`（默认）时，local 推理不查询或修改全局图。外部节点的先验来自 `dep_beliefs/` 中的扁平信念值（由 `gaia pkg add` 下载），不包含依赖包的推理结构。
 
-### 联合跨包推理（`gaia infer --depth N`）
+### 联合跨包推理（`gaia run infer --depth N`）
 
 当指定 `--depth N`（N>0 或 N=-1 表示无限递归），推理从单包局部模式升级为**联合跨包推理**。这是 local 和 global 之间的中间模式——仍在 CLI 端运行，但跨越多个包。
 
@@ -82,7 +82,7 @@ Global 推理的 FactorGraph 是持久化的——integrate 时写入存储，BP
 | **参数化来源** | metadata prior + `dep_beliefs/` 扁平注入 | metadata prior（各包对自有节点具有权威性） | PriorRecord / FactorParamRecord（按 resolution_policy 解析） |
 | **跨包证据** | 仅上游信念值（单向） | 完整因子图（双向 BP 消息传递） | 有（共享的 schema 节点、已规范化的 claim） |
 | **持久性** | 临时预览 | 临时预览 | 持久化 FactorGraph + BeliefSnapshot |
-| **触发方式** | `gaia infer` CLI 命令 | `gaia infer --depth N` CLI 命令 | Curation 完成后（集成或策展后） |
+| **触发方式** | `gaia run infer` CLI 命令 | `gaia run infer --depth N` CLI 命令 | Curation 完成后（集成或策展后） |
 
 ## 参数化来源详情
 
@@ -109,5 +109,5 @@ Global 推理的 FactorGraph 是持久化的——integrate 时写入存储，BP
 - `gaia/bp/engine.py` -- `InferenceEngine`（CLI 主路径自动路由）
 - `gaia/bp/bp.py` -- `BeliefPropagation`（legacy loopy-BP 实现）
 - `gaia/bp/lowering.py` -- `lower_local_graph()`、`merge_factor_graphs()`（从 local 或 global graph 构建 `FactorGraph`，联合跨包合并）
-- `gaia/cli/commands/infer.py` -- `gaia infer` 命令（`--depth` 参数）
+- `gaia/cli/commands/infer.py` -- `gaia run infer` 命令（`--depth` 参数）
 - `gaia/cli/_packages.py` -- `load_dependency_compiled_graphs()`、`collect_foreign_node_priors()`

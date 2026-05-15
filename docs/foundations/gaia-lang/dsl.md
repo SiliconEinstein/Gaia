@@ -13,7 +13,7 @@ Gaia Lang is a Python 3.12+ internal DSL for declarative knowledge authoring. Pa
 For the conceptual model behind the surface (Knowledge / Action hierarchy, formula claims, action lowering, operator semantics) see [knowledge-and-reasoning.md](knowledge-and-reasoning.md). For the typed predicate-logic model (`Variable`, `Domain`, formula AST, `forall` / `exists`, and grounding boundaries), see [predicate-logic.md](predicate-logic.md). This file is the per-name reference.
 
 ```python
-from gaia.lang import (
+from gaia.engine.lang import (
     # Knowledge
     claim, note, question, Domain,
     # Formula primitives (terms, predicates, connectives, quantifiers)
@@ -190,14 +190,14 @@ temp = Variable(symbol="temp", domain=Real)
 c = causal(co2, temp, describe="Rising CO2 causes warming.", prior=0.9)
 ```
 
-### `gaia.lang.bayes`
+### `gaia.engine.lang.bayes`
 
-Use `gaia.lang.bayes` for structured model-data likelihood updates. It replaces
+Use `gaia.engine.lang.bayes` for structured model-data likelihood updates. It replaces
 ad hoc evidence helpers with explicit hypothesis, data, model, and likelihood
 atoms:
 
 ```python
-from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
+from gaia.engine.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=295)
@@ -227,7 +227,7 @@ comparison = bayes.likelihood(
 
 `bayes.likelihood(...)` lowers to existing `infer` strategies plus rigid
 relation operators. See [bayes.md](bayes.md) for the executable example,
-distribution list, and `gaia check` diagnostics. There is no public
+distribution list, and `gaia build check` diagnostics. There is no public
 `observation(...)` helper in v0.5; structured measured values are normal formula
 claims marked by the `observe(...)` action.
 
@@ -271,14 +271,14 @@ Without `given`, the compiled BP factor is `H -> E` with CPT `[P(E|not H), P(E|H
 
 ### `associate(a, b, *, p_a_given_b, p_b_given_a, background=None, rationale="", label=None)`
 
-Symmetric probabilistic association between two claims. Returns a generated association helper claim and lowers to a pairwise potential between `a` and `b`. At least one independent marginal prior for `a` or `b` must resolve from the claim/priors layer. Statistical model-derived marginals should be represented through `gaia.lang.bayes` outputs, not inline `associate(...)` arguments.
+Symmetric probabilistic association between two claims. Returns a generated association helper claim and lowers to a pairwise potential between `a` and `b`. At least one independent marginal prior for `a` or `b` must resolve from the claim/priors layer. Statistical model-derived marginals should be represented through `gaia.engine.lang.bayes` outputs, not inline `associate(...)` arguments.
 
 ### `decompose(whole, *, parts, formula, background=None, rationale="", label=None, metadata=None)`
 
 Declares `whole` as propositionally equivalent to a `Formula` over atomic `parts`. The compiler checks that the formula's `ClaimAtom` set exactly matches `parts`, that `whole` does not appear in the formula, and that no decomposition cycle exists. Returns the `whole` claim. The compiler emits formula/equivalence helper nodes for lowering, but the generated helper claims themselves are not direct review targets; the review manifest gates the decomposition equivalence operator/action. See [decompose action design](../../specs/2026-05-05-decompose-action-design.md).
 
 ```python
-from gaia.lang import ClaimAtom, claim, decompose, implies, land
+from gaia.engine.lang import ClaimAtom, claim, decompose, implies, land
 
 A = claim("A")
 B = claim("B")
@@ -320,7 +320,7 @@ claims must be wrapped in `ClaimAtom`, which lets the compiler use the existing
 claim's IR node as the formula operand.
 
 ```python
-from gaia.lang import ClaimAtom, claim, land, lnot, lor
+from gaia.engine.lang import ClaimAtom, claim, land, lnot, lor
 
 not_a = claim("not A", formula=lnot(ClaimAtom(a)))
 both = claim("A and B", formula=land(ClaimAtom(a), ClaimAtom(b)))
@@ -335,7 +335,7 @@ truth tests.
 
 ### Propositional Analysis Helpers
 
-`gaia.logic` provides non-persistent analysis helpers over compiled Gaia operator graphs:
+`gaia.engine.logic` provides non-persistent analysis helpers over compiled Gaia operator graphs:
 
 - `simplify_proposition(graph, knowledge_id)`
 - `to_cnf_proposition(graph, knowledge_id, simplify=False)`
@@ -419,7 +419,7 @@ Legacy rigid deduction based on the directed `implication` operator: premises lo
 for deduction. Deduction lowers as a hard conditional implication. Review
 decides whether the warrant passes publication-quality gates; it does not
 assign a numeric confidence to the deduction step, and it does not suppress
-`gaia infer` local preview output.
+`gaia run infer` local preview output.
 
 ```python
 law = claim("forall {x}. P({x})", parameters=[{"name": "x", "type": "material"}])
@@ -556,7 +556,7 @@ Legacy hierarchical composition of sub-strategies. Requires at least one (`Value
 
 ## Labels and Cross-Referencing
 
-**Automatic inference.** When compiled via `gaia compile`, module-level variable names in `__all__` become labels:
+**Automatic inference.** When compiled via `gaia build compile`, module-level variable names in `__all__` become labels:
 
 ```python
 bg = note("Context.")              # label = "bg"
@@ -632,7 +632,7 @@ type = "knowledge-package"
 
 ```python
 """Galileo's tied-balls thought experiment against Aristotelian physics."""
-from gaia.lang import claim, contradict, derive, note
+from gaia.engine.lang import claim, contradict, derive, note
 
 aristotelian = note("In Aristotelian physics, heavier objects fall faster.")
 
@@ -669,7 +669,7 @@ __all__ = [
 ]
 ```
 
-Compile: `gaia compile path/to/galileo-tied-balls-gaia/`
+Compile: `gaia build compile path/to/galileo-tied-balls-gaia/`
 
 This produces `.gaia/ir.json` containing the `LocalCanonicalGraph` with all nodes, operators, helper claims, and the four action labels (`aristotle_predicts_faster`, `aristotle_predicts_slower`, `paradox`, `uniform_fall_prediction`) registered under `github:galileo_tied_balls::`. The action labels can be referenced from other claims' content via `[@aristotle_predicts_faster]`, etc.
 

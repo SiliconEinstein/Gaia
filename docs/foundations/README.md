@@ -72,9 +72,9 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 ## CLI — 本地编著与推理
 
 - [工作流](cli/workflow.md) — compile → check → infer → register 完整管线
-- [编译与校验](cli/compilation.md) — `gaia compile` / `gaia check` 内部机制
-- [推理管线](cli/inference.md) — `gaia infer`：priors.py、参数化、BP
-- [注册流程](cli/registration.md) — `gaia register` 与 registry 协议
+- [编译与校验](cli/compilation.md) — `gaia build compile` / `gaia build check` 内部机制
+- [推理管线](cli/inference.md) — `gaia run infer`：priors.py、参数化、BP
+- [注册流程](cli/registration.md) — `gaia pkg register` 与 registry 协议
 
 ## LKM — 计算注册中心（服务端）
 

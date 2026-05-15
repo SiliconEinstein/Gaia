@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical (v0.5 + BP refactor 2026-05-13)
 
-本文档描述 belief propagation 如何在 Gaia IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。backend-facing lowering 边界见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。`gaia infer` CLI 入口与 priors / dep_beliefs / depth 见 [../cli/inference.md](../cli/inference.md)。
+本文档描述 belief propagation 如何在 Gaia IR 上运行。纯 BP 算法（sum-product 消息传递、damping、收敛）见 [../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)。Factor potential 函数见 [potentials.md](potentials.md)。Local 与 global 推理的区别见 [local-vs-global.md](local-vs-global.md)。backend-facing lowering 边界见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。`gaia run infer` CLI 入口与 priors / dep_beliefs / depth 见 [../cli/inference.md](../cli/inference.md)。
 
 ## FactorGraph
 
@@ -39,7 +39,7 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 ### 从 Gaia IR 构建
 
-`gaia.bp.lowering.lower_local_graph(graph, node_priors=None, review_manifest=None)` 把 `LocalCanonicalGraph` lower 成 `FactorGraph`：
+`gaia.engine.bp.lowering.lower_local_graph(graph, node_priors=None, review_manifest=None)` 把 `LocalCanonicalGraph` lower 成 `FactorGraph`：
 
 - 每个 `Knowledge` 节点变成一个二值变量，prior 来源见下节Prior 赋值规则。
 - 每个 `Operator` 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE / CONTRADICTION / COMPLEMENT），CPT 由真值表决定（详见 [formal-strategy-lowering.md](formal-strategy-lowering.md)）。
@@ -51,7 +51,7 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 - 已废弃的 `noisy_and` 仍然支持：lower 为 CONJUNCTION + SOFT_ENTAILMENT。
 - `review_manifest` 是可选的 publish/inquiry 视图参数：传入时，未
   accepted 的 action-backed strategy/operator targets 会被跳过。CLI
-  `gaia infer` 传 `None`，所以本地 preview 不因 review 状态抑制 belief
+  `gaia run infer` 传 `None`，所以本地 preview 不因 review 状态抑制 belief
   输出。
 
 契约详见 [../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md) 和 [cli/inference.md](../cli/inference.md)。

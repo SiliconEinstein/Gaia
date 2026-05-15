@@ -10,10 +10,10 @@ A Gaia knowledge package is a standard Python library that declares knowledge (c
 
 ## Package Creation
 
-### `gaia init`
+### `gaia build init`
 
 ```bash
-gaia init galileo-falling-bodies-gaia
+gaia build init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
 ```
 
@@ -22,7 +22,7 @@ This wraps `uv init --lib` to scaffold a standard Python library, then patches `
 The generated `__init__.py` template uses the v0.5 action surface:
 
 ```python
-from gaia.lang import claim, derive, note
+from gaia.engine.lang import claim, derive, note
 
 context = note("Background context for this package.")
 hypothesis = claim("A scientific hypothesis.")
@@ -185,7 +185,7 @@ dependencies = [
 
 ```python
 # galileo_falling_bodies/reasoning.py
-from gaia.lang import claim, derive
+from gaia.engine.lang import claim, derive
 from aristotle_mechanics import natural_motion
 
 hypothesis = claim("Heavy objects fall faster.")
@@ -208,7 +208,7 @@ The v0.5 contract is:
 - assign external priors only to independent inputs that are load-bearing for exported goals;
 - do not assign external priors to zero-premise `observe(...)` claims; they are pinned to `1 - CROMWELL_EPS`;
 - do not assign priors to derived claims, structural expression helpers, relation helper claims, or generated formalization helpers;
-- use `gaia check --hole` to decide which independent degrees of freedom are covered and which intentionally rely on MaxEnt.
+- use `gaia build check --hole` to decide which independent degrees of freedom are covered and which intentionally rely on MaxEnt.
 
 Legacy strategy/operator APIs may still accept paired `reason+prior` arguments for compatibility. New packages should prefer `register_prior(...)` in `priors.py` for input priors and action/relation verbs for warrants.
 
@@ -216,7 +216,7 @@ Legacy strategy/operator APIs may still accept paired `reason+prior` arguments f
 
 ```python
 # src/<package>/priors.py
-from gaia.lang import register_prior
+from gaia.engine.lang import register_prior
 
 from . import evidence, hypothesis
 
@@ -252,21 +252,21 @@ All artifacts are written to `.gaia/` within the package root.
 
 | Artifact | Written by | Tracked in git? | Contents |
 |----------|-----------|-----------------|----------|
-| `.gaia/ir.json` | `gaia compile` | yes | `LocalCanonicalGraph` -- the complete compiled IR |
-| `.gaia/ir_hash` | `gaia compile` | yes | SHA-256 hash of the canonical IR serialization |
-| `.gaia/compile_metadata.json` | `gaia compile` | yes | `gaia_lang_version`, compile timestamp, and IR hash provenance |
-| `.gaia/formalization_manifest.json` | `gaia compile` | yes | Scaffold/formalization records such as `depends_on(...)`, `candidate_relation(...)`, and `tension(...)` |
-| `.gaia/manifests/exports.json` | `gaia compile` | yes | Exported claims and interface hashes |
-| `.gaia/manifests/premises.json` | `gaia compile` | yes | Public premise interface, including local holes and foreign dependencies |
-| `.gaia/manifests/holes.json` | `gaia compile` | yes | `local_hole` subset of `premises.json` |
-| `.gaia/manifests/bridges.json` | `gaia compile` | yes | `fills(...)` bridge records |
-| `.gaia/beliefs.json` | `gaia infer` | no (gitignored) | BP inference output: posterior beliefs per knowledge node |
-| `.gaia/dep_beliefs/` | `gaia add` | no (gitignored) | cached posterior beliefs from upstream `*-gaia` dependencies |
+| `.gaia/ir.json` | `gaia build compile` | yes | `LocalCanonicalGraph` -- the complete compiled IR |
+| `.gaia/ir_hash` | `gaia build compile` | yes | SHA-256 hash of the canonical IR serialization |
+| `.gaia/compile_metadata.json` | `gaia build compile` | yes | `gaia_lang_version`, compile timestamp, and IR hash provenance |
+| `.gaia/formalization_manifest.json` | `gaia build compile` | yes | Scaffold/formalization records such as `depends_on(...)`, `candidate_relation(...)`, and `tension(...)` |
+| `.gaia/manifests/exports.json` | `gaia build compile` | yes | Exported claims and interface hashes |
+| `.gaia/manifests/premises.json` | `gaia build compile` | yes | Public premise interface, including local holes and foreign dependencies |
+| `.gaia/manifests/holes.json` | `gaia build compile` | yes | `local_hole` subset of `premises.json` |
+| `.gaia/manifests/bridges.json` | `gaia build compile` | yes | `fills(...)` bridge records |
+| `.gaia/beliefs.json` | `gaia run infer` | no (gitignored) | BP inference output: posterior beliefs per knowledge node |
+| `.gaia/dep_beliefs/` | `gaia pkg add` | no (gitignored) | cached posterior beliefs from upstream `*-gaia` dependencies |
 
 The compile artifacts must travel with the source so that registry clients can
 verify the compiled graph and cross-package interface. The inference outputs
 are reproducible from source + priors and are intentionally regenerated.
-`gaia init` writes the ignore patterns for local belief caches automatically.
+`gaia build init` writes the ignore patterns for local belief caches automatically.
 
 ## Package Lifecycle
 
@@ -276,23 +276,23 @@ init --> authored --> compiled --> checked --> priors assigned --> inferred --> 
 
 | Stage | Command | What happens |
 |-------|---------|-------------|
-| **Init** | `gaia init <name>` | Scaffolds package directory, `pyproject.toml`, `src/` layout, and DSL template. |
+| **Init** | `gaia build init <name>` | Scaffolds package directory, `pyproject.toml`, `src/` layout, and DSL template. |
 | **Authored** | (manual) | DSL declarations written in Python modules. |
-| **Compiled** | `gaia compile` | Source is imported, declarations collected, IR emitted to `.gaia/ir.json`. The IR is validated against the Gaia IR schema before writing. |
-| **Checked** | `gaia check` | Validates naming (`-gaia` suffix), IR structural correctness, and artifact freshness (ir_hash matches current source). |
-| **Priors assigned** | (manual) | Write `priors.py` assigning priors to independent probabilistic inputs. Use `gaia check --hole` to identify uncovered independent degrees of freedom. |
-| **Inferred** | `gaia infer` | Loads priors from metadata, lowers IR to factor graph, runs BP, writes beliefs to `.gaia/beliefs.json`. |
+| **Compiled** | `gaia build compile` | Source is imported, declarations collected, IR emitted to `.gaia/ir.json`. The IR is validated against the Gaia IR schema before writing. |
+| **Checked** | `gaia build check` | Validates naming (`-gaia` suffix), IR structural correctness, and artifact freshness (ir_hash matches current source). |
+| **Priors assigned** | (manual) | Write `priors.py` assigning priors to independent probabilistic inputs. Use `gaia build check --hole` to identify uncovered independent degrees of freedom. |
+| **Inferred** | `gaia run infer` | Loads priors from metadata, lowers IR to factor graph, runs BP, writes beliefs to `.gaia/beliefs.json`. |
 | **Tagged** | `git tag v<version> && git push origin v<version>` | A git tag marks the release. The tag must point to HEAD and be pushed to origin before registration. |
-| **Registered** | `gaia register` | Prepares (or submits) a metadata PR against the official Gaia registry. Requires a valid `[tool.gaia].uuid`, clean git worktree, and pushed tag. |
+| **Registered** | `gaia pkg register` | Prepares (or submits) a metadata PR against the official Gaia registry. Requires a valid `[tool.gaia].uuid`, clean git worktree, and pushed tag. |
 
-`gaia register` creates registry metadata (`Package.toml`, `Versions.toml`,
+`gaia pkg register` creates registry metadata (`Package.toml`, `Versions.toml`,
 `Deps.toml`) that reference the GitHub-tagged source release, and writes release
 interface files under `packages/<name>/releases/<version>/`. Those release
 files are `exports.json`, `premises.json`, `holes.json`, `bridges.json`, and
 an exported-only `beliefs.json` generated by local inference at registration
 time.
 
-### Validation summary (`gaia check`)
+### Validation summary (`gaia build check`)
 
 The check command validates three categories:
 

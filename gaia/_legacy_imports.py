@@ -11,7 +11,11 @@ generation rationale and the full enumeration.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import importlib.abc
+import importlib.machinery
+import sys
+from collections.abc import Callable, Sequence
+from types import ModuleType
 
 _TOMBSTONE_TEMPLATE = (
     "{old_path} has moved to {new_path}; this path was never public API "
@@ -58,6 +62,60 @@ def _tombstoned_symbol_getattr(
     return __getattr__
 
 
+class _TombstonedSubmoduleLoader(importlib.abc.Loader):
+    """Loader that turns stale direct submodule imports into redirect errors."""
+
+    def __init__(self, old_path: str, new_path: str) -> None:
+        self._old_path = old_path
+        self._new_path = new_path
+
+    def create_module(self, spec: importlib.machinery.ModuleSpec) -> ModuleType | None:
+        del spec
+        return None
+
+    def exec_module(self, module: ModuleType) -> None:
+        del module
+        raise ImportError(
+            _TOMBSTONE_TEMPLATE.format(
+                old_path=self._old_path,
+                new_path=self._new_path,
+            )
+        )
+
+
+class _TombstonedSubmoduleFinder(importlib.abc.MetaPathFinder):
+    """Finder for direct imports like ``import gaia.bp.factor_graph``."""
+
+    _gaia_tombstoned_submodule_finder = True
+
+    def find_spec(
+        self,
+        fullname: str,
+        path: Sequence[str] | None,
+        target: ModuleType | None = None,
+    ) -> importlib.machinery.ModuleSpec | None:
+        del path, target
+        for old_ns, new_ns in TOMBSTONED_NAMESPACES.items():
+            prefix = f"{old_ns}."
+            if fullname.startswith(prefix):
+                suffix = fullname.removeprefix(prefix)
+                new_path = f"{new_ns}.{suffix}"
+                return importlib.machinery.ModuleSpec(
+                    fullname,
+                    _TombstonedSubmoduleLoader(fullname, new_path),
+                )
+        return None
+
+
+def _install_tombstoned_submodule_finder() -> None:
+    """Install the finder once per interpreter."""
+    already_installed = any(
+        getattr(finder, "_gaia_tombstoned_submodule_finder", False) for finder in sys.meta_path
+    )
+    if not already_installed:
+        sys.meta_path.insert(0, _TombstonedSubmoduleFinder())
+
+
 TOMBSTONED_NAMESPACES: dict[str, str] = {
     "gaia.bp": "gaia.engine.bp",
     "gaia.ir": "gaia.engine.ir",
@@ -88,6 +146,9 @@ TOMBSTONED_SYMBOLS: dict[str, dict[str, str]] = {
         "HoleEntry": "gaia.engine.inquiry.HoleEntry",
     },
 }
+
+
+_install_tombstoned_submodule_finder()
 
 
 __all__ = [

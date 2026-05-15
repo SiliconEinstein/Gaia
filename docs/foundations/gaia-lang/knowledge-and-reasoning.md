@@ -14,7 +14,7 @@ This document bridges the Gaia Lang v0.5 Python DSL to the Gaia IR semantics lay
 - How typed predicate-logic formulas (`Variable`, `Domain`, predicates, connectives, `forall` / `exists`) fit inside `Claim.formula`.
 - The legacy v5 **named strategies** (`support`, `deduction`, `abduction`, ...) that remain as a compatibility surface but are no longer the recommended way to author new packages.
 
-Source references: `gaia/lang/runtime/knowledge.py`, `gaia/lang/runtime/action.py`, `gaia/lang/runtime/composition.py`, `gaia/lang/runtime/roles.py`, `gaia/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/lang/formula/`, `gaia/lang/bayes/`, `gaia/lang/compiler/compile.py`, `gaia/ir/knowledge.py`, `gaia/ir/operator.py`, `gaia/ir/strategy.py`, `gaia/ir/formalize.py`, `gaia/bp/potentials.py`.
+Source references: `gaia/engine/lang/runtime/knowledge.py`, `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/runtime/composition.py`, `gaia/engine/lang/runtime/roles.py`, `gaia/engine/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/engine/lang/formula/`, `gaia/engine/lang/bayes/`, `gaia/engine/lang/compiler/compile.py`, `gaia/ir/knowledge.py`, `gaia/ir/operator.py`, `gaia/ir/strategy.py`, `gaia/ir/formalize.py`, `gaia/bp/potentials.py`.
 
 ---
 
@@ -69,7 +69,7 @@ Three Knowledge subclasses exist. Reference IR schema: [Gaia IR — Knowledge](.
 The only Knowledge type carrying a prior probability. Claims are BP variable nodes.
 
 ```python
-from gaia.lang import claim
+from gaia.engine.lang import claim
 
 orbit = claim("The Earth orbits the Sun.", prior=0.99)
 ```
@@ -92,7 +92,7 @@ A `Claim` is **closed** if `parameters=[]` and **universal** if quantified `Vari
 Background context — not a probabilistic proposition.
 
 ```python
-from gaia.lang import note
+from gaia.engine.lang import note
 
 binding = note("x = YBCO")
 ```
@@ -109,7 +109,7 @@ binding = note("x = YBCO")
 Open research inquiry documenting what the package investigates.
 
 ```python
-from gaia.lang import question
+from gaia.engine.lang import question
 
 open_problem = question("What is the maximum Tc in hydrogen-rich superconductors?")
 ```
@@ -120,7 +120,7 @@ No prior, no BP participation; same positional constraints as `Note`.
 
 ## 3. Action Types
 
-Actions are author-facing verbs that connect claims. Every action is dataclass-style: it auto-registers to the current package on construction, carries a `label` (which becomes a QID at compile time), a `rationale`, optional `background` notes, and an internal `warrants: list[Claim]` of helper claims that reviewers see. Source: `gaia/lang/runtime/action.py`, `gaia/lang/dsl/`.
+Actions are author-facing verbs that connect claims. Every action is dataclass-style: it auto-registers to the current package on construction, carries a `label` (which becomes a QID at compile time), a `rationale`, optional `background` notes, and an internal `warrants: list[Claim]` of helper claims that reviewers see. Source: `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/dsl/`.
 
 ### 3.1 Support — directional reasoning
 
@@ -135,7 +135,7 @@ Actions are author-facing verbs that connect claims. Every action is dataclass-s
 Support actions return the **conclusion** Claim. Authors typically chain calls by name:
 
 ```python
-from gaia.lang import claim, derive, observe
+from gaia.engine.lang import claim, derive, observe
 
 evidence = claim("Stellar parallax is observed.")
 heliocentric = claim("The heliocentric model is correct.")
@@ -159,7 +159,7 @@ Returns the evidence Claim. The author should prefer `bayes.model(...) + bayes.l
 
 #### `associate(a, b, *, p_a_given_b, p_b_given_a, ...)`
 
-Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.lang.bayes`. Returns the association warrant helper Claim.
+Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.engine.lang.bayes`. Returns the association warrant helper Claim.
 
 ### 3.3 Structural — hard constraint between Claims
 
@@ -172,7 +172,7 @@ Structural actions assert that the truth values of the named Claims jointly sati
 | `exclusive(a, b, ...)` | `Exclusive` | `complement([a, b], helper)` | XOR helper |
 | `decompose(whole, parts=..., formula=...)` | `Decompose` | formula lowering of `parts` + `equivalence(whole, formula_helper)` | `whole == formula(parts)` |
 
-`decompose` is the only Structural verb that takes a `Formula` payload. The compiler validates that the formula's `ClaimAtom` set exactly matches `parts`, that `whole` does not appear in the formula, and that no decomposition cycle exists. Source: `gaia/lang/dsl/decompose.py`.
+`decompose` is the only Structural verb that takes a `Formula` payload. The compiler validates that the formula's `ClaimAtom` set exactly matches `parts`, that `whole` does not appear in the formula, and that no decomposition cycle exists. Source: `gaia/engine/lang/dsl/decompose.py`.
 
 ### 3.4 Scaffold — authoring metadata only
 
@@ -193,13 +193,13 @@ Scaffold actions compile only into `.gaia/formalization_manifest.json`. They are
 2. Records `inputs` (Knowledge values passed as args, plus claims captured from background and child actions), `actions` (the ordered list of children, by reference or by id), and `conclusion` (the function's return value, which **must** be a `Claim`).
 3. Emits a single IR `Compose` node with deterministic `structure_hash` over the tuple of input QIDs, action QIDs, conclusion QID, warrant QIDs, and background QIDs.
 
-`Compose` is the **only** Action subclass that survives into the IR `LocalCanonicalGraph` as a first-class node (`composes: list[Compose]`). All other Actions are projected onto strategies, operators, and helper claims with reverse `action_label` metadata. Source: `gaia/lang/runtime/composition.py`, `gaia/ir/compose.py`.
+`Compose` is the **only** Action subclass that survives into the IR `LocalCanonicalGraph` as a first-class node (`composes: list[Compose]`). All other Actions are projected onto strategies, operators, and helper claims with reverse `action_label` metadata. Source: `gaia/engine/lang/runtime/composition.py`, `gaia/ir/compose.py`.
 
 ---
 
 ## 4. Action Lowering
 
-The compiler (`gaia/lang/compiler/compile.py`) walks the package's registered actions in declaration order and projects each one onto IR objects. Three things happen for every action:
+The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's registered actions in declaration order and projects each one onto IR objects. Three things happen for every action:
 
 1. **Action QID assigned.** `_action_label(action, pkg, action_index)` returns `{namespace}:{package}::{label or _anon_action_NNN}`.
 2. **Lowered target produced.** Depending on the action subclass (table below), one or more IR objects are created.
@@ -218,7 +218,7 @@ The compiler (`gaia/lang/compiler/compile.py`) walks the package's registered ac
 | `Contradict` | `Operator(operator=contradiction)` | `contradiction_result` helper (review=true) | Operator ID → helper Claim QID |
 | `Exclusive` | `Operator(operator=complement)` | `complement_result` helper (review=true) | Operator ID → helper Claim QID |
 | `Decompose` | formula operators over `parts` + `Operator(operator=equivalence, [whole, formula_helper])` | formula-derived helpers + decomposition helper | Operator ID → decomposition helper Claim QID |
-| `Compose` | `gaia.ir.Compose` first-class node | (none directly) | `Compose` node QID |
+| `Compose` | `gaia.engine.ir.Compose` first-class node | (none directly) | `Compose` node QID |
 | `DependsOn` | (not lowered) | (none) | not addressable |
 
 **Note:** `action_label_map` stores Strategy/Operator IDs (e.g., `lcs_*`, `lco_*`), not Knowledge QIDs directly. When resolving action label references in text, the compiler looks up the Strategy/Operator's `metadata['warrants']` to find the warrant helper Knowledge node(s) for provenance attribution. Exception: `Observe` actions with no premises (`given=()`) map directly to the conclusion Claim QID because they represent grounding observations with no inferential warrant.
@@ -227,7 +227,7 @@ The compiler (`gaia/lang/compiler/compile.py`) walks the package's registered ac
 
 Most action helpers carry `metadata["review"] = true` and `metadata["helper_kind"]` indicating the lowering origin (`implication_warrant`, `equivalence_result`, `association`, ...). Reviewers see them in the review manifest. They carry no independent prior — their distribution is fully determined by the IR operator they back, except for `infer` / `associate` warrants which encode the author's CPT.
 
-Structural-expression helpers from the deprecated `~A`, `A & B`, `A | B` shortcuts use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.ir.knowledge.is_structural_expression_helper`.
+Structural-expression helpers from the deprecated `~A`, `A & B`, `A | B` shortcuts use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
 
 ### 4.3 Action Label References
 
@@ -244,19 +244,19 @@ Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539
 
 ## 5. Formula Claims
 
-`Claim.formula` carries an optional `Formula` AST that the compiler lowers to IR operators alongside the claim. The formula vocabulary lives in `gaia/lang/formula/` and is exported from `gaia.lang`:
+`Claim.formula` carries an optional `Formula` AST that the compiler lowers to IR operators alongside the claim. The formula vocabulary lives in `gaia/engine/lang/formula/` and is exported from `gaia.engine.lang`:
 
 - **Terms.** `Variable`, `Constant`, `FunctionApp`, `ClaimAtom` (lifts a Claim into the formula universe).
 - **Predicates.** `Equals`, `NotEquals`, `Greater / GreaterEqual / Less / LessEqual`, `Causes`, `UserPredicate`.
 - **Connectives.** `Land`, `Lor`, `Lnot`, `Implies`, `Iff`.
 - **Quantifiers.** `Forall(var, body)`, `Exists(var, body)`.
-- **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.lang.types.primitives`).
+- **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.engine.lang.types.primitives`).
 
 For a reader-facing explanation of the predicate-logic model, including the difference between opaque `parameters=[...]` and executable `claim(formula=...)`, see [Predicate Logic In Gaia Lang](predicate-logic.md).
 
-The compiler handles formula claims via `gaia/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
+The compiler handles formula claims via `gaia/engine/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
 
-Two sugar helpers in `gaia/lang/dsl/sugar.py` map directly onto non-default
+Two sugar helpers in `gaia/engine/lang/dsl/sugar.py` map directly onto non-default
 `ClaimKind` values:
 
 | Sugar | Produces | `ClaimKind` |
@@ -279,13 +279,13 @@ Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
 
 ## 6. Bayes Module
 
-`gaia.lang.bayes` (loaded lazily via `from gaia.lang import bayes`) provides the lifted authoring surface for model-data likelihood updates:
+`gaia.engine.lang.bayes` (loaded lazily via `from gaia.engine.lang import bayes`) provides the lifted authoring surface for model-data likelihood updates:
 
 - **Distribution literals.** `bayes.Normal(mu=..., sigma=...)`, `bayes.Binomial(n=..., p=...)`, etc., backed by `scipy.stats`. They are typed values, not Knowledge nodes.
 - **`bayes.model(hypothesis, observable=..., distribution=...)`.** Returns a `PredictiveModel` action object that ties one hypothesis Claim to one predictive distribution over an observable Variable.
 - **`bayes.likelihood(data, model=..., against=[...], exclusivity=...)`.** Returns a `Likelihood` action object expressing model-preference. Lowers to `infer` strategies plus rigid relation operators expressing the chosen exclusivity contract (e.g., `exhaustive_pairwise_complement`).
 
-`bayes.model / bayes.likelihood` actions go through the standard action lowering pipeline ([§4](#4-action-lowering)); they share the `action_label_map` table and emit warrant helper Claims that the reviewer sees. See [bayes.md](bayes.md) for the executable Mendel example, the full distribution list, and `gaia check` diagnostics.
+`bayes.model / bayes.likelihood` actions go through the standard action lowering pipeline ([§4](#4-action-lowering)); they share the `action_label_map` table and emit warrant helper Claims that the reviewer sees. See [bayes.md](bayes.md) for the executable Mendel example, the full distribution list, and `gaia build check` diagnostics.
 
 Spec references: `docs/specs/2026-05-04-bayes-module-design.md` and `docs/specs/2026-05-05-bayes-actions-design.md`.
 
@@ -312,7 +312,7 @@ The v5 strategy DSL remains available for backward compatibility. **New v0.5 pac
 
 When legacy named-strategy verbs are used, the compiler still routes them through `formalize_named_strategy()` (`gaia/ir/formalize.py`), which expands them to a `FormalStrategy` containing helper claims plus a deterministic operator skeleton (conjunction + directed implication, optionally with extra equivalence / disjunction operators). The expansion preserves the behavior documented in the v5 reference; consult git history or `gaia/ir/formalize.py` for the per-strategy templates.
 
-Legacy `Strategy / CompositeStrategy / FormalStrategy / Operator` objects also remain importable from `gaia.lang` for type annotations and for code that constructs IR-shaped objects directly.
+Legacy `Strategy / CompositeStrategy / FormalStrategy / Operator` objects also remain importable from `gaia.engine.lang` for type annotations and for code that constructs IR-shaped objects directly.
 
 ---
 
@@ -408,7 +408,7 @@ Operators that emit a relation-result conclusion (`equivalence`, `contradiction`
 | `Infer` / `Associate` action | `Strategy` with explicit CPT + warrant helper `Knowledge` | warrant helper is the primary label resolution target |
 | `Equal` / `Contradict` / `Exclusive` action | `Operator` + helper `Knowledge` | top-level operator gets `lco_*` ID; helper is reviewable |
 | `Decompose` action | formula `Operator`s over `parts` + `Operator(equivalence, [whole, formula_helper])` | enforces atomic-parts match and acyclicity |
-| `@compose`-decorated function | `gaia.ir.Compose` first-class IR node | structure-hashed over inputs, child actions, conclusion, warrants |
+| `@compose`-decorated function | `gaia.engine.ir.Compose` first-class IR node | structure-hashed over inputs, child actions, conclusion, warrants |
 | `DependsOn` action | (not lowered) | authoring metadata only |
 
 Identity assignment:

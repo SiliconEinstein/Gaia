@@ -4,7 +4,7 @@
 
 本文档定义旧版 `ReviewOutput` 审查报告的数据契约。它描述的是早期
 agent self-review / future ReviewService 可能输出的概率化报告格式，不是
-当前 v0.5 `gaia infer` 的输入。当前本地 `gaia infer` 直接读取 compiled
+当前 v0.5 `gaia run infer` 的输入。当前本地 `gaia run infer` 直接读取 compiled
 IR、`priors.py` 写入的 claim metadata、连续推断记录和 dependency beliefs；
 它不消费 `ReviewOutput`，也不因为缺少审查报告而跳过 belief 输出。
 
@@ -87,7 +87,7 @@ ReviewOutput。当前 v0.5 本地 CLI 不再生成或读取该文件。
 
 ## 跨层引用
 
-- **当前本地推理**（`gaia infer` 如何从 compiled IR 和 priors 构造 factor graph）：参见 [../cli/inference.md](../cli/inference.md)
+- **当前本地推理**（`gaia run infer` 如何从 compiled IR 和 priors 构造 factor graph）：参见 [../cli/inference.md](../cli/inference.md)
 - **LKM 产出**（ReviewService 如何生成审查报告）：参见 [gaia-lkm](https://github.com/SiliconEinstein/gaia-lkm) 仓库
 
 ## 代码路径
