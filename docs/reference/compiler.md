@@ -5,4 +5,4 @@
 Package compilation entrypoints used to lower Gaia Lang packages into compiled
 artifacts.
 
-::: gaia.lang.compiler
+::: gaia.engine.lang.compiler

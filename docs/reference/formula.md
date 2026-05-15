@@ -4,4 +4,4 @@
 
 Predicate-logic terms, formula nodes, connectives, symbols, and quantifiers.
 
-::: gaia.lang.formula
+::: gaia.engine.lang.formula

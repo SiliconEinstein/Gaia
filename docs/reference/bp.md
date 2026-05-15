@@ -5,4 +5,4 @@
 Inference backend surface for factor graphs, lowering, exact inference, junction
 tree inference, TRW-BP, Mean Field VI, and engine results.
 
-::: gaia.bp
+::: gaia.engine.bp

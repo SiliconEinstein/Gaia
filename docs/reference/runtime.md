@@ -5,4 +5,4 @@
 Runtime objects backing the authoring DSL. These are the in-memory objects that
 the compiler reads before lowering to Gaia IR.
 
-::: gaia.lang.runtime
+::: gaia.engine.lang.runtime

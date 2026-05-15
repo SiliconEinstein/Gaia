@@ -4,4 +4,4 @@
 
 Reference extraction, resolution, loading, and collision checks.
 
-::: gaia.lang.refs
+::: gaia.engine.lang.refs
