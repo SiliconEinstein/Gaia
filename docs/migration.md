@@ -1,0 +1,221 @@
+# Migration to alpha 0
+
+Alpha 0 introduces the `gaia.engine.*` Python contract and reorganizes the
+CLI into 6 logical groups plus the independent `trace` sub-app. This guide
+covers the two migration layers you need to update:
+
+1. **CLI verb migration** — how to update `gaia <verb>` invocations.
+2. **Import path migration** — how to update `from gaia.<sub> import ...`
+   in your DSL files, your packages, and your own tooling.
+
+If you have an existing Gaia knowledge package built on a pre-alpha version,
+this is the work needed to get it green again. The CLI helpfully refuses to
+silently absorb old invocations: each removed flat verb dies with `exit 2`
+and a stderr message naming the new grouped form.
+
+---
+
+## Layer 1: CLI verb migration
+
+The historical 9 flat top-level verbs have been reorganized into 6 groups.
+`inquiry` and `trace` are sub-apps and were already groups; their internal
+subcommands are **unchanged**.
+
+| Old (flat — removed) | New (grouped) |
+|---|---|
+| `gaia init` | `gaia build init` |
+| `gaia compile` | `gaia build compile` |
+| `gaia check` | `gaia build check` |
+| `gaia infer` | `gaia run infer` |
+| `gaia render` | `gaia run render` |
+| `gaia starmap` | `gaia inspect starmap` |
+| `gaia starmap-replay` | `gaia inspect starmap-replay` |
+| `gaia add` | `gaia pkg add` |
+| `gaia register` | `gaia pkg register` |
+
+### Group cheat-sheet
+
+| Group | Members | Purpose |
+|---|---|---|
+| `build` | `init` / `compile` / `check` | Create and validate a knowledge package |
+| `run` | `infer` / `render` | Execute inference + emit presentation outputs |
+| `inspect` | `starmap` / `starmap-replay` | Visualize the compiled graph |
+| `review` | *(skeleton — no commands yet)* | Reserved for downstream reviewer tooling |
+| `inquiry` | `focus` / `review` / `obligation [add\|list\|close]` / `hypothesis [add\|list\|remove]` / `tactics log` / `reject` | Local semantic inquiry loop *(unchanged)* |
+| `pkg` | `add` / `register` | Install and publish packages |
+| `trace` | `verify` / `review` / `show` | ARM Trace tooling *(unchanged, independent)* |
+
+> **Note on `review` vs. `inquiry review` / `trace review`**: the new
+> top-level `gaia review` group is a help-visible empty skeleton in alpha 0;
+> it is **different** from the pre-existing `gaia inquiry review` and
+> `gaia trace review` inner subcommands, which keep their behavior and
+> invocation paths.
+
+### What happens if I run an old flat verb?
+
+Old flat verbs are tombstoned. Each prints a redirect to stderr and exits
+with code 2 — no side effects, no partial work:
+
+```console
+$ gaia compile ./my-pkg
+error: `gaia compile` was removed in alpha 0. Use `gaia build compile` instead.
+$ echo $?
+2
+```
+
+Per the alpha-0 cutover policy, there is no warn-and-execute alias window —
+the deprecation path is `error → remove`. If you have CI / shell aliases /
+Makefiles / docs invoking the flat form, update them now.
+
+### `check` option flags are unchanged
+
+`gaia build check` keeps the full historical option surface from
+`gaia check`:
+
+```
+--brief / --show / --hole / --warrants / --blind / --inquiry / --gate
+```
+
+All flags accept the same values, in the same order, with the same defaults.
+
+---
+
+## Layer 2: Import path migration
+
+Alpha 0 makes `gaia.engine.*` the canonical Python import path for engine
+code. The historical top-level `gaia.<sub>` packages are tombstoned: any
+attribute access on them raises `ImportError` with a redirect message
+pointing at the new path. A handful of symbols that used to live under
+`gaia.cli.*` have moved into the engine and follow the same pattern.
+
+### Namespace-level moves (6)
+
+Move every `from gaia.<sub> import X` to `from gaia.engine.<sub> import X`:
+
+| Old (tombstoned) | New |
+|---|---|
+| `from gaia.bp import X` | `from gaia.engine.bp import X` |
+| `from gaia.ir import X` | `from gaia.engine.ir import X` |
+| `from gaia.lang import X` | `from gaia.engine.lang import X` |
+| `from gaia.logic import X` | `from gaia.engine.logic import X` |
+| `from gaia.inquiry import X` | `from gaia.engine.inquiry import X` |
+| `from gaia.trace import X` | `from gaia.engine.trace import X` |
+
+Attribute access on any of the 6 old namespaces raises `ImportError` with a
+message of the form:
+
+> `gaia.<sub>.<symbol> has moved to gaia.engine.<sub>.<symbol>; this path
+> was never public API and is removed in alpha 0. Update imports to
+> 'gaia.engine.<sub>.<symbol>'.`
+
+### Symbol-level moves (12)
+
+Some CLI-internal helpers were promoted into `gaia.engine.*` so the engine
+contract is self-contained and the CLI is a thin facade. Update these
+specific imports:
+
+| Old | New |
+|---|---|
+| `from gaia.cli._packages import GaiaCliError` | `from gaia.engine.packaging import GaiaPackagingError` *(renamed)* |
+| `from gaia.cli._packages import apply_package_priors` | `from gaia.engine.packaging import apply_package_priors` |
+| `from gaia.cli._packages import collect_foreign_node_priors` | `from gaia.engine.packaging import collect_foreign_node_priors` |
+| `from gaia.cli._packages import compile_loaded_package_artifact` | `from gaia.engine.packaging import compile_loaded_package_artifact` |
+| `from gaia.cli._packages import ensure_package_env` | `from gaia.engine.packaging import ensure_package_env` |
+| `from gaia.cli._packages import load_dependency_compiled_graphs` | `from gaia.engine.packaging import load_dependency_compiled_graphs` |
+| `from gaia.cli._packages import load_gaia_package` | `from gaia.engine.packaging import load_gaia_package` |
+| `from gaia.cli.commands._review_manifest import load_or_generate_review_manifest` | `from gaia.engine.inquiry import load_or_generate_review_manifest` |
+| `from gaia.cli.commands.check_core import KnowledgeBreakdown` | `from gaia.engine.inquiry import KnowledgeBreakdown` |
+| `from gaia.cli.commands.check_core import analyze_knowledge_breakdown` | `from gaia.engine.inquiry import analyze_knowledge_breakdown` |
+| `from gaia.cli.commands.check_core import find_possible_duplicate_claims` | `from gaia.engine.inquiry import find_possible_duplicate_claims` |
+| `from gaia.cli.commands.check_core import HoleEntry` | `from gaia.engine.inquiry import HoleEntry` |
+
+**Rename detail**: `GaiaCliError` is now `GaiaPackagingError`. Catch sites
+need both the module path *and* the class name updated:
+
+```python
+# Before
+from gaia.cli._packages import GaiaCliError
+try:
+    ...
+except GaiaCliError as exc:
+    ...
+
+# After
+from gaia.engine.packaging import GaiaPackagingError
+try:
+    ...
+except GaiaPackagingError as exc:
+    ...
+```
+
+---
+
+## Notes for users with existing packages
+
+If you have a Gaia knowledge package created with an earlier version, two
+things need updating:
+
+### 1. Imports in your DSL files
+
+Every `__init__.py` / `*.py` under `src/<your_pkg>/` that imports from the
+gaia DSL needs its top-of-file import path swapped:
+
+```python
+# Before
+from gaia.lang import claim, derive, note
+
+# After
+from gaia.engine.lang import claim, derive, note
+```
+
+A simple sed sweep over your package is usually enough:
+
+```bash
+find src -name '*.py' -exec sed -i \
+  -e 's/^from gaia\.lang /from gaia.engine.lang /' \
+  -e 's/^from gaia\.bp /from gaia.engine.bp /' \
+  -e 's/^from gaia\.ir /from gaia.engine.ir /' \
+  -e 's/^from gaia\.logic /from gaia.engine.logic /' \
+  -e 's/^from gaia\.inquiry /from gaia.engine.inquiry /' \
+  -e 's/^from gaia\.trace /from gaia.engine.trace /' \
+  {} +
+```
+
+After updating, `gaia build compile ./your-pkg` should succeed against the
+alpha-0 install.
+
+### 2. CLI invocations in CI scripts, Makefiles, and docs
+
+Anywhere you call `gaia <verb>` in automation, prefix the new group name:
+
+```diff
+- gaia compile ./pkg
++ gaia build compile ./pkg
+
+- gaia infer ./pkg
++ gaia run infer ./pkg
+
+- gaia starmap ./pkg --out site.html
++ gaia inspect starmap ./pkg --out site.html
+```
+
+The CLI's redirect message also tells you exactly what to write — if you
+forget which group a verb landed in, just run the old form once and read the
+error.
+
+### 3. Newly scaffolded packages already use the new paths
+
+`gaia build init <name>-gaia` emits a DSL template using
+`from gaia.engine.lang import ...` out of the box. You only need step 1 for
+packages that pre-date alpha 0.
+
+---
+
+## Reference
+
+- 协作单 `VgdMw7N5NikAHIkFu6UckWuznHI` (二·共识) — original cutover spec
+- `gaia.cli.commands._flat_tombstones._FLAT_VERB_REDIRECTS` — machine-readable
+  map of flat-verb → grouped-form redirects (the source-of-truth for the
+  Layer 1 table above)
+- `gaia._legacy_imports` — `TOMBSTONED_NAMESPACES` and `TOMBSTONED_SYMBOLS`
+  dicts driving the Layer 2 ImportError stubs
