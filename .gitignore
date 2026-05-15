@@ -37,6 +37,7 @@ site/
 logs/
 *.log
 trace.md
+!docs/**/trace.md
 
 # Agent sidecar state
 
