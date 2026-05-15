@@ -2,7 +2,7 @@
 
 > **Status:** Current v0.5 canonical
 
-Practical cheat sheet for the Gaia Language v0.5 Python DSL. For the generated API reference, see [Gaia Lang DSL API](../reference/dsl.md).
+Practical cheat sheet for the Gaia Language v0.5 Python DSL. For the generated API reference, see [Gaia Lang DSL API](../reference/engine/lang/dsl.md).
 
 ## Package Structure
 

@@ -114,7 +114,7 @@ For foreign nodes, the compiler checks in order:
 
 Anonymous counter is sequential per compilation, producing deterministic IDs for unlabeled local nodes.
 
-QID semantics are defined in [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md); generated helper signatures are available in [Gaia IR API](../../reference/ir.md).
+QID semantics are defined in [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md); generated helper signatures are available in [Gaia IR API](../../reference/engine/ir.md).
 
 #### Named Strategy Formalization
 

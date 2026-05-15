@@ -3,7 +3,7 @@
 Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Gaia IR 设计、推理后端、审查管线和 CLI 工作流组织。
 
 与 Python 模块一一对应的 per-name API 文档不在这里维护；请看
-[Python API Reference](../reference/python-api.md)，它从当前代码的 docstring
+[Python API Reference](../reference/engine/index.md)，它从当前代码的 docstring
 和 type hints 自动生成。这里保留的是心智模型、设计边界、持久化契约和跨模块语义。
 
 ## theory/ — 理论基础
@@ -44,7 +44,7 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 - [谓词逻辑](gaia-lang/predicate-logic.md) — Variable、Domain、Formula AST、forall/exists 与 grounding/lowering 边界
 - [Bayes 语义](gaia-lang/bayes.md) — 模型、预测分布、似然和 Bayes action 的语义边界
 - [包模型](gaia-lang/package.md) — pyproject.toml、命名规范、目录布局、priors.py
-- [Python API Reference](../reference/python-api.md) — per-name API、signature 和 docstring 自动生成
+- [Python API Reference](../reference/engine/index.md) — per-name API、signature 和 docstring 自动生成
 
 ## Gaia IR — CLI 与 LKM 之间的共享契约
 
@@ -56,7 +56,7 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 - [参数定义](gaia-ir/06-parameterization.md) — 原子记录、resolution policy
 - [Lowering](gaia-ir/07-lowering.md) — Gaia IR 被 backend 消费时的 lowering 边界
 - [Validation](gaia-ir/08-validation.md) — Gaia IR 的结构校验与分层边界
-- [Gaia IR API](../reference/ir.md) — Pydantic models、字段、类型签名和源码入口自动生成
+- [Gaia IR API](../reference/engine/ir.md) — Pydantic models、字段、类型签名和源码入口自动生成
 
 ## BP — 基于 Gaia IR 的计算
 

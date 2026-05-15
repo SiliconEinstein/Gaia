@@ -749,7 +749,7 @@ closed proposition.
 
 ## 9. Relationship To Other Gaia Docs
 
-- [DSL API Reference](../../reference/dsl.md) lists the generated per-name API surface.
+- [DSL API Reference](../../reference/engine/lang/dsl.md) lists the generated per-name API surface.
 - [Knowledge Types and Reasoning Semantics](knowledge-and-reasoning.md)
   explains how `Claim.formula`, `ClaimKind`, actions, and formula lowering fit
   into the broader Gaia Lang model.

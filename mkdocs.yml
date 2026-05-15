@@ -107,17 +107,30 @@ nav:
           - Inference: foundations/cli/inference.md
           - Registration: foundations/cli/registration.md
   - API Reference:
-      - Overview: reference/python-api.md
-      - Gaia Lang:
-          - Public Surface: reference/gaia-lang.md
-          - Authoring DSL: reference/dsl.md
-          - Runtime Models: reference/runtime.md
-          - Formula AST: reference/formula.md
-          - Compiler: reference/compiler.md
-          - References: reference/refs.md
-      - Gaia IR:
-          - IR Models: reference/ir.md
-      - Belief Propagation: reference/bp.md
-      - CLI Internals: reference/cli.md
-      - Logic Utilities: reference/logic.md
+      - Engine:
+          - Overview: reference/engine/index.md
+          - bp: reference/engine/bp.md
+          - ir: reference/engine/ir.md
+          - lang: reference/engine/lang.md
+          - logic: reference/engine/logic.md
+          - inquiry: reference/engine/inquiry.md
+          - trace: reference/engine/trace.md
+          - packaging: reference/engine/packaging.md
+          - Lang Submodules:
+              - Authoring DSL: reference/engine/lang/dsl.md
+              - Runtime Models: reference/engine/lang/runtime.md
+              - Formula AST: reference/engine/lang/formula.md
+              - Compiler: reference/engine/lang/compiler.md
+              - References: reference/engine/lang/refs.md
+      - CLI:
+          - Overview: reference/cli/index.md
+          - build: reference/cli/build.md
+          - run: reference/cli/run.md
+          - inspect: reference/cli/inspect.md
+          - review: reference/cli/review.md
+          - inquiry: reference/cli/inquiry.md
+          - pkg: reference/cli/pkg.md
+          - trace: reference/cli/trace.md
+          - Internals: reference/cli/internals.md
+      - Migration to alpha 0: migration.md
   - Documentation Policy: documentation-policy.md

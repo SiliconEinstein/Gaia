@@ -1,0 +1,56 @@
+# Gaia Engine API
+
+> **Status:** Generated reference layer for `gaia.engine.*`.
+
+The `gaia.engine.*` namespace is the canonical Python contract for Gaia in
+alpha 0. It packages the inference backend, IR models, authoring DSL, logic
+utilities, semantic-inquiry state, ARM Trace primitives, and package-loading
+helpers behind seven facade submodules, each with an explicit `__all__`.
+
+The facade pattern lets package authors and downstream tooling import
+stable public names without depending on internal file layout. The 244
+symbols below are the **only** alpha-0 stable surface — anything reachable
+through deeper paths (`gaia.engine.bp.bp.X`, `gaia.engine.lang.dsl.X`, etc.)
+is implementation detail.
+
+## Facade modules
+
+| Module | Symbols | Use it for |
+|---|---|---|
+| [bp](bp.md) | 17 | Factor-graph lowering, exact inference, junction tree, TRW-BP, Mean Field VI, and engine results |
+| [ir](ir.md) | 32 | Pydantic IR models, graph contracts, strategies, operators, parameterization, and schemas |
+| [lang](lang.md) | 127 | Top-level imports exposed to package authors — claims, strategies, DSL verbs, runtime entities |
+| [logic](logic.md) | 7 | Small propositional-logic helpers used as a computation backend |
+| [inquiry](inquiry.md) | 45 | Semantic review / inquiry-loop state, diagnostics, focus, obligations, hypotheses |
+| [trace](trace.md) | 7 | ARM Trace schema, manifests, and review primitives |
+| [packaging](packaging.md) | 9 | Gaia package loading, compilation, and prior application |
+
+**Grand total: 244 symbols across 7 facades.**
+
+The `lang` facade subdivides further for browsability — see the supplementary
+pages under `engine/lang/` for DSL, runtime, formula, compiler, and refs
+breakdowns. The granular pages are documentation aids only; the public
+import path is always `gaia.engine.lang.X`.
+
+## Migrating from earlier versions
+
+Alpha 0 makes `gaia.engine.*` the canonical Python contract. The historical
+top-level `gaia.lang`, `gaia.bp`, `gaia.ir`, `gaia.logic`, `gaia.inquiry`,
+and `gaia.trace` namespaces are tombstoned: any attribute access on them
+raises `ImportError` with a redirect message. A handful of CLI-internal
+helpers also moved into the engine. See [Migration to alpha 0](../../migration.md)
+for the full import-path migration table.
+
+## Building these docs
+
+Build locally with:
+
+```bash
+make docs-build
+```
+
+Serve locally with:
+
+```bash
+make docs-serve
+```
