@@ -494,13 +494,18 @@ probability, and the evidence would appear under `not hypothesis` with another
 probability.
 
 ```python
-from gaia.lang import claim, infer
+from gaia.lang import claim, infer, observe
 
 hypothesis = claim("The material follows the proposed mechanism.")
-signature = claim("The spectrum shows the predicted peak.")
+evidence = claim("The observed spectrum shows the predicted peak.")
+
+observe(
+    evidence,
+    rationale="The peak is extracted from the measured spectrum.",
+)
 
 infer(
-    signature,
+    evidence,
     hypothesis=hypothesis,
     p_e_given_h=0.9,
     p_e_given_not_h=0.2,
