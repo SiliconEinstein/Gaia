@@ -3,7 +3,7 @@
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
 **Branch:** off `v0.5`
-**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Reasoning`, `candidate_relation`, `associate(pattern=...)`, and `compose`.
+**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Reasoning`, scaffold formalization targets, `candidate_relation`, `associate(pattern=...)`, and `compose`.
 **Non-goals:** No graph engine, no causal graph hierarchy, no `materialize()` DSL verb, no automatic scaffold-to-reasoning conversion.
 
 ## 1. Goal
@@ -110,7 +110,32 @@ There is no `tension` pattern. If the author knows the shape, use
 `"contradict"` or `"exclusive"`. If the author only knows that something is
 odd, use `pattern=None`.
 
-## 4. Reasoning
+## 4. Minimal Formalization Targets
+
+The scaffold-to-reasoning mapping should stay minimal. It is a target table,
+not a materialization system.
+
+When Gaia records scaffold, it should be able to explain what kind of reasoning
+the scaffold is waiting for:
+
+| Scaffold | Target reasoning |
+|---|---|
+| `depends_on(conclusion=c, given=[...])` | A future directed reasoning path from `given` to `c`, such as `derive`, `support`, `infer`, or a `compose` workflow. |
+| `candidate_relation(claims=[...], pattern=None)` | A future relation reasoning whose pattern is not classified yet. |
+| `candidate_relation(..., pattern="equal")` | A future equality-shaped relation. Soft evidence can be `associate(..., pattern="equal")`; hard reasoning is `equal(...)`. |
+| `candidate_relation(..., pattern="contradict")` | A future contradiction-shaped relation. Soft evidence can be `associate(..., pattern="contradict")`; hard reasoning is `contradict(...)`. |
+| `candidate_relation(..., pattern="exclusive")` | A future exclusivity-shaped relation. Soft evidence can be `associate(..., pattern="exclusive")`; hard reasoning is `exclusive(...)`. |
+
+This table is a reader-facing and tooling-facing contract only. It does not
+add a `materialize()` function, a scaffold resolution state, or an automatic
+coverage algorithm. The first implementation can derive the target text from
+the scaffold kind and `pattern` field.
+
+The scaffold remains a scaffold until the author edits the package. Adding a
+matching reasoning record does not automatically delete, close, or mutate the
+scaffold record.
+
+## 5. Reasoning
 
 `Reasoning` replaces the public mental model of `Action`. It means a formal
 reasoning record, not an arbitrary operation.
@@ -127,7 +152,7 @@ Existing reasoning families fit under it:
 - hard relation reasoning: `equal`, `contradict`, `exclusive`, `decompose`;
 - composed reasoning: `compose`.
 
-### 4.1 Hard relations
+### 5.1 Hard relations
 
 The hard relation verbs are explicit reasoning. They are not created
 automatically from scaffold records.
@@ -144,7 +169,7 @@ Minimal arity rules:
 - `exclusive` accepts two or more claims.
 - `contradict` accepts exactly two claims.
 
-## 5. `associate(pattern=...)`
+## 6. `associate(pattern=...)`
 
 `associate` remains a probabilistic soft constraint. It may optionally say what
 kind of hard relation this empirical association might support later.
@@ -164,7 +189,7 @@ associate(
 is recording a probabilistic relationship without claiming it points toward a
 specific hard relation.
 
-### 5.1 Pattern validation
+### 6.1 Pattern validation
 
 When `pattern` is not `None`, the declared pattern must agree with the two
 conditional probabilities. The validation is intentionally simple: it checks
@@ -205,7 +230,7 @@ positive or negative relative to the marginals `P(A)` and `P(B)`. The check
 only prevents the author from writing a pattern that points in the opposite
 direction of the probabilities they supplied.
 
-## 6. Compose
+## 7. Compose
 
 `Compose` is a `Reasoning` because compound reasoning is still reasoning.
 
@@ -226,7 +251,7 @@ This keeps the meaning simple:
 - reasoning is the formalized step;
 - compose names a reusable reasoning workflow.
 
-## 7. Manifest Shape
+## 8. Manifest Shape
 
 The scaffold manifest should represent the new API directly.
 
@@ -254,7 +279,7 @@ For reasoning records, existing compiler output can remain structurally similar
 at first. The public naming should move from "action" to "reasoning", but the
 initial implementation does not need to redesign the IR or BP schemas.
 
-## 8. Implementation Checklist
+## 9. Implementation Checklist
 
 Runtime:
 
@@ -288,6 +313,8 @@ Compiler and CLI:
 - Ensure scaffold records are not counted as reasoning in review, lowering, or
   BP.
 - Ensure `compose` captures only reasoning records.
+- Display scaffold formalization targets from the scaffold kind and `pattern`
+  field; do not add resolution states or coverage algorithms.
 - Update `gaia check` and `gaia inquiry` output for multi-claim candidate
   relations and `pattern=None`.
 
@@ -299,6 +326,8 @@ Tests:
 - `candidate_relation(claims=[a, b, c], pattern="exclusive")` is accepted.
 - `candidate_relation(claims=[a, b, c], pattern="contradict")` fails.
 - Public `tension` import is removed.
+- Scaffold target text is derived from `depends_on` or
+  `candidate_relation.pattern` without mutating the scaffold.
 - `associate(..., pattern=None)` preserves current association behavior.
 - `associate(..., pattern="equal")` requires both conditionals above `0.5`.
 - `associate(..., pattern="contradict")` requires both conditionals below
@@ -315,10 +344,12 @@ Docs:
 - Remove `tension` from public docs.
 - Explain that `associate(pattern=...)` is a soft probabilistic hint, not a
   hard relation.
+- Explain scaffold-to-reasoning mapping as formalization targets, not
+  automatic materialization.
 - Keep foundations docs aligned with the new `Knowledge` vs `GaiaGraph`
   split.
 
-## 9. Deferred Work
+## 10. Deferred Work
 
 The following ideas are compatible with this model but are intentionally out of
 scope for the first change:
