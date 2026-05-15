@@ -370,7 +370,7 @@ Gaia and reviewers that a dependency or relation matters, but they do not add a
 belief-propagation edge.
 
 ```python
-from gaia.lang import candidate_relation, claim, depends_on, tension
+from gaia.engine.lang import candidate_relation, claim, depends_on, tension
 
 model_prediction = claim("The model predicts a transition near 200 K.")
 reported_result = claim("The experiment reports a transition near 203 K.")
@@ -462,7 +462,7 @@ contradict(
 Hard constraints are not priors. Do not assign external priors to helper claims
 created by `equal`, `contradict`, `exclusive`, formula expressions, or
 `decompose`. Inference treats the declared structure as deterministic; review
-and `gaia check --gate` decide whether that structure is publish-quality.
+and `gaia build check --gate` decide whether that structure is publish-quality.
 
 Use `decompose(...)` when a composite claim has a precise internal truth
 condition. It is better than making one broad claim with hidden assumptions.
@@ -494,7 +494,7 @@ probability, and the evidence would appear under `not hypothesis` with another
 probability.
 
 ```python
-from gaia.lang import claim, infer, observe
+from gaia.engine.lang import claim, infer, observe
 
 hypothesis = claim("The material follows the proposed mechanism.")
 evidence = claim("The observed spectrum shows the predicted peak.")
@@ -518,7 +518,7 @@ hypothesis and neither is naturally the evidence, but the two are statistically
 linked.
 
 ```python
-from gaia.lang import associate, claim
+from gaia.engine.lang import associate, claim
 
 high_pressure = claim("The sample was synthesized above 150 GPa.")
 high_tc = claim("The sample has a transition temperature above 200 K.")
@@ -549,7 +549,7 @@ rather than from a hand-written judgment. This is the right tool for questions
 like "which hypothesis makes this count, measurement, or dataset more likely?"
 
 ```python
-from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
+from gaia.engine.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=295)

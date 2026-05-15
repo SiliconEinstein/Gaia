@@ -90,10 +90,10 @@ Current prior coverage for this example:
 | `medium_model` | MaxEnt | Independent model hypothesis with no sourced prior |
 | `vacuum_equal_fall_prediction` | derived | No external prior; produced from the medium-resistance model path |
 
-`gaia infer` is a local numerical preview over the compiled graph. It does not
+`gaia run infer` is a local numerical preview over the compiled graph. It does not
 require `.gaia/review_manifest.json` entries to be accepted before showing how
 the authored reasoning changes beliefs. Review status is still important for
-`gaia check --gate`, `gaia inquiry review`, traces, and publication decisions,
+`gaia build check --gate`, `gaia inquiry review`, traces, and publication decisions,
 but it is not a numeric prior and does not suppress local preview beliefs. The
 current compiled graph gives:
 
@@ -107,7 +107,7 @@ current compiled graph gives:
 The core DSL for this example is:
 
 ```python
-from gaia.lang import claim, contradict, derive, equal, note
+from gaia.engine.lang import claim, contradict, derive, equal, note
 
 # 📝 Background notes describe setups. They do not carry probabilities.
 thought_setup = note("Tied-body setup: a heavy body and a light body are bound together.")
@@ -179,7 +179,7 @@ start below; the complete runnable package lives in
 ## How it Works
 
 ```
-Python DSL  →  gaia compile  →  Gaia IR (factor graph)  →  gaia infer  →  beliefs
+Python DSL  →  gaia build compile  →  Gaia IR (factor graph)  →  gaia run infer  →  beliefs
 ```
 
 1. **Declare** claims, notes, actions, and relations using the Python DSL.
@@ -215,7 +215,7 @@ Published Gaia knowledge packages:
 ## CLI Workflow
 
 ```
-gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer → gaia render → /gaia:publish → gaia register
+gaia build init → gaia pkg add → /gaia:formalization → gaia build compile → gaia run infer → gaia run render → /gaia:publish → gaia pkg register
 (scaffold)  (add deps)  (author DSL + priors)  (DSL → IR)   (BP beliefs)  (present)    (fill narrative) (registry PR)
 ```
 
@@ -223,27 +223,27 @@ gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer �
 
 | Command | Purpose |
 |---------|---------|
-| `gaia init <name>` | Scaffold a new Gaia knowledge package |
-| `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
-| `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`, `.gaia/ir_hash`, compile metadata, package manifests) |
-| `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
-| `gaia check --brief [path]` | Show per-module warrant structure overview (claims, strategies, priors) |
-| `gaia check --show <name> [path]` | Expand a module or claim label with full warrant trees |
-| `gaia check --hole [path]` | Detailed prior review report for all independent claims (holes + covered) |
-| `gaia check --warrants [path]` | Export reviewable warrants and audit questions |
-| `gaia check --warrants --blind [path]` | Export warrants without status values or prior diagnostics for blank-slate review |
-| `gaia check --inquiry [path]` | Show goal-oriented reasoning progress and review status |
-| `gaia check --gate [path]` | Run publication-quality gate checks and exit non-zero on failure |
-| `gaia infer [path]` | Preview posterior beliefs from explicit priors and the compiled reasoning graph |
-| `gaia infer --depth 1 [path]` | Joint cross-package inference merging dependency factor graphs |
-| `gaia render --target github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
-| `gaia render --target docs [path]` | Generate per-module detailed reasoning to `docs/detailed-reasoning.md` |
-| `gaia render [path]` | Default: always render docs; also render GitHub output when fresh `.gaia/beliefs.json` exists (`--target all`) |
-| `gaia starmap [path]` | Emit a starmap of a Gaia knowledge package in three formats. Default `--format html` (`.gaia/starmap.html`): single-file interactive WebGL viewer (~10k nodes), double-click to open, no server required. `--format dot` (`.gaia/starmap.dot`): paper-ready Graphviz source. `--format svg` (`.gaia/starmap.svg`): rendered via Graphviz with embedded glow filters when `--theme stellaris`. `--theme {light,stellaris,dark}` (default `light`): `stellaris`/`dark` is a deep-space palette with sfdp force-directed layout, multi-layer SVG glows on contradictions, gold-edge support strategies, and root-claim highlight |
-| `gaia starmap-replay [path]` | Render an HTML replay from an LKM discovery run. Requires `artifacts/lkm-discovery/retrieval_log.jsonl` and `artifacts/lkm-discovery/graph_growth_log.jsonl`; default output is `.gaia/starmap-replay.html` |
+| `gaia build init <name>` | Scaffold a new Gaia knowledge package |
+| `gaia pkg add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
+| `gaia build compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`, `.gaia/ir_hash`, compile metadata, package manifests) |
+| `gaia build check [path]` | Validate package structure and IR consistency (used by registry CI) |
+| `gaia build check --brief [path]` | Show per-module warrant structure overview (claims, strategies, priors) |
+| `gaia build check --show <name> [path]` | Expand a module or claim label with full warrant trees |
+| `gaia build check --hole [path]` | Detailed prior review report for all independent claims (holes + covered) |
+| `gaia build check --warrants [path]` | Export reviewable warrants and audit questions |
+| `gaia build check --warrants --blind [path]` | Export warrants without status values or prior diagnostics for blank-slate review |
+| `gaia build check --inquiry [path]` | Show goal-oriented reasoning progress and review status |
+| `gaia build check --gate [path]` | Run publication-quality gate checks and exit non-zero on failure |
+| `gaia run infer [path]` | Preview posterior beliefs from explicit priors and the compiled reasoning graph |
+| `gaia run infer --depth 1 [path]` | Joint cross-package inference merging dependency factor graphs |
+| `gaia run render --target github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
+| `gaia run render --target docs [path]` | Generate per-module detailed reasoning to `docs/detailed-reasoning.md` |
+| `gaia run render [path]` | Default: always render docs; also render GitHub output when fresh `.gaia/beliefs.json` exists (`--target all`) |
+| `gaia inspect starmap [path]` | Emit a starmap of a Gaia knowledge package in three formats. Default `--format html` (`.gaia/starmap.html`): single-file interactive WebGL viewer (~10k nodes), double-click to open, no server required. `--format dot` (`.gaia/starmap.dot`): paper-ready Graphviz source. `--format svg` (`.gaia/starmap.svg`): rendered via Graphviz with embedded glow filters when `--theme stellaris`. `--theme {light,stellaris,dark}` (default `light`): `stellaris`/`dark` is a deep-space palette with sfdp force-directed layout, multi-layer SVG glows on contradictions, gold-edge support strategies, and root-claim highlight |
+| `gaia inspect starmap-replay [path]` | Render an HTML replay from an LKM discovery run. Requires `artifacts/lkm-discovery/retrieval_log.jsonl` and `artifacts/lkm-discovery/graph_growth_log.jsonl`; default output is `.gaia/starmap-replay.html` |
 | `gaia inquiry review [path]` | Semantic review loop. Runs BP and surfaces diagnostic findings on the package (low-belief leaves, contradictions, hypothesis equipoise, etc.). Subcommands: `focus`, `reject`, `obligation`, `hypothesis`, `tactics` for managing the inquiry state |
 | `gaia trace verify <trace>` | ARM execution-trace tooling. `verify`: schema + hash-chain check. `review`: full eight-section review. `show`: print event stream in `tactic_log` style |
-| `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
+| `gaia pkg register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
 
 ## Quick Start
 
@@ -252,7 +252,7 @@ This walkthrough uses the Galileo example from above.
 **1. Initialize and write code**
 
 ```bash
-gaia init galileo-falling-bodies-gaia
+gaia build init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
 ```
 
@@ -261,8 +261,8 @@ Place the DSL code from the Quick Example into `src/galileo_falling_bodies/__ini
 **2. Compile and validate**
 
 ```bash
-gaia compile .
-gaia check .
+gaia build compile .
+gaia build check .
 ```
 
 **3. Assign informative priors** for independent probabilistic inputs via `priors.py`:
@@ -270,7 +270,7 @@ gaia check .
 `src/galileo_falling_bodies/priors.py`:
 
 ```python
-from gaia.lang import register_prior
+from gaia.engine.lang import register_prior
 
 from . import daily_observation
 
@@ -288,17 +288,17 @@ The v0.5 prior contract is deliberately strict:
 - Do not assign priors to claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)`; BP marginalizes them from the declared graph.
 - Do not assign priors to structural/helper claims from `~`, `&`, `|`, `infer(...)`, `associate(...)`, `equal(...)`, `contradict(...)`, `exclusive(...)`, or generated formalization helpers.
 - Do not export the legacy `PRIORS = {...}` dict from `priors.py`; v0.5+ rejects it. Use `register_prior(...)` so each prior has explicit source provenance and can participate in multi-source resolution.
-- Do not register a `0.5` prior merely to say "neutral". If a model hypothesis has no sourced prior information yet, leave it unset and let `gaia check --hole .` report it as MaxEnt. Claims reported as MaxEnt are independent degrees of freedom without external priors; leaving them unset means Gaia uses the maximum-entropy distribution over those free variables, subject to the hard logical constraints already declared.
+- Do not register a `0.5` prior merely to say "neutral". If a model hypothesis has no sourced prior information yet, leave it unset and let `gaia build check --hole .` report it as MaxEnt. Claims reported as MaxEnt are independent degrees of freedom without external priors; leaving them unset means Gaia uses the maximum-entropy distribution over those free variables, subject to the hard logical constraints already declared.
 
 **4. Infer and publish**
 
 ```bash
-gaia compile .                    # re-compile to inject priors into metadata
-gaia infer .                      # compute beliefs via belief propagation
-gaia render . --target github     # generate GitHub presentation skeleton
+gaia build compile .                    # re-compile to inject priors into metadata
+gaia run infer .                      # compute beliefs via belief propagation
+gaia run render . --target github     # generate GitHub presentation skeleton
 ```
 
-Then use `/gaia:publish` to fill in the narrative, and `gaia register` to submit to the official registry.
+Then use `/gaia:publish` to fill in the narrative, and `gaia pkg register` to submit to the official registry.
 
 For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 

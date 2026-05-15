@@ -53,13 +53,13 @@ a migration and narrowing, not a from-scratch feature.
 
 | Current surface | Current location | Target in this spec |
 |---|---|---|
-| `Action` | `gaia/lang/runtime/action.py` | Rename or alias to public/runtime `Reasoning`. |
-| `Scaffold(Action)` | `gaia/lang/runtime/action.py` | Move under `GaiaGraph`, not under `Reasoning`. |
-| `DependsOn(Scaffold)` | `gaia/lang/runtime/action.py` | Keep as scaffold, but make `depends_on(...)` return the scaffold record. |
-| `CandidateRelation(Scaffold)` | `gaia/lang/runtime/action.py` | Keep as scaffold, but replace binary `a`/`b` + `proposed` with `claims` + `pattern`. |
-| `candidate_relation(a, b, proposed=...)` | `gaia/lang/dsl/scaffold.py` | Replace with `candidate_relation(claims=[...], pattern=...)`. |
-| `tension(...)` wrapper | `gaia/lang/dsl/scaffold.py` and public exports | Remove from public DSL; use `pattern=None`, `"contradict"`, or `"exclusive"`. |
-| `@compose` capture | `gaia/lang/runtime/composition.py` | Filter scaffold out of composed reasoning records. |
+| `Action` | `gaia/engine/lang/runtime/action.py` | Rename or alias to public/runtime `Reasoning`. |
+| `Scaffold(Action)` | `gaia/engine/lang/runtime/action.py` | Move under `GaiaGraph`, not under `Reasoning`. |
+| `DependsOn(Scaffold)` | `gaia/engine/lang/runtime/action.py` | Keep as scaffold, but make `depends_on(...)` return the scaffold record. |
+| `CandidateRelation(Scaffold)` | `gaia/engine/lang/runtime/action.py` | Keep as scaffold, but replace binary `a`/`b` + `proposed` with `claims` + `pattern`. |
+| `candidate_relation(a, b, proposed=...)` | `gaia/engine/lang/dsl/scaffold.py` | Replace with `candidate_relation(claims=[...], pattern=...)`. |
+| `tension(...)` wrapper | `gaia/engine/lang/dsl/scaffold.py` and public exports | Remove from public DSL; use `pattern=None`, `"contradict"`, or `"exclusive"`. |
+| `@compose` capture | `gaia/engine/lang/runtime/composition.py` | Filter scaffold out of composed reasoning records. |
 
 There is no current core `Predict` runtime class in the active tree. This spec
 does not add one; a future prediction-specific directed record can be designed
@@ -83,7 +83,7 @@ The compiler assigns stable references to `GaiaGraph` records, just as it
 already assigns references to lowered reasoning and scaffold entries. This
 shared reference mechanism is needed so that:
 
-- scaffold records can be displayed in `gaia check` and `gaia inquiry`;
+- scaffold records can be displayed in `gaia build check` and `gaia inquiry`;
 - reasoning records can be reviewed and cited by label;
 - `compose` can point to child reasoning records;
 - future graph exports can show scaffold, reasoning, and composition together.
@@ -147,7 +147,7 @@ two-claim reading: the two claims cannot both hold. Multi-claim incompatibility
 should be expressed as `"exclusive"` or as several explicit binary
 contradictions after the shape is known.
 
-`pattern=None` still appears in `gaia check` and `gaia inquiry` as unresolved
+`pattern=None` still appears in `gaia build check` and `gaia inquiry` as unresolved
 scaffold. It must not lower into BP, close a hole, or imply any formal
 relation.
 
@@ -212,7 +212,7 @@ Future causal example:
 rel = candidate_relation(claims=[exposure, outcome], pattern=None)
 
 # Future CausalEdge API after the marker-only `causes(...)` formula helper is
-# removed; this is not today's `gaia.lang.dsl.formula.causes(...)`.
+# removed; this is not today's `gaia.engine.lang.dsl.formula.causes(...)`.
 edge = causes(
     exposure,
     outcome,
@@ -527,7 +527,7 @@ Compiler and CLI:
 - Emit materialization records outside the BP-facing IR.
 - Validate `materialize(...)` with the minimum type, claim-reference, ambiguity,
   and pattern-consistency checks in §5.2.
-- Update `gaia check` and `gaia inquiry` output for multi-claim candidate
+- Update `gaia build check` and `gaia inquiry` output for multi-claim candidate
   relations and `pattern=None`.
 
 Tests:

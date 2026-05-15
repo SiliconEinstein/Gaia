@@ -71,12 +71,12 @@ The active Python causal surface is limited to:
 
 | Surface | Current location | Current behavior |
 |---|---|---|
-| `Causes` formula node | `gaia/lang/formula/predicate.py` | Typed formula marker with `cause` and `effect` terms. |
-| `causes(...)` helper | `gaia/lang/dsl/formula.py` | Constructs a `Causes` formula. |
-| `causal(...)` sugar | `gaia/lang/dsl/sugar.py` | Creates a `Claim` with `formula=Causes(...)` and `kind=ClaimKind.CAUSAL`. |
-| `ClaimKind.CAUSAL` | `gaia/lang/runtime/knowledge.py` | Classifies a top-level causal marker claim. |
-| formula lowering metadata | `gaia/lang/compiler/lower_formula.py` | Records metadata such as `formula_atom.kind = "causes"` and `metadata["causal"]`. |
-| public exports | `gaia/lang/__init__.py`, `gaia/lang/dsl/__init__.py`, `gaia/lang/formula/__init__.py` | Expose causal marker names. |
+| `Causes` formula node | `gaia/engine/lang/formula/predicate.py` | Typed formula marker with `cause` and `effect` terms. |
+| `causes(...)` helper | `gaia/engine/lang/dsl/formula.py` | Constructs a `Causes` formula. |
+| `causal(...)` sugar | `gaia/engine/lang/dsl/sugar.py` | Creates a `Claim` with `formula=Causes(...)` and `kind=ClaimKind.CAUSAL`. |
+| `ClaimKind.CAUSAL` | `gaia/engine/lang/runtime/knowledge.py` | Classifies a top-level causal marker claim. |
+| formula lowering metadata | `gaia/engine/lang/compiler/lower_formula.py` | Records metadata such as `formula_atom.kind = "causes"` and `metadata["causal"]`. |
+| public exports | `gaia/engine/lang/__init__.py`, `gaia/engine/lang/dsl/__init__.py`, `gaia/engine/lang/formula/__init__.py` | Expose causal marker names. |
 
 The active tree does not contain a core `Predict` runtime class or public
 `predict(...)` verb. This refactor should not introduce one. Historical specs
@@ -87,7 +87,7 @@ parents today: `PredictiveModel(Action)` and `Likelihood(Probabilistic)`.
 Only `Likelihood` currently inherits from `Probabilistic`.
 
 There is no active `gaia/causal` runtime package in the current tree. The
-`gaia/trace/*` "Causal Health" text is trace-review rubric content, not Gaia
+`gaia/engine/trace/*` "Causal Health" text is trace-review rubric content, not Gaia
 Lang causal DSL code, and is out of scope for this cleanup.
 
 ## 3. Target Runtime Hierarchy
@@ -281,10 +281,10 @@ lowering-specific dispatch.
 
 Implementation should audit at least these dispatch-sensitive areas:
 
-- action registration and lowering in `gaia/lang/compiler/compile.py`;
-- role projection in `gaia/lang/runtime/roles.py`;
-- compose input/output inference in `gaia/lang/runtime/composition.py`;
-- Bayes lowering in `gaia/lang/bayes/compiler/lower.py`;
+- action registration and lowering in `gaia/engine/lang/compiler/compile.py`;
+- role projection in `gaia/engine/lang/runtime/roles.py`;
+- compose input/output inference in `gaia/engine/lang/runtime/composition.py`;
+- Bayes lowering in `gaia/engine/lang/bayes/compiler/lower.py`;
 - inquiry/check code that reads action labels, warrants, or review targets.
 
 ### 4.2 Bayes opt-in records
@@ -307,15 +307,15 @@ Delete the current marker-only causal surface from active Gaia Lang.
 
 Remove:
 
-- `Causes` from `gaia/lang/formula/predicate.py`;
-- `causes(...)` from `gaia/lang/dsl/formula.py`;
-- `causal(...)` and `_causal_content(...)` from `gaia/lang/dsl/sugar.py`;
-- `ClaimKind.CAUSAL` from `gaia/lang/runtime/knowledge.py`;
+- `Causes` from `gaia/engine/lang/formula/predicate.py`;
+- `causes(...)` from `gaia/engine/lang/dsl/formula.py`;
+- `causal(...)` and `_causal_content(...)` from `gaia/engine/lang/dsl/sugar.py`;
+- `ClaimKind.CAUSAL` from `gaia/engine/lang/runtime/knowledge.py`;
 - `Causes` imports/exports from:
-  - `gaia/lang/formula/__init__.py`;
-  - `gaia/lang/dsl/__init__.py`;
-  - `gaia/lang/__init__.py`;
-- `Causes` lowering branches from `gaia/lang/compiler/lower_formula.py`,
+  - `gaia/engine/lang/formula/__init__.py`;
+  - `gaia/engine/lang/dsl/__init__.py`;
+  - `gaia/engine/lang/__init__.py`;
+- `Causes` lowering branches from `gaia/engine/lang/compiler/lower_formula.py`,
   including both `metadata["causal"]` emission and the `_term_descriptor`
   descriptor branch that emits `kind = "causes"`;
 - user-facing imports and examples that present `causal`, `causes`, or
@@ -334,7 +334,7 @@ Update or delete tests:
 
 Do not delete:
 
-- `gaia/trace/*` causal-health review text;
+- `gaia/engine/trace/*` causal-health review text;
 - historical design specs under `docs/specs/2026-05-06-causal-*`;
 - prose mentions in archived or excluded design records.
 
@@ -432,7 +432,7 @@ Minimum tests:
 - `issubclass(PredictiveModel, Reasoning)` and not `issubclass(PredictiveModel, Directed)`.
 - `issubclass(Likelihood, Directed)`.
 - `Decompose.parts` remains `tuple[Claim, ...]` and non-Claim parts still fail.
-- Causal marker names are no longer exported from `gaia.lang`.
+- Causal marker names are no longer exported from `gaia.engine.lang`.
 - A formula with `Causes(...)` can no longer be constructed through public DSL.
 - `Compose.actions` does not contain `DependsOn` or other scaffold records
   after the GaiaGraph scaffold migration.

@@ -282,7 +282,7 @@ Minimum tests for the migration:
   with exactly one `from_actions` producer.
 - `materialize(scaffold, by=returned_helper)` asks for a label when the helper
   has zero or multiple attached reasoning records.
-- `gaia check` and `gaia inquiry` review-manifest counts remain stable after
+- `gaia build check` and `gaia inquiry` review-manifest counts remain stable after
   removing relation/Bayes self-warrants, except for the intentional difference
   between primary helper review targets and separate warrants.
 
