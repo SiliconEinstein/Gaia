@@ -227,8 +227,8 @@ theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=295)
 n = 395
 
-h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.", prior=0.5)
-h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.", prior=0.5)
+h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.")
+h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.")
 
 data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
 observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
@@ -263,6 +263,11 @@ contradiction relations among the compared hypotheses. Use
 `"exhaustive_pairwise_complement"` when exactly one listed hypothesis should be
 true.
 
+The example leaves the two hypotheses without external priors. Gaia then uses
+the maximum-entropy starting point subject to the declared exclusivity relation.
+If you have an informative source for a hypothesis prior, put it in `priors.py`
+with `register_prior(...)` instead of writing `0.5` just to mean "neutral."
+
 ## Structured Formula Claims
 
 Formula claim sugar creates ordinary `Claim` objects with structured `formula`
@@ -282,7 +287,6 @@ mendelian_p = parameter(
     p,
     0.75,
     describe="Mendelian 3:1 segregation fixes P(dominant) at 0.75.",
-    prior=0.5,
 )
 ```
 
@@ -332,35 +336,139 @@ co2_causes_temp = causal(
 
 ## Recommended Actions
 
-Action verbs are the v0.5 main path for connecting claims. Support verbs, `infer(...)`, and `decompose(...)` return the produced or affected claim. Relation-shaped verbs such as `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return generated helper claims because the relation itself is the review target. Scaffold verbs record authoring work that is not ready to enter formal semantics.
+Actions are how you connect claims. A claim says "this statement may be true or
+false"; an action says why that claim is observed, derived, related to another
+claim, or still waiting for more formalization.
 
-| Function | Use when |
-|----------|----------|
-| `observe(conclusion, *, given=(), background=None, rationale="")` | An empirical observation or measurement supports the conclusion |
-| `derive(conclusion, *, given=(), background=None, rationale="")` | The conclusion follows deterministically from explicit premises |
-| `compute(ClaimType, *, fn=None, given=(), background=None, rationale="")` | A deterministic Python computation produces the conclusion |
-| `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, rationale="")` | A probabilistic prediction/evidence link remains; returns the evidence claim and keeps an internal likelihood warrant |
-| `decompose(whole, *, parts, formula, rationale="")` | A composite claim's truth condition is a formula over atomic part claims; returns the whole claim |
-| `associate(a, b, *, p_a_given_b, p_b_given_a, rationale="")` | A symmetric probabilistic association remains; returns an association helper claim |
-| `depends_on(conclusion, *, given, background=None, rationale="")` | A conclusion has load-bearing dependencies that still need formalization |
-| `candidate_relation(a, b, *, proposed, background=None, rationale="")` | Two claims may have a relation, but the relation is not formalized yet |
-| `tension(a, b, *, background=None, rationale="")` | Shorthand for a candidate scientific tension between two claims |
-| `@compose(name, version, background=None, warrants=None, rationale="", label=None)` | A reusable Python workflow should be reviewed as one named action DAG |
+The most important habit is to choose the weakest action that honestly matches
+what you know. Do not hide uncertainty inside prose. If the step is unfinished,
+mark it as scaffold. If it is logical, make it a hard constraint. If it is
+probabilistic, write down the probability model that justifies the update.
+
+### Choosing the right kind of action
+
+| Kind | Functions | Use when | Enters inference? |
+|------|-----------|----------|-------------------|
+| Scaffold notes | `depends_on`, `candidate_relation`, `tension` | You know there is a dependency or relation, but you are not ready to make it formal | No. Stored in `.gaia/formalization_manifest.json` |
+| Empirical observations | `observe` | A measurement, data extraction, or reported fact grounds a claim | Yes. A zero-premise observation pins the claim near true |
+| Logical hard constraints | `derive`, `compute`, `decompose`, `equal`, `contradict`, `exclusive`, formula claims | If the premises are true, the conclusion or relation should follow as a matter of logic or definition | Yes. Lowered as deterministic factors |
+| Hand-written probabilistic soft constraints | `infer`, `associate` | You are directly committing to conditional probabilities or an association strength | Yes. Lowered as probabilistic factors |
+| Model-based Bayesian soft constraints | `bayes.model`, `bayes.likelihood` | The probabilities come from a statistical model, distribution, and observed data | Yes. Lowered to likelihood-style probabilistic factors and reviewable relations |
+| Composed workflows | `@compose` | A Python function groups several actions into one named workflow | The child actions enter inference according to their own kinds |
+
+This split exists for a practical reason: reviewers and downstream users need
+to know what kind of commitment each line makes. A scaffold note says "work
+remains." A hard constraint says "this relation should always hold." A soft
+constraint says "this relation changes probabilities, and here is the numeric
+model." Gaia keeps those roles separate so that unfinished work does not
+silently become evidence, and probabilistic assumptions do not look like logic.
+
+### Scaffold actions: record work that is not formal yet
+
+Use scaffold actions while drafting. They are honest placeholders: they tell
+Gaia and reviewers that a dependency or relation matters, but they do not add a
+belief-propagation edge.
 
 ```python
-measurement = observe("Measured Tc is near 39 K.", rationale="Reported in the experiment.")
-prediction = derive("BCS model predicts a finite Tc.", given=model, rationale="From the model equations.")
-matched = equal(prediction, measurement, rationale="The prediction matches the measured regime.")
+from gaia.lang import candidate_relation, claim, depends_on, tension
+
+model_prediction = claim("The model predicts a transition near 200 K.")
+reported_result = claim("The experiment reports a transition near 203 K.")
+calibration = claim("The thermometer calibration is reliable.")
+
+depends_on(
+    reported_result,
+    given=[calibration],
+    rationale="The result depends on a calibration argument that still needs formalization.",
+)
+
+candidate_relation(
+    model_prediction,
+    reported_result,
+    proposed="equal",
+    rationale="These may describe the same transition after unit and regime checks.",
+)
+
+tension(
+    model_prediction,
+    reported_result,
+    rationale="If the regimes differ, this may become a real disagreement.",
+)
 ```
 
-If a step feels uncertain, first ask whether the uncertain part should become a separate premise. Use `infer(...)` only for the remaining probabilistic relation after that extraction.
+Use scaffold actions when you would otherwise write a vague claim like "this is
+supported somehow." Later, replace them with `derive`, `observe`, `equal`,
+`contradict`, `associate`, or a Bayes model once the relation is precise.
 
-`infer(...)` creates an internal likelihood helper for review but returns the evidence claim. `associate(...)`, `equal(...)`, `contradict(...)`, and `exclusive(...)` return helper claims directly. All helper claims are review targets, not independent probabilistic inputs, so do not assign external priors to them. `depends_on(...)`, `candidate_relation(...)`, and `tension(...)` compile only to `.gaia/formalization_manifest.json`; they create no strategy, operator, helper claim, or BP factor.
+### Empirical observations: say what was seen or measured
 
-`decompose(...)` is for composite claims whose internal truth condition should be
-reviewable and prior-aware. It compiles to a generated formula helper plus an
-equivalence operator, but `gaia build check --hole` treats the atomic `parts` as the
-independent prior candidates and skips the generated helpers.
+Use `observe(...)` for empirical grounding. With no `given`, it means the claim
+records an observation or measurement event, so Gaia pins the claim near true
+using Cromwell's rule. The observation still has a reviewable rationale.
+
+```python
+from gaia.engine.lang import claim, observe
+
+reported_count = claim("The paper reports 295 dominant phenotypes out of 395 F2 plants.")
+
+observe(
+    reported_count,
+    rationale="Extracted from the experiment's count table.",
+)
+```
+
+Use `observe(distribution, value=..., error=...)` when the observed object is a
+continuous quantity. That form creates an observed claim for the measurement
+event and records the value, uncertainty, unit, and source metadata.
+
+Do not use `observe` to mean "I believe this theory." Observations are for
+data, measurements, extracted facts, and reported results. A theory hypothesis
+should usually be a normal `claim(...)` with a prior in `priors.py`, or left
+unset so MaxEnt can treat it as neutral.
+
+### Logical hard constraints: say what must follow
+
+Use logical actions when the connection is deterministic. The test is simple:
+if the premises are all true, should the conclusion or relation be true as a
+matter of logic, definition, or exact computation?
+
+```python
+from gaia.engine.lang import claim, contradict, derive, equal
+
+law = claim("In the model, all bodies in vacuum fall with the same acceleration.")
+case = claim("The two balls are in vacuum.")
+prediction = claim("The two balls hit the ground at the same time.")
+
+derive(
+    prediction,
+    given=[law, case],
+    rationale="Apply the model law to this case.",
+)
+
+reported = claim("The experiment reports simultaneous impact.")
+equal(
+    prediction,
+    reported,
+    rationale="The predicted and reported qualitative outcome match.",
+)
+
+contradict(
+    prediction,
+    claim("The heavier ball lands earlier in the same setup."),
+    rationale="Both outcomes cannot hold for the same pair of balls and setup.",
+)
+```
+
+Hard constraints are not priors. Do not assign external priors to helper claims
+created by `equal`, `contradict`, `exclusive`, formula expressions, or
+`decompose`. Inference treats the declared structure as deterministic; review
+and `gaia check --gate` decide whether that structure is publish-quality.
+
+Use `decompose(...)` when a composite claim has a precise internal truth
+condition. It is better than making one broad claim with hidden assumptions.
+It compiles to a generated formula helper plus an equivalence operator, but
+`gaia build check --hole` treats the atomic `parts` as the independent prior
+candidates and skips the generated helpers.
 
 ```python
 composite = claim("The model succeeds in the stated regime.")
@@ -375,6 +483,117 @@ decompose(
     rationale="Success means prediction holds, and calibration implies measurement reliability.",
 )
 ```
+
+### Hand-written probabilistic soft constraints: use sparingly
+
+Use `infer(...)` or `associate(...)` when the relationship is genuinely
+probabilistic and you are willing to write the numbers yourself.
+
+`infer(...)` is directional: a hypothesis predicts evidence with one
+probability, and the evidence would appear under `not hypothesis` with another
+probability.
+
+```python
+from gaia.lang import claim, infer
+
+hypothesis = claim("The material follows the proposed mechanism.")
+signature = claim("The spectrum shows the predicted peak.")
+
+infer(
+    signature,
+    hypothesis=hypothesis,
+    p_e_given_h=0.9,
+    p_e_given_not_h=0.2,
+    rationale="The peak is common under the mechanism and rare otherwise.",
+)
+```
+
+`associate(...)` is symmetric. Use it when neither claim is naturally the
+hypothesis and neither is naturally the evidence, but the two are statistically
+linked.
+
+```python
+from gaia.lang import associate, claim
+
+high_pressure = claim("The sample was synthesized above 150 GPa.")
+high_tc = claim("The sample has a transition temperature above 200 K.")
+
+associate(
+    high_pressure,
+    high_tc,
+    p_a_given_b=0.8,
+    p_b_given_a=0.6,
+    rationale="In this family, high-Tc reports mostly come from high-pressure samples.",
+)
+```
+
+Before using either function, try to extract hidden assumptions into separate
+claims. If you are tempted to write "this seems likely because many things line
+up," you probably need more claims and hard relations first. Use a soft
+constraint only for the remaining numeric uncertainty.
+
+`infer(...)` returns the evidence claim and creates an internal likelihood
+warrant for review. `associate(...)` returns an association helper claim because
+the association itself is the review target. These helper claims are not
+independent probabilistic inputs, so do not put priors on them.
+
+### Model-based Bayesian soft constraints: prefer this for real data likelihoods
+
+Use the `bayes` module when the probability comes from a statistical model
+rather than from a hand-written judgment. This is the right tool for questions
+like "which hypothesis makes this count, measurement, or dataset more likely?"
+
+```python
+from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
+
+theta = Variable(symbol="theta", domain=Probability)
+k = Variable(symbol="k", domain=Nat, value=295)
+n = 395
+
+h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.")
+h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.")
+
+data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
+observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
+
+model_3_1 = bayes.model(
+    h_3_1,
+    observable=k,
+    distribution=bayes.Binomial(n=n, p=theta),
+    rationale="If h_3_1 holds, k follows Binomial(n=395, p=0.75).",
+)
+model_null = bayes.model(
+    h_null,
+    observable=k,
+    distribution=bayes.Binomial(n=n, p=theta),
+    rationale="If h_null holds, k follows Binomial(n=395, p=0.5).",
+)
+
+bayes.likelihood(
+    data,
+    model=model_3_1,
+    against=[model_null],
+    exclusivity="exhaustive_pairwise_complement",
+    rationale="Compare the observed count under both hypotheses.",
+)
+```
+
+Prefer `bayes.model(...)` + `bayes.likelihood(...)` over hand-written
+`infer(...)` when you have a real likelihood function. It makes the model, the
+observable, the data, and the competing hypotheses explicit, which gives
+reviewers something concrete to inspect.
+
+### Return values and priors
+
+Support-like actions (`observe`, `derive`, `compute`, and `infer`) return the
+claim they produce or affect. Relation-shaped actions (`associate`, `equal`,
+`contradict`, and `exclusive`) return generated helper claims because the
+relation itself is the public review target. Scaffold actions return scaffold
+records and do not create BP factors.
+
+External priors belong on independent input claims, usually through
+`priors.py`. They do not belong on derived conclusions, helper claims, scaffold
+records, or deterministic relation helpers.
 
 ## Operators (Deterministic Constraints)
 
@@ -554,7 +773,7 @@ Experimental named pattern for inference to best explanation. Takes three **Stra
 
 ```python
 s_h = support([hypothesis], obs, reason="H explains obs.", prior=0.9)
-s_alt = support([alternative], obs, reason="Alt explains obs.", prior=0.5)
+s_alt = support([alternative], obs, reason="Alt weakly explains obs.", prior=0.4)
 comp = compare(pred_h, pred_alt, obs, reason="H matches better.", prior=0.9)
 
 abd = abduction(s_h, s_alt, comp,
@@ -695,18 +914,18 @@ already exist in the package:
 # src/my_package/priors.py
 from gaia.engine.lang import register_prior
 
-from . import obs, hypothesis
+from . import high_quality_dataset, mechanism_plausible
 
 register_prior(
-    obs,
+    high_quality_dataset,
     0.9,
-    justification="Well-documented experimental result.",
+    justification="Independent replication confirms the dataset quality.",
 )
 
 register_prior(
-    hypothesis,
-    0.5,
-    justification="Theoretical prediction, not yet confirmed.",
+    mechanism_plausible,
+    0.7,
+    justification="Previous measurements in the same material family support this mechanism.",
 )
 ```
 
