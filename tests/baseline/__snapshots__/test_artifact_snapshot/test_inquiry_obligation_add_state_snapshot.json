@@ -1,0 +1,34 @@
+{
+  "artifacts": {
+    "files": [
+      {
+        "content": "{\n  \"version\": 2,\n  \"focus\": null,\n  \"focus_kind\": null,\n  \"focus_resolved_id\": null,\n  \"mode\": \"auto\",\n  \"last_review_id\": null,\n  \"baseline_review_id\": null,\n  \"focus_stack\": [],\n  \"synthetic_obligations\": [\n    {\n      \"qid\": \"oblig_<QID8>\",\n      \"target_qid\": \"some-target\",\n      \"content\": \"Need to verify this claim\",\n      \"diagnostic_kind\": \"other\",\n      \"anchor\": {},\n      \"created_at\": \"<ISO_TS>\"\n    }\n  ],\n  \"synthetic_hypotheses\": [],\n  \"synthetic_rejections\": []\n}",
+        "kind": "text",
+        "path": "inquiry/state.json"
+      },
+      {
+        "content": "{\"timestamp\": \"<ISO_TS>\", \"event\": \"obligation_add\", \"payload\": {\"qid\": \"oblig_<QID8>\", \"target_qid\": \"some-target\", \"kind\": \"other\"}}\n",
+        "kind": "text",
+        "path": "inquiry/tactics.jsonl"
+      }
+    ],
+    "root": ".gaia"
+  },
+  "cli": {
+    "argv": [
+      "inquiry",
+      "obligation",
+      "add",
+      "some-target",
+      "--content",
+      "Need to verify this claim",
+      "--kind",
+      "other",
+      "--path",
+      "<TMP>"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": "obligation added oblig_<QID8>\n"
+  }
+}

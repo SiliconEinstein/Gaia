@@ -1,0 +1,31 @@
+{
+  "artifacts": {
+    "files": [
+      {
+        "content": "{\n  \"version\": 2,\n  \"focus\": null,\n  \"focus_kind\": null,\n  \"focus_resolved_id\": null,\n  \"mode\": \"auto\",\n  \"last_review_id\": null,\n  \"baseline_review_id\": null,\n  \"focus_stack\": [],\n  \"synthetic_obligations\": [],\n  \"synthetic_hypotheses\": [],\n  \"synthetic_rejections\": [\n    {\n      \"qid\": \"rej_<QID8>\",\n      \"target_strategy\": \"some-strategy\",\n      \"content\": \"Does not apply to this domain\",\n      \"created_at\": \"<ISO_TS>\"\n    }\n  ]\n}",
+        "kind": "text",
+        "path": "inquiry/state.json"
+      },
+      {
+        "content": "{\"timestamp\": \"<ISO_TS>\", \"event\": \"reject\", \"payload\": {\"qid\": \"rej_<QID8>\", \"strategy\": \"some-strategy\"}}\n",
+        "kind": "text",
+        "path": "inquiry/tactics.jsonl"
+      }
+    ],
+    "root": ".gaia"
+  },
+  "cli": {
+    "argv": [
+      "inquiry",
+      "reject",
+      "some-strategy",
+      "--content",
+      "Does not apply to this domain",
+      "--path",
+      "<TMP>"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": "strategy rejected rej_<QID8> (some-strategy)\n"
+  }
+}

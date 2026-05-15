@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "files": [
+      {
+        "content": "{\n  \"version\": 2,\n  \"focus\": null,\n  \"focus_kind\": null,\n  \"focus_resolved_id\": null,\n  \"mode\": \"auto\",\n  \"last_review_id\": null,\n  \"baseline_review_id\": null,\n  \"focus_stack\": [],\n  \"synthetic_obligations\": [],\n  \"synthetic_hypotheses\": [\n    {\n      \"qid\": \"hyp_<QID8>\",\n      \"content\": \"Maybe X causes Y\",\n      \"scope_qid\": null,\n      \"created_at\": \"<ISO_TS>\"\n    }\n  ],\n  \"synthetic_rejections\": []\n}",
+        "kind": "text",
+        "path": "inquiry/state.json"
+      },
+      {
+        "content": "{\"timestamp\": \"<ISO_TS>\", \"event\": \"hypothesis_add\", \"payload\": {\"qid\": \"hyp_<QID8>\", \"scope\": null}}\n",
+        "kind": "text",
+        "path": "inquiry/tactics.jsonl"
+      }
+    ],
+    "root": ".gaia"
+  },
+  "cli": {
+    "argv": [
+      "inquiry",
+      "hypothesis",
+      "add",
+      "Maybe X causes Y",
+      "--path",
+      "<TMP>"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": "hypothesis added hyp_<QID8>\n"
+  }
+}

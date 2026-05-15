@@ -1,0 +1,197 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/.github/workflows/pages.yml",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/__init__.py",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/index.html",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/package.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/public/data/beliefs.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/public/data/graph.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/public/data/meta.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/App.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/App.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/DetailPanel.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/EdgeRenderer.offset.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/EdgeRenderer.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/LanguageSwitch.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/ModuleSubgraph.dismiss.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/ModuleSubgraph.layout.test.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/ModuleSubgraph.zoom.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/SectionView.test.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/pages-workflow.test.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/useChainHighlight.test.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/useElkLayout.test.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/__tests__/useGraphData.test.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/DetailPanel.module.css",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/DetailPanel.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/EdgeRenderer.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/LanguageSwitch.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/ModuleOverview.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/ModuleSubgraph.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/NodeRenderer.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/SectionView.module.css",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/components/SectionView.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/env.d.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/hooks/useChainHighlight.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/hooks/useElkLayout.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/hooks/useGraphData.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/hooks/useZoomPan.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/index.css",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/main.tsx",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/setupTests.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/src/types.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/tsconfig.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/vite.config.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/vitest.config.ts",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "manifest.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "narrative-outline.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "wiki/Home.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "wiki/Inference-Results.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "wiki/Module-Root.md",
+      "size": "<NONZERO>"
+    }
+  ],
+  "root": ".github-output"
+}

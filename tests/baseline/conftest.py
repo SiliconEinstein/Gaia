@@ -143,7 +143,21 @@ _PYTEST_PATH_RE = re.compile(r"(/[^\s)'\"]*?pytest-of-[^\s)'\"]+/[^\s)'\"]+)")
 _TIMING_RE = re.compile(r"\b\d+(\.\d+)?\s?ms\b")
 _TIMING_S_RE = re.compile(r"\b\d+\.\d+\s?s\b(?=[^\w])")
 _ISO_TS_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b")
+# Filename-safe ISO ts variant (colons → hyphens) used by inquiry review
+# artifacts like `2026-05-15T04-20-28Z_<sha>_auto.json`. A3 addition.
+_ISO_TS_HYPHEN_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z")
 _UUID_HEX_RE = re.compile(r"\b[0-9a-f]{8}\b(?=[\s\n_,):\]'\"]|$)")
+# Full canonical uuid4 (8-4-4-4-12 hex with hyphens) as produced by
+# `gaia init` for `[tool.gaia].uuid`. A3 addition.
+_UUID4_FULL_RE = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
+# Inquiry qid form: `<prefix>_<8hex>` from `mint_qid` in gaia/inquiry/state.py.
+# The leading underscore is a word char so the generic `\b<8hex>\b` regex
+# above misses these — capture them here, preserving the prefix. A3 addition.
+_INQUIRY_QID_RE = re.compile(r"\b(oblig|hyp|rej)_[0-9a-f]{8}\b")
+# Author block in `pyproject.toml` produced by `gaia init` → `uv init`,
+# which seeds the entry from the local `git config user.name` / `user.email`.
+# Mask so snapshots are stable across developers and CI. A3 addition.
+_PYPROJECT_AUTHOR_RE = re.compile(r"""\{\s*name\s*=\s*"[^"]*"\s*,\s*email\s*=\s*"[^"]*"\s*\}""")
 _REPO_ROOT_RE = re.compile(re.escape(str(REPO_ROOT)))
 
 
@@ -160,8 +174,15 @@ def mask_output(text: str) -> str:
     text = _TMP_PATH_RE.sub("<TMP>", text)
     text = _REPO_ROOT_RE.sub("<REPO>", text)
     text = _ISO_TS_RE.sub("<ISO_TS>", text)
+    text = _ISO_TS_HYPHEN_RE.sub("<ISO_TS_H>", text)
     text = _TIMING_RE.sub("<MS>", text)
     text = _TIMING_S_RE.sub("<S>", text)
+    text = _INQUIRY_QID_RE.sub(r"\1_<QID8>", text)
+    text = _PYPROJECT_AUTHOR_RE.sub('{ name = "<AUTHOR>", email = "<AUTHOR_EMAIL>" }', text)
+    # Full uuid4 must be replaced before the 8-hex regex below, otherwise
+    # the latter would only catch the leading 8 hex chars and leave the
+    # rest of the uuid form intact.
+    text = _UUID4_FULL_RE.sub("<UUID4>", text)
     text = _UUID_HEX_RE.sub("<UUID8>", text)
     return "\n".join(line.rstrip() for line in text.splitlines(keepends=False)) + (
         "\n" if text.endswith("\n") else ""
@@ -349,3 +370,115 @@ def tampered_trace_path(tmp_path: Path) -> Path:
     out = tmp_path / "tampered.json"
     out.write_text(trace.model_dump_json(indent=2), encoding="utf-8")
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Artifact-tree serialization (A3 / Phase 0 Layer 3)                          #
+# --------------------------------------------------------------------------- #
+
+
+def serialize_artifact_tree(
+    root: Path,
+    *,
+    include: tuple[str, ...] | None = None,
+    exclude: tuple[str, ...] = (".venv", ".git", "__pycache__"),
+    binary_as_size: tuple[str, ...] = (
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".ico",
+        ".woff",
+        ".woff2",
+        ".ttf",
+    ),
+) -> dict[str, object]:
+    """Walk an artifact directory and produce a stable, ordered snapshot dict.
+
+    Output shape:
+        {
+            "root": "<masked relpath label>",
+            "files": [
+                {"path": "<rel>", "kind": "text"|"binary", "content": "..."|<size>},
+                ...
+            ],
+        }
+
+    Ordering: paths are sorted lexicographically so the snapshot is stable
+    regardless of OS walk order. Text content is masked with `mask_output`
+    so timestamps / tmp paths / uuid hex tails / hyphen-form ISO ts don't
+    perturb the byte snapshot. Binary files (per `binary_as_size`) are
+    captured as `{"kind": "binary", "size": <int>}` instead of bytes — the
+    snapshot's job is to prove behavior parity, not to round-trip binary
+    blobs (which never appear in current engine output anyway, but the
+    safety net is cheap).
+
+    When `include` is given, only files whose first path component matches
+    one of the prefixes (or the file itself) are included; this keeps
+    the snapshot scoped to the artifact dir (e.g. ".gaia") even if the
+    fixture directory contains the pkg source as siblings.
+    """
+    if not root.exists():
+        return {"root": "<missing>", "files": []}
+
+    entries: list[dict[str, object]] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root)
+        rel_str = rel.as_posix()
+        # Exclude noise (vendored python venv, git internals, pyc caches).
+        parts = rel.parts
+        if any(part in exclude for part in parts):
+            continue
+        if include is not None and not any(
+            rel_str == inc or rel_str.startswith(inc + "/") or parts[0] == inc for inc in include
+        ):
+            continue
+        # Mask the path itself: filenames can carry hyphen-form ISO ts
+        # (inquiry review files) or uuid hex tails.
+        rel_str_masked = mask_output(rel_str).rstrip("\n")
+        ext = path.suffix.lower()
+        if ext in binary_as_size:
+            entries.append({"path": rel_str_masked, "kind": "binary", "size": path.stat().st_size})
+            continue
+        # Read as text; if it's not utf-8 (rare for our artifacts) fall
+        # back to size-only so the snapshot stays diffable.
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            entries.append({"path": rel_str_masked, "kind": "binary", "size": path.stat().st_size})
+            continue
+        entries.append({"path": rel_str_masked, "kind": "text", "content": mask_output(content)})
+    return {"root": root.name, "files": entries}
+
+
+def list_artifact_paths(
+    root: Path,
+    *,
+    exclude: tuple[str, ...] = (".venv", ".git", "__pycache__"),
+) -> dict[str, object]:
+    """Walk an artifact directory and return only the path listing + sizes.
+
+    Useful for large vendored bundles (e.g. `gaia render --target github`
+    emits a TSX/CSS site) where byte-snapshotting every file is overkill
+    and stdout already covers the user-visible report. Path-set parity is
+    what we care about for refactor — file contents inside vendored
+    presentation code are out of refactor scope.
+    """
+    if not root.exists():
+        return {"root": "<missing>", "files": []}
+    entries: list[dict[str, object]] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root)
+        if any(part in exclude for part in rel.parts):
+            continue
+        entries.append(
+            {
+                "path": mask_output(rel.as_posix()).rstrip("\n"),
+                "size": path.stat().st_size,
+            }
+        )
+    return {"root": root.name, "files": entries}
