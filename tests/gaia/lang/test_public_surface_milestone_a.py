@@ -32,7 +32,6 @@ def test_milestone_a_public_surface():
         "Less",
         "LessEqual",
         "UserPredicate",
-        "Causes",
         "ClaimAtom",
         "Land",
         "Lor",
@@ -62,6 +61,18 @@ def test_gaia_lang_does_not_export_core_predict_verb():
     # intentionally top-level since v0.6 — they construct first-class
     # continuous-quantity Distributions for the predicate / equation surface.
     # See gaia.lang.runtime.distribution.
+
+
+def test_gaia_lang_does_not_export_marker_only_causal_surface():
+    import gaia.engine.lang as lang
+
+    assert "Causes" not in dir(lang)
+    assert "causal" not in dir(lang)
+    assert "causes" not in dir(lang)
+    assert "Causes" not in lang.__all__
+    assert "causal" not in lang.__all__
+    assert "causes" not in lang.__all__
+    assert not hasattr(lang.ClaimKind, "CAUSAL")
 
 
 def test_bayes_surface_uses_model_not_predict_alias():

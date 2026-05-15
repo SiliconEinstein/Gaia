@@ -322,13 +322,13 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 | `derive(conclusion, *, given, background, rationale)` | Reviewable deterministic derivation; lowers to a deterministic implication in the compiled graph |
 | `compute(ClaimType, *, fn, given, background, rationale)` | Deterministic computation with claim inputs |
 | `infer(evidence, *, hypothesis, background=None, rationale="", p_e_given_h, p_e_given_not_h=0.5)` | Probabilistic prediction/evidence link; returns the evidence claim and creates an internal likelihood warrant for review |
-| `associate(a, b, *, p_a_given_b, p_b_given_a, background=None, rationale="")` | Symmetric probabilistic association; returns a reviewable association helper claim. Marginal priors belong on claims or in `priors.py`, not in `associate(...)` |
+| `associate(a, b, *, p_a_given_b, p_b_given_a, pattern=None, background=None, rationale="")` | Symmetric probabilistic association; returns a reviewable association helper claim. Marginal priors belong on claims or in `priors.py`, not in `associate(...)` |
 | `depends_on(conclusion, *, given, background=None, rationale="")` | Scaffold record for load-bearing dependencies that are not formalized yet |
-| `candidate_relation(a, b, *, proposed, background=None, rationale="")` | Scaffold record for a hypothesized binary relation that is not formalized yet |
-| `tension(a, b, *, background=None, rationale="")` | Thin wrapper for `candidate_relation(..., proposed="tension")` |
+| `candidate_relation(claims=[...], *, pattern=None, background=None, rationale="")` | Scaffold record for a hypothesized relation that is not formalized yet |
+| `materialize(scaffold, *, by, rationale="")` | Bookkeeping link from scaffold to the formal graph records that handle it |
 | `@compose(name, version, background=None, warrants=None, rationale="", label=None)` | Decorates a Python workflow and records its child actions as a reviewable Compose DAG |
 
-`observe(...)`, `derive(...)`, `compute(...)`, and `infer(...)` return the affected conclusion/evidence claim. `associate(...)` and formal relation verbs return generated helper claims because the public semantic object is the declared relation. Scaffold verbs are recorded in `.gaia/formalization_manifest.json`; `candidate_relation(...)` and `tension(...)` do not create helper claims, strategies, operators, or BP factors. A `@compose` call returns the wrapped function's conclusion claim while also recording a Compose action in the compiled IR.
+`observe(...)`, `derive(...)`, `compute(...)`, and `infer(...)` return the affected conclusion/evidence claim. `associate(...)` and formal relation verbs return generated helper claims because the public semantic object is the declared relation. Scaffold verbs are recorded in `.gaia/formalization_manifest.json`; `candidate_relation(...)` does not create helper claims, strategies, operators, or BP factors. A `@compose` call returns the wrapped function's conclusion claim while also recording a Compose action in the compiled IR.
 
 #### Relations
 
@@ -338,7 +338,7 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 | `contradict(a, b)` | Reviewable claim that A and B cannot both be true |
 | `exclusive(a, b)` | Reviewable claim that exactly one of A and B is true |
 
-Use `candidate_relation(..., proposed="equal" | "contradict" | "exclusive" | "associate" | "tension")` when the relation is worth tracking but not ready to enter inference. Upgrade it to `equal(...)`, `contradict(...)`, `exclusive(...)`, or `associate(...)` only after the relation is formalized and reviewable as semantics.
+Use `candidate_relation(claims=[...], pattern=None | "equal" | "contradict" | "exclusive")` when the relation is worth tracking but not ready to enter inference. Upgrade it to `equal(...)`, `contradict(...)`, `exclusive(...)`, or `associate(...)` only after the relation is formalized and reviewable as semantics; use `materialize(...)` to record the link.
 
 #### Structural Proposition Helpers
 

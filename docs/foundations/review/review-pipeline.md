@@ -22,14 +22,14 @@ Every authored Action that survives lowering produces at least one **review targ
 
 | Action family | Target kind | Audit question pattern |
 |---|---|---|
-| `Derive / Compute`, plus premise-backed `Observe` (`Support`) | `strategy` | "Does the warrant for &lt;action_label&gt; correctly entail &lt;conclusion&gt; from the listed premises?" |
+| `Derive / Compute`, plus premise-backed `Observe` (`Directed`) | `strategy` | "Does the warrant for &lt;action_label&gt; correctly entail &lt;conclusion&gt; from the listed premises?" |
 | Zero-premise `Observe` | `action` | "Is the observation for &lt;conclusion&gt; reliable?" |
-| `Infer` / `Associate` (`Probabilistic`) | `strategy` | "Are the supplied conditional probabilities for &lt;action_label&gt; defensible?" |
-| `Equal / Contradict / Exclusive / Decompose` (`Structural`) | `operator` | "Is the structural relation declared by &lt;action_label&gt; correct?" |
+| `Infer` / `Associate` | `strategy` | "Are the supplied conditional probabilities for &lt;action_label&gt; defensible?" |
+| `Equal / Contradict / Exclusive` (`Relation`) and `Decompose` | `operator` | "Is the declared relation or decomposition from &lt;action_label&gt; correct?" |
 | `Compose` | `compose` | "Is the composed workflow &lt;action_label&gt; well-formed and faithful to its child actions?" |
 | Reviewable helper claims (e.g. `bayes` likelihood comparison) | `knowledge` | "Does the helper claim &lt;label&gt; correctly summarize the underlying lifted likelihood update?" |
 
-`DependsOn` (`Scaffold`) is intentionally not reviewable — it is authoring metadata only and never enters the IR. Structural-expression helpers from the deprecated `~A` / `A & B` / `A | B` shortcuts carry `metadata["review"] = false` and are also skipped.
+`DependsOn` and `CandidateRelation` (`Scaffold`) are intentionally not reviewable — they are authoring metadata only and never enter the IR. Structural-expression helpers from the deprecated `~A` / `A & B` / `A | B` shortcuts carry `metadata["review"] = false` and are also skipped.
 
 ## 2. Data Model
 

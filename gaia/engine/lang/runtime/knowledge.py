@@ -102,7 +102,6 @@ class ClaimKind(Enum):
     GENERAL      — default; formula optional, no structural commitments
     PARAMETER    — asserts a Variable takes a specific value (Equals(var, const))
     QUANTIFIED   — top-level quantifier (Forall/Exists) in formula
-    CAUSAL       — top-level Causes(...) predicate in formula
 
     NOT a "role" (hypothesis/prediction/observation-as-evidence) — those live
     on action graph nodes. Observation is an Observe action, not a Claim kind.
@@ -112,7 +111,6 @@ class ClaimKind(Enum):
     GENERAL = "general"
     PARAMETER = "parameter"
     QUANTIFIED = "quantified"
-    CAUSAL = "causal"
 
 
 def _validate_formula_and_kind(formula: Any, kind: ClaimKind) -> None:

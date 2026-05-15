@@ -70,6 +70,7 @@ from gaia.engine.lang.runtime.action import (
     DependsOn,
     Equal,
     Exclusive,
+    GaiaGraph,
     Observe,
     Support,
 )
@@ -113,7 +114,7 @@ class CompiledPackage:
     action_label_map: dict[str, str] = field(default_factory=dict)
     target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
     formalization_manifest: dict[str, Any] = field(
-        default_factory=lambda: {"version": 1, "dependencies": []}
+        default_factory=lambda: {"version": 1, "dependencies": [], "materializations": []}
     )
     review: ReviewManifest | None = None
 
@@ -155,6 +156,10 @@ def _make_action_qid(namespace: str, package_name: str, label: str) -> str:
 
 def _make_scaffold_qid(namespace: str, package_name: str, label: str) -> str:
     return f"{namespace}:{package_name}::scaffold::{_normalize_label(label)}"
+
+
+def _make_materialization_qid(namespace: str, package_name: str, label: str) -> str:
+    return f"{namespace}:{package_name}::materialization::{_normalize_label(label)}"
 
 
 def _is_local(k: Knowledge, pkg: CollectedPackage) -> bool:
@@ -653,7 +658,7 @@ class _KnowledgeCollector:
         elif isinstance(action, Support | DependsOn):
             self._register_support_like_action(action)
         elif isinstance(action, CandidateRelation):
-            self._register_optional_claims(action.a, action.b)
+            self._register_optional_claims(*action.claims)
         elif isinstance(action, Equal | Contradict | Exclusive):
             self._register_optional_claims(action.a, action.b, action.helper)
         elif isinstance(action, Decompose):
@@ -804,6 +809,7 @@ class _ActionCompiler:
     action_operators: list[IrOperator] = field(default_factory=list)
     action_target_ids_by_object: dict[int, str] = field(default_factory=dict)
     formalization_dependencies: list[dict[str, Any]] = field(default_factory=list)
+    formalization_materializations: list[dict[str, Any]] = field(default_factory=list)
 
     def compile_non_compose_actions(self) -> None:
         """Lower every non-Compose action in package declaration order."""
@@ -840,6 +846,13 @@ class _ActionCompiler:
             if isinstance(action, Compose)
         ]
 
+    def compile_materializations(self) -> None:
+        """Lower materialization links into the formalization manifest."""
+        for link_index, link in enumerate(getattr(self.pkg, "materializations", [])):
+            self.formalization_materializations.append(
+                self._compile_materialization_link(link, link_index)
+            )
+
     def _record_action_target(self, action_label: str, target_id: str | None) -> None:
         _record_action_label_target(
             self.action_label_map,
@@ -850,6 +863,43 @@ class _ActionCompiler:
 
     def _scaffold_label(self, action: DependsOn | CandidateRelation, action_index: int) -> str:
         return action.label or f"_anon_action_{action_index:03d}"
+
+    def _graph_label(self, record: GaiaGraph, action_index: int | None) -> str:
+        if record.label:
+            return record.label
+        if action_index is None:
+            raise ValueError(f"{type(record).__name__} record requires a label")
+        return f"_anon_action_{action_index:03d}"
+
+    def _action_index_by_object(self) -> dict[int, int]:
+        return {id(action): index for index, action in enumerate(getattr(self.pkg, "actions", []))}
+
+    def _graph_ref(self, record: GaiaGraph, action_indices: dict[int, int]) -> str:
+        action_index = action_indices.get(id(record))
+        if isinstance(record, DependsOn | CandidateRelation):
+            return _make_scaffold_qid(
+                self.pkg.namespace,
+                self.pkg.name,
+                self._scaffold_label(record, action_index if action_index is not None else 0),
+            )
+        return _make_action_qid(
+            self.pkg.namespace,
+            self.pkg.name,
+            self._graph_label(record, action_index),
+        )
+
+    def _compile_materialization_link(self, link: Any, link_index: int) -> dict[str, Any]:
+        action_indices = self._action_index_by_object()
+        label = link.label or f"_anon_materialization_{link_index:03d}"
+        return {
+            "id": _make_materialization_qid(self.pkg.namespace, self.pkg.name, label),
+            "kind": "materialization",
+            "label": label,
+            "scaffold": self._graph_ref(link.scaffold, action_indices),
+            "by": [self._graph_ref(record, action_indices) for record in link.by],
+            "rationale": link.rationale,
+            "metadata": _metadata_to_ir(dict(link.metadata or {}), self.knowledge_map),
+        }
 
     def _compile_depends_on_action(self, action: DependsOn, action_index: int) -> dict[str, Any]:
         if action.conclusion is None:
@@ -877,15 +927,15 @@ class _ActionCompiler:
         action: CandidateRelation,
         action_index: int,
     ) -> dict[str, Any]:
-        if action.a is None or action.b is None:
-            raise ValueError("CandidateRelation action requires a and b")
+        if len(action.claims) < 2:
+            raise ValueError("CandidateRelation action requires at least two claims")
         label = self._scaffold_label(action, action_index)
         record: dict[str, Any] = {
             "id": _make_scaffold_qid(self.pkg.namespace, self.pkg.name, label),
             "kind": "candidate_relation",
             "label": label,
-            "proposed": action.proposed,
-            "claims": [self.knowledge_map[id(action.a)], self.knowledge_map[id(action.b)]],
+            "pattern": action.pattern,
+            "claims": [self.knowledge_map[id(claim)] for claim in action.claims],
             "rationale": action.rationale,
             "status": action.status,
             "metadata": _metadata_to_ir(dict(action.metadata or {}), self.knowledge_map),
@@ -1972,6 +2022,7 @@ def compile_package_artifact(
         strategy_target_ids_by_object=strategy_target_ids_by_object,
         operator_target_ids_by_object=operator_target_ids_by_object,
     )
+    action_compiler.compile_materializations()
     bayes_lowered_knowledges_updated = _ReferenceScanner(
         pkg=pkg,
         references=references,
@@ -2014,6 +2065,7 @@ def compile_package_artifact(
         formalization_manifest={
             "version": 1,
             "dependencies": action_compiler.formalization_dependencies,
+            "materializations": action_compiler.formalization_materializations,
         },
     )
     from gaia.engine.lang.review.manifest import generate_review_manifest

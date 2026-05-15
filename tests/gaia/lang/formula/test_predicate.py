@@ -3,7 +3,6 @@
 import pytest
 
 from gaia.engine.lang.formula.predicate import (
-    Causes,
     ClaimAtom,
     Equals,
     Formula,  # noqa: F401
@@ -101,15 +100,6 @@ def test_user_predicate_args_must_be_terms():
         UserPredicate(symbol=P, args=(123,))  # type: ignore[arg-type]
 
 
-def test_causes_predicate():
-    a = Variable(symbol="a", domain=Real)
-    b = Variable(symbol="b", domain=Real)
-    c = Causes(cause=a, effect=b)
-    assert c.cause is a
-    assert c.effect is b
-    assert is_formula(c)
-
-
 def test_is_formula_rejects_terms():
     """A Term alone is not a Formula — it has no truth value."""
     assert not is_formula(Constant(1, Nat))
@@ -120,3 +110,9 @@ def test_is_formula_rejects_arbitrary():
     assert not is_formula("hello")
     assert not is_formula(42)
     assert not is_formula([Equals(Constant(1, Nat), Constant(1, Nat))])
+
+
+def test_marker_only_causes_predicate_is_not_exported():
+    import gaia.engine.lang.formula.predicate as predicate
+
+    assert not hasattr(predicate, "Causes")

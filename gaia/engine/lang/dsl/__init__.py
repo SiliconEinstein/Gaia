@@ -3,7 +3,6 @@
 from gaia.engine.lang.dsl.associate_verb import associate
 from gaia.engine.lang.dsl.decompose import decompose
 from gaia.engine.lang.dsl.formula import (
-    causes,
     equals,
     exists,
     forall,
@@ -24,7 +23,7 @@ from gaia.engine.lang.dsl.register_prior import (
     register_prior,
 )
 from gaia.engine.lang.dsl.relate import contradict, equal, exclusive
-from gaia.engine.lang.dsl.scaffold import candidate_relation, depends_on, tension
+from gaia.engine.lang.dsl.scaffold import candidate_relation, depends_on, materialize
 from gaia.engine.lang.dsl.strategies import (
     abduction,
     analogy,
@@ -42,7 +41,7 @@ from gaia.engine.lang.dsl.strategies import (
 from gaia.engine.lang.dsl.strategies import (
     support as _strategy_support,
 )
-from gaia.engine.lang.dsl.sugar import causal, parameter
+from gaia.engine.lang.dsl.sugar import parameter
 from gaia.engine.lang.dsl.support import compute, derive, observe
 from gaia.engine.lang.runtime.composition import compose, composition
 
@@ -56,8 +55,6 @@ __all__ = [
     "associate",
     "candidate_relation",
     "case_analysis",
-    "causal",
-    "causes",
     "claim",
     "compare",
     "complement",
@@ -89,6 +86,7 @@ __all__ = [
     "land",
     "lnot",
     "lor",
+    "materialize",
     "mathematical_induction",
     "noisy_and",
     "not_",
@@ -100,5 +98,4 @@ __all__ = [
     "register_prior",
     "setting",
     "support",
-    "tension",
 ]

@@ -255,7 +255,7 @@ All artifacts are written to `.gaia/` within the package root.
 | `.gaia/ir.json` | `gaia build compile` | yes | `LocalCanonicalGraph` -- the complete compiled IR |
 | `.gaia/ir_hash` | `gaia build compile` | yes | SHA-256 hash of the canonical IR serialization |
 | `.gaia/compile_metadata.json` | `gaia build compile` | yes | `gaia_lang_version`, compile timestamp, and IR hash provenance |
-| `.gaia/formalization_manifest.json` | `gaia build compile` | yes | Scaffold/formalization records such as `depends_on(...)`, `candidate_relation(...)`, and `tension(...)` |
+| `.gaia/formalization_manifest.json` | `gaia build compile` | yes | Scaffold/formalization records such as `depends_on(...)`, `candidate_relation(...)`, and `materialize(...)` |
 | `.gaia/manifests/exports.json` | `gaia build compile` | yes | Exported claims and interface hashes |
 | `.gaia/manifests/premises.json` | `gaia build compile` | yes | Public premise interface, including local holes and foreign dependencies |
 | `.gaia/manifests/holes.json` | `gaia build compile` | yes | `local_hole` subset of `premises.json` |

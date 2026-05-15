@@ -1,7 +1,6 @@
-"""Milestone A AST smoke — build Mendel + universal + causal with raw constructors."""
+"""Milestone A AST smoke — build Mendel and universal formulas with raw constructors."""
 
 from gaia.engine.lang import (
-    Causes,
     Claim,
     ClaimKind,
     Constant,
@@ -76,20 +75,6 @@ def test_universal_law_with_quantifier():
     )
     assert universal.kind is ClaimKind.QUANTIFIED
     assert universal.formula.variable is x
-
-
-def test_causal_claim():
-    """Causal predicate marker."""
-    co2 = Variable(symbol="co2", domain=Real)
-    temp = Variable(symbol="temp", domain=Real)
-    C = Claim(
-        content="Rising CO2 causes increased global mean temperature.",
-        formula=Causes(cause=co2, effect=temp),
-        kind=ClaimKind.CAUSAL,
-        prior=0.9,
-    )
-    assert C.kind is ClaimKind.CAUSAL
-    assert C.formula.cause is co2
 
 
 def test_compound_formula_round_trip():

@@ -7,7 +7,6 @@ from gaia.engine.bp.factor_graph import FactorType
 from gaia.engine.bp.lowering import lower_local_graph
 from gaia.engine.ir import default_resolution_policy
 from gaia.engine.lang import (
-    Causes,
     ClaimAtom,
     ClaimKind,
     Constant,
@@ -17,7 +16,6 @@ from gaia.engine.lang import (
     Forall,
     PredicateSymbol,
     Probability,
-    Real,
     UserPredicate,
     Variable,
     claim,
@@ -268,42 +266,6 @@ def test_top_level_equals_formula_records_binding_without_orphan_atom():
             "source": "formula",
         }
     ]
-    assert not [
-        k
-        for k in artifact.graph.knowledges
-        if (k.metadata or {}).get("generated_kind") == "formula_atom"
-    ]
-    assert artifact.graph.operators == []
-    assert artifact.graph.strategies == []
-
-
-def test_top_level_causes_formula_records_causal_marker_without_implication():
-    pkg = CollectedPackage(name="formula_causes_pkg", namespace="t")
-    token = _current_package.set(pkg)
-    try:
-        co2 = Variable(symbol="co2", domain=Real)
-        temp = Variable(symbol="temp", domain=Real)
-        causal = claim(
-            "CO2 level causes temperature change.",
-            formula=Causes(co2, temp),
-            kind=ClaimKind.CAUSAL,
-            prior=0.9,
-        )
-        causal.label = "co2_causes_temp"
-    finally:
-        _current_package.reset(token)
-
-    artifact = compile_package_artifact(pkg)
-    source = next(
-        k for k in artifact.graph.knowledges if k.id == "t:formula_causes_pkg::co2_causes_temp"
-    )
-
-    assert source.metadata["formula_lowering"] == "atom"
-    assert source.metadata["formula_atom"]["kind"] == "causes"
-    assert source.metadata["causal"] == {
-        "cause": {"kind": "variable", "symbol": "co2", "domain": "Real"},
-        "effect": {"kind": "variable", "symbol": "temp", "domain": "Real"},
-    }
     assert not [
         k
         for k in artifact.graph.knowledges

@@ -23,7 +23,6 @@ from gaia.engine.ir.knowledge import KnowledgeType, make_qid
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
 from gaia.engine.lang.formula.predicate import (
-    Causes,
     ClaimAtom,
     Equals,
     Greater,
@@ -441,19 +440,6 @@ class _FormulaState:
         bindings = _formula_bindings(formula, bindings=self.bindings)
         if bindings:
             metadata["formula_bindings"] = bindings
-        if isinstance(formula, Causes):
-            metadata["causal"] = {
-                "cause": _term_descriptor(
-                    formula.cause,
-                    knowledge_map=self.knowledge_map,
-                    bindings=self.bindings,
-                ),
-                "effect": _term_descriptor(
-                    formula.effect,
-                    knowledge_map=self.knowledge_map,
-                    bindings=self.bindings,
-                ),
-            }
         self.knowledges.append(
             IrKnowledge(
                 id=claim_id,
@@ -514,7 +500,6 @@ def _is_atomic_formula(formula: Any) -> bool:
     return isinstance(
         formula,
         (
-            Causes,
             ClaimAtom,
             Equals,
             Greater,
@@ -544,19 +529,6 @@ def _source_atom_metadata(
     formula_bindings = _formula_bindings(formula, bindings=bindings)
     if formula_bindings:
         metadata["formula_bindings"] = formula_bindings
-    if isinstance(formula, Causes):
-        metadata["causal"] = {
-            "cause": _term_descriptor(
-                formula.cause,
-                knowledge_map=knowledge_map,
-                bindings=bindings,
-            ),
-            "effect": _term_descriptor(
-                formula.effect,
-                knowledge_map=knowledge_map,
-                bindings=bindings,
-            ),
-        }
     return metadata
 
 
@@ -624,20 +596,6 @@ def _formula_descriptor(
                 _term_descriptor(arg, knowledge_map=knowledge_map, bindings=bindings)
                 for arg in formula.args
             ],
-        }
-    if isinstance(formula, Causes):
-        return {
-            "kind": "causes",
-            "cause": _term_descriptor(
-                formula.cause,
-                knowledge_map=knowledge_map,
-                bindings=bindings,
-            ),
-            "effect": _term_descriptor(
-                formula.effect,
-                knowledge_map=knowledge_map,
-                bindings=bindings,
-            ),
         }
     return {"kind": type(formula).__name__, "repr": repr(formula)}
 

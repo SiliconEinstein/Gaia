@@ -1,4 +1,15 @@
-from gaia.engine.lang import Claim, Nat, Variable, associate, bayes, compose, compute, infer
+from gaia.engine.lang import (
+    Claim,
+    Nat,
+    Variable,
+    associate,
+    bayes,
+    candidate_relation,
+    compose,
+    compute,
+    derive,
+    infer,
+)
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.action import Associate, Compose, Compute, Infer
 from gaia.engine.lang.runtime.package import CollectedPackage
@@ -53,6 +64,7 @@ def test_compose_returns_conclusion_and_compiles_action_dag():
     compose_action = compose_actions[0]
     assert conclusion is e
     assert compose_action.conclusion is e
+    assert compose_action in e.from_actions
     assert compose_action.inputs == (e, h)
     assert [type(action) for action in compose_action.actions] == [Compute, Compute, Infer]
     assert compose_action.warrants == []
@@ -145,7 +157,8 @@ def test_compose_keeps_own_background_and_warrants_separate_from_child_warrants(
     child_action = next(action for action in pkg.actions if isinstance(action, Associate))
     assert compose_action.background == [bg]
     assert compose_action.warrants == [compose_warrant]
-    assert child_action.warrants == [helper]
+    assert helper.from_actions == [child_action, compose_action]
+    assert child_action.warrants == []
     assert helper not in compose_action.warrants
 
     compiled = compile_package_artifact(pkg)
@@ -220,3 +233,27 @@ def test_compose_identity_depends_on_ordered_actions():
     assert first.structure_hash(["in"], ["a", "b"], "c", []) != second.structure_hash(
         ["in"], ["b", "a"], "c", []
     )
+
+
+def test_compose_does_not_capture_scaffold_records_as_child_reasoning():
+    with CollectedPackage("v6_scaffold_composition") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        c = Claim("C.")
+        c.label = "c"
+
+        @compose(name="test:scaffold-free", version="1.0")
+        def workflow() -> Claim:
+            candidate_relation(claims=[a, b], label="open_relation")
+            return derive(c, given=[a], rationale="C follows from A.", label="derive_c")
+
+        workflow()
+
+    compiled = compile_package_artifact(pkg)
+    node = compiled.graph.composes[0]
+    assert node.actions == [
+        compiled.action_label_map["github:v6_scaffold_composition::action::derive_c"]
+    ]
+    assert compiled.formalization_manifest["dependencies"][0]["label"] == "open_relation"

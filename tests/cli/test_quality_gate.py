@@ -101,12 +101,12 @@ def test_gate_candidate_relation_does_not_make_counterpart_load_bearing(tmp_path
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.engine.lang import claim, tension\n\n"
+        "from gaia.engine.lang import candidate_relation, claim\n\n"
         'prediction = claim("Model predicts X.")\n'
         'observation = claim("Experiment observes not-X.")\n'
-        "tension(\n"
-        "    prediction,\n"
-        "    observation,\n"
+        "candidate_relation(\n"
+        "    claims=[prediction, observation],\n"
+        '    pattern="contradict",\n'
         '    rationale="Prediction and observation may be in tension.",\n'
         '    label="prediction_observation_tension",\n'
         ")\n"

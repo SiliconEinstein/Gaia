@@ -7,6 +7,7 @@ from typing import Any
 from gaia.engine.lang.bayes.distributions.protocol import Distribution
 from gaia.engine.lang.bayes.runtime import PredictiveModel
 from gaia.engine.lang.runtime import Claim, Knowledge, Variable
+from gaia.engine.lang.runtime.action import attach_reasoning, validate_no_self_warrant
 
 
 def _claim_ref(claim: Claim) -> str:
@@ -55,12 +56,12 @@ def model(
         label=label,
         rationale=rationale,
         background=list(background or []),
-        warrants=[helper],
         metadata={"bayes": {"action": "predictive_model"}},
         hypothesis=hypothesis,
         observable=observable,
         distribution=distribution,
         helper=helper,
     )
-    helper.from_actions.append(action)
+    validate_no_self_warrant(action, helper)
+    attach_reasoning(helper, action)
     return helper

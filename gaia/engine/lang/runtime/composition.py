@@ -18,6 +18,8 @@ from gaia.engine.lang.runtime.action import (
     Exclusive,
     Infer,
     Support,
+    attach_reasoning,
+    validate_no_self_warrant,
 )
 from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 
@@ -172,7 +174,7 @@ def compose(
                 raise TypeError("@compose functions must return a Claim object")
 
             compose_background = list(background or [])
-            Compose(
+            compose_action = Compose(
                 label=label,
                 rationale=rationale,
                 background=compose_background,
@@ -188,6 +190,8 @@ def compose(
                 actions=tuple(scope.captured_actions),
                 conclusion=result,
             )
+            validate_no_self_warrant(compose_action, result)
+            attach_reasoning(result, compose_action)
             return result
 
         return wrapper

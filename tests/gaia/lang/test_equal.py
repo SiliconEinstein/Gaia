@@ -14,7 +14,7 @@ def test_equal_returns_helper_claim():
     assert helper.metadata.get("review") is True
 
 
-def test_equal_registers_action_and_warrant():
+def test_equal_registers_action_and_helper_attachment():
     with CollectedPackage("v6_test") as pkg:
         a = Claim("Prediction matches.")
         b = Claim("Observation matches.")
@@ -26,7 +26,8 @@ def test_equal_registers_action_and_warrant():
     assert action.a is a
     assert action.b is b
     assert action.helper is helper
-    assert action.warrants == [helper]
+    assert helper.from_actions == [action]
+    assert action.warrants == []
 
 
 def test_equal_records_background_information():

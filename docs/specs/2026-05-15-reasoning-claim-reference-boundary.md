@@ -297,6 +297,8 @@ The following are compatible with this cleanup but intentionally out of scope:
 - adding a new produced-by relation type distinct from `from_actions`.
 - renaming `Claim.from_actions` to a clearer reverse-index name such as
   `attached_reasoning`.
+- retiring the compatibility alias `Action = Reasoning` after downstream v0.5
+  packages and docs have migrated to the `Reasoning` name.
 
 Those changes may become useful later, but the first cleanup only needs one
 invariant: a claim can be the primary attachment of a reasoning record, or a

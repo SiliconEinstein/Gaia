@@ -11,20 +11,21 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
+    from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 @dataclass
-class Action:
-    """Base reasoning action. Parallel to Knowledge, not a Knowledge subclass."""
+class GaiaGraph:
+    """Base Gaia authoring graph record. Parallel to Knowledge, not a Knowledge subclass."""
 
     label: str | None = None
     rationale: str = ""
     background: list[Knowledge] = field(default_factory=list)
-    warrants: list[Claim] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    _package: CollectedPackage | None = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        """Register the action with the active or inferred package."""
+        """Register the graph record with the active or inferred package."""
         from gaia.engine.lang.runtime.knowledge import _current_package
 
         pkg = _current_package.get()
@@ -33,11 +34,46 @@ class Action:
 
             pkg = infer_package_from_callstack()
         if pkg is not None:
+            self._package = pkg
             pkg._register_action(self)
 
 
 @dataclass
-class Support(Action):
+class Reasoning(GaiaGraph):
+    """Reviewable reasoning record that can carry warrant Claims."""
+
+    warrants: list[Claim] = field(default_factory=list)
+
+
+# Compatibility alias for the pre-Reasoning public name. New code should use
+# Reasoning; the alias remains while downstream packages migrate labels/types.
+Action = Reasoning
+
+
+def attach_reasoning(claim: Claim, reasoning: Reasoning) -> None:
+    """Attach a reasoning record to a claim's reverse index exactly once."""
+    if all(existing is not reasoning for existing in claim.from_actions):
+        claim.from_actions.append(reasoning)
+
+
+def validate_no_self_warrant(reasoning: Reasoning, primary: Claim) -> None:
+    """Reject reasoning records whose primary claim/helper is also their warrant."""
+    if any(warrant is primary for warrant in reasoning.warrants):
+        raise ValueError("reasoning primary claim/helper must not also be its warrant")
+
+
+@dataclass
+class Directed(Reasoning):
+    """Directed reasoning shape: sources or premises point toward a target."""
+
+
+@dataclass
+class Relation(Reasoning):
+    """Symmetric or non-directed relation among Claims."""
+
+
+@dataclass
+class Support(Directed):
     """Directional reasoning: given -> conclusion."""
 
     conclusion: Claim | None = None
@@ -63,7 +99,7 @@ class Compute(Support):
 
 
 @dataclass
-class Scaffold(Action):
+class Scaffold(GaiaGraph):
     """Formalization workflow record. Does not enter IR/BP as a warrant."""
 
 
@@ -79,14 +115,39 @@ class DependsOn(Scaffold):
 class CandidateRelation(Scaffold):
     """Marks a hypothesized relation that has not been formalized yet."""
 
-    a: Claim | None = None
-    b: Claim | None = None
-    proposed: str = ""
+    claims: tuple[Claim, ...] = ()
+    pattern: str | None = None
     status: str = "hypothesis"
+
+    @property
+    def a(self) -> Claim | None:
+        """Compatibility view for older binary callers."""
+        return self.claims[0] if len(self.claims) >= 1 else None
+
+    @property
+    def b(self) -> Claim | None:
+        """Compatibility view for older binary callers."""
+        return self.claims[1] if len(self.claims) >= 2 else None
+
+    @property
+    def proposed(self) -> str | None:
+        """Compatibility view for older proposed-pattern callers."""
+        return self.pattern
 
 
 @dataclass
-class Structural(Action):
+class MaterializationLink:
+    """Bookkeeping link from scaffold to the formal graph records that handle it."""
+
+    scaffold: Scaffold
+    by: tuple[GaiaGraph, ...]
+    label: str | None = None
+    rationale: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class Structural(Relation):
     """Hard structural constraint between claims or claim formulas."""
 
 
@@ -118,7 +179,7 @@ class Exclusive(Structural):
 
 
 @dataclass
-class Decompose(Structural):
+class Decompose(Reasoning):
     """Declares a whole Claim equivalent to a formula over atomic Claims."""
 
     whole: Claim | None = None
@@ -127,16 +188,10 @@ class Decompose(Structural):
 
 
 @dataclass
-class Probabilistic(Action):
-    """Probabilistic soft constraint between Claims."""
-
-    helper: Claim | None = None
-
-
-@dataclass
-class Infer(Probabilistic):
+class Infer(Directed):
     """Bayesian inference: P(E|H) update."""
 
+    helper: Claim | None = None
     hypothesis: Claim | None = None
     evidence: Claim | None = None
     given: tuple[Claim, ...] = ()
@@ -145,13 +200,15 @@ class Infer(Probabilistic):
 
 
 @dataclass
-class Associate(Probabilistic):
+class Associate(Relation):
     """Symmetric probabilistic association between two Claims."""
 
+    helper: Claim | None = None
     a: Claim | None = None
     b: Claim | None = None
     p_a_given_b: float = 0.5
     p_b_given_a: float = 0.5
+    pattern: str | None = None
 
 
 @dataclass

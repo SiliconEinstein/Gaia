@@ -56,7 +56,7 @@ def test_roles_for_package_indexes_multiple_structural_roles():
     index = roles_for_package(pkg)
     assert _role_names(index[a]) == ["equivalent_claim"]
     assert _role_names(index[b]) == ["equivalent_claim"]
-    assert _role_names(index[helper]) == ["equivalence_helper", "warrant"]
+    assert _role_names(index[helper]) == ["equivalence_helper"]
 
 
 def test_roles_cover_authored_action_shapes_and_sources():

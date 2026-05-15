@@ -6,7 +6,11 @@ from typing import Any
 
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
 from gaia.engine.lang.formula.predicate import ClaimAtom, is_formula
-from gaia.engine.lang.runtime.action import Decompose
+from gaia.engine.lang.runtime.action import (
+    Decompose,
+    attach_reasoning,
+    validate_no_self_warrant,
+)
 from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 
 
@@ -96,5 +100,6 @@ def decompose(
         parts=part_tuple,
         formula=formula,
     )
-    whole.from_actions.append(action)
+    validate_no_self_warrant(action, whole)
+    attach_reasoning(whole, action)
     return whole

@@ -9,7 +9,12 @@ from typing import Any
 
 from gaia.engine.bp.factor_graph import CROMWELL_EPS
 from gaia.engine.lang.bayes.runtime import Likelihood, PredictiveModel
-from gaia.engine.lang.runtime.action import Contradict, Exclusive
+from gaia.engine.lang.runtime.action import (
+    Contradict,
+    Exclusive,
+    attach_reasoning,
+    validate_no_self_warrant,
+)
 from gaia.engine.lang.runtime.knowledge import Claim, Knowledge, _current_package
 
 _EXCLUSIVITY_VALUES = {
@@ -100,7 +105,8 @@ def _auto_contradict(a: Claim, b: Claim, *, label: str | None) -> None:
         b=b,
         helper=helper,
     )
-    action.warrants.append(helper)
+    validate_no_self_warrant(action, helper)
+    attach_reasoning(helper, action)
 
 
 def _auto_exclusive(a: Claim, b: Claim, *, label: str | None) -> None:
@@ -124,7 +130,8 @@ def _auto_exclusive(a: Claim, b: Claim, *, label: str | None) -> None:
         b=b,
         helper=helper,
     )
-    action.warrants.append(helper)
+    validate_no_self_warrant(action, helper)
+    attach_reasoning(helper, action)
 
 
 def _ensure_structural_actions(
@@ -241,7 +248,6 @@ def likelihood(
         label=label,
         rationale=rationale,
         background=list(background or []),
-        warrants=[helper],
         metadata={"bayes": {"action": "likelihood"}},
         helper=helper,
         model=model,
@@ -251,5 +257,6 @@ def likelihood(
         precomputed=dict(precomputed) if precomputed is not None else None,
         log_likelihoods=log_likelihoods,
     )
-    helper.from_actions.append(action)
+    validate_no_self_warrant(action, helper)
+    attach_reasoning(helper, action)
     return helper
