@@ -36,7 +36,6 @@ with ``_ISO_TS_HYPHEN_RE`` to cover review filenames like
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -46,7 +45,6 @@ from tests.baseline.conftest import (
     list_artifact_paths,
     serialize_artifact_tree,
 )
-
 
 # --------------------------------------------------------------------------- #
 # Flavor 1 — artifact-tree snapshots for compile / infer / starmap / render   #
