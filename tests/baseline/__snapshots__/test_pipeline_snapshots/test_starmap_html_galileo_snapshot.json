@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "starmap",
+    "<TMP>",
+    "--out",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "Wrote starmap to <TMP> (27 nodes, 22 edges)\n"
+}

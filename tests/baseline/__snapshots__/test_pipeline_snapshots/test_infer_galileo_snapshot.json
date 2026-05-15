@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "infer",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "Inferred 16 beliefs\nMethod: JT (exact), <MS>\nConverged: True after 2 iterations\nOutput: <TMP>\n"
+}

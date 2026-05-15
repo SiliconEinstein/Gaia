@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "inquiry",
+    "obligation",
+    "add",
+    "target",
+    "-c",
+    "content",
+    "--kind",
+    "not-a-kind",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 2,
+  "stderr": "Error: invalid --kind 'not-a-kind'; allowed: ['focus_weakness', 'other', 'prior_hole', 'structural_hole', 'support_weak']\n",
+  "stdout": ""
+}

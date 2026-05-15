@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "compile",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "Compiled 24 knowledge, 5 strategies, 3 operators\nIR hash: sha256:60b3b644c...\nOutput: <TMP>\n"
+}

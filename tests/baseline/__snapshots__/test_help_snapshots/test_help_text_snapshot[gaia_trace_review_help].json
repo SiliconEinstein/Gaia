@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "trace",
+    "review",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia trace review [OPTIONS] TRACE_PATH\n\n Run the full ARM trace review.\n\n exit 0：clean\n exit 1：含 error 级 diagnostic 或 --strict 下含 warning\n exit 2：CLI 参数非法\n\n╭─ Arguments ──────────────────────────────────────────────────────────────────╮\n│ *    trace_path      TEXT  Path to trace file (.json/.jsonl). [required]     │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --mode                TEXT  Ranking mode: trace|publish. [default: trace]    │\n│ --package             TEXT  Gaia package path used to resolve claim_ref      │\n│                             review_ids.                                      │\n│ --json                      Emit JSON report (deterministic).                │\n│ --markdown                  Emit Markdown report.                            │\n│ --snapshot-dir        TEXT  Override snapshot output directory.              │\n│ --strict                    Exit non-zero whenever any error/warning         │\n│                             diagnostic is present.                           │\n│ --help                      Show this message and exit.                      │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "inquiry",
+    "tactics",
+    "log",
+    "--json",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "[]\n"
+}

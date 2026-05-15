@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "inquiry",
+    "obligation",
+    "list",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "(no open obligations)\n"
+}
