@@ -1,9 +1,9 @@
-# GaiaGraph, Scaffold, Materialization, and Reasoning Design
+# GaiaGraph, Scaffold, Reasoning, and `materialize(...)` Design
 
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
 **Branch:** off `v0.5`
-**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Materialization`, `Reasoning`, `candidate_relation`, `associate(pattern=...)`, and `compose`.
+**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Reasoning`, `candidate_relation`, `associate(pattern=...)`, `compose`, and the `materialize(...)` linking function.
 **Non-goals:** No graph engine, no causal graph hierarchy, no automatic scaffold-to-formal-record conversion, and no assumption that scaffold can only be formalized by reasoning.
 
 ## 1. Goal
@@ -19,11 +19,12 @@ GaiaGraph
     DependsOn
     CandidateRelation
 
-  Materialization
-
   Reasoning
-    Support / Infer / Associate
-    Equal / Contradict / Exclusive / Decompose
+    Directed
+      Derive / Observe / Compute / Infer
+    Relation
+      Equal / Contradict / Exclusive / Associate
+    Decompose
     Compose
 
   Future formal graph records
@@ -34,8 +35,8 @@ The important separation is:
 
 - `Knowledge` is what the package talks about.
 - `Scaffold` is a graph mark that says "this still needs formalization."
-- `Materialization` links a scaffold record to the formal graph record that
-  handles it.
+- `materialize(...)` records a checked link from scaffold to the formal graph
+  record that handles it; the link is not a `GaiaGraph` subclass.
 - `Reasoning` is a formal reasoning step that can participate in review,
   lowering, or inference.
 - `Compose` is a compound `Reasoning` made from other reasoning records.
@@ -121,10 +122,11 @@ There is no `tension` pattern. If the author knows the shape, use
 `"contradict"` or `"exclusive"`. If the author only knows that something is
 odd, use `pattern=None`.
 
-## 4. Materialization
+## 4. `materialize(...)`
 
 `materialize` is the only explicit bridge from scaffold to formal graph
-records.
+records. It is a DSL/API function that records a materialization link; it is
+not a graph-record class and not part of the `GaiaGraph` hierarchy.
 
 ```python
 materialize(
@@ -142,7 +144,7 @@ into reasoning.
 The `by` argument should accept a single record or a list of records. It should
 not be limited to `Reasoning`, because future Gaia graph records may include
 causal edges, measurement links, definition links, or other formal records that
-are not reasoning actions.
+are not reasoning records.
 
 ```python
 gap = depends_on(
@@ -215,7 +217,8 @@ obvious misuse:
 
 1. `scaffold` must be a `Scaffold`.
 2. `by` must resolve to one or more formal `GaiaGraph` records.
-3. `by` must not be another `Scaffold` or `Materialization`.
+3. `by` must not resolve to another `Scaffold`, and materialization links
+   cannot materialize other materialization links.
 4. `by` must reference at least one of the scaffold's core claims.
 5. If `candidate_relation.pattern` is not `None` and `by` declares a relation
    pattern, the patterns must match.
@@ -241,20 +244,25 @@ It is bookkeeping plus sanity checks.
 
 ## 5. Reasoning
 
-`Reasoning` replaces the public mental model of `Action`. It means a formal
-reasoning record, not an arbitrary operation.
+`Reasoning` is the runtime and user-facing name for a formal reasoning record.
+It is not an arbitrary operation.
 
 ```python
 class Reasoning(GaiaGraph):
     ...
 ```
 
-Existing reasoning families fit under it:
+Existing reasoning records fit under four graph shapes:
 
-- support-style reasoning: `derive`, `observe`, `compute`, `support`;
-- probabilistic reasoning: `infer`, `associate`;
-- hard relation reasoning: `equal`, `contradict`, `exclusive`, `decompose`;
-- composed reasoning: `compose`.
+- `Directed`: source information points toward a target claim or helper claim,
+  as in `derive`, `observe`, `compute`, and `infer`;
+- `Relation`: claims participate in a relation, as in `equal`, `contradict`,
+  `exclusive`, and `associate`;
+- `Decompose`: one whole claim is unpacked into claim parts and a formula;
+- `Compose`: child reasoning records are grouped into a reusable workflow.
+
+Whether a record is hard, empirical, computed, or probabilistic is decided by
+the concrete class and lowering logic, not by a top-level runtime family.
 
 ### 5.1 Hard relations
 
@@ -379,7 +387,7 @@ For open scaffold:
 }
 ```
 
-Materialization records should be recorded alongside scaffold records, not in
+`materialize(...)` links should be recorded alongside scaffold records, not in
 the BP-facing IR:
 
 ```json
@@ -403,9 +411,9 @@ Runtime:
 - Add a thin `GaiaGraph` base for graph records.
 - Keep `Knowledge` independent from `GaiaGraph`.
 - Move `Scaffold` under `GaiaGraph`, not under reasoning.
-- Add a `Materialization` graph record that links one scaffold to one or more
-  formal graph records.
-- Rename the public concept currently called `Action` to `Reasoning`.
+- Add `materialize(...)` as a DSL/API function that records a checked
+  materialization link outside the `GaiaGraph` hierarchy.
+- Rename the old action-style public concept to `Reasoning`.
 - Make `Compose` a `Reasoning`.
 - Keep the implementation migration as small as possible; do not add a new
   graph engine.
@@ -451,7 +459,7 @@ Tests:
 - `candidate_relation(claims=[a, b, c], pattern="contradict")` fails.
 - Public `tension` import is removed.
 - `depends_on(...)` and `candidate_relation(...)` return scaffold records.
-- `materialize(scaffold, by=reasoning_label)` records a materialization entry.
+- `materialize(scaffold, by=reasoning_label)` records a materialization link.
 - `materialize(...)` rejects scaffold-to-scaffold links.
 - `materialize(...)` rejects a `by` record that references none of the
   scaffold's core claims.
@@ -473,8 +481,8 @@ Docs:
 - Remove `tension` from public docs.
 - Explain that `associate(pattern=...)` is a soft probabilistic hint, not a
   hard relation.
-- Explain `materialize(...)` as explicit bookkeeping and checking, not a
-  reasoning primitive.
+- Explain `materialize(...)` as explicit bookkeeping/linking and checking, not
+  a `GaiaGraph` subclass or reasoning primitive.
 - Keep foundations docs aligned with the new `Knowledge` vs `GaiaGraph`
   split.
 
@@ -488,5 +496,5 @@ scope for the first change:
 - Automatic scaffold resolution.
 - A new persistent graph schema.
 
-Those can be derived later from the same `Knowledge + Scaffold +
-Materialization + Reasoning` records if the need becomes concrete.
+Those can be derived later from the same `Knowledge + Scaffold + Reasoning`
+records and materialization links if the need becomes concrete.

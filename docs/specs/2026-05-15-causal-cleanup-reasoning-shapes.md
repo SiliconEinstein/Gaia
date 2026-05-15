@@ -1,9 +1,9 @@
-# Causal Marker Cleanup and ReasoningAction Shape Refactor
+# Causal Marker Cleanup and Reasoning Shape Refactor
 
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
 **Branch:** off `v0.5`
-**Scope:** Delete the current Gaia Lang causal marker surface and refactor the runtime reasoning hierarchy around graph shape.
+**Scope:** Delete the current Gaia Lang causal marker surface and refactor the runtime `Reasoning` hierarchy around graph shape.
 **Refines:** `docs/specs/2026-05-15-gaia-graph-scaffold-reasoning-design.md`
 **Non-goals:** No causal graph implementation, no do-calculus, no BP lowering changes, no public DSL return-value migration, and no persistent IR schema redesign.
 
@@ -73,7 +73,7 @@ Lang causal DSL code, and is out of scope for this cleanup.
 Use graph shape as the primary hierarchy:
 
 ```text
-ReasoningAction
+Reasoning
   Directed
     Derive
     Observe
@@ -92,8 +92,9 @@ ReasoningAction
   Compose
 ```
 
-`ReasoningAction` is the code-facing base name. User-facing prose may shorten
-it to `Reasoning`, matching the GaiaGraph design spec.
+`Reasoning` is both the code-facing and user-facing base name. It keeps the
+public mental model simple: these records are formal reasoning records, not
+generic operations.
 
 ### 3.1 Directed
 
@@ -137,8 +138,8 @@ like `Equal`, `Contradict`, and `Exclusive`.
 
 ### 3.3 Decompose
 
-`Decompose` stays its own direct `ReasoningAction` child. It is not a normal
-directed step and not a simple relation:
+`Decompose` stays its own direct `Reasoning` child. It is not a normal directed
+step and not a simple relation:
 
 ```text
 whole Claim <-> formula(parts)
@@ -162,8 +163,8 @@ Rules to keep:
 
 ### 3.4 Compose
 
-`Compose` is a compound `ReasoningAction`. It groups child reasoning records
-into a reusable workflow.
+`Compose` is a compound `Reasoning`. It groups child reasoning records into a
+reusable workflow.
 
 The first migration keeps existing fields such as `inputs`, `actions`, and
 `conclusion`. A later cleanup may rename `actions` to `reasoning`, but this
@@ -178,7 +179,7 @@ Target class sketch:
 
 ```python
 @dataclass
-class ReasoningAction(GaiaGraph):
+class Reasoning(GaiaGraph):
     label: str | None = None
     rationale: str = ""
     background: list[Knowledge] = field(default_factory=list)
@@ -187,12 +188,12 @@ class ReasoningAction(GaiaGraph):
 
 
 @dataclass
-class Directed(ReasoningAction):
+class Directed(Reasoning):
     """Graph shape: sources point toward a target claim/helper."""
 
 
 @dataclass
-class Relation(ReasoningAction):
+class Relation(Reasoning):
     """Graph shape: claims participate in a relation."""
 
 
@@ -215,10 +216,10 @@ class Exclusive(Relation): ...
 class Associate(Relation): ...
 
 @dataclass
-class Decompose(ReasoningAction): ...
+class Decompose(Reasoning): ...
 
 @dataclass
-class Compose(ReasoningAction): ...
+class Compose(Reasoning): ...
 ```
 
 `Support`, `Structural`, and `Probabilistic` should stop being the public or
@@ -252,14 +253,14 @@ is_hard_relation = isinstance(action, Equal | Contradict | Exclusive)
 graph display, and future extension placement. They are not a substitute for
 lowering-specific dispatch.
 
-### 4.2 Bayes opt-in actions
+### 4.2 Bayes opt-in records
 
-Bayes actions should not keep importing `Probabilistic` after this refactor.
+Bayes records should not keep importing `Probabilistic` after this refactor.
 They should choose the smallest existing shape:
 
 - `PredictiveModel`: `Directed` if treated as a model declaration from a
-  hypothesis to a model-helper claim; otherwise direct `ReasoningAction` until
-  a more precise model-declaration shape exists.
+  hypothesis to a model-helper claim; otherwise direct `Reasoning` until a more
+  precise model-declaration shape exists.
 - `Likelihood`: `Directed`, because data/model inputs point toward a
   model-preference helper claim.
 
@@ -328,7 +329,7 @@ edge = causes(exposure, outcome, label="exposure_causes_outcome")
 materialize(rel, by=edge)
 ```
 
-This future edge is not necessarily `ReasoningAction`. It may have its own
+This future edge is not necessarily `Reasoning`. It may have its own
 interventional semantics and later projections into causal graphs, BP factors,
 or do-calculus engines.
 
@@ -336,10 +337,10 @@ or do-calculus engines.
 
 Runtime hierarchy:
 
-- Add `ReasoningAction`, `Directed`, and `Relation`.
+- Add `Reasoning`, `Directed`, and `Relation`.
 - Move `Derive`, `Observe`, `Compute`, and `Infer` under `Directed`.
 - Move `Equal`, `Contradict`, `Exclusive`, and `Associate` under `Relation`.
-- Move `Decompose` and `Compose` directly under `ReasoningAction`.
+- Move `Decompose` and `Compose` directly under `Reasoning`.
 - Remove or de-publicize `Support`, `Structural`, and `Probabilistic`.
 - Keep fields and DSL return values unchanged.
 
@@ -374,8 +375,8 @@ Minimum tests:
 - `issubclass(Contradict, Relation)`.
 - `issubclass(Exclusive, Relation)`.
 - `issubclass(Associate, Relation)`.
-- `issubclass(Decompose, ReasoningAction)` and not `issubclass(Decompose, Relation)`.
-- `issubclass(Compose, ReasoningAction)`.
+- `issubclass(Decompose, Reasoning)` and not `issubclass(Decompose, Relation)`.
+- `issubclass(Compose, Reasoning)`.
 - `Decompose.parts` remains `tuple[Claim, ...]` and non-Claim parts still fail.
 - Causal marker names are no longer exported from `gaia.lang`.
 - A formula with `Causes(...)` can no longer be constructed through public DSL.
