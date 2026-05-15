@@ -3,7 +3,7 @@
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
 **Branch:** off `v0.5`
-**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Reasoning`, scaffold-to-reasoning mapping, `candidate_relation`, `associate(pattern=...)`, and `compose`.
+**Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Reasoning`, `candidate_relation`, `associate(pattern=...)`, and `compose`.
 **Non-goals:** No graph engine, no causal graph hierarchy, no `materialize()` DSL verb, no automatic scaffold-to-reasoning conversion.
 
 ## 1. Goal
@@ -226,194 +226,7 @@ This keeps the meaning simple:
 - reasoning is the formalized step;
 - compose names a reusable reasoning workflow.
 
-## 7. Scaffold-to-Reasoning Mapping
-
-Scaffold-to-reasoning mapping is a graph view, not a DSL verb. Authors do not
-write `materialize(...)`. Gaia derives mapping links from the package graph so
-that `gaia check`, `gaia inquiry`, and future graph export can show how a
-scaffold note relates to formal reasoning that was later written.
-
-The mapping does not change inference. It only answers:
-
-```text
-Which reasoning records appear to cover this scaffold record?
-```
-
-### 7.1 Mapping statuses
-
-Use a small status vocabulary:
-
-| Status | Meaning |
-|---|---|
-| `unmapped` | No compatible reasoning record was found. |
-| `partial` | Some but not all scaffold claims or dependencies are covered. |
-| `soft` | Probabilistic reasoning covers the scaffold, but no hard relation or full dependency path is present. |
-| `hard` | A hard relation or direct reasoning path covers the scaffold. |
-| `workflow` | A `Compose` reasoning covers the scaffold through its child reasoning records. |
-| `conflict` | The scaffold pattern and the reasoning pattern disagree. |
-
-These statuses are for reporting only. A scaffold with `hard` or `workflow`
-mapping is still a scaffold record; the reasoning record is what carries the
-formal semantics.
-
-### 7.2 Reasoning footprint
-
-The mapping pass extracts a small footprint from each reasoning record:
-
-```text
-reasoning_ref
-kind
-input_claims
-output_claims
-relation_claims
-relation_pattern
-child_reasoning_refs
-```
-
-Examples:
-
-| Reasoning | Footprint |
-|---|---|
-| `derive(given=[a, b], conclusion=c)` | inputs `{a, b}`, outputs `{c}` |
-| `infer(evidence=e, hypothesis=h, ...)` | inputs `{e}`, outputs `{h}` for mapping, even if the Python helper returns `e` |
-| `associate(a, b, pattern="equal", ...)` | relation claims `{a, b}`, relation pattern `"equal"`, soft |
-| `equal(a, b, c)` | relation claims `{a, b, c}`, relation pattern `"equal"`, hard |
-| `exclusive(a, b, c)` | relation claims `{a, b, c}`, relation pattern `"exclusive"`, hard |
-| `contradict(a, b)` | relation claims `{a, b}`, relation pattern `"contradict"`, hard |
-| `compose(...)` | transitive union of child reasoning footprints |
-
-This footprint is intentionally smaller than the full compiler model. It is
-only enough to decide scaffold coverage.
-
-### 7.3 `depends_on` mapping
-
-```python
-gap = depends_on(conclusion=c, given=[a, b])
-```
-
-The mapping pass looks for reasoning whose output is `c` and whose inputs cover
-`a` and `b`.
-
-Direct examples:
-
-```python
-derive(conclusion=c, given=[a, b])
-```
-
-maps to:
-
-```json
-{
-  "scaffold_ref": "pkg::scaffold::gap",
-  "reasoning_ref": "pkg::reasoning::derive_c",
-  "status": "hard",
-  "coverage": {"given": ["a", "b"], "conclusion": "c"}
-}
-```
-
-An `infer` can also cover `depends_on` when its mapping output is the scaffold
-conclusion and its evidence/given claims cover the scaffold `given` claims:
-
-```python
-infer(evidence=a, hypothesis=c, p_e_given_h=0.9, p_e_given_not_h=0.2)
-```
-
-This is a probabilistic reasoning step, but for scaffold coverage it is still a
-formal reasoning path. The mapping status is `hard` only in the sense that the
-scaffold dependency has been formally written; it does not mean the reasoning
-is a hard logical constraint.
-
-If a `Compose` contains child reasoning that jointly covers `a`, `b`, and `c`,
-the mapping status is `workflow`.
-
-### 7.4 `candidate_relation` mapping
-
-For relation scaffold, the mapping pass compares claim sets and relation
-patterns.
-
-```python
-rel = candidate_relation(claims=[a, b, c], pattern="equal")
-```
-
-Hard mapping:
-
-```python
-equal(a, b, c)
-```
-
-maps to `status="hard"` because the hard relation has the same pattern and the
-same claim set.
-
-Soft mapping:
-
-```python
-associate(a, b, p_a_given_b=0.9, p_b_given_a=0.8, pattern="equal")
-associate(b, c, p_a_given_b=0.9, p_b_given_a=0.8, pattern="equal")
-```
-
-maps to `status="soft"` for the three-claim equality scaffold because the
-positive association edges connect all scaffold claims. It does not assert
-equality; it only says the empirical soft evidence points in the same
-direction as the scaffold.
-
-Open scaffold:
-
-```python
-candidate_relation(claims=[a, b], pattern=None)
-```
-
-can map to any compatible relation reasoning over the same claims. If the
-first matching reasoning is `associate(a, b, pattern="exclusive", ...)`, Gaia
-can report the scaffold as classified softly as `"exclusive"`. If the matching
-reasoning is `exclusive(a, b)`, Gaia can report it as classified hard as
-`"exclusive"`.
-
-### 7.5 Multi-claim coverage rules
-
-Use deterministic, easy-to-explain rules:
-
-| Scaffold pattern | Hard coverage | Soft coverage through `associate` |
-|---|---|---|
-| `None` | any hard relation over the same claims classifies it | any patterned association over the same claims, or enough pairwise edges to classify the group |
-| `"equal"` | one `equal(...)` over the same claim set | patterned `"equal"` association edges form a connected graph over all claims |
-| `"exclusive"` | one `exclusive(...)` over the same claim set | patterned `"exclusive"` association edges cover every pair, because mutual exclusivity is pairwise |
-| `"contradict"` | one `contradict(a, b)` over the same two claims | one `"contradict"` association over the same two claims |
-
-Subset matches are `partial`. For example, `equal(a, b)` only partially covers
-`candidate_relation(claims=[a, b, c], pattern="equal")`.
-
-Pattern disagreement is `conflict`. For example:
-
-```python
-candidate_relation(claims=[a, b], pattern="equal")
-exclusive(a, b)
-```
-
-The reasoning is formal, but it does not cover the scaffold; it contradicts
-the scaffold classification.
-
-### 7.6 Mapping output
-
-The first implementation can generate a derived report section rather than a
-new persistent schema:
-
-```json
-{
-  "scaffold_ref": "pkg::scaffold::mechanism_forms",
-  "reasoning_refs": ["pkg::reasoning::same_forms"],
-  "status": "hard",
-  "pattern": "equal",
-  "coverage": {
-    "claims": ["pkg::a", "pkg::b", "pkg::c"]
-  }
-}
-```
-
-If a persistent shape becomes useful later, the same payload can live in a
-`scaffold_mappings` section of the formalization manifest. That is deferred
-until `gaia check` or `gaia graph` needs it.
-
-## 8. Manifest Shape
+## 7. Manifest Shape
 
 The scaffold manifest should represent the new API directly.
 
@@ -441,7 +254,7 @@ For reasoning records, existing compiler output can remain structurally similar
 at first. The public naming should move from "action" to "reasoning", but the
 initial implementation does not need to redesign the IR or BP schemas.
 
-## 9. Implementation Checklist
+## 8. Implementation Checklist
 
 Runtime:
 
@@ -475,11 +288,8 @@ Compiler and CLI:
 - Ensure scaffold records are not counted as reasoning in review, lowering, or
   BP.
 - Ensure `compose` captures only reasoning records.
-- Add a derived scaffold-to-reasoning mapping pass for reporting.
 - Update `gaia check` and `gaia inquiry` output for multi-claim candidate
   relations and `pattern=None`.
-- Show scaffold mapping status as `unmapped`, `partial`, `soft`, `hard`,
-  `workflow`, or `conflict`.
 
 Tests:
 
@@ -496,17 +306,6 @@ Tests:
 - `associate(..., pattern="exclusive")` requires both conditionals below
   `0.5`.
 - `compose` does not treat scaffold records as child reasoning.
-- `depends_on(conclusion=c, given=[a, b])` maps to direct reasoning from
-  `{a, b}` to `c`.
-- `depends_on(...)` maps to `workflow` when a compose footprint covers the
-  dependency.
-- `candidate_relation(pattern=None)` can be classified by matching hard or soft
-  relation reasoning.
-- `candidate_relation(pattern="equal")` maps softly when patterned association
-  edges connect all scaffold claims.
-- `candidate_relation(pattern="exclusive")` maps softly only when patterned
-  association edges cover every pair.
-- Pattern disagreement produces `conflict`, not `hard` or `soft`.
 
 Docs:
 
@@ -516,12 +315,10 @@ Docs:
 - Remove `tension` from public docs.
 - Explain that `associate(pattern=...)` is a soft probabilistic hint, not a
   hard relation.
-- Explain scaffold-to-reasoning mapping as a derived graph view, not a user DSL
-  verb.
 - Keep foundations docs aligned with the new `Knowledge` vs `GaiaGraph`
   split.
 
-## 10. Deferred Work
+## 9. Deferred Work
 
 The following ideas are compatible with this model but are intentionally out of
 scope for the first change:
