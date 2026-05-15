@@ -8,7 +8,6 @@ exclude_docs: |
   archive/**
   design/**
   ideas/**
-  foundations/gaia-lang/dsl.md
   plans/**
   specs/**
   superpowers/**
