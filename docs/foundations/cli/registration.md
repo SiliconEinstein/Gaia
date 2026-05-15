@@ -8,7 +8,7 @@ since: v0.5
 
 ## Overview
 
-`gaia register` prepares or submits a package registration to the Gaia Official
+`gaia pkg register` prepares or submits a package registration to the Gaia Official
 Registry -- a Julia General Registry-style GitHub repository. Source code stays
 in the author's GitHub repo; the registry stores package metadata plus release
 interface manifests that consumers can resolve without importing author code.
@@ -17,11 +17,11 @@ Registration produces a pull request against the registry repo. Registry CI vali
 
 ## Prerequisites
 
-Before running `gaia register`, the following conditions must hold:
+Before running `gaia pkg register`, the following conditions must hold:
 
 1. **`[tool.gaia].uuid`** is set in `pyproject.toml` and is a valid UUID.
 2. **`[project].name`** ends with `-gaia` (the naming convention for Gaia packages).
-3. **Package compiled and validated** -- `gaia compile` and `gaia check` must have been run. The command verifies `.gaia/ir_hash` exists and matches the current compilation output.
+3. **Package compiled and validated** -- `gaia build compile` and `gaia build check` must have been run. The command verifies `.gaia/ir_hash` exists and matches the current compilation output.
 4. **IR validation passes** -- the compiled IR is loaded as a `LocalCanonicalGraph` and validated; any validation errors abort registration.
 5. **Git worktree is clean** -- `git status --short` must produce no output.
 6. **Git tag exists and points to HEAD** -- by default, the tag is `v<version>` (override with `--tag`). The tag's resolved SHA must equal `HEAD`.
@@ -33,7 +33,7 @@ If any check fails, the command prints a diagnostic message to stderr and exits 
 ## Command Flags
 
 ```
-gaia register [PATH] [OPTIONS]
+gaia pkg register [PATH] [OPTIONS]
 ```
 
 | Flag | Default | Description |
@@ -47,7 +47,7 @@ gaia register [PATH] [OPTIONS]
 
 ## Dry-Run Mode (Default)
 
-Without `--registry-dir`, `gaia register` outputs a JSON registration plan to stdout and exits. This is the default behavior -- useful for previewing what would be submitted before touching the registry checkout.
+Without `--registry-dir`, `gaia pkg register` outputs a JSON registration plan to stdout and exits. This is the default behavior -- useful for previewing what would be submitted before touching the registry checkout.
 
 The JSON plan contains:
 
@@ -91,7 +91,7 @@ The `deps` field is derived from `[project].dependencies` in `pyproject.toml`, f
 
 ## Registry Write Mode
 
-With `--registry-dir <path>`, `gaia register` writes metadata files into a local checkout of the registry repository:
+With `--registry-dir <path>`, `gaia pkg register` writes metadata files into a local checkout of the registry repository:
 
 1. **Verifies** the registry checkout is clean (`git status --short` is empty).
 2. **Creates branch** `register/<name>-<version>` in the registry checkout. Fails if the branch already exists.
@@ -142,7 +142,7 @@ Versions are sorted lexicographically by version string in the rendered output.
 | `git_tag` | `--tag` / derived from pyproject version | Must exist and point to HEAD |
 | `git_sha` | `git rev-parse <tag>` | Commit the tag points to |
 | `registered_at` | `datetime.utcnow()` at register time | UTC, ISO-8601 |
-| `gaia_lang_version` | `.gaia/compile_metadata.json` (written at `gaia compile` time) | Which `gaia-lang` compiled the IR being registered. Read from the committed compile metadata file, **not** from the live process environment — this decouples the registered provenance from whatever version happens to be installed when `gaia register` runs. When the metadata file is missing or malformed (e.g. legacy packages compiled before the field was introduced), the value is emitted as `"unknown"` and a warning is printed. Consumers can use this to detect BP engine version drift across patch releases that keep `ir_hash` stable but refine numerical inference. |
+| `gaia_lang_version` | `.gaia/compile_metadata.json` (written at `gaia build compile` time) | Which `gaia-lang` compiled the IR being registered. Read from the committed compile metadata file, **not** from the live process environment — this decouples the registered provenance from whatever version happens to be installed when `gaia pkg register` runs. When the metadata file is missing or malformed (e.g. legacy packages compiled before the field was introduced), the value is emitted as `"unknown"` and a warning is printed. Consumers can use this to detect BP engine version drift across patch releases that keep `ir_hash` stable but refine numerical inference. |
 
 Older entries that pre-date the `gaia_lang_version` field are preserved as-is when the registry file is re-rendered — the renderer emits only keys present in the payload. This keeps historical entries stable across registrations.
 
@@ -200,7 +200,7 @@ Without `--create-pr`, the command prints a "next step" message instructing the 
 
 After the PR is created, registry CI (`register.yml`) takes over:
 
-- **Untrusted sandbox job**: Clones the package repo by pinned SHA, installs the Gaia runtime, runs `gaia compile` and `gaia check`, and verifies the resulting `ir_hash` matches the declared value. Also verifies all Gaia dependencies are already registered. **Validates that `namespace` matches the registry** — the GitHub Official Registry requires `namespace == "github"`. Author code is executed here, but the job has no registry write permissions.
+- **Untrusted sandbox job**: Clones the package repo by pinned SHA, installs the Gaia runtime, runs `gaia build compile` and `gaia build check`, and verifies the resulting `ir_hash` matches the declared value. Also verifies all Gaia dependencies are already registered. **Validates that `namespace` matches the registry** — the GitHub Official Registry requires `namespace == "github"`. Author code is executed here, but the job has no registry write permissions.
 - **Trusted gate job**: Does not execute author code. Verifies UUID uniqueness for new packages, checks ownership policy, labels the PR, and applies the waiting-period policy.
 - **Waiting period**: 72 hours for new packages (community review window), 1 hour for version updates (lower operational risk).
 - **Auto-merge**: After the waiting period expires and all checks pass.
@@ -212,13 +212,13 @@ Reference: `docs/specs/2026-04-02-gaia-registry-design.md` for the full CI spec,
 ## Consumer Workflow
 
 Phase 1 is a source registry. Consumers normally install registered packages
-through `gaia add`, which resolves registry metadata, writes a pinned Git
+through `gaia pkg add`, which resolves registry metadata, writes a pinned Git
 dependency through `uv add`, and downloads optional upstream `beliefs.json` for
 flat cross-package inference:
 
 ```bash
-gaia add galileo-falling-bodies-gaia
-gaia add galileo-falling-bodies-gaia --version 4.0.0
+gaia pkg add galileo-falling-bodies-gaia
+gaia pkg add galileo-falling-bodies-gaia --version 4.0.0
 ```
 
 The equivalent low-level install is a pinned Git direct reference:
@@ -234,21 +234,21 @@ The registry provides the canonical repo URL and immutable git SHA for each vers
 ```bash
 # 1. Author prepares the release
 cd ~/my-package
-gaia compile .
-gaia check .
+gaia build compile .
+gaia build check .
 git add . && git commit -m "Prepare v1.0.0"
 git push origin main
 git tag v1.0.0
 git push origin v1.0.0
 
 # 2. Preview the registration plan (dry-run)
-gaia register .
+gaia pkg register .
 
 # 3. Write metadata to a local registry checkout
-gaia register . --registry-dir ~/gaia-registry
+gaia pkg register . --registry-dir ~/gaia-registry
 
 # 4. Push and open PR in one step
-gaia register . --registry-dir ~/gaia-registry --create-pr
+gaia pkg register . --registry-dir ~/gaia-registry --create-pr
 
 # 5. Registry CI validates, waits, and auto-merges
 ```

@@ -33,7 +33,7 @@ gaia --help
 ## Create a Package
 
 ```bash
-gaia init my-first-gaia
+gaia build init my-first-gaia
 ```
 
 The name **must** end with `-gaia`. This creates:
@@ -53,7 +53,7 @@ Open `src/my_first/__init__.py` and replace the template:
 ```python
 """Galileo's tied-body contradiction for Aristotle's falling-body model."""
 
-from gaia.lang import claim, contradict, derive, note
+from gaia.engine.lang import claim, contradict, derive, note
 
 # Model under test
 aristotle_law = claim(
@@ -104,7 +104,7 @@ Key points:
 
 ```bash
 cd my-first-gaia
-gaia compile .
+gaia build compile .
 ```
 
 This produces `.gaia/ir.json` (the compiled knowledge graph) and `.gaia/ir_hash` (integrity hash).
@@ -112,12 +112,12 @@ This produces `.gaia/ir.json` (the compiled knowledge graph) and `.gaia/ir_hash`
 ## Validate
 
 ```bash
-gaia check .
+gaia build check .
 ```
 
 Check reports structural errors, independent premises, derived conclusions, and prior coverage. Fix any errors before proceeding.
 
-Use `gaia check --brief .` for a per-module overview, or `gaia check --hole .` for a detailed prior coverage report.
+Use `gaia build check --brief .` for a per-module overview, or `gaia build check --hole .` for a detailed prior coverage report.
 
 ## Check Prior Coverage
 
@@ -133,7 +133,7 @@ to use the maximum-entropy neutral starting point.
 Inspect that state with:
 
 ```bash
-gaia check --hole .
+gaia build check --hole .
 ```
 
 The report should show `aristotle_law` as an independent MaxEnt degree of
@@ -145,7 +145,7 @@ When you do have an informative prior, create `src/my_first/priors.py` and call
 ```python
 """Priors for independent premises."""
 
-from gaia.lang import register_prior
+from gaia.engine.lang import register_prior
 
 from . import aristotle_law
 
@@ -162,18 +162,18 @@ records can coexist on the same claim, and Gaia's resolution policy preserves
 the losing records for audit. Priors follow Cromwell bounds, so use values
 between 0.001 and 0.999 rather than exact 0 or 1.
 
-Do not write the old `PRIORS = {...}` dict. In v0.5+, `gaia compile` rejects it
+Do not write the old `PRIORS = {...}` dict. In v0.5+, `gaia build compile` rejects it
 with a migration error because it has no explicit source provenance and cannot
 participate in multi-source prior resolution.
 
 If you created or changed `priors.py`, re-compile to pick up the priors:
 
 ```bash
-gaia compile .
-gaia check --hole .    # Shows covered inputs and any MaxEnt independent DOF
+gaia build compile .
+gaia build check --hole .    # Shows covered inputs and any MaxEnt independent DOF
 ```
 
-In this with-priors branch, `gaia check --hole .` should show
+In this with-priors branch, `gaia build check --hole .` should show
 `aristotle_law` as covered by `prior=0.3`, not as a MaxEnt input.
 
 ## Infer
@@ -181,13 +181,13 @@ In this with-priors branch, `gaia check --hole .` should show
 Run belief propagation to compute posterior beliefs:
 
 ```bash
-gaia infer .
+gaia run infer .
 ```
 
-`gaia infer` is a local preview: it lowers the compiled graph and reports the
+`gaia run infer` is a local preview: it lowers the compiled graph and reports the
 posterior implied by your current declarations, even before generated warrants
 have been reviewed. Review still matters for quality gates and publication, so
-run `gaia check --warrants`, `gaia check --gate`, or `gaia inquiry review` when
+run `gaia build check --warrants`, `gaia build check --gate`, or `gaia inquiry review` when
 you need to know whether the package is ready to publish.
 
 The CLI prints a short summary and writes the detailed posterior records to
@@ -210,7 +210,7 @@ and the vacuum prediction.
 Generate documentation from the compiled package:
 
 ```bash
-gaia render . --target docs
+gaia run render . --target docs
 ```
 
 This produces `docs/detailed-reasoning.md` with per-module Mermaid reasoning graphs.

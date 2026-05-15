@@ -15,7 +15,7 @@ This flow has been exercised against the official `SiliconEinstein/gaia-registry
 
 You do **not** mark holes manually.
 
-Given an exported conclusion, Gaia computes its dependency closure during `gaia compile`:
+Given an exported conclusion, Gaia computes its dependency closure during `gaia build compile`:
 
 - unresolved local claim premise -> `local_hole`
 - unresolved foreign claim premise -> `foreign_dependency`
@@ -50,7 +50,7 @@ uuid = "11111111-1111-1111-1111-111111111111"
 `src/paper_a/__init__.py`:
 
 ```python
-from gaia.lang import claim, deduction
+from gaia.engine.lang import claim, deduction
 
 missing_lemma = claim("A missing lemma.")
 main_theorem = claim("A theorem that depends on the missing lemma.")
@@ -66,8 +66,8 @@ __all__ = ["main_theorem"]
 Compile and inspect:
 
 ```bash
-gaia compile .
-gaia check .
+gaia build compile .
+gaia build check .
 ```
 
 Expected result:
@@ -88,7 +88,7 @@ cd ../paper-b-gaia
 uv add --editable ../paper-a-gaia
 ```
 
-For an already registered dependency, `gaia add paper-a-gaia` is the preferred
+For an already registered dependency, `gaia pkg add paper-a-gaia` is the preferred
 path; it installs the pinned package version and caches any release beliefs.
 
 `pyproject.toml`:
@@ -111,7 +111,7 @@ uuid = "22222222-2222-2222-2222-222222222222"
 `src/paper_b/__init__.py`:
 
 ```python
-from gaia.lang import claim, fills
+from gaia.engine.lang import claim, fills
 from paper_a import missing_lemma
 
 bridge_result = claim("A result that establishes the missing lemma.")
@@ -128,8 +128,8 @@ __all__ = ["bridge_result"]
 Compile and inspect:
 
 ```bash
-gaia compile .
-gaia check .
+gaia build compile .
+gaia build check .
 ```
 
 Expected result:
@@ -159,8 +159,8 @@ If A's current release no longer exposes that premise as a hole, B's compile fai
 Register package A first, then package B.
 
 ```bash
-gaia register /path/to/paper-a
-gaia register /path/to/paper-b
+gaia pkg register /path/to/paper-a
+gaia pkg register /path/to/paper-b
 ```
 
 Why the order matters:

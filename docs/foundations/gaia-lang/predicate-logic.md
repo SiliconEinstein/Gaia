@@ -21,17 +21,17 @@ already know first-order logic to read it.
 
 Source references:
 
-- `gaia/lang/runtime/domain.py`
-- `gaia/lang/runtime/variable.py`
-- `gaia/lang/formula/term.py`
-- `gaia/lang/formula/predicate.py`
-- `gaia/lang/formula/connective.py`
-- `gaia/lang/formula/quantifier.py`
-- `gaia/lang/dsl/formula.py`
-- `gaia/lang/dsl/sugar.py`
-- `gaia/lang/compiler/lower_formula.py`
-- `tests/gaia/lang/test_formula_lowering.py`
-- `tests/gaia/lang/test_milestone_a_smoke.py`
+- `gaia/engine/lang/runtime/domain.py`
+- `gaia/engine/lang/runtime/variable.py`
+- `gaia/engine/lang/formula/term.py`
+- `gaia/engine/lang/formula/predicate.py`
+- `gaia/engine/lang/formula/connective.py`
+- `gaia/engine/lang/formula/quantifier.py`
+- `gaia/engine/lang/dsl/formula.py`
+- `gaia/engine/lang/dsl/sugar.py`
+- `gaia/engine/lang/compiler/lower_formula.py`
+- `tests/gaia/engine/lang/test_formula_lowering.py`
+- `tests/gaia/engine/lang/test_milestone_a_smoke.py`
 
 ---
 
@@ -40,7 +40,7 @@ Source references:
 Most Gaia claims can be written as ordinary prose:
 
 ```python
-from gaia.lang import claim
+from gaia.engine.lang import claim
 
 heliocentric = claim("The heliocentric model is correct.", prior=0.8)
 ```
@@ -86,7 +86,7 @@ In classical predicate logic, a formula such as `Stable(x)` has three pieces:
 Gaia keeps the same idea, but uses Python objects:
 
 ```python
-from gaia.lang import Domain, PredicateSymbol, UserPredicate, Variable
+from gaia.engine.lang import Domain, PredicateSymbol, UserPredicate, Variable
 
 Particle = Domain("Particles in this toy model", members=["p1", "p2"])
 x = Variable(symbol="x", domain=Particle)
@@ -102,7 +102,7 @@ Gaia Lang authoring objects. They help build a `Formula`. The formula becomes
 part of Gaia IR only when it is attached to a `Claim` and compiled:
 
 ```python
-from gaia.lang import ClaimKind, claim, forall
+from gaia.engine.lang import ClaimKind, claim, forall
 
 law = claim(
     "Every particle is stable.",
@@ -133,7 +133,7 @@ A `Domain` is a finite, enumerable sort. It answers the question "what values
 can this variable range over?"
 
 ```python
-from gaia.lang import Domain
+from gaia.engine.lang import Domain
 
 Particle = Domain("Particles in this toy model", members=["p1", "p2", "p3"])
 ```
@@ -153,7 +153,7 @@ Use a `Domain` when Gaia should enumerate all possible values.
 Gaia also has four built-in primitive type tokens:
 
 ```python
-from gaia.lang import Bool, Nat, Probability, Real
+from gaia.engine.lang import Bool, Nat, Probability, Real
 ```
 
 They validate literal values:
@@ -177,7 +177,7 @@ A `Variable` is a typed term with a symbol, a domain, and optionally a bound
 value:
 
 ```python
-from gaia.lang import Nat, Variable
+from gaia.engine.lang import Nat, Variable
 
 n = Variable(symbol="n", domain=Nat)
 n_obs = Variable(symbol="n_obs", domain=Nat, value=395)
@@ -215,7 +215,7 @@ Current term nodes:
 Example:
 
 ```python
-from gaia.lang import Constant, FunctionApp, FunctionSymbol, Real
+from gaia.engine.lang import Constant, FunctionApp, FunctionSymbol, Real
 
 Energy = FunctionSymbol(
     name="Energy",
@@ -247,7 +247,7 @@ Current atomic formulas:
 Example:
 
 ```python
-from gaia.lang import Greater
+from gaia.engine.lang import Greater
 
 positive_energy = Greater(energy_x, zero)
 ```
@@ -255,7 +255,7 @@ positive_energy = Greater(energy_x, zero)
 `UserPredicate` uses an explicit symbol:
 
 ```python
-from gaia.lang import PredicateSymbol, UserPredicate
+from gaia.engine.lang import PredicateSymbol, UserPredicate
 
 Stable = PredicateSymbol(name="Stable", arg_domains=(Particle,))
 stable_x = UserPredicate(Stable, (x,))
@@ -283,7 +283,7 @@ function names.
 Example over existing claims:
 
 ```python
-from gaia.lang import ClaimAtom, claim, implies
+from gaia.engine.lang import ClaimAtom, claim, implies
 
 a = claim("A holds.")
 b = claim("B holds.")
@@ -298,7 +298,7 @@ claim as an atom inside the formula."
 Quantifiers bind a free variable:
 
 ```python
-from gaia.lang import exists, forall
+from gaia.engine.lang import exists, forall
 
 all_stable = forall(x, UserPredicate(Stable, (x,)))
 some_stable = exists(x, UserPredicate(Stable, (x,)))
@@ -340,8 +340,8 @@ formula lowering.
 The executable predicate-logic mechanism is `claim(formula=...)`:
 
 ```python
-from gaia.lang import ClaimKind, Domain, PredicateSymbol, UserPredicate, Variable
-from gaia.lang import claim, forall
+from gaia.engine.lang import ClaimKind, Domain, PredicateSymbol, UserPredicate, Variable
+from gaia.engine.lang import claim, forall
 
 Material = Domain("Materials in this package", members=["YBCO", "LaH10"])
 x = Variable(symbol="x", domain=Material)
@@ -377,7 +377,7 @@ measured values.
 Use this to assert that a primitive variable has a value:
 
 ```python
-from gaia.lang import Probability, Variable, parameter
+from gaia.engine.lang import Probability, Variable, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 h_3_1 = parameter(
@@ -405,7 +405,7 @@ Use a normal formula claim for observed primitive values, then mark it with
 structured-claim sugar.
 
 ```python
-from gaia.lang import Constant, Nat, Variable, claim, equals, land, observe
+from gaia.engine.lang import Constant, Nat, Variable, claim, equals, land, observe
 
 n = Variable(symbol="n", domain=Nat)
 k = Variable(symbol="k", domain=Nat)
@@ -431,7 +431,7 @@ the zero-premise `observe(...)` action pins the claim to `1 - CROMWELL_EPS`.
 Use this to mark a causal claim:
 
 ```python
-from gaia.lang import Real, Variable, causal
+from gaia.engine.lang import Real, Variable, causal
 
 co2 = Variable(symbol="co2", domain=Real)
 temp = Variable(symbol="temp", domain=Real)
@@ -454,7 +454,7 @@ mutilation. Those are covered by later causal extension specs.
 
 ## 6. Lowering Contract
 
-Formula lowering happens in `gaia/lang/compiler/lower_formula.py`, after
+Formula lowering happens in `gaia/engine/lang/compiler/lower_formula.py`, after
 ordinary knowledge IDs are assigned.
 
 The compiler sees a claim such as:
@@ -479,7 +479,7 @@ atom claims.
 Example:
 
 ```python
-from gaia.lang import Constant, Equals, Probability, Variable, claim
+from gaia.engine.lang import Constant, Equals, Probability, Variable, claim
 
 p = Variable(symbol="p", domain=Probability)
 value = claim(
@@ -511,7 +511,7 @@ Top-level `ClaimAtom(a)` attached to a different source claim creates an
 equivalence alias:
 
 ```python
-from gaia.lang import ClaimAtom, claim
+from gaia.engine.lang import ClaimAtom, claim
 
 a = claim("A.", prior=0.8)
 alias = claim("Alias of A.", formula=ClaimAtom(a), prior=0.2)
@@ -531,7 +531,7 @@ nodes instead of generating new atom nodes.
 Connectives lower to deterministic IR operators:
 
 ```python
-from gaia.lang import ClaimAtom, claim, land
+from gaia.engine.lang import ClaimAtom, claim, land
 
 a = claim("A.")
 b = claim("B.")
@@ -549,7 +549,7 @@ For a nested formula, Gaia generates private helper claims for intermediate
 sub-expressions:
 
 ```python
-from gaia.lang import ClaimAtom, claim, implies, land
+from gaia.engine.lang import ClaimAtom, claim, implies, land
 
 rule = claim(
     "A and B imply C.",
@@ -567,8 +567,8 @@ independent probabilistic inputs.
 `Domain`.
 
 ```python
-from gaia.lang import ClaimKind, Domain, PredicateSymbol, UserPredicate, Variable
-from gaia.lang import claim, forall
+from gaia.engine.lang import ClaimKind, Domain, PredicateSymbol, UserPredicate, Variable
+from gaia.engine.lang import claim, forall
 
 Particle = Domain("Particles", members=["p1", "p2"])
 x = Variable(symbol="x", domain=Particle)
@@ -610,7 +610,7 @@ lifted universal-inference engine here.
 If the variable uses a primitive domain:
 
 ```python
-from gaia.lang import Nat, Variable, forall
+from gaia.engine.lang import Nat, Variable, forall
 
 n = Variable(symbol="n", domain=Nat)
 ```
@@ -623,7 +623,7 @@ then `claim(formula=forall(n, ...))` currently raises during lowering, because
 `Exists(variable, body)` also requires a finite `Domain`.
 
 ```python
-from gaia.lang import ClaimKind, Exists, claim
+from gaia.engine.lang import ClaimKind, Exists, claim
 
 some_stable = claim(
     "Some particle is stable.",
@@ -675,7 +675,7 @@ This example is small enough to inspect by hand. It says:
 3. Particle `p1` is observed stable.
 
 ```python
-from gaia.lang import (
+from gaia.engine.lang import (
     ClaimKind,
     Domain,
     PredicateSymbol,
@@ -738,7 +738,7 @@ treats them as the same node.
 | Boolean structure over existing claims | `claim(formula=land(...))`, `implies(...)`, etc. |
 | A finite-domain universal or existential claim | `claim(formula=forall(...))` / `claim(formula=exists(...))` |
 | A reviewable derivation between claims | `derive(conclusion, given=..., rationale=...)` |
-| A probabilistic likelihood relation | `infer(...)` or `gaia.lang.bayes` |
+| A probabilistic likelihood relation | `infer(...)` or `gaia.engine.lang.bayes` |
 | A hypothesized relation not ready for semantics | `candidate_relation(...)` or `tension(...)` |
 
 Do not hide semantic structure in prose if the compiler or reviewer needs to

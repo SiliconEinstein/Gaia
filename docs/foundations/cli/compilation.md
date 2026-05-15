@@ -6,9 +6,9 @@ since: v0.5
 
 # Compilation and Validation
 
-This document describes the internals of `gaia compile` and `gaia check` -- the deterministic pipeline that transforms Python DSL source into Gaia IR.
+This document describes the internals of `gaia build compile` and `gaia build check` -- the deterministic pipeline that transforms Python DSL source into Gaia IR.
 
-## gaia compile
+## gaia build compile
 
 ### Pipeline Overview
 
@@ -59,14 +59,14 @@ The loader performs a fresh dynamic import of the package module (`gaia/cli/_pac
 2. **Invalidate bytecode** -- calls `importlib.invalidate_caches()` and sets `sys.dont_write_bytecode = True` during import
 3. **Import** -- calls `importlib.import_module(import_name)`
 
-Before import, `gaia compile` first runs a best-effort `uv sync --quiet` when
+Before import, `gaia build compile` first runs a best-effort `uv sync --quiet` when
 `uv` is available. That step is dependency-environment maintenance, not part of
 IR construction. After that, the loader calls `reset_inferred_package()` to
-prime the callstack-based package registry (`gaia/lang/runtime/package.py`).
+prime the callstack-based package registry (`gaia/engine/lang/runtime/package.py`).
 This ensures DSL objects created during module execution register to the
 correct `CollectedPackage`.
 
-**Auto-registration via contextvars:** each DSL dataclass (`Knowledge`, `Strategy`, `Operator` in `gaia/lang/runtime/nodes.py`) has a `__post_init__` that looks up the current `CollectedPackage` from the `_current_package` context variable. If set, the object registers itself immediately. If not set, it falls back to `infer_package_from_callstack()`, which walks the call stack to find the nearest non-`gaia.lang` module, locates its `pyproject.toml`, and loads (or retrieves) the corresponding `CollectedPackage`.
+**Auto-registration via contextvars:** each DSL dataclass (`Knowledge`, `Strategy`, `Operator` in `gaia/engine/lang/runtime/nodes.py`) has a `__post_init__` that looks up the current `CollectedPackage` from the `_current_package` context variable. If set, the object registers itself immediately. If not set, it falls back to `infer_package_from_callstack()`, which walks the call stack to find the nearest non-`gaia.engine.lang` module, locates its `pyproject.toml`, and loads (or retrieves) the corresponding `CollectedPackage`.
 
 **Label inference** (`_assign_labels` in `gaia/cli/_packages.py`): after import completes, the loader imports the package root and all non-helper source modules, then scans loaded module attributes to assign labels to unlabeled DSL objects:
 
@@ -82,7 +82,7 @@ correct `CollectedPackage`.
 
 ### Step 3: Compile to IR
 
-`compile_package_artifact()` in `gaia/lang/compiler/compile.py` transforms the `CollectedPackage` into a `LocalCanonicalGraph`.
+`compile_package_artifact()` in `gaia/engine/lang/compiler/compile.py` transforms the `CollectedPackage` into a `LocalCanonicalGraph`.
 
 #### Knowledge Closure
 
@@ -98,7 +98,7 @@ De-duplication is by Python object identity (`id()`). Foreign knowledge nodes (i
 
 #### QID Assignment
 
-Each knowledge node receives a stable Qualified Node ID. The assignment logic (`_knowledge_id` in `gaia/lang/compiler/compile.py`) considers three cases:
+Each knowledge node receives a stable Qualified Node ID. The assignment logic (`_knowledge_id` in `gaia/engine/lang/compiler/compile.py`) considers three cases:
 
 | Case | QID Format | Example |
 |------|-----------|---------|
@@ -210,9 +210,9 @@ On success, `write_compiled_artifacts()` (`gaia/cli/_packages.py`) writes:
 
 Source: `gaia/cli/commands/compile.py`
 
-## gaia check
+## gaia build check
 
-`gaia check` validates that a package is well-formed and its compiled artifacts are current. It runs the full compilation pipeline in memory and compares against stored artifacts.
+`gaia build check` validates that a package is well-formed and its compiled artifacts are current. It runs the full compilation pipeline in memory and compares against stored artifacts.
 
 Source: `gaia/cli/commands/check.py`
 
@@ -227,7 +227,7 @@ Source: `gaia/cli/commands/check.py`
 | 5 | Stored ir.json consistency | `.gaia/ir.json` exists, is valid JSON, and its embedded `ir_hash` matches recompiled hash | Error if mismatched |
 | 6 | Artifact presence | `.gaia/ir_hash` exists | Warning if missing |
 
-If `.gaia/ir_hash` does not exist, check reports a warning (artifacts missing, run `gaia compile`). If it exists but does not match the recompiled value, check reports an error (artifacts stale, run `gaia compile` again).
+If `.gaia/ir_hash` does not exist, check reports a warning (artifacts missing, run `gaia build compile`). If it exists but does not match the recompiled value, check reports an error (artifacts stale, run `gaia build compile` again).
 
 ## Determinism Guarantee
 
@@ -241,4 +241,4 @@ The same source code always produces the same `ir_hash`, provided the package's 
 - **Canonical serialization** -- JSON output is sorted at every level, making `ir_hash` independent of Python dict ordering or object creation order
 - **Bytecode suppression** -- `sys.dont_write_bytecode = True` during import prevents stale `.pyc` interference
 
-This determinism is what makes `gaia check` possible: recompiling from source must reproduce the exact same IR hash as a previous `gaia compile` run, as long as the source has not changed.
+This determinism is what makes `gaia build check` possible: recompiling from source must reproduce the exact same IR hash as a previous `gaia build compile` run, as long as the source has not changed.

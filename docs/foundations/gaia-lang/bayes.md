@@ -12,11 +12,11 @@ question:
 
 | You want to … | Use this surface | Mental model |
 |---|---|---|
-| Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.lang.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **Hypothesis comparison** via likelihood ratios |
+| Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.engine.lang.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **Hypothesis comparison** via likelihood ratios |
 | Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` | **Quantity with predicates** via generated prior records and equation metadata |
 
 Both surfaces ride on the same scipy-backed distribution machinery
-(``gaia.lang.bayes.distributions``); the difference is the authoring shape
+(``gaia.engine.lang.bayes.distributions``); the difference is the authoring shape
 and the lowering target. They can coexist freely in one package — for
 example, a paper might use `bayes.likelihood` for the central hypothesis
 test while declaring `Normal`-distributed quantities for nuisance
@@ -24,7 +24,7 @@ measurements.
 
 ## Hypothesis comparison surface (existing v0.5)
 
-`gaia.lang.bayes` is the lifted authoring surface for model-data likelihood
+`gaia.engine.lang.bayes` is the lifted authoring surface for model-data likelihood
 updates. It decomposes the paper narrative into reviewable Gaia claims:
 
 1. `parameter(variable, value)` declares the hypothesis shape.
@@ -52,13 +52,13 @@ that are addressable via `[@label]` references. Historical design records live a
 Prefer the namespace import:
 
 ```python
-from gaia.lang import bayes
+from gaia.engine.lang import bayes
 
 dist = bayes.Binomial(n=395, p=0.75)
 ```
 
 Bayes models are authored through `bayes.model(...)`. There is no
-`from gaia.lang import predict` core verb and no `bayes.predict(...)` alias in
+`from gaia.engine.lang import predict` core verb and no `bayes.predict(...)` alias in
 v0.5; use `derive(...)` for ordinary support steps and `bayes.model(...)` when
 declaring a predictive distribution for a hypothesis.
 
@@ -254,7 +254,7 @@ Runtime objects do not expose stable `.id` or `.qid` fields.
 
 ## Check Rules
 
-`gaia check` reports Bayes-specific diagnostics:
+`gaia build check` reports Bayes-specific diagnostics:
 
 - `bayes:dangling-prediction`
 - `bayes:unobserved-prediction-target`
@@ -266,7 +266,7 @@ The first two are warnings. Prior-coherence and missing-data diagnostics are
 hard errors because they change the meaning of the compiled likelihood update.
 
 `bayes:hypothesis-prior-coherence` sums hypothesis priors as recorded in the
-compiled IR. `gaia check` applies `priors.py` before compilation, so sidecar
+compiled IR. `gaia build check` applies `priors.py` before compilation, so sidecar
 priors are visible to this rule once injected into metadata. Hypotheses with no
 Claim prior and no `priors.py` entry contribute `0.5` to the sum.
 
@@ -297,7 +297,7 @@ author priors still override them.
 ### Worked example — H₃S high-temperature superconductivity
 
 ```python
-from gaia.lang import Normal, claim, observe
+from gaia.engine.lang import Normal, claim, observe
 from gaia.unit import q
 
 # Declare T_c as a Distribution-typed continuous quantity with a unit-aware
@@ -326,7 +326,7 @@ prose claims with hand-set priors.
 
 The unit-typed Quantity flows through to IR — ``high_Tc.metadata['predicate']
 ['rhs']`` becomes ``{'kind': 'quantity', 'value': 77.0, 'unit': 'kelvin'}``,
-visible to ``gaia check`` and downstream renderers without losing the unit.
+visible to ``gaia build check`` and downstream renderers without losing the unit.
 
 ### Equation claims — laws and tolerances
 
@@ -334,7 +334,7 @@ For simple algebraic equations, use the `==` operator and an explicit prior
 expressing the author's belief in the law or model:
 
 ```python
-from gaia.lang import Normal, claim
+from gaia.engine.lang import Normal, claim
 
 baseline = Normal("baseline response", mu=10, sigma=1)
 slope = Normal("pressure coefficient", mu=2, sigma=0.5)
@@ -371,7 +371,7 @@ measurement event as a fresh Claim pinned to ``1 - CROMWELL_EPS`` (the
 measurement happened) with metadata linking back to the Distribution:
 
 ```python
-from gaia.lang import Normal, observe
+from gaia.engine.lang import Normal, observe
 
 T_c = Normal("T_c of H3S at 200 GPa", mu=200, sigma=50)
 
@@ -388,10 +388,10 @@ m3 = observe(T_c, value=204, error=custom_noise)
 
 PR1 v0.6 stores observation events; the posterior CDF used for predicate
 claim priors still uses the prior distribution (observation-aware posterior
-update is a follow-up PR — see `gaia/lang/compiler/predicate_lowering.py`
+update is a follow-up PR — see `gaia/engine/lang/compiler/predicate_lowering.py`
 ``PREDICATE_LOWERING_SOURCE_ID`` docstring). Until then, predicate priors
 reflect the prior CDF directly; observed measurement events are visible in
-IR (and to `gaia check`) but do not yet update the predicate prior.
+IR (and to `gaia build check`) but do not yet update the predicate prior.
 
 ### Unit-aware parameters
 
@@ -428,7 +428,7 @@ Authors writing scientific code typically pair Quantity-typed distribution
 parameters with Quantity-typed predicate thresholds and observation values:
 
 ```python
-from gaia.lang import Normal, claim, observe
+from gaia.engine.lang import Normal, claim, observe
 from gaia.unit import q
 
 reaction_rate = Normal("k for reaction X", mu=q(1.0e-3, "1/s"), sigma=q(2.0e-4, "1/s"))
@@ -491,7 +491,7 @@ Two warning categories surface common authoring mistakes / known limitations:
   posterior-CDF work (tracked separately, see project issues) will close.
   Until then, use `register_prior(predicate_claim, value, justification=...)`
   to record a documented post-observation belief, or express the inference via
-  `gaia.lang.bayes.likelihood()`. The inline `claim(prior=...)` shortcut is
+  `gaia.engine.lang.bayes.likelihood()`. The inline `claim(prior=...)` shortcut is
   deliberately lower priority than the generated CDF prior and will not
   suppress this warning by itself.
 
@@ -501,20 +501,20 @@ non-fatal — packages compile successfully.
 
 ### Source code
 
-- `gaia/lang/bayes/distributions/` — hypothesis-comparison distribution
+- `gaia/engine/lang/bayes/distributions/` — hypothesis-comparison distribution
   literals (`Binomial`, `BetaBinomial`, `Poisson`, continuous families) backed
   by `scipy.stats`
-- `gaia/lang/runtime/distribution.py` — Distribution Knowledge wrapper
+- `gaia/engine/lang/runtime/distribution.py` — Distribution Knowledge wrapper
   + family factories (`Normal`, `LogNormal`, `Beta`, `Gamma`, `Exponential`,
   `StudentT`, `Cauchy`, `ChiSquared`, `Binomial`, `Poisson`)
-- `gaia/lang/dsl/bool_expr.py` — `BoolExpr`, `DerivedDistribution`
-- `gaia/lang/dsl/knowledge.py` — `claim(content, proposition, ...)` accepts
+- `gaia/engine/lang/dsl/bool_expr.py` — `BoolExpr`, `DerivedDistribution`
+- `gaia/engine/lang/dsl/knowledge.py` — `claim(content, proposition, ...)` accepts
   BoolExpr propositions; routes equality to `metadata['equation']`,
   inequality to `metadata['predicate']`
-- `gaia/lang/dsl/support.py` — `observe(distribution, value, error, ...)`
+- `gaia/engine/lang/dsl/support.py` — `observe(distribution, value, error, ...)`
   polymorphism
-- `gaia/lang/compiler/predicate_lowering.py` — predicate → generated
+- `gaia/engine/lang/compiler/predicate_lowering.py` — predicate → generated
   `continuous_inference` prior record at compile time; equation → low-priority
   default neutral prior record
-- `gaia/lang/compiler/distribution_diagnostics.py` — dead-quantity and
+- `gaia/engine/lang/compiler/distribution_diagnostics.py` — dead-quantity and
   observation-not-updating-predicate detectors

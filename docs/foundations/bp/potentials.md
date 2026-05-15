@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical（与 `gaia/bp/` v2 实现及 theory 对齐）
 
-本文档定义 `gaia.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 设计：[Gaia IR lowering](../gaia-ir/07-lowering.md)。
+本文档定义 `gaia.engine.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 设计：[Gaia IR lowering](../gaia-ir/07-lowering.md)。
 
 势函数对因子所连变量的联合赋值返回非负权重；无需归一化，仅比值有意义。所有经验概率遵守 Cromwell 规则（`CROMWELL_EPS = 1e-3`）。
 

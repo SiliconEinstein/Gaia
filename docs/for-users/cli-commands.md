@@ -481,6 +481,6 @@ gaia pkg register . --registry-dir ../gaia-registry --create-pr      # 10. Publi
 
 ## Old flat verbs
 
-The historical `gaia compile`, `gaia infer`, `gaia starmap`, etc. are
+The historical `gaia build compile`, `gaia run infer`, `gaia inspect starmap`, etc. are
 tombstoned. Invoking them prints a redirect to stderr and exits with code 2.
 See [Migration to alpha 0](../migration.md) for the full mapping.

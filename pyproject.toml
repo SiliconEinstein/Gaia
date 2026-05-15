@@ -63,6 +63,7 @@ include = [
     "gaia",
     "gaia.bp*",
     "gaia.cli*",
+    "gaia.engine*",
     "gaia.inquiry*",
     "gaia.ir*",
     "gaia.lang*",

@@ -184,7 +184,7 @@ v0.5 [`01-plausible-reasoning.md`](01-plausible-reasoning.md) 和 [`02-maxent-gr
 
 - `Mechanism` **不直接进入 `C(I)`**——它不是命题约束，没有真值，不能写成 `E[f(X)] = c` 这种等式约束的形式；
 - `Mechanism` 通过 lowering 转成 `CausalFactor`，**直接给出条件概率 `P(effect | cause)`**——这是 fully specified 的局部分布，不是 MaxEnt 待选的自由度；
-- 因此**`Mechanism` 节点上没有 MaxEnt 自由度**——`gaia check --hole` 在 `Mechanism` 上不报告 prior_hole；
+- 因此**`Mechanism` 节点上没有 MaxEnt 自由度**——`gaia build check --hole` 在 `Mechanism` 上不报告 prior_hole；
 - 命题层的其他自由度（独立 `Claim` 没有 prior 时）仍按 v0.5 MaxEnt 处理，不受 `Mechanism` 引入影响。
 
 实际效果：**MaxEnt 自由度只在命题层声明，结构层（`Mechanism`）的参数由作者直接给（`cpd=(α, β)`），没有 MaxEnt 选择**。这与 v0.5 [`02-maxent-grounding.md`](02-maxent-grounding.md) §3.3 描述的"乘积分解 = MaxEnt + 硬约束的自然结果"在数学上自洽——`CausalFactor` 是 fully-specified 的局部因子，它给乘积分解贡献一个完整的局部项，不参与 MaxEnt 优化。
@@ -200,7 +200,7 @@ v0.5 [`01-plausible-reasoning.md`](01-plausible-reasoning.md) 和 [`02-maxent-gr
 
 | v0.5 模式 | 添加进 IR 的东西 | 触发的查询 |
 |----------|----------------|-----------|
-| `claim("X is true", prior=0.7)` | `Claim` 节点 + `PriorRecord` | `gaia infer` 计算 marginal |
+| `claim("X is true", prior=0.7)` | `Claim` 节点 + `PriorRecord` | `gaia run infer` 计算 marginal |
 | `observe(claim_X)` | observation `Action`（pin 到 1−ε） | 同上 |
 | `derive(Y, given=[X])` | deduction `Action` | 同上 |
 

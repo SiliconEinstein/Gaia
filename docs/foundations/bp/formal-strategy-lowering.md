@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical (v0.5)
 >
-> 本文档说明 FormalStrategy 内部 Operator 如何 lower 到当前 `gaia.bp`
+> 本文档说明 FormalStrategy 内部 Operator 如何 lower 到当前 `gaia.engine.bp`
 > 的确定性 FactorType。
 > 依赖：[potentials.md](potentials.md)（factor potential 定义）、[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)（因子图理论）。
 > 历史注脚：本方案已替代旧的二元因子 / dead-end 检测方案（issue #340）。

@@ -2,9 +2,9 @@
 
 > **Status:** Ecosystem architecture with v0.5 implementation notes
 
-> 当前 v0.5 CLI 的 Level 0 是 `gaia infer` 本地 numerical preview：它允许
+> 当前 v0.5 CLI 的 Level 0 是 `gaia run infer` 本地 numerical preview：它允许
 > MaxEnt inputs，并且不因 review manifest 未 accepted 而抑制 belief 输出。
-> `gaia check --gate` 才负责 publication-quality gate。本文的 Level 1/LKM
+> `gaia build check --gate` 才负责 publication-quality gate。本文的 Level 1/LKM
 > snapshot、validated review reports 和 official belief flow 是生态层设计，
 > 不代表当前 CLI 已实现的服务端流程。
 
@@ -20,7 +20,7 @@
 Gaia 采用两级推理：
 
 ```
-Level 0: 包级推理（作者本地，gaia infer）
+Level 0: 包级推理（作者本地，gaia run infer）
 Level 1: LKM 推理（LKM Server，包含增量 snapshot 和全量收敛）
 ```
 
@@ -30,7 +30,7 @@ LKM 内部可能区分快速增量更新（snapshot）和定期全量收敛（gl
 
 ### 什么时候运行
 
-作者在本地运行 `gaia infer`，通常在编译（`gaia compile`）之后。编译和推理的详细流程见 [03 包的创建与发布](03-authoring-and-publishing.md)。
+作者在本地运行 `gaia run infer`，通常在编译（`gaia build compile`）之后。编译和推理的详细流程见 [03 包的创建与发布](03-authoring-and-publishing.md)。
 
 ### 做什么
 
@@ -194,7 +194,7 @@ Official Registry 记录新版本
   "你的包依赖 X v3.0.0，X 已发布 v4.0.0（MAJOR 更新）"
   ↓
 下游维护者决定：
-  a. 更新依赖 → gaia compile + gaia infer → 重新注册
+  a. 更新依赖 → gaia build compile + gaia run infer → 重新注册
   b. 暂不更新 → 继续使用旧版本（可信度基于旧数据）
   c. 不再需要该依赖 → 移除引用
 ```
@@ -285,7 +285,7 @@ Review Server（LLM/agent）评估推理逻辑并把 prior / strategy 写进 rev
 | | Level 0（包级） | Level 1（LKM） |
 |---|---|---|
 | **运行环境** | 作者本地 | LKM Server |
-| **触发** | `gaia infer` | 事件驱动（增量）+ 定期（全量） |
+| **触发** | `gaia run infer` | 事件驱动（增量）+ 定期（全量） |
 | **范围** | 本包 + 直接依赖 | 局部子图（增量）或整个知识网络（全量） |
 | **Review Server** | 本地 self-review 仅供预览 | 入库时通过 assignment + 校验的 review reports 作为推理输入 |
 | **LKM** | 不涉及 | 推理 + belief snapshot 发布 + curation（发现跨包关系） |

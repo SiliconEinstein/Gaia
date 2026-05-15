@@ -11,7 +11,7 @@ since: v0.5
 The Gaia CLI is a knowledge package authoring toolkit. The main authoring pipeline takes a Python DSL package from scaffolding to registry registration:
 
 ```
-gaia init --> gaia add --> write package --> gaia compile --> gaia check --> gaia infer --> gaia render --> git tag --> gaia register
+gaia build init --> gaia pkg add --> write package --> gaia build compile --> gaia build check --> gaia run infer --> gaia run render --> git tag --> gaia pkg register
 (scaffold)   (add deps)    (DSL code)      (DSL -> IR)     (validate)    (BP)            (present)              (registry PR)
 ```
 
@@ -20,22 +20,22 @@ Two side-channel command groups support the authoring loop without producing or 
 ```
 gaia inquiry  — local review loop (focus / obligation / hypothesis / review)
 gaia trace    — inference-trace verification and audit (verify / review / show)
-gaia starmap  — package-graph visualization (html / dot / svg)
+gaia inspect starmap  — package-graph visualization (html / dot / svg)
 ```
 
-`gaia infer` is required before `gaia render --target github`; `--target docs` works without it (beliefs enrich the output when available but are not required).
+`gaia run infer` is required before `gaia run render --target github`; `--target docs` works without it (beliefs enrich the output when available but are not required).
 
 Entry point: installed as the `gaia` CLI command via `pyproject.toml` `[project.scripts]`, backed by a Typer app at `gaia.cli.main:app`.
 
 
 ## Commands
 
-### `gaia init <NAME>`
+### `gaia build init <NAME>`
 
 Scaffold a new Gaia knowledge package.
 
 ```
-gaia init <NAME>
+gaia build init <NAME>
 ```
 
 | Argument | Default | Description |
@@ -49,17 +49,17 @@ gaia init <NAME>
 3. Renames the `src/` subdirectory to match the Gaia import name convention (strips the `-gaia` suffix, replaces hyphens with underscores).
 4. Writes a DSL template into the package module's `__init__.py`.
 
-The resulting directory is a complete Gaia knowledge package ready for `gaia compile`.
+The resulting directory is a complete Gaia knowledge package ready for `gaia build compile`.
 
 **Key output:** a new directory `<NAME>/` containing `pyproject.toml`, `src/<import_name>/__init__.py` with DSL template code.
 
 
-### `gaia compile [PATH]`
+### `gaia build compile [PATH]`
 
 Compile a Python DSL package to Gaia IR.
 
 ```
-gaia compile [PATH]
+gaia build compile [PATH]
 ```
 
 | Argument | Default | Description |
@@ -71,9 +71,9 @@ gaia compile [PATH]
 1. Loads the package from `pyproject.toml` (requires `[tool.gaia].type = "knowledge-package"`).
 2. Imports the Python module, collects `Knowledge`, `Action` (including `Compose`), `Strategy`, and `Operator` declarations registered to the active `CollectedPackage`.
 3. Assigns labels from Python variable names to unlabeled objects (Knowledge labels and Action labels share a single namespace per package; collision is a compile error — see [Gaia Lang design](../gaia-lang/knowledge-and-reasoning.md)).
-4. Compiles the collected package to Gaia IR via `gaia.lang.compiler.compile_package`. Action lowering, formula lowering, and bayes lowering all run as part of this step.
+4. Compiles the collected package to Gaia IR via `gaia.engine.lang.compiler.compile_package`. Action lowering, formula lowering, and bayes lowering all run as part of this step.
 5. Validates the resulting `LocalCanonicalGraph` (warnings printed, errors abort).
-6. Generates a baseline `ReviewManifest` over every action target and attaches it in memory to `CompiledPackage.review`. The manifest is not persisted by `gaia compile`; it is read/merged later by `gaia inquiry review` and review/gate commands when `.gaia/review_manifest.json` exists.
+6. Generates a baseline `ReviewManifest` over every action target and attaches it in memory to `CompiledPackage.review`. The manifest is not persisted by `gaia build compile`; it is read/merged later by `gaia inquiry review` and review/gate commands when `.gaia/review_manifest.json` exists.
 7. Writes `.gaia/ir.json`, `.gaia/ir_hash`, compile metadata, the
    formalization manifest, and package interface manifests to `.gaia/`.
 
@@ -90,15 +90,15 @@ staleness detection), `.gaia/compile_metadata.json`,
 Reference: [Compilation](compilation.md) for internals.
 
 
-### `gaia check [PATH]`
+### `gaia build check [PATH]`
 
 Validate package structure and artifact consistency.
 
 ```
-gaia check [PATH]
-gaia check --brief [PATH]
-gaia check --show <module|label> [PATH]
-gaia check --hole [PATH]
+gaia build check [PATH]
+gaia build check --brief [PATH]
+gaia build check --show <module|label> [PATH]
+gaia build check --hole [PATH]
 ```
 
 | Argument | Default | Description |
@@ -114,7 +114,7 @@ gaia check --hole [PATH]
 **What it does:**
 
 1. Loads and compiles the package in memory using the same loader/compiler path
-   as `gaia compile` (but without the compile command's best-effort `uv sync`).
+   as `gaia build compile` (but without the compile command's best-effort `uv sync`).
 2. Checks that `[project].name` ends with `-gaia`.
 3. Validates the `LocalCanonicalGraph` (schema and structural checks).
 4. If `.gaia/ir_hash` exists, verifies it matches the current compilation output.
@@ -132,12 +132,12 @@ printed but do not fail the check.
 Reference: [Compilation](compilation.md) for validation details.
 
 
-### `gaia add <PACKAGE> [OPTIONS]`
+### `gaia pkg add <PACKAGE> [OPTIONS]`
 
 Install a registered Gaia knowledge package from the official registry.
 
 ```
-gaia add <PACKAGE> [--version VERSION] [--registry REPO]
+gaia pkg add <PACKAGE> [--version VERSION] [--registry REPO]
 ```
 
 | Argument / Option | Default | Description |
@@ -155,7 +155,7 @@ gaia add <PACKAGE> [--version VERSION] [--registry REPO]
    reproducibility.
 4. When run inside a Gaia package, downloads the upstream release's
    `beliefs.json` into `.gaia/dep_beliefs/<import_name>.json` if the registry
-   release provides one. This cache feeds the default `gaia infer --depth 0`
+   release provides one. This cache feeds the default `gaia run infer --depth 0`
    flat prior injection for foreign nodes.
 
 The package is added as a standard Python dependency in `pyproject.toml` and
@@ -166,12 +166,12 @@ with the pinned Gaia package dependency, and optionally
 `.gaia/dep_beliefs/<import_name>.json`.
 
 
-### `gaia infer [PATH] [--depth N]`
+### `gaia run infer [PATH] [--depth N]`
 
 Run belief propagation using compiled IR and metadata priors.
 
 ```
-gaia infer [PATH] [--depth N]
+gaia run infer [PATH] [--depth N]
 ```
 
 | Argument / Option | Default | Description |
@@ -201,7 +201,7 @@ gaia infer [PATH] [--depth N]
 8. Writes results to `.gaia/beliefs.json` — per-knowledge beliefs and
    convergence diagnostics.
 
-**Prerequisites:** `gaia compile` must have been run first (artifacts must be
+**Prerequisites:** `gaia build compile` must have been run first (artifacts must be
 fresh).
 
 **Key output:** `.gaia/beliefs.json`.
@@ -209,13 +209,13 @@ fresh).
 Reference: [Inference](inference.md) for internals.
 
 
-### `gaia render [PATH] [--target TARGET]`
+### `gaia run render [PATH] [--target TARGET]`
 
 Render presentation outputs (detailed-reasoning docs and/or a GitHub presentation
 site) from a compiled package.
 
 ```
-gaia render [PATH] [--target docs|github|obsidian|all]
+gaia run render [PATH] [--target docs|github|obsidian|all]
 ```
 
 | Argument / Option | Default | Description |
@@ -249,7 +249,7 @@ gaia render [PATH] [--target docs|github|obsidian|all]
 4. Dispatches to the selected targets, emitting warnings when `--target all`
    or `--target docs` runs without inference results.
 
-**Prerequisites:** `gaia compile` must have been run. `gaia infer` must have
+**Prerequisites:** `gaia build compile` must have been run. `gaia run infer` must have
 been run for `--target github` and for the `github` portion of `--target all`.
 
 **Key output:**
@@ -258,12 +258,12 @@ been run for `--target github` and for the `github` portion of `--target all`.
 - `gaia-wiki/` (when target is `obsidian`)
 
 
-### `gaia register [PATH] [OPTIONS]`
+### `gaia pkg register [PATH] [OPTIONS]`
 
 Prepare or submit a registration for a tagged, GitHub-backed Gaia package.
 
 ```
-gaia register [PATH] [--tag TAG] [--repo URL] [--registry-dir PATH]
+gaia pkg register [PATH] [--tag TAG] [--repo URL] [--registry-dir PATH]
               [--registry-repo SLUG] [--create-pr]
 ```
 
@@ -318,7 +318,7 @@ Reference: [Registration](registration.md) for details.
 
 ## Authoring Side-Channels
 
-These commands support the authoring loop but do not produce or mutate IR, priors, or beliefs. They read what `gaia compile` and `gaia infer` already wrote.
+These commands support the authoring loop but do not produce or mutate IR, priors, or beliefs. They read what `gaia build compile` and `gaia run infer` already wrote.
 
 ### `gaia inquiry`
 
@@ -357,12 +357,12 @@ default; use `--snapshot-dir` to write them elsewhere.
 
 Reference: [../review/review-pipeline.md §6](../review/review-pipeline.md#6-cli-gaia-trace-verify-review-show).
 
-### `gaia starmap`
+### `gaia inspect starmap`
 
 Cross-paper / cross-package knowledge-graph visualization. Reads compiled IR (and optionally registry metadata) to render the constellation of claims, actions, and modules.
 
 ```
-gaia starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--out OUTPUT]
+gaia inspect starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--out OUTPUT]
 ```
 
 | Option | Default | Description |
@@ -371,7 +371,7 @@ gaia starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dark] [--ou
 | `--theme` | `light` | Visual theme: `light` (flat paper-friendly), `stellaris` / `dark` (deep-space dark with glow filters for svg) |
 | `--out` | `.gaia/starmap.{html,dot,svg}` | Output destination |
 
-`gaia starmap-replay` is an experimental sibling that renders an animated
+`gaia inspect starmap-replay` is an experimental sibling that renders an animated
 playback of an LKM discovery run. It expects
 `artifacts/lkm-discovery/retrieval_log.jsonl` and
 `artifacts/lkm-discovery/graph_growth_log.jsonl`.
@@ -381,16 +381,16 @@ playback of an LKM discovery run. It expects
 
 | Stage    | Command          | Key Artifacts |
 |----------|------------------|---------------|
-| Init     | `gaia init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
-| Compile  | `gaia compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/compile_metadata.json`, `.gaia/formalization_manifest.json`, `.gaia/manifests/{exports,premises,holes,bridges}.json` |
-| Check    | `gaia check`     | (validation only) |
-| Add      | `gaia add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
+| Init     | `gaia build init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
+| Compile  | `gaia build compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/compile_metadata.json`, `.gaia/formalization_manifest.json`, `.gaia/manifests/{exports,premises,holes,bridges}.json` |
+| Check    | `gaia build check`     | (validation only) |
+| Add      | `gaia pkg add`       | Updated `pyproject.toml` dependencies, `uv.lock` |
 | Inquiry  | `gaia inquiry`   | `.gaia/inquiry/state.json`, `.gaia/inquiry/tactics.jsonl`, `.gaia/inquiry/reviews/<review_id>.json`, `.gaia/review_manifest.json` (persisted by inquiry review) |
-| Infer    | `gaia infer`     | `.gaia/beliefs.json` |
+| Infer    | `gaia run infer`     | `.gaia/beliefs.json` |
 | Trace    | `gaia trace`     | reads trace files; `review` also writes snapshots under `.gaia/trace/reviews/` unless `--snapshot-dir` is used |
-| Render   | `gaia render`    | `docs/detailed-reasoning.md`, `.github-output/`, or `gaia-wiki/` depending on target |
-| Starmap  | `gaia starmap`   | `.gaia/starmap.{html,dot,svg}` |
-| Register | `gaia register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml`, and `releases/<version>/{exports,premises,holes,bridges,beliefs}.json` in the registry repo |
+| Render   | `gaia run render`    | `docs/detailed-reasoning.md`, `.github-output/`, or `gaia-wiki/` depending on target |
+| Starmap  | `gaia inspect starmap`   | `.gaia/starmap.{html,dot,svg}` |
+| Register | `gaia pkg register`  | `packages/<name>/Package.toml`, `Versions.toml`, `Deps.toml`, and `releases/<version>/{exports,premises,holes,bridges,beliefs}.json` in the registry repo |
 
 
 ## Package Requirements
@@ -413,22 +413,22 @@ replace hyphens with underscores (e.g., `galileo-falling-bodies-gaia` becomes
 
 ```bash
 # 1. Scaffold a package
-gaia init galileo-falling-bodies-gaia
+gaia build init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
 
 # 2. Write DSL declarations in src/galileo_falling_bodies/__init__.py
 
 # 3. Compile DSL to IR
-gaia compile .
+gaia build compile .
 
 # 4. Validate package
-gaia check .
+gaia build check .
 
 # 5. Add dependencies from the registry (optional)
-gaia add some-prerequisite-gaia
+gaia pkg add some-prerequisite-gaia
 
 # 6. Preview beliefs (optional)
-gaia infer .
+gaia run infer .
 
 # 7. Tag and push
 git add -A && git commit -m "initial package"
@@ -436,8 +436,8 @@ git tag v0.1.0
 git push origin main --tags
 
 # 8. Dry-run registration (prints JSON plan)
-gaia register .
+gaia pkg register .
 
 # 9. Write to registry and open PR
-gaia register . --registry-dir ../gaia-registry --create-pr
+gaia pkg register . --registry-dir ../gaia-registry --create-pr
 ```

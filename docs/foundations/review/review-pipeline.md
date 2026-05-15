@@ -12,7 +12,7 @@ acceptable for publication-quality workflows). Review is a per-action decision:
 a reviewer reads each action's audit question and accepts, rejects, defers, or
 asks for more inputs. It is not a numeric prior.
 
-In v0.5 review is fully local. The CLI generates a **review manifest** at compile time, an inquiry loop guides the author through outstanding actions, and the trace produced by `gaia infer` can be independently audited. There is no central review server today.
+In v0.5 review is fully local. The CLI generates a **review manifest** at compile time, an inquiry loop guides the author through outstanding actions, and the trace produced by `gaia run infer` can be independently audited. There is no central review server today.
 
 This document covers the local review surface. The legacy LLM-driven `pipeline_review()` / `cli/llm_client.py` path described in earlier versions of this file is removed and superseded.
 
@@ -63,18 +63,18 @@ class ReviewManifest(BaseModel):
 
 ## 3. Manifest Generation
 
-Source: `gaia/lang/review/manifest.py:generate_review_manifest`, called from `compile_package_artifact()` at the end of compilation.
+Source: `gaia/engine/lang/review/manifest.py:generate_review_manifest`, called from `compile_package_artifact()` at the end of compilation.
 
 For each compiled action target, the manifest builder:
 
 1. Resolves the action label from the package-wide `action_label_map`.
 2. Picks the target kind by inspecting the action subclass (`_strategy_action_type`, `_operator_action_type`, etc.).
-3. Builds a templated audit question via `gaia.lang.review.templates.generate_audit_question(action_type, **labels)`.
+3. Builds a templated audit question via `gaia.engine.lang.review.templates.generate_audit_question(action_type, **labels)`.
 4. Mints a deterministic `review_id` per `(target_kind, target_id)` so re-compiles do not invalidate stored reviews of unchanged targets.
 
 The result is attached to the `CompiledPackage`. `gaia inquiry review` and
 review/gate commands later merge it with the package's persisted
-`.gaia/review_manifest.json` (see §5). `gaia infer` does not read the persisted
+`.gaia/review_manifest.json` (see §5). `gaia run infer` does not read the persisted
 manifest; it previews the compiled graph numerically.
 
 ## 4. CLI: `gaia inquiry review`
@@ -99,7 +99,7 @@ Source: `gaia/cli/commands/inquiry.py`, `gaia/inquiry/review.py:run_review`.
 The output is a `ReviewReport` dataclass that the CLI prints in text or markdown form (`render_text` / `render_markdown`). Public surface:
 
 ```python
-from gaia.inquiry.review import (
+from gaia.engine.inquiry.review import (
     ReviewReport, run_review, render_text, render_markdown,
     publish_blockers, resolve_graph,
 )
@@ -137,16 +137,16 @@ targets appear as `UNREVIEWED`; targets that disappeared from the IR are
 dropped on the next compile. `latest_reviews()` returns the highest-round
 status per target, suitable for downstream gating.
 
-The merged manifest is what `gaia inquiry review`, `gaia check --gate`, and
+The merged manifest is what `gaia inquiry review`, `gaia build check --gate`, and
 publish/register quality checks consult when deciding whether an authored
-warrant has passed review. `gaia infer` is deliberately more permissive: it
+warrant has passed review. `gaia run infer` is deliberately more permissive: it
 lowers the compiled graph for a local numerical preview regardless of manifest
 status. Accepted, rejected, and unreviewed are qualitative states, not hidden
 probability parameters.
 
 ### Quality Gate Criteria
 
-`gaia check --gate` is the current publish-quality gate. By default it fails on:
+`gaia build check --gate` is the current publish-quality gate. By default it fails on:
 
 - exported structural holes without a warrant chain;
 - unformalized scaffold dependencies from `depends_on(...)`;
@@ -154,14 +154,14 @@ probability parameters.
 - optional low posterior checks when `[tool.gaia.quality].min_posterior` is set.
 
 `[tool.gaia.quality]` can explicitly allow holes or unformalized dependencies
-for draft workflows, but those settings do not change `gaia infer`; they only
+for draft workflows, but those settings do not change `gaia run infer`; they only
 change the gate result.
 
 ## 6. CLI: `gaia trace verify / review / show`
 
 Source: `gaia/cli/commands/trace.py`, `gaia/trace/review.py:run_trace_review`. Spec: `docs/specs/2026-...` ARM Trace Reviewer (PR #491).
 
-The trace pipeline records every reasoning event emitted during `gaia infer` and other agent-side workflows into a hash-chained `.json` / `.jsonl` file. The trace is independent of the inference numerical result — its purpose is to make the *reasoning process* itself auditable.
+The trace pipeline records every reasoning event emitted during `gaia run infer` and other agent-side workflows into a hash-chained `.json` / `.jsonl` file. The trace is independent of the inference numerical result — its purpose is to make the *reasoning process* itself auditable.
 
 | Sub-command | Purpose | Exit codes |
 |---|---|---|
@@ -184,7 +184,7 @@ The `--mode publish` ranking weighs diagnostics differently: it is meant to gate
 ## 7. Where Review Lives in the Pipeline
 
 ```
-   gaia compile
+   gaia build compile
          │  emits LocalCanonicalGraph + CompiledPackage.review
          ▼
    gaia inquiry review                gaia trace verify / review / show
@@ -200,7 +200,7 @@ The `--mode publish` ranking weighs diagnostics differently: it is meant to gate
         review/gate and publish/register checks
         (ACCEPTED warrants pass; rejected or missing reviews block release)
 
-   gaia infer is parallel to this gate: it lowers the compiled graph for a
+   gaia run infer is parallel to this gate: it lowers the compiled graph for a
    local numerical preview and writes `.gaia/beliefs.json` without requiring
    accepted reviews.
 ```
@@ -213,8 +213,8 @@ and the [Gaia IR parameterization contract](../gaia-ir/06-parameterization.md).
 | Component | Location |
 |---|---|
 | `Review` / `ReviewManifest` / `ReviewStatus` schema | `gaia/ir/review.py` |
-| Manifest generator (per-action audit questions) | `gaia/lang/review/manifest.py` |
-| Audit-question templates | `gaia/lang/review/templates.py` |
+| Manifest generator (per-action audit questions) | `gaia/engine/lang/review/manifest.py` |
+| Audit-question templates | `gaia/engine/lang/review/templates.py` |
 | CLI manifest load / merge | `gaia/cli/commands/_review_manifest.py` |
 | `gaia inquiry` CLI sub-app | `gaia/cli/commands/inquiry.py` |
 | Inquiry review loop | `gaia/inquiry/review.py` |
