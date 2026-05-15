@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "add"
+  ],
+  "exit_code": 2,
+  "stderr": "error: `gaia add` was removed in alpha 0. Use `gaia pkg add` instead.\n",
+  "stdout": ""
+}

@@ -19,61 +19,61 @@ from tests.baseline.conftest import cli_snapshot
 
 
 def test_compile_missing_pyproject_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia compile on an empty dir → non-zero with a diagnostic message."""
-    result = run_gaia("compile", str(tmp_path))
+    """Gaia build compile on an empty dir → non-zero with a diagnostic message."""
+    result = run_gaia("build", "compile", str(tmp_path))
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_compile_wrong_gaia_type_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia compile when [tool.gaia].type is not knowledge-package."""
+    """Gaia build compile when [tool.gaia].type is not knowledge-package."""
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "foo"\nversion = "1.0.0"\n\n[tool.gaia]\ntype = "something-else"\n',
         encoding="utf-8",
     )
-    result = run_gaia("compile", str(tmp_path))
+    result = run_gaia("build", "compile", str(tmp_path))
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_check_missing_pyproject_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia check on an empty dir → non-zero with a diagnostic message."""
-    result = run_gaia("check", str(tmp_path))
+    """Gaia build check on an empty dir → non-zero with a diagnostic message."""
+    result = run_gaia("build", "check", str(tmp_path))
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_infer_missing_pyproject_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia infer on an empty dir → non-zero with a diagnostic message."""
-    result = run_gaia("infer", str(tmp_path))
+    """Gaia run infer on an empty dir → non-zero with a diagnostic message."""
+    result = run_gaia("run", "infer", str(tmp_path))
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_init_rejects_bad_name_snapshot(run_gaia, snapshot) -> None:
-    """Gaia init <name without -gaia suffix> must be rejected."""
-    result = run_gaia("init", "my-package")
+    """Gaia build init <name without -gaia suffix> must be rejected."""
+    result = run_gaia("build", "init", "my-package")
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_render_missing_pyproject_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia render on an empty dir → non-zero."""
-    result = run_gaia("render", str(tmp_path))
+    """Gaia run render on an empty dir → non-zero."""
+    result = run_gaia("run", "render", str(tmp_path))
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_starmap_missing_pyproject_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia starmap on an empty dir → non-zero."""
-    result = run_gaia("starmap", str(tmp_path))
+    """Gaia inspect starmap on an empty dir → non-zero."""
+    result = run_gaia("inspect", "starmap", str(tmp_path))
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_starmap_replay_missing_logs_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia starmap-replay on an empty dir → non-zero."""
-    result = run_gaia("starmap-replay", str(tmp_path))
+    """Gaia inspect starmap-replay on an empty dir → non-zero."""
+    result = run_gaia("inspect", "starmap-replay", str(tmp_path))
     assert result.exit_code != 0
     assert cli_snapshot(result) == snapshot
 

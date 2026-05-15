@@ -52,24 +52,24 @@ from tests.baseline.conftest import (
 
 
 def test_compile_minimal_artifact_tree_snapshot(minimal_pkg: Path, run_gaia, snapshot) -> None:
-    """`.gaia/` byte tree after `gaia compile <minimal pkg>`."""
-    result = run_gaia("compile", str(minimal_pkg))
+    """`.gaia/` byte tree after `gaia build compile <minimal pkg>`."""
+    result = run_gaia("build", "compile", str(minimal_pkg))
     assert result.exit_code == 0, result.stderr
     artifacts = serialize_artifact_tree(minimal_pkg / ".gaia")
     assert artifacts == snapshot
 
 
 def test_compile_galileo_artifact_tree_snapshot(galileo_pkg: Path, run_gaia, snapshot) -> None:
-    """`.gaia/` byte tree after `gaia compile examples/galileo-v0-5-gaia`."""
-    result = run_gaia("compile", str(galileo_pkg))
+    """`.gaia/` byte tree after `gaia build compile examples/galileo-v0-5-gaia`."""
+    result = run_gaia("build", "compile", str(galileo_pkg))
     assert result.exit_code == 0, result.stderr
     artifacts = serialize_artifact_tree(galileo_pkg / ".gaia")
     assert artifacts == snapshot
 
 
 def test_infer_galileo_artifact_tree_snapshot(compiled_galileo: Path, run_gaia, snapshot) -> None:
-    """`.gaia/` byte tree after `gaia infer`. Adds beliefs.json to compile tree."""
-    result = run_gaia("infer", str(compiled_galileo))
+    """`.gaia/` byte tree after `gaia run infer`. Adds beliefs.json to compile tree."""
+    result = run_gaia("run", "infer", str(compiled_galileo))
     assert result.exit_code == 0, result.stderr
     artifacts = serialize_artifact_tree(compiled_galileo / ".gaia")
     assert artifacts == snapshot
@@ -78,9 +78,10 @@ def test_infer_galileo_artifact_tree_snapshot(compiled_galileo: Path, run_gaia, 
 def test_starmap_dot_artifact_snapshot(
     inferred_galileo: Path, run_gaia, snapshot, tmp_path: Path
 ) -> None:
-    """Byte content of `<out>.dot` produced by `gaia starmap --format dot`."""
+    """Byte content of `<out>.dot` produced by `gaia inspect starmap --format dot`."""
     out = tmp_path / "starmap.dot"
     result = run_gaia(
+        "inspect",
         "starmap",
         str(inferred_galileo),
         "--format",
@@ -99,14 +100,14 @@ def test_starmap_dot_artifact_snapshot(
 def test_starmap_html_artifact_path_snapshot(
     inferred_galileo: Path, run_gaia, snapshot, tmp_path: Path
 ) -> None:
-    """Path + size of `<out>.html` produced by `gaia starmap`.
+    """Path + size of `<out>.html` produced by `gaia inspect starmap`.
 
     HTML embeds a vendored bundle whose minified JS contains short hex
     tokens A1's masker would mangle. Path-and-size proves the file is
     produced; full content parity is already covered by the dot variant.
     """
     out = tmp_path / "starmap.html"
-    result = run_gaia("starmap", str(inferred_galileo), "--out", str(out))
+    result = run_gaia("inspect", "starmap", str(inferred_galileo), "--out", str(out))
     assert result.exit_code == 0, result.stderr
     artifacts = list_artifact_paths(out.parent)
     # The html embeds a deterministic large bundle; we only care that the
@@ -125,14 +126,14 @@ def test_starmap_html_artifact_path_snapshot(
 
 
 def test_init_scaffold_tree_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Scaffolded source files after `gaia init <name>-gaia`.
+    """Scaffolded source files after `gaia build init <name>-gaia`.
 
-    `gaia init` also runs `uv venv` and `git init`; both produce
+    `gaia build init` also runs `uv venv` and `git init`; both produce
     machine-dependent state (.venv/.git). The fixture filter strips both,
     leaving only the scaffolded source layout (pyproject.toml, README,
     .gitignore, src/<name>/__init__.py, src/<name>/py.typed, .python-version).
     """
-    result = run_gaia("init", "demo-gaia", cwd=tmp_path)
+    result = run_gaia("build", "init", "demo-gaia", cwd=tmp_path)
     assert result.exit_code == 0, result.stderr
     pkg_root = tmp_path / "demo-gaia"
     # serialize_artifact_tree's default `exclude=(".venv",".git","__pycache__")`
@@ -147,30 +148,30 @@ def test_init_scaffold_tree_snapshot(tmp_path: Path, run_gaia, snapshot) -> None
 
 
 def test_render_docs_artifact_tree_snapshot(inferred_galileo: Path, run_gaia, snapshot) -> None:
-    """`docs/detailed-reasoning.md` byte content after `render --target docs`."""
-    result = run_gaia("render", str(inferred_galileo), "--target", "docs")
+    """`docs/detailed-reasoning.md` byte content after `run render --target docs`."""
+    result = run_gaia("run", "render", str(inferred_galileo), "--target", "docs")
     assert result.exit_code == 0, result.stderr
     artifacts = serialize_artifact_tree(inferred_galileo / "docs")
     assert artifacts == snapshot
 
 
 def test_render_obsidian_artifact_tree_snapshot(inferred_galileo: Path, run_gaia, snapshot) -> None:
-    """`gaia-wiki/` page tree after `render --target obsidian`."""
-    result = run_gaia("render", str(inferred_galileo), "--target", "obsidian")
+    """`gaia-wiki/` page tree after `run render --target obsidian`."""
+    result = run_gaia("run", "render", str(inferred_galileo), "--target", "obsidian")
     assert result.exit_code == 0, result.stderr
     artifacts = serialize_artifact_tree(inferred_galileo / "gaia-wiki")
     assert artifacts == snapshot
 
 
 def test_render_github_artifact_paths_snapshot(inferred_galileo: Path, run_gaia, snapshot) -> None:
-    """`.github-output/` path-listing after `render --target github`.
+    """`.github-output/` path-listing after `run render --target github`.
 
     The target emits a vendored TSX/CSS presentation bundle (~48 files).
     Byte-content of the bundle is out of refactor scope: it's the engine
     refactor we're guarding, not the renderer's vendored deps. Path-set
     parity is what proves the renderer still emits the same shape.
     """
-    result = run_gaia("render", str(inferred_galileo), "--target", "github")
+    result = run_gaia("run", "render", str(inferred_galileo), "--target", "github")
     assert result.exit_code == 0, result.stderr
     artifacts = list_artifact_paths(inferred_galileo / ".github-output")
     # Replace sizes with a 'present' marker so vendored-bundle byte jitter

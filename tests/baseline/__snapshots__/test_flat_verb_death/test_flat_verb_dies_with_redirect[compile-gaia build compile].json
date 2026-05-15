@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "compile"
+  ],
+  "exit_code": 2,
+  "stderr": "error: `gaia compile` was removed in alpha 0. Use `gaia build compile` instead.\n",
+  "stdout": ""
+}

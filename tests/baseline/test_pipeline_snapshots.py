@@ -36,15 +36,15 @@ MENDEL_REPLAY_FIXTURE = (
 
 
 def test_compile_minimal_pkg_snapshot(minimal_pkg: Path, run_gaia, snapshot) -> None:
-    """Gaia compile <minimal pkg> → exit 0, IR hash printed."""
-    result = run_gaia("compile", str(minimal_pkg))
+    """Gaia build compile <minimal pkg> → exit 0, IR hash printed."""
+    result = run_gaia("build", "compile", str(minimal_pkg))
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_compile_galileo_snapshot(galileo_pkg: Path, run_gaia, snapshot) -> None:
-    """Gaia compile examples/galileo-v0-5-gaia → exit 0, deterministic IR hash."""
-    result = run_gaia("compile", str(galileo_pkg))
+    """Gaia build compile examples/galileo-v0-5-gaia → exit 0, deterministic IR hash."""
+    result = run_gaia("build", "compile", str(galileo_pkg))
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
@@ -55,22 +55,22 @@ def test_compile_galileo_snapshot(galileo_pkg: Path, run_gaia, snapshot) -> None
 
 
 def test_check_galileo_snapshot(compiled_galileo: Path, run_gaia, snapshot) -> None:
-    """Gaia check examples/galileo-v0-5-gaia after compile → text report."""
-    result = run_gaia("check", str(compiled_galileo))
+    """Gaia build check examples/galileo-v0-5-gaia after compile → text report."""
+    result = run_gaia("build", "check", str(compiled_galileo))
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_check_brief_galileo_snapshot(compiled_galileo: Path, run_gaia, snapshot) -> None:
-    """Gaia check --brief examples/galileo-v0-5-gaia → text + warrant brief."""
-    result = run_gaia("check", str(compiled_galileo), "--brief")
+    """Gaia build check --brief examples/galileo-v0-5-gaia → text + warrant brief."""
+    result = run_gaia("build", "check", str(compiled_galileo), "--brief")
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
 
 def test_check_warrants_galileo_snapshot(compiled_galileo: Path, run_gaia, snapshot) -> None:
-    """Gaia check --warrants examples/galileo-v0-5-gaia → v6 warrant manifest dump."""
-    result = run_gaia("check", str(compiled_galileo), "--warrants")
+    """Gaia build check --warrants examples/galileo-v0-5-gaia → v6 warrant manifest dump."""
+    result = run_gaia("build", "check", str(compiled_galileo), "--warrants")
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
@@ -81,8 +81,8 @@ def test_check_warrants_galileo_snapshot(compiled_galileo: Path, run_gaia, snaps
 
 
 def test_infer_galileo_snapshot(compiled_galileo: Path, run_gaia, snapshot) -> None:
-    """Gaia infer examples/galileo-v0-5-gaia → beliefs written, exit 0."""
-    result = run_gaia("infer", str(compiled_galileo))
+    """Gaia run infer examples/galileo-v0-5-gaia → beliefs written, exit 0."""
+    result = run_gaia("run", "infer", str(compiled_galileo))
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
@@ -93,8 +93,8 @@ def test_infer_galileo_snapshot(compiled_galileo: Path, run_gaia, snapshot) -> N
 
 
 def test_render_docs_galileo_snapshot(inferred_galileo: Path, run_gaia, snapshot) -> None:
-    """Gaia render --target docs after infer → docs/detailed-reasoning.md."""
-    result = run_gaia("render", str(inferred_galileo), "--target", "docs")
+    """Gaia run render --target docs after infer → docs/detailed-reasoning.md."""
+    result = run_gaia("run", "render", str(inferred_galileo), "--target", "docs")
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
@@ -107,9 +107,11 @@ def test_render_docs_galileo_snapshot(inferred_galileo: Path, run_gaia, snapshot
 def test_starmap_dot_galileo_snapshot(
     inferred_galileo: Path, run_gaia, snapshot, tmp_path: Path
 ) -> None:
-    """Gaia starmap --format dot → stdout summary, dot file written."""
+    """Gaia inspect starmap --format dot → stdout summary, dot file written."""
     out = tmp_path / "starmap.dot"
-    result = run_gaia("starmap", str(inferred_galileo), "--format", "dot", "--out", str(out))
+    result = run_gaia(
+        "inspect", "starmap", str(inferred_galileo), "--format", "dot", "--out", str(out)
+    )
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
@@ -117,9 +119,9 @@ def test_starmap_dot_galileo_snapshot(
 def test_starmap_html_galileo_snapshot(
     inferred_galileo: Path, run_gaia, snapshot, tmp_path: Path
 ) -> None:
-    """Gaia starmap (default html) → stdout summary, html file written."""
+    """Gaia inspect starmap (default html) → stdout summary, html file written."""
     out = tmp_path / "starmap.html"
-    result = run_gaia("starmap", str(inferred_galileo), "--out", str(out))
+    result = run_gaia("inspect", "starmap", str(inferred_galileo), "--out", str(out))
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
@@ -149,14 +151,14 @@ def mendel_replay_pkg(tmp_path: Path) -> Path:
 def test_starmap_replay_mendel_snapshot(
     mendel_replay_pkg: Path, run_gaia, snapshot, tmp_path: Path
 ) -> None:
-    """Gaia starmap-replay <mendel pkg with lkm logs> → stdout summary."""
+    """Gaia inspect starmap-replay <mendel pkg with lkm logs> → stdout summary."""
     # starmap-replay requires the package to be compiled first.
-    compile_res = run_gaia("compile", str(mendel_replay_pkg))
+    compile_res = run_gaia("build", "compile", str(mendel_replay_pkg))
     if compile_res.exit_code != 0:
         pytest.skip(
             f"starmap-replay precondition (compile) failed in this environment:\n"
             f"{compile_res.stderr}"
         )
     out = tmp_path / "replay.html"
-    result = run_gaia("starmap-replay", str(mendel_replay_pkg), "--out", str(out))
+    result = run_gaia("inspect", "starmap-replay", str(mendel_replay_pkg), "--out", str(out))
     assert cli_snapshot(result) == snapshot

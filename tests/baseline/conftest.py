@@ -248,7 +248,7 @@ def galileo_pkg(tmp_path: Path) -> Path:
 @pytest.fixture
 def compiled_galileo(galileo_pkg: Path, run_gaia) -> Path:
     """Compile the galileo example so downstream verbs (infer/render/starmap) work."""
-    result = run_gaia("compile", str(galileo_pkg))
+    result = run_gaia("build", "compile", str(galileo_pkg))
     if result.exit_code != 0:
         raise RuntimeError(
             f"baseline compile fixture failed: exit={result.exit_code}\n"
@@ -260,7 +260,7 @@ def compiled_galileo(galileo_pkg: Path, run_gaia) -> Path:
 @pytest.fixture
 def inferred_galileo(compiled_galileo: Path, run_gaia) -> Path:
     """Compile + infer galileo so render snapshots have beliefs available."""
-    result = run_gaia("infer", str(compiled_galileo))
+    result = run_gaia("run", "infer", str(compiled_galileo))
     if result.exit_code != 0:
         raise RuntimeError(
             f"baseline infer fixture failed: exit={result.exit_code}\n"

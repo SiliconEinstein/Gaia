@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "run",
+    "infer",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia run infer [OPTIONS] [PATH]\n\n Run BP inference on a compiled knowledge package.\n\n Priors come from claim metadata (set by priors.py and reason+prior\n DSL pairing during compilation). Review status is qualitative and never\n supplies numeric priors; `gaia infer` previews the compiled graph without\n gating unreviewed warrants. Use `gaia check --gate` or `gaia inquiry review`\n for publish-quality review gating.\n\n With ``--depth N`` (N>0), dependency packages' factor graphs are\n merged for joint cross-package inference instead of using flat\n prior injection from dep_beliefs/.\n\n╭─ Arguments ──────────────────────────────────────────────────────────────────╮\n│   path      [PATH]  Path to knowledge package directory [default: .]         │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --depth        INTEGER  Dependency depth for joint inference. 0=flat priors  │\n│                         (default), 1=direct deps, -1=all transitive deps.    │\n│                         [default: 0]                                         │\n│ --help                  Show this message and exit.                          │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

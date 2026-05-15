@@ -21,7 +21,7 @@
       "path": "pyproject.toml"
     },
     {
-      "content": "from gaia.lang import claim, derive, note\n\ncontext = note(\"Background context for this package.\")\nhypothesis = claim(\"A scientific hypothesis.\")\nprediction = derive(\n    \"A testable prediction follows from the hypothesis.\",\n    given=hypothesis,\n    background=[context],\n    rationale=\"Explain why the hypothesis entails this prediction.\",\n)\n\n__all__ = [\"hypothesis\", \"prediction\"]\n",
+      "content": "from gaia.engine.lang import claim, derive, note\n\ncontext = note(\"Background context for this package.\")\nhypothesis = claim(\"A scientific hypothesis.\")\nprediction = derive(\n    \"A testable prediction follows from the hypothesis.\",\n    given=hypothesis,\n    background=[context],\n    rationale=\"Explain why the hypothesis entails this prediction.\",\n)\n\n__all__ = [\"hypothesis\", \"prediction\"]\n",
       "kind": "text",
       "path": "src/demo/__init__.py"
     },

@@ -1,5 +1,6 @@
 {
   "argv": [
+    "run",
     "render",
     "<TMP>",
     "--target",

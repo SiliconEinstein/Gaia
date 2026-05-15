@@ -1,5 +1,6 @@
 {
   "argv": [
+    "build",
     "compile",
     "<TMP>"
   ],

@@ -16,19 +16,29 @@ import pytest
 from tests.baseline.conftest import cli_snapshot
 
 # Every reachable help path. Order matters only for readability.
+#
+# Alpha 0 reorganizes 9 flat verbs into 6 groups + trace independent
+# (协作单 二·共识). The HELP_PATHS list mirrors the new invocation
+# surface: `gaia <group> <leaf>`. Old flat verbs are tombstoned and
+# covered separately in `test_flat_verb_death.py`.
 HELP_PATHS: list[tuple[str, ...]] = [
     # root
     ("--help",),
-    # top-level leaves
-    ("add", "--help"),
-    ("compile", "--help"),
-    ("check", "--help"),
-    ("infer", "--help"),
-    ("init", "--help"),
-    ("register", "--help"),
-    ("render", "--help"),
-    ("starmap", "--help"),
-    ("starmap-replay", "--help"),
+    # build group
+    ("build", "--help"),
+    ("build", "init", "--help"),
+    ("build", "compile", "--help"),
+    ("build", "check", "--help"),
+    # run group
+    ("run", "--help"),
+    ("run", "infer", "--help"),
+    ("run", "render", "--help"),
+    # inspect group
+    ("inspect", "--help"),
+    ("inspect", "starmap", "--help"),
+    ("inspect", "starmap-replay", "--help"),
+    # review group (alpha 0: empty skeleton)
+    ("review", "--help"),
     # inquiry subgroup
     ("inquiry", "--help"),
     ("inquiry", "focus", "--help"),
@@ -44,6 +54,10 @@ HELP_PATHS: list[tuple[str, ...]] = [
     ("inquiry", "hypothesis", "remove", "--help"),
     ("inquiry", "tactics", "--help"),
     ("inquiry", "tactics", "log", "--help"),
+    # pkg group
+    ("pkg", "--help"),
+    ("pkg", "add", "--help"),
+    ("pkg", "register", "--help"),
     # trace subgroup
     ("trace", "--help"),
     ("trace", "verify", "--help"),

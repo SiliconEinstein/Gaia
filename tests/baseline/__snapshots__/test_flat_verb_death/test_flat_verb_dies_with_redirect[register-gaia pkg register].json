@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "register"
+  ],
+  "exit_code": 2,
+  "stderr": "error: `gaia register` was removed in alpha 0. Use `gaia pkg register` instead.\n",
+  "stdout": ""
+}

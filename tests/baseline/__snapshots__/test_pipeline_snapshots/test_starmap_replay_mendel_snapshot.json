@@ -1,5 +1,6 @@
 {
   "argv": [
+    "inspect",
     "starmap-replay",
     "<TMP>",
     "--out",
