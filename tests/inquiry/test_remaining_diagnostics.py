@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from gaia.cli.commands.check_core import HoleEntry, KnowledgeBreakdown
-from gaia.inquiry.diagnostics import (
+from gaia.engine.inquiry.check_core import HoleEntry, KnowledgeBreakdown
+from gaia.engine.inquiry.diagnostics import (
     Diagnostic,
     detect_blocked_warrant_path,
     detect_claim_with_evidence_but_no_focus_connection,
@@ -20,9 +20,9 @@ from gaia.inquiry.diagnostics import (
     detect_large_belief_drop,
     detect_overstrong_strategy_without_provenance,
 )
-from gaia.inquiry.focus import FocusBinding
-from gaia.inquiry.ranking import _MODE_RANK, _UNKNOWN_KIND_RANK, supported_modes
-from gaia.inquiry.review import publish_blockers, run_review
+from gaia.engine.inquiry.focus import FocusBinding
+from gaia.engine.inquiry.ranking import _MODE_RANK, _UNKNOWN_KIND_RANK, supported_modes
+from gaia.engine.inquiry.review import publish_blockers, run_review
 
 # --------------------------------------------------------------------------- #
 # Lightweight graph stubs                                                     #
@@ -309,7 +309,7 @@ def test_ranking_includes_all_remaining_kinds_for_every_mode() -> None:
 
 
 def _empty_report():
-    from gaia.inquiry.review import ReviewReport
+    from gaia.engine.inquiry.review import ReviewReport
 
     return ReviewReport(
         review_id="r",

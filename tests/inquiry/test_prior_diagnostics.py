@@ -7,7 +7,7 @@ unit-tested without a full compile pipeline. The diagnostics are wired into
 
 from __future__ import annotations
 
-from gaia.inquiry.diagnostics import (
+from gaia.engine.inquiry.diagnostics import (
     PRIOR_DISSENT_THRESHOLD,
     detect_prior_dissent,
     detect_prior_overridden,

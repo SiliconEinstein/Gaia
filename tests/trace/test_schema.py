@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from gaia.trace.schema import (
+from gaia.engine.trace.schema import (
     SCHEMA_VERSION,
     ClaimRef,
     Trace,

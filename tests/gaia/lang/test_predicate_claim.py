@@ -14,10 +14,10 @@ from typing import Any
 
 import pytest
 
-from gaia.lang import Binomial, LogNormal, Normal, Poisson, claim, register_prior
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.knowledge import _current_package
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import Binomial, LogNormal, Normal, Poisson, claim, register_prior
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def _compile_with(make: Callable[[], Any]) -> dict[str, Any]:
@@ -33,7 +33,7 @@ def _compile_with(make: Callable[[], Any]) -> dict[str, Any]:
 
 def test_predicate_claim_stores_boolexpr_in_metadata():
     """Before compile, the BoolExpr lives on Lang Claim metadata."""
-    from gaia.lang.dsl.bool_expr import BoolExpr
+    from gaia.engine.lang.dsl.bool_expr import BoolExpr
 
     T_c = Normal("T_c", mu=200, sigma=50)
     high_Tc = claim("high Tc", T_c > 77)
@@ -242,13 +242,13 @@ def test_predicate_lhs_must_be_distribution():
     # In this particular case, `77 < T_c` is rewritten to T_c > 77 by Python's
     # reflected protocol, so it ACTUALLY works. The negative case below uses
     # a literal LHS via the BoolExpr constructor directly.
-    from gaia.lang.dsl.bool_expr import BoolExpr
+    from gaia.engine.lang.dsl.bool_expr import BoolExpr
 
     fake = claim("fake", BoolExpr(">", 1, 2))
     pkg2 = CollectedPackage(name="lhs_fail_pkg", namespace="t")
     fake._package = pkg2
     pkg2.knowledge.append(fake)
-    from gaia.lang.compiler.predicate_lowering import lower_predicate_priors
+    from gaia.engine.lang.compiler.predicate_lowering import lower_predicate_priors
 
     with pytest.raises(TypeError, match="left-hand side must be a Distribution"):
         lower_predicate_priors(pkg2)

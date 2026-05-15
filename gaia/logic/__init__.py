@@ -1,25 +1,5 @@
-"""Logic utilities for Gaia graphs.
+"""Alpha 0 tombstone — gaia.logic relocated to gaia.engine.logic."""
 
-These helpers use external logic libraries as computation backends while keeping
-Gaia IR as the persistent semantic contract.
-"""
+from gaia._legacy_imports import _tombstoned_namespace_getattr
 
-from gaia.logic.propositional import (
-    are_equivalent,
-    is_satisfiable,
-    simplify_proposition,
-    to_cnf_proposition,
-    to_dnf_proposition,
-    to_nnf_proposition,
-    to_sympy_proposition,
-)
-
-__all__ = [
-    "are_equivalent",
-    "is_satisfiable",
-    "simplify_proposition",
-    "to_cnf_proposition",
-    "to_dnf_proposition",
-    "to_nnf_proposition",
-    "to_sympy_proposition",
-]
+__getattr__ = _tombstoned_namespace_getattr("gaia.logic", "gaia.engine.logic")

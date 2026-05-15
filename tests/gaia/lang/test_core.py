@@ -1,7 +1,7 @@
 import pytest
 
-from gaia.lang import __all__ as gaia_lang_exports
-from gaia.lang import claim, note, question, setting
+from gaia.engine.lang import __all__ as gaia_lang_exports
+from gaia.engine.lang import claim, note, question, setting
 
 
 def test_note_creates_knowledge():
@@ -35,7 +35,7 @@ def test_claim_with_explicit_noisy_and():
     b = claim("Premise B.")
     c = claim("Conclusion.")
 
-    from gaia.lang import noisy_and
+    from gaia.engine.lang import noisy_and
 
     with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         noisy_and([a, b], c)

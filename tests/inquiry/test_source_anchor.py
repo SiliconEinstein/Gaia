@@ -8,14 +8,14 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.inquiry.anchor import SourceAnchor, find_anchors
-from gaia.inquiry.diagnostics import (
+from gaia.engine.inquiry.anchor import SourceAnchor, find_anchors
+from gaia.engine.inquiry.diagnostics import (
     Diagnostic,
     NextEdit,
     format_diagnostics_as_next_edits,
     format_diagnostics_as_structured_edits,
 )
-from gaia.inquiry.review import run_review
+from gaia.engine.inquiry.review import run_review
 
 runner = CliRunner()
 
@@ -30,7 +30,7 @@ def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
     src = pkg_dir / name
     src.mkdir(exist_ok=True)
     body = (
-        "from gaia.lang import claim, support\n"
+        "from gaia.engine.lang import claim, support\n"
         "\n"
         "# a prior hole (no prior set) — should be anchored\n"
         'hypothesis = claim("unverified hypothesis")\n'
@@ -88,7 +88,7 @@ def test_find_anchors_ignores_hidden_dirs(tmp_path):
     hidden = pkg / ".gaia" / "cache"
     hidden.mkdir(parents=True)
     (hidden / "leak.py").write_text(
-        'from gaia.lang import claim\nleak = claim("x")\n', encoding="utf-8"
+        'from gaia.engine.lang import claim\nleak = claim("x")\n', encoding="utf-8"
     )
     anchors = find_anchors(pkg)
     assert "leak" not in anchors
@@ -109,7 +109,8 @@ def test_find_anchors_locates_v05_dsl_constructors(tmp_path):
     src = pkg / "anchor_v05"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import associate, claim, contradiction, deduction, depends_on, derive\n"
+        "from gaia.engine.lang import "
+        "associate, claim, contradiction, deduction, depends_on, derive\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'c = claim("C.")\n'

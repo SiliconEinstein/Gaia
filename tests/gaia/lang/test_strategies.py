@@ -1,6 +1,6 @@
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import (
     Step,
     analogy,
     case_analysis,
@@ -15,7 +15,7 @@ from gaia.lang import (
     setting,
     support,
 )
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 @pytest.mark.legacy_dsl

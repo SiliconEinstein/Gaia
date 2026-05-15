@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from gaia.ir import ReviewManifest
+from gaia.engine.ir import ReviewManifest
 
 _CANDIDATE_RELATION_EDGE_KIND = "candidate_relation"
 

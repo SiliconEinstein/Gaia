@@ -1,7 +1,7 @@
-from gaia.lang import Claim, Nat, Variable, associate, bayes, compose, compute, infer
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.runtime.action import Associate, Compose, Compute, Infer
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import Claim, Nat, Variable, associate, bayes, compose, compute, infer
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.action import Associate, Compose, Compute, Infer
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 class Probability(Claim):

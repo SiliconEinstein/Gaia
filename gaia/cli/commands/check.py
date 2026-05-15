@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from math import log2
@@ -13,31 +12,32 @@ from sympy import And, Equivalent, Symbol
 from sympy.logic.boolalg import Not
 from sympy.logic.inference import satisfiable
 
-from gaia.bp import lower_local_graph
-from gaia.bp.exact import exact_joint_over
-from gaia.bp.factor_graph import CROMWELL_EPS
-from gaia.cli._packages import (
-    GaiaCliError,
-    apply_package_priors,
-    compile_loaded_package_artifact,
-    load_gaia_package,
-    validate_fills_relations,
-)
-from gaia.cli.commands._classify import (
+from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees, render_inquiry
+from gaia.engine._stale_check import check_compiled_artifacts
+from gaia.engine.bp import lower_local_graph
+from gaia.engine.bp.exact import exact_joint_over
+from gaia.engine.bp.factor_graph import CROMWELL_EPS
+from gaia.engine.inquiry._classify import (
     KnowledgeClassification,
     classify_ir,
     is_note_type,
     node_role,
 )
-from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees, render_inquiry
-from gaia.cli.commands._review_manifest import (
+from gaia.engine.inquiry.review_manifest import (
     latest_reviews,
     load_or_generate_review_manifest,
 )
-from gaia.ir import LocalCanonicalGraph, ReviewManifest
-from gaia.ir.operator import OperatorType
-from gaia.ir.validator import validate_local_graph
-from gaia.logic.propositional import to_sympy_proposition
+from gaia.engine.ir import LocalCanonicalGraph, ReviewManifest
+from gaia.engine.ir.operator import OperatorType
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.logic.propositional import to_sympy_proposition
+from gaia.engine.packaging import (
+    GaiaPackagingError,
+    apply_package_priors,
+    compile_loaded_package_artifact,
+    load_gaia_package,
+    validate_fills_relations,
+)
 
 _RELATION_OPERATOR_NAMES = frozenset(
     {
@@ -957,7 +957,7 @@ def _load_check_artifacts(path: str) -> tuple[Any, Any, dict[str, Any]]:
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
         validate_fills_relations(loaded, compiled)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     return loaded, compiled, ir
@@ -987,26 +987,21 @@ def _collect_compiled_artifact_diagnostics(
     warnings: list[str],
 ) -> None:
     """Check stored compile artifacts against the freshly compiled IR."""
-    ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
-    ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
-    if ir_hash_path.exists():
-        stored_hash = ir_hash_path.read_text().strip()
-        if stored_hash != ir["ir_hash"]:
+    staleness = check_compiled_artifacts(loaded.pkg_path, ir_hash=ir["ir_hash"])
+    if staleness.ir_hash_exists:
+        if staleness.ir_hash_stale:
             errors.append("Compiled artifacts are stale; run `gaia compile` again.")
-        if not ir_json_path.exists():
+        if not staleness.ir_json_exists:
             errors.append("Found .gaia/ir_hash but missing .gaia/ir.json.")
     else:
         warnings.append("Compiled artifacts missing; run `gaia compile` before `gaia register`.")
 
-    if not ir_json_path.exists():
+    if not staleness.ir_json_exists:
         return
-    try:
-        stored_ir = json.loads(ir_json_path.read_text())
-    except json.JSONDecodeError as exc:
-        errors.append(f".gaia/ir.json is not valid JSON: {exc}")
-    else:
-        if stored_ir.get("ir_hash") != ir["ir_hash"]:
-            errors.append("Stored .gaia/ir.json does not match current source; run `gaia compile`.")
+    if staleness.ir_json_invalid_reason is not None:
+        errors.append(f".gaia/ir.json is not valid JSON: {staleness.ir_json_invalid_reason}")
+    elif staleness.ir_json_hash_mismatch:
+        errors.append("Stored .gaia/ir.json does not match current source; run `gaia compile`.")
 
 
 def _emit_check_diagnostics(errors: list[str], warnings: list[str]) -> None:
@@ -1035,7 +1030,7 @@ def _load_check_review_manifest(loaded: Any, compiled: Any) -> ReviewManifest:
     """Load or generate a review manifest with CLI error handling."""
     try:
         return load_or_generate_review_manifest(loaded.pkg_path, compiled)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 
@@ -1110,7 +1105,7 @@ def _run_check_quality_gate(
             config,
             formalization_manifest=compiled.formalization_manifest,
         )
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     if failures:

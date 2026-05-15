@@ -6,13 +6,13 @@ runs compile_package_artifact, and asserts the resulting IR contains a Claim
 but no `variable` or `domain` typed entries.
 """
 
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.dsl.knowledge import claim
-from gaia.lang.runtime.domain import Domain
-from gaia.lang.runtime.knowledge import Claim, _current_package
-from gaia.lang.runtime.package import CollectedPackage
-from gaia.lang.runtime.variable import Variable
-from gaia.lang.types.primitives import Nat
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.dsl.knowledge import claim
+from gaia.engine.lang.runtime.domain import Domain
+from gaia.engine.lang.runtime.knowledge import Claim, _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.variable import Variable
+from gaia.engine.lang.types.primitives import Nat
 
 
 def test_package_with_variables_and_domains_compiles_cleanly():
@@ -52,8 +52,8 @@ def _compile_claim_metadata(make_claim):
     flows) so DSL-level inline priors and explicit ``register_prior`` calls
     both surface as ``metadata['prior']`` in the IR.
     """
-    from gaia.ir import default_resolution_policy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import default_resolution_policy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     pkg = CollectedPackage(name="t_prior_smoke", namespace="t")
     token = _current_package.set(pkg)

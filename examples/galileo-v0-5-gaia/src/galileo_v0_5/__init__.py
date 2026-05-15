@@ -1,6 +1,6 @@
 """Galileo falling-body thought experiment for Gaia v0.5."""
 
-from gaia.lang import claim, contradict, derive, equal, note
+from gaia.engine.lang import claim, contradict, derive, equal, note
 
 context = note(
     "This package models Galileo's falling-body thought experiment as a "

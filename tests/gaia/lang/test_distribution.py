@@ -11,7 +11,7 @@ import math
 
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import (
     Beta,
     Binomial,
     BoolExpr,
@@ -23,8 +23,8 @@ from gaia.lang import (
     Normal,
     Poisson,
 )
-from gaia.lang.bayes.distributions.continuous import Normal as _BaseNormal
-from gaia.lang.runtime.knowledge import Knowledge
+from gaia.engine.lang.bayes.distributions.continuous import Normal as _BaseNormal
+from gaia.engine.lang.runtime.knowledge import Knowledge
 
 
 def test_normal_factory_returns_distribution_with_content():
@@ -203,8 +203,8 @@ def test_distribution_does_not_enter_ir_knowledge_map():
     It associates with the active package for provenance but is NOT registered
     in the package's knowledge map (no IR Knowledge node).
     """
-    from gaia.lang.runtime.knowledge import _current_package
-    from gaia.lang.runtime.package import CollectedPackage
+    from gaia.engine.lang.runtime.knowledge import _current_package
+    from gaia.engine.lang.runtime.package import CollectedPackage
 
     pkg = CollectedPackage(name="dist_lang_only_pkg", namespace="t")
     token = _current_package.set(pkg)

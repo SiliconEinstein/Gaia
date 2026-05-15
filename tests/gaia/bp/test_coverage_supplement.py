@@ -2,9 +2,9 @@
 
 import pytest
 
-from gaia.bp import FactorGraph, FactorType, TRWBeliefPropagation
-from gaia.bp.factor_graph import CROMWELL_EPS
-from gaia.bp.mean_field import MeanFieldVI
+from gaia.engine.bp import FactorGraph, FactorType, TRWBeliefPropagation
+from gaia.engine.bp.factor_graph import CROMWELL_EPS
+from gaia.engine.bp.mean_field import MeanFieldVI
 
 
 class TestFactorGraphValidation:
@@ -293,7 +293,7 @@ class TestTRWResidualSchedule:
         assert "A" in table
 
     def test_belief_table_empty(self):
-        from gaia.bp.trw_bp import TRWDiagnostics
+        from gaia.engine.bp.trw_bp import TRWDiagnostics
 
         diag = TRWDiagnostics()
         assert "(no belief history)" in diag.belief_table()

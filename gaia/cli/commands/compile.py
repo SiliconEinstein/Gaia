@@ -6,8 +6,10 @@ from pathlib import Path
 
 import typer
 
-from gaia.cli._packages import (
-    GaiaCliError,
+from gaia.engine.ir import LocalCanonicalGraph
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import (
+    GaiaPackagingError,
     apply_package_priors,
     build_package_manifests,
     compile_loaded_package_artifact,
@@ -15,8 +17,6 @@ from gaia.cli._packages import (
     load_gaia_package,
     write_compiled_artifacts,
 )
-from gaia.ir import LocalCanonicalGraph
-from gaia.ir.validator import validate_local_graph
 
 
 def compile_command(
@@ -30,7 +30,7 @@ def compile_command(
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
         manifests = build_package_manifests(loaded, compiled)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 

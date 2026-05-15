@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from gaia.ir import CallableRef, DistributionLiteral, QuantityLiteral
+from gaia.engine.ir import CallableRef, DistributionLiteral, QuantityLiteral
 
 
 def test_quantity_literal_is_json_native():

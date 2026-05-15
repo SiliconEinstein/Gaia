@@ -17,7 +17,7 @@ def test_compile_v6_actions_package(tmp_path):
     pkg_src = pkg_dir / "v6_actions"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, contradict, derive, equal, infer, observe\n\n"
+        "from gaia.engine.lang import claim, contradict, derive, equal, infer, observe\n\n"
         'calibrated = claim("Spectrometer is calibrated.")\n'
         'data = observe("UV spectrum is finite.", rationale="Measured.", label="observe_uv")\n'
         'prediction = claim("Planck model predicts finite UV spectrum.")\n'

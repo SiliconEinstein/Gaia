@@ -12,7 +12,12 @@ import inspect
 from collections.abc import Callable
 from typing import Any, Literal
 
-from gaia.ir.schemas import CallableRef, DistributionKind, DistributionLiteral, DistributionParam
+from gaia.engine.ir.schemas import (
+    CallableRef,
+    DistributionKind,
+    DistributionLiteral,
+    DistributionParam,
+)
 
 
 def _param_to_ir(value: Any) -> DistributionParam:

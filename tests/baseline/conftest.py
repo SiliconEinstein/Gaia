@@ -225,7 +225,7 @@ def minimal_pkg(tmp_path: Path) -> Path:
     src = pkg_dir / "test_pkg"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'my_claim = claim("A test claim.")\n'
         '__all__ = ["my_claim"]\n',
         encoding="utf-8",
@@ -282,13 +282,13 @@ def clean_trace_path(tmp_path: Path) -> Path:
     from a fixed UTC datetime, so the resulting events_root / manifest_hash
     are byte-stable across runs.
     """
-    from gaia.trace.hashing import (
+    from gaia.engine.trace.hashing import (
         GENESIS_PREV_HASH,
         compute_events_root,
         compute_manifest_hash,
         hash_event,
     )
-    from gaia.trace.schema import Trace, TraceEvent, TraceManifest
+    from gaia.engine.trace.schema import Trace, TraceEvent, TraceManifest
 
     def ts(seq: int) -> datetime:
         return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)
@@ -327,12 +327,12 @@ def clean_trace_path(tmp_path: Path) -> Path:
 @pytest.fixture
 def tampered_trace_path(tmp_path: Path) -> Path:
     """Build a Trace whose events_root no longer matches the manifest."""
-    from gaia.trace.hashing import (
+    from gaia.engine.trace.hashing import (
         GENESIS_PREV_HASH,
         compute_events_root,
         hash_event,
     )
-    from gaia.trace.schema import Trace, TraceEvent, TraceManifest
+    from gaia.engine.trace.schema import Trace, TraceEvent, TraceManifest
 
     def ts(seq: int) -> datetime:
         return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)

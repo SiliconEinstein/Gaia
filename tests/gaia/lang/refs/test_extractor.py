@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gaia.lang.refs import extract
+from gaia.engine.lang.refs import extract
 
 
 def test_extract_empty_string() -> None:

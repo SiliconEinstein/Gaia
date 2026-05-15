@@ -4,7 +4,7 @@ from collections import Counter
 
 import pytest
 
-from gaia.ir import (
+from gaia.engine.ir import (
     CompositeStrategy,
     FormalExpr,
     FormalStrategy,

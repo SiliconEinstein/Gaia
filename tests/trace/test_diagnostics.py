@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from gaia.trace.diagnostics import (
+from gaia.engine.trace.diagnostics import (
     detect_actor,
     detect_claim_refs,
     detect_decision_grounds,
@@ -18,15 +18,15 @@ from gaia.trace.diagnostics import (
     from_schema_issues,
     run_all_detectors,
 )
-from gaia.trace.hashing import (
+from gaia.engine.trace.hashing import (
     GENESIS_PREV_HASH,
     compute_events_root,
     compute_manifest_hash,
     hash_event,
 )
-from gaia.trace.loader import LoadResult, SchemaIssue
-from gaia.trace.ranking import _MODE_RANK, rank_diagnostics, supported_modes
-from gaia.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
+from gaia.engine.trace.loader import LoadResult, SchemaIssue
+from gaia.engine.trace.ranking import _MODE_RANK, rank_diagnostics, supported_modes
+from gaia.engine.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
 
 
 def _ts(seq: int) -> datetime:

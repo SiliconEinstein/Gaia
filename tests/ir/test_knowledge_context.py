@@ -1,4 +1,4 @@
-from gaia.ir.knowledge import KnowledgeType, Parameter
+from gaia.engine.ir.knowledge import KnowledgeType, Parameter
 
 
 def test_context_knowledge_type():

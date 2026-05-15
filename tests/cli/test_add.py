@@ -6,9 +6,9 @@ import httpx
 import pytest
 from typer.testing import CliRunner
 
-from gaia.cli._packages import GaiaCliError
 from gaia.cli._registry import RegistryVersion, _fetch_file, fetch_file_optional, resolve_package
 from gaia.cli.main import app
+from gaia.engine.packaging import GaiaPackagingError
 
 runner = CliRunner()
 
@@ -48,7 +48,9 @@ def test_add_with_version(mock_uv, mock_resolve):
 
 @patch("gaia.cli.commands.add.resolve_package")
 def test_add_not_found(mock_resolve):
-    mock_resolve.side_effect = GaiaCliError("Not found in registry: packages/no-such/Package.toml")
+    mock_resolve.side_effect = GaiaPackagingError(
+        "Not found in registry: packages/no-such/Package.toml"
+    )
     result = runner.invoke(app, ["add", "no-such-gaia"])
     assert result.exit_code != 0
     assert "Not found" in result.output
@@ -100,9 +102,9 @@ def test_resolve_package_picks_max_version_semantically(mock_fetch):
 
 @patch("gaia.cli._registry.httpx.get")
 def test_fetch_file_handles_timeout(mock_get):
-    """Timeout raises GaiaCliError, not raw httpx exception."""
+    """Timeout raises GaiaPackagingError, not raw httpx exception."""
     mock_get.side_effect = httpx.ConnectTimeout("timed out")
-    with pytest.raises(GaiaCliError, match="Failed to reach registry"):
+    with pytest.raises(GaiaPackagingError, match="Failed to reach registry"):
         _fetch_file("owner/repo", "some/path")
 
 
@@ -112,7 +114,7 @@ def test_fetch_file_handles_403_rate_limit(mock_get):
     mock_resp = MagicMock()
     mock_resp.status_code = 403
     mock_get.return_value = mock_resp
-    with pytest.raises(GaiaCliError, match="rate limit"):
+    with pytest.raises(GaiaPackagingError, match="rate limit"):
         _fetch_file("owner/repo", "some/path")
 
 
@@ -123,7 +125,7 @@ def test_fetch_file_handles_500_error(mock_get):
     mock_resp.status_code = 500
     mock_resp.text = "Internal Server Error"
     mock_get.return_value = mock_resp
-    with pytest.raises(GaiaCliError, match=r"Registry API error.*500"):
+    with pytest.raises(GaiaPackagingError, match=r"Registry API error.*500"):
         _fetch_file("owner/repo", "some/path")
 
 

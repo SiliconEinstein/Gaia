@@ -1,6 +1,6 @@
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import (
     Claim,
     Variable,
     associate,
@@ -18,11 +18,11 @@ from gaia.lang import (
     parameter,
     tension,
 )
-from gaia.lang import (
+from gaia.engine.lang import (
     Probability as ProbabilityDomain,
 )
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 class IntClaim(Claim):

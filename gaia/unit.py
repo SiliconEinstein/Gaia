@@ -7,7 +7,7 @@ from typing import Any, TypeGuard
 from pint import Quantity as PintQuantity
 from pint import UnitRegistry
 
-from gaia.ir.schemas import QuantityLiteral
+from gaia.engine.ir.schemas import QuantityLiteral
 
 ureg: UnitRegistry[Any] = UnitRegistry()
 Quantity: type[PintQuantity[Any]] = ureg.Quantity

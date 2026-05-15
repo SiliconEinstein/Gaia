@@ -14,15 +14,15 @@ import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from gaia.trace.hashing import (
+from gaia.engine.trace.hashing import (
     GENESIS_PREV_HASH,
     compute_events_root,
     compute_manifest_hash,
     hash_event,
 )
-from gaia.trace.render import render_json, render_markdown, render_text
-from gaia.trace.review import TraceReviewReport, run_trace_review
-from gaia.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
+from gaia.engine.trace.render import render_json, render_markdown, render_text
+from gaia.engine.trace.review import TraceReviewReport, run_trace_review
+from gaia.engine.trace.schema import ClaimRef, Trace, TraceEvent, TraceManifest
 
 # ============ Fixture 工厂 ============
 
@@ -152,7 +152,7 @@ def test_run_trace_review_writes_snapshot(tmp_path: Path):
 def test_run_trace_review_snapshot_failure_does_not_crash(tmp_path: Path, monkeypatch):
     """Snapshot 写盘失败时 review 仍然返回。."""
     p = _write_clean_fixture(tmp_path)
-    import gaia.trace.snapshot as snap_mod
+    import gaia.engine.trace.snapshot as snap_mod
 
     def boom(*a, **kw):
         del a, kw

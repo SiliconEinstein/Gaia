@@ -13,7 +13,7 @@ independent degrees of freedom instead of recording unsourced ``0.5`` author
 priors.
 """
 
-from gaia.lang import register_prior
+from gaia.engine.lang import register_prior
 from galileo_v0_5 import daily_observation
 
 register_prior(

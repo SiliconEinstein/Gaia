@@ -2,8 +2,8 @@
 
 import pytest
 
-from gaia.lang.runtime.domain import Domain
-from gaia.lang.runtime.knowledge import Knowledge
+from gaia.engine.lang.runtime.domain import Domain
+from gaia.engine.lang.runtime.knowledge import Knowledge
 
 
 def test_domain_is_knowledge_subclass():
@@ -40,8 +40,8 @@ def test_domain_has_no_prior_field():
 
 def test_domain_does_not_register_into_package_knowledge_map():
     """Spec §2.4: Domain must NOT enter pkg._register_knowledge so compile stays IR-clean."""
-    from gaia.lang.runtime.knowledge import _current_package
-    from gaia.lang.runtime.package import CollectedPackage
+    from gaia.engine.lang.runtime.knowledge import _current_package
+    from gaia.engine.lang.runtime.package import CollectedPackage
 
     pkg = CollectedPackage(name="test_pkg", namespace="test")
     token = _current_package.set(pkg)

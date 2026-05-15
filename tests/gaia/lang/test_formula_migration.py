@@ -2,7 +2,7 @@
 
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import (
     ClaimAtom,
     and_,
     claim,
@@ -14,8 +14,8 @@ from gaia.lang import (
     not_,
     or_,
 )
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 pytestmark = pytest.mark.legacy_dsl
 

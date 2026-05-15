@@ -1,6 +1,6 @@
 import pytest
 
-from gaia.ir import QuantityLiteral
+from gaia.engine.ir import QuantityLiteral
 from gaia.unit import Quantity, from_literal, q, to_literal, ureg
 
 

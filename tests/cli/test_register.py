@@ -38,7 +38,7 @@ def _write_package(pkg_dir) -> None:
     pkg_src = pkg_dir / "register_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'exported_claim = claim("A release-ready claim.")\n'
         '__all__ = ["exported_claim"]\n'
     )
@@ -60,7 +60,7 @@ def _write_dependency_with_local_hole(dep_dir) -> None:
     dep_src = dep_dir / "src" / "dep_bridge"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -88,7 +88,7 @@ def _write_package_with_local_hole_and_bridge(pkg_dir) -> None:
     pkg_src = pkg_dir / "register_bridge"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction, fills\n"
+        "from gaia.engine.lang import claim, deduction, fills\n"
         "from dep_bridge import missing_lemma\n\n"
         'local_premise = claim("A local missing lemma.")\n'
         'main_claim = claim("A release-ready claim.")\n'
@@ -118,7 +118,7 @@ def _write_package_with_v6_infer(pkg_dir) -> None:
     pkg_src = pkg_dir / "register_infer"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, infer\n\n"
+        "from gaia.engine.lang import claim, infer\n\n"
         'hypothesis = claim("Hypothesis.")\n'
         'evidence = claim("Evidence.")\n'
         "infer(\n"
@@ -133,7 +133,7 @@ def _write_package_with_v6_infer(pkg_dir) -> None:
     )
     (pkg_src / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(hypothesis, value=0.2, justification="Low base rate.")\n'
         'register_prior(evidence, value=0.9, justification="Observed evidence.")\n'
     )
@@ -513,7 +513,9 @@ def test_register_fails_gracefully_when_checkout_fails(tmp_path, monkeypatch):
 
     def failing_run(args, *, cwd, check=True):
         if "checkout" in args and "-b" in args:
-            raise register_module.GaiaCliError("Error running git checkout -b: simulated failure")
+            raise register_module.GaiaPackagingError(
+                "Error running git checkout -b: simulated failure"
+            )
         return original_run(args, cwd=cwd, check=check)
 
     monkeypatch.setattr(register_module, "_run", failing_run)
@@ -543,7 +545,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_register_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -569,7 +571,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
         'uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"\n'
     )
     (pkg_dir / "register_demo" / "__init__.py").write_text(
-        "from gaia.lang import claim, fills\n"
+        "from gaia.engine.lang import claim, fills\n"
         "from dep_register_missing import missing_lemma\n\n"
         'exported_claim = claim("A release-ready claim.")\n'
         "fills(source=exported_claim, target=missing_lemma)\n"

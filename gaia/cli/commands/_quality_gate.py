@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from gaia.cli._packages import GaiaCliError
 from gaia.cli.commands._inquiry import InquiryEdge, InquiryNode, build_goal_trees
-from gaia.cli.commands._review_manifest import latest_reviews
-from gaia.ir import ReviewManifest, ReviewStatus
+from gaia.engine.inquiry.review_manifest import latest_reviews
+from gaia.engine.ir import ReviewManifest, ReviewStatus
+from gaia.engine.packaging import GaiaPackagingError
 
 
 @dataclass
@@ -38,7 +38,7 @@ def load_beliefs(pkg_path: str | Path) -> dict[str, Any] | None:
     try:
         return cast(dict[str, Any], json.loads(path.read_text()))
     except (OSError, json.JSONDecodeError) as exc:
-        raise GaiaCliError(f"Error: {path} is not valid JSON: {exc}") from exc
+        raise GaiaPackagingError(f"Error: {path} is not valid JSON: {exc}") from exc
 
 
 def _exported_claim_ids(ir: dict[str, Any]) -> set[str]:

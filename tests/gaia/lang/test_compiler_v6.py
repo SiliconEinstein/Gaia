@@ -1,6 +1,6 @@
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.knowledge import Claim, Context, Note
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.knowledge import Claim, Context, Note
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_compile_note_type_and_format():

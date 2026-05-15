@@ -1,6 +1,6 @@
 import pytest
 
-from gaia.lang.runtime.knowledge import Claim, Context, Note, Question, Setting
+from gaia.engine.lang.runtime.knowledge import Claim, Context, Note, Question, Setting
 
 
 def test_note_creation_defaults_to_markdown():
@@ -102,7 +102,7 @@ def test_setting_cannot_have_prior():
 
 
 def test_note_dsl_function():
-    from gaia.lang.dsl.knowledge import note
+    from gaia.engine.lang.dsl.knowledge import note
 
     n = note("Raw experiment notes.", format="text")
     assert n.type == "note"
@@ -112,7 +112,7 @@ def test_note_dsl_function():
 
 
 def test_context_dsl_function_returns_note_compat():
-    from gaia.lang.dsl.knowledge import context
+    from gaia.engine.lang.dsl.knowledge import context
 
     ctx = context("Raw experiment notes.")
     assert ctx.type == "note"
@@ -123,7 +123,7 @@ def test_context_dsl_function_returns_note_compat():
 
 def test_v5_claim_still_works():
     """v5 claim() function returns a v6 Claim."""
-    from gaia.lang import claim
+    from gaia.engine.lang import claim
 
     c = claim("A proposition.")
     assert c.type == "claim"
@@ -131,7 +131,7 @@ def test_v5_claim_still_works():
 
 
 def test_v5_setting_still_works_as_note_compat():
-    from gaia.lang import setting
+    from gaia.engine.lang import setting
 
     s = setting("Background info.")
     assert s.type == "note"
@@ -140,7 +140,7 @@ def test_v5_setting_still_works_as_note_compat():
 
 
 def test_v5_question_still_works():
-    from gaia.lang import question
+    from gaia.engine.lang import question
 
     q = question("Question?")
     assert q.type == "question"

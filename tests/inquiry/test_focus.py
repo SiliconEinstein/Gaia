@@ -7,8 +7,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.inquiry.focus import FocusBinding, resolve_focus_target
-from gaia.inquiry.state import load_state
+from gaia.engine.inquiry.focus import FocusBinding, resolve_focus_target
+from gaia.engine.inquiry.state import load_state
 
 runner = CliRunner()
 

@@ -2,8 +2,8 @@
 
 import pytest
 
-from gaia.lang import Knowledge, Strategy, claim, support
-from gaia.lang.dsl.strategies import induction
+from gaia.engine.lang import Knowledge, Strategy, claim, support
+from gaia.engine.lang.dsl.strategies import induction
 
 pytestmark = [
     pytest.mark.legacy_dsl,

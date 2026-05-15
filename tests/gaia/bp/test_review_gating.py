@@ -1,9 +1,9 @@
-from gaia.bp import lower_local_graph
-from gaia.ir import ReviewManifest, ReviewStatus
-from gaia.lang import Claim, derive, equal
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.review.manifest import generate_review_manifest
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.bp import lower_local_graph
+from gaia.engine.ir import ReviewManifest, ReviewStatus
+from gaia.engine.lang import Claim, derive, equal
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.review.manifest import generate_review_manifest
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def _accepted_manifest(manifest: ReviewManifest) -> ReviewManifest:

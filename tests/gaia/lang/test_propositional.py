@@ -1,8 +1,8 @@
 import pytest
 
-from gaia.lang import Claim, and_, or_
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import Claim, and_, or_
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_claim_boolean_truth_value_is_not_allowed():

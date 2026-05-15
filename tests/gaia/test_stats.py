@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from gaia.ir import CallableRef, DistributionLiteral, QuantityLiteral
+from gaia.engine.ir import CallableRef, DistributionLiteral, QuantityLiteral
 from gaia.stats import (
     Beta,
     Binomial,

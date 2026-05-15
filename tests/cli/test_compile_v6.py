@@ -21,7 +21,7 @@ def test_v6_knowledge_types_compile(tmp_path):
     pkg_src = pkg_dir / "v6_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import Claim, Note\n\n"
+        "from gaia.engine.lang import Claim, Note\n\n"
         "ctx = Note('Raw AB test data from dashboard.', format='text')\n"
         "exp = Note('AB test exp_123: 50/50 randomization.')\n"
         "hyp = Claim(\n"
@@ -32,7 +32,7 @@ def test_v6_knowledge_types_compile(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import hyp\n\n"
-        "from gaia.lang import register_prior\n\n"
+        "from gaia.engine.lang import register_prior\n\n"
         'register_prior(hyp, value=0.5, justification="uninformative")\n'
     )
 

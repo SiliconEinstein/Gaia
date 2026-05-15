@@ -1,10 +1,10 @@
 import pytest
 
-from gaia.lang import Claim, ClaimAtom, decompose, implies, land, lor
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.runtime.action import Decompose, Structural
-from gaia.lang.runtime.package import CollectedPackage
-from gaia.lang.runtime.roles import roles_for_claim
+from gaia.engine.lang import Claim, ClaimAtom, decompose, implies, land, lor
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.action import Decompose, Structural
+from gaia.engine.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.roles import roles_for_claim
 
 
 def _knowledge_by_helper_kind(compiled, helper_kind):

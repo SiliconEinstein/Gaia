@@ -43,8 +43,8 @@ def _write_gate_package(pkg_dir, source: str, *, quality: str = "") -> None:
 
 
 def _accept_all_reviews(pkg_dir) -> None:
-    from gaia.cli._packages import compile_loaded_package_artifact, load_gaia_package
-    from gaia.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.packaging import compile_loaded_package_artifact, load_gaia_package
 
     loaded = load_gaia_package(pkg_dir)
     compiled = compile_loaded_package_artifact(loaded)
@@ -59,8 +59,8 @@ def _accept_all_reviews(pkg_dir) -> None:
 
 
 def _accept_reviews_except(pkg_dir, action_label_fragment: str) -> None:
-    from gaia.cli._packages import compile_loaded_package_artifact, load_gaia_package
-    from gaia.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.packaging import compile_loaded_package_artifact, load_gaia_package
 
     loaded = load_gaia_package(pkg_dir)
     compiled = compile_loaded_package_artifact(loaded)
@@ -87,7 +87,7 @@ def test_gate_fails_on_structural_hole(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'hole = claim("Unwarranted exported claim.")\n'
         '__all__ = ["hole"]\n',
     )
@@ -101,7 +101,7 @@ def test_gate_candidate_relation_does_not_make_counterpart_load_bearing(tmp_path
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import claim, tension\n\n"
+        "from gaia.engine.lang import claim, tension\n\n"
         'prediction = claim("Model predicts X.")\n'
         'observation = claim("Experiment observes not-X.")\n'
         "tension(\n"
@@ -124,7 +124,7 @@ def test_gate_fails_on_unreviewed(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import derive, observe\n\n"
+        "from gaia.engine.lang import derive, observe\n\n"
         'data = observe("Data.", rationale="Measured.", label="observe_data")\n'
         'conclusion = derive("Conclusion.", given=data, '
         'rationale="Data implies conclusion.", label="derive_c")\n'
@@ -140,7 +140,7 @@ def test_gate_fails_on_unreviewed_compose(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import Claim, compose, derive\n\n"
+        "from gaia.engine.lang import Claim, compose, derive\n\n"
         'premise = Claim("A.")\n'
         'premise.label = "premise"\n\n'
         '@compose(name="test:workflow", version="1.0", label="workflow")\n'
@@ -166,7 +166,7 @@ def test_gate_fails_on_unreviewed_infer_warrant(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import Claim, infer\n\n"
+        "from gaia.engine.lang import Claim, infer\n\n"
         'h = Claim("H.")\n'
         'h.label = "h"\n'
         'e = Claim("E.")\n'
@@ -193,7 +193,7 @@ def test_gate_still_runs_with_blind_warrant_report(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import observe\n\n"
+        "from gaia.engine.lang import observe\n\n"
         'root = observe("Root fact.", rationale="Measured.", label="root_obs")\n'
         '__all__ = ["root"]\n',
     )
@@ -208,7 +208,7 @@ def test_gate_fails_on_unreviewed_root_observe(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import observe\n\n"
+        "from gaia.engine.lang import observe\n\n"
         'root = observe("Root fact.", rationale="Measured.", label="root_obs")\n'
         '__all__ = ["root"]\n',
     )
@@ -222,7 +222,7 @@ def test_gate_fails_on_low_posterior(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import observe\n\n"
+        "from gaia.engine.lang import observe\n\n"
         'root = observe("Root fact.", rationale="Measured.", label="root_obs")\n'
         '__all__ = ["root"]\n',
         quality="\n[tool.gaia.quality]\nmin_posterior = 0.9\n",
@@ -254,7 +254,7 @@ def test_gate_passes_when_all_met(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import derive, observe\n\n"
+        "from gaia.engine.lang import derive, observe\n\n"
         'data = observe("Data.", rationale="Measured.", label="observe_data")\n'
         'conclusion = derive("Conclusion.", given=data, '
         'rationale="Data implies conclusion.", label="derive_c")\n'
@@ -273,7 +273,7 @@ def test_gate_fails_on_unformalized_dependency(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import claim, depends_on\n\n"
+        "from gaia.engine.lang import claim, depends_on\n\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'c = claim("C.")\n'
@@ -293,7 +293,7 @@ def test_gate_allows_unformalized_dependency_when_configured(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import claim, depends_on\n\n"
+        "from gaia.engine.lang import claim, depends_on\n\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'c = claim("C.")\n'
@@ -314,7 +314,7 @@ def test_gate_ignores_unexported_unreachable_draft_actions(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.lang import derive, observe\n\n"
+        "from gaia.engine.lang import derive, observe\n\n"
         'data = observe("Data.", rationale="Measured.", label="observe_data")\n'
         'conclusion = derive("Conclusion.", given=data, '
         'rationale="Data implies conclusion.", label="derive_c")\n'

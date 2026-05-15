@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from gaia.bp import (
+from gaia.engine.bp import (
     JunctionTreeInference,
     MeanFieldVI,
     TRWBeliefPropagation,
@@ -16,7 +16,7 @@ from gaia.bp import (
     infer,
     jt_treewidth,
 )
-from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 
 
 def build_block_dag(num_blocks: int, prior_a: float = 0.7, prior_c: float = 0.6) -> FactorGraph:

@@ -47,7 +47,7 @@ def test_compile_errors_on_label_citation_collision(tmp_path: Path) -> None:
         tmp_path,
         name="collision_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim, deduction\n\n"
             'bell_lemma = claim("A lemma about Bell.")\n'
             'main_result = claim("Main result.")\n'
             "deduction(premises=[bell_lemma], conclusion=main_result)\n"
@@ -72,7 +72,7 @@ def test_compile_errors_on_mixed_type_bracket_group(tmp_path: Path) -> None:
         tmp_path,
         name="mixed_group_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim, deduction\n\n"
             'lemma_a = claim("A helper lemma.")\n'
             'main_result = claim("Main result. See [see @lemma_a; @Bell1964, p. 5] for context.")\n'
             "deduction(premises=[lemma_a], conclusion=main_result)\n"
@@ -93,7 +93,7 @@ def test_compile_errors_on_strict_miss(tmp_path: Path) -> None:
         tmp_path,
         name="strict_miss_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim, deduction\n\n"
             'premise_a = claim("Premise A.")\n'
             'main_result = claim("Main result. See [@nothing_at_all] for context.")\n'
             "deduction(premises=[premise_a], conclusion=main_result)\n"
@@ -114,7 +114,7 @@ def test_compile_tolerates_opportunistic_miss(tmp_path: Path) -> None:
         tmp_path,
         name="opp_miss_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim, deduction\n\n"
             'premise_a = claim("Premise A.")\n'
             'main_result = claim("Use the @dataclass decorator for this.")\n'
             "deduction(premises=[premise_a], conclusion=main_result)\n"
@@ -137,7 +137,7 @@ def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
         tmp_path,
         name="sub_strategy_refs_pkg",
         module_body=(
-            "from gaia.lang import claim, support, induction\n\n"
+            "from gaia.engine.lang import claim, support, induction\n\n"
             'obs1 = claim("First observation.")\n'
             'obs2 = claim("Second observation.")\n'
             'law = claim("A general law.")\n'
@@ -162,7 +162,7 @@ def test_compile_records_provenance_metadata(tmp_path: Path) -> None:
         tmp_path,
         name="provenance_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim, deduction\n\n"
             'lemma_a = claim("A helper lemma.")\n'
             'main_result = claim("Main result depends on [@lemma_a] and [@Bell1964].")\n'
             "deduction(premises=[lemma_a], conclusion=main_result)\n"
@@ -213,7 +213,7 @@ def two_package_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     dep_src = dep_dir / "src" / "refs_dep_pkg"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'foreign_lemma = claim("A foundational lemma from a dependency package.")\n'
         '__all__ = ["foreign_lemma"]\n'
     )
@@ -253,7 +253,7 @@ def test_imported_foreign_label_resolves_in_strict_form(
     """
     _dep_dir, main_dir, main_src = two_package_setup
     (main_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         "from refs_dep_pkg import foreign_lemma\n\n"
         "main_result = claim(\n"
         '    "Main result. This follows from [@foreign_lemma]."\n'
@@ -297,7 +297,7 @@ def test_imported_foreign_label_resolves_in_opportunistic_form(
     """
     _dep_dir, main_dir, main_src = two_package_setup
     (main_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         "from refs_dep_pkg import foreign_lemma\n\n"
         'main_result = claim("Main result.")\n'
         "deduction(\n"
@@ -360,7 +360,7 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
     dep_src = dep_dir / "src" / "refs_dep_p1"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'foreign_lemma = claim("An important lemma [@Bell1964].")\n'
         '__all__ = ["foreign_lemma"]\n'
     )
@@ -382,7 +382,7 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
     main_src = main_dir / "refs_consumer_p1"
     main_src.mkdir()
     (main_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         "from refs_dep_p1 import foreign_lemma\n\n"
         'main_result = claim("Main result.")\n'
         "deduction(premises=[foreign_lemma], conclusion=main_result)\n"
@@ -427,7 +427,7 @@ def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
     dep_src = dep_dir / "src" / "refs_dep_bridge"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -460,7 +460,7 @@ def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
     bridge_src = bridge_dir / "refs_bridge_pkg"
     bridge_src.mkdir()
     (bridge_src / "__init__.py").write_text(
-        "from gaia.lang import claim, fills\n"
+        "from gaia.engine.lang import claim, fills\n"
         "from refs_dep_bridge import missing_lemma\n\n"
         'b_result = claim("A new theorem that proves the missing lemma.")\n'
         "fills(\n"

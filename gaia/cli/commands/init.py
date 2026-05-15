@@ -8,8 +8,14 @@ from pathlib import Path
 
 import typer
 
-from gaia.cli._packages import GaiaCliError
+from gaia.engine.packaging import GaiaPackagingError
 
+# NOTE: The DSL template emits the *legacy* import path `from gaia.lang import ...`
+# to keep `tests/baseline/test_init_scaffold_tree_snapshot.json` byte-identical
+# during the Stage B engine refactor (Q4 literal-path = A3 sacred). Stage C
+# owns updating the scaffold template + migration guide so that newly-init'd
+# packages emit the canonical `gaia.engine.lang` path. See
+# `home_agent/projects/gaia/alpha-0/plan.md` Stage C.
 _DSL_TEMPLATE = """\
 from gaia.lang import claim, derive, note
 
@@ -35,12 +41,12 @@ def _run_uv(
     try:
         result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
     except FileNotFoundError as exc:
-        raise GaiaCliError(
+        raise GaiaPackagingError(
             "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
         ) from exc
     if check and result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip() or "command failed"
-        raise GaiaCliError(f"Error running {' '.join(args)}: {stderr}")
+        raise GaiaPackagingError(f"Error running {' '.join(args)}: {stderr}")
     return result
 
 
@@ -63,7 +69,7 @@ def init_command(
     # --- scaffold with uv init --lib -------------------------------------------
     try:
         _run_uv(["uv", "init", "--lib", name], cwd=cwd)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 
@@ -126,7 +132,7 @@ def init_command(
     # --- add gaia-lang dependency (warn on failure) ----------------------------
     try:
         _run_uv(["uv", "add", "gaia-lang"], cwd=pkg_dir)
-    except GaiaCliError:
+    except GaiaPackagingError:
         typer.echo(
             "Warning: could not add gaia-lang dependency. Run 'uv add gaia-lang' manually.",
             err=True,

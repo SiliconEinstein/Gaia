@@ -26,7 +26,7 @@ def test_infer_with_priors_py(tmp_path):
     pkg_dir = tmp_path / "priors_infer"
     _write_base_package(pkg_dir, name="priors_infer")
     (pkg_dir / "priors_infer" / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'evidence = claim("Evidence.")\n'
         'hypothesis = claim("Hypothesis.")\n'
         "s = deduction(premises=[evidence], conclusion=hypothesis, reason='deduction', prior=0.9)\n"
@@ -34,7 +34,7 @@ def test_infer_with_priors_py(tmp_path):
     )
     (pkg_dir / "priors_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
@@ -56,7 +56,7 @@ def test_infer_without_priors_py(tmp_path):
     pkg_dir = tmp_path / "no_priors_infer"
     _write_base_package(pkg_dir, name="no_priors_infer")
     (pkg_dir / "no_priors_infer" / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'evidence = claim("Evidence.")\n'
         'hypothesis = claim("Hypothesis.")\n'
         "s = deduction(premises=[evidence], conclusion=hypothesis, reason='deduction', prior=0.9)\n"
@@ -77,7 +77,7 @@ def test_infer_fails_when_compiled_artifacts_are_stale(tmp_path):
     pkg_dir = tmp_path / "infer_demo"
     _write_base_package(pkg_dir, name="infer_demo")
     (pkg_dir / "infer_demo" / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'main_claim = claim("Original claim.")\n'
         '__all__ = ["main_claim"]\n'
     )
@@ -86,7 +86,7 @@ def test_infer_fails_when_compiled_artifacts_are_stale(tmp_path):
     assert compile_result.exit_code == 0, compile_result.output
 
     (pkg_dir / "infer_demo" / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'main_claim = claim("Updated claim.")\n'
         '__all__ = ["main_claim"]\n'
     )
@@ -101,7 +101,7 @@ def test_infer_with_deduction_strategy(tmp_path):
     pkg_dir = tmp_path / "deduction_demo"
     _write_base_package(pkg_dir, name="deduction_demo")
     (pkg_dir / "deduction_demo" / "__init__.py").write_text(
-        "from gaia.lang import deduction, claim\n\n"
+        "from gaia.engine.lang import deduction, claim\n\n"
         'law = claim("forall x. P(x)")\n'
         'instance = claim("P(a)")\n'
         "proof = deduction(premises=[law], conclusion=instance, reason='instantiate', prior=0.9)\n"
@@ -109,7 +109,7 @@ def test_infer_with_deduction_strategy(tmp_path):
     )
     (pkg_dir / "deduction_demo" / "priors.py").write_text(
         "from . import law, instance\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(law, value=0.9, justification="Well established.")\n'
         'register_prior(instance, value=0.5, justification="Follows from law.")\n'
     )
@@ -126,7 +126,7 @@ def test_infer_runs_unreviewed_v6_actions_for_local_preview(tmp_path):
     pkg_dir = tmp_path / "v6_review_infer"
     _write_base_package(pkg_dir, name="v6_review_infer")
     (pkg_dir / "v6_review_infer" / "__init__.py").write_text(
-        "from gaia.lang import claim, derive\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence = claim("Evidence.")\n'
         "hypothesis = derive(\n"
         '    "Hypothesis.",\n'
@@ -138,7 +138,7 @@ def test_infer_runs_unreviewed_v6_actions_for_local_preview(tmp_path):
     )
     (pkg_dir / "v6_review_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
@@ -157,17 +157,17 @@ def test_infer_runs_unreviewed_v6_actions_for_local_preview(tmp_path):
 
 def test_infer_ignores_rejected_review_manifest_for_local_preview(tmp_path):
     """Persisted review status does not suppress gaia infer's local preview."""
-    from gaia.cli._packages import (
+    from gaia.engine.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.packaging import (
         apply_package_priors,
         compile_loaded_package_artifact,
         load_gaia_package,
     )
-    from gaia.ir import ReviewManifest, ReviewStatus
 
     pkg_dir = tmp_path / "v6_review_infer"
     _write_base_package(pkg_dir, name="v6_review_infer")
     (pkg_dir / "v6_review_infer" / "__init__.py").write_text(
-        "from gaia.lang import claim, derive\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence = claim("Evidence.")\n'
         "hypothesis = derive(\n"
         '    "Hypothesis.",\n'
@@ -179,7 +179,7 @@ def test_infer_ignores_rejected_review_manifest_for_local_preview(tmp_path):
     )
     (pkg_dir / "v6_review_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
@@ -210,17 +210,17 @@ def test_infer_ignores_rejected_review_manifest_for_local_preview(tmp_path):
 
 def test_infer_ignores_stale_review_manifest_target_ids_for_local_preview(tmp_path):
     """Stale review target IDs do not affect gaia infer's local preview."""
-    from gaia.cli._packages import (
+    from gaia.engine.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.packaging import (
         apply_package_priors,
         compile_loaded_package_artifact,
         load_gaia_package,
     )
-    from gaia.ir import ReviewManifest, ReviewStatus
 
     pkg_dir = tmp_path / "v6_review_retarget"
     _write_base_package(pkg_dir, name="v6_review_retarget")
     (pkg_dir / "v6_review_retarget" / "__init__.py").write_text(
-        "from gaia.lang import claim, derive\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence = claim("Evidence.")\n'
         "hypothesis = derive(\n"
         '    "Hypothesis.",\n'
@@ -232,7 +232,7 @@ def test_infer_ignores_stale_review_manifest_target_ids_for_local_preview(tmp_pa
     )
     (pkg_dir / "v6_review_retarget" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(evidence, value=0.9, justification="Direct observation.")\n'
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
@@ -275,7 +275,7 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
     pkg_dir = tmp_path / "v6_cpt_infer"
     _write_base_package(pkg_dir, name="v6_cpt_infer")
     (pkg_dir / "v6_cpt_infer" / "__init__.py").write_text(
-        "from gaia.lang import claim, infer\n\n"
+        "from gaia.engine.lang import claim, infer\n\n"
         'hypothesis = claim("Hypothesis.")\n'
         'evidence = claim("Evidence.")\n'
         "infer(\n"
@@ -290,7 +290,7 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
     )
     (pkg_dir / "v6_cpt_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(hypothesis, value=0.2, justification="Low base rate.")\n'
         'register_prior(evidence, value=0.9, justification="Observed evidence.")\n'
     )
@@ -311,13 +311,13 @@ def test_infer_with_root_observe(tmp_path):
     pkg_dir = tmp_path / "root_observe_infer"
     _write_base_package(pkg_dir, name="root_observe_infer")
     (pkg_dir / "root_observe_infer" / "__init__.py").write_text(
-        "from gaia.lang import observe\n\n"
+        "from gaia.engine.lang import observe\n\n"
         'root = observe("Root measurement.", rationale="Measured.", label="root_obs")\n'
         '__all__ = ["root"]\n'
     )
     (pkg_dir / "root_observe_infer" / "priors.py").write_text(
         "from . import root\n\n"
-        "from gaia.lang import register_prior\n\n"
+        "from gaia.engine.lang import register_prior\n\n"
         'register_prior(root, value=0.82, justification="Measurement reliability.")\n'
     )
 
@@ -344,7 +344,7 @@ def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
     dep_src = dep_dir / "upstream_dep"
     dep_src.mkdir()
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'upstream_claim = claim("Upstream conclusion.")\n'
         '__all__ = ["upstream_claim"]\n'
     )
@@ -354,7 +354,7 @@ def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
     pkg_dir = tmp_path / "local_pkg"
     _write_base_package(pkg_dir, name="local_pkg")
     (pkg_dir / "local_pkg" / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         "from upstream_dep import upstream_claim\n\n"
         'local_obs = claim("Local observation.")\n'
         "deduction(premises=[upstream_claim, local_obs], conclusion=claim('Result.'), "
@@ -402,7 +402,7 @@ def test_collect_foreign_node_priors_unit(tmp_path):
     """Unit test for collect_foreign_node_priors — no inference, just file parsing."""
     from types import SimpleNamespace
 
-    from gaia.cli._packages import collect_foreign_node_priors
+    from gaia.engine.packaging import collect_foreign_node_priors
 
     pkg_path = tmp_path / "test_pkg"
     pkg_path.mkdir()
@@ -480,7 +480,7 @@ def _write_dep_package(dep_dir, *, name: str, monkeypatch):
     src = dep_dir / import_name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'evidence = claim("Strong evidence for upstream.", title="evidence")\n'
         'upstream_conclusion = claim("Upstream conclusion.", title="conclusion")\n'
         "deduction(premises=[evidence], conclusion=upstream_conclusion, "
@@ -490,7 +490,7 @@ def _write_dep_package(dep_dir, *, name: str, monkeypatch):
     # Write priors.py to give evidence a high prior
     (src / "priors.py").write_text(
         "from . import evidence\n\n"
-        "from gaia.lang import register_prior\n\n"
+        "from gaia.engine.lang import register_prior\n\n"
         'register_prior(evidence, value=0.85, justification="Strong evidence")\n\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir))
@@ -502,7 +502,7 @@ def test_infer_depth_0_unchanged(tmp_path, monkeypatch):
     pkg_dir = tmp_path / "depth0"
     _write_base_package(pkg_dir, name="depth0")
     (pkg_dir / "depth0" / "__init__.py").write_text(
-        'from gaia.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
+        'from gaia.engine.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
     )
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
@@ -519,7 +519,7 @@ def test_infer_depth_1_no_deps_falls_back(tmp_path, monkeypatch):
     pkg_dir = tmp_path / "nodeps"
     _write_base_package(pkg_dir, name="nodeps")
     (pkg_dir / "nodeps" / "__init__.py").write_text(
-        'from gaia.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
+        'from gaia.engine.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
     )
     compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
@@ -550,7 +550,7 @@ def test_infer_depth_1_merges_dep_graphs(tmp_path, monkeypatch):
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
     (pkg_dir / "local_pkg" / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         "from upstream_dep import upstream_conclusion\n\n"
         'local_obs = claim("Local observation.")\n'
         "local_result = claim('Local result.')\n"
@@ -564,7 +564,7 @@ def test_infer_depth_1_merges_dep_graphs(tmp_path, monkeypatch):
 
     # Mock _locate_dependency_manifest_root to point to our dep
     with patch(
-        "gaia.cli._packages._locate_dependency_manifest_root",
+        "gaia.engine.packaging._locate_dependency_manifest_root",
         return_value=dep_dir,
     ):
         result = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])
@@ -600,7 +600,7 @@ def test_infer_depth_1_beliefs_differ_from_flat_priors(tmp_path, monkeypatch):
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
     (pkg_dir / "local_pkg" / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         "from upstream_dep import upstream_conclusion\n\n"
         'local_obs = claim("Local observation.")\n'
         "local_result = claim('Local result.')\n"
@@ -620,7 +620,7 @@ def test_infer_depth_1_beliefs_differ_from_flat_priors(tmp_path, monkeypatch):
 
     # Run with --depth 1 (joint inference)
     with patch(
-        "gaia.cli._packages._locate_dependency_manifest_root",
+        "gaia.engine.packaging._locate_dependency_manifest_root",
         return_value=dep_dir,
     ):
         result_joint = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])

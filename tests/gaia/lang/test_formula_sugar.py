@@ -2,10 +2,10 @@
 
 import pytest
 
-from gaia.bp.exact import exact_inference
-from gaia.bp.lowering import lower_local_graph
-from gaia.ir.parameterization import CROMWELL_EPS
-from gaia.lang import (
+from gaia.engine.bp.exact import exact_inference
+from gaia.engine.bp.lowering import lower_local_graph
+from gaia.engine.ir.parameterization import CROMWELL_EPS
+from gaia.engine.lang import (
     ClaimKind,
     Constant,
     Domain,
@@ -23,9 +23,9 @@ from gaia.lang import (
     observe,
     parameter,
 )
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.knowledge import _current_package
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def _compiled_knowledge_by_label(pkg: CollectedPackage):

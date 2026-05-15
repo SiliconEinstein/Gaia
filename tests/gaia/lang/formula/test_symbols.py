@@ -2,9 +2,9 @@
 
 import pytest
 
-from gaia.lang.formula.symbols import FunctionSymbol, PredicateSymbol
-from gaia.lang.runtime.domain import Domain
-from gaia.lang.types.primitives import Nat, Real
+from gaia.engine.lang.formula.symbols import FunctionSymbol, PredicateSymbol
+from gaia.engine.lang.runtime.domain import Domain
+from gaia.engine.lang.types.primitives import Nat, Real
 
 
 def test_function_symbol_basic():

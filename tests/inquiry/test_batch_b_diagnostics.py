@@ -10,16 +10,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from gaia.cli.commands.check_core import HoleEntry, KnowledgeBreakdown
-from gaia.inquiry.diagnostics import (
+from gaia.engine.inquiry.check_core import HoleEntry, KnowledgeBreakdown
+from gaia.engine.inquiry.diagnostics import (
     Diagnostic,
     detect_focus_low_posterior,
     detect_prior_without_justification,
     detect_stale_artifact,
     detect_warrant_status,
 )
-from gaia.inquiry.ranking import rank_diagnostics, supported_modes
-from gaia.inquiry.review import publish_blockers, run_review
+from gaia.engine.inquiry.ranking import rank_diagnostics, supported_modes
+from gaia.engine.inquiry.review import publish_blockers, run_review
 
 # --------------------------------------------------------------------------- #
 # stale_artifact
@@ -155,7 +155,7 @@ def test_ranking_includes_all_new_kinds_for_every_mode() -> None:
         ]
         ranked = rank_diagnostics(diags, mode)
         # All present (no drop), and kind-rank lookup must be < 99.
-        from gaia.inquiry.ranking import _MODE_RANK, _UNKNOWN_KIND_RANK
+        from gaia.engine.inquiry.ranking import _MODE_RANK, _UNKNOWN_KIND_RANK
 
         table = _MODE_RANK[mode]
         for d in ranked:
@@ -170,8 +170,8 @@ def test_ranking_includes_all_new_kinds_for_every_mode() -> None:
 
 
 def _empty_report():
-    from gaia.inquiry.focus import FocusBinding
-    from gaia.inquiry.review import ReviewReport
+    from gaia.engine.inquiry.focus import FocusBinding
+    from gaia.engine.inquiry.review import ReviewReport
 
     return ReviewReport(
         review_id="r",

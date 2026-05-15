@@ -7,11 +7,11 @@ import math
 import pytest
 import scipy.stats as stats
 
-from gaia.bp.exact import exact_inference
-from gaia.bp.factor_graph import FactorType
-from gaia.bp.lowering import lower_local_graph
-from gaia.ir.operator import OperatorType
-from gaia.lang import (
+from gaia.engine.bp.exact import exact_inference
+from gaia.engine.bp.factor_graph import FactorType
+from gaia.engine.bp.lowering import lower_local_graph
+from gaia.engine.ir.operator import OperatorType
+from gaia.engine.lang import (
     Constant,
     Nat,
     Probability,
@@ -24,11 +24,11 @@ from gaia.lang import (
     observe,
     parameter,
 )
-from gaia.lang.bayes.runtime import Likelihood, PredictiveModel
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.knowledge import _current_package
-from gaia.lang.runtime.package import CollectedPackage
-from gaia.lang.runtime.roles import roles_for_package
+from gaia.engine.lang.bayes.runtime import Likelihood, PredictiveModel
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.roles import roles_for_package
 
 
 def _observed_value(

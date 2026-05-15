@@ -14,7 +14,7 @@ from typing import Any
 from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._manifest import generate_manifest
 from gaia.cli.commands._wiki import generate_all_wiki
-from gaia.ir.coarsen import coarsen_ir
+from gaia.engine.ir.coarsen import coarsen_ir
 
 
 def _copy_react_template(docs_dir: Path) -> None:
@@ -147,8 +147,8 @@ def _write_narrative_outline(
 ) -> None:
     """Best-effort narrative outline generation for GitHub output."""
     try:
-        from gaia.ir.coarsen import coarsen_ir
-        from gaia.ir.linearize import linearize_narrative, render_narrative_outline
+        from gaia.engine.ir.coarsen import coarsen_ir
+        from gaia.engine.ir.linearize import linearize_narrative, render_narrative_outline
 
         coarse_for_outline = coarsen_ir(ir, exported)
         node_priors = _default_outline_priors(ir, param_data)
@@ -182,7 +182,7 @@ def _outline_mi_map(
 ) -> dict[int, float]:
     """Best-effort MI map for the narrative outline."""
     try:
-        from gaia.ir.coarsen import compute_coarse_cpts, mutual_information
+        from gaia.engine.ir.coarsen import compute_coarse_cpts, mutual_information
 
         cpts = compute_coarse_cpts(
             ir,
@@ -387,7 +387,7 @@ def _coarse_strategy_lines(
         cpt = coarse_cpts.get(i)
         ann = stype
         if cpt and len(cpt) >= 2:
-            from gaia.ir.coarsen import mutual_information
+            from gaia.engine.ir.coarsen import mutual_information
 
             mi = mutual_information(cpt, [priors.get(p, 0.5) for p in s["premises"]])
             total_mi += mi
@@ -412,7 +412,7 @@ def _coarse_cpts_for_mermaid(
     if not beliefs:
         return {}
     try:
-        from gaia.ir.coarsen import compute_coarse_cpts
+        from gaia.engine.ir.coarsen import compute_coarse_cpts
 
         node_priors = _default_outline_priors(ir, param_data=None)
         node_priors.update(priors)

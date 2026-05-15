@@ -2,7 +2,7 @@
 
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import (
     Claim,
     Step,
     abduction,
@@ -17,7 +17,7 @@ from gaia.lang import (
     setting,
     support,
 )
-from gaia.lang.compiler.compile import (
+from gaia.engine.lang.compiler.compile import (
     _anonymous_label,
     _compile_reason,
     _content_hash,
@@ -25,7 +25,7 @@ from gaia.lang.compiler.compile import (
     _normalize_label,
     compile_package_artifact,
 )
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.package import CollectedPackage
 from gaia.unit import q
 
 LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(

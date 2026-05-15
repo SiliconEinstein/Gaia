@@ -1,6 +1,6 @@
 """Tests for Gaia IR validator."""
 
-from gaia.ir import (
+from gaia.engine.ir import (
     Compose,
     CompositeStrategy,
     FormalExpr,
@@ -11,7 +11,7 @@ from gaia.ir import (
     Operator,
     Strategy,
 )
-from gaia.ir.validator import (
+from gaia.engine.ir.validator import (
     validate_local_graph,
     validate_parameterization,
 )
@@ -1170,7 +1170,7 @@ class TestParameterizationValidation:
         )
 
     def test_complete_parameterization(self):
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
         r = validate_parameterization(
@@ -1184,7 +1184,7 @@ class TestParameterizationValidation:
 
     def test_strategy_conclusion_does_not_require_prior(self):
         """Strategy conclusions are exempt from PriorRecord requirement."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
         # b is the conclusion of a noisy_and — no prior needed
@@ -1206,7 +1206,7 @@ class TestParameterizationValidation:
         assert any("github:test::a" in e and "missing PriorRecord" in e for e in r.errors)
 
     def test_parameterized_strategy_uses_inline_params_not_param_records(self):
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
         r = validate_parameterization(
@@ -1220,7 +1220,7 @@ class TestParameterizationValidation:
 
     def test_formal_strategy_without_params_passes(self):
         """FormalStrategy types do not need any separate strategy parameter record."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1260,7 +1260,7 @@ class TestParameterizationValidation:
 
     def test_private_helper_claim_no_prior_needed(self):
         """Private helper claims (FormalExpr internal) don't need PriorRecord."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1308,7 +1308,7 @@ class TestParameterizationValidation:
 
     def test_private_helper_claim_prior_prohibited(self):
         """Providing PriorRecord for a private helper claim is an error."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1355,7 +1355,7 @@ class TestParameterizationValidation:
 
     def test_implication_private_node_prior_prohibited(self):
         """Any FormalExpr private node (not just structural helpers) must not have PriorRecord."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         # github:test::h1 and h2 are implication helper conclusions inside FormalExpr, NOT in
         # the strategy's interface (premises/conclusion). They are private nodes.
@@ -1408,7 +1408,7 @@ class TestParameterizationValidation:
 
     def test_implication_private_node_no_prior_needed(self):
         """FormalExpr private implication helper nodes don't need PriorRecord."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1454,7 +1454,7 @@ class TestParameterizationValidation:
 
     def test_abduction_generated_interface_claim_requires_prior(self):
         """Auto-generated alternative explanations are public interface claims with priors."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1488,7 +1488,7 @@ class TestParameterizationValidation:
 
     def test_abduction_generated_interface_claim_prior_allowed(self):
         """The generated alternative explanation can be parameterized like any public claim."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1522,7 +1522,7 @@ class TestParameterizationValidation:
 
     def test_elimination_only_requires_interface_priors(self):
         """Strict elimination should not introduce hidden prior-bearing internal claims."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1564,7 +1564,7 @@ class TestParameterizationValidation:
 
     def test_top_level_helper_claim_no_prior_needed(self):
         """Top-level structural helper claims should also be excluded from prior coverage."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1593,7 +1593,7 @@ class TestParameterizationValidation:
 
     def test_top_level_helper_claim_prior_prohibited(self):
         """Top-level structural helper claims must not accept independent priors."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1626,7 +1626,7 @@ class TestParameterizationValidation:
 
     def test_setting_does_not_need_prior(self):
         """Settings don't carry probability -- no PriorRecord needed."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
         r = validate_parameterization(
@@ -1640,7 +1640,7 @@ class TestParameterizationValidation:
 
     def test_cromwell_bounds_on_priors(self):
         """PriorRecord auto-clamps, so raw values within bounds should pass."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[_claim("github:test::a")],
@@ -1653,7 +1653,7 @@ class TestParameterizationValidation:
         assert r.valid
 
     def test_dangling_prior_warning(self):
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(knowledges=[_claim("github:test::a")])
         r = validate_parameterization(
@@ -1672,7 +1672,7 @@ class TestParameterizationValidation:
 
     def test_composite_strategy_does_not_require_param_record(self):
         """CompositeStrategy delegates to sub-strategies; no separate params needed."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         sub = Strategy(
             scope="local",

@@ -24,7 +24,7 @@ lowering pass, not placed in the observation's content or hidden behind an
 intermediate count-event claim.
 """
 
-from gaia.lang import (
+from gaia.engine.lang import (
     Constant,
     Nat,
     Variable,

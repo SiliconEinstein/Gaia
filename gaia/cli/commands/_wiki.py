@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.engine.inquiry._classify import classify_ir, node_role
 
 
 def generate_wiki_home(ir: dict[str, Any], beliefs_data: dict[str, Any] | None = None) -> str:

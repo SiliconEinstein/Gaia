@@ -1,10 +1,10 @@
 import json
 
-from gaia.cli.commands._review_manifest import load_or_generate_review_manifest
-from gaia.ir import ReviewManifest, ReviewStatus
-from gaia.lang import Claim, derive, observe
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.inquiry.review_manifest import load_or_generate_review_manifest
+from gaia.engine.ir import ReviewManifest, ReviewStatus
+from gaia.engine.lang import Claim, derive, observe
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def _compiled_with_reviewable_action():

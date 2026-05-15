@@ -15,16 +15,16 @@ from typing import Any
 
 import pytest
 
-from gaia.lang import Normal, claim, observe, register_prior
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.compiler.distribution_diagnostics import (
+from gaia.engine.lang import Normal, claim, observe, register_prior
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.compiler.distribution_diagnostics import (
     DeadContinuousQuantityWarning,
     ObservationNotUpdatingPredicateWarning,
     detect_dead_distributions,
     detect_observation_not_updating_predicate,
 )
-from gaia.lang.runtime.knowledge import _current_package
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def _build(make: Callable[[], Any]) -> CollectedPackage:

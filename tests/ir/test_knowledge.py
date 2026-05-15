@@ -4,8 +4,8 @@ import hashlib
 
 import pytest
 
-from gaia.ir import Knowledge, KnowledgeType, PackageRef, Parameter
-from gaia.ir.knowledge import is_qid, make_qid
+from gaia.engine.ir import Knowledge, KnowledgeType, PackageRef, Parameter
+from gaia.engine.ir.knowledge import is_qid, make_qid
 
 
 class TestMakeQid:

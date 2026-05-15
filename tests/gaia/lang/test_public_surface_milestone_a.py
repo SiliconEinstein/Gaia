@@ -5,7 +5,7 @@ import sys
 
 
 def test_milestone_a_public_surface():
-    import gaia.lang as lang
+    import gaia.engine.lang as lang
 
     expected = {
         # primitives
@@ -49,7 +49,7 @@ def test_milestone_a_public_surface():
 
 
 def test_gaia_lang_does_not_export_core_predict_verb():
-    import gaia.lang as lang
+    import gaia.engine.lang as lang
 
     # `predict` and `likelihood` remain bayes-specific verbs in
     # `gaia.lang.bayes` and must not pollute the top-level namespace.
@@ -65,7 +65,7 @@ def test_gaia_lang_does_not_export_core_predict_verb():
 
 
 def test_bayes_surface_uses_model_not_predict_alias():
-    from gaia.lang import bayes
+    from gaia.engine.lang import bayes
 
     assert hasattr(bayes, "model")
     assert not hasattr(bayes, "predict")
@@ -75,10 +75,10 @@ def test_bayes_surface_uses_model_not_predict_alias():
 def test_gaia_lang_import_does_not_eagerly_import_bayes():
     code = (
         "import sys\n"
-        "import gaia.lang as lang\n"
+        "import gaia.engine.lang as lang\n"
         "print('gaia.lang.bayes' in sys.modules)\n"
         "print('scipy' in sys.modules)\n"
-        "from gaia.lang import bayes\n"
+        "from gaia.engine.lang import bayes\n"
         "print(hasattr(bayes, 'model'))\n"
     )
     result = subprocess.run(

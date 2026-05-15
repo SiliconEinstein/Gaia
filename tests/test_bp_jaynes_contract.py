@@ -1,11 +1,11 @@
 import pytest
 
-from gaia.bp.contraction import contract_to_cpt, factor_to_tensor
-from gaia.bp.exact import exact_inference, exact_joint_over
-from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
-from gaia.bp.junction_tree import JunctionTreeInference
-from gaia.bp.lowering import lower_local_graph
-from gaia.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
+from gaia.engine.bp.contraction import contract_to_cpt, factor_to_tensor
+from gaia.engine.bp.exact import exact_inference, exact_joint_over
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
+from gaia.engine.bp.junction_tree import JunctionTreeInference
+from gaia.engine.bp.lowering import lower_local_graph
+from gaia.engine.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
 
 
 def test_exact_inference_free_variable_has_no_implicit_half_prior():

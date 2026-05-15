@@ -14,7 +14,7 @@ def _write_v6_warrant_package(pkg_dir, *, with_prior: bool = False) -> None:
     pkg_src = pkg_dir / "check_warrants"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, derive, equal\n\n"
+        "from gaia.engine.lang import claim, derive, equal\n\n"
         'premise = claim("Evidence A is reliable.")\n'
         'evidence = claim("Evidence B matches Evidence A.")\n'
         'same = equal(premise, evidence, rationale="The two evidence records match.", '
@@ -30,7 +30,7 @@ def _write_v6_warrant_package(pkg_dir, *, with_prior: bool = False) -> None:
     if with_prior:
         (pkg_src / "priors.py").write_text(
             "from . import premise\n\n"
-            "from gaia.lang import register_prior\n\n"
+            "from gaia.engine.lang import register_prior\n\n"
             "register_prior(premise, value=0.83, "
             'justification="Author confidence in the observed evidence.")\n\n'
         )

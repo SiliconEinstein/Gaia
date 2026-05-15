@@ -2,7 +2,7 @@
 
 import pytest
 
-from gaia.lang import claim, compare
+from gaia.engine.lang import claim, compare
 
 
 def test_compare_basic():

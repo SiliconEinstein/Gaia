@@ -21,7 +21,7 @@ def _simple_pkg(pkg_dir, name: str = "proof_pkg") -> None:
     src = pkg_dir / name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim\n"
+        "from gaia.engine.lang import claim\n"
         'main_claim = claim("main hypothesis", metadata={"prior": 0.5})\n'
         '__all__ = ["main_claim"]\n',
         encoding="utf-8",

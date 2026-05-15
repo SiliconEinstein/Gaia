@@ -1,4 +1,4 @@
-from gaia.lang import (
+from gaia.engine.lang import (
     Claim,
     ClaimAtom,
     associate,
@@ -9,7 +9,7 @@ from gaia.lang import (
     infer,
     observe,
 )
-from gaia.lang.runtime.action import (
+from gaia.engine.lang.runtime.action import (
     Associate,
     Compose,
     Compute,
@@ -22,8 +22,8 @@ from gaia.lang.runtime.action import (
     Infer,
     Support,
 )
-from gaia.lang.runtime.package import CollectedPackage
-from gaia.lang.runtime.roles import roles_for_claim, roles_for_package
+from gaia.engine.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.roles import roles_for_claim, roles_for_package
 
 
 def _role_names(occurrences):

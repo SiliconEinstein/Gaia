@@ -2,10 +2,10 @@ import inspect
 
 import pytest
 
-from gaia.lang import infer
-from gaia.lang.runtime.action import Infer
-from gaia.lang.runtime.knowledge import Claim, Setting
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import infer
+from gaia.engine.lang.runtime.action import Infer
+from gaia.engine.lang.runtime.knowledge import Claim, Setting
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_infer_returns_evidence_and_keeps_likelihood_warrant_on_action():

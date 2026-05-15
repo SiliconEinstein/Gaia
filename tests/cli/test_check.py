@@ -18,7 +18,7 @@ def _write_package(pkg_dir, *, content: str = "A test claim.") -> None:
     pkg_src = pkg_dir / "check_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         f'main_claim = claim("{content}")\n'
         '__all__ = ["main_claim"]\n'
     )
@@ -41,7 +41,7 @@ def test_check_applies_priors_py_before_stale_check(tmp_path):
     _write_package(pkg_dir)
     (pkg_dir / "check_demo" / "priors.py").write_text(
         "from . import main_claim\n\n"
-        "from gaia.lang import register_prior\n\n"
+        "from gaia.engine.lang import register_prior\n\n"
         'register_prior(main_claim, value=0.8, justification="Reviewed premise.")\n\n'
     )
 
@@ -61,7 +61,7 @@ def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
     assert compile_result.exit_code == 0, compile_result.output
 
     (pkg_dir / "check_demo" / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'main_claim = claim("Updated claim.")\n'
         '__all__ = ["main_claim"]\n'
     )
@@ -81,7 +81,7 @@ def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_check_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -101,7 +101,7 @@ def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     pkg_src = pkg_dir / "check_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, fills\n"
+        "from gaia.engine.lang import claim, fills\n"
         "from dep_check_missing import missing_lemma\n\n"
         'main_claim = claim("A test claim.")\n'
         "fills(source=main_claim, target=missing_lemma)\n"
@@ -123,7 +123,7 @@ def _write_multi_claim_package(pkg_dir, *, with_priors: bool = False) -> None:
     pkg_src = pkg_dir / "check_holes"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'premise_a = claim("Evidence A is observed.")\n'
         'premise_b = claim("Evidence B is observed.")\n'
         'conclusion = claim("Therefore, hypothesis H holds.")\n'
@@ -133,7 +133,7 @@ def _write_multi_claim_package(pkg_dir, *, with_priors: bool = False) -> None:
     if with_priors:
         (pkg_src / "priors.py").write_text(
             "from . import premise_a\n\n"
-            "from gaia.lang import register_prior\n\n"
+            "from gaia.engine.lang import register_prior\n\n"
             "register_prior(premise_a, value=0.85, "
             'justification="Strong experimental evidence.")\n\n'
         )
@@ -175,7 +175,7 @@ def test_check_no_hole_count_when_all_covered(tmp_path):
     pkg_src = pkg_dir / "check_holes"
     (pkg_src / "priors.py").write_text(
         "from . import premise_a, premise_b\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(premise_a, value=0.85, justification="Strong evidence.")\n'
         'register_prior(premise_b, value=0.70, justification="Moderate evidence.")\n'
     )
@@ -217,7 +217,7 @@ def test_check_hole_flag_all_covered(tmp_path):
     pkg_src = pkg_dir / "check_holes"
     (pkg_src / "priors.py").write_text(
         "from . import premise_a, premise_b\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(premise_a, value=0.85, justification="Strong evidence.")\n'
         'register_prior(premise_b, value=0.70, justification="Moderate evidence.")\n'
     )
@@ -241,7 +241,7 @@ def test_check_scopes_independent_dof_to_exported_goal_boundary(tmp_path):
     pkg_src = pkg_dir / "check_scope"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, derive\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'a = claim("Evidence A.")\n'
         'b = claim("Evidence B.")\n'
         'goal = derive("Main goal.", given=(a, b), rationale="A and B support the goal.")\n'
@@ -273,7 +273,7 @@ def test_check_hole_does_not_report_private_formal_helpers_as_orphans(tmp_path):
     pkg_src = pkg_dir / "check_private_helpers"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, derive\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'goal = derive("C.", given=(a, b), rationale="A and B imply C.")\n'
@@ -300,7 +300,7 @@ def test_check_root_observe_is_pinned_not_maxent_independent_dof(tmp_path):
     pkg_src = pkg_dir / "check_observe"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import observe\n\n"
+        "from gaia.engine.lang import observe\n\n"
         'data = observe("Measured datum.", rationale="Direct measurement.", label="obs_data")\n'
         '__all__ = ["data"]\n'
     )
@@ -326,7 +326,7 @@ def test_check_reports_constraint_reduced_maxent_state_space(tmp_path):
     pkg_src = pkg_dir / "check_logic"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, equal\n\n"
+        "from gaia.engine.lang import claim, equal\n\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'same = equal(a, b, rationale="A and B track each other.", label="same_ab")\n'
@@ -352,7 +352,7 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
     pkg_src = pkg_dir / "check_induced_entropy"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'hypothesis = claim("Hypothesis.")\n'
         'observation = claim("Observation.")\n'
         "deduction(premises=[hypothesis], conclusion=observation, "
@@ -361,7 +361,7 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import observation\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(observation, value=0.99, justification="Observation was made.")\n'
     )
 
@@ -385,7 +385,7 @@ def test_check_hole_skips_decompose_whole_and_generated_helpers(tmp_path):
     pkg_src = pkg_dir / "decompose_holes"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import Claim, ClaimAtom, decompose, implies, land\n"
+        "from gaia.engine.lang import Claim, ClaimAtom, decompose, implies, land\n"
         "c = Claim('Composite claim.')\n"
         "c.label = 'c'\n"
         "a = Claim('Atomic A.')\n"

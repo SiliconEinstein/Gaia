@@ -43,13 +43,6 @@ from typing import Any
 
 import typer
 
-from gaia.cli._packages import (
-    GaiaCliError,
-    apply_package_priors,
-    compile_loaded_package_artifact,
-    ensure_package_env,
-    load_gaia_package,
-)
 from gaia.cli.commands._dot import to_dot
 from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._render_priors import param_data_from_ir_metadata
@@ -63,6 +56,13 @@ from gaia.cli.commands._replay_build import (
     rekey_layout_to_lkm_ids,
     split_into_ir_ticks,
     topo_reorder_ticks,
+)
+from gaia.engine.packaging import (
+    GaiaPackagingError,
+    apply_package_priors,
+    compile_loaded_package_artifact,
+    ensure_package_env,
+    load_gaia_package,
 )
 
 TIMELINE_PLACEHOLDER = "<!--__TIMELINE_DATA__-->"
@@ -189,7 +189,7 @@ def _try_load_ir_artifacts(
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
-    except (GaiaCliError, Exception) as exc:
+    except (GaiaPackagingError, Exception) as exc:
         warnings.append(f"compilation skipped: {exc}")
         ir_json_path = pkg_dir / ".gaia" / "ir.json"
         if ir_json_path.is_file():

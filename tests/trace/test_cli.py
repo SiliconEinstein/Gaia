@@ -9,13 +9,13 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.trace.hashing import (
+from gaia.engine.trace.hashing import (
     GENESIS_PREV_HASH,
     compute_events_root,
     compute_manifest_hash,
     hash_event,
 )
-from gaia.trace.schema import Trace, TraceEvent, TraceManifest
+from gaia.engine.trace.schema import Trace, TraceEvent, TraceManifest
 
 runner = CliRunner()
 

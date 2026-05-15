@@ -1,7 +1,7 @@
-from gaia.ir.parameterization import CROMWELL_EPS
-from gaia.lang import observe
-from gaia.lang.runtime.action import Observe
-from gaia.lang.runtime.knowledge import Claim
+from gaia.engine.ir.parameterization import CROMWELL_EPS
+from gaia.engine.lang import observe
+from gaia.engine.lang.runtime.action import Observe
+from gaia.engine.lang.runtime.knowledge import Claim
 
 
 def test_observe_with_given():

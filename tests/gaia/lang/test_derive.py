@@ -1,7 +1,7 @@
-from gaia.lang import derive
-from gaia.lang.runtime.action import Derive
-from gaia.lang.runtime.knowledge import Claim, Setting
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import derive
+from gaia.engine.lang.runtime.action import Derive
+from gaia.engine.lang.runtime.knowledge import Claim, Setting
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_derive_returns_conclusion():

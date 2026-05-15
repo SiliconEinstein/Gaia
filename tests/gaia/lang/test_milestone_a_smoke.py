@@ -1,6 +1,6 @@
 """Milestone A AST smoke — build Mendel + universal + causal with raw constructors."""
 
-from gaia.lang import (
+from gaia.engine.lang import (
     Causes,
     Claim,
     ClaimKind,
@@ -20,7 +20,7 @@ from gaia.lang import (
     Variable,
     is_formula,
 )
-from gaia.lang.formula.symbols import PredicateSymbol
+from gaia.engine.lang.formula.symbols import PredicateSymbol
 
 
 def test_mendel_parameter_assertion():

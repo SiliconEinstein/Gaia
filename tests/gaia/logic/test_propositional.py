@@ -1,10 +1,10 @@
 from sympy import Symbol
 
-from gaia.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
-from gaia.lang import Claim, exclusive
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.runtime.package import CollectedPackage
-from gaia.logic import (
+from gaia.engine.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
+from gaia.engine.lang import Claim, exclusive
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
+from gaia.engine.logic import (
     are_equivalent,
     is_satisfiable,
     simplify_proposition,

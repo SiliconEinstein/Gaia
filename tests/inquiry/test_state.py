@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from gaia.inquiry.state import (
+from gaia.engine.inquiry.state import (
     STATE_SCHEMA_VERSION,
     InquiryState,
     SyntheticHypothesis,

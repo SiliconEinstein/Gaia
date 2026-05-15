@@ -5,15 +5,15 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from gaia.bp.contraction import (
+from gaia.engine.bp.contraction import (
     contract_to_cpt,
     cpt_tensor_to_list,
     factor_to_tensor,
     strategy_cpt,
 )
-from gaia.bp.exact import _factor_log_potentials
-from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
-from gaia.ir.strategy import CompositeStrategy, Strategy
+from gaia.engine.bp.exact import _factor_log_potentials
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
+from gaia.engine.ir.strategy import CompositeStrategy, Strategy
 
 _HIGH = 1.0 - CROMWELL_EPS
 _LOW = CROMWELL_EPS
@@ -907,7 +907,7 @@ def test_compute_coarse_cpts_skips_composite_strategies():
     wraps it, then call compute_coarse_cpts and compare the coarse CPT to the
     CPT we'd get from the leaf alone.
     """
-    from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts
+    from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
 
     leaf = Strategy(
         scope="local",
@@ -1039,7 +1039,7 @@ def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
     composite), making every node 'concluded'. Exported conclusions reachable only through such
     cycles must still appear in the coarse graph via surrogate leaf premises.
     """
-    from gaia.ir.coarsen import coarsen_ir
+    from gaia.engine.ir.coarsen import coarsen_ir
 
     # Minimal induction pattern:
     #   law → (support) → obs1
@@ -1098,11 +1098,11 @@ def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
 @pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_compiled_induction_coarsens_to_observations_and_cpt():
     """Compiled DSL induction should expose observations, not law -> law."""
-    from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts
-    from gaia.lang import claim, register_prior, support
-    from gaia.lang.compiler.compile import compile_package_artifact
-    from gaia.lang.dsl.strategies import induction
-    from gaia.lang.runtime.package import CollectedPackage
+    from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
+    from gaia.engine.lang import claim, register_prior, support
+    from gaia.engine.lang.compiler.compile import compile_package_artifact
+    from gaia.engine.lang.dsl.strategies import induction
+    from gaia.engine.lang.runtime.package import CollectedPackage
 
     pkg = CollectedPackage("induction_demo", namespace="github", version="1.0.0")
     with pkg:
@@ -1120,8 +1120,8 @@ def test_compiled_induction_coarsens_to_observations_and_cpt():
         induction(sup1, sup2, law=law, reason="independent observations")
 
     # Resolve register_prior records into metadata["prior"] so coarsen_ir can read them.
-    from gaia.ir import default_resolution_policy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import default_resolution_policy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     resolve_priors_to_metadata(pkg.knowledge, default_resolution_policy())
 
@@ -1155,7 +1155,7 @@ def test_coarsen_ir_induction_to_downstream_export():
     Regression: an exported conclusion supported by an induction law (which is itself in a
     cycle) should also be reachable via the surrogate leaves.
     """
-    from gaia.ir.coarsen import coarsen_ir
+    from gaia.engine.ir.coarsen import coarsen_ir
 
     # law → obs1, law → obs2 (support)
     # obs1 + obs2 → law (induction)
@@ -1198,7 +1198,7 @@ def test_coarsen_ir_mixed_leaf_and_cycle():
     A graph with both normal leaf premises and induction cycles — the normal leaf path should
     still work, and the cycle path should also produce edges.
     """
-    from gaia.ir.coarsen import coarsen_ir
+    from gaia.engine.ir.coarsen import coarsen_ir
 
     ir = {
         "knowledges": [
@@ -1243,7 +1243,7 @@ def test_compute_coarse_cpts_with_helper_claims():
     (__implication_result_*, etc.). If helper priors are missing, tensor contraction fails. This
     test verifies that passing complete priors (with helper claims at 1-ε) produces valid CPTs.
     """
-    from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts
+    from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
 
     # Build a support strategy (which auto-formalizes to conjunction + implication
     # with helper claims like __implication_result_*, __conjunction_result_*)
@@ -1266,7 +1266,7 @@ def test_compute_coarse_cpts_with_helper_claims():
     }
 
     # Compile to get the full IR with helper claims
-    from gaia.ir.graphs import LocalCanonicalGraph
+    from gaia.engine.ir.graphs import LocalCanonicalGraph
 
     canon = LocalCanonicalGraph(
         **{

@@ -14,15 +14,15 @@ from pathlib import Path
 
 import typer
 
-from gaia.inquiry.focus import resolve_focus_target
-from gaia.inquiry.review import (
+from gaia.engine.inquiry.focus import resolve_focus_target
+from gaia.engine.inquiry.review import (
     publish_blockers,
     render_markdown,
     render_text,
     resolve_graph,
     run_review,
 )
-from gaia.inquiry.state import (
+from gaia.engine.inquiry.state import (
     VALID_OBLIGATION_KINDS,
     SyntheticHypothesis,
     SyntheticObligation,
@@ -326,7 +326,7 @@ def tactics_log(
     path: str = typer.Option(".", "--path"),
 ) -> None:
     """Print the inquiry tactic event log."""
-    from gaia.inquiry.state import read_tactic_log
+    from gaia.engine.inquiry.state import read_tactic_log
 
     rows = read_tactic_log(path)
     if json_out:

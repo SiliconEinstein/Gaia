@@ -2,11 +2,11 @@
 
 import pytest
 
-from gaia.bp.exact import exact_inference
-from gaia.bp.factor_graph import FactorType
-from gaia.bp.lowering import lower_local_graph
-from gaia.ir import default_resolution_policy
-from gaia.lang import (
+from gaia.engine.bp.exact import exact_inference
+from gaia.engine.bp.factor_graph import FactorType
+from gaia.engine.bp.lowering import lower_local_graph
+from gaia.engine.ir import default_resolution_policy
+from gaia.engine.lang import (
     Causes,
     ClaimAtom,
     ClaimKind,
@@ -26,10 +26,10 @@ from gaia.lang import (
     land,
     register_prior,
 )
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
-from gaia.lang.runtime.knowledge import _current_package
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
+from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_formula_dsl_helpers_construct_formula_ast():

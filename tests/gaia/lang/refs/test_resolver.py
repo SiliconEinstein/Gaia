@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from gaia.lang.refs import (
+from gaia.engine.lang.refs import (
     ReferenceError,
     check_collisions,
     extract,

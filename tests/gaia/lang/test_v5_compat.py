@@ -1,6 +1,6 @@
 import pytest
 
-from gaia.lang import claim, support
+from gaia.engine.lang import claim, support
 
 pytestmark = pytest.mark.legacy_dsl
 

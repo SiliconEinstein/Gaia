@@ -193,9 +193,9 @@ ignore = [
     "RUF002",
     "RUF003",
 ]
-"gaia/trace/**/*.py" = ["RUF001", "RUF002", "RUF003"]
-"gaia/bp/*.py" = ["RUF001", "RUF002", "RUF003"]
-"gaia/inquiry/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/engine/trace/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/engine/bp/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/engine/inquiry/**/*.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/cli/commands/_dot.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/cli/commands/_stellaris_svg.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/cli/commands/trace.py" = ["RUF001", "RUF002", "RUF003"]

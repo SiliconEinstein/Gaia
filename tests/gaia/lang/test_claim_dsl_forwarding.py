@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import (
     ClaimKind,
     Constant,
     Equals,
@@ -26,7 +26,7 @@ from gaia.lang import (
     claim,
     register_prior,
 )
-from gaia.lang.dsl.register_prior import (
+from gaia.engine.lang.dsl.register_prior import (
     DEFAULT_SOURCE_ID,
     PRIOR_RECORDS_METADATA_KEY,
     get_prior_records,
@@ -87,8 +87,8 @@ def test_dsl_claim_other_metadata_still_passes_through():
 
 def test_register_prior_overrides_claim_inline_under_default_policy():
     """Explicit register_prior() with default source_id beats the inline shortcut."""
-    from gaia.ir import default_resolution_policy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import default_resolution_policy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     c = claim("Subject p smokes daily.", prior=0.3)
     register_prior(c, 0.45, justification="adjusted after literature review")
@@ -201,8 +201,8 @@ def test_register_prior_rejects_nan_value():
 
 
 def test_resolve_priors_to_metadata_ignores_non_claims_and_claims_without_records():
-    from gaia.ir import default_resolution_policy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import default_resolution_policy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     c = claim("No prior records.")
 
@@ -213,8 +213,8 @@ def test_resolve_priors_to_metadata_ignores_non_claims_and_claims_without_record
 
 
 def test_resolve_priors_to_metadata_handles_datetime_and_missing_created_at():
-    from gaia.ir import ResolutionPolicy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import ResolutionPolicy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     c = claim("Subject S smokes daily.")
     c.metadata[PRIOR_RECORDS_METADATA_KEY] = [
@@ -238,8 +238,8 @@ def test_resolve_priors_to_metadata_handles_datetime_and_missing_created_at():
 
 
 def test_resolve_priors_to_metadata_rejects_malformed_prior_records():
-    from gaia.ir import default_resolution_policy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import default_resolution_policy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     c = claim("Subject S smokes daily.")
     c.metadata[PRIOR_RECORDS_METADATA_KEY] = "reserved key collision"
@@ -249,8 +249,8 @@ def test_resolve_priors_to_metadata_rejects_malformed_prior_records():
 
 
 def test_resolve_priors_to_metadata_rejects_malformed_created_at():
-    from gaia.ir import default_resolution_policy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import default_resolution_policy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     c = claim("Subject S smokes daily.")
     c.metadata[PRIOR_RECORDS_METADATA_KEY] = [
@@ -267,8 +267,8 @@ def test_resolve_priors_to_metadata_rejects_malformed_created_at():
 
 
 def test_resolve_priors_to_metadata_leaves_metadata_when_policy_has_no_winner():
-    from gaia.ir import ResolutionPolicy
-    from gaia.lang.dsl.register_prior import resolve_priors_to_metadata
+    from gaia.engine.ir import ResolutionPolicy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 
     c = claim("Subject S smokes daily.")
     register_prior(c, value=0.3, justification="literature base rate")

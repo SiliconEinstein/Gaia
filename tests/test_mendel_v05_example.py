@@ -26,12 +26,12 @@ def _copy_mendel_example(tmp_path: Path) -> Path:
 
 
 def _accept_all_reviews(package: Path) -> None:
-    from gaia.cli._packages import (
+    from gaia.engine.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.packaging import (
         apply_package_priors,
         compile_loaded_package_artifact,
         load_gaia_package,
     )
-    from gaia.ir import ReviewManifest, ReviewStatus
 
     loaded = load_gaia_package(package)
     apply_package_priors(loaded)

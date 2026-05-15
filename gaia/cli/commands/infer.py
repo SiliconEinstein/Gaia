@@ -9,10 +9,12 @@ from typing import Any
 
 import typer
 
-from gaia.bp import FactorGraph, lower_local_graph, merge_factor_graphs
-from gaia.bp.engine import InferenceEngine
-from gaia.cli._packages import (
-    GaiaCliError,
+from gaia.engine._stale_check import check_compiled_artifacts
+from gaia.engine.bp import FactorGraph, lower_local_graph, merge_factor_graphs
+from gaia.engine.bp.engine import InferenceEngine
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import (
+    GaiaPackagingError,
     apply_package_priors,
     collect_foreign_node_priors,
     compile_loaded_package_artifact,
@@ -21,7 +23,6 @@ from gaia.cli._packages import (
     load_dependency_compiled_graphs,
     load_gaia_package,
 )
-from gaia.ir.validator import validate_local_graph
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -35,7 +36,7 @@ def _load_inference_inputs(path: str) -> tuple[Any, Any]:
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     return loaded, compiled
@@ -58,20 +59,24 @@ def _require_fresh_compile_artifacts(
     compiled_json: dict[str, Any],
 ) -> None:
     """Require `.gaia/ir_hash` and `.gaia/ir.json` to match the compiled graph."""
-    ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
-    ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
-    if not ir_hash_path.exists() or not ir_json_path.exists():
+    staleness = check_compiled_artifacts(
+        loaded.pkg_path,
+        ir_hash=compiled.graph.ir_hash,
+        compiled_payload=compiled_json,
+    )
+    if not staleness.ir_hash_exists or not staleness.ir_json_exists:
         typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
         raise typer.Exit(1)
-    if ir_hash_path.read_text().strip() != compiled.graph.ir_hash:
+    if staleness.ir_hash_stale:
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
-    try:
-        stored_ir = json.loads(ir_json_path.read_text())
-    except json.JSONDecodeError as exc:
-        typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != compiled_json:
+    if staleness.ir_json_invalid_reason is not None:
+        typer.echo(
+            f"Error: .gaia/ir.json is not valid JSON: {staleness.ir_json_invalid_reason}",
+            err=True,
+        )
+        raise typer.Exit(1)
+    if staleness.ir_json_hash_mismatch or staleness.ir_json_payload_mismatch:
         typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
         raise typer.Exit(1)
 
@@ -84,7 +89,7 @@ def _dependency_factor_graphs(
     """Load dependency package factor graphs for joint inference."""
     try:
         dep_compiled = load_dependency_compiled_graphs(loaded.project_config, depth=depth)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 

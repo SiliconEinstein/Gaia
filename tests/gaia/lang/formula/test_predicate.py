@@ -2,7 +2,7 @@
 
 import pytest
 
-from gaia.lang.formula.predicate import (
+from gaia.engine.lang.formula.predicate import (
     Causes,
     ClaimAtom,
     Equals,
@@ -15,11 +15,11 @@ from gaia.lang.formula.predicate import (
     UserPredicate,
     is_formula,
 )
-from gaia.lang.formula.symbols import PredicateSymbol
-from gaia.lang.formula.term import Constant
-from gaia.lang.runtime.knowledge import Claim
-from gaia.lang.runtime.variable import Variable
-from gaia.lang.types.primitives import Nat, Probability, Real
+from gaia.engine.lang.formula.symbols import PredicateSymbol
+from gaia.engine.lang.formula.term import Constant
+from gaia.engine.lang.runtime.knowledge import Claim
+from gaia.engine.lang.runtime.variable import Variable
+from gaia.engine.lang.types.primitives import Nat, Probability, Real
 
 
 def test_equals_basic():

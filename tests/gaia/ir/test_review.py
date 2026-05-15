@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from gaia.ir.review import Review, ReviewManifest, ReviewStatus
+from gaia.engine.ir.review import Review, ReviewManifest, ReviewStatus
 
 
 def test_review_status_enum():

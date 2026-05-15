@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from gaia.trace.hashing import (
+from gaia.engine.trace.hashing import (
     GENESIS_PREV_HASH,
     canonical_json,
     compute_events_root,
@@ -14,7 +14,7 @@ from gaia.trace.hashing import (
     sha256_hex,
     verify_chain,
 )
-from gaia.trace.schema import TraceEvent, TraceManifest
+from gaia.engine.trace.schema import TraceEvent, TraceManifest
 
 
 def _ev(seq: int, prev_hash: str, *, kind="decision", actor="arm", **kw) -> TraceEvent:

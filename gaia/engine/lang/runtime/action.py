@@ -1,0 +1,186 @@
+"""Gaia Lang v6 Action class hierarchy."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
+
+
+@dataclass
+class Action:
+    """Base reasoning action. Parallel to Knowledge, not a Knowledge subclass."""
+
+    label: str | None = None
+    rationale: str = ""
+    background: list[Knowledge] = field(default_factory=list)
+    warrants: list[Claim] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Register the action with the active or inferred package."""
+        from gaia.engine.lang.runtime.knowledge import _current_package
+
+        pkg = _current_package.get()
+        if pkg is None:
+            from gaia.engine.lang.runtime.package import infer_package_from_callstack
+
+            pkg = infer_package_from_callstack()
+        if pkg is not None:
+            pkg._register_action(self)
+
+
+@dataclass
+class Support(Action):
+    """Directional reasoning: given -> conclusion."""
+
+    conclusion: Claim | None = None
+    given: tuple[Claim, ...] = ()
+
+
+@dataclass
+class Derive(Support):
+    """Logical derivation."""
+
+
+@dataclass
+class Observe(Support):
+    """Empirical observation or measurement."""
+
+
+@dataclass
+class Compute(Support):
+    """Deterministic code execution."""
+
+    fn: Callable[..., Any] | None = None
+    code_hash: str | None = None
+
+
+@dataclass
+class Scaffold(Action):
+    """Formalization workflow record. Does not enter IR/BP as a warrant."""
+
+
+@dataclass
+class DependsOn(Scaffold):
+    """Marks unformalized dependencies for a conclusion."""
+
+    conclusion: Claim | None = None
+    given: tuple[Claim, ...] = ()
+
+
+@dataclass
+class CandidateRelation(Scaffold):
+    """Marks a hypothesized relation that has not been formalized yet."""
+
+    a: Claim | None = None
+    b: Claim | None = None
+    proposed: str = ""
+    status: str = "hypothesis"
+
+
+@dataclass
+class Structural(Action):
+    """Hard structural constraint between claims or claim formulas."""
+
+
+@dataclass
+class Equal(Structural):
+    """Declares two Claims equivalent."""
+
+    a: Claim | None = None
+    b: Claim | None = None
+    helper: Claim | None = None
+
+
+@dataclass
+class Contradict(Structural):
+    """Declares two Claims contradictory."""
+
+    a: Claim | None = None
+    b: Claim | None = None
+    helper: Claim | None = None
+
+
+@dataclass
+class Exclusive(Structural):
+    """Declares two Claims form a closed binary partition."""
+
+    a: Claim | None = None
+    b: Claim | None = None
+    helper: Claim | None = None
+
+
+@dataclass
+class Decompose(Structural):
+    """Declares a whole Claim equivalent to a formula over atomic Claims."""
+
+    whole: Claim | None = None
+    parts: tuple[Claim, ...] = ()
+    formula: Any = None
+
+
+@dataclass
+class Probabilistic(Action):
+    """Probabilistic soft constraint between Claims."""
+
+    helper: Claim | None = None
+
+
+@dataclass
+class Infer(Probabilistic):
+    """Bayesian inference: P(E|H) update."""
+
+    hypothesis: Claim | None = None
+    evidence: Claim | None = None
+    given: tuple[Claim, ...] = ()
+    p_e_given_h: float | Claim = 0.5
+    p_e_given_not_h: float | Claim | None = 0.5
+
+
+@dataclass
+class Associate(Probabilistic):
+    """Symmetric probabilistic association between two Claims."""
+
+    a: Claim | None = None
+    b: Claim | None = None
+    p_a_given_b: float = 0.5
+    p_b_given_a: float = 0.5
+
+
+@dataclass
+class Compose(Action):
+    """Action-level composition of child actions into a reviewable DAG."""
+
+    name: str = ""
+    version: str = ""
+    inputs: tuple[Knowledge | str, ...] = ()
+    actions: tuple[Action | str, ...] = ()
+    conclusion: Claim | None = None
+
+    def structure_hash(
+        self,
+        input_refs: list[str],
+        action_refs: list[str],
+        conclusion_ref: str,
+        warrant_refs: list[str],
+        background_refs: list[str] | None = None,
+    ) -> str:
+        """Hash the canonical compose payload used for the IR compose ID."""
+        payload = {
+            "name": self.name,
+            "version": self.version,
+            "inputs": sorted(input_refs),
+            "background": sorted(background_refs or []),
+            "actions": list(action_refs),
+            "conclusion": conclusion_ref,
+            "warrants": sorted(warrant_refs),
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode()).hexdigest()[:16]

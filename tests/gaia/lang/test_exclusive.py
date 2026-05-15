@@ -1,7 +1,7 @@
-from gaia.lang import exclusive
-from gaia.lang.runtime.action import Exclusive
-from gaia.lang.runtime.knowledge import Claim
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import exclusive
+from gaia.engine.lang.runtime.action import Exclusive
+from gaia.engine.lang.runtime.knowledge import Claim
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_exclusive_returns_reviewable_warrant_claim():

@@ -2,11 +2,11 @@
 
 import pytest
 
-from gaia.lang.formula.predicate import Equals
-from gaia.lang.formula.term import Constant
-from gaia.lang.runtime.knowledge import Claim, ClaimKind
-from gaia.lang.runtime.variable import Variable
-from gaia.lang.types.primitives import Probability
+from gaia.engine.lang.formula.predicate import Equals
+from gaia.engine.lang.formula.term import Constant
+from gaia.engine.lang.runtime.knowledge import Claim, ClaimKind
+from gaia.engine.lang.runtime.variable import Variable
+from gaia.engine.lang.types.primitives import Probability
 
 
 def test_claim_default_formula_is_none():
@@ -68,7 +68,7 @@ def test_parameterized_claim_subclass_still_works():
     A parameterized Claim subclass renders content from its docstring, substituting
     [@param_name] for Knowledge-typed params and {param_name} for value params.
     """
-    from gaia.lang.runtime.knowledge import Knowledge
+    from gaia.engine.lang.runtime.knowledge import Knowledge
 
     note = Knowledge(content="experiment X", type="note", label="exp_x")
 
@@ -95,7 +95,7 @@ def test_parameterized_claim_subclass_still_works():
 
 def test_parameterized_claim_subclass_accepts_formula_and_kind():
     """The new fields work on subclasses too."""
-    from gaia.lang.runtime.knowledge import Knowledge
+    from gaia.engine.lang.runtime.knowledge import Knowledge
 
     note = Knowledge(content="experiment X", type="note", label="exp_x")
 

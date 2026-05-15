@@ -10,17 +10,17 @@ from typing import Any, cast
 
 import typer
 
-from gaia.cli._packages import (
-    GaiaCliError,
-    apply_package_priors,
-    compile_loaded_package_artifact,
-    load_gaia_package,
-)
 from gaia.cli.commands._dot import to_dot
 from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._render_priors import param_data_from_ir_metadata
 from gaia.cli.commands._stellaris_svg import post_process_stellaris_svg
-from gaia.ir.validator import validate_local_graph
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import (
+    GaiaPackagingError,
+    apply_package_priors,
+    compile_loaded_package_artifact,
+    load_gaia_package,
+)
 
 GRAPH_DATA_PLACEHOLDER = "<!--__GRAPH_DATA__-->"
 
@@ -56,7 +56,7 @@ def _load_template() -> str:
 def _render_html(template: str, graph_json: str) -> str:
     """Inject the graph JSON payload into *template* at the placeholder."""
     if GRAPH_DATA_PLACEHOLDER not in template:
-        raise GaiaCliError(
+        raise GaiaPackagingError(
             f"Error: starmap template is missing the {GRAPH_DATA_PLACEHOLDER!r} placeholder."
         )
     injection = f"<script>window.GRAPH_DATA = {graph_json};</script>"
@@ -71,13 +71,13 @@ def _render_svg(dot_source: str, *, theme: str) -> str:
     :mod:`gaia.cli.commands._stellaris_svg`.
 
     Raises:
-        GaiaCliError: when the required Graphviz binary is missing from
+        GaiaPackagingError: when the required Graphviz binary is missing from
             ``PATH``, or when it exits non-zero.
     """
     binary = _SVG_LAYOUT_BINARY[theme]
     binary_path = shutil.which(binary)
     if binary_path is None:
-        raise GaiaCliError(
+        raise GaiaPackagingError(
             f"Error: Graphviz `{binary}` binary not found on PATH. Install Graphviz "
             "first (`apt install graphviz` / `brew install graphviz`) and retry. "
             "Alternatively, emit the dot source with `--format dot` and render "
@@ -92,10 +92,10 @@ def _render_svg(dot_source: str, *, theme: str) -> str:
             check=False,
         )
     except OSError as exc:
-        raise GaiaCliError(f"Error: failed to invoke Graphviz `{binary}`: {exc}") from exc
+        raise GaiaPackagingError(f"Error: failed to invoke Graphviz `{binary}`: {exc}") from exc
     if proc.returncode != 0:
         stderr = (proc.stderr or "").strip()
-        raise GaiaCliError(
+        raise GaiaPackagingError(
             f"Error: Graphviz `{binary}` exited with code {proc.returncode}."
             + (f"\n  stderr: {stderr}" if stderr else "")
         )
@@ -128,7 +128,7 @@ def _load_starmap_inputs(path: str) -> tuple[Any, Any]:
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     return loaded, compiled
@@ -190,14 +190,14 @@ def _render_starmap_content(graph_json: str, *, fmt: str, theme: str) -> str:
     if fmt == "html":
         try:
             return _render_html(_load_template(), graph_json)
-        except GaiaCliError as exc:
+        except GaiaPackagingError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
     if fmt == "svg":
         dot_source = to_dot(graph_json, theme=theme)
         try:
             return _render_svg(dot_source, theme=theme)
-        except GaiaCliError as exc:
+        except GaiaPackagingError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
     return to_dot(graph_json, theme=theme)

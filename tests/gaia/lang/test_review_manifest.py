@@ -1,4 +1,4 @@
-from gaia.lang import (
+from gaia.engine.lang import (
     Claim,
     ClaimAtom,
     contradict,
@@ -10,10 +10,10 @@ from gaia.lang import (
     infer,
     observe,
 )
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.review.manifest import generate_review_manifest
-from gaia.lang.review.templates import generate_audit_question
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.review.manifest import generate_review_manifest
+from gaia.engine.lang.review.templates import generate_audit_question
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_audit_question_for_derive():

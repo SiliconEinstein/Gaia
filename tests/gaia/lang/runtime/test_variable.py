@@ -2,10 +2,10 @@
 
 import pytest
 
-from gaia.lang.runtime.domain import Domain
-from gaia.lang.runtime.knowledge import Knowledge
-from gaia.lang.runtime.variable import Variable
-from gaia.lang.types.primitives import Nat, Probability
+from gaia.engine.lang.runtime.domain import Domain
+from gaia.engine.lang.runtime.knowledge import Knowledge
+from gaia.engine.lang.runtime.variable import Variable
+from gaia.engine.lang.types.primitives import Nat, Probability
 
 
 def test_variable_is_knowledge_subclass():
@@ -75,8 +75,8 @@ def test_variable_carries_term_marker():
 
 def test_variable_does_not_register_into_package_knowledge_map():
     """Spec §2.4: Variable must NOT enter pkg._register_knowledge."""
-    from gaia.lang.runtime.knowledge import _current_package
-    from gaia.lang.runtime.package import CollectedPackage
+    from gaia.engine.lang.runtime.knowledge import _current_package
+    from gaia.engine.lang.runtime.package import CollectedPackage
 
     pkg = CollectedPackage(name="test_pkg", namespace="test")
     token = _current_package.set(pkg)

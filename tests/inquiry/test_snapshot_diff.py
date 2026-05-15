@@ -9,15 +9,15 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.inquiry.diff import compute_semantic_diff
-from gaia.inquiry.review import run_review
-from gaia.inquiry.snapshot import (
+from gaia.engine.inquiry.diff import compute_semantic_diff
+from gaia.engine.inquiry.review import run_review
+from gaia.engine.inquiry.snapshot import (
     list_snapshots,
     mint_review_id,
     resolve_baseline,
     reviews_dir,
 )
-from gaia.inquiry.state import inquiry_dir
+from gaia.engine.inquiry.state import inquiry_dir
 
 runner = CliRunner()
 
@@ -40,7 +40,7 @@ def _write_pkg(
     src = pkg_dir / name
     src.mkdir(exist_ok=True)
     body = (
-        "from gaia.lang import claim, support\n"
+        "from gaia.engine.lang import claim, support\n"
         f'main = claim("main hypothesis", metadata={{"prior": {prior}}})\n'
         'evidence = claim("supporting evidence", metadata={"prior": 0.6})\n'
         "sup = support(premises=[evidence], conclusion=main)\n"
@@ -123,7 +123,9 @@ def test_state_remembers_last_review_id(tmp_path):
 def test_review_id_collision_updates_report_and_state(tmp_path, monkeypatch):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
-    monkeypatch.setattr("gaia.inquiry.review.mint_review_id", lambda _hash, _mode: "fixed-id")
+    monkeypatch.setattr(
+        "gaia.engine.inquiry.review.mint_review_id", lambda _hash, _mode: "fixed-id"
+    )
 
     first = run_review(pkg, no_infer=True)
     second = run_review(pkg, no_infer=True)

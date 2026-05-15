@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from gaia.ir.parameterization import CROMWELL_EPS
-from gaia.lang import Normal, claim, observe
+from gaia.engine.ir.parameterization import CROMWELL_EPS
+from gaia.engine.lang import Normal, claim, observe
 from gaia.unit import q
 
 

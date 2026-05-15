@@ -257,7 +257,7 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
     pkg_src = pkg_dir / "docs_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
@@ -266,7 +266,7 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
     )
     (pkg_src / "priors.py").write_text(
         "from . import a, b, c\n\n"
-        "from gaia.lang import register_prior\n\n"
+        "from gaia.engine.lang import register_prior\n\n"
         'register_prior(a, value=0.8, justification="ok")\n'
         'register_prior(b, value=0.8, justification="ok")\n'
         'register_prior(c, value=0.4, justification="ok")\n'

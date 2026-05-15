@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from gaia.cli.commands._classify import classify_ir, is_note_type, node_role
+from gaia.engine.inquiry._classify import classify_ir, is_note_type, node_role
 
 
 def _truncate(text: str, max_len: int = 80) -> str:

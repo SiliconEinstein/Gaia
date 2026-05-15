@@ -1,7 +1,7 @@
-from gaia.lang import contradict
-from gaia.lang.runtime.action import Contradict
-from gaia.lang.runtime.knowledge import Claim
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import contradict
+from gaia.engine.lang.runtime.action import Contradict
+from gaia.engine.lang.runtime.knowledge import Claim
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_contradict_returns_helper_claim():

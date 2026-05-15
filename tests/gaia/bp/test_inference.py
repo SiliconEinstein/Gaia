@@ -2,12 +2,12 @@
 
 import pytest
 
-from gaia.bp import FactorGraph, FactorType, TRWBeliefPropagation
-from gaia.bp.engine import EngineConfig, InferenceEngine
-from gaia.bp.exact import exact_inference
-from gaia.bp.factor_graph import CROMWELL_EPS
-from gaia.bp.junction_tree import JunctionTreeInference, jt_treewidth
-from gaia.bp.trw_bp import TRWResult
+from gaia.engine.bp import FactorGraph, FactorType, TRWBeliefPropagation
+from gaia.engine.bp.engine import EngineConfig, InferenceEngine
+from gaia.engine.bp.exact import exact_inference
+from gaia.engine.bp.factor_graph import CROMWELL_EPS
+from gaia.engine.bp.junction_tree import JunctionTreeInference, jt_treewidth
+from gaia.engine.bp.trw_bp import TRWResult
 
 # ── Shared fixtures ──
 

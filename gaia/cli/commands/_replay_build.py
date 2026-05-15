@@ -38,8 +38,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import Any
 
-from gaia.bp import InferenceEngine, lower_local_graph
-from gaia.ir.graphs import LocalCanonicalGraph
+from gaia.engine.bp import InferenceEngine, lower_local_graph
+from gaia.engine.ir.graphs import LocalCanonicalGraph
 
 # IR-side gaia_action types — each one is one tick on the IR-tick axis.
 IR_TICK_ACTIONS: frozenset[str] = frozenset(

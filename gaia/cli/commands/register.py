@@ -11,10 +11,12 @@ from uuid import UUID
 
 import typer
 
-from gaia.bp import lower_local_graph
-from gaia.bp.engine import InferenceEngine
-from gaia.cli._packages import (
-    GaiaCliError,
+from gaia.engine.bp import lower_local_graph
+from gaia.engine.bp.engine import InferenceEngine
+from gaia.engine.ir import LocalCanonicalGraph
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import (
+    GaiaPackagingError,
     apply_package_priors,
     build_package_manifests,
     collect_foreign_node_priors,
@@ -22,8 +24,6 @@ from gaia.cli._packages import (
     load_gaia_package,
     render_manifest_json,
 )
-from gaia.ir import LocalCanonicalGraph
-from gaia.ir.validator import validate_local_graph
 
 try:
     import tomllib
@@ -69,7 +69,7 @@ def _run(
     result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
     if check and result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip() or "command failed"
-        raise GaiaCliError(f"Error running {' '.join(args)}: {stderr}")
+        raise GaiaPackagingError(f"Error running {' '.join(args)}: {stderr}")
     return result
 
 
@@ -82,7 +82,7 @@ def _normalize_github_url(url: str) -> str:
     elif value.startswith("http://github.com/"):
         value = "https://" + value.removeprefix("http://")
     if not value.startswith("https://github.com/"):
-        raise GaiaCliError("Error: GitHub-only Phase 1 requires a GitHub repository URL.")
+        raise GaiaPackagingError("Error: GitHub-only Phase 1 requires a GitHub repository URL.")
     if value.endswith(".git"):
         value = value[:-4]
     return value.rstrip("/")
@@ -260,7 +260,7 @@ def _load_registration_artifacts(path: str) -> tuple[Any, Any, dict[str, Any], d
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
         manifests = build_package_manifests(loaded, compiled)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     return loaded, compiled, ir, manifests
@@ -322,22 +322,24 @@ def _validated_registration_git_state(
         _run(["git", "rev-parse", "--is-inside-work-tree"], cwd=loaded.pkg_path)
         worktree_state = _run(["git", "status", "--short"], cwd=loaded.pkg_path)
         if worktree_state.stdout.strip():
-            raise GaiaCliError("Error: git worktree must be clean before registration.")
+            raise GaiaPackagingError("Error: git worktree must be clean before registration.")
         origin_url = _run(
             ["git", "remote", "get-url", "origin"], cwd=loaded.pkg_path
         ).stdout.strip()
         head_sha = _run(["git", "rev-parse", "HEAD"], cwd=loaded.pkg_path).stdout.strip()
         tag_sha = _run(["git", "rev-list", "-n", "1", tag_name], cwd=loaded.pkg_path).stdout.strip()
         if tag_sha != head_sha:
-            raise GaiaCliError(f"Error: tag '{tag_name}' must point to HEAD before registration.")
+            raise GaiaPackagingError(
+                f"Error: tag '{tag_name}' must point to HEAD before registration."
+            )
         remote_tag = _run(
             ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag_name}"],
             cwd=loaded.pkg_path,
         )
         if not remote_tag.stdout.strip():
-            raise GaiaCliError(f"Error: tag '{tag_name}' is not pushed to origin.")
+            raise GaiaPackagingError(f"Error: tag '{tag_name}' is not pushed to origin.")
         repo_url = _normalize_github_url(repo or origin_url)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     return repo_url, tag_sha
@@ -512,15 +514,15 @@ def _validate_registry_target(
     try:
         registry_status = _run(["git", "status", "--short"], cwd=registry_path)
         if registry_status.stdout.strip():
-            raise GaiaCliError("Error: registry checkout must be clean before registration.")
+            raise GaiaPackagingError("Error: registry checkout must be clean before registration.")
         branch_exists = _run(
             ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
             cwd=registry_path,
             check=False,
         )
         if branch_exists.returncode == 0:
-            raise GaiaCliError(f"Error: registry branch already exists: {branch_name}")
-    except GaiaCliError as exc:
+            raise GaiaPackagingError(f"Error: registry branch already exists: {branch_name}")
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 
@@ -575,7 +577,7 @@ def _write_registry_registration(
     """Create registry branch, write files, and commit them."""
     try:
         _run(["git", "checkout", "-b", branch_name], cwd=registry_path)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 
@@ -604,7 +606,7 @@ def _write_registry_registration(
             ["git", "commit", "-m", f"register: {loaded.project_name} {version}"],
             cwd=registry_path,
         )
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 
@@ -642,7 +644,7 @@ def _maybe_create_registry_pr(
             ],
             cwd=registry_path,
         )
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo(pr_result.stdout.strip())

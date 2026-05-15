@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from gaia.lang.refs import ReferenceError, load_references
+from gaia.engine.lang.refs import ReferenceError, load_references
 
 
 def test_load_missing_file_returns_empty(tmp_path: Path) -> None:

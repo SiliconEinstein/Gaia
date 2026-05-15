@@ -8,12 +8,12 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.inquiry.diagnostics import (
+from gaia.engine.inquiry.diagnostics import (
     Diagnostic,
     format_diagnostics_as_next_edits,
     from_validation,
 )
-from gaia.inquiry.review import publish_blockers, run_review
+from gaia.engine.inquiry.review import publish_blockers, run_review
 
 runner = CliRunner()
 
@@ -29,7 +29,7 @@ def _pkg_with_holes(pkg_dir: Path, name: str = "review_pkg") -> None:
     src = pkg_dir / name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, setting, question, support\n"
+        "from gaia.engine.lang import claim, setting, question, support\n"
         'covered = claim("covered hypothesis", metadata={"prior": 0.7})\n'
         'hole = claim("hypothesis with no prior")\n'
         'derived_claim = claim("derived conclusion")\n'
@@ -215,14 +215,14 @@ def test_review_uses_check_core_breakdown(tmp_path):
     """Sanity: prior_holes from review must match check_core directly."""
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
-    from gaia.cli._packages import (
+    from gaia.engine.inquiry.check_core import analyze_knowledge_breakdown
+    from gaia.engine.inquiry.review import _graph_to_ir_dict
+    from gaia.engine.packaging import (
         apply_package_priors,
         compile_loaded_package_artifact,
         ensure_package_env,
         load_gaia_package,
     )
-    from gaia.cli.commands.check_core import analyze_knowledge_breakdown
-    from gaia.inquiry.review import _graph_to_ir_dict
 
     ensure_package_env(pkg)
     loaded = load_gaia_package(str(pkg))
@@ -247,7 +247,7 @@ def test_review_adapter_preserves_strategy_and_operator_ids(tmp_path):
     src = pkg / "id_review"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, contradiction, support\n"
+        "from gaia.engine.lang import claim, contradiction, support\n"
         'a = claim("A", metadata={"prior": 0.7})\n'
         'b = claim("B", metadata={"prior": 0.4})\n'
         'c = claim("C")\n'
@@ -257,13 +257,13 @@ def test_review_adapter_preserves_strategy_and_operator_ids(tmp_path):
         encoding="utf-8",
     )
 
-    from gaia.cli._packages import (
+    from gaia.engine.inquiry.review import _graph_to_ir_dict
+    from gaia.engine.packaging import (
         apply_package_priors,
         compile_loaded_package_artifact,
         ensure_package_env,
         load_gaia_package,
     )
-    from gaia.inquiry.review import _graph_to_ir_dict
 
     ensure_package_env(pkg)
     loaded = load_gaia_package(str(pkg))
@@ -291,7 +291,7 @@ def _write_dep_package(dep_dir: Path, *, name: str, monkeypatch) -> None:
     src = dep_dir / import_name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         'evidence = claim("Strong upstream evidence.", title="evidence")\n'
         'upstream_conclusion = claim("Upstream conclusion.", title="conclusion")\n'
         "deduction(premises=[evidence], conclusion=upstream_conclusion, "
@@ -301,7 +301,7 @@ def _write_dep_package(dep_dir: Path, *, name: str, monkeypatch) -> None:
     )
     (src / "priors.py").write_text(
         "from . import evidence\n\n"
-        "from gaia.lang import register_prior\n\n"
+        "from gaia.engine.lang import register_prior\n\n"
         'register_prior(evidence, value=0.85, justification="Strong evidence")\n\n',
         encoding="utf-8",
     )
@@ -327,7 +327,7 @@ def test_review_depth_uses_joint_dependency_graphs(tmp_path, monkeypatch):
     src = pkg / "local_pkg"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim, deduction\n"
         "from upstream_dep import upstream_conclusion\n"
         'local_obs = claim("Local observation.")\n'
         "local_result = claim('Local result.')\n"
@@ -338,7 +338,7 @@ def test_review_depth_uses_joint_dependency_graphs(tmp_path, monkeypatch):
     )
 
     flat = run_review(pkg, depth=0)
-    with patch("gaia.cli._packages._locate_dependency_manifest_root", return_value=dep_dir):
+    with patch("gaia.engine.packaging._locate_dependency_manifest_root", return_value=dep_dir):
         joint = run_review(pkg, depth=1)
 
     upstream_id = "github:upstream_dep::upstream_conclusion"
@@ -363,7 +363,7 @@ def test_review_depth_inference_errors_surface_in_graph_health(tmp_path):
     src = pkg / "missing_dep_pkg"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim\n"
+        "from gaia.engine.lang import claim\n"
         'local_obs = claim("Local observation.", metadata={"prior": 0.6})\n'
         '__all__ = ["local_obs"]\n',
         encoding="utf-8",
@@ -391,20 +391,20 @@ def test_review_manifest_accepted_strategy_is_not_unreviewed(tmp_path):
     src = pkg / "reviewed_pkg"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, derive\n"
+        "from gaia.engine.lang import claim, derive\n"
         'a = claim("A.", metadata={"prior": 0.7})\n'
         'c = derive("C.", given=a, rationale="A implies C.", label="derive_c")\n'
         '__all__ = ["c"]\n',
         encoding="utf-8",
     )
 
-    from gaia.cli._packages import (
+    from gaia.engine.ir import ReviewManifest, ReviewStatus
+    from gaia.engine.packaging import (
         apply_package_priors,
         compile_loaded_package_artifact,
         ensure_package_env,
         load_gaia_package,
     )
-    from gaia.ir import ReviewManifest, ReviewStatus
 
     ensure_package_env(pkg)
     loaded = load_gaia_package(str(pkg))

@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import (
     Beta,
     Cauchy,
     ChiSquared,
@@ -27,9 +27,9 @@ from gaia.lang import (
     claim,
     observe,
 )
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.knowledge import _current_package
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
 from gaia.unit import q
 
 

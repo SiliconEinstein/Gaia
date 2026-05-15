@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from gaia.ir import (
+from gaia.engine.ir import (
     DEFAULT_PRIORITY_ORDER,
     PriorRecord,
     ResolutionPolicy,

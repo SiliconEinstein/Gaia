@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from gaia.ir import Operator, OperatorType
+from gaia.engine.ir import Operator, OperatorType
 
 
 class TestOperatorType:

@@ -6,15 +6,15 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from gaia.trace.hashing import (
+from gaia.engine.trace.hashing import (
     GENESIS_PREV_HASH,
     canonical_json,
     compute_events_root,
     compute_manifest_hash,
     hash_event,
 )
-from gaia.trace.loader import load_trace
-from gaia.trace.schema import TraceEvent, TraceManifest
+from gaia.engine.trace.loader import load_trace
+from gaia.engine.trace.schema import TraceEvent, TraceManifest
 
 
 def _build_clean_trace() -> tuple[TraceManifest, list[TraceEvent]]:

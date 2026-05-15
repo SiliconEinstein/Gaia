@@ -127,12 +127,12 @@ override the structural pattern by writing the relation by hand.
 ## Worked Example
 
 ```python testable
-from gaia.bp.exact import exact_inference
-from gaia.bp.lowering import lower_local_graph
-from gaia.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
-from gaia.lang.compiler.compile import compile_package_artifact
-from gaia.lang.runtime.knowledge import _current_package
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.bp.exact import exact_inference
+from gaia.engine.bp.lowering import lower_local_graph
+from gaia.engine.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
+from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 pkg = CollectedPackage(name="bayes_doc_mendel_pkg", namespace="docs")
 token = _current_package.set(pkg)

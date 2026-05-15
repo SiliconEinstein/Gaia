@@ -32,7 +32,7 @@ def _write_base_package(pkg_dir, *, name: str, version: str = "1.0.0") -> None:
 
 def _write_minimal_source(pkg_dir, name: str) -> None:
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, deduction\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
@@ -45,7 +45,7 @@ def _write_minimal_source(pkg_dir, name: str) -> None:
 def _write_priors(pkg_dir, name: str) -> None:
     (pkg_dir / name / "priors.py").write_text(
         "from . import evidence_a, evidence_b, hypothesis\n\n"
-        "from gaia.lang import register_prior\n"
+        "from gaia.engine.lang import register_prior\n"
         'register_prior(evidence_a, value=0.9, justification="Direct observation.")\n'
         'register_prior(evidence_b, value=0.8, justification="Supporting observation.")\n'
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
@@ -2125,14 +2125,14 @@ def test_starmap_validation_error_exits_1(tmp_path, monkeypatch):
 
 
 def test_starmap_load_failure_exits_1(tmp_path, monkeypatch):
-    """A GaiaCliError raised by `load_gaia_package` is captured + exit 1."""
-    from gaia.cli._packages import GaiaCliError
+    """A GaiaPackagingError raised by `load_gaia_package` is captured + exit 1."""
     from gaia.cli.commands import starmap as starmap_mod
+    from gaia.engine.packaging import GaiaPackagingError
 
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_load_fail")
 
     def _boom(_path):
-        raise GaiaCliError("simulated load failure")
+        raise GaiaPackagingError("simulated load failure")
 
     monkeypatch.setattr(starmap_mod, "load_gaia_package", _boom)
     result = runner.invoke(app, ["starmap", str(pkg_dir)])

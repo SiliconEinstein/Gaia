@@ -1,7 +1,7 @@
-from gaia.lang import derive, equal
-from gaia.lang.runtime.action import Equal
-from gaia.lang.runtime.knowledge import Claim
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang import derive, equal
+from gaia.engine.lang.runtime.action import Equal
+from gaia.engine.lang.runtime.knowledge import Claim
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_equal_returns_helper_claim():

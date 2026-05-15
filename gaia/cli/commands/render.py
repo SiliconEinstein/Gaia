@@ -8,16 +8,16 @@ from typing import Any, cast
 
 import typer
 
-from gaia.cli._packages import (
-    GaiaCliError,
+from gaia.cli.commands._detailed_reasoning import generate_detailed_reasoning
+from gaia.cli.commands._github import generate_github_output
+from gaia.cli.commands._render_priors import param_data_from_ir_metadata
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import (
+    GaiaPackagingError,
     apply_package_priors,
     compile_loaded_package_artifact,
     load_gaia_package,
 )
-from gaia.cli.commands._detailed_reasoning import generate_detailed_reasoning
-from gaia.cli.commands._github import generate_github_output
-from gaia.cli.commands._render_priors import param_data_from_ir_metadata
-from gaia.ir.validator import validate_local_graph
 
 
 class RenderTarget(StrEnum):
@@ -48,7 +48,7 @@ def _load_render_inputs(path: str) -> tuple[Any, Any]:
         loaded = load_gaia_package(path)
         apply_package_priors(loaded)
         compiled = compile_loaded_package_artifact(loaded)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     return loaded, compiled

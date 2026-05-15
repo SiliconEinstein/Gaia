@@ -20,7 +20,7 @@ def test_compile_single_file_declaration_index(tmp_path):
     pkg_src = pkg_dir / "single_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, setting\n\n"
+        "from gaia.engine.lang import claim, setting\n\n"
         'env = setting("Environment.")\n'
         'a = claim("First.")\n'
         'b = claim("Second.")\n'
@@ -53,12 +53,12 @@ def test_compile_multi_file_module_order(tmp_path):
     pkg_src = pkg_dir / "multi_pkg"
     pkg_src.mkdir()
     (pkg_src / "sec_a.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'x = claim("X from section A.")\n'
         'y = claim("Y from section A.")\n'
     )
     (pkg_src / "sec_b.py").write_text(
-        'from gaia.lang import claim\n\nz = claim("Z from section B.")\n'
+        'from gaia.engine.lang import claim\n\nz = claim("Z from section B.")\n'
     )
     (pkg_src / "__init__.py").write_text(
         'from .sec_a import *\nfrom .sec_b import *\n\n__all__ = ["z"]\n'
@@ -92,7 +92,7 @@ def test_compile_discovers_source_modules_without_root_imports(tmp_path):
     pkg_src = pkg_dir / "discovery_pkg"
     pkg_src.mkdir()
     (pkg_src / "claims.py").write_text(
-        "from gaia.lang import claim, support\n\n"
+        "from gaia.engine.lang import claim, support\n\n"
         'evidence = claim("Evidence from an unimported module.")\n'
         'result = claim("Result from an unimported module.")\n'
         "_strat_result = support(\n"
@@ -115,7 +115,7 @@ def test_compile_discovers_source_modules_without_root_imports(tmp_path):
 
 def test_load_labels_private_strategy_names_from_declaring_module(tmp_path):
     """Underscore-prefixed strategy variables still get stable internal labels."""
-    from gaia.cli._packages import load_gaia_package
+    from gaia.engine.packaging import load_gaia_package
 
     pkg_dir = tmp_path / "private_strategy_pkg"
     pkg_dir.mkdir()
@@ -126,7 +126,7 @@ def test_load_labels_private_strategy_names_from_declaring_module(tmp_path):
     pkg_src = pkg_dir / "private_strategy_pkg"
     pkg_src.mkdir()
     (pkg_src / "logic.py").write_text(
-        "from gaia.lang import claim, support\n\n"
+        "from gaia.engine.lang import claim, support\n\n"
         'premise = claim("Premise.")\n'
         'result = claim("Result.")\n'
         '_strat_result = support([premise], result, reason="Premise entails result.", prior=0.9)\n'

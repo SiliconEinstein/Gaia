@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from gaia.bp import FactorType, lower_local_graph, lower_operator
-from gaia.bp.exact import exact_inference, exact_joint_over
-from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph
-from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
-from gaia.ir import CompositeStrategy, Knowledge, LocalCanonicalGraph, Operator, Strategy
+from gaia.engine.bp import FactorType, lower_local_graph, lower_operator
+from gaia.engine.bp.exact import exact_inference, exact_joint_over
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph
+from gaia.engine.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
+from gaia.engine.ir import CompositeStrategy, Knowledge, LocalCanonicalGraph, Operator, Strategy
 
 NS, PKG = "github", "lowertest"
 
@@ -60,7 +60,7 @@ def test_equivalence_operator_round_trip():
 
 def test_contradiction_default_prior_near_one():
     """Relation-type operator conclusion defaults to ~1.0 (constraint active)."""
-    from gaia.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     g = _lg(
         knowledges=[
@@ -392,7 +392,7 @@ def test_infer_conditional_lowering():
 
 
 def test_formal_strategy_expand_implication():
-    from gaia.ir.strategy import FormalExpr, FormalStrategy
+    from gaia.engine.ir.strategy import FormalExpr, FormalStrategy
 
     fs = FormalStrategy(
         scope="local",
@@ -423,7 +423,7 @@ def test_formal_strategy_expand_implication():
 
 
 def test_formal_fold_not_implemented():
-    from gaia.ir.strategy import FormalExpr, FormalStrategy
+    from gaia.engine.ir.strategy import FormalExpr, FormalStrategy
 
     fs = FormalStrategy(
         scope="local",
@@ -673,8 +673,8 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
     0.5. Bug: lowering.py FormalExpr expand path uses _ensure_claim_var for all conclusions,
     which defaults to 0.5.
     """
-    from gaia.bp.factor_graph import CROMWELL_EPS
-    from gaia.ir.strategy import FormalExpr, FormalStrategy
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.ir.strategy import FormalExpr, FormalStrategy
 
     # Build a FormalStrategy that contains an equivalence operator internally
     # (mimics elimination's equivalence([D, Exh]) → Eq)
@@ -760,7 +760,7 @@ def test_auto_formalized_abduction_relation_conclusions_get_assertion_prior():
     that are registered via _ensure_claim_var (π=0.5) BEFORE the FormalStrategy expand path
     runs. Relation conclusions must still get π=1-ε.
     """
-    from gaia.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     s = Strategy(
         scope="local",
@@ -960,7 +960,7 @@ def test_relation_helper_defaults_to_assertion_prior():
     belief variables after lowering; accepted deduction lowers to a hard
     conditional CPT.
     """
-    from gaia.ir.operator import Operator as IROp
+    from gaia.engine.ir.operator import Operator as IROp
 
     # Case: standalone equivalence operator — helper claim gets 1-ε default
     g = _lg(
@@ -978,7 +978,7 @@ def test_relation_helper_defaults_to_assertion_prior():
         ],
     )
 
-    from gaia.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     fg = lower_local_graph(g)
     # Equivalence helper should be at assertion prior 1-ε
@@ -1116,8 +1116,8 @@ def test_e2e_compare_compiles_and_runs_bp():
 @pytest.mark.legacy_dsl
 def test_noisy_and_deprecated():
     """noisy_and() emits DeprecationWarning and delegates to support()."""
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import noisy_and as dsl_noisy_and
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang import noisy_and as dsl_noisy_and
 
     with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         a = dsl_claim("A")
@@ -1141,10 +1141,10 @@ def test_e2e_abduction_full_pipeline():
     CompositeStrategy with 2 supports + 1 compare, composition warrant,
     and comparison.conclusion as conclusion.
     """
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import compare as dsl_compare
-    from gaia.lang import support as dsl_support
-    from gaia.lang.dsl.strategies import abduction as dsl_abduction
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang import compare as dsl_compare
+    from gaia.engine.lang import support as dsl_support
+    from gaia.engine.lang.dsl.strategies import abduction as dsl_abduction
 
     h = dsl_claim("Theory H")
     alt = dsl_claim("Theory Alt")
@@ -1188,9 +1188,9 @@ def test_e2e_abduction_full_pipeline():
 @pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_induction_chain():
     """E2E: support + support → induction chain → law accumulated."""
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import support as dsl_support
-    from gaia.lang.dsl.strategies import induction as dsl_induction
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang import support as dsl_support
+    from gaia.engine.lang.dsl.strategies import induction as dsl_induction
 
     law = dsl_claim("Mendel's law")
     obs1 = dsl_claim("Seed shape 2.96:1")
@@ -1237,12 +1237,12 @@ def test_e2e_induction_chain():
 @pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_mendel_peirce_cycle():
     """E2E: Full Peirce cycle -- deduction + support + compare + abduction + induction."""
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import compare as dsl_compare
-    from gaia.lang import deduction as dsl_deduction
-    from gaia.lang import support as dsl_support
-    from gaia.lang.dsl.strategies import abduction as dsl_abduction
-    from gaia.lang.dsl.strategies import induction as dsl_induction
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang import compare as dsl_compare
+    from gaia.engine.lang import deduction as dsl_deduction
+    from gaia.engine.lang import support as dsl_support
+    from gaia.engine.lang.dsl.strategies import abduction as dsl_abduction
+    from gaia.engine.lang.dsl.strategies import induction as dsl_induction
 
     # Knowledge
     H = dsl_claim("Discrete heritable factors")
@@ -1291,7 +1291,7 @@ def test_e2e_mendel_peirce_cycle():
 
 def test_lowering_ignores_author_prior_for_deduction_helper():
     """Deduction helper priors do not soften hard logical implication."""
-    from gaia.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     s = Strategy(
         scope="local",
@@ -1320,8 +1320,8 @@ def test_lowering_ignores_author_prior_for_deduction_helper():
 
 def test_compiled_formal_deduction_metadata_prior_ignored_for_hard_logic():
     """Compiled FormalStrategy metadata prior does not soften deduction."""
-    from gaia.bp.factor_graph import CROMWELL_EPS
-    from gaia.ir.formalize import formalize_named_strategy
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.ir.formalize import formalize_named_strategy
 
     formalized = formalize_named_strategy(
         scope="local",
@@ -1380,7 +1380,7 @@ def test_lowering_default_prior_for_relation_helper_without_author():
 
 def test_claim_metadata_prior_used_in_lowering():
     """Claims with metadata['prior'] use that value instead of default 0.5."""
-    from gaia.ir import Knowledge
+    from gaia.engine.ir import Knowledge
 
     g = _lg(
         knowledges=[

@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import typer
 
-from gaia.trace.hashing import compute_events_root, compute_manifest_hash, recompute_chain
-from gaia.trace.loader import load_trace
-from gaia.trace.render import render_json, render_markdown, render_text
-from gaia.trace.review import run_trace_review
-from gaia.trace.schema import Trace
+from gaia.engine.trace.hashing import compute_events_root, compute_manifest_hash, recompute_chain
+from gaia.engine.trace.loader import load_trace
+from gaia.engine.trace.render import render_json, render_markdown, render_text
+from gaia.engine.trace.review import run_trace_review
+from gaia.engine.trace.schema import Trace
 
 trace_app = typer.Typer(
     name="trace",
@@ -84,7 +84,7 @@ def _trace_verify_errors(trace: Trace, chain: list[str]) -> list[str]:
     errors: list[str] = []
 
     if trace.events:
-        from gaia.trace.hashing import GENESIS_PREV_HASH
+        from gaia.engine.trace.hashing import GENESIS_PREV_HASH
 
         if trace.events[0].prev_hash != GENESIS_PREV_HASH:
             errors.append(f"events[0].prev_hash != GENESIS ({trace.events[0].prev_hash!r})")

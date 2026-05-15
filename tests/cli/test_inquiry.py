@@ -3,11 +3,11 @@ import json
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.ir import ReviewManifest, ReviewStatus
-from gaia.lang import Claim, depends_on, derive, observe, tension
-from gaia.lang.compiler import compile_package_artifact
-from gaia.lang.review.manifest import generate_review_manifest
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.ir import ReviewManifest, ReviewStatus
+from gaia.engine.lang import Claim, depends_on, derive, observe, tension
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.review.manifest import generate_review_manifest
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 runner = CliRunner()
 
@@ -21,7 +21,7 @@ def _write_inquiry_package(pkg_dir) -> None:
     pkg_src = pkg_dir / "inquiry_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, derive\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'c = derive("C.", given=(a, b), rationale="A and B imply C.", label="derive_c")\n'
@@ -106,7 +106,7 @@ def test_inquiry_shows_unformalized_scaffold_dependencies(tmp_path):
     pkg_src = pkg_dir / "inquiry_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, depends_on\n\n"
+        "from gaia.engine.lang import claim, depends_on\n\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'c = claim("C.")\n'
@@ -146,7 +146,7 @@ def test_check_and_inquiry_show_candidate_relation_scaffolds(tmp_path):
     pkg_src = pkg_dir / "inquiry_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, tension\n\n"
+        "from gaia.engine.lang import claim, tension\n\n"
         'prediction = claim("Model predicts X.")\n'
         'observation = claim("Experiment observes not-X.")\n'
         "tension(\n"

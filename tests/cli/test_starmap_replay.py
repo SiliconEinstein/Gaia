@@ -1498,12 +1498,6 @@ def _real_pkg_dir(name: str) -> Path | None:
 
 def _final_state_parity(pkg_dir: Path) -> tuple[dict, dict]:
     """Return (static_counts, replay_counts) for *pkg_dir*."""
-    from gaia.cli._packages import (
-        apply_package_priors,
-        compile_loaded_package_artifact,
-        ensure_package_env,
-        load_gaia_package,
-    )
     from gaia.cli.commands._dot import to_dot
     from gaia.cli.commands._graph_json import generate_graph_json
     from gaia.cli.commands._render_priors import param_data_from_ir_metadata
@@ -1513,6 +1507,12 @@ def _final_state_parity(pkg_dir: Path) -> tuple[dict, dict]:
         RETRIEVAL_LOG_NAME,
         _is_replayable,
         _read_jsonl,
+    )
+    from gaia.engine.packaging import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        ensure_package_env,
+        load_gaia_package,
     )
 
     ensure_package_env(pkg_dir)

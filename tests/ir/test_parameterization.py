@@ -4,7 +4,7 @@ from datetime import UTC
 
 import pytest
 
-from gaia.ir import (
+from gaia.engine.ir import (
     CROMWELL_EPS,
     ParameterizationSource,
     PriorRecord,
@@ -14,7 +14,7 @@ from gaia.ir import (
 
 def test_strategy_param_record_is_not_public_ir_contract():
     """Strategy probabilities live inline on Strategy in the v0.5 IR contract."""
-    import gaia.ir as ir
+    import gaia.engine.ir as ir
 
     assert not hasattr(ir, "StrategyParamRecord")
 

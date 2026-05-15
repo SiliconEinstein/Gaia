@@ -9,9 +9,9 @@
 
 import time
 
-from gaia.bp.bp import BeliefPropagation
-from gaia.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
-from gaia.bp.trw_bp import TRWBeliefPropagation
+from gaia.engine.bp.bp import BeliefPropagation
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
+from gaia.engine.bp.trw_bp import TRWBeliefPropagation
 
 
 def build_realistic_dag(num_layers: int, nodes_per_layer: int, fan_in: int = 3) -> FactorGraph:
