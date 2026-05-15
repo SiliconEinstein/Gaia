@@ -34,10 +34,10 @@ def test_inquiry_shows_exported_goals_and_holes(tmp_path):
     pkg_dir = tmp_path / "inquiry_demo"
     _write_inquiry_package(pkg_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", "--inquiry", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--inquiry", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Goal 1:" in result.output
     assert "Goal 2:" in result.output
@@ -73,10 +73,10 @@ def test_inquiry_shows_support_tree(tmp_path):
     pkg_dir = tmp_path / "inquiry_demo"
     _write_inquiry_package(pkg_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", "--inquiry", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--inquiry", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "derive_c [unreviewed]" in result.output
     assert "- a [hole]" in result.output
@@ -87,10 +87,10 @@ def test_check_inquiry_flag(tmp_path):
     pkg_dir = tmp_path / "inquiry_demo"
     _write_inquiry_package(pkg_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--inquiry"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--inquiry"])
     assert result.exit_code == 0, result.output
     assert "Inquiry" in result.output
     assert "Summary" in result.output
@@ -114,14 +114,14 @@ def test_inquiry_shows_unformalized_scaffold_dependencies(tmp_path):
         '__all__ = ["c"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
     formalization_manifest = json.loads(
         (pkg_dir / ".gaia" / "formalization_manifest.json").read_text()
     )
     assert formalization_manifest["dependencies"][0]["label"] == "c_depends_on_a_b"
 
-    result = runner.invoke(app, ["check", "--inquiry", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--inquiry", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Goal 1: c" in result.output
     assert "c_depends_on_a_b [unformalized]" in result.output
@@ -158,7 +158,7 @@ def test_check_and_inquiry_show_candidate_relation_scaffolds(tmp_path):
         '__all__ = ["prediction"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
     formalization_manifest = json.loads(
         (pkg_dir / ".gaia" / "formalization_manifest.json").read_text()
@@ -166,7 +166,7 @@ def test_check_and_inquiry_show_candidate_relation_scaffolds(tmp_path):
     assert formalization_manifest["dependencies"][0]["kind"] == "candidate_relation"
     assert formalization_manifest["dependencies"][0]["proposed"] == "tension"
 
-    result = runner.invoke(app, ["check", "--inquiry", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--inquiry", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Structural holes: 1" in result.output
     assert "Goal 1: prediction [hole]" in result.output

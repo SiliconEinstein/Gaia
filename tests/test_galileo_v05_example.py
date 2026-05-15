@@ -24,7 +24,7 @@ def _copy_galileo_example(tmp_path: Path) -> Path:
 def test_vacuum_setup_stays_background_not_independent_claim(tmp_path: Path):
     package = _copy_galileo_example(tmp_path)
 
-    result = runner.invoke(app, ["compile", str(package)])
+    result = runner.invoke(app, ["build", "compile", str(package)])
     assert result.exit_code == 0, result.output
 
     ir = (package / ".gaia" / "ir.json").read_text()

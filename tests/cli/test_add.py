@@ -25,7 +25,7 @@ MOCK_VERSION = RegistryVersion(
 @patch("gaia.cli.commands.add._run_uv")
 def test_add_installs_with_git_url(mock_uv, mock_resolve):
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     mock_resolve.assert_called_once()
     uv_args = mock_uv.call_args[0][0]
@@ -37,7 +37,7 @@ def test_add_installs_with_git_url(mock_uv, mock_resolve):
 @patch("gaia.cli.commands.add._run_uv")
 def test_add_with_version(mock_uv, mock_resolve):
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia", "--version", "4.0.5"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia", "--version", "4.0.5"])
     assert result.exit_code == 0
     mock_resolve.assert_called_once_with(
         "galileo-falling-bodies-gaia",
@@ -51,7 +51,7 @@ def test_add_not_found(mock_resolve):
     mock_resolve.side_effect = GaiaPackagingError(
         "Not found in registry: packages/no-such/Package.toml"
     )
-    result = runner.invoke(app, ["add", "no-such-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "no-such-gaia"])
     assert result.exit_code != 0
     assert "Not found" in result.output
 
@@ -65,7 +65,7 @@ def test_add_canonicalizes_name_without_gaia_suffix(mock_uv, mock_resolve):
     """Package name without -gaia suffix still gets correct dep spec."""
     del mock_resolve
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     uv_args = mock_uv.call_args[0][0]
     dep_spec = uv_args[2]
@@ -137,7 +137,7 @@ def test_fetch_file_handles_500_error(mock_get):
 def test_add_missing_uv_shows_install_hint(mock_run, mock_resolve):
     """Missing uv binary gives a helpful error message."""
     del mock_resolve, mock_run
-    result = runner.invoke(app, ["add", "some-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "some-gaia"])
     assert result.exit_code != 0
     assert "uv is not installed" in result.output
 
@@ -193,7 +193,7 @@ def test_add_downloads_dep_beliefs(mock_fetch, mock_uv, mock_resolve, tmp_path, 
     monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
     mock_fetch.return_value = '{"beliefs": [{"knowledge_id": "a", "belief": 0.8}]}'
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     assert "Saved upstream beliefs" in result.output
     dep_file = tmp_path / ".gaia" / "dep_beliefs" / "galileo_falling_bodies.json"
@@ -211,7 +211,7 @@ def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve
     """Gaia add succeeds even when beliefs.json is not available."""
     del mock_fetch, mock_resolve
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "no beliefs manifest" in result.output.lower()
 
@@ -223,7 +223,7 @@ def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
     """Gaia add gracefully handles invalid JSON in beliefs manifest."""
     del mock_fetch, mock_resolve
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "not valid json" in result.output.lower()
 
@@ -240,7 +240,7 @@ def test_add_skips_dep_beliefs_outside_gaia_package(
     monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
     mock_fetch.return_value = '{"beliefs": []}'
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "not inside a gaia package" in result.output.lower()
 
@@ -263,7 +263,7 @@ def test_add_writes_dep_beliefs_at_package_root_from_subdir(
     monkeypatch.chdir(subdir)
     mock_uv.return_value = MagicMock(returncode=0)
     mock_fetch.return_value = '{"beliefs": [{"knowledge_id": "a", "belief": 0.7}]}'
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     # dep_beliefs should be at the package root, not in the subdir
     dep_file = tmp_path / ".gaia" / "dep_beliefs" / "galileo_falling_bodies.json"

@@ -65,7 +65,7 @@ def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path
     package = _copy_mendel_example(tmp_path)
     probabilities = _load_probability_module(package)
 
-    compile_result = runner.invoke(app, ["compile", str(package)])
+    compile_result = runner.invoke(app, ["build", "compile", str(package)])
     assert compile_result.exit_code == 0, compile_result.output
 
     likelihood_parameters = probabilities.mendel_count_likelihood_parameters()
@@ -143,7 +143,7 @@ def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path
 
     _accept_all_reviews(package)
 
-    infer_result = runner.invoke(app, ["infer", str(package)])
+    infer_result = runner.invoke(app, ["run", "infer", str(package)])
     assert infer_result.exit_code == 0, infer_result.output
 
     beliefs = _beliefs_by_label(package)

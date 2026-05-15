@@ -38,7 +38,7 @@ __all__ = ["h", "model"]
 """,
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
 
     assert result.exit_code == 0, result.output
     assert "bayes:dangling-prediction" in result.output
@@ -73,7 +73,7 @@ __all__ = ["h1", "h2", "data", "model1", "model2", "cmp"]
 """,
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
 
     assert result.exit_code != 0
     assert "bayes:hypothesis-prior-coherence" in result.output
@@ -111,7 +111,7 @@ __all__ = ["h1", "h2", "data", "model1", "model2", "cmp"]
 """,
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
 
     assert result.exit_code != 0
     assert "bayes:hypothesis-prior-coherence" in result.output
@@ -145,7 +145,7 @@ __all__ = ["h1", "h2", "data", "model1", "model2", "cmp"]
 """,
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
 
     assert result.exit_code != 0
     assert "bayes:likelihood-without-data" in result.output

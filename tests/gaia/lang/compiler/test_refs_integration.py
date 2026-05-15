@@ -60,7 +60,7 @@ def test_compile_errors_on_label_citation_collision(tmp_path: Path) -> None:
             }
         },
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code != 0, f"Expected non-zero exit but got output: {result.output}"
     assert "ambiguous" in result.output.lower()
     assert "bell_lemma" in result.output
@@ -80,7 +80,7 @@ def test_compile_errors_on_mixed_type_bracket_group(tmp_path: Path) -> None:
         ),
         references_json={"Bell1964": {"type": "article-journal", "title": "On EPR"}},
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code != 0, f"Expected non-zero exit but got: {result.output}"
     assert "mixed" in result.output.lower()
     assert "lemma_a" in result.output
@@ -100,7 +100,7 @@ def test_compile_errors_on_strict_miss(tmp_path: Path) -> None:
             '__all__ = ["main_result", "premise_a"]\n'
         ),
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code != 0, f"Expected non-zero exit but got: {result.output}"
     assert "nothing_at_all" in result.output
     # Error message should mention unknown/strict/bracket
@@ -121,7 +121,7 @@ def test_compile_tolerates_opportunistic_miss(tmp_path: Path) -> None:
             '__all__ = ["main_result", "premise_a"]\n'
         ),
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code == 0, f"Expected success but got: {result.output}"
 
 
@@ -149,7 +149,7 @@ def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
             '__all__ = ["law", "obs1", "obs2"]\n'
         ),
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     # The sub_strategy's reason has a strict-form unknown ref,
     # so this should fail. (Verifies sub_strategy recursion works.)
     assert result.exit_code != 0, f"Expected error but got: {result.output}"
@@ -170,7 +170,7 @@ def test_compile_records_provenance_metadata(tmp_path: Path) -> None:
         ),
         references_json={"Bell1964": {"type": "article-journal", "title": "On EPR"}},
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code == 0, result.output
 
     ir_path = pkg / ".gaia" / "ir.json"
@@ -220,7 +220,7 @@ def two_package_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
 
     # Compile refs_dep_pkg so its exports manifest is available.
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, f"refs_dep_pkg compile failed:\n{dep_compile.output}"
 
     # --- refs_main_pkg -----------------------------------------------------
@@ -262,7 +262,7 @@ def test_imported_foreign_label_resolves_in_strict_form(
         '__all__ = ["main_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(main_dir)])
+    result = runner.invoke(app, ["build", "compile", str(main_dir)])
     assert result.exit_code == 0, (
         f"Strict form [@foreign_lemma] failed to compile — "
         f"the symbol table may not include the full closure.\n{result.output}"
@@ -309,7 +309,7 @@ def test_imported_foreign_label_resolves_in_opportunistic_form(
         '__all__ = ["main_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(main_dir)])
+    result = runner.invoke(app, ["build", "compile", str(main_dir)])
     assert result.exit_code == 0, (
         f"Opportunistic form @foreign_lemma failed to compile.\n{result.output}"
     )
@@ -366,7 +366,7 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
 
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, f"dep compile failed:\n{dep_compile.output}"
 
     # --- consumer_pkg WITHOUT references.json -----------------------------
@@ -389,7 +389,7 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
         '__all__ = ["main_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(main_dir)])
+    result = runner.invoke(app, ["build", "compile", str(main_dir)])
     assert result.exit_code == 0, (
         f"Consumer compile failed because it re-validated the dep's content "
         f"against its own (empty) references.json. Foreign node content is "
@@ -434,7 +434,7 @@ def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
         '__all__ = ["main_theorem"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     # --- bridge_pkg that fills() the foreign hole with a citation ----------
@@ -471,7 +471,7 @@ def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
         '__all__ = ["b_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(bridge_dir)])
+    result = runner.invoke(app, ["build", "compile", str(bridge_dir)])
     assert result.exit_code == 0, result.output
 
     ir_path = bridge_dir / ".gaia" / "ir.json"

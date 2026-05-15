@@ -34,7 +34,7 @@ def test_compile_creates_ir_json(tmp_path):
         'my_claim = claim("A test claim.")\n__all__ = ["my_claim"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     gaia_dir = pkg_dir / ".gaia"
@@ -73,7 +73,7 @@ def test_compile_creates_ir_json(tmp_path):
 
 def test_compile_no_pyproject(tmp_path):
     """Error when no pyproject.toml exists."""
-    result = runner.invoke(app, ["compile", str(tmp_path)])
+    result = runner.invoke(app, ["build", "compile", str(tmp_path)])
     assert result.exit_code != 0
 
 
@@ -82,7 +82,7 @@ def test_compile_not_knowledge_package(tmp_path):
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "foo"\nversion = "1.0.0"\n\n[tool.gaia]\ntype = "something-else"\n'
     )
-    result = runner.invoke(app, ["compile", str(tmp_path)])
+    result = runner.invoke(app, ["build", "compile", str(tmp_path)])
     assert result.exit_code != 0
 
 
@@ -96,7 +96,7 @@ def test_compile_missing_source_dir(tmp_path):
     wrong_src.mkdir(parents=True)
     (wrong_src / "__init__.py").write_text("")
 
-    result = runner.invoke(app, ["compile", str(tmp_path)])
+    result = runner.invoke(app, ["build", "compile", str(tmp_path)])
     assert result.exit_code != 0
     assert "package source directory 'missing_source/' not found" in result.output
     assert "Derived from [project] name 'missing-source-gaia'." in result.output
@@ -124,7 +124,7 @@ def test_compile_fails_on_invalid_ir_validation(tmp_path):
         '__all__ = ["context", "hypothesis", "conflict"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "must be claim" in result.output
     assert not (pkg_dir / ".gaia" / "ir.json").exists()
@@ -147,7 +147,7 @@ def test_compile_labels_assigned(tmp_path):
         '__all__ = ["bg", "hypothesis"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -172,7 +172,7 @@ def test_compile_supports_src_layout(tmp_path):
         'from gaia.engine.lang import claim\n\nc = claim("A claim.")\n__all__ = ["c"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -206,7 +206,7 @@ def test_compile_preserves_structured_steps_and_provenance(tmp_path):
         '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -241,7 +241,7 @@ def test_compile_emits_public_premise_manifest_for_local_hole(tmp_path):
         '__all__ = ["main_theorem"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     premises_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "premises.json").read_text())
@@ -301,7 +301,7 @@ def test_compile_marks_foreign_dependency_public_premise(tmp_path, monkeypatch):
         '__all__ = ["main_theorem"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     premises_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "premises.json").read_text())
@@ -331,7 +331,7 @@ def test_compile_public_premise_required_by_uses_nearest_exported_claim(tmp_path
         '__all__ = ["helper_claim", "main_theorem"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     premises_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "premises.json").read_text())
@@ -360,7 +360,7 @@ def test_compile_exported_local_hole_required_by_lists_downstream_exports(tmp_pa
         '__all__ = ["shared_premise", "theorem_a", "theorem_b"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     premises_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "premises.json").read_text())
@@ -405,12 +405,12 @@ def test_compile_interface_hash_is_deterministic(tmp_path):
         '__all__ = ["main_theorem"]\n'
     )
 
-    first = runner.invoke(app, ["compile", str(pkg_dir)])
+    first = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert first.exit_code == 0, first.output
     first_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "premises.json").read_text())
     first_hash = first_manifest["premises"][0]["interface_hash"]
 
-    second = runner.invoke(app, ["compile", str(pkg_dir)])
+    second = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert second.exit_code == 0, second.output
     second_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "premises.json").read_text())
     second_hash = second_manifest["premises"][0]["interface_hash"]
@@ -435,7 +435,7 @@ def test_compile_fills_validates_foreign_local_hole_target(tmp_path, monkeypatch
         '__all__ = ["main_theorem"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     consumer_dir = tmp_path / "consumer_pkg"
@@ -457,7 +457,7 @@ def test_compile_fills_validates_foreign_local_hole_target(tmp_path, monkeypatch
         '__all__ = ["b_result", "bridge"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
     assert result.exit_code == 0, result.output
 
     bridges_manifest = json.loads(
@@ -497,7 +497,7 @@ def test_compile_fills_emits_conditional_infer_bridge_metadata(tmp_path, monkeyp
         '__all__ = ["main_theorem"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     consumer_dir = tmp_path / "consumer_pkg"
@@ -520,7 +520,7 @@ def test_compile_fills_emits_conditional_infer_bridge_metadata(tmp_path, monkeyp
         '__all__ = ["b_result", "bridge"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
     assert result.exit_code == 0, result.output
 
     bridges_manifest = json.loads(
@@ -570,7 +570,7 @@ def test_compile_fills_requires_dependency_manifest(tmp_path, monkeypatch):
         '__all__ = ["b_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
     assert result.exit_code != 0
     assert "missing .gaia/manifests/premises.json" in result.output
 
@@ -593,7 +593,7 @@ def test_compile_fills_rejects_stale_dependency_manifest(tmp_path, monkeypatch):
         '__all__ = ["main_theorem"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     dep_init.write_text(
@@ -623,7 +623,7 @@ def test_compile_fills_rejects_stale_dependency_manifest(tmp_path, monkeypatch):
         '__all__ = ["b_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
     assert result.exit_code != 0
     assert "stale .gaia manifests" in result.output
 
@@ -643,7 +643,7 @@ def test_compile_fills_rejects_target_that_is_not_public_hole(tmp_path, monkeypa
         '__all__ = ["dep_result"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     consumer_dir = tmp_path / "consumer_pkg"
@@ -665,7 +665,7 @@ def test_compile_fills_rejects_target_that_is_not_public_hole(tmp_path, monkeypa
         '__all__ = ["b_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
     assert result.exit_code != 0
     assert "is not a public premise" in result.output
 
@@ -687,7 +687,7 @@ def test_compile_fills_requires_foreign_target(tmp_path):
         '__all__ = ["source_claim"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "target must be a foreign claim" in result.output
 
@@ -722,7 +722,7 @@ def test_compile_rejects_fills_strategy_with_multiple_premises(tmp_path):
         '__all__ = ["source_a", "source_b", "target"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "exactly one source and one target" in result.output
 
@@ -758,8 +758,8 @@ def test_compile_bridge_package_requires_source_dependency_declaration(tmp_path,
     )
     monkeypatch.syspath_prepend(str(dep_a_dir / "src"))
     monkeypatch.syspath_prepend(str(dep_b_dir / "src"))
-    assert runner.invoke(app, ["compile", str(dep_a_dir)]).exit_code == 0
-    assert runner.invoke(app, ["compile", str(dep_b_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(dep_a_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(dep_b_dir)]).exit_code == 0
 
     bridge_dir = tmp_path / "bridge_pkg"
     bridge_dir.mkdir()
@@ -779,7 +779,7 @@ def test_compile_bridge_package_requires_source_dependency_declaration(tmp_path,
         "fills(source=b_result, target=missing_lemma)\n"
     )
 
-    result = runner.invoke(app, ["compile", str(bridge_dir)])
+    result = runner.invoke(app, ["build", "compile", str(bridge_dir)])
     assert result.exit_code != 0
     assert "source dependency" in result.output and "not declared" in result.output
 
@@ -815,8 +815,8 @@ def test_compile_bridge_package_emits_declared_by_owner_false(tmp_path, monkeypa
     )
     monkeypatch.syspath_prepend(str(dep_a_dir / "src"))
     monkeypatch.syspath_prepend(str(dep_b_dir / "src"))
-    assert runner.invoke(app, ["compile", str(dep_a_dir)]).exit_code == 0
-    assert runner.invoke(app, ["compile", str(dep_b_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(dep_a_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(dep_b_dir)]).exit_code == 0
 
     bridge_dir = tmp_path / "bridge_pkg"
     bridge_dir.mkdir()
@@ -837,7 +837,7 @@ def test_compile_bridge_package_emits_declared_by_owner_false(tmp_path, monkeypa
         '__all__ = ["bridge"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(bridge_dir)])
+    result = runner.invoke(app, ["build", "compile", str(bridge_dir)])
     assert result.exit_code == 0, result.output
 
     bridges_manifest = json.loads((bridge_dir / ".gaia" / "manifests" / "bridges.json").read_text())
@@ -866,7 +866,7 @@ def test_compile_rejects_duplicate_fills_relation(tmp_path, monkeypatch):
         '__all__ = ["main_theorem"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
-    assert runner.invoke(app, ["compile", str(dep_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(dep_dir)]).exit_code == 0
 
     consumer_dir = tmp_path / "consumer_pkg"
     consumer_dir.mkdir()
@@ -888,7 +888,7 @@ def test_compile_rejects_duplicate_fills_relation(tmp_path, monkeypatch):
         '__all__ = ["b_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(consumer_dir)])
+    result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
     assert result.exit_code != 0
     assert "duplicate fills() relation" in result.output
 
@@ -916,7 +916,7 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
         '__all__ = ["law", "instance", "proof"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -953,7 +953,7 @@ def test_compile_emits_pure_local_canonical_graph(tmp_path):
         '__all__ = ["premise", "conclusion"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -991,7 +991,7 @@ def test_compile_elimination_strategy_uses_ir_canonical_formalization(tmp_path):
         '"viral_test_neg", "autoimmune", "argument"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -1047,7 +1047,7 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
         '__all__ = ["evidence", "intermediate", "final_claim", "step1", "step2", "argument"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -1100,7 +1100,7 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
         '"step1", "step2", "inner", "final_support", "argument"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -1138,7 +1138,7 @@ def test_compile_priors_py_injects_metadata_prior(tmp_path):
         'register_prior(premise_b, value=0.80, justification="Moderate confidence in B.")\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -1187,7 +1187,7 @@ def test_compile_respects_custom_resolution_policy(tmp_path):
         ")\n"
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -1212,7 +1212,7 @@ def test_compile_no_priors_py_is_noop(tmp_path):
         'my_claim = claim("A claim.")\n__all__ = ["my_claim"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
 
@@ -1239,7 +1239,7 @@ def test_compile_priors_py_dict_form_rejected_with_migration_message(tmp_path):
         'from . import my_claim\n\nPRIORS = {\n    my_claim: (0.5, "invalid legacy form"),\n}\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "no longer supported" in result.output
     assert "register_prior" in result.output
@@ -1269,7 +1269,7 @@ def test_compile_priors_py_note_key_raises(tmp_path):
         'justification="Notes are context, not probabilistic claims.")\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "claim" in result.output.lower()
     assert "note" in result.output.lower()
@@ -1297,7 +1297,7 @@ def test_compile_priors_py_new_knowledge_raises(tmp_path):
         'justification="Accidental new claim.")\n\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "must not declare new Knowledge" in result.output
 
@@ -1322,7 +1322,7 @@ def test_compile_priors_py_out_of_range_prior_raises(tmp_path):
         'justification="Invalid probability.")\n\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "Cromwell bounds" in result.output
 
@@ -1347,6 +1347,6 @@ def test_compile_register_prior_missing_justification_raises(tmp_path):
         'register_prior(my_claim, value=0.5, justification="")  # empty justification\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "justification" in result.output.lower()

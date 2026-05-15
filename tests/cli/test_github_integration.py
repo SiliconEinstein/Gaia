@@ -274,10 +274,10 @@ def test_render_github_flag(tmp_path):
         'register_prior(c, value=0.4, justification="ok")\n'
     )
 
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
+    result = runner.invoke(app, ["run", "render", str(pkg_dir), "--target", "github"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     assert "GitHub:" in result.output
 
@@ -349,9 +349,9 @@ def test_render_github_with_real_package(tmp_path):
     artifacts_dir.mkdir()
     (artifacts_dir / "diagram.svg").write_text("<svg>test</svg>")
 
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
+    result = runner.invoke(app, ["run", "render", str(pkg_dir), "--target", "github"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     assert "GitHub:" in result.output
 

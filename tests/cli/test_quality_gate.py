@@ -92,7 +92,7 @@ def test_gate_fails_on_structural_hole(tmp_path):
         '__all__ = ["hole"]\n',
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
     assert result.exit_code != 0
     assert "structural hole" in result.output.lower()
 
@@ -113,7 +113,7 @@ def test_gate_candidate_relation_does_not_make_counterpart_load_bearing(tmp_path
         '__all__ = ["prediction"]\n',
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
 
     assert result.exit_code != 0
     assert "Structural hole: prediction has no warrant chain" in result.output
@@ -131,7 +131,7 @@ def test_gate_fails_on_unreviewed(tmp_path):
         '__all__ = ["conclusion"]\n',
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
     assert result.exit_code != 0
     assert "unreviewed" in result.output.lower()
 
@@ -152,11 +152,11 @@ def test_gate_fails_on_unreviewed_compose(tmp_path):
         '__all__ = ["c"]\n',
         quality="\n[tool.gaia.quality]\nallow_holes = true\n",
     )
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
     _accept_reviews_except(pkg_dir, "workflow")
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
 
     assert result.exit_code != 0
     assert "workflow" in result.output
@@ -183,7 +183,7 @@ def test_gate_fails_on_unreviewed_infer_warrant(tmp_path):
         quality="\n[tool.gaia.quality]\nallow_holes = true\n",
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
 
     assert result.exit_code != 0
     assert "infer_h" in result.output
@@ -198,7 +198,7 @@ def test_gate_still_runs_with_blind_warrant_report(tmp_path):
         '__all__ = ["root"]\n',
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--warrants", "--blind", "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--warrants", "--blind", "--gate"])
     assert result.exit_code != 0
     assert "quality gate failed" in result.output.lower()
     assert "root_obs" in result.output
@@ -213,7 +213,7 @@ def test_gate_fails_on_unreviewed_root_observe(tmp_path):
         '__all__ = ["root"]\n',
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
     assert result.exit_code != 0
     assert "unreviewed" in result.output.lower()
 
@@ -227,7 +227,7 @@ def test_gate_fails_on_low_posterior(tmp_path):
         '__all__ = ["root"]\n',
         quality="\n[tool.gaia.quality]\nmin_posterior = 0.9\n",
     )
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
     _accept_all_reviews(pkg_dir)
     (pkg_dir / ".gaia" / "beliefs.json").write_text(
@@ -245,7 +245,7 @@ def test_gate_fails_on_low_posterior(tmp_path):
         )
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
     assert result.exit_code != 0
     assert "low posterior" in result.output.lower()
 
@@ -260,11 +260,11 @@ def test_gate_passes_when_all_met(tmp_path):
         'rationale="Data implies conclusion.", label="derive_c")\n'
         '__all__ = ["conclusion"]\n',
     )
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
     _accept_all_reviews(pkg_dir)
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
     assert result.exit_code == 0, result.output
     assert "Quality gate passed" in result.output
 
@@ -282,7 +282,7 @@ def test_gate_fails_on_unformalized_dependency(tmp_path):
         quality="\n[tool.gaia.quality]\nallow_holes = true\n",
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
 
     assert result.exit_code != 0
     assert "unformalized dependency" in result.output.lower()
@@ -304,7 +304,7 @@ def test_gate_allows_unformalized_dependency_when_configured(tmp_path):
         ),
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
 
     assert result.exit_code == 0, result.output
     assert "Quality gate passed" in result.output
@@ -321,10 +321,10 @@ def test_gate_ignores_unexported_unreachable_draft_actions(tmp_path):
         'draft = observe("Unrelated draft measurement.", rationale="Draft.", label="draft_obs")\n'
         '__all__ = ["conclusion"]\n',
     )
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
     _accept_reviews_except(pkg_dir, "draft_obs")
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--gate"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--gate"])
     assert result.exit_code == 0, result.output
     assert "Quality gate passed" in result.output

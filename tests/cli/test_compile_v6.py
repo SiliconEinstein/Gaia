@@ -36,7 +36,7 @@ def test_v6_knowledge_types_compile(tmp_path):
         'register_prior(hyp, value=0.5, justification="uninformative")\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Compile failed: {result.output}"
 
     ir_path = pkg_dir / ".gaia" / "ir.json"

@@ -81,7 +81,7 @@ def _write_induction_package(pkg_dir):
 
 
 def _compile(pkg_dir):
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
 
@@ -366,7 +366,7 @@ def test_brief_cli_flag(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    result = runner.invoke(app, ["check", "--brief", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--brief", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Check passed" in result.output
     assert "Module:" in result.output
@@ -378,7 +378,7 @@ def test_show_cli_flag_module(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    result = runner.invoke(app, ["check", "--show", "reasoning", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--show", "reasoning", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Check passed" in result.output
     assert "expanded" in result.output
@@ -390,7 +390,7 @@ def test_show_cli_flag_label(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    result = runner.invoke(app, ["check", "--show", "hypothesis", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--show", "hypothesis", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "hypothesis" in result.output
     assert "content:" in result.output
@@ -401,7 +401,7 @@ def test_show_cli_flag_unknown(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    result = runner.invoke(app, ["check", "--show", "nope", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--show", "nope", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "No module or label" in result.output
 
@@ -411,7 +411,7 @@ def test_brief_and_show_combined(tmp_path):
     _write_two_module_package(pkg_dir)
     _compile(pkg_dir)
 
-    result = runner.invoke(app, ["check", "--brief", "--show", "reasoning", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--brief", "--show", "reasoning", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     # Both overview and expanded module should be present
     assert "Module: background" in result.output  # from overview

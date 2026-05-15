@@ -28,10 +28,10 @@ def test_check_passes_with_fresh_artifacts(tmp_path):
     pkg_dir = tmp_path / "check_demo"
     _write_package(pkg_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Check passed" in result.output
 
@@ -45,10 +45,10 @@ def test_check_applies_priors_py_before_stale_check(tmp_path):
         'register_prior(main_claim, value=0.8, justification="Reviewed premise.")\n\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Check passed" in result.output
 
@@ -57,7 +57,7 @@ def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
     pkg_dir = tmp_path / "check_demo"
     _write_package(pkg_dir, content="Original claim.")
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     (pkg_dir / "check_demo" / "__init__.py").write_text(
@@ -66,7 +66,7 @@ def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
         '__all__ = ["main_claim"]\n'
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert result.exit_code != 0
     assert "stale" in result.output.lower()
 
@@ -108,7 +108,7 @@ def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
         '__all__ = ["main_claim"]\n'
     )
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert result.exit_code != 0
     assert "missing .gaia/manifests/premises.json" in result.output
 
@@ -144,10 +144,10 @@ def test_check_shows_prior_on_independent_claims(tmp_path):
     pkg_dir = tmp_path / "check_holes"
     _write_multi_claim_package(pkg_dir, with_priors=True)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "prior=0.85" in result.output
     assert "no external prior (MaxEnt)" in result.output
@@ -158,10 +158,10 @@ def test_check_shows_hole_count_in_summary(tmp_path):
     pkg_dir = tmp_path / "check_holes"
     _write_multi_claim_package(pkg_dir, with_priors=True)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     # premise_a has prior, premise_b does not → 1 MaxEnt independent DOF
     assert "MaxEnt (no external prior): 1" in result.output
@@ -180,10 +180,10 @@ def test_check_no_hole_count_when_all_covered(tmp_path):
         'register_prior(premise_b, value=0.70, justification="Moderate evidence.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "MaxEnt (no external prior)" not in result.output
 
@@ -193,10 +193,10 @@ def test_check_hole_flag_lists_details(tmp_path):
     pkg_dir = tmp_path / "check_holes"
     _write_multi_claim_package(pkg_dir, with_priors=True)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", "--hole", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--hole", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Independent DOF analysis:" in result.output
     assert "not externalized; MaxEnt over independent DOF" in result.output
@@ -222,10 +222,10 @@ def test_check_hole_flag_all_covered(tmp_path):
         'register_prior(premise_b, value=0.70, justification="Moderate evidence.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", "--hole", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--hole", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "All independent claims have external priors assigned." in result.output
     assert "0 MaxEnt" in result.output
@@ -251,10 +251,10 @@ def test_check_scopes_independent_dof_to_exported_goal_boundary(tmp_path):
         '__all__ = ["goal"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--hole"])
     assert result.exit_code == 0, result.output
     assert "Evidence A." in result.output
     assert "Evidence B." in result.output
@@ -280,10 +280,10 @@ def test_check_hole_does_not_report_private_formal_helpers_as_orphans(tmp_path):
         '__all__ = ["goal"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--hole"])
     assert result.exit_code == 0, result.output
     assert "__implication_result" not in result.output
     assert "__conjunction_result" not in result.output
@@ -305,10 +305,10 @@ def test_check_root_observe_is_pinned_not_maxent_independent_dof(tmp_path):
         '__all__ = ["data"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--hole"])
     assert result.exit_code == 0, result.output
     assert "Independent DOF:           0" in result.output
     assert "MaxEnt (no external prior):" not in result.output
@@ -333,10 +333,10 @@ def test_check_reports_constraint_reduced_maxent_state_space(tmp_path):
         '__all__ = ["same"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--hole"])
     assert result.exit_code == 0, result.output
     assert "Independent DOF analysis: 2 MaxEnt / 2 independent claims" in result.output
     assert "Effective MaxEnt state space: 2/4 assignments (1.00 bits)" in result.output
@@ -365,10 +365,10 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
         'register_prior(observation, value=0.99, justification="Observation was made.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--hole"])
     assert result.exit_code == 0, result.output
     assert "Independent DOF analysis: 1 MaxEnt / 1 independent claims" in result.output
     assert "Induced MaxEnt entropy:" in result.output
@@ -401,10 +401,10 @@ def test_check_hole_skips_decompose_whole_and_generated_helpers(tmp_path):
         encoding="utf-8",
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", str(pkg_dir), "--hole"])
+    result = runner.invoke(app, ["build", "check", str(pkg_dir), "--hole"])
     assert result.exit_code == 0, result.output
     assert "    - c  no external prior" not in result.output
     assert "\n    c\n" not in result.output

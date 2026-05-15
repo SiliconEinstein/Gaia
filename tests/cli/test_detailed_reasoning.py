@@ -272,10 +272,10 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
         'register_prior(c, value=0.4, justification="ok")\n'
     )
 
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    result = runner.invoke(app, ["run", "render", str(pkg_dir), "--target", "docs"])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     content = (pkg_dir / "docs" / "detailed-reasoning.md").read_text()

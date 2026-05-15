@@ -313,7 +313,7 @@ def test_review_depth_uses_joint_dependency_graphs(tmp_path, monkeypatch):
 
     dep_dir = tmp_path / "upstream_dep"
     _write_dep_package(dep_dir, name="upstream_dep", monkeypatch=monkeypatch)
-    compile_dep = runner.invoke(app, ["compile", str(dep_dir)])
+    compile_dep = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert compile_dep.exit_code == 0, compile_dep.output
 
     pkg = tmp_path / "local_pkg"

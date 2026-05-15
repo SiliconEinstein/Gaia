@@ -27,7 +27,7 @@ def test_compile_single_file_declaration_index(tmp_path):
         '__all__ = ["b"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -64,7 +64,7 @@ def test_compile_multi_file_module_order(tmp_path):
         'from .sec_a import *\nfrom .sec_b import *\n\n__all__ = ["z"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
@@ -101,7 +101,7 @@ def test_compile_discovers_source_modules_without_root_imports(tmp_path):
     )
     (pkg_src / "__init__.py").write_text('__all__ = ["result"]\n')
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())

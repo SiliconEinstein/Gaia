@@ -58,8 +58,8 @@ def _prepare_inferred_package(tmp_path, name: str = "starmap_demo"):
     _write_base_package(pkg_dir, name=name)
     _write_minimal_source(pkg_dir, name)
     _write_priors(pkg_dir, name)
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
     return pkg_dir
 
 
@@ -74,7 +74,7 @@ def test_starmap_default_output(tmp_path):
     """Happy path: writes .gaia/starmap.html with a parseable graph payload."""
     pkg_dir = _prepare_inferred_package(tmp_path)
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / ".gaia" / "starmap.html"
@@ -103,7 +103,7 @@ def test_starmap_custom_output(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_custom")
     custom = "build/star.html"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--out", custom])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--out", custom])
     assert result.exit_code == 0, result.output
 
     expected = pkg_dir / custom
@@ -116,7 +116,7 @@ def test_starmap_creates_parent_dirs(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_nested")
     nested = "nested/dir/foo.html"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--out", nested])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--out", nested])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / nested
@@ -129,7 +129,7 @@ def test_starmap_absolute_out_path(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_abs")
     abs_out = tmp_path / "elsewhere" / "starmap.html"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--out", str(abs_out)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--out", str(abs_out)])
     assert result.exit_code == 0, result.output
     assert abs_out.exists()
 
@@ -139,9 +139,9 @@ def test_starmap_without_beliefs(tmp_path):
     pkg_dir = tmp_path / "starmap_no_infer"
     _write_base_package(pkg_dir, name="starmap_no_infer")
     _write_minimal_source(pkg_dir, "starmap_no_infer")
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / ".gaia" / "starmap.html"
@@ -159,7 +159,7 @@ def test_starmap_missing_ir(tmp_path):
     _write_base_package(pkg_dir, name="starmap_no_compile")
     _write_minimal_source(pkg_dir, "starmap_no_compile")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code != 0
     assert "missing compiled artifacts" in result.output
 
@@ -171,7 +171,7 @@ def test_starmap_dot_default_output(tmp_path):
     """`--format dot` writes `.gaia/starmap.dot` with paper-ready Graphviz content."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dot")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / ".gaia" / "starmap.dot"
@@ -197,7 +197,9 @@ def test_starmap_dot_custom_out(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dot_custom")
     custom = "build/diagram.dot"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot", "--out", custom])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--out", custom]
+    )
     assert result.exit_code == 0, result.output
 
     expected = pkg_dir / custom
@@ -212,7 +214,7 @@ def test_starmap_dot_belief_annotation(tmp_path):
     """With priors+beliefs present, knowledge nodes carry a `(P → B)` substring."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dot_belief")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
 
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
@@ -226,9 +228,9 @@ def test_starmap_dot_no_beliefs(tmp_path):
     pkg_dir = tmp_path / "starmap_dot_no_infer"
     _write_base_package(pkg_dir, name="starmap_dot_no_infer")
     _write_minimal_source(pkg_dir, "starmap_dot_no_infer")
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
 
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
@@ -593,7 +595,7 @@ def test_starmap_cli_theme_flag(tmp_path):
     """`gaia starmap --format dot --theme stellaris` produces dot with sfdp layout."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_theme")
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "dot", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "stellaris"]
     )
     assert result.exit_code == 0, result.output
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
@@ -604,7 +606,7 @@ def test_starmap_cli_theme_flag(tmp_path):
 def test_starmap_cli_theme_default_is_light(tmp_path):
     """Without `--theme`, output stays on the light/TB layout (regression guard)."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_default_theme")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
     assert "layout=sfdp" not in content
@@ -615,7 +617,9 @@ def test_starmap_cli_theme_default_is_light(tmp_path):
 def test_starmap_cli_theme_dark_alias(tmp_path):
     """`--theme dark` is accepted and produces stellaris output."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dark")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot", "--theme", "dark"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "dark"]
+    )
     assert result.exit_code == 0, result.output
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
     assert "layout=sfdp" in content
@@ -624,7 +628,9 @@ def test_starmap_cli_theme_dark_alias(tmp_path):
 def test_starmap_cli_theme_invalid(tmp_path):
     """Unknown theme exits non-zero with a clear message."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_theme")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot", "--theme", "bogus"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "bogus"]
+    )
     assert result.exit_code != 0
     assert "theme" in result.output.lower()
 
@@ -729,7 +735,7 @@ def _has_graphviz() -> bool:
 def test_starmap_svg_invalid_format_rejected(tmp_path):
     """`--format` only accepts 'html', 'dot', 'svg'."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_fmt")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "garbage"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "garbage"])
     assert result.exit_code != 0
     assert "format" in result.output.lower()
 
@@ -739,7 +745,7 @@ def test_starmap_svg_stellaris_end_to_end(tmp_path):
     """`--format svg --theme stellaris` writes a paper-ready glowing SVG."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_stellaris")
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
     )
     assert result.exit_code == 0, result.output
 
@@ -779,7 +785,7 @@ def test_starmap_svg_stellaris_well_formed_xml(tmp_path):
 
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_xml")
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
     )
     assert result.exit_code == 0, result.output
 
@@ -792,7 +798,9 @@ def test_starmap_svg_stellaris_well_formed_xml(tmp_path):
 def test_starmap_svg_dark_alias(tmp_path):
     """`--theme dark` produces the same stellaris SVG output."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_dark")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "dark"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "dark"]
+    )
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
     assert "<defs>" in svg
@@ -804,7 +812,9 @@ def test_starmap_svg_dark_alias(tmp_path):
 def test_starmap_svg_light_no_defs(tmp_path):
     """Light theme SVG goes through `dot` and skips the stellaris post-process."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_light")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "light"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "light"]
+    )
     assert result.exit_code == 0, result.output
 
     svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
@@ -821,7 +831,7 @@ def test_starmap_svg_light_no_defs(tmp_path):
 def test_starmap_svg_default_theme_is_light(tmp_path):
     """`--format svg` without `--theme` defaults to the light variant."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_default")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "svg"])
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
     assert 'id="contra-glow"' not in svg
@@ -835,6 +845,7 @@ def test_starmap_svg_custom_out_path(tmp_path):
     result = runner.invoke(
         app,
         [
+            "inspect",
             "starmap",
             str(pkg_dir),
             "--format",
@@ -868,7 +879,7 @@ def test_starmap_svg_graphviz_missing_error_message(tmp_path, monkeypatch):
     monkeypatch.setattr("shutil.which", fake_which)
 
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
     )
     assert result.exit_code != 0
     msg = result.output.lower()
@@ -977,7 +988,17 @@ def test_starmap_svg_stellaris_includes_legend(tmp_path):
     out = "the.svg"
     result = runner.invoke(
         app,
-        ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris", "--out", out],
+        [
+            "inspect",
+            "starmap",
+            str(pkg_dir),
+            "--format",
+            "svg",
+            "--theme",
+            "stellaris",
+            "--out",
+            out,
+        ],
     )
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / out).read_text(encoding="utf-8")
@@ -992,7 +1013,7 @@ def test_starmap_svg_light_no_legend(tmp_path):
     out = "the.svg"
     result = runner.invoke(
         app,
-        ["starmap", str(pkg_dir), "--format", "svg", "--theme", "light", "--out", out],
+        ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "light", "--out", out],
     )
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / out).read_text(encoding="utf-8")
@@ -1211,7 +1232,7 @@ def test_starmap_replay_cli_smoke(tmp_path):
     out_path = tmp_path / "replay.html"
     result = runner.invoke(
         app,
-        ["starmap-replay", str(_STARMAP_REPLAY_FIXTURE), "--out", str(out_path)],
+        ["inspect", "starmap-replay", str(_STARMAP_REPLAY_FIXTURE), "--out", str(out_path)],
     )
     assert result.exit_code == 0, result.output
     html = out_path.read_text(encoding="utf-8")
@@ -1229,7 +1250,7 @@ def test_starmap_replay_cli_rejects_non_directory(tmp_path):
     """Replaying against a file (not a package directory) fails with exit code 1."""
     f = tmp_path / "not_a_dir"
     f.write_text("hello", encoding="utf-8")
-    result = runner.invoke(app, ["starmap-replay", str(f)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(f)])
     assert result.exit_code == 1
     assert "is not a directory" in result.output
 
@@ -1238,7 +1259,7 @@ def test_starmap_replay_cli_reports_missing_logs(tmp_path):
     """Replaying a directory missing its lkm-discovery JSONL logs surfaces both paths."""
     pkg_dir = tmp_path / "empty_pkg"
     pkg_dir.mkdir()
-    result = runner.invoke(app, ["starmap-replay", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(pkg_dir)])
     assert result.exit_code == 1
     assert "missing timeline log" in result.output
     assert "graph_growth_log.jsonl" in result.output
@@ -1354,7 +1375,7 @@ def test_starmap_replay_cli_with_real_package_triggers_layout_pipeline(tmp_path)
     out_path = tmp_path / "real_replay.html"
     result = runner.invoke(
         app,
-        ["starmap-replay", str(pkg_dir), "--out", str(out_path)],
+        ["inspect", "starmap-replay", str(pkg_dir), "--out", str(out_path)],
     )
     assert result.exit_code == 0, result.output
     html = out_path.read_text(encoding="utf-8")
@@ -1379,7 +1400,7 @@ def test_starmap_invalid_format_rejects_with_exit_2(tmp_path):
     _write_base_package(pkg_dir, name="starmap_bad_fmt")
     _write_minimal_source(pkg_dir, "starmap_bad_fmt")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "pdf"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "pdf"])
     assert result.exit_code == 2
     assert "--format must be one of" in result.output
 
@@ -1390,7 +1411,7 @@ def test_starmap_invalid_theme_rejects_with_exit_2(tmp_path):
     _write_base_package(pkg_dir, name="starmap_bad_theme")
     _write_minimal_source(pkg_dir, "starmap_bad_theme")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--theme", "neon"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--theme", "neon"])
     assert result.exit_code == 2
     assert "--theme must be one of" in result.output
 
@@ -1401,7 +1422,7 @@ def test_starmap_stale_ir_hash_errors(tmp_path):
     # Corrupt the recorded ir_hash so the freshness gate fires.
     (pkg_dir / ".gaia" / "ir_hash").write_text("not-the-real-hash\n")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "stale" in result.output
 
@@ -1411,7 +1432,7 @@ def test_starmap_corrupt_ir_json_errors(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_ir_json")
     (pkg_dir / ".gaia" / "ir.json").write_text("{ this is not json")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "ir.json is not valid JSON" in result.output
 
@@ -1421,7 +1442,7 @@ def test_starmap_corrupt_beliefs_json_errors(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_beliefs_json")
     (pkg_dir / ".gaia" / "beliefs.json").write_text("{ broken")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "beliefs.json" in result.output and "not valid JSON" in result.output
 
@@ -1434,7 +1455,7 @@ def test_starmap_stale_beliefs_errors(tmp_path):
     data["ir_hash"] = "wrong-hash"
     beliefs_path.write_text(json.dumps(data))
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "beliefs are stale" in result.output
 
@@ -1445,7 +1466,7 @@ def test_starmap_render_html_missing_placeholder_via_monkeypatch(tmp_path, monke
     from gaia.cli.commands import starmap as starmap_mod
 
     monkeypatch.setattr(starmap_mod, "_load_template", lambda: "<html>no marker</html>")
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "placeholder" in result.output
 
@@ -1460,7 +1481,14 @@ def test_starmap_replay_missing_template_exits_1(tmp_path, monkeypatch):
     monkeypatch.setattr(sr, "_load_template", lambda: "<html>no marker</html>")
 
     result = runner.invoke(
-        app, ["starmap-replay", str(_STARMAP_REPLAY_FIXTURE), "--out", str(tmp_path / "x.html")]
+        app,
+        [
+            "inspect",
+            "starmap-replay",
+            str(_STARMAP_REPLAY_FIXTURE),
+            "--out",
+            str(tmp_path / "x.html"),
+        ],
     )
     assert result.exit_code == 1
     assert "placeholder" in result.output
@@ -1481,7 +1509,7 @@ def test_starmap_replay_validates_schema_warning_lines(tmp_path):
     )
 
     out_path = tmp_path / "out.html"
-    result = runner.invoke(app, ["starmap-replay", str(pkg_dir), "--out", str(out_path)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(pkg_dir), "--out", str(out_path)])
     assert result.exit_code == 0, result.output
     assert "Warning:" in result.output
     assert "schema_version" in result.output
@@ -2118,7 +2146,7 @@ def test_starmap_validation_error_exits_1(tmp_path, monkeypatch):
         errors: ClassVar[list[str]] = ["something is broken"]
 
     monkeypatch.setattr(starmap_mod, "validate_local_graph", lambda _g: _Result())
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "Warning:" in result.output
     assert "something is broken" in result.output
@@ -2135,7 +2163,7 @@ def test_starmap_load_failure_exits_1(tmp_path, monkeypatch):
         raise GaiaPackagingError("simulated load failure")
 
     monkeypatch.setattr(starmap_mod, "load_gaia_package", _boom)
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "simulated load failure" in result.output
 
@@ -2151,7 +2179,7 @@ def test_starmap_stored_ir_mismatches_compiled_ir(tmp_path):
     data["package_name"] = "TAMPERED"
     ir_path.write_text(json.dumps(data))
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "stale" in result.output
 

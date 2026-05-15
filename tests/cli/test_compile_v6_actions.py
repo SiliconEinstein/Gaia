@@ -44,7 +44,7 @@ def test_compile_v6_actions_package(tmp_path):
         '__all__ = ["favored"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())

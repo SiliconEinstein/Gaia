@@ -40,10 +40,10 @@ def test_check_warrants_outputs_review_list(tmp_path):
     pkg_dir = tmp_path / "check_warrants"
     _write_v6_warrant_package(pkg_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", "--warrants", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--warrants", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Review warrants:" in result.output
     assert "github:check_warrants::action::derive_conclusion" in result.output
@@ -57,10 +57,10 @@ def test_check_warrants_blind_omits_author_priors_and_status_values(tmp_path):
     pkg_dir = tmp_path / "check_warrants"
     _write_v6_warrant_package(pkg_dir, with_prior=True)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["check", "--warrants", "--blind", str(pkg_dir)])
+    result = runner.invoke(app, ["build", "check", "--warrants", "--blind", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Review warrants:" in result.output
     assert "github:check_warrants::action::derive_conclusion" in result.output

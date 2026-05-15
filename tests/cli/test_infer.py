@@ -39,10 +39,10 @@ def test_infer_with_priors_py(tmp_path):
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Method:" in result.output
 
@@ -63,10 +63,10 @@ def test_infer_without_priors_py(tmp_path):
         '__all__ = ["evidence", "hypothesis", "s"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
@@ -82,7 +82,7 @@ def test_infer_fails_when_compiled_artifacts_are_stale(tmp_path):
         '__all__ = ["main_claim"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     (pkg_dir / "infer_demo" / "__init__.py").write_text(
@@ -91,7 +91,7 @@ def test_infer_fails_when_compiled_artifacts_are_stale(tmp_path):
         '__all__ = ["main_claim"]\n'
     )
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code != 0
     assert "stale" in result.output.lower()
 
@@ -114,10 +114,10 @@ def test_infer_with_deduction_strategy(tmp_path):
         'register_prior(instance, value=0.5, justification="Follows from law.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
 
@@ -143,10 +143,10 @@ def test_infer_runs_unreviewed_v6_actions_for_local_preview(tmp_path):
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "no strategies or operators were lowered" not in result.output
 
@@ -184,7 +184,7 @@ def test_infer_ignores_rejected_review_manifest_for_local_preview(tmp_path):
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     loaded = load_gaia_package(pkg_dir)
@@ -200,7 +200,7 @@ def test_infer_ignores_rejected_review_manifest_for_local_preview(tmp_path):
         json.dumps(ReviewManifest(reviews=rejected).model_dump(mode="json"), indent=2)
     )
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
@@ -237,7 +237,7 @@ def test_infer_ignores_stale_review_manifest_target_ids_for_local_preview(tmp_pa
         'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     loaded = load_gaia_package(pkg_dir)
@@ -262,7 +262,7 @@ def test_infer_ignores_stale_review_manifest_target_ids_for_local_preview(tmp_pa
         )
     )
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
@@ -295,10 +295,10 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
         'register_prior(evidence, value=0.9, justification="Observed evidence.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
@@ -321,10 +321,10 @@ def test_infer_with_root_observe(tmp_path):
         'register_prior(root, value=0.82, justification="Measurement reliability.")\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
@@ -362,7 +362,7 @@ def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
         '__all__ = ["local_obs"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     # Write dep_beliefs with high upstream belief
@@ -386,7 +386,7 @@ def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
         )
     )
 
-    result = runner.invoke(app, ["infer", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "upstream belief" in result.output.lower()
 
@@ -504,10 +504,10 @@ def test_infer_depth_0_unchanged(tmp_path, monkeypatch):
     (pkg_dir / "depth0" / "__init__.py").write_text(
         'from gaia.engine.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
     )
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", "--depth", "0", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", "--depth", "0", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     # No merge messages
     assert "merged graph" not in result.output.lower()
@@ -521,10 +521,10 @@ def test_infer_depth_1_no_deps_falls_back(tmp_path, monkeypatch):
     (pkg_dir / "nodeps" / "__init__.py").write_text(
         'from gaia.engine.lang import claim\n\nh = claim("Hypothesis.")\n__all__ = ["h"]\n'
     )
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    result = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])
+    result = runner.invoke(app, ["run", "infer", "--depth", "1", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "no -gaia dependencies" in result.output.lower()
 
@@ -538,7 +538,7 @@ def test_infer_depth_1_merges_dep_graphs(tmp_path, monkeypatch):
     _write_dep_package(dep_dir, name="upstream_dep", monkeypatch=monkeypatch)
 
     # Compile the dep so it has .gaia/ir.json
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     # Create local package that imports from upstream
@@ -559,7 +559,7 @@ def test_infer_depth_1_merges_dep_graphs(tmp_path, monkeypatch):
         '__all__ = ["local_obs", "local_result"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     # Mock _locate_dependency_manifest_root to point to our dep
@@ -567,7 +567,7 @@ def test_infer_depth_1_merges_dep_graphs(tmp_path, monkeypatch):
         "gaia.engine.packaging._locate_dependency_manifest_root",
         return_value=dep_dir,
     ):
-        result = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])
+        result = runner.invoke(app, ["run", "infer", "--depth", "1", str(pkg_dir)])
 
     assert result.exit_code == 0, result.output
     assert "merged graph" in result.output.lower()
@@ -588,7 +588,7 @@ def test_infer_depth_1_beliefs_differ_from_flat_priors(tmp_path, monkeypatch):
     dep_dir = tmp_path / "upstream_dep"
     _write_dep_package(dep_dir, name="upstream_dep", monkeypatch=monkeypatch)
 
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     # Create local package referencing upstream
@@ -609,11 +609,11 @@ def test_infer_depth_1_beliefs_differ_from_flat_priors(tmp_path, monkeypatch):
         '__all__ = ["local_obs", "local_result"]\n'
     )
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     # Run with --depth 0 (flat priors)
-    result_flat = runner.invoke(app, ["infer", "--depth", "0", str(pkg_dir)])
+    result_flat = runner.invoke(app, ["run", "infer", "--depth", "0", str(pkg_dir)])
     assert result_flat.exit_code == 0, result_flat.output
     beliefs_flat = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
     beliefs_flat_by_id = {b["knowledge_id"]: b["belief"] for b in beliefs_flat["beliefs"]}
@@ -623,7 +623,7 @@ def test_infer_depth_1_beliefs_differ_from_flat_priors(tmp_path, monkeypatch):
         "gaia.engine.packaging._locate_dependency_manifest_root",
         return_value=dep_dir,
     ):
-        result_joint = runner.invoke(app, ["infer", "--depth", "1", str(pkg_dir)])
+        result_joint = runner.invoke(app, ["run", "infer", "--depth", "1", str(pkg_dir)])
     assert result_joint.exit_code == 0, result_joint.output
     beliefs_joint = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
     beliefs_joint_by_id = {b["knowledge_id"]: b["belief"] for b in beliefs_joint["beliefs"]}
