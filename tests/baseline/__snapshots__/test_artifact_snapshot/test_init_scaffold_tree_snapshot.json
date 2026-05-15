@@ -6,7 +6,7 @@
       "path": ".gitignore"
     },
     {
-      "content": "3.13\n",
+      "content": "3.12\n",
       "kind": "text",
       "path": ".python-version"
     },
@@ -16,7 +16,7 @@
       "path": "README.md"
     },
     {
-      "content": "[project]\nname = \"demo-gaia\"\nversion = \"0.1.0\"\ndescription = \"Add your description here\"\nreadme = \"README.md\"\nauthors = [\n    { name = \"<AUTHOR>\", email = \"<AUTHOR_EMAIL>\" }\n]\nrequires-python = \">=3.13\"\ndependencies = []\n\n[build-system]\nrequires = [\"uv_build>=0.11.3,<0.12.0\"]\nbuild-backend = \"uv_build\"\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/demo\"]\n\n[tool.gaia]\ntype = \"knowledge-package\"\nuuid = \"<UUID4>\"\n",
+      "content": "[project]\nname = \"demo-gaia\"\nversion = \"0.1.0\"\ndescription = \"Add your description here\"\nreadme = \"README.md\"\nauthors = [\n    { name = \"<AUTHOR>\", email = \"<AUTHOR_EMAIL>\" }\n]\nrequires-python = \">=3.12\"\ndependencies = []\n\n[build-system]\nrequires = [\"uv_build>=0.11.3,<0.12.0\"]\nbuild-backend = \"uv_build\"\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/demo\"]\n\n[tool.gaia]\ntype = \"knowledge-package\"\nuuid = \"<UUID4>\"\n",
       "kind": "text",
       "path": "pyproject.toml"
     },

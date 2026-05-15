@@ -125,14 +125,29 @@ def test_starmap_html_artifact_path_snapshot(
 # --------------------------------------------------------------------------- #
 
 
-def test_init_scaffold_tree_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
+def test_init_scaffold_tree_snapshot(tmp_path: Path, run_gaia, snapshot, monkeypatch) -> None:
     """Scaffolded source files after `gaia build init <name>-gaia`.
 
     `gaia build init` also runs `uv venv` and `git init`; both produce
     machine-dependent state (.venv/.git). The fixture filter strips both,
     leaving only the scaffolded source layout (pyproject.toml, README,
     .gitignore, src/<name>/__init__.py, src/<name>/py.typed, .python-version).
+
+    Bound subprocess env so output is environment-deterministic between
+    local capture and CI:
+    - `UV_PYTHON=3.12` pins the interpreter `uv init` picks for
+      `requires-python` + `.python-version` (CI uses 3.12 via setup-python).
+    - Fake HOME with a deterministic `.gitconfig` so `uv init` always seeds
+      `authors = [...]` block (CI runners default to no git config, which
+      would omit the block entirely and break byte-identity). Author values
+      then mask to `<AUTHOR>` / `<AUTHOR_EMAIL>` per the standing maskers.
     """
+    fake_home = tmp_path / "_init_home"
+    fake_home.mkdir()
+    (fake_home / ".gitconfig").write_text("[user]\n\tname = test\n\temail = test@test.local\n")
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("UV_PYTHON", "3.12")
+
     result = run_gaia("build", "init", "demo-gaia", cwd=tmp_path)
     assert result.exit_code == 0, result.stderr
     pkg_root = tmp_path / "demo-gaia"
