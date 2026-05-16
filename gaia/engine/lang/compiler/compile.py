@@ -47,6 +47,7 @@ from gaia.engine.ir import (
 from gaia.engine.ir import (
     Strategy as IrStrategy,
 )
+from gaia.engine.ir.formula import FormulaGraph
 from gaia.engine.ir.knowledge import KnowledgeType
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.ir.strategy import StrategyType
@@ -725,6 +726,7 @@ class _FormulaLoweringResult:
     knowledges: list[IrKnowledge]
     operators: list[IrOperator]
     strategies: list[IrStrategy]
+    formula_graphs: list[FormulaGraph]
 
 
 @dataclass
@@ -814,6 +816,7 @@ class _ActionCompiler:
     action_label_map: dict[str, str] = field(default_factory=dict)
     target_action_labels_by_id: dict[str, str] = field(default_factory=dict)
     action_operators: list[IrOperator] = field(default_factory=list)
+    formula_graphs: list[FormulaGraph] = field(default_factory=list)
     action_target_ids_by_object: dict[int, str] = field(default_factory=dict)
     formalization_dependencies: list[dict[str, Any]] = field(default_factory=list)
     formalization_materializations: list[dict[str, Any]] = field(default_factory=list)
@@ -1215,6 +1218,7 @@ class _ActionCompiler:
             )
         )
         self.generated_knowledges.extend(lowered.knowledges)
+        self.formula_graphs.extend(lowered.formula_graphs)
         self._record_decomposition_lowering(lowered)
         return formula_id
 
@@ -1835,7 +1839,12 @@ def _lower_formula_claims(
     knowledge_map: dict[int, str],
     ir_knowledges: list[IrKnowledge],
 ) -> _FormulaLoweringResult:
-    result = _FormulaLoweringResult(knowledges=[], operators=[], strategies=[])
+    result = _FormulaLoweringResult(
+        knowledges=[],
+        operators=[],
+        strategies=[],
+        formula_graphs=[],
+    )
     for knowledge in knowledge_nodes:
         if not _is_local(knowledge, pkg):
             continue
@@ -1851,6 +1860,7 @@ def _lower_formula_claims(
         result.knowledges.extend(lowered.knowledges)
         result.operators.extend(lowered.operators)
         result.strategies.extend(lowered.strategies)
+        result.formula_graphs.extend(lowered.formula_graphs)
         _apply_formula_knowledge_updates(
             ir_knowledges,
             metadata_updates=lowered.metadata_updates,
@@ -1876,6 +1886,7 @@ def _build_graph(
     extension_lowered_knowledges_updated: list[IrKnowledge],
     ir_operators: list[IrOperator],
     action_operators: list[IrOperator],
+    action_formula_graphs: list[FormulaGraph],
     ir_strategies: list[IrStrategy],
     ir_composes: list[IrCompose],
 ) -> LocalCanonicalGraph:
@@ -1902,6 +1913,7 @@ def _build_graph(
             *extension_lowered.strategies,
         ],
         composes=ir_composes,
+        formula_graphs=[*formula_generated.formula_graphs, *action_formula_graphs],
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
     )
@@ -2027,6 +2039,7 @@ def compile_package_artifact(
         extension_lowered_knowledges_updated=extension_lowered_knowledges_updated,
         ir_operators=ir_operators,
         action_operators=action_compiler.action_operators,
+        action_formula_graphs=action_compiler.formula_graphs,
         ir_strategies=ir_strategies,
         ir_composes=ir_composes,
     )

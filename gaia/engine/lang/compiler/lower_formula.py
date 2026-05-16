@@ -19,6 +19,7 @@ from gaia.engine.ir import Operator as IrOperator
 from gaia.engine.ir import Parameter as IrParameter
 from gaia.engine.ir import Strategy as IrStrategy
 from gaia.engine.ir.formalize import formalize_named_strategy
+from gaia.engine.ir.formula import FormulaEdge, FormulaGraph, FormulaNode, formula_node_id
 from gaia.engine.ir.knowledge import KnowledgeType, make_qid
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
@@ -52,6 +53,7 @@ class FormulaLoweringResult:
     strategies: list[IrStrategy] = field(default_factory=list)
     metadata_updates: dict[str, dict[str, Any]] = field(default_factory=dict)
     parameter_updates: dict[str, list[IrParameter]] = field(default_factory=dict)
+    formula_graphs: list[FormulaGraph] = field(default_factory=list)
 
 
 def lower_claim_formula(
@@ -66,8 +68,13 @@ def lower_claim_formula(
     formula = getattr(claim, "formula", None)
     if formula is None:
         return FormulaLoweringResult()
+    formula_graph = build_formula_graph(
+        formula,
+        source_claim_id=claim_id,
+        knowledge_map=knowledge_map,
+    )
     if isinstance(formula, Forall):
-        return _lower_forall(
+        result = _lower_forall(
             claim,
             formula,
             claim_id=claim_id,
@@ -75,8 +82,10 @@ def lower_claim_formula(
             package_name=package_name,
             knowledge_map=knowledge_map,
         )
+        result.formula_graphs.append(formula_graph)
+        return result
     if isinstance(formula, Exists):
-        return _lower_exists(
+        result = _lower_exists(
             claim,
             formula,
             claim_id=claim_id,
@@ -84,26 +93,208 @@ def lower_claim_formula(
             package_name=package_name,
             knowledge_map=knowledge_map,
         )
+        result.formula_graphs.append(formula_graph)
+        return result
 
     operator_name, _ = _connective_operator(formula)
     if operator_name is None:
         if not _is_atomic_formula(formula):
             raise NotImplementedError(f"Unsupported formula lowering: {type(formula).__name__}")
-        return _lower_formula_to_claim(
+        result = _lower_formula_to_claim(
             formula,
             target_id=claim_id,
             namespace=namespace,
             package_name=package_name,
             knowledge_map=knowledge_map,
         )
+        result.formula_graphs.append(formula_graph)
+        return result
 
-    return _lower_formula_to_claim(
+    result = _lower_formula_to_claim(
         formula,
         target_id=claim_id,
         namespace=namespace,
         package_name=package_name,
         knowledge_map=knowledge_map,
     )
+    result.formula_graphs.append(formula_graph)
+    return result
+
+
+def canonical_formula_descriptor(
+    formula: Any,
+    *,
+    knowledge_map: dict[int, str],
+    bindings: _BindingMap | None = None,
+) -> dict[str, Any]:
+    """Return the canonical descriptor used for formula atom nodes."""
+    return _formula_descriptor(formula, knowledge_map=knowledge_map, bindings=bindings)
+
+
+def canonical_term_descriptor(
+    term: Any,
+    *,
+    knowledge_map: dict[int, str],
+    bindings: _BindingMap | None = None,
+) -> dict[str, Any]:
+    """Return the canonical descriptor used for formula term nodes."""
+    return _term_descriptor(term, knowledge_map=knowledge_map, bindings=bindings)
+
+
+def build_formula_graph(
+    formula: Any,
+    *,
+    source_claim_id: str,
+    knowledge_map: dict[int, str],
+    bindings: _BindingMap | None = None,
+) -> FormulaGraph:
+    """Build the content-addressed formula graph for one source claim."""
+    builder = _FormulaGraphBuilder(knowledge_map=knowledge_map, bindings=bindings)
+    root = builder.formula_node(formula)
+    return FormulaGraph(
+        source_claim=source_claim_id,
+        root=root,
+        nodes=list(builder.nodes.values()),
+        edges=builder.edges,
+    )
+
+
+class _FormulaGraphBuilder:
+    def __init__(
+        self,
+        *,
+        knowledge_map: dict[int, str],
+        bindings: _BindingMap | None = None,
+    ) -> None:
+        self.knowledge_map = knowledge_map
+        self.bindings = bindings
+        self.nodes: dict[str, FormulaNode] = {}
+        self.edges: list[FormulaEdge] = []
+        self._edge_keys: set[tuple[str, str, str, int | None]] = set()
+
+    def formula_node(self, formula: Any) -> str:
+        if _is_atomic_formula(formula):
+            return self._atomic_formula_node(formula)
+
+        operator_name, children = _connective_operator(formula)
+        if operator_name is not None:
+            child_ids = [self.formula_node(child) for child in children]
+            descriptor = {
+                "kind": "op",
+                "operator": str(operator_name),
+                "children": child_ids,
+            }
+            node_id = self._add_node("op", descriptor)
+            self._add_connective_edges(node_id, operator_name, child_ids)
+            return node_id
+
+        if isinstance(formula, (Forall, Exists)):
+            variable_id = self.term_node(formula.variable)
+            body_id = self.formula_node(formula.body)
+            quantifier = "forall" if isinstance(formula, Forall) else "exists"
+            descriptor = {
+                "kind": "quantifier",
+                "quantifier": quantifier,
+                "variable": formula.variable.symbol,
+                "domain": _domain_name(formula.variable.domain),
+                "body": body_id,
+            }
+            node_id = self._add_node("quantifier", descriptor)
+            self._add_edge(FormulaEdge(source=node_id, target=variable_id, role="bound_variable"))
+            self._add_edge(FormulaEdge(source=node_id, target=body_id, role="body"))
+            return node_id
+
+        raise NotImplementedError(f"Unsupported formula graph: {type(formula).__name__}")
+
+    def term_node(self, term: Any) -> str:
+        descriptor = canonical_term_descriptor(
+            term,
+            knowledge_map=self.knowledge_map,
+            bindings=self.bindings,
+        )
+        if isinstance(term, Variable):
+            return self._add_node("variable", descriptor)
+        if isinstance(term, Constant):
+            return self._add_node("constant", descriptor)
+        if isinstance(term, FunctionApp):
+            node_id = self._add_node("term", descriptor)
+            for index, arg in enumerate(term.args):
+                self._add_edge(
+                    FormulaEdge(
+                        source=node_id,
+                        target=self.term_node(arg),
+                        role="arg",
+                        index=index,
+                    )
+                )
+            return node_id
+        if isinstance(term, ArithOp):
+            node_id = self._add_node("term", descriptor)
+            self._add_edge(
+                FormulaEdge(source=node_id, target=self.term_node(term.left), role="left")
+            )
+            self._add_edge(
+                FormulaEdge(source=node_id, target=self.term_node(term.right), role="right")
+            )
+            return node_id
+        if isinstance(term, ClaimAtom):
+            return self._add_node("atom", descriptor)
+        return self._add_node("term", descriptor)
+
+    def _atomic_formula_node(self, formula: Any) -> str:
+        descriptor = canonical_formula_descriptor(
+            formula,
+            knowledge_map=self.knowledge_map,
+            bindings=self.bindings,
+        )
+        node_id = self._add_node("atom", descriptor)
+        if isinstance(formula, UserPredicate):
+            for index, arg in enumerate(formula.args):
+                self._add_edge(
+                    FormulaEdge(
+                        source=node_id,
+                        target=self.term_node(arg),
+                        role="arg",
+                        index=index,
+                    )
+                )
+        binary_terms = _binary_formula_terms(formula)
+        if binary_terms is not None:
+            left, right = binary_terms
+            self._add_edge(FormulaEdge(source=node_id, target=self.term_node(left), role="left"))
+            self._add_edge(FormulaEdge(source=node_id, target=self.term_node(right), role="right"))
+        return node_id
+
+    def _add_connective_edges(
+        self,
+        node_id: str,
+        operator_name: OperatorType,
+        child_ids: list[str],
+    ) -> None:
+        if operator_name == OperatorType.IMPLICATION:
+            self._add_edge(FormulaEdge(source=node_id, target=child_ids[0], role="antecedent"))
+            self._add_edge(FormulaEdge(source=node_id, target=child_ids[1], role="consequent"))
+            return
+        if operator_name == OperatorType.EQUIVALENCE:
+            self._add_edge(FormulaEdge(source=node_id, target=child_ids[0], role="left"))
+            self._add_edge(FormulaEdge(source=node_id, target=child_ids[1], role="right"))
+            return
+        for index, child_id in enumerate(child_ids):
+            self._add_edge(
+                FormulaEdge(source=node_id, target=child_id, role="operand", index=index)
+            )
+
+    def _add_node(self, kind: str, descriptor: dict[str, Any]) -> str:
+        node_id = formula_node_id(descriptor)
+        self.nodes.setdefault(node_id, FormulaNode(id=node_id, kind=kind, descriptor=descriptor))
+        return node_id
+
+    def _add_edge(self, edge: FormulaEdge) -> None:
+        key = (edge.source, edge.target, edge.role, edge.index)
+        if key in self._edge_keys:
+            return
+        self._edge_keys.add(key)
+        self.edges.append(edge)
 
 
 def _lower_forall(
@@ -510,6 +701,12 @@ def _is_atomic_formula(formula: Any) -> bool:
             UserPredicate,
         ),
     )
+
+
+def _binary_formula_terms(formula: Any) -> tuple[Any, Any] | None:
+    if isinstance(formula, (Equals, NotEquals, Greater, GreaterEqual, Less, LessEqual)):
+        return formula.left, formula.right
+    return None
 
 
 def _source_atom_metadata(

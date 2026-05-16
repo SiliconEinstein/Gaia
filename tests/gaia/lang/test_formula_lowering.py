@@ -30,6 +30,12 @@ from gaia.engine.lang.runtime.knowledge import _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
 
 
+def _formula_graph_for(artifact, source_claim_id):
+    return next(
+        graph for graph in artifact.graph.formula_graphs if graph.source_claim == source_claim_id
+    )
+
+
 def test_formula_dsl_helpers_construct_formula_ast():
     particle = Domain(content="Particles", members=["p1", "p2"])
     x = Variable(symbol="x", domain=particle)
@@ -233,6 +239,127 @@ def test_land_claim_atom_formula_lowers_to_conjunction_operator():
     assert op.operator == "conjunction"
     assert op.variables == ["t:formula_land_pkg::a", "t:formula_land_pkg::b"]
     assert op.conclusion == "t:formula_land_pkg::both"
+
+
+def test_repeated_predicate_formula_builds_one_canonical_atom_node():
+    pkg = CollectedPackage(name="formula_graph_repeated_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        particle = Domain(content="Particles", members=["p1", "p2"])
+        x = Variable(symbol="x", domain=particle)
+        stable = PredicateSymbol(name="Stable", arg_domains=(particle,))
+        repeated = claim(
+            "Stable x appears twice.",
+            formula=land(UserPredicate(stable, (x,)), UserPredicate(stable, (x,))),
+        )
+        repeated.label = "repeated"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    graph = _formula_graph_for(artifact, "t:formula_graph_repeated_pkg::repeated")
+
+    predicate_nodes = [
+        node
+        for node in graph.nodes
+        if node.kind == "atom" and node.descriptor.get("kind") == "predicate"
+    ]
+    assert len(predicate_nodes) == 1
+
+    root_edges = [
+        edge for edge in graph.edges if edge.source == graph.root and edge.role == "operand"
+    ]
+    assert len(root_edges) == 2
+    assert {edge.target for edge in root_edges} == {predicate_nodes[0].id}
+
+
+def test_formula_graph_records_nested_connective_shape():
+    pkg = CollectedPackage(name="formula_graph_nested_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        a.label = "a"
+        b = claim("B.")
+        b.label = "b"
+        c = claim("C.")
+        c.label = "c"
+        nested = claim(
+            "A and B imply C.",
+            formula=implies(land(ClaimAtom(a), ClaimAtom(b)), ClaimAtom(c)),
+        )
+        nested.label = "nested"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    graph = _formula_graph_for(artifact, "t:formula_graph_nested_pkg::nested")
+    nodes = {node.id: node for node in graph.nodes}
+    root = nodes[graph.root]
+
+    assert root.kind == "op"
+    assert root.descriptor["operator"] == "implication"
+    root_edges = {edge.role: edge for edge in graph.edges if edge.source == graph.root}
+    assert set(root_edges) == {"antecedent", "consequent"}
+    antecedent = nodes[root_edges["antecedent"].target]
+    assert antecedent.kind == "op"
+    assert antecedent.descriptor["operator"] == "conjunction"
+
+
+def test_quantifier_formula_graph_preserves_finite_grounding_behavior():
+    pkg = CollectedPackage(name="formula_graph_forall_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        particle = Domain(content="Particles", members=["p1", "p2"])
+        x = Variable(symbol="x", domain=particle)
+        stable = PredicateSymbol(name="Stable", arg_domains=(particle,))
+        universal = claim(
+            "Every particle is stable.",
+            formula=forall(x, UserPredicate(stable, (x,))),
+            kind=ClaimKind.QUANTIFIED,
+        )
+        universal.label = "stable_all"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    graph = _formula_graph_for(artifact, "t:formula_graph_forall_pkg::stable_all")
+    root = next(node for node in graph.nodes if node.id == graph.root)
+
+    assert root.kind == "quantifier"
+    assert root.descriptor["quantifier"] == "forall"
+    assert {edge.role for edge in graph.edges if edge.source == graph.root} == {
+        "bound_variable",
+        "body",
+    }
+    assert [
+        s
+        for s in artifact.graph.strategies
+        if (s.metadata or {}).get("formula_lowering") == "forall_grounding"
+    ]
+
+
+def test_cross_graph_same_atom_uses_same_formula_node_id():
+    pkg = CollectedPackage(name="formula_graph_cross_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        particle = Domain(content="Particles", members=["p1", "p2"])
+        x = Variable(symbol="x", domain=particle)
+        stable = PredicateSymbol(name="Stable", arg_domains=(particle,))
+        first = claim("Stable x, first.", formula=UserPredicate(stable, (x,)))
+        first.label = "first"
+        second = claim("Stable x, second.", formula=UserPredicate(stable, (x,)))
+        second.label = "second"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    first_graph = _formula_graph_for(artifact, "t:formula_graph_cross_pkg::first")
+    second_graph = _formula_graph_for(artifact, "t:formula_graph_cross_pkg::second")
+
+    first_atom = next(node for node in first_graph.nodes if node.kind == "atom")
+    second_atom = next(node for node in second_graph.nodes if node.kind == "atom")
+    assert first_atom.id == second_atom.id
+    assert first_graph.source_claim != second_graph.source_claim
 
 
 def test_top_level_equals_formula_records_binding_without_orphan_atom():
