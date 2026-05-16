@@ -148,20 +148,6 @@ class UserPredicate:
 
 
 @dataclass(frozen=True)
-class Causes:
-    """Built-in causal predicate. v0.5: marker; v0.6: interventional factor."""
-
-    cause: Any
-    effect: Any
-    __gaia_formula__: ClassVar[bool] = True
-
-    def __post_init__(self) -> None:
-        """Validate cause and effect operands as Term nodes."""
-        _check_term("cause", self.cause)
-        _check_term("effect", self.effect)
-
-
-@dataclass(frozen=True)
 class ClaimAtom:
     """A reference to another Claim's truth — the bridge from formula land to claim graph."""
 

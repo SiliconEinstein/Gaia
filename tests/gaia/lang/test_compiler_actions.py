@@ -14,9 +14,9 @@ from gaia.engine.lang import (
     equal,
     exclusive,
     infer,
+    materialize,
     observe,
     parameter,
-    tension,
 )
 from gaia.engine.lang import (
     Probability as ProbabilityDomain,
@@ -277,6 +277,7 @@ def test_compile_associate_action_to_association_strategy():
             b,
             p_a_given_b=0.75,
             p_b_given_a=0.20,
+            pattern=None,
             rationale="Observed cohort association.",
             label="assoc_ab",
         )
@@ -287,6 +288,7 @@ def test_compile_associate_action_to_association_strategy():
             "b": b,
             "p_a_given_b": 0.75,
             "p_b_given_a": 0.20,
+            "pattern": None,
         }
 
     compiled = compile_package_artifact(pkg)
@@ -308,7 +310,26 @@ def test_compile_associate_action_to_association_strategy():
         "b": "github:v6_actions::b",
         "p_a_given_b": 0.75,
         "p_b_given_a": 0.20,
+        "pattern": None,
     }
+
+
+def test_associate_pattern_validation():
+    a = Claim("A.")
+    b = Claim("B.")
+
+    helper = associate(a, b, p_a_given_b=0.75, p_b_given_a=0.8, pattern="equal")
+    assert helper.from_actions[0].pattern == "equal"
+    assert helper.metadata["relation"]["pattern"] == "equal"
+
+    associate(a, b, p_a_given_b=0.2, p_b_given_a=0.3, pattern="contradict")
+    associate(a, b, p_a_given_b=0.2, p_b_given_a=0.3, pattern="exclusive")
+
+    with pytest.raises(ValueError, match="pattern='equal'"):
+        associate(a, b, p_a_given_b=0.2, p_b_given_a=0.8, pattern="equal")
+
+    with pytest.raises(ValueError, match="pattern='exclusive'"):
+        associate(a, b, p_a_given_b=0.7, p_b_given_a=0.2, pattern="exclusive")
 
 
 def test_associate_rejects_inline_prior_keywords():
@@ -378,12 +399,13 @@ def test_compile_candidate_relation_to_formalization_manifest_only():
         a.label = "a"
         b = Claim("B.")
         b.label = "b"
+        c = Claim("C.")
+        c.label = "c"
         setting = Claim("The comparison uses the same observable definition.")
         setting.label = "same_observable"
         action = candidate_relation(
-            a,
-            b,
-            proposed="equal",
+            claims=[a, b, c],
+            pattern="equal",
             background=[setting],
             rationale="A and B may be the same scientific claim.",
             label="maybe_same_claim",
@@ -392,12 +414,14 @@ def test_compile_candidate_relation_to_formalization_manifest_only():
 
     compiled = compile_package_artifact(pkg)
 
-    assert action.proposed == "equal"
+    assert action.claims == (a, b, c)
+    assert action.pattern == "equal"
     assert compiled.graph.strategies == []
     assert compiled.graph.operators == []
     assert {k.id for k in compiled.graph.knowledges} == {
         "github:v6_actions::a",
         "github:v6_actions::b",
+        "github:v6_actions::c",
         "github:v6_actions::same_observable",
     }
 
@@ -407,8 +431,12 @@ def test_compile_candidate_relation_to_formalization_manifest_only():
             "id": "github:v6_actions::scaffold::maybe_same_claim",
             "kind": "candidate_relation",
             "label": "maybe_same_claim",
-            "proposed": "equal",
-            "claims": ["github:v6_actions::a", "github:v6_actions::b"],
+            "pattern": "equal",
+            "claims": [
+                "github:v6_actions::a",
+                "github:v6_actions::b",
+                "github:v6_actions::c",
+            ],
             "rationale": "A and B may be the same scientific claim.",
             "status": "hypothesis",
             "metadata": {"source": "retrieval"},
@@ -417,36 +445,171 @@ def test_compile_candidate_relation_to_formalization_manifest_only():
     ]
 
 
-def test_tension_is_candidate_relation_wrapper():
+def test_candidate_relation_accepts_open_and_exclusive_multiclaim_patterns():
+    a = Claim("A.")
+    b = Claim("B.")
+    c = Claim("C.")
+
+    assert candidate_relation(claims=[a, b]).pattern is None
+    assert candidate_relation(claims=[a, b, c], pattern="exclusive").claims == (a, b, c)
+
+    with pytest.raises(ValueError, match="exactly two"):
+        candidate_relation(claims=[a, b, c], pattern="contradict")
+
+
+def test_tension_is_not_public_dsl():
+    import gaia.engine.lang as lang
+    import gaia.engine.lang.dsl as dsl
+
+    assert "tension" not in dir(lang)
+    assert "tension" not in lang.__all__
+    assert "tension" not in dsl.__all__
+
+
+def test_materialize_records_formalization_link_by_label():
     with CollectedPackage("v6_actions") as pkg:
-        a = Claim("Model predicts X.")
-        a.label = "prediction"
-        b = Claim("Experiment observes not-X.")
-        b.label = "observation"
-        action = tension(
-            a,
-            b,
-            rationale="Prediction and observation are not aligned.",
-            label="prediction_observation_tension",
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        scaffold = candidate_relation(claims=[a, b], pattern="equal", label="maybe_same")
+        equal(a, b, label="same_claim")
+        materialize(
+            scaffold,
+            by="same_claim",
+            rationale="The equality relation formalizes the candidate relation.",
+            label="maybe_same_done",
         )
 
     compiled = compile_package_artifact(pkg)
 
-    assert action.proposed == "tension"
-    assert compiled.graph.strategies == []
-    assert compiled.graph.operators == []
     assert compiled.formalization_manifest["dependencies"] == [
         {
-            "id": "github:v6_actions::scaffold::prediction_observation_tension",
+            "id": "github:v6_actions::scaffold::maybe_same",
             "kind": "candidate_relation",
-            "label": "prediction_observation_tension",
-            "proposed": "tension",
-            "claims": ["github:v6_actions::prediction", "github:v6_actions::observation"],
-            "rationale": "Prediction and observation are not aligned.",
+            "label": "maybe_same",
+            "pattern": "equal",
+            "claims": ["github:v6_actions::a", "github:v6_actions::b"],
+            "rationale": "",
             "status": "hypothesis",
             "metadata": {},
         }
     ]
+    assert compiled.formalization_manifest["materializations"] == [
+        {
+            "id": "github:v6_actions::materialization::maybe_same_done",
+            "kind": "materialization",
+            "label": "maybe_same_done",
+            "scaffold": "github:v6_actions::scaffold::maybe_same",
+            "by": ["github:v6_actions::action::same_claim"],
+            "rationale": "The equality relation formalizes the candidate relation.",
+            "metadata": {},
+        }
+    ]
+
+
+def test_materialize_records_multiple_formalizers():
+    with CollectedPackage("v6_actions") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        c = Claim("C.")
+        c.label = "c"
+        scaffold = candidate_relation(claims=[a, b, c], pattern="equal", label="maybe_same")
+        same_ab = equal(a, b, label="same_ab")
+        same_bc = equal(b, c, label="same_bc")
+        materialize(scaffold, by=[same_ab, same_bc], label="maybe_same_done")
+
+    compiled = compile_package_artifact(pkg)
+
+    assert compiled.formalization_manifest["materializations"] == [
+        {
+            "id": "github:v6_actions::materialization::maybe_same_done",
+            "kind": "materialization",
+            "label": "maybe_same_done",
+            "scaffold": "github:v6_actions::scaffold::maybe_same",
+            "by": [
+                "github:v6_actions::action::same_ab",
+                "github:v6_actions::action::same_bc",
+            ],
+            "rationale": "",
+            "metadata": {},
+        }
+    ]
+
+
+def test_materialize_rejects_scaffold_to_scaffold_links():
+    with CollectedPackage("v6_actions"):
+        a = Claim("A.")
+        b = Claim("B.")
+        scaffold = candidate_relation(claims=[a, b])
+        other_scaffold = depends_on(a, given=[b])
+
+        with pytest.raises(TypeError, match="Scaffold"):
+            materialize(scaffold, by=other_scaffold)
+
+
+def test_materialize_rejects_scaffold_labels():
+    with CollectedPackage("v6_actions"):
+        a = Claim("A.")
+        b = Claim("B.")
+        scaffold = candidate_relation(claims=[a, b], label="open_relation")
+        depends_on(a, given=[b], label="other_scaffold")
+
+        with pytest.raises(TypeError, match="Scaffold"):
+            materialize(scaffold, by="other_scaffold")
+
+
+def test_materialize_rejects_cross_package_graph_records():
+    with CollectedPackage("v6_actions") as source_pkg:
+        a = Claim("A.")
+        b = Claim("B.")
+        scaffold = candidate_relation(claims=[a, b], pattern="equal")
+
+    with CollectedPackage("other_pkg"):
+        helper = equal(a, b, label="same_ab")
+
+    assert scaffold in source_pkg.actions
+    with pytest.raises(ValueError, match="scaffold package"):
+        materialize(scaffold, by=helper)
+
+
+def test_materialize_rejects_unrelated_reasoning_record():
+    with CollectedPackage("v6_actions"):
+        a = Claim("A.")
+        b = Claim("B.")
+        c = Claim("C.")
+        d = Claim("D.")
+        scaffold = candidate_relation(claims=[a, b])
+        unrelated = equal(c, d, label="same_cd")
+
+        with pytest.raises(ValueError, match="core claims"):
+            materialize(scaffold, by=unrelated)
+
+
+def test_materialize_rejects_ambiguous_producer_claim():
+    with CollectedPackage("v6_actions"):
+        a = Claim("A.")
+        b = Claim("B.")
+        c = Claim("C.")
+        scaffold = candidate_relation(claims=[a, b], pattern="equal")
+        helper = equal(a, b, label="same_ab")
+        helper.from_actions.append(equal(a, c, label="same_ac").from_actions[0])
+
+        with pytest.raises(ValueError, match="ambiguous"):
+            materialize(scaffold, by=helper)
+
+
+def test_materialize_rejects_known_relation_pattern_conflicts():
+    with CollectedPackage("v6_actions"):
+        a = Claim("A.")
+        b = Claim("B.")
+        scaffold = candidate_relation(claims=[a, b], pattern="equal")
+        helper = contradict(a, b, label="not_both")
+
+        with pytest.raises(ValueError, match="pattern"):
+            materialize(scaffold, by=helper)
 
 
 def test_support_action_can_share_label_with_own_conclusion():

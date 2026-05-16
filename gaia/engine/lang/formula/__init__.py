@@ -2,7 +2,6 @@
 
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
 from gaia.engine.lang.formula.predicate import (
-    Causes,
     ClaimAtom,
     Equals,
     Formula,
@@ -20,7 +19,6 @@ from gaia.engine.lang.formula.term import ArithOp, Constant, FunctionApp, Term, 
 
 __all__ = [
     "ArithOp",
-    "Causes",
     "ClaimAtom",
     "Constant",
     "Equals",

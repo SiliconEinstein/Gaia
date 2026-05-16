@@ -37,12 +37,12 @@ updates. It decomposes the paper narrative into reviewable Gaia claims:
    exclusivity operators.
 
 The Bayes module does not add IR knowledge types, BP factor types, or new
-operator enums. `PredictiveModel` and `Likelihood` are action-shaped runtime
-objects; their helper claims carry `metadata["bayes"]["role"]` values
-`"prediction"` and `"comparison"` respectively. Both action subclasses go
-through the standard action lowering pipeline (see
+operator enums. `PredictiveModel` and `Likelihood` are `BayesInference`
+reasoning records; their helper claims carry `metadata["bayes"]["role"]`
+values `"prediction"` and `"comparison"` respectively. Both records go through
+the standard action lowering pipeline (see
 [knowledge-and-reasoning.md](knowledge-and-reasoning.md)),
-share the package-wide `action_label_map`, and emit warrant helper Claims
+share the package-wide `action_label_map`, and emit helper Claims
 that are addressable via `[@label]` references. Historical design records live at
 `docs/specs/2026-05-04-bayes-module-design.md` and
 `docs/specs/2026-05-05-bayes-actions-design.md`.

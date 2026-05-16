@@ -14,7 +14,7 @@ def test_exclusive_returns_reviewable_warrant_claim():
     assert helper.metadata.get("review") is True
 
 
-def test_exclusive_registers_action_and_warrant():
+def test_exclusive_registers_action_and_helper_attachment():
     with CollectedPackage("v6_test") as pkg:
         a = Claim("Case A.")
         b = Claim("Case B.")
@@ -31,7 +31,8 @@ def test_exclusive_registers_action_and_warrant():
     assert action.a is a
     assert action.b is b
     assert action.helper is helper
-    assert action.warrants == [helper]
+    assert helper.from_actions == [action]
+    assert action.warrants == []
 
 
 def test_exclusive_records_background_information():

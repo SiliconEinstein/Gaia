@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 
 from gaia.cli.main import app
 from gaia.engine.ir import ReviewManifest, ReviewStatus
-from gaia.engine.lang import Claim, depends_on, derive, observe, tension
+from gaia.engine.lang import Claim, candidate_relation, depends_on, derive, observe
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.review.manifest import generate_review_manifest
 from gaia.engine.lang.runtime.package import CollectedPackage
@@ -146,12 +146,12 @@ def test_check_and_inquiry_show_candidate_relation_scaffolds(tmp_path):
     pkg_src = pkg_dir / "inquiry_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, tension\n\n"
+        "from gaia.engine.lang import candidate_relation, claim\n\n"
         'prediction = claim("Model predicts X.")\n'
         'observation = claim("Experiment observes not-X.")\n'
-        "tension(\n"
-        "    prediction,\n"
-        "    observation,\n"
+        "candidate_relation(\n"
+        "    claims=[prediction, observation],\n"
+        '    pattern="contradict",\n'
         '    rationale="Prediction and observation may be in tension.",\n'
         '    label="prediction_observation_tension",\n'
         ")\n"
@@ -164,13 +164,13 @@ def test_check_and_inquiry_show_candidate_relation_scaffolds(tmp_path):
         (pkg_dir / ".gaia" / "formalization_manifest.json").read_text()
     )
     assert formalization_manifest["dependencies"][0]["kind"] == "candidate_relation"
-    assert formalization_manifest["dependencies"][0]["proposed"] == "tension"
+    assert formalization_manifest["dependencies"][0]["pattern"] == "contradict"
 
     result = runner.invoke(app, ["build", "check", "--inquiry", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Structural holes: 1" in result.output
     assert "Goal 1: prediction [hole]" in result.output
-    assert "prediction_observation_tension (tension) [hypothesis]" in result.output
+    assert "prediction_observation_tension (contradict) [hypothesis]" in result.output
     assert "- observation [hole]" in result.output
     assert "    - prediction  no external prior (MaxEnt)" in result.output
     assert "    - observation  no external prior (MaxEnt)" not in result.output
@@ -178,7 +178,7 @@ def test_check_and_inquiry_show_candidate_relation_scaffolds(tmp_path):
     assert "Scaffolded (unformalized)" not in result.output
     assert "Candidate relations (tracked in formalization manifest):" in result.output
     assert (
-        "prediction_observation_tension [tension, hypothesis]: prediction <-> observation"
+        "prediction_observation_tension [contradict, hypothesis]: prediction <-> observation"
         in result.output
     )
 
@@ -216,9 +216,9 @@ def test_build_goal_trees_candidate_relation_does_not_close_hole():
         prediction.label = "prediction"
         observation = Claim("Experiment observes not-X.")
         observation.label = "observation"
-        tension(
-            prediction,
-            observation,
+        candidate_relation(
+            claims=[prediction, observation],
+            pattern="contradict",
             rationale="Prediction and observation may be in tension.",
             label="prediction_observation_tension",
         )
@@ -232,5 +232,5 @@ def test_build_goal_trees_candidate_relation_does_not_close_hole():
     )
     output = render_inquiry(trees)
 
-    assert "prediction_observation_tension (tension) [hypothesis]" in output
+    assert "prediction_observation_tension (contradict) [hypothesis]" in output
     assert "Goal 1: prediction [hole]" in output

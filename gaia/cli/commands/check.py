@@ -301,7 +301,7 @@ def _candidate_relation_claim_ids(relations: list[dict[str, Any]]) -> set[str]:
 
 def _candidate_relation_line(relation: dict[str, Any], claims: dict[str, dict[str, Any]]) -> str:
     label = relation.get("label") or relation.get("id") or "candidate_relation"
-    proposed = relation.get("proposed") or "relation"
+    pattern = relation.get("pattern") or "relation"
     status = relation.get("status") or "hypothesis"
     claim_labels = [
         _node_name(claims.get(claim_id), claim_id)
@@ -309,7 +309,7 @@ def _candidate_relation_line(relation: dict[str, Any], claims: dict[str, dict[st
         if isinstance(claim_id, str) and claim_id
     ]
     endpoints = " <-> ".join(claim_labels) if claim_labels else "<no claims>"
-    return f"    - {label} [{proposed}, {status}]: {endpoints}"
+    return f"    - {label} [{pattern}, {status}]: {endpoints}"
 
 
 def _get_prior(k: dict[str, Any]) -> float | None:

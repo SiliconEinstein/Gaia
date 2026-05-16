@@ -9,8 +9,8 @@ since: v0.5
 This document bridges the Gaia Lang v0.5 Python DSL to the Gaia IR semantics layer. It covers:
 
 - The **Knowledge** hierarchy authors declare (`Claim`, `Note`, `Question`, plus `ClaimKind` shape discriminators).
-- The **Action** hierarchy that connects claims (`Support`, `Structural`, `Probabilistic`, `Scaffold`, `Compose`) — the v0.5 authoring surface, parallel to Knowledge.
-- How Actions lower to IR (strategies, operators, helper claims, `Compose` nodes) and how formula claims lower to IR operators.
+- The **GaiaGraph / Reasoning** hierarchy that connects claims (`Directed`, `Relation`, `Decompose`, `Compose`) plus `Scaffold` records for unfinished formalization.
+- How Reasoning records lower to IR (strategies, operators, helper claims, `Compose` nodes) and how formula claims lower to IR operators.
 - How typed predicate-logic formulas (`Variable`, `Domain`, predicates, connectives, `forall` / `exists`) fit inside `Claim.formula`.
 - The legacy v5 **named strategies** (`support`, `deduction`, `abduction`, ...) that remain as a compatibility surface but are no longer the recommended way to author new packages.
 
@@ -30,31 +30,27 @@ Knowledge
 │       GENERAL
 │       PARAMETER
 │       QUANTIFIED
-│       CAUSAL
 ├── Note  (no prior)
 │     ├── Setting (deprecated)
 │     └── Context (deprecated)
 └── Question
 
-Action
-├── Support
-│     ├── Derive
-│     ├── Observe
-│     └── Compute
-├── Probabilistic
-│     ├── Infer
-│     └── Associate
-├── Structural
-│     ├── Equal
-│     ├── Contradict
-│     ├── Exclusive
-│     └── Decompose
+GaiaGraph
 ├── Scaffold
-│     └── DependsOn
-└── Compose
+│     ├── DependsOn
+│     └── CandidateRelation
+└── Reasoning
+      ├── Directed
+      │     ├── Derive / Observe / Compute
+      │     └── Infer
+      ├── Relation
+      │     ├── Equal / Contradict / Exclusive
+      │     └── Associate
+      ├── Decompose
+      └── Compose
 ```
 
-`Knowledge` and `Action` are **siblings**, not parent/child. Knowledge is *what is being claimed*; Action is *how the author is connecting claims*. Action stays at the authoring layer — it does not become a first-class IR node. At compile time each Action is **lowered** into one or more IR objects (`Strategy`, `Operator`, helper `Knowledge`, or `Compose`) and reverse-attached to those objects via the `action_label` metadata key. See [§4 Action Lowering](#4-action-lowering).
+`Knowledge` and `GaiaGraph` are **siblings**, not parent/child. Knowledge is *what is being claimed*; Reasoning is *how the author is formally connecting claims*; Scaffold is an explicit marker for work that is not formal yet. The legacy `Action` name remains as a compatibility alias for `Reasoning`.
 
 The legacy v5 `Strategy / CompositeStrategy / FormalStrategy / Operator` runtime classes are still exported for backwards compatibility (see [§7 Legacy Compatibility Surface](#7-legacy-compatibility-surface)) but new packages should author exclusively with `Claim` / `Note` / `Question` plus the action verbs.
 
@@ -81,7 +77,6 @@ Each `Claim` has a **shape discriminator** `kind: ClaimKind` and an optional str
 | `GENERAL` | default; opaque content, formula optional | bare `claim(...)` |
 | `PARAMETER` | asserts a `Variable` takes a specific value | `parameter(var, value, ...)` sugar |
 | `QUANTIFIED` | top-level `Forall` / `Exists` in `formula` | `claim(formula=Forall(...))` |
-| `CAUSAL` | top-level `Causes(cause, effect)` predicate | `causal(cause, effect, ...)` sugar |
 
 `ClaimKind` is **not** a role label (hypothesis / prediction / observation-as-evidence) — those live on action graph nodes (see `roles_for_claim`). It is a structural shape so the compiler can lower the formula payload appropriately. See [§5 Formula Claims](#5-formula-claims) and [Predicate Logic In Gaia Lang](predicate-logic.md).
 
@@ -143,9 +138,9 @@ observe(evidence, rationale="Parallax measurement campaign 1838.")
 derive(heliocentric, given=evidence, rationale="Parallax confirms orbital motion.")
 ```
 
-### 3.2 Probabilistic — soft probabilistic constraint
+### 3.2 Probabilistic reasoning — soft probabilistic constraint
 
-Probabilistic actions carry author-specified conditional probabilities and lower to probabilistic factors. They emit warrant metadata/helper claims that reviewers gate. `infer(...)` returns the evidence claim; `associate(...)` returns its association helper because the relation itself is the authored semantic object (see [§4.3 Action Label References](#43-action-label-references)).
+Probabilistic reasoning verbs carry author-specified conditional probabilities and lower to probabilistic factors. They emit warrant metadata/helper claims that reviewers gate. `infer(...)` is a `Directed` reasoning record and returns the evidence claim; `associate(...)` is a `Relation` reasoning record and returns its association helper because the relation itself is the authored semantic object (see [§4.3 Action Label References](#43-action-label-references)).
 
 #### `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, ...)`
 
@@ -157,13 +152,13 @@ Bayesian update: given a hypothesis Claim `H`, evidence Claim `E`, and explicit 
 
 Returns the evidence Claim. The author should prefer `bayes.model(...) + bayes.likelihood(...)` (see [§6 Bayes Module](#6-bayes-module)) when the probability is an instance of a predictive distribution.
 
-#### `associate(a, b, *, p_a_given_b, p_b_given_a, ...)`
+#### `associate(a, b, *, p_a_given_b, p_b_given_a, pattern=None, ...)`
 
 Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.engine.lang.bayes`. Returns the association warrant helper Claim.
 
-### 3.3 Structural — hard constraint between Claims
+### 3.3 Relation reasoning — hard constraint between Claims
 
-Structural actions assert that the truth values of the named Claims jointly satisfy a deterministic relation. They lower to IR operators with the truth tables in [§8 Operator Truth Tables](#8-operator-truth-tables) and emit a relation-result helper Claim that the reviewer gates.
+Relation reasoning records assert that the truth values of the named Claims jointly satisfy a deterministic relation. They lower to IR operators with the truth tables in [§8 Operator Truth Tables](#8-operator-truth-tables) and emit a relation-result helper Claim that the reviewer gates.
 
 | Verb | Subclass | Lowering | Returned helper |
 |---|---|---|---|
@@ -172,15 +167,18 @@ Structural actions assert that the truth values of the named Claims jointly sati
 | `exclusive(a, b, ...)` | `Exclusive` | `complement([a, b], helper)` | XOR helper |
 | `decompose(whole, parts=..., formula=...)` | `Decompose` | formula lowering of `parts` + `equivalence(whole, formula_helper)` | `whole == formula(parts)` |
 
-`decompose` is the only Structural verb that takes a `Formula` payload. The compiler validates that the formula's `ClaimAtom` set exactly matches `parts`, that `whole` does not appear in the formula, and that no decomposition cycle exists. Source: `gaia/engine/lang/dsl/decompose.py`.
+`decompose` is a reasoning verb, but not a relation. It takes a `Formula`
+payload and the compiler validates that the formula's `ClaimAtom` set exactly
+matches `parts`, that `whole` does not appear in the formula, and that no
+decomposition cycle exists. Source: `gaia/engine/lang/dsl/decompose.py`.
 
 ### 3.4 Scaffold — authoring metadata only
 
 Scaffold actions exist purely as authoring breadcrumbs and **do not enter IR or BP**. They are not reviewable warrants. Currently:
 
 - `depends_on(conclusion, given=...)` (`DependsOn`) — marks unformalized dependencies that the author intends to formalize later.
-- `candidate_relation(a, b, proposed=...)` (`CandidateRelation`) — records a hypothesized relation such as `"equal"`, `"contradict"`, `"associate"`, or `"tension"` before the author is ready to formalize it.
-- `tension(a, b)` — thin wrapper for `candidate_relation(..., proposed="tension")`.
+- `candidate_relation(claims=[...], pattern=...)` (`CandidateRelation`) — records a hypothesized relation with `pattern=None`, `"equal"`, `"contradict"`, or `"exclusive"` before the author is ready to formalize it.
+- `materialize(scaffold, by=...)` — records that a scaffold has been formalized by one or more formal graph records.
 
 Scaffold actions compile only into `.gaia/formalization_manifest.json`. They are
 **not addressable** via `[@label]` references because they leave no IR target.
@@ -220,6 +218,7 @@ The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's regist
 | `Decompose` | formula operators over `parts` + `Operator(operator=equivalence, [whole, formula_helper])` | formula-derived helpers + decomposition helper | Operator ID → decomposition helper Claim QID |
 | `Compose` | `gaia.engine.ir.Compose` first-class node | (none directly) | `Compose` node QID |
 | `DependsOn` | (not lowered) | (none) | not addressable |
+| `CandidateRelation` | (not lowered) | (none) | not addressable |
 
 **Note:** `action_label_map` stores Strategy/Operator IDs (e.g., `lcs_*`, `lco_*`), not Knowledge QIDs directly. When resolving action label references in text, the compiler looks up the Strategy/Operator's `metadata['warrants']` to find the warrant helper Knowledge node(s) for provenance attribution. Exception: `Observe` actions with no premises (`given=()`) map directly to the conclusion Claim QID because they represent grounding observations with no inferential warrant.
 
@@ -247,7 +246,7 @@ Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539
 `Claim.formula` carries an optional `Formula` AST that the compiler lowers to IR operators alongside the claim. The formula vocabulary lives in `gaia/engine/lang/formula/` and is exported from `gaia.engine.lang`:
 
 - **Terms.** `Variable`, `Constant`, `FunctionApp`, `ClaimAtom` (lifts a Claim into the formula universe).
-- **Predicates.** `Equals`, `NotEquals`, `Greater / GreaterEqual / Less / LessEqual`, `Causes`, `UserPredicate`.
+- **Predicates.** `Equals`, `NotEquals`, `Greater / GreaterEqual / Less / LessEqual`, `UserPredicate`.
 - **Connectives.** `Land`, `Lor`, `Lnot`, `Implies`, `Iff`.
 - **Quantifiers.** `Forall(var, body)`, `Exists(var, body)`.
 - **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.engine.lang.types.primitives`).
@@ -256,22 +255,20 @@ For a reader-facing explanation of the predicate-logic model, including the diff
 
 The compiler handles formula claims via `gaia/engine/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
 
-Two sugar helpers in `gaia/engine/lang/dsl/sugar.py` map directly onto non-default
-`ClaimKind` values:
+One sugar helper in `gaia/engine/lang/dsl/sugar.py` maps directly onto a
+non-default `ClaimKind` value:
 
 | Sugar | Produces | `ClaimKind` |
 |---|---|---|
 | `parameter(var, value, prior=...)` | `Equals(var, Constant(value))` | `PARAMETER` |
-| `causal(cause, effect, ...)` | `Causes(cause, effect)` | `CAUSAL` |
 
 Structured observed values are authored as formula claims and then marked with
 the `observe(...)` action; observation is an action/role, not a `ClaimKind`.
 `parameter(...)` and observed formula claims participate in the lifted Bayes
-pipeline (see [§6](#6-bayes-module)). `causal` is a structural marker in v0.5
-and does not yet imply Pearl-style intervention semantics; the causal extension
-specs in `docs/specs/2026-05-05-causal-reasoning-design.md` and the 2026-05-06
-series capture the planned promotion path (Mechanism → first-class Knowledge
-type, Counterfactual / Population / Transport actions).
+pipeline (see [§6](#6-bayes-module)). Causal mechanism authoring is intentionally
+not represented as a marker-only `ClaimKind` or formula predicate; until a
+first-class causal mechanism surface lands, write causal statements as ordinary
+claims and connect support through reasoning actions.
 
 Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
 
@@ -282,10 +279,10 @@ Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
 `gaia.engine.lang.bayes` (loaded lazily via `from gaia.engine.lang import bayes`) provides the lifted authoring surface for model-data likelihood updates:
 
 - **Distribution literals.** `bayes.Normal(mu=..., sigma=...)`, `bayes.Binomial(n=..., p=...)`, etc., backed by `scipy.stats`. They are typed values, not Knowledge nodes.
-- **`bayes.model(hypothesis, observable=..., distribution=...)`.** Returns a `PredictiveModel` action object that ties one hypothesis Claim to one predictive distribution over an observable Variable.
-- **`bayes.likelihood(data, model=..., against=[...], exclusivity=...)`.** Returns a `Likelihood` action object expressing model-preference. Lowers to `infer` strategies plus rigid relation operators expressing the chosen exclusivity contract (e.g., `exhaustive_pairwise_complement`).
+- **`bayes.model(hypothesis, observable=..., distribution=...)`.** Returns a predictive-model helper Claim backed by a `PredictiveModel(BayesInference)` record that ties one hypothesis Claim to one predictive distribution over an observable Variable.
+- **`bayes.likelihood(data, model=..., against=[...], exclusivity=...)`.** Returns a model-preference helper Claim backed by a `Likelihood(BayesInference)` record. Lowers to `infer` strategies plus rigid relation operators expressing the chosen exclusivity contract (e.g., `exhaustive_pairwise_complement`).
 
-`bayes.model / bayes.likelihood` actions go through the standard action lowering pipeline ([§4](#4-action-lowering)); they share the `action_label_map` table and emit warrant helper Claims that the reviewer sees. See [bayes.md](bayes.md) for the executable Mendel example, the full distribution list, and `gaia build check` diagnostics.
+`bayes.model / bayes.likelihood` helper records go through the standard action lowering pipeline ([§4](#4-action-lowering)); they share the `action_label_map` table and emit helper Claims that the reviewer sees. See [bayes.md](bayes.md) for the executable Mendel example, the full distribution list, and `gaia build check` diagnostics.
 
 Spec references: `docs/specs/2026-05-04-bayes-module-design.md` and `docs/specs/2026-05-05-bayes-actions-design.md`.
 

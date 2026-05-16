@@ -66,9 +66,9 @@ def _review_status(manifest: ReviewManifest, target_id: str | None) -> str | Non
 
 def _candidate_relation_label(scaffold: dict[str, Any]) -> str:
     label = scaffold.get("label") or scaffold.get("id") or "candidate_relation"
-    proposed = scaffold.get("proposed")
-    if isinstance(proposed, str) and proposed:
-        return f"{label} ({proposed})"
+    pattern = scaffold.get("pattern")
+    if isinstance(pattern, str) and pattern:
+        return f"{label} ({pattern})"
     return str(label)
 
 

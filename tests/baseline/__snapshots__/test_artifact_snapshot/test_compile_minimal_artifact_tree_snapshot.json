@@ -6,7 +6,7 @@
       "path": "compile_metadata.json"
     },
     {
-      "content": "{\n  \"dependencies\": [],\n  \"version\": 1\n}\n",
+      "content": "{\n  \"dependencies\": [],\n  \"materializations\": [],\n  \"version\": 1\n}\n",
       "kind": "text",
       "path": "formalization_manifest.json"
     },

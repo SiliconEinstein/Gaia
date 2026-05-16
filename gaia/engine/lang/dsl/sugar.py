@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from gaia.engine.lang.dsl.formula import causes, equals
+from gaia.engine.lang.dsl.formula import equals
 from gaia.engine.lang.dsl.knowledge import claim
 from gaia.engine.lang.formula.term import Constant
 from gaia.engine.lang.runtime import Claim, Knowledge, Variable
@@ -43,37 +43,6 @@ def parameter(
     return result
 
 
-def causal(
-    cause: Any,
-    effect: Any,
-    *,
-    content: str | None = None,
-    describe: str | None = None,
-    title: str | None = None,
-    format: str = "markdown",
-    background: list[Knowledge] | None = None,
-    provenance: list[dict[str, str]] | None = None,
-    prior: float | None = None,
-    label: str | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> Claim:
-    """Declare a top-level causal marker Claim."""
-    formula = causes(cause, effect)
-    result = claim(
-        _content_text(content, describe, _causal_content(cause, effect)),
-        title=title,
-        format=format,
-        background=background,
-        provenance=provenance,
-        prior=prior,
-        formula=formula,
-        kind=ClaimKind.CAUSAL,
-        metadata=metadata or {},
-    )
-    result.label = label
-    return result
-
-
 def _content_text(content: str | None, describe: str | None, fallback: str) -> str:
     if content is not None and describe is not None:
         raise TypeError("Pass either content or describe, not both")
@@ -94,11 +63,3 @@ def _constant_for(variable: Variable, value: Any) -> Constant:
 
 def _parameter_content(variable: Variable, value: Any) -> str:
     return f"{variable.symbol} = {value!r}."
-
-
-def _term_name(term: Any) -> str:
-    return getattr(term, "symbol", repr(term))
-
-
-def _causal_content(cause: Any, effect: Any) -> str:
-    return f"{_term_name(cause)} causes {_term_name(effect)}."

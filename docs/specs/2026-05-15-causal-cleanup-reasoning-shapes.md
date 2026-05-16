@@ -82,9 +82,9 @@ The active tree does not contain a core `Predict` runtime class or public
 `predict(...)` verb. This refactor should not introduce one. Historical specs
 that mention `Predict` are rejected or deferred design notes.
 
-For Bayes, the active tree has two opt-in runtime records with different
-parents today: `PredictiveModel(Action)` and `Likelihood(Probabilistic)`.
-Only `Likelihood` currently inherits from `Probabilistic`.
+Before this cleanup, Bayes had two opt-in runtime records with different
+parents: `PredictiveModel(Action)` and `Likelihood(Probabilistic)`. The target
+tree below replaces that split with `BayesInference(Reasoning)`.
 
 There is no active `gaia/causal` runtime package in the current tree. The
 `gaia/engine/trace/*` "Causal Health" text is trace-review rubric content, not Gaia
@@ -290,16 +290,17 @@ Implementation should audit at least these dispatch-sensitive areas:
 ### 4.2 Bayes opt-in records
 
 Bayes records should not keep importing `Probabilistic` after this refactor.
-They should choose the smallest existing shape:
+They should use one Bayes-specific family under `Reasoning`:
 
-- `PredictiveModel`: phase 1 should be direct `Reasoning`. That preserves its
-  current direct-`Action` parent without pretending it is a support-like
-  directed update.
-- `Likelihood`: `Directed`, because data/model inputs point toward a
-  model-preference helper claim.
+- `BayesInference(Reasoning)`: the opt-in Bayes family for reviewable model-data
+  records. It is not a `GaiaGraph` sibling of `Reasoning`; it keeps warrants and
+  `Claim.from_actions` behavior through `Reasoning`.
+- `PredictiveModel(BayesInference)`: a predictive-model helper declaration for
+  one hypothesis and one observable distribution.
+- `Likelihood(BayesInference)`: a likelihood comparison over data and
+  predictive-model helper claims.
 
-Do not add a Bayes-specific top-level family or a core `Predict` record as part
-of this refactor.
+Do not add a core `Predict` record as part of this refactor.
 
 ## 5. Causal Marker Code Deletion
 
@@ -387,8 +388,8 @@ Runtime hierarchy:
 - Move `Derive`, `Observe`, `Compute`, and `Infer` under `Directed`.
 - Move `Equal`, `Contradict`, `Exclusive`, and `Associate` under `Relation`.
 - Move `Decompose` and `Compose` directly under `Reasoning`.
-- Move `PredictiveModel` to direct `Reasoning` and `Likelihood` to `Directed`
-  in the opt-in Bayes module.
+- Add `BayesInference(Reasoning)` in the opt-in Bayes module, with
+  `PredictiveModel` and `Likelihood` as its subclasses.
 - Remove or de-publicize `Support`, `Structural`, and `Probabilistic`.
 - Do not add a core `Predict` class in this refactor.
 - Keep fields and DSL return values unchanged.
@@ -429,8 +430,9 @@ Minimum tests:
 - `issubclass(Associate, Relation)`.
 - `issubclass(Decompose, Reasoning)` and not `issubclass(Decompose, Relation)`.
 - `issubclass(Compose, Reasoning)`.
-- `issubclass(PredictiveModel, Reasoning)` and not `issubclass(PredictiveModel, Directed)`.
-- `issubclass(Likelihood, Directed)`.
+- `issubclass(BayesInference, Reasoning)` and not `issubclass(BayesInference, Directed)`.
+- `issubclass(PredictiveModel, BayesInference)` and not `issubclass(PredictiveModel, Directed)`.
+- `issubclass(Likelihood, BayesInference)` and not `issubclass(Likelihood, Directed)`.
 - `Decompose.parts` remains `tuple[Claim, ...]` and non-Claim parts still fail.
 - Causal marker names are no longer exported from `gaia.engine.lang`.
 - A formula with `Causes(...)` can no longer be constructed through public DSL.

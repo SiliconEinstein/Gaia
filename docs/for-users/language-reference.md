@@ -55,11 +55,11 @@ from .s3_results import *
 from gaia.engine.lang import (
     claim, note, question,                                 # Knowledge
     Variable, Nat, Real, Probability, Bool,                # Formula terms
-    parameter, causal,                                     # Structured formula claims
+    parameter,                                             # Structured formula claims
     not_, and_, or_,                                      # Propositional expressions
     ClaimAtom, land, implies,                             # Formula AST helpers
     contradict, equal, exclusive,                         # Reviewable relations
-    depends_on, candidate_relation, tension,              # Scaffold annotations
+    depends_on, candidate_relation, materialize,          # Scaffold annotations
     observe, derive, compute, infer, decompose,            # Recommended actions
     register_prior,                                       # External prior records
     Normal, LogNormal, Beta, Exponential, Gamma,          # Distribution factories
@@ -272,8 +272,7 @@ with `register_prior(...)` instead of writing `0.5` just to mean "neutral."
 
 Formula claim sugar creates ordinary `Claim` objects with structured `formula`
 payloads. The compiler lowers them into today's IR: source claims keep their
-priors, primitive bindings become IR parameters, and causal formulas are
-metadata markers only.
+priors, and primitive bindings become IR parameters.
 
 ### `parameter(variable, value, *, describe=None, prior=None, ...)`
 
@@ -315,24 +314,11 @@ f2_count = observe(
 The formula bindings still merge onto the source claim as IR parameters. A
 zero-premise `observe(...)` pins the claim to `1 - CROMWELL_EPS`.
 
-### `causal(cause, effect, *, describe=None, prior=None)`
+Causal mechanism authoring is intentionally not represented by a marker-only
+`ClaimKind` or formula predicate. Until the first-class causal mechanism surface
+lands, write causal statements as ordinary `claim(...)` prose and connect their
+support with reviewable reasoning actions.
 
-Use for a top-level causal marker in v0.5. It records the cause/effect term
-descriptors on the source claim; it does not lower to an implication or add
-interventional semantics.
-
-```python
-from gaia.engine.lang import Real, Variable, causal
-
-co2 = Variable(symbol="co2", domain=Real)
-temp = Variable(symbol="temp", domain=Real)
-co2_causes_temp = causal(
-    co2,
-    temp,
-    describe="Rising CO2 causes increased global mean temperature.",
-    prior=0.9,
-)
-```
 
 ## Recommended Actions
 
@@ -349,7 +335,7 @@ probabilistic, write down the probability model that justifies the update.
 
 | Kind | Functions | Use when | Enters inference? |
 |------|-----------|----------|-------------------|
-| Scaffold notes | `depends_on`, `candidate_relation`, `tension` | You know there is a dependency or relation, but you are not ready to make it formal | No. Stored in `.gaia/formalization_manifest.json` |
+| Scaffold notes | `depends_on`, `candidate_relation`, `materialize` | You know there is a dependency or relation, but you are not ready to make it formal, or you want to link scaffold to its formal record | No. Stored in `.gaia/formalization_manifest.json` |
 | Empirical observations | `observe` | A measurement, data extraction, or reported fact grounds a claim | Yes. A zero-premise observation pins the claim near true |
 | Logical hard constraints | `derive`, `compute`, `decompose`, `equal`, `contradict`, `exclusive`, formula claims | If the premises are true, the conclusion or relation should follow as a matter of logic or definition | Yes. Lowered as deterministic factors |
 | Hand-written probabilistic soft constraints | `infer`, `associate` | You are directly committing to conditional probabilities or an association strength | Yes. Lowered as probabilistic factors |
@@ -370,7 +356,7 @@ Gaia and reviewers that a dependency or relation matters, but they do not add a
 belief-propagation edge.
 
 ```python
-from gaia.engine.lang import candidate_relation, claim, depends_on, tension
+from gaia.engine.lang import candidate_relation, claim, depends_on
 
 model_prediction = claim("The model predicts a transition near 200 K.")
 reported_result = claim("The experiment reports a transition near 203 K.")
@@ -383,15 +369,14 @@ depends_on(
 )
 
 candidate_relation(
-    model_prediction,
-    reported_result,
-    proposed="equal",
+    claims=[model_prediction, reported_result],
+    pattern="equal",
     rationale="These may describe the same transition after unit and regime checks.",
 )
 
-tension(
-    model_prediction,
-    reported_result,
+candidate_relation(
+    claims=[model_prediction, reported_result],
+    pattern="contradict",
     rationale="If the regimes differ, this may become a real disagreement.",
 )
 ```
@@ -679,23 +664,26 @@ enter inference:
 
 ```python
 maybe_same = candidate_relation(
-    prediction,
-    observation,
-    proposed="equal",
+    claims=[prediction, observation],
+    pattern="equal",
     rationale="They may state the same observable after unit normalization.",
 )
 
-open_tension = tension(
-    model_prediction,
-    measured_result,
+open_tension = candidate_relation(
+    claims=[model_prediction, measured_result],
+    pattern="contradict",
     background=[same_regime],
     rationale="The stated prediction and measurement disagree in the same regime.",
 )
 ```
 
-Allowed `proposed` values are `equal`, `contradict`, `exclusive`, `associate`,
-and `tension`. These records remain in the formalization manifest until a
-human or agent upgrades them to a formal relation.
+Allowed `pattern` values are `None`, `equal`, `contradict`, and `exclusive`.
+These records remain in the formalization manifest until a human or agent
+upgrades them to a formal relation or records the link with `materialize(...)`.
+Older packages that used the removed `tension(a, b)` helper should use
+`candidate_relation(claims=[a, b], pattern="contradict")` when the intended
+shape is explicit, or `pattern=None` when the author only wants an unresolved
+"look here later" marker.
 
 ### v5 compatibility operators
 

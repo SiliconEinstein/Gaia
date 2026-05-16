@@ -5,7 +5,10 @@ from __future__ import annotations
 import warnings
 from typing import Any, cast
 
-from gaia.engine.lang.runtime.action import Infer as InferAction
+from gaia.engine.lang.runtime.action import (
+    Infer as InferAction,
+)
+from gaia.engine.lang.runtime.action import attach_reasoning, validate_no_self_warrant
 from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 from gaia.engine.lang.runtime.nodes import Strategy
 
@@ -156,5 +159,6 @@ def infer(
         helper=helper,
     )
     action.warrants.append(helper)
-    evidence.from_actions.append(action)
+    validate_no_self_warrant(action, evidence)
+    attach_reasoning(evidence, action)
     return evidence

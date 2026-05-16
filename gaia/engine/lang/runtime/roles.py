@@ -140,8 +140,9 @@ def _collect_dependency_action_roles(action: Action, add: RoleAdder) -> bool:
         for given in action.given:
             add(given, "unformalized_dependency")
     elif isinstance(action, CandidateRelation):
-        add(action.a, f"candidate_{action.proposed}_target")
-        add(action.b, f"candidate_{action.proposed}_target")
+        pattern = action.pattern or "relation"
+        for claim in action.claims:
+            add(claim, f"candidate_{pattern}_target")
     else:
         return False
     return True
@@ -266,7 +267,7 @@ def _collect_common_action_roles(
             if isinstance(background, Claim):
                 add(background, "background", source="background")
     if include_warrants:
-        for warrant in action.warrants:
+        for warrant in getattr(action, "warrants", ()) or ():
             add(warrant, "warrant", source="warrant")
 
 

@@ -18,7 +18,7 @@ from gaia.engine.lang.bayes.distributions import (
     StudentT,
     UnresolvedParameterError,
 )
-from gaia.engine.lang.bayes.runtime import Likelihood, PredictiveModel
+from gaia.engine.lang.bayes.runtime import BayesInference, Likelihood, PredictiveModel
 from gaia.engine.lang.bayes.verbs.likelihood import likelihood
 from gaia.engine.lang.bayes.verbs.model import model
 from gaia.engine.lang.runtime.action import Action
@@ -49,6 +49,7 @@ def _register_bayes_roles() -> None:
 _register_bayes_roles()
 
 __all__ = [
+    "BayesInference",
     "Beta",
     "BetaBinomial",
     "Binomial",

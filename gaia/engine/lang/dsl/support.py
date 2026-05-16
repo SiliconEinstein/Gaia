@@ -8,7 +8,13 @@ from functools import wraps
 from typing import Any, cast
 
 from gaia.engine.ir.parameterization import CROMWELL_EPS
-from gaia.engine.lang.runtime.action import Compute, Derive, Observe
+from gaia.engine.lang.runtime.action import (
+    Compute,
+    Derive,
+    Observe,
+    attach_reasoning,
+    validate_no_self_warrant,
+)
 from gaia.engine.lang.runtime.distribution import Distribution
 from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 
@@ -80,7 +86,8 @@ def derive(
         conclusion=conclusion,
         given=given_tuple,
     )
-    conclusion.from_actions.append(action)
+    validate_no_self_warrant(action, conclusion)
+    attach_reasoning(conclusion, action)
     return conclusion
 
 
@@ -171,7 +178,8 @@ def observe(
     )
     if not given_tuple:
         _pin_observed_claim(conclusion)
-    conclusion.from_actions.append(action)
+    validate_no_self_warrant(action, conclusion)
+    attach_reasoning(conclusion, action)
     return conclusion
 
 
@@ -328,7 +336,8 @@ def _observe_continuous(
         given=(),
     )
     _pin_observed_claim(obs_claim)
-    obs_claim.from_actions.append(action)
+    validate_no_self_warrant(action, obs_claim)
+    attach_reasoning(obs_claim, action)
     return obs_claim
 
 
@@ -381,7 +390,8 @@ def _compute_call(
         given=given_tuple,
         fn=fn,
     )
-    conclusion.from_actions.append(action)
+    validate_no_self_warrant(action, conclusion)
+    attach_reasoning(conclusion, action)
     return conclusion
 
 
@@ -426,7 +436,8 @@ def compute(
                 given=given_tuple,
                 fn=wrapped_fn,
             )
-            conclusion.from_actions.append(action)
+            validate_no_self_warrant(action, conclusion)
+            attach_reasoning(conclusion, action)
             return conclusion
 
         return wrapper

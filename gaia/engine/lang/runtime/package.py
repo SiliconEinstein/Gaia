@@ -13,7 +13,7 @@ from gaia.engine.lang.runtime.knowledge import Knowledge, _current_package
 from gaia.engine.lang.runtime.nodes import Operator, Strategy
 
 if TYPE_CHECKING:
-    from gaia.engine.lang.runtime.action import Action
+    from gaia.engine.lang.runtime.action import GaiaGraph, MaterializationLink
     from gaia.engine.lang.runtime.distribution import Distribution
 
 try:
@@ -33,7 +33,8 @@ class CollectedPackage:
         self.knowledge: list[Knowledge] = []
         self.strategies: list[Strategy] = []
         self.operators: list[Operator] = []
-        self.actions: list[Action] = []
+        self.actions: list[GaiaGraph] = []
+        self.materializations: list[MaterializationLink] = []
         # Lang-only registry of Distribution objects declared while this
         # package was active. Distributions are NOT added to ``knowledge``
         # (they are not IR-bound — see gaia/lang/runtime/distribution.py),
@@ -88,11 +89,14 @@ class CollectedPackage:
 
         _capture_registered(o)
 
-    def _register_action(self, a: Action) -> None:
+    def _register_action(self, a: GaiaGraph) -> None:
         self.actions.append(a)
         from gaia.engine.lang.runtime.composition import _capture_registered
 
         _capture_registered(a)
+
+    def _register_materialization(self, link: MaterializationLink) -> None:
+        self.materializations.append(link)
 
     @property
     def exported(self) -> list[str]:

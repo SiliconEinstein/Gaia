@@ -2,7 +2,7 @@ import pytest
 
 from gaia.engine.lang import Claim, ClaimAtom, decompose, implies, land, lor
 from gaia.engine.lang.compiler import compile_package_artifact
-from gaia.engine.lang.runtime.action import Decompose, Structural
+from gaia.engine.lang.runtime.action import Decompose, Reasoning, Relation
 from gaia.engine.lang.runtime.package import CollectedPackage
 from gaia.engine.lang.runtime.roles import roles_for_claim
 
@@ -13,7 +13,7 @@ def _knowledge_by_helper_kind(compiled, helper_kind):
     ]
 
 
-def test_decompose_registers_structural_action_and_returns_whole_claim():
+def test_decompose_registers_reasoning_action_and_returns_whole_claim():
     with CollectedPackage("decompose_demo") as pkg:
         c = Claim("Composite claim.")
         a = Claim("Atomic A.")
@@ -26,7 +26,8 @@ def test_decompose_registers_structural_action_and_returns_whole_claim():
     assert len(pkg.actions) == 1
     action = pkg.actions[0]
     assert isinstance(action, Decompose)
-    assert isinstance(action, Structural)
+    assert isinstance(action, Reasoning)
+    assert not isinstance(action, Relation)
     assert action.whole is c
     assert action.parts == (a, b, d)
     assert action.formula is formula

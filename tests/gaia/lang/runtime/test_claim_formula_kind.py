@@ -38,8 +38,8 @@ def test_claim_kind_enum_values():
         "general",
         "parameter",
         "quantified",
-        "causal",
     }
+    assert not hasattr(ClaimKind, "CAUSAL")
 
 
 def test_claim_formula_must_be_formula_or_none():

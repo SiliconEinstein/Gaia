@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from gaia.engine.lang.runtime.action import Contradict, Equal, Exclusive
+from gaia.engine.lang.runtime.action import (
+    Contradict,
+    Equal,
+    Exclusive,
+    attach_reasoning,
+    validate_no_self_warrant,
+)
 from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 
 
@@ -33,7 +39,8 @@ def equal(
         b=b,
         helper=helper,
     )
-    action.warrants.append(helper)
+    validate_no_self_warrant(action, helper)
+    attach_reasoning(helper, action)
     return helper
 
 
@@ -58,7 +65,8 @@ def contradict(
         b=b,
         helper=helper,
     )
-    action.warrants.append(helper)
+    validate_no_self_warrant(action, helper)
+    attach_reasoning(helper, action)
     return helper
 
 
@@ -83,5 +91,6 @@ def exclusive(
         b=b,
         helper=helper,
     )
-    action.warrants.append(helper)
+    validate_no_self_warrant(action, helper)
+    attach_reasoning(helper, action)
     return helper

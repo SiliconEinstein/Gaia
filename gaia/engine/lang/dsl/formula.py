@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
-from gaia.engine.lang.formula.predicate import Causes, Equals
+from gaia.engine.lang.formula.predicate import Equals
 from gaia.engine.lang.formula.quantifier import Exists, Forall
 from gaia.engine.lang.runtime.variable import Variable
 
@@ -48,11 +48,6 @@ def implies(antecedent: Any, consequent: Any) -> Implies:
 def iff(left: Any, right: Any) -> Iff:
     """Create an equivalence formula."""
     return Iff(left=left, right=right)
-
-
-def causes(cause: Any, effect: Any) -> Causes:
-    """Create a causal marker formula."""
-    return Causes(cause=cause, effect=effect)
 
 
 def equals(left: Any, right: Any) -> Equals:

@@ -13,9 +13,7 @@ from gaia.engine.lang import (
     Land,
     Nat,
     Probability,
-    Real,
     Variable,
-    causal,
     claim,
     equals,
     infer,
@@ -111,32 +109,6 @@ def test_observe_formula_claim_records_multiple_primitive_bindings_on_source_cla
     assert beliefs[source.id] == pytest.approx(1.0 - CROMWELL_EPS)
 
 
-def test_causal_sugar_constructs_causal_claim_and_compiles_marker():
-    pkg = CollectedPackage(name="formula_causal_sugar_pkg", namespace="t")
-    token = _current_package.set(pkg)
-    try:
-        co2 = Variable(symbol="co2", domain=Real)
-        temp = Variable(symbol="temp", domain=Real)
-        c = causal(
-            co2,
-            temp,
-            describe="Rising CO2 causes increased global mean temperature.",
-            prior=0.9,
-        )
-        c.label = "co2_causes_temp"
-    finally:
-        _current_package.reset(token)
-
-    assert c.kind is ClaimKind.CAUSAL
-
-    source = _compiled_knowledge_by_label(pkg)["co2_causes_temp"]
-    assert source.metadata["formula_atom"]["kind"] == "causes"
-    assert source.metadata["causal"] == {
-        "cause": {"kind": "variable", "symbol": "co2", "domain": "Real"},
-        "effect": {"kind": "variable", "symbol": "temp", "domain": "Real"},
-    }
-
-
 def test_formula_sugar_rejects_invalid_structured_inputs():
     p = Variable(symbol="p", domain=Probability)
     with pytest.raises(TypeError, match="either content or describe"):
@@ -153,6 +125,18 @@ def test_formula_sugar_rejects_invalid_structured_inputs():
     valued = Variable(symbol="q", domain=Probability, value=0.25)
     with pytest.raises(ValueError, match="already has value"):
         parameter(valued, 0.75)
+
+
+def test_marker_only_causal_sugar_is_not_exported():
+    import gaia.engine.lang as lang
+    import gaia.engine.lang.dsl as dsl
+
+    assert "causal" not in dir(lang)
+    assert "causal" not in lang.__all__
+    assert "causes" not in dir(lang)
+    assert "causes" not in lang.__all__
+    assert "causal" not in dsl.__all__
+    assert "causes" not in dsl.__all__
 
 
 def test_mendel_formula_sugar_compiles_with_likelihood_infer_action():

@@ -241,7 +241,6 @@ Current atomic formulas:
 | `NotEquals(left, right)` | term inequality |
 | `Greater`, `GreaterEqual`, `Less`, `LessEqual` | numeric/comparable relation |
 | `UserPredicate(symbol, args)` | user-declared predicate application |
-| `Causes(cause, effect)` | built-in causal marker predicate |
 | `ClaimAtom(claim)` | bridge from an existing `Claim` to formula land |
 
 Example:
@@ -426,29 +425,12 @@ written as a conjunction of equalities. The compiler copies primitive formula
 bindings onto the source claim as `parameters` plus `metadata.formula_bindings`;
 the zero-premise `observe(...)` action pins the claim to `1 - CROMWELL_EPS`.
 
-### `causal(cause, effect, ...)`
+### Causal statements
 
-Use this to mark a causal claim:
-
-```python
-from gaia.engine.lang import Real, Variable, causal
-
-co2 = Variable(symbol="co2", domain=Real)
-temp = Variable(symbol="temp", domain=Real)
-
-warming = causal(
-    co2,
-    temp,
-    describe="Rising CO2 causes global mean temperature increase.",
-    prior=0.9,
-    label="co2_causes_temp",
-)
-```
-
-It creates a `ClaimKind.CAUSAL` claim with `Causes(co2, temp)`. In v0.5 this
-is a structured marker. It records cause/effect descriptors on the claim. It
-does not by itself introduce Pearl `do(...)` semantics or causal graph
-mutilation. Those are covered by later causal extension specs.
+Causal mechanism authoring is not represented by a marker-only formula
+predicate or `ClaimKind`. Until Gaia grows a first-class causal mechanism
+surface, write causal statements as ordinary prose claims and connect their
+support through reviewable reasoning actions.
 
 ---
 
@@ -498,9 +480,6 @@ Compile result:
 - `metadata.formula_bindings` records `p = 0.75`;
 - `parameters` gets an IR `Parameter(name="p", type="Probability", value=0.75)`;
 - no generated operators or strategies.
-
-`Causes(cause, effect)` behaves similarly, with extra `metadata.causal` copied
-onto the source claim.
 
 ### 6.2 Claim Atoms
 
@@ -734,12 +713,11 @@ treats them as the same node.
 | Background text with no truth variable | `note("...")` |
 | A scalar parameter value | `parameter(variable, value, ...)` |
 | Observed primitive values | `claim(formula=...)` plus `observe(...)` |
-| A causal marker claim | `causal(cause, effect, ...)` |
 | Boolean structure over existing claims | `claim(formula=land(...))`, `implies(...)`, etc. |
 | A finite-domain universal or existential claim | `claim(formula=forall(...))` / `claim(formula=exists(...))` |
 | A reviewable derivation between claims | `derive(conclusion, given=..., rationale=...)` |
 | A probabilistic likelihood relation | `infer(...)` or `gaia.engine.lang.bayes` |
-| A hypothesized relation not ready for semantics | `candidate_relation(...)` or `tension(...)` |
+| A hypothesized relation not ready for semantics | `candidate_relation(claims=[...], pattern=...)` |
 
 Do not hide semantic structure in prose if the compiler or reviewer needs to
 inspect it. Conversely, do not build a formula AST when the claim is simply a
