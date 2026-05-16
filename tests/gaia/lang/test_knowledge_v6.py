@@ -135,7 +135,7 @@ def test_v5_claim_still_works():
 
 @pytest.mark.legacy_dsl
 def test_v5_setting_still_works_as_note_compat():
-    from gaia.engine.lang import setting
+    from gaia.engine.lang.compat import setting
 
     with pytest.warns(DeprecationWarning, match="setting\\(\\) is deprecated"):
         s = setting("Background info.")

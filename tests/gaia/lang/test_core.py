@@ -1,7 +1,9 @@
 import pytest
 
+import gaia.engine.lang.compat as compat
 from gaia.engine.lang import __all__ as gaia_lang_exports
-from gaia.engine.lang import claim, note, question, setting
+from gaia.engine.lang import claim, note, question
+from gaia.engine.lang.compat import setting
 
 
 def test_note_creates_knowledge():
@@ -37,7 +39,7 @@ def test_claim_with_explicit_noisy_and():
     b = claim("Premise B.")
     c = claim("Conclusion.")
 
-    from gaia.engine.lang import noisy_and
+    from gaia.engine.lang.compat import noisy_and
 
     with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         noisy_and([a, b], c)
@@ -71,8 +73,22 @@ def test_claim_supports_provenance():
 
 def test_public_api_does_not_export_package():
     assert "Package" not in gaia_lang_exports
-    assert "elimination" in gaia_lang_exports
-    assert "case_analysis" in gaia_lang_exports
-    assert "mathematical_induction" in gaia_lang_exports
-    assert "composite" in gaia_lang_exports
-    assert "fills" in gaia_lang_exports
+    assert "elimination" not in gaia_lang_exports
+    assert "case_analysis" not in gaia_lang_exports
+    assert "mathematical_induction" not in gaia_lang_exports
+    assert "composite" not in gaia_lang_exports
+    assert "fills" not in gaia_lang_exports
+    assert {"elimination", "case_analysis", "mathematical_induction", "composite", "fills"} <= set(
+        compat.__all__
+    )
+
+
+def test_star_import_excludes_legacy_compat_surface():
+    namespace: dict[str, object] = {}
+    exec("from gaia.engine.lang import *", namespace)
+    assert "support" not in namespace
+    assert "setting" not in namespace
+    assert "contradiction" not in namespace
+    assert "derive" in namespace
+    assert "note" in namespace
+    assert "contradict" in namespace

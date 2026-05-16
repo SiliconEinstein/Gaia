@@ -715,7 +715,7 @@ Import these helpers explicitly only when migrating or testing legacy package
 behavior:
 
 ```python
-from gaia.engine.lang import (
+from gaia.engine.lang.compat import (
     setting, context,
     contradiction, equivalence, complement, disjunction,
     support, compare, deduction, abduction, induction,

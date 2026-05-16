@@ -345,10 +345,10 @@ Use `candidate_relation(claims=[...], pattern=None | "equal" | "contradict" | "e
 Older structural proposition helpers (`not_`, `and_`, `or_`, `~a`, `a & b`,
 `a | b`) and named strategy functions (`support`, `deduction`, `abduction`,
 `induction`, and related v5 helpers) remain available only as compatibility
-APIs. New v0.5 packages should prefer formula claims, the action/relation
-surface above, and explicit probabilistic links via `infer(...)`. If a step is
-uncertain, expose the uncertainty as an explicit premise or use `infer(...)`;
-do not hide it inside a prose rationale.
+APIs under `gaia.engine.lang.compat`. New v0.5 packages should prefer formula
+claims, the action/relation surface above, and explicit probabilistic links via
+`infer(...)`. If a step is uncertain, expose the uncertainty as an explicit
+premise or use `infer(...)`; do not hide it inside a prose rationale.
 
 ## Architecture
 

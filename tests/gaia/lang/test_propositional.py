@@ -1,6 +1,7 @@
 import pytest
 
-from gaia.engine.lang import Claim, and_, or_
+from gaia.engine.lang import Claim
+from gaia.engine.lang.compat import and_, or_
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.package import CollectedPackage
 
