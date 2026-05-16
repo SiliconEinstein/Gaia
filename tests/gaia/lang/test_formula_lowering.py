@@ -274,6 +274,34 @@ def test_repeated_predicate_formula_builds_one_canonical_atom_node():
     assert {edge.target for edge in root_edges} == {predicate_nodes[0].id}
 
 
+def test_repeated_predicate_formula_reuses_generated_atom_helper_claim():
+    pkg = CollectedPackage(name="formula_repeated_helper_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        particle = Domain(content="Particles", members=["p1", "p2"])
+        x = Variable(symbol="x", domain=particle)
+        stable = PredicateSymbol(name="Stable", arg_domains=(particle,))
+        repeated = claim(
+            "Stable x appears twice.",
+            formula=land(UserPredicate(stable, (x,)), UserPredicate(stable, (x,))),
+        )
+        repeated.label = "repeated"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    atom_helpers = [
+        k
+        for k in artifact.graph.knowledges
+        if (k.metadata or {}).get("generated_kind") == "formula_atom"
+    ]
+
+    assert len(atom_helpers) == 1
+    metadata = atom_helpers[0].metadata
+    assert metadata["source_claim"] == "t:formula_repeated_helper_pkg::repeated"
+    assert metadata["formula_node_id"].startswith("fg:")
+
+
 def test_formula_graph_records_nested_connective_shape():
     pkg = CollectedPackage(name="formula_graph_nested_pkg", namespace="t")
     token = _current_package.set(pkg)

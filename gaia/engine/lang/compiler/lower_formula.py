@@ -10,6 +10,7 @@ instead of creating duplicate orphan atoms.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -610,6 +611,7 @@ def _lower_formula_to_claim(
     state = _FormulaState(
         namespace=namespace,
         package_name=package_name,
+        source_claim_id=target_id,
         knowledge_map=knowledge_map,
         bindings=bindings,
     )
@@ -637,16 +639,18 @@ class _FormulaState:
         *,
         namespace: str,
         package_name: str,
+        source_claim_id: str,
         knowledge_map: dict[int, str],
         bindings: _BindingMap | None = None,
     ):
         self.namespace = namespace
         self.package_name = package_name
+        self.source_claim_id = source_claim_id
         self.knowledge_map = knowledge_map
         self.bindings = bindings or {}
         self.knowledges: list[IrKnowledge] = []
         self.operators: list[IrOperator] = []
-        self._helper_counter = 0
+        self.generated_claims_by_key: dict[tuple[str, str], str] = {}
 
     def lower(self, formula: Any, *, target_id: str | None = None) -> str:
         if isinstance(formula, ClaimAtom):
@@ -680,16 +684,23 @@ class _FormulaState:
             ) from exc
 
     def _atom_claim(self, formula: Any) -> str:
-        label, claim_id = self._generated_claim("formula_atom", repr(formula))
+        descriptor = canonical_formula_descriptor(
+            formula,
+            knowledge_map=self.knowledge_map,
+            bindings=self.bindings,
+        )
+        node_id = formula_node_id(descriptor)
+        label, claim_id, created = self._generated_claim("formula_atom", node_id)
+        if not created:
+            return claim_id
+
         metadata = {
             "generated": True,
             "generated_kind": "formula_atom",
             "formula_lowering": "atom",
-            "formula_atom": _formula_descriptor(
-                formula,
-                knowledge_map=self.knowledge_map,
-                bindings=self.bindings,
-            ),
+            "formula_atom": descriptor,
+            "formula_node_id": node_id,
+            "source_claim": self.source_claim_id,
             "review": False,
         }
         bindings = _formula_bindings(formula, bindings=self.bindings)
@@ -707,34 +718,59 @@ class _FormulaState:
         return claim_id
 
     def _helper_claim(self, operator_name: str, child_ids: list[str]) -> str:
-        label, claim_id = self._generated_claim(
-            f"{operator_name}_result",
-            f"{operator_name}|{child_ids}",
+        operator_label = str(operator_name)
+        semantic_key = json.dumps(
+            {"operator": operator_label, "children": child_ids},
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
         )
+        label, claim_id, created = self._generated_claim(
+            f"{operator_label}_result",
+            semantic_key,
+        )
+        if not created:
+            return claim_id
+
         self.knowledges.append(
             IrKnowledge(
                 id=claim_id,
                 label=label,
                 type=KnowledgeType.CLAIM,
-                content=f"{operator_name}({', '.join(child_ids)})",
+                content=f"{operator_label}({', '.join(child_ids)})",
                 metadata={
                     "generated": True,
                     "generated_kind": "formula_helper",
-                    "helper_kind": f"{operator_name}_result",
+                    "helper_kind": f"{operator_label}_result",
                     "formula_lowering": "connective_helper",
+                    "source_claim": self.source_claim_id,
                     "review": False,
                 },
             )
         )
         return claim_id
 
-    def _generated_claim(self, role: str, payload: str) -> tuple[str, str]:
+    def _generated_claim(self, role: str, semantic_key: str) -> tuple[str, str, bool]:
+        cache_key = (role, semantic_key)
+        if cache_key in self.generated_claims_by_key:
+            claim_id = self.generated_claims_by_key[cache_key]
+            return claim_id.rsplit("::", 1)[-1], claim_id, False
+
         digest = hashlib.sha256(
-            f"{self.namespace}|{self.package_name}|{role}|{payload}|{self._helper_counter}".encode()
+            "|".join(
+                [
+                    self.namespace,
+                    self.package_name,
+                    self.source_claim_id,
+                    role,
+                    semantic_key,
+                ]
+            ).encode()
         ).hexdigest()[:8]
-        self._helper_counter += 1
         label = f"__{_safe_label(role)}_{digest}"
-        return label, make_qid(self.namespace, self.package_name, label)
+        claim_id = make_qid(self.namespace, self.package_name, label)
+        self.generated_claims_by_key[cache_key] = claim_id
+        return label, claim_id, True
 
 
 def _connective_operator(formula: Any) -> tuple[OperatorType | None, list[Any]]:
