@@ -221,9 +221,37 @@ def test_register_action_lowerer_override_replaces(
 
 
 def test_register_bayes_lowerer_is_idempotent() -> None:
-    """Calling ``register_bayes_lowerer`` repeatedly never raises."""
+    """Calling ``register_bayes_lowerer`` repeatedly never raises.
+
+    Identity-aware idempotency: each call sees the official Bayes pair
+    already in the registry and returns early without re-inserting.
+    """
     from gaia.engine.bayes.compiler import register_bayes_lowerer
 
     register_bayes_lowerer()
     register_bayes_lowerer()
     register_bayes_lowerer()
+
+
+def test_register_bayes_lowerer_raises_on_conflicting_registration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A foreign ``"bayes"`` registration must surface as a conflict.
+
+    Without identity-aware idempotency, ``register_bayes_lowerer`` would
+    return early on *any* existing ``"bayes"`` entry, masking the exact
+    accidental-replacement scenario the duplicate-name guard on
+    :func:`register_action_lowerer` exists to surface. Worst case: the
+    foreign lowerer uses ``handles=lambda _: True`` with a no-op ``lower``,
+    so :func:`is_registered_action` returns ``True`` for Bayes actions and
+    the compiler skips them — producing silently-incomplete IR.
+    """
+    from gaia.engine.bayes.compiler import register_bayes_lowerer
+    from gaia.engine.lang.compiler import extensions
+    from gaia.engine.lang.compiler.extensions import register_action_lowerer
+
+    monkeypatch.setattr(extensions, "_ACTION_LOWERERS", {})
+    register_action_lowerer("bayes", handles=lambda _a: False, lower=lambda _c: None)
+
+    with pytest.raises(ValueError, match="different handler/lowerer pair"):
+        register_bayes_lowerer()
