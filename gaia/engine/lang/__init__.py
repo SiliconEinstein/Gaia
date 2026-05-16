@@ -2,6 +2,7 @@
 
 from importlib import import_module
 from types import ModuleType
+from typing import TYPE_CHECKING
 
 from gaia.engine.lang.dsl import (
     abduction,
@@ -137,10 +138,13 @@ from gaia.engine.lang.runtime.distribution import (
     StudentT,
 )
 
+if TYPE_CHECKING:
+    from gaia.engine import bayes as bayes
+
 
 def __getattr__(name: str) -> ModuleType:
     if name == "bayes":
-        module = import_module("gaia.engine.lang.bayes")
+        module = import_module("gaia.engine.bayes")
         globals()["bayes"] = module
         return module
     raise AttributeError(f"module 'gaia.engine.lang' has no attribute {name!r}")

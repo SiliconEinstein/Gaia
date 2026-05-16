@@ -1,8 +1,8 @@
-"""Distribution literals for `gaia.lang.bayes`."""
+"""Distribution literals for `gaia.engine.bayes`."""
 
 from __future__ import annotations
 
-from gaia.engine.lang.bayes.distributions.continuous import (
+from gaia.engine.bayes.distributions.continuous import (
     Beta,
     Cauchy,
     ChiSquared,
@@ -12,8 +12,8 @@ from gaia.engine.lang.bayes.distributions.continuous import (
     Normal,
     StudentT,
 )
-from gaia.engine.lang.bayes.distributions.discrete import BetaBinomial, Binomial, Poisson
-from gaia.engine.lang.bayes.distributions.protocol import (
+from gaia.engine.bayes.distributions.discrete import BetaBinomial, Binomial, Poisson
+from gaia.engine.bayes.distributions.protocol import (
     DistParam,
     Distribution,
     UnresolvedParameterError,

@@ -130,7 +130,7 @@ Gaia has two related surfaces for probabilistic quantities:
 
 - Use `Distribution` objects when you want to describe one uncertain quantity
   and make threshold or equation claims about it.
-- Use `gaia.engine.lang.bayes` when you want to compare competing hypotheses by the
+- Use `gaia.engine.bayes` when you want to compare competing hypotheses by the
   likelihood of observed data under each hypothesis.
 
 These are ordinary Python authoring helpers. They compile into regular Gaia

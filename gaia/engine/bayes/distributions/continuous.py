@@ -7,8 +7,8 @@ from typing import Any
 
 from pydantic import model_validator
 
-from gaia.engine.lang.bayes.adapters.scipy_backend import _to_scipy_dist
-from gaia.engine.lang.bayes.distributions.base import _BaseDistribution, _is_concrete_number
+from gaia.engine.bayes.adapters.scipy_backend import _to_scipy_dist
+from gaia.engine.bayes.distributions.base import _BaseDistribution, _is_concrete_number
 
 
 class _ContinuousDistribution(_BaseDistribution):

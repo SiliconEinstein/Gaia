@@ -1,6 +1,6 @@
 """Phase 0 Layer 2 — alpha 0 import tombstones (negative contract).
 
-Locks the 6 namespace tombstones and 12 per-symbol redirects defined in
+Locks the namespace tombstones and per-symbol redirects defined in
 ``gaia/_legacy_imports.py``. Every old path raises ``ImportError`` whose
 message names the canonical new path.
 """
@@ -8,10 +8,30 @@ message names the canonical new path.
 from __future__ import annotations
 
 import importlib
+import sys
+from collections.abc import Generator
 
 import pytest
 
 from gaia._legacy_imports import TOMBSTONED_NAMESPACES, TOMBSTONED_SYMBOLS
+
+
+def _drop_tombstoned_modules() -> None:
+    """Keep tombstone imports from poisoning later compatibility-import tests."""
+    for old_ns in TOMBSTONED_NAMESPACES:
+        for name in list(sys.modules):
+            if name == old_ns or name.startswith(f"{old_ns}."):
+                sys.modules.pop(name, None)
+        parent_name, _, attr = old_ns.rpartition(".")
+        parent = sys.modules.get(parent_name)
+        if parent is not None:
+            parent.__dict__.pop(attr, None)
+
+
+@pytest.fixture(autouse=True)
+def cleanup_tombstoned_modules() -> Generator[None, None, None]:
+    yield
+    _drop_tombstoned_modules()
 
 
 @pytest.mark.parametrize("old_ns,new_ns", sorted(TOMBSTONED_NAMESPACES.items()))
@@ -47,6 +67,7 @@ def test_namespace_tombstones_have_engine_targets() -> None:
         ("gaia.bp.factor_graph", "gaia.engine.bp.factor_graph"),
         ("gaia.lang.runtime", "gaia.engine.lang.runtime"),
         ("gaia.ir.operator", "gaia.engine.ir.operator"),
+        ("gaia.engine.lang.bayes.compiler", "gaia.engine.bayes.compiler"),
         ("gaia.engine.lang.types.primitives", "gaia.engine.lang.formula.primitives"),
         ("gaia.engine.logic.propositional", "gaia.engine.ir.logic.propositional"),
         ("gaia.logic.propositional", "gaia.engine.ir.logic.propositional"),

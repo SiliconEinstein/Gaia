@@ -121,6 +121,7 @@ TOMBSTONED_NAMESPACES: dict[str, str] = {
     "gaia.ir": "gaia.engine.ir",
     "gaia.lang": "gaia.engine.lang",
     "gaia.logic": "gaia.engine.ir.logic",
+    "gaia.engine.lang.bayes": "gaia.engine.bayes",
     "gaia.engine.lang.types": "gaia.engine.lang.formula",
     "gaia.engine.logic": "gaia.engine.ir.logic",
     "gaia.inquiry": "gaia.engine.inquiry",

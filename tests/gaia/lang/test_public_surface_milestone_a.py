@@ -52,7 +52,7 @@ def test_gaia_lang_does_not_export_core_predict_verb():
     import gaia.engine.lang as lang
 
     # `predict` and `likelihood` remain bayes-specific verbs in
-    # `gaia.lang.bayes` and must not pollute the top-level namespace.
+    # `gaia.engine.bayes` and must not pollute the top-level namespace.
     assert "predict" not in dir(lang)
     assert "predict" not in lang.__all__
     assert not hasattr(lang, "Predict")
@@ -88,7 +88,7 @@ def test_gaia_lang_import_does_not_eagerly_import_bayes():
     code = (
         "import sys\n"
         "import gaia.engine.lang as lang\n"
-        "print('gaia.lang.bayes' in sys.modules)\n"
+        "print('gaia.engine.bayes' in sys.modules)\n"
         "print('scipy' in sys.modules)\n"
         "from gaia.engine.lang import bayes\n"
         "print(hasattr(bayes, 'model'))\n"

@@ -17,8 +17,8 @@ class Deferred:
 
 
 def test_public_distribution_surface_imports_from_gaia_lang_namespace():
+    from gaia.engine.bayes import BetaBinomial, Binomial, Normal
     from gaia.engine.lang import bayes
-    from gaia.engine.lang.bayes import BetaBinomial, Binomial, Normal
 
     required = {
         "Beta",
@@ -135,8 +135,8 @@ def test_distribution_values_match_scipy(dist, kind, method, x, expected):
 
 
 def test_deferred_distribution_params_are_audit_descriptors_not_binding_keys():
+    from gaia.engine.bayes import UnresolvedParameterError
     from gaia.engine.lang import bayes
-    from gaia.engine.lang.bayes import UnresolvedParameterError
 
     theta = Deferred("theta")
     d = bayes.Binomial(n=10, p=theta)

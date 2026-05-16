@@ -188,7 +188,7 @@ def emit_distribution_warnings(pkg: CollectedPackage) -> None:
             f"{{{obs_labels}}}. Posterior-aware CDF is tracked separately for "
             "a future release. Until then, either set `prior=` explicitly on "
             "the predicate claim to reflect the post-observation belief, or "
-            "express the inference via gaia.lang.bayes.likelihood().",
+            "express the inference via gaia.engine.bayes.likelihood().",
             ObservationNotUpdatingPredicateWarning,
             stacklevel=2,
         )

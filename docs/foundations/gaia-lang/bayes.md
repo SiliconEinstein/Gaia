@@ -12,11 +12,11 @@ question:
 
 | You want to … | Use this surface | Mental model |
 |---|---|---|
-| Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.engine.lang.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **Hypothesis comparison** via likelihood ratios |
+| Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.engine.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **Hypothesis comparison** via likelihood ratios |
 | Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` | **Quantity with predicates** via generated prior records and equation metadata |
 
 Both surfaces ride on the same scipy-backed distribution machinery
-(``gaia.engine.lang.bayes.distributions``); the difference is the authoring shape
+(``gaia.engine.bayes.distributions``); the difference is the authoring shape
 and the lowering target. They can coexist freely in one package — for
 example, a paper might use `bayes.likelihood` for the central hypothesis
 test while declaring `Normal`-distributed quantities for nuisance
@@ -24,7 +24,7 @@ measurements.
 
 ## Hypothesis comparison surface (existing v0.5)
 
-`gaia.engine.lang.bayes` is the lifted authoring surface for model-data likelihood
+`gaia.engine.bayes` is the lifted authoring surface for model-data likelihood
 updates. It decomposes the paper narrative into reviewable Gaia claims:
 
 1. `parameter(variable, value)` declares the hypothesis shape.
@@ -49,13 +49,16 @@ that are addressable via `[@label]` references. Historical design records live a
 
 ## Import Surface
 
-Prefer the namespace import:
+Prefer the canonical namespace import:
 
 ```python
-from gaia.engine.lang import bayes
+import gaia.engine.bayes as bayes
 
 dist = bayes.Binomial(n=395, p=0.75)
 ```
+
+The shortcut `from gaia.engine.lang import bayes` remains available for v0.5
+packages and resolves lazily to the same `gaia.engine.bayes` module.
 
 Bayes models are authored through `bayes.model(...)`. There is no
 `from gaia.engine.lang import predict` core verb and no `bayes.predict(...)` alias in
@@ -491,7 +494,7 @@ Two warning categories surface common authoring mistakes / known limitations:
   posterior-CDF work (tracked separately, see project issues) will close.
   Until then, use `register_prior(predicate_claim, value, justification=...)`
   to record a documented post-observation belief, or express the inference via
-  `gaia.engine.lang.bayes.likelihood()`. The inline `claim(prior=...)` shortcut is
+  `gaia.engine.bayes.likelihood()`. The inline `claim(prior=...)` shortcut is
   deliberately lower priority than the generated CDF prior and will not
   suppress this warning by itself.
 
@@ -501,7 +504,7 @@ non-fatal — packages compile successfully.
 
 ### Source code
 
-- `gaia/engine/lang/bayes/distributions/` — hypothesis-comparison distribution
+- `gaia/engine/bayes/distributions/` — hypothesis-comparison distribution
   literals (`Binomial`, `BetaBinomial`, `Poisson`, continuous families) backed
   by `scipy.stats`
 - `gaia/engine/lang/runtime/distribution.py` — Distribution Knowledge wrapper
