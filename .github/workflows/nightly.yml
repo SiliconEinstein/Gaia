@@ -1,11 +1,10 @@
 name: Nightly
 
 on:
-  schedule:
-    # 06:00 UTC daily = 14:00 Asia/Shanghai. Spec §8 step 2 ("scheduled
-    # nightly") + dispatch lock §七·Invariant ("workflow_dispatch 可手动触发,
-    # 不依赖 schedule").
-    - cron: "0 6 * * *"
+  # Manual dispatch only. The schedule cron was removed by deliberate
+  # policy (see协作单 / PR #620): the project does not need a daily
+  # auto-run of the full validation suite; operators run nightly.yml
+  # on-demand before release dispatches or after large refactors.
   workflow_dispatch:
 
 jobs:
