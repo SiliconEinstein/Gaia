@@ -1,4 +1,4 @@
-"""gaia compile -- compile Python DSL package to Gaia IR v2 JSON."""
+"""gaia build compile -- compile Python DSL package to Gaia IR v2 JSON."""
 
 from __future__ import annotations
 

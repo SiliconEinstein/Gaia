@@ -11,8 +11,10 @@ def test_note_creates_knowledge():
     assert n.content == "Background assumption."
 
 
+@pytest.mark.legacy_dsl
 def test_setting_creates_note_compat_knowledge():
-    s = setting("Background assumption.")
+    with pytest.warns(DeprecationWarning, match="setting\\(\\) is deprecated"):
+        s = setting("Background assumption.")
     assert s.type == "note"
     assert s.metadata["legacy_kind"] == "setting"
     assert s.content == "Background assumption."
@@ -48,7 +50,7 @@ def test_claim_with_explicit_noisy_and():
 
 
 def test_claim_with_background():
-    bg = setting("Context.")
+    bg = note("Context.")
     c = claim("Assertion.", background=[bg])
     assert bg in c.background
 

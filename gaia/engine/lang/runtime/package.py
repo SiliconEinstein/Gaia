@@ -37,7 +37,7 @@ class CollectedPackage:
         self.materializations: list[MaterializationLink] = []
         # Lang-only registry of Distribution objects declared while this
         # package was active. Distributions are NOT added to ``knowledge``
-        # (they are not IR-bound — see gaia/lang/runtime/distribution.py),
+        # (they are not IR-bound — see gaia/engine/lang/runtime/distribution.py),
         # but the declaration list lets compile-time diagnostics detect
         # quantities that are declared but never referenced.
         self.distributions: list[Distribution] = []

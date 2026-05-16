@@ -4,6 +4,8 @@ from gaia.engine.lang import Claim, and_, or_
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.package import CollectedPackage
 
+pytestmark = pytest.mark.legacy_dsl
+
 
 def test_claim_boolean_truth_value_is_not_allowed():
     a = Claim("A.")

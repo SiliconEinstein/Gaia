@@ -23,13 +23,12 @@ def _write_base_package(pkg_dir, *, name: str, version: str = "1.0.0") -> None:
 
 def _write_minimal_source(pkg_dir, name: str) -> None:
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis,"
-        " reason='test', prior=0.9)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
+        "derive(hypothesis, given=[evidence_a, evidence_b], rationale='test', label='s')\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis"]\n'
     )
 
 
@@ -104,13 +103,12 @@ def test_render_fails_when_ir_stale(tmp_path):
 
     # Mutate source so re-compile yields a different ir_hash
     (pkg_dir / "stale_ir" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence_a = claim("Observed evidence A (edited).")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis,"
-        " reason='test', prior=0.9)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
+        "derive(hypothesis, given=[evidence_a, evidence_b], rationale='test', label='s')\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis"]\n'
     )
 
     result = runner.invoke(app, ["run", "render", str(pkg_dir)])

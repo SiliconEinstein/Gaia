@@ -6,6 +6,7 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -20,6 +21,7 @@ from gaia.engine.inquiry.snapshot import (
 from gaia.engine.inquiry.state import inquiry_dir
 
 runner = CliRunner()
+pytestmark = pytest.mark.legacy_dsl
 
 REVIEW_ID_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z_[a-zA-Z0-9]+_[A-Za-z0-9._-]+$")
 

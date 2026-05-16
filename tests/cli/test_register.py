@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands import register as register_module
@@ -317,6 +318,7 @@ def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
     )
 
 
+@pytest.mark.legacy_dsl
 def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_bridge"
     pkg_dir = tmp_path / "register_bridge"
@@ -361,6 +363,7 @@ def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch
     assert bridges_manifest["bridges"][0]["declared_by_owner_of_source"] is True
 
 
+@pytest.mark.legacy_dsl
 def test_register_writes_nonempty_release_manifests_to_local_checkout(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_bridge"
     pkg_dir = tmp_path / "register_bridge"
@@ -543,6 +546,7 @@ def test_register_fails_gracefully_when_checkout_fails(tmp_path, monkeypatch):
     assert "simulated failure" in result.output
 
 
+@pytest.mark.legacy_dsl
 def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_register_missing_root"
     dep_dir.mkdir()

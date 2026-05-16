@@ -56,8 +56,7 @@ from gaia.engine.lang import (
     claim, note, question,                                 # Knowledge
     Variable, Nat, Real, Probability, Bool,                # Formula terms
     parameter,                                             # Structured formula claims
-    not_, and_, or_,                                      # Propositional expressions
-    ClaimAtom, land, implies,                             # Formula AST helpers
+    ClaimAtom, land, lnot, lor, implies,                  # Formula AST helpers
     contradict, equal, exclusive,                         # Reviewable relations
     depends_on, candidate_relation, materialize,          # Scaffold annotations
     observe, derive, compute, infer, decompose,            # Recommended actions
@@ -65,13 +64,6 @@ from gaia.engine.lang import (
     Normal, LogNormal, Beta, Exponential, Gamma,          # Distribution factories
     StudentT, Cauchy, ChiSquared, Binomial, Poisson,
     Distribution, BoolExpr, DerivedDistribution, bayes,    # Continuous/Bayes helpers
-
-    # Compatibility aliases and legacy/experimental APIs
-    setting, context,
-    contradiction, equivalence, complement, disjunction,   # v5 compatibility
-    support, compare, deduction, abduction, induction,     # Legacy strategies
-    analogy, extrapolation, elimination, case_analysis,
-    mathematical_induction, composite, fills,
 )
 ```
 
@@ -94,7 +86,8 @@ definition = note("Let G = 6.674e-11 N m^2 kg^-2.")
 
 Referenced via `background=` on claims or strategies, never as premises.
 
-`setting(...)` and `context(...)` remain as deprecated compatibility aliases for `note(...)`.
+`setting(...)` and `context(...)` remain available only as deprecated
+compatibility aliases for `note(...)`.
 
 ### `question(content, *, title=None, **metadata)`
 
@@ -717,6 +710,19 @@ at_least_one = disjunction(mech_a, mech_b, mech_c,
 ## Legacy / Experimental Strategy APIs
 
 The APIs below remain available for older packages and for experiments with named reasoning patterns. New v0.5 packages should normally use `observe(...)`, `derive(...)`, `compute(...)`, `infer(...)`, and the relation verbs above. In particular, do not use `abduction(...)` or `induction(...)` as a shortcut for uncertainty that has not been made explicit; extract the uncertain assumptions as claims first.
+
+Import these helpers explicitly only when migrating or testing legacy package
+behavior:
+
+```python
+from gaia.engine.lang import (
+    setting, context,
+    contradiction, equivalence, complement, disjunction,
+    support, compare, deduction, abduction, induction,
+    analogy, extrapolation, elimination, case_analysis,
+    mathematical_induction, composite, fills,
+)
+```
 
 ### `support(premises, conclusion, *, reason, prior, background=None)`
 

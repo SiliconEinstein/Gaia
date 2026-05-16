@@ -1,7 +1,7 @@
-"""Structured analyzers shared by `gaia check` and `gaia inquiry review`.
+"""Structured analyzers shared by `gaia build check` and `gaia inquiry review`.
 
 This module is the single source of truth for graph-health / prior-hole /
-knowledge-breakdown analysis on a compiled Gaia IR. `gaia check` keeps
+knowledge-breakdown analysis on a compiled Gaia IR. `gaia build check` keeps
 emitting human-readable lines via the wrappers in ``check.py``; `gaia
 inquiry` consumes the structured dataclasses below directly.
 

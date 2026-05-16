@@ -112,7 +112,7 @@ def _posterior_failures(
 ) -> list[str]:
     """Return min-posterior quality gate failures."""
     if beliefs is None:
-        return ["Missing beliefs: run `gaia infer` before using min_posterior"]
+        return ["Missing beliefs: run `gaia run infer` before using min_posterior"]
 
     failures: list[str] = []
     belief_by_id = _beliefs_by_id(beliefs)

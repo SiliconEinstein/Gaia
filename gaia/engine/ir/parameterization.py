@@ -9,7 +9,7 @@ reviewer overrides, etc.). At compile time, ``ResolutionPolicy.resolve()``
 picks the winning record per claim — the winning value is written into
 ``Knowledge.metadata["prior"]`` for downstream BP / render / brief consumers,
 while every record (winner and losers) remains in ``metadata["prior_records"]``
-for audit, ``gaia check --hole`` display, and the ``prior_dissent`` /
+for audit, ``gaia build check --hole`` display, and the ``prior_dissent`` /
 ``prior_overridden`` diagnostics.
 """
 

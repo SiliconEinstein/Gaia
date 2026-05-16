@@ -1,4 +1,4 @@
-"""gaia infer -- run BP from compiled IR with metadata priors."""
+"""gaia run infer -- run BP from compiled IR with metadata priors."""
 
 from __future__ import annotations
 
@@ -65,10 +65,10 @@ def _require_fresh_compile_artifacts(
         compiled_payload=compiled_json,
     )
     if not staleness.ir_hash_exists or not staleness.ir_json_exists:
-        typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
+        typer.echo("Error: missing compiled artifacts; run `gaia build compile` first.", err=True)
         raise typer.Exit(1)
     if staleness.ir_hash_stale:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        typer.echo("Error: compiled artifacts are stale; run `gaia build compile` again.", err=True)
         raise typer.Exit(1)
     if staleness.ir_json_invalid_reason is not None:
         typer.echo(
@@ -77,7 +77,7 @@ def _require_fresh_compile_artifacts(
         )
         raise typer.Exit(1)
     if staleness.ir_json_hash_mismatch or staleness.ir_json_payload_mismatch:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        typer.echo("Error: compiled artifacts are stale; run `gaia build compile` again.", err=True)
         raise typer.Exit(1)
 
 
@@ -179,9 +179,9 @@ def infer_command(
 
     Priors come from claim metadata (set by priors.py and reason+prior
     DSL pairing during compilation). Review status is qualitative and never
-    supplies numeric priors; `gaia infer` previews the compiled graph without
-    gating unreviewed warrants. Use `gaia check --gate` or `gaia inquiry review`
-    for publish-quality review gating.
+    supplies numeric priors; `gaia run infer` previews the compiled graph
+    without gating unreviewed warrants. Use `gaia build check --gate` or
+    `gaia inquiry review` for publish-quality review gating.
 
     With ``--depth N`` (N>0), dependency packages' factor graphs are
     merged for joint cross-package inference instead of using flat

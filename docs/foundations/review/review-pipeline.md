@@ -33,7 +33,7 @@ Every authored Action that survives lowering produces at least one **review targ
 
 ## 2. Data Model
 
-Source: `gaia/ir/review.py`.
+Source: `gaia/engine/ir/review.py`.
 
 ```python
 class ReviewStatus(StrEnum):
@@ -212,7 +212,7 @@ and the [Gaia IR parameterization contract](../gaia-ir/06-parameterization.md).
 
 | Component | Location |
 |---|---|
-| `Review` / `ReviewManifest` / `ReviewStatus` schema | `gaia/ir/review.py` |
+| `Review` / `ReviewManifest` / `ReviewStatus` schema | `gaia/engine/ir/review.py` |
 | Manifest generator (per-action audit questions) | `gaia/engine/lang/review/manifest.py` |
 | Audit-question templates | `gaia/engine/lang/review/templates.py` |
 | CLI manifest load / merge | `gaia/cli/commands/_review_manifest.py` |

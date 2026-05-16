@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -18,6 +19,7 @@ from gaia.engine.inquiry.diagnostics import (
 from gaia.engine.inquiry.review import run_review
 
 runner = CliRunner()
+pytestmark = pytest.mark.legacy_dsl
 
 
 def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:

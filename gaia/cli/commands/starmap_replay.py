@@ -1,4 +1,4 @@
-"""gaia starmap-replay v4 — IR-tick replay with pinned graphviz layout.
+"""gaia inspect starmap-replay v4 — IR-tick replay with pinned graphviz layout.
 
 Reads the two JSONL logs an ``lkm-to-gaia`` run leaves under a package's
 ``artifacts/lkm-discovery/`` directory and renders a single self-contained
@@ -14,7 +14,7 @@ v4 contract (vs v3):
   ``stage_transition``, retrievals, etc.) but contribute zero ticks.
 
 * **Pinned canonical layout.** The frontend gets a ``final_layout`` table
-  baked from ``dot -Tjson0`` against the same DOT source ``gaia starmap
+  baked from ``dot -Tjson0`` against the same DOT source ``gaia inspect starmap
   --format dot`` produces. Nodes are placed at their pinned coordinates
   on first appearance; cluster boxes match ``_dot.py`` styling. This
   command degrades gracefully when graphviz is missing or the package
@@ -179,7 +179,7 @@ def _try_load_ir_artifacts(
     warnings: list[str] = []
 
     # Try compiling the package fresh — that gives us the canonical IR
-    # used by `gaia starmap` / `gaia infer`. If compilation fails (no
+    # used by `gaia inspect starmap` / `gaia run infer`. If compilation fails (no
     # pyproject.toml, missing src/, etc.), fall back to the on-disk
     # ``.gaia/ir.json`` if present.
     ir: dict[str, Any] | None = None
@@ -340,10 +340,10 @@ def starmap_replay_command(
 
     Examples:
       # Default — write .gaia/starmap-replay.html into the package:
-      gaia starmap-replay path/to/pkg
+      gaia inspect starmap-replay path/to/pkg
 
       # Custom output path:
-      gaia starmap-replay path/to/pkg --out figures/replay.html
+      gaia inspect starmap-replay path/to/pkg --out figures/replay.html
     """
     pkg_dir = Path(path).resolve()
     if not pkg_dir.is_dir():

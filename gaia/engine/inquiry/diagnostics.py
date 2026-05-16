@@ -1,7 +1,7 @@
 """Spec §15 — Diagnostic layer over Gaia's existing detectors.
 
 Inquiry does NOT run its own graph analysis. It translates the outputs of
-``gaia.ir.validator.validate_local_graph`` and
+``gaia.engine.ir.validator.validate_local_graph`` and
 ``gaia.cli.commands.check_core.analyze_knowledge_breakdown`` into a uniform
 ``Diagnostic`` stream, which drives the `graph_health`, `prior_holes`, and
 `next_edits` sections of the review report.
@@ -276,7 +276,7 @@ def detect_stale_artifact(
                 f"compiled graph ({current_ir_hash[:12]}...)."
             ),
             suggested_edit=(
-                "Re-run `gaia compile` (or the package equivalent) to refresh "
+                "Re-run `gaia build compile` (or the package equivalent) to refresh "
                 "cached artifacts; otherwise downstream tools may read stale state."
             ),
             data={"recorded": recorded, "current": current_ir_hash},

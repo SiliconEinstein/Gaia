@@ -1,9 +1,9 @@
 """Prior records for the Mendel v0.5 example package.
 
-Priors are registered through :func:`gaia.lang.register_prior` rather than the
+Priors are registered through :func:`gaia.engine.lang.register_prior` rather than the
 legacy ``PRIORS = {...}`` dict (removed in v0.5+). Each call records a
 multi-source ``PriorRecord``; the package-default ``ResolutionPolicy`` (see
-:func:`gaia.ir.default_resolution_policy`) selects the winning value at
+:func:`gaia.engine.ir.default_resolution_policy`) selects the winning value at
 compile time and writes it to ``metadata['prior']`` for downstream BP /
 render / brief consumers.
 """

@@ -1,4 +1,4 @@
-"""Tests for the `gaia starmap` command."""
+"""Tests for the `gaia inspect starmap` command."""
 
 from __future__ import annotations
 
@@ -32,13 +32,12 @@ def _write_base_package(pkg_dir, *, name: str, version: str = "1.0.0") -> None:
 
 def _write_minimal_source(pkg_dir, name: str) -> None:
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis,"
-        " reason='test', prior=0.9)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
+        "derive(hypothesis, given=[evidence_a, evidence_b], rationale='test', label='s')\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis"]\n'
     )
 
 
@@ -64,7 +63,7 @@ def _prepare_inferred_package(tmp_path, name: str = "starmap_demo"):
 
 
 def _extract_graph_data(html: str) -> dict:
-    """Parse the JSON payload injected by `gaia starmap` out of the HTML."""
+    """Parse the JSON payload injected by `gaia inspect starmap` out of the HTML."""
     match = re.search(r"window\.GRAPH_DATA = (.*?);</script>", html, re.DOTALL)
     assert match is not None, "window.GRAPH_DATA assignment not found in starmap HTML"
     return json.loads(match.group(1))
@@ -84,14 +83,15 @@ def test_starmap_default_output(tmp_path):
 
     data = _extract_graph_data(html)
     knowledge_nodes = [n for n in data["nodes"] if n["type"] not in ("strategy", "operator")]
-    # 3 knowledge nodes: evidence_a, evidence_b, hypothesis.
-    assert len(knowledge_nodes) == 3
-    labels = {n["label"] for n in knowledge_nodes}
+    authored_nodes = [n for n in knowledge_nodes if not n["metadata"].get("generated")]
+    # 3 authored knowledge nodes: evidence_a, evidence_b, hypothesis.
+    assert len(authored_nodes) == 3
+    labels = {n["label"] for n in authored_nodes}
     assert labels == {"evidence_a", "evidence_b", "hypothesis"}
 
     # Beliefs and priors should be threaded through.
-    assert any(n.get("belief") is not None for n in knowledge_nodes)
-    assert any(n.get("prior") is not None for n in knowledge_nodes)
+    assert any(n.get("belief") is not None for n in authored_nodes)
+    assert any(n.get("prior") is not None for n in authored_nodes)
 
     # Success message reports counts.
     assert "Wrote starmap to" in result.output

@@ -1,4 +1,4 @@
-"""gaia check -- validate a Gaia knowledge package."""
+"""gaia build check -- validate a Gaia knowledge package."""
 
 from __future__ import annotations
 
@@ -359,7 +359,7 @@ def _formula_binding_symbols(node: dict[str, Any]) -> set[str]:
 def _hypothesis_prior(node: dict[str, Any] | None) -> float:
     # Fallback to 0.5 when a hypothesis has no IR-level prior. This treats
     # un-priored hypotheses as maximally uninformative for the prior-coherence
-    # sum, matching how authors typically read "no prior set yet". gaia check
+    # sum, matching how authors typically read "no prior set yet". gaia build check
     # applies priors.py before compilation, so sidecar priors are visible here
     # once they have been injected into the IR metadata.
     if node is None:
@@ -585,7 +585,7 @@ def _bucket_knowledge_roles(
     boundary: _BoundaryAnalysis,
     formalization_manifest: dict[str, Any] | None,
 ) -> tuple[_KnowledgeBuckets, list[dict[str, Any]]]:
-    """Classify claims into the role buckets printed by `gaia check`."""
+    """Classify claims into the role buckets printed by `gaia build check`."""
     buckets = _KnowledgeBuckets()
     scaffold_conclusions, scaffold_inputs = _formalization_dependency_claim_ids(
         formalization_manifest
@@ -964,7 +964,7 @@ def _load_check_artifacts(path: str) -> tuple[Any, Any, dict[str, Any]]:
 
 
 def _collect_check_diagnostics(loaded: Any, ir: dict[str, Any]) -> tuple[list[str], list[str]]:
-    """Collect structural and artifact-state diagnostics for ``gaia check``."""
+    """Collect structural and artifact-state diagnostics for ``gaia build check``."""
     errors: list[str] = []
     warnings: list[str] = []
     if not loaded.project_name.endswith("-gaia"):
@@ -990,18 +990,22 @@ def _collect_compiled_artifact_diagnostics(
     staleness = check_compiled_artifacts(loaded.pkg_path, ir_hash=ir["ir_hash"])
     if staleness.ir_hash_exists:
         if staleness.ir_hash_stale:
-            errors.append("Compiled artifacts are stale; run `gaia compile` again.")
+            errors.append("Compiled artifacts are stale; run `gaia build compile` again.")
         if not staleness.ir_json_exists:
             errors.append("Found .gaia/ir_hash but missing .gaia/ir.json.")
     else:
-        warnings.append("Compiled artifacts missing; run `gaia compile` before `gaia register`.")
+        warnings.append(
+            "Compiled artifacts missing; run `gaia build compile` before `gaia pkg register`."
+        )
 
     if not staleness.ir_json_exists:
         return
     if staleness.ir_json_invalid_reason is not None:
         errors.append(f".gaia/ir.json is not valid JSON: {staleness.ir_json_invalid_reason}")
     elif staleness.ir_json_hash_mismatch:
-        errors.append("Stored .gaia/ir.json does not match current source; run `gaia compile`.")
+        errors.append(
+            "Stored .gaia/ir.json does not match current source; run `gaia build compile`."
+        )
 
 
 def _emit_check_diagnostics(errors: list[str], warnings: list[str]) -> None:

@@ -1,6 +1,6 @@
 """Engine-side helper: detect stale compiled artifacts.
 
-Both ``gaia infer`` and ``gaia check`` need to compare a freshly compiled
+Both ``gaia run infer`` and ``gaia build check`` need to compare a freshly compiled
 ``LocalCanonicalGraph`` against the persisted ``.gaia/ir_hash`` and
 ``.gaia/ir.json`` files. The detection logic is identical; only the
 reporting style differs (``infer`` exits hard, ``check`` accumulates

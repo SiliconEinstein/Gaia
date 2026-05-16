@@ -35,7 +35,7 @@ For Gaia's graphs (25 variables, treewidth ≈ 3-4), this is:
   - vs ~58 * 25 * 5 = 7250 operations (loopy BP, but inexact on cyclic graphs)
 
 All binary variables (x ∈ {0, 1}). Compatible with FactorGraph from
-gaia.bp.factor_graph.
+gaia.engine.bp.factor_graph.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""gaia check --brief / --show — per-module warrant structure for agent review."""
+"""gaia build check --brief / --show — per-module warrant structure for agent review."""
 
 from __future__ import annotations
 

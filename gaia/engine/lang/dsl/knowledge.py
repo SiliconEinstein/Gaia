@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from gaia.engine.lang.dsl.bool_expr import BoolExpr
@@ -13,6 +14,14 @@ def _metadata_with_legacy_kind(metadata: dict[str, Any], legacy_kind: str) -> di
     flattened = dict(_flatten_metadata(metadata))
     flattened.setdefault("legacy_kind", legacy_kind)
     return flattened
+
+
+def _warn_deprecated_note_alias(name: str) -> None:
+    warnings.warn(
+        f"{name}() is deprecated for v0.5+ authoring; use note() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def note(
@@ -41,6 +50,7 @@ def context(
     **metadata: Any,
 ) -> Note:
     """Deprecated compatibility wrapper for note()."""
+    _warn_deprecated_note_alias("context")
     provenance = metadata.pop("provenance", None)
     return Note(
         content=content.strip(),
@@ -59,6 +69,7 @@ def setting(
     **metadata: Any,
 ) -> Note:
     """Deprecated compatibility wrapper for note()."""
+    _warn_deprecated_note_alias("setting")
     provenance = metadata.pop("provenance", None)
     return Note(
         content=content.strip(),
@@ -123,8 +134,8 @@ def claim(
        second positional argument is a :class:`BoolExpr` produced by
        comparing a :class:`Distribution` against a constant. The compiler
        registers a CDF-derived prior record for inequality predicates.
-       See :class:`gaia.lang.Distribution` for how to declare the underlying
-       continuous quantity.
+       See :class:`gaia.engine.lang.Distribution` for how to declare the
+       underlying continuous quantity.
     3. **Formula claim** — ``claim(content, formula=Forall(...))`` for the
        predicate-logic surface (unchanged from v0.5).
 
@@ -144,7 +155,7 @@ def claim(
                 "`formula=` keyword."
             )
         # The full lowering of predicate / equation propositions to claim
-        # priors happens in `gaia.lang.compiler.compile`; here we just stash
+        # priors happens in `gaia.engine.lang.compiler.compile`; here we just stash
         # the BoolExpr on metadata for the compiler to read.
         if "predicate" in raw_metadata or "equation" in raw_metadata:
             raise TypeError(

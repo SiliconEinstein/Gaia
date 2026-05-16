@@ -26,11 +26,11 @@ def test_infer_with_priors_py(tmp_path):
     pkg_dir = tmp_path / "priors_infer"
     _write_base_package(pkg_dir, name="priors_infer")
     (pkg_dir / "priors_infer" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence = claim("Evidence.")\n'
         'hypothesis = claim("Hypothesis.")\n'
-        "s = deduction(premises=[evidence], conclusion=hypothesis, reason='deduction', prior=0.9)\n"
-        '__all__ = ["evidence", "hypothesis", "s"]\n'
+        "derive(hypothesis, given=evidence, rationale='deduction', label='s')\n"
+        '__all__ = ["evidence", "hypothesis"]\n'
     )
     (pkg_dir / "priors_infer" / "priors.py").write_text(
         "from . import evidence, hypothesis\n\n"
@@ -56,11 +56,11 @@ def test_infer_without_priors_py(tmp_path):
     pkg_dir = tmp_path / "no_priors_infer"
     _write_base_package(pkg_dir, name="no_priors_infer")
     (pkg_dir / "no_priors_infer" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence = claim("Evidence.")\n'
         'hypothesis = claim("Hypothesis.")\n'
-        "s = deduction(premises=[evidence], conclusion=hypothesis, reason='deduction', prior=0.9)\n"
-        '__all__ = ["evidence", "hypothesis", "s"]\n'
+        "derive(hypothesis, given=evidence, rationale='deduction', label='s')\n"
+        '__all__ = ["evidence", "hypothesis"]\n'
     )
 
     compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
@@ -96,6 +96,7 @@ def test_infer_fails_when_compiled_artifacts_are_stale(tmp_path):
     assert "stale" in result.output.lower()
 
 
+@pytest.mark.legacy_dsl
 def test_infer_with_deduction_strategy(tmp_path):
     """Deduction strategy auto-formalizes and runs BP successfully."""
     pkg_dir = tmp_path / "deduction_demo"

@@ -194,7 +194,7 @@ gaia run infer [PATH] [--depth N]
 6. At `--depth 0` (default): injects flat priors from `dep_beliefs/` for
    dependency claims. At `--depth N>0`: merges dependency factor graphs for
    joint cross-package inference.
-7. Runs `InferenceEngine()` (from `gaia/bp/engine.py`), which auto-selects the
+7. Runs `InferenceEngine()` (from `gaia/engine/bp/engine.py`), which auto-selects the
    algorithm: Mean Field VI for graphs with more than 2000 variables, exact JT
    for graphs with treewidth <= 20, and TRW-BP for the remaining wider graphs.
    Defaults: `bp_max_iter=200, bp_threshold=1e-8`.

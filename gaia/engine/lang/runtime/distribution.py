@@ -1,7 +1,7 @@
 """Distribution — a continuous quantity declared with a probability distribution.
 
 This is the Lang-side first-class wrapper around the existing computational
-distribution objects in ``gaia/lang/bayes/distributions/``. It carries
+distribution objects in ``gaia/engine/lang/bayes/distributions/``. It carries
 :class:`Knowledge`-style identity (label, provenance, metadata) so authors can
 name a continuous quantity once and reference it elsewhere (predicates,
 equations, observe sugar) — the existing pydantic ``_BaseDistribution`` class
@@ -136,7 +136,7 @@ class Distribution(Knowledge):
 
     Use the family-specific factories (:func:`Normal`, :func:`LogNormal`,
     :func:`Beta`, etc.) rather than constructing this directly — they wrap the
-    matching ``gaia.lang.bayes.distributions._BaseDistribution`` subclass into
+    matching ``gaia.engine.lang.bayes.distributions._BaseDistribution`` subclass into
     a Distribution carrying a content string + identity.
 
     The wrapped computational object is available as ``.impl`` and exposes
@@ -217,7 +217,7 @@ class Distribution(Knowledge):
     # machinery does not need to resolve the (TYPE_CHECKING-only) backend
     # types. Each accessor casts to the appropriate type for delegation:
     # the runtime-checkable :class:`Distribution` Protocol from
-    # ``gaia.lang.bayes.distributions.protocol`` for the standard methods, and
+    # ``gaia.engine.lang.bayes.distributions.protocol`` for the standard methods, and
     # to the concrete ``_BaseDistribution`` for ``_resolved_params`` (which
     # the protocol does not surface).
 

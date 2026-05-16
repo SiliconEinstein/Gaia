@@ -1,4 +1,4 @@
-"""Graphviz DOT emitter for ``gaia starmap --format dot``.
+"""Graphviz DOT emitter for ``gaia inspect starmap --format dot``.
 
 Consumes the JSON string produced by ``_graph_json.generate_graph_json`` and
 returns a complete ``digraph { ... }`` block. Knowledge nodes are grouped by

@@ -205,7 +205,7 @@ def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
         # Pint Quantities flow through metadata when authors write predicates
         # like ``T_c > q(77, "K")``; convert to the IR-stable QuantityLiteral
         # shape so the downstream LocalCanonicalGraph serialization succeeds
-        # and the audit-side `gaia check` can render the unit verbatim.
+        # and the audit-side `gaia build check` can render the unit verbatim.
         literal = to_literal(value)
         return {
             "kind": "quantity",
@@ -257,10 +257,10 @@ def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str
     # Strip per-record `created_at` from prior_records before serialising to
     # IR — created_at is wall-clock at register_prior() call time, so leaving
     # it in the IR JSON makes ir_hash unstable across runs and breaks the
-    # `gaia infer` stale-artifact guard. Resolution has already consumed the
+    # `gaia run infer` stale-artifact guard. Resolution has already consumed the
     # timestamp (as the recency tiebreaker) by this point; the IR-side records
     # only need to carry value/source_id/justification for diagnostics and
-    # `gaia check --hole` rendering.
+    # `gaia build check --hole` rendering.
     records = metadata.get("prior_records")
     if isinstance(records, list):
         metadata["prior_records"] = [

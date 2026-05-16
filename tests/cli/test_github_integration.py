@@ -248,7 +248,7 @@ def test_wiki_inference_page_when_beliefs(tmp_path: Path):
 
 
 def test_render_github_flag(tmp_path):
-    """Gaia render --target github generates .github-output/ with expected structure."""
+    """Gaia run render --target github generates .github-output/ with expected structure."""
     pkg_dir = tmp_path / "github_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -259,12 +259,12 @@ def test_render_github_flag(tmp_path):
     pkg_src = pkg_dir / "github_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        "s = deduction([a, b], c)\n"
-        '__all__ = ["a", "b", "c", "s"]\n'
+        "derive(c, given=[a, b], rationale='Premises entail conclusion.', label='s')\n"
+        '__all__ = ["a", "b", "c"]\n'
     )
     (pkg_src / "priors.py").write_text(
         "from . import a, b, c\n\n"
@@ -309,20 +309,20 @@ def test_render_github_with_real_package(tmp_path):
     # Write the motivation module.
     (pkg_src / "motivation.py").write_text(
         '"""Motivation and Background"""\n'
-        "from gaia.engine.lang import setting, claim\n\n"
-        'context = setting("Galileo observed objects falling near Earth surface.")\n'
+        "from gaia.engine.lang import note, claim\n\n"
+        'context = note("Galileo observed objects falling near Earth surface.")\n'
         'obs_equal_time = claim("Heavy and light objects fall in approximately equal time.")\n'
     )
 
     # Write the analysis module.
     (pkg_src / "analysis.py").write_text(
         '"""Analysis of Falling Bodies"""\n'
-        "from gaia.engine.lang import claim, deduction, contradiction\n"
+        "from gaia.engine.lang import claim, derive, contradict\n"
         "from galileo_pkg.motivation import obs_equal_time\n\n"
         'aristotle_hyp = claim("Heavier objects fall faster (Aristotle).")\n'
         'galileo_hyp = claim("All objects fall at the same rate in vacuum.")\n'
-        "deduction([obs_equal_time], galileo_hyp)\n"
-        "contradiction(aristotle_hyp, galileo_hyp)\n"
+        "derive(galileo_hyp, given=obs_equal_time, rationale='Observation supports Galileo.')\n"
+        "contradict(aristotle_hyp, galileo_hyp, rationale='The two hypotheses cannot both hold.')\n"
     )
 
     # __init__.py: re-export with module order

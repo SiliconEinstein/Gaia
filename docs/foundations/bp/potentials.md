@@ -1,6 +1,6 @@
 # Factor Potential 函数
 
-> **Status:** Current canonical（与 `gaia/bp/` v2 实现及 theory 对齐）
+> **Status:** Current canonical（与 `gaia/engine/bp/` v2 实现及 theory 对齐）
 
 本文档定义 `gaia.engine.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 设计：[Gaia IR lowering](../gaia-ir/07-lowering.md)。
 

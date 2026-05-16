@@ -1,4 +1,4 @@
-"""Lower Gaia IR (LocalCanonicalGraph) to gaia.bp.FactorGraph.
+"""Lower Gaia IR (LocalCanonicalGraph) to gaia.engine.bp.FactorGraph.
 
 Spec: docs/foundations/gaia-ir/07-lowering.md
 """

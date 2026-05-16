@@ -87,7 +87,7 @@ BeliefState:
 
 ## 源代码
 
-- `gaia/bp/engine.py` — `InferenceEngine.run()` 产出 beliefs
-- `gaia/bp/bp.py` — `BeliefPropagation.run()`（loopy BP 路径）
-- `gaia/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
-- `gaia/ir/strategy.py` — `Strategy / CompositeStrategy / FormalStrategy`
+- `gaia/engine/bp/engine.py` — `InferenceEngine.run()` 产出 beliefs
+- `gaia/engine/bp/bp.py` — `BeliefPropagation.run()`（loopy BP 路径）
+- `gaia/engine/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
+- `gaia/engine/ir/strategy.py` — `Strategy / CompositeStrategy / FormalStrategy`

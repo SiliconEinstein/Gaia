@@ -257,12 +257,12 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
     pkg_src = pkg_dir / "docs_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        "s = deduction([a, b], c)\n"
-        '__all__ = ["a", "b", "c", "s"]\n'
+        "derive(c, given=[a, b], rationale='Premises entail conclusion.', label='s')\n"
+        '__all__ = ["a", "b", "c"]\n'
     )
     (pkg_src / "priors.py").write_text(
         "from . import a, b, c\n\n"

@@ -4,6 +4,8 @@ import pytest
 
 from gaia.engine.lang import claim, compare
 
+pytestmark = pytest.mark.legacy_dsl
+
 
 def test_compare_basic():
     """compare() creates Strategy with type='compare' and auto-generated conclusion."""

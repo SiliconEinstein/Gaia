@@ -66,7 +66,7 @@ The v0.5 contract is:
 
 ### Priority order
 
-The lowering layer (`gaia/bp/lowering.py`) resolves each claim's prior with
+The lowering layer (`gaia/engine/bp/lowering.py`) resolves each claim's prior with
 two branches depending on whether the claim is a **relation conclusion**
 (conclusion of EQUIVALENCE, CONTRADICTION, COMPLEMENT, or IMPLICATION):
 
@@ -216,7 +216,7 @@ Each dependency graph is lowered to a `FactorGraph` independently, then
 The merged graph is then run through the inference engine as a single factor
 graph, allowing beliefs to propagate across package boundaries.
 
-Source: `gaia/bp/lowering.py :: merge_factor_graphs()`
+Source: `gaia/engine/bp/lowering.py :: merge_factor_graphs()`
 
 ## Output Format
 
@@ -272,7 +272,7 @@ compiled artifacts.
 
 ## Inference Engine
 
-`InferenceEngine` (in `gaia/bp/engine.py`) automatically selects the best
+`InferenceEngine` (in `gaia/engine/bp/engine.py`) automatically selects the best
 algorithm based on the factor graph's treewidth:
 
 | Method | Condition (auto mode) | Exactness | Typical use |
@@ -326,7 +326,7 @@ Output: /path/to/package/.gaia/beliefs.json
 
 ## Lowering to Factor Graph
 
-`lower_local_graph()` in `gaia/bp/lowering.py` converts a
+`lower_local_graph()` in `gaia/engine/bp/lowering.py` converts a
 `LocalCanonicalGraph` into a `FactorGraph` suitable for inference.
 
 ### Variable nodes

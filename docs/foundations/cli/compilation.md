@@ -118,7 +118,7 @@ QID semantics are defined in [Identity And Hashing](../gaia-ir/03-identity-and-h
 
 #### Named Strategy Formalization
 
-When a strategy's `type` is one of the compile-time formal families (`deduction`, `elimination`, `mathematical_induction`, `case_analysis`, `abduction`, `analogy`, `extrapolation`), the compiler delegates to `formalize_named_strategy()` in `gaia/ir/formalize.py`.
+When a strategy's `type` is one of the compile-time formal families (`deduction`, `elimination`, `mathematical_induction`, `case_analysis`, `abduction`, `analogy`, `extrapolation`), the compiler delegates to `formalize_named_strategy()` in `gaia/engine/ir/formalize.py`.
 
 This function:
 
@@ -153,7 +153,7 @@ Operators that appear inside a strategy's `formal_expr` are compiled without `op
 
 ### Step 4: Compute IR Hash
 
-The `LocalCanonicalGraph` model validator (`gaia/ir/graphs.py`) automatically computes `ir_hash` when it is `None`:
+The `LocalCanonicalGraph` model validator (`gaia/engine/ir/graphs.py`) automatically computes `ir_hash` when it is `None`:
 
 1. **Canonical JSON serialization** (`_canonical_json`): produces a deterministic JSON string independent of insertion order by:
    - Sorting knowledge nodes, operators, and strategies by their JSON representation
@@ -169,7 +169,7 @@ Reference: [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md) and [Va
 
 ### Step 5: Validate and Write
 
-The compile command runs `validate_local_graph()` (`gaia/ir/validator.py`) on the constructed `LocalCanonicalGraph`. The validator checks:
+The compile command runs `validate_local_graph()` (`gaia/engine/ir/validator.py`) on the constructed `LocalCanonicalGraph`. The validator checks:
 
 **Knowledge checks:**
 - All IDs are valid QID format

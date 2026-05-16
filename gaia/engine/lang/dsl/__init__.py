@@ -45,7 +45,7 @@ from gaia.engine.lang.dsl.sugar import parameter
 from gaia.engine.lang.dsl.support import compute, derive, observe
 from gaia.engine.lang.runtime.composition import compose, composition
 
-# Importing gaia.lang.dsl.support installs a same-named submodule on this package.
+# Importing gaia.engine.lang.dsl.support installs a same-named submodule on this package.
 support = _strategy_support
 
 __all__ = [
