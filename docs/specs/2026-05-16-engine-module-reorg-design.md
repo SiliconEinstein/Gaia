@@ -4,26 +4,34 @@
 **Date:** 2026-05-16
 **Branch:** off `v0.5`
 **Related PRs:** TBD (reorg PR a + reorg PR b)
-**Builds on:** `docs/specs/2026-05-15-causal-cleanup-reasoning-shapes.md` (BayesInference shape decision)
-**Scope:** Two coordinated reorganizations of first- and second-level modules under `gaia.engine`:
-  1. consolidate single-file packages (`engine.lang.types/`) and demote `engine.logic/` to `engine.ir.logic/` (PR a, small)
-  2. promote `engine.lang.bayes/` to peer `engine.bayes/` and align Bayes verb directory naming (PR b, medium)
+**Builds on:** alpha-0 engine facade split (PR #607); BayesInference shape decision in `docs/specs/2026-05-15-causal-cleanup-reasoning-shapes.md` is one of several catalysts but not the only one.
+**Scope:** Coordinated reorganization of first- and second-level modules under `gaia.engine`, sequenced as two PRs:
+  1. **PR a (small, low-risk)** — consolidate single-file packages and demote `engine.logic/` to `engine.ir.logic/`
+  2. **PR b (medium)** — promote `engine.lang.bayes/` to peer `engine.bayes/` and align the Bayes verb directory name with the lang convention
 
-**Non-goals:** Do not flatten the entire engine into a single layer. Do not rename `engine.lang/` to `engine.core/`. Do not move `lang.runtime/`, `lang.dsl/`, `lang.compiler/` out of `lang/`. Do not introduce a new IR data model. Do not change BP, inquiry, or trace top-level layout.
+**Non-goals:** Do not flatten the entire engine into a single layer. Do not rename `engine.lang/` to `engine.core/`. Do not move `lang.runtime/`, `lang.dsl/`, `lang.compiler/` out of `lang/`. Do not introduce a new IR data model. Do not change BP, inquiry, or trace top-level layout. Do not eliminate the existing `lang → bayes` module-import reverse links (deferred — see §13).
 
-## 1. Motivation
+## 1. Goal
 
-PR #606 + #609 landed `BayesInference(Reasoning)` as a runtime-level first-class concept (per `docs/specs/2026-05-15-causal-cleanup-reasoning-shapes.md` §4.2). The class hierarchy now treats Bayes as a top-level reasoning family. The Python module layout, however, still nests Bayes five levels deep at `gaia.engine.lang.bayes.*`. This is an **inconsistency between the runtime hierarchy decision and the module path** that should be resolved before more reasoning families (causal, statistics, ...) land and inherit the same layout.
+Align the `gaia.engine` module layout with the conceptual structure of the engine — applying cohesion, dependency direction, API surface, and evolution-pressure criteria (§3) — and set explicit precedents for future extension modules so they don't inherit accidental decisions.
 
-Three smaller issues compound:
+Since alpha-0 (PR #607) split engine code into `gaia.engine.{bp, ir, lang, logic, inquiry, trace, packaging}` sub-facades, four organizational issues have accumulated. They are independent in cause but share the same diagnostic framework:
 
-1. `gaia.engine.lang.types/` is a sub-package shell containing one file (`primitives.py`). It is over-structure: the four primitive types (Bool/Nat/Real/Probability) are formula-domain concepts and belong with the formula AST.
+| # | Issue | Affected path | Criterion violated |
+|---|---|---|---|
+| 1 | Single-file package shell with one file and no second contributor | `engine.lang.types/primitives.py` | Cohesion (§3 criterion 1) |
+| 2 | Top-level peer with no Gaia-native abstractions — pure sympy-on-IR adapter | `engine.logic/propositional.py` | Cohesion + dependency direction (§3 criteria 1, 2) |
+| 3 | Module path inconsistent with the runtime-class hierarchy | Bayes nested 5 levels deep at `engine.lang.bayes/*` despite `BayesInference(Reasoning)` being a first-class shape | Evolution pressure (§3 criterion 4) |
+| 4 | Naming asymmetry between core and extension verb directories | `engine.lang.dsl/` vs `engine.lang.bayes.verbs/` | API surface (§3 criterion 3) |
 
-2. `gaia.engine.logic/` is the only top-level engine peer that has no Gaia-native abstractions of its own — it is a thin sympy-on-IR analysis layer. By the same criterion that places `bp/`, `inquiry/`, `lang/`, `trace/` at the top level (each owns substantial concept layer), `logic/` belongs as an IR sub-module under `engine.ir.logic/`.
+None of these resolve themselves through normal feature work. Issue 3 in particular has accumulating cost — every future reasoning family (the speculative `CausalEdge` from `2026-05-15-causal-cleanup-reasoning-shapes.md` §6, potential statistics/frequentist extensions, ML / latent-variable extensions) will inherit either the deep-nesting precedent or get a one-off carve-out, neither of which is good.
 
-3. The Bayes verb directory is named `bayes.verbs/` while the core verb directory is named `lang.dsl/`. After Bayes is promoted to peer, the asymmetry surfaces in the public import path.
+The spec groups the four issues into two coordinated PRs by code-touch shape:
 
-This spec proposes the minimal coordinated reorg that resolves all four issues, frames `engine.lang/` as a host module with `engine.bayes/` as a peer extension, and sets a precedent for future extensions.
+- **PR a** (issues 1 + 2) — both are removals of top-level / sub-package shells. Pure path moves with tombstone shims; ~120 LoC; one ImportError test per old path.
+- **PR b** (issues 3 + 4) — both involve the Bayes subtree. PR b is the larger change because it touches every Bayes-using import in the repo plus the three `lang → bayes` reverse-import sites at `lang/__init__.py` / `lang/compiler/compile.py` / `lang/runtime/distribution.py` (see §6.2).
+
+The motivation is **structural, not feature-driven**. Issue 3 is the largest in code-touch and creates the most pressure because the runtime/module mismatch is the most explicit, but issues 1, 2, and 4 are independent organizational debts that this spec resolves in the same window because they share the diagnostic framework and tooling (tombstone machinery, facade contract test, doc reference layer).
 
 ## 2. Current Code Facts
 
@@ -125,7 +133,7 @@ The fix: rename `bayes.verbs/` → `bayes.dsl/`. Future Bayes-side sugar/factori
 
 - **`lang.runtime/`, `lang.dsl/`, `lang.compiler/` placement under `lang/`**: these form a tight cohesion triangle. Adding any new core reasoning verb requires touching all three. They must stay together. Promoting them to engine top-level breaks the triangle and increases coupling cost.
 
-- **`lang/` name as host module**: code-fact analysis shows `bayes` single-direction depends on `lang.runtime` (for `Reasoning` base class), `lang.compiler` (for compile-time helpers), and `lang.formula`/`refs`/`review` (shared services). `lang` is not a peer to `bayes`; it is the host that `bayes` plugs into. Renaming `lang` to `core` would imply a peer relation that doesn't match the actual import graph. Keep the `lang` name; document the host/extension boundary.
+- **`lang/` name as host module**: in the runtime-class hierarchy `bayes` extensions inherit from `lang.runtime` base classes and reuse `lang.compiler` / `lang.formula` / `lang.refs` / `lang.review` services. The `lang ↔ bayes` module-import graph is bidirectional today (§6.2), but the runtime-class direction is host-to-extension, not peer-to-peer. Renaming `lang` to `core` would imply a flat peer relation, which the runtime-class hierarchy does not have. Keep the `lang` name; §6 documents both the runtime-class host/extension semantics and the module-import reality.
 
 - **`compiler` co-location**: `lang.compiler/` and `bayes.compiler/` (post-promotion) stay separate per current code; they are cohesive within their own authoring layers and do not benefit from forced unification.
 
