@@ -64,7 +64,7 @@ uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 | `name` | Required. Must end with `-gaia`. | Used as the PyPI distribution name. The import name is derived by stripping the `-gaia` suffix and converting hyphens to underscores. |
 | `version` | Required. Semantic versioning. | See [Version Semantics](#version-semantics) below. |
 | `description` | Optional. | Included in registry metadata if present. |
-| `dependencies` | List. | Declare `*-gaia` packages here for cross-package knowledge references. Non-Gaia dependencies are allowed but ignored by the compiler. |
+| `dependencies` | List. | Declare `*-gaia` packages here for cross-package knowledge references. Non-Gaia dependencies are allowed but ignored by the compiler. `gaia-lang` itself is the runtime distribution; in v0.5 it brings the full DSL surface (`gaia.engine.lang`) plus the Bayes peer module (`gaia.engine.bayes`) — see [bayes.md](bayes.md) for the import contract. |
 
 ### `[tool.gaia]` section
 
@@ -104,7 +104,7 @@ galileo-falling-bodies-gaia/
 │   └── galileo_falling_bodies/
 │       ├── __init__.py          # Package entry: exports + DSL declarations
 │       ├── premises.py          # Background knowledge and observations
-│       ├── reasoning.py         # Reasoning strategies
+│       ├── reasoning.py         # Reasoning actions (derive / observe / infer / relations / ...)
 │       └── priors.py            # Prior records via register_prior(...)
 └── .gaia/                       # Compiled artifacts (git-tracked)
     ├── ir.json                  # LocalCanonicalGraph JSON

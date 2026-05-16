@@ -32,6 +32,8 @@ evidence / priors 和 soft 概率参数；确定性 operator potential 本身保
 
 所有确定性算子在因子图中保留专门的 `FactorType`。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT / IMPLICATION）的 conclusion 是断言（通过 `add_evidence(1)` 激活约束）；**expression operator**（NEGATION / CONJUNCTION / DISJUNCTION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
 
+> **Note — IMPLICATION 在 connective formula 下的特例：** 默认情况下 `lower_local_graph` 把顶层 `Operator(implication, ...)` 视作 relation 断言，按 §2 的 `add_evidence(1)` 路径激活；但当 implication 是某个 claim formula 内部连接词的下沉产物（即 lowering 调用站点把 `formula_lowering="connective"` 传入 `gaia.engine.bp.lowering`）时，IMPLICATION 保留为表达式形式不再 pin conclusion——这避免了 formula 内部连接词与外部 relation assertion 双重激活同一个 helper claim。源码：`gaia/engine/bp/lowering.py::_lower_one_operator` (`_OPERATOR_MAP` + connective 短路分支)。
+
 ## SOFT_ENTAILMENT（软蕴含 ↝）
 
 `variables=[M]`（单前提），`conclusion=C`，参数 `p1`, `p2`（须满足 `p1 + p2 > 1`）。

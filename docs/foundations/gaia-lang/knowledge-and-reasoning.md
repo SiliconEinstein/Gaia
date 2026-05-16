@@ -228,6 +228,8 @@ Most action helpers carry `metadata["review"] = true` and `metadata["helper_kind
 
 Structural-expression helpers from the deprecated `~A`, `A & B`, `A | B` shortcuts use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
 
+The IR-side public/private boundary for these helpers — including which helper Claims may be referenced from outside their FormalStrategy and which must stay encapsulated — is defined in [gaia-ir/04-helper-claims.md](../gaia-ir/04-helper-claims.md). Action lowering follows that boundary: the warrant helper for a `Derive` / `Observe` / `Compute` / `Infer` / `Associate` is a public Claim (reviewable, addressable via `[@label]`); the intermediate `conjunction_result` of a multi-premise `Derive` lives inside the FormalStrategy's `formal_expr` as a private node and is not addressable.
+
 ### 4.3 Action Label References
 
 Author-side `[@label]` and `@label` references in claim content, action `rationale`, and notes resolve through a single `label_to_id` table built from:
@@ -238,6 +240,27 @@ Author-side `[@label]` and `@label` references in claim content, action `rationa
 A label collision between a Claim and an Action in the same package is a compile error (`ambiguous reference key`). `DependsOn` labels are intentionally not addressable. Cross-package action references follow the same rules as cross-package Claim references once the registry supports them.
 
 Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539.
+
+### 4.4 Compiler extension registry
+
+Action lowering is dispatched through a typed registry in
+`gaia/engine/lang/compiler/extensions.py`. Each built-in action subclass is
+registered with `register_action_lowerer(action_type, lowerer, *, replace=False)`
+so the compiler can map a runtime `Action` to the IR target documented in §4.1.
+Authors normally do not call this directly — every built-in verb is registered
+at import time — but **plugins or experimental DSL extensions** can supply a
+new action subclass plus its IR lowerer through the same hook. `replace=True`
+is required to overwrite an already-registered lowerer; otherwise a duplicate
+registration is a compile-time error so packages cannot silently shadow each
+other.
+
+Public surface (auto-rendered from docstrings on
+[`docs/reference/engine/lang/compiler.md`](../../reference/engine/lang/compiler.md)):
+
+- `register_action_lowerer(action_type, lowerer, *, replace=False)` — register
+  a lowerer for a custom `Action` subclass.
+- `registered_action_lowerers()` — snapshot of currently-registered lowerers
+  (used by `gaia build check` to surface plugin-provided actions).
 
 ---
 

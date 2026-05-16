@@ -1,19 +1,35 @@
 ---
-status: current-canonical
+status: mixed
 layer: gaia-lang
 since: v0.5
 ---
 
 # Bayes Module And Continuous Quantities
 
+> **Status — read this first.** This document covers two surfaces with
+> different release status:
+>
+> - **Hypothesis-comparison surface (`gaia.engine.bayes`, sections "Hypothesis
+>   comparison surface" through "Check Rules") is current canonical in v0.5.**
+>   It is what `bayes.model` / `bayes.likelihood` ship today. Treat these
+>   sections as the authoring contract.
+> - **Quantity-with-predicate surface (`Distribution` + `claim(content,
+>   predicate)` + `observe(dist, value, error)`, marked `(v0.6+)`) is target
+>   design**, planned for the v0.6 release line. The behavior described there
+>   is **not** the v0.5 contract; do not rely on it from existing packages.
+>   Each v0.6+ subsection carries its own callout where relevant.
+>
+> If you are reading this on a v0.5 install, treat anything inside the
+> "Quantity-With-Predicate Surface (v0.6+)" section as a roadmap reference.
+
 Gaia provides **two complementary mental models** for handling continuous
 parameters and observations. Pick the one that matches your scientific
 question:
 
-| You want to … | Use this surface | Mental model |
-|---|---|---|
-| Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.engine.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **Hypothesis comparison** via likelihood ratios |
-| Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` | **Quantity with predicates** via generated prior records and equation metadata |
+| You want to … | Use this surface | Status | Mental model |
+|---|---|---|---|
+| Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.engine.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **v0.5 canonical** | **Hypothesis comparison** via likelihood ratios |
+| Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` | **v0.6+ target design** | **Quantity with predicates** via generated prior records and equation metadata |
 
 Both surfaces ride on the same scipy-backed distribution machinery
 (``gaia.engine.bayes.distributions``); the difference is the authoring shape
@@ -86,31 +102,14 @@ alternative, where every exact count has marginal likelihood `1 / (n + 1)`.
 
 ## Verbs at a Glance
 
-```python
-bayes.model(
-    hypothesis: Claim,
-    *,
-    observable: Variable,
-    distribution: Distribution,
-    background: list[Knowledge] | None = None,
-    rationale: str = "",
-    label: str | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> Claim                               # returns the model helper claim
-
-bayes.likelihood(
-    data: Claim | list[Claim] | tuple[Claim, ...],
-    *,
-    model: Claim,
-    against: Claim | list[Claim] | tuple[Claim, ...] = (),
-    background: list[Knowledge] | None = None,
-    rationale: str = "",
-    label: str | None = None,
-    exclusivity: str = "pairwise_contradiction",
-    precomputed: dict[Claim, float] | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> Claim                               # returns the comparison helper claim
-```
+`bayes.model` declares a predictive-model helper Claim that ties a hypothesis
+Claim to a predictive distribution over an observable; `bayes.likelihood`
+declares a model-preference helper Claim that compares one model against a
+list of alternatives and emits the chosen exclusivity contract. The full
+parameter list, return types, and current defaults are auto-generated from
+docstrings on [`docs/reference/engine/bayes.md`](../../reference/engine/bayes.md);
+the conceptual contract that this foundation doc owns is the **`exclusivity`
+contract** below.
 
 `exclusivity` accepts:
 
@@ -277,11 +276,17 @@ Claim prior and no `priors.py` entry contribute `0.5` to the sum.
 
 ## Quantity-With-Predicate Surface (v0.6+)
 
+> **Roadmap (v0.6+) — not current contract.** Everything from this section
+> down to the next top-level `##` heading describes target design that has not
+> shipped in v0.5. The behavior, syntax, and diagnostics are subject to change
+> before release; do not author new v0.5 packages against these names. The
+> hypothesis-comparison surface above is the v0.5 source of truth.
+
 The hypothesis-comparison surface above is verbose for a common scientific
 pattern: *"I have one continuous parameter with prior uncertainty, and I want
 to ask threshold or equation questions about it"*. The
-**quantity-with-predicate** surface added in v0.6 collapses that pattern into
-three concepts:
+**quantity-with-predicate** surface planned for v0.6+ collapses that pattern
+into three concepts:
 
 1. **Distribution** — a named continuous (or discrete) quantity with a prior
    distribution attached.
