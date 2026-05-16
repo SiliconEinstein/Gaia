@@ -135,7 +135,7 @@ def test_starmap_absolute_out_path(tmp_path):
 
 
 def test_starmap_without_beliefs(tmp_path):
-    """Without `gaia infer`, starmap still produces HTML; beliefs are absent."""
+    """Without `gaia run infer`, starmap still produces HTML; beliefs are absent."""
     pkg_dir = tmp_path / "starmap_no_infer"
     _write_base_package(pkg_dir, name="starmap_no_infer")
     _write_minimal_source(pkg_dir, "starmap_no_infer")
@@ -154,7 +154,7 @@ def test_starmap_without_beliefs(tmp_path):
 
 
 def test_starmap_missing_ir(tmp_path):
-    """Without `gaia compile`, starmap exits non-zero with a clear message."""
+    """Without `gaia build compile`, starmap exits non-zero with a clear message."""
     pkg_dir = tmp_path / "starmap_no_compile"
     _write_base_package(pkg_dir, name="starmap_no_compile")
     _write_minimal_source(pkg_dir, "starmap_no_compile")
@@ -224,7 +224,7 @@ def test_starmap_dot_belief_annotation(tmp_path):
 
 
 def test_starmap_dot_no_beliefs(tmp_path):
-    """Without `gaia infer`, dot still renders and skips trend arrows."""
+    """Without `gaia run infer`, dot still renders and skips trend arrows."""
     pkg_dir = tmp_path / "starmap_dot_no_infer"
     _write_base_package(pkg_dir, name="starmap_dot_no_infer")
     _write_minimal_source(pkg_dir, "starmap_dot_no_infer")
@@ -592,7 +592,7 @@ def test_to_dot_contradiction_incident_edges_recolored():
 
 
 def test_starmap_cli_theme_flag(tmp_path):
-    """`gaia starmap --format dot --theme stellaris` produces dot with sfdp layout."""
+    """`gaia inspect starmap --format dot --theme stellaris` produces dot with sfdp layout."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_theme")
     result = runner.invoke(
         app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "stellaris"]
@@ -1448,7 +1448,7 @@ def test_starmap_corrupt_beliefs_json_errors(tmp_path):
 
 
 def test_starmap_stale_beliefs_errors(tmp_path):
-    """Beliefs whose ir_hash doesn't match compile output prompt `gaia infer` again."""
+    """Beliefs whose ir_hash doesn't match compile output prompt `gaia run infer` again."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_stale_beliefs")
     beliefs_path = pkg_dir / ".gaia" / "beliefs.json"
     data = json.loads(beliefs_path.read_text())

@@ -97,7 +97,7 @@ def test_star_import_excludes_legacy_compat_surface():
 
 def test_legacy_top_level_getattr_warns_and_returns_compat_export():
     lang.__dict__.pop("support", None)
-    with pytest.warns(DeprecationWarning, match="compat\\.support"):
+    with pytest.warns(DeprecationWarning, match="Prefer current v0.5 verbs"):
         value = lang.support
     assert value is compat.support
     assert lang.support is compat.support

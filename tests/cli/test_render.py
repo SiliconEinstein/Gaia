@@ -1,4 +1,4 @@
-"""Tests for gaia render command."""
+"""Tests for the `gaia run render` command."""
 
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ def test_render_target_github_fails_when_no_beliefs(tmp_path):
 
     result = runner.invoke(app, ["run", "render", str(pkg_dir), "--target", "github"])
     assert result.exit_code != 0
-    assert "inference" in result.output.lower() or "gaia infer" in result.output
+    assert "gaia run infer" in result.output
 
 
 def test_render_target_docs_succeeds_without_beliefs(tmp_path):

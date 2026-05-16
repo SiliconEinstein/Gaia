@@ -152,8 +152,9 @@ def __getattr__(name: str) -> Any:
         return module
     if name in _COMPAT_EXPORTS:
         warnings.warn(
-            f"gaia.engine.lang.{name} is a compatibility export; import "
-            f"gaia.engine.lang.compat.{name} explicitly while migrating.",
+            f"gaia.engine.lang.{name} is deprecated. Prefer current v0.5 "
+            "verbs from gaia.engine.lang; if you must keep this legacy API "
+            f"during migration, import gaia.engine.lang.compat.{name} explicitly.",
             DeprecationWarning,
             stacklevel=2,
         )

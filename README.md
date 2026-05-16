@@ -354,10 +354,10 @@ premise or use `infer(...)`; do not hide it inside a prose rationale.
 
 ```
 gaia/
-├── engine/     DSL runtime, Gaia IR schema, validation, compiler, and BP engine
+├── engine/     DSL runtime, Gaia IR schema, validation, compiler, BP engine, inquiry, and trace
 ├── cli/        CLI command groups (build, run, inspect, pkg, inquiry, trace)
-├── inquiry/    Semantic review loop — diagnostic kinds, focus/reject/obligation/hypothesis state
-└── trace/      ARM execution-trace verifier and reviewer (schema + hash chain)
+├── inquiry/    Backward-compat tombstone; live code is gaia.engine.inquiry
+└── trace/      Backward-compat tombstone; live code is gaia.engine.trace
 ```
 
 ## Documentation

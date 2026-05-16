@@ -1,8 +1,11 @@
 """Deprecated v5 compatibility surface for Gaia Lang.
 
-New packages should import from :mod:`gaia.engine.lang`. This module keeps old
-DSL names available during migration without keeping them in the recommended
-top-level ``gaia.engine.lang.__all__`` surface.
+New packages should use the current v0.5 verbs from :mod:`gaia.engine.lang`,
+such as ``note()``, ``derive()``, ``infer()``, and relation verbs. This module
+keeps old DSL names available during migration without keeping them in the
+recommended top-level ``gaia.engine.lang.__all__`` surface. See
+``docs/foundations/gaia-lang/knowledge-and-reasoning.md`` section 7 for the
+legacy-verb migration table.
 """
 
 from gaia.engine.lang.dsl import (
