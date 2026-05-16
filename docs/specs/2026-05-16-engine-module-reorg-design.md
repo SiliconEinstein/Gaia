@@ -35,7 +35,7 @@ The motivation is **structural, not feature-driven**. Issue 3 is the largest in 
 
 ## 2. Current Code Facts
 
-(based on `origin/codex/remove-excluded-foundation-dsl` head — i.e., v0.5 + PR #606 + PR #609)
+(based on current `origin/v0.5`, i.e. v0.5 after PR #606 and PR #609)
 
 ```
 gaia/engine/
@@ -201,7 +201,7 @@ This is what the BayesInference shape decision (`2026-05-15-causal-cleanup-reaso
 
 | Site | What it does |
 |---|---|
-| `gaia/engine/lang/__init__.py:138-142` `__getattr__("bayes")` | Lazy-imports `gaia.engine.lang.bayes` (or post-PR-b `gaia.engine.bayes`) so the documented public form `from gaia.engine.lang import bayes` keeps working |
+| `gaia/engine/lang/__init__.py::__getattr__("bayes")` | Lazy-imports `gaia.engine.lang.bayes` (or post-PR-b `gaia.engine.bayes`) so the documented public form `from gaia.engine.lang import bayes` keeps working |
 | `gaia/engine/lang/compiler/compile.py::_lower_bayes_actions` | Calls `from gaia.engine.lang.bayes.compiler import lower_bayes_claims` directly inside the core compile pipeline |
 | `gaia/engine/lang/runtime/distribution.py` (10+ sites) | Top-level distribution factories `Normal / LogNormal / Beta / Exponential / Gamma / StudentT / Cauchy / ChiSquared / Binomial / Poisson` lazy-import their backing implementations from `bayes.distributions.*` and `bayes.adapters.scipy_backend` |
 
@@ -226,8 +226,8 @@ PR b's scope is **path migration only**:
 
 - move the directory tree `engine/lang/bayes/` → `engine/bayes/`
 - update the three reverse-import sites above to point at the new path:
-  - `lang/__init__.py:140` `import_module("gaia.engine.lang.bayes")` → `import_module("gaia.engine.bayes")`
-  - `lang/compiler/compile.py:1826` `from gaia.engine.lang.bayes.compiler import …` → `from gaia.engine.bayes.compiler import …`
+  - `lang/__init__.py` `import_module("gaia.engine.lang.bayes")` → `import_module("gaia.engine.bayes")`
+  - `lang/compiler/compile.py::_lower_bayes_actions` `from gaia.engine.lang.bayes.compiler import …` → `from gaia.engine.bayes.compiler import …`
   - all `lang/runtime/distribution.py` `from gaia.engine.lang.bayes.{distributions,adapters} import …` → `from gaia.engine.bayes.{distributions,adapters} import …`
 - install the tombstone for `gaia.engine.lang.bayes` (see §9)
 
@@ -289,7 +289,7 @@ gaia/engine/
 └── trace/
 ```
 
-**Disappearing:** `engine.lang.types/`, `engine.logic/`, `engine.lang.bayes/`.
+**Disappearing as canonical implementation namespaces:** `engine.lang.types/`, `engine.logic/`, `engine.lang.bayes/` (old directories remain only as tombstone shims where needed).
 **Appearing:** `engine.bayes/`, `engine.ir.logic/`.
 **Renamed inside `bayes/`:** `verbs/` → `dsl/`.
 **Untouched:** `lang.runtime/`, `lang.dsl/`, `lang.compiler/`, `lang.refs/`, `lang.review/`, `ir/*` other than the new `logic/` subdir, `bp/`, `inquiry/`, `trace/`, `_stale_check.py`, `packaging.py`.
@@ -309,6 +309,7 @@ Two sequenced PRs to minimize blast radius and let reviewers focus on one struct
 | `gaia/engine/logic/propositional.py` | Move to `gaia/engine/ir/logic/propositional.py` |
 | `gaia/engine/logic/__init__.py` | **Replace contents** with the 4-line tombstone shim — directory kept |
 | `gaia/engine/ir/logic/__init__.py` | **New file** with explicit scope notes (see below) |
+| `gaia/logic/__init__.py` | **Retarget existing alpha-0 shim** from `gaia.engine.logic` to `gaia.engine.ir.logic` |
 
 The tombstone shim follows the alpha-0 convention used by `gaia/bp/__init__.py`, `gaia/lang/__init__.py`, etc.:
 
@@ -334,6 +335,13 @@ Existing entry updated:
 ```python
 # old: "gaia.logic": "gaia.engine.logic"
 "gaia.logic": "gaia.engine.ir.logic",
+```
+
+Existing top-level tombstone shim updated:
+
+```python
+# old: _tombstoned_namespace_getattr("gaia.logic", "gaia.engine.logic")
+__getattr__ = _tombstoned_namespace_getattr("gaia.logic", "gaia.engine.ir.logic")
 ```
 
 `gaia/engine/lang/__init__.py`: continue re-exporting `Bool, Nat, Real, Probability, PrimitiveType` so user-facing import `from gaia.engine.lang import Bool` keeps working unchanged.
@@ -392,9 +400,9 @@ Repo-wide import-path rewrites — three categories:
 2. **Internal cross-imports inside the moved subtree** — paths inside `bayes/*` referring to siblings need rewriting from `gaia.engine.lang.bayes.X` to `gaia.engine.bayes.X`.
 
 3. **Three `lang → bayes` reverse-import sites** (per §6.2) — these continue to exist after PR b but the path is updated:
-   - `gaia/engine/lang/__init__.py:140` `import_module("gaia.engine.lang.bayes")` → `import_module("gaia.engine.bayes")`
-   - `gaia/engine/lang/compiler/compile.py:1826` `from gaia.engine.lang.bayes.compiler import lower_bayes_claims` → `from gaia.engine.bayes.compiler import lower_bayes_claims`
-   - all `gaia/engine/lang/runtime/distribution.py` lazy imports — for example line 169 `from gaia.engine.lang.bayes.distributions.base import _BaseDistribution` → `from gaia.engine.bayes.distributions.base import _BaseDistribution`; same for `bayes.adapters.scipy_backend` and the 10 distribution factories `Normal / LogNormal / Beta / Exponential / Gamma / StudentT / Cauchy / ChiSquared / Binomial / Poisson`
+   - `gaia/engine/lang/__init__.py` `import_module("gaia.engine.lang.bayes")` → `import_module("gaia.engine.bayes")`
+   - `gaia/engine/lang/compiler/compile.py::_lower_bayes_actions` `from gaia.engine.lang.bayes.compiler import lower_bayes_claims` → `from gaia.engine.bayes.compiler import lower_bayes_claims`
+   - all `gaia/engine/lang/runtime/distribution.py` lazy imports — for example `from gaia.engine.lang.bayes.distributions.base import _BaseDistribution` → `from gaia.engine.bayes.distributions.base import _BaseDistribution`; same for `bayes.adapters.scipy_backend` and the 10 distribution factories `Normal / LogNormal / Beta / Exponential / Gamma / StudentT / Cauchy / ChiSquared / Binomial / Poisson`
 
 Note: the `verbs/ → dsl/` rename inside `bayes/` does not require its own namespace tombstone because `engine.lang.bayes.verbs` was an internal sub-package; the public `bayes.dsl/__init__.py` re-exports the same names (`model`, `likelihood`).
 
@@ -446,7 +454,7 @@ With both pieces in place, the three import forms are all covered:
 
 This is why §8.1 / §8.2 keep the old directories and **replace** their `__init__.py` with shim contents rather than deleting the directories.
 
-For PR a: two new tombstone shims (`engine/lang/types/`, `engine/logic/`); two new `TOMBSTONED_NAMESPACES` entries (`gaia.engine.lang.types`, `gaia.engine.logic`); one existing entry updated (`gaia.logic` retargeted to `gaia.engine.ir.logic`).
+For PR a: two new tombstone shims (`engine/lang/types/`, `engine/logic/`); two new `TOMBSTONED_NAMESPACES` entries (`gaia.engine.lang.types`, `gaia.engine.logic`); one existing registry entry updated (`gaia.logic` retargeted to `gaia.engine.ir.logic`); one existing top-level shim retargeted (`gaia/logic/__init__.py` points to `gaia.engine.ir.logic`).
 
 For PR b: one new tombstone shim (`engine/lang/bayes/`); one new `TOMBSTONED_NAMESPACES` entry (`gaia.engine.lang.bayes`).
 
@@ -510,9 +518,9 @@ assert bayes.__name__ == "gaia.engine.bayes"          # path migrated
 
 # 2. Top-level Distribution factories — proxy to the new bayes.distributions
 from gaia.engine.lang.runtime.distribution import Normal, Beta, Binomial
-n = Normal(mu=0.0, sigma=1.0)
-b = Beta(alpha=1.0, beta=1.0)
-bn = Binomial(n=10, p=0.5)
+n = Normal("x", mu=0.0, sigma=1.0)
+b = Beta("p", alpha=1.0, beta=1.0)
+bn = Binomial("k", n=10, p=0.5)
 # accessing them must not raise; their backing classes resolve from gaia.engine.bayes.distributions
 
 # 3. _lower_bayes_actions code path — exercise via end-to-end compile
@@ -559,7 +567,7 @@ User / foundations docs:
 
 Reference / facade docs (engine reference layer):
 
-- update `docs/reference/engine/index.md` — facade table (the canonical 7-submodule list that locks the engine surface): remove `gaia.engine.logic` from the top-level list; the demoted `engine.ir.logic` lives under the existing `gaia.engine.ir` reference page
+- update `docs/reference/engine/index.md` — facade table (the current top-level engine surface): remove `gaia.engine.logic` from the top-level list; the demoted `engine.ir.logic` lives under the existing `gaia.engine.ir` reference page
 - delete or redirect `docs/reference/engine/logic.md` — its content moves to a sub-section under `docs/reference/engine/ir.md` (or a new `docs/reference/engine/ir/logic.md` if the per-page convention prefers a separate page)
 - update `docs/reference/engine/ir.md` (or `lang/formula.md` / `lang/types.md`) — note that `Bool / Nat / Real / Probability / PrimitiveType` now canonically live at `gaia.engine.lang.formula.primitives`
 
@@ -570,14 +578,14 @@ Facade contract test:
   EXPECTED = {
       "gaia.engine.bp": 17,
       "gaia.engine.ir": 32,
-      "gaia.engine.lang": 127,
+      "gaia.engine.lang": 130,
       "gaia.engine.logic": 7,         # ← remove (logic demoted under ir)
       "gaia.engine.inquiry": 45,
       "gaia.engine.trace": 7,
       "gaia.engine.packaging": 9,
   }
   ```
-  Decide whether the 7 logic symbols are re-exported from `gaia.engine.ir` (so `gaia.engine.ir`'s count rises from 32 to ~39) or made internal-only under `gaia.engine.ir.logic` (so the `gaia.engine.ir` `__all__` is unchanged and the 7 symbols disappear from the locked facade total). This is a small but explicit policy decision the implementing PR has to make; update `tests/baseline/test_l2_facade.py` and the docstring in `engine-facade-final.md` accordingly.
+  The current pre-reorg grand total is 247. Decide whether the 7 logic symbols are re-exported from `gaia.engine.ir` (so `gaia.engine.ir`'s count rises from 32 to ~39 and the total stays near 247) or made internal-only under `gaia.engine.ir.logic` (so the `gaia.engine.ir` `__all__` is unchanged and the 7 symbols disappear from the locked facade total). This is a small but explicit policy decision the implementing PR has to make; update `tests/baseline/test_l2_facade.py` and its module docstring/header counts accordingly.
 
 ### PR b
 
@@ -599,7 +607,7 @@ Reference / facade docs:
 
 Facade contract test:
 
-- update `tests/baseline/test_l2_facade.py` — add `gaia.engine.bayes` to `EXPECTED` with its `__all__` count; total 244 will change; sync the docstring header counts
+- update `tests/baseline/test_l2_facade.py` — add `gaia.engine.bayes` to `EXPECTED` with its `__all__` count; the post-PR-a total will change again; sync the docstring header counts
 
 ### Both PRs
 
