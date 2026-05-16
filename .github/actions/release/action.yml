@@ -17,9 +17,6 @@ inputs:
   dry_run:
     description: "true|false — skip publish, only build+validate"
     required: true
-  pypi_token:
-    description: "PyPI API token; required if dry_run=false"
-    required: false
   do_git_tag:
     description: "true|false — only true for stable channel"
     required: true
@@ -77,12 +74,9 @@ runs:
     - name: Validate via wheel-smoke (fresh-venv install + import facades)
       uses: ./.github/actions/wheel-smoke
 
-    - name: Publish to PyPI
+    - name: Publish to PyPI (OIDC trusted publishing)
       if: inputs.dry_run != 'true'
-      shell: bash
-      env:
-        UV_PUBLISH_TOKEN: ${{ inputs.pypi_token }}
-      run: uv publish
+      uses: pypa/gh-action-pypi-publish@release/v1
 
     # Stable-only: tag and GitHub release. Both gated on dry_run too so a
     # dry-run stable dispatch never touches refs or releases.
