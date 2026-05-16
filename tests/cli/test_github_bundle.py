@@ -50,6 +50,36 @@ def test_github_data_bundle_written_without_react_template(tmp_path: Path):
     assert not (docs_dir / "vite.config.ts").exists()
 
 
+def test_github_output_resets_stale_existing_bundle(tmp_path: Path):
+    """Regenerating GitHub output removes stale files from prior React bundles."""
+    ir = {
+        "package_name": "test_pkg",
+        "namespace": "github",
+        "knowledges": [],
+        "strategies": [],
+        "operators": [],
+        "ir_hash": "sha256:abc",
+    }
+    pkg_path = tmp_path / "test-pkg-gaia"
+    stale_docs_dir = pkg_path / ".github-output" / "docs"
+    stale_docs_dir.mkdir(parents=True)
+    (stale_docs_dir / "package.json").write_text("{}")
+    (stale_docs_dir / "src").mkdir()
+    (stale_docs_dir / "src" / "App.tsx").write_text("export default function App() {}")
+
+    output_dir = generate_github_output(
+        ir,
+        pkg_path,
+        beliefs_data=None,
+        param_data=None,
+        exported_ids=set(),
+    )
+
+    assert not (output_dir / "docs" / "package.json").exists()
+    assert not (output_dir / "docs" / "src").exists()
+    assert (output_dir / "docs" / "public" / "data" / "graph.json").exists()
+
+
 def test_meta_json_content(tmp_path: Path):
     """meta.json should include package_name and namespace from IR."""
     ir = {
