@@ -1,0 +1,66 @@
+name: Wheel smoke
+description: >-
+  Build the gaia-lang wheel, install it into a fresh venv, and smoke-test the
+  installed CLI (`gaia --help`) and the seven L2 engine facade imports
+  (`gaia.engine.{bp, ir, lang, logic, inquiry, trace, packaging}`).
+
+runs:
+  using: composite
+  steps:
+    - name: Build wheel
+      shell: bash
+      run: |
+        rm -rf dist
+        uv build
+
+    - name: Create fresh venv
+      shell: bash
+      run: |
+        rm -rf /tmp/gaia-wheel-smoke-venv
+        python -m venv /tmp/gaia-wheel-smoke-venv
+
+    - name: Install built wheel
+      shell: bash
+      run: |
+        shopt -s nullglob
+        wheels=(dist/*.whl)
+        if [ "${#wheels[@]}" -eq 0 ]; then
+          echo "ERROR: no wheel produced under dist/" >&2
+          exit 1
+        fi
+        if [ "${#wheels[@]}" -gt 1 ]; then
+          echo "ERROR: expected exactly one wheel under dist/, found ${#wheels[@]}:" >&2
+          printf '  %s\n' "${wheels[@]}" >&2
+          exit 1
+        fi
+        /tmp/gaia-wheel-smoke-venv/bin/pip install "${wheels[0]}"
+
+    - name: Smoke gaia --help
+      shell: bash
+      run: |
+        output="$(/tmp/gaia-wheel-smoke-venv/bin/gaia --help)"
+        if [ -z "$output" ]; then
+          echo "ERROR: 'gaia --help' produced empty output" >&2
+          exit 1
+        fi
+        printf '%s\n' "$output"
+
+    - name: Smoke facade imports
+      shell: bash
+      run: |
+        /tmp/gaia-wheel-smoke-venv/bin/python -c "
+        import importlib
+
+        facades = [
+            'gaia.engine.bp',
+            'gaia.engine.ir',
+            'gaia.engine.lang',
+            'gaia.engine.logic',
+            'gaia.engine.inquiry',
+            'gaia.engine.trace',
+            'gaia.engine.packaging',
+        ]
+        for name in facades:
+            importlib.import_module(name)
+            print(f'OK {name}')
+        "

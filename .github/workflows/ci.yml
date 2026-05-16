@@ -56,6 +56,9 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov-report=xml tests -v -m "not slow"
 
+      - name: Wheel smoke
+        uses: ./.github/actions/wheel-smoke
+
       - name: Upload coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v5
