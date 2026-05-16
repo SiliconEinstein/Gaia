@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -28,12 +30,65 @@ def _build_minimal_bayes_package(name: str) -> CollectedPackage:
     return pkg
 
 
-def test_lang_compiler_has_no_direct_bayes_import_or_hook() -> None:
-    compile_module = importlib.import_module("gaia.engine.lang.compiler.compile")
-    source = inspect.getsource(compile_module)
+def _collect_imported_modules(tree: ast.AST) -> list[tuple[str, int]]:
+    """Return ``(module_path, lineno)`` tuples for every ``import`` statement.
 
-    assert "gaia.engine.bayes" not in source
-    assert "_lower_bayes_actions" not in source
+    Both ``import X`` and ``from X import Y`` are reported; relative imports
+    surface their ``module`` attribute (which is ``None`` for ``from . import``,
+    skipped here because compile.py is not a package boundary).
+    """
+    imports: list[tuple[str, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.module:
+                imports.append((node.module, node.lineno))
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append((alias.name, node.lineno))
+    return imports
+
+
+def test_lang_compiler_has_no_direct_bayes_dependency() -> None:
+    """``lang.compiler.compile`` must not import any extension package.
+
+    Enforces the host ⊥ extension contract from the engine reorg spec
+    (PR #617 §6) for the ``lang ⊥ bayes`` slice. Walks ``compile.py``'s AST
+    and rejects any ``import`` / ``from ... import`` whose module path falls
+    under ``gaia.engine.bayes`` (or any other declared extension namespace).
+
+    Compared with the earlier string-match version, this:
+
+    - ignores docstring / comment / string-constant mentions of ``bayes`` so
+      the contract is about *real* dependencies, not lexical hygiene; and
+    - centralizes the extension namespace list in one place so adding a new
+      extension (causal, statistics, ...) is a single-line edit.
+
+    .. note::
+
+       This is intentionally a single-test, AST-walk enforcement of one slice
+       of the host ⊥ extension contract. When the second extension lands,
+       migrate to ``import-linter`` (or equivalent) so the full contract —
+       including extension ⊥ extension — is declared in one config block
+       rather than fanning out across N hand-written tests. See PR #617 §6
+       for the full target dependency direction.
+    """
+    extension_namespaces = ("gaia.engine.bayes",)
+
+    compile_module = importlib.import_module("gaia.engine.lang.compiler.compile")
+    source = Path(inspect.getfile(compile_module)).read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=compile_module.__file__ or "compile.py")
+
+    offending: list[str] = []
+    for module_path, lineno in _collect_imported_modules(tree):
+        for forbidden in extension_namespaces:
+            if module_path == forbidden or module_path.startswith(forbidden + "."):
+                offending.append(f"{module_path} (line {lineno})")
+                break
+
+    assert not offending, (
+        "gaia.engine.lang.compiler.compile must not import any extension "
+        f"namespace (host ⊥ extension per spec §6); found imports of: {offending}"
+    )
 
 
 def test_bayes_registers_compiler_extension_when_imported() -> None:
