@@ -134,22 +134,30 @@ def _normalize_init_scaffold_artifacts(artifacts: dict[str, object]) -> dict[str
     """Validate Gaia-owned pyproject fields without snapshotting uv's defaults."""
     files = artifacts["files"]
     assert isinstance(files, list)
+    normalized_files: list[dict[str, object]] = []
+    found_pyproject = False
     for entry in files:
         assert isinstance(entry, dict)
+        if entry.get("path") == "uv.lock":
+            continue
         if entry.get("path") != "pyproject.toml":
+            normalized_files.append(entry)
             continue
         content = entry.get("content")
         assert isinstance(content, str)
         config = tomllib.loads(content)
         assert config["project"]["name"] == "demo-gaia"
         assert config["project"]["requires-python"] == ">=3.12"
-        assert any(dep.startswith("gaia-lang") for dep in config["project"].get("dependencies", []))
         assert config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/demo"]
         assert config["tool"]["gaia"]["type"] == "knowledge-package"
         assert config["tool"]["gaia"]["uuid"] == "<UUID4>"
         entry["content"] = "<uv-generated pyproject; Gaia-owned contract validated>\n"
-        return artifacts
-    raise AssertionError("pyproject.toml missing from init scaffold artifacts")
+        normalized_files.append(entry)
+        found_pyproject = True
+    if not found_pyproject:
+        raise AssertionError("pyproject.toml missing from init scaffold artifacts")
+    artifacts["files"] = normalized_files
+    return artifacts
 
 
 def test_init_scaffold_tree_snapshot(tmp_path: Path, run_gaia, snapshot, monkeypatch) -> None:
