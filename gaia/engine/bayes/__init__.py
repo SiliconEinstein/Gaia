@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from gaia.engine.bayes.compiler import register_bayes_lowerer as _register_bayes_lowerer
 from gaia.engine.bayes.distributions import (
     Beta,
     BetaBinomial,
@@ -47,6 +48,8 @@ def _register_bayes_roles() -> None:
 
 
 _register_bayes_roles()
+
+_register_bayes_lowerer()
 
 __all__ = [
     "BayesInference",
