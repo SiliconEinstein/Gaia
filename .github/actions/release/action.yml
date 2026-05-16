@@ -35,7 +35,15 @@ runs:
       shell: bash
       run: |
         sed -i 's/^version = "0\.5\.0"$/version = "${{ inputs.version }}"/' pyproject.toml
-        grep '^version' pyproject.toml
+        # Strict assert: sed actually replaced; will fail loudly if pyproject's
+        # pinned version drifts from 0.5.0 (e.g., post-bump in future) making
+        # sed a silent no-op.
+        grep -q "^version = \"${{ inputs.version }}\"$" pyproject.toml || {
+          echo "::error::pyproject.toml version mismatch after sed (expected '${{ inputs.version }}'; current: $(grep ^version pyproject.toml))"
+          echo "::error::This likely means the source version pin has drifted from 0.5.0; update the sed pattern in release/action.yml"
+          exit 1
+        }
+        grep ^version pyproject.toml
 
     # Inject build-time channel + commit. gaia/_meta.py reads these via
     # `from gaia._build_info import CHANNEL, COMMIT` with a 'dev'/'unknown'
@@ -53,14 +61,20 @@ runs:
       shell: bash
       run: uv sync --extra dev
 
-    # Sanity gate: the injected channel must show up in `gaia --version`.
-    # Catches a busted _build_info.py before we ship a wheel labeled wrong.
+    # Sanity gate: the injected channel + version must show up in `gaia --version`.
+    # Catches a busted _build_info.py or a sed/version-injection bug before we
+    # ship a wheel labeled wrong.
     - name: Verify gaia --version reflects the release metadata
       shell: bash
       run: |
-        uv run gaia --version
-        uv run gaia --version | grep -q "^channel: ${{ inputs.channel }}$" || {
+        version_output=$(uv run gaia --version)
+        echo "$version_output"
+        echo "$version_output" | grep -q "^channel: ${{ inputs.channel }}$" || {
           echo "::error::gaia --version did not report channel=${{ inputs.channel }}"
+          exit 1
+        }
+        echo "$version_output" | grep -q "^gaia-lang ${{ inputs.version }}$" || {
+          echo "::error::gaia --version did not report version=${{ inputs.version }}"
           exit 1
         }
 
@@ -73,6 +87,28 @@ runs:
     # so the version + build_info we just set are baked into the smoked wheel.
     - name: Validate via wheel-smoke (fresh-venv install + import facades)
       uses: ./.github/actions/wheel-smoke
+
+    # B1 release-time validation gates. These mirror nightly CI's full-suite
+    # gates and operate on the source tree (not the built wheel), so they test
+    # the implementation that produced the wheel — correct gating posture per
+    # spec §4 (release CI = nightly CI + publishing checks). Gates run in both
+    # dry-run and non-dry-run modes: dry-run skips publish/tag/release but the
+    # gates ARE the pipeline being verified, so they always run.
+    - name: Install graphviz (for mkdocs / corpus rendering)
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y graphviz
+
+    - name: Run full test suite (release gate)
+      shell: bash
+      run: make test-all
+
+    - name: Build docs strict (release gate)
+      shell: bash
+      run: uv run --extra docs mkdocs build --strict
+
+    - name: Run package corpus e2e (release gate)
+      shell: bash
+      run: uv run python scripts/run_package_corpus.py
 
     - name: Publish to PyPI (OIDC trusted publishing)
       if: inputs.dry_run != 'true'
