@@ -6,5 +6,5 @@
   ],
   "exit_code": 0,
   "stderr": "",
-  "stdout": "Compiled 24 knowledge, 5 strategies, 3 operators\nIR hash: sha256:db93a624c...\nOutput: <TMP>\n"
+  "stdout": "Compiled 24 knowledge, 5 strategies, 3 operators\nIR hash: sha256:84a1fee40...\nOutput: <TMP>\n"
 }

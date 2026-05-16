@@ -32,7 +32,7 @@ IR_SCHEMA_VERSION: str = "ir-v1"
 # --- Snapshot of computed hash at time of last bump (refresh when bumping) - #
 # Pre-push hook (`scripts/check_ir_schema_bump.py`) fires if current
 # hash drifts from this. To repair: bump IR_SCHEMA_VERSION + update snapshot.
-IR_SCHEMA_SNAPSHOT_HASH: str = "f292a799010a"
+IR_SCHEMA_SNAPSHOT_HASH: str = "ec83f1ad757a"
 
 # --- Set of IR versions this gaia build accepts (used by gaia-lkm) -------- #
 ALLOWED_IR_VERSIONS: frozenset[str] = frozenset({"ir-v1"})
