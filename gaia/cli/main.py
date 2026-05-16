@@ -19,6 +19,7 @@ prints a redirect message to stderr and exits with code 2. See
 
 import typer
 
+from gaia._meta import IR_SCHEMA, get_channel, get_commit, get_library_version
 from gaia.cli.commands._flat_tombstones import register_flat_tombstones
 from gaia.cli.commands.add import add_command
 from gaia.cli.commands.check import check_command
@@ -39,8 +40,25 @@ app = typer.Typer(
 )
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"gaia-lang {get_library_version()}")
+        typer.echo(f"channel: {get_channel()}")
+        typer.echo(f"commit: {get_commit()}")
+        typer.echo(f"ir_schema: {IR_SCHEMA}")
+        raise typer.Exit()
+
+
 @app.callback()
-def _callback() -> None:
+def _callback(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show version, channel, commit, and ir_schema; then exit.",
+    ),
+) -> None:
     """Gaia — knowledge package authoring toolkit."""
 
 

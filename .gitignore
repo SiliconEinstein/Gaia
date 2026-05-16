@@ -6,6 +6,10 @@ __pycache__/
 dist/
 build/
 
+# Build-time metadata injected by release workflows (channel + commit);
+# must not be committed — `gaia/_meta.py` falls back gracefully when absent.
+gaia/_build_info.py
+
 # Environment
 .env
 .env.*
