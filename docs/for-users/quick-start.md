@@ -11,7 +11,8 @@ Create, build, and publish your first Gaia knowledge package in 10 minutes.
 | Python | 3.12+ | [python.org](https://www.python.org/downloads/) |
 | uv | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 
-Verify both are available:
+`uv` is required: `gaia build init` calls `uv init --lib` and `uv add gaia-lang` under
+the hood, so the CLI errors out with an actionable message if `uv` is missing. Verify:
 
 ```bash
 python3 --version   # 3.12+
@@ -20,13 +21,24 @@ uv --version
 
 ## Install Gaia
 
+Pick whichever installer you already use; both are supported.
+
 ```bash
+# Option A: pip (works on any Python environment)
 pip install gaia-lang
+
+# Option B: uv (recommended if you already work in uv-managed projects)
+uv tool install gaia-lang
 ```
 
-Verify:
+Verify the version, release channel, commit, and IR schema metadata:
 
 ```bash
+gaia --version
+# gaia-lang 0.5.0
+# channel: stable
+# commit: ...
+# ir_schema: ...
 gaia --help
 ```
 
@@ -36,14 +48,24 @@ gaia --help
 gaia build init my-first-gaia
 ```
 
-The name **must** end with `-gaia`. This creates:
+The name **must** end with `-gaia`. The command:
+
+1. Runs `uv init --lib my-first-gaia` to create the package skeleton.
+2. Patches `pyproject.toml` with `[tool.hatch.build.targets.wheel]` (so the package builds as a wheel) and `[tool.gaia]` (`type = "knowledge-package"`, freshly generated `uuid`).
+3. Renames `src/my_first_gaia/` → `src/my_first/` (the import name strips the `-gaia` suffix and replaces hyphens with underscores).
+4. Writes a minimal DSL template into `src/my_first/__init__.py`.
+5. Adds `.gaia/beliefs.json` and `.gaia/dep_beliefs/` to `.gitignore` (`.gaia/ir.json` and `.gaia/ir_hash` stay tracked so the registry can verify them).
+6. Runs `uv add gaia-lang` to record the dependency in `pyproject.toml` / `uv.lock`.
+
+The resulting layout:
 
 ```
 my-first-gaia/
-  pyproject.toml              # [tool.gaia] metadata
+  pyproject.toml              # [project], [tool.hatch.build.targets.wheel], [tool.gaia]
+  uv.lock                     # pinned dependency tree
   src/my_first/
-    __init__.py               # DSL declarations
-  .gitignore
+    __init__.py               # DSL declarations (template)
+  .gitignore                  # ignores .gaia/beliefs.json, .gaia/dep_beliefs/
 ```
 
 ## Edit Your Package
@@ -215,8 +237,21 @@ gaia run render . --target docs
 
 This produces `docs/detailed-reasoning.md` with per-module Mermaid reasoning graphs.
 
+## Inspect (optional)
+
+Visualize the compiled package as an interactive graph:
+
+```bash
+gaia inspect starmap .
+# writes .gaia/starmap.html (open in a browser)
+gaia inspect starmap . --format dot --out starmap.dot
+```
+
+This is read-only — it never mutates IR, priors, or beliefs.
+
 ## Next Steps
 
 - [Language Reference](language-reference.md) — full cheat sheet for all knowledge types, operators, and strategies
-- [CLI Commands](cli-commands.md) — complete reference for all `gaia` commands
+- [CLI Commands](cli-commands.md) — complete reference for all `gaia` commands (verb groups, options, exit codes)
 - [Hole And Bridge Tutorial](hole-bridge-tutorial.md) — cross-package dependency resolution with `fills()`
+- [Migration to alpha 0](../migration.md) — if you have a pre-alpha-0 package, the import-path and CLI-verb migration table
