@@ -1,10 +1,10 @@
 import pytest
 
+import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
     Claim,
     Variable,
     associate,
-    bayes,
     candidate_relation,
     compose,
     compute,

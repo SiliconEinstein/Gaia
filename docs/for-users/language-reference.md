@@ -63,8 +63,10 @@ from gaia.engine.lang import (
     register_prior,                                       # External prior records
     Normal, LogNormal, Beta, Exponential, Gamma,          # Distribution factories
     StudentT, Cauchy, ChiSquared, Binomial, Poisson,
-    Distribution, BoolExpr, DerivedDistribution, bayes,    # Continuous/Bayes helpers
+    Distribution, BoolExpr, DerivedDistribution,           # Continuous helpers
 )
+
+import gaia.engine.bayes as bayes                          # Bayes helpers
 ```
 
 For unit-aware continuous quantities, import quantities from `gaia.unit`:
@@ -123,7 +125,7 @@ Gaia has two related surfaces for probabilistic quantities:
 
 - Use `Distribution` objects when you want to describe one uncertain quantity
   and make threshold or equation claims about it.
-- Use `gaia.engine.lang.bayes` when you want to compare competing hypotheses by the
+- Use `gaia.engine.bayes` when you want to compare competing hypotheses by the
   likelihood of observed data under each hypothesis.
 
 These are ordinary Python authoring helpers. They compile into regular Gaia
@@ -214,7 +216,8 @@ Use `bayes.model(...)` and `bayes.likelihood(...)` when the problem is not
 hypothesis predicts the observed data better?"
 
 ```python
-from gaia.engine.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
+import gaia.engine.bayes as bayes
+from gaia.engine.lang import Constant, Nat, Probability, Variable, claim, equals, observe, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=295)
@@ -527,7 +530,8 @@ rather than from a hand-written judgment. This is the right tool for questions
 like "which hypothesis makes this count, measurement, or dataset more likely?"
 
 ```python
-from gaia.engine.lang import Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter
+import gaia.engine.bayes as bayes
+from gaia.engine.lang import Constant, Nat, Probability, Variable, claim, equals, observe, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat, value=295)

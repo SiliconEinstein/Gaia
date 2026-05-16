@@ -4,11 +4,11 @@
 
 The `gaia.engine.*` namespace is the canonical Python contract for Gaia in
 alpha 0. It packages the inference backend, IR models, authoring DSL,
-semantic-inquiry state, ARM Trace primitives, and package-loading helpers
-behind six facade submodules, each with an explicit `__all__`.
+Bayes hypothesis-data helpers, semantic-inquiry state, ARM Trace primitives, and package-loading helpers
+behind seven facade submodules, each with an explicit `__all__`.
 
 The facade pattern lets package authors and downstream tooling import
-stable public names without depending on internal file layout. The 204
+stable public names without depending on internal file layout. The 222
 symbols below are the **only** alpha-0 stable surface — anything reachable
 through deeper paths (`gaia.engine.bp.bp.X`, `gaia.engine.lang.dsl.X`, etc.)
 is implementation detail.
@@ -17,14 +17,15 @@ is implementation detail.
 
 | Module | Symbols | Use it for |
 |---|---|---|
+| [bayes](bayes.md) | 19 | Hypothesis-data model comparison, likelihood helpers, and Bayes distribution literals |
 | [bp](bp.md) | 17 | Factor-graph lowering, exact inference, junction tree, TRW-BP, Mean Field VI, and engine results |
 | [ir](ir.md) | 32 | Pydantic IR models, graph contracts, strategies, operators, parameterization, and schemas |
-| [lang](lang.md) | 94 | Top-level imports exposed to package authors — current claims, actions, relations, formula helpers, distributions, and runtime entities |
+| [lang](lang.md) | 93 | Top-level imports exposed to package authors — current claims, actions, relations, formula helpers, distributions, and runtime entities |
 | [inquiry](inquiry.md) | 45 | Semantic review / inquiry-loop state, diagnostics, focus, obligations, hypotheses |
 | [trace](trace.md) | 7 | ARM Trace schema, manifests, and review primitives |
 | [packaging](packaging.md) | 9 | Gaia package loading, compilation, and prior application |
 
-**Grand total: 204 symbols across 6 facades.**
+**Grand total: 222 symbols across 7 facades.**
 
 The `lang` facade subdivides further for browsability — see the supplementary
 pages under `engine/lang/` for DSL, runtime, formula, compiler, and refs

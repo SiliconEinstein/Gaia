@@ -14,7 +14,7 @@ This document bridges the Gaia Lang v0.5 Python DSL to the Gaia IR semantics lay
 - How typed predicate-logic formulas (`Variable`, `Domain`, predicates, connectives, `forall` / `exists`) fit inside `Claim.formula`.
 - The legacy v5 **named strategies** (`support`, `deduction`, `abduction`, ...) that remain as a compatibility surface but are no longer the recommended way to author new packages.
 
-Source references: `gaia/engine/lang/runtime/knowledge.py`, `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/runtime/composition.py`, `gaia/engine/lang/runtime/roles.py`, `gaia/engine/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/engine/lang/formula/`, `gaia/engine/lang/bayes/`, `gaia/engine/lang/compiler/compile.py`, `gaia/engine/ir/knowledge.py`, `gaia/engine/ir/operator.py`, `gaia/engine/ir/strategy.py`, `gaia/engine/ir/formalize.py`, `gaia/engine/bp/potentials.py`.
+Source references: `gaia/engine/lang/runtime/knowledge.py`, `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/runtime/composition.py`, `gaia/engine/lang/runtime/roles.py`, `gaia/engine/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/engine/lang/formula/`, `gaia/engine/bayes/`, `gaia/engine/lang/compiler/compile.py`, `gaia/engine/ir/knowledge.py`, `gaia/engine/ir/operator.py`, `gaia/engine/ir/strategy.py`, `gaia/engine/ir/formalize.py`, `gaia/engine/bp/potentials.py`.
 
 ---
 
@@ -154,7 +154,7 @@ Returns the evidence Claim. The author should prefer `bayes.model(...) + bayes.l
 
 #### `associate(a, b, *, p_a_given_b, p_b_given_a, pattern=None, ...)`
 
-Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.engine.lang.bayes`. Returns the association warrant helper Claim.
+Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.engine.bayes`. Returns the association warrant helper Claim.
 
 ### 3.3 Relation reasoning — hard constraint between Claims
 
@@ -276,7 +276,7 @@ Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
 
 ## 6. Bayes Module
 
-`gaia.engine.lang.bayes` (loaded lazily via `from gaia.engine.lang import bayes`) provides the lifted authoring surface for model-data likelihood updates:
+`gaia.engine.bayes` provides the lifted authoring surface for model-data likelihood updates:
 
 - **Distribution literals.** `bayes.Normal(mu=..., sigma=...)`, `bayes.Binomial(n=..., p=...)`, etc., backed by `scipy.stats`. They are typed values, not Knowledge nodes.
 - **`bayes.model(hypothesis, observable=..., distribution=...)`.** Returns a predictive-model helper Claim backed by a `PredictiveModel(BayesInference)` record that ties one hypothesis Claim to one predictive distribution over an observable Variable.

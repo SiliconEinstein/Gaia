@@ -1,7 +1,7 @@
 """Distribution — a continuous quantity declared with a probability distribution.
 
 This is the Lang-side first-class wrapper around the existing computational
-distribution objects in ``gaia/engine/lang/bayes/distributions/``. It carries
+distribution objects in ``gaia/engine/bayes/distributions/``. It carries
 :class:`Knowledge`-style identity (label, provenance, metadata) so authors can
 name a continuous quantity once and reference it elsewhere (predicates,
 equations, observe sugar) — the existing pydantic ``_BaseDistribution`` class
@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 from gaia.engine.lang.runtime.knowledge import Knowledge, _current_package
 
 if TYPE_CHECKING:
-    from gaia.engine.lang.bayes.distributions.base import _BaseDistribution
-    from gaia.engine.lang.bayes.distributions.protocol import (
+    from gaia.engine.bayes.distributions.base import _BaseDistribution
+    from gaia.engine.bayes.distributions.protocol import (
         Distribution as _DistImpl,
     )
     from gaia.engine.lang.dsl.bool_expr import BoolExpr, DerivedDistribution
@@ -136,7 +136,7 @@ class Distribution(Knowledge):
 
     Use the family-specific factories (:func:`Normal`, :func:`LogNormal`,
     :func:`Beta`, etc.) rather than constructing this directly — they wrap the
-    matching ``gaia.engine.lang.bayes.distributions._BaseDistribution`` subclass into
+    matching ``gaia.engine.bayes.distributions._BaseDistribution`` subclass into
     a Distribution carrying a content string + identity.
 
     The wrapped computational object is available as ``.impl`` and exposes
@@ -166,12 +166,12 @@ class Distribution(Knowledge):
             **kwargs: Standard :class:`Knowledge` keyword arguments
                 (``title``, ``label``, ``metadata``, ``provenance``, …).
         """
-        from gaia.engine.lang.bayes.distributions.base import _BaseDistribution
+        from gaia.engine.bayes.distributions.base import _BaseDistribution
 
         if not isinstance(impl, _BaseDistribution):
             raise TypeError(
                 "Distribution(impl=...) must be a _BaseDistribution instance "
-                "from gaia.engine.lang.bayes.distributions; got "
+                "from gaia.engine.bayes.distributions; got "
                 f"{type(impl).__name__}. Use the family factories (Normal, "
                 "LogNormal, Beta, ...) instead of constructing Distribution "
                 "directly."
@@ -217,7 +217,7 @@ class Distribution(Knowledge):
     # machinery does not need to resolve the (TYPE_CHECKING-only) backend
     # types. Each accessor casts to the appropriate type for delegation:
     # the runtime-checkable :class:`Distribution` Protocol from
-    # ``gaia.engine.lang.bayes.distributions.protocol`` for the standard methods, and
+    # ``gaia.engine.bayes.distributions.protocol`` for the standard methods, and
     # to the concrete ``_BaseDistribution`` for ``_resolved_params`` (which
     # the protocol does not surface).
 
@@ -255,7 +255,7 @@ class Distribution(Knowledge):
         (``P(k > c) = 1 - dist.cdf(c)``). Lazy import of scipy keeps this
         out of the cold import path.
         """
-        from gaia.engine.lang.bayes.adapters.scipy_backend import _to_scipy_dist
+        from gaia.engine.bayes.adapters.scipy_backend import _to_scipy_dist
 
         impl = cast("_BaseDistribution", self._impl)
         resolved = impl._resolved_params()
@@ -461,7 +461,7 @@ def Normal(
     ``mu`` and ``sigma`` may both be bare scalars or both be
     :class:`gaia.unit.Quantity` values sharing a unit; mixing them raises.
     """
-    from gaia.engine.lang.bayes.distributions.continuous import Normal as _BaseNormal
+    from gaia.engine.bayes.distributions.continuous import Normal as _BaseNormal
 
     return _build_distribution(
         content,
@@ -486,7 +486,7 @@ def LogNormal(
     dimensionless scalars. Encode the unit of the underlying random variable
     in the content string (e.g. ``LogNormal("k / s^-1", mu=log(1e-3), sigma=2)``).
     """
-    from gaia.engine.lang.bayes.distributions.continuous import LogNormal as _BaseLogNormal
+    from gaia.engine.bayes.distributions.continuous import LogNormal as _BaseLogNormal
 
     return _build_distribution(
         content,
@@ -509,7 +509,7 @@ def Beta(
 
     Beta shape parameters ``alpha`` and ``beta`` are dimensionless.
     """
-    from gaia.engine.lang.bayes.distributions.continuous import Beta as _BaseBeta
+    from gaia.engine.bayes.distributions.continuous import Beta as _BaseBeta
 
     return _build_distribution(
         content,
@@ -534,7 +534,7 @@ def Exponential(
     ``rate``'s unit; for predicate / observe consistency we record that
     inverse unit as the distribution's canonical ``metadata["unit"]``.
     """
-    from gaia.engine.lang.bayes.distributions.continuous import Exponential as _BaseExponential
+    from gaia.engine.bayes.distributions.continuous import Exponential as _BaseExponential
 
     return _build_distribution(
         content,
@@ -558,7 +558,7 @@ def Gamma(
     ``alpha`` is dimensionless; ``rate`` may carry the inverse unit of the
     underlying random variable (typically ``1 / x``).
     """
-    from gaia.engine.lang.bayes.distributions.continuous import Gamma as _BaseGamma
+    from gaia.engine.bayes.distributions.continuous import Gamma as _BaseGamma
 
     return _build_distribution(
         content,
@@ -584,7 +584,7 @@ def StudentT(
     ``df`` is dimensionless; ``mu`` and ``sigma`` share the location/scale
     unit of the underlying random variable.
     """
-    from gaia.engine.lang.bayes.distributions.continuous import StudentT as _BaseStudentT
+    from gaia.engine.bayes.distributions.continuous import StudentT as _BaseStudentT
 
     return _build_distribution(
         content,
@@ -609,7 +609,7 @@ def Cauchy(
     ``mu`` and ``gamma`` share the location/scale unit of the underlying
     random variable.
     """
-    from gaia.engine.lang.bayes.distributions.continuous import Cauchy as _BaseCauchy
+    from gaia.engine.bayes.distributions.continuous import Cauchy as _BaseCauchy
 
     return _build_distribution(
         content,
@@ -631,7 +631,7 @@ def ChiSquared(
 
     ``df`` is dimensionless.
     """
-    from gaia.engine.lang.bayes.distributions.continuous import ChiSquared as _BaseChiSquared
+    from gaia.engine.bayes.distributions.continuous import ChiSquared as _BaseChiSquared
 
     return _build_distribution(
         content,
@@ -654,7 +654,7 @@ def Binomial(
 
     ``n`` and ``p`` are dimensionless.
     """
-    from gaia.engine.lang.bayes.distributions.discrete import Binomial as _BaseBinomial
+    from gaia.engine.bayes.distributions.discrete import Binomial as _BaseBinomial
 
     return _build_distribution(
         content,
@@ -677,7 +677,7 @@ def Poisson(
     ``rate`` is the dimensionless expected count for the interval encoded by
     the quantity name. Pass a bare scalar; unit-typed rates are rejected.
     """
-    from gaia.engine.lang.bayes.distributions.discrete import Poisson as _BasePoisson
+    from gaia.engine.bayes.distributions.discrete import Poisson as _BasePoisson
 
     return _build_distribution(
         content,

@@ -2,7 +2,6 @@
 
 import warnings
 from importlib import import_module
-from types import ModuleType
 from typing import Any
 
 from gaia.engine.lang.dsl import (
@@ -146,10 +145,6 @@ _COMPAT_EXPORTS = frozenset(
 
 
 def __getattr__(name: str) -> Any:
-    if name == "bayes":
-        module = import_module("gaia.engine.lang.bayes")
-        globals()["bayes"] = module
-        return module
     if name in _COMPAT_EXPORTS:
         warnings.warn(
             f"gaia.engine.lang.{name} is deprecated. Prefer current v0.5 "
@@ -229,7 +224,6 @@ __all__ = [
     "UserPredicate",
     "Variable",
     "associate",
-    "bayes",
     "candidate_relation",
     "claim",
     "compose",

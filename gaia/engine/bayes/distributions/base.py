@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from gaia.engine.lang.bayes.distributions.protocol import UnresolvedParameterError
+from gaia.engine.bayes.distributions.protocol import UnresolvedParameterError
 
 
 def _is_concrete_number(value: Any) -> bool:

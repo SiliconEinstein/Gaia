@@ -10,7 +10,7 @@ Two theories compete for the same single-factor cross:
 * ``blending_inheritance_model`` — continuous averaging of parental traits;
   denies that discrete dominant/recessive classes exist in F2 at all.
 
-The quantitative count comparison is expressed through ``gaia.engine.lang.bayes``:
+The quantitative count comparison is expressed through ``gaia.engine.bayes``:
 
 * Mendel is represented by ``bayes.Binomial(n=395, p=3/4)``.
 * The diffuse alternative is represented by
@@ -24,11 +24,11 @@ lowering pass, not placed in the observation's content or hidden behind an
 intermediate count-event claim.
 """
 
+import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
     Constant,
     Nat,
     Variable,
-    bayes,
     claim,
     contradict,
     derive,
@@ -193,7 +193,7 @@ mendel_predicts_three_to_one_ratio = derive(
 )
 
 # -----------------------------------------------------------------------------
-# Quantitative count comparison via gaia.engine.lang.bayes
+# Quantitative count comparison via gaia.engine.bayes
 # -----------------------------------------------------------------------------
 
 mendel_count_model = bayes.model(

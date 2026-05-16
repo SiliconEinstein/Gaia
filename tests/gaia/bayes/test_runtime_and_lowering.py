@@ -7,6 +7,8 @@ import math
 import pytest
 import scipy.stats as stats
 
+import gaia.engine.bayes as bayes
+from gaia.engine.bayes.runtime import Likelihood, PredictiveModel
 from gaia.engine.bp.exact import exact_inference
 from gaia.engine.bp.factor_graph import FactorType
 from gaia.engine.bp.lowering import lower_local_graph
@@ -17,14 +19,12 @@ from gaia.engine.lang import (
     Probability,
     Real,
     Variable,
-    bayes,
     claim,
     contradict,
     equals,
     observe,
     parameter,
 )
-from gaia.engine.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.engine.lang.compiler.compile import compile_package_artifact
 from gaia.engine.lang.runtime.knowledge import _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage

@@ -7,8 +7,8 @@ import re
 from itertools import combinations
 from typing import Any
 
+from gaia.engine.bayes.runtime import Likelihood, PredictiveModel
 from gaia.engine.bp.factor_graph import CROMWELL_EPS
-from gaia.engine.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.engine.lang.runtime.action import (
     Contradict,
     Exclusive,

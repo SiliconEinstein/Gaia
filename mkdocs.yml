@@ -108,6 +108,7 @@ nav:
   - API Reference:
       - Engine:
           - Overview: reference/engine/index.md
+          - bayes: reference/engine/bayes.md
           - bp: reference/engine/bp.md
           - ir: reference/engine/ir.md
           - lang: reference/engine/lang.md

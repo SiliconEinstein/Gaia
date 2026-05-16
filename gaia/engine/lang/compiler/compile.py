@@ -1873,7 +1873,7 @@ def _lower_bayes_actions(
     action_labels_by_object: dict[int, str],
     existing_operators: list[IrOperator],
 ) -> Any:
-    from gaia.engine.lang.bayes.compiler import lower_bayes_claims
+    from gaia.engine.bayes.compiler import lower_bayes_claims
 
     return lower_bayes_claims(
         knowledge_nodes,
