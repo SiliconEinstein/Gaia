@@ -22,6 +22,16 @@ FormulaEdgeRole = Literal[
 ]
 
 
+def _duplicate_node_message(
+    node_id: str,
+    existing: tuple[str, dict[str, Any]],
+    current: tuple[str, dict[str, Any]],
+) -> str:
+    if existing[1] != current[1]:
+        return f"FormulaNode id '{node_id}' appears with different descriptors"
+    return f"FormulaNode id '{node_id}' appears with different kind or descriptors"
+
+
 def formula_node_id(descriptor: dict[str, Any]) -> str:
     """Return the canonical content-addressed ID for a formula node descriptor."""
     payload = json.dumps(
@@ -73,43 +83,49 @@ class FormulaGraph(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        node_descriptors: dict[str, dict[str, Any]] = {}
+        node_signatures: dict[str, tuple[str, dict[str, Any]]] = {}
         for node in data.get("nodes", []):
             if isinstance(node, FormulaNode):
                 node_id = node.id
+                kind = node.kind
                 descriptor = node.descriptor
             elif isinstance(node, dict):
                 node_id = node.get("id")
+                kind = node.get("kind")
                 descriptor = node.get("descriptor")
             else:
                 continue
 
-            if not isinstance(node_id, str) or not isinstance(descriptor, dict):
+            if not isinstance(node_id, str) or not isinstance(kind, str):
+                continue
+            if not isinstance(descriptor, dict):
                 continue
 
-            existing = node_descriptors.get(node_id)
-            if existing is not None and existing != descriptor:
-                raise ValueError(f"FormulaNode id '{node_id}' appears with different descriptors")
-            node_descriptors[node_id] = descriptor
+            signature = (kind, descriptor)
+            existing = node_signatures.get(node_id)
+            if existing is not None and existing != signature:
+                raise ValueError(_duplicate_node_message(node_id, existing, signature))
+            node_signatures[node_id] = signature
 
         return data
 
     @model_validator(mode="after")
     def _validate_references_and_duplicates(self) -> FormulaGraph:
-        node_descriptors: dict[str, dict[str, Any]] = {}
+        node_signatures: dict[str, tuple[str, dict[str, Any]]] = {}
         for node in self.nodes:
-            existing = node_descriptors.get(node.id)
-            if existing is not None and existing != node.descriptor:
-                raise ValueError(f"FormulaNode id '{node.id}' appears with different descriptors")
-            node_descriptors[node.id] = node.descriptor
+            signature = (node.kind, node.descriptor)
+            existing = node_signatures.get(node.id)
+            if existing is not None and existing != signature:
+                raise ValueError(_duplicate_node_message(node.id, existing, signature))
+            node_signatures[node.id] = signature
 
-        if self.root not in node_descriptors:
+        if self.root not in node_signatures:
             raise ValueError(f"root '{self.root}' not found")
 
         for edge in self.edges:
-            if edge.source not in node_descriptors:
+            if edge.source not in node_signatures:
                 raise ValueError(f"edge source '{edge.source}' not found")
-            if edge.target not in node_descriptors:
+            if edge.target not in node_signatures:
                 raise ValueError(f"edge target '{edge.target}' not found")
 
         return self

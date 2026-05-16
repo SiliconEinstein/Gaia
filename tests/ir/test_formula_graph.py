@@ -67,6 +67,15 @@ def test_formula_graph_rejects_duplicate_id_with_different_descriptor():
         FormulaGraph(source_claim="github:test::claim", root=node_id, nodes=[left, right])
 
 
+def test_formula_graph_rejects_duplicate_id_with_different_kind():
+    node_id = formula_node_id({"symbol": "P"})
+    left = FormulaNode(id=node_id, kind="atom", descriptor={"symbol": "P"})
+    right = FormulaNode.model_construct(id=node_id, kind="term", descriptor={"symbol": "P"})
+
+    with pytest.raises(ValidationError, match="appears with different kind or descriptors"):
+        FormulaGraph(source_claim="github:test::claim", root=node_id, nodes=[left, right])
+
+
 def test_formula_graphs_participate_in_ir_hash():
     claim = Knowledge(
         id="github:test::claim",
