@@ -37,15 +37,16 @@ Knowledge(type=claim)
 
 ## 2. 当前范围
 
-当前 contract 下，helper claim 主要包括以下结构型结果：
+当前 contract 下，helper claim 主要包括以下结构型结果。其中 **expression 类**（`negation_result` / `conjunction_result` / `disjunction_result`）也是 `gaia.engine.ir.knowledge.STRUCTURAL_EXPRESSION_HELPER_KINDS` frozenset 的成员，由 `is_structural_expression_helper(...)` 标记为 **non-reviewable**（来自废弃的 `~A` / `A & B` / `A | B` 快捷写法的兼容路径）；**relation 类**（`equivalence_result` / `contradiction_result` / `complement_result`）默认参与 review manifest。
 
-| helper_kind | 来源 | 例子 |
-|-------------|------|------|
-| `conjunction_result` | conjunction | `M = A ∧ B` |
-| `disjunction_result` | disjunction | `D = A ∨ B ∨ C` |
-| `equivalence_result` | equivalence | `Eq = same_truth(A,B)` |
-| `contradiction_result` | contradiction | `Contra = not_both_true(A,B)` |
-| `complement_result` | complement | `Comp = opposite_truth(A,B)` |
+| helper_kind | 来源 | 例子 | reviewable |
+|-------------|------|------|------------|
+| `negation_result` | negation | `N = ¬A` | 否（structural expression） |
+| `conjunction_result` | conjunction | `M = A ∧ B` | 否（structural expression） |
+| `disjunction_result` | disjunction | `D = A ∨ B ∨ C` | 否（structural expression） |
+| `equivalence_result` | equivalence | `Eq = same_truth(A,B)` | 是 |
+| `contradiction_result` | contradiction | `Contra = not_both_true(A,B)` | 是 |
+| `complement_result` | complement | `Comp = opposite_truth(A,B)` | 是 |
 
 这些 helper claim 的共同点是：
 
