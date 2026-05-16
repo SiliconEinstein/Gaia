@@ -83,7 +83,7 @@ def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_check_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -103,7 +103,7 @@ def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     pkg_src = pkg_dir / "check_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_check_missing import missing_lemma\n\n"
         'main_claim = claim("A test claim.")\n'
         "fills(source=main_claim, target=missing_lemma)\n"
@@ -354,7 +354,7 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
     pkg_src = pkg_dir / "check_induced_entropy"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'hypothesis = claim("Hypothesis.")\n'
         'observation = claim("Observation.")\n'
         "deduction(premises=[hypothesis], conclusion=observation, "

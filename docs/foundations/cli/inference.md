@@ -147,7 +147,7 @@ prefer `priors.py` for independent input priors and action/relation verbs for
 warrants.
 
 ```python
-from gaia.engine.lang import support, equivalence
+from gaia.engine.lang.compat import support, equivalence
 
 # Legacy soft support with warrant prior
 support([A, B], C, reason="Evidence converges", prior=0.85)

@@ -117,8 +117,9 @@ def test_compile_fails_on_invalid_ir_validation(tmp_path):
     pkg_src = pkg_dir / "invalid_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, contradiction, setting\n\n"
-        'context = setting("Background context.")\n'
+        "from gaia.engine.lang import claim, note\n"
+        "from gaia.engine.lang.compat import contradiction\n\n"
+        'context = note("Background context.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
         "conflict = contradiction(context, hypothesis)\n"
         '__all__ = ["context", "hypothesis", "conflict"]\n'
@@ -141,8 +142,8 @@ def test_compile_labels_assigned(tmp_path):
     pkg_src = pkg_dir / "label_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, setting\n\n"
-        'bg = setting("Background context.")\n'
+        "from gaia.engine.lang import claim, note\n\n"
+        'bg = note("Background context.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
         '__all__ = ["bg", "hypothesis"]\n'
     )
@@ -192,7 +193,8 @@ def test_compile_preserves_structured_steps_and_provenance(tmp_path):
     pkg_src = pkg_dir / "step_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import Step, claim, noisy_and\n\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import Step, noisy_and\n\n"
         'evidence_a = claim("Evidence A.", provenance=[{"package_id": "paper:alpha", '
         '"version": "1.0.0"}])\n'
         'evidence_b = claim("Evidence B.")\n'
@@ -234,7 +236,7 @@ def test_compile_emits_public_premise_manifest_for_local_hole(tmp_path):
     pkg_src = pkg_dir / "premise_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -294,7 +296,7 @@ def test_compile_marks_foreign_dependency_public_premise(tmp_path, monkeypatch):
     pkg_src = pkg_dir / "consumer_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from dep_pkg import dep_result\n\n"
         'main_theorem = claim("Consumer theorem.")\n'
         "deduction(premises=[dep_result], conclusion=main_theorem)\n"
@@ -322,7 +324,7 @@ def test_compile_public_premise_required_by_uses_nearest_exported_claim(tmp_path
     pkg_src = pkg_dir / "nearest_root_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'shared_premise = claim("Shared premise.")\n'
         'helper_claim = claim("Helper claim.")\n'
         'main_theorem = claim("Main theorem.")\n'
@@ -351,7 +353,7 @@ def test_compile_exported_local_hole_required_by_lists_downstream_exports(tmp_pa
     pkg_src = pkg_dir / "exported_hole_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'shared_premise = claim("Shared premise exported as hole.")\n'
         'theorem_a = claim("Theorem A.")\n'
         'theorem_b = claim("Theorem B.")\n'
@@ -398,7 +400,7 @@ def test_compile_interface_hash_is_deterministic(tmp_path):
     pkg_src = pkg_dir / "deterministic_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -428,7 +430,7 @@ def test_compile_fills_validates_foreign_local_hole_target(tmp_path, monkeypatch
     dep_src = dep_dir / "src" / "dep_pkg"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -450,7 +452,7 @@ def test_compile_fills_validates_foreign_local_hole_target(tmp_path, monkeypatch
     consumer_src = consumer_dir / "consumer_pkg"
     consumer_src.mkdir()
     (consumer_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_pkg import missing_lemma\n\n"
         'b_result = claim("B theorem.")\n'
         'bridge = fills(source=b_result, target=missing_lemma, reason="Theorem 3 establishes A.")\n'
@@ -490,7 +492,7 @@ def test_compile_fills_emits_conditional_infer_bridge_metadata(tmp_path, monkeyp
     dep_src = dep_dir / "src" / "dep_pkg"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -512,7 +514,7 @@ def test_compile_fills_emits_conditional_infer_bridge_metadata(tmp_path, monkeyp
     consumer_src = consumer_dir / "consumer_pkg"
     consumer_src.mkdir()
     (consumer_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_pkg import missing_lemma\n\n"
         'b_result = claim("B theorem.")\n'
         "bridge = fills(source=b_result, target=missing_lemma, "
@@ -543,7 +545,7 @@ def test_compile_fills_requires_dependency_manifest(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -563,7 +565,7 @@ def test_compile_fills_requires_dependency_manifest(tmp_path, monkeypatch):
     consumer_src = consumer_dir / "consumer_pkg"
     consumer_src.mkdir()
     (consumer_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_missing import missing_lemma\n\n"
         'b_result = claim("B theorem.")\n'
         "fills(source=b_result, target=missing_lemma)\n"
@@ -586,7 +588,7 @@ def test_compile_fills_rejects_stale_dependency_manifest(tmp_path, monkeypatch):
     dep_src.mkdir(parents=True)
     dep_init = dep_src / "__init__.py"
     dep_init.write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -597,7 +599,7 @@ def test_compile_fills_rejects_stale_dependency_manifest(tmp_path, monkeypatch):
     assert dep_compile.exit_code == 0, dep_compile.output
 
     dep_init.write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("An updated missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -616,7 +618,7 @@ def test_compile_fills_rejects_stale_dependency_manifest(tmp_path, monkeypatch):
     consumer_src = consumer_dir / "consumer_pkg"
     consumer_src.mkdir()
     (consumer_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_pkg import missing_lemma\n\n"
         'b_result = claim("B theorem.")\n'
         "fills(source=b_result, target=missing_lemma)\n"
@@ -658,7 +660,7 @@ def test_compile_fills_rejects_target_that_is_not_public_hole(tmp_path, monkeypa
     consumer_src = consumer_dir / "consumer_pkg"
     consumer_src.mkdir()
     (consumer_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_pkg import dep_result\n\n"
         'b_result = claim("B theorem.")\n'
         "fills(source=b_result, target=dep_result)\n"
@@ -680,7 +682,7 @@ def test_compile_fills_requires_foreign_target(tmp_path):
     pkg_src = pkg_dir / "local_fills_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n\n"
         'source_claim = claim("Source theorem.")\n'
         'target_claim = claim("Local target.")\n'
         "fills(source=source_claim, target=target_claim)\n"
@@ -737,7 +739,7 @@ def test_compile_bridge_package_requires_source_dependency_declaration(tmp_path,
     dep_a_src = dep_a_dir / "src" / "dep_a"
     dep_a_src.mkdir(parents=True)
     (dep_a_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -773,7 +775,7 @@ def test_compile_bridge_package_requires_source_dependency_declaration(tmp_path,
     bridge_src = bridge_dir / "bridge_pkg"
     bridge_src.mkdir()
     (bridge_src / "__init__.py").write_text(
-        "from gaia.engine.lang import fills\n"
+        "from gaia.engine.lang.compat import fills\n"
         "from dep_a import missing_lemma\n"
         "from dep_b import b_result\n\n"
         "fills(source=b_result, target=missing_lemma)\n"
@@ -794,7 +796,7 @@ def test_compile_bridge_package_emits_declared_by_owner_false(tmp_path, monkeypa
     dep_a_src = dep_a_dir / "src" / "dep_a"
     dep_a_src.mkdir(parents=True)
     (dep_a_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -830,7 +832,7 @@ def test_compile_bridge_package_emits_declared_by_owner_false(tmp_path, monkeypa
     bridge_src = bridge_dir / "bridge_pkg"
     bridge_src.mkdir()
     (bridge_src / "__init__.py").write_text(
-        "from gaia.engine.lang import fills\n"
+        "from gaia.engine.lang.compat import fills\n"
         "from dep_a import missing_lemma\n"
         "from dep_b import b_result\n\n"
         'bridge = fills(source=b_result, target=missing_lemma, reason="Third-party bridge.")\n'
@@ -859,7 +861,7 @@ def test_compile_rejects_duplicate_fills_relation(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_pkg"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -880,7 +882,7 @@ def test_compile_rejects_duplicate_fills_relation(tmp_path, monkeypatch):
     consumer_src = consumer_dir / "consumer_pkg"
     consumer_src.mkdir()
     (consumer_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_pkg import missing_lemma\n\n"
         'b_result = claim("B theorem.")\n'
         "fills(source=b_result, target=missing_lemma)\n"
@@ -909,7 +911,7 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
     pkg_src = pkg_dir / "deduction_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import deduction, claim\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'law = claim("forall x. P(x)")\n'
         'instance = claim("P(a)")\n'
         'proof = deduction(premises=[law], conclusion=instance, reason="instantiate", prior=0.9)\n'
@@ -974,7 +976,7 @@ def test_compile_elimination_strategy_uses_ir_canonical_formalization(tmp_path):
     pkg_src = pkg_dir / "elimination_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, elimination\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import elimination\n\n"
         'exhaustive = claim("The candidates are exhaustive.")\n'
         'bacterial = claim("Bacterial cause.")\n'
         'antibiotics_neg = claim("Antibiotics test is negative.")\n'
@@ -1032,7 +1034,8 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
     pkg_src = pkg_dir / "composite_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, composite, support\n\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import composite, support\n\n"
         'evidence = claim("Evidence.")\n'
         'intermediate = claim("Intermediate.")\n'
         'final_claim = claim("Final claim.")\n'
@@ -1078,7 +1081,8 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
     pkg_src = pkg_dir / "nested_composite_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, composite, support\n\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import composite, support\n\n"
         'evidence = claim("Evidence.")\n'
         'hypothesis = claim("Hypothesis.")\n'
         'intermediate = claim("Intermediate.")\n'

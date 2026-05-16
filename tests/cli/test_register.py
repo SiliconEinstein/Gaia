@@ -61,7 +61,7 @@ def _write_dependency_with_local_hole(dep_dir) -> None:
     dep_src = dep_dir / "src" / "dep_bridge"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -89,7 +89,7 @@ def _write_package_with_local_hole_and_bridge(pkg_dir) -> None:
     pkg_src = pkg_dir / "register_bridge"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction, fills\n"
         "from dep_bridge import missing_lemma\n\n"
         'local_premise = claim("A local missing lemma.")\n'
         'main_claim = claim("A release-ready claim.")\n'
@@ -557,7 +557,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_register_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -583,7 +583,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
         'uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"\n'
     )
     (pkg_dir / "register_demo" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_register_missing import missing_lemma\n\n"
         'exported_claim = claim("A release-ready claim.")\n'
         "fills(source=exported_claim, target=missing_lemma)\n"

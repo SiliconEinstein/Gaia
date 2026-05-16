@@ -102,7 +102,7 @@ def test_infer_with_deduction_strategy(tmp_path):
     pkg_dir = tmp_path / "deduction_demo"
     _write_base_package(pkg_dir, name="deduction_demo")
     (pkg_dir / "deduction_demo" / "__init__.py").write_text(
-        "from gaia.engine.lang import deduction, claim\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'law = claim("forall x. P(x)")\n'
         'instance = claim("P(a)")\n'
         "proof = deduction(premises=[law], conclusion=instance, reason='instantiate', prior=0.9)\n"
@@ -355,7 +355,7 @@ def test_infer_loads_upstream_beliefs_for_foreign_nodes(tmp_path, monkeypatch):
     pkg_dir = tmp_path / "local_pkg"
     _write_base_package(pkg_dir, name="local_pkg")
     (pkg_dir / "local_pkg" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from upstream_dep import upstream_claim\n\n"
         'local_obs = claim("Local observation.")\n'
         "deduction(premises=[upstream_claim, local_obs], conclusion=claim('Result.'), "
@@ -481,7 +481,7 @@ def _write_dep_package(dep_dir, *, name: str, monkeypatch):
     src = dep_dir / import_name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'evidence = claim("Strong evidence for upstream.", title="evidence")\n'
         'upstream_conclusion = claim("Upstream conclusion.", title="conclusion")\n'
         "deduction(premises=[evidence], conclusion=upstream_conclusion, "
@@ -551,7 +551,7 @@ def test_infer_depth_1_merges_dep_graphs(tmp_path, monkeypatch):
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
     (pkg_dir / "local_pkg" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from upstream_dep import upstream_conclusion\n\n"
         'local_obs = claim("Local observation.")\n'
         "local_result = claim('Local result.')\n"
@@ -601,7 +601,7 @@ def test_infer_depth_1_beliefs_differ_from_flat_priors(tmp_path, monkeypatch):
         '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
     )
     (pkg_dir / "local_pkg" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from upstream_dep import upstream_conclusion\n\n"
         'local_obs = claim("Local observation.")\n'
         "local_result = claim('Local result.')\n"

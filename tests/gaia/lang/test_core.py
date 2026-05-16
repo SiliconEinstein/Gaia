@@ -1,5 +1,6 @@
 import pytest
 
+import gaia.engine.lang as lang
 import gaia.engine.lang.compat as compat
 from gaia.engine.lang import __all__ as gaia_lang_exports
 from gaia.engine.lang import claim, note, question
@@ -92,3 +93,11 @@ def test_star_import_excludes_legacy_compat_surface():
     assert "derive" in namespace
     assert "note" in namespace
     assert "contradict" in namespace
+
+
+def test_legacy_top_level_getattr_warns_and_returns_compat_export():
+    lang.__dict__.pop("support", None)
+    with pytest.warns(DeprecationWarning, match="compat\\.support"):
+        value = lang.support
+    assert value is compat.support
+    assert lang.support is compat.support

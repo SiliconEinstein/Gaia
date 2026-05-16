@@ -42,7 +42,8 @@ def _write_pkg(
     src = pkg_dir / name
     src.mkdir(exist_ok=True)
     body = (
-        "from gaia.engine.lang import claim, support\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import support\n"
         f'main = claim("main hypothesis", metadata={{"prior": {prior}}})\n'
         'evidence = claim("supporting evidence", metadata={"prior": 0.6})\n'
         "sup = support(premises=[evidence], conclusion=main)\n"

@@ -21,7 +21,7 @@ pytestmark = pytest.mark.legacy_dsl
 
 
 def _pkg_with_holes(pkg_dir: Path, name: str = "review_pkg") -> None:
-    """Build a package with: 1 prior-set claim, 1 hole, 1 setting, 1 question."""
+    """Build a package with: 1 prior-set claim, 1 hole, 1 note, 1 question."""
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
         f'[project]\nname = "{name}-gaia"\nversion = "0.1.0"\n\n'
@@ -31,12 +31,13 @@ def _pkg_with_holes(pkg_dir: Path, name: str = "review_pkg") -> None:
     src = pkg_dir / name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, setting, question, support\n"
+        "from gaia.engine.lang import claim, note, question\n"
+        "from gaia.engine.lang.compat import support\n"
         'covered = claim("covered hypothesis", metadata={"prior": 0.7})\n'
         'hole = claim("hypothesis with no prior")\n'
         'derived_claim = claim("derived conclusion")\n'
         "sup = support(premises=[hole, covered], conclusion=derived_claim)\n"
-        'iid = setting("data is i.i.d.")\n'
+        'iid = note("data is i.i.d.")\n'
         'rq = question("does it generalize?")\n'
         '__all__ = ["covered", "hole", "derived_claim", "sup", "iid", "rq"]\n',
         encoding="utf-8",
@@ -249,7 +250,8 @@ def test_review_adapter_preserves_strategy_and_operator_ids(tmp_path):
     src = pkg / "id_review"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, contradiction, support\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import contradiction, support\n"
         'a = claim("A", metadata={"prior": 0.7})\n'
         'b = claim("B", metadata={"prior": 0.4})\n'
         'c = claim("C")\n'
@@ -293,7 +295,7 @@ def _write_dep_package(dep_dir: Path, *, name: str, monkeypatch) -> None:
     src = dep_dir / import_name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         'evidence = claim("Strong upstream evidence.", title="evidence")\n'
         'upstream_conclusion = claim("Upstream conclusion.", title="conclusion")\n'
         "deduction(premises=[evidence], conclusion=upstream_conclusion, "
@@ -329,7 +331,7 @@ def test_review_depth_uses_joint_dependency_graphs(tmp_path, monkeypatch):
     src = pkg / "local_pkg"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from upstream_dep import upstream_conclusion\n"
         'local_obs = claim("Local observation.")\n'
         "local_result = claim('Local result.')\n"

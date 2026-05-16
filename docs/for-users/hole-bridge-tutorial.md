@@ -50,7 +50,8 @@ uuid = "11111111-1111-1111-1111-111111111111"
 `src/paper_a/__init__.py`:
 
 ```python
-from gaia.engine.lang import claim, deduction
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import deduction
 
 missing_lemma = claim("A missing lemma.")
 main_theorem = claim("A theorem that depends on the missing lemma.")
@@ -111,7 +112,8 @@ uuid = "22222222-2222-2222-2222-222222222222"
 `src/paper_b/__init__.py`:
 
 ```python
-from gaia.engine.lang import claim, fills
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import fills
 from paper_a import missing_lemma
 
 bridge_result = claim("A result that establishes the missing lemma.")

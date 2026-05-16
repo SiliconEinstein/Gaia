@@ -32,7 +32,8 @@ def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
     src = pkg_dir / name
     src.mkdir(exist_ok=True)
     body = (
-        "from gaia.engine.lang import claim, support\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import support\n"
         "\n"
         "# a prior hole (no prior set) — should be anchored\n"
         'hypothesis = claim("unverified hypothesis")\n'
@@ -63,8 +64,8 @@ def test_find_anchors_locates_claims(tmp_path):
     ha = anchors["hypothesis"]
     assert isinstance(ha, SourceAnchor)
     assert ha.file.endswith("__init__.py")
-    # hypothesis 赋值在第 4 行 (from; 空行; 注释; hypothesis=...)
-    assert ha.line == 4
+    # hypothesis 赋值在第 5 行 (imports; 空行; 注释; hypothesis=...)
+    assert ha.line == 5
 
 
 def test_find_anchors_multiline_call(tmp_path):
@@ -72,7 +73,7 @@ def test_find_anchors_multiline_call(tmp_path):
     _write_pkg(pkg)
     anchors = find_anchors(pkg)
     # conclusion = claim("conclusion from above") 跨两行, ast 取起始行
-    assert anchors["conclusion"].line == 7
+    assert anchors["conclusion"].line == 8
 
 
 def test_find_anchors_handles_syntax_error(tmp_path):

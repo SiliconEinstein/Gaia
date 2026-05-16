@@ -129,7 +129,8 @@ def test_load_labels_private_strategy_names_from_declaring_module(tmp_path):
     pkg_src = pkg_dir / "private_strategy_pkg"
     pkg_src.mkdir()
     (pkg_src / "logic.py").write_text(
-        "from gaia.engine.lang import claim, support\n\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import support\n\n"
         'premise = claim("Premise.")\n'
         'result = claim("Result.")\n'
         '_strat_result = support([premise], result, reason="Premise entails result.", prior=0.9)\n'
