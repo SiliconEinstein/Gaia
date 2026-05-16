@@ -171,6 +171,8 @@ class _FormulaGraphBuilder:
         self.nodes: dict[str, FormulaNode] = {}
         self.edges: list[FormulaEdge] = []
         self._edge_keys: set[tuple[str, str, str, int | None]] = set()
+        self._binder_counter = 0
+        self._variable_binders: dict[int, list[str]] = {}
 
     def formula_node(self, formula: Any) -> str:
         if _is_atomic_formula(formula):
@@ -189,13 +191,19 @@ class _FormulaGraphBuilder:
             return node_id
 
         if isinstance(formula, (Forall, Exists)):
-            variable_id = self.term_node(formula.variable)
-            body_id = self.formula_node(formula.body)
+            binder_id = self._push_binder(formula.variable)
+            try:
+                variable_id = self.term_node(formula.variable)
+                body_id = self.formula_node(formula.body)
+            finally:
+                self._pop_binder(formula.variable)
             quantifier = "forall" if isinstance(formula, Forall) else "exists"
             descriptor = {
                 "kind": "quantifier",
                 "quantifier": quantifier,
                 "variable": formula.variable.symbol,
+                "variable_id": variable_id,
+                "binder": binder_id,
                 "domain": _domain_name(formula.variable.domain),
                 "body": body_id,
             }
@@ -207,11 +215,7 @@ class _FormulaGraphBuilder:
         raise NotImplementedError(f"Unsupported formula graph: {type(formula).__name__}")
 
     def term_node(self, term: Any) -> str:
-        descriptor = canonical_term_descriptor(
-            term,
-            knowledge_map=self.knowledge_map,
-            bindings=self.bindings,
-        )
+        descriptor = self._term_descriptor(term)
         if isinstance(term, Variable):
             return self._add_node("variable", descriptor)
         if isinstance(term, Constant):
@@ -242,11 +246,7 @@ class _FormulaGraphBuilder:
         return self._add_node("term", descriptor)
 
     def _atomic_formula_node(self, formula: Any) -> str:
-        descriptor = canonical_formula_descriptor(
-            formula,
-            knowledge_map=self.knowledge_map,
-            bindings=self.bindings,
-        )
+        descriptor = self._formula_descriptor(formula)
         node_id = self._add_node("atom", descriptor)
         if isinstance(formula, UserPredicate):
             for index, arg in enumerate(formula.args):
@@ -295,6 +295,70 @@ class _FormulaGraphBuilder:
             return
         self._edge_keys.add(key)
         self.edges.append(edge)
+
+    def _push_binder(self, variable: Variable) -> str:
+        binder_id = f"b{self._binder_counter}"
+        self._binder_counter += 1
+        self._variable_binders.setdefault(id(variable), []).append(binder_id)
+        return binder_id
+
+    def _pop_binder(self, variable: Variable) -> None:
+        binders = self._variable_binders[id(variable)]
+        binders.pop()
+        if not binders:
+            del self._variable_binders[id(variable)]
+
+    def _active_binder(self, variable: Variable) -> str | None:
+        binders = self._variable_binders.get(id(variable))
+        if not binders:
+            return None
+        return binders[-1]
+
+    def _formula_descriptor(self, formula: Any) -> dict[str, Any]:
+        if isinstance(formula, UserPredicate):
+            descriptor = canonical_formula_descriptor(
+                formula,
+                knowledge_map=self.knowledge_map,
+                bindings=self.bindings,
+            )
+            descriptor["args"] = [self._term_descriptor(arg) for arg in formula.args]
+            return descriptor
+        binary_terms = _binary_formula_terms(formula)
+        if binary_terms is not None:
+            left, right = binary_terms
+            descriptor = canonical_formula_descriptor(
+                formula,
+                knowledge_map=self.knowledge_map,
+                bindings=self.bindings,
+            )
+            descriptor["left"] = self._term_descriptor(left)
+            descriptor["right"] = self._term_descriptor(right)
+            return descriptor
+        return canonical_formula_descriptor(
+            formula,
+            knowledge_map=self.knowledge_map,
+            bindings=self.bindings,
+        )
+
+    def _term_descriptor(self, term: Any) -> dict[str, Any]:
+        descriptor = canonical_term_descriptor(
+            term,
+            knowledge_map=self.knowledge_map,
+            bindings=self.bindings,
+        )
+        if isinstance(term, Variable):
+            binder_id = self._active_binder(term)
+            if binder_id is not None:
+                descriptor["binder"] = binder_id
+            return descriptor
+        if isinstance(term, FunctionApp):
+            descriptor["args"] = [self._term_descriptor(arg) for arg in term.args]
+            return descriptor
+        if isinstance(term, ArithOp):
+            descriptor["left"] = self._term_descriptor(term.left)
+            descriptor["right"] = self._term_descriptor(term.right)
+            return descriptor
+        return descriptor
 
 
 def _lower_forall(

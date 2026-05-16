@@ -80,6 +80,27 @@ def test_compile_decompose_generates_formula_helper_and_equivalence_operator():
         equivalence.operator_id
     )
 
+    formula_graph = next(
+        graph for graph in compiled.graph.formula_graphs if graph.source_claim == formula_helper.id
+    )
+    nodes = {node.id: node for node in formula_graph.nodes}
+    root = nodes[formula_graph.root]
+    assert root.kind == "op"
+    assert root.descriptor["operator"] == "conjunction"
+    implication_edge = next(
+        edge
+        for edge in formula_graph.edges
+        if edge.source == formula_graph.root
+        and edge.role == "operand"
+        and nodes[edge.target].descriptor.get("operator") == "implication"
+    )
+    implication = nodes[implication_edge.target]
+    assert implication.kind == "op"
+    assert {edge.role for edge in formula_graph.edges if edge.source == implication.id} == {
+        "antecedent",
+        "consequent",
+    }
+
 
 def test_decompose_rejects_multiple_decompositions_for_same_whole():
     c = Claim("Composite claim.")

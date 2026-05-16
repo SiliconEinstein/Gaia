@@ -25,6 +25,7 @@ from gaia.engine.lang import (
     register_prior,
 )
 from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.compiler.lower_formula import build_formula_graph
 from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
 from gaia.engine.lang.runtime.knowledge import _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
@@ -336,6 +337,38 @@ def test_quantifier_formula_graph_preserves_finite_grounding_behavior():
         for s in artifact.graph.strategies
         if (s.metadata or {}).get("formula_lowering") == "forall_grounding"
     ]
+
+
+def test_formula_graph_scopes_shadowed_quantifier_variables():
+    particle = Domain(content="Particles", members=["p1", "p2"])
+    outer_x = Variable(symbol="x", domain=particle)
+    inner_x = Variable(symbol="x", domain=particle)
+    related = PredicateSymbol(name="Related", arg_domains=(particle, particle))
+    formula = Forall(
+        variable=outer_x,
+        body=Exists(
+            variable=inner_x,
+            body=UserPredicate(related, (outer_x, inner_x)),
+        ),
+    )
+
+    graph = build_formula_graph(
+        formula,
+        source_claim_id="t:shadow_pkg::shadowed",
+        knowledge_map={},
+    )
+
+    variable_nodes = [node for node in graph.nodes if node.kind == "variable"]
+    assert len(variable_nodes) == 2
+    assert {node.descriptor["binder"] for node in variable_nodes} == {"b0", "b1"}
+
+    predicate = next(node for node in graph.nodes if node.kind == "atom")
+    predicate_arg_edges = [
+        edge for edge in graph.edges if edge.source == predicate.id and edge.role == "arg"
+    ]
+    assert len(predicate_arg_edges) == 2
+    assert predicate_arg_edges[0].target != predicate_arg_edges[1].target
+    assert {edge.target for edge in predicate_arg_edges} == {node.id for node in variable_nodes}
 
 
 def test_cross_graph_same_atom_uses_same_formula_node_id():
