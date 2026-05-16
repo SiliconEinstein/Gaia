@@ -53,20 +53,21 @@ from .s3_results import *
 
 ```python
 from gaia.engine.lang import (
-    claim, note, question,                                 # Knowledge
-    Variable, Nat, Real, Probability, Bool,                # Formula terms
-    parameter,                                             # Structured formula claims
-    ClaimAtom, land, lnot, lor, implies,                  # Formula AST helpers
-    contradict, equal, exclusive,                         # Reviewable relations
-    depends_on, candidate_relation, materialize,          # Scaffold annotations
-    observe, derive, compute, infer, decompose,            # Recommended actions
-    register_prior,                                       # External prior records
-    Normal, LogNormal, Beta, Exponential, Gamma,          # Distribution factories
+    claim, note, question,                                  # Knowledge
+    Variable, Nat, Real, Probability, Bool,                 # Formula terms
+    parameter,                                              # Structured formula claims
+    ClaimAtom, land, lnot, lor, implies, iff,               # Propositional formula helpers
+    forall, exists,                                         # First-order quantifiers
+    contradict, equal, exclusive,                           # Reviewable relations
+    depends_on, candidate_relation, materialize,            # Scaffold annotations
+    observe, derive, compute, infer, decompose,             # Recommended actions
+    register_prior,                                         # External prior records
+    Normal, LogNormal, Beta, Exponential, Gamma,            # Distribution factories
     StudentT, Cauchy, ChiSquared, Binomial, Poisson,
-    Distribution, BoolExpr, DerivedDistribution,           # Continuous helpers
+    Distribution, BoolExpr, DerivedDistribution,            # Continuous helpers
 )
 
-import gaia.engine.bayes as bayes                          # Bayes helpers
+import gaia.engine.bayes as bayes                           # Bayes hypothesis comparison
 ```
 
 For unit-aware continuous quantities, import quantities from `gaia.unit`:
@@ -74,6 +75,12 @@ For unit-aware continuous quantities, import quantities from `gaia.unit`:
 ```python
 from gaia.unit import q
 ```
+
+For the full enumerated public surface (every symbol, with signatures and
+docstrings), see the auto-generated [`gaia.engine.lang` API reference](../reference/engine/lang.md).
+This page focuses on **how to choose** the right action and **what each one
+compiles to**; the reference page is the source of truth for parameter names
+and types.
 
 ## Knowledge Types
 
@@ -613,6 +620,31 @@ The legacy shortcuts `~a`, `a & b`, `a | b`, `not_(a)`, `and_(...)`, and
 overloaded, and `Claim` objects intentionally reject truth-value checks such as
 `if claim:`.
 
+### First-order quantifiers
+
+`forall(...)` and `exists(...)` build quantified formula nodes for
+predicate-logic claims. Use them inside `claim(..., formula=...)` when the
+proposition ranges over a `Variable` rather than over named claim atoms:
+
+```python
+from gaia.engine.lang import Bool, Variable, claim, exists, forall, implies
+
+x = Variable(symbol="x", domain=Bool)
+universal = claim(
+    "All systems satisfy P implies Q.",
+    formula=forall(x, implies(P(x), Q(x))),
+)
+witness = claim(
+    "There exists a system that satisfies P.",
+    formula=exists(x, P(x)),
+)
+```
+
+For the full predicate-logic surface (variables, domains, predicates,
+ground/lower boundary semantics), see
+[`gaia-lang/predicate-logic.md`](../foundations/gaia-lang/predicate-logic.md)
+and the [formula AST API reference](../reference/engine/lang/formula.md).
+
 ### Propositional analysis
 
 Compiled operator graphs can be analyzed with `gaia.engine.ir.logic`. The API keeps Gaia IR as the stored representation and uses a mature Boolean backend for normalization and checks. The snippet assumes `pkg` is an already-collected package object:
@@ -714,159 +746,54 @@ at_least_one = disjunction(mech_a, mech_b, mech_c,
 
 ## Legacy / Experimental Strategy APIs
 
-The APIs below remain available for older packages and for experiments with named reasoning patterns. New v0.5 packages should normally use `observe(...)`, `derive(...)`, `compute(...)`, `infer(...)`, and the relation verbs above. In particular, do not use `abduction(...)` or `induction(...)` as a shortcut for uncertainty that has not been made explicit; extract the uncertain assumptions as claims first.
+The v5 named-strategy DSL is preserved for backward compatibility under
+`gaia.engine.lang.compat` while existing packages migrate. **New v0.5 packages
+should not use these helpers.** Top-level fallback access (e.g.
+`from gaia.engine.lang import support`) emits a `DeprecationWarning`; the
+explicit `gaia.engine.lang.compat.<name>` import is what migrating packages
+should use until they finish moving off them.
 
-Import these helpers explicitly only when migrating or testing legacy package
-behavior:
+For the full migration table (every legacy verb mapped to its v0.5 replacement),
+see [Migration to alpha 0 §Layer 3](../migration.md#layer-3-legacy-dsl-verb-migration).
+For per-symbol signatures, the auto-generated
+[`gaia.engine.lang` reference](../reference/engine/lang.md) renders the compat
+surface alongside the canonical exports.
 
 ```python
 from gaia.engine.lang.compat import (
+    # background-context aliases (replaced by note)
     setting, context,
+    # operator helpers (replaced by relation verbs and formula AST)
     contradiction, equivalence, complement, disjunction,
+    # named-strategy DSL (replaced by derive / infer / bayes.likelihood)
     support, compare, deduction, abduction, induction,
     analogy, extrapolation, elimination, case_analysis,
-    mathematical_induction, composite, fills,
+    mathematical_induction, composite,
+    # cross-package bridging (still in use; will be promoted in a later release)
+    fills,
 )
 ```
 
-### `support(premises, conclusion, *, reason, prior, background=None)`
+### Notable migration rows
 
-Legacy soft support. Premises jointly support a conclusion through a probabilistic implication warrant. `reason` and `prior` must be paired. Prefer `derive(...)` when the step is deterministic; prefer `infer(...)` when you really need an explicit probabilistic evidence link.
+| Legacy helper | v0.5 replacement | Notes |
+|---|---|---|
+| `setting(...)` / `context(...)` | `note(...)` | Background context only; never participates in BP. |
+| `support([P], C, prior=...)` | `derive(C, given=[P])` (deterministic) or `infer(P, hypothesis=C, p_e_given_h=..., p_e_given_not_h=...)` / `bayes.likelihood(...)` (probabilistic) | `P` is the evidence; `C` is the hypothesis whose belief gets updated. |
+| `deduction([P], C)` | `derive(C, given=[P])` | Strict logical entailment lowers to a hard conditional implication. |
+| `compare / abduction / induction / analogy / extrapolation / elimination / case_analysis / mathematical_induction` | Author the deterministic skeleton with `derive(...)` + relation verbs, or `bayes.likelihood(...)` for explicit Bayesian comparisons | Do not use these as shortcuts for uncertainty that hasn't been spelled out as claims. |
+| `composite(..., sub_strategies=[...])` | Plain `derive(...)` chains plus `@compose` for the workflow boundary | Sub-strategy priors are no longer the v0.5 surface for soft leaves; use `infer(...)` / `bayes.likelihood(...)` instead. |
+| `infer([premises], conclusion, ...)` (legacy positional) | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` | The legacy positional form is preserved as a deprecated path; the keyword form is the v0.5 contract. |
+| `contradiction(a, b)` / `equivalence(a, b)` / `complement(a, b)` | `contradict(a, b)` / `equal(a, b)` / `exclusive(a, b)` | The relation-verb forms appear in review manifests and emit reviewable warrant helpers. |
+| `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | `lor(...)` / `land(...)` / `lnot(...)` formula helpers, or explicit `Operator(disjunction, ...)` | Formula AST is the v0.5 way to express structural Boolean expressions. |
+| `noisy_and(...)` | `derive(...)` for deterministic conjunction; `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence aggregation | Currently delegates to legacy `support()`. |
 
-```python
-support(
-    [evidence_a, evidence_b],
-    conclusion,
-    reason="Two independent lines of evidence converge.",
-    prior=0.85,
-)
-```
-
-### `deduction(premises, conclusion, *, reason, prior=None, background=None)`
-
-Legacy strict logical entailment. In new packages, prefer `derive(...)` for this role.
-
-**Key test:** "If all premises are definitely true, is the conclusion **necessarily** true?" Yes -> deduction. No -> support.
-
-`prior` is legacy-only for deduction. Current BP lowering treats deduction as a
-hard conditional implication. Review decides whether the warrant satisfies
-publication-quality gates; it does not set a numeric prior for the proof step,
-and it does not suppress `gaia run infer` local preview output.
-
-```python
-deduction(
-    [bounded_above, monotonically_increasing],
-    theorem,
-    reason="Monotone convergence theorem.",
-)
-```
-
-### `compare(pred_h, pred_alt, observation, *, reason, prior, background=None)`
-
-Compare two competing predictions against an observation. Auto-generates a comparison claim as the conclusion.
-
-```python
-comp = compare(pred_h, pred_alt, obs,
-    reason="H matches observation much better.", prior=0.9)
-# comp.conclusion is the auto-generated comparison claim
-```
-
-### `abduction(support_h, support_alt, comparison, *, reason, background=None)`
-
-Experimental named pattern for inference to best explanation. Takes three **Strategy** objects (not claims): two `support` strategies and one `compare` strategy. For v0.5 authoring, this is not the recommended way to model abductive scientific reasoning; express the competing models, predictions, observations, matches, and alternative explanations as explicit claims/actions instead.
-
-```python
-s_h = support([hypothesis], obs, reason="H explains obs.", prior=0.9)
-s_alt = support([alternative], obs, reason="Alt weakly explains obs.", prior=0.4)
-comp = compare(pred_h, pred_alt, obs, reason="H matches better.", prior=0.9)
-
-abd = abduction(s_h, s_alt, comp,
-    reason="Both attempt to explain the same observation.")
-```
-
-### `induction(support_1, support_2, law, *, reason, background=None)`
-
-Experimental composite pattern: two support strategies jointly confirm a general law. Chainable. For v0.5 authoring, prefer explicit repeated observations/predictions plus reviewable relations, then let BP combine the graph.
-
-```python
-s1 = support([law], obs1, reason="Law predicts obs1.", prior=0.9)
-s2 = support([law], obs2, reason="Law predicts obs2.", prior=0.9)
-s3 = support([law], obs3, reason="Law predicts obs3.", prior=0.9)
-
-ind_12 = induction(s1, s2, law=law, reason="Samples A, B independent.")
-ind_123 = induction(ind_12, s3, law=law, reason="Sample C independent.")
-```
-
-### `analogy(source, target, bridge, *, reason, background=None)`
-
-`bridge` asserts structural similarity between source and target domains.
-
-```python
-analogy(source, target, bridge, reason="Same mechanism, different material.")
-```
-
-### `extrapolation(source, target, continuity, *, reason, background=None)`
-
-`continuity` asserts conditions remain similar when extending a result.
-
-```python
-extrapolation(source, target, continuity, reason="Smooth pressure dependence.")
-```
-
-### `elimination(exhaustiveness, excluded, survivor, *, reason, background=None)`
-
-Process of elimination. `excluded` is a list of `(candidate, evidence_against)` tuples.
-
-```python
-elimination(
-    exhaustive,
-    excluded=[(magnon, no_magnon), (plasmon, no_plasmon)],
-    survivor=phonon,
-    reason="Only phonon mechanism remains.",
-)
-```
-
-### `case_analysis(exhaustiveness, cases, conclusion, *, reason, background=None)`
-
-`cases` is a list of `(case_condition, case_implies_conclusion)` tuples.
-
-```python
-case_analysis(
-    exhaustive,
-    cases=[(above_tc, above_implies), (below_tc, below_implies)],
-    conclusion=conclusion,
-    reason="Covers all temperature regimes.",
-)
-```
-
-### `composite(premises, conclusion, *, sub_strategies, reason, background=None)`
-
-Legacy hierarchical composition. Soft leaf sub-strategies may carry legacy warrant priors; derived conclusions themselves do not receive external priors.
-
-```python
-s1 = deduction([axiom_a, axiom_b], intermediate, reason="From axioms.")
-s2 = support([intermediate, data], final, reason="Combined evidence.", prior=0.85)
-
-composite(
-    [axiom_a, axiom_b, data], final,
-    sub_strategies=[s1, s2],
-    reason="Two-stage argument.",
-)
-```
-
-### `infer(premises, conclusion, *, reason, background=None)`
-
-Legacy general CPT strategy. Prefer the current `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=0.5)` action form. The old sidecar-based parameterization path has been removed from the authoring surface.
-
-### `fills(source, target, *, mode=None, strength="exact", reason="", background=None)`
-
-Cross-package interface bridging. `strength` is `"exact"` | `"partial"` |
-`"conditional"`. `mode` is optional legacy metadata (`"deduction"` or
-`"infer"` when used).
-
-```python
-fills(local_evidence, imported_claim, strength="exact")
-```
+`fills(...)` (cross-package interface bridging) is still the v0.5 surface for
+declaring `local_hole`-resolving relations between packages. See
+[Hole and Bridge Tutorial](hole-bridge-tutorial.md) for the end-to-end
+walkthrough; the per-parameter signature is rendered in the
+[`gaia.engine.lang` reference](../reference/engine/lang.md) alongside the rest
+of the compat surface.
 
 ## Module Organization
 

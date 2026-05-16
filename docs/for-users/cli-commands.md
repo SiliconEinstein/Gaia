@@ -26,6 +26,34 @@ gaia trace    verify / review / show          ARM Trace tooling (independent)
 For the old-to-new verb mapping (and the related Python import-path
 changes), see [Migration to alpha 0](../migration.md).
 
+## Top-level options
+
+### `gaia --version`
+
+```bash
+gaia --version
+```
+
+Prints version, release channel, commit, and IR schema metadata, then exits:
+
+```text
+gaia-lang 0.5.0
+channel: stable
+commit: 84353aa3
+ir_schema: 7
+```
+
+| Field | Source | Meaning |
+|-------|--------|---------|
+| version | `gaia._meta.get_library_version()` | distribution version of `gaia-lang` |
+| channel | `gaia._meta.get_channel()` | `stable` / `alpha` / `beta` / `rc` / `dev` — release channel |
+| commit | `gaia._meta.get_commit()` | git short-SHA the wheel was built from |
+| ir_schema | `gaia._meta.IR_SCHEMA` | IR schema version this CLI consumes/emits |
+
+Use `--version` in CI logs and bug reports so the IR schema and channel
+are unambiguous when debugging registry / dependency mismatches. The
+`ir_schema` field is also visible in `.gaia/compile_metadata.json`.
+
 ## `gaia build`
 
 Create and validate a knowledge package.
@@ -306,14 +334,22 @@ gaia inquiry review [path] --mode publish --markdown --strict
 gaia inquiry review [path] --focus github:pkg::claim --depth 1
 gaia inquiry focus <target> --path .
 gaia inquiry focus --clear --path .
+gaia inquiry focus <target> --push --path .              # push current, set new
+gaia inquiry focus --pop --path .                        # pop saved focus
+gaia inquiry focus --stack --path .                      # print focus stack
 gaia inquiry obligation add <target-qid> --content "What must be shown" --kind other --path .
 gaia inquiry obligation list --path .
 gaia inquiry obligation close <obligation-qid> --path .
 gaia inquiry hypothesis add "Alternative mechanism" --path .
 gaia inquiry hypothesis list --path .
+gaia inquiry hypothesis remove <hypothesis-qid> --path .
 gaia inquiry reject <strategy-label-or-id> --content "Why this path is rejected" --path .
 gaia inquiry tactics log --path .
 ```
+
+`gaia inquiry focus` flags `--clear`, `--push`, `--pop`, and `--stack` are
+mutually exclusive. `--push` and a positional `<target>` together push the
+current frame and set a new focus; `--pop` restores the most recent frame.
 
 `gaia inquiry review` options:
 
