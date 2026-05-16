@@ -38,7 +38,7 @@ Those results are written into:
 name = "paper-a-gaia"
 version = "1.0.0"
 dependencies = [
-  "gaia-lang>=0.1.0",
+  "gaia-lang>=0.5",
 ]
 
 [tool.gaia]
@@ -63,6 +63,13 @@ deduction(
 
 __all__ = ["main_theorem"]
 ```
+
+> **Why `compat.deduction`?** `deduction` is the v5 named-strategy verb; in v0.5
+> the canonical replacement is `derive(main_theorem, given=[missing_lemma])`,
+> which is functionally equivalent. We use `compat.deduction` here only because
+> the tutorial deliberately walks you through the *legacy authoring shape* that
+> exposes a missing premise as a `local_hole`. New v0.5 packages should prefer
+> `derive(...)`; see [Migration to alpha 0 §Layer 3](../migration.md#layer-3-legacy-dsl-verb-migration).
 
 Compile and inspect:
 
@@ -99,7 +106,7 @@ path; it installs the pinned package version and caches any release beliefs.
 name = "paper-b-gaia"
 version = "1.0.0"
 dependencies = [
-  "gaia-lang>=0.1.0",
+  "gaia-lang>=0.5",
   "paper-a-gaia>=1.0.0,<2.0.0",
 ]
 
