@@ -52,7 +52,7 @@ GaiaGraph
 
 `Knowledge` and `GaiaGraph` are **siblings**, not parent/child. Knowledge is *what is being claimed*; Reasoning is *how the author is formally connecting claims*; Scaffold is an explicit marker for work that is not formal yet. The legacy `Action` name remains as a compatibility alias for `Reasoning`.
 
-The legacy v5 `Strategy / CompositeStrategy / FormalStrategy / Operator` runtime classes are still exported for backwards compatibility (see [§7 Legacy Compatibility Surface](#7-legacy-compatibility-surface)) but new packages should author exclusively with `Claim` / `Note` / `Question` plus the action verbs.
+The legacy v5 `Strategy / CompositeStrategy / FormalStrategy / Operator` runtime classes remain available under `gaia.engine.lang.compat`, with deprecated top-level fallback for older code (see [§7 Legacy Compatibility Surface](#7-legacy-compatibility-surface)), but new packages should author exclusively with `Claim` / `Note` / `Question` plus the action verbs.
 
 ---
 
@@ -290,7 +290,7 @@ Spec references: `docs/specs/2026-05-04-bayes-module-design.md` and `docs/specs/
 
 ## 7. Legacy Compatibility Surface
 
-The v5 strategy DSL remains available for backward compatibility. **New v0.5 packages should not use it.** The legacy verbs emit a `DeprecationWarning` at import or call time and are scheduled for removal once existing packages have migrated.
+The v5 strategy DSL remains available for backward compatibility under `gaia.engine.lang.compat`. **New v0.5 packages should not use it.** Deprecated top-level fallback imports and legacy verb calls emit a `DeprecationWarning`; the compatibility surface is scheduled for removal once existing packages have migrated.
 
 | Legacy verb | v0.5 replacement |
 |---|---|
@@ -301,7 +301,7 @@ The v5 strategy DSL remains available for backward compatibility. **New v0.5 pac
 | `abduction(...)` | author observation + alternative + comparison explicitly |
 | `induction(s1, s2, law, ...)` | declare each support step with `derive` / `observe` and let factor-graph topology accumulate evidence |
 | `analogy / extrapolation / elimination / case_analysis / mathematical_induction` | author the deterministic operator skeleton with `derive` + relation verbs |
-| `noisy_and(...)` | (deprecated; lowers to `support`, then to `derive`) |
+| `noisy_and(...)` | delegates to legacy `support()`; use `derive(...)` for deterministic reasoning or `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence links |
 | `contradiction(a, b, ...)` | `contradict(a, b, ...)` |
 | `equivalence(a, b, ...)` | `equal(a, b, ...)` |
 | `complement(a, b, ...)` | `exclusive(a, b, ...)` |
@@ -309,7 +309,7 @@ The v5 strategy DSL remains available for backward compatibility. **New v0.5 pac
 
 When legacy named-strategy verbs are used, the compiler still routes them through `formalize_named_strategy()` (`gaia/engine/ir/formalize.py`), which expands them to a `FormalStrategy` containing helper claims plus a deterministic operator skeleton (conjunction + directed implication, optionally with extra equivalence / disjunction operators). The expansion preserves the behavior documented in the v5 reference; consult git history or `gaia/engine/ir/formalize.py` for the per-strategy templates.
 
-Legacy `Strategy / CompositeStrategy / FormalStrategy / Operator` objects also remain importable from `gaia.engine.lang` for type annotations and for code that constructs IR-shaped objects directly.
+Legacy `Strategy / CompositeStrategy / FormalStrategy / Operator` objects also remain importable from `gaia.engine.lang.compat` for type annotations and for code that constructs IR-shaped objects directly. Direct `gaia.engine.lang` access is only a deprecated fallback for older packages.
 
 ---
 

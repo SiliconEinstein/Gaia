@@ -21,7 +21,7 @@ from gaia.engine.inquiry.snapshot import (
 from gaia.engine.inquiry.state import inquiry_dir
 
 runner = CliRunner()
-pytestmark = pytest.mark.legacy_dsl
+LEGACY_DSL = pytest.mark.legacy_dsl
 
 REVIEW_ID_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z_[a-zA-Z0-9]+_[A-Za-z0-9._-]+$")
 
@@ -78,6 +78,7 @@ def test_mint_review_id_sanitizes_mode():
     assert rid.endswith("_weirdmode")
 
 
+@LEGACY_DSL
 def test_run_review_uses_round_a3_id(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -90,6 +91,7 @@ def test_run_review_uses_round_a3_id(tmp_path):
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_snapshot_written_after_review(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -102,6 +104,7 @@ def test_snapshot_written_after_review(tmp_path):
     assert "knowledges" in payload["ir"]
 
 
+@LEGACY_DSL
 def test_list_snapshots_returns_newest_first(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -114,6 +117,7 @@ def test_list_snapshots_returns_newest_first(tmp_path):
     assert ids[0] >= ids[-1]  # sorted newest-first
 
 
+@LEGACY_DSL
 def test_state_remembers_last_review_id(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -123,6 +127,7 @@ def test_state_remembers_last_review_id(tmp_path):
     assert state["last_review_id"] == report.review_id
 
 
+@LEGACY_DSL
 def test_review_id_collision_updates_report_and_state(tmp_path, monkeypatch):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -152,6 +157,7 @@ def test_resolve_baseline_none(tmp_path):
     assert resolve_baseline(tmp_path, "none", "anything") is None
 
 
+@LEGACY_DSL
 def test_resolve_baseline_last_uses_state(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -159,6 +165,7 @@ def test_resolve_baseline_last_uses_state(tmp_path):
     assert resolve_baseline(pkg, "last", r.review_id) == r.review_id
 
 
+@LEGACY_DSL
 def test_resolve_baseline_explicit_missing(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -171,6 +178,7 @@ def test_resolve_baseline_explicit_missing(tmp_path):
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_diff_first_review_is_empty(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -179,6 +187,7 @@ def test_diff_first_review_is_empty(tmp_path):
     assert r.semantic_diff.baseline_review_id is None
 
 
+@LEGACY_DSL
 def test_diff_added_claim_detected(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -189,6 +198,7 @@ def test_diff_added_claim_detected(tmp_path):
     assert r2.semantic_diff.baseline_review_id is not None
 
 
+@LEGACY_DSL
 def test_diff_prior_change_detected(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg, prior=0.7)
@@ -200,6 +210,7 @@ def test_diff_prior_change_detected(tmp_path):
     assert priors["main"] == ("0.7", "0.95")
 
 
+@LEGACY_DSL
 def test_diff_removed_claim_detected(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg, extra_claim="will be removed")
@@ -253,6 +264,7 @@ def test_diff_unit_compute_against_synthetic_snapshot():
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_cli_review_emits_diff_section_after_second_run(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -266,6 +278,7 @@ def test_cli_review_emits_diff_section_after_second_run(tmp_path):
     assert data["semantic_diff"]["baseline_review_id"] is not None
 
 
+@LEGACY_DSL
 def test_cli_since_none_disables_baseline(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -283,7 +296,12 @@ def test_cli_since_none_disables_baseline(tmp_path):
 
 def test_cli_rejects_conflicting_output_flags_without_state(tmp_path):
     pkg = tmp_path / "p"
-    _write_pkg(pkg)
+    pkg.mkdir()
+    (pkg / "pyproject.toml").write_text(
+        '[project]\nname = "flag-check-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n',
+        encoding="utf-8",
+    )
 
     result = runner.invoke(
         app,

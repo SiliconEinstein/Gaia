@@ -17,7 +17,7 @@ from gaia.engine.inquiry.diagnostics import (
 from gaia.engine.inquiry.review import publish_blockers, run_review
 
 runner = CliRunner()
-pytestmark = pytest.mark.legacy_dsl
+LEGACY_DSL = pytest.mark.legacy_dsl
 
 
 def _pkg_with_holes(pkg_dir: Path, name: str = "review_pkg") -> None:
@@ -73,6 +73,7 @@ def test_next_edits_dedup_and_severity_order():
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_review_report_has_all_eight_sections(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -92,6 +93,7 @@ def test_review_report_has_all_eight_sections(tmp_path):
         assert key in d, f"missing JSON section: {key}"
 
 
+@LEGACY_DSL
 def test_review_compile_section(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -101,6 +103,7 @@ def test_review_compile_section(tmp_path):
     assert report.counts["strategies"] >= 1
 
 
+@LEGACY_DSL
 def test_review_prior_holes_detect_missing_prior(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -110,6 +113,7 @@ def test_review_prior_holes_detect_missing_prior(tmp_path):
     assert "covered" not in labels
 
 
+@LEGACY_DSL
 def test_review_graph_health_reports_orphans_and_holes(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -119,6 +123,7 @@ def test_review_graph_health_reports_orphans_and_holes(tmp_path):
     assert "covered" not in gh["prior_holes"]
 
 
+@LEGACY_DSL
 def test_review_inquiry_tree_counts_questions_as_goals(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -127,6 +132,7 @@ def test_review_inquiry_tree_counts_questions_as_goals(tmp_path):
     assert report.inquiry_tree["unreviewed_warrants"] >= 1
 
 
+@LEGACY_DSL
 def test_review_diagnostics_include_prior_hole_and_orphan(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -136,6 +142,7 @@ def test_review_diagnostics_include_prior_hole_and_orphan(tmp_path):
     assert "orphaned_claim" in kinds
 
 
+@LEGACY_DSL
 def test_review_next_edits_nonempty_when_holes_exist(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -143,6 +150,7 @@ def test_review_next_edits_nonempty_when_holes_exist(tmp_path):
     assert any('set_prior("hole"' in e for e in report.next_edits)
 
 
+@LEGACY_DSL
 def test_review_semantic_diff_empty_on_first_run(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -156,6 +164,7 @@ def test_review_semantic_diff_empty_on_first_run(tmp_path):
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_text_render_has_all_eight_section_headers(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -174,6 +183,7 @@ def test_text_render_has_all_eight_section_headers(tmp_path):
         assert h in r.output, f"text output missing header: {h}\n{r.output}"
 
 
+@LEGACY_DSL
 def test_text_render_lists_holes(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -186,6 +196,7 @@ def test_text_render_lists_holes(tmp_path):
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_json_output_well_formed_and_schema_v1(tmp_path):
     pkg = tmp_path / "p"
     _pkg_with_holes(pkg)
@@ -200,6 +211,7 @@ def test_json_output_well_formed_and_schema_v1(tmp_path):
     assert data["semantic_diff"]["baseline_review_id"] is None
 
 
+@LEGACY_DSL
 def test_strict_no_warnings_no_exit(tmp_path):
     """Strict mode must NOT exit non-zero when only info-level diagnostics exist."""
     pkg = tmp_path / "p"
@@ -214,6 +226,7 @@ def test_strict_no_warnings_no_exit(tmp_path):
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_review_uses_check_core_breakdown(tmp_path):
     """Sanity: prior_holes from review must match check_core directly."""
     pkg = tmp_path / "p"
@@ -239,6 +252,7 @@ def test_review_uses_check_core_breakdown(tmp_path):
     assert actual == expected
 
 
+@LEGACY_DSL
 def test_review_adapter_preserves_strategy_and_operator_ids(tmp_path):
     pkg = tmp_path / "p"
     pkg.mkdir()
@@ -312,6 +326,7 @@ def _write_dep_package(dep_dir: Path, *, name: str, monkeypatch) -> None:
     monkeypatch.syspath_prepend(str(dep_dir))
 
 
+@LEGACY_DSL
 def test_review_depth_uses_joint_dependency_graphs(tmp_path, monkeypatch):
     from unittest.mock import patch
 

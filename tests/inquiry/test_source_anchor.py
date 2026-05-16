@@ -19,7 +19,7 @@ from gaia.engine.inquiry.diagnostics import (
 from gaia.engine.inquiry.review import run_review
 
 runner = CliRunner()
-pytestmark = pytest.mark.legacy_dsl
+LEGACY_DSL = pytest.mark.legacy_dsl
 
 
 def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
@@ -53,6 +53,7 @@ def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_find_anchors_locates_claims(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -68,6 +69,7 @@ def test_find_anchors_locates_claims(tmp_path):
     assert ha.line == 5
 
 
+@LEGACY_DSL
 def test_find_anchors_multiline_call(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -76,6 +78,7 @@ def test_find_anchors_multiline_call(tmp_path):
     assert anchors["conclusion"].line == 8
 
 
+@LEGACY_DSL
 def test_find_anchors_handles_syntax_error(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -85,6 +88,7 @@ def test_find_anchors_handles_syntax_error(tmp_path):
     assert "hypothesis" in anchors
 
 
+@LEGACY_DSL
 def test_find_anchors_ignores_hidden_dirs(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -101,6 +105,7 @@ def test_find_anchors_returns_empty_for_nonexistent(tmp_path):
     assert find_anchors(tmp_path / "does_not_exist") == {}
 
 
+@LEGACY_DSL
 def test_find_anchors_locates_v05_dsl_constructors(tmp_path):
     pkg = tmp_path / "p"
     pkg.mkdir()
@@ -112,8 +117,8 @@ def test_find_anchors_locates_v05_dsl_constructors(tmp_path):
     src = pkg / "anchor_v05"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.engine.lang import "
-        "associate, claim, contradiction, deduction, depends_on, derive\n"
+        "from gaia.engine.lang import associate, claim, depends_on, derive\n"
+        "from gaia.engine.lang.compat import contradiction, deduction\n"
         'a = claim("A.")\n'
         'b = claim("B.")\n'
         'c = claim("C.")\n'
@@ -144,6 +149,7 @@ def test_find_anchors_locates_v05_dsl_constructors(tmp_path):
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_review_diagnostics_carry_anchor(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -187,6 +193,7 @@ def test_diagnostic_to_dict_includes_anchor():
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_text_next_edit_contains_file_line(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -194,6 +201,7 @@ def test_text_next_edit_contains_file_line(tmp_path):
     assert any("__init__.py:" in edit for edit in report.next_edits), report.next_edits
 
 
+@LEGACY_DSL
 def test_structured_next_edits_have_anchor(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -249,6 +257,7 @@ def test_structured_next_edits_dedup_matches_text():
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_cli_json_contains_next_edits_structured(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
