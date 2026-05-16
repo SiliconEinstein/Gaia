@@ -45,7 +45,7 @@
 - Modify: `gaia/engine/ir/__init__.py`
 - Test: `tests/ir/test_formula_graph.py`
 
-- [ ] **Step 1: Write failing tests for formula IR models**
+- [x] **Step 1: Write failing tests for formula IR models**
 
 Create `tests/ir/test_formula_graph.py` with:
 
@@ -142,7 +142,7 @@ def test_formula_graphs_participate_in_ir_hash():
     assert graph_a.ir_hash != graph_b.ir_hash
 ```
 
-- [ ] **Step 2: Run the new test file and verify imports fail**
+- [x] **Step 2: Run the new test file and verify imports fail**
 
 Run:
 
@@ -152,7 +152,7 @@ uv run --project . python -m pytest tests/ir/test_formula_graph.py -q
 
 Expected: FAIL with `ImportError: cannot import name 'FormulaEdge'`.
 
-- [ ] **Step 3: Add the formula IR model module**
+- [x] **Step 3: Add the formula IR model module**
 
 Create `gaia/engine/ir/formula.py`:
 
@@ -251,7 +251,7 @@ class FormulaGraph(BaseModel):
         return self
 ```
 
-- [ ] **Step 4: Re-export the formula IR models**
+- [x] **Step 4: Re-export the formula IR models**
 
 Modify `gaia/engine/ir/__init__.py`:
 
@@ -268,7 +268,7 @@ Add these names to `__all__`:
     "formula_node_id",  # Formula
 ```
 
-- [ ] **Step 5: Run the formula model tests**
+- [x] **Step 5: Run the formula model tests**
 
 Run:
 
@@ -278,7 +278,7 @@ uv run --project . python -m pytest tests/ir/test_formula_graph.py -q
 
 Expected: FAIL at `LocalCanonicalGraph(..., formula_graphs=...)` because the graph model does not yet have the field.
 
-- [ ] **Step 6: Hold the model slice for the Task 2 commit**
+- [x] **Step 6: Hold the model slice for the Task 2 commit**
 
 Task 2 wires `formula_graphs` into `LocalCanonicalGraph`; commit the IR model and graph hash slices together after Task 2.
 
@@ -291,7 +291,7 @@ Task 2 wires `formula_graphs` into `LocalCanonicalGraph`; commit the IR model an
 - Modify: `gaia/engine/ir/validator.py`
 - Test: `tests/ir/test_formula_graph.py`
 
-- [ ] **Step 1: Update graph canonicalization tests are already failing**
+- [x] **Step 1: Update graph canonicalization tests are already failing**
 
 The test `test_formula_graphs_participate_in_ir_hash` from Task 1 is the failing test for this task.
 
@@ -303,7 +303,7 @@ uv run --project . python -m pytest tests/ir/test_formula_graph.py::test_formula
 
 Expected: FAIL because `LocalCanonicalGraph` has no `formula_graphs` field or the field does not affect `ir_hash`.
 
-- [ ] **Step 2: Modify `gaia/engine/ir/graphs.py` imports**
+- [x] **Step 2: Modify `gaia/engine/ir/graphs.py` imports**
 
 Add:
 
@@ -311,7 +311,7 @@ Add:
 from gaia.engine.ir.formula import FormulaGraph
 ```
 
-- [ ] **Step 3: Add formula graph canonicalization helpers**
+- [x] **Step 3: Add formula graph canonicalization helpers**
 
 Add this helper after `_canonicalize_compose_dump`:
 
@@ -323,7 +323,7 @@ def _canonicalize_formula_graph_dump(data: dict[str, Any]) -> dict[str, Any]:
     return canonical
 ```
 
-- [ ] **Step 4: Extend `_canonical_json` signature and payload**
+- [x] **Step 4: Extend `_canonical_json` signature and payload**
 
 Change the signature:
 
@@ -349,7 +349,7 @@ Add the payload key:
         ),
 ```
 
-- [ ] **Step 5: Add the field to `LocalCanonicalGraph` and hash call**
+- [x] **Step 5: Add the field to `LocalCanonicalGraph` and hash call**
 
 Add the model field:
 
@@ -369,7 +369,7 @@ Update the `_canonical_json` call in `_compute_hash`:
             )
 ```
 
-- [ ] **Step 6: Update validator hash recomputation**
+- [x] **Step 6: Update validator hash recomputation**
 
 In `gaia/engine/ir/validator.py`, update the `_canonical_json` call:
 
@@ -383,7 +383,7 @@ In `gaia/engine/ir/validator.py`, update the `_canonical_json` call:
         )
 ```
 
-- [ ] **Step 7: Run the IR formula model tests**
+- [x] **Step 7: Run the IR formula model tests**
 
 Run:
 
@@ -393,7 +393,7 @@ uv run --project . python -m pytest tests/ir/test_formula_graph.py -q
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit Tasks 1 and 2**
+- [x] **Step 8: Commit Tasks 1 and 2**
 
 Run:
 
@@ -410,7 +410,7 @@ git commit -m "feat(ir): add formula graph models"
 - Modify: `gaia/engine/lang/compiler/lower_formula.py`
 - Test: `tests/gaia/lang/test_formula_lowering.py`
 
-- [ ] **Step 1: Add failing formula graph integration tests**
+- [x] **Step 1: Add failing formula graph integration tests**
 
 Append these tests to `tests/gaia/lang/test_formula_lowering.py`:
 
@@ -538,7 +538,7 @@ def test_cross_graph_same_atom_uses_same_formula_node_id():
     assert first_graph.source_claim != second_graph.source_claim
 ```
 
-- [ ] **Step 2: Run the new integration tests and verify they fail**
+- [x] **Step 2: Run the new integration tests and verify they fail**
 
 Run:
 
@@ -548,7 +548,7 @@ uv run --project . python -m pytest tests/gaia/lang/test_formula_lowering.py::te
 
 Expected: FAIL because `artifact.graph.formula_graphs` is empty.
 
-- [ ] **Step 3: Import formula IR models in `lower_formula.py`**
+- [x] **Step 3: Import formula IR models in `lower_formula.py`**
 
 Add imports:
 
@@ -556,7 +556,7 @@ Add imports:
 from gaia.engine.ir.formula import FormulaEdge, FormulaGraph, FormulaNode, formula_node_id
 ```
 
-- [ ] **Step 4: Extend `FormulaLoweringResult`**
+- [x] **Step 4: Extend `FormulaLoweringResult`**
 
 Add the field:
 
@@ -564,7 +564,7 @@ Add the field:
     formula_graphs: list[FormulaGraph] = field(default_factory=list)
 ```
 
-- [ ] **Step 5: Rename descriptor helpers to canonical helpers**
+- [x] **Step 5: Rename descriptor helpers to canonical helpers**
 
 Keep the old private names as wrappers so the patch stays small:
 
@@ -587,7 +587,7 @@ def canonical_term_descriptor(
     return _term_descriptor(term, knowledge_map=knowledge_map, bindings=bindings)
 ```
 
-- [ ] **Step 6: Add the FormulaGraph builder**
+- [x] **Step 6: Add the FormulaGraph builder**
 
 Add this builder after `_FormulaState`:
 
@@ -730,7 +730,7 @@ class _FormulaGraphBuilder:
         return node_id
 ```
 
-- [ ] **Step 7: Add binary formula term helper**
+- [x] **Step 7: Add binary formula term helper**
 
 Add:
 
@@ -751,7 +751,7 @@ def _binary_formula_terms(formula: Any) -> list[tuple[str, Any]]:
     return []
 ```
 
-- [ ] **Step 8: Add public builder function**
+- [x] **Step 8: Add public builder function**
 
 Add:
 
@@ -771,7 +771,7 @@ def build_formula_graph(
     ).build(formula)
 ```
 
-- [ ] **Step 9: Refactor `lower_claim_formula` so every formula-bearing source emits a graph**
+- [x] **Step 9: Refactor `lower_claim_formula` so every formula-bearing source emits a graph**
 
 Replace the multiple early returns with this shape:
 
@@ -835,7 +835,7 @@ def lower_claim_formula(
     )
 ```
 
-- [ ] **Step 10: Run the four formula graph integration tests before compiler wiring**
+- [x] **Step 10: Run the four formula graph integration tests before compiler wiring**
 
 Run:
 
@@ -855,7 +855,7 @@ Task 4 wires the compiler.
 - Modify: `gaia/engine/lang/compiler/compile.py`
 - Test: `tests/gaia/lang/test_formula_lowering.py`
 
-- [ ] **Step 1: Import `FormulaGraph`**
+- [x] **Step 1: Import `FormulaGraph`**
 
 In `gaia/engine/lang/compiler/compile.py`, add:
 
@@ -863,7 +863,7 @@ In `gaia/engine/lang/compiler/compile.py`, add:
 from gaia.engine.ir.formula import FormulaGraph
 ```
 
-- [ ] **Step 2: Extend the compiler-side formula result carrier**
+- [x] **Step 2: Extend the compiler-side formula result carrier**
 
 Change `_FormulaLoweringResult`:
 
@@ -895,7 +895,7 @@ After `result.strategies.extend(lowered.strategies)`, add:
         result.formula_graphs.extend(lowered.formula_graphs)
 ```
 
-- [ ] **Step 3: Preserve decomposition formula graphs**
+- [x] **Step 3: Preserve decomposition formula graphs**
 
 Add a field to `_ActionCompiler`:
 
@@ -909,7 +909,7 @@ In `_emit_decomposition_formula`, after `self.generated_knowledges.extend(lowere
         self.formula_graphs.extend(lowered.formula_graphs)
 ```
 
-- [ ] **Step 4: Extend `_build_graph`**
+- [x] **Step 4: Extend `_build_graph`**
 
 Add a parameter:
 
@@ -932,7 +932,7 @@ Update the call site in `compile_package_artifact`:
         action_formula_graphs=action_compiler.formula_graphs,
 ```
 
-- [ ] **Step 5: Run the formula graph integration tests**
+- [x] **Step 5: Run the formula graph integration tests**
 
 Run:
 
@@ -942,7 +942,7 @@ uv run --project . python -m pytest tests/gaia/lang/test_formula_lowering.py::te
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Tasks 3 and 4**
+- [x] **Step 6: Commit Tasks 3 and 4**
 
 Run:
 
@@ -959,7 +959,7 @@ git commit -m "feat(lang): emit formula graphs during lowering"
 - Modify: `gaia/engine/ir/validator.py`
 - Test: `tests/ir/test_validator.py`
 
-- [ ] **Step 1: Add validator tests using constructed malformed graphs**
+- [x] **Step 1: Add validator tests using constructed malformed graphs**
 
 Add imports in `tests/ir/test_validator.py`:
 
@@ -1046,7 +1046,7 @@ class TestFormulaGraphValidation:
         assert any("does not match canonical descriptor hash" in e for e in r.errors)
 ```
 
-- [ ] **Step 2: Run the new validator tests and verify failure**
+- [x] **Step 2: Run the new validator tests and verify failure**
 
 Run:
 
@@ -1056,7 +1056,7 @@ uv run --project . python -m pytest tests/ir/test_validator.py::TestFormulaGraph
 
 Expected: FAIL because `validate_local_graph` does not inspect `formula_graphs`.
 
-- [ ] **Step 3: Add formula graph validation helpers**
+- [x] **Step 3: Add formula graph validation helpers**
 
 In `gaia/engine/ir/validator.py`, import:
 
@@ -1143,7 +1143,7 @@ def _validate_formula_graphs(
                 )
 ```
 
-- [ ] **Step 4: Call formula graph validation**
+- [x] **Step 4: Call formula graph validation**
 
 In `validate_local_graph`, after `_validate_composes(...)`, add:
 
@@ -1151,7 +1151,7 @@ In `validate_local_graph`, after `_validate_composes(...)`, add:
     _validate_formula_graphs(graph.formula_graphs, knowledge_lookup, result)
 ```
 
-- [ ] **Step 5: Run validator tests**
+- [x] **Step 5: Run validator tests**
 
 Run:
 
@@ -1161,7 +1161,7 @@ uv run --project . python -m pytest tests/ir/test_validator.py::TestFormulaGraph
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit validator changes**
+- [x] **Step 6: Commit validator changes**
 
 Run:
 
@@ -1178,7 +1178,7 @@ git commit -m "feat(ir): validate formula graph references"
 - Modify: `gaia/engine/lang/compiler/lower_formula.py`
 - Test: `tests/gaia/lang/test_formula_lowering.py`
 
-- [ ] **Step 1: Add failing helper dedup regression**
+- [x] **Step 1: Add failing helper dedup regression**
 
 Append to `tests/gaia/lang/test_formula_lowering.py`:
 
@@ -1210,7 +1210,7 @@ def test_repeated_predicate_formula_reuses_generated_atom_helper_claim():
     assert generated_atoms[0].metadata["formula_node_id"].startswith("fg:")
 ```
 
-- [ ] **Step 2: Run the failing regression**
+- [x] **Step 2: Run the failing regression**
 
 Run:
 
@@ -1220,7 +1220,7 @@ uv run --project . python -m pytest tests/gaia/lang/test_formula_lowering.py::te
 
 Expected: FAIL because `_generated_claim` still salts every repeated atom with `_helper_counter`.
 
-- [ ] **Step 3: Pass `source_claim_id` into `_FormulaState`**
+- [x] **Step 3: Pass `source_claim_id` into `_FormulaState`**
 
 Change `_FormulaState.__init__` signature:
 
@@ -1247,7 +1247,7 @@ Update the construction in `_lower_formula_to_claim`:
     )
 ```
 
-- [ ] **Step 4: Replace counter-only generated helper identity**
+- [x] **Step 4: Replace counter-only generated helper identity**
 
 Replace `_generated_claim` with:
 
@@ -1268,7 +1268,7 @@ Replace `_generated_claim` with:
         return label, claim_id, True
 ```
 
-- [ ] **Step 5: Update `_atom_claim` to use formula node ids**
+- [x] **Step 5: Update `_atom_claim` to use formula node ids**
 
 Replace the start of `_atom_claim` with:
 
@@ -1292,7 +1292,7 @@ Update metadata construction:
             "source_claim": self.source_claim_id,
 ```
 
-- [ ] **Step 6: Update `_helper_claim` to use canonical child structure**
+- [x] **Step 6: Update `_helper_claim` to use canonical child structure**
 
 Replace the first lines of `_helper_claim` with:
 
@@ -1314,7 +1314,7 @@ Add to helper metadata:
                     "source_claim": self.source_claim_id,
 ```
 
-- [ ] **Step 7: Run helper identity regression and formula lowering suite**
+- [x] **Step 7: Run helper identity regression and formula lowering suite**
 
 Run:
 
@@ -1324,7 +1324,7 @@ uv run --project . python -m pytest tests/gaia/lang/test_formula_lowering.py -q
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit helper identity changes**
+- [x] **Step 8: Commit helper identity changes**
 
 Run:
 
@@ -1340,7 +1340,7 @@ git commit -m "fix(lang): canonicalize formula helper identities"
 **Files:**
 - Verify only unless failures require a narrow fix.
 
-- [ ] **Step 1: Run focused test suites**
+- [x] **Step 1: Run focused test suites**
 
 Run:
 
@@ -1350,7 +1350,7 @@ uv run --project . python -m pytest tests/ir/test_formula_graph.py tests/ir/test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run broader IR and lang tests**
+- [x] **Step 2: Run broader IR and lang tests**
 
 Run:
 
@@ -1360,7 +1360,7 @@ uv run --project . python -m pytest tests/ir tests/gaia/lang -q
 
 Expected: PASS.
 
-- [ ] **Step 3: Run formatting and lint checks**
+- [x] **Step 3: Run formatting and lint checks**
 
 Run:
 
@@ -1378,7 +1378,7 @@ uv run --project . ruff check gaia/engine/ir/formula.py gaia/engine/ir/__init__.
 
 Expected: PASS.
 
-- [ ] **Step 4: Inspect final diff**
+- [x] **Step 4: Inspect final diff**
 
 Run:
 
