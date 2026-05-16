@@ -50,6 +50,12 @@ from gaia.engine.ir import (
 from gaia.engine.ir.knowledge import KnowledgeType
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.ir.strategy import StrategyType
+from gaia.engine.lang.compiler.extensions import (
+    ActionLoweringContext,
+    ActionLoweringResult,
+    is_registered_action,
+    lower_registered_actions,
+)
 from gaia.engine.lang.compiler.lower_formula import lower_claim_formula
 from gaia.engine.lang.refs import (
     ReferenceError,
@@ -834,7 +840,7 @@ class _ActionCompiler:
         strategy_target_ids_by_object: dict[int, str],
         operator_target_ids_by_object: dict[int, str],
     ) -> list[IrCompose]:
-        """Lower Compose actions after child actions and Bayes actions have targets."""
+        """Lower Compose actions after child and extension actions have targets."""
         return [
             self._compile_compose_action(
                 action,
@@ -1335,7 +1341,7 @@ class _ActionCompiler:
         """Lower one non-scaffold action into its IR target."""
         if isinstance(action, DependsOn | CandidateRelation):
             return None
-        if _is_bayes_action(action):
+        if is_registered_action(action):
             return None
         if isinstance(action, Support):
             return self._compile_support_action(action, action_index)
@@ -1437,19 +1443,19 @@ class _ReferenceScanner:
     ir_knowledges: list[IrKnowledge]
     generated_knowledges: list[IrKnowledge]
     formula_generated_knowledges: list[IrKnowledge]
-    bayes_lowered_knowledges: list[IrKnowledge]
+    extension_lowered_knowledges: list[IrKnowledge]
     ir_strategies: list[IrStrategy]
     formula_generated_strategies: list[IrStrategy]
-    bayes_strategies: list[IrStrategy]
+    extension_strategies: list[IrStrategy]
     ir_operators: list[IrOperator]
     action_operators: list[IrOperator]
     formula_generated_operators: list[IrOperator]
-    bayes_operators: list[IrOperator]
+    extension_operators: list[IrOperator]
     ir_composes: list[IrCompose]
     refs_by_knowledge: dict[int, tuple[set[str], set[str]]] = field(default_factory=dict)
 
     def scan(self) -> list[IrKnowledge]:
-        """Scan package text and return updated Bayes-generated knowledge nodes."""
+        """Scan package text and return updated extension-generated knowledge nodes."""
         label_to_id, knowledge_label_ids = self._build_knowledge_label_tables()
         label_to_id.update(self._build_action_short_labels(knowledge_label_ids))
         check_collisions(label_to_id, self.references)
@@ -1607,7 +1613,7 @@ class _ReferenceScanner:
         for strategy in [
             *self.ir_strategies,
             *self.formula_generated_strategies,
-            *self.bayes_strategies,
+            *self.extension_strategies,
         ]:
             if strategy.strategy_id != target_id:
                 continue
@@ -1622,7 +1628,7 @@ class _ReferenceScanner:
             *self.ir_operators,
             *self.action_operators,
             *self.formula_generated_operators,
-            *self.bayes_operators,
+            *self.extension_operators,
         ]
         for operator in all_operators:
             if operator.operator_id != target_id:
@@ -1647,7 +1653,7 @@ class _ReferenceScanner:
             *self.ir_knowledges,
             *self.generated_knowledges,
             *self.formula_generated_knowledges,
-            *self.bayes_lowered_knowledges,
+            *self.extension_lowered_knowledges,
         ]
 
     def _apply_knowledge_refs(self, all_ir_knowledges: list[IrKnowledge]) -> None:
@@ -1822,13 +1828,6 @@ def _infer_conditional_probabilities(
     return cpt
 
 
-def _is_bayes_action(action: Any) -> bool:
-    bayes_meta = dict(getattr(action, "metadata", {}) or {}).get("bayes")
-    if not isinstance(bayes_meta, dict):
-        return False
-    return bayes_meta.get("action") in {"predictive_model", "likelihood"}
-
-
 def _lower_formula_claims(
     pkg: CollectedPackage,
     knowledge_nodes: list[Knowledge],
@@ -1866,51 +1865,14 @@ def _build_action_labels_by_object(pkg: CollectedPackage) -> dict[int, str]:
     }
 
 
-def _lower_bayes_actions(
-    pkg: CollectedPackage,
-    knowledge_nodes: list[Knowledge],
-    knowledge_map: dict[int, str],
-    action_labels_by_object: dict[int, str],
-    existing_operators: list[IrOperator],
-) -> Any:
-    from gaia.engine.bayes.compiler import lower_bayes_claims
-
-    return lower_bayes_claims(
-        knowledge_nodes,
-        actions=tuple(getattr(pkg, "actions", ())),
-        namespace=pkg.namespace,
-        package_name=pkg.name,
-        knowledge_map=knowledge_map,
-        action_labels_by_object=action_labels_by_object,
-        existing_operators=existing_operators,
-    )
-
-
-def _record_bayes_action_targets(
-    pkg: CollectedPackage,
-    action_labels_by_object: dict[int, str],
-    bayes_action_label_map: dict[str, str],
-    action_target_ids_by_object: dict[int, str],
-) -> None:
-    for action in getattr(pkg, "actions", []):
-        if not _is_bayes_action(action):
-            continue
-        bayes_action_label = action_labels_by_object.get(id(action))
-        if bayes_action_label is None:
-            continue
-        target_id = bayes_action_label_map.get(bayes_action_label)
-        if target_id is not None:
-            action_target_ids_by_object[id(action)] = target_id
-
-
 def _build_graph(
     pkg: CollectedPackage,
     *,
     ir_knowledges: list[IrKnowledge],
     generated_knowledges: list[IrKnowledge],
     formula_generated: _FormulaLoweringResult,
-    bayes_lowered: Any,
-    bayes_lowered_knowledges_updated: list[IrKnowledge],
+    extension_lowered: ActionLoweringResult,
+    extension_lowered_knowledges_updated: list[IrKnowledge],
     ir_operators: list[IrOperator],
     action_operators: list[IrOperator],
     ir_strategies: list[IrStrategy],
@@ -1925,15 +1887,19 @@ def _build_graph(
             *ir_knowledges,
             *generated_knowledges,
             *formula_generated.knowledges,
-            *bayes_lowered_knowledges_updated,
+            *extension_lowered_knowledges_updated,
         ],
         operators=[
             *ir_operators,
             *action_operators,
             *formula_generated.operators,
-            *bayes_lowered.operators,
+            *extension_lowered.operators,
         ],
-        strategies=[*ir_strategies, *formula_generated.strategies, *bayes_lowered.strategies],
+        strategies=[
+            *ir_strategies,
+            *formula_generated.strategies,
+            *extension_lowered.strategies,
+        ],
         composes=ir_composes,
         module_order=module_order,
         module_titles=module_titles if module_titles else None,
@@ -1993,29 +1959,34 @@ def compile_package_artifact(
         pkg, knowledge_collection.nodes, knowledge_map, ir_knowledges
     )
     action_labels_by_object = _build_action_labels_by_object(pkg)
-    bayes_lowered = _lower_bayes_actions(
-        pkg,
-        knowledge_collection.nodes,
-        knowledge_map,
-        action_labels_by_object,
-        [*ir_operators, *action_compiler.action_operators, *formula_generated.operators],
+    extension_lowered = lower_registered_actions(
+        ActionLoweringContext(
+            knowledge_nodes=knowledge_collection.nodes,
+            actions=tuple(getattr(pkg, "actions", ())),
+            namespace=pkg.namespace,
+            package_name=pkg.name,
+            knowledge_map=knowledge_map,
+            action_labels_by_object=action_labels_by_object,
+            existing_operators=[
+                *ir_operators,
+                *action_compiler.action_operators,
+                *formula_generated.operators,
+            ],
+        )
     )
     _apply_formula_knowledge_updates(
         ir_knowledges,
-        metadata_updates=bayes_lowered.metadata_updates,
+        metadata_updates=extension_lowered.metadata_updates,
         parameter_updates={},
     )
     _merge_action_label_targets(
         action_compiler.action_label_map,
         action_compiler.target_action_labels_by_id,
-        bayes_lowered.action_label_map,
-        bayes_lowered.target_action_labels_by_id,
+        extension_lowered.action_label_map,
+        extension_lowered.target_action_labels_by_id,
     )
-    _record_bayes_action_targets(
-        pkg,
-        action_labels_by_object,
-        bayes_lowered.action_label_map,
-        action_compiler.action_target_ids_by_object,
+    action_compiler.action_target_ids_by_object.update(
+        extension_lowered.action_target_ids_by_object
     )
 
     ir_composes = action_compiler.compile_compose_actions(
@@ -2023,7 +1994,7 @@ def compile_package_artifact(
         operator_target_ids_by_object=operator_target_ids_by_object,
     )
     action_compiler.compile_materializations()
-    bayes_lowered_knowledges_updated = _ReferenceScanner(
+    extension_lowered_knowledges_updated = _ReferenceScanner(
         pkg=pkg,
         references=references,
         knowledge_nodes=knowledge_collection.nodes,
@@ -2033,14 +2004,14 @@ def compile_package_artifact(
         ir_knowledges=ir_knowledges,
         generated_knowledges=generated_knowledges,
         formula_generated_knowledges=formula_generated.knowledges,
-        bayes_lowered_knowledges=bayes_lowered.knowledges,
+        extension_lowered_knowledges=extension_lowered.knowledges,
         ir_strategies=ir_strategies,
         formula_generated_strategies=formula_generated.strategies,
-        bayes_strategies=bayes_lowered.strategies,
+        extension_strategies=extension_lowered.strategies,
         ir_operators=ir_operators,
         action_operators=action_compiler.action_operators,
         formula_generated_operators=formula_generated.operators,
-        bayes_operators=bayes_lowered.operators,
+        extension_operators=extension_lowered.operators,
         ir_composes=ir_composes,
     ).scan()
 
@@ -2049,8 +2020,8 @@ def compile_package_artifact(
         ir_knowledges=ir_knowledges,
         generated_knowledges=generated_knowledges,
         formula_generated=formula_generated,
-        bayes_lowered=bayes_lowered,
-        bayes_lowered_knowledges_updated=bayes_lowered_knowledges_updated,
+        extension_lowered=extension_lowered,
+        extension_lowered_knowledges_updated=extension_lowered_knowledges_updated,
         ir_operators=ir_operators,
         action_operators=action_compiler.action_operators,
         ir_strategies=ir_strategies,
