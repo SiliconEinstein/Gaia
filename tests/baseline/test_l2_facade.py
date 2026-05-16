@@ -4,12 +4,12 @@ Locks the 6-submodule public surface after the PR a engine reorg:
 
 - `gaia.engine.bp` (17)
 - `gaia.engine.ir` (32)
-- `gaia.engine.lang` (93)
+- `gaia.engine.lang` (94)
 - `gaia.engine.inquiry` (45)
 - `gaia.engine.trace` (7)
 - `gaia.engine.packaging` (9)
 
-Total 203. Adding or removing a symbol from a facade `__all__` requires
+Total 204. Adding or removing a symbol from a facade `__all__` requires
 updating both `docs/reference/engine/index.md` and these counts.
 """
 
@@ -22,7 +22,7 @@ import pytest
 EXPECTED = {
     "gaia.engine.bp": 17,
     "gaia.engine.ir": 32,
-    "gaia.engine.lang": 93,
+    "gaia.engine.lang": 94,
     "gaia.engine.inquiry": 45,
     "gaia.engine.trace": 7,
     "gaia.engine.packaging": 9,
@@ -39,4 +39,4 @@ def test_facade_surface(module_name: str, expected: int) -> None:
 
 def test_grand_total() -> None:
     total = sum(len(importlib.import_module(m).__all__) for m in EXPECTED)
-    assert total == 203
+    assert total == 204
