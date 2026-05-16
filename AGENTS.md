@@ -58,19 +58,25 @@ Local hooks split work across three stages:
 - **commit-msg** (per commit): `commitizen` validates the commit message against the
   Conventional Commits format. Merge and revert commits are exempt by commitizen defaults.
 - **pre-push** (CI-byte-aligned, per push): `ruff check .` full 15-cat select,
-  `ruff format --check .`, `mypy`, `pytest --cov-report=xml tests -v -m "not integration_api"`,
-  plus the symlink check again.
+  `ruff format --check .`, the `ir-schema` bump check, and
+  `pytest -n auto tests -v -m "not slow" --cov=gaia --cov-fail-under=90`, plus the symlink and
+  suppression-budget checks again. `mypy --strict` is not re-run here — it runs at pre-commit
+  and CI's test job carries it as the push-time backstop.
 
 For ad-hoc runs:
 
 ```bash
-make check       # pre-commit (all files) + pytest with the configured coverage gate
+make check       # pre-commit (all files) + full pytest suite, parallel via pytest-xdist
 make lint        # pre-commit over all files
-make test        # pytest with the configured coverage gate
+make test        # fast pytest slice (-m "not slow"), parallel, no coverage
 make typecheck   # strict mypy over gaia and tests
 ```
 
-Pytest is configured with strict markers, coverage for `gaia`, and `--cov-fail-under=90`.
+Pytest is configured with strict markers only; the aggregate 90% coverage gate is enforced via
+explicit `--cov=gaia --cov-fail-under=90` flags at the two call sites that matter — the CI
+workflow's `Run tests` step (`.github/workflows/ci.yml`) and the pre-push `pytest-cov` hook.
+Local invocations like `pytest tests/unit/foo.py` therefore run without coverage by default,
+and `make test` (the fast `not slow` slice) passes `--no-cov` explicitly for fast iteration.
 
 Ruff's mccabe complexity limit is set to 12. An earlier limit of 9 proved too tight for
 Gaia's mix of CLI workflows with BP message passing, IR coarsening, DSL compile/lower/link
@@ -80,9 +86,11 @@ high-complexity functions.
 
 ## Push Pre-flight
 
-The pre-push hook runs the CI-byte-aligned gate (full ruff + format check + mypy + pytest
---cov) on every `git push`. If the hook is green, local state has passed the same commands
-that CI runs; GitHub may still catch environment, branch-protection, or service-side issues.
+The pre-push hook runs the CI-byte-aligned gate (full ruff + format check + ir-schema bump +
+parallel `pytest -n auto -m "not slow" --cov=gaia --cov-fail-under=90`) on every `git push`.
+If the hook is green, local state has passed the same commands that CI's test job runs; mypy
+was already enforced at pre-commit and is re-run by CI as the push-time backstop. GitHub may
+still catch environment, branch-protection, or service-side issues.
 
 **Do not bypass the pre-push hook** with `--no-verify` or any other hook-skip flag. If the hook
 fails, fix the underlying issue and create a new commit — do not skip the hook to "ship now,
