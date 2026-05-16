@@ -306,7 +306,9 @@ BP 不是"永远有解"的魔法过程，它仍然受上游模型和图结构的
 
 - **上游（theory 层）**：[01-plausible-reasoning.md](01-plausible-reasoning.md) — Jaynes 框架、Cox 定理、弱三段论；[06-factor-graphs.md](06-factor-graphs.md) — 因子图结构、算子势函数；[03-propositional-operators.md](03-propositional-operators.md) §4 — ↝（软蕴含）算子定义、参数 (p₁, p₂) 的含义
 - **BP 层**：[../bp/potentials.md](../bp/potentials.md) — f(p) 的具体函数形式；[../bp/inference.md](../bp/inference.md) — BP 推理的工程实现细节
-- **源码**：`libs/inference/bp.py`（BP 算法实现）、`libs/inference/factor_graph.py`（因子图数据结构）
+- **源码**：`gaia/engine/bp/bp.py`（loopy sum-product BP 实现）、`gaia/engine/bp/factor_graph.py`（因子图数据结构）
+
+> **算法家族提示。** 本章只描述 sum-product loopy BP 这一种算法。Gaia 实际运行时由 `gaia/engine/bp/engine.py::InferenceEngine` 根据图规模 / 树宽自动在 **junction tree（精确）**、**TRW-BP（默认近似）**、**mean field VI（大图 fallback）** 与 loopy BP 之间路由；具体路由策略与诊断字段见 [`../bp/inference.md`](../bp/inference.md)。loopy BP 不再是 CLI 的默认算法，仍保留为 `gaia.engine.bp.infer()` 在大图时的 legacy 兼容路径。
 
 ## 参考文献
 

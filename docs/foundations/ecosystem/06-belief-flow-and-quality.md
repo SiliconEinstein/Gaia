@@ -26,6 +26,8 @@ Level 1: LKM 推理（LKM Server，包含增量 snapshot 和全量收敛）
 
 LKM 内部可能区分快速增量更新（snapshot）和定期全量收敛（global），但这是 LKM 的实现策略，不是架构层面的分级。
 
+> **关于"federated registries / multi-LKM" 是不是第三层推理。** 不是。多个独立 registry / LKM 让一个生态可以同时存在多个 Level-1 实例（每个 LKM 各自跑一份全局推理，给出自己的 belief snapshot），这是 **tier-2 内部的多实例**，不是单独的 tier-3 推理引擎。"社区 / 治理"层处理的是哪个 LKM 信谁、谁可以 fork 谁这种 governance 问题，而不是另跑一套推理算法。下游可以自由选择跟随某个 LKM 的 snapshot，或并列对比多个 LKM。
+
 ## Level 0：包级推理（本地）
 
 ### 什么时候运行

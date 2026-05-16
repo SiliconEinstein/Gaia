@@ -97,7 +97,7 @@ Gaia 结合了三种没有任何现有工具能同时提供的能力：
 Gaia 是 **CLI 优先，服务器增强**。
 
 - **CLI 是主要产品**——AI 代理和研究人员通过 CLI 与 Gaia 交互，在本地工作，零服务器依赖
-- **目标本地管线**是 `build -> self-review skill -> graph-construction skill -> infer -> publish`
+- **目标本地管线**是 `build -> self-review skill -> graph-construction skill -> infer -> publish`，在 v0.5 alpha-0 的 grouped CLI 上对应 `gaia build init/compile/check` → `gaia inquiry review / focus / hypothesis` → `gaia run infer` → `gaia run render` → `gaia pkg register`；详见 [`../cli/workflow.md`](../cli/workflow.md) 与 [`../../migration.md`](../../migration.md)
 - **正式的外部提交优先使用 Gaia 包**——默认为 `knowledge`，另有 `review`、`rebuttal` 和有意对外公开的 `investigation` 作为额外制品配置
 - **服务器提供四项可选增强服务加内部维护：**
   1. 知识集成——将批准的包合并到全局 Large Knowledge Model
