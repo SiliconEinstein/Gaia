@@ -53,6 +53,7 @@ from gaia.engine.ir.strategy import StrategyType
 from gaia.engine.lang.compiler.extensions import (
     ActionLoweringContext,
     ActionLoweringResult,
+    discover_and_register_extensions,
     is_registered_action,
     lower_registered_actions,
 )
@@ -1925,6 +1926,8 @@ def compile_package_artifact(
 
     from gaia.engine.lang.compiler.distribution_diagnostics import emit_distribution_warnings
     from gaia.engine.lang.compiler.predicate_lowering import lower_predicate_priors
+
+    discover_and_register_extensions()
 
     lower_predicate_priors(pkg)
     _resolve_pkg_priors_with_package_policy(pkg)

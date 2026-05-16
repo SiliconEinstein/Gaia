@@ -6,7 +6,10 @@ from gaia.engine.lang.compiler.extensions import (
     ActionLoweringContext,
     ActionLoweringResult,
     register_action_lowerer,
+    registered_action_lowerers,
 )
+
+_LOWERER_NAME = "bayes"
 
 
 def _is_bayes_action(action: object) -> bool:
@@ -34,8 +37,21 @@ def _lower_bayes_actions(context: ActionLoweringContext) -> ActionLoweringResult
 
 
 def register_bayes_lowerer() -> None:
-    """Register Bayes action lowering with the Gaia Lang compiler."""
-    register_action_lowerer("bayes", handles=_is_bayes_action, lower=_lower_bayes_actions)
+    """Register Bayes action lowering with the Gaia Lang compiler.
+
+    Idempotent: returns early if the Bayes lowerer is already registered.
+    Safe to call from both ``gaia.engine.bayes.__init__`` (import-time
+    self-registration) and ``discover_and_register_extensions`` (called by
+    the compiler at compile time).
+    """
+    for lowerer in registered_action_lowerers():
+        if lowerer.name == _LOWERER_NAME:
+            return
+    register_action_lowerer(
+        _LOWERER_NAME,
+        handles=_is_bayes_action,
+        lower=_lower_bayes_actions,
+    )
 
 
 __all__ = ["BayesLoweringResult", "lower_bayes_claims"]

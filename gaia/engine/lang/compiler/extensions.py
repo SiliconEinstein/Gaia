@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -53,22 +54,75 @@ class RegisteredActionLowerer:
 
 _ACTION_LOWERERS: dict[str, RegisteredActionLowerer] = {}
 
+# First-party extensions that own at least one action lowerer. Each entry is
+# ``(module_path, register_callable_name)``. The register callable must be
+# idempotent (return early if already registered) so re-discovery does not
+# trip the duplicate-name guard in :func:`register_action_lowerer`.
+#
+# Calling the registration helper explicitly (rather than only relying on
+# ``importlib.import_module``) lets discovery recover even after a test
+# cleared :data:`_ACTION_LOWERERS`, because module-level import side effects
+# only run once per interpreter.
+#
+# Third-party extensions are not listed here: their consumers are responsible
+# for importing the extension package (e.g. ``import myorg.gaia_ext``) before
+# calling ``compile_package_artifact``.
+_FIRST_PARTY_EXTENSIONS: tuple[tuple[str, str], ...] = (
+    ("gaia.engine.bayes.compiler", "register_bayes_lowerer"),
+)
+
 
 def register_action_lowerer(
     name: str,
     *,
     handles: ActionPredicate,
     lower: ActionLowerer,
+    override: bool = False,
 ) -> None:
-    """Register an extension lowerer by stable name."""
+    """Register an extension lowerer by stable name.
+
+    Args:
+        name: Unique extension identifier (e.g. ``"bayes"``). Must be non-empty.
+        handles: Predicate returning ``True`` for actions this lowerer claims.
+        lower: The lowering function.
+        override: If ``True``, replace any existing registration for ``name``.
+            If ``False`` (default), raise :class:`ValueError` on duplicate name
+            so accidental double-registration surfaces loudly.
+    """
     if not name:
         raise ValueError("action lowerer name must not be empty")
+    if name in _ACTION_LOWERERS and not override:
+        raise ValueError(
+            f"action lowerer {name!r} already registered; pass override=True to replace it"
+        )
     _ACTION_LOWERERS[name] = RegisteredActionLowerer(name=name, handles=handles, lower=lower)
 
 
 def registered_action_lowerers() -> tuple[RegisteredActionLowerer, ...]:
     """Return registered action lowerers in registration order."""
     return tuple(_ACTION_LOWERERS.values())
+
+
+def discover_and_register_extensions() -> None:
+    """Invoke each first-party extension's ``register_<name>_lowerer`` helper.
+
+    Run before every compile so registration is order-independent: callers
+    no longer need to ensure they ``import gaia.engine.bayes`` (or any other
+    extension) before invoking the compiler.
+
+    Idempotent: each first-party helper short-circuits when its lowerer name
+    is already in :data:`_ACTION_LOWERERS`, so repeated discovery is free.
+    Missing extensions (``ImportError`` / ``AttributeError``) are silently
+    skipped so partial installs or pruned distributions still compile any
+    packages that do not need those extensions.
+    """
+    for module_name, register_attr in _FIRST_PARTY_EXTENSIONS:
+        try:
+            module = importlib.import_module(module_name)
+            register_callable = getattr(module, register_attr)
+        except (ImportError, AttributeError):
+            continue
+        register_callable()
 
 
 def is_registered_action(action: Any) -> bool:
