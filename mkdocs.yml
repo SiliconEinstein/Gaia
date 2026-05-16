@@ -111,10 +111,11 @@ nav:
           - bp: reference/engine/bp.md
           - ir: reference/engine/ir.md
           - lang: reference/engine/lang.md
-          - logic: reference/engine/logic.md
           - inquiry: reference/engine/inquiry.md
           - trace: reference/engine/trace.md
           - packaging: reference/engine/packaging.md
+          - IR Submodules:
+              - Logic Utilities: reference/engine/ir/logic.md
           - Lang Submodules:
               - Authoring DSL: reference/engine/lang/dsl.md
               - Runtime Models: reference/engine/lang/runtime.md

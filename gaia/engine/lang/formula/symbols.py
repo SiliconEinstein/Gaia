@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from gaia.engine.lang.formula.primitives import PrimitiveType
 from gaia.engine.lang.runtime.domain import Domain
-from gaia.engine.lang.types.primitives import PrimitiveType
 
 
 def _validate_arg_domains(arg_domains: tuple[object, ...]) -> None:

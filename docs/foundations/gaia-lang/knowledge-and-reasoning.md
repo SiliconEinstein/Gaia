@@ -249,7 +249,7 @@ Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539
 - **Predicates.** `Equals`, `NotEquals`, `Greater / GreaterEqual / Less / LessEqual`, `UserPredicate`.
 - **Connectives.** `Land`, `Lor`, `Lnot`, `Implies`, `Iff`.
 - **Quantifiers.** `Forall(var, body)`, `Exists(var, body)`.
-- **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.engine.lang.types.primitives`).
+- **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.engine.lang.formula.primitives`).
 
 For a reader-facing explanation of the predicate-logic model, including the difference between opaque `parameters=[...]` and executable `claim(formula=...)`, see [Predicate Logic In Gaia Lang](predicate-logic.md).
 

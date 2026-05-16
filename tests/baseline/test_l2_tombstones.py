@@ -47,6 +47,8 @@ def test_namespace_tombstones_have_engine_targets() -> None:
         ("gaia.bp.factor_graph", "gaia.engine.bp.factor_graph"),
         ("gaia.lang.runtime", "gaia.engine.lang.runtime"),
         ("gaia.ir.operator", "gaia.engine.ir.operator"),
+        ("gaia.engine.lang.types.primitives", "gaia.engine.lang.formula.primitives"),
+        ("gaia.engine.logic.propositional", "gaia.engine.ir.logic.propositional"),
         ("gaia.trace.schema", "gaia.engine.trace.schema"),
     ],
 )
@@ -54,6 +56,13 @@ def test_submodule_tombstones_raise_redirect_import_error(old_path: str, new_pat
     """Direct old submodule imports should fail with the same redirect contract."""
     with pytest.raises(ImportError, match=new_path.replace(".", r"\.")):
         importlib.import_module(old_path)
+
+
+def test_top_level_logic_tombstone_targets_demoted_logic() -> None:
+    """The historical gaia.logic tombstone should point at the demoted IR logic namespace."""
+    mod = importlib.import_module("gaia.logic")
+    with pytest.raises(ImportError, match=r"gaia\.engine\.ir\.logic\.some_symbol"):
+        getattr(mod, "some_symbol")  # noqa: B009
 
 
 def test_symbol_tombstones_resolve_to_real_symbols() -> None:

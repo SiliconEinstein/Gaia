@@ -11,9 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol, runtime_checkable
 
+from gaia.engine.lang.formula.primitives import PrimitiveType
 from gaia.engine.lang.formula.symbols import FunctionSymbol
 from gaia.engine.lang.runtime.domain import Domain
-from gaia.engine.lang.types.primitives import PrimitiveType
 
 _ARITH_OPS = frozenset({"+", "-", "*", "/"})
 

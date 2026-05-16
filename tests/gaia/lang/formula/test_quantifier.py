@@ -3,11 +3,11 @@
 import pytest
 
 from gaia.engine.lang.formula.predicate import Equals, is_formula
+from gaia.engine.lang.formula.primitives import Nat
 from gaia.engine.lang.formula.quantifier import Exists, Forall
 from gaia.engine.lang.formula.term import Constant
 from gaia.engine.lang.runtime.domain import Domain
 from gaia.engine.lang.runtime.variable import Variable
-from gaia.engine.lang.types.primitives import Nat
 
 
 def _body() -> Equals:

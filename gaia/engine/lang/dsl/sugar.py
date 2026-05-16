@@ -6,10 +6,10 @@ from typing import Any
 
 from gaia.engine.lang.dsl.formula import equals
 from gaia.engine.lang.dsl.knowledge import claim
+from gaia.engine.lang.formula.primitives import PrimitiveType
 from gaia.engine.lang.formula.term import Constant
 from gaia.engine.lang.runtime import Claim, Knowledge, Variable
 from gaia.engine.lang.runtime.knowledge import ClaimKind
-from gaia.engine.lang.types.primitives import PrimitiveType
 
 
 def parameter(

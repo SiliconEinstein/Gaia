@@ -13,6 +13,7 @@ def test_milestone_a_public_surface():
         "Real",
         "Probability",
         "Bool",
+        "PrimitiveType",
         # knowledge
         "Variable",
         "Domain",

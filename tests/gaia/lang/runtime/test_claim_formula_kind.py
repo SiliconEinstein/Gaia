@@ -3,10 +3,10 @@
 import pytest
 
 from gaia.engine.lang.formula.predicate import Equals
+from gaia.engine.lang.formula.primitives import Probability
 from gaia.engine.lang.formula.term import Constant
 from gaia.engine.lang.runtime.knowledge import Claim, ClaimKind
 from gaia.engine.lang.runtime.variable import Variable
-from gaia.engine.lang.types.primitives import Probability
 
 
 def test_claim_default_formula_is_none():

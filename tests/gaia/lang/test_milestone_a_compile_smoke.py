@@ -8,11 +8,11 @@ but no `variable` or `domain` typed entries.
 
 from gaia.engine.lang.compiler.compile import compile_package_artifact
 from gaia.engine.lang.dsl.knowledge import claim
+from gaia.engine.lang.formula.primitives import Nat
 from gaia.engine.lang.runtime.domain import Domain
 from gaia.engine.lang.runtime.knowledge import Claim, _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
 from gaia.engine.lang.runtime.variable import Variable
-from gaia.engine.lang.types.primitives import Nat
 
 
 def test_package_with_variables_and_domains_compiles_cleanly():

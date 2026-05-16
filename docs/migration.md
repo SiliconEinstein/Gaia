@@ -97,7 +97,7 @@ Move every `from gaia.<sub> import X` to `from gaia.engine.<sub> import X`:
 | `from gaia.bp import X` | `from gaia.engine.bp import X` |
 | `from gaia.ir import X` | `from gaia.engine.ir import X` |
 | `from gaia.lang import X` | `from gaia.engine.lang import X` |
-| `from gaia.logic import X` | `from gaia.engine.logic import X` |
+| `from gaia.logic import X` | `from gaia.engine.ir.logic import X` |
 | `from gaia.inquiry import X` | `from gaia.engine.inquiry import X` |
 | `from gaia.trace import X` | `from gaia.engine.trace import X` |
 
@@ -175,7 +175,7 @@ find src -name '*.py' -exec sed -i \
   -e 's/^from gaia\.lang /from gaia.engine.lang /' \
   -e 's/^from gaia\.bp /from gaia.engine.bp /' \
   -e 's/^from gaia\.ir /from gaia.engine.ir /' \
-  -e 's/^from gaia\.logic /from gaia.engine.logic /' \
+  -e 's/^from gaia\.logic /from gaia.engine.ir.logic /' \
   -e 's/^from gaia\.inquiry /from gaia.engine.inquiry /' \
   -e 's/^from gaia\.trace /from gaia.engine.trace /' \
   {} +

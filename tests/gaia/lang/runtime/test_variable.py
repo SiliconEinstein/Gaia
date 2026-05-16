@@ -2,10 +2,10 @@
 
 import pytest
 
+from gaia.engine.lang.formula.primitives import Nat, Probability
 from gaia.engine.lang.runtime.domain import Domain
 from gaia.engine.lang.runtime.knowledge import Knowledge
 from gaia.engine.lang.runtime.variable import Variable
-from gaia.engine.lang.types.primitives import Nat, Probability
 
 
 def test_variable_is_knowledge_subclass():

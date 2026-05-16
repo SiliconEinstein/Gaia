@@ -9,9 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast
 
+from gaia.engine.lang.formula.primitives import PrimitiveType
 from gaia.engine.lang.runtime.domain import Domain
 from gaia.engine.lang.runtime.knowledge import Knowledge, _current_package
-from gaia.engine.lang.types.primitives import PrimitiveType
 
 
 @dataclass(init=False, eq=False)

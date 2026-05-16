@@ -28,9 +28,9 @@ from gaia.engine.inquiry.review_manifest import (
     load_or_generate_review_manifest,
 )
 from gaia.engine.ir import LocalCanonicalGraph, ReviewManifest
+from gaia.engine.ir.logic.propositional import to_sympy_proposition
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.ir.validator import validate_local_graph
-from gaia.engine.logic.propositional import to_sympy_proposition
 from gaia.engine.packaging import (
     GaiaPackagingError,
     apply_package_priors,

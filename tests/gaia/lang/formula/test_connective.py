@@ -4,8 +4,8 @@ import pytest
 
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
 from gaia.engine.lang.formula.predicate import Equals, is_formula
+from gaia.engine.lang.formula.primitives import Nat
 from gaia.engine.lang.formula.term import Constant
-from gaia.engine.lang.types.primitives import Nat
 
 
 def _atom(v: int) -> Equals:

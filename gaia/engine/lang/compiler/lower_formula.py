@@ -32,13 +32,13 @@ from gaia.engine.lang.formula.predicate import (
     NotEquals,
     UserPredicate,
 )
+from gaia.engine.lang.formula.primitives import PrimitiveType
 from gaia.engine.lang.formula.quantifier import Exists, Forall
 from gaia.engine.lang.formula.symbols import PredicateSymbol
 from gaia.engine.lang.formula.term import ArithOp, Constant, FunctionApp
 from gaia.engine.lang.runtime.domain import Domain
 from gaia.engine.lang.runtime.knowledge import Claim
 from gaia.engine.lang.runtime.variable import Variable
-from gaia.engine.lang.types.primitives import PrimitiveType
 
 _BindingMap = dict[int, dict[str, Any]]
 

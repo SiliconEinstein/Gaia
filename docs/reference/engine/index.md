@@ -3,12 +3,12 @@
 > **Status:** Generated reference layer for `gaia.engine.*`.
 
 The `gaia.engine.*` namespace is the canonical Python contract for Gaia in
-alpha 0. It packages the inference backend, IR models, authoring DSL, logic
-utilities, semantic-inquiry state, ARM Trace primitives, and package-loading
-helpers behind seven facade submodules, each with an explicit `__all__`.
+alpha 0. It packages the inference backend, IR models, authoring DSL,
+semantic-inquiry state, ARM Trace primitives, and package-loading helpers
+behind six facade submodules, each with an explicit `__all__`.
 
 The facade pattern lets package authors and downstream tooling import
-stable public names without depending on internal file layout. The 247
+stable public names without depending on internal file layout. The 241
 symbols below are the **only** alpha-0 stable surface — anything reachable
 through deeper paths (`gaia.engine.bp.bp.X`, `gaia.engine.lang.dsl.X`, etc.)
 is implementation detail.
@@ -19,18 +19,21 @@ is implementation detail.
 |---|---|---|
 | [bp](bp.md) | 17 | Factor-graph lowering, exact inference, junction tree, TRW-BP, Mean Field VI, and engine results |
 | [ir](ir.md) | 32 | Pydantic IR models, graph contracts, strategies, operators, parameterization, and schemas |
-| [lang](lang.md) | 130 | Top-level imports exposed to package authors — claims, strategies, DSL verbs, runtime entities |
-| [logic](logic.md) | 7 | Small propositional-logic helpers used as a computation backend |
+| [lang](lang.md) | 131 | Top-level imports exposed to package authors — claims, strategies, DSL verbs, runtime entities |
 | [inquiry](inquiry.md) | 45 | Semantic review / inquiry-loop state, diagnostics, focus, obligations, hypotheses |
 | [trace](trace.md) | 7 | ARM Trace schema, manifests, and review primitives |
 | [packaging](packaging.md) | 9 | Gaia package loading, compilation, and prior application |
 
-**Grand total: 247 symbols across 7 facades.**
+**Grand total: 241 symbols across 6 facades.**
 
 The `lang` facade subdivides further for browsability — see the supplementary
 pages under `engine/lang/` for DSL, runtime, formula, compiler, and refs
 breakdowns. The granular pages are documentation aids only; the public
 import path is always `gaia.engine.lang.X`.
+
+The propositional logic helpers are now IR-level utilities documented under
+[IR logic](ir/logic.md). They are available from `gaia.engine.ir.logic`, but
+they are not part of the top-level `gaia.engine.ir` facade count.
 
 ## Migrating from earlier versions
 

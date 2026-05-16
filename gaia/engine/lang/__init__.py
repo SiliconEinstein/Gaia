@@ -81,6 +81,7 @@ from gaia.engine.lang.formula import (
     is_formula,
     is_term,
 )
+from gaia.engine.lang.formula.primitives import Bool, Nat, PrimitiveType, Probability, Real
 from gaia.engine.lang.runtime import (
     Action,
     Associate,
@@ -135,7 +136,6 @@ from gaia.engine.lang.runtime.distribution import (
     Poisson,
     StudentT,
 )
-from gaia.engine.lang.types.primitives import Bool, Nat, Probability, Real
 
 
 def __getattr__(name: str) -> ModuleType:
@@ -205,6 +205,7 @@ __all__ = [
     "Operator",
     "Poisson",
     "PredicateSymbol",
+    "PrimitiveType",
     "Probability",
     "Question",
     "Real",

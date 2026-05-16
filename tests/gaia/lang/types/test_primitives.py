@@ -2,7 +2,7 @@
 
 import pytest
 
-from gaia.engine.lang.types.primitives import Bool, Nat, PrimitiveType, Probability, Real
+from gaia.engine.lang.formula.primitives import Bool, Nat, PrimitiveType, Probability, Real
 
 
 def test_primitives_are_distinct_singletons():

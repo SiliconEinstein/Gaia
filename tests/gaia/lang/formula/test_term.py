@@ -2,6 +2,7 @@
 
 import pytest
 
+from gaia.engine.lang.formula.primitives import Bool, Nat, Probability, Real
 from gaia.engine.lang.formula.symbols import FunctionSymbol
 from gaia.engine.lang.formula.term import (  # noqa: F401
     ArithOp,
@@ -12,7 +13,6 @@ from gaia.engine.lang.formula.term import (  # noqa: F401
 )
 from gaia.engine.lang.runtime.domain import Domain
 from gaia.engine.lang.runtime.variable import Variable
-from gaia.engine.lang.types.primitives import Bool, Nat, Probability, Real
 
 
 def test_constant_construction():
