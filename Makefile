@@ -26,13 +26,13 @@ typecheck:
 test: test-fast
 
 test-fast:
-	$(UV) run pytest --no-cov -m "$(PYTEST_FAST_MARK)" $(PYTEST_ARGS)
+	$(UV) run pytest -n auto --no-cov -m "$(PYTEST_FAST_MARK)" $(PYTEST_ARGS)
 
 test-slow:
-	$(UV) run pytest --no-cov -m "$(PYTEST_SLOW_MARK)" $(PYTEST_ARGS)
+	$(UV) run pytest -n auto --no-cov -m "$(PYTEST_SLOW_MARK)" $(PYTEST_ARGS)
 
 test-all:
-	$(UV) run pytest $(PYTEST_ARGS)
+	$(UV) run pytest -n auto $(PYTEST_ARGS)
 
 docs-build:
 	$(UV) run --extra docs mkdocs build --strict

@@ -40,7 +40,7 @@ repos:
         entry: uv run mypy
         language: system
         pass_filenames: false
-        stages: [pre-commit, pre-push]
+        stages: [pre-commit]
 
       - id: suppression-budget
         name: no-net-growth suppression budget (gaia/)
@@ -71,8 +71,8 @@ repos:
         stages: [pre-push]
 
       - id: pytest-cov
-        name: pytest --cov (CI byte-aligned)
-        entry: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_REFLOG_ACTION uv run pytest --cov-report=xml tests -v -m "not integration_api"
+        name: pytest -n auto --cov (CI byte-aligned)
+        entry: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_REFLOG_ACTION uv run pytest -n auto tests -v -m "not slow" --cov=gaia --cov-fail-under=90
         language: system
         pass_filenames: false
         stages: [pre-push]
