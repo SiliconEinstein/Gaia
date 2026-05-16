@@ -234,6 +234,21 @@ class TestFormulaGraphValidation:
         assert not r.valid
         assert any("descriptor qid 'github:test::missing' not found" in e for e in r.errors)
 
+    def test_formula_graph_descriptor_claim_qid_must_reference_claim(self):
+        source = _claim("github:test::claim")
+        setting = _setting("github:test::setting")
+        root = _formula_node({"kind": "claim", "qid": setting.id})
+        formula_graph = FormulaGraph(source_claim=source.id, root=root.id, nodes=[root])
+        g = _local_graph_unchecked(knowledges=[source, setting], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any(
+            "descriptor qid 'github:test::setting'" in e and "must reference a claim" in e
+            for e in r.errors
+        )
+
     def test_formula_graph_descriptor_knowledge_qid_scan_is_recursive(self):
         source = _claim("github:test::claim")
         descriptor = {
@@ -259,6 +274,42 @@ class TestFormulaGraphValidation:
 
         assert not r.valid
         assert any("descriptor qid 'github:test::missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_validation_reports_malformed_constructed_shapes(self):
+        source = _claim("github:test::claim")
+        malformed = FormulaGraph.model_construct(
+            source_claim=[],
+            root="fg:missing",
+            nodes=[
+                FormulaNode.model_construct(id="fg:missing_descriptor", kind="atom"),
+                FormulaNode.model_construct(
+                    id="fg:bad_descriptor",
+                    kind="atom",
+                    descriptor={"kind": "claim", "payload": object()},
+                ),
+            ],
+            edges=[FormulaEdge.model_construct(source="fg:bad_descriptor")],
+        )
+        no_nodes = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root="fg:missing",
+            nodes=None,
+            edges=None,
+        )
+        g = _local_graph_unchecked(
+            knowledges=[source],
+            formula_graphs=[malformed, no_nodes],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("source_claim must be a string" in e for e in r.errors)
+        assert any("descriptor must be a dict" in e for e in r.errors)
+        assert any("descriptor is not canonical JSON serializable" in e for e in r.errors)
+        assert any("edge target is missing" in e for e in r.errors)
+        assert any("nodes must be a list" in e for e in r.errors)
+        assert any("edges must be a list" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------

@@ -853,7 +853,10 @@ def _validate_composes(
 
 
 def _formula_graph_label(formula_graph: FormulaGraph) -> str:
-    return formula_graph.source_claim or "<no-source-claim>"
+    source_claim = getattr(formula_graph, "source_claim", None)
+    if isinstance(source_claim, str) and source_claim:
+        return source_claim
+    return "<invalid-source-claim>"
 
 
 def _validate_formula_descriptor_qids(
@@ -866,11 +869,24 @@ def _validate_formula_descriptor_qids(
     if isinstance(value, dict):
         kind = value.get("kind")
         qid = value.get("qid")
-        if kind in {"claim", "knowledge"} and isinstance(qid, str) and qid not in knowledge_lookup:
-            result.error(
-                f"FormulaGraph '{_formula_graph_label(formula_graph)}': "
-                f"descriptor qid '{qid}' not found in graph"
-            )
+        if kind in {"claim", "knowledge"}:
+            if not isinstance(qid, str):
+                result.error(
+                    f"FormulaGraph '{_formula_graph_label(formula_graph)}': "
+                    "descriptor qid must be a string"
+                )
+            else:
+                knowledge = knowledge_lookup.get(qid)
+                if knowledge is None:
+                    result.error(
+                        f"FormulaGraph '{_formula_graph_label(formula_graph)}': "
+                        f"descriptor qid '{qid}' not found in graph"
+                    )
+                elif knowledge.type != KnowledgeType.CLAIM:
+                    result.error(
+                        f"FormulaGraph '{_formula_graph_label(formula_graph)}': "
+                        f"descriptor qid '{qid}' must reference a claim"
+                    )
         for child in value.values():
             _validate_formula_descriptor_qids(
                 child,
@@ -890,69 +906,213 @@ def _validate_formula_descriptor_qids(
             )
 
 
+def _formula_graph_sequence(
+    value: Any,
+    *,
+    label: str,
+    field_name: str,
+    result: ValidationResult,
+) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    result.error(f"FormulaGraph '{label}': {field_name} must be a list")
+    return []
+
+
+def _validate_formula_graph_source(
+    formula_graph: FormulaGraph,
+    *,
+    label: str,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> None:
+    source_claim_id = getattr(formula_graph, "source_claim", None)
+    if not isinstance(source_claim_id, str):
+        result.error(f"FormulaGraph '{label}': source_claim must be a string")
+        return
+
+    source_claim = knowledge_lookup.get(source_claim_id)
+    if source_claim is None:
+        result.error(f"FormulaGraph '{label}': source_claim '{source_claim_id}' not found in graph")
+    elif source_claim.type != KnowledgeType.CLAIM:
+        result.error(
+            f"FormulaGraph '{label}': source_claim "
+            f"'{source_claim_id}' is '{source_claim.type}', must be claim"
+        )
+
+
+def _validate_formula_node_hash(
+    *,
+    node_id: str | None,
+    descriptor: dict[str, Any],
+    result: ValidationResult,
+) -> None:
+    display_id = node_id or "<missing-id>"
+    try:
+        expected = formula_node_id(descriptor)
+    except (TypeError, ValueError) as exc:
+        result.error(
+            f"FormulaNode '{display_id}': descriptor is not canonical JSON serializable: {exc}"
+        )
+        return
+
+    if node_id != expected:
+        result.error(
+            f"FormulaNode '{node_id}' does not match canonical descriptor hash '{expected}'"
+        )
+
+
+def _validate_formula_node(
+    node: Any,
+    *,
+    formula_graph: FormulaGraph,
+    label: str,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> tuple[str, tuple[str, dict[str, Any]]] | None:
+    node_id = getattr(node, "id", None)
+    if not isinstance(node_id, str):
+        result.error(f"FormulaGraph '{label}': FormulaNode id must be a string")
+
+    kind = getattr(node, "kind", None)
+    if not isinstance(kind, str):
+        result.error(f"FormulaGraph '{label}': FormulaNode kind must be a string")
+
+    descriptor = getattr(node, "descriptor", None)
+    if not isinstance(descriptor, dict):
+        result.error(f"FormulaNode '{node_id or '<missing-id>'}': descriptor must be a dict")
+        return None
+
+    _validate_formula_node_hash(
+        node_id=node_id if isinstance(node_id, str) else None,
+        descriptor=descriptor,
+        result=result,
+    )
+    _validate_formula_descriptor_qids(
+        descriptor,
+        formula_graph=formula_graph,
+        knowledge_lookup=knowledge_lookup,
+        result=result,
+    )
+
+    if not isinstance(node_id, str) or not isinstance(kind, str):
+        return None
+
+    return node_id, (kind, descriptor)
+
+
+def _validate_formula_graph_nodes(
+    formula_graph: FormulaGraph,
+    *,
+    label: str,
+    knowledge_lookup: dict[str, Knowledge],
+    result: ValidationResult,
+) -> dict[str, tuple[str, dict[str, Any]]]:
+    node_signatures: dict[str, tuple[str, dict[str, Any]]] = {}
+    nodes = _formula_graph_sequence(
+        getattr(formula_graph, "nodes", None),
+        label=label,
+        field_name="nodes",
+        result=result,
+    )
+    for node in nodes:
+        signature_entry = _validate_formula_node(
+            node,
+            formula_graph=formula_graph,
+            label=label,
+            knowledge_lookup=knowledge_lookup,
+            result=result,
+        )
+        if signature_entry is None:
+            continue
+        node_id, signature = signature_entry
+        existing = node_signatures.get(node_id)
+        if existing is not None and existing != signature:
+            result.error(
+                f"FormulaGraph '{label}': FormulaNode id '{node_id}' appears with "
+                "different kind or descriptor"
+            )
+        node_signatures[node_id] = signature
+    return node_signatures
+
+
+def _validate_formula_graph_root(
+    formula_graph: FormulaGraph,
+    *,
+    label: str,
+    node_ids: set[str],
+    result: ValidationResult,
+) -> None:
+    root = getattr(formula_graph, "root", None)
+    if not isinstance(root, str):
+        result.error(f"FormulaGraph '{label}': root must be a string")
+    elif root not in node_ids:
+        result.error(f"FormulaGraph '{label}': root '{root}' not found in nodes")
+
+
+def _validate_formula_graph_edges(
+    formula_graph: FormulaGraph,
+    *,
+    label: str,
+    node_ids: set[str],
+    result: ValidationResult,
+) -> None:
+    edges = _formula_graph_sequence(
+        getattr(formula_graph, "edges", None),
+        label=label,
+        field_name="edges",
+        result=result,
+    )
+    for edge in edges:
+        edge_source = getattr(edge, "source", None)
+        edge_target = getattr(edge, "target", None)
+        if not isinstance(edge_source, str):
+            result.error(f"FormulaGraph '{label}': edge source is missing")
+        elif edge_source not in node_ids:
+            result.error(f"FormulaGraph '{label}': edge source '{edge_source}' not found in nodes")
+        if not isinstance(edge_target, str):
+            result.error(f"FormulaGraph '{label}': edge target is missing")
+        elif edge_target not in node_ids:
+            result.error(f"FormulaGraph '{label}': edge target '{edge_target}' not found in nodes")
+
+
 def _validate_formula_graphs(
     formula_graphs: list[FormulaGraph],
     knowledge_lookup: dict[str, Knowledge],
     result: ValidationResult,
 ) -> None:
     """Validate FormulaGraph structure independent of Pydantic construction."""
+    if not isinstance(formula_graphs, list):
+        result.error("LocalCanonicalGraph formula_graphs must be a list")
+        return
+
     for formula_graph in formula_graphs:
         label = _formula_graph_label(formula_graph)
-
-        source_claim = knowledge_lookup.get(formula_graph.source_claim)
-        if source_claim is None:
-            result.error(
-                f"FormulaGraph '{label}': source_claim "
-                f"'{formula_graph.source_claim}' not found in graph"
-            )
-        elif source_claim.type != KnowledgeType.CLAIM:
-            result.error(
-                f"FormulaGraph '{label}': source_claim "
-                f"'{formula_graph.source_claim}' is '{source_claim.type}', must be claim"
-            )
-
-        node_signatures: dict[str, tuple[str, dict[str, Any]]] = {}
-        for node in formula_graph.nodes:
-            descriptor = node.descriptor
-            if not isinstance(descriptor, dict):
-                result.error(f"FormulaNode '{node.id}': descriptor must be a dict")
-                continue
-
-            expected = formula_node_id(descriptor)
-            if node.id != expected:
-                result.error(
-                    f"FormulaNode '{node.id}' does not match canonical descriptor hash '{expected}'"
-                )
-
-            signature = (node.kind, descriptor)
-            existing = node_signatures.get(node.id)
-            if existing is not None and existing != signature:
-                result.error(
-                    f"FormulaGraph '{label}': FormulaNode id '{node.id}' appears with "
-                    "different kind or descriptor"
-                )
-            node_signatures[node.id] = signature
-
-            _validate_formula_descriptor_qids(
-                descriptor,
-                formula_graph=formula_graph,
-                knowledge_lookup=knowledge_lookup,
-                result=result,
-            )
-
+        _validate_formula_graph_source(
+            formula_graph,
+            label=label,
+            knowledge_lookup=knowledge_lookup,
+            result=result,
+        )
+        node_signatures = _validate_formula_graph_nodes(
+            formula_graph,
+            label=label,
+            knowledge_lookup=knowledge_lookup,
+            result=result,
+        )
         node_ids = set(node_signatures)
-        if formula_graph.root not in node_ids:
-            result.error(f"FormulaGraph '{label}': root '{formula_graph.root}' not found in nodes")
-
-        for edge in formula_graph.edges:
-            if edge.source not in node_ids:
-                result.error(
-                    f"FormulaGraph '{label}': edge source '{edge.source}' not found in nodes"
-                )
-            if edge.target not in node_ids:
-                result.error(
-                    f"FormulaGraph '{label}': edge target '{edge.target}' not found in nodes"
-                )
+        _validate_formula_graph_root(
+            formula_graph,
+            label=label,
+            node_ids=node_ids,
+            result=result,
+        )
+        _validate_formula_graph_edges(
+            formula_graph,
+            label=label,
+            node_ids=node_ids,
+            result=result,
+        )
 
 
 # ---------------------------------------------------------------------------
