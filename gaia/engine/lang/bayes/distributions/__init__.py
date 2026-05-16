@@ -1,4 +1,4 @@
-"""Distribution literals for `gaia.lang.bayes`."""
+"""Distribution literals for `gaia.engine.lang.bayes`."""
 
 from __future__ import annotations
 

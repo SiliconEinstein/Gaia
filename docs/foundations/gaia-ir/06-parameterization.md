@@ -219,9 +219,9 @@ Parameterization 只管 claim prior；Strategy 概率参数留在 IR 的 Strateg
 
 ## 源代码
 
-- `gaia/ir/parameterization.py` — `PriorRecord`, `ResolutionPolicy`,
+- `gaia/engine/ir/parameterization.py` — `PriorRecord`, `ResolutionPolicy`,
   `ParameterizationSource`, `DEFAULT_PRIORITY_ORDER`, `default_resolution_policy`
-- `gaia/ir/strategy.py` — `Strategy`, `StrategyType`（inline strategy probability fields）
+- `gaia/engine/ir/strategy.py` — `Strategy`, `StrategyType`（inline strategy probability fields）
 - `gaia/engine/lang/dsl/register_prior.py` — `register_prior()` 作者面 API、resolution 步骤、metadata schema 常量
 - `gaia/engine/lang/dsl/knowledge.py` — `claim(prior=X)` shortcut
 - `gaia/cli/_packages.py` — `apply_package_priors()` CLI 步骤

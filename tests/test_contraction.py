@@ -1099,7 +1099,8 @@ def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
 def test_compiled_induction_coarsens_to_observations_and_cpt():
     """Compiled DSL induction should expose observations, not law -> law."""
     from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
-    from gaia.engine.lang import claim, register_prior, support
+    from gaia.engine.lang import claim, register_prior
+    from gaia.engine.lang.compat import support
     from gaia.engine.lang.compiler.compile import compile_package_artifact
     from gaia.engine.lang.dsl.strategies import induction
     from gaia.engine.lang.runtime.package import CollectedPackage

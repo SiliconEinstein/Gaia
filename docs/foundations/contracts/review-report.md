@@ -96,5 +96,5 @@ ReviewOutput。当前 v0.5 本地 CLI 不再生成或读取该文件。
 |------|------|
 | ReviewOutput 定义 | legacy / future service contract; no current `gaia/` implementation |
 | 当前本地 infer 入口 | `gaia/cli/commands/infer.py` |
-| 当前 IR → FactorGraph lowering | `gaia/bp/lowering.py` |
-| 当前推理引擎 | `gaia/bp/engine.py` |
+| 当前 IR → FactorGraph lowering | `gaia/engine/bp/lowering.py` |
+| 当前推理引擎 | `gaia/engine/bp/engine.py` |

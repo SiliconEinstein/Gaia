@@ -1,4 +1,4 @@
-"""Tests for the `gaia starmap` command."""
+"""Tests for the `gaia inspect starmap` command."""
 
 from __future__ import annotations
 
@@ -32,13 +32,12 @@ def _write_base_package(pkg_dir, *, name: str, version: str = "1.0.0") -> None:
 
 def _write_minimal_source(pkg_dir, name: str) -> None:
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis,"
-        " reason='test', prior=0.9)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
+        "derive(hypothesis, given=[evidence_a, evidence_b], rationale='test', label='s')\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis"]\n'
     )
 
 
@@ -64,7 +63,7 @@ def _prepare_inferred_package(tmp_path, name: str = "starmap_demo"):
 
 
 def _extract_graph_data(html: str) -> dict:
-    """Parse the JSON payload injected by `gaia starmap` out of the HTML."""
+    """Parse the JSON payload injected by `gaia inspect starmap` out of the HTML."""
     match = re.search(r"window\.GRAPH_DATA = (.*?);</script>", html, re.DOTALL)
     assert match is not None, "window.GRAPH_DATA assignment not found in starmap HTML"
     return json.loads(match.group(1))
@@ -84,14 +83,15 @@ def test_starmap_default_output(tmp_path):
 
     data = _extract_graph_data(html)
     knowledge_nodes = [n for n in data["nodes"] if n["type"] not in ("strategy", "operator")]
-    # 3 knowledge nodes: evidence_a, evidence_b, hypothesis.
-    assert len(knowledge_nodes) == 3
-    labels = {n["label"] for n in knowledge_nodes}
+    authored_nodes = [n for n in knowledge_nodes if not n["metadata"].get("generated")]
+    # 3 authored knowledge nodes: evidence_a, evidence_b, hypothesis.
+    assert len(authored_nodes) == 3
+    labels = {n["label"] for n in authored_nodes}
     assert labels == {"evidence_a", "evidence_b", "hypothesis"}
 
     # Beliefs and priors should be threaded through.
-    assert any(n.get("belief") is not None for n in knowledge_nodes)
-    assert any(n.get("prior") is not None for n in knowledge_nodes)
+    assert any(n.get("belief") is not None for n in authored_nodes)
+    assert any(n.get("prior") is not None for n in authored_nodes)
 
     # Success message reports counts.
     assert "Wrote starmap to" in result.output
@@ -135,7 +135,7 @@ def test_starmap_absolute_out_path(tmp_path):
 
 
 def test_starmap_without_beliefs(tmp_path):
-    """Without `gaia infer`, starmap still produces HTML; beliefs are absent."""
+    """Without `gaia run infer`, starmap still produces HTML; beliefs are absent."""
     pkg_dir = tmp_path / "starmap_no_infer"
     _write_base_package(pkg_dir, name="starmap_no_infer")
     _write_minimal_source(pkg_dir, "starmap_no_infer")
@@ -154,7 +154,7 @@ def test_starmap_without_beliefs(tmp_path):
 
 
 def test_starmap_missing_ir(tmp_path):
-    """Without `gaia compile`, starmap exits non-zero with a clear message."""
+    """Without `gaia build compile`, starmap exits non-zero with a clear message."""
     pkg_dir = tmp_path / "starmap_no_compile"
     _write_base_package(pkg_dir, name="starmap_no_compile")
     _write_minimal_source(pkg_dir, "starmap_no_compile")
@@ -224,7 +224,7 @@ def test_starmap_dot_belief_annotation(tmp_path):
 
 
 def test_starmap_dot_no_beliefs(tmp_path):
-    """Without `gaia infer`, dot still renders and skips trend arrows."""
+    """Without `gaia run infer`, dot still renders and skips trend arrows."""
     pkg_dir = tmp_path / "starmap_dot_no_infer"
     _write_base_package(pkg_dir, name="starmap_dot_no_infer")
     _write_minimal_source(pkg_dir, "starmap_dot_no_infer")
@@ -592,7 +592,7 @@ def test_to_dot_contradiction_incident_edges_recolored():
 
 
 def test_starmap_cli_theme_flag(tmp_path):
-    """`gaia starmap --format dot --theme stellaris` produces dot with sfdp layout."""
+    """`gaia inspect starmap --format dot --theme stellaris` produces dot with sfdp layout."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_theme")
     result = runner.invoke(
         app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "stellaris"]
@@ -1448,7 +1448,7 @@ def test_starmap_corrupt_beliefs_json_errors(tmp_path):
 
 
 def test_starmap_stale_beliefs_errors(tmp_path):
-    """Beliefs whose ir_hash doesn't match compile output prompt `gaia infer` again."""
+    """Beliefs whose ir_hash doesn't match compile output prompt `gaia run infer` again."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_stale_beliefs")
     beliefs_path = pkg_dir / ".gaia" / "beliefs.json"
     data = json.loads(beliefs_path.read_text())

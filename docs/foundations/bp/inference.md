@@ -21,15 +21,15 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 ### 实现
 
-`gaia/bp/factor_graph.py` 是当前实现：使用字符串 ID、十种 `FactorType`（七种确定性 + SOFT_ENTAILMENT + CONDITIONAL + PAIRWISE_POTENTIAL）、`variables` + `conclusion` 结构。势函数见 [potentials.md](potentials.md)。配套算法分模块：
+`gaia/engine/bp/factor_graph.py` 是当前实现：使用字符串 ID、十种 `FactorType`（七种确定性 + SOFT_ENTAILMENT + CONDITIONAL + PAIRWISE_POTENTIAL）、`variables` + `conclusion` 结构。势函数见 [potentials.md](potentials.md)。配套算法分模块：
 
-- **`gaia/bp/trw_bp.py`** — TRW-BP (Tree-Reweighted Belief Propagation)，默认近似推理算法；当前启用 synchronous 调度，residual 调度代码尚未稳定开放
-- **`gaia/bp/junction_tree.py`** — Junction Tree exact inference，用于 treewidth ≤ 20 的图
-- **`gaia/bp/mean_field.py`** — Mean Field Variational Inference (CAVI)，大图（n > 2000）的 fallback，硬约束图精度不足（详见「推理算法 / Mean Field VI」）
-- **`gaia/bp/exact.py`** — 小图 brute-force，用于测试和验证
-- **`gaia/bp/engine.py`** — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
-- **`gaia/bp/__init__.py`** — `infer(graph, method=auto)`：统一推理入口
-- **`gaia/bp/lowering.py`** — `lower_local_graph()`：Gaia IR → FactorGraph 的入口
+- **`gaia/engine/bp/trw_bp.py`** — TRW-BP (Tree-Reweighted Belief Propagation)，默认近似推理算法；当前启用 synchronous 调度，residual 调度代码尚未稳定开放
+- **`gaia/engine/bp/junction_tree.py`** — Junction Tree exact inference，用于 treewidth ≤ 20 的图
+- **`gaia/engine/bp/mean_field.py`** — Mean Field Variational Inference (CAVI)，大图（n > 2000）的 fallback，硬约束图精度不足（详见「推理算法 / Mean Field VI」）
+- **`gaia/engine/bp/exact.py`** — 小图 brute-force，用于测试和验证
+- **`gaia/engine/bp/engine.py`** — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
+- **`gaia/engine/bp/__init__.py`** — `infer(graph, method=auto)`：统一推理入口
+- **`gaia/engine/bp/lowering.py`** — `lower_local_graph()`：Gaia IR → FactorGraph 的入口
 
 **算法选择策略（`method=auto`）：**
 1. 如果 n > 2000 → **fallback 到 Mean Field VI 并发出 `UserWarning`**。大图推理仍在调研中，MF 在 Gaia 硬约束图上有 30%~79% 系统误差，不是生产级；显式 `method="trw_bp"` 可绕过（慢但准确）。
@@ -234,13 +234,13 @@ Package B:  F_inst_b: premises=[V_schema], conclusion=V_ground_b
 
 ## 源代码
 
-- `gaia/bp/factor_graph.py` — `FactorGraph`, `FactorType`, `CROMWELL_EPS`
-- `gaia/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
-- `gaia/bp/trw_bp.py` — `TRWBeliefPropagation`，默认近似推理
-- `gaia/bp/junction_tree.py` — Junction Tree exact inference
-- `gaia/bp/mean_field.py` — Mean Field VI（大图 fallback，硬约束图精度不足，warning）
-- `gaia/bp/exact.py` — brute-force exact inference for small graphs
-- `gaia/bp/engine.py` — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
-- `gaia/bp/__init__.py` — `infer()`：统一推理入口
-- `gaia/bp/potentials.py` — 各 FactorType 的势函数
-- `gaia/bp/contraction.py` — 张量收缩工具（用于 fold-composite 等）
+- `gaia/engine/bp/factor_graph.py` — `FactorGraph`, `FactorType`, `CROMWELL_EPS`
+- `gaia/engine/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
+- `gaia/engine/bp/trw_bp.py` — `TRWBeliefPropagation`，默认近似推理
+- `gaia/engine/bp/junction_tree.py` — Junction Tree exact inference
+- `gaia/engine/bp/mean_field.py` — Mean Field VI（大图 fallback，硬约束图精度不足，warning）
+- `gaia/engine/bp/exact.py` — brute-force exact inference for small graphs
+- `gaia/engine/bp/engine.py` — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
+- `gaia/engine/bp/__init__.py` — `infer()`：统一推理入口
+- `gaia/engine/bp/potentials.py` — 各 FactorType 的势函数
+- `gaia/engine/bp/contraction.py` — 张量收缩工具（用于 fold-composite 等）

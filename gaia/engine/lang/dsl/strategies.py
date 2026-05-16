@@ -138,9 +138,11 @@ def noisy_and(
     background: list[Knowledge] | None = None,
     reason: ReasonInput = "",
 ) -> Strategy:
-    """Deprecated: use support() instead. Bypasses reason+prior validation."""
+    """Deprecated compatibility wrapper for old noisy-and packages."""
     warnings.warn(
-        "noisy_and() is deprecated, use support() instead",
+        "noisy_and() is deprecated for v0.5+ authoring; use derive() for "
+        "deterministic reasoning or infer()/bayes.likelihood() for "
+        "probabilistic evidence links.",
         DeprecationWarning,
         stacklevel=2,
     )

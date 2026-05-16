@@ -16,6 +16,7 @@ def test_note_accepts_format():
     assert note.format == "text"
 
 
+@pytest.mark.legacy_dsl
 def test_context_and_setting_are_deprecated_note_compat_classes():
     ctx = Context("Raw experiment notes.")
     setting = Setting("Blackbody cavity at thermal equilibrium.")
@@ -111,10 +112,12 @@ def test_note_dsl_function():
     assert isinstance(n, Note)
 
 
+@pytest.mark.legacy_dsl
 def test_context_dsl_function_returns_note_compat():
     from gaia.engine.lang.dsl.knowledge import context
 
-    ctx = context("Raw experiment notes.")
+    with pytest.warns(DeprecationWarning, match="context\\(\\) is deprecated"):
+        ctx = context("Raw experiment notes.")
     assert ctx.type == "note"
     assert ctx.content == "Raw experiment notes."
     assert isinstance(ctx, Note)
@@ -130,10 +133,12 @@ def test_v5_claim_still_works():
     assert isinstance(c, Claim)
 
 
+@pytest.mark.legacy_dsl
 def test_v5_setting_still_works_as_note_compat():
-    from gaia.engine.lang import setting
+    from gaia.engine.lang.compat import setting
 
-    s = setting("Background info.")
+    with pytest.warns(DeprecationWarning, match="setting\\(\\) is deprecated"):
+        s = setting("Background info.")
     assert s.type == "note"
     assert isinstance(s, Note)
     assert s.metadata["legacy_kind"] == "setting"

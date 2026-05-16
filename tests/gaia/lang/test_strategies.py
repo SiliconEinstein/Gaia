@@ -1,10 +1,10 @@
 import pytest
 
-from gaia.engine.lang import (
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import (
     Step,
     analogy,
     case_analysis,
-    claim,
     composite,
     deduction,
     elimination,

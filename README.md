@@ -339,28 +339,24 @@ For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
 
 Use `candidate_relation(claims=[...], pattern=None | "equal" | "contradict" | "exclusive")` when the relation is worth tracking but not ready to enter inference. Upgrade it to `equal(...)`, `contradict(...)`, `exclusive(...)`, or `associate(...)` only after the relation is formalized and reviewable as semantics; use `materialize(...)` to record the link.
 
-#### Structural Proposition Helpers
+#### Legacy Compatibility
 
-| Function | Description |
-|----------|-------------|
-| `not_(a)` / `~a` | Boolean negation helper |
-| `and_(a, b, ...)` / `a & b` | Boolean conjunction helper |
-| `or_(a, b, ...)` | Boolean disjunction helper |
-
-The infix shorthand forms are `~a`, `a & b`, and `a | b`.
-
-Legacy and experimental strategy functions such as `support`, `deduction`, `abduction`, and `induction` are documented separately, but new v0.5 packages should prefer the action/relation surface above. If a step is uncertain, expose the uncertainty as an explicit premise or use `infer(...)`; do not hide it inside a prose rationale.
+Older structural proposition helpers (`not_`, `and_`, `or_`, `~a`, `a & b`,
+`a | b`) and named strategy functions (`support`, `deduction`, `abduction`,
+`induction`, and related v5 helpers) remain available only as compatibility
+APIs under `gaia.engine.lang.compat`. New v0.5 packages should prefer formula
+claims, the action/relation surface above, and explicit probabilistic links via
+`infer(...)`. If a step is uncertain, expose the uncertainty as an explicit
+premise or use `infer(...)`; do not hide it inside a prose rationale.
 
 ## Architecture
 
 ```
 gaia/
-├── lang/       DSL runtime, declarations, and compiler
-├── ir/         Gaia IR schema, validation, formalization
-├── bp/         Belief propagation engine (junction tree, TRW-BP, Mean Field VI)
-├── cli/        CLI commands (init, compile, check, add, infer, render, starmap, inquiry, trace, register)
-├── inquiry/    Semantic review loop — diagnostic kinds, focus/reject/obligation/hypothesis state
-└── trace/      ARM execution-trace verifier and reviewer (schema + hash chain)
+├── engine/     DSL runtime, Gaia IR schema, validation, compiler, BP engine, inquiry, and trace
+├── cli/        CLI command groups (build, run, inspect, pkg, inquiry, trace)
+├── inquiry/    Backward-compat tombstone; live code is gaia.engine.inquiry
+└── trace/      Backward-compat tombstone; live code is gaia.engine.trace
 ```
 
 ## Documentation

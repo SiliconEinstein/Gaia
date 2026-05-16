@@ -1,4 +1,4 @@
-"""Static assets bundled with `gaia starmap`.
+"""Static assets bundled with `gaia inspect starmap`.
 
 Holds the single-file HTML template (`template.html`) into which the
 CLI injects a JSON graph payload. The current template is a minimal

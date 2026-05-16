@@ -1,4 +1,4 @@
-"""Replay-build helpers for ``gaia starmap-replay`` v4.
+"""Replay-build helpers for ``gaia inspect starmap-replay`` v4.
 
 Three responsibilities:
 
@@ -10,7 +10,7 @@ Three responsibilities:
 
 2. **Pinned canonical layout** — invoke Graphviz ``dot -Tjson0`` against
    the final compiled IR's DOT source (the same DOT the user gets from
-   ``gaia starmap --format dot``) and extract per-node positions, cluster
+   ``gaia inspect starmap --format dot``) and extract per-node positions, cluster
    bounding boxes, and a viewport size so the frontend can place
    everything at canonical pinned coordinates.
 

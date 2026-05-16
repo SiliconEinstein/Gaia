@@ -26,7 +26,7 @@ class Variable(Knowledge):
     Lang-only: does NOT enter the package's IR-bound knowledge map (spec §2.4).
     """
 
-    # Term protocol marker — see gaia.lang.formula.term.is_term (Milestone A Task 5)
+    # Term protocol marker — see gaia.engine.lang.formula.term.is_term (Milestone A Task 5)
     __gaia_term__: ClassVar[bool] = True
 
     symbol: str = field(default="")

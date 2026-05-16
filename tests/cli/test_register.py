@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands import register as register_module
@@ -60,7 +61,7 @@ def _write_dependency_with_local_hole(dep_dir) -> None:
     dep_src = dep_dir / "src" / "dep_bridge"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -88,7 +89,7 @@ def _write_package_with_local_hole_and_bridge(pkg_dir) -> None:
     pkg_src = pkg_dir / "register_bridge"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction, fills\n"
         "from dep_bridge import missing_lemma\n\n"
         'local_premise = claim("A local missing lemma.")\n'
         'main_claim = claim("A release-ready claim.")\n'
@@ -317,6 +318,7 @@ def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
     )
 
 
+@pytest.mark.legacy_dsl
 def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_bridge"
     pkg_dir = tmp_path / "register_bridge"
@@ -361,6 +363,7 @@ def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch
     assert bridges_manifest["bridges"][0]["declared_by_owner_of_source"] is True
 
 
+@pytest.mark.legacy_dsl
 def test_register_writes_nonempty_release_manifests_to_local_checkout(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_bridge"
     pkg_dir = tmp_path / "register_bridge"
@@ -543,6 +546,7 @@ def test_register_fails_gracefully_when_checkout_fails(tmp_path, monkeypatch):
     assert "simulated failure" in result.output
 
 
+@pytest.mark.legacy_dsl
 def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_register_missing_root"
     dep_dir.mkdir()
@@ -553,7 +557,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_register_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -579,7 +583,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
         'uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"\n'
     )
     (pkg_dir / "register_demo" / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_register_missing import missing_lemma\n\n"
         'exported_claim = claim("A release-ready claim.")\n'
         "fills(source=exported_claim, target=missing_lemma)\n"

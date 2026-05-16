@@ -12,7 +12,7 @@ CDF. Equation propositions are currently metadata plus an author/default prior;
 joint-distribution constraint lowering is future work.
 
 ``BoolExpr.__bool__`` raises with a helpful message — analogous to
-:meth:`gaia.lang.runtime.knowledge.Claim.__bool__` — so accidental use in
+:meth:`gaia.engine.lang.runtime.knowledge.Claim.__bool__` — so accidental use in
 Python control flow (``if k > 1e-3: ...``) surfaces as a clear error rather
 than as silently always-truthy.
 """

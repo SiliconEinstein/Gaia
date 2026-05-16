@@ -1,4 +1,4 @@
-"""gaia.lang.bayes — hypothesis-data inference helpers."""
+"""gaia.engine.lang.bayes — hypothesis-data inference helpers."""
 
 from __future__ import annotations
 

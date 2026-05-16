@@ -4,13 +4,15 @@ import pytest
 
 from gaia.engine.lang import (
     Claim,
+    claim,
+    derive,
+)
+from gaia.engine.lang.compat import (
     Step,
     abduction,
-    claim,
     compare,
     composite,
     contradiction,
-    derive,
     fills,
     induction,
     noisy_and,

@@ -11,7 +11,7 @@ Design:
 
 Every explicit non-free unary factor is applied exactly once, at the layer
 where it is marginalized. Variables without unary factors are summed with the
-base counting measure, matching ``gaia.bp.exact.exact_inference``.
+base counting measure, matching ``gaia.engine.bp.exact.exact_inference``.
 
 Spec: github.com/SiliconEinstein/Gaia/issues/357
 """
@@ -176,7 +176,7 @@ def factor_to_tensor(f: Factor) -> StrategyCpt:
     Axis order: ``f.variables`` in order, then ``f.conclusion``.
 
     Deterministic factors use ``_HIGH``/``_LOW`` (Cromwell clamp) so they
-    match the semantics of ``gaia.bp.potentials`` exactly.  Parametric
+    match the semantics of ``gaia.engine.bp.potentials`` exactly.  Parametric
     factors (SOFT_ENTAILMENT, CONDITIONAL) use their stored parameters.
     """
     axes = [*f.variables, f.conclusion]

@@ -1,4 +1,4 @@
-"""Static assets bundled with `gaia starmap-replay`.
+"""Static assets bundled with `gaia inspect starmap-replay`.
 
 Holds the single-file HTML template (``template.html``) into which the
 CLI injects the JSONL timeline payload. Mirrors the

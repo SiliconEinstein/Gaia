@@ -2,7 +2,10 @@
 
 import pytest
 
-from gaia.engine.lang import claim, compare
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import compare
+
+pytestmark = pytest.mark.legacy_dsl
 
 
 def test_compare_basic():

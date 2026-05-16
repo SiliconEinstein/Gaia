@@ -1,4 +1,4 @@
-"""gaia starmap — emit a starmap of a compiled package (HTML, DOT, or SVG)."""
+"""gaia inspect starmap — emit a starmap of a compiled package (HTML, DOT, or SVG)."""
 
 from __future__ import annotations
 
@@ -106,7 +106,7 @@ def _render_svg(dot_source: str, *, theme: str) -> str:
 
 
 def _validate_starmap_options(fmt: str, theme: str) -> None:
-    """Validate `gaia starmap` format and theme options."""
+    """Validate `gaia inspect starmap` format and theme options."""
     if fmt not in _DEFAULT_OUT:
         typer.echo(
             f"Error: --format must be one of {sorted(_DEFAULT_OUT)}; got {fmt!r}.",
@@ -151,10 +151,10 @@ def _require_starmap_artifacts_fresh(loaded: Any, compiled: Any, ir: dict[str, A
     ir_hash_path = gaia_dir / "ir_hash"
     ir_json_path = gaia_dir / "ir.json"
     if not ir_hash_path.exists() or not ir_json_path.exists():
-        typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
+        typer.echo("Error: missing compiled artifacts; run `gaia build compile` first.", err=True)
         raise typer.Exit(1)
     if ir_hash_path.read_text().strip() != compiled.graph.ir_hash:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        typer.echo("Error: compiled artifacts are stale; run `gaia build compile` again.", err=True)
         raise typer.Exit(1)
     try:
         stored_ir = json.loads(ir_json_path.read_text())
@@ -162,7 +162,7 @@ def _require_starmap_artifacts_fresh(loaded: Any, compiled: Any, ir: dict[str, A
         typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
         raise typer.Exit(1) from exc
     if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != ir:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        typer.echo("Error: compiled artifacts are stale; run `gaia build compile` again.", err=True)
         raise typer.Exit(1)
 
 
@@ -178,7 +178,7 @@ def _load_starmap_beliefs(loaded: Any, compiled: Any) -> dict[str, Any] | None:
         raise typer.Exit(1) from exc
     if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
         typer.echo(
-            "Error: beliefs are stale; run `gaia infer` again.",
+            "Error: beliefs are stale; run `gaia run infer` again.",
             err=True,
         )
         raise typer.Exit(1)
@@ -256,17 +256,17 @@ def starmap_command(
 
     Examples:
       # Interactive HTML (default):
-      gaia starmap path/to/pkg
+      gaia inspect starmap path/to/pkg
 
       # DOT source (manually pipe through dot/sfdp for full control):
-      gaia starmap path/to/pkg --format dot --out figures/starmap.dot
+      gaia inspect starmap path/to/pkg --format dot --out figures/starmap.dot
       dot -Tsvg figures/starmap.dot -o figures/starmap.svg
 
       # End-to-end paper figure (light, no glow):
-      gaia starmap path/to/pkg --format svg --out figures/starmap.svg
+      gaia inspect starmap path/to/pkg --format svg --out figures/starmap.svg
 
       # End-to-end paper figure with stellaris glow defs baked in:
-      gaia starmap path/to/pkg --format svg --theme stellaris \
+      gaia inspect starmap path/to/pkg --format svg --theme stellaris \
           --out figures/starmap_stellaris.svg
 
       # PNG preview at higher DPI from the dot source:

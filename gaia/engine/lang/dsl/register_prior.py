@@ -2,7 +2,7 @@
 
 Also exposes :func:`resolve_priors_to_metadata`, the pure-computation step
 that walks a sequence of Claim objects, runs the supplied
-:class:`gaia.ir.ResolutionPolicy` over each claim's ``prior_records``, and
+:class:`gaia.engine.ir.ResolutionPolicy` over each claim's ``prior_records``, and
 writes the winner to ``metadata['prior']``, ``metadata['prior_justification']``,
 and ``metadata['prior_source_id']``. This step is invoked both by the CLI's
 ``apply_package_priors`` (with the package-level ``RESOLUTION_POLICY``) and by
@@ -19,7 +19,7 @@ Multiple priors may be registered for the same Claim from different sources
 (``"user_priors"`` for the author, ``"continuous_inference"`` for
 ``#581``-style engines, ``"reviewer_<name>"`` for human reviewers, etc.).
 The compile-time ``ResolutionPolicy`` picks the winner while preserving the
-losing records for audit (see ``gaia.ir.parameterization.ResolutionPolicy``
+losing records for audit (see ``gaia.engine.ir.parameterization.ResolutionPolicy``
 and the ``prior_dissent`` / ``prior_overridden`` diagnostics).
 
 Records are stored on ``claim.metadata["prior_records"]`` as a list of dicts
@@ -59,7 +59,7 @@ def register_prior(
 
     This is the canonical (and after v0.5, the only) way to attach a prior to
     a Claim. The author writes register_prior calls in ``priors.py`` (auto-
-    imported by ``gaia compile``) or anywhere else in the package; engines and
+    imported by ``gaia build compile``) or anywhere else in the package; engines and
     reviewers use the same API with an appropriate ``source_id``.
 
     Args:
@@ -184,12 +184,12 @@ def resolve_priors_to_metadata(
     Walks the supplied ``knowledges`` iterable (typically
     ``CollectedPackage.knowledge``), and for each :class:`Claim` with one or
     more dict records under ``metadata['prior_records']`` constructs the
-    corresponding :class:`gaia.ir.PriorRecord` instances, asks the supplied
-    :class:`gaia.ir.ResolutionPolicy` for the winner, and writes the winner's
+    corresponding :class:`gaia.engine.ir.PriorRecord` instances, asks the supplied
+    :class:`gaia.engine.ir.ResolutionPolicy` for the winner, and writes the winner's
     value/justification/source to ``metadata['prior']`` /
     ``metadata['prior_justification']`` / ``metadata['prior_source_id']``. All
     records (winner and losers) stay in ``prior_records`` for downstream audit,
-    ``gaia check --hole`` display, and the ``prior_dissent`` /
+    ``gaia build check --hole`` display, and the ``prior_dissent`` /
     ``prior_overridden`` diagnostics.
 
     Idempotent: re-running the same policy over the same records produces the

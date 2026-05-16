@@ -9,7 +9,7 @@ CLI 主路径使用 `InferenceEngine.run()` 自动 dispatch：
   mean_field     → n > 2000，大图快速近似
 
 本模块下方的 `infer()` 是旧的便利函数，仍保留 `loopy_bp` 强制模式和
-大图 loopy-BP fallback 以兼容旧调用；新代码需要和 `gaia infer` 一致时，
+大图 loopy-BP fallback 以兼容旧调用；新代码需要和 `gaia run infer` 一致时，
 应直接使用 `InferenceEngine`。
 """
 

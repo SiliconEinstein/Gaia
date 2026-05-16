@@ -1117,7 +1117,7 @@ def test_e2e_compare_compiles_and_runs_bp():
 def test_noisy_and_deprecated():
     """noisy_and() emits DeprecationWarning and delegates to support()."""
     from gaia.engine.lang import claim as dsl_claim
-    from gaia.engine.lang import noisy_and as dsl_noisy_and
+    from gaia.engine.lang.compat import noisy_and as dsl_noisy_and
 
     with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         a = dsl_claim("A")
@@ -1142,8 +1142,8 @@ def test_e2e_abduction_full_pipeline():
     and comparison.conclusion as conclusion.
     """
     from gaia.engine.lang import claim as dsl_claim
-    from gaia.engine.lang import compare as dsl_compare
-    from gaia.engine.lang import support as dsl_support
+    from gaia.engine.lang.compat import compare as dsl_compare
+    from gaia.engine.lang.compat import support as dsl_support
     from gaia.engine.lang.dsl.strategies import abduction as dsl_abduction
 
     h = dsl_claim("Theory H")
@@ -1189,7 +1189,7 @@ def test_e2e_abduction_full_pipeline():
 def test_e2e_induction_chain():
     """E2E: support + support → induction chain → law accumulated."""
     from gaia.engine.lang import claim as dsl_claim
-    from gaia.engine.lang import support as dsl_support
+    from gaia.engine.lang.compat import support as dsl_support
     from gaia.engine.lang.dsl.strategies import induction as dsl_induction
 
     law = dsl_claim("Mendel's law")
@@ -1238,9 +1238,9 @@ def test_e2e_induction_chain():
 def test_e2e_mendel_peirce_cycle():
     """E2E: Full Peirce cycle -- deduction + support + compare + abduction + induction."""
     from gaia.engine.lang import claim as dsl_claim
-    from gaia.engine.lang import compare as dsl_compare
-    from gaia.engine.lang import deduction as dsl_deduction
-    from gaia.engine.lang import support as dsl_support
+    from gaia.engine.lang.compat import compare as dsl_compare
+    from gaia.engine.lang.compat import deduction as dsl_deduction
+    from gaia.engine.lang.compat import support as dsl_support
     from gaia.engine.lang.dsl.strategies import abduction as dsl_abduction
     from gaia.engine.lang.dsl.strategies import induction as dsl_induction
 

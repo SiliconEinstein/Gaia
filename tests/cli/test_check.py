@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -71,6 +72,7 @@ def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
     assert "stale" in result.output.lower()
 
 
+@pytest.mark.legacy_dsl
 def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_check_missing_root"
     dep_dir.mkdir()
@@ -81,7 +83,7 @@ def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_check_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -101,7 +103,7 @@ def test_check_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     pkg_src = pkg_dir / "check_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_check_missing import missing_lemma\n\n"
         'main_claim = claim("A test claim.")\n'
         "fills(source=main_claim, target=missing_lemma)\n"
@@ -123,11 +125,11 @@ def _write_multi_claim_package(pkg_dir, *, with_priors: bool = False) -> None:
     pkg_src = pkg_dir / "check_holes"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'premise_a = claim("Evidence A is observed.")\n'
         'premise_b = claim("Evidence B is observed.")\n'
         'conclusion = claim("Therefore, hypothesis H holds.")\n'
-        "deduction(premises=[premise_a, premise_b], conclusion=conclusion)\n"
+        "derive(conclusion, given=[premise_a, premise_b], rationale='Evidence entails H.')\n"
         '__all__ = ["premise_a", "premise_b", "conclusion"]\n'
     )
     if with_priors:
@@ -352,7 +354,7 @@ def test_check_reports_induced_maxent_entropy(tmp_path):
     pkg_src = pkg_dir / "check_induced_entropy"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'hypothesis = claim("Hypothesis.")\n'
         'observation = claim("Observation.")\n'
         "deduction(premises=[hypothesis], conclusion=observation, "

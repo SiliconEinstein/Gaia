@@ -1,4 +1,4 @@
-"""gaia render command for package presentation outputs."""
+"""gaia run render command for package presentation outputs."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from gaia.engine.packaging import (
 
 
 class RenderTarget(StrEnum):
-    """Supported presentation targets for `gaia render`."""
+    """Supported presentation targets for `gaia run render`."""
 
     docs = "docs"
     github = "github"
@@ -35,7 +35,7 @@ _TARGET_OPTION: Any = typer.Option(
     help=(
         "What to render: 'docs' (renders from compiled IR alone; enriched "
         "when beliefs are available), 'github' (requires beliefs from "
-        "`gaia infer`), 'obsidian' (writes gaia-wiki/; beliefs optional), "
+        "`gaia run infer`), 'obsidian' (writes gaia-wiki/; beliefs optional), "
         "or 'all' (default; docs unconditionally + github when beliefs are "
         "available)."
     ),
@@ -71,10 +71,10 @@ def _require_render_artifacts_fresh(loaded: Any, compiled: Any, ir: dict[str, An
     ir_hash_path = gaia_dir / "ir_hash"
     ir_json_path = gaia_dir / "ir.json"
     if not ir_hash_path.exists() or not ir_json_path.exists():
-        typer.echo("Error: missing compiled artifacts; run `gaia compile` first.", err=True)
+        typer.echo("Error: missing compiled artifacts; run `gaia build compile` first.", err=True)
         raise typer.Exit(1)
     if ir_hash_path.read_text().strip() != compiled.graph.ir_hash:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        typer.echo("Error: compiled artifacts are stale; run `gaia build compile` again.", err=True)
         raise typer.Exit(1)
     try:
         stored_ir = json.loads(ir_json_path.read_text())
@@ -82,7 +82,7 @@ def _require_render_artifacts_fresh(loaded: Any, compiled: Any, ir: dict[str, An
         typer.echo(f"Error: .gaia/ir.json is not valid JSON: {exc}", err=True)
         raise typer.Exit(1) from exc
     if stored_ir.get("ir_hash") != compiled.graph.ir_hash or stored_ir != ir:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        typer.echo("Error: compiled artifacts are stale; run `gaia build compile` again.", err=True)
         raise typer.Exit(1)
 
 
@@ -98,7 +98,7 @@ def _load_fresh_beliefs(loaded: Any, compiled: Any) -> dict[str, Any] | None:
         raise typer.Exit(1) from exc
     if beliefs_data.get("ir_hash") != compiled.graph.ir_hash:
         typer.echo(
-            "Error: beliefs are stale; run `gaia infer` again.",
+            "Error: beliefs are stale; run `gaia run infer` again.",
             err=True,
         )
         raise typer.Exit(1)
@@ -118,20 +118,20 @@ def _target_plan(
         if target == RenderTarget.github:
             typer.echo(
                 "Error: --target github requires inference results; "
-                "run `gaia infer` before `gaia render`.",
+                "run `gaia run infer` before `gaia run render`.",
                 err=True,
             )
             raise typer.Exit(1)
         typer.echo(
             "Warning: no inference results found; skipping --target github. "
-            "Run `gaia infer` to include the GitHub publication bundle.",
+            "Run `gaia run infer` to include the GitHub publication bundle.",
         )
         want_github = False
 
     if want_docs and beliefs_data is None:
         typer.echo(
             "Warning: rendering docs without inference results; "
-            "run `gaia infer` to include belief values.",
+            "run `gaia run infer` to include belief values.",
         )
     return want_docs, want_github, want_obsidian
 
@@ -207,7 +207,7 @@ def render_command(
     """Render presentation outputs from a compiled package.
 
     `--target docs` renders `docs/detailed-reasoning.md` from the compiled IR
-    alone; when `gaia infer` has also been run, the output is enriched with
+    alone; when `gaia run infer` has also been run, the output is enriched with
     belief and prior values. `--target github` strictly requires inference
     results and emits the `.github-output/` README/wiki/data bundle.
     `--target obsidian` writes `gaia-wiki/` and enriches pages with beliefs
@@ -221,7 +221,7 @@ def render_command(
     _require_render_artifacts_fresh(loaded, compiled, ir)
 
     # ── Load inference results if available ──
-    # beliefs.json lives at .gaia/beliefs.json (written by `gaia infer`).
+    # beliefs.json lives at .gaia/beliefs.json (written by `gaia run infer`).
     # If present it MUST be fresh (ir_hash matches compiled graph).
     # --target github requires beliefs; --target docs degrades gracefully.
     param_data = param_data_from_ir_metadata(ir)

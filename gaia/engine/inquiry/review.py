@@ -220,7 +220,7 @@ def run_review(
     baseline_snap = load_snapshot(pkg_path, baseline_id) if baseline_id else None
     semantic_diff = compute_semantic_diff(ir_dict, baseline_snap)
 
-    # Step 5: inference via gaia.bp; enrich with baseline belief deltas.
+    # Step 5: inference via gaia.engine.bp; enrich with baseline belief deltas.
     belief_report = _build_belief_report(
         graph,
         pkg_path,

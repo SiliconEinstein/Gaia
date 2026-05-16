@@ -30,8 +30,8 @@ def _write_two_module_package(pkg_dir):
         "from .background import *\nfrom .reasoning import *\n"
     )
     (pkg_dir / name / "background.py").write_text(
-        "from gaia.engine.lang import claim, setting\n\n"
-        'env = setting("Experiment conducted at room temperature.")\n'
+        "from gaia.engine.lang import claim, note\n\n"
+        'env = note("Experiment conducted at room temperature.")\n'
         'obs_a = claim("Observation A was recorded.", background=[env])\n'
         'obs_b = claim("Observation B was recorded.")\n'
     )
@@ -59,7 +59,8 @@ def _write_induction_package(pkg_dir):
     name = "induction_demo"
     _write_base_package(pkg_dir, name=name)
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.engine.lang import claim, support, induction\n\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import induction, support\n\n"
         'law = claim("Universal law holds.")\n'
         'obs1 = claim("Sample 1 confirms law.")\n'
         'obs2 = claim("Sample 2 confirms law.")\n'
@@ -455,8 +456,8 @@ def _write_question_package(pkg_dir):
     _write_base_package(pkg_dir, name=name)
     (pkg_dir / name / "__init__.py").write_text("from .content import *\n")
     (pkg_dir / name / "content.py").write_text(
-        "from gaia.engine.lang import claim, question, setting\n\n"
-        'env = setting("Test environment.")\n'
+        "from gaia.engine.lang import claim, note, question\n\n"
+        'env = note("Test environment.")\n'
         'q = question("What is the mechanism?")\n'
         'obs = claim("Observation recorded.")\n'
     )
@@ -549,7 +550,8 @@ def _write_abduction_package(pkg_dir):
     _write_base_package(pkg_dir, name=name)
     (pkg_dir / name / "__init__.py").write_text("from .reasoning import *\n")
     (pkg_dir / name / "reasoning.py").write_text(
-        "from gaia.engine.lang import claim, support, compare, abduction\n\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import abduction, compare, support\n\n"
         'obs = claim("Observed data.")\n'
         'hyp = claim("Hypothesis H predicts obs.")\n'
         'alt_pred = claim("Alternative predicts obs.")\n'
@@ -618,7 +620,8 @@ def _write_abduction_close_priors_package(pkg_dir):
     _write_base_package(pkg_dir, name=name)
     (pkg_dir / name / "__init__.py").write_text("from .reasoning import *\n")
     (pkg_dir / name / "reasoning.py").write_text(
-        "from gaia.engine.lang import claim, support, compare, abduction\n\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import abduction, compare, support\n\n"
         'obs = claim("Observed data.")\n'
         'hyp = claim("Hypothesis H predicts obs.")\n'
         'alt_pred = claim("Alternative predicts obs.")\n'
@@ -759,7 +762,7 @@ def _write_deduction_package(pkg_dir):
     _write_base_package(pkg_dir, name=name)
     (pkg_dir / name / "__init__.py").write_text("from .reasoning import *\n")
     (pkg_dir / name / "reasoning.py").write_text(
-        "from gaia.engine.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'axiom = claim("All men are mortal.")\n'
         'socrates = claim("Socrates is a man.")\n'
         'mortal = claim("Socrates is mortal.")\n'

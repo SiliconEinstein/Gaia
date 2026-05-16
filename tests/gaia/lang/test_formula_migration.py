@@ -4,13 +4,15 @@ import pytest
 
 from gaia.engine.lang import (
     ClaimAtom,
-    and_,
     claim,
+    land,
+)
+from gaia.engine.lang.compat import (
+    and_,
     complement,
     contradiction,
     disjunction,
     equivalence,
-    land,
     not_,
     or_,
 )

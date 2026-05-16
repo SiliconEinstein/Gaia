@@ -2,7 +2,8 @@
 
 import pytest
 
-from gaia.engine.lang import Knowledge, Strategy, claim, support
+from gaia.engine.lang import Knowledge, claim
+from gaia.engine.lang.compat import Strategy, support
 from gaia.engine.lang.dsl.strategies import induction
 
 pytestmark = [

@@ -14,7 +14,7 @@ This document bridges the Gaia Lang v0.5 Python DSL to the Gaia IR semantics lay
 - How typed predicate-logic formulas (`Variable`, `Domain`, predicates, connectives, `forall` / `exists`) fit inside `Claim.formula`.
 - The legacy v5 **named strategies** (`support`, `deduction`, `abduction`, ...) that remain as a compatibility surface but are no longer the recommended way to author new packages.
 
-Source references: `gaia/engine/lang/runtime/knowledge.py`, `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/runtime/composition.py`, `gaia/engine/lang/runtime/roles.py`, `gaia/engine/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/engine/lang/formula/`, `gaia/engine/lang/bayes/`, `gaia/engine/lang/compiler/compile.py`, `gaia/ir/knowledge.py`, `gaia/ir/operator.py`, `gaia/ir/strategy.py`, `gaia/ir/formalize.py`, `gaia/bp/potentials.py`.
+Source references: `gaia/engine/lang/runtime/knowledge.py`, `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/runtime/composition.py`, `gaia/engine/lang/runtime/roles.py`, `gaia/engine/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/engine/lang/formula/`, `gaia/engine/lang/bayes/`, `gaia/engine/lang/compiler/compile.py`, `gaia/engine/ir/knowledge.py`, `gaia/engine/ir/operator.py`, `gaia/engine/ir/strategy.py`, `gaia/engine/ir/formalize.py`, `gaia/engine/bp/potentials.py`.
 
 ---
 
@@ -52,7 +52,7 @@ GaiaGraph
 
 `Knowledge` and `GaiaGraph` are **siblings**, not parent/child. Knowledge is *what is being claimed*; Reasoning is *how the author is formally connecting claims*; Scaffold is an explicit marker for work that is not formal yet. The legacy `Action` name remains as a compatibility alias for `Reasoning`.
 
-The legacy v5 `Strategy / CompositeStrategy / FormalStrategy / Operator` runtime classes are still exported for backwards compatibility (see [§7 Legacy Compatibility Surface](#7-legacy-compatibility-surface)) but new packages should author exclusively with `Claim` / `Note` / `Question` plus the action verbs.
+The legacy v5 `Strategy / CompositeStrategy / FormalStrategy / Operator` runtime classes remain available under `gaia.engine.lang.compat`, with deprecated top-level fallback for older code (see [§7 Legacy Compatibility Surface](#7-legacy-compatibility-surface)), but new packages should author exclusively with `Claim` / `Note` / `Question` plus the action verbs.
 
 ---
 
@@ -191,7 +191,7 @@ Scaffold actions compile only into `.gaia/formalization_manifest.json`. They are
 2. Records `inputs` (Knowledge values passed as args, plus claims captured from background and child actions), `actions` (the ordered list of children, by reference or by id), and `conclusion` (the function's return value, which **must** be a `Claim`).
 3. Emits a single IR `Compose` node with deterministic `structure_hash` over the tuple of input QIDs, action QIDs, conclusion QID, warrant QIDs, and background QIDs.
 
-`Compose` is the **only** Action subclass that survives into the IR `LocalCanonicalGraph` as a first-class node (`composes: list[Compose]`). All other Actions are projected onto strategies, operators, and helper claims with reverse `action_label` metadata. Source: `gaia/engine/lang/runtime/composition.py`, `gaia/ir/compose.py`.
+`Compose` is the **only** Action subclass that survives into the IR `LocalCanonicalGraph` as a first-class node (`composes: list[Compose]`). All other Actions are projected onto strategies, operators, and helper claims with reverse `action_label` metadata. Source: `gaia/engine/lang/runtime/composition.py`, `gaia/engine/ir/compose.py`.
 
 ---
 
@@ -290,7 +290,7 @@ Spec references: `docs/specs/2026-05-04-bayes-module-design.md` and `docs/specs/
 
 ## 7. Legacy Compatibility Surface
 
-The v5 strategy DSL remains available for backward compatibility. **New v0.5 packages should not use it.** The legacy verbs emit a `DeprecationWarning` at import or call time and are scheduled for removal once existing packages have migrated.
+The v5 strategy DSL remains available for backward compatibility under `gaia.engine.lang.compat`. **New v0.5 packages should not use it.** Deprecated top-level fallback imports and legacy verb calls emit a `DeprecationWarning`; the compatibility surface is scheduled for removal once existing packages have migrated.
 
 | Legacy verb | v0.5 replacement |
 |---|---|
@@ -301,21 +301,21 @@ The v5 strategy DSL remains available for backward compatibility. **New v0.5 pac
 | `abduction(...)` | author observation + alternative + comparison explicitly |
 | `induction(s1, s2, law, ...)` | declare each support step with `derive` / `observe` and let factor-graph topology accumulate evidence |
 | `analogy / extrapolation / elimination / case_analysis / mathematical_induction` | author the deterministic operator skeleton with `derive` + relation verbs |
-| `noisy_and(...)` | (deprecated; lowers to `support`, then to `derive`) |
+| `noisy_and(...)` | delegates to legacy `support()`; use `derive(...)` for deterministic reasoning or `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence links |
 | `contradiction(a, b, ...)` | `contradict(a, b, ...)` |
 | `equivalence(a, b, ...)` | `equal(a, b, ...)` |
 | `complement(a, b, ...)` | `exclusive(a, b, ...)` |
 | `disjunction(*claims, ...)` | author with `lor(...)` formula or explicit `Operator(disjunction, ...)` |
 
-When legacy named-strategy verbs are used, the compiler still routes them through `formalize_named_strategy()` (`gaia/ir/formalize.py`), which expands them to a `FormalStrategy` containing helper claims plus a deterministic operator skeleton (conjunction + directed implication, optionally with extra equivalence / disjunction operators). The expansion preserves the behavior documented in the v5 reference; consult git history or `gaia/ir/formalize.py` for the per-strategy templates.
+When legacy named-strategy verbs are used, the compiler still routes them through `formalize_named_strategy()` (`gaia/engine/ir/formalize.py`), which expands them to a `FormalStrategy` containing helper claims plus a deterministic operator skeleton (conjunction + directed implication, optionally with extra equivalence / disjunction operators). The expansion preserves the behavior documented in the v5 reference; consult git history or `gaia/engine/ir/formalize.py` for the per-strategy templates.
 
-Legacy `Strategy / CompositeStrategy / FormalStrategy / Operator` objects also remain importable from `gaia.engine.lang` for type annotations and for code that constructs IR-shaped objects directly.
+Legacy `Strategy / CompositeStrategy / FormalStrategy / Operator` objects also remain importable from `gaia.engine.lang.compat` for type annotations and for code that constructs IR-shaped objects directly. Direct `gaia.engine.lang` access is only a deprecated fallback for older packages.
 
 ---
 
 ## 8. Operator Truth Tables
 
-Operators encode **deterministic logical constraints**. Each operator type has a fully determined potential matrix — no free parameters. Reference: [Gaia IR — Operators](../gaia-ir/02-gaia-ir.md), `gaia/bp/potentials.py`.
+Operators encode **deterministic logical constraints**. Each operator type has a fully determined potential matrix — no free parameters. Reference: [Gaia IR — Operators](../gaia-ir/02-gaia-ir.md), `gaia/engine/bp/potentials.py`.
 
 ### 8.1 Arity Rules
 
@@ -422,7 +422,7 @@ Reference: [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md), [Lower
 
 ## 10. Cromwell's Rule
 
-All probabilities in Gaia IR are clamped to `[eps, 1 - eps]` where `CROMWELL_EPS = 1e-3` (defined in `gaia/ir/parameterization.py` and `gaia/bp/factor_graph.py`). This applies to:
+All probabilities in Gaia IR are clamped to `[eps, 1 - eps]` where `CROMWELL_EPS = 1e-3` (defined in `gaia/engine/ir/parameterization.py` and `gaia/engine/bp/factor_graph.py`). This applies to:
 
 - `PriorRecord.value` (claim priors)
 - `Strategy.conditional_probabilities` (CPT entries on `infer` / `noisy_and` strategies)

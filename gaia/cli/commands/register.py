@@ -1,4 +1,4 @@
-"""gaia register -- prepare or submit a registry registration for a Gaia package."""
+"""gaia pkg register -- prepare or submit a registry registration for a Gaia package."""
 
 from __future__ import annotations
 
@@ -293,11 +293,11 @@ def _validate_registration_package_config(loaded: Any, ir: dict[str, Any]) -> tu
     """Validate project metadata and return UUID plus dependency specs."""
     ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
     if not ir_hash_path.exists():
-        typer.echo("Error: missing .gaia/ir_hash; run `gaia compile` first.", err=True)
+        typer.echo("Error: missing .gaia/ir_hash; run `gaia build compile` first.", err=True)
         raise typer.Exit(1)
     stored_ir_hash = ir_hash_path.read_text().strip()
     if stored_ir_hash != ir["ir_hash"]:
-        typer.echo("Error: compiled artifacts are stale; run `gaia compile` again.", err=True)
+        typer.echo("Error: compiled artifacts are stale; run `gaia build compile` again.", err=True)
         raise typer.Exit(1)
 
     gaia_uuid = _validated_gaia_uuid(loaded)
@@ -410,7 +410,7 @@ def _registration_metadata_payloads(
         typer.echo(
             "Warning: .gaia/compile_metadata.json is missing or malformed; "
             "Versions.toml will record gaia_lang_version as 'unknown'. "
-            "Re-run `gaia compile` to generate the metadata file.",
+            "Re-run `gaia build compile` to generate the metadata file.",
         )
     versions = {
         version: {

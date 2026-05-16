@@ -2,11 +2,13 @@
 
 Alpha 0 introduces the `gaia.engine.*` Python contract and reorganizes the
 CLI into 6 logical groups plus the independent `trace` sub-app. This guide
-covers the two migration layers you need to update:
+covers the three migration layers you may need to update:
 
 1. **CLI verb migration** — how to update `gaia <verb>` invocations.
 2. **Import path migration** — how to update `from gaia.<sub> import ...`
    in your DSL files, your packages, and your own tooling.
+3. **Legacy DSL verb migration** — how to move old named reasoning helpers
+   onto the v0.5 action/relation surface.
 
 If you have an existing Gaia knowledge package built on a pre-alpha version,
 this is the work needed to get it green again. The CLI helpfully refuses to
@@ -150,10 +152,35 @@ except GaiaPackagingError as exc:
 
 ---
 
+## Layer 3: Legacy DSL verb migration
+
+The old v5 named-strategy DSL is no longer the recommended authoring surface.
+It remains available only under `gaia.engine.lang.compat` while existing
+packages migrate. Direct access through `gaia.engine.lang.<legacy_name>` emits
+a `DeprecationWarning`.
+
+| Legacy helper | Recommended v0.5 shape |
+|---|---|
+| `setting(...)` / `context(...)` | `note(...)` |
+| `support([P], C, prior=...)` | `derive(C, given=[P])` for deterministic support, or `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence links |
+| `deduction([P], C)` | `derive(C, given=[P])` |
+| `infer([premises], conclusion, ...)` | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` |
+| `compare(...)` / `abduction(...)` | Declare observations, alternatives, relations, and likelihood links explicitly |
+| `induction(...)` | Author each evidence step with `derive(...)`, `observe(...)`, or `infer(...)`; let graph topology accumulate evidence |
+| `analogy(...)` / `extrapolation(...)` / `elimination(...)` / `case_analysis(...)` / `mathematical_induction(...)` | Author the deterministic skeleton with `derive(...)` plus relation verbs |
+| `noisy_and(...)` | `derive(...)` for deterministic conjunction, or `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence links |
+| `contradiction(a, b)` / `equivalence(a, b)` / `complement(a, b)` | `contradict(a, b)` / `equal(a, b)` / `exclusive(a, b)` |
+| `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | Formula AST helpers such as `lor(...)`, `land(...)`, and `lnot(...)` |
+
+See `docs/foundations/gaia-lang/knowledge-and-reasoning.md` §7 for the fuller
+compatibility surface and the reasoning contract behind each replacement.
+
+---
+
 ## Notes for users with existing packages
 
-If you have a Gaia knowledge package created with an earlier version, two
-things need updating:
+If you have a Gaia knowledge package created with an earlier version, these
+migration notes apply:
 
 ### 1. Imports in your DSL files
 
@@ -208,6 +235,13 @@ error.
 `gaia build init <name>-gaia` emits a DSL template using
 `from gaia.engine.lang import ...` out of the box. You only need step 1 for
 packages that pre-date alpha 0.
+
+### 4. Legacy strategy helpers should move off compat
+
+If your package imports from `gaia.engine.lang.compat`, keep that import only
+as a short migration bridge. New package code should use `claim(...)`,
+`note(...)`, `derive(...)`, `compute(...)`, `infer(...)`, and the relation
+verbs from `gaia.engine.lang`.
 
 ---
 
