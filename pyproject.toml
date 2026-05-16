@@ -72,7 +72,6 @@ include = [
 ]
 
 [tool.setuptools.package-data]
-"gaia.cli.templates.pages" = ["**/*"]
 "gaia.cli.starmap_assets" = ["**/*"]
 "gaia.cli.starmap_replay_assets" = ["**/*"]
 
@@ -88,7 +87,7 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 markers = [
     "legacy_dsl: tests that intentionally exercise deprecated v5 DSL compatibility",
-    "slow: slow tests (e.g. npm build)",
+    "slow: slower regression tests kept out of the default fast feedback slice",
 ]
 
 [project.scripts]

@@ -46,6 +46,11 @@ from tests.baseline.conftest import (
     serialize_artifact_tree,
 )
 
+try:
+    import tomllib
+except ImportError:  # pragma: no cover
+    import tomli as tomllib  # type: ignore[no-redef]
+
 # --------------------------------------------------------------------------- #
 # Flavor 1 — artifact-tree snapshots for compile / infer / starmap / render   #
 # --------------------------------------------------------------------------- #
@@ -125,6 +130,28 @@ def test_starmap_html_artifact_path_snapshot(
 # --------------------------------------------------------------------------- #
 
 
+def _normalize_init_scaffold_artifacts(artifacts: dict[str, object]) -> dict[str, object]:
+    """Validate Gaia-owned pyproject fields without snapshotting uv's defaults."""
+    files = artifacts["files"]
+    assert isinstance(files, list)
+    for entry in files:
+        assert isinstance(entry, dict)
+        if entry.get("path") != "pyproject.toml":
+            continue
+        content = entry.get("content")
+        assert isinstance(content, str)
+        config = tomllib.loads(content)
+        assert config["project"]["name"] == "demo-gaia"
+        assert config["project"]["requires-python"] == ">=3.12"
+        assert any(dep.startswith("gaia-lang") for dep in config["project"].get("dependencies", []))
+        assert config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/demo"]
+        assert config["tool"]["gaia"]["type"] == "knowledge-package"
+        assert config["tool"]["gaia"]["uuid"] == "<UUID4>"
+        entry["content"] = "<uv-generated pyproject; Gaia-owned contract validated>\n"
+        return artifacts
+    raise AssertionError("pyproject.toml missing from init scaffold artifacts")
+
+
 def test_init_scaffold_tree_snapshot(tmp_path: Path, run_gaia, snapshot, monkeypatch) -> None:
     """Scaffolded source files after `gaia build init <name>-gaia`.
 
@@ -153,7 +180,7 @@ def test_init_scaffold_tree_snapshot(tmp_path: Path, run_gaia, snapshot, monkeyp
     pkg_root = tmp_path / "demo-gaia"
     # serialize_artifact_tree's default `exclude=(".venv",".git","__pycache__")`
     # already drops the noisy directories.
-    artifacts = serialize_artifact_tree(pkg_root)
+    artifacts = _normalize_init_scaffold_artifacts(serialize_artifact_tree(pkg_root))
     assert artifacts == snapshot
 
 
@@ -181,16 +208,14 @@ def test_render_obsidian_artifact_tree_snapshot(inferred_galileo: Path, run_gaia
 def test_render_github_artifact_paths_snapshot(inferred_galileo: Path, run_gaia, snapshot) -> None:
     """`.github-output/` path-listing after `run render --target github`.
 
-    The target emits a vendored TSX/CSS presentation bundle (~48 files).
-    Byte-content of the bundle is out of refactor scope: it's the engine
-    refactor we're guarding, not the renderer's vendored deps. Path-set
-    parity is what proves the renderer still emits the same shape.
+    The target emits README/wiki/data artifacts. Path-set parity keeps the
+    generated bundle contract stable without snapshotting every data byte.
     """
     result = run_gaia("run", "render", str(inferred_galileo), "--target", "github")
     assert result.exit_code == 0, result.stderr
     artifacts = list_artifact_paths(inferred_galileo / ".github-output")
-    # Replace sizes with a 'present' marker so vendored-bundle byte jitter
-    # (npm cache differences, minifier version drift) doesn't break us.
+    # Replace sizes with a 'present' marker so harmless serialization detail
+    # drift doesn't break this contract test.
     for entry in artifacts["files"]:  # type: ignore[index]
         if isinstance(entry, dict):
             entry["size"] = "<NONZERO>" if entry["size"] else 0  # type: ignore[index]

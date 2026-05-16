@@ -18,6 +18,8 @@ from gaia.engine.bp import (
 )
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
 
+pytestmark = pytest.mark.slow
+
 
 def build_block_dag(num_blocks: int, prior_a: float = 0.7, prior_c: float = 0.6) -> FactorGraph:
     """Build a Block-DAG graph with controlled treewidth.

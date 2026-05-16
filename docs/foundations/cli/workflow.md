@@ -211,8 +211,8 @@ Reference: [Inference](inference.md) for internals.
 
 ### `gaia run render [PATH] [--target TARGET]`
 
-Render presentation outputs (detailed-reasoning docs and/or a GitHub presentation
-site) from a compiled package.
+Render presentation outputs (detailed-reasoning docs, a GitHub publication
+bundle, and/or a local Obsidian wiki) from a compiled package.
 
 ```
 gaia run render [PATH] [--target docs|github|obsidian|all]
@@ -232,8 +232,9 @@ gaia run render [PATH] [--target docs|github|obsidian|all]
   separate `parameterization.json` file. This is the author-facing workflow —
   useful during iteration on DSL code before inference has been run.
 - `--target github`: strictly requires a matching `beliefs.json`. Missing or
-  stale inference results are hard errors. This is the external-presentation
-  workflow — a published site without belief values would be misleading.
+  stale inference results are hard errors. This is the external-publication
+  workflow for README/wiki/data artifacts; publishing without belief values
+  would be misleading.
 - `--target obsidian`: renders `gaia-wiki/` from the compiled IR. Beliefs are
   optional; when present and fresh they enrich the pages.
 - `--target all` (default): always renders docs, and adds the GitHub target
@@ -254,7 +255,8 @@ been run for `--target github` and for the `github` portion of `--target all`.
 
 **Key output:**
 - `docs/detailed-reasoning.md` (when target includes `docs`)
-- `.github-output/` (when target includes `github` and beliefs are available)
+- `.github-output/` with README, wiki pages, graph data, and copied assets
+  (when target includes `github` and beliefs are available)
 - `gaia-wiki/` (when target is `obsidian`)
 
 

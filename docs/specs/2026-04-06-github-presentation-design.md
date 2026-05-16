@@ -1,6 +1,8 @@
 # `gaia compile . --github` — Knowledge Package Presentation
 
-> **Status:** Proposal
+> **Status:** Superseded
+>
+> **Superseded by v0.5 cleanup (2026-05-16):** the React/Vite GitHub Pages template was removed. `gaia run render --target github` now emits README, wiki pages, `docs/public/data`, and copied assets only.
 >
 > **Context:** 当前 `gaia compile . --readme` 生成的 README 是 1000+ 行的 claim 平铺罗列，
 > Mermaid 图包含所有节点难以阅读。需要分层展示：Wiki 给 agent 消费，README 和 GitHub Pages 给人类阅读。

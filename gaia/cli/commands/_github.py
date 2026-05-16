@@ -1,7 +1,7 @@
 """Orchestrate GitHub output generation for a compiled Gaia package.
 
 Combines wiki pages, graph.json, manifest.json, assets, section placeholders,
-a React SPA template, and a README skeleton into a single ``.github-output/`` directory.
+and a README skeleton into a single ``.github-output/`` directory.
 """
 
 from __future__ import annotations
@@ -15,32 +15,6 @@ from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._manifest import generate_manifest
 from gaia.cli.commands._wiki import generate_all_wiki
 from gaia.engine.ir.coarsen import coarsen_ir
-
-
-def _copy_react_template(docs_dir: Path) -> None:
-    """Copy the React SPA template from ``gaia.cli.templates.pages`` to *docs_dir*.
-
-    The template provides the scaffold (``package.json``, ``src/``, ``index.html``,
-    etc.) on top of which data files (``public/data/``, ``public/assets/``) are
-    overlaid by the caller.
-
-    ``node_modules``, ``dist``, ``package-lock.json``, and Python bytecode are
-    excluded from the copy so the output stays lightweight and reproducible.
-    """
-    import gaia.cli.templates.pages as pages_pkg
-
-    template_path = Path(pages_pkg.__file__).parent
-
-    if docs_dir.exists():
-        shutil.rmtree(docs_dir)
-
-    shutil.copytree(
-        template_path,
-        docs_dir,
-        ignore=shutil.ignore_patterns(
-            "node_modules", "dist", "package-lock.json", "__pycache__", "*.pyc"
-        ),
-    )
 
 
 def _write_meta_json(
@@ -212,8 +186,8 @@ def generate_github_output(
     """Generate the full ``.github-output/`` tree and return its path.
 
     Steps:
-    0. Copy React SPA template to ``docs/``
-    1. Create remaining directory structure
+    0. Reset the output directory
+    1. Create directory structure
     2. Write wiki pages
     3. Write ``docs/public/data/graph.json``
     4. Copy ``beliefs.json`` if beliefs_data is available
@@ -228,16 +202,15 @@ def generate_github_output(
     metadata = pkg_metadata or {}
 
     output_dir = pkg_path / ".github-output"
-    docs_dir = output_dir / "docs"
     wiki_dir = output_dir / "wiki"
+    docs_dir = output_dir / "docs"
     data_dir = docs_dir / "public" / "data"
     assets_dir = docs_dir / "public" / "assets"
     sections_dir = data_dir / "sections"
 
-    # ── 0. Copy React template (provides package.json, src/, index.html, …) ──
-    _copy_react_template(docs_dir)
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
 
-    # Create remaining directory structure (template may already provide some)
     for d in (wiki_dir, data_dir, assets_dir, sections_dir):
         d.mkdir(parents=True, exist_ok=True)
 

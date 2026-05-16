@@ -1,8 +1,10 @@
 # Knowledge Graph Visualization Redesign
 
-**Status:** Target design
+**Status:** Superseded
 **Date:** 2026-04-12
 **Scope:** `gaia render --target github` docs app only
+
+> **Superseded by v0.5 cleanup (2026-05-16):** the React/Vite GitHub Pages docs app was removed. The GitHub target now keeps README/wiki/data/assets output only.
 
 ## Problem
 

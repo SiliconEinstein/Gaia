@@ -1,7 +1,9 @@
-.PHONY: bootstrap lint typecheck test docs-build docs-serve check
+.PHONY: bootstrap lint typecheck test test-fast test-slow test-all docs-build docs-serve check
 
 UV ?= uv
 PYTEST_ARGS ?=
+PYTEST_FAST_MARK ?= not slow
+PYTEST_SLOW_MARK ?= slow
 
 bootstrap:
 	$(UV) sync --extra dev
@@ -21,7 +23,15 @@ lint:
 typecheck:
 	$(UV) run mypy
 
-test:
+test: test-fast
+
+test-fast:
+	$(UV) run pytest --no-cov -m "$(PYTEST_FAST_MARK)" $(PYTEST_ARGS)
+
+test-slow:
+	$(UV) run pytest --no-cov -m "$(PYTEST_SLOW_MARK)" $(PYTEST_ARGS)
+
+test-all:
 	$(UV) run pytest $(PYTEST_ARGS)
 
 docs-build:
@@ -30,4 +40,4 @@ docs-build:
 docs-serve:
 	$(UV) run --extra docs mkdocs serve
 
-check: lint test
+check: lint test-all

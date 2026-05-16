@@ -26,6 +26,7 @@ from syrupy.extensions.json import JSONSnapshotExtension
 # --------------------------------------------------------------------------- #
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+BASELINE_DIR = Path(__file__).resolve().parent
 EXAMPLES_DIR = REPO_ROOT / "examples"
 GALILEO_SRC = EXAMPLES_DIR / "galileo-v0-5-gaia"
 MENDEL_SRC = EXAMPLES_DIR / "mendel-v0-5-gaia"
@@ -34,6 +35,14 @@ MENDEL_SRC = EXAMPLES_DIR / "mendel-v0-5-gaia"
 # Equivalent to 2026-04-28T00:00:00Z, matching the trace test helper basis in
 # `tests/trace/test_cli.py`.
 FROZEN_EPOCH = 1745798400  # 2026-04-28T00:00:00Z
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Keep full CLI snapshot baselines out of the default fast test slice."""
+    del config
+    for item in items:
+        if item.path.is_relative_to(BASELINE_DIR):
+            item.add_marker(pytest.mark.slow)
 
 
 # --------------------------------------------------------------------------- #

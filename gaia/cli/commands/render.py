@@ -124,7 +124,7 @@ def _target_plan(
             raise typer.Exit(1)
         typer.echo(
             "Warning: no inference results found; skipping --target github. "
-            "Run `gaia infer` to include the GitHub presentation.",
+            "Run `gaia infer` to include the GitHub publication bundle.",
         )
         want_github = False
 
@@ -163,7 +163,7 @@ def _write_github_render(
     beliefs_data: dict[str, Any] | None,
     param_data: dict[str, Any] | None,
 ) -> None:
-    """Render the GitHub presentation site and print its output path."""
+    """Render the GitHub publication bundle and print its output path."""
     exported_ids = {k["id"] for k in ir.get("knowledges", []) if k.get("exported")}
     github_out = generate_github_output(
         ir,
@@ -209,7 +209,7 @@ def render_command(
     `--target docs` renders `docs/detailed-reasoning.md` from the compiled IR
     alone; when `gaia infer` has also been run, the output is enriched with
     belief and prior values. `--target github` strictly requires inference
-    results and emits the full `.github-output/` presentation site.
+    results and emits the `.github-output/` README/wiki/data bundle.
     `--target obsidian` writes `gaia-wiki/` and enriches pages with beliefs
     when fresh inference results are available.
     `--target all` (default) always renders docs and adds github when
