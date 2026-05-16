@@ -99,6 +99,10 @@ gaia build check [PATH]
 gaia build check --brief [PATH]
 gaia build check --show <module|label> [PATH]
 gaia build check --hole [PATH]
+gaia build check --warrants [PATH]
+gaia build check --warrants --blind [PATH]
+gaia build check --inquiry [PATH]
+gaia build check --gate [PATH]
 ```
 
 | Argument | Default | Description |
@@ -110,6 +114,10 @@ gaia build check --hole [PATH]
 | `--brief`, `-b` | Show per-module warrant structure overview |
 | `--show`, `-s` | Expand a specific module or claim/strategy label |
 | `--hole` | Show detailed prior contract report for independent degrees of freedom |
+| `--warrants` | Show v6 `ReviewManifest` warrants and audit questions for reviewable actions |
+| `--blind` | With `--warrants`, hide status values and prior diagnostics to reduce reviewer anchoring |
+| `--inquiry` | Show goal-oriented reasoning progress and review status |
+| `--gate` | Run quality-gate checks and exit non-zero when the package is not publishable |
 
 **What it does:**
 
@@ -126,6 +134,8 @@ printed but do not fail the check.
 **Default output:** Prints pass/fail summary with knowledge diagnostics. Each independent boundary premise is annotated with `prior=X` or `no external prior (MaxEnt)`. Shows a "MaxEnt (no external prior): N" count when any load-bearing boundary claims lack external priors. If deterministic operators constrain those MaxEnt claims, the output also reports the effective feasible state space and entropy in bits. It also reports the induced MaxEnt entropy from the current full joint distribution, which is the Jaynes-style answer to "how many independent bits are really left after the graph's existing constraints and explicit priors are applied?"
 
 **`--hole` output:** Detailed report splitting all load-bearing boundary claims into MaxEnt degrees of freedom (no external prior, with content and QID) and covered claims (with prior value and justification). Use during prior review to identify which independent claims intentionally rely on MaxEnt, which are constrained by deterministic logic, what their induced entropy is under the current graph, and which still need `priors.py` entries.
+
+**`--warrants` / `--blind` / `--inquiry` / `--gate`:** Per-action review and gating views, layered on top of the merged `ReviewManifest`. See [CLI Commands § `gaia build check`](../../for-users/cli-commands.md#gaia-build-check) for the full review-loop semantics, and [`review-pipeline.md`](../review/review-pipeline.md) for the manifest contract and gate criteria.
 
 **Prior contract:** External priors belong only on independent probabilistic inputs to exported goals that are not already pinned by a zero-premise `observe(...)`. A zero-premise `observe(...)` sets its conclusion to `1 - CROMWELL_EPS`; claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)` get their belief from the graph and should not receive manual priors. Structural/helper claims from propositional expressions, `infer(...)`, `associate(...)`, relation verbs (`equal`, `contradict`, `exclusive`), and generated formalization internals also carry no independent prior. If an independent input is intentionally left without an external prior, Gaia uses the Jaynes maximum-entropy distribution over the remaining independent degrees of freedom subject to declared hard constraints.
 
