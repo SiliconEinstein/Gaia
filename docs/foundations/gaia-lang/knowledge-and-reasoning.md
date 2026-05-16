@@ -294,7 +294,7 @@ The v5 strategy DSL remains available for backward compatibility under `gaia.eng
 
 | Legacy verb | v0.5 replacement |
 |---|---|
-| `support([P], C, prior=...)` | `derive(C, given=[P])` (deterministic) or `infer(C, hypothesis=P, p_e_given_h=..., p_e_given_not_h=...)` (probabilistic) |
+| `support([P], C, prior=...)` | `derive(C, given=[P])` (deterministic) or `infer(P, hypothesis=C, p_e_given_h=..., p_e_given_not_h=...)` (probabilistic — `P` is the evidence we observe, `C` is the hypothesis whose belief we want to update). For exclusive model comparison, prefer `bayes.likelihood(...)`. |
 | `deduction([P], C)` | `derive(C, given=[P])` |
 | `infer([premises], conclusion, ...)` | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` |
 | `compare(pred_h, pred_alt, observation, ...)` | author the equivalences and implication explicitly, or use `bayes.likelihood(...)` |

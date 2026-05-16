@@ -79,7 +79,7 @@ manifest; it previews the compiled graph numerically.
 
 ## 4. CLI: `gaia inquiry review`
 
-Source: `gaia/cli/commands/inquiry.py`, `gaia/inquiry/review.py:run_review`.
+Source: `gaia/cli/commands/inquiry.py`, `gaia/engine/inquiry/review.py:run_review`.
 
 `gaia inquiry review` runs the local review loop in a single step:
 
@@ -120,7 +120,10 @@ None of these sub-commands mutate `.py` source, IR, priors, or beliefs — they 
 
 ## 5. Manifest Merging
 
-Source: `gaia/cli/commands/_review_manifest.py`.
+Source: `gaia/engine/inquiry/review_manifest.py`. `gaia inquiry review` and
+`gaia build check` import these helpers from
+`gaia.engine.inquiry.review_manifest`; `gaia/cli/commands/_review_manifest.py`
+is a tombstone left in place to redirect any pre-alpha-0 callers.
 
 ```python
 def load_or_generate_review_manifest(pkg_path: Path | str, compiled) -> ReviewManifest
@@ -159,7 +162,7 @@ change the gate result.
 
 ## 6. CLI: `gaia trace verify / review / show`
 
-Source: `gaia/cli/commands/trace.py`, `gaia/trace/review.py:run_trace_review`. Spec: `docs/specs/2026-...` ARM Trace Reviewer (PR #491).
+Source: `gaia/cli/commands/trace.py`, `gaia/engine/trace/review.py:run_trace_review`. Spec: `docs/specs/2026-...` ARM Trace Reviewer (PR #491).
 
 The trace pipeline records every reasoning event emitted during `gaia run infer` and other agent-side workflows into a hash-chained `.json` / `.jsonl` file. The trace is independent of the inference numerical result — its purpose is to make the *reasoning process* itself auditable.
 
@@ -215,13 +218,13 @@ and the [Gaia IR parameterization contract](../gaia-ir/06-parameterization.md).
 | `Review` / `ReviewManifest` / `ReviewStatus` schema | `gaia/engine/ir/review.py` |
 | Manifest generator (per-action audit questions) | `gaia/engine/lang/review/manifest.py` |
 | Audit-question templates | `gaia/engine/lang/review/templates.py` |
-| CLI manifest load / merge | `gaia/cli/commands/_review_manifest.py` |
+| Manifest load / merge helpers | `gaia/engine/inquiry/review_manifest.py` |
 | `gaia inquiry` CLI sub-app | `gaia/cli/commands/inquiry.py` |
-| Inquiry review loop | `gaia/inquiry/review.py` |
-| Inquiry state, focus, obligations | `gaia/inquiry/state.py`, `focus.py`, `proof_state.py` |
+| Inquiry review loop | `gaia/engine/inquiry/review.py` |
+| Inquiry state, focus, obligations | `gaia/engine/inquiry/state.py`, `focus.py`, `proof_state.py` |
 | `gaia trace` CLI sub-app | `gaia/cli/commands/trace.py` |
-| Trace review (eight sections + diagnostics) | `gaia/trace/review.py` |
-| Trace schema and hash chain | `gaia/trace/schema.py`, `gaia/trace/hashing.py` |
+| Trace review (eight sections + diagnostics) | `gaia/engine/trace/review.py` |
+| Trace schema and hash chain | `gaia/engine/trace/schema.py`, `gaia/engine/trace/hashing.py` |
 
 ## 9. Future Work
 

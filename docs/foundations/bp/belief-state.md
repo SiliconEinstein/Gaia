@@ -28,28 +28,36 @@ BeliefState:
 
     # ── 诊断 ──
     converged:            bool
-    iterations:           int
-    max_residual:         float
+    iterations_run:       int
+    max_change_at_stop:   float
 ```
 
 ## Local CLI Beliefs Format
 
-本地 CLI `gaia run infer` 写入的 `.gaia/beliefs.json` 使用不同的 schema，针对本地包优化：
+本地 CLI `gaia run infer` 写入的 `.gaia/beliefs.json` 使用不同的 schema，针对本地包优化。
+载体形状由 `gaia/cli/commands/infer.py::_beliefs_payload` 直接构造，`diagnostics`
+字段是 `result.diagnostics` 的 `dataclasses.asdict()` 结果，所以字段名与
+`gaia/engine/bp/{bp,trw_bp,mean_field,junction_tree}.py` 中各 `*Diagnostics` 的
+dataclass 字段一一对应：
 
 ```json
 {
-  "ir_hash": "...",
-  "gaia_lang_version": "...",
+  "ir_hash": "sha256:...",
+  "gaia_lang_version": "0.5.0",
   "beliefs": [
     {"knowledge_id": "github:pkg::label", "label": "label", "belief": 0.73}
   ],
   "diagnostics": {
     "converged": true,
-    "iterations": 42,
-    "max_residual": 0.0001
+    "iterations_run": 42,
+    "max_change_at_stop": 0.0001
   }
 }
 ```
+
+不同后端会附加各自的诊断字段（例如 JT 的 `treewidth`、loopy BP 的
+`belief_history` / `direction_changes`）；权威示例见
+[`cli/inference.md` §Output Format](../cli/inference.md#beliefsjson)。
 
 **与 BeliefState 的区别**：
 - `beliefs` 是 list of records，不是 `dict[str, float]`
@@ -79,11 +87,14 @@ BeliefState:
 ## 诊断字段
 
 - `converged`：BP 是否在容差内收敛
-- `iterations`：实际运行的迭代数
-- `max_residual`：停止时的最大消息变化量
+- `iterations_run`：实际运行的迭代数（exact JT 固定为 2，对应 collect + distribute 两次扫描）
+- `max_change_at_stop`：停止时的最大消息变化量
 - `compilation_summary`：每个 Strategy 的 BP 编译路径（direct / composite / formal_expr），便于诊断推理链路
 
 这些字段用于判断 belief 的可靠性。未收敛的 BeliefState 仍然有效，但应标记为近似值。
+不同后端会另外携带各自的诊断字段（例如 JT 的 `treewidth`、TRW-BP / Mean Field
+特有的内部统计），都按 `dataclasses.asdict()` 序列化，对照各自模块的
+`*Diagnostics` 定义即可。
 
 ## 源代码
 
