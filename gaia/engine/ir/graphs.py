@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel, model_validator
 
 from gaia.engine.ir.compose import Compose
+from gaia.engine.ir.formula import FormulaGraph
 from gaia.engine.ir.knowledge import Knowledge, make_qid
 from gaia.engine.ir.operator import Operator
 from gaia.engine.ir.strategy import CompositeStrategy, FormalStrategy, Strategy
@@ -71,11 +72,19 @@ def _canonicalize_compose_dump(data: dict[str, Any]) -> dict[str, Any]:
     return canonical
 
 
+def _canonicalize_formula_graph_dump(data: dict[str, Any]) -> dict[str, Any]:
+    canonical = dict(data)
+    canonical["nodes"] = sorted(canonical.get("nodes", []), key=_json_sort_key)
+    canonical["edges"] = sorted(canonical.get("edges", []), key=_json_sort_key)
+    return canonical
+
+
 def _canonical_json(
     knowledges: list[Knowledge],
     operators: list[Operator],
     strategies: list[Strategy],
     composes: list[Compose],
+    formula_graphs: list[FormulaGraph] | None = None,
 ) -> str:
     """Produce canonical JSON for hashing — independent of insertion order."""
     data = {
@@ -93,6 +102,13 @@ def _canonical_json(
         ),
         "composes": sorted(
             [_canonicalize_compose_dump(c.model_dump(mode="json")) for c in composes],
+            key=_json_sort_key,
+        ),
+        "formula_graphs": sorted(
+            [
+                _canonicalize_formula_graph_dump(fg.model_dump(mode="json"))
+                for fg in (formula_graphs or [])
+            ],
             key=_json_sort_key,
         ),
     }
@@ -114,6 +130,7 @@ class LocalCanonicalGraph(BaseModel):
     operators: list[Operator] = []
     strategies: list[CompositeStrategy | FormalStrategy | Strategy] = []
     composes: list[Compose] = []
+    formula_graphs: list[FormulaGraph] = []
     module_order: list[str] | None = None
     module_titles: dict[str, str] | None = None
 
@@ -130,6 +147,7 @@ class LocalCanonicalGraph(BaseModel):
                 self.operators,
                 self.strategies,
                 self.composes,
+                self.formula_graphs,
             )
             digest = hashlib.sha256(canonical.encode()).hexdigest()
             self.ir_hash = f"sha256:{digest}"

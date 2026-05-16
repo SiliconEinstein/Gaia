@@ -875,6 +875,7 @@ def validate_local_graph(graph: LocalCanonicalGraph) -> ValidationResult:
             graph.operators,
             graph.strategies,
             graph.composes,
+            graph.formula_graphs,
         )
         import hashlib
 
