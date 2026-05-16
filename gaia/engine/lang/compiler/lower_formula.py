@@ -20,7 +20,13 @@ from gaia.engine.ir import Operator as IrOperator
 from gaia.engine.ir import Parameter as IrParameter
 from gaia.engine.ir import Strategy as IrStrategy
 from gaia.engine.ir.formalize import formalize_named_strategy
-from gaia.engine.ir.formula import FormulaEdge, FormulaGraph, FormulaNode, formula_node_id
+from gaia.engine.ir.formula import (
+    FormulaEdge,
+    FormulaGraph,
+    FormulaNode,
+    FormulaNodeKind,
+    formula_node_id,
+)
 from gaia.engine.ir.knowledge import KnowledgeType, make_qid
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
@@ -285,7 +291,7 @@ class _FormulaGraphBuilder:
                 FormulaEdge(source=node_id, target=child_id, role="operand", index=index)
             )
 
-    def _add_node(self, kind: str, descriptor: dict[str, Any]) -> str:
+    def _add_node(self, kind: FormulaNodeKind, descriptor: dict[str, Any]) -> str:
         node_id = formula_node_id(descriptor)
         self.nodes.setdefault(node_id, FormulaNode(id=node_id, kind=kind, descriptor=descriptor))
         return node_id

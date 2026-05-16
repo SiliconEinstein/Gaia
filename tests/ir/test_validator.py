@@ -1,5 +1,7 @@
 """Tests for Gaia IR validator."""
 
+from typing import Any
+
 from gaia.engine.ir import (
     Compose,
     CompositeStrategy,
@@ -34,7 +36,7 @@ def _setting(id: str) -> Knowledge:
 
 
 def _local_graph(**kwargs) -> LocalCanonicalGraph:
-    defaults = {
+    defaults: dict[str, Any] = {
         "namespace": "github",
         "package_name": "test",
         "knowledges": [],
@@ -46,7 +48,7 @@ def _local_graph(**kwargs) -> LocalCanonicalGraph:
 
 
 def _local_graph_unchecked(**kwargs) -> LocalCanonicalGraph:
-    defaults = {
+    defaults: dict[str, Any] = {
         "namespace": "github",
         "package_name": "test",
         "scope": "local",

@@ -85,6 +85,9 @@ class FormulaGraph(BaseModel):
 
         node_signatures: dict[str, tuple[str, dict[str, Any]]] = {}
         for node in data.get("nodes", []):
+            node_id: Any
+            kind: Any
+            descriptor: Any
             if isinstance(node, FormulaNode):
                 node_id = node.id
                 kind = node.kind
