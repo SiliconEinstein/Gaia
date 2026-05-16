@@ -83,8 +83,12 @@ class FormulaGraph(BaseModel):
         if not isinstance(data, dict):
             return data
 
+        raw_nodes = data.get("nodes", [])
+        if not isinstance(raw_nodes, list):
+            return data
+
         node_signatures: dict[str, tuple[str, dict[str, Any]]] = {}
-        for node in data.get("nodes", []):
+        for node in raw_nodes:
             node_id: Any
             kind: Any
             descriptor: Any

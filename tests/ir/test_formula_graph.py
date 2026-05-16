@@ -42,6 +42,11 @@ def test_formula_graph_round_trips_json():
     assert round_tripped == graph
 
 
+def test_formula_graph_reports_invalid_nodes_as_validation_error():
+    with pytest.raises(ValidationError, match="nodes"):
+        FormulaGraph(source_claim="github:test::claim", root="fg:missing", nodes=None)
+
+
 def test_formula_graph_rejects_dangling_edge():
     root = FormulaNode(
         id=formula_node_id({"symbol": "P"}),
