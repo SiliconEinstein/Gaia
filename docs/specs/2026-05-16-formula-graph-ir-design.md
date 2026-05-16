@@ -1,10 +1,14 @@
 # Formula Graph IR Foundation
 
-Date: 2026-05-16
-Status: Draft for review
-Scope: Gaia v0.5, minimal canonical formula graph spine
+**Status:** Draft for review
+**Date:** 2026-05-16
+**Branch:** `codex/v05-formula-graph-design`
+**Related PRs:** #632
+**Scope:** Gaia v0.5, minimal canonical formula graph spine
+**Non-goals:** No full theorem prover, no ontology/KG projection, no user
+visualization UI, and no `GaiaGraph` hierarchy migration.
 
-## Goal
+## 1. Goal
 
 Add the smallest durable foundation for formula-level structure in Gaia:
 
@@ -20,7 +24,7 @@ This is a semantic spine, not a new authoring hierarchy. Authors still write
 IR. Later tools consume the IR-backed graph instead of reinterpreting runtime
 Python objects.
 
-## First Principles
+## 2. First Principles
 
 Gaia needs two separations:
 
@@ -45,7 +49,7 @@ Formula graph is not a replacement for the existing ground IR. The current
 by BP and existing propositional logic tools. `FormulaGraph` makes the
 fine-grained formula structure explicit and stable.
 
-## Non-Goals
+## 3. Non-Goals
 
 - No full first-order theorem prover.
 - No ontology system or entity resolution.
@@ -55,8 +59,9 @@ fine-grained formula structure explicit and stable.
   model.
 - No change to the existing finite-domain quantifier grounding semantics.
 - No compile failure for ordinary cross-claim scientific disagreement.
+- No `BoolExpr` / distribution-equation predicate lifting in PR 1.
 
-## Current Code Facts
+## 4. Current Code Facts
 
 The current v0.5 code already has most authoring pieces:
 
@@ -75,7 +80,7 @@ The current v0.5 code already has most authoring pieces:
 The design should reuse the existing formula descriptor and term descriptor
 logic where possible instead of inventing a parallel parser.
 
-## IR Model
+## 5. IR Model
 
 Add a small IR module for formula graphs, for example
 `gaia.engine.ir.formula`:
@@ -90,15 +95,25 @@ class FormulaGraph(BaseModel):
 
 class FormulaNode(BaseModel):
     id: str
-    kind: Literal["atom", "op", "term", "variable", "constant", "binding", "quantifier"]
+    kind: Literal["atom", "op", "quantifier", "term", "variable", "constant"]
     descriptor: dict[str, Any]
-    source_claim: str | None = None
 
 
 class FormulaEdge(BaseModel):
     source: str
     target: str
-    role: str
+    role: Literal[
+        "operand",
+        "antecedent",
+        "consequent",
+        "left",
+        "right",
+        "bound_variable",
+        "body",
+        "arg",
+        "function",
+    ]
+    index: int | None = None
 ```
 
 Extend `LocalCanonicalGraph` with:
@@ -110,7 +125,61 @@ formula_graphs: list[FormulaGraph] = []
 Include `formula_graphs` in canonical JSON and hash computation once the field
 is introduced. The graph is package content, not ephemeral metadata.
 
-### Node Identity
+### 5.1 Node Kinds
+
+`FormulaNode.kind` is intentionally flat in PR 1:
+
+| Kind | Meaning | Descriptor contents |
+|---|---|---|
+| `atom` | Truth-valued atomic formula | `ClaimAtom`, `UserPredicate`, equality, inequality, or other atomic predicate descriptor. |
+| `op` | Boolean connective | One of `and`, `or`, `not`, `implies`, `iff`; descriptor carries child node ids. |
+| `quantifier` | Formula binder | `forall` or `exists`, plus lexical variable descriptor, domain descriptor, and body node id. |
+| `term` | Non-atomic term expression | `FunctionApp`, arithmetic expression, or another compound term shape. |
+| `variable` | Variable term | Variable symbol and domain descriptor. |
+| `constant` | Constant term | Literal value and primitive or domain type descriptor. |
+
+There is no `binding` node in PR 1. Formula bindings remain metadata and
+parameter updates produced by lowering, because a binding is an interpretation
+of a formula pattern rather than a standalone formula node.
+
+### 5.2 Edges and Descriptors
+
+Descriptors are authoritative for identity and hashing. Edges are a
+denormalized traversal view derived from descriptors at build time.
+
+This gives two contracts:
+
+- `FormulaNode.id` is the hash of the canonical descriptor.
+- `FormulaGraph.edges` must agree with the child ids and roles recorded in the
+  descriptors. If they disagree, structural validation fails.
+
+Consumers may use edges for traversal and visualization, but must not treat
+edges as an independent source of formula identity.
+
+Legal edge roles in PR 1:
+
+| Source shape | Role values |
+|---|---|
+| `Land` / `Lor` | `role="operand"`, `index=0..n-1` |
+| `Lnot` | `role="operand"`, `index=None` |
+| `Implies` | `antecedent`, `consequent` |
+| `Iff` | `left`, `right` |
+| `Equals`, `NotEquals`, inequalities | `left`, `right` |
+| `Forall` / `Exists` | `bound_variable`, `body` |
+| `UserPredicate` arguments | `role="arg"`, `index=0..n-1` |
+| `FunctionApp` | `function`; `role="arg"`, `index=0..n-1` |
+
+### 5.3 Source Claim Provenance
+
+`FormulaGraph.source_claim` is the provenance anchor for every node stored in
+that claim-scoped graph. `FormulaNode` does not carry its own `source_claim` in
+PR 1.
+
+Identical semantic nodes may appear in multiple claim-scoped formula graphs
+with the same node id and descriptor. The enclosing graph supplies the local
+claim provenance.
+
+### 5.4 Node Identity
 
 Formula node identity should be content-addressed from canonical descriptors:
 
@@ -124,10 +193,17 @@ multiple formulas. The `FormulaGraph` record remains anchored to the source
 claim that used the atom.
 
 For connective and quantifier nodes, the descriptor includes the operator kind
-and child ids or normalized child descriptors. This makes repeated sub-formulas
-deduplicate inside the same graph and gives future diagnostics stable handles.
+and child ids. This makes repeated sub-formulas deduplicate inside the same
+graph and gives future diagnostics stable handles.
 
-## Compiler Boundary
+Node ids are lexical in PR 1. Bound-variable renaming such as
+`forall(x, P(x))` versus `forall(y, P(y))` yields distinct node ids.
+Alpha-normalization is future work.
+
+If two different descriptors produce the same short node id, structural
+validation must raise instead of merging them.
+
+## 6. Compiler Boundary
 
 Extend the formula lowering pipeline conceptually as:
 
@@ -176,7 +252,7 @@ formula_node_id(descriptor) -> str
 Lowering keeps the current `Knowledge`, `Operator`, `Strategy`, metadata, and
 parameter behavior. The first PR should avoid broad BP behavior changes.
 
-### Formula Shapes
+### 6.1 Formula Shapes
 
 Initial graph support should cover the current formula lowering surface:
 
@@ -195,10 +271,15 @@ existing error. The formula graph may still be buildable for inspection later,
 but this first slice does not need partial compile artifacts after a lowering
 failure.
 
-### Helper Claim Identity
+`BoolExpr` formulas from `gaia.engine.lang.dsl.bool_expr`, such as
+distribution-equation predicates, are out of scope for PR 1. They remain in the
+existing distribution diagnostics path and are not lifted into `FormulaGraph`.
+A later PR may add a `distribution_predicate` atom descriptor shape.
+
+### 6.2 Helper Claim Identity
 
 Generated formula helper claims should derive their ids from canonical
-descriptors where possible.
+descriptors where possible, but they remain source-claim scoped.
 
 Example:
 
@@ -210,18 +291,50 @@ Expected first-slice behavior:
 
 - one canonical predicate atom node for `P(x)`;
 - the conjunction has two operand edges to that same atom node;
-- generated helper claims do not treat the two identical atoms as independent
-  semantic atoms.
+- generated helper claims inside that source formula do not treat the two
+  identical atoms as independent semantic atoms.
 
 This fixes the current duplicate-atom problem without changing the public
 authoring surface.
 
-## Validation Semantics
+Cross-claim helper `Knowledge` records are not shared in PR 1, even when their
+formula atom node ids match. The generated helper claim id should include both
+the source claim id and the canonical formula node id. Its
+`metadata["source_claim"]` remains the enclosing source claim. Cross-claim
+identity lives in the formula node id, not in shared helper `Knowledge`.
+
+## 7. Hash and Compatibility
+
+Adding `formula_graphs` to `LocalCanonicalGraph` and including it in
+`_canonical_json` is an intentional IR hash break for v0.5.
+
+The break has two causes:
+
+1. `LocalCanonicalGraph` gains a new package-content key,
+   `formula_graphs`. The key participates in the canonical JSON even when the
+   value is an empty list.
+2. Formula helper claim ids for formula-bearing packages become descriptor
+   based and source-claim scoped instead of counter salted.
+
+Consequences:
+
+- existing `.gaia/ir_hash` files go stale after the implementation PR and
+  packages need recompilation;
+- formula-bearing packages with repeated equivalent atoms may emit fewer helper
+  nodes within a source formula;
+- packages without formulas still get a new `ir_hash` because the canonical
+  graph schema changes.
+
+This is acceptable for the v0.5 pre-release line. The implementation should
+document the recompile requirement in its PR and avoid a versioned
+canonicalization branch unless compatibility evidence requires it.
+
+## 8. Validation Semantics
 
 Formula logic is hard logic, but Gaia packages may contain uncertain,
 competing, or contradictory claims. Validation must distinguish three levels.
 
-### 1. Structural Validation
+### 8.1 Structural Validation
 
 These are hard failures in every profile:
 
@@ -233,7 +346,7 @@ These are hard failures in every profile:
 - Formula descriptors that reference claim QIDs must reference existing
   knowledges.
 
-### 2. Formula Semantic Validation
+### 8.2 Formula Semantic Validation
 
 These are about one formula graph as a hard logical expression:
 
@@ -242,14 +355,15 @@ These are about one formula graph as a hard logical expression:
 - `P and P` is redundant.
 
 Unsatisfiable formulas should be treated as errors in strict or publish
-profiles. In development profiles they may be reported as clear diagnostics so
-the author can inspect the graph, but they must not silently pass.
+gates once those gates are concretely wired. Because current v0.5 does not have
+a formal `--profile {dev,strict,publish}` API, PR 1 should emit clear
+non-fatal diagnostics for formula unsatisfiability and leave fatal gate
+integration to PR 2.
 
 Tautologies and redundancies are not contradictions, but they are usually poor
-modeling signals for claims with priors. They should start as diagnostics, with
-strict-profile behavior decided after real packages exercise the feature.
+modeling signals for claims with priors. They should start as diagnostics.
 
-### 3. Theory-Level Consistency Diagnostics
+### 8.3 Theory-Level Consistency Diagnostics
 
 These are about multiple claims, operators, and formula graphs together:
 
@@ -263,7 +377,7 @@ contradiction relations. The role of theory diagnostics is to reveal the
 conflict and identify the responsible claims, not to forbid scientific
 disagreement.
 
-## Logic and Future User APIs
+## 9. Logic and Future User APIs
 
 The first implementation should leave stable hooks for later work:
 
@@ -280,6 +394,12 @@ metadata:
 - formula-to-lowered-operator mismatch;
 - theory-level entailment and contradiction reports.
 
+PR 2 diagnostics should remain propositional unless a separate SMT or
+first-order backend is designed. `UserPredicate`, equality, and inequality
+atoms are opaque atoms for the initial solver. First-order reasoning such as
+alpha-equivalent quantifier normalization or lifted `forall` contradiction
+checking is out of scope.
+
 User-facing consumption should also be IR-backed:
 
 ```bash
@@ -295,7 +415,7 @@ inspect_formula_graph(claim_or_qid)
 These APIs are not required in the first PR, but the IR design should not block
 them.
 
-## Knowledge Graph Projection
+## 10. Knowledge Graph Projection
 
 Formula graph can later drive a provenance-aware knowledge graph projection:
 
@@ -317,7 +437,7 @@ carry at least:
 KG projection is explicitly a later layer. FormulaGraph remains the semantic
 source; KG is a query and navigation projection.
 
-## Testing
+## 11. Testing
 
 The first implementation should add focused tests without rewriting the
 existing formula lowering suite.
@@ -336,11 +456,18 @@ Required test coverage:
    source claims, and descriptor/id mismatches.
 6. Formula semantic validation reports unsatisfiable single-formula graphs such
    as `P and not P`.
-7. Existing BP and formula lowering tests continue to pass.
+7. Compiling the same source twice yields identical formula node ids and
+   identical `FormulaGraph` JSON.
+8. `FormulaGraph` round-trips through JSON serialization and validation.
+9. `formula_graphs` participates in `ir_hash`: changing a formula atom changes
+   the package hash.
+10. Cross-graph atom identity: two source claims containing the same `P(x)` get
+    matching formula atom node ids in their respective graphs.
+11. Existing BP and formula lowering tests continue to pass.
 
-## Suggested PR Sequence
+## 12. Suggested PR Sequence
 
-### PR 1: Canonical FormulaGraph IR
+### 12.1 PR 1: Canonical FormulaGraph IR
 
 - Add `FormulaGraph`, `FormulaNode`, and `FormulaEdge` IR models.
 - Add `LocalCanonicalGraph.formula_graphs`.
@@ -348,24 +475,28 @@ Required test coverage:
 - Use canonical descriptors for atom identity.
 - Add structural validation and focused tests.
 
-### PR 2: Formula Logic Diagnostics
+### 12.2 PR 2: Formula Logic Diagnostics
 
 - Move or expose reusable proposition-building logic under
   `gaia.engine.ir.logic`.
 - Add single-formula unsatisfiable/tautology/redundancy diagnostics.
-- Add strict/publish profile behavior for unsatisfiable formulas.
+- Define the concrete fatal gate for unsatisfiable formulas. This may be
+  `gaia build check` strict mode, package publish/register, or a new explicit
+  flag depending on the CLI surface available at implementation time.
+- Keep solver scope propositional unless a separate first-order/SMT design has
+  landed.
 
-### PR 3: User Inspection
+### 12.3 PR 3: User Inspection
 
 - Add CLI and Python APIs for inspecting formula graphs by claim label or QID.
 - Keep output textual/JSON first; visualization can come later.
 
-### PR 4: Knowledge Graph Projection
+### 12.4 PR 4: Knowledge Graph Projection
 
 - Add provenance-aware KG projection from canonical formula graphs.
 - Keep ontology and entity-resolution policy explicit and separable.
 
-## Implementation Defaults
+## 13. Implementation Defaults
 
 Use these defaults unless implementation reveals a direct compatibility problem:
 
@@ -375,6 +506,6 @@ Use these defaults unless implementation reveals a direct compatibility problem:
   nodes may appear in multiple graphs with the same node id and descriptor.
   This keeps local inspection simple while preserving cross-claim identity.
 - Default development compile emits unsatisfiable-formula diagnostics but does
-  not fail solely for formula unsatisfiability. Strict and publish profiles
-  fail on unsatisfiable single-formula graphs.
+  not fail solely for formula unsatisfiability in PR 1. PR 2 defines the
+  concrete fatal gate for unsatisfiable single-formula graphs.
 - Structural formula graph validation fails in every profile.
