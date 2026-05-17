@@ -29,37 +29,55 @@
 
 ## 2. 第二层选择：选哪个 reasoning verb
 
-Gaia v0.5 的 reasoning verb 沿一条**客观 likelihood ↔ 主观 likelihood** 的谱系排开。选错就把"应该让数据说话"的关系交给作者主观赋值，或反过来。
+Gaia v0.5 的 reasoning verb **不是**沿一条单维谱系排开。它们是**三类完全不同的关系**，分别对应不同的 BP lowering 形态：
 
-| verb | likelihood 来源 | 何时用 |
-|---|---|---|
-| `derive` | 逻辑/数学必然（IMPLICATION potential，接近确定性） | 已知前提**逻辑上**蕴含结论（数学定理、定义性陈述、严格推演） |
-| **`bayes.likelihood`** | **distribution 函数客观计算** | 数值测量 + 模型比较；从 `Distribution` + `observe(dist, value, error)` 自动出 likelihood ratio |
-| `infer(p_e_given_h, p_e_given_not_h)` | 作者主观给的 likelihood ratio | 没有可计算 likelihood 的证据（流行病学关联、案例报告、专家估计） |
-| `associate(p_a_given_b, p_b_given_a)` | 作者主观给的对称关联 | 方向不明的相关 |
-| `observe` | pin 到 `1 − CROMWELL_EPS`（已观察为真） | 已观察事实进入 IR |
-| `equal` / `contradict` / `equivalence` / `complement` | 关系硬约束（确定性 potential） | A ≡ B、A ⊥ B 等关系断言 |
+| 关系类别 | verb | lowering 形态 | 核心承诺 |
+|---|---|---|---|
+| **(A) 硬逻辑 / 关系约束** | `derive` / `equal` / `contradict` / `equivalence` / `complement` | deterministic potential（IMPLICATION 真值表、relation hard constraint） | 这是**逻辑必然**或**关系断言**，不是概率证据。BP 上接近确定性。 |
+| **(B) 客观 likelihood** | `bayes.likelihood`（+ `bayes.model` + `Distribution`） | 由分布函数算出的连续 CPT | likelihood 数值**从分布函数客观计算**，作者只选 distribution + 参数，不写主观 likelihood ratio |
+| **(C) 主观 likelihood** | `infer` / `associate` | 参数化 SOFT_ENTAILMENT / PAIRWISE_POTENTIAL，作者填 (p_e_given_h, p_e_given_not_h) 等 | likelihood 是**作者主观给**的（看法、专家估计、文献定性总结） |
+
+横切这三类、独立维度的辅助动作：
+
+- `observe` — 把 claim（或 distribution 的某个 measurement event）pin 到 `1 − CROMWELL_EPS`。它表达"已观察到为真"，不属于上面三类，常与 (B) 配套使用（`observe(dist, value, error)`）。
+
+> **关键 distinction（最常被混淆）**
+>
+> - **(A) 硬逻辑** 不是 likelihood — 它的 potential 是 0/1 真值表，不带概率参数。`A → B` 在 BP 上意思是"`A=1, B=0` 这一格被禁掉"，不是"A 让 B 多 likely"。
+> - **(B) 客观 likelihood** 和 **(C) 主观 likelihood** 都是概率关系，区别在 likelihood 数字**从哪来**：(B) 从 `Distribution.pmf/pdf(value)` 算；(C) 从作者笔下来。
+> - 把"方向性的概率关系"写成 (A) 硬逻辑 → 见 §7.1（reverse-direction `derive` bug）。
+> - 把"应该走 (B) 客观"的数值测量写成 (C) 主观 → 见 §3。
 
 决策树：
 
 ```text
 我有一个事实 / 关系要写。
-├── 是逻辑/数学必然吗？
-│   └── 是 → derive
-├── 是带噪声的数值测量 / 概率分布预测吗？
-│   └── 是 → Distribution + observe(dist, value, error) + bayes.model + bayes.likelihood   (§4)
-├── 是已观察到的命题（无数值）？
+├── 这是 *已观察* 的事实吗？（无推理结构，也不是分布测量）
 │   └── 是 → observe(claim)
-├── 是带 likelihood ratio 的离散证据（无可计算分布）？
-│   └── 是 → infer(evidence, hypothesis, p_e_given_h, p_e_given_not_h)
-├── 是对称关联（方向不明）？
-│   └── 是 → associate
-├── 是关系断言（A ≡ B 等）？
-│   └── 是 → equal / contradict / equivalence / complement
+│
+├── 它是 (A) 硬逻辑 / 关系约束吗？
+│   ├── 前提逻辑/数学上必然推出结论 → derive(conclusion, given=[premise])
+│   ├── 两个命题等价                  → equal(A, B) / equivalence(A, B)
+│   └── 两个命题互斥                  → contradict(A, B) / complement(A, B)
+│
+├── 它是 (B) 客观 likelihood — 数值测量 + 概率分布预测吗?
+│   └── 是 → Distribution + bayes.model + observe(dist, value, error) + bayes.likelihood
+│            （详见 §3）
+│
+├── 它是 (C) 主观 likelihood — 作者要写一个 likelihood ratio 吗?
+│   ├── 方向性证据（"E 是 H 的证据"，作者给 P(E|H), P(E|¬H)）
+│   │      → infer(evidence=E, hypothesis=H, p_e_given_h=..., p_e_given_not_h=...)
+│   └── 对称关联（方向不明，作者给 P(A|B), P(B|A)）
+│           → associate(A, B, p_a_given_b=..., p_b_given_a=...)
+│
 └── 都不是 → 写成 claim()，并用 register_prior 显式给先验
 ```
 
-> **核心原则**：**选 `bayes.*` 就要对得起客观性承诺；选 `infer` / `associate` 就要对得起 justification**。不要把 `bayes` 当成另一种 `register_prior` 来用——见 §6。
+> **核心原则**：**先确定关系类别 (A/B/C)，再选具体 verb**。三类各有承诺：
+>
+> - 选 (A) 就要对得起"逻辑必然 / 关系断言"——把方向性的概率证据写成 (A) 是 §7.1 bug。
+> - 选 (B) 就要对得起"客观性"——把要检验的观测数据来源混进 distribution 参数 = double-dipping，见 §5。
+> - 选 (C) 就要对得起 `justification`——主观 likelihood ratio 必须能向审查者交代来源。
 
 ## 3. 数值测量：用 `bayes` 模块，不要用 formula binding 代替
 
@@ -103,9 +121,9 @@ infer(evidence=data_claim, hypothesis=h_effective,
 错在哪：
 
 1. **绕过了 bayes 模块的整套 likelihood machinery**——distribution 函数会从 `(mu, sd)` 自动算出每个假设下 observed value 的 likelihood，作者不需要主观给 `p_e_given_h`。
-2. **把 `infer` 的主观 likelihood 用在了应该走客观计算的场景**——参考 §2 谱系，这是把"客观"档拉到"主观"档。
+2. **把 (C) 主观 likelihood 用在了应该走 (B) 客观 likelihood 的场景**——见 §2。
 
-什么时候**确实**该用 `infer`？流行病学关联（"RR 0.86, CI 0.79–0.92" 是一个 meta-analysis 的总结，不是某个 likelihood 函数能直接算出来的统计量）、案例报告、专家定性证据。这时主观 likelihood ratio 是诚实的。
+什么时候**确实**该用 (C) `infer`？流行病学关联（"RR 0.86, CI 0.79–0.92" 是一个 meta-analysis 的总结，不是某个 likelihood 函数能直接算出来的统计量）、案例报告、专家定性证据。这时主观 likelihood ratio 是诚实的——你把"我作为作者认为这是有力证据"显式量化为 `(p_e_given_h, p_e_given_not_h)` 写出来，并在 `justification` 里说明为什么这么填。
 
 > 详见 [Bayes Semantics § Hypothesis comparison surface](../foundations/gaia-lang/bayes.md#hypothesis-comparison-surface-existing-v05)。
 
@@ -198,7 +216,7 @@ belief 异常偏离 → 检查顺序
 
 **症状**：单个 claim 的 belief 异常贴近 0 或 1，超出证据强度应该提供的更新幅度。
 
-**常见原因**：把"A 是 B 的证据"（应该用 `infer`）写成"A 蕴含 B"（用了 `derive`），或者 `derive` 方向反了（写成 `derive(cause, given=[effect])` 而不是 `derive(effect, given=[cause])`）。`derive` 在 v0.5 lower 成接近确定性的 IMPLICATION potential，方向一旦反就让 BP 把 belief 强 push 过去。
+**常见原因**：把本应是 (C) 主观 likelihood 的证据关系（用 `infer`）写成 (A) 硬逻辑（用 `derive`）；或者 `derive` 方向反了（写成 `derive(cause, given=[effect])` 而不是 `derive(effect, given=[cause])`）。这是 §2 三类关系最常被踩混的边界——(A) 在 v0.5 lower 成接近确定性的 IMPLICATION potential，方向一旦反或者本来就不该是硬逻辑，BP 就会把 belief 强 push 过去。
 
 **错误写法**（不要写）：
 
