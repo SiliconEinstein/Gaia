@@ -114,6 +114,32 @@ def test_compare_joint_over_collects_unavailable_methods():
     assert junction_tree.probabilities == pytest.approx(exact.probabilities)
 
 
+def test_junction_tree_no_factor_singleton_query_uses_singleton_scope():
+    joint = joint_over(_two_variable_graph(), ["A"], method="junction_tree")
+
+    assert joint.method == "junction_tree"
+    assert joint.is_exact is True
+    assert joint.probabilities == pytest.approx([0.3, 0.7])
+    assert joint.diagnostics["treewidth"] == 0
+    assert joint.diagnostics["clique_size"] == 1
+    assert joint.diagnostics["source_clique"] == ["A"]
+
+
+def test_junction_tree_no_factor_joint_uses_independent_singleton_scopes():
+    graph = FactorGraph()
+    variables = [f"V{i}" for i in range(12)]
+    for variable in variables:
+        graph.add_variable(variable, 0.5)
+
+    joint = joint_over(graph, ["V0", "V11"], method="junction_tree")
+
+    assert joint.probabilities == pytest.approx([0.25, 0.25, 0.25, 0.25])
+    assert joint.diagnostics["treewidth"] == 0
+    assert joint.diagnostics["clique_size"] == 1
+    assert joint.diagnostics["source_cliques"] == [["V0"], ["V11"]]
+    assert "source_clique" not in joint.diagnostics
+
+
 def test_unknown_variable_is_collected_as_unavailable():
     results = compare_joint_over(_two_variable_graph(), ["A", "missing"], methods=("exact",))
 
@@ -150,6 +176,19 @@ def test_unexpected_exact_provider_errors_propagate(monkeypatch):
 
     with pytest.raises(ValueError, match="internal exact provider bug"):
         joint_over(_two_variable_graph(), ["A", "B"], method="exact")
+
+
+def test_unexpected_junction_tree_provider_errors_propagate(monkeypatch):
+    def raise_unexpected_value_error(_graph):
+        raise ValueError("internal calibration bug")
+
+    monkeypatch.setattr(
+        "gaia.engine.bp.joint_query.calibrate_junction_tree",
+        raise_unexpected_value_error,
+    )
+
+    with pytest.raises(ValueError, match="internal calibration bug"):
+        joint_over(_two_variable_graph(), ["A"], method="junction_tree")
 
 
 def test_mean_field_on_entailment_graph_returns_normalized_joint():

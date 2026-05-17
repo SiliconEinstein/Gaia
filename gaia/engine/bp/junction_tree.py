@@ -658,27 +658,24 @@ def calibrate_junction_tree(graph: FactorGraph) -> JunctionTreeCalibration:
             treewidth=0,
         )
     if not graph.factors:
-        clique = frozenset(graph.variables.keys())
-        variables = sorted(clique)
-        table: PotentialTable = {}
-        for vals in cartesian_product((0, 1), repeat=len(variables)):
-            probability = 1.0
-            for variable, value in zip(variables, vals, strict=True):
-                if variable in graph.hard_evidence:
-                    belief = (
-                        (1.0 - CROMWELL_EPS)
-                        if graph.hard_evidence[variable] == 1
-                        else CROMWELL_EPS
-                    )
-                else:
-                    belief = graph.unary_factors.get(variable, 0.5)
-                probability *= belief if value == 1 else (1.0 - belief)
-            table[vals] = probability
+        cliques = [frozenset([variable]) for variable in sorted(graph.variables)]
+        clique_var_lists = [[variable] for variable in sorted(graph.variables)]
+        calibrated: list[PotentialTable] = []
+        for variable in sorted(graph.variables):
+            if variable in graph.hard_evidence:
+                belief = (
+                    (1.0 - CROMWELL_EPS)
+                    if graph.hard_evidence[variable] == 1
+                    else CROMWELL_EPS
+                )
+            else:
+                belief = graph.unary_factors.get(variable, 0.5)
+            calibrated.append({(0,): 1.0 - belief, (1,): belief})
         return JunctionTreeCalibration(
-            cliques=[clique],
-            clique_var_lists=[variables],
-            calibrated=[table],
-            treewidth=max(len(variables) - 1, 0),
+            cliques=cliques,
+            clique_var_lists=clique_var_lists,
+            calibrated=calibrated,
+            treewidth=0,
         )
 
     moral_adj = _build_moral_graph(graph)

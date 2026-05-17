@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from gaia.engine.bp.exact import exact_joint_over
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph
-from gaia.engine.bp.junction_tree import calibrate_junction_tree
+from gaia.engine.bp.junction_tree import JunctionTreeCalibration, calibrate_junction_tree
 from gaia.engine.bp.mean_field import MeanFieldVI
 
 JointQueryMethod = Literal["exact", "junction_tree", "trw_bp", "mean_field"]
@@ -188,15 +188,7 @@ def _exact_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribu
 
 
 def _junction_tree_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribution:
-    try:
-        calibration = calibrate_junction_tree(graph)
-    except (ValueError, RuntimeError) as error:
-        raise JointQueryUnavailableError(
-            "junction_tree",
-            variables,
-            str(error),
-            diagnostics={"exception": type(error).__name__},
-        ) from error
+    calibration = calibrate_junction_tree(graph)
 
     requested = set(variables)
     for clique, var_list, table in zip(
@@ -220,6 +212,9 @@ def _junction_tree_joint_over(graph: FactorGraph, variables: list[str]) -> Joint
                 },
             )
 
+    if not graph.factors:
+        return _independent_junction_tree_joint_over(calibration, variables)
+
     raise JointQueryUnavailableError(
         "junction_tree",
         variables,
@@ -228,6 +223,66 @@ def _junction_tree_joint_over(graph: FactorGraph, variables: list[str]) -> Joint
             "treewidth": calibration.treewidth,
             "available_cliques": [sorted(clique) for clique in calibration.cliques],
         },
+    )
+
+
+def _independent_junction_tree_joint_over(
+    calibration: JunctionTreeCalibration,
+    variables: list[str],
+) -> JointDistribution:
+    singleton_tables = {
+        var_list[0]: table
+        for clique, var_list, table in zip(
+            calibration.cliques,
+            calibration.clique_var_lists,
+            calibration.calibrated,
+            strict=True,
+        )
+        if len(clique) == 1 and len(var_list) == 1
+    }
+    missing = [variable for variable in variables if variable not in singleton_tables]
+    if missing:
+        raise JointQueryUnavailableError(
+            "junction_tree",
+            variables,
+            "requested variables are not contained in calibrated singleton priors",
+            diagnostics={
+                "treewidth": calibration.treewidth,
+                "missing": missing,
+                "available_cliques": [sorted(clique) for clique in calibration.cliques],
+            },
+        )
+
+    probabilities: list[float] = []
+    for assignment_index in range(1 << len(variables)):
+        probability = 1.0
+        for bit, variable in enumerate(variables):
+            table = singleton_tables[variable]
+            value = (assignment_index >> bit) & 1
+            probability *= float(table[(value,)])
+        probabilities.append(probability)
+
+    total = sum(probabilities)
+    if total <= 0.0:
+        raise ValueError("independent joint table has zero total mass")
+    probabilities = [probability / total for probability in probabilities]
+
+    diagnostics: dict[str, Any] = {
+        "treewidth": calibration.treewidth,
+        "clique_size": 1,
+        "source_cliques": [[variable] for variable in variables],
+    }
+    if len(variables) == 1:
+        diagnostics["source_clique"] = [variables[0]]
+        diagnostics.pop("source_cliques")
+
+    return JointDistribution(
+        variables=variables,
+        probabilities=probabilities,
+        method="junction_tree",
+        is_exact=True,
+        basis="calibrated_clique_marginal",
+        diagnostics=diagnostics,
     )
 
 
