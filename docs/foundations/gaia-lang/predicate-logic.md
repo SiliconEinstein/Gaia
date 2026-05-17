@@ -716,7 +716,7 @@ treats them as the same node.
 | Boolean structure over existing claims | `claim(formula=land(...))`, `implies(...)`, etc. |
 | A finite-domain universal or existential claim | `claim(formula=forall(...))` / `claim(formula=exists(...))` |
 | A reviewable derivation between claims | `derive(conclusion, given=..., rationale=...)` |
-| A probabilistic likelihood relation | `infer(...)` or `gaia.engine.lang.bayes` |
+| A probabilistic likelihood relation | `infer(...)` or `gaia.engine.bayes` |
 | A hypothesized relation not ready for semantics | `candidate_relation(claims=[...], pattern=...)` |
 
 Do not hide semantic structure in prose if the compiler or reviewer needs to

@@ -10,13 +10,21 @@ Today, no system tracks this. Scientists do it in their heads, in literature rev
 
 ## What Gaia Does
 
-Gaia reads scientific papers and extracts their knowledge as a structured graph. Each claim, each experimental setup, each reasoning step becomes a node or link in the graph. Every claim carries a number between 0 and 1 representing how much we should trust it, given all the evidence in the system.
+Gaia represents scientific knowledge as a structured graph and computes how trust flows through it. Each claim, each experimental setup, each reasoning step is a node or a link. Every claim carries a posterior between 0 and 1 representing how much we should trust it given the evidence currently in the system.
 
-When new evidence arrives -- a new paper, a new experiment, a contradiction -- Gaia automatically recalculates trust across the entire graph. Claims that were well-supported might drop in credibility. Claims that gain new evidence rise. The whole graph stays internally consistent without anyone having to manually trace every dependency.
+When authors run inference after adding new evidence — a package update, a new experiment, a contradiction — Gaia recomputes beliefs for the local package and, when requested, installed dependency graphs. Claims that lose support drop in credibility; claims that gain new evidence rise. Global corpus-wide recomputation belongs to the registry / LKM layer, not to a hidden automatic step in the local CLI.
 
 ## How It Works
 
-Authors (or AI agents) write knowledge packages -- structured descriptions of a paper's claims, experimental settings, and reasoning chains. Gaia compiles each package into a factor graph, a mathematical structure that encodes how claims support or contradict each other. It then runs belief propagation, an algorithm that passes messages between nodes until the graph reaches a stable set of beliefs. When a new package enters the system, beliefs update automatically across every connected claim.
+Authors (or AI agents) write **knowledge packages** — small structured descriptions of a paper's claims, settings, and reasoning chains. They use a Python authoring DSL (`gaia.engine.lang`) and the `gaia` command-line toolchain:
+
+1. `gaia build init <name>-gaia` scaffolds a package.
+2. The author writes `claim(...)`, `note(...)`, `derive(...)`, `infer(...)`, relation verbs (`contradict`, `equal`, `exclusive`), and propositional formulas in Python.
+3. `gaia build compile` lowers the DSL into Gaia IR (`Knowledge / Operator / Strategy / Compose` records).
+4. `gaia run infer` lowers the IR into a factor graph and runs belief propagation locally.
+5. `gaia pkg register` checks the release artifacts and prepares or writes git-backed registry metadata, where downstream packages can depend on exported claims.
+
+Knowledge extraction itself is **author-side or agent-side work**, not an automated pipeline inside Gaia. Gaia's contribution is the **executable contract** (compile, validate, infer, gate, register) that turns those declarations into a graph whose beliefs are reproducible and machine-checkable.
 
 ## What Gaia Is NOT
 
@@ -24,7 +32,7 @@ Authors (or AI agents) write knowledge packages -- structured descriptions of a 
 - **Not a chatbot.** It does not generate text or answer questions in natural language.
 - **Not a citation manager.** It does not track who cited whom -- it tracks which claims depend on which evidence and how much each claim should be trusted.
 
-Gaia is a **reasoning engine for scientific knowledge**.
+Gaia is a **reasoning engine for scientific knowledge**, with a Python authoring DSL on the input side and belief propagation on the output side.
 
 ## Key Concepts
 

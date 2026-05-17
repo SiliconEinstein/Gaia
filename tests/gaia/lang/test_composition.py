@@ -1,9 +1,9 @@
+import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
     Claim,
     Nat,
     Variable,
     associate,
-    bayes,
     candidate_relation,
     compose,
     compute,

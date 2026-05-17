@@ -16,9 +16,9 @@ class Deferred:
     label: str | None = "theta_var"
 
 
-def test_public_distribution_surface_imports_from_gaia_lang_namespace():
-    from gaia.engine.lang import bayes
-    from gaia.engine.lang.bayes import BetaBinomial, Binomial, Normal
+def test_public_distribution_surface_imports_from_gaia_bayes_namespace():
+    import gaia.engine.bayes as bayes
+    from gaia.engine.bayes import BetaBinomial, Binomial, Normal
 
     required = {
         "Beta",
@@ -127,7 +127,7 @@ def test_public_distribution_surface_imports_from_gaia_lang_namespace():
     ],
 )
 def test_distribution_values_match_scipy(dist, kind, method, x, expected):
-    from gaia.engine.lang import bayes
+    import gaia.engine.bayes as bayes
 
     d = dist(bayes)
     assert d.kind == kind
@@ -135,8 +135,8 @@ def test_distribution_values_match_scipy(dist, kind, method, x, expected):
 
 
 def test_deferred_distribution_params_are_audit_descriptors_not_binding_keys():
-    from gaia.engine.lang import bayes
-    from gaia.engine.lang.bayes import UnresolvedParameterError
+    import gaia.engine.bayes as bayes
+    from gaia.engine.bayes import UnresolvedParameterError
 
     theta = Deferred("theta")
     d = bayes.Binomial(n=10, p=theta)
@@ -154,7 +154,7 @@ def test_deferred_distribution_params_are_audit_descriptors_not_binding_keys():
 
 
 def test_distribution_validation_rejects_invalid_parameters():
-    from gaia.engine.lang import bayes
+    import gaia.engine.bayes as bayes
 
     with pytest.raises(ValueError, match=r"Binomial.*p.*\[0, 1\]"):
         bayes.Binomial(n=10, p=1.1)
@@ -179,7 +179,7 @@ def test_betabinomial_uniform_alpha_beta_equals_one_over_n_plus_one():
     ``k ∈ [0, n]``. Pin the invariant here so future scipy / numerical
     changes cannot silently break the example's stated derivation.
     """
-    from gaia.engine.lang import bayes
+    import gaia.engine.bayes as bayes
 
     for n in (10, 100, 395):
         bb = bayes.BetaBinomial(n=n, alpha=1.0, beta=1.0)

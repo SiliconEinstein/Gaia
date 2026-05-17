@@ -10,6 +10,8 @@ from gaia.cli._registry import RegistryVersion, _fetch_file, fetch_file_optional
 from gaia.cli.main import app
 from gaia.engine.packaging import GaiaPackagingError
 
+pytestmark = pytest.mark.pr_gate
+
 runner = CliRunner()
 
 MOCK_VERSION = RegistryVersion(

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
+import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
     Probability,
     Variable,
     associate,
-    bayes,
     claim,
     contradict,
     depends_on,

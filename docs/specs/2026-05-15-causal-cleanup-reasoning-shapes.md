@@ -284,7 +284,7 @@ Implementation should audit at least these dispatch-sensitive areas:
 - action registration and lowering in `gaia/engine/lang/compiler/compile.py`;
 - role projection in `gaia/engine/lang/runtime/roles.py`;
 - compose input/output inference in `gaia/engine/lang/runtime/composition.py`;
-- Bayes lowering in `gaia/engine/lang/bayes/compiler/lower.py`;
+- Bayes lowering in `gaia/engine/bayes/compiler/lower.py`;
 - inquiry/check code that reads action labels, warrants, or review targets.
 
 ### 4.2 Bayes opt-in records
@@ -452,7 +452,7 @@ python -m pytest \
   tests/gaia/lang/test_decompose.py \
   tests/gaia/lang/test_formula_sugar.py \
   tests/gaia/lang/test_formula_lowering.py \
-  tests/gaia/lang/bayes/test_runtime_and_lowering.py \
+  tests/gaia/bayes/test_runtime_and_lowering.py \
   -q
 ```
 

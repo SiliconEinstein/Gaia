@@ -110,6 +110,19 @@ message of the form:
 > was never public API and is removed in alpha 0. Update imports to
 > 'gaia.engine.<sub>.<symbol>'.`
 
+### Bayes peer-module move
+
+The Bayes authoring surface is now a peer engine module. v0.5 was not released
+with the earlier `gaia.engine.lang.bayes` development path, so there is no
+compatibility alias; update Bayes imports to the canonical path:
+
+| Old | New |
+|---|---|
+| `from gaia.engine.lang import bayes` | `import gaia.engine.bayes as bayes` |
+| `from gaia.engine.lang.bayes import X` | `from gaia.engine.bayes import X` |
+| `from gaia.engine.lang.bayes.compiler import X` | `from gaia.engine.bayes.compiler import X` |
+| `from gaia.engine.lang.bayes.verbs import X` | `from gaia.engine.bayes.dsl import X` |
+
 ### Symbol-level moves (12)
 
 Some CLI-internal helpers were promoted into `gaia.engine.*` so the engine

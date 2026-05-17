@@ -217,8 +217,28 @@ Parameterization 只管 claim prior；Strategy 概率参数留在 IR 的 Strateg
   claim 处理；但 relation/decompose/infer 生成的 helper 通常是 review target
   或结构变量，不应获得外部 prior。
 
+## 与 IR schema 版本的关系
+
+参数化层附加在某个 IR graph 上；相邻的 LKM / 下游消费者通过
+`gaia._meta.IR_SCHEMA`（`"ir-vN+<hash>"`）和 `ALLOWED_IR_VERSIONS` 来校验
+IR schema 是否兼容：
+
+```python
+from gaia._meta import IR_SCHEMA, IR_SCHEMA_VERSION, ALLOWED_IR_VERSIONS, check_ir_compat
+check_ir_compat("ir-v1+...")  # raises IncompatibleIRError if version prefix not allowed
+```
+
+`IR_SCHEMA_VERSION` 是手动 bump 的 `ir-vN` 前缀；其后缀 hash 由所有 IR
+Pydantic model 的 JSON schema 派生，pre-push 钩子
+`scripts/check_ir_schema_bump.py` 在 schema 形状漂移时强制要求 bump
+`IR_SCHEMA_VERSION` 与 `IR_SCHEMA_SNAPSHOT_HASH`。这跟参数化记录的 schema
+是同一个机制，因此 `PriorRecord` / `ParameterizationSource` 的字段变更也会
+触发同样的 bump 检查。
+
 ## 源代码
 
+- `gaia/_meta.py` — `IR_SCHEMA`, `IR_SCHEMA_VERSION`, `ALLOWED_IR_VERSIONS`, `check_ir_compat`
+- `scripts/check_ir_schema_bump.py` — pre-push schema-bump 强制检查
 - `gaia/engine/ir/parameterization.py` — `PriorRecord`, `ResolutionPolicy`,
   `ParameterizationSource`, `DEFAULT_PRIORITY_ORDER`, `default_resolution_policy`
 - `gaia/engine/ir/strategy.py` — `Strategy`, `StrategyType`（inline strategy probability fields）
@@ -226,5 +246,5 @@ Parameterization 只管 claim prior；Strategy 概率参数留在 IR 的 Strateg
 - `gaia/engine/lang/dsl/knowledge.py` — `claim(prior=X)` shortcut
 - `gaia/cli/_packages.py` — `apply_package_priors()` CLI 步骤
 - `gaia/engine/lang/compiler/compile.py` — `compile_package_artifact()` 入口处的 idempotent resolution 兜底
-- `gaia/inquiry/diagnostics.py` — `detect_prior_dissent()`, `detect_prior_overridden()`
+- `gaia/engine/inquiry/diagnostics.py` — `detect_prior_dissent()`, `detect_prior_overridden()`
 - `gaia/cli/commands/check.py` — `_append_covered_prior_details` 的多源输出格式

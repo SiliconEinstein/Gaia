@@ -1,8 +1,9 @@
-"""gaia.engine.lang.bayes — hypothesis-data inference helpers."""
+"""gaia.engine.bayes — hypothesis-data inference helpers."""
 
 from __future__ import annotations
 
-from gaia.engine.lang.bayes.distributions import (
+from gaia.engine.bayes.compiler import register_bayes_lowerer as _register_bayes_lowerer
+from gaia.engine.bayes.distributions import (
     Beta,
     BetaBinomial,
     Binomial,
@@ -18,9 +19,9 @@ from gaia.engine.lang.bayes.distributions import (
     StudentT,
     UnresolvedParameterError,
 )
-from gaia.engine.lang.bayes.runtime import BayesInference, Likelihood, PredictiveModel
-from gaia.engine.lang.bayes.verbs.likelihood import likelihood
-from gaia.engine.lang.bayes.verbs.model import model
+from gaia.engine.bayes.dsl.likelihood import likelihood
+from gaia.engine.bayes.dsl.model import model
+from gaia.engine.bayes.runtime import BayesInference, Likelihood, PredictiveModel
 from gaia.engine.lang.runtime.action import Action
 from gaia.engine.lang.runtime.roles import RoleAdder, register_role_handler
 
@@ -47,6 +48,8 @@ def _register_bayes_roles() -> None:
 
 
 _register_bayes_roles()
+
+_register_bayes_lowerer()
 
 __all__ = [
     "BayesInference",

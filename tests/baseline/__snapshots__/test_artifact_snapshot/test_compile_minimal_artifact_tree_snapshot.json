@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "content": "{\n  \"compiled_at\": \"<ISO_TS>\",\n  \"gaia_lang_version\": \"0.5.0\",\n  \"ir_hash\": \"sha256:b69d0d94adf4067dd7f7e3d1d0e7c5a698e734f2cb353a34aac603fa15ae8a1e\"\n}\n",
+      "content": "{\n  \"compiled_at\": \"<ISO_TS>\",\n  \"gaia_lang_version\": \"0.5.0\",\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\"\n}\n",
       "kind": "text",
       "path": "compile_metadata.json"
     },
@@ -11,32 +11,32 @@
       "path": "formalization_manifest.json"
     },
     {
-      "content": "{\n  \"composes\": [],\n  \"ir_hash\": \"sha256:b69d0d94adf4067dd7f7e3d1d0e7c5a698e734f2cb353a34aac603fa15ae8a1e\",\n  \"knowledges\": [\n    {\n      \"content\": \"A test claim.\",\n      \"content_hash\": \"cdd4e47ba0f987359bb4cc70b3529e2a2e13da34cef0e64d4fb99538f7506d49\",\n      \"declaration_index\": 0,\n      \"exported\": true,\n      \"format\": \"markdown\",\n      \"id\": \"github:test_pkg::my_claim\",\n      \"label\": \"my_claim\",\n      \"parameters\": [],\n      \"type\": \"claim\"\n    }\n  ],\n  \"namespace\": \"github\",\n  \"operators\": [],\n  \"package_name\": \"test_pkg\",\n  \"scope\": \"local\",\n  \"strategies\": []\n}",
+      "content": "{\n  \"composes\": [],\n  \"formula_graphs\": [],\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\",\n  \"knowledges\": [\n    {\n      \"content\": \"A test claim.\",\n      \"content_hash\": \"cdd4e47ba0f987359bb4cc70b3529e2a2e13da34cef0e64d4fb99538f7506d49\",\n      \"declaration_index\": 0,\n      \"exported\": true,\n      \"format\": \"markdown\",\n      \"id\": \"github:test_pkg::my_claim\",\n      \"label\": \"my_claim\",\n      \"parameters\": [],\n      \"type\": \"claim\"\n    }\n  ],\n  \"namespace\": \"github\",\n  \"operators\": [],\n  \"package_name\": \"test_pkg\",\n  \"scope\": \"local\",\n  \"strategies\": []\n}",
       "kind": "text",
       "path": "ir.json"
     },
     {
-      "content": "sha256:b69d0d94adf4067dd7f7e3d1d0e7c5a698e734f2cb353a34aac603fa15ae8a1e",
+      "content": "sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa",
       "kind": "text",
       "path": "ir_hash"
     },
     {
-      "content": "{\n  \"bridges\": [],\n  \"ir_hash\": \"sha256:b69d0d94adf4067dd7f7e3d1d0e7c5a698e734f2cb353a34aac603fa15ae8a1e\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"version\": \"1.0.0\"\n}\n",
+      "content": "{\n  \"bridges\": [],\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"version\": \"1.0.0\"\n}\n",
       "kind": "text",
       "path": "manifests/bridges.json"
     },
     {
-      "content": "{\n  \"exports\": [\n    {\n      \"content\": \"A test claim.\",\n      \"content_hash\": \"cdd4e47ba0f987359bb4cc70b3529e2a2e13da34cef0e64d4fb99538f7506d49\",\n      \"label\": \"my_claim\",\n      \"qid\": \"github:test_pkg::my_claim\",\n      \"type\": \"claim\"\n    }\n  ],\n  \"ir_hash\": \"sha256:b69d0d94adf4067dd7f7e3d1d0e7c5a698e734f2cb353a34aac603fa15ae8a1e\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"version\": \"1.0.0\"\n}\n",
+      "content": "{\n  \"exports\": [\n    {\n      \"content\": \"A test claim.\",\n      \"content_hash\": \"cdd4e47ba0f987359bb4cc70b3529e2a2e13da34cef0e64d4fb99538f7506d49\",\n      \"label\": \"my_claim\",\n      \"qid\": \"github:test_pkg::my_claim\",\n      \"type\": \"claim\"\n    }\n  ],\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"version\": \"1.0.0\"\n}\n",
       "kind": "text",
       "path": "manifests/exports.json"
     },
     {
-      "content": "{\n  \"holes\": [],\n  \"ir_hash\": \"sha256:b69d0d94adf4067dd7f7e3d1d0e7c5a698e734f2cb353a34aac603fa15ae8a1e\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"version\": \"1.0.0\"\n}\n",
+      "content": "{\n  \"holes\": [],\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"version\": \"1.0.0\"\n}\n",
       "kind": "text",
       "path": "manifests/holes.json"
     },
     {
-      "content": "{\n  \"ir_hash\": \"sha256:b69d0d94adf4067dd7f7e3d1d0e7c5a698e734f2cb353a34aac603fa15ae8a1e\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"premises\": [],\n  \"version\": \"1.0.0\"\n}\n",
+      "content": "{\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\",\n  \"manifest_schema_version\": 1,\n  \"package\": \"test-pkg\",\n  \"premises\": [],\n  \"version\": \"1.0.0\"\n}\n",
       "kind": "text",
       "path": "manifests/premises.json"
     }

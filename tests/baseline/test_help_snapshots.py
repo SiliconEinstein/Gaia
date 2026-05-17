@@ -15,6 +15,8 @@ import pytest
 
 from tests.baseline.conftest import cli_snapshot
 
+pytestmark = pytest.mark.pr_gate
+
 # Every reachable help path. Order matters only for readability.
 #
 # Alpha 0 reorganizes 9 flat verbs into 6 groups + trace independent

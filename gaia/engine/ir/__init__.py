@@ -10,6 +10,7 @@ Spec: docs/foundations/gaia-ir/
 
 from gaia.engine.ir.compose import Compose
 from gaia.engine.ir.formalize import FormalizationResult, formalize_named_strategy
+from gaia.engine.ir.formula import FormulaEdge, FormulaGraph, FormulaNode, formula_node_id
 from gaia.engine.ir.graphs import LocalCanonicalGraph
 from gaia.engine.ir.knowledge import (
     Knowledge,
@@ -58,6 +59,9 @@ __all__ = [
     "FormalExpr",  # Strategy
     "FormalStrategy",  # Strategy
     "FormalizationResult",  # Formalization
+    "FormulaEdge",  # Formula
+    "FormulaGraph",  # Formula
+    "FormulaNode",  # Formula
     "Knowledge",  # Knowledge
     "KnowledgeType",  # Knowledge
     "LocalCanonicalGraph",  # Graphs
@@ -77,5 +81,6 @@ __all__ = [
     "StrategyType",  # Strategy
     "default_resolution_policy",  # Parameterization
     "formalize_named_strategy",  # Formalization
+    "formula_node_id",  # Formula
     "make_qid",  # Knowledge
 ]

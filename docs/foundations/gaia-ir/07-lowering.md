@@ -101,11 +101,12 @@ Strategy 是不确定性承载层。lowering 时，需要决定：
 
 叶子 Strategy 直接 lower 为一个 backend-level probabilistic support unit。
 
-典型情形：
+典型情形（`gaia.engine.ir.StrategyType` 中作为参数化 leaf 出现的）：
 
-- `infer`
-- `noisy_and`
-- 未再细化的 leaf Strategy（`toolcall` / `proof` 未引入）
+- `infer`（`Strategy.conditional_probabilities` 完整 CPT）
+- `associate`（`Strategy.p_a_given_b` / `Strategy.p_b_given_a`）
+- `noisy_and`（deprecated；编译时自动转 `support`，仍接受为叶子输入）
+- 其它命名策略尚未升级为 FormalStrategy 的临时叶子形态（最终应升级为 FormalStrategy）
 
 它们的外部行为由：
 
@@ -132,6 +133,8 @@ lowering 时有两种合法方式：
 
 FormalStrategy 表示一个已经给出确定性 skeleton 的命名推理单元。
 
+> **`support` 与 `deduction` 的 lowering 差异**：两者共享同一 skeleton（`conjunction` + directed `implication`），区别只在 implication warrant 的处理。`deduction` 在 BP lowering 中视为 hard conditional implication（`P(C=true | M=true) = 1-ε`，`P(C=true | M=false) = 0.5`，MaxEnt baseline）。`support` 保留 implication warrant 作为可调先验，由作者指定 warrant prior，反映经验性支持而非逻辑必然。详见 [`bp/formal-strategy-lowering.md`](../bp/formal-strategy-lowering.md)。
+
 FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。lowering 时有两种方式：
 
 - **折叠**：对私有中间变量做变量消去，整个 FormalStrategy 等效为 P(conclusion | premises)
@@ -145,6 +148,17 @@ FormalExpr 内部节点是严格私有的（禁止外部引用），因此 Forma
 - **展开**：保留 public interface claim，显式 lower `disjunction` / `equivalence` 等 helper 结构
 
 当前 BP 后端对 `deduction` 做一个特化：FormalExpr 中的 implication helper 不作为独立 belief variable 保留，而是消去为 hard conditional implication，`P(C=true | M=true, I)=1-ε`，`P(C=true | M=false, I)=0.5`（MaxEnt baseline）。`support` 仍然使用 soft implication lowering。
+
+### 4.4 Compose
+
+`Compose`（`lcm_` 前缀，详见 [02-gaia-ir.md §1.4](02-gaia-ir.md)）在 lowering 时**不直接**翻译为 factor 或概率约束。它的 `actions` 列表里每个目标按各自类型走 lowering：
+
+- 引用的 `Knowledge`（`inputs / background / warrants / conclusion`）按 §3.1 处理；是否形成支持关系取决于被引用的 Strategy / Operator
+- 引用的 `Operator` 按 §3.2 / §4.x 处理
+- 引用的 `Strategy` / `CompositeStrategy` / `FormalStrategy` 按 §4.1–4.3 处理
+- 引用的其他 `Compose` 递归按本节处理
+
+也就是说，Compose 的语义在 lowering 层是 **review / audit 元数据**：它指出 "这条工作流由这些 action 共同贡献于 conclusion"，但不为 conclusion 引入新的因子。具体后端是否要把 Compose 物化为 runtime 节点（例如 trace 渲染、starmap 着色）由后端自行决定，本契约不强制。
 
 ## 5. FormalExpr 内部节点与 Lowering
 

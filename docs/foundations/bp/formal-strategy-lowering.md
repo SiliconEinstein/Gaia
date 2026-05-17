@@ -348,15 +348,10 @@ for op in formal_expr.operators:
 
 判定规则：conclusion 的 $P(H\!=\!1)$ 能否从 $\pi(\text{variables})$ 推导出来？能 → 0.5（计算型）；不能 → $1-\varepsilon$（断言型）。
 
-### 7.3 `potentials.md` 对齐
+### 7.3 与势函数和推理文档的关系
 
-`potentials.md` 应按当前实现保留专门 deterministic FactorType，并说明
-deterministic potential 是 strict 0/1；Cromwell clamp 属于 unary
-evidence/prior 和 soft probability 参数。
-
-### 7.4 `inference.md` 更新
-
-删除 gate_var 机制的描述。Relation operator 的 conclusion 通过 $\pi = 1-\varepsilon$ 自然激活约束，不需要门控变量。
+- 势函数细节见 [`potentials.md`](potentials.md)：每种 deterministic FactorType 的势函数是 strict 0/1；Cromwell clamp 仅作用于 unary evidence/prior 和 soft probability 参数（例如 ↝ 的 `p₁ / p₂`），不出现在 deterministic potential 中。
+- Relation operator 的 conclusion 通过 §7.2 的 $\pi = 1-\varepsilon$ 先验自然激活约束，没有单独的门控变量；推理流程见 [`inference.md`](inference.md)。
 
 ## 参考
 

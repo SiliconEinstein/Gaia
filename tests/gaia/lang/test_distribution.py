@@ -11,6 +11,7 @@ import math
 
 import pytest
 
+from gaia.engine.bayes.distributions.continuous import Normal as _BaseNormal
 from gaia.engine.lang import (
     Beta,
     Binomial,
@@ -23,7 +24,6 @@ from gaia.engine.lang import (
     Normal,
     Poisson,
 )
-from gaia.engine.lang.bayes.distributions.continuous import Normal as _BaseNormal
 from gaia.engine.lang.runtime.knowledge import Knowledge
 
 

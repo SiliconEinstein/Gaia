@@ -10,7 +10,7 @@ from gaia.engine.lang.runtime.knowledge import Claim
 from gaia.engine.lang.runtime.variable import Variable
 
 if TYPE_CHECKING:
-    from gaia.engine.lang.bayes.distributions.protocol import Distribution
+    from gaia.engine.bayes.distributions.protocol import Distribution
 
 
 @dataclass

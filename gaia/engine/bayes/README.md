@@ -1,6 +1,6 @@
-# gaia.engine.lang.bayes
+# gaia.engine.bayes
 
-`gaia.engine.lang.bayes` provides the lifted Bayes authoring surface:
+`gaia.engine.bayes` provides the lifted Bayes authoring surface:
 
 - distribution literals backed by `scipy.stats`
 - `model(...)` for one-hypothesis predictive-model helpers
@@ -14,7 +14,7 @@ operators, and BP factor types.
 Use the namespace form in packages:
 
 ```python
-from gaia.engine.lang import bayes
+import gaia.engine.bayes as bayes
 
 model_a = bayes.model(h_a, observable=x, distribution=bayes.Normal(mu=mu, sigma=1.0))
 model_b = bayes.model(h_b, observable=x, distribution=bayes.Normal(mu=mu, sigma=1.0))

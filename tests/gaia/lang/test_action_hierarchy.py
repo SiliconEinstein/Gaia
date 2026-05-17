@@ -1,4 +1,4 @@
-from gaia.engine.lang.bayes.runtime import BayesInference, Likelihood, PredictiveModel
+from gaia.engine.bayes.runtime import BayesInference, Likelihood, PredictiveModel
 from gaia.engine.lang.runtime.action import (
     Action,
     CandidateRelation,

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from gaia.cli.commands._graph_json import generate_graph_json
+
+pytestmark = pytest.mark.pr_gate
 
 
 def _make_ir(

@@ -1,15 +1,21 @@
 """Tests for Gaia IR validator."""
 
+from typing import Any
+
 from gaia.engine.ir import (
     Compose,
     CompositeStrategy,
     FormalExpr,
     FormalStrategy,
+    FormulaEdge,
+    FormulaGraph,
+    FormulaNode,
     Knowledge,
     KnowledgeType,
     LocalCanonicalGraph,
     Operator,
     Strategy,
+    formula_node_id,
 )
 from gaia.engine.ir.validator import (
     validate_local_graph,
@@ -30,7 +36,7 @@ def _setting(id: str) -> Knowledge:
 
 
 def _local_graph(**kwargs) -> LocalCanonicalGraph:
-    defaults = {
+    defaults: dict[str, Any] = {
         "namespace": "github",
         "package_name": "test",
         "knowledges": [],
@@ -39,6 +45,26 @@ def _local_graph(**kwargs) -> LocalCanonicalGraph:
     }
     defaults.update(kwargs)
     return LocalCanonicalGraph(**defaults)
+
+
+def _local_graph_unchecked(**kwargs) -> LocalCanonicalGraph:
+    defaults: dict[str, Any] = {
+        "namespace": "github",
+        "package_name": "test",
+        "scope": "local",
+        "ir_hash": None,
+        "knowledges": [],
+        "operators": [],
+        "strategies": [],
+        "composes": [],
+        "formula_graphs": [],
+    }
+    defaults.update(kwargs)
+    return LocalCanonicalGraph.model_construct(**defaults)
+
+
+def _formula_node(descriptor: dict, kind: str = "atom") -> FormulaNode:
+    return FormulaNode(id=formula_node_id(descriptor), kind=kind, descriptor=descriptor)
 
 
 class TestComposeValidation:
@@ -86,6 +112,206 @@ class TestComposeValidation:
 
         assert not r.valid
         assert any("cycle" in e for e in r.errors)
+
+
+class TestFormulaGraphValidation:
+    def test_formula_graph_source_claim_must_exist(self):
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph(
+            source_claim="github:test::missing",
+            root=root.id,
+            nodes=[root],
+        )
+        g = _local_graph(formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any(
+            "FormulaGraph 'github:test::missing'" in e and "source_claim" in e and "not found" in e
+            for e in r.errors
+        )
+
+    def test_formula_graph_source_claim_must_be_claim(self):
+        source = Knowledge(
+            id="github:test::setting",
+            type=KnowledgeType.SETTING,
+            content="setting",
+        )
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph(
+            source_claim=source.id,
+            root=root.id,
+            nodes=[root],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("source_claim" in e and "must be claim" in e for e in r.errors)
+
+    def test_formula_graph_root_must_exist_in_nodes(self):
+        source = _claim("github:test::claim")
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root="fg:missing",
+            nodes=[root],
+            edges=[],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("root 'fg:missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_edges_must_reference_nodes(self):
+        source = _claim("github:test::claim")
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root=root.id,
+            nodes=[root],
+            edges=[FormulaEdge(source=root.id, target="fg:missing", role="operand")],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("edge target 'fg:missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_node_ids_must_match_canonical_descriptor_hash(self):
+        source = _claim("github:test::claim")
+        bad_node = FormulaNode.model_construct(
+            id="fg:0000000000000000",
+            kind="atom",
+            descriptor={"symbol": "P"},
+        )
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root=bad_node.id,
+            nodes=[bad_node],
+            edges=[],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("does not match canonical descriptor hash" in e for e in r.errors)
+
+    def test_formula_graph_duplicate_node_id_cannot_change_signature(self):
+        source = _claim("github:test::claim")
+        node_id = formula_node_id({"symbol": "P"})
+        left = FormulaNode(id=node_id, kind="atom", descriptor={"symbol": "P"})
+        right = FormulaNode.model_construct(
+            id=node_id,
+            kind="term",
+            descriptor={"symbol": "P"},
+        )
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root=node_id,
+            nodes=[left, right],
+            edges=[],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("appears with different kind or descriptor" in e for e in r.errors)
+
+    def test_formula_graph_descriptor_claim_qid_must_exist(self):
+        source = _claim("github:test::claim")
+        root = _formula_node({"kind": "claim", "qid": "github:test::missing"})
+        formula_graph = FormulaGraph(source_claim=source.id, root=root.id, nodes=[root])
+        g = _local_graph(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("descriptor qid 'github:test::missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_descriptor_claim_qid_must_reference_claim(self):
+        source = _claim("github:test::claim")
+        setting = _setting("github:test::setting")
+        root = _formula_node({"kind": "claim", "qid": setting.id})
+        formula_graph = FormulaGraph(source_claim=source.id, root=root.id, nodes=[root])
+        g = _local_graph_unchecked(knowledges=[source, setting], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any(
+            "descriptor qid 'github:test::setting'" in e and "must reference a claim" in e
+            for e in r.errors
+        )
+
+    def test_formula_graph_descriptor_knowledge_qid_scan_is_recursive(self):
+        source = _claim("github:test::claim")
+        descriptor = {
+            "kind": "predicate",
+            "args": [
+                {
+                    "kind": "function",
+                    "args": [
+                        {
+                            "kind": "arith",
+                            "left": {"kind": "knowledge", "qid": "github:test::missing"},
+                            "right": {"kind": "constant", "value": 1},
+                        }
+                    ],
+                }
+            ],
+        }
+        root = _formula_node(descriptor)
+        formula_graph = FormulaGraph(source_claim=source.id, root=root.id, nodes=[root])
+        g = _local_graph(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("descriptor qid 'github:test::missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_validation_reports_malformed_constructed_shapes(self):
+        source = _claim("github:test::claim")
+        malformed = FormulaGraph.model_construct(
+            source_claim=[],
+            root="fg:missing",
+            nodes=[
+                FormulaNode.model_construct(id="fg:missing_descriptor", kind="atom"),
+                FormulaNode.model_construct(
+                    id="fg:bad_descriptor",
+                    kind="atom",
+                    descriptor={"kind": "claim", "payload": object()},
+                ),
+            ],
+            edges=[FormulaEdge.model_construct(source="fg:bad_descriptor")],
+        )
+        no_nodes = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root="fg:missing",
+            nodes=None,
+            edges=None,
+        )
+        g = _local_graph_unchecked(
+            knowledges=[source],
+            formula_graphs=[malformed, no_nodes],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("source_claim must be a string" in e for e in r.errors)
+        assert any("descriptor must be a dict" in e for e in r.errors)
+        assert any("descriptor is not canonical JSON serializable" in e for e in r.errors)
+        assert any("edge target is missing" in e for e in r.errors)
+        assert any("nodes must be a list" in e for e in r.errors)
+        assert any("edges must be a list" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------

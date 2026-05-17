@@ -9,6 +9,8 @@ from typer.testing import CliRunner
 
 from gaia.cli.main import app
 
+pytestmark = pytest.mark.pr_gate
+
 runner = CliRunner()
 
 

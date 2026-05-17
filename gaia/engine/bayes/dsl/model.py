@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from gaia.engine.lang.bayes.distributions.protocol import Distribution
-from gaia.engine.lang.bayes.runtime import PredictiveModel
+from gaia.engine.bayes.distributions.protocol import Distribution
+from gaia.engine.bayes.runtime import PredictiveModel
 from gaia.engine.lang.runtime import Claim, Knowledge, Variable
 from gaia.engine.lang.runtime.action import attach_reasoning, validate_no_self_warrant
 

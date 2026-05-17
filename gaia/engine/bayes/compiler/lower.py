@@ -7,6 +7,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
+from gaia.engine.bayes.distributions.base import _is_deferred_reference
+from gaia.engine.bayes.runtime import Likelihood, PredictiveModel
 from gaia.engine.bp.factor_graph import CROMWELL_EPS
 from gaia.engine.ir import Knowledge as IrKnowledge
 from gaia.engine.ir import Operator as IrOperator
@@ -14,8 +16,6 @@ from gaia.engine.ir import Strategy as IrStrategy
 from gaia.engine.ir.knowledge import KnowledgeType, make_qid
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.ir.strategy import StrategyType
-from gaia.engine.lang.bayes.distributions.base import _is_deferred_reference
-from gaia.engine.lang.bayes.runtime import Likelihood, PredictiveModel
 from gaia.engine.lang.formula.connective import Land
 from gaia.engine.lang.formula.predicate import Equals
 from gaia.engine.lang.formula.term import Constant
@@ -360,7 +360,7 @@ def _log_likelihood_with_noise(
 ) -> float:
     if noise_payload.get("kind") != "normal":
         raise NotImplementedError("Bayes likelihood currently supports only Normal additive noise")
-    from gaia.engine.lang.bayes.distributions.continuous import Normal
+    from gaia.engine.bayes.distributions.continuous import Normal
 
     noise = Normal(**noise_payload.get("params", {}))
     low, high = distribution.support()

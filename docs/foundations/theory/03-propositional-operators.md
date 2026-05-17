@@ -411,7 +411,7 @@ p₁ = 1, p₂ = 0.5
 
 ### 4.7 与现有粗推理算子的关系
 
-此前的粗推理算子（已归档至 `archive/foundations-v3/theory/03-coarse-reasoning.md`）使用单参数 p，其条件概率表为：
+此前的粗推理算子（历史文件位于 `docs/archive/foundations-v3/theory/03-coarse-reasoning.md`，不作为站点页面发布）使用单参数 p，其条件概率表为：
 
 | M | C | 行为 |
 |---|---|------|

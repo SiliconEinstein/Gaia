@@ -27,7 +27,8 @@ def test_check_reports_dangling_prediction_and_unobserved_target(tmp_path: Path)
     _write_package(
         pkg_dir,
         """
-from gaia.engine.lang import Nat, Probability, Variable, bayes, parameter
+import gaia.engine.bayes as bayes
+from gaia.engine.lang import Nat, Probability, Variable, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat)
@@ -54,8 +55,9 @@ def test_check_errors_when_pairwise_hypothesis_priors_exceed_one(tmp_path: Path)
     _write_package(
         pkg_dir,
         """
+import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
-    Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter,
+    Constant, Nat, Probability, Variable, claim, equals, observe, parameter,
 )
 
 theta = Variable(symbol="theta", domain=Probability)
@@ -86,8 +88,9 @@ def test_check_errors_when_exhaustive_hypothesis_priors_do_not_sum_to_one(tmp_pa
     _write_package(
         pkg_dir,
         """
+import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
-    Constant, Nat, Probability, Variable, bayes, claim, equals, observe, parameter,
+    Constant, Nat, Probability, Variable, claim, equals, observe, parameter,
 )
 
 theta = Variable(symbol="theta", domain=Probability)
@@ -124,7 +127,8 @@ def test_check_errors_when_precomputed_likelihood_has_no_observation_binding(tmp
     _write_package(
         pkg_dir,
         """
-from gaia.engine.lang import Nat, Probability, Variable, bayes, claim, parameter
+import gaia.engine.bayes as bayes
+from gaia.engine.lang import Nat, Probability, Variable, claim, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
 k = Variable(symbol="k", domain=Nat)
