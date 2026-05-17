@@ -318,37 +318,41 @@ def _trw_bp_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistrib
     factor_joint_tables = result.diagnostics.factor_joint_tables
     available_scopes = [list(table["variables"]) for table in factor_joint_tables]
 
-    for table in factor_joint_tables:
+    covering_tables = [
+        table for table in factor_joint_tables if requested <= set(table["variables"])
+    ]
+    covering_tables.sort(key=lambda table: (len(table["variables"]), table["factor_index"]))
+
+    for table in covering_tables:
         table_variables = list(table["variables"])
-        if requested <= set(table_variables):
-            assignment_table = _probability_list_to_assignment_table(
-                list(table["probabilities"]),
-                table_variables,
-            )
-            probabilities = _marginalize_table_to_variables(
-                assignment_table,
-                table_variables,
-                variables,
-            )
-            return JointDistribution(
-                variables=variables,
-                probabilities=probabilities,
-                method="trw_bp",
-                is_exact=False,
-                basis="approximate_joint_distribution",
-                diagnostics={
-                    "source_factor_index": table["factor_index"],
-                    "source_factor_id": table["factor_id"],
-                    "source_factor_variables": table_variables,
-                    "source_factor_rho": table["rho"],
-                    "converged": result.diagnostics.converged,
-                    "iterations_run": result.diagnostics.iterations_run,
-                    "max_change_at_stop": result.diagnostics.max_change_at_stop,
-                    "available_scopes": available_scopes,
-                    "factor_joint_table_count": len(factor_joint_tables),
-                    "cromwell_eps": CROMWELL_EPS,
-                },
-            )
+        assignment_table = _probability_list_to_assignment_table(
+            list(table["probabilities"]),
+            table_variables,
+        )
+        probabilities = _marginalize_table_to_variables(
+            assignment_table,
+            table_variables,
+            variables,
+        )
+        return JointDistribution(
+            variables=variables,
+            probabilities=probabilities,
+            method="trw_bp",
+            is_exact=False,
+            basis="approximate_joint_distribution",
+            diagnostics={
+                "source_factor_index": table["factor_index"],
+                "source_factor_id": table["factor_id"],
+                "source_factor_variables": table_variables,
+                "source_factor_rho": table["rho"],
+                "converged": result.diagnostics.converged,
+                "iterations_run": result.diagnostics.iterations_run,
+                "max_change_at_stop": result.diagnostics.max_change_at_stop,
+                "available_scopes": available_scopes,
+                "factor_joint_table_count": len(factor_joint_tables),
+                "cromwell_eps": CROMWELL_EPS,
+            },
+        )
 
     raise JointQueryUnavailableError(
         "trw_bp",

@@ -259,7 +259,7 @@ def _compute_factor_joint_tables(
                 probabilities.append(0.0)
                 continue
 
-            weight = float(potential**rho_f)
+            weight = float(potential)
             for variable, value in assignment.items():
                 v2f = v2f_msgs.get((variable, fi))
                 if v2f is not None:
@@ -297,9 +297,9 @@ class TRWDiagnostics:
     max_change_at_stop: float = 0.0
     belief_history: dict[str, list[float]] = field(default_factory=dict)
     direction_changes: dict[str, int] = field(default_factory=dict)
-    factor_joint_tables: list[dict[str, Any]] = field(default_factory=list)
     rho: float = 1.0  # factor weight used (uniform scheme)
     treewidth: int | None = None  # junction tree width (JT only)
+    factor_joint_tables: list[dict[str, Any]] = field(default_factory=list)
 
     def compute_direction_changes(self) -> None:
         """Compute direction changes in belief updates for oscillation detection."""
@@ -399,6 +399,8 @@ class TRWBeliefPropagation:
                     beliefs[vid] = graph.unary_factors.get(vid, 0.5)
             for vid, b in beliefs.items():
                 diag.belief_history[vid] = [b]
+            diag.converged = True
+            diag.factor_joint_tables = []
             return TRWResult(beliefs=beliefs, diagnostics=diag)
 
         var_to_factors = graph.get_var_to_factors()

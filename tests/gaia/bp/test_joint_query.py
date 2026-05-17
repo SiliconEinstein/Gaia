@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from gaia.engine.bp.factor_graph import FactorGraph, FactorType
@@ -7,6 +8,11 @@ from gaia.engine.bp.joint_query import (
     JointQueryUnavailableError,
     compare_joint_over,
     joint_over,
+)
+from gaia.engine.bp.trw_bp import (
+    TRWBeliefPropagation,
+    TRWDiagnostics,
+    _compute_factor_joint_tables,
 )
 
 pytestmark = pytest.mark.pr_gate
@@ -43,6 +49,16 @@ def _contradiction_graph() -> FactorGraph:
     graph.add_variable("B", 0.25)
     graph.add_variable("H", 0.7)
     graph.add_factor("f:not_both", FactorType.CONTRADICTION, ["A", "B"], "H")
+    return graph
+
+
+def _nested_covering_factor_graph() -> FactorGraph:
+    graph = FactorGraph()
+    graph.add_variable("A", 0.8)
+    graph.add_variable("B", 0.25)
+    graph.add_variable("H", 0.7)
+    graph.add_factor("f:larger", FactorType.CONTRADICTION, ["A", "B"], "H")
+    graph.add_factor("f:smaller", FactorType.PAIRWISE_POTENTIAL, ["A"], "B", cpt=[1, 4, 2, 8])
     return graph
 
 
@@ -119,9 +135,26 @@ def test_compare_joint_over_collects_unavailable_methods():
     assert {estimate.method for estimate in estimates} == {"exact", "junction_tree", "mean_field"}
     assert {item.method for item in unavailable} == {"trw_bp"}
     assert all(item.variables == ["A", "B"] for item in unavailable)
+    assert unavailable[0].diagnostics["converged"] is True
+    assert unavailable[0].diagnostics["available_scopes"] == []
     exact = next(estimate for estimate in estimates if estimate.method == "exact")
     junction_tree = next(estimate for estimate in estimates if estimate.method == "junction_tree")
     assert junction_tree.probabilities == pytest.approx(exact.probabilities)
+
+
+def test_trw_no_factor_diagnostics_are_converged_with_empty_factor_tables():
+    result = TRWBeliefPropagation().run(_two_variable_graph())
+
+    assert result.diagnostics.converged is True
+    assert result.diagnostics.factor_joint_tables == []
+
+
+def test_trw_diagnostics_positional_constructor_keeps_rho_and_treewidth_order():
+    diagnostics = TRWDiagnostics(False, 3, 0.25, {}, {}, 0.5, 7)
+
+    assert diagnostics.rho == pytest.approx(0.5)
+    assert diagnostics.treewidth == 7
+    assert diagnostics.factor_joint_tables == []
 
 
 def test_junction_tree_no_factor_singleton_query_uses_singleton_scope():
@@ -253,6 +286,14 @@ def test_trw_bp_returns_factor_scope_pseudo_joint():
     assert joint.diagnostics["iterations_run"] >= 1
 
 
+def test_trw_bp_chooses_smallest_covering_factor_scope():
+    joint = joint_over(_nested_covering_factor_graph(), ["A", "B"], method="trw_bp")
+
+    assert joint.diagnostics["source_factor_id"] == "f:smaller"
+    assert joint.diagnostics["source_factor_index"] == 1
+    assert joint.diagnostics["source_factor_variables"] == ["A", "B"]
+
+
 def test_trw_bp_returns_unavailable_without_factor_scope_joint():
     with pytest.raises(JointQueryUnavailableError, match="factor-scope pseudo-joint") as exc_info:
         joint_over(_chain_graph(), ["A", "C"], method="trw_bp")
@@ -261,3 +302,26 @@ def test_trw_bp_returns_unavailable_without_factor_scope_joint():
     assert error.method == "trw_bp"
     assert error.variables == ["A", "C"]
     assert error.diagnostics["available_scopes"] == [["A", "B"], ["B", "C"]]
+
+
+def test_trw_factor_joint_tables_do_not_raise_potential_to_rho():
+    graph = FactorGraph()
+    graph.add_variable("A", 0.5)
+    graph.add_variable("B", 0.5)
+    graph.add_factor(
+        "f:weighted",
+        FactorType.PAIRWISE_POTENTIAL,
+        ["A"],
+        "B",
+        cpt=[1.0, 4.0, 2.0, 8.0],
+    )
+    uniform_messages = {
+        ("A", 0): np.array([0.5, 0.5]),
+        ("B", 0): np.array([0.5, 0.5]),
+    }
+
+    tables = _compute_factor_joint_tables(graph, uniform_messages, {0: 0.5})
+
+    assert len(tables) == 1
+    assert tables[0]["rho"] == pytest.approx(0.5)
+    assert tables[0]["probabilities"] == pytest.approx([1 / 15, 4 / 15, 2 / 15, 8 / 15])
