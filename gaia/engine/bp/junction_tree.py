@@ -762,6 +762,7 @@ class JunctionTreeInference:
         if not graph.factors:
             # No factors: beliefs are explicit unary factors or neutral MaxEnt.
             diag.converged = True
+            diag.treewidth = 0
 
             # Priority: hard_evidence > unary_factors > neutral MaxEnt
             def _belief0(vid: str) -> float:
