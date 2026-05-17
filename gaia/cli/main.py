@@ -7,8 +7,11 @@ The CLI organizes verbs into 7 groups + `trace` independent:
   inspect  starmap / starmap-replay
   review   (empty skeleton — held for downstream reviewer tooling)
   inquiry  (sub-app: focus / review / obligation / hypothesis / tactics / reject)
-  pkg      add / register
-  author   claim / equal / derive / compose (stub) / composition (stub)
+  pkg      add / register / scaffold
+  author   claim / equal / derive / note / question / contradict / exclusive /
+           decompose / observe / compute / infer / associate / parameter /
+           register-prior / depends-on / candidate-relation / materialize
+           + compose (stub) / composition (stub)
   trace    (sub-app, NOT part of the groups: verify / review / show)
 
 See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
@@ -19,17 +22,34 @@ import typer
 from gaia._meta import IR_SCHEMA, get_channel, get_commit, get_library_version
 from gaia.cli.commands.add import add_command
 from gaia.cli.commands.author import (
+    associate_command,
+    candidate_relation_command,
     claim_command,
     compose_command,
     composition_command,
+    compute_command,
+    contradict_command,
+    decompose_command,
+    depends_on_command,
     derive_command,
     equal_command,
+    exclusive_command,
+    materialize_command,
+    note_command,
+    observe_command,
+    parameter_command,
+    question_command,
+    register_prior_command,
+)
+from gaia.cli.commands.author import (
+    infer_command as author_infer_command,
 )
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
 from gaia.cli.commands.infer import infer_command
 from gaia.cli.commands.init import init_command
 from gaia.cli.commands.inquiry import inquiry_app
+from gaia.cli.commands.pkg import scaffold_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
 from gaia.cli.commands.starmap import starmap_command
@@ -149,38 +169,68 @@ app.add_typer(inquiry_app, name="inquery", hidden=True)  # typo alias
 
 
 # --------------------------------------------------------------------------- #
-# pkg — add / register                                                        #
+# pkg — add / register / scaffold                                             #
 # --------------------------------------------------------------------------- #
 
 pkg_app = typer.Typer(
     name="pkg",
-    help="Package operations (add / register).",
+    help="Package operations (add / register / scaffold).",
     no_args_is_help=True,
 )
 pkg_app.command(name="add")(add_command)
 pkg_app.command(name="register")(register_command)
+pkg_app.command(name="scaffold")(scaffold_command)
 app.add_typer(pkg_app, name="pkg")
 
 
 # --------------------------------------------------------------------------- #
-# author — agent-first authoring CLI (claim / equal / derive + stubs)         #
+# author — agent-first authoring CLI (17 live + 2 stubbed)                    #
 # --------------------------------------------------------------------------- #
 #
 # Per 协作单 BOmHwyFRCixqy0k7gR3cCNMInId §五 + §六: the author group is
 # the cli-as-client surface that lets an LLM agent (or a human) CRUD
 # Gaia DSL statements through structured commands instead of editing
-# `.gaia.py` source by hand. R1 ships 3 verbs end-to-end (claim / equal
-# / derive) plus `compose` / `composition` stubs; R2 fills in the
-# remaining 14 statement-level verbs against the same skeleton.
+# `.gaia.py` source by hand. R1 shipped 3 verbs (claim / equal / derive)
+# end-to-end; R2 adds the remaining 14 statement-level verbs against
+# the same pre-write + envelope skeleton. ``compose`` / ``composition``
+# remain stubbed — their content is fundamentally an arbitrary-Python
+# function body, not a CLI-flag-shaped op.
 
 author_app = typer.Typer(
     name="author",
-    help="Author DSL statements (claim / equal / derive / compose [stub] / composition [stub]).",
+    help=(
+        "Author DSL statements (claim / equal / derive / note / question / "
+        "contradict / exclusive / decompose / observe / compute / infer / "
+        "associate / parameter / register-prior / depends-on / "
+        "candidate-relation / materialize + compose [stub] / composition [stub])."
+    ),
     no_args_is_help=True,
 )
+# R1 verbs.
 author_app.command(name="claim")(claim_command)
 author_app.command(name="equal")(equal_command)
 author_app.command(name="derive")(derive_command)
+# R2 verbs — Knowledge.
+author_app.command(name="note")(note_command)
+author_app.command(name="question")(question_command)
+# R2 verbs — Structural relations.
+author_app.command(name="contradict")(contradict_command)
+author_app.command(name="exclusive")(exclusive_command)
+author_app.command(name="decompose")(decompose_command)
+# R2 verbs — Support.
+author_app.command(name="observe")(observe_command)
+author_app.command(name="compute")(compute_command)
+# R2 verbs — Probabilistic.
+author_app.command(name="infer")(author_infer_command)
+author_app.command(name="associate")(associate_command)
+# R2 verbs — Sugar + prior.
+author_app.command(name="parameter")(parameter_command)
+author_app.command(name="register-prior")(register_prior_command)
+# R2 verbs — Scaffold (Scaffold tier of the DSL surface).
+author_app.command(name="depends-on")(depends_on_command)
+author_app.command(name="candidate-relation")(candidate_relation_command)
+author_app.command(name="materialize")(materialize_command)
+# R1 stubs.
 author_app.command(name="compose")(compose_command)
 author_app.command(name="composition")(composition_command)
 app.add_typer(author_app, name="author")

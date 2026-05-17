@@ -1,0 +1,107 @@
+"""``gaia author exclusive`` — append an ``exclusive(a, b, ...)`` statement.
+
+Maps to ``gaia.engine.lang.dsl.relate.exclusive``:
+
+.. code-block:: python
+
+    exclusive(a, b, *, background=None, rationale="", label=None)
+
+Declares two Claims as a closed binary partition (exactly one is true).
+Returns an XOR helper Claim. Surface is identical to ``equal`` /
+``contradict``.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import typer
+
+from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata
+from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
+from gaia.cli.commands.author._runner import run_author_op
+
+
+def _render_exclusive_statement(
+    *,
+    label: str,
+    a: str,
+    b: str,
+    rationale: str | None,
+    metadata: dict[str, Any] | None,
+) -> str:
+    """Render the proposed ``exclusive(...)`` statement."""
+    args = [a, b]
+    kwargs: list[str] = [f"label={label!r}"]
+    if rationale:
+        kwargs.append(f"rationale={rationale!r}")
+    if metadata:
+        kwargs.append(f"metadata={metadata!r}")
+    return f"{label} = exclusive({', '.join(args)}, {', '.join(kwargs)})"
+
+
+def exclusive_command(
+    label: str = typer.Option(..., "--label", help="Identifier the helper Claim binds to."),
+    a: str = typer.Option(..., "--a", help="Identifier of the first Claim."),
+    b: str = typer.Option(..., "--b", help="Identifier of the second Claim."),
+    target: str = typer.Option(
+        ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    rationale: str | None = typer.Option(
+        None, "--rationale", help="Optional natural-language justification."
+    ),
+    metadata: str | None = typer.Option(
+        None, "--metadata", help="Optional JSON-encoded metadata dict."
+    ),
+    check: bool = typer.Option(
+        True,
+        "--check/--no-check",
+        help="Run post-write `gaia build check` after a successful write (default on).",
+    ),
+    human: bool = typer.Option(
+        False, "--human", help="Render the envelope in human-readable form instead of JSON."
+    ),
+    interactive: bool = typer.Option(
+        False, "--interactive", help="Prompt on pre-write warnings (human mode only)."
+    ),
+    json_: bool = typer.Option(
+        True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
+    ),
+) -> None:
+    r"""Author an ``exclusive(a, b, ...)`` closed-partition statement.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia author exclusive --a coin_heads --b coin_tails \
+            --label coin_outcome --rationale "Exactly one of heads/tails per flip."
+    """
+    del json_
+
+    metadata_dict, metadata_error = parse_metadata(metadata)
+    if metadata_error:
+        emit_syntax_error("exclusive", metadata_error, target=str(target), human=human)
+        return
+
+    generated_code = _render_exclusive_statement(
+        label=label, a=a, b=b, rationale=rationale, metadata=metadata_dict
+    )
+    proposed_op = ProposedAuthorOp(
+        verb="exclusive",
+        kind="reasoning",
+        label=label,
+        references=[a, b],
+        generated_code=generated_code,
+        required_imports=("exclusive",),
+    )
+    run_author_op(
+        proposed_op,
+        target=target,
+        human=human,
+        check=check,
+        interactive=interactive,
+    )
+
+
+__all__ = ["exclusive_command"]
