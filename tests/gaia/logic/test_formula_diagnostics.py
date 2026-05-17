@@ -179,3 +179,74 @@ def test_inspect_formula_graphs_reports_redundant_operands_as_info():
     assert diagnostic.scope == "claim"
     assert diagnostic.source_claim == _qid(package, "repeated")
     assert diagnostic.details["repeated_children"] == [_qid(package, "a")]
+
+
+def test_pairwise_incompatibility_is_warning_with_bp_condition():
+    package = "formula_diag_pair_incompat"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        left = claim("A holds.", formula=ClaimAtom(a))
+        left.label = "left"
+        right = claim("A does not hold.", formula=lnot(ClaimAtom(a)))
+        right.label = "right"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
+
+    diagnostic = next(d for d in report.diagnostics if d.code == "cross_claim_incompatibility")
+    assert diagnostic.severity == "warning"
+    assert diagnostic.scope == "claim_pair"
+    assert diagnostic.logic_strength == "hard"
+    assert diagnostic.source_claim == _qid(package, "left")
+    assert diagnostic.related_claims == [_qid(package, "right")]
+    assert diagnostic.condition.kind == "joint_incompatibility"
+    assert diagnostic.condition.expression == {
+        "op": "and",
+        "args": [{"var": _qid(package, "left")}, {"var": _qid(package, "right")}],
+    }
+    assert report.has_fatal is False
+
+
+def test_pairwise_entailment_is_info_with_violation_condition():
+    package = "formula_diag_pair_entailment"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        b = claim("B.")
+        b.label = "b"
+        strong = claim("A and B.", formula=land(ClaimAtom(a), ClaimAtom(b)))
+        strong.label = "strong"
+        weak = claim("A.", formula=ClaimAtom(a))
+        weak.label = "weak"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
+
+    diagnostic = next(d for d in report.diagnostics if d.code == "cross_claim_entailment")
+    assert diagnostic.severity == "info"
+    assert diagnostic.source_claim == _qid(package, "strong")
+    assert diagnostic.related_claims == [_qid(package, "weak")]
+    assert diagnostic.condition.kind == "entailment_violation"
+    assert diagnostic.condition.expression == {
+        "op": "and",
+        "args": [
+            {"var": _qid(package, "strong")},
+            {"op": "not", "arg": {"var": _qid(package, "weak")}},
+        ],
+    }
+
+
+def test_pairwise_diagnostics_skip_disjoint_formulas():
+    package = "formula_diag_pair_disjoint"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        b = claim("B.")
+        b.label = "b"
+        left = claim("A holds.", formula=ClaimAtom(a))
+        left.label = "left"
+        right = claim("B holds.", formula=ClaimAtom(b))
+        right.label = "right"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
+
+    assert [d for d in report.diagnostics if d.scope == "claim_pair"] == []

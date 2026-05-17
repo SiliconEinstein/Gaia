@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import combinations
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -320,5 +321,120 @@ def _condition_var_for_node(node: FormulaNode) -> str:
 
 
 def _pairwise_diagnostics(projected: list[_ProjectedFormula]) -> list[FormulaDiagnostic]:
-    del projected
-    return []
+    diagnostics: list[FormulaDiagnostic] = []
+    for left, right in combinations(projected, 2):
+        if left.atom_ids.isdisjoint(right.atom_ids):
+            continue
+
+        if satisfiable(And(left.expression, right.expression)) is False:
+            diagnostics.append(_cross_claim_incompatibility(left, right))
+            continue
+
+        left_entails_right = satisfiable(And(left.expression, Not(right.expression))) is False
+        right_entails_left = satisfiable(And(right.expression, Not(left.expression))) is False
+        if left_entails_right and right_entails_left:
+            diagnostics.append(_cross_claim_equivalence(left, right))
+        elif left_entails_right:
+            diagnostics.append(_cross_claim_entailment(left, right))
+        elif right_entails_left:
+            diagnostics.append(_cross_claim_entailment(right, left))
+    return diagnostics
+
+
+def _cross_claim_incompatibility(
+    left: _ProjectedFormula,
+    right: _ProjectedFormula,
+) -> FormulaDiagnostic:
+    return FormulaDiagnostic(
+        code="cross_claim_incompatibility",
+        severity="warning",
+        scope="claim_pair",
+        logic_strength="hard",
+        source_claim=left.source_claim,
+        related_claims=[right.source_claim],
+        formula_nodes=[left.root, right.root],
+        condition=_condition(
+            "joint_incompatibility",
+            [left.source_claim, right.source_claim],
+            _and_event(left.source_claim, right.source_claim),
+            "hard_logic",
+        ),
+        message=(
+            f"Formula claims {left.source_claim!r} and {right.source_claim!r} cannot both hold."
+        ),
+    )
+
+
+def _cross_claim_entailment(
+    antecedent: _ProjectedFormula,
+    consequent: _ProjectedFormula,
+) -> FormulaDiagnostic:
+    return FormulaDiagnostic(
+        code="cross_claim_entailment",
+        severity="info",
+        scope="claim_pair",
+        logic_strength="hard",
+        source_claim=antecedent.source_claim,
+        related_claims=[consequent.source_claim],
+        formula_nodes=[antecedent.root, consequent.root],
+        condition=_condition(
+            "entailment_violation",
+            [antecedent.source_claim, consequent.source_claim],
+            {
+                "op": "and",
+                "args": [
+                    {"var": antecedent.source_claim},
+                    {"op": "not", "arg": {"var": consequent.source_claim}},
+                ],
+            },
+            "hard_logic",
+        ),
+        message=(f"Formula claim {antecedent.source_claim!r} entails {consequent.source_claim!r}."),
+    )
+
+
+def _cross_claim_equivalence(
+    left: _ProjectedFormula,
+    right: _ProjectedFormula,
+) -> FormulaDiagnostic:
+    return FormulaDiagnostic(
+        code="cross_claim_equivalence",
+        severity="info",
+        scope="claim_pair",
+        logic_strength="hard",
+        source_claim=left.source_claim,
+        related_claims=[right.source_claim],
+        formula_nodes=[left.root, right.root],
+        condition=_condition(
+            "redundant_formula",
+            [left.source_claim, right.source_claim],
+            {
+                "op": "or",
+                "args": [
+                    {
+                        "op": "and",
+                        "args": [
+                            {"var": left.source_claim},
+                            {"op": "not", "arg": {"var": right.source_claim}},
+                        ],
+                    },
+                    {
+                        "op": "and",
+                        "args": [
+                            {"var": right.source_claim},
+                            {"op": "not", "arg": {"var": left.source_claim}},
+                        ],
+                    },
+                ],
+            },
+            "hard_logic",
+        ),
+        message=(
+            f"Formula claims {left.source_claim!r} and {right.source_claim!r} "
+            "are logically equivalent."
+        ),
+    )
+
+
+def _and_event(left: str, right: str) -> dict[str, Any]:
+    return {"op": "and", "args": [{"var": left}, {"var": right}]}
