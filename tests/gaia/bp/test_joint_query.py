@@ -64,6 +64,7 @@ def _nested_covering_factor_graph() -> FactorGraph:
 
 
 def test_bp_package_exports_joint_query_api():
+    import gaia.engine.bp as bp_package
     from gaia.engine.bp import (
         JointDistribution as ExportedJointDistribution,
     )
@@ -86,6 +87,16 @@ def test_bp_package_exports_joint_query_api():
         joint_over as exported_joint_over,
     )
 
+    exported_names = {
+        "JointDistribution",
+        "JointDistributionBasis",
+        "JointQueryMethod",
+        "JointQueryUnavailable",
+        "JointQueryUnavailableError",
+        "compare_joint_over",
+        "joint_over",
+    }
+    assert exported_names <= set(bp_package.__all__)
     assert ExportedJointDistribution is joint_query_module.JointDistribution
     assert ExportedJointDistributionBasis is joint_query_module.JointDistributionBasis
     assert ExportedJointQueryMethod is joint_query_module.JointQueryMethod

@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 
 import gaia.engine.ir.logic.probability as probability_module
@@ -35,6 +38,7 @@ def _condition(expression: dict) -> DiagnosticCondition:
 
 
 def test_logic_package_exports_diagnostic_probability_api():
+    import gaia.engine.ir.logic as logic_package
     from gaia.engine.ir.logic import (
         ConditionProbabilityEstimate as ExportedConditionProbabilityEstimate,
     )
@@ -51,11 +55,39 @@ def test_logic_package_exports_diagnostic_probability_api():
         score_diagnostic_conditions as exported_score_diagnostic_conditions,
     )
 
+    exported_names = {
+        "ConditionProbabilityEstimate",
+        "DiagnosticProbability",
+        "event_probability",
+        "score_condition",
+        "score_diagnostic_conditions",
+    }
+    assert exported_names <= set(logic_package.__all__)
     assert ExportedConditionProbabilityEstimate is probability_module.ConditionProbabilityEstimate
     assert ExportedDiagnosticProbability is probability_module.DiagnosticProbability
     assert exported_event_probability is probability_module.event_probability
     assert exported_score_condition is probability_module.score_condition
     assert exported_score_diagnostic_conditions is probability_module.score_diagnostic_conditions
+
+
+def test_logic_propositional_import_does_not_eagerly_load_bp_package():
+    script = "\n".join(
+        [
+            "import sys",
+            "from gaia.engine.ir.logic import is_satisfiable",
+            "print('gaia.engine.bp' in sys.modules)",
+            "print('gaia.engine.bp.joint_query' in sys.modules)",
+            "print(callable(is_satisfiable))",
+        ]
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.stdout.splitlines() == ["False", "False", "True"]
 
 
 def test_event_probability_sums_joint_assignments_in_bit_index_order():

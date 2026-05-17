@@ -22,18 +22,14 @@ See docs/specs/2026-05-16-engine-module-reorg-design.md §5 for the three-scope
 taxonomy.
 """
 
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
+
 from gaia.engine.ir.logic.diagnostics import (
     DiagnosticCondition,
     FormulaDiagnostic,
     FormulaDiagnosticReport,
     inspect_formula_graphs,
-)
-from gaia.engine.ir.logic.probability import (
-    ConditionProbabilityEstimate,
-    DiagnosticProbability,
-    event_probability,
-    score_condition,
-    score_diagnostic_conditions,
 )
 from gaia.engine.ir.logic.propositional import (
     are_equivalent,
@@ -44,6 +40,23 @@ from gaia.engine.ir.logic.propositional import (
     to_nnf_proposition,
     to_sympy_proposition,
 )
+
+if TYPE_CHECKING:
+    from gaia.engine.ir.logic.probability import (
+        ConditionProbabilityEstimate,
+        DiagnosticProbability,
+        event_probability,
+        score_condition,
+        score_diagnostic_conditions,
+    )
+
+_LAZY_PROBABILITY_EXPORTS = {
+    "ConditionProbabilityEstimate",
+    "DiagnosticProbability",
+    "event_probability",
+    "score_condition",
+    "score_diagnostic_conditions",
+}
 
 __all__ = [
     "ConditionProbabilityEstimate",
@@ -63,3 +76,13 @@ __all__ = [
     "to_nnf_proposition",
     "to_sympy_proposition",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily expose probability helpers without loading BP for pure logic imports."""
+    if name in _LAZY_PROBABILITY_EXPORTS:
+        probability_module = import_module("gaia.engine.ir.logic.probability")
+        value = getattr(probability_module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
