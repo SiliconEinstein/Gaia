@@ -627,16 +627,31 @@ predicate-logic claims. Use them inside `claim(..., formula=...)` when the
 proposition ranges over a `Variable` rather than over named claim atoms:
 
 ```python
-from gaia.engine.lang import Bool, Variable, claim, exists, forall, implies
+from gaia.engine.lang import (
+    ClaimKind,
+    Domain,
+    PredicateSymbol,
+    UserPredicate,
+    Variable,
+    claim,
+    exists,
+    forall,
+    implies,
+)
 
-x = Variable(symbol="x", domain=Bool)
+System = Domain(content="Systems in this package", members=["s1", "s2"])
+x = Variable(symbol="x", domain=System)
+P = PredicateSymbol(name="P", arg_domains=(System,))
+Q = PredicateSymbol(name="Q", arg_domains=(System,))
 universal = claim(
     "All systems satisfy P implies Q.",
-    formula=forall(x, implies(P(x), Q(x))),
+    formula=forall(x, implies(UserPredicate(P, (x,)), UserPredicate(Q, (x,)))),
+    kind=ClaimKind.QUANTIFIED,
 )
 witness = claim(
     "There exists a system that satisfies P.",
-    formula=exists(x, P(x)),
+    formula=exists(x, UserPredicate(P, (x,))),
+    kind=ClaimKind.QUANTIFIED,
 )
 ```
 
@@ -755,9 +770,11 @@ should use until they finish moving off them.
 
 For the full migration table (every legacy verb mapped to its v0.5 replacement),
 see [Migration to alpha 0 §Layer 3](../migration.md#layer-3-legacy-dsl-verb-migration).
-For per-symbol signatures, the auto-generated
-[`gaia.engine.lang` reference](../reference/engine/lang.md) renders the compat
-surface alongside the canonical exports.
+For per-symbol signatures of the canonical replacements, use the auto-generated
+[`gaia.engine.lang` reference](../reference/engine/lang.md) and focused
+[`gaia.engine.lang.dsl` reference](../reference/engine/lang/dsl.md). The compat
+facade is a deprecated migration import, not a separate generated authoring
+contract.
 
 ```python
 from gaia.engine.lang.compat import (
@@ -791,9 +808,9 @@ from gaia.engine.lang.compat import (
 `fills(...)` (cross-package interface bridging) is still the v0.5 surface for
 declaring `local_hole`-resolving relations between packages. See
 [Hole and Bridge Tutorial](hole-bridge-tutorial.md) for the end-to-end
-walkthrough; the per-parameter signature is rendered in the
-[`gaia.engine.lang` reference](../reference/engine/lang.md) alongside the rest
-of the compat surface.
+walkthrough. Until it is promoted out of `compat`, treat
+`gaia.engine.lang.compat.fills` as a compatibility import rather than a
+top-level generated reference entry.
 
 ## Module Organization
 

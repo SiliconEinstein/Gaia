@@ -40,7 +40,7 @@ Prints version, release channel, commit, and IR schema metadata, then exits:
 gaia-lang 0.5.0
 channel: stable
 commit: 84353aa3
-ir_schema: 7
+ir_schema: ir-v1+<12hex>
 ```
 
 | Field | Source | Meaning |
@@ -51,8 +51,9 @@ ir_schema: 7
 | ir_schema | `gaia._meta.IR_SCHEMA` | IR schema version this CLI consumes/emits |
 
 Use `--version` in CI logs and bug reports so the IR schema and channel
-are unambiguous when debugging registry / dependency mismatches. The
-`ir_schema` field is also visible in `.gaia/compile_metadata.json`.
+are unambiguous when debugging registry / dependency mismatches.
+`.gaia/compile_metadata.json` records the compiled `ir_hash` and
+`gaia_lang_version`; use `gaia --version` for the schema string.
 
 ## `gaia build`
 
