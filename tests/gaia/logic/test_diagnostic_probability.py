@@ -276,17 +276,22 @@ def test_score_diagnostic_conditions_from_physics_python_dsl_e2e():
         )
         primordial_tensor.label = "primordial_tensor"
         bicep2_tensor_interpretation = claim(
-            "BICEP2 interpretation: the observed B-mode excess is a primordial tensor "
-            "signal, so the curl-like CMB polarization is mainly from inflationary "
-            "gravitational waves.",
+            "BICEP2 interpretation: BICEP2 reports a degree-scale CMB B-mode excess, "
+            "meaning an unexpectedly strong curl-like polarization pattern in the "
+            "cosmic microwave background; this claim says the excess is mainly a "
+            "primordial tensor signal, meaning gravitational-wave fluctuations from "
+            "early-universe inflation rather than later astrophysical foregrounds.",
             formula=land(ClaimAtom(bmode_excess), ClaimAtom(primordial_tensor)),
             prior=0.4,
         )
         bicep2_tensor_interpretation.label = "bicep2_tensor_interpretation"
         planck_dust_interpretation = claim(
-            "Planck foreground interpretation: the same B-mode excess is dominated by "
-            "Galactic dust foreground, meaning polarized emission from dust in the "
-            "Milky Way, not primordial tensor modes.",
+            "Planck foreground interpretation: BICEP2 reports a degree-scale CMB "
+            "B-mode excess, meaning an unexpectedly strong curl-like polarization "
+            "pattern in the cosmic microwave background; this claim says the excess "
+            "is mainly Galactic dust foreground, meaning polarized emission from "
+            "dust in the Milky Way, not primordial tensor modes from inflationary "
+            "gravitational waves.",
             formula=land(ClaimAtom(bmode_excess), lnot(ClaimAtom(primordial_tensor))),
             prior=0.6,
         )
