@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from math import isfinite
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -63,6 +64,8 @@ class JointDistribution(BaseModel):
             )
         if len(set(self.variables)) != len(self.variables):
             raise ValueError("JointDistribution variables must be unique.")
+        if any(not isfinite(value) for value in self.probabilities):
+            raise ValueError("JointDistribution probabilities must be finite.")
         if any(value < -_NORMALIZATION_TOLERANCE for value in self.probabilities):
             raise ValueError("JointDistribution probabilities must be non-negative.")
         total = sum(self.probabilities)

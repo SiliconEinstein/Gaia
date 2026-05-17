@@ -47,6 +47,15 @@ def test_joint_distribution_validates_bit_order_and_normalization():
             basis="exact_joint_distribution",
         )
 
+    with pytest.raises(ValueError, match="must be finite"):
+        JointDistribution(
+            variables=["A"],
+            probabilities=[float("nan"), 1.0],
+            method="exact",
+            is_exact=True,
+            basis="exact_joint_distribution",
+        )
+
     with pytest.raises(ValueError, match="must be unique"):
         JointDistribution(
             variables=["A", "A"],
