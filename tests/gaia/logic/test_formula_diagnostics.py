@@ -250,3 +250,19 @@ def test_pairwise_diagnostics_skip_disjoint_formulas():
     report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
 
     assert [d for d in report.diagnostics if d.scope == "claim_pair"] == []
+
+
+def test_pairwise_diagnostics_skip_locally_unsat_formulas():
+    package = "formula_diag_pair_skip_unsat"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        impossible = claim("A and not A.", formula=land(ClaimAtom(a), lnot(ClaimAtom(a))))
+        impossible.label = "impossible"
+        ordinary = claim("A holds.", formula=ClaimAtom(a))
+        ordinary.label = "ordinary"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
+
+    assert any(d.code == "formula_unsat" and d.severity == "fatal" for d in report.diagnostics)
+    assert [d for d in report.diagnostics if d.scope == "claim_pair"] == []

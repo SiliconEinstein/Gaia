@@ -192,8 +192,13 @@ def inspect_formula_graphs(
         if projection is None:
             diagnostics.append(_projection_unsupported_diagnostic(formula_graph))
             continue
-        projected.append(projection)
-        diagnostics.extend(_claim_local_diagnostics(projection))
+        local_diagnostics = _claim_local_diagnostics(projection)
+        diagnostics.extend(local_diagnostics)
+        if not any(
+            diagnostic.code == "formula_unsat" and diagnostic.severity == "fatal"
+            for diagnostic in local_diagnostics
+        ):
+            projected.append(projection)
 
     if include_pairwise:
         diagnostics.extend(_pairwise_diagnostics(projected))
