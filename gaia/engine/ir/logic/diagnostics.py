@@ -124,8 +124,9 @@ def _project_atom_node(node: FormulaNode, atom_ids: set[str]) -> Any:
 
 def _atom_symbol_name(node: FormulaNode) -> str:
     descriptor = node.descriptor
-    if descriptor.get("kind") == "claim" and isinstance(descriptor.get("qid"), str):
-        return descriptor["qid"]
+    qid = descriptor.get("qid")
+    if descriptor.get("kind") == "claim" and isinstance(qid, str):
+        return qid
     return node.id
 
 
