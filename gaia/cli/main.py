@@ -1,6 +1,6 @@
 """Gaia CLI — knowledge package authoring toolkit.
 
-The CLI organizes verbs into 6 groups + `trace` independent:
+The CLI organizes verbs into 7 groups + `trace` independent:
 
   build    init / compile / check
   run      infer / render
@@ -8,7 +8,8 @@ The CLI organizes verbs into 6 groups + `trace` independent:
   review   (empty skeleton — held for downstream reviewer tooling)
   inquiry  (sub-app: focus / review / obligation / hypothesis / tactics / reject)
   pkg      add / register
-  trace    (sub-app, NOT part of the 6 groups: verify / review / show)
+  author   claim / equal / derive / compose (stub) / composition (stub)
+  trace    (sub-app, NOT part of the groups: verify / review / show)
 
 See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
 """
@@ -17,6 +18,13 @@ import typer
 
 from gaia._meta import IR_SCHEMA, get_channel, get_commit, get_library_version
 from gaia.cli.commands.add import add_command
+from gaia.cli.commands.author import (
+    claim_command,
+    compose_command,
+    composition_command,
+    derive_command,
+    equal_command,
+)
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
 from gaia.cli.commands.infer import infer_command
@@ -155,7 +163,31 @@ app.add_typer(pkg_app, name="pkg")
 
 
 # --------------------------------------------------------------------------- #
-# trace — existing sub-app, independent of the 6 groups                       #
+# author — agent-first authoring CLI (claim / equal / derive + stubs)         #
+# --------------------------------------------------------------------------- #
+#
+# Per 协作单 BOmHwyFRCixqy0k7gR3cCNMInId §五 + §六: the author group is
+# the cli-as-client surface that lets an LLM agent (or a human) CRUD
+# Gaia DSL statements through structured commands instead of editing
+# `.gaia.py` source by hand. R1 ships 3 verbs end-to-end (claim / equal
+# / derive) plus `compose` / `composition` stubs; R2 fills in the
+# remaining 14 statement-level verbs against the same skeleton.
+
+author_app = typer.Typer(
+    name="author",
+    help="Author DSL statements (claim / equal / derive / compose [stub] / composition [stub]).",
+    no_args_is_help=True,
+)
+author_app.command(name="claim")(claim_command)
+author_app.command(name="equal")(equal_command)
+author_app.command(name="derive")(derive_command)
+author_app.command(name="compose")(compose_command)
+author_app.command(name="composition")(composition_command)
+app.add_typer(author_app, name="author")
+
+
+# --------------------------------------------------------------------------- #
+# trace — existing sub-app, independent of the verb groups                    #
 # --------------------------------------------------------------------------- #
 
 app.add_typer(trace_app, name="trace")
