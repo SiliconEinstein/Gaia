@@ -78,7 +78,7 @@ Each `Claim` has a **shape discriminator** `kind: ClaimKind` and an optional str
 | `PARAMETER` | asserts a `Variable` takes a specific value | `parameter(var, value, ...)` sugar |
 | `QUANTIFIED` | top-level `Forall` / `Exists` in `formula` | `claim(formula=Forall(...))` |
 
-`ClaimKind` is **not** a role label (hypothesis / prediction / observation-as-evidence) — those live on action graph nodes (see `roles_for_claim`). It is a structural shape so the compiler can lower the formula payload appropriately. See [§5 Formula Claims](#5-formula-claims) and [Predicate Logic In Gaia Lang](predicate-logic.md).
+`ClaimKind` is **not** a role label (hypothesis / prediction / observation-as-evidence) — those live on action graph nodes (see `roles_for_claim`). It is a structural shape so the compiler can lower the formula payload appropriately. See [§5 Formula Claims](#5-formula-claims), [Formula Logic In Gaia Lang](formula-logic.md), and [Predicate Logic In Gaia Lang](predicate-logic.md).
 
 A `Claim` is **closed** if `parameters=[]` and **universal** if quantified `Variables` appear. Opaque universal prose can record `parameters=[...]`; executable finite-domain quantification should use `claim(formula=Forall(...))` / `claim(formula=Exists(...))`, which the compiler lowers as described in [§5 Formula Claims](#5-formula-claims).
 
@@ -268,7 +268,11 @@ authority for this hook.
 - **Quantifiers.** `Forall(var, body)`, `Exists(var, body)`.
 - **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.engine.lang.formula.primitives`).
 
-For a reader-facing explanation of the predicate-logic model, including the difference between opaque `parameters=[...]` and executable `claim(formula=...)`, see [Predicate Logic In Gaia Lang](predicate-logic.md).
+For a reader-facing explanation of where formula-bearing claims sit in the
+authoring/compile/review stack, see [Formula Logic In Gaia Lang](formula-logic.md).
+For the term-level predicate model, including the difference between opaque
+`parameters=[...]` and executable `claim(formula=...)`, see
+[Predicate Logic In Gaia Lang](predicate-logic.md).
 
 The compiler handles formula claims via `gaia/engine/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
 
