@@ -226,7 +226,9 @@ The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's regist
 
 Most action helpers carry `metadata["review"] = true` and `metadata["helper_kind"]` indicating the lowering origin (`implication_warrant`, `equivalence_result`, `association`, ...). Reviewers see them in the review manifest. They carry no independent prior — their distribution is fully determined by the IR operator they back, except for `infer` / `associate` warrants which encode the author's CPT.
 
-Structural-expression helpers from the deprecated `~A`, `A & B`, `A | B` shortcuts use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
+Structural-expression helpers from the deprecated function-call compatibility helpers `not_(A)`, `and_(A, B)`, and `or_(A, B)` use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
+
+The modern `Claim` dunder shortcuts `~A`, `A & B`, and `A | B` no longer create helper `Claim` objects. They return Formula AST nodes (`Lnot`, `Land`, `Lor`) that become graph structure only when attached to an authored claim with `claim(..., formula=...)`.
 
 The IR-side public/private boundary for these helpers — including which helper Claims may be referenced from outside their FormalStrategy and which must stay encapsulated — is defined in [gaia-ir/04-helper-claims.md](../gaia-ir/04-helper-claims.md). Action lowering follows that boundary: the warrant helper for a `Derive` / `Observe` / `Compute` / `Infer` / `Associate` is a public Claim (reviewable, addressable via `[@label]`); the intermediate `conjunction_result` of a multi-premise `Derive` lives inside the FormalStrategy's `formal_expr` as a private node and is not addressable.
 
@@ -275,6 +277,8 @@ For the term-level predicate model, including the difference between opaque
 [Predicate Logic In Gaia Lang](predicate-logic.md).
 
 The compiler handles formula claims via `gaia/engine/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
+
+As authoring sugar, propositional connectives accept raw `Claim` operands and coerce them to `ClaimAtom(...)`; explicit `ClaimAtom` remains the canonical bridge in the AST. Thus `claim("A and B.", formula=a & b)`, `claim("A and B.", formula=land(a, b))`, and `claim("A and B.", formula=land(ClaimAtom(a), ClaimAtom(b)))` lower to the same connective operator shape.
 
 One sugar helper in `gaia/engine/lang/dsl/sugar.py` maps directly onto a
 non-default `ClaimKind` value:

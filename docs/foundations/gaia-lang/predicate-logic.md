@@ -286,11 +286,14 @@ from gaia.engine.lang import ClaimAtom, claim, implies
 
 a = claim("A holds.")
 b = claim("B holds.")
-rule = claim("A implies B.", formula=implies(ClaimAtom(a), ClaimAtom(b)))
+rule = claim("A implies B.", formula=implies(a, b))
 ```
 
 `ClaimAtom` is the bridge. It says "use the truth value of this existing Gaia
-claim as an atom inside the formula."
+claim as an atom inside the formula." Propositional connectives auto-wrap raw
+`Claim` operands as `ClaimAtom(...)`, so `implies(a, b)` is equivalent to
+`implies(ClaimAtom(a), ClaimAtom(b))`; use explicit `ClaimAtom(...)` when you
+want the bridge to be visible.
 
 ### Quantifier
 
@@ -510,11 +513,11 @@ nodes instead of generating new atom nodes.
 Connectives lower to deterministic IR operators:
 
 ```python
-from gaia.engine.lang import ClaimAtom, claim, land
+from gaia.engine.lang import claim, land
 
 a = claim("A.")
 b = claim("B.")
-both = claim("A and B.", formula=land(ClaimAtom(a), ClaimAtom(b)))
+both = claim("A and B.", formula=land(a, b))  # equivalent to formula=a & b
 both.label = "both"
 ```
 
@@ -528,11 +531,11 @@ For a nested formula, Gaia generates private helper claims for intermediate
 sub-expressions:
 
 ```python
-from gaia.engine.lang import ClaimAtom, claim, implies, land
+from gaia.engine.lang import claim, implies, land
 
 rule = claim(
     "A and B imply C.",
-    formula=implies(land(ClaimAtom(a), ClaimAtom(b)), ClaimAtom(c)),
+    formula=implies(land(a, b), c),
 )
 ```
 

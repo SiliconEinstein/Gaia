@@ -62,7 +62,7 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 Lowering 时，每个 Claim 变量的 prior 按以下优先级确定：
 
-1. **Expression helper**（`~A`, `A & B` 等结构化辅助变量）→ 无 prior（MaxEnt 0.5）
+1. **Expression / formula helper claim**（兼容函数 `not_(A)` / `and_(A, B)` / `or_(A, B)` 生成的 `*_result` helper，或 `claim(formula=...)` 为嵌套 connective 生成的 `__...` helper；现代 `~A` / `A & B` / `A | B` 自身只是 Formula AST）→ 无 prior（MaxEnt 0.5）
 2. **Relation conclusion**（EQUIVALENCE/CONTRADICTION/COMPLEMENT/IMPLICATION 的 conclusion）→ `add_evidence(1)`（hard evidence，Cromwell-softened 为 `1 - ε`）；graph relation assertion 优先于 `node_priors`
 3. **`node_priors` 字典**（调用方显式传入）→ 用户指定值
 4. **`metadata[prior]`** → 使用编译后的 claim prior。它可能来自 `priors.py`、inline `claim(prior=...)` compatibility shortcut、continuous predicate records、或 legacy `reason+prior` compatibility paths
