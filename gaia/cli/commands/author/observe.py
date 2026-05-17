@@ -37,6 +37,20 @@ forwarded verbatim as numeric literals (``--value 203`` →
 Python expression with the right unit accessors via the same channel,
 since the rendered snippet is Python source that the engine evaluates at
 package-load time.
+
+R4·❓A=A — prose mode for the observation slot. ``--observation-content
+"<prose>"`` mints a fresh ``claim(prose)`` statement, uses the
+cli-derived slug as the first positional arg of ``observe(...)``, and
+prepends the auto-claim to the target file ahead of the
+``observe(...)`` statement. Mutually exclusive with ``--conclusion``;
+``--observation-label`` overrides the auto-derived slug (mirrors R3's
+``--conclusion-label`` discipline). Semantically honest because a
+discrete observation is a fresh measurement statement being introduced
+into the package — the prose maps cleanly onto a new Claim. Only the
+discrete-claim observation form supports prose mode; the continuous
+form (``--value`` / ``--error``) targets an existing Distribution by
+construction and so retains the identifier-only ``--conclusion``
+shape.
 """
 
 from __future__ import annotations
@@ -47,6 +61,7 @@ import typer
 
 from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata, split_csv
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
+from gaia.cli.commands.author._prose import build_auto_claim_statement, slugify_label
 from gaia.cli.commands.author._runner import run_author_op
 
 
@@ -84,10 +99,32 @@ def _render_observe_statement(
 
 def observe_command(
     label: str = typer.Option(..., "--label", help="Identifier the observation Claim binds to."),
-    conclusion: str = typer.Option(
-        ...,
+    conclusion: str | None = typer.Option(
+        None,
         "--conclusion",
-        help="Identifier of the observed Claim or Distribution.",
+        help=(
+            "Identifier of the observed Claim or Distribution (must already be "
+            "declared). Mutually exclusive with --observation-content."
+        ),
+    ),
+    observation_content: str | None = typer.Option(
+        None,
+        "--observation-content",
+        help=(
+            "Prose for an auto-generated observation Claim. Mutually exclusive with "
+            "--conclusion. Cli derives a snake-case slug for the label (override "
+            "via --observation-label). Only valid for discrete observations; the "
+            "continuous form (--value / --error) targets a Distribution and so "
+            "must use --conclusion."
+        ),
+    ),
+    observation_label: str | None = typer.Option(
+        None,
+        "--observation-label",
+        help=(
+            "Optional explicit label for the auto-generated observation Claim "
+            "(only meaningful with --observation-content)."
+        ),
     ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
@@ -148,8 +185,53 @@ def observe_command(
         # Continuous measurement
         gaia author observe --conclusion T_c --value 203 --error 5 \
             --label temperature_obs
+
+        # Mint a fresh observation from prose (R4 prose mode)
+        gaia author observe --observation-content "Stars visible in zenith." \
+            --label visible_obs
     """
     del json_
+
+    # --- mutual-exclusion check on observation-mode ---------------------- #
+    if conclusion is None and observation_content is None:
+        emit_syntax_error(
+            "observe",
+            "observe requires exactly one of --conclusion / --observation-content",
+            target=str(target),
+            human=human,
+        )
+        return
+    if conclusion is not None and observation_content is not None:
+        emit_syntax_error(
+            "observe",
+            "--conclusion and --observation-content are mutually exclusive",
+            target=str(target),
+            human=human,
+        )
+        return
+    if observation_label is not None and observation_content is None:
+        emit_syntax_error(
+            "observe",
+            "--observation-label only applies with --observation-content",
+            target=str(target),
+            human=human,
+        )
+        return
+    # The continuous form needs a Distribution-typed identifier as the
+    # observation target, so prose mode (which generates a Claim, not a
+    # Distribution) is incompatible with --value / --error.
+    if observation_content is not None and (value is not None or error is not None):
+        emit_syntax_error(
+            "observe",
+            (
+                "--observation-content (prose mode) is incompatible with "
+                "--value / --error (continuous form targets an existing "
+                "Distribution; use --conclusion <dist_label>)"
+            ),
+            target=str(target),
+            human=human,
+        )
+        return
 
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
@@ -180,9 +262,23 @@ def observe_command(
         )
         return
 
+    # --- prose mode: mint a fresh observation claim ----------------------- #
+    prepended: tuple[tuple[str, str], ...] = ()
+    if observation_content is not None:
+        if observation_label is not None:
+            auto_label = observation_label
+        else:
+            reserved = {label, *given_list}
+            auto_label = slugify_label(observation_content, existing=reserved)
+        prepended = ((auto_label, build_auto_claim_statement(auto_label, observation_content)),)
+        resolved_conclusion = auto_label
+    else:
+        assert conclusion is not None  # mutex check above
+        resolved_conclusion = conclusion
+
     generated_code = _render_observe_statement(
         label=label,
-        conclusion=conclusion,
+        conclusion=resolved_conclusion,
         value=value,
         error=error,
         given=given_list,
@@ -190,7 +286,7 @@ def observe_command(
         rationale=rationale,
         metadata=metadata_dict,
     )
-    references = [conclusion, *given_list]
+    references = [resolved_conclusion, *given_list]
     proposed_op = ProposedAuthorOp(
         verb="observe",
         kind="reasoning",
@@ -198,6 +294,7 @@ def observe_command(
         references=references,
         generated_code=generated_code,
         required_imports=("observe",),
+        prepended_statements=prepended,
     )
     run_author_op(
         proposed_op,
