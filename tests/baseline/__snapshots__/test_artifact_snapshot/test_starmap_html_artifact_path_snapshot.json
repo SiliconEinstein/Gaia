@@ -41,6 +41,10 @@
       "size": "<NONZERO>"
     },
     {
+      "path": "galileo/CLI-AUTHORED.md",
+      "size": "<NONZERO>"
+    },
+    {
       "path": "galileo/pyproject.toml",
       "size": "<NONZERO>"
     },
