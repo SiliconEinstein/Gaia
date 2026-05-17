@@ -14,13 +14,15 @@ since: v0.5
 >   It is what `bayes.model` / `bayes.likelihood` ship today. Treat these
 >   sections as the authoring contract.
 > - **Quantity-with-predicate surface (`Distribution` + `claim(content,
->   predicate)` + `observe(dist, value, error)`, marked `(v0.6+)`) is target
->   design**, planned for the v0.6 release line. The behavior described there
->   is **not** the v0.5 contract; do not rely on it from existing packages.
->   Each v0.6+ subsection carries its own callout where relevant.
+>   predicate)` + `observe(dist, value, error)`) is current in v0.5 but
+>   partial.** Inequality predicates get generated CDF priors and measurement
+>   events are recorded in IR. Observation-aware posterior CDF updates, richer
+>   equation constraint lowering, and distribution-vs-distribution predicates
+>   remain follow-up work.
 >
-> If you are reading this on a v0.5 install, treat anything inside the
-> "Quantity-With-Predicate Surface (v0.6+)" section as a roadmap reference.
+> If you are reading this on a v0.5 install, both surfaces below are usable;
+> check each section's "not yet" notes before relying on posterior-updating or
+> equation-propagation behavior.
 
 Gaia provides **two complementary mental models** for handling continuous
 parameters and observations. Pick the one that matches your scientific
@@ -29,7 +31,7 @@ question:
 | You want to … | Use this surface | Status | Mental model |
 |---|---|---|---|
 | Compare competing parameter-value hypotheses (Mendel 3:1 vs 1:1, Galileo Model A vs Model B) | `gaia.engine.bayes` (this module) — `bayes.model` + `bayes.likelihood` | **v0.5 canonical** | **Hypothesis comparison** via likelihood ratios |
-| Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` | **v0.6+ target design** | **Quantity with predicates** via generated prior records and equation metadata |
+| Estimate a single uncertain quantity and ask threshold / simple equation questions about it (`T_c > 100 K`, `y == baseline + slope * x`) | `Distribution` + `claim(content, predicate)` + `observe(dist, value, error)` | **v0.5 current, partial** | **Quantity with predicates** via generated prior records and equation metadata |
 
 Both surfaces ride on the same scipy-backed distribution machinery
 (``gaia.engine.bayes.distributions``); the difference is the authoring shape
@@ -274,18 +276,17 @@ compiled IR. `gaia build check` applies `priors.py` before compilation, so sidec
 priors are visible to this rule once injected into metadata. Hypotheses with no
 Claim prior and no `priors.py` entry contribute `0.5` to the sum.
 
-## Quantity-With-Predicate Surface (v0.6+)
+## Quantity-With-Predicate Surface
 
-> **Roadmap (v0.6+) — not current contract.** Everything from this section
-> down to the next top-level `##` heading describes target design that has not
-> shipped in v0.5. The behavior, syntax, and diagnostics are subject to change
-> before release; do not author new v0.5 packages against these names. The
-> hypothesis-comparison surface above is the v0.5 source of truth.
+> **Current but partial.** The API names in this section ship in v0.5.
+> Predicate priors are computed from the prior distribution. Measurement events
+> are recorded, but they do not yet update those predicate priors through a
+> posterior CDF.
 
 The hypothesis-comparison surface above is verbose for a common scientific
 pattern: *"I have one continuous parameter with prior uncertainty, and I want
 to ask threshold or equation questions about it"*. The
-**quantity-with-predicate** surface planned for v0.6+ collapses that pattern
+**quantity-with-predicate** surface collapses that pattern
 into three concepts:
 
 1. **Distribution** — a named continuous (or discrete) quantity with a prior
@@ -369,7 +370,7 @@ linear_response_loose = claim(
 
 The author's prior reflects belief in the *law/model* itself. The
 distributions on each operand carry marginal uncertainty of the parameters.
-Current PR1 lowering preserves the equation and optional tolerance in
+Current v0.5 lowering preserves the equation and optional tolerance in
 metadata and registers a neutral 0.5 default when no prior source is present;
 it does not yet propagate constraints between operands or derive a prior from
 the equation.
@@ -396,7 +397,7 @@ custom_noise = Normal("Bayesian-fit measurement noise", mu=0, sigma=4.5)
 m3 = observe(T_c, value=204, error=custom_noise)
 ```
 
-PR1 v0.6 stores observation events; the posterior CDF used for predicate
+Current v0.5 stores observation events; the posterior CDF used for predicate
 claim priors still uses the prior distribution (observation-aware posterior
 update is a follow-up PR — see `gaia/engine/lang/compiler/predicate_lowering.py`
 ``PREDICATE_LOWERING_SOURCE_ID`` docstring). Until then, predicate priors
@@ -416,8 +417,8 @@ Distribution factories accept ``gaia.unit.Quantity`` values via
 | ``Poisson`` | n/a | ``rate`` (lambda is the dimensionless expected count for the interval implied by the content string) | n/a |
 | ``LogNormal``, ``Beta``, ``ChiSquared``, ``Binomial`` | n/a | All — pass bare scalars; encode the random variable's unit in the content string | n/a |
 
-> **Migration (v0.6 breaking change for Poisson):** ``Poisson(rate=q(2, "1/s"))``
-> from earlier v0.5/v0.6 snapshots is no longer accepted. Poisson's ``rate``
+> **Migration note for earlier snapshots:** ``Poisson(rate=q(2, "1/s"))``
+> is no longer accepted. Poisson's ``rate``
 > parameter is the dimensionless expected count for whatever observation
 > interval is implied by the content string. Use
 > ``Poisson("events per second", rate=2)`` instead, encoding the interval in

@@ -48,7 +48,7 @@ description = "Galileo's falling bodies argument"
 authors = [{name = "Galileo Galilei"}]
 requires-python = ">=3.12"
 dependencies = [
-    "gaia-lang >= 2.0.0",
+    "gaia-lang >= 0.5.0",
     "aristotle-mechanics-gaia >= 1.0.0",
 ]
 

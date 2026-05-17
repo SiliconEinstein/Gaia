@@ -243,24 +243,18 @@ Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539
 
 ### 4.4 Compiler extension registry
 
-Action lowering is dispatched through a typed registry in
-`gaia/engine/lang/compiler/extensions.py`. Each built-in action subclass is
-registered with `register_action_lowerer(action_type, lowerer, *, replace=False)`
-so the compiler can map a runtime `Action` to the IR target documented in §4.1.
-Authors normally do not call this directly — every built-in verb is registered
-at import time — but **plugins or experimental DSL extensions** can supply a
-new action subclass plus its IR lowerer through the same hook. `replace=True`
-is required to overwrite an already-registered lowerer; otherwise a duplicate
-registration is a compile-time error so packages cannot silently shadow each
-other.
+Action lowering is dispatched through a small registry in
+`gaia/engine/lang/compiler/extensions.py`. Peer engine modules, such as
+`gaia.engine.bayes`, register lowerers by stable name:
 
-Public surface (auto-rendered from docstrings on
-[`docs/reference/engine/lang/compiler.md`](../../reference/engine/lang/compiler.md)):
+- `register_action_lowerer(name, *, handles, lower)` — add or replace a lowerer
+  selected by a predicate over runtime `Action` objects.
+- `registered_action_lowerers()` — return the current registry snapshot.
 
-- `register_action_lowerer(action_type, lowerer, *, replace=False)` — register
-  a lowerer for a custom `Action` subclass.
-- `registered_action_lowerers()` — snapshot of currently-registered lowerers
-  (used by `gaia build check` to surface plugin-provided actions).
+This is an engine-extension hook, not a package-author DSL surface. The
+generated compiler reference currently renders `gaia.engine.lang.compiler`, not
+the private `extensions` submodule, so the source docstrings remain the
+authority for this hook.
 
 ---
 
