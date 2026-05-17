@@ -3,22 +3,22 @@
 Jaynes class I (logical assertion) potentials are STRICT delta {0, 1};
 Cromwell ε is reserved for class IV (unary soft evidence) only.
 
-This file exposes _HIGH / _LOW historical aliases for backwards
-compatibility with downstream callers that import them, but deterministic
-operator potentials below use strict 0.0 / 1.0 — no Cromwell softening.
+This file exposes _HIGH / _LOW historical aliases for downstream callers that
+import them; they are now the strict deterministic values 1.0 / 0.0.
 Soft factors (SOFT_ENTAILMENT / CONDITIONAL / PAIRWISE_POTENTIAL) carry
 their own author-supplied probabilities and are unaffected.
 """
 
 from __future__ import annotations
 
-from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
+from gaia.engine.bp.factor_graph import Factor, FactorType
 
 __all__ = [
     "complement_potential",
     "conditional_potential",
     "conjunction_potential",
     "contradiction_potential",
+    "deductive_implication_potential",
     "disjunction_potential",
     "equivalence_potential",
     "evaluate_potential",
@@ -33,8 +33,8 @@ Assignment = dict[str, int]
 _DELTA_HIGH: float = 1.0
 _DELTA_LOW: float = 0.0
 
-_HIGH = 1.0 - CROMWELL_EPS
-_LOW = CROMWELL_EPS
+_HIGH = _DELTA_HIGH
+_LOW = _DELTA_LOW
 
 
 def implication_potential(
@@ -103,6 +103,19 @@ def soft_entailment_potential(
     return p2 if c == 0 else (1.0 - p2)
 
 
+def deductive_implication_potential(
+    assignment: Assignment,
+    antecedent: str,
+    consequent: str,
+) -> float:
+    """Compute normalized hard deduction P(B|A) with MaxEnt row for ¬A."""
+    a = assignment[antecedent]
+    b = assignment[consequent]
+    if a == 1:
+        return _DELTA_HIGH if b == 1 else _DELTA_LOW
+    return 0.5
+
+
 def conditional_potential(
     assignment: Assignment,
     premises: list[str],
@@ -153,6 +166,8 @@ def evaluate_potential(factor: Factor, assignment: Assignment) -> float:  # noqa
         if factor.p1 is None or factor.p2 is None:
             raise ValueError(f"SOFT_ENTAILMENT '{factor.factor_id}' missing p1/p2.")
         return soft_entailment_potential(assignment, v[0], c, factor.p1, factor.p2)
+    if ft == FactorType.DEDUCTIVE_IMPLICATION:
+        return deductive_implication_potential(assignment, v[0], c)
     if ft == FactorType.CONDITIONAL:
         if factor.cpt is None:
             raise ValueError(f"CONDITIONAL '{factor.factor_id}' missing cpt.")

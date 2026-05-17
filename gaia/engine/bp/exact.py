@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
+from gaia.engine.bp.factor_graph import Factor, FactorGraph, FactorType
 
 __all__ = ["comparison_table", "exact_inference", "exact_joint_over"]
 
@@ -47,14 +47,8 @@ def _enumerate_log_joint(
         log_j = np.zeros(cs, dtype=np.float64)
         for i, p in unary_idxs:
             log_j += np.where(states[:, i] == 1, np.log(p), np.log(1.0 - p))
-        # Cromwell-clamped hard evidence (Gaia adjusted Jaynes Class I):
-        # hard evidence contributes a strong soft prior {ε, 1-ε} rather than
-        # a strict δ, preserving Bayesian updatability. Log-probability
-        # contribution: log(1-ε) for matching states, log(ε) for non-matching.
-        _log_hard_match = np.log(1.0 - CROMWELL_EPS)
-        _log_hard_miss = np.log(CROMWELL_EPS)
         for i, val in hard_idxs:
-            log_j = log_j + np.where(states[:, i] == val, _log_hard_match, _log_hard_miss)
+            log_j = log_j + np.where(states[:, i] == val, 0.0, -np.inf)
 
         for factor in graph.factors:
             log_j += _factor_log_potentials(factor, states, var_idx)
@@ -83,11 +77,8 @@ def _factor_log_potentials(  # noqa: C901
     var_idx: dict[str, int],
 ) -> np.ndarray:
     cs = states.shape[0]
-    # Cromwell clamp for deterministic factor potentials, matching contraction.py
-    # and the hard-evidence handling above. Pure δ {0, 1} is replaced by {ε, 1-ε}
-    # so that no assignment is logically forbidden (Gaia adjusted Jaynes Class I).
-    h_log = float(np.log(1.0 - CROMWELL_EPS))
-    lo_log = float(np.log(CROMWELL_EPS))
+    h_log = 0.0
+    lo_log = -np.inf
     ft = factor.factor_type
     vids = factor.variables
     concl = factor.conclusion
@@ -171,6 +162,17 @@ def _factor_log_potentials(  # noqa: C901
             np.where(cv == 0, p2, 1.0 - p2),
         )
         return np.log(pot)  # type: ignore[no-any-return]
+
+    if ft == FactorType.DEDUCTIVE_IMPLICATION:
+        a_idx = var_idx[vids[0]]
+        c_idx = var_idx[concl]
+        a = states[:, a_idx]
+        cv = states[:, c_idx]
+        pot = np.where(a == 1, np.where(cv == 1, 1.0, 0.0), 0.5)
+        out = np.full(cs, -np.inf, dtype=np.float64)
+        positive = pot > 0.0
+        out[positive] = np.log(pot[positive])
+        return out
 
     if ft == FactorType.CONDITIONAL:
         assert factor.cpt is not None

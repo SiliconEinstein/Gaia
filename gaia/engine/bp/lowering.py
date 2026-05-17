@@ -23,13 +23,9 @@ from gaia.engine.ir.strategy import (
     StrategyType,
 )
 
-# Deduction is a hard predictive implication in Jaynes form:
-#   P(C=true | premise=true, I) = 1 - ε
-#   P(C=true | premise=false, I) = q
-# where q defaults to 0.5 by MaxEnt unless an explicit base-rate model is added
-# later. Accepted review gates whether the relation enters I; it never supplies
-# a numerical prior for the deduction warrant.
-_DEDUCTION_FALSE_PREMISE_BASE_RATE = 0.5
+# Deduction is a normalized hard implication: A forbids not-B, while not-A
+# leaves B at its MaxEnt 0.5 row. This keeps open antecedents at their explicit
+# or default boundary prior unless downstream consequences are observed.
 
 # Support remains the soft implication family. Its warrant prior is still folded
 # into an effective P(C|premise) until support is redesigned as a separate
@@ -38,7 +34,7 @@ _SOFT_IMPLICATION_TYPES = frozenset({StrategyType.SUPPORT})
 
 # Operators whose conclusion is a "relation assertion" (the operator
 # DECLARES that the relation holds) — their helper claim should be
-# pinned to ``1 - CROMWELL_EPS`` (asserted true).  DISJUNCTION is
+# asserted as strict Class-I evidence.  DISJUNCTION is
 # compositional (``h = a OR b`` is a derived value), so its helper
 # stays at the neutral 0.5 default and the factor potential drives
 # the marginal.
@@ -383,6 +379,14 @@ def _ensure_claim_var(
     fg.add_variable(vid, priors.get(vid))
 
 
+def _assert_hard_relation(fg: FactorGraph, var_id: str) -> None:
+    """Assert a relation/helper claim as strict Class-I evidence."""
+    if var_id not in fg.variables:
+        fg.add_variable(var_id)
+    fg.unary_factors.pop(var_id, None)
+    fg.add_evidence(var_id, 1)
+
+
 def _clamp_probability(value: float) -> float:
     return max(CROMWELL_EPS, min(1.0 - CROMWELL_EPS, float(value)))
 
@@ -582,32 +586,37 @@ def _lower_deduction_implication(
     priors: dict[str, float],
     claim_ids: set[str],
 ) -> None:
-    """Lower a deduction implication as a conditional factor."""
+    """Lower a deduction implication as normalized hard conditional entailment."""
+    del s
     antecedent = op.variables[0]
     consequent = op.variables[1]
     _ensure_claim_var(fg, antecedent, priors, claim_ids)
     _ensure_claim_var(fg, consequent, priors, claim_ids)
-    # V2 (Jaynes D3): false-premise branch inherits consequent leaf prior π_C.
-    # When premise is false, the deduction warrant carries no information
-    # about C, so the CPT must reproduce π_C and add nothing. Falls back to
-    # 0.5 (MaxEnt) only when consequent has no leaf prior. metadata override
-    # remains for authors who model a custom base rate.
-    explicit_q = (s.metadata or {}).get("false_premise_base_rate")
-    if explicit_q is not None:
-        q = float(explicit_q)
-    elif consequent in priors:
-        q = float(priors[consequent])
-    else:
-        q = _DEDUCTION_FALSE_PREMISE_BASE_RATE
+    _assert_hard_relation(fg, op.conclusion)
     fg.add_factor(
         fid,
-        FactorType.CONDITIONAL,
+        FactorType.DEDUCTIVE_IMPLICATION,
         [antecedent],
         consequent,
-        cpt=[q, 1.0 - CROMWELL_EPS],
     )
-    fg.variables.pop(op.conclusion, None)
-    fg.unary_factors.pop(op.conclusion, None)
+
+
+def _lower_formal_operator_default(
+    fg: FactorGraph,
+    op: Operator,
+    fid: str,
+    priors: dict[str, float],
+    claim_ids: set[str],
+) -> None:
+    """Lower a formal operator with its direct factor mapping."""
+    fg.add_factor(fid, _OPERATOR_MAP[op.operator], op.variables, op.conclusion)
+    for vid in op.variables:
+        _ensure_claim_var(fg, vid, priors, claim_ids)
+    conclusion = op.conclusion
+    if _operator_asserts_relation(op):
+        _assert_hard_relation(fg, conclusion)
+    elif conclusion not in fg.variables:
+        fg.add_variable(conclusion, priors.get(conclusion))
 
 
 def _lower_support_implication(
@@ -635,26 +644,6 @@ def _lower_support_implication(
     )
     fg.variables.pop(op.conclusion, None)
     fg.unary_factors.pop(op.conclusion, None)
-
-
-def _lower_formal_operator_default(
-    fg: FactorGraph,
-    op: Operator,
-    fid: str,
-    priors: dict[str, float],
-    claim_ids: set[str],
-) -> None:
-    """Lower a formal operator with its direct factor mapping."""
-    fg.add_factor(fid, _OPERATOR_MAP[op.operator], op.variables, op.conclusion)
-    for vid in op.variables:
-        _ensure_claim_var(fg, vid, priors, claim_ids)
-    conclusion = op.conclusion
-    if conclusion not in fg.variables:
-        prior = 1.0 - CROMWELL_EPS if op.operator in _RELATION_OPS else priors.get(conclusion)
-        fg.add_variable(conclusion, prior)
-    elif op.operator in _RELATION_OPS and conclusion not in fg.unary_factors:
-        # Only assert relation default when no user-set prior exists (D1 guard).
-        fg.add_variable(conclusion, 1.0 - CROMWELL_EPS)
 
 
 def _lower_formal_strategy(

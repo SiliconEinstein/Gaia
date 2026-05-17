@@ -2,7 +2,7 @@ import pytest
 
 from gaia.engine.bp.contraction import contract_to_cpt, factor_to_tensor
 from gaia.engine.bp.exact import exact_inference, exact_joint_over
-from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
+from gaia.engine.bp.factor_graph import FactorGraph, FactorType
 from gaia.engine.bp.junction_tree import JunctionTreeInference
 from gaia.engine.bp.lowering import lower_local_graph
 from gaia.engine.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
@@ -67,6 +67,39 @@ def test_exact_joint_over_computes_boundary_joint():
     assert joint[1] > 0.5
 
 
+def test_hard_implication_maxent_counts_feasible_worlds_exactly():
+    fg = FactorGraph()
+    for var_id in ["a", "c", "a_implies_c"]:
+        fg.add_variable(var_id)
+    fg.add_factor("imp", FactorType.IMPLICATION, ["a", "c"], "a_implies_c")
+    fg.add_evidence("a_implies_c", 1)
+
+    exact_beliefs, _ = exact_inference(fg)
+    jt_result = JunctionTreeInference().run(fg)
+    joint = exact_joint_over(fg, ["a", "c"])
+
+    assert joint == pytest.approx([1 / 3, 0.0, 1 / 3, 1 / 3])
+    assert exact_beliefs["a"] == pytest.approx(1 / 3)
+    assert exact_beliefs["c"] == pytest.approx(2 / 3)
+    assert jt_result.beliefs["a"] == pytest.approx(exact_beliefs["a"])
+    assert jt_result.beliefs["c"] == pytest.approx(exact_beliefs["c"])
+
+
+def test_factor_tensor_for_hard_conjunction_is_strict_delta():
+    fg = FactorGraph()
+    fg.add_variable("a")
+    fg.add_variable("b")
+    fg.add_variable("both")
+    fg.add_factor("and", FactorType.CONJUNCTION, ["a", "b"], "both")
+
+    tensor, _axes = factor_to_tensor(fg.factors[0])
+
+    assert tensor[0, 0, 0] == 1.0
+    assert tensor[0, 0, 1] == 0.0
+    assert tensor[1, 1, 0] == 0.0
+    assert tensor[1, 1, 1] == 1.0
+
+
 def test_lowering_leaves_derived_conclusion_without_unary_factor():
     graph = LocalCanonicalGraph(
         namespace="github",
@@ -116,7 +149,7 @@ def test_lowering_relation_helper_is_assertion_not_default_prior():
     assert fg.factors[0].factor_type == FactorType.EQUIVALENCE
 
 
-def test_deduction_lowers_to_hard_conditional_implication():
+def test_deduction_lowers_to_normalized_implication_with_asserted_helper():
     graph = LocalCanonicalGraph(
         namespace="github",
         package_name="jaynes",
@@ -146,16 +179,121 @@ def test_deduction_lowers_to_hard_conditional_implication():
 
     fg = lower_local_graph(graph)
 
-    assert "github:jaynes::__imp" not in fg.variables
     assert len(fg.factors) == 1
     factor = fg.factors[0]
-    assert factor.factor_type == FactorType.CONDITIONAL
+    assert fg.hard_evidence["github:jaynes::__imp"] == 1
+    assert factor.factor_type == FactorType.DEDUCTIVE_IMPLICATION
     assert factor.variables == ["github:jaynes::a"]
     assert factor.conclusion == "github:jaynes::c"
-    assert factor.cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
 
-def test_deduction_conclusion_evidence_raises_premise_by_bayes():
+def test_deduction_open_antecedent_defaults_to_half_despite_unobserved_consequences():
+    graph = LocalCanonicalGraph(
+        namespace="github",
+        package_name="jaynes",
+        knowledges=[
+            Knowledge(id="github:jaynes::a", type="claim", content="A"),
+            Knowledge(id="github:jaynes::b1", type="claim", content="B1"),
+            Knowledge(id="github:jaynes::b2", type="claim", content="B2"),
+            Knowledge(id="github:jaynes::__imp1", type="claim", content="A implies B1"),
+            Knowledge(id="github:jaynes::__imp2", type="claim", content="A implies B2"),
+        ],
+        strategies=[
+            FormalStrategy(
+                scope="local",
+                type="deduction",
+                premises=["github:jaynes::a"],
+                conclusion="github:jaynes::b1",
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(
+                            operator="implication",
+                            variables=["github:jaynes::a", "github:jaynes::b1"],
+                            conclusion="github:jaynes::__imp1",
+                        )
+                    ]
+                ),
+            ),
+            FormalStrategy(
+                scope="local",
+                type="deduction",
+                premises=["github:jaynes::a"],
+                conclusion="github:jaynes::b2",
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(
+                            operator="implication",
+                            variables=["github:jaynes::a", "github:jaynes::b2"],
+                            conclusion="github:jaynes::__imp2",
+                        )
+                    ]
+                ),
+            ),
+        ],
+    )
+
+    fg = lower_local_graph(graph)
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs["github:jaynes::a"] == pytest.approx(0.5)
+    assert beliefs["github:jaynes::b1"] == pytest.approx(0.75)
+    assert beliefs["github:jaynes::b2"] == pytest.approx(0.75)
+
+
+def test_deduction_respects_existing_antecedent_prior_without_unobserved_penalty():
+    graph = LocalCanonicalGraph(
+        namespace="github",
+        package_name="jaynes",
+        knowledges=[
+            Knowledge(id="github:jaynes::a", type="claim", content="A"),
+            Knowledge(id="github:jaynes::b1", type="claim", content="B1"),
+            Knowledge(id="github:jaynes::b2", type="claim", content="B2"),
+            Knowledge(id="github:jaynes::__imp1", type="claim", content="A implies B1"),
+            Knowledge(id="github:jaynes::__imp2", type="claim", content="A implies B2"),
+        ],
+        strategies=[
+            FormalStrategy(
+                scope="local",
+                type="deduction",
+                premises=["github:jaynes::a"],
+                conclusion="github:jaynes::b1",
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(
+                            operator="implication",
+                            variables=["github:jaynes::a", "github:jaynes::b1"],
+                            conclusion="github:jaynes::__imp1",
+                        )
+                    ]
+                ),
+            ),
+            FormalStrategy(
+                scope="local",
+                type="deduction",
+                premises=["github:jaynes::a"],
+                conclusion="github:jaynes::b2",
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(
+                            operator="implication",
+                            variables=["github:jaynes::a", "github:jaynes::b2"],
+                            conclusion="github:jaynes::__imp2",
+                        )
+                    ]
+                ),
+            ),
+        ],
+    )
+
+    fg = lower_local_graph(graph, node_priors={"github:jaynes::a": 0.7})
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs["github:jaynes::a"] == pytest.approx(0.7)
+    assert beliefs["github:jaynes::b1"] == pytest.approx(0.85)
+    assert beliefs["github:jaynes::b2"] == pytest.approx(0.85)
+
+
+def test_deduction_conclusion_prior_can_confirm_premise():
     graph = LocalCanonicalGraph(
         namespace="github",
         package_name="jaynes",
@@ -192,16 +330,13 @@ def test_deduction_conclusion_evidence_raises_premise_by_bayes():
     )
     beliefs, _ = exact_inference(fg)
 
+    # A prior on C is external information that C is true-like; under normalized
+    # deduction it can confirm A without unobserved C penalizing A beforehand.
     assert beliefs["github:jaynes::a"] > 0.5
-    # V2 fix (Jaynes D3): the deduction CPT's false-premise branch now
-    # inherits π_C=0.9 (not the legacy hard-coded 0.5). This eliminates the
-    # spurious base-rate / leaf-prior conflict that previously inflated P(A)
-    # to ~0.6427. Correct posterior is ~0.523 — only mild leak from C's
-    # high prior, as Jaynes demands.
-    assert beliefs["github:jaynes::a"] == pytest.approx(0.5230339693, abs=1e-6)
+    assert beliefs["github:jaynes::a"] == pytest.approx(9 / 14, abs=1e-6)
 
 
-def test_deduction_ignores_helper_prior_for_hard_logic():
+def test_deduction_ignores_helper_prior_for_normalized_implication():
     graph = LocalCanonicalGraph(
         namespace="github",
         package_name="jaynes",
@@ -237,8 +372,9 @@ def test_deduction_ignores_helper_prior_for_hard_logic():
     fg = lower_local_graph(graph, node_priors={"github:jaynes::__imp": 0.6})
 
     assert len(fg.factors) == 1
-    assert fg.factors[0].factor_type == FactorType.CONDITIONAL
-    assert fg.factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
+    assert fg.hard_evidence["github:jaynes::__imp"] == 1
+    assert "github:jaynes::__imp" not in fg.unary_factors
+    assert fg.factors[0].factor_type == FactorType.DEDUCTIVE_IMPLICATION
 
 
 # ---------------------------------------------------------------------------

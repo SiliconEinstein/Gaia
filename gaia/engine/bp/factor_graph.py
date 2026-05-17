@@ -37,6 +37,7 @@ class FactorType(Enum):
     SOFT_ENTAILMENT = auto()
     CONDITIONAL = auto()
     PAIRWISE_POTENTIAL = auto()
+    DEDUCTIVE_IMPLICATION = auto()
 
 
 @dataclass(frozen=True)
@@ -88,10 +89,8 @@ class FactorGraph:
         ``variables`` records the neutral display/initial measure for every
         variable. Only ``unary_factors`` is a Jaynes-style class IV soft prior
         (Cromwell ε permitted). Class I logical assertions belong in
-        ``hard_evidence`` via :meth:`add_evidence` — those install a Cromwell-
-        clamped {ε, 1-ε} strong prior (Gaia\'s adjusted Jaynes semantics), not
-        a strict δ; downstream BP treats hard-evidence variables as pinned but
-        still Bayes-updatable.
+        ``hard_evidence`` via :meth:`add_evidence`; inference engines treat
+        those as strict δ constraints.
         """
         if prior is None:
             self.variables.setdefault(var_id, 0.5)
@@ -116,14 +115,7 @@ class FactorGraph:
         self.unary_factors[var_id] = clamped
 
     def add_evidence(self, var_id: str, value: int) -> None:
-        """Class I hard observation with Cromwell clamp.
-
-        Gaia adjusts Jaynes: hard evidence is stored as a very strong soft
-        prior {ε, 1-ε} (ε = CROMWELL_EPS = 1e-3), not as strict δ {0, 1}.
-        This preserves Bayesian updatability (Cromwell's rule) and prevents
-        log(0) pathologies in BP message passing, at the cost of a small
-        O(ε) systematic bias vs. strict Jaynes Class I semantics.
-        """
+        """Class I hard observation as a strict δ constraint."""
         if var_id not in self.variables:
             raise KeyError(f"Variable '{var_id}' not registered.")
         if value not in (0, 1):
@@ -142,7 +134,7 @@ class FactorGraph:
                 )
             self.unary_factors.pop(var_id, None)
         self.hard_evidence[var_id] = value
-        self.variables[var_id] = (1.0 - CROMWELL_EPS) if value == 1 else CROMWELL_EPS
+        self.variables[var_id] = float(value)
 
     def observe(self, var_id: str, value: int) -> None:
         """Hard evidence alias — delegates to :meth:`add_evidence`."""
@@ -275,6 +267,14 @@ class FactorGraph:
             if sum(fcpt) <= 0.0:
                 raise ValueError(
                     f"PAIRWISE_POTENTIAL '{factor_id}' requires at least one positive weight."
+                )
+        elif ft == FactorType.DEDUCTIVE_IMPLICATION:
+            if p1 is not None or p2 is not None or cpt is not None:
+                raise ValueError(f"DEDUCTIVE_IMPLICATION '{factor_id}' must not set p1/p2/cpt.")
+            if len(v_list) != 1:
+                raise ValueError(
+                    f"DEDUCTIVE_IMPLICATION '{factor_id}' requires exactly 1 antecedent "
+                    f"variable, got {len(v_list)}."
                 )
         else:
             raise ValueError(f"Unknown FactorType: {ft!r}")

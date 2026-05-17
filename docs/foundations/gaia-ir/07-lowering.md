@@ -133,7 +133,7 @@ lowering 时有两种合法方式：
 
 FormalStrategy 表示一个已经给出确定性 skeleton 的命名推理单元。
 
-> **`support` 与 `deduction` 的 lowering 差异**：两者共享同一 skeleton（`conjunction` + directed `implication`），区别只在 implication warrant 的处理。`deduction` 在 BP lowering 中视为 hard conditional implication（`P(C=true | M=true) = 1-ε`，`P(C=true | M=false) = 0.5`，MaxEnt baseline）。`support` 保留 implication warrant 作为可调先验，由作者指定 warrant prior，反映经验性支持而非逻辑必然。详见 [`bp/formal-strategy-lowering.md`](../bp/formal-strategy-lowering.md)。
+> **`support` 与 `deduction` 的 lowering 差异**：两者共享同一 skeleton（`conjunction` + directed `implication`），区别只在 implication warrant 的处理。`deduction` 在 BP lowering 中保留为 hard `IMPLICATION` truth-table constraint，并用 `add_evidence(1)` 断言 implication helper 为真；`support` 保留 implication warrant 作为可调软权重，由作者指定 warrant prior，反映经验性支持而非逻辑必然。详见 [`bp/formal-strategy-lowering.md`](../bp/formal-strategy-lowering.md)。
 
 FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。lowering 时有两种方式：
 
@@ -147,7 +147,7 @@ FormalExpr 内部节点是严格私有的（禁止外部引用），因此 Forma
 - **折叠**：把 `Obs`、`AlternativeExplanationForObs` 等接口 claim 与内部 helper skeleton 一起消去为一个等效条件单元
 - **展开**：保留 public interface claim，显式 lower `disjunction` / `equivalence` 等 helper 结构
 
-当前 BP 后端对 `deduction` 做一个特化：FormalExpr 中的 implication helper 不作为独立 belief variable 保留，而是消去为 hard conditional implication，`P(C=true | M=true, I)=1-ε`，`P(C=true | M=false, I)=0.5`（MaxEnt baseline）。`support` 仍然使用 soft implication lowering。
+当前 BP 后端对 `deduction` 做一个特化：FormalExpr 中的 implication helper 作为 hard evidence 保留，implication 本身 lower 为 strict `IMPLICATION` factor，而不是消去成 soft-ish `CONDITIONAL` CPT。`support` 仍然使用 soft implication lowering。
 
 ### 4.4 Compose
 

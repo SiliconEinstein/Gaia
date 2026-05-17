@@ -338,7 +338,7 @@ Operators encode **deterministic logical constraints**. Each operator type has a
 
 | Operator | `variables` | `conclusion` |
 |----------|-------------|--------------|
-| `implication` | exactly 1 (antecedent A) | consequent B |
+| `implication` | exactly 2 (antecedent A, consequent B) | helper claim H |
 | `equivalence` | exactly 2 (A, B) | helper claim |
 | `contradiction` | exactly 2 (A, B) | helper claim |
 | `complement` | exactly 2 (A, B) | helper claim |
@@ -349,65 +349,65 @@ The `conclusion` never appears in `variables` — inputs and output are strictly
 
 ### 8.2 Truth Tables
 
-All potentials use Cromwell softening: logical "true" maps to `1 - eps`, logical "false" maps to `eps`, where `eps = CROMWELL_EPS = 1e-3`.
+Deterministic operator potentials are strict delta constraints: logical "true" maps to `1.0`, logical "false" maps to `0.0`. Cromwell clamping still applies to author-supplied soft probabilities and unary priors, but not to Class-I hard constraints.
 
 **Implication** — `implication_potential(A, B)`: forbid A=1, B=0.
 
 | A | B | psi |
 |---|---|-----|
-| 0 | 0 | 1 - eps |
-| 0 | 1 | 1 - eps |
-| 1 | 0 | eps |
-| 1 | 1 | 1 - eps |
+| 0 | 0 | 1 |
+| 0 | 1 | 1 |
+| 1 | 0 | 0 |
+| 1 | 1 | 1 |
 
 **Conjunction** — `conjunction_potential(inputs, M)`: M = AND(inputs).
 
 | all inputs = 1? | M | psi |
 |-----------------|---|-----|
-| yes | 1 | 1 - eps |
-| yes | 0 | eps |
-| no | 1 | eps |
-| no | 0 | 1 - eps |
+| yes | 1 | 1 |
+| yes | 0 | 0 |
+| no | 1 | 0 |
+| no | 0 | 1 |
 
 **Disjunction** — `disjunction_potential(inputs, D)`: D = OR(inputs).
 
 | any input = 1? | D | psi |
 |-----------------|---|-----|
-| yes | 1 | 1 - eps |
-| yes | 0 | eps |
-| no | 1 | eps |
-| no | 0 | 1 - eps |
+| yes | 1 | 1 |
+| yes | 0 | 0 |
+| no | 1 | 0 |
+| no | 0 | 1 |
 
 **Equivalence** — `equivalence_potential(A, B, H)`: H = (A == B).
 
 | A == B? | H | psi |
 |---------|---|-----|
-| yes | 1 | 1 - eps |
-| yes | 0 | eps |
-| no | 1 | eps |
-| no | 0 | 1 - eps |
+| yes | 1 | 1 |
+| yes | 0 | 0 |
+| no | 1 | 0 |
+| no | 0 | 1 |
 
 **Contradiction** — `contradiction_potential(A, B, H)`: H = NOT(A AND B).
 
 | A=1 and B=1? | H | psi |
 |---------------|---|-----|
-| yes | 0 | 1 - eps |
-| yes | 1 | eps |
-| no | 0 | eps |
-| no | 1 | 1 - eps |
+| yes | 0 | 1 |
+| yes | 1 | 0 |
+| no | 0 | 0 |
+| no | 1 | 1 |
 
 **Complement** — `complement_potential(A, B, H)`: H = (A XOR B).
 
 | A != B? | H | psi |
 |---------|---|-----|
-| yes | 1 | 1 - eps |
-| yes | 0 | eps |
-| no | 1 | eps |
-| no | 0 | 1 - eps |
+| yes | 1 | 1 |
+| yes | 0 | 0 |
+| no | 1 | 0 |
+| no | 0 | 1 |
 
 ### 8.3 Helper Claims
 
-Operators that emit a relation-result conclusion (`equivalence`, `contradiction`, `complement`, `disjunction`) produce a **helper Claim** — an ordinary Claim node with metadata marking it as structural. Helper Claims carry no independent prior; their distribution is fully determined by the operator's truth table. Reference: [Helper Claims](../gaia-ir/04-helper-claims.md).
+Operators that emit a relation-result conclusion (`implication`, `equivalence`, `contradiction`, `complement`) produce a **helper Claim** — an ordinary Claim node with metadata marking it as structural. When the operator is used as a relation assertion, lowering asserts that helper with hard evidence (`add_evidence(1)`) so the truth-table constraint is active. Expression helpers (`negation`, `conjunction`, `disjunction`, and formula-internal connective implications) remain neutral outputs whose distribution is determined by the operator's truth table. Reference: [Helper Claims](../gaia-ir/04-helper-claims.md).
 
 ---
 
@@ -439,12 +439,11 @@ Reference: [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md), [Lower
 
 ## 10. Cromwell's Rule
 
-All probabilities in Gaia IR are clamped to `[eps, 1 - eps]` where `CROMWELL_EPS = 1e-3` (defined in `gaia/engine/ir/parameterization.py` and `gaia/engine/bp/factor_graph.py`). This applies to:
+Author-supplied soft probabilities in Gaia IR are clamped to `[eps, 1 - eps]` where `CROMWELL_EPS = 1e-3` (defined in `gaia/engine/ir/parameterization.py` and `gaia/engine/bp/factor_graph.py`). This applies to:
 
 - `PriorRecord.value` (claim priors)
 - `Strategy.conditional_probabilities` (CPT entries on `infer` / `noisy_and` strategies)
 - `Strategy.p_a_given_b` / `Strategy.p_b_given_a` (conditional entries on `associate` strategies)
-- All factor potential values (truth-table entries use `1 - eps` instead of 1, `eps` instead of 0)
 - Author-supplied `p_e_given_h` / `p_e_given_not_h` on `infer`
 
-The rule ensures that no assignment is assigned zero probability, preserving BP's ability to revise any belief given sufficient evidence. Reference: [Parameterization](../gaia-ir/06-parameterization.md).
+The rule keeps soft priors and empirical CPT entries out of dogmatic 0/1 values. It does not soften deterministic truth tables or hard evidence; those are strict Class-I constraints. Reference: [Parameterization](../gaia-ir/06-parameterization.md).

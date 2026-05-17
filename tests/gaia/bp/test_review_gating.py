@@ -57,7 +57,7 @@ def test_unreviewed_operator_excluded_from_bp():
     assert factor_graph.variables["github:review_bp::same_helper"] == 0.5
 
 
-def test_accepted_review_does_not_set_priors():
+def test_accepted_review_asserts_relation_helper():
     with CollectedPackage("review_bp") as pkg:
         a = Claim("A.")
         a.label = "a"
@@ -69,4 +69,5 @@ def test_accepted_review_does_not_set_priors():
     compiled = compile_package_artifact(pkg)
     manifest = _accepted_manifest(generate_review_manifest(compiled))
     factor_graph = lower_local_graph(compiled.graph, review_manifest=manifest)
-    assert factor_graph.variables["github:review_bp::same_helper"] == 1.0 - 1e-3
+    assert factor_graph.variables["github:review_bp::same_helper"] == 1.0
+    assert factor_graph.hard_evidence["github:review_bp::same_helper"] == 1

@@ -54,7 +54,7 @@ ParameterizationSource:
 - **Operator 是纯确定性的**：真值表完全确定，不需要参数记录。
 - **一个 claim 可以有多条 PriorRecord**：来自不同 source，resolution
   时选择 winner，同时保留 losers 供 audit。
-- **Cromwell's rule**：所有值钳制到 `[ε, 1-ε]`，ε = `1e-3`。
+- **Cromwell's rule**：所有 parameterization 值钳制到 `[ε, 1-ε]`，ε = `1e-3`；hard evidence 和 deterministic truth tables 不属于 parameterization 值。
 
 ## Resolution Policy
 

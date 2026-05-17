@@ -357,9 +357,9 @@ The `FactorType` enum defines 10 factor types:
 | `CONDITIONAL` | `cpt` (length `2^k`) | 1+ premises |
 | `PAIRWISE_POTENTIAL` | `cpt` (length 4: joint weights) | exactly 1 variable plus the paired conclusion variable |
 
-Deterministic factors use strict `{0, 1}` delta potentials. Cromwell clamping
-applies to unary evidence/priors and soft probability parameters, not to the
-deterministic truth-table potential itself.
+Deterministic factors and `hard_evidence` use strict `{0, 1}` delta potentials.
+Cromwell clamping applies to unary priors and soft probability parameters, not
+to deterministic truth tables or hard evidence.
 
 ### Strategy lowering
 

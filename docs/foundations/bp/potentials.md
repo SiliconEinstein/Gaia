@@ -17,7 +17,7 @@
 ## 确定性算子（strict delta）
 
 真值表一致时 ψ = `1.0`，否则 ψ = `0.0`。Cromwell clamp 用于 unary
-evidence / priors 和 soft 概率参数；确定性 operator potential 本身保持硬
+priors 和 soft 概率参数；确定性 operator potential 与 hard evidence 本身保持硬
 0/1。
 
 | FactorType | 语义 | 理论参照 |

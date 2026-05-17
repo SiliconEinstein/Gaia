@@ -15,8 +15,8 @@ from gaia.engine.bp.exact import _factor_log_potentials
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 from gaia.engine.ir.strategy import CompositeStrategy, Strategy
 
-_HIGH = 1.0 - CROMWELL_EPS
-_LOW = CROMWELL_EPS
+_HIGH = 1.0
+_LOW = 0.0
 
 
 def _almost(a, b, eps=1e-9):
@@ -33,7 +33,7 @@ def test_factor_to_tensor_implication():
     t, axes = factor_to_tensor(f)
     assert axes == ["A", "B", "H"]
     assert t.shape == (2, 2, 2)
-    # H=1 (implication holds): A=1,B=0 forbidden, rest HIGH
+    # H=1 (implication holds): A=1,B=0 forbidden, rest allowed.
     assert _almost(t[1, 0, 1], _LOW)
     assert _almost(t[0, 0, 1], _HIGH)
     assert _almost(t[0, 1, 1], _HIGH)
@@ -772,11 +772,14 @@ def _run_exact_with_premise_clamps(
     for i in range(n):
         states[:, i] = (arange >> i) & 1
 
-    # Log-joint under the explicit unary factors + all factors
+    # Log-joint under the explicit unary/hard evidence factors + all factors
     log_j = np.zeros(N, dtype=np.float64)
     for v, p in fg.unary_factors.items():
         idx = var_idx[v]
         log_j += np.where(states[:, idx] == 1, np.log(p), np.log(1.0 - p))
+    for v, value in fg.hard_evidence.items():
+        idx = var_idx[v]
+        log_j += np.where(states[:, idx] == value, 0.0, -np.inf)
 
     for fac in fg.factors:
         log_j += _factor_log_potentials(fac, states, var_idx)
@@ -804,11 +807,14 @@ def _cpt_via_contraction(
     premises: list[str],
     conclusion: str,
 ) -> list[float]:
-    """Tensor-contraction CPT: all factors in fg, premises free, others with explicit unary."""
+    """Tensor-contraction CPT: all factors in fg, with explicit unary/evidence factors."""
     tensors = [factor_to_tensor(f) for f in fg.factors]
     free = [*premises, conclusion]
     free_set = set(free)
     unary_priors = {v: p for v, p in fg.unary_factors.items() if v not in free_set}
+    unary_priors.update(
+        {v: float(value) for v, value in fg.hard_evidence.items() if v not in free_set}
+    )
     cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=unary_priors)
     return cpt_tensor_to_list(cpt_tensor, free, premises, conclusion)
 
@@ -817,7 +823,8 @@ def test_equivalence_single_implication():
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("B", 0.5)
-    fg.add_variable("H", 1.0 - CROMWELL_EPS)
+    fg.add_variable("H")
+    fg.add_evidence("H", 1)
     fg.add_factor("f1", FactorType.IMPLICATION, ["A", "B"], "H")
     ref = _run_exact_with_premise_clamps(fg, ["A"], "B")
     ours = _cpt_via_contraction(fg, ["A"], "B")
@@ -850,11 +857,12 @@ def test_equivalence_conditional_factor():
 
 
 def test_equivalence_relation_operator_equivalence():
-    """EQUIVALENCE relation with 1-ε assertion prior on helper."""
+    """EQUIVALENCE relation with hard assertion evidence on helper."""
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("B", 0.5)
-    fg.add_variable("H", 1.0 - CROMWELL_EPS)  # assert "A == B"
+    fg.add_variable("H")
+    fg.add_evidence("H", 1)  # assert "A == B"
     fg.add_factor("f1", FactorType.EQUIVALENCE, ["A", "B"], "H")
     # Query: P(B | A) under the assertion H=1
     ref = _run_exact_with_premise_clamps(fg, ["A"], "B")
@@ -876,18 +884,22 @@ def test_equivalence_chain_with_nonuniform_intermediate_prior():
 
 
 def test_equivalence_disjunction_and_contradiction():
-    """Two relation operators and a soft entailment in a small graph."""
+    """Two hard relation operators and a soft entailment in a small graph."""
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("B", 0.5)
     fg.add_variable("C", 0.5)
-    fg.add_variable("D_OR", 1.0 - CROMWELL_EPS)
-    fg.add_variable("H_NOT", 1.0 - CROMWELL_EPS)
+    fg.add_variable("D_OR")
+    fg.add_variable("H_NOT")
+    fg.add_evidence("D_OR", 1)
+    fg.add_evidence("H_NOT", 1)
     fg.add_factor("fd", FactorType.DISJUNCTION, ["A", "B"], "D_OR")
     fg.add_factor("fn", FactorType.CONTRADICTION, ["A", "B"], "H_NOT")
     fg.add_factor("fse", FactorType.SOFT_ENTAILMENT, ["A"], "C", p1=0.7, p2=0.9)
-    ref = _run_exact_with_premise_clamps(fg, ["A", "B"], "C")
-    ours = _cpt_via_contraction(fg, ["A", "B"], "C")
+    # Query only over A. Querying both A and B would include infeasible
+    # premise rows (A=B=0 and A=B=1) under the hard XOR-like constraints.
+    ref = _run_exact_with_premise_clamps(fg, ["A"], "C")
+    ours = _cpt_via_contraction(fg, ["A"], "C")
     np.testing.assert_allclose(ours, ref, atol=1e-6)
 
 
@@ -970,13 +982,11 @@ def test_compute_coarse_cpts_skips_composite_strategies():
 def test_contract_to_cpt_deep_chain_no_underflow():
     """Regression for Codex P2: contract_to_cpt must handle deep chains of.
 
-    Cromwell-low factors without the intermediate joint underflowing to 0.
+    deterministic factors without zero-weight slices corrupting normalization.
 
     Builds a 150-factor IMPLICATION chain.  Each IMPLICATION factor has one
-    cell at _LOW = 1e-3, so naively multiplying 150 of them would push a
-    particular slice below float64 normal range (~1e-450), triggering a
-    false 'zero partition function' error.  With per-step rescaling, the
-    intermediate stays bounded and the final CPT is computable.
+    forbidden cell at 0, so the contraction must preserve valid feasible
+    slices while eliminating impossible ones.
     """
     n = 150
     var_names = [f"v{i}" for i in range(n)]
@@ -1242,7 +1252,7 @@ def test_compute_coarse_cpts_with_helper_claims():
 
     Regression: compute_coarse_cpts needs priors for ALL variables including helper claims
     (__implication_result_*, etc.). If helper priors are missing, tensor contraction fails. This
-    test verifies that passing complete priors (with helper claims at 1-ε) produces valid CPTs.
+    test verifies that passing complete priors (including helper claims) produces valid CPTs.
     """
     from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
 
