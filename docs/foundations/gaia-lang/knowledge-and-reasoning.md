@@ -228,6 +228,8 @@ Most action helpers carry `metadata["review"] = true` and `metadata["helper_kind
 
 Structural-expression helpers from the deprecated `~A`, `A & B`, `A | B` shortcuts use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
 
+The IR-side public/private boundary for these helpers — including which helper Claims may be referenced from outside their FormalStrategy and which must stay encapsulated — is defined in [gaia-ir/04-helper-claims.md](../gaia-ir/04-helper-claims.md). Action lowering follows that boundary: the warrant helper for a `Derive` / `Observe` / `Compute` / `Infer` / `Associate` is a public Claim (reviewable, addressable via `[@label]`); the intermediate `conjunction_result` of a multi-premise `Derive` lives inside the FormalStrategy's `formal_expr` as a private node and is not addressable.
+
 ### 4.3 Action Label References
 
 Author-side `[@label]` and `@label` references in claim content, action `rationale`, and notes resolve through a single `label_to_id` table built from:
@@ -238,6 +240,21 @@ Author-side `[@label]` and `@label` references in claim content, action `rationa
 A label collision between a Claim and an Action in the same package is a compile error (`ambiguous reference key`). `DependsOn` labels are intentionally not addressable. Cross-package action references follow the same rules as cross-package Claim references once the registry supports them.
 
 Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539.
+
+### 4.4 Compiler extension registry
+
+Action lowering is dispatched through a small registry in
+`gaia/engine/lang/compiler/extensions.py`. Peer engine modules, such as
+`gaia.engine.bayes`, register lowerers by stable name:
+
+- `register_action_lowerer(name, *, handles, lower)` — add or replace a lowerer
+  selected by a predicate over runtime `Action` objects.
+- `registered_action_lowerers()` — return the current registry snapshot.
+
+This is an engine-extension hook, not a package-author DSL surface. The
+generated compiler reference currently renders `gaia.engine.lang.compiler`, not
+the private `extensions` submodule, so the source docstrings remain the
+authority for this hook.
 
 ---
 

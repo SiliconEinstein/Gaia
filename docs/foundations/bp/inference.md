@@ -27,15 +27,17 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 - **`gaia/engine/bp/junction_tree.py`** — Junction Tree exact inference，用于 treewidth ≤ 20 的图
 - **`gaia/engine/bp/mean_field.py`** — Mean Field Variational Inference (CAVI)，大图（n > 2000）的 fallback，硬约束图精度不足（详见「推理算法 / Mean Field VI」）
 - **`gaia/engine/bp/exact.py`** — 小图 brute-force，用于测试和验证
-- **`gaia/engine/bp/engine.py`** — `InferenceEngine`：根据 n 和 treewidth 自动选择算法
-- **`gaia/engine/bp/__init__.py`** — `infer(graph, method=auto)`：统一推理入口
+- **`gaia/engine/bp/engine.py`** — `InferenceEngine`：CLI 主路径；根据 n 和 treewidth 自动选择算法
+- **`gaia/engine/bp/__init__.py`** — `infer(graph, method=auto)`：legacy 便利封装；阈值与 `InferenceEngine` **不一致**，仅用于不需要 CLI parity 的旧调用（详见下方“两条路径的差异”）
 - **`gaia/engine/bp/lowering.py`** — `lower_local_graph()`：Gaia IR → FactorGraph 的入口
 
-**算法选择策略（`method=auto`）：**
+**算法选择策略（CLI `gaia run infer` → `InferenceEngine.run` → `EngineConfig`）：**
 1. 如果 n > 2000 → **fallback 到 Mean Field VI 并发出 `UserWarning`**。大图推理仍在调研中，MF 在 Gaia 硬约束图上有 30%~79% 系统误差，不是生产级；显式 `method="trw_bp"` 可绕过（慢但准确）。
 2. 否则估计 treewidth：
    - treewidth ≤ 20 → Junction Tree（精确）
    - treewidth > 20 → TRW-BP（近似）
+
+> **⚠️ 两条路径的差异 — 不要混用 `gaia.engine.bp.infer()` 和 `InferenceEngine`。** 模块下方的 `infer(graph, method="auto")` 是为了兼容旧调用而保留的便利函数，它的 large-graph fallback 路由到 **loopy BP**（`gaia/engine/bp/__init__.py` `_LOOPY_BP_NODE_LIMIT = 2000`），而 CLI 的 `gaia run infer` 走 `InferenceEngine.run`，n > 2000 时改用 **Mean Field VI**。两者其它阈值相同（treewidth ≤ 20 用 Junction Tree，否则 TRW-BP）。**新代码或希望与 CLI 输出一致的代码应直接使用 `InferenceEngine`**；`infer()` 仅在不关心 CLI parity 的小图测试中用。
 
 ### 从 Gaia IR 构建
 

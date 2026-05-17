@@ -599,14 +599,14 @@ then `claim(formula=forall(n, ...))` currently raises during lowering, because
 
 ### 6.5 Existential Quantification
 
-`Exists(variable, body)` also requires a finite `Domain`.
+`exists(variable, body)` also requires a finite `Domain` (the underlying AST node `Exists` is what `gaia.engine.lang.formula` exposes; `exists` is the recommended top-level helper).
 
 ```python
-from gaia.engine.lang import ClaimKind, Exists, claim
+from gaia.engine.lang import ClaimKind, claim, exists
 
 some_stable = claim(
     "Some particle is stable.",
-    formula=Exists(variable=x, body=UserPredicate(Stable, (x,))),
+    formula=exists(x, UserPredicate(Stable, (x,))),
     kind=ClaimKind.QUANTIFIED,
     prior=0.6,
 )
