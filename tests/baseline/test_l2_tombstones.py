@@ -13,6 +13,8 @@ import pytest
 
 from gaia._legacy_imports import TOMBSTONED_NAMESPACES, TOMBSTONED_SYMBOLS
 
+pytestmark = pytest.mark.pr_gate
+
 
 @pytest.mark.parametrize("old_ns,new_ns", sorted(TOMBSTONED_NAMESPACES.items()))
 def test_namespace_tombstone(old_ns: str, new_ns: str) -> None:

@@ -46,6 +46,8 @@ from tests.baseline.conftest import (
     serialize_artifact_tree,
 )
 
+pytestmark = pytest.mark.pr_gate
+
 try:
     import tomllib
 except ImportError:  # pragma: no cover

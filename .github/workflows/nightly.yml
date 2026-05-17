@@ -1,10 +1,13 @@
 name: Nightly
 
 on:
-  # Manual dispatch only. The schedule cron was removed by deliberate
-  # policy (see协作单 / PR #620): the project does not need a daily
-  # auto-run of the full validation suite; operators run nightly.yml
-  # on-demand before release dispatches or after large refactors.
+  schedule:
+    # 20:00 UTC = 04:00 Asia/Shanghai (next day). Daily nightly cadence.
+    # Workflow body runs full validation gates including corpus runner;
+    # with current galileo --gate red, scheduled runs will fail until
+    # the galileo fixture is reviewed — accepted noise as a daily
+    # reminder that the fixture review is pending.
+    - cron: "0 20 * * *"
   workflow_dispatch:
 
 jobs:
