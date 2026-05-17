@@ -14,16 +14,19 @@ JSON-by-default through a uniform envelope (see :mod:`._envelope`);
 ``--human`` opts into a human-readable rendering of the same payload.
 
 R1 shipped 3 representative verbs end-to-end (``claim`` / ``equal`` /
-``derive``) plus two stubs (``compose`` / ``composition`` — deferred
-because their content is fundamentally an arbitrary-Python function
-body, not a CLI-flag-shaped op). R2 fills in the remaining 14
-statement-level verbs against the same pre-write + envelope skeleton,
-activates ``--interactive`` uniformly, and adds the ``gaia pkg
-scaffold`` package-initialisation verb in a sibling module. R3 lifts
-``compose`` / ``composition`` from stub to live via a file-based
-validate-and-register shape (see :mod:`.compose`), plus adds prose-mode
-``--<arg>-content`` flags, 2 pre-write warning kinds, and a restricted-
-globals formula sandbox.
+``derive``) plus stubs for ``compose`` / ``composition``. R2 fills in
+the remaining 14 statement-level verbs against the same pre-write +
+envelope skeleton, activates ``--interactive`` uniformly, and adds the
+``gaia pkg scaffold`` package-initialisation verb in a sibling module.
+R3 lifts ``compose`` / ``composition`` from stub to live via a
+file-based validate-and-register shape (see :mod:`.compose`), plus
+adds prose-mode ``--<arg>-content`` flags, 2 pre-write warning kinds,
+and a restricted-globals formula sandbox. R4 extends prose mode to
+``infer --hypothesis-content`` and ``observe --observation-content``,
+wires ``compose --check`` to a real ``postwrite_check`` (registration
+preserved on failure), and replaces the R3 hand-curated deprecated-name
+constant with an AST scan over engine DSL source (see
+:mod:`._deprecation_scan`).
 
 See ``docs/specs`` / 协作单 BOmHwyFRCixqy0k7gR3cCNMInId for the full
 contract and rationale.
