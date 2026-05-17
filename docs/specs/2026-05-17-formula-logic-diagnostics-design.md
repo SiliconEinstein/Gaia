@@ -190,6 +190,7 @@ Severity and logical strength are independent fields.
 | One claim formula is unsatisfiable | `claim` | `hard` | `fatal` | The claim is internally malformed as a logical object. |
 | One claim formula is tautological | `claim` | `hard` | `warning` | The claim may be uninformative but not invalid. |
 | Repeated redundant operands in one formula | `claim` | `hard` | `info` | Useful cleanup signal. |
+| Malformed formula projection after validation was bypassed | `claim` | `unknown` | `warning` | Reviewer-facing diagnostics should isolate the malformed graph and continue inspecting the package. |
 | Two hard formula claims cannot both hold | `claim_pair` | `hard` | `warning` | Claims have priors and beliefs; this is review evidence, not compile failure. |
 | A soft relation is crossed | `claim_pair` | `soft` | `warning` | Soft constraints are allowed to be violated. |
 | One claim entails another | `claim_pair` | `hard` | `info` | The relation becomes important if BP assigns high probability to `A and not B`. |

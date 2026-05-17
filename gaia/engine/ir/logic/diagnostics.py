@@ -324,6 +324,13 @@ def _projection_malformed_diagnostic(
 
 
 def _is_pairwise_candidate(local_diagnostics: list[FormulaDiagnostic]) -> bool:
+    """Exclude locally degenerate formulas from pairwise scans.
+
+    Unsatisfiable formulas would look incompatible with every overlapping
+    formula, and tautologies would be entailed by every overlap. Those cases are
+    already reported as claim-local diagnostics, so pairwise would only add
+    noise.
+    """
     excluded_codes = {"formula_unsat", "formula_tautology"}
     return not any(diagnostic.code in excluded_codes for diagnostic in local_diagnostics)
 

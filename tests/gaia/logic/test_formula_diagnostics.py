@@ -34,6 +34,8 @@ from gaia.engine.lang import (
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.package import CollectedPackage
 
+pytestmark = pytest.mark.pr_gate
+
 
 def _qid(package: str, label: str) -> str:
     return f"t:{package}::{label}"
