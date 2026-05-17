@@ -135,6 +135,9 @@ def _project_op_node(
         return None
     if not all(isinstance(child_id, str) for child_id in children):
         return None
+    for child_id in children:
+        if child_id not in nodes_by_id:
+            raise ValueError(f"FormulaGraph '{node.id}' references missing child node '{child_id}'")
 
     child_expressions = [_project_node(child_id, nodes_by_id, atom_ids) for child_id in children]
     if any(child_expression is None for child_expression in child_expressions):

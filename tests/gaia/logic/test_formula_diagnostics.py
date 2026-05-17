@@ -1,5 +1,7 @@
+import pytest
 from sympy import And, Implies, Not, Symbol
 
+from gaia.engine.ir import FormulaGraph, FormulaNode, formula_node_id
 from gaia.engine.ir.logic.diagnostics import (
     DiagnosticCondition,
     FormulaDiagnostic,
@@ -105,3 +107,20 @@ def test_formula_graph_to_sympy_returns_none_for_quantifier_root():
     formula_graph = _formula_graph_for(artifact, _qid(package, "universal"))
 
     assert formula_graph_to_sympy(formula_graph) is None
+
+
+def test_formula_graph_to_sympy_rejects_missing_op_child_id():
+    descriptor = {
+        "kind": "op",
+        "operator": "conjunction",
+        "children": ["fg:missing"],
+    }
+    root = FormulaNode(
+        id=formula_node_id(descriptor),
+        kind="op",
+        descriptor=descriptor,
+    )
+    graph = FormulaGraph(source_claim="t:pkg::bad", root=root.id, nodes=[root])
+
+    with pytest.raises(ValueError, match="fg:missing"):
+        formula_graph_to_sympy(graph)
