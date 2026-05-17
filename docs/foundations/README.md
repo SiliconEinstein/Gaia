@@ -62,6 +62,7 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 
 - [因子势函数](bp/potentials.md) — 各因子类型的势函数
 - [推理](bp/inference.md) — BP 算法应用于 Gaia IR
+- [Diagnostic Probabilities](bp/diagnostic-probabilities.md) — 用 joint query 为 logic warning 计算 reviewer-facing 概率
 - [局部与全局](bp/local-vs-global.md) — CLI 局部推理 vs LKM 全局推理
 - [BeliefState](bp/belief-state.md) — BP 输出、可重现性
 
