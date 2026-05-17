@@ -45,16 +45,19 @@ def emit_syntax_error(
     *,
     target: str,
     human: bool,
+    kind: str = "prewrite.syntax",
 ) -> None:
     """Emit a pre-write syntax-error envelope and exit.
 
     Used by per-verb option parsers when an option is shaped wrong (bad JSON,
     empty mutually-required input, etc.) — surfaces the failure with the
     standard ``prewrite.syntax`` kind + ``EXIT_INPUT_SYNTAX`` (``2``) code
-    before the runner pipeline gets called.
+    before the runner pipeline gets called. Callers can override ``kind`` for
+    related-but-distinct surfaces like ``prewrite.expr_unsafe`` (sandbox
+    rejection) without forking the helper.
     """
     diag = Diagnostic(
-        kind="prewrite.syntax",
+        kind=kind,
         level="error",
         message=message,
         source="prewrite",

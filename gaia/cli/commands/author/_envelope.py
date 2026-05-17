@@ -62,10 +62,15 @@ _KIND_TO_EXIT = {
     "prewrite.target_missing": EXIT_SYSTEM_IO,
     "prewrite.target_not_gaia_package": EXIT_SYSTEM_IO,
     "prewrite.syntax": EXIT_INPUT_SYNTAX,
+    "prewrite.expr_unsafe": EXIT_INPUT_SYNTAX,
     "prewrite.collision": EXIT_COLLISION_OR_REF,
     "prewrite.reference_unresolved": EXIT_COLLISION_OR_REF,
     "prewrite.order_structure": EXIT_PREWRITE_STRUCTURAL,
     "prewrite.self_loop": EXIT_PREWRITE_STRUCTURAL,
+    # R3 warning kinds — level=warning, but kind→code is still meaningful
+    # for downstream consumers building dispatch tables.
+    "prewrite.label_shadow": EXIT_OK,
+    "prewrite.deprecated_ref": EXIT_OK,
     "postwrite.compile_fail": EXIT_PREWRITE_STRUCTURAL,
     "postwrite.check_fail": EXIT_PREWRITE_STRUCTURAL,
     "stub.not_implemented": EXIT_INPUT_SYNTAX,

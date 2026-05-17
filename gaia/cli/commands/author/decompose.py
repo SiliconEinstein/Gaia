@@ -45,6 +45,10 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata, split_csv
+from gaia.cli.commands.author._formula_sandbox import (
+    FormulaSandboxError,
+    validate_formula_expr,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
@@ -192,6 +196,22 @@ def decompose_command(
         assert formula_src is not None
     else:
         assert formula_expr is not None
+        # R3·❓C=A: validate the raw expression against the formula sandbox
+        # before letting pre-write parse the rendered statement. Identifier
+        # whitelist = standing primitives + each ``--parts`` entry (so
+        # ``ClaimAtom(atom_a)`` resolves).
+        extra = frozenset({whole, *part_list})
+        try:
+            validate_formula_expr(formula_expr, extra_names=extra)
+        except FormulaSandboxError as exc:
+            emit_syntax_error(
+                "decompose",
+                f"--formula-expr rejected by sandbox: {exc}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
         formula_src = formula_expr
 
     generated_code = _render_decompose_statement(
