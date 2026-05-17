@@ -53,12 +53,16 @@ from gaia.cli.commands.bayes import (
     chisquared_command,
     exponential_command,
     gamma_command,
-    likelihood_command as bayes_likelihood_command,
     lognormal_command,
-    model_command as bayes_model_command,
     normal_command,
     poisson_command,
     studentt_command,
+)
+from gaia.cli.commands.bayes import (
+    likelihood_command as bayes_likelihood_command,
+)
+from gaia.cli.commands.bayes import (
+    model_command as bayes_model_command,
 )
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
