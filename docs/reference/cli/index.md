@@ -2,21 +2,23 @@
 
 > **Status:** Reference layer for the `gaia` command-line app.
 
-The installed entrypoint is `gaia`. Alpha 0 organizes verbs into 6 logical
+The installed entrypoint is `gaia`. Alpha 0 organizes verbs into 7 logical
 groups plus the independent `trace` sub-app:
 
 | Group | Members | Purpose |
 |---|---|---|
+| [author](author.md) | 19 statement-emitting + composition verbs (`note` / `claim` / `derive` / `equal` / `contradict` / ... / `compose`) | Agent-first authoring surface — append DSL statements through the cli without hand-editing source |
 | [build](build.md) | `init` / `compile` / `check` | Create and validate a knowledge package |
 | [run](run.md) | `infer` / `render` | Execute inference and emit presentation outputs |
 | [inspect](inspect.md) | `starmap` / `starmap-replay` | Visualize the compiled package graph |
 | [review](review.md) | *(skeleton — no commands in alpha 0)* | Reserved for downstream reviewer tooling |
 | [inquiry](inquiry.md) | `focus` / `review` / `obligation [add\|list\|close]` / `hypothesis [add\|list\|remove]` / `tactics log` / `reject` | Local semantic-inquiry loop *(unchanged)* |
-| [pkg](pkg.md) | `add` / `register` | Install and publish packages |
-| [trace](trace.md) | `verify` / `review` / `show` | ARM Trace tooling *(independent of the 6 groups; unchanged)* |
+| [pkg](pkg.md) | `add` / `register` / `scaffold` | Install, publish, and bootstrap packages |
+| [trace](trace.md) | `verify` / `review` / `show` | ARM Trace tooling *(independent of the 6 main groups; unchanged)* |
 
-The 22 leaf verbs keep their pre-alpha-0 internal logic, semantics, and
-option flags. Only the top-level argument structure changed.
+The pre-alpha-0 leaf verbs keep their original internal logic, semantics,
+and option flags. Only the top-level argument structure changed. The
+`author` group and `pkg scaffold` are net-new for v0.5 cli-as-client.
 
 ## Migrating from earlier versions
 

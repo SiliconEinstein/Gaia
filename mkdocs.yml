@@ -126,6 +126,7 @@ nav:
               - References: reference/engine/lang/refs.md
       - CLI:
           - Overview: reference/cli/index.md
+          - author: reference/cli/author.md
           - build: reference/cli/build.md
           - run: reference/cli/run.md
           - inspect: reference/cli/inspect.md
