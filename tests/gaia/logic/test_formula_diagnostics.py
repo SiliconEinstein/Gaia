@@ -1,9 +1,38 @@
+from sympy import And, Implies, Not, Symbol
+
 from gaia.engine.ir.logic.diagnostics import (
     DiagnosticCondition,
     FormulaDiagnostic,
     FormulaDiagnosticReport,
+    formula_graph_to_sympy,
     inspect_formula_graphs,
 )
+from gaia.engine.lang import (
+    ClaimAtom,
+    Domain,
+    PredicateSymbol,
+    UserPredicate,
+    Variable,
+    claim,
+    forall,
+    implies,
+    land,
+    lnot,
+)
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
+
+
+def _qid(package: str, label: str) -> str:
+    return f"t:{package}::{label}"
+
+
+def _formula_graph_for(artifact, source_claim_id: str):
+    return next(
+        formula_graph
+        for formula_graph in artifact.graph.formula_graphs
+        if formula_graph.source_claim == source_claim_id
+    )
 
 
 def test_formula_diagnostic_models_round_trip_json():
@@ -34,3 +63,45 @@ def test_formula_diagnostic_models_round_trip_json():
     assert round_tripped == report
     assert round_tripped.has_fatal is False
     assert inspect_formula_graphs is not None
+
+
+def test_formula_graph_to_sympy_projects_claim_atom_connectives():
+    package = "formula_diag_projection"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        b = claim("B.")
+        b.label = "b"
+        rule = claim(
+            "A and not B implies A.",
+            formula=implies(land(ClaimAtom(a), lnot(ClaimAtom(b))), ClaimAtom(a)),
+        )
+        rule.label = "rule"
+
+    artifact = compile_package_artifact(pkg)
+    formula_graph = _formula_graph_for(artifact, _qid(package, "rule"))
+
+    expression = formula_graph_to_sympy(formula_graph)
+
+    assert expression == Implies(
+        And(Symbol(_qid(package, "a")), Not(Symbol(_qid(package, "b")))),
+        Symbol(_qid(package, "a")),
+    )
+
+
+def test_formula_graph_to_sympy_returns_none_for_quantifier_root():
+    package = "formula_diag_quantifier"
+    with CollectedPackage(package, namespace="t") as pkg:
+        domain = Domain(content="Particles", members=["p1"])
+        x = Variable(symbol="x", domain=domain)
+        stable = PredicateSymbol(name="Stable", arg_domains=(domain,))
+        universal = claim(
+            "All particles are stable.",
+            formula=forall(x, UserPredicate(stable, (x,))),
+        )
+        universal.label = "universal"
+
+    artifact = compile_package_artifact(pkg)
+    formula_graph = _formula_graph_for(artifact, _qid(package, "universal"))
+
+    assert formula_graph_to_sympy(formula_graph) is None
