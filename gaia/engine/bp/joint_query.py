@@ -20,6 +20,7 @@ JointDistributionBasis = Literal[
 ]
 
 _NORMALIZATION_TOLERANCE = 1e-9
+_EXACT_TOO_MANY_VARIABLES_MESSAGE = "Exact inference requires 2^n enumeration"
 
 
 class JointQueryUnavailableError(RuntimeError):
@@ -168,7 +169,9 @@ def _require_known_variables(
 def _exact_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribution:
     try:
         probs = exact_joint_over(graph, variables)
-    except (KeyError, ValueError, RuntimeError) as error:
+    except ValueError as error:
+        if _EXACT_TOO_MANY_VARIABLES_MESSAGE not in str(error):
+            raise
         raise JointQueryUnavailableError(
             "exact",
             variables,

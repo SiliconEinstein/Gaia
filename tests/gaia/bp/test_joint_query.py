@@ -38,6 +38,24 @@ def test_joint_distribution_validates_bit_order_and_normalization():
     assert joint.variables == ["A", "B"]
     assert joint.probabilities[3] == pytest.approx(0.14)
 
+    with pytest.raises(ValueError, match="must sum to 1"):
+        JointDistribution(
+            variables=["A", "B"],
+            probabilities=[0.25, 0.25, 0.25, 0.30],
+            method="exact",
+            is_exact=True,
+            basis="exact_joint_distribution",
+        )
+
+    with pytest.raises(ValueError, match="must be unique"):
+        JointDistribution(
+            variables=["A", "A"],
+            probabilities=[0.25, 0.25, 0.25, 0.25],
+            method="exact",
+            is_exact=True,
+            basis="exact_joint_distribution",
+        )
+
 
 def test_exact_joint_over_preserves_existing_bit_order():
     joint = joint_over(_two_variable_graph(), ["A", "B"], method="exact")
@@ -63,14 +81,14 @@ def test_compare_joint_over_collects_unavailable_methods():
     results = compare_joint_over(
         _two_variable_graph(),
         ["A", "B"],
-        methods=("exact", "trw_bp", "mean_field"),
+        methods=("exact", "junction_tree", "trw_bp", "mean_field"),
     )
 
     estimates = [result for result in results if isinstance(result, JointDistribution)]
     unavailable = [result for result in results if isinstance(result, JointQueryUnavailable)]
 
     assert {estimate.method for estimate in estimates} == {"exact", "mean_field"}
-    assert {item.method for item in unavailable} == {"trw_bp"}
+    assert {item.method for item in unavailable} == {"junction_tree", "trw_bp"}
     assert all(item.variables == ["A", "B"] for item in unavailable)
 
 
@@ -82,6 +100,34 @@ def test_unknown_variable_is_collected_as_unavailable():
     assert isinstance(unavailable, JointQueryUnavailable)
     assert unavailable.method == "exact"
     assert "unknown variables" in unavailable.reason
+
+
+def test_exact_too_many_variables_is_collected_as_unavailable():
+    graph = FactorGraph()
+    variables = [f"V{i}" for i in range(27)]
+    for variable in variables:
+        graph.add_variable(variable, 0.5)
+
+    results = compare_joint_over(graph, variables, methods=("exact",))
+
+    assert len(results) == 1
+    unavailable = results[0]
+    assert isinstance(unavailable, JointQueryUnavailable)
+    assert unavailable.method == "exact"
+    assert "Exact inference requires 2^n enumeration" in unavailable.reason
+
+
+def test_unexpected_exact_provider_errors_propagate(monkeypatch):
+    def raise_unexpected_value_error(_graph, _variables):
+        raise ValueError("internal exact provider bug")
+
+    monkeypatch.setattr(
+        "gaia.engine.bp.joint_query.exact_joint_over",
+        raise_unexpected_value_error,
+    )
+
+    with pytest.raises(ValueError, match="internal exact provider bug"):
+        joint_over(_two_variable_graph(), ["A", "B"], method="exact")
 
 
 def test_mean_field_on_entailment_graph_returns_normalized_joint():
