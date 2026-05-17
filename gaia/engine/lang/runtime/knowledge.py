@@ -229,31 +229,76 @@ class Claim(Knowledge):
         raise TypeError(
             "Claim objects do not have Python truth values. Use claim(formula=...) "
             "with ClaimAtom/land/lor/lnot to build structured formula claims; "
-            "legacy ~A, A & B, and A | B shortcuts still exist but emit "
-            "DeprecationWarning."
+            "the ~A, A & B, A | B shortcuts return Formula nodes (Lnot/Land/Lor) "
+            "wrapping ClaimAtom, not Claim helpers."
         )
 
-    def __invert__(self) -> Claim:
-        """Create the deprecated propositional negation helper."""
-        from gaia.engine.lang.dsl.propositional import not_
+    def __invert__(self) -> Any:
+        """Return the Formula ``Lnot(ClaimAtom(self))``.
 
-        return not_(self)
+        Use as ``claim(content, formula=~a)`` to assert the negation as a
+        first-class compound Claim node. Does not register any IR side
+        effects on its own; lowering happens via the surrounding
+        ``claim(formula=...)``.
+        """
+        from gaia.engine.lang.formula.connective import Lnot
 
-    def __and__(self, other: Claim) -> Claim:
-        """Create the deprecated propositional conjunction helper."""
-        if not isinstance(other, Claim):
+        return Lnot(operand=self)
+
+    def __and__(self, other: Any) -> Any:
+        """Return the Formula ``Land(ClaimAtom(self), <other>)``.
+
+        ``other`` may be a ``Claim`` (auto-wrapped) or any Formula node.
+        Returns ``NotImplemented`` for unsupported types so Python can try
+        ``other.__rand__``.
+        """
+        from gaia.engine.lang.formula.connective import Land
+        from gaia.engine.lang.formula.predicate import is_formula
+
+        if not (isinstance(other, Claim) or is_formula(other)):
             return NotImplemented
-        from gaia.engine.lang.dsl.propositional import and_
+        return Land(operands=(self, other))
 
-        return and_(self, other)
+    def __or__(self, other: Any) -> Any:
+        """Return the Formula ``Lor(ClaimAtom(self), <other>)``.
 
-    def __or__(self, other: Claim) -> Claim:
-        """Create the deprecated propositional disjunction helper."""
-        if not isinstance(other, Claim):
+        ``other`` may be a ``Claim`` (auto-wrapped) or any Formula node.
+        Returns ``NotImplemented`` for unsupported types so Python can try
+        ``other.__ror__``.
+        """
+        from gaia.engine.lang.formula.connective import Lor
+        from gaia.engine.lang.formula.predicate import is_formula
+
+        if not (isinstance(other, Claim) or is_formula(other)):
             return NotImplemented
-        from gaia.engine.lang.dsl.propositional import or_
+        return Lor(operands=(self, other))
 
-        return or_(self, other)
+    def __rand__(self, other: Any) -> Any:
+        """Right-side conjunction for ``<formula> & claim`` chains.
+
+        Lets expressions like ``~a & b`` work: ``~a`` is a ``Lnot`` Formula
+        with no ``__and__`` of its own, so Python falls back to
+        ``b.__rand__(Lnot(...))`` which returns ``Land(Lnot(...), ClaimAtom(b))``.
+        """
+        from gaia.engine.lang.formula.connective import Land
+        from gaia.engine.lang.formula.predicate import is_formula
+
+        if not is_formula(other):
+            return NotImplemented
+        return Land(operands=(other, self))
+
+    def __ror__(self, other: Any) -> Any:
+        """Right-side disjunction for ``<formula> | claim`` chains.
+
+        Lets expressions like ``~a | b`` work via the same reflected-dispatch
+        mechanism as ``__rand__``.
+        """
+        from gaia.engine.lang.formula.connective import Lor
+        from gaia.engine.lang.formula.predicate import is_formula
+
+        if not is_formula(other):
+            return NotImplemented
+        return Lor(operands=(other, self))
 
     def __init__(
         self,
