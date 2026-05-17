@@ -20,6 +20,12 @@ See docs/specs/2026-05-16-engine-module-reorg-design.md §5 for the three-scope
 taxonomy.
 """
 
+from gaia.engine.ir.logic.diagnostics import (
+    DiagnosticCondition,
+    FormulaDiagnostic,
+    FormulaDiagnosticReport,
+    inspect_formula_graphs,
+)
 from gaia.engine.ir.logic.propositional import (
     are_equivalent,
     is_satisfiable,
@@ -31,7 +37,11 @@ from gaia.engine.ir.logic.propositional import (
 )
 
 __all__ = [
+    "DiagnosticCondition",
+    "FormulaDiagnostic",
+    "FormulaDiagnosticReport",
     "are_equivalent",
+    "inspect_formula_graphs",
     "is_satisfiable",
     "simplify_proposition",
     "to_cnf_proposition",
