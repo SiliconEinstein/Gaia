@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 

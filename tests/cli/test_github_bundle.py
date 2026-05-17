@@ -5,7 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from gaia.cli.commands._github import generate_github_output
+
+pytestmark = pytest.mark.pr_gate
 
 
 def test_github_data_bundle_written_without_react_template(tmp_path: Path):

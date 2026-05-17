@@ -71,8 +71,8 @@ repos:
         stages: [pre-push]
 
       - id: pytest
-        name: pytest baseline + cli (CI byte-aligned)
-        entry: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_REFLOG_ACTION uv run pytest -n auto tests/baseline tests/cli -v -m "not slow"
+        name: pytest pr_gate slice (CI byte-aligned)
+        entry: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_REFLOG_ACTION uv run pytest -n auto -v -m "pr_gate and not slow"
         language: system
         pass_filenames: false
         stages: [pre-push]

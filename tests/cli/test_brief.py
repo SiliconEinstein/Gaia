@@ -7,6 +7,8 @@ from typer.testing import CliRunner
 
 from gaia.cli.main import app
 
+pytestmark = pytest.mark.pr_gate
+
 runner = CliRunner()
 LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
     "ignore:support\\(\\) is deprecated:DeprecationWarning"

@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
@@ -8,6 +9,8 @@ from gaia.engine.lang import Claim, candidate_relation, depends_on, derive, obse
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.review.manifest import generate_review_manifest
 from gaia.engine.lang.runtime.package import CollectedPackage
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 

@@ -11,7 +11,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests.baseline.conftest import cli_snapshot
+
+pytestmark = pytest.mark.pr_gate
 
 # --------------------------------------------------------------------------- #
 # Top-level leaves                                                            #

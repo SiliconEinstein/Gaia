@@ -20,6 +20,8 @@ import pytest
 from gaia.cli.commands._flat_tombstones import _FLAT_VERB_REDIRECTS
 from tests.baseline.conftest import cli_snapshot
 
+pytestmark = pytest.mark.pr_gate
+
 
 @pytest.mark.parametrize(
     ("flat_verb", "new_form"),

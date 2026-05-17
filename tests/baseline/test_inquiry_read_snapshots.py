@@ -16,7 +16,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests.baseline.conftest import cli_snapshot
+
+pytestmark = pytest.mark.pr_gate
 
 
 def test_inquiry_focus_default_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:

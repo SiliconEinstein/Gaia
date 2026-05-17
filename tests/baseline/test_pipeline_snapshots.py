@@ -25,6 +25,8 @@ import pytest
 
 from tests.baseline.conftest import EXAMPLES_DIR, cli_snapshot
 
+pytestmark = pytest.mark.pr_gate
+
 MENDEL_REPLAY_FIXTURE = (
     Path(__file__).resolve().parents[1] / "fixtures" / "starmap_replay" / "mendelian_inheritance"
 )
