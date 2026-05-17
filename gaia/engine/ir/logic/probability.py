@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from math import fsum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,7 +16,11 @@ from gaia.engine.bp.joint_query import (
     JointQueryUnavailable,
     compare_joint_over,
 )
-from gaia.engine.ir.logic.diagnostics import DiagnosticCondition, FormulaDiagnostic
+from gaia.engine.ir.logic.diagnostics import (
+    DiagnosticCondition,
+    DiagnosticConditionKind,
+    FormulaDiagnostic,
+)
 
 
 class ConditionProbabilityEstimate(BaseModel):
@@ -36,11 +41,14 @@ class DiagnosticProbability(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    condition: DiagnosticCondition
-    estimates: list[ConditionProbabilityEstimate | JointQueryUnavailable]
+    diagnostic_code: str | None = None
+    condition_kind: DiagnosticConditionKind
+    variables: list[str]
+    event_expression: dict[str, Any]
+    estimates: list[ConditionProbabilityEstimate]
+    unavailable: list[JointQueryUnavailable]
     spread: float | None = None
     exact_spread: float | None = None
-    diagnostic: FormulaDiagnostic | None = None
 
 
 def event_probability(expression: dict[str, Any], joint: JointDistribution) -> float:
@@ -52,25 +60,30 @@ def event_probability(expression: dict[str, Any], joint: JointDistribution) -> f
     variable_bits = {variable: bit for bit, variable in enumerate(joint.variables)}
     _validate_expression(expression, set(variable_bits))
 
-    probability = 0.0
-    for assignment_index, mass in enumerate(joint.probabilities):
-        if _evaluate_expression(expression, variable_bits, assignment_index):
-            probability += mass
-    return float(probability)
+    return float(
+        fsum(
+            mass
+            for assignment_index, mass in enumerate(joint.probabilities)
+            if _evaluate_expression(expression, variable_bits, assignment_index)
+        )
+    )
 
 
 def score_condition(
     condition: DiagnosticCondition,
     joint_results: Sequence[JointDistribution | JointQueryUnavailable],
+    *,
+    diagnostic_code: str | None = None,
 ) -> DiagnosticProbability:
     """Score a diagnostic condition against available joint query results."""
-    estimates: list[ConditionProbabilityEstimate | JointQueryUnavailable] = []
+    estimates: list[ConditionProbabilityEstimate] = []
+    unavailable: list[JointQueryUnavailable] = []
     probabilities: list[float] = []
     exact_probabilities: list[float] = []
 
     for result in joint_results:
         if isinstance(result, JointQueryUnavailable):
-            estimates.append(result)
+            unavailable.append(result)
             continue
 
         probability = event_probability(condition.expression, result)
@@ -88,16 +101,20 @@ def score_condition(
             exact_probabilities.append(probability)
 
     return DiagnosticProbability(
-        condition=condition,
+        diagnostic_code=diagnostic_code,
+        condition_kind=condition.kind,
+        variables=condition.variables,
+        event_expression=condition.expression,
         estimates=estimates,
+        unavailable=unavailable,
         spread=_spread(probabilities),
         exact_spread=_spread(exact_probabilities),
     )
 
 
 def score_diagnostic_conditions(
-    graph: FactorGraph,
     diagnostics: Sequence[FormulaDiagnostic],
+    graph: FactorGraph,
     *,
     methods: Sequence[JointQueryMethod] = ("exact", "junction_tree", "trw_bp", "mean_field"),
 ) -> list[DiagnosticProbability]:
@@ -108,8 +125,13 @@ def score_diagnostic_conditions(
         if condition is None:
             continue
         joint_results = compare_joint_over(graph, condition.variables, methods=methods)
-        scored_condition = score_condition(condition, joint_results)
-        scored.append(scored_condition.model_copy(update={"diagnostic": diagnostic}))
+        scored.append(
+            score_condition(
+                condition,
+                joint_results,
+                diagnostic_code=diagnostic.code,
+            )
+        )
     return scored
 
 
@@ -188,13 +210,11 @@ def _evaluate_expression(
         return not _evaluate_expression(expression["arg"], variable_bits, assignment_index)
     if operator == "and":
         return all(
-            _evaluate_expression(arg, variable_bits, assignment_index)
-            for arg in expression["args"]
+            _evaluate_expression(arg, variable_bits, assignment_index) for arg in expression["args"]
         )
     if operator == "or":
         return any(
-            _evaluate_expression(arg, variable_bits, assignment_index)
-            for arg in expression["args"]
+            _evaluate_expression(arg, variable_bits, assignment_index) for arg in expression["args"]
         )
 
     raise ValueError(f"unsupported diagnostic condition operator {operator!r}.")

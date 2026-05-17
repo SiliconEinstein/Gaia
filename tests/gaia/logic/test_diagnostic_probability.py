@@ -1,5 +1,6 @@
 import pytest
 
+import gaia.engine.ir.logic.probability as probability_module
 from gaia.engine.bp.factor_graph import FactorGraph, FactorType
 from gaia.engine.bp.joint_query import JointDistribution, JointQueryUnavailable
 from gaia.engine.ir.logic.diagnostics import DiagnosticCondition, FormulaDiagnostic
@@ -20,9 +21,7 @@ def _joint_ab(method: str = "exact", *, is_exact: bool = True) -> JointDistribut
         probabilities=[0.3, 0.2, 0.1, 0.4],
         method=method,
         is_exact=is_exact,
-        basis="exact_joint_distribution"
-        if is_exact
-        else "approximate_joint_distribution",
+        basis="exact_joint_distribution" if is_exact else "approximate_joint_distribution",
     )
 
 
@@ -104,15 +103,50 @@ def test_score_condition_preserves_unavailable_items_and_computes_spreads():
     scored = score_condition(condition, [exact, unavailable, approximate])
 
     assert isinstance(scored, DiagnosticProbability)
-    assert scored.condition == condition
-    assert scored.diagnostic is None
+    assert scored.diagnostic_code is None
+    assert scored.condition_kind == "joint_incompatibility"
+    assert scored.variables == ["A", "B"]
+    assert scored.event_expression == {"var": "A"}
     assert scored.spread == pytest.approx(0.1)
     assert scored.exact_spread == pytest.approx(0.0)
     assert isinstance(scored.estimates[0], ConditionProbabilityEstimate)
     assert scored.estimates[0].probability == pytest.approx(0.6)
-    assert scored.estimates[1] == unavailable
-    assert isinstance(scored.estimates[2], ConditionProbabilityEstimate)
-    assert scored.estimates[2].probability == pytest.approx(0.7)
+    assert isinstance(scored.estimates[1], ConditionProbabilityEstimate)
+    assert scored.estimates[1].probability == pytest.approx(0.7)
+    assert scored.unavailable == [unavailable]
+
+
+def test_score_condition_accepts_diagnostic_code_and_all_unavailable_boundary():
+    unavailable = JointQueryUnavailable(
+        variables=["A", "B"],
+        method="exact",
+        reason="too large",
+        diagnostics={"limit": 26},
+    )
+    condition = _condition({"var": "A"})
+
+    scored = score_condition(condition, [unavailable], diagnostic_code="cross_claim")
+
+    assert scored.diagnostic_code == "cross_claim"
+    assert scored.condition_kind == "joint_incompatibility"
+    assert scored.variables == ["A", "B"]
+    assert scored.event_expression == {"var": "A"}
+    assert scored.estimates == []
+    assert scored.unavailable == [unavailable]
+    assert scored.spread is None
+    assert scored.exact_spread is None
+
+
+def test_score_condition_approximate_only_has_zero_spread_and_no_exact_spread():
+    approximate = _joint_ab("trw_bp", is_exact=False)
+    condition = _condition({"var": "A"})
+
+    scored = score_condition(condition, [approximate])
+
+    assert len(scored.estimates) == 1
+    assert scored.estimates[0].probability == pytest.approx(0.6)
+    assert scored.spread == pytest.approx(0.0)
+    assert scored.exact_spread is None
 
 
 def test_score_diagnostic_conditions_queries_graph_and_skips_diagnostics_without_condition():
@@ -146,12 +180,44 @@ def test_score_diagnostic_conditions_queries_graph_and_skips_diagnostics_without
         message="No condition.",
     )
 
-    scored = score_diagnostic_conditions(graph, [diagnostic, skipped], methods=("exact",))
+    scored = score_diagnostic_conditions([diagnostic, skipped], graph, methods=("exact",))
 
     assert len(scored) == 1
-    assert scored[0].diagnostic == diagnostic
-    assert scored[0].condition == diagnostic.condition
+    assert scored[0].diagnostic_code == "cross_claim_entailment"
+    assert scored[0].condition_kind == "joint_incompatibility"
+    assert scored[0].variables == ["A", "B"]
+    assert scored[0].event_expression == diagnostic.condition.expression
     assert scored[0].estimates[0].method == "exact"
     assert scored[0].estimates[0].probability == pytest.approx(0.08)
+    assert scored[0].unavailable == []
     assert scored[0].spread == pytest.approx(0.0)
     assert scored[0].exact_spread == pytest.approx(0.0)
+
+
+def test_score_diagnostic_conditions_propagates_unexpected_provider_errors(monkeypatch):
+    graph = FactorGraph()
+    graph.add_variable("A", 0.5)
+    graph.add_variable("B", 0.5)
+    diagnostic = FormulaDiagnostic(
+        code="cross_claim_incompatibility",
+        severity="warning",
+        scope="claim_pair",
+        logic_strength="hard",
+        source_claim="A",
+        related_claims=["B"],
+        formula_nodes=["fg:a", "fg:b"],
+        condition=_condition({"op": "and", "args": [{"var": "A"}, {"var": "B"}]}),
+        message="A and B conflict.",
+    )
+
+    def raise_unexpected_provider_bug(_graph, _variables, *, methods):
+        raise RuntimeError(f"provider bug for {methods!r}")
+
+    monkeypatch.setattr(
+        probability_module,
+        "compare_joint_over",
+        raise_unexpected_provider_bug,
+    )
+
+    with pytest.raises(RuntimeError, match="provider bug"):
+        score_diagnostic_conditions([diagnostic], graph, methods=("exact",))
