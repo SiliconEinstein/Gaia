@@ -45,6 +45,15 @@ R3 adds two pre-write **warning** kinds (per R3·❓B=A):
 
 Both warnings flow through the existing ``--interactive`` activation
 in :func:`gaia.cli.commands.author._runner.run_author_op`.
+
+R4 replaces the R3 hand-curated deprecated-name constant with an AST
+scan of the engine DSL source (see
+:mod:`gaia.cli.commands.author._deprecation_scan`). The scan walks
+``gaia.engine.lang.dsl.**.py`` at first use, recognising both the
+direct ``warnings.warn(..., DeprecationWarning)`` shape and the
+indirect ``_warn_deprecated_*(name, replacement)`` helper shape used
+in the v0.5 engine source. A small R3 fallback dict survives for any
+deprecation expressed in a shape the scanner does not yet model.
 """
 
 from __future__ import annotations
@@ -54,6 +63,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from gaia.cli.commands.author._deprecation_scan import get_deprecated_names
 from gaia.cli.commands.author._envelope import Diagnostic, exit_code_for_diagnostic
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 
@@ -629,29 +639,16 @@ def _validate_structural_sanity(proposed_op: ProposedAuthorOp) -> list[Diagnosti
 # --------------------------------------------------------------------------- #
 
 
-# DSL names the engine flags as deprecated (matches the
-# ``DeprecationWarning`` emissions surveyed in
-# ``gaia.engine.lang.dsl.{operators,propositional,knowledge,strategies}``).
-# Keyed name → (replacement-hint, since-version). The "since" field is
-# the v0.5 transition unless an emission site indicates otherwise; the
-# user-visible hint is the message body that gets prefixed in the
-# warning diagnostic.
-_DEPRECATED_DSL_NAMES: dict[str, tuple[str, str]] = {
-    # Note aliases (gaia.engine.lang.dsl.knowledge).
-    "context": ("note", "0.5"),
-    "setting": ("note", "0.5"),
-    # Propositional (gaia.engine.lang.dsl.propositional).
-    "not_": ("claim(formula=lnot(ClaimAtom(...)))", "0.5"),
-    "and_": ("claim(formula=land(ClaimAtom(...), ...))", "0.5"),
-    "or_": ("claim(formula=lor(ClaimAtom(...), ...))", "0.5"),
-    # Operator helpers (gaia.engine.lang.dsl.operators).
-    "contradiction": ("contradict()", "0.5"),
-    "equivalence": ("equal()", "0.5"),
-    "complement": ("exclusive()", "0.5"),
-    "disjunction": ("lor()", "0.5"),
-    # Strategies (gaia.engine.lang.dsl.strategies).
-    "noisy_and": ("derive() / infer()", "0.5"),
-}
+# DSL names the engine flags as deprecated. R4·❓C=A lifted this from a
+# hand-curated constant to the AST scan in :mod:`._deprecation_scan`.
+# The accessor is called lazily at the warning-detection site so the
+# cli import cost is paid once per process and cached. Result schema is
+# unchanged from R3: ``name -> (replacement-hint, since-version)``.
+
+
+def _deprecated_dsl_names() -> dict[str, tuple[str, str]]:
+    """Live dict of engine-flagged deprecations (cached after first call)."""
+    return get_deprecated_names()
 
 
 def _detect_label_shadow(*, label: str | None, source_init_path: Path | None) -> list[Diagnostic]:
@@ -769,13 +766,14 @@ def _detect_deprecated_refs(proposed_op: ProposedAuthorOp) -> list[Diagnostic]:
             if isinstance(node, ast.Name):
                 candidates.append(node.id)
 
+    deprecated = _deprecated_dsl_names()
     for name in candidates:
         if name in flagged:
             continue
-        if name not in _DEPRECATED_DSL_NAMES:
+        if name not in deprecated:
             continue
         flagged.add(name)
-        replacement, since = _DEPRECATED_DSL_NAMES[name]
+        replacement, since = deprecated[name]
         diagnostics.append(
             Diagnostic(
                 kind="prewrite.deprecated_ref",
