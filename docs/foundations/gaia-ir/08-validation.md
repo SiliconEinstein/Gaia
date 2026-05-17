@@ -54,7 +54,7 @@ validation 的职责是**验证结构合法性**。
 5. 含 `parameters` 的 claim 仍然是 claim，不是独立类型
 6. helper claim 仍然是 `claim`，不能引入新的 Knowledge primitive
 7. 结构型 helper claim **禁止**携带独立的 `PriorRecord`——它们不引入新的中间命题或新的前提，其值由 Operator 确定性决定（见 [04-helper-claims.md](04-helper-claims.md)）
-8. `composition` 的 `sub_knowledge` 中每个 ID 必须引用同 graph 中存在的 `Knowledge`；其 `conclusion` 必须引用同 graph 中存在的 `claim`
+8. `composition` 的 `sub_knowledge` / `conclusion` graph-closure 约束是设计不变量；当前 graph-level validator 只校验字段形态，尚未解析这些引用或强制 `conclusion` 指向 `claim`
 9. `label` 在同一 `LocalCanonicalGraph` 内必须唯一
 10. `LocalCanonicalGraph.namespace` / `package_name` 约束自动生成的本地 QID；显式写入的 foreign QID 允许作为 external reference 出现在 graph 中
 11. graph-level closure 的对象是"显式出现在 graph 中的节点集合"，因此 imported external occurrence 若被引用，也必须作为 `Knowledge` 显式存在于该 graph 中

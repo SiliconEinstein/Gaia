@@ -87,7 +87,7 @@ QID 是 name-addressed 身份，不是 content-addressed。内容变化不影响
 content_hash = SHA-256(type + "|" + format + "|" + content + "|" + sorted((name, type) for p in parameters))
 ```
 
-字符串字段以 ASCII pipe `|` 分隔；参数列表序列化为按 `(name, type)` 字典序排序的元组列表。哈希取 SHA-256 hex 的前 64 位。
+字符串字段以 ASCII pipe `|` 分隔；参数列表序列化为按 `(name, type)` 字典序排序的元组列表。哈希取完整 SHA-256 hex digest（64 个十六进制字符）。
 
 **不进入哈希的字段**：`id`、`label`、`title`、`module`、`declaration_index`、`exported`、`metadata`、`provenance`、`template_*` / `sub_knowledge` / `conclusion`（即叙事层与 composition 专用字段）；`package_id` 也明确不进入。
 
@@ -140,7 +140,7 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 | CompositeStrategy | `SHA-256(sorted(sub_strategies))` |
 | FormalStrategy | `SHA-256(canonical(formal_expr))` |
 
-`canonical(formal_expr)` 是对 FormalExpr 内 Operator 列表的确定性序列化（按 operator 字段稳定排序后 JSON dump，参见 `gaia.engine.ir.graphs._canonicalize_strategy_dump`）。
+`canonical(formal_expr)` 的权威实现是 `gaia.engine.ir.strategy._canonical_formal_expr`：每个 Operator 只纳入 `operator`、对称算子归一化后的 `variables`、以及 `conclusion`，再按完整 JSON 表示稳定排序。
 
 这意味着：同一组 premises/conclusion/type，如果内部结构不同（如 leaf vs FormalStrategy），会产生不同的 `strategy_id`。
 

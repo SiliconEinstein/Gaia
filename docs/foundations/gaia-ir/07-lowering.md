@@ -153,7 +153,7 @@ FormalExpr 内部节点是严格私有的（禁止外部引用），因此 Forma
 
 `Compose`（`lcm_` 前缀，详见 [02-gaia-ir.md §1.4](02-gaia-ir.md)）在 lowering 时**不直接**翻译为 factor 或概率约束。它的 `actions` 列表里每个目标按各自类型走 lowering：
 
-- 引用的 `Knowledge`（`inputs / background / warrants / conclusion`）按 §3.1 / §4.1 处理
+- 引用的 `Knowledge`（`inputs / background / warrants / conclusion`）按 §3.1 处理；是否形成支持关系取决于被引用的 Strategy / Operator
 - 引用的 `Operator` 按 §3.2 / §4.x 处理
 - 引用的 `Strategy` / `CompositeStrategy` / `FormalStrategy` 按 §4.1–4.3 处理
 - 引用的其他 `Compose` 递归按本节处理
