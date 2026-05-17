@@ -1,8 +1,16 @@
-# 如何为你的图选择 BP 推理算法
+# How to choose a BP inference algorithm
 
-> **Status:** Current canonical (v0.5 + BP refactor 2026-05-13)
->
-> **定位：** 这是给**作者 / 包写作者**的决策导向页，回答"我该选哪个 BP 算法、怎么估 treewidth、不同选择会差多少"。
+> **Gaia version:** 0.5.x
+> **Author:** @SiliconEinstein
+> **Date:** 2026-05-13
+
+当你的 package 编译完成、需要运行推理时，Gaia 会自动选择 BP 算法。本页帮你理解自动选择逻辑、判断何时需要手动覆盖。
+
+## 前提
+
+- 已有一个通过 `gaia build compile` 的 package
+- 了解 `gaia run infer` 的基本用法
+
 > 算法的内部参数、消息传递公式、Cromwell clamp 等技术合约见 [`inference.md`](inference.md)；纯 BP 算法理论见 [`../theory/07-belief-propagation.md`](../theory/07-belief-propagation.md)。
 > 本页**不**重复 [`inference.md`](inference.md) 中的阈值规则与诊断字段定义，只把它们组织成可直接照着走的决策流程。
 

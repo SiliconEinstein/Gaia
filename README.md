@@ -364,7 +364,7 @@ gaia/
 
 - [Plausible Reasoning Theory](docs/foundations/theory/01-plausible-reasoning.md) — Polya, Cox, Jaynes: why probability is the unique formalism
 - [Language Reference](docs/for-users/language-reference.md)
-- [Generated DSL API](docs/reference/dsl.md)
+- [Generated DSL API](docs/reference/engine/lang/dsl.md)
 - [Package Model](docs/foundations/gaia-lang/package.md)
 - [Knowledge & Reasoning Semantics](docs/foundations/gaia-lang/knowledge-and-reasoning.md)
 - [CLI Workflow](docs/foundations/cli/workflow.md)

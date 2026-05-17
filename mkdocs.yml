@@ -59,6 +59,10 @@ nav:
       - Hole And Bridge: for-users/hole-bridge-tutorial.md
       - Choosing A BP Algorithm: foundations/bp/choosing-algorithm.md
 
+  - Examples:
+      - Bayes Module — LDL Phase II Trial: examples/bayes-ldl-trial.md
+      - Formula AST — Custom Predicates: examples/causal-formula-ast.md
+
   - Reference:
       - Language Reference: for-users/language-reference.md
       - CLI Commands: for-users/cli-commands.md
