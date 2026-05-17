@@ -16,16 +16,14 @@ Maps to ``gaia.engine.lang.dsl.support.derive``:
 The verb supports two CLI shapes for ``conclusion``:
 
 * ``--conclusion <identifier>`` — reference an already-declared Claim.
-* ``--conclusion-content "<prose>"`` — let ``derive`` mint a fresh Claim
-  from a string. Mutually exclusive with the above; pre-write would
-  catch the resolution failure either way, but rejecting at flag-parse
-  time gives a friendlier error.
+* ``--conclusion-content "<prose>"`` — cli auto-generates a fresh Claim
+  bound to a slug derived from the prose, appends it to the target
+  file, then uses the slug as ``conclusion``. Mutually exclusive with
+  the above. ``--conclusion-label`` overrides the auto-derived slug.
 
-R1 ships ``--conclusion`` (identifier mode) only. The free-form prose
-mode is R2: it requires the writer to bind the auto-generated label
-back into the source, which conflicts with R1's simple "append a single
-statement" writer. The CLI surface stays compatible — R2 just adds the
-second option.
+R3 ships both shapes via the prose-mode helper infra in
+:mod:`gaia.cli.commands.author._prose`; the R1·R2 ``--conclusion``
+mode is unchanged.
 """
 
 from __future__ import annotations
@@ -35,6 +33,7 @@ from typing import Any
 
 import typer
 
+from gaia.cli.commands.author._common import emit_syntax_error
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
@@ -42,6 +41,7 @@ from gaia.cli.commands.author._envelope import (
     exit_code_for_diagnostic,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
+from gaia.cli.commands.author._prose import build_auto_claim_statement, slugify_label
 from gaia.cli.commands.author._runner import run_author_op
 
 
@@ -87,10 +87,27 @@ def _render_derive_statement(
 
 
 def derive_command(
-    conclusion: str = typer.Option(
-        ...,
+    conclusion: str | None = typer.Option(
+        None,
         "--conclusion",
         help="Identifier of the conclusion Claim (must already be declared).",
+    ),
+    conclusion_content: str | None = typer.Option(
+        None,
+        "--conclusion-content",
+        help=(
+            "Prose for an auto-generated conclusion Claim. Mutually exclusive with "
+            "--conclusion. Cli derives a snake-case slug for the label (override via "
+            "--conclusion-label)."
+        ),
+    ),
+    conclusion_label: str | None = typer.Option(
+        None,
+        "--conclusion-label",
+        help=(
+            "Optional explicit label for the auto-generated conclusion Claim "
+            "(only meaningful with --conclusion-content)."
+        ),
     ),
     given: str = typer.Option(
         ...,
@@ -125,7 +142,7 @@ def derive_command(
     interactive: bool = typer.Option(
         False,
         "--interactive",
-        help="Prompt on pre-write warnings (no-op in R1; reserved for R2).",
+        help="Prompt on pre-write warnings (human mode only).",
     ),
     json_: bool = typer.Option(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
@@ -133,15 +150,47 @@ def derive_command(
 ) -> None:
     r"""Author a ``derive(conclusion, given=[...])`` support relation.
 
-    Example:
+    Examples:
 
     .. code-block:: bash
 
+        # Reference an existing conclusion
         gaia author derive --conclusion stars_visible \
+            --given clear_night,observer_present \
+            --label visibility_warrant
+
+        # Mint a fresh conclusion from prose (R3 prose mode)
+        gaia author derive --conclusion-content "Stars are visible tonight." \
             --given clear_night,observer_present \
             --label visibility_warrant
     """
     del json_
+
+    # --- mutual-exclusion check on conclusion-mode ----------------------- #
+    if conclusion is None and conclusion_content is None:
+        emit_syntax_error(
+            "derive",
+            "derive requires exactly one of --conclusion / --conclusion-content",
+            target=str(target),
+            human=human,
+        )
+        return
+    if conclusion is not None and conclusion_content is not None:
+        emit_syntax_error(
+            "derive",
+            "--conclusion and --conclusion-content are mutually exclusive",
+            target=str(target),
+            human=human,
+        )
+        return
+    if conclusion_label is not None and conclusion_content is None:
+        emit_syntax_error(
+            "derive",
+            "--conclusion-label only applies with --conclusion-content",
+            target=str(target),
+            human=human,
+        )
+        return
 
     metadata_dict, metadata_error = _parse_metadata(metadata)
     if metadata_error:
@@ -180,15 +229,34 @@ def derive_command(
         emit(result, human=human)
         return
 
+    # --- prose mode: mint a fresh conclusion claim ----------------------- #
+    prepended: tuple[tuple[str, str], ...] = ()
+    if conclusion_content is not None:
+        # The cli-derived slug must avoid the verb's own label and the
+        # caller-supplied identifiers; the prewrite (c) check also runs
+        # against module symbols, so a collision against existing
+        # bindings will surface as the standard ``prewrite.collision``
+        # error rather than silently colliding.
+        if conclusion_label is not None:
+            auto_label = conclusion_label
+        else:
+            reserved = {label, *given_list, *background_list}
+            auto_label = slugify_label(conclusion_content, existing=reserved)
+        prepended = ((auto_label, build_auto_claim_statement(auto_label, conclusion_content)),)
+        resolved_conclusion = auto_label
+    else:
+        assert conclusion is not None  # mutex check above
+        resolved_conclusion = conclusion
+
     generated_code = _render_derive_statement(
         label=label,
-        conclusion=conclusion,
+        conclusion=resolved_conclusion,
         given=given_list,
         rationale=rationale,
         metadata=metadata_dict,
         background=background_list,
     )
-    references = [conclusion, *given_list, *background_list]
+    references = [resolved_conclusion, *given_list, *background_list]
     proposed_op = ProposedAuthorOp(
         verb="derive",
         kind="reasoning",
@@ -196,6 +264,7 @@ def derive_command(
         references=references,
         generated_code=generated_code,
         required_imports=("derive",),
+        prepended_statements=prepended,
     )
     run_author_op(
         proposed_op,

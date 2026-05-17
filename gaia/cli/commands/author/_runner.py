@@ -163,9 +163,19 @@ def run_author_op(
     sys.stdout.flush()  # keep prompt output and JSON output disjoint
 
     # ---- step 2: write -------------------------------------------------- #
+    #
+    # Prepended statements (R3 prose mode auto-claim) land in source
+    # order before the main snippet. The final ``snippet`` payload joins
+    # all written pieces so an agent can reproduce the diff from one
+    # field.
 
+    written_segments: list[str] = []
     try:
+        for _prep_label, prep_code in proposed_op.prepended_statements:
+            prep_write = append_statement(pre.source_init_path, prep_code)
+            written_segments.append(prep_write.appended)
         write_result = append_statement(pre.source_init_path, proposed_op.generated_code)
+        written_segments.append(write_result.appended)
     except (OSError, PermissionError) as exc:
         emit(
             system_error(
@@ -182,8 +192,17 @@ def run_author_op(
         "written_to": str(write_result.path),
         "label": proposed_op.label,
         "verb": proposed_op.verb,
-        "snippet": write_result.appended,
+        "snippet": "".join(written_segments),
     }
+    if proposed_op.prepended_statements:
+        payload["auto_generated"] = [
+            {"label": label, "snippet": snip}
+            for (label, _code), snip in zip(
+                proposed_op.prepended_statements,
+                written_segments[:-1],
+                strict=True,
+            )
+        ]
 
     # Carry pre-write warnings through into the final envelope so JSON
     # consumers see them even when --interactive auto-suppresses prompts.

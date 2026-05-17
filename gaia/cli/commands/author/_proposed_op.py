@@ -61,3 +61,11 @@ class ProposedAuthorOp:
     references: list[str] = field(default_factory=list)
     generated_code: str = ""
     required_imports: tuple[str, ...] = ()
+    # R3 prose mode: optional auto-generated supporting statement that
+    # must be written **before** ``generated_code`` (e.g. an auto-claim
+    # minted from ``--conclusion-content``). Each entry is a
+    # ``(label, snippet)`` tuple: the label is treated as a binding that
+    # already exists in module scope for the purposes of the (c)
+    # reference-resolution invariant, and the snippet is appended to the
+    # source file ahead of ``generated_code`` during the write step.
+    prepended_statements: tuple[tuple[str, str], ...] = ()

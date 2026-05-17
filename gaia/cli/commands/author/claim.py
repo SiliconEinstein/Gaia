@@ -6,6 +6,7 @@ The CLI surface maps to ``gaia.engine.lang.dsl.knowledge.claim``:
 
     claim(
         content,
+        proposition=None,           # BoolExpr (predicate claim) — positional
         *,
         title=None,
         format="markdown",
@@ -17,13 +18,15 @@ The CLI surface maps to ``gaia.engine.lang.dsl.knowledge.claim``:
         ...
     )
 
-R1 covers the prose-claim shape (positional ``content`` + optional
-``title`` / ``prior`` / ``metadata`` / ``references``). Predicate-claim
-shapes (``claim("…", k > 1e-2)``) and formula-claim shapes (``formula=``)
-are R2+ — they require expression-level inputs that don't map cleanly
-onto a CLI flag, and the R1·❓-2=B dispatch already locked distributions
-and formula builders as expression-level-only (not exposed as their own
-verbs).
+R1 covered the prose-claim shape (positional ``content`` + optional
+``title`` / ``prior`` / ``metadata`` / ``references``). R3 adds the
+predicate-claim shape via ``--predicate "<formula-expr>"``: the cli
+sandbox-validates the expression (whitelisted formula primitives +
+Distribution factories + ``ClaimAtom`` per
+:mod:`gaia.cli.commands.author._formula_sandbox`) and renders it
+verbatim as the ``formula=`` kwarg. The naming reads as "predicate
+mode" from the agent's point of view; the engine spelling is
+``formula=`` (the predicate-logic surface inside ``claim()``).
 """
 
 from __future__ import annotations
@@ -33,11 +36,16 @@ from typing import Any
 
 import typer
 
+from gaia.cli.commands.author._common import emit_syntax_error
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
     emit,
     exit_code_for_diagnostic,
+)
+from gaia.cli.commands.author._formula_sandbox import (
+    FormulaSandboxError,
+    validate_formula_expr,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -71,13 +79,21 @@ def _render_claim_statement(
     prior: float | None,
     metadata: dict[str, Any] | None,
     references: list[str],
+    predicate: str | None = None,
 ) -> str:
-    """Produce the Python source for the proposed ``claim(...)`` statement."""
+    """Produce the Python source for the proposed ``claim(...)`` statement.
+
+    When ``predicate`` is set, the cli renders it as the ``formula=``
+    kwarg — the DSL spelling of "predicate-logic claim". The expression
+    has already been sandbox-validated by the caller.
+    """
     args: list[str] = [repr(content)]
     if title is not None:
         args.append(f"title={title!r}")
     if prior is not None:
         args.append(f"prior={prior!r}")
+    if predicate is not None:
+        args.append(f"formula={predicate}")
     if references:
         # claim() takes background=[...] for premise context; the CLI's
         # ``--references`` flag is the agent-facing name (same value).
@@ -112,6 +128,16 @@ def claim_command(
         None,
         "--references",
         help="Comma-separated background references (must resolve in target package).",
+    ),
+    predicate: str | None = typer.Option(
+        None,
+        "--predicate",
+        help=(
+            "Predicate-logic expression rendered as the ``formula=`` kwarg. "
+            "Validated by the formula sandbox (whitelist: land/lor/lnot/implies/"
+            "iff/equals/forall/exists + ClaimAtom + Distribution factories + "
+            "references). Example: `--predicate 'land(ClaimAtom(a), ClaimAtom(b))'`."
+        ),
     ),
     check: bool = typer.Option(
         True,
@@ -161,6 +187,25 @@ def claim_command(
         return
 
     ref_list = _split_csv(references)
+
+    # --- R3 predicate mode: sandbox-validate the formula expression ----- #
+    if predicate is not None:
+        # Permitted identifiers: the standing whitelist plus user-named
+        # references (so ``ClaimAtom(some_ref)`` resolves when
+        # ``some_ref`` is on the --references list).
+        extra = frozenset(ref_list)
+        try:
+            validate_formula_expr(predicate, extra_names=extra)
+        except FormulaSandboxError as exc:
+            emit_syntax_error(
+                "claim",
+                f"--predicate rejected by sandbox: {exc}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
+
     generated_code = _render_claim_statement(
         label=label,
         content=content,
@@ -168,6 +213,7 @@ def claim_command(
         prior=prior,
         metadata=metadata_dict,
         references=ref_list,
+        predicate=predicate,
     )
     proposed_op = ProposedAuthorOp(
         verb="claim",
