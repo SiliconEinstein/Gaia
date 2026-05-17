@@ -38,8 +38,35 @@ type = "knowledge-package"
 uuid = "{uuid}"
 """
 
+# Import the full agent-author DSL surface — every name ``gaia author
+# <verb>`` knows about — so the post-write ``--check`` integration can
+# load freshly-authored statements without name-resolution errors.
 _INIT_TEMPLATE = """\
-from gaia.engine.lang import claim, derive, equal
+from gaia.engine.lang import (
+    ClaimAtom,
+    associate,
+    candidate_relation,
+    claim,
+    compute,
+    contradict,
+    decompose,
+    depends_on,
+    derive,
+    equal,
+    exclusive,
+    iff,
+    implies,
+    infer,
+    land,
+    lnot,
+    lor,
+    materialize,
+    note,
+    observe,
+    parameter,
+    question,
+    register_prior,
+)
 
 hypothesis = claim("Test hypothesis claim.", title="Hypothesis")
 observation = claim("Test observation claim.", title="Observation")
