@@ -14,7 +14,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests.baseline.conftest import cli_snapshot
+
+pytestmark = pytest.mark.pr_gate
 
 
 def test_trace_verify_clean_snapshot(clean_trace_path: Path, run_gaia, snapshot) -> None:

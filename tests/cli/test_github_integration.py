@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands._github import generate_github_output
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 

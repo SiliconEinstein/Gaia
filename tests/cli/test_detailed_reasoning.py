@@ -1,5 +1,6 @@
 """Tests for docs/detailed-reasoning.md generator (legacy gaia compile --readme/--module-graphs)."""
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands._detailed_reasoning import (
@@ -10,6 +11,8 @@ from gaia.cli.commands._detailed_reasoning import (
     topo_layers,
 )
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 

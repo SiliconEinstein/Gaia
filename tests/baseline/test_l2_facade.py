@@ -20,6 +20,8 @@ import importlib
 
 import pytest
 
+pytestmark = pytest.mark.pr_gate
+
 EXPECTED = {
     "gaia.engine.bayes": 19,
     "gaia.engine.bp": 17,

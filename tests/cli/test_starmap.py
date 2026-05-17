@@ -17,6 +17,8 @@ from gaia.cli.commands._stellaris_svg import (
 )
 from gaia.cli.main import app
 
+pytestmark = pytest.mark.pr_gate
+
 runner = CliRunner()
 
 

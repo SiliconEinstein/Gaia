@@ -9,6 +9,8 @@ from gaia.cli.main import app
 from gaia.engine.ir import LocalCanonicalGraph
 from gaia.engine.ir.validator import validate_local_graph
 
+pytestmark = pytest.mark.pr_gate
+
 runner = CliRunner()
 
 LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(

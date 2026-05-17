@@ -1,6 +1,7 @@
 # Gaia Lang
 
 [![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
+[![Nightly](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml/badge.svg?branch=v0.5)](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml)
 [![Docs](https://github.com/SiliconEinstein/Gaia/actions/workflows/docs.yml/badge.svg)](https://siliconeinstein.github.io/Gaia/)
 [![PyPI](https://img.shields.io/pypi/v/gaia-lang.svg)](https://pypi.org/project/gaia-lang/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
