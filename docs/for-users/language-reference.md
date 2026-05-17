@@ -1,6 +1,8 @@
 # Language Reference
 
 > **Status:** Current v0.5 canonical
+>
+> **本页定位：** **Reference** 区的用户面 DSL 速查；语言模型本身的设计动机、Knowledge 类型本体、Reasoning 到 IR 的 lowering 规则见 Foundations / [Knowledge And Reasoning](../foundations/gaia-lang/knowledge-and-reasoning.md)。
 
 Practical cheat sheet for the Gaia Language v0.5 Python DSL. For the generated API reference, see [Gaia Lang DSL API](../reference/engine/lang/dsl.md).
 

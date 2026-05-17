@@ -1,6 +1,8 @@
 # 审查报告契约
 
 > **Status:** Legacy / future-service contract, not the current v0.5 local CLI path
+>
+> **本页定位：** **Reference / Contracts** 区的数据契约（report schema 与字段定义）；review 流程本身的叙述见 Foundations / [Review Pipeline](../review/review-pipeline.md)。
 
 本文档定义旧版 `ReviewOutput` 审查报告的数据契约。它描述的是早期
 agent self-review / future ReviewService 可能输出的概率化报告格式，不是

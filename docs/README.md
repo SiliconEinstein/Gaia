@@ -1,43 +1,62 @@
 # Gaia Documentation
 
-## Start Here
+Gaia 的文档按读者**正在问的问题**分为 5 个顶层区，每个区只解决一类问题：
 
-Choose your path:
+| 区 | 你在问 | 入口示例 |
+|---|---|---|
+| **Tutorials** | "我第一次接触 Gaia，能不能带我走一遍？" | [What Is Gaia?](for-visitors/what-is-gaia.md) · [Quick Start](for-users/quick-start.md) |
+| **How-To Guides** | "我有一个具体任务要解决，给我配方" | [Hole And Bridge](for-users/hole-bridge-tutorial.md) · [Choosing A BP Algorithm](foundations/bp/choosing-algorithm.md) |
+| **Reference** | "我知道要查什么，给我精确规格 / API / 命令" | [Language Reference](for-users/language-reference.md) · [CLI Commands](for-users/cli-commands.md) · [Engine API](reference/engine/index.md) · [CLI Internals](reference/cli/index.md) · [Contracts](foundations/contracts/review-report.md) |
+| **Foundations** | "为什么 Gaia 是这样的？把推导链给我" | [Foundations Overview](foundations/README.md) · [Theory](foundations/theory/01-plausible-reasoning.md) · [Belief Propagation](foundations/bp/inference.md) |
+| **Policy & Migration** | "文档自身的规则、版本迁移说明" | [Documentation Policy](documentation-policy.md) · [Migration to alpha 0](migration.md) |
 
-### I want to understand what Gaia is
-> You're a visitor, researcher, or evaluator.
+侧边栏与本表完全对应。这是 [Diátaxis](https://diataxis.fr) 的一个变体——把"explanation"展开为带顺序的 **Foundations** 区，因为 Gaia 的 theory 文档（`theory/01–08`）是真正的 derivation chain，不能折成无序解释。
 
-Start with [What is Gaia?](for-visitors/what-is-gaia.md).
+> **关于命名变更**：之前的 "Start Here" / "User Reference" / "Foundational Docs" / "Deep Reference" 标签已合并为这 5 个区。如果你来自旧链接，URL 路径不变（`for-visitors/`、`for-users/`、`foundations/`、`reference/` 仍然有效），只是 nav label 变了。背景见 [RFC #647](https://github.com/SiliconEinstein/Gaia/issues/647)。
 
-### I want to use Gaia to author knowledge packages
-> You're a researcher or research agent using the Gaia CLI.
+## Choose your path
 
-Start with the [Quick Start](for-users/quick-start.md), then read the [Hole And Bridge Tutorial](for-users/hole-bridge-tutorial.md), [Language Reference](for-users/language-reference.md), and [CLI Commands](for-users/cli-commands.md).
+### 我想了解 Gaia 是什么
+你是访问者、研究者、评估者。
 
-### I want to develop Gaia
-> You're a developer working on the codebase.
+→ 从 [What is Gaia?](for-visitors/what-is-gaia.md) 开始。
 
-Start with the [Python API Reference](reference/engine/index.md), then explore:
-- [CLI surface](foundations/cli/workflow.md) — local authoring, compilation, inference
-- [LKM surface](https://github.com/SiliconEinstein/gaia-lkm) — server-side review, curation, global inference (maintained in gaia-lkm repo)
-- [Gaia Lang design](foundations/gaia-lang/knowledge-and-reasoning.md) — authoring model, actions, formulas, helper claims
-- [Gaia IR design](foundations/gaia-ir/01-overview.md) — persistent structure, identity, lowering, validation
-- [Gaia Lang API](reference/engine/lang.md) — generated from current Python docstrings and type hints
-- [Gaia IR API](reference/engine/ir.md) — generated from current Python docstrings and type hints
+### 我想用 Gaia 写知识包
+你是研究者或正在使用 Gaia CLI 的研究 agent。
 
-## Deep Reference
+→ 跟着 [Quick Start](for-users/quick-start.md) 走完一次完整流程，然后按需查阅：
 
-The [Foundations](foundations/README.md) directory contains Gaia's conceptual reference docs. Python module interfaces live in the generated [Python API Reference](reference/engine/index.md).
+- [Hole And Bridge](for-users/hole-bridge-tutorial.md) — 跨包补洞 / bridge 机制（How-To）
+- [Choosing A BP Algorithm](foundations/bp/choosing-algorithm.md) — 给你的图选合适的 BP 算法（How-To）
+- [Language Reference](for-users/language-reference.md) — DSL 语法查询（Reference）
+- [CLI Commands](for-users/cli-commands.md) — 用户面 CLI 命令查询（Reference）
 
-| Layer | What it answers | Changes |
-|-------|----------------|---------|
-| [Theory](foundations/theory/01-plausible-reasoning.md) | Why does Gaia reason this way? | Never |
-| [Ecosystem](foundations/ecosystem/01-product-scope.md) | What are Gaia's design choices? | Rarely |
+### 我想开发 Gaia
+你是给 Gaia 代码库写代码的开发者。
+
+→ 入口是 [Engine API Overview](reference/engine/index.md)，然后按需深入：
+
+- [CLI Internals](reference/cli/index.md) — engine-internal CLI invocation 规格（Reference）
+- [CLI Workflow](foundations/cli/workflow.md) — 本地 authoring / compilation / inference 的设计原则（Foundations）
+- [Gaia Lang Design](foundations/gaia-lang/knowledge-and-reasoning.md) — authoring 模型、actions、formulas、helper claims
+- [Gaia IR Design](foundations/gaia-ir/01-overview.md) — persistent structure、identity、lowering、validation
+- [Gaia Lang API](reference/engine/lang.md) / [Gaia IR API](reference/engine/ir.md) — 当前 Python 模块自动生成的接口
+- LKM server 在 [gaia-lkm repo](https://github.com/SiliconEinstein/gaia-lkm) 维护
+
+## Foundations: derivation chain by rate of change
+
+Foundations 区的子目录按 "内容多久变一次" 组织。读者依据想了解的层次进入：
+
+| 子目录 | 它回答 | 变更频率 |
+|---|---|---|
+| [Theory](foundations/theory/01-plausible-reasoning.md) | Why does Gaia reason this way? Cox / MaxEnt / propositional operators / causality | Never |
+| [Belief Propagation](foundations/bp/inference.md) | How does inference run on Gaia IR? Cromwell, factor types, algorithm parameters | Sometimes |
 | [Gaia Lang Design](foundations/gaia-lang/knowledge-and-reasoning.md) | What is the authoring language model? | Sometimes |
 | [Gaia IR Design](foundations/gaia-ir/01-overview.md) | What is the persistent reasoning contract? | Sometimes |
-| [BP](foundations/bp/inference.md) | How does inference work? | Sometimes |
-| [CLI](foundations/cli/workflow.md) | How does local authoring work? | Often |
-| [Python API](reference/engine/index.md) | What do current Gaia Lang, Gaia IR, BP, CLI, and logic modules expose? | Often |
+| [Ecosystem](foundations/ecosystem/01-product-scope.md) | What are Gaia's product / system design choices? | Rarely |
+| [Review Pipeline](foundations/review/review-pipeline.md) | How does package review and curation flow? (process narrative; the report contracts live in Reference / Contracts) | Sometimes |
+| [CLI Workflow](foundations/cli/workflow.md) | How does local authoring map to CLI commands? (design layer; the user-facing command list lives in Reference / CLI Commands) | Often |
+| [Python API](reference/engine/index.md) | What do current modules expose? (Reference 区，从 docstring 自动生成) | Often |
 | LKM | How does the server work? | [gaia-lkm repo](https://github.com/SiliconEinstein/gaia-lkm) |
 
 ## Other Resources

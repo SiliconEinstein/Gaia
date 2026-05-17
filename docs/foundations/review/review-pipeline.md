@@ -6,6 +6,8 @@ since: v0.5
 
 # Review Pipeline
 
+> **本页定位：** **Foundations** 区的 review 流程叙述（结构化编译 vs review 判断、本地工作流分层）；review / rebuttal 报告的数据契约见 Reference / Contracts ([review-report](../contracts/review-report.md), [rebuttal-report](../contracts/rebuttal-report.md))。
+
 Gaia separates **structural compilation** (objective, deterministic) from
 **review** (qualitative judgment about whether an authored action's warrant is
 acceptable for publication-quality workflows). Review is a per-action decision:
