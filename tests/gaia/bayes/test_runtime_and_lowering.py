@@ -13,6 +13,7 @@ from gaia.engine.bp.exact import exact_inference
 from gaia.engine.bp.factor_graph import FactorType
 from gaia.engine.bp.lowering import lower_local_graph
 from gaia.engine.ir.operator import OperatorType
+from gaia.engine.ir.parameterization import CROMWELL_EPS
 from gaia.engine.lang import (
     Constant,
     Nat,
@@ -26,6 +27,7 @@ from gaia.engine.lang import (
     parameter,
 )
 from gaia.engine.lang.compiler.compile import compile_package_artifact
+from gaia.engine.lang.runtime.action import Observe
 from gaia.engine.lang.runtime.knowledge import _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
 from gaia.engine.lang.runtime.roles import roles_for_package
@@ -144,6 +146,32 @@ def test_observation_noise_metadata_serializes_distribution_literal():
         "kind": "normal",
         "params": {"mu": 0.0, "sigma": 0.1},
     }
+
+
+def test_data_helper_builds_observed_formula_claim_for_likelihood():
+    pkg = CollectedPackage(name="bayes_data_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        y = Variable(symbol="log_rr", domain=Real)
+        data = bayes.data(y, value=-0.151, error=0.05, label="measured_log_rr")
+    finally:
+        _current_package.reset(token)
+
+    assert data.label == "measured_log_rr"
+    assert data.formula == equals(y, Constant(-0.151, Real))
+    assert data.prior == pytest.approx(1.0 - CROMWELL_EPS)
+    assert data.metadata["bayes"]["noise"] == {
+        "kind": "normal",
+        "params": {"mu": 0.0, "sigma": 0.05},
+    }
+    assert data in pkg.knowledge
+
+    observe_action = data.from_actions[0]
+    assert isinstance(observe_action, Observe)
+    assert observe_action.label == "observe_measured_log_rr"
+    assert observe_action.conclusion is data
+    assert observe_action.given == ()
+    assert observe_action in pkg.actions
 
 
 def test_likelihood_compiles_to_reviewable_infer_strategies_and_exhaustive_complement():
@@ -275,6 +303,49 @@ def test_continuous_normal_noise_likelihood_uses_convolution():
             noise=bayes.Normal(mu=0.0, sigma=2.0),
             label="data",
         )
+        model_near = bayes.model(
+            h_near,
+            observable=y,
+            distribution=bayes.Normal(mu=mu, sigma=1.0),
+            label="model_near",
+        )
+        model_far = bayes.model(
+            h_far,
+            observable=y,
+            distribution=bayes.Normal(mu=mu, sigma=1.0),
+            label="model_far",
+        )
+        cmp_result = bayes.likelihood(data, model=model_near, against=[model_far], label="cmp")
+    finally:
+        _current_package.reset(token)
+
+    compiled = compile_package_artifact(pkg)
+    h_near_id = compiled.knowledge_ids_by_object[id(h_near)]
+    h_far_id = compiled.knowledge_ids_by_object[id(h_far)]
+    cmp_id = compiled.knowledge_ids_by_object[id(cmp_result)]
+    cmp_ir = next(k for k in compiled.graph.knowledges if k.id == cmp_id)
+
+    likelihoods = cmp_ir.metadata["bayes"]["likelihoods"]
+    convolved_sigma = math.sqrt(1.0**2 + 2.0**2)
+    assert likelihoods[h_near_id] == pytest.approx(
+        stats.norm.logpdf(3.0, loc=2.5, scale=convolved_sigma),
+        rel=1e-5,
+    )
+    assert likelihoods[h_far_id] == pytest.approx(
+        stats.norm.logpdf(3.0, loc=0.0, scale=convolved_sigma),
+        rel=1e-5,
+    )
+
+
+def test_data_helper_noise_is_consumed_by_likelihood_lowering():
+    pkg = CollectedPackage(name="bayes_data_noise_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        mu = Variable(symbol="mu", domain=Real)
+        y = Variable(symbol="y", domain=Real)
+        h_near = parameter(mu, 2.5, content="mu = 2.5.", prior=0.5, label="h_near")
+        h_far = parameter(mu, 0.0, content="mu = 0.", prior=0.5, label="h_far")
+        data = bayes.data(y, value=3.0, error=2.0, label="data")
         model_near = bayes.model(
             h_near,
             observable=y,

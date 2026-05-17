@@ -48,8 +48,8 @@ updates. It decomposes the paper narrative into reviewable Gaia claims:
 1. `parameter(variable, value)` declares the hypothesis shape.
 2. `bayes.model(hypothesis, observable=..., distribution=...)` declares one
    predictive model helper for one hypothesis.
-3. A formula `claim(...)` plus zero-premise `observe(...)` records measured
-   data, optionally with Normal additive noise metadata.
+3. `bayes.data(observable, value=..., error=...)` records measured data as an
+   observed formula Claim, optionally with Normal additive noise metadata.
 4. `bayes.likelihood(data, model=..., against=[...])` computes likelihood
    factors and lowers them to existing IR `infer` strategies and deterministic
    exclusivity operators.
@@ -135,7 +135,7 @@ override the structural pattern by writing the relation by hand.
 from gaia.engine.bp.exact import exact_inference
 from gaia.engine.bp.lowering import lower_local_graph
 import gaia.engine.bayes as bayes
-from gaia.engine.lang import Constant, Nat, Probability, Variable, claim, equals, observe, parameter
+from gaia.engine.lang import Nat, Probability, Variable, parameter
 from gaia.engine.lang.compiler.compile import compile_package_artifact
 from gaia.engine.lang.runtime.knowledge import _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
@@ -144,13 +144,11 @@ pkg = CollectedPackage(name="bayes_doc_mendel_pkg", namespace="docs")
 token = _current_package.set(pkg)
 try:
     theta = Variable(symbol="theta", domain=Probability)
-    k = Variable(symbol="k", domain=Nat, value=295)
+    k = Variable(symbol="k", domain=Nat)
 
     h_3_1 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
     h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
-    data = claim("Observed k = 295.", formula=equals(k, Constant(295, Nat)))
-    observe(data, rationale="Observed k = 295.", label="observe_data")
-    data.label = "data"
+    data = bayes.data(k, value=295, label="data", rationale="Observed k = 295.")
     model_3_1 = bayes.model(
         h_3_1,
         observable=k,
@@ -230,15 +228,11 @@ All of these are rigid operators. Probability lives only in claim priors and
 
 ## Noise And Escape Hatch
 
-For measurement noise, store a Normal additive model on the observed claim:
+For measurement noise, pass `error=` to `bayes.data(...)`. A scalar is
+interpreted as a zero-mean Normal additive standard deviation:
 
 ```python
-data = claim(
-    "Observed y = 3.0.",
-    formula=equals(y, Constant(3.0, Real)),
-    metadata={"bayes": {"noise": bayes.Normal(mu=0, sigma=sigma).model_dump()}},
-)
-observe(data, rationale="Observed y = 3.0.", label="observe_data")
+data = bayes.data(y, value=3.0, error=sigma, label="data")
 ```
 
 The compiler convolves the predictive distribution with that noise model before

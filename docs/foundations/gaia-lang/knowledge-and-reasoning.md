@@ -297,6 +297,7 @@ Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
 
 - **Distribution literals.** `bayes.Normal(mu=..., sigma=...)`, `bayes.Binomial(n=..., p=...)`, etc., backed by `scipy.stats`. They are typed values, not Knowledge nodes.
 - **`bayes.model(hypothesis, observable=..., distribution=...)`.** Returns a predictive-model helper Claim backed by a `PredictiveModel(BayesInference)` record that ties one hypothesis Claim to one predictive distribution over an observable Variable.
+- **`bayes.data(observable, value=..., error=...)`.** Returns an observed formula Claim consumable by `bayes.likelihood(...)`; scalar `error` is stored as zero-mean Normal additive noise.
 - **`bayes.likelihood(data, model=..., against=[...], exclusivity=...)`.** Returns a model-preference helper Claim backed by a `Likelihood(BayesInference)` record. Lowers to `infer` strategies plus rigid relation operators expressing the chosen exclusivity contract (e.g., `exhaustive_pairwise_complement`).
 
 `bayes.model / bayes.likelihood` helper records go through the standard action lowering pipeline ([§4](#4-action-lowering)); they share the `action_label_map` table and emit helper Claims that the reviewer sees. See [bayes.md](bayes.md) for the executable Mendel example, the full distribution list, and `gaia build check` diagnostics.
