@@ -300,6 +300,15 @@ def test_junction_tree_joint_matches_exact_when_clique_contains_query():
     assert jt.diagnostics["treewidth"] >= 1
 
 
+def test_junction_tree_joint_matches_exact_for_deterministic_factor():
+    graph = _contradiction_graph()
+
+    exact = joint_over(graph, ["A", "B"], method="exact")
+    jt = joint_over(graph, ["A", "B"], method="junction_tree")
+
+    assert jt.probabilities == pytest.approx(exact.probabilities, abs=1e-9)
+
+
 def test_junction_tree_returns_unavailable_without_covering_clique():
     results = compare_joint_over(_chain_graph(), ["A", "C"], methods=("junction_tree",))
 

@@ -44,7 +44,7 @@ import logging
 from dataclasses import dataclass
 from itertools import product as cartesian_product
 
-from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
 from gaia.engine.bp.potentials import evaluate_potential
 from gaia.engine.bp.trw_bp import TRWDiagnostics, TRWResult
 
@@ -58,6 +58,15 @@ __all__ = [
 logger = logging.getLogger(__name__)
 type PotentialTable = dict[tuple[int, ...], float]
 type JunctionMessages = dict[tuple[int, int], tuple[PotentialTable, list[str]]]
+_DETERMINISTIC_FACTOR_TYPES = {
+    FactorType.IMPLICATION,
+    FactorType.NEGATION,
+    FactorType.CONJUNCTION,
+    FactorType.DISJUNCTION,
+    FactorType.EQUIVALENCE,
+    FactorType.CONTRADICTION,
+    FactorType.COMPLEMENT,
+}
 
 
 @dataclass(frozen=True)
@@ -317,11 +326,19 @@ def _compute_clique_potential(
 
         # Factor potential contributions
         for factor in factors:
-            pot *= evaluate_potential(factor, assignment)
+            pot *= _evaluate_junction_tree_potential(factor, assignment)
 
         table[vals] = pot
 
     return table
+
+
+def _evaluate_junction_tree_potential(factor: Factor, assignment: dict[str, int]) -> float:
+    """Evaluate factors with the same Cromwell semantics as exact enumeration."""
+    potential = evaluate_potential(factor, assignment)
+    if factor.factor_type in _DETERMINISTIC_FACTOR_TYPES:
+        return (1.0 - CROMWELL_EPS) if potential > 0.0 else CROMWELL_EPS
+    return potential
 
 
 # ---------------------------------------------------------------------------
