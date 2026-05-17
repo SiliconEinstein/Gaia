@@ -40,6 +40,7 @@ gaia.engine.bp.factor_graph.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
 from itertools import product as cartesian_product
 
@@ -47,11 +48,26 @@ from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
 from gaia.engine.bp.potentials import evaluate_potential
 from gaia.engine.bp.trw_bp import TRWDiagnostics, TRWResult
 
-__all__ = ["JunctionTreeInference", "jt_treewidth"]
+__all__ = [
+    "JunctionTreeCalibration",
+    "JunctionTreeInference",
+    "calibrate_junction_tree",
+    "jt_treewidth",
+]
 
 logger = logging.getLogger(__name__)
 type PotentialTable = dict[tuple[int, ...], float]
 type JunctionMessages = dict[tuple[int, int], tuple[PotentialTable, list[str]]]
+
+
+@dataclass(frozen=True)
+class JunctionTreeCalibration:
+    """Calibrated clique tables from a junction-tree run."""
+
+    cliques: list[frozenset[str]]
+    clique_var_lists: list[list[str]]
+    calibrated: list[PotentialTable]
+    treewidth: int
 
 
 # ---------------------------------------------------------------------------
@@ -632,6 +648,86 @@ def jt_treewidth(graph: FactorGraph) -> int:
     return max(len(c) for c in max_cliques) - 1
 
 
+def calibrate_junction_tree(graph: FactorGraph) -> JunctionTreeCalibration:
+    """Return calibrated junction-tree clique tables for a factor graph."""
+    if not graph.variables:
+        return JunctionTreeCalibration(
+            cliques=[],
+            clique_var_lists=[],
+            calibrated=[],
+            treewidth=0,
+        )
+    if not graph.factors:
+        clique = frozenset(graph.variables.keys())
+        variables = sorted(clique)
+        table: PotentialTable = {}
+        for vals in cartesian_product((0, 1), repeat=len(variables)):
+            probability = 1.0
+            for variable, value in zip(variables, vals, strict=True):
+                if variable in graph.hard_evidence:
+                    belief = (
+                        (1.0 - CROMWELL_EPS)
+                        if graph.hard_evidence[variable] == 1
+                        else CROMWELL_EPS
+                    )
+                else:
+                    belief = graph.unary_factors.get(variable, 0.5)
+                probability *= belief if value == 1 else (1.0 - belief)
+            table[vals] = probability
+        return JunctionTreeCalibration(
+            cliques=[clique],
+            clique_var_lists=[variables],
+            calibrated=[table],
+            treewidth=max(len(variables) - 1, 0),
+        )
+
+    moral_adj = _build_moral_graph(graph)
+    _, elim_cliques = _triangulate_min_fill(moral_adj)
+    cliques = _maximal_cliques(elim_cliques)
+    n_cliques = len(cliques)
+    clique_var_lists = [sorted(c) for c in cliques]
+    treewidth = max(len(c) for c in cliques) - 1
+
+    tree_edges = _build_junction_tree(cliques)
+    tree_adj = _tree_adjacency(n_cliques, tree_edges)
+    factor_assignment = _assign_factors_to_cliques(cliques, graph)
+
+    unary_assigned: set[str] = set()
+    clique_potentials: list[PotentialTable] = []
+    for i, clique in enumerate(cliques):
+        var_list = clique_var_lists[i]
+        local_priors: dict[str, float] = {}
+        for variable in var_list:
+            if variable in graph.hard_evidence and variable not in unary_assigned:
+                local_priors[variable] = (
+                    (1.0 - CROMWELL_EPS)
+                    if graph.hard_evidence[variable] == 1
+                    else CROMWELL_EPS
+                )
+                unary_assigned.add(variable)
+            elif variable in graph.unary_factors and variable not in unary_assigned:
+                local_priors[variable] = graph.unary_factors[variable]
+                unary_assigned.add(variable)
+
+        clique_potentials.append(
+            _compute_clique_potential(clique, factor_assignment[i], local_priors)
+        )
+
+    calibrated = _collect_distribute(
+        cliques,
+        clique_potentials,
+        clique_var_lists,
+        tree_adj,
+        n_cliques,
+    )
+    return JunctionTreeCalibration(
+        cliques=cliques,
+        clique_var_lists=clique_var_lists,
+        calibrated=calibrated,
+        treewidth=treewidth,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Main class
 # ---------------------------------------------------------------------------
@@ -685,65 +781,20 @@ class JunctionTreeInference:
                 diag.belief_history[vid] = [p]
             return TRWResult(beliefs=beliefs, diagnostics=diag)
 
-        # Step 1: Moral graph
-        moral_adj = _build_moral_graph(graph)
-
-        # Step 2: Triangulate
-        _, elim_cliques = _triangulate_min_fill(moral_adj)
-
-        # Step 3: Maximal cliques
-        cliques = _maximal_cliques(elim_cliques)
-        n_cliques = len(cliques)
-        clique_var_lists = [sorted(c) for c in cliques]
-
-        treewidth = max(len(c) for c in cliques) - 1
-        diag.treewidth = treewidth
-        diag.iterations_run = 2  # JT does exactly 2 passes: collect + distribute
-
+        calibration = calibrate_junction_tree(graph)
+        diag.treewidth = calibration.treewidth
+        diag.iterations_run = 2
         logger.debug(
-            "JT: %d variables, %d cliques, treewidth=%d", len(graph.variables), n_cliques, treewidth
+            "JT: %d variables, %d cliques, treewidth=%d",
+            len(graph.variables),
+            len(calibration.cliques),
+            calibration.treewidth,
         )
-
-        # Step 4: Junction tree edges
-        tree_edges = _build_junction_tree(cliques)
-        tree_adj = _tree_adjacency(n_cliques, tree_edges)
-
-        # Step 5: Assign factors to cliques
-        factor_assignment = _assign_factors_to_cliques(cliques, graph)
-
-        # Step 6: Compute clique potentials
-        # Each explicit unary factor is applied in exactly one clique — the
-        # first clique found that contains it. Variables without unary factors
-        # contribute the base counting measure.
-        unary_assigned: set[str] = set()
-        clique_potentials: list[PotentialTable] = []
-
-        for i, clique in enumerate(cliques):
-            var_list = clique_var_lists[i]
-            # Determine which explicit unary factors to apply in this clique.
-            local_priors: dict[str, float] = {}
-            for v in var_list:
-                if v in graph.hard_evidence and v not in unary_assigned:
-                    # Hard evidence: use δ function (0.0 or 1.0, no Cromwell ε)
-                    local_priors[v] = (
-                        (1.0 - CROMWELL_EPS) if graph.hard_evidence[v] == 1 else CROMWELL_EPS
-                    )
-                    unary_assigned.add(v)
-                elif v in graph.unary_factors and v not in unary_assigned:
-                    local_priors[v] = graph.unary_factors[v]
-                    unary_assigned.add(v)
-
-            pot_table = _compute_clique_potential(clique, factor_assignment[i], local_priors)
-            clique_potentials.append(pot_table)
-
-        # Step 7: Two-pass message passing
-        calibrated = _collect_distribute(
-            cliques, clique_potentials, clique_var_lists, tree_adj, n_cliques
-        )
-
-        # Step 8: Extract beliefs
         beliefs = _extract_beliefs(
-            cliques, calibrated, clique_var_lists, set(graph.variables.keys())
+            calibration.cliques,
+            calibration.calibrated,
+            calibration.clique_var_lists,
+            set(graph.variables.keys()),
         )
 
         # NOTE: Do NOT apply Cromwell clamping to the output beliefs.

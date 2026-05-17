@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from gaia.engine.bp.exact import exact_joint_over
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph
+from gaia.engine.bp.junction_tree import calibrate_junction_tree
 from gaia.engine.bp.mean_field import MeanFieldVI
 
 JointQueryMethod = Literal["exact", "junction_tree", "trw_bp", "mean_field"]
@@ -104,11 +105,7 @@ def joint_over(
     if method == "mean_field":
         return _mean_field_joint_over(graph, requested)
     if method == "junction_tree":
-        raise JointQueryUnavailableError(
-            method,
-            requested,
-            "junction_tree joint queries are added in Task 2",
-        )
+        return _junction_tree_joint_over(graph, requested)
     if method == "trw_bp":
         raise JointQueryUnavailableError(
             method,
@@ -188,6 +185,68 @@ def _exact_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribu
         is_exact=True,
         basis="exact_joint_distribution",
     )
+
+
+def _junction_tree_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribution:
+    try:
+        calibration = calibrate_junction_tree(graph)
+    except (ValueError, RuntimeError) as error:
+        raise JointQueryUnavailableError(
+            "junction_tree",
+            variables,
+            str(error),
+            diagnostics={"exception": type(error).__name__},
+        ) from error
+
+    requested = set(variables)
+    for clique, var_list, table in zip(
+        calibration.cliques,
+        calibration.clique_var_lists,
+        calibration.calibrated,
+        strict=True,
+    ):
+        if requested <= clique:
+            probabilities = _marginalize_table_to_variables(table, var_list, variables)
+            return JointDistribution(
+                variables=variables,
+                probabilities=probabilities,
+                method="junction_tree",
+                is_exact=True,
+                basis="calibrated_clique_marginal",
+                diagnostics={
+                    "treewidth": calibration.treewidth,
+                    "clique_size": len(var_list),
+                    "source_clique": var_list,
+                },
+            )
+
+    raise JointQueryUnavailableError(
+        "junction_tree",
+        variables,
+        "requested variables are not contained in a single calibrated clique",
+        diagnostics={
+            "treewidth": calibration.treewidth,
+            "available_cliques": [sorted(clique) for clique in calibration.cliques],
+        },
+    )
+
+
+def _marginalize_table_to_variables(
+    table: dict[tuple[int, ...], float],
+    table_variables: list[str],
+    variables: list[str],
+) -> list[float]:
+    indices = [table_variables.index(variable) for variable in variables]
+    probabilities = [0.0 for _ in range(1 << len(variables))]
+    for assignment, probability in table.items():
+        out_index = 0
+        for bit, table_index in enumerate(indices):
+            out_index |= assignment[table_index] << bit
+        probabilities[out_index] += float(probability)
+    total = sum(probabilities)
+    if total <= 0.0:
+        raise ValueError("marginalized joint table has zero total mass")
+    return [probability / total for probability in probabilities]
 
 
 def _mean_field_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribution:

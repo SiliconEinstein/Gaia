@@ -26,6 +26,16 @@ def _entailment_graph() -> FactorGraph:
     return graph
 
 
+def _chain_graph() -> FactorGraph:
+    graph = FactorGraph()
+    graph.add_variable("A", 0.8)
+    graph.add_variable("B", 0.5)
+    graph.add_variable("C", 0.5)
+    graph.add_factor("f:a_to_b", FactorType.SOFT_ENTAILMENT, ["A"], "B", p1=0.9, p2=0.9)
+    graph.add_factor("f:b_to_c", FactorType.SOFT_ENTAILMENT, ["B"], "C", p1=0.85, p2=0.9)
+    return graph
+
+
 def test_joint_distribution_validates_bit_order_and_normalization():
     joint = JointDistribution(
         variables=["A", "B"],
@@ -96,9 +106,12 @@ def test_compare_joint_over_collects_unavailable_methods():
     estimates = [result for result in results if isinstance(result, JointDistribution)]
     unavailable = [result for result in results if isinstance(result, JointQueryUnavailable)]
 
-    assert {estimate.method for estimate in estimates} == {"exact", "mean_field"}
-    assert {item.method for item in unavailable} == {"junction_tree", "trw_bp"}
+    assert {estimate.method for estimate in estimates} == {"exact", "junction_tree", "mean_field"}
+    assert {item.method for item in unavailable} == {"trw_bp"}
     assert all(item.variables == ["A", "B"] for item in unavailable)
+    exact = next(estimate for estimate in estimates if estimate.method == "exact")
+    junction_tree = next(estimate for estimate in estimates if estimate.method == "junction_tree")
+    assert junction_tree.probabilities == pytest.approx(exact.probabilities)
 
 
 def test_unknown_variable_is_collected_as_unavailable():
@@ -145,3 +158,27 @@ def test_mean_field_on_entailment_graph_returns_normalized_joint():
     assert sum(joint.probabilities) == pytest.approx(1.0)
     assert all(0.0 <= value <= 1.0 for value in joint.probabilities)
     assert joint.diagnostics["iterations_run"] >= 1
+
+
+def test_junction_tree_joint_matches_exact_when_clique_contains_query():
+    graph = _chain_graph()
+
+    exact = joint_over(graph, ["A", "B"], method="exact")
+    jt = joint_over(graph, ["A", "B"], method="junction_tree")
+
+    assert jt.method == "junction_tree"
+    assert jt.is_exact is True
+    assert jt.basis == "calibrated_clique_marginal"
+    assert jt.variables == ["A", "B"]
+    assert jt.probabilities == pytest.approx(exact.probabilities, abs=1e-9)
+    assert jt.diagnostics["treewidth"] >= 1
+
+
+def test_junction_tree_returns_unavailable_without_covering_clique():
+    results = compare_joint_over(_chain_graph(), ["A", "C"], methods=("junction_tree",))
+
+    assert len(results) == 1
+    unavailable = results[0]
+    assert isinstance(unavailable, JointQueryUnavailable)
+    assert unavailable.method == "junction_tree"
+    assert "single calibrated clique" in unavailable.reason
