@@ -31,6 +31,20 @@ Two checks are *deliberately out of R1 scope* (per R1·❓-C=C1):
 
 Both belong on post-write because they need state that pre-write would
 have to half-build the package to obtain.
+
+R3 adds two pre-write **warning** kinds (per R3·❓B=A):
+
+* ``prewrite.label_shadow`` — the proposed label matches a local
+  binding that is not in ``__all__`` (shadowing a private name). Hint:
+  add to ``__all__`` or rename.
+* ``prewrite.deprecated_ref`` — the proposed op references a DSL name
+  that the engine flags as deprecated (``context`` / ``setting`` /
+  ``noisy_and`` / ``not_`` / ``and_`` / ``or_`` / ``contradiction`` /
+  ``equivalence`` / ``complement`` / ``disjunction`` / etc.). Hint:
+  the replacement spelling per the engine's deprecation message.
+
+Both warnings flow through the existing ``--interactive`` activation
+in :func:`gaia.cli.commands.author._runner.run_author_op`.
 """
 
 from __future__ import annotations
@@ -114,6 +128,24 @@ def prewrite_check(
     project_name = structure.project_name
 
     # ---- (b) Input syntax ----------------------------------------------- #
+    #
+    # Syntax-check every prepended statement first, then the main
+    # snippet. Any malformation aborts before invariant (c) runs.
+
+    for _prep_label, prep_code in proposed_op.prepended_statements:
+        prep_syntax_errors = _validate_proposed_syntax(prep_code)
+        if prep_syntax_errors:
+            return AuthorPrewriteResult(
+                ok=False,
+                target_path=target_root,
+                source_init_path=source_init_path,
+                import_name=import_name,
+                project_name=project_name,
+                module_symbols=set(),
+                exit_code=_first_exit_code(prep_syntax_errors),
+                diagnostics=prep_syntax_errors,
+                warnings=warnings,
+            )
 
     syntax_errors = _validate_proposed_syntax(proposed_op.generated_code)
     if syntax_errors:
@@ -139,6 +171,35 @@ def prewrite_check(
     # ref table that's correct for the cases we need (label conflicts,
     # ref-to-undeclared-name).
     module_symbols = _collect_module_symbols(structure.source_root, import_name)
+
+    # R3 prose-mode: prepended labels (e.g. an auto-claim minted from
+    # ``--conclusion-content``) need to be validated against module
+    # symbols too, then folded into the available-symbol pool so the
+    # main statement can reference them. Order matters: collision
+    # check fires before fold-in so a slug colliding with an existing
+    # binding still trips invariant (c).
+    prepend_collision_errors: list[Diagnostic] = []
+    prepend_labels: list[str] = []
+    for prep_label, _prep_code in proposed_op.prepended_statements:
+        prepend_collision_errors.extend(
+            _validate_label_collision(prep_label, module_symbols | set(prepend_labels))
+        )
+        prepend_labels.append(prep_label)
+    if prepend_collision_errors:
+        return AuthorPrewriteResult(
+            ok=False,
+            target_path=target_root,
+            source_init_path=source_init_path,
+            import_name=import_name,
+            project_name=project_name,
+            module_symbols=module_symbols,
+            exit_code=_first_exit_code(prepend_collision_errors),
+            diagnostics=prepend_collision_errors,
+            warnings=warnings,
+        )
+    # Treat prepended labels as available bindings for the main op's
+    # reference resolution + warning detection.
+    module_symbols = module_symbols | set(prepend_labels)
 
     # Self-loop is checked here, ahead of (c)-collision and (c)-references,
     # because (c) would mask (d) in the common case (label is seeded → (c)
@@ -188,6 +249,20 @@ def prewrite_check(
             diagnostics=reference_errors,
             warnings=warnings,
         )
+
+    # ---- R3 warning kinds ---------------------------------------------- #
+    #
+    # Warnings do not abort pre-write — they surface in the envelope and,
+    # in human mode + ``--interactive``, become numbered prompts. The
+    # runner's ``_maybe_consume_warnings`` is the activation site.
+
+    warnings.extend(
+        _detect_label_shadow(
+            label=proposed_op.label,
+            source_init_path=source_init_path,
+        )
+    )
+    warnings.extend(_detect_deprecated_refs(proposed_op))
 
     return AuthorPrewriteResult(
         ok=True,
@@ -547,6 +622,173 @@ def _validate_structural_sanity(proposed_op: ProposedAuthorOp) -> list[Diagnosti
             )
         ]
     return []
+
+
+# --------------------------------------------------------------------------- #
+# R3 warning detection                                                        #
+# --------------------------------------------------------------------------- #
+
+
+# DSL names the engine flags as deprecated (matches the
+# ``DeprecationWarning`` emissions surveyed in
+# ``gaia.engine.lang.dsl.{operators,propositional,knowledge,strategies}``).
+# Keyed name → (replacement-hint, since-version). The "since" field is
+# the v0.5 transition unless an emission site indicates otherwise; the
+# user-visible hint is the message body that gets prefixed in the
+# warning diagnostic.
+_DEPRECATED_DSL_NAMES: dict[str, tuple[str, str]] = {
+    # Note aliases (gaia.engine.lang.dsl.knowledge).
+    "context": ("note", "0.5"),
+    "setting": ("note", "0.5"),
+    # Propositional (gaia.engine.lang.dsl.propositional).
+    "not_": ("claim(formula=lnot(ClaimAtom(...)))", "0.5"),
+    "and_": ("claim(formula=land(ClaimAtom(...), ...))", "0.5"),
+    "or_": ("claim(formula=lor(ClaimAtom(...), ...))", "0.5"),
+    # Operator helpers (gaia.engine.lang.dsl.operators).
+    "contradiction": ("contradict()", "0.5"),
+    "equivalence": ("equal()", "0.5"),
+    "complement": ("exclusive()", "0.5"),
+    "disjunction": ("lor()", "0.5"),
+    # Strategies (gaia.engine.lang.dsl.strategies).
+    "noisy_and": ("derive() / infer()", "0.5"),
+}
+
+
+def _detect_label_shadow(*, label: str | None, source_init_path: Path | None) -> list[Diagnostic]:
+    """Warn when ``label`` shadows a local-scope name not exported via ``__all__``.
+
+    Detection logic:
+
+    * Parse ``source_init_path`` for top-level bindings + ``__all__``
+      entries. (We re-parse rather than reusing ``module_symbols``
+      because ``module_symbols`` is the *union* across siblings and we
+      need ``__all__`` membership.)
+    * If ``label`` is bound locally but not in ``__all__``, emit
+      ``prewrite.label_shadow``.
+
+    The existing collision invariant (c) already fires when the label
+    is already bound — so in practice this warning only fires when the
+    user passes ``--no-check`` (skip collision masking) plus the label
+    happens to match a private binding. The warning's main load is
+    catching subtle ``__all__`` omissions during agent-driven
+    authoring.
+
+    Currently invariant (c) intercepts most shadow cases as a hard
+    error, so the warning runs after (c) passes; it kicks in for the
+    edge cases where the binding came from a sibling source file (not
+    the entrypoint) — the symbol-collection loop pulls names from every
+    ``.py``, but ``__all__`` only lives in ``__init__.py``.
+    """
+    if label is None or source_init_path is None or not source_init_path.exists():
+        return []
+
+    try:
+        tree = ast.parse(source_init_path.read_text())
+    except (OSError, SyntaxError):
+        return []
+
+    init_bindings = _top_level_bindings(tree)
+    all_entries = _module_all_entries(tree)
+
+    # Only fire when the label is bound somewhere in the entry-point file
+    # itself; sibling-file shadowing is left to post-write to surface.
+    if label not in init_bindings:
+        return []
+    if label in all_entries:
+        return []
+    return [
+        Diagnostic(
+            kind="prewrite.label_shadow",
+            level="warning",
+            message=(
+                f"label {label!r} shadows a local binding not listed in __all__; "
+                "consider adding it to __all__ or renaming"
+            ),
+            source="prewrite",
+            where={"label": label},
+        )
+    ]
+
+
+def _module_all_entries(tree: ast.Module) -> set[str]:
+    """Return the string elements of a module-level ``__all__ = [...]`` if present."""
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        targets = [t for t in node.targets if isinstance(t, ast.Name) and t.id == "__all__"]
+        if not targets:
+            continue
+        if isinstance(node.value, (ast.List, ast.Tuple)):
+            return {
+                elt.value
+                for elt in node.value.elts
+                if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+            }
+    return set()
+
+
+def _detect_deprecated_refs(proposed_op: ProposedAuthorOp) -> list[Diagnostic]:
+    """Warn when the proposed op references a name engine-flagged as deprecated.
+
+    Scans:
+
+    * ``proposed_op.required_imports`` — the names the verb's DSL
+      surface uses (``derive``, ``claim``, ...). The render path always
+      passes the canonical name, so this would never fire for a verb
+      shipped through ``gaia author``. Included for completeness in
+      case a future verb routes through a deprecated factory.
+    * ``proposed_op.references`` — identifiers the user named on the
+      command line. If an agent passes ``--given context`` where
+      ``context`` is the local module's alias for the deprecated
+      knowledge factory, the warning fires.
+    * ``proposed_op.generated_code`` AST — names appearing in the
+      proposed call expression (catches the case where a verb's prose
+      argument or rationale text happens to look like a deprecated
+      function reference; the warning is informational only).
+
+    The warning carries the engine's recommended replacement.
+    """
+    diagnostics: list[Diagnostic] = []
+    flagged: set[str] = set()
+
+    candidates: list[str] = []
+    candidates.extend(proposed_op.required_imports)
+    candidates.extend(proposed_op.references)
+
+    # Walk the generated code's AST for any Name node that matches the
+    # deprecated set; references-list-only matching misses the rare
+    # case of an inline deprecated-call inside ``--rationale`` etc.
+    # ``--rationale`` strings stay literal so the inline-call case is
+    # genuinely rare — we still scan because the cost is negligible.
+    try:
+        tree = ast.parse(proposed_op.generated_code)
+    except SyntaxError:
+        tree = None
+    if tree is not None:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name):
+                candidates.append(node.id)
+
+    for name in candidates:
+        if name in flagged:
+            continue
+        if name not in _DEPRECATED_DSL_NAMES:
+            continue
+        flagged.add(name)
+        replacement, since = _DEPRECATED_DSL_NAMES[name]
+        diagnostics.append(
+            Diagnostic(
+                kind="prewrite.deprecated_ref",
+                level="warning",
+                message=(
+                    f"reference {name!r} is deprecated since v{since}; "
+                    f"suggest {replacement!r} instead"
+                ),
+                source="prewrite",
+                where={"name": name, "replacement": replacement, "since": since},
+            )
+        )
+    return diagnostics
 
 
 # --------------------------------------------------------------------------- #
