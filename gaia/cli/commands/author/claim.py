@@ -142,10 +142,20 @@ def claim_command(
         None,
         "--predicate",
         help=(
+            "Alias for --formula (predicate-mode shape). Backwards-compatible "
+            "spelling; prefer --formula for new authoring."
+        ),
+    ),
+    formula: str | None = typer.Option(
+        None,
+        "--formula",
+        help=(
             "Predicate-logic expression rendered as the ``formula=`` kwarg. "
             "Validated by the formula sandbox (whitelist: land/lor/lnot/implies/"
             "iff/equals/forall/exists + ClaimAtom + Distribution factories + "
-            "references). Example: `--predicate 'land(ClaimAtom(a), ClaimAtom(b))'`."
+            "Variable/Constant + Nat/Real/Bool/Probability + references). "
+            "Example: `--formula 'land(equals(my_var, Constant(395, Nat)), "
+            "ClaimAtom(p))'`. Mutually exclusive with --predicate."
         ),
     ),
     check: bool = typer.Option(
@@ -197,18 +207,31 @@ def claim_command(
 
     ref_list = _split_csv(references)
 
-    # --- R3 predicate mode: sandbox-validate the formula expression ----- #
-    if predicate is not None:
+    # --- R3/R7 formula mode: sandbox-validate the formula expression ---- #
+    if predicate is not None and formula is not None:
+        emit_syntax_error(
+            "claim",
+            "--predicate and --formula are aliases — pass only one",
+            target=str(target),
+            human=human,
+        )
+        return
+    # R7 G4 canonical name is --formula; --predicate stays as a
+    # backwards-compatible alias (R3 shipped that spelling). The render
+    # path treats them interchangeably.
+    formula_expr = formula if formula is not None else predicate
+    if formula_expr is not None:
         # Permitted identifiers: the standing whitelist plus user-named
         # references (so ``ClaimAtom(some_ref)`` resolves when
         # ``some_ref`` is on the --references list).
         extra = frozenset(ref_list)
         try:
-            validate_formula_expr(predicate, extra_names=extra)
+            validate_formula_expr(formula_expr, extra_names=extra)
         except FormulaSandboxError as exc:
+            arg_label = "--formula" if formula is not None else "--predicate"
             emit_syntax_error(
                 "claim",
-                f"--predicate rejected by sandbox: {exc}",
+                f"{arg_label} rejected by sandbox: {exc}",
                 target=str(target),
                 human=human,
                 kind="prewrite.expr_unsafe",
@@ -222,7 +245,7 @@ def claim_command(
         prior=prior,
         metadata=metadata_dict,
         references=ref_list,
-        predicate=predicate,
+        predicate=formula_expr,
     )
     proposed_op = ProposedAuthorOp(
         verb="claim",

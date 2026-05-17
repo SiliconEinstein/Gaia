@@ -52,6 +52,7 @@ from gaia.cli.commands.author.observe import observe_command
 from gaia.cli.commands.author.parameter import parameter_command
 from gaia.cli.commands.author.question import question_command
 from gaia.cli.commands.author.register_prior import register_prior_command
+from gaia.cli.commands.author.variable import variable_command
 
 __all__ = [
     "associate_command",
@@ -73,4 +74,5 @@ __all__ = [
     "parameter_command",
     "question_command",
     "register_prior_command",
+    "variable_command",
 ]

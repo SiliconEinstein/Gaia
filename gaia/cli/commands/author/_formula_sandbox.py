@@ -110,8 +110,25 @@ _DISTRIBUTION_FACTORIES: frozenset[str] = frozenset(
 # Constants — bare literals.
 _CONSTANTS: frozenset[str] = frozenset({"True", "False", "None"})
 
+# R7 G4 — Variable + Constant + Domain primitives. Allows formula
+# expressions to reference typed terms (e.g. ``equals(my_var,
+# Constant(395, Nat))`` matches the mendel pattern). The whitelist
+# permits the class names; pre-write resolves user-named identifiers
+# (the Variable's own label) through the same ``extra_names`` channel
+# decompose / claim --formula already feed in.
+_TYPED_TERMS: frozenset[str] = frozenset(
+    {
+        "Variable",
+        "Constant",
+        "Nat",
+        "Real",
+        "Bool",
+        "Probability",
+    }
+)
+
 WHITELIST: frozenset[str] = (
-    _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _DISTRIBUTION_FACTORIES | _CONSTANTS
+    _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _DISTRIBUTION_FACTORIES | _CONSTANTS | _TYPED_TERMS
 )
 
 

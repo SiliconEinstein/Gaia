@@ -40,9 +40,25 @@ from gaia.cli.commands.author import (
     parameter_command,
     question_command,
     register_prior_command,
+    variable_command,
 )
 from gaia.cli.commands.author import (
     infer_command as author_infer_command,
+)
+from gaia.cli.commands.bayes import (
+    beta_command,
+    betabinomial_command,
+    binomial_command,
+    cauchy_command,
+    chisquared_command,
+    exponential_command,
+    gamma_command,
+    likelihood_command as bayes_likelihood_command,
+    lognormal_command,
+    model_command as bayes_model_command,
+    normal_command,
+    poisson_command,
+    studentt_command,
 )
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
@@ -228,6 +244,8 @@ author_app.command(name="associate")(associate_command)
 # R2 verbs — Sugar + prior.
 author_app.command(name="parameter")(parameter_command)
 author_app.command(name="register-prior")(register_prior_command)
+# R7 verbs — Typed terms.
+author_app.command(name="variable")(variable_command)
 # R2 verbs — Scaffold (Scaffold tier of the DSL surface).
 author_app.command(name="depends-on")(depends_on_command)
 author_app.command(name="candidate-relation")(candidate_relation_command)
@@ -236,6 +254,40 @@ author_app.command(name="materialize")(materialize_command)
 author_app.command(name="compose")(compose_command)
 author_app.command(name="composition")(composition_command)
 app.add_typer(author_app, name="author")
+
+
+# --------------------------------------------------------------------------- #
+# bayes — Bayesian-modelling cli surface (R7 G2)                              #
+# --------------------------------------------------------------------------- #
+#
+# Top-level group `gaia bayes <verb>` (CD-pick A from R7 brief):
+# mirrors `gaia.engine.bayes` organisation. Verbs: model / likelihood
+# plus one verb per shipping Distribution class.
+
+bayes_app = typer.Typer(
+    name="bayes",
+    help=(
+        "Bayesian-modelling authoring (model / likelihood / Binomial / "
+        "BetaBinomial / Normal / LogNormal / Beta / Exponential / Gamma / "
+        "StudentT / Cauchy / ChiSquared / Poisson)."
+    ),
+    no_args_is_help=True,
+)
+bayes_app.command(name="model")(bayes_model_command)
+bayes_app.command(name="likelihood")(bayes_likelihood_command)
+# Distribution literal verbs — one per shipping class.
+bayes_app.command(name="binomial")(binomial_command)
+bayes_app.command(name="beta-binomial")(betabinomial_command)
+bayes_app.command(name="poisson")(poisson_command)
+bayes_app.command(name="normal")(normal_command)
+bayes_app.command(name="log-normal")(lognormal_command)
+bayes_app.command(name="beta")(beta_command)
+bayes_app.command(name="exponential")(exponential_command)
+bayes_app.command(name="gamma")(gamma_command)
+bayes_app.command(name="student-t")(studentt_command)
+bayes_app.command(name="cauchy")(cauchy_command)
+bayes_app.command(name="chi-squared")(chisquared_command)
+app.add_typer(bayes_app, name="bayes")
 
 
 # --------------------------------------------------------------------------- #
