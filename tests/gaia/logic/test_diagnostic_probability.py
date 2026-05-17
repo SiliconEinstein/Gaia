@@ -19,7 +19,7 @@ from gaia.engine.ir.logic.probability import (
     score_condition,
     score_diagnostic_conditions,
 )
-from gaia.engine.lang import ClaimAtom, associate, claim, lnot
+from gaia.engine.lang import ClaimAtom, associate, claim, land, lnot
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.package import CollectedPackage
 
@@ -258,25 +258,52 @@ def test_score_diagnostic_conditions_queries_graph_and_skips_diagnostics_without
     assert scored[0].exact_spread == pytest.approx(0.0)
 
 
-def test_score_diagnostic_conditions_from_python_dsl_e2e():
-    package = "dsl_prob_e2e"
-    with CollectedPackage(package, namespace="t", version="0.1.0") as pkg:
-        a = claim("A base proposition.", prior=0.8)
-        a.label = "a"
-        left = claim("A holds.", formula=ClaimAtom(a), prior=0.6)
-        left.label = "left"
-        right = claim("A does not hold.", formula=lnot(ClaimAtom(a)), prior=0.5)
-        right.label = "right"
+def test_score_diagnostic_conditions_from_physics_python_dsl_e2e():
+    package = "cmb_bmode_logic_e2e"
+    with CollectedPackage(package, namespace="physics", version="0.1.0") as pkg:
+        bmode_excess = claim(
+            "BICEP2 reports a degree-scale CMB B-mode excess, meaning an unexpectedly "
+            "strong curl-like polarization pattern in the cosmic microwave background "
+            "on degree angular scales.",
+            prior=0.9,
+        )
+        bmode_excess.label = "bmode_excess"
+        primordial_tensor = claim(
+            "The B-mode excess is dominated by primordial tensor modes, meaning "
+            "gravitational-wave fluctuations from early-universe inflation rather than "
+            "later astrophysical foregrounds.",
+            prior=0.4,
+        )
+        primordial_tensor.label = "primordial_tensor"
+        bicep2_tensor_interpretation = claim(
+            "BICEP2 interpretation: the observed B-mode excess is a primordial tensor "
+            "signal, so the curl-like CMB polarization is mainly from inflationary "
+            "gravitational waves.",
+            formula=land(ClaimAtom(bmode_excess), ClaimAtom(primordial_tensor)),
+            prior=0.4,
+        )
+        bicep2_tensor_interpretation.label = "bicep2_tensor_interpretation"
+        planck_dust_interpretation = claim(
+            "Planck foreground interpretation: the same B-mode excess is dominated by "
+            "Galactic dust foreground, meaning polarized emission from dust in the "
+            "Milky Way, not primordial tensor modes.",
+            formula=land(ClaimAtom(bmode_excess), lnot(ClaimAtom(primordial_tensor))),
+            prior=0.6,
+        )
+        planck_dust_interpretation.label = "planck_dust_interpretation"
         helper = associate(
-            left,
-            right,
-            p_a_given_b=0.9,
+            bicep2_tensor_interpretation,
+            planck_dust_interpretation,
+            p_a_given_b=0.5,
             p_b_given_a=0.75,
             pattern=None,
-            rationale="Current belief model says these claims co-occur often enough to inspect.",
-            label="left_right_belief_assoc",
+            rationale=(
+                "Corpus/reviewer state still gives nontrivial belief to both historical "
+                "interpretations, so the logic warning should be probability-scored."
+            ),
+            label="bmode_interpretation_tension",
         )
-        helper.label = "belief_assoc_helper"
+        helper.label = "bmode_tension_helper"
 
     artifact = compile_package_artifact(pkg)
     report = inspect_formula_graphs(artifact.graph)
@@ -294,8 +321,8 @@ def test_score_diagnostic_conditions_from_python_dsl_e2e():
     )
     graph = lower_local_graph(belief_graph_ir)
 
-    left_id = f"t:{package}::left"
-    right_id = f"t:{package}::right"
+    left_id = f"physics:{package}::bicep2_tensor_interpretation"
+    right_id = f"physics:{package}::planck_dust_interpretation"
     diagnostic = next(d for d in report.diagnostics if d.code == "cross_claim_incompatibility")
     assert diagnostic.severity == "warning"
     assert diagnostic.logic_strength == "hard"
@@ -329,9 +356,9 @@ def test_score_diagnostic_conditions_from_python_dsl_e2e():
     assert estimates["trw_bp"].is_exact is False
     assert estimates["mean_field"].is_exact is False
     assert estimates["junction_tree"].probability == pytest.approx(estimates["exact"].probability)
-    assert estimates["exact"].probability == pytest.approx(0.45)
-    assert estimates["trw_bp"].probability > 0.4
-    assert estimates["mean_field"].probability > 0.3
+    assert estimates["exact"].probability == pytest.approx(0.3)
+    assert estimates["trw_bp"].probability > 0.25
+    assert estimates["mean_field"].probability > 0.2
 
 
 def test_score_diagnostic_conditions_propagates_unexpected_provider_errors(monkeypatch):
