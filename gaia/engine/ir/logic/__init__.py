@@ -9,6 +9,8 @@ Current scope:
         (NEGATION/CONJUNCTION/DISJUNCTION/IMPLICATION/EQUIVALENCE/
         CONTRADICTION/COMPLEMENT). Treats Knowledge nodes as atoms; does
         not look inside Claim.formula metadata.
+    diagnostics — FormulaGraph-level inspection for reviewer-facing local
+        formula issues and conservative cross-claim warnings.
 
 Future (out of scope for this PR; tracked separately):
     predicate — first-order / SMT backends consuming `formula_atom` metadata

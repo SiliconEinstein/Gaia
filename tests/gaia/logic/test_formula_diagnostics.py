@@ -178,16 +178,26 @@ def test_inspect_formula_graphs_reports_malformed_projection_and_continues():
         nodes=[bad_root],
     )
 
-    good_descriptor = {"kind": "claim", "qid": "t:malformed_pkg::a"}
+    good_atom_descriptor = {"kind": "claim", "qid": "t:malformed_pkg::a"}
+    good_atom = FormulaNode(
+        id=formula_node_id(good_atom_descriptor),
+        kind="atom",
+        descriptor=good_atom_descriptor,
+    )
+    good_descriptor = {
+        "kind": "op",
+        "operator": "conjunction",
+        "children": [good_atom.id, good_atom.id],
+    }
     good_root = FormulaNode(
         id=formula_node_id(good_descriptor),
-        kind="atom",
+        kind="op",
         descriptor=good_descriptor,
     )
     good_graph = FormulaGraph(
         source_claim="t:malformed_pkg::good",
         root=good_root.id,
-        nodes=[good_root],
+        nodes=[good_root, good_atom],
     )
     graph = LocalCanonicalGraph(
         namespace="t",
@@ -209,6 +219,9 @@ def test_inspect_formula_graphs_reports_malformed_projection_and_continues():
     assert malformed.source_claim == "t:malformed_pkg::bad"
     assert malformed.formula_nodes == [bad_root.id]
     assert "fg:missing" in malformed.details["error"]
+    continued = next(d for d in report.diagnostics if d.code == "formula_redundant_operand")
+    assert continued.source_claim == "t:malformed_pkg::good"
+    assert continued.details["repeated_children"] == ["t:malformed_pkg::a"]
     assert not report.has_fatal
 
 
