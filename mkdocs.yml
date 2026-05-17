@@ -57,6 +57,7 @@ nav:
 
   - How-To Guides:
       - Hole And Bridge: for-users/hole-bridge-tutorial.md
+      - Writing Sound Formalizations: for-users/gaia-formalization-best-practices.md
       - Choosing A BP Algorithm: foundations/bp/choosing-algorithm.md
 
   - Examples:
