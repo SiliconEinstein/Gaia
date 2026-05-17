@@ -58,10 +58,12 @@ nav:
   - How-To Guides:
       - Hole And Bridge: for-users/hole-bridge-tutorial.md
       - Choosing A BP Algorithm: foundations/bp/choosing-algorithm.md
+      - Writing Sound Formalizations: for-users/formalization-best-practices.md
 
   - Examples:
       - Bayes Module — LDL Phase II Trial: examples/bayes-ldl-trial.md
       - Formula AST — Custom Predicates: examples/causal-formula-ast.md
+      - Formalization Debug Cases: examples/formalization-debug-cases.md
 
   - Reference:
       - Language Reference: for-users/language-reference.md

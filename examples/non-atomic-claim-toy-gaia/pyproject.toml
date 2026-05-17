@@ -1,0 +1,13 @@
+[project]
+name = "non-atomic-claim-toy-gaia"
+version = "0.1.0"
+description = "Didactic toy: when one claim bundles two assertions, evidence can't selectively update either (formalization-best-practices §8.3)"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.gaia]
+type = "knowledge-package"
+namespace = "example"
+
+[tool.gaia.quality]
+allow_holes = true

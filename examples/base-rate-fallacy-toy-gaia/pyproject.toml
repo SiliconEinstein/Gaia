@@ -1,0 +1,13 @@
+[project]
+name = "base-rate-fallacy-toy-gaia"
+version = "0.1.0"
+description = "Didactic toy: structurally correct Bayes inversion produces a counter-intuitive belief (formalization-best-practices §8.4)"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.gaia]
+type = "knowledge-package"
+namespace = "example"
+
+[tool.gaia.quality]
+allow_holes = true

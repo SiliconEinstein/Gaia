@@ -1,0 +1,13 @@
+[project]
+name = "derive-direction-toy-gaia"
+version = "0.1.0"
+description = "Didactic toy: when to use infer() instead of derive() for evidence-of-cause reasoning"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.gaia]
+type = "knowledge-package"
+namespace = "example"
+
+[tool.gaia.quality]
+allow_holes = true
