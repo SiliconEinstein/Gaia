@@ -2,6 +2,8 @@ import pytest
 from sympy import And, Implies, Not, Symbol
 
 from gaia.engine.ir import FormulaGraph, FormulaNode, formula_node_id
+from gaia.engine.ir.logic import FormulaDiagnosticReport as ExportedFormulaDiagnosticReport
+from gaia.engine.ir.logic import inspect_formula_graphs as exported_inspect_formula_graphs
 from gaia.engine.ir.logic.diagnostics import (
     DiagnosticCondition,
     FormulaDiagnostic,
@@ -108,6 +110,31 @@ def test_formula_graph_to_sympy_returns_none_for_quantifier_root():
     formula_graph = _formula_graph_for(artifact, _qid(package, "universal"))
 
     assert formula_graph_to_sympy(formula_graph) is None
+
+
+def test_unsupported_quantifier_emits_info_without_crashing():
+    package = "formula_diag_unsupported_quantifier"
+    with CollectedPackage(package, namespace="t") as pkg:
+        domain = Domain(content="Particles", members=["p1"])
+        x = Variable(symbol="x", domain=domain)
+        stable = PredicateSymbol(name="Stable", arg_domains=(domain,))
+        universal = claim(
+            "All particles are stable.",
+            formula=forall(x, UserPredicate(stable, (x,))),
+        )
+        universal.label = "universal"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
+
+    diagnostic = next(d for d in report.diagnostics if d.code == "formula_projection_unsupported")
+    assert diagnostic.severity == "info"
+    assert diagnostic.logic_strength == "unknown"
+    assert diagnostic.source_claim == _qid(package, "universal")
+
+
+def test_logic_package_exports_formula_diagnostics_api():
+    assert ExportedFormulaDiagnosticReport is FormulaDiagnosticReport
+    assert exported_inspect_formula_graphs is inspect_formula_graphs
 
 
 def test_formula_graph_to_sympy_rejects_missing_op_child_id():
