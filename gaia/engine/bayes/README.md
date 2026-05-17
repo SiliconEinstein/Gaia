@@ -4,6 +4,7 @@
 
 - distribution literals backed by `scipy.stats`
 - `model(...)` for one-hypothesis predictive-model helpers
+- `data(...)` for observed values consumable by likelihood lowering
 - `likelihood(...)` for model-preference helpers and IR `infer` lowering
 
 The module intentionally keeps distribution recipes as typed values rather than
@@ -18,6 +19,7 @@ import gaia.engine.bayes as bayes
 
 model_a = bayes.model(h_a, observable=x, distribution=bayes.Normal(mu=mu, sigma=1.0))
 model_b = bayes.model(h_b, observable=x, distribution=bayes.Normal(mu=mu, sigma=1.0))
+data = bayes.data(x, value=3.0, error=0.2)
 comparison = bayes.likelihood(data, model=model_a, against=[model_b])
 ```
 
