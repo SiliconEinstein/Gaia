@@ -12,7 +12,7 @@ Today, no system tracks this. Scientists do it in their heads, in literature rev
 
 Gaia represents scientific knowledge as a structured graph and computes how trust flows through it. Each claim, each experimental setup, each reasoning step is a node or a link. Every claim carries a posterior between 0 and 1 representing how much we should trust it given the evidence currently in the system.
 
-When new evidence arrives — a new package, a new experiment, a contradiction — beliefs are recomputed across the entire connected graph. Claims that lose support drop in credibility; claims that gain new evidence rise. The graph stays internally consistent without anyone having to manually trace every dependency.
+When authors run inference after adding new evidence — a package update, a new experiment, a contradiction — Gaia recomputes beliefs for the local package and, when requested, installed dependency graphs. Claims that lose support drop in credibility; claims that gain new evidence rise. Global corpus-wide recomputation belongs to the registry / LKM layer, not to a hidden automatic step in the local CLI.
 
 ## How It Works
 
@@ -22,7 +22,7 @@ Authors (or AI agents) write **knowledge packages** — small structured descrip
 2. The author writes `claim(...)`, `note(...)`, `derive(...)`, `infer(...)`, relation verbs (`contradict`, `equal`, `exclusive`), and propositional formulas in Python.
 3. `gaia build compile` lowers the DSL into Gaia IR (`Knowledge / Operator / Strategy / Compose` records).
 4. `gaia run infer` lowers the IR into a factor graph and runs belief propagation locally.
-5. `gaia pkg register` publishes the package into a git-backed registry, where downstream packages can depend on its exported claims.
+5. `gaia pkg register` checks the release artifacts and prepares or writes git-backed registry metadata, where downstream packages can depend on exported claims.
 
 Knowledge extraction itself is **author-side or agent-side work**, not an automated pipeline inside Gaia. Gaia's contribution is the **executable contract** (compile, validate, infer, gate, register) that turns those declarations into a graph whose beliefs are reproducible and machine-checkable.
 

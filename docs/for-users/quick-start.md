@@ -55,14 +55,14 @@ The name **must** end with `-gaia`. The command:
 3. Renames `src/my_first_gaia/` → `src/my_first/` (the import name strips the `-gaia` suffix and replaces hyphens with underscores).
 4. Writes a minimal DSL template into `src/my_first/__init__.py`.
 5. Adds `.gaia/beliefs.json` and `.gaia/dep_beliefs/` to `.gitignore` (`.gaia/ir.json` and `.gaia/ir_hash` stay tracked so the registry can verify them).
-6. Runs `uv add gaia-lang` to record the dependency in `pyproject.toml` / `uv.lock`.
+6. Attempts `uv add gaia-lang` to record the dependency in `pyproject.toml` / `uv.lock`. If that step warns, run `uv add gaia-lang` manually inside the package.
 
 The resulting layout:
 
 ```
 my-first-gaia/
   pyproject.toml              # [project], [tool.hatch.build.targets.wheel], [tool.gaia]
-  uv.lock                     # pinned dependency tree
+  uv.lock                     # pinned dependency tree, present after uv dependency resolution succeeds
   src/my_first/
     __init__.py               # DSL declarations (template)
   .gitignore                  # ignores .gaia/beliefs.json, .gaia/dep_beliefs/
