@@ -74,8 +74,7 @@ class JointDistribution(BaseModel):
         if abs(total - 1.0) > _NORMALIZATION_TOLERANCE:
             raise ValueError(f"JointDistribution probabilities must sum to 1, got {total}.")
         self.probabilities = [
-            0.0 if abs(value) < _NORMALIZATION_TOLERANCE else value
-            for value in self.probabilities
+            0.0 if abs(value) < _NORMALIZATION_TOLERANCE else value for value in self.probabilities
         ]
         return self
 

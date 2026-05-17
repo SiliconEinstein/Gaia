@@ -40,8 +40,8 @@ gaia.engine.bp.factor_graph.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from itertools import product as cartesian_product
 
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
@@ -664,9 +664,7 @@ def calibrate_junction_tree(graph: FactorGraph) -> JunctionTreeCalibration:
         for variable in sorted(graph.variables):
             if variable in graph.hard_evidence:
                 belief = (
-                    (1.0 - CROMWELL_EPS)
-                    if graph.hard_evidence[variable] == 1
-                    else CROMWELL_EPS
+                    (1.0 - CROMWELL_EPS) if graph.hard_evidence[variable] == 1 else CROMWELL_EPS
                 )
             else:
                 belief = graph.unary_factors.get(variable, 0.5)
@@ -697,9 +695,7 @@ def calibrate_junction_tree(graph: FactorGraph) -> JunctionTreeCalibration:
         for variable in var_list:
             if variable in graph.hard_evidence and variable not in unary_assigned:
                 local_priors[variable] = (
-                    (1.0 - CROMWELL_EPS)
-                    if graph.hard_evidence[variable] == 1
-                    else CROMWELL_EPS
+                    (1.0 - CROMWELL_EPS) if graph.hard_evidence[variable] == 1 else CROMWELL_EPS
                 )
                 unary_assigned.add(variable)
             elif variable in graph.unary_factors and variable not in unary_assigned:

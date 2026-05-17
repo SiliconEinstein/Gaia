@@ -251,8 +251,7 @@ def _compute_factor_joint_tables(
         probabilities: list[float] = []
         for assignment_index in range(1 << len(variables)):
             assignment = {
-                variable: (assignment_index >> bit) & 1
-                for bit, variable in enumerate(variables)
+                variable: (assignment_index >> bit) & 1 for bit, variable in enumerate(variables)
             }
             potential = evaluate_potential(factor, assignment)
             if potential <= 0.0:
