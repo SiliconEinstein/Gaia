@@ -9,6 +9,8 @@ Current scope:
         (NEGATION/CONJUNCTION/DISJUNCTION/IMPLICATION/EQUIVALENCE/
         CONTRADICTION/COMPLEMENT). Treats Knowledge nodes as atoms; does
         not look inside Claim.formula metadata.
+    diagnostics — FormulaGraph-level inspection for reviewer-facing local
+        formula issues and conservative cross-claim warnings.
 
 Future (out of scope for this PR; tracked separately):
     predicate — first-order / SMT backends consuming `formula_atom` metadata
@@ -20,6 +22,12 @@ See docs/specs/2026-05-16-engine-module-reorg-design.md §5 for the three-scope
 taxonomy.
 """
 
+from gaia.engine.ir.logic.diagnostics import (
+    DiagnosticCondition,
+    FormulaDiagnostic,
+    FormulaDiagnosticReport,
+    inspect_formula_graphs,
+)
 from gaia.engine.ir.logic.propositional import (
     are_equivalent,
     is_satisfiable,
@@ -31,7 +39,11 @@ from gaia.engine.ir.logic.propositional import (
 )
 
 __all__ = [
+    "DiagnosticCondition",
+    "FormulaDiagnostic",
+    "FormulaDiagnosticReport",
     "are_equivalent",
+    "inspect_formula_graphs",
     "is_satisfiable",
     "simplify_proposition",
     "to_cnf_proposition",
