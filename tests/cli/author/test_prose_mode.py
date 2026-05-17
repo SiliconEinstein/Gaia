@@ -325,7 +325,7 @@ def test_claim_predicate_unresolved_reference_rejected(
 
 
 # --------------------------------------------------------------------------- #
-# infer --hypothesis-content (R4)                                             #
+# infer hypothesis prose (R4)                                                 #
 # --------------------------------------------------------------------------- #
 
 
@@ -508,7 +508,7 @@ def test_infer_hypothesis_content_payload_has_auto_generated_entry(
 
 
 # --------------------------------------------------------------------------- #
-# observe --observation-content (R4)                                          #
+# observe observation prose (R4)                                              #
 # --------------------------------------------------------------------------- #
 
 

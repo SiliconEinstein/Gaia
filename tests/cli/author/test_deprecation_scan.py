@@ -25,8 +25,8 @@ import pytest
 
 from gaia.cli.commands.author import _deprecation_scan
 from gaia.cli.commands.author._deprecation_scan import (
-    _extract_replacement_hint,
     _R3_FALLBACK_NAMES,
+    _extract_replacement_hint,
     get_deprecated_names,
 )
 
