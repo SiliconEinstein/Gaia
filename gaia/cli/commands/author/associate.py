@@ -28,7 +28,11 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
@@ -70,6 +74,11 @@ def associate_command(
     p_b_given_a: float = typer.Option(..., "--p-b-given-a", help="P(b | a) — required."),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
     ),
     pattern: str | None = typer.Option(
         None,
@@ -140,6 +149,7 @@ def associate_command(
         references=[a, b],
         generated_code=generated_code,
         required_imports=("associate",),
+        target_file=normalize_file_option(file),
     )
     run_author_op(
         proposed_op,

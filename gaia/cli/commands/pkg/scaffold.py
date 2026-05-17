@@ -49,12 +49,12 @@ from gaia.cli.commands.author._postwrite import postwrite_check
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-_PYPROJECT_TEMPLATE = """\
+_PYPROJECT_TEMPLATE_WITH_UUID = """\
 [project]
 name = "{name}"
 version = "0.1.0"
 description = "{description}"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = []
 
 [build-system]
@@ -68,7 +68,35 @@ packages = ["src/{import_name}"]
 type = "knowledge-package"
 uuid = "{uuid}"
 namespace = "{namespace}"
+
+[tool.gaia.quality]
+allow_holes = true
 """
+
+
+_PYPROJECT_TEMPLATE_NO_UUID = """\
+[project]
+name = "{name}"
+version = "0.1.0"
+description = "{description}"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{import_name}"]
+
+[tool.gaia]
+type = "knowledge-package"
+namespace = "{namespace}"
+
+[tool.gaia.quality]
+allow_holes = true
+"""
+
 
 # A minimal but non-trivial DSL template: a single hypothesis claim plus
 # an ``__all__`` so the freshly created package is loadable by
@@ -80,9 +108,22 @@ namespace = "{namespace}"
 # Names listed here mirror the canonical re-exports from
 # ``gaia.engine.lang``; if the engine surface changes, this template
 # moves in lockstep.
-_INIT_TEMPLATE = """\
+#
+# R7 G11 additions: ``Variable`` / ``Constant`` / ``Nat`` / ``Real`` /
+# ``Bool`` / ``Probability`` (the domain primitives + Variable types
+# used by ``gaia author variable`` and ``claim --formula``), plus the
+# ``bayes`` module alias (so ``bayes.model(...)`` / ``bayes.likelihood(...)``
+# / ``bayes.Normal(...)`` cli-authored statements load).
+_INIT_TEMPLATE_FULL = """\
+from gaia.engine import bayes
 from gaia.engine.lang import (
+    Bool,
     ClaimAtom,
+    Constant,
+    Nat,
+    Probability,
+    Real,
+    Variable,
     associate,
     candidate_relation,
     claim,
@@ -92,6 +133,7 @@ from gaia.engine.lang import (
     depends_on,
     derive,
     equal,
+    equals,
     exclusive,
     iff,
     implies,
@@ -113,6 +155,19 @@ __all__ = ["hypothesis"]
 """
 
 
+# R7 G11 ``--minimal-imports`` opt-in: emit only the canonical
+# ``claim`` import and the placeholder. The author can manage imports
+# from there. The R2 default stays the full surface; minimal is a
+# self-aware power-user mode.
+_INIT_TEMPLATE_MINIMAL = """\
+from gaia.engine.lang import claim
+
+hypothesis = claim("A scientific hypothesis to be evaluated.", title="Hypothesis")
+
+__all__ = ["hypothesis"]
+"""
+
+
 @dataclass
 class _ScaffoldPlan:
     """Resolved scaffold parameters after argument validation."""
@@ -122,7 +177,8 @@ class _ScaffoldPlan:
     import_name: str
     namespace: str
     description: str
-    pkg_uuid: str
+    pkg_uuid: str | None
+    minimal_imports: bool
 
 
 def _derive_import_name(pkg_name: str) -> str:
@@ -136,6 +192,8 @@ def _validate_inputs(
     namespace: str | None,
     import_name_opt: str | None,
     description: str | None,
+    with_uuid: bool,
+    minimal_imports: bool,
 ) -> tuple[_ScaffoldPlan | None, list[Diagnostic]]:
     """Run the scaffold-specific pre-validation."""
     diagnostics: list[Diagnostic] = []
@@ -192,7 +250,9 @@ def _validate_inputs(
         )
         return None, diagnostics
 
-    pkg_uuid = str(uuid.uuid4())
+    # R7 G11: uuid becomes opt-in via --with-uuid (both shipping example
+    # packages omit it). Default is no uuid.
+    pkg_uuid = str(uuid.uuid4()) if with_uuid else None
     desc_resolved = description or f"Gaia knowledge package: {pkg_name}"
     return (
         _ScaffoldPlan(
@@ -202,6 +262,7 @@ def _validate_inputs(
             namespace=namespace_resolved,
             description=desc_resolved,
             pkg_uuid=pkg_uuid,
+            minimal_imports=minimal_imports,
         ),
         [],
     )
@@ -213,21 +274,28 @@ def _scaffold_layout(plan: _ScaffoldPlan) -> list[Path]:
     plan.target_root.mkdir(parents=True, exist_ok=True)
 
     pyproject_path = plan.target_root / "pyproject.toml"
-    pyproject_path.write_text(
-        _PYPROJECT_TEMPLATE.format(
+    if plan.pkg_uuid is not None:
+        pyproject_text = _PYPROJECT_TEMPLATE_WITH_UUID.format(
             name=plan.pkg_name,
             description=plan.description,
             import_name=plan.import_name,
             uuid=plan.pkg_uuid,
             namespace=plan.namespace,
         )
-    )
+    else:
+        pyproject_text = _PYPROJECT_TEMPLATE_NO_UUID.format(
+            name=plan.pkg_name,
+            description=plan.description,
+            import_name=plan.import_name,
+            namespace=plan.namespace,
+        )
+    pyproject_path.write_text(pyproject_text)
     created.append(pyproject_path)
 
     src_pkg = plan.target_root / "src" / plan.import_name
     src_pkg.mkdir(parents=True)
     init_py = src_pkg / "__init__.py"
-    init_py.write_text(_INIT_TEMPLATE)
+    init_py.write_text(_INIT_TEMPLATE_MINIMAL if plan.minimal_imports else _INIT_TEMPLATE_FULL)
     created.append(init_py)
 
     gaia_dir = plan.target_root / ".gaia"
@@ -254,6 +322,7 @@ def _emit_scaffold_envelope(
         "import_name": plan.import_name,
         "namespace": plan.namespace,
         "uuid": plan.pkg_uuid,
+        "minimal_imports": plan.minimal_imports,
         "files_created": [str(p) for p in created],
     }
     if counts is not None:
@@ -305,6 +374,24 @@ def scaffold_command(
     description: str | None = typer.Option(
         None, "--description", help="Short description for pyproject.toml."
     ),
+    with_uuid: bool = typer.Option(
+        False,
+        "--with-uuid",
+        help=(
+            "Generate a [tool.gaia].uuid for the package. Default is to omit "
+            "the field (matches the shipping example packages)."
+        ),
+    ),
+    minimal_imports: bool = typer.Option(
+        False,
+        "--minimal-imports",
+        help=(
+            "Seed __init__.py with only `claim` instead of the full author "
+            "surface. Default is the full-surface preamble for downstream "
+            "NameError protection (R2 default); minimal is for power users "
+            "managing their own imports (matches shipping example shape)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -340,6 +427,8 @@ def scaffold_command(
         namespace=namespace,
         import_name_opt=import_name,
         description=description,
+        with_uuid=with_uuid,
+        minimal_imports=minimal_imports,
     )
     if plan is None:
         # Pick semantic exit code from the first diagnostic kind.

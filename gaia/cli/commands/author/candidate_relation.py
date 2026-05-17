@@ -28,7 +28,12 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata, split_csv
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+    split_csv,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
@@ -67,6 +72,11 @@ def candidate_relation_command(
     ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
     ),
     pattern: str | None = typer.Option(
         None,
@@ -158,6 +168,7 @@ def candidate_relation_command(
         references=references,
         generated_code=generated_code,
         required_imports=("candidate_relation",),
+        target_file=normalize_file_option(file),
     )
     run_author_op(
         proposed_op,

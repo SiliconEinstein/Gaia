@@ -47,7 +47,12 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata, split_csv
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+    split_csv,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._prose import build_auto_claim_statement, slugify_label
 from gaia.cli.commands.author._runner import run_author_op
@@ -57,20 +62,29 @@ def _render_infer_statement(
     *,
     label: str,
     evidence: str,
-    hypothesis: str,
+    hypothesis_expr: str,
     p_e_given_h: float,
     p_e_given_not_h: float | None,
     given: list[str],
     rationale: str | None,
     metadata: dict[str, Any] | None,
+    background: list[str],
 ) -> str:
-    """Render the proposed ``infer(...)`` statement."""
+    """Render the proposed ``infer(...)`` statement.
+
+    ``hypothesis_expr`` is the Python source spelling at the call site:
+    either a bare identifier (``--hypothesis`` / ``--hypothesis-content``
+    auto-mint slug) or an inline ``claim('<prose>')`` call expression
+    (R7 G6 ``--hypothesis-prose``).
+    """
     args = [evidence]
-    kwargs = [f"hypothesis={hypothesis}", f"p_e_given_h={p_e_given_h!r}"]
+    kwargs = [f"hypothesis={hypothesis_expr}", f"p_e_given_h={p_e_given_h!r}"]
     if p_e_given_not_h is not None:
         kwargs.append(f"p_e_given_not_h={p_e_given_not_h!r}")
     if given:
         kwargs.append(f"given=[{', '.join(given)}]")
+    if background:
+        kwargs.append(f"background=[{', '.join(background)}]")
     kwargs.append(f"label={label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
@@ -101,6 +115,18 @@ def infer_command(
             "(override via --hypothesis-label)."
         ),
     ),
+    hypothesis_prose: str | None = typer.Option(
+        None,
+        "--hypothesis-prose",
+        help=(
+            "Inline prose wrapped into an anonymous claim() at the call site. "
+            "Emits ``infer(evidence, hypothesis=claim('<prose>'), ...)`` with "
+            "no named binding. Mutually exclusive with --hypothesis and "
+            "--hypothesis-content. (The engine's ``infer()`` hypothesis kwarg "
+            "is strictly Claim-typed, so the cli wraps the prose at the call "
+            "site rather than passing a bare string.)"
+        ),
+    ),
     hypothesis_label: str | None = typer.Option(
         None,
         "--hypothesis-label",
@@ -117,6 +143,11 @@ def infer_command(
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
+    ),
     p_e_given_not_h: float | None = typer.Option(
         None,
         "--p-e-given-not-h",
@@ -126,6 +157,11 @@ def infer_command(
         None,
         "--given",
         help="Comma-separated identifiers of conditioning Claim(s).",
+    ),
+    background: str | None = typer.Option(
+        None,
+        "--background",
+        help="Comma-separated identifiers passed as the infer() background kwarg.",
     ),
     rationale: str | None = typer.Option(
         None, "--rationale", help="Optional natural-language justification."
@@ -166,18 +202,26 @@ def infer_command(
     del json_
 
     # --- mutual-exclusion check on hypothesis-mode ----------------------- #
-    if hypothesis is None and hypothesis_content is None:
+    hyp_modes = [hypothesis, hypothesis_content, hypothesis_prose]
+    hyp_modes_set = sum(1 for value_ in hyp_modes if value_ is not None)
+    if hyp_modes_set == 0:
         emit_syntax_error(
             "infer",
-            "infer requires exactly one of --hypothesis / --hypothesis-content",
+            (
+                "infer requires exactly one of --hypothesis / --hypothesis-content "
+                "/ --hypothesis-prose"
+            ),
             target=str(target),
             human=human,
         )
         return
-    if hypothesis is not None and hypothesis_content is not None:
+    if hyp_modes_set > 1:
         emit_syntax_error(
             "infer",
-            "--hypothesis and --hypothesis-content are mutually exclusive",
+            (
+                "--hypothesis, --hypothesis-content, and --hypothesis-prose are "
+                "mutually exclusive — pick exactly one"
+            ),
             target=str(target),
             human=human,
         )
@@ -197,40 +241,62 @@ def infer_command(
         return
 
     given_list = split_csv(given)
+    background_list = split_csv(background)
 
-    # --- prose mode: mint a fresh hypothesis claim ------------------------ #
+    # --- resolve hypothesis mode ---------------------------------------- #
     prepended: tuple[tuple[str, str], ...] = ()
+    references: list[str]
+    hypothesis_kind: str
     if hypothesis_content is not None:
         if hypothesis_label is not None:
             auto_label = hypothesis_label
         else:
-            reserved = {label, evidence, *given_list}
+            reserved = {label, evidence, *given_list, *background_list}
             auto_label = slugify_label(hypothesis_content, existing=reserved)
         prepended = ((auto_label, build_auto_claim_statement(auto_label, hypothesis_content)),)
-        resolved_hypothesis = auto_label
+        hypothesis_expr = auto_label
+        references = [evidence, auto_label, *given_list, *background_list]
+        hypothesis_kind = "auto_mint"
+    elif hypothesis_prose is not None:
+        # R7 G6 inline-prose: wrap the prose with claim() at the call
+        # site. The engine's infer() hypothesis kwarg is strictly Claim-
+        # typed (no ``Claim | str`` polymorphism unlike derive/observe).
+        # No named binding is introduced; references list omits the prose.
+        hypothesis_expr = f"claim({hypothesis_prose!r})"
+        references = [evidence, *given_list, *background_list]
+        hypothesis_kind = "inline_prose"
     else:
         assert hypothesis is not None  # mutex check above
-        resolved_hypothesis = hypothesis
+        hypothesis_expr = hypothesis
+        references = [evidence, hypothesis, *given_list, *background_list]
+        hypothesis_kind = "qid"
 
     generated_code = _render_infer_statement(
         label=label,
         evidence=evidence,
-        hypothesis=resolved_hypothesis,
+        hypothesis_expr=hypothesis_expr,
         p_e_given_h=p_e_given_h,
         p_e_given_not_h=p_e_given_not_h,
         given=given_list,
         rationale=rationale,
         metadata=metadata_dict,
+        background=background_list,
     )
-    references = [evidence, resolved_hypothesis, *given_list]
+    required_imports: tuple[str, ...] = ("infer",)
+    if hypothesis_prose is not None:
+        # Inline-prose wraps the prose with ``claim(...)`` at the call
+        # site, so the target file needs ``claim`` importable.
+        required_imports = ("infer", "claim")
     proposed_op = ProposedAuthorOp(
         verb="infer",
         kind="reasoning",
         label=label,
         references=references,
         generated_code=generated_code,
-        required_imports=("infer",),
+        required_imports=required_imports,
+        target_file=normalize_file_option(file),
         prepended_statements=prepended,
+        extra_payload={"hypothesis_kind": hypothesis_kind},
     )
     run_author_op(
         proposed_op,

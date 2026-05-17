@@ -19,6 +19,7 @@ from typing import Any
 
 import typer
 
+from gaia.cli.commands.author._common import normalize_file_option
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
@@ -48,15 +49,24 @@ def _render_equal_statement(
     b: str,
     rationale: str | None,
     metadata: dict[str, Any] | None,
+    background: list[str],
 ) -> str:
     """Render the proposed ``equal(...)`` statement."""
     args = [a, b]
     kwargs: list[str] = [f"label={label!r}"]
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
+    if background:
+        kwargs.append(f"background=[{', '.join(background)}]")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
     return f"{label} = equal({', '.join(args)}, {', '.join(kwargs)})"
+
+
+def _split_csv(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def equal_command(
@@ -66,8 +76,18 @@ def equal_command(
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
+    ),
     rationale: str | None = typer.Option(
         None, "--rationale", help="Optional natural-language justification."
+    ),
+    background: str | None = typer.Option(
+        None,
+        "--background",
+        help="Comma-separated identifiers passed as the equal() background kwarg.",
     ),
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
@@ -120,20 +140,23 @@ def equal_command(
         emit(result, human=human)
         return
 
+    background_list = _split_csv(background)
     generated_code = _render_equal_statement(
         label=label,
         a=a,
         b=b,
         rationale=rationale,
         metadata=metadata_dict,
+        background=background_list,
     )
     proposed_op = ProposedAuthorOp(
         verb="equal",
         kind="reasoning",
         label=label,
-        references=[a, b],
+        references=[a, b, *background_list],
         generated_code=generated_code,
         required_imports=("equal",),
+        target_file=normalize_file_option(file),
     )
     run_author_op(
         proposed_op,

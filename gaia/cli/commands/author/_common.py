@@ -72,4 +72,23 @@ def emit_syntax_error(
     emit(result, human=human)
 
 
-__all__ = ["emit_syntax_error", "parse_metadata", "split_csv"]
+def normalize_file_option(file: str | None) -> str | None:
+    """Normalize ``--file`` input for ``ProposedAuthorOp.target_file``.
+
+    The runner treats ``None`` as "use the source-root ``__init__.py``" so
+    the existing behaviour for the default case stays unchanged. A bare
+    string is passed through; whitespace + leading-dot prefixes (``./``)
+    are trimmed because users intuitively type them but `pathlib.Path`
+    sees them as separate path components.
+    """
+    if file is None:
+        return None
+    stripped = file.strip()
+    if not stripped:
+        return None
+    while stripped.startswith("./"):
+        stripped = stripped[2:]
+    return stripped or None
+
+
+__all__ = ["emit_syntax_error", "normalize_file_option", "parse_metadata", "split_csv"]

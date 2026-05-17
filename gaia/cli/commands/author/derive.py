@@ -39,7 +39,7 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error
+from gaia.cli.commands.author._common import emit_syntax_error, normalize_file_option
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
@@ -140,6 +140,11 @@ def derive_command(
     label: str = typer.Option(..., "--label", help="Identifier the produced binding takes."),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
     ),
     rationale: str | None = typer.Option(
         None, "--rationale", help="Optional natural-language justification of the derivation."
@@ -320,6 +325,7 @@ def derive_command(
         references=references,
         generated_code=generated_code,
         required_imports=("derive",),
+        target_file=normalize_file_option(file),
         prepended_statements=prepended,
         extra_payload={"conclusion_kind": conclusion_kind},
     )

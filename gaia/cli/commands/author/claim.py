@@ -36,7 +36,7 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error
+from gaia.cli.commands.author._common import emit_syntax_error, normalize_file_option
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
@@ -111,6 +111,15 @@ def claim_command(
     label: str = typer.Option(..., "--label", help="Identifier the statement binds to."),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=(
+            "Relative path under src/<import_name>/ to write into (e.g. "
+            "`priors.py`). Default: `__init__.py`. The file must already "
+            "exist; use `gaia pkg add-module` to scaffold a fresh sibling."
+        ),
     ),
     title: str | None = typer.Option(None, "--title", help="Optional short title for the claim."),
     prior: float | None = typer.Option(
@@ -222,6 +231,7 @@ def claim_command(
         references=ref_list,
         generated_code=generated_code,
         required_imports=("claim",),
+        target_file=normalize_file_option(file),
     )
     run_author_op(
         proposed_op,

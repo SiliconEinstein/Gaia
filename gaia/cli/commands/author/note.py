@@ -17,7 +17,11 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
@@ -45,6 +49,11 @@ def note_command(
     label: str = typer.Option(..., "--label", help="Identifier the note binds to."),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
     ),
     title: str | None = typer.Option(None, "--title", help="Optional short title for the note."),
     metadata: str | None = typer.Option(
@@ -94,6 +103,7 @@ def note_command(
         references=[],
         generated_code=generated_code,
         required_imports=("note",),
+        target_file=normalize_file_option(file),
     )
     run_author_op(
         proposed_op,

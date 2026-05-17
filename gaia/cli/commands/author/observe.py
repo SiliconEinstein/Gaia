@@ -59,7 +59,12 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata, split_csv
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+    split_csv,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._prose import build_auto_claim_statement, slugify_label
 from gaia.cli.commands.author._runner import run_author_op
@@ -68,16 +73,22 @@ from gaia.cli.commands.author._runner import run_author_op
 def _render_observe_statement(
     *,
     label: str,
-    conclusion: str,
+    conclusion_expr: str,
     value: str | None,
     error: str | None,
     given: list[str],
     source_refs: list[str],
     rationale: str | None,
     metadata: dict[str, Any] | None,
+    background: list[str],
 ) -> str:
-    """Render the proposed ``observe(...)`` statement."""
-    args = [conclusion]
+    """Render the proposed ``observe(...)`` statement.
+
+    ``conclusion_expr`` is the Python source spelling at the call site:
+    either a bare identifier (``--conclusion`` / auto-mint slug) or a
+    quoted string literal (R7 G6 ``--observation-prose``).
+    """
+    args = [conclusion_expr]
     kwargs: list[str] = [f"label={label!r}"]
     if value is not None:
         # Forward verbatim so callers can pass numeric literals or
@@ -88,6 +99,8 @@ def _render_observe_statement(
         kwargs.append(f"error={error}")
     if given:
         kwargs.append(f"given=[{', '.join(given)}]")
+    if background:
+        kwargs.append(f"background=[{', '.join(background)}]")
     if source_refs:
         kwargs.append(f"source_refs={source_refs!r}")
     if rationale:
@@ -118,6 +131,16 @@ def observe_command(
             "must use --conclusion."
         ),
     ),
+    observation_prose: str | None = typer.Option(
+        None,
+        "--observation-prose",
+        help=(
+            "Inline prose passed through the engine's "
+            "``observe(conclusion: Claim | str, ...)`` polymorphism. Emits "
+            "``observe('<prose>', ...)`` directly with no named binding. "
+            "Mutually exclusive with --conclusion and --observation-content."
+        ),
+    ),
     observation_label: str | None = typer.Option(
         None,
         "--observation-label",
@@ -128,6 +151,11 @@ def observe_command(
     ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
     ),
     value: str | None = typer.Option(
         None,
@@ -146,6 +174,11 @@ def observe_command(
         None,
         "--given",
         help="Comma-separated premise identifiers for a conditional discrete observation.",
+    ),
+    background: str | None = typer.Option(
+        None,
+        "--background",
+        help="Comma-separated identifiers passed as the observe() background kwarg.",
     ),
     source_refs: str | None = typer.Option(
         None,
@@ -193,18 +226,26 @@ def observe_command(
     del json_
 
     # --- mutual-exclusion check on observation-mode ---------------------- #
-    if conclusion is None and observation_content is None:
+    obs_modes = [conclusion, observation_content, observation_prose]
+    obs_modes_set = sum(1 for value_ in obs_modes if value_ is not None)
+    if obs_modes_set == 0:
         emit_syntax_error(
             "observe",
-            "observe requires exactly one of --conclusion / --observation-content",
+            (
+                "observe requires exactly one of --conclusion / "
+                "--observation-content / --observation-prose"
+            ),
             target=str(target),
             human=human,
         )
         return
-    if conclusion is not None and observation_content is not None:
+    if obs_modes_set > 1:
         emit_syntax_error(
             "observe",
-            "--conclusion and --observation-content are mutually exclusive",
+            (
+                "--conclusion, --observation-content, and --observation-prose "
+                "are mutually exclusive — pick exactly one"
+            ),
             target=str(target),
             human=human,
         )
@@ -220,13 +261,15 @@ def observe_command(
     # The continuous form needs a Distribution-typed identifier as the
     # observation target, so prose mode (which generates a Claim, not a
     # Distribution) is incompatible with --value / --error.
-    if observation_content is not None and (value is not None or error is not None):
+    if (observation_content is not None or observation_prose is not None) and (
+        value is not None or error is not None
+    ):
         emit_syntax_error(
             "observe",
             (
-                "--observation-content (prose mode) is incompatible with "
-                "--value / --error (continuous form targets an existing "
-                "Distribution; use --conclusion <dist_label>)"
+                "prose mode (--observation-content / --observation-prose) is "
+                "incompatible with --value / --error (continuous form targets "
+                "an existing Distribution; use --conclusion <dist_label>)"
             ),
             target=str(target),
             human=human,
@@ -239,6 +282,7 @@ def observe_command(
         return
 
     given_list = split_csv(given)
+    background_list = split_csv(background)
     source_refs_list = split_csv(source_refs)
 
     # Mutual-exclusion sanity: continuous form (with value) cannot accept --given.
@@ -262,31 +306,48 @@ def observe_command(
         )
         return
 
-    # --- prose mode: mint a fresh observation claim ----------------------- #
+    # --- resolve observation mode ---------------------------------------- #
+    # ``conclusion_expr`` is the Python source spelling at the call site;
+    # ``references`` lists the identifiers the pre-write (c) check must
+    # resolve in module scope (inline-prose contributes none of its own).
     prepended: tuple[tuple[str, str], ...] = ()
+    references: list[str]
+    observation_kind: str
     if observation_content is not None:
         if observation_label is not None:
             auto_label = observation_label
         else:
-            reserved = {label, *given_list}
+            reserved = {label, *given_list, *background_list}
             auto_label = slugify_label(observation_content, existing=reserved)
         prepended = ((auto_label, build_auto_claim_statement(auto_label, observation_content)),)
-        resolved_conclusion = auto_label
+        conclusion_expr = auto_label
+        references = [auto_label, *given_list, *background_list]
+        observation_kind = "auto_mint"
+    elif observation_prose is not None:
+        # R7 G6 inline-prose: emit ``observe('<prose>', ...)`` directly.
+        # The engine's ``observe(conclusion: Claim | str, ...)``
+        # polymorphism wraps the prose into an anonymous Claim at
+        # runtime; no named module-scope binding is introduced.
+        conclusion_expr = repr(observation_prose)
+        references = [*given_list, *background_list]
+        observation_kind = "inline_prose"
     else:
         assert conclusion is not None  # mutex check above
-        resolved_conclusion = conclusion
+        conclusion_expr = conclusion
+        references = [conclusion, *given_list, *background_list]
+        observation_kind = "qid"
 
     generated_code = _render_observe_statement(
         label=label,
-        conclusion=resolved_conclusion,
+        conclusion_expr=conclusion_expr,
         value=value,
         error=error,
         given=given_list,
         source_refs=source_refs_list,
         rationale=rationale,
         metadata=metadata_dict,
+        background=background_list,
     )
-    references = [resolved_conclusion, *given_list]
     proposed_op = ProposedAuthorOp(
         verb="observe",
         kind="reasoning",
@@ -294,7 +355,9 @@ def observe_command(
         references=references,
         generated_code=generated_code,
         required_imports=("observe",),
+        target_file=normalize_file_option(file),
         prepended_statements=prepended,
+        extra_payload={"observation_kind": observation_kind},
     )
     run_author_op(
         proposed_op,

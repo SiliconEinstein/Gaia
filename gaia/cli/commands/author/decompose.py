@@ -44,7 +44,12 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata, split_csv
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+    split_csv,
+)
 from gaia.cli.commands.author._formula_sandbox import (
     FormulaSandboxError,
     validate_formula_expr,
@@ -107,6 +112,11 @@ def decompose_command(
     ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
     ),
     formula_template: str | None = typer.Option(
         None,
@@ -230,6 +240,7 @@ def decompose_command(
         references=references,
         generated_code=generated_code,
         required_imports=("decompose", "ClaimAtom", "land", "lor"),
+        target_file=normalize_file_option(file),
     )
     run_author_op(
         proposed_op,

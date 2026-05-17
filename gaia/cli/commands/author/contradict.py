@@ -16,7 +16,12 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+    split_csv,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
@@ -28,12 +33,15 @@ def _render_contradict_statement(
     b: str,
     rationale: str | None,
     metadata: dict[str, Any] | None,
+    background: list[str],
 ) -> str:
     """Render the proposed ``contradict(...)`` statement."""
     args = [a, b]
     kwargs: list[str] = [f"label={label!r}"]
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
+    if background:
+        kwargs.append(f"background=[{', '.join(background)}]")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
     return f"{label} = contradict({', '.join(args)}, {', '.join(kwargs)})"
@@ -46,8 +54,18 @@ def contradict_command(
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
+    ),
     rationale: str | None = typer.Option(
         None, "--rationale", help="Optional natural-language justification."
+    ),
+    background: str | None = typer.Option(
+        None,
+        "--background",
+        help="Comma-separated identifiers passed as the contradict() background kwarg.",
     ),
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
@@ -83,16 +101,23 @@ def contradict_command(
         emit_syntax_error("contradict", metadata_error, target=str(target), human=human)
         return
 
+    background_list = split_csv(background)
     generated_code = _render_contradict_statement(
-        label=label, a=a, b=b, rationale=rationale, metadata=metadata_dict
+        label=label,
+        a=a,
+        b=b,
+        rationale=rationale,
+        metadata=metadata_dict,
+        background=background_list,
     )
     proposed_op = ProposedAuthorOp(
         verb="contradict",
         kind="reasoning",
         label=label,
-        references=[a, b],
+        references=[a, b, *background_list],
         generated_code=generated_code,
         required_imports=("contradict",),
+        target_file=normalize_file_option(file),
     )
     run_author_op(
         proposed_op,

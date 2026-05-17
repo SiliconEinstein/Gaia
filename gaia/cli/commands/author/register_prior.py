@@ -28,7 +28,11 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, parse_metadata
+from gaia.cli.commands.author._common import (
+    emit_syntax_error,
+    normalize_file_option,
+    parse_metadata,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
@@ -72,6 +76,16 @@ def register_prior_command(
     ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
+    ),
+    file: str | None = typer.Option(
+        None,
+        "--file",
+        help=(
+            "Relative path under src/<import_name>/ to write into (e.g. "
+            "`priors.py` to match the hand-authored pattern). Default: "
+            "`__init__.py`. When writing to a sibling file, the cli will "
+            "auto-insert `from <import_name> import <claim>` if missing."
+        ),
     ),
     source_id: str = typer.Option(
         "user_priors",
@@ -134,6 +148,17 @@ def register_prior_command(
         metadata=metadata_dict,
         comment_label=statement_label,
     )
+    # R7 G1: register_prior may now target a sibling file (e.g. priors.py)
+    # so it matches the hand-authored pattern where prior records live
+    # alongside __init__.py rather than inside it. When writing to a
+    # sibling, the referenced ``claim`` identifier must be imported from
+    # the package — declare a sibling_imports entry so the writer adds
+    # ``from <import_name> import <claim>`` if missing.
+    sibling_imports: tuple[tuple[str, str], ...] = ()
+    target_file = normalize_file_option(file)
+    if target_file and target_file != "__init__.py":
+        sibling_imports = ((claim, ""),)  # package name filled in by writer
+
     proposed_op = ProposedAuthorOp(
         verb="register_prior",
         kind="reasoning",
@@ -144,6 +169,8 @@ def register_prior_command(
         references=[claim],
         generated_code=generated_code,
         required_imports=("register_prior",),
+        target_file=target_file,
+        sibling_imports=sibling_imports,
     )
     run_author_op(
         proposed_op,
