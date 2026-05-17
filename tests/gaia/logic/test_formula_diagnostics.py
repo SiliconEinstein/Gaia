@@ -20,6 +20,7 @@ from gaia.engine.lang import (
     implies,
     land,
     lnot,
+    lor,
 )
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.package import CollectedPackage
@@ -124,3 +125,57 @@ def test_formula_graph_to_sympy_rejects_missing_op_child_id():
 
     with pytest.raises(ValueError, match="fg:missing"):
         formula_graph_to_sympy(graph)
+
+
+def test_inspect_formula_graphs_reports_claim_local_unsat_as_fatal():
+    package = "formula_diag_local_unsat"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        impossible = claim("A and not A.", formula=land(ClaimAtom(a), lnot(ClaimAtom(a))))
+        impossible.label = "impossible"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph, include_pairwise=False)
+
+    diagnostic = next(d for d in report.diagnostics if d.code == "formula_unsat")
+    assert diagnostic.severity == "fatal"
+    assert diagnostic.scope == "claim"
+    assert diagnostic.logic_strength == "hard"
+    assert diagnostic.source_claim == _qid(package, "impossible")
+    assert diagnostic.condition.kind == "formula_unsat"
+    assert diagnostic.condition.expression == {"var": _qid(package, "impossible")}
+    assert report.has_fatal is True
+
+
+def test_inspect_formula_graphs_reports_claim_local_tautology_as_warning():
+    package = "formula_diag_local_tautology"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        tautology = claim("A or not A.", formula=lor(ClaimAtom(a), lnot(ClaimAtom(a))))
+        tautology.label = "tautology"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph, include_pairwise=False)
+
+    diagnostic = next(d for d in report.diagnostics if d.code == "formula_tautology")
+    assert diagnostic.severity == "warning"
+    assert diagnostic.scope == "claim"
+    assert diagnostic.source_claim == _qid(package, "tautology")
+    assert report.has_fatal is False
+
+
+def test_inspect_formula_graphs_reports_redundant_operands_as_info():
+    package = "formula_diag_redundant_operand"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        repeated = claim("A and A.", formula=land(ClaimAtom(a), ClaimAtom(a)))
+        repeated.label = "repeated"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph, include_pairwise=False)
+
+    diagnostic = next(d for d in report.diagnostics if d.code == "formula_redundant_operand")
+    assert diagnostic.severity == "info"
+    assert diagnostic.scope == "claim"
+    assert diagnostic.source_claim == _qid(package, "repeated")
+    assert diagnostic.details["repeated_children"] == [_qid(package, "a")]

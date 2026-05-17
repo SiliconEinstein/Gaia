@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from sympy import And, Equivalent, Implies, Not, Or, Symbol
+from sympy.logic.inference import satisfiable
 
 from gaia.engine.ir.formula import FormulaGraph, FormulaNode
 from gaia.engine.ir.graphs import LocalCanonicalGraph
@@ -115,12 +116,16 @@ def _project_node(
 
 
 def _project_atom_node(node: FormulaNode, atom_ids: set[str]) -> Any:
-    descriptor = node.descriptor
-    symbol_name = node.id
-    if descriptor.get("kind") == "claim" and isinstance(descriptor.get("qid"), str):
-        symbol_name = descriptor["qid"]
+    symbol_name = _atom_symbol_name(node)
     atom_ids.add(symbol_name)
     return Symbol(symbol_name)
+
+
+def _atom_symbol_name(node: FormulaNode) -> str:
+    descriptor = node.descriptor
+    if descriptor.get("kind") == "claim" and isinstance(descriptor.get("qid"), str):
+        return descriptor["qid"]
+    return node.id
 
 
 def _project_op_node(
@@ -177,5 +182,143 @@ def inspect_formula_graphs(
     include_pairwise: bool = True,
 ) -> FormulaDiagnosticReport:
     """Inspect formula graphs and return reviewer-facing logic diagnostics."""
-    del graph, include_pairwise
-    return FormulaDiagnosticReport()
+    diagnostics: list[FormulaDiagnostic] = []
+    projected: list[_ProjectedFormula] = []
+
+    for formula_graph in graph.formula_graphs:
+        diagnostics.extend(_redundant_operand_diagnostics(formula_graph))
+        projection = _project_formula_graph(formula_graph)
+        if projection is None:
+            diagnostics.append(_projection_unsupported_diagnostic(formula_graph))
+            continue
+        projected.append(projection)
+        diagnostics.extend(_claim_local_diagnostics(projection))
+
+    if include_pairwise:
+        diagnostics.extend(_pairwise_diagnostics(projected))
+
+    return FormulaDiagnosticReport(diagnostics=diagnostics)
+
+
+def _claim_local_diagnostics(projection: _ProjectedFormula) -> list[FormulaDiagnostic]:
+    diagnostics: list[FormulaDiagnostic] = []
+    if satisfiable(projection.expression) is False:
+        diagnostics.append(
+            FormulaDiagnostic(
+                code="formula_unsat",
+                severity="fatal",
+                scope="claim",
+                logic_strength="hard",
+                source_claim=projection.source_claim,
+                formula_nodes=[projection.root],
+                condition=_condition(
+                    "formula_unsat",
+                    [projection.source_claim],
+                    {"var": projection.source_claim},
+                    "hard_logic",
+                ),
+                message=f"Formula for claim {projection.source_claim!r} is unsatisfiable.",
+            )
+        )
+    elif satisfiable(Not(projection.expression)) is False:
+        diagnostics.append(
+            FormulaDiagnostic(
+                code="formula_tautology",
+                severity="warning",
+                scope="claim",
+                logic_strength="hard",
+                source_claim=projection.source_claim,
+                formula_nodes=[projection.root],
+                condition=_condition(
+                    "formula_tautology",
+                    [projection.source_claim],
+                    {"var": projection.source_claim},
+                    "hard_logic",
+                ),
+                message=f"Formula for claim {projection.source_claim!r} is tautological.",
+            )
+        )
+    return diagnostics
+
+
+def _redundant_operand_diagnostics(formula_graph: FormulaGraph) -> list[FormulaDiagnostic]:
+    diagnostics: list[FormulaDiagnostic] = []
+    nodes_by_id = {node.id: node for node in formula_graph.nodes}
+    for node in formula_graph.nodes:
+        operator = node.descriptor.get("operator")
+        if node.kind != "op" or operator not in {"conjunction", "disjunction"}:
+            continue
+        children = node.descriptor.get("children", [])
+        if not isinstance(children, list):
+            continue
+        repeated = sorted(
+            {child for child in children if isinstance(child, str) and children.count(child) > 1}
+        )
+        if not repeated:
+            continue
+        diagnostics.append(
+            FormulaDiagnostic(
+                code="formula_redundant_operand",
+                severity="info",
+                scope="claim",
+                logic_strength="hard",
+                source_claim=formula_graph.source_claim,
+                formula_nodes=[node.id, *repeated],
+                condition=_condition(
+                    "redundant_formula",
+                    [formula_graph.source_claim],
+                    {"var": formula_graph.source_claim},
+                    "hard_logic",
+                ),
+                message=f"Formula for claim {formula_graph.source_claim!r} repeats an operand.",
+                details={
+                    "operator": operator,
+                    "repeated_children": [
+                        _condition_var_for_node(nodes_by_id[child])
+                        for child in repeated
+                        if child in nodes_by_id
+                    ],
+                },
+            )
+        )
+    return diagnostics
+
+
+def _projection_unsupported_diagnostic(formula_graph: FormulaGraph) -> FormulaDiagnostic:
+    return FormulaDiagnostic(
+        code="formula_projection_unsupported",
+        severity="info",
+        scope="claim",
+        logic_strength="unknown",
+        source_claim=formula_graph.source_claim,
+        formula_nodes=[formula_graph.root],
+        message=(
+            f"Formula for claim {formula_graph.source_claim!r} is outside the current "
+            "propositional diagnostics subset."
+        ),
+    )
+
+
+def _condition(
+    kind: DiagnosticConditionKind,
+    variables: list[str],
+    expression: dict[str, Any],
+    confidence_basis: ConditionConfidenceBasis,
+) -> DiagnosticCondition:
+    return DiagnosticCondition(
+        kind=kind,
+        variables=variables,
+        expression=expression,
+        confidence_basis=confidence_basis,
+    )
+
+
+def _condition_var_for_node(node: FormulaNode) -> str:
+    if node.kind == "atom":
+        return _atom_symbol_name(node)
+    return node.id
+
+
+def _pairwise_diagnostics(projected: list[_ProjectedFormula]) -> list[FormulaDiagnostic]:
+    del projected
+    return []
