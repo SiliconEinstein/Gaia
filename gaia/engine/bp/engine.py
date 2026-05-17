@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import time
+import warnings
 from dataclasses import dataclass
 from typing import Literal
 
@@ -185,6 +186,14 @@ class InferenceEngine:
         if method == "auto":
             n = len(graph.variables)
             if n > cfg.mf_node_limit:
+                warnings.warn(
+                    "Mean Field VI fallback "
+                    f"(n > {cfg.mf_node_limit}) for {n} variables. "
+                    "This large-graph path is approximate and not production-grade; "
+                    "use method='trw_bp' when belief values need higher accuracy.",
+                    UserWarning,
+                    stacklevel=2,
+                )
                 method = "mean_field"
             else:
                 tw = jt_treewidth(graph)

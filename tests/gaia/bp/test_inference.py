@@ -285,6 +285,13 @@ class TestInferenceEngine:
         result = engine.run(_diamond_graph(), method="mean_field")
         assert result.method_used == "mean_field"
 
+    def test_auto_mean_field_fallback_warns(self):
+        engine = InferenceEngine(config=EngineConfig(mf_node_limit=1))
+        with pytest.warns(UserWarning, match=r"Mean Field VI fallback \(n > 1\)"):
+            result = engine.run(_diamond_graph())
+        assert result.method_used == "mean_field"
+        assert result.treewidth == -1
+
     def test_auto_prefers_jt_for_small_treewidth(self):
         engine = InferenceEngine(config=EngineConfig(jt_max_treewidth=15))
         result = engine.run(_simple_chain())

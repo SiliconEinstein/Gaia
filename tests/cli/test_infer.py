@@ -47,6 +47,7 @@ def test_infer_with_priors_py(tmp_path):
     result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     assert "Method:" in result.output
+    assert "treewidth=" in result.output
 
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
     belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}

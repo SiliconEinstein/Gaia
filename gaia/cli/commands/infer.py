@@ -207,7 +207,13 @@ def infer_command(
     typer.echo(f"Inferred {len(result.beliefs)} beliefs")
     method_label = inference_result.method_used.upper()
     exact_label = " (exact)" if inference_result.is_exact else ""
-    typer.echo(f"Method: {method_label}{exact_label}, {inference_result.elapsed_ms:.0f}ms")
+    treewidth_label = (
+        str(inference_result.treewidth) if inference_result.treewidth >= 0 else "not computed"
+    )
+    typer.echo(
+        f"Method: {method_label}{exact_label}, "
+        f"treewidth={treewidth_label}, {inference_result.elapsed_ms:.0f}ms"
+    )
     if result.diagnostics.iterations_run:
         typer.echo(
             f"Converged: {result.diagnostics.converged} "
