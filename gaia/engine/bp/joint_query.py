@@ -22,7 +22,7 @@ JointDistributionBasis = Literal[
     "variational_joint_distribution",
 ]
 
-_NORMALIZATION_TOLERANCE = 1e-9
+_JOINT_NORMALIZATION_TOLERANCE = 1e-9
 _EXACT_TOO_MANY_VARIABLES_MESSAGE = "Exact inference requires 2^n enumeration"
 
 
@@ -68,13 +68,14 @@ class JointDistribution(BaseModel):
             raise ValueError("JointDistribution variables must be unique.")
         if any(not isfinite(value) for value in self.probabilities):
             raise ValueError("JointDistribution probabilities must be finite.")
-        if any(value < -_NORMALIZATION_TOLERANCE for value in self.probabilities):
+        if any(value < -_JOINT_NORMALIZATION_TOLERANCE for value in self.probabilities):
             raise ValueError("JointDistribution probabilities must be non-negative.")
         total = sum(self.probabilities)
-        if abs(total - 1.0) > _NORMALIZATION_TOLERANCE:
+        if abs(total - 1.0) > _JOINT_NORMALIZATION_TOLERANCE:
             raise ValueError(f"JointDistribution probabilities must sum to 1, got {total}.")
         self.probabilities = [
-            0.0 if abs(value) < _NORMALIZATION_TOLERANCE else value for value in self.probabilities
+            0.0 if abs(value) < _JOINT_NORMALIZATION_TOLERANCE else value
+            for value in self.probabilities
         ]
         return self
 

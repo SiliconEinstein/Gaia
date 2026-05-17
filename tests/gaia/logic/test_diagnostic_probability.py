@@ -4,7 +4,6 @@ import sys
 import pytest
 
 import gaia.engine.ir.logic.probability as probability_module
-from gaia.engine.bp import lower_local_graph
 from gaia.engine.bp.factor_graph import FactorGraph, FactorType
 from gaia.engine.bp.joint_query import JointDistribution, JointQueryUnavailable
 from gaia.engine.ir.logic.diagnostics import (
@@ -15,6 +14,7 @@ from gaia.engine.ir.logic.diagnostics import (
 from gaia.engine.ir.logic.probability import (
     ConditionProbabilityEstimate,
     DiagnosticProbability,
+    belief_graph_for_formula_scoring,
     event_probability,
     score_condition,
     score_diagnostic_conditions,
@@ -54,6 +54,9 @@ def test_logic_package_exports_diagnostic_probability_api():
         DiagnosticProbability as ExportedDiagnosticProbability,
     )
     from gaia.engine.ir.logic import (
+        belief_graph_for_formula_scoring as exported_belief_graph_for_formula_scoring,
+    )
+    from gaia.engine.ir.logic import (
         event_probability as exported_event_probability,
     )
     from gaia.engine.ir.logic import (
@@ -66,6 +69,7 @@ def test_logic_package_exports_diagnostic_probability_api():
     exported_names = {
         "ConditionProbabilityEstimate",
         "DiagnosticProbability",
+        "belief_graph_for_formula_scoring",
         "event_probability",
         "score_condition",
         "score_diagnostic_conditions",
@@ -73,6 +77,10 @@ def test_logic_package_exports_diagnostic_probability_api():
     assert exported_names <= set(logic_package.__all__)
     assert ExportedConditionProbabilityEstimate is probability_module.ConditionProbabilityEstimate
     assert ExportedDiagnosticProbability is probability_module.DiagnosticProbability
+    assert (
+        exported_belief_graph_for_formula_scoring
+        is probability_module.belief_graph_for_formula_scoring
+    )
     assert exported_event_probability is probability_module.event_probability
     assert exported_score_condition is probability_module.score_condition
     assert exported_score_diagnostic_conditions is probability_module.score_diagnostic_conditions
@@ -120,6 +128,25 @@ def test_event_probability_sums_joint_assignments_in_bit_index_order():
     assert event_probability(both_true, joint) == pytest.approx(0.4)
     assert event_probability(a_without_b, joint) == pytest.approx(0.2)
     assert event_probability(mismatch, joint) == pytest.approx(0.3)
+
+
+def test_event_probability_handles_three_variable_bit_index_order():
+    joint = JointDistribution(
+        variables=["A", "B", "C"],
+        probabilities=[0.05, 0.10, 0.15, 0.20, 0.03, 0.07, 0.25, 0.15],
+        method="exact",
+        is_exact=True,
+        basis="exact_joint_distribution",
+    )
+
+    a_and_c = {"op": "and", "args": [{"var": "A"}, {"var": "C"}]}
+    b_without_a = {
+        "op": "and",
+        "args": [{"op": "not", "arg": {"var": "A"}}, {"var": "B"}],
+    }
+
+    assert event_probability(a_and_c, joint) == pytest.approx(0.07 + 0.15)
+    assert event_probability(b_without_a, joint) == pytest.approx(0.15 + 0.25)
 
 
 def test_event_probability_does_not_use_marginals_or_independence():
@@ -312,19 +339,7 @@ def test_score_diagnostic_conditions_from_physics_python_dsl_e2e():
 
     artifact = compile_package_artifact(pkg)
     report = inspect_formula_graphs(artifact.graph)
-    # Score the warning under the current belief graph, not under the formula
-    # operators that generated the warning itself. Otherwise the hard logic
-    # relation is conditioned on as evidence and Cromwell-clamps the event.
-    belief_graph_ir = artifact.graph.model_copy(
-        update={
-            "operators": [
-                op
-                for op in artifact.graph.operators
-                if not (op.metadata or {}).get("formula_lowering")
-            ]
-        }
-    )
-    graph = lower_local_graph(belief_graph_ir)
+    graph = belief_graph_for_formula_scoring(artifact.graph)
 
     left_id = f"physics:{package}::bicep2_tensor_interpretation"
     right_id = f"physics:{package}::planck_dust_interpretation"

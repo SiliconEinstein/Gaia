@@ -56,6 +56,7 @@ as explicit unavailable results rather than synthetic estimates.
 | `inspect_formula_graphs(graph)` | Emits `FormulaDiagnostic` objects from compiled `FormulaGraph` structure. |
 | `DiagnosticCondition` | Carries the Boolean event to score, such as `A and B`. |
 | `lower_local_graph(graph)` | Builds the `FactorGraph` that represents the current belief model. |
+| `belief_graph_for_formula_scoring(graph)` | Filters compiler-generated formula operators and lowers a reviewer-safe scoring graph. |
 | `joint_over(...)` / `compare_joint_over(...)` | Produces method-specific joint distributions over the condition variables. |
 | `event_probability(...)` | Sums the joint mass satisfying the event. |
 | `score_diagnostic_conditions(...)` | Runs joint providers and returns per-method probabilities for each diagnostic condition. |
@@ -99,7 +100,8 @@ being true before this warning is enforced as a hard correction?
 
 That graph can still include independent priors, evidence, and probabilistic
 associations between the claim variables. It should not include the warning
-itself as conditioning evidence.
+itself as conditioning evidence. Use `belief_graph_for_formula_scoring(...)`
+for this common reviewer path.
 
 ## 5. Python DSL example
 
@@ -107,8 +109,11 @@ The following example is intentionally self-contained: each interpretation claim
 explains the physics jargon it uses.
 
 ```python
-from gaia.engine.bp import lower_local_graph
-from gaia.engine.ir.logic import inspect_formula_graphs, score_diagnostic_conditions
+from gaia.engine.ir.logic import (
+    belief_graph_for_formula_scoring,
+    inspect_formula_graphs,
+    score_diagnostic_conditions,
+)
 from gaia.engine.lang import ClaimAtom, associate, claim, land, lnot
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.package import CollectedPackage
@@ -169,17 +174,7 @@ with CollectedPackage("cmb_bmode_logic_e2e", namespace="physics", version="0.1.0
 
 artifact = compile_package_artifact(pkg)
 report = inspect_formula_graphs(artifact.graph)
-
-belief_graph_ir = artifact.graph.model_copy(
-    update={
-        "operators": [
-            op
-            for op in artifact.graph.operators
-            if not (op.metadata or {}).get("formula_lowering")
-        ]
-    }
-)
-factor_graph = lower_local_graph(belief_graph_ir)
+factor_graph = belief_graph_for_formula_scoring(artifact.graph)
 
 scored = score_diagnostic_conditions(
     report.diagnostics,
@@ -207,7 +202,8 @@ claim variables. With `P(tensor)=0.4`, `P(dust)=0.6`,
 probability is:
 
 ```text
-P(tensor AND dust) = 0.5 * 0.6 = 0.75 * 0.4 = 0.3
+P(tensor AND dust) = P(tensor | dust) * P(dust) = 0.5 * 0.6 = 0.3
+P(tensor AND dust) = P(dust | tensor) * P(tensor) = 0.75 * 0.4 = 0.3
 ```
 
 In the regression test for this contract, exact enumeration and junction tree
@@ -227,6 +223,13 @@ their method provenance attached.
 
 Unavailable providers are not errors in comparison mode. They appear in the
 `unavailable` list with a reason and diagnostics payload.
+
+The current `score_diagnostic_conditions(...)` helper is intentionally simple:
+it runs the requested providers once per scored diagnostic. Its cost model is
+`O(number_of_scored_diagnostics * inference_cost(methods))`. Bulk reviewer
+tools should either score a small candidate set or cache provider state in a
+higher-level orchestration layer until Gaia grows a dedicated cached query
+context.
 
 ## 7. Interpretation guidelines
 

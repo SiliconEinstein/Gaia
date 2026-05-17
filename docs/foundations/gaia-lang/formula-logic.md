@@ -279,7 +279,9 @@ Formula diagnostics therefore emit a `cross_claim_incompatibility` warning. The
 warning is not fatal because the incompatible statements are separate claims.
 The optional `associate(...)` relation belongs to the belief graph; it lets a
 reviewer-facing layer score how likely the active warning is under current
-beliefs.
+beliefs. When scoring formula diagnostics, use
+`belief_graph_for_formula_scoring(artifact.graph)` so compiler-generated formula
+operators do not condition on the warning being scored.
 
 ---
 

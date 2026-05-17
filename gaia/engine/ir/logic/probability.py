@@ -16,6 +16,8 @@ from gaia.engine.bp.joint_query import (
     JointQueryUnavailable,
     compare_joint_over,
 )
+from gaia.engine.bp.lowering import lower_local_graph
+from gaia.engine.ir.graphs import LocalCanonicalGraph
 from gaia.engine.ir.logic.diagnostics import (
     DiagnosticCondition,
     DiagnosticConditionKind,
@@ -118,7 +120,14 @@ def score_diagnostic_conditions(
     *,
     methods: Sequence[JointQueryMethod] = ("exact", "junction_tree", "trw_bp", "mean_field"),
 ) -> list[DiagnosticProbability]:
-    """Score diagnostics that carry machine-readable conditions."""
+    """Score diagnostics that carry machine-readable conditions.
+
+    This v1 helper intentionally runs the requested joint providers once per
+    scored diagnostic, so its cost model is
+    ``O(number_of_scored_diagnostics * inference_cost(methods))``. Batch
+    reviewer tools that score many warnings should cache provider state above
+    this API or use a future cached query context.
+    """
     scored: list[DiagnosticProbability] = []
     for diagnostic in diagnostics:
         condition = diagnostic.condition
@@ -133,6 +142,26 @@ def score_diagnostic_conditions(
             )
         )
     return scored
+
+
+def belief_graph_for_formula_scoring(graph: LocalCanonicalGraph) -> FactorGraph:
+    """Lower a reviewer scoring graph without formula-generated logic operators.
+
+    Formula diagnostics discover warnings from ``FormulaGraph`` structure. When
+    those warnings are probability-scored, the belief graph should represent the
+    current belief state before enforcing the warning itself. Compiler-generated
+    formula operators therefore stay out of the scoring graph.
+    """
+    belief_graph = graph.model_copy(
+        update={
+            "operators": [
+                operator
+                for operator in graph.operators
+                if not (operator.metadata or {}).get("formula_lowering")
+            ]
+        }
+    )
+    return lower_local_graph(belief_graph)
 
 
 def _spread(probabilities: Sequence[float]) -> float | None:

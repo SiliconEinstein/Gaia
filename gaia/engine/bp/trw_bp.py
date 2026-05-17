@@ -239,7 +239,13 @@ def _compute_factor_joint_tables(
     v2f_msgs: dict[tuple[str, int], Msg],
     rho: dict[int, float],
 ) -> list[dict[str, Any]]:
-    """Compute normalized factor-scope pseudo-joints from current TRW messages."""
+    """Compute normalized factor-scope pseudo-joints from current TRW messages.
+
+    Gaia records the factor belief convention
+    ``b_f(x_f) ∝ psi_f(x_f) * prod_v m_{v->f}(x_v)``. The tree-reweighting
+    factor weight ``rho_f`` is already baked into message updates, so this
+    diagnostic table deliberately does not raise ``psi_f`` to ``1 / rho_f``.
+    """
     tables: list[dict[str, Any]] = []
 
     for fi, factor in enumerate(graph.factors):
@@ -258,6 +264,8 @@ def _compute_factor_joint_tables(
                 probabilities.append(0.0)
                 continue
 
+            # Keep the recorded pseudo-joint on the message convention above;
+            # do not reweight the potential again at diagnostic extraction time.
             weight = float(potential)
             for variable, value in assignment.items():
                 v2f = v2f_msgs.get((variable, fi))

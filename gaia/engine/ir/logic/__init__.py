@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from gaia.engine.ir.logic.probability import (
         ConditionProbabilityEstimate,
         DiagnosticProbability,
+        belief_graph_for_formula_scoring,
         event_probability,
         score_condition,
         score_diagnostic_conditions,
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 _LAZY_PROBABILITY_EXPORTS = {
     "ConditionProbabilityEstimate",
     "DiagnosticProbability",
+    "belief_graph_for_formula_scoring",
     "event_probability",
     "score_condition",
     "score_diagnostic_conditions",
@@ -65,6 +67,7 @@ __all__ = [
     "FormulaDiagnostic",
     "FormulaDiagnosticReport",
     "are_equivalent",
+    "belief_graph_for_formula_scoring",
     "event_probability",
     "inspect_formula_graphs",
     "is_satisfiable",
