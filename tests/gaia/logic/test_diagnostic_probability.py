@@ -4,9 +4,14 @@ import sys
 import pytest
 
 import gaia.engine.ir.logic.probability as probability_module
+from gaia.engine.bp import lower_local_graph
 from gaia.engine.bp.factor_graph import FactorGraph, FactorType
 from gaia.engine.bp.joint_query import JointDistribution, JointQueryUnavailable
-from gaia.engine.ir.logic.diagnostics import DiagnosticCondition, FormulaDiagnostic
+from gaia.engine.ir.logic.diagnostics import (
+    DiagnosticCondition,
+    FormulaDiagnostic,
+    inspect_formula_graphs,
+)
 from gaia.engine.ir.logic.probability import (
     ConditionProbabilityEstimate,
     DiagnosticProbability,
@@ -14,6 +19,9 @@ from gaia.engine.ir.logic.probability import (
     score_condition,
     score_diagnostic_conditions,
 )
+from gaia.engine.lang import ClaimAtom, claim, contradict, lnot
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 pytestmark = pytest.mark.pr_gate
 
@@ -248,6 +256,65 @@ def test_score_diagnostic_conditions_queries_graph_and_skips_diagnostics_without
     assert scored[0].unavailable == []
     assert scored[0].spread == pytest.approx(0.0)
     assert scored[0].exact_spread == pytest.approx(0.0)
+
+
+def test_score_diagnostic_conditions_from_python_dsl_e2e():
+    package = "dsl_prob_e2e"
+    with CollectedPackage(package, namespace="t", version="0.1.0") as pkg:
+        a = claim("A base proposition.", prior=0.8)
+        a.label = "a"
+        left = claim("A holds.", formula=ClaimAtom(a), prior=0.7)
+        left.label = "left"
+        right = claim("A does not hold.", formula=lnot(ClaimAtom(a)), prior=0.25)
+        right.label = "right"
+        helper = contradict(
+            left,
+            right,
+            rationale="A and not-A cannot both hold.",
+            label="left_right_conflict",
+        )
+        helper.label = "left_right_conflict_helper"
+
+    artifact = compile_package_artifact(pkg)
+    report = inspect_formula_graphs(artifact.graph)
+    graph = lower_local_graph(artifact.graph)
+
+    left_id = f"t:{package}::left"
+    right_id = f"t:{package}::right"
+    diagnostic = next(d for d in report.diagnostics if d.code == "cross_claim_incompatibility")
+    assert diagnostic.severity == "warning"
+    assert diagnostic.logic_strength == "hard"
+    assert diagnostic.condition is not None
+    assert diagnostic.condition.variables == [left_id, right_id]
+    assert diagnostic.condition.expression == {
+        "op": "and",
+        "args": [{"var": left_id}, {"var": right_id}],
+    }
+
+    factor_types = {factor.factor_type for factor in graph.factors}
+    assert {FactorType.CONTRADICTION, FactorType.EQUIVALENCE, FactorType.NEGATION} <= factor_types
+
+    scored = score_diagnostic_conditions(
+        [diagnostic],
+        graph,
+        methods=("exact", "junction_tree", "trw_bp", "mean_field"),
+    )
+
+    assert len(scored) == 1
+    probability = scored[0]
+    assert probability.diagnostic_code == "cross_claim_incompatibility"
+    assert probability.condition_kind == "joint_incompatibility"
+    assert probability.unavailable == []
+    assert probability.exact_spread == pytest.approx(0.0)
+
+    estimates = {estimate.method: estimate for estimate in probability.estimates}
+    assert set(estimates) == {"exact", "junction_tree", "trw_bp", "mean_field"}
+    assert estimates["exact"].is_exact is True
+    assert estimates["junction_tree"].is_exact is True
+    assert estimates["trw_bp"].is_exact is False
+    assert estimates["mean_field"].is_exact is False
+    assert estimates["junction_tree"].probability == pytest.approx(estimates["exact"].probability)
+    assert 0.0 < estimates["exact"].probability < 1e-5
 
 
 def test_score_diagnostic_conditions_propagates_unexpected_provider_errors(monkeypatch):
