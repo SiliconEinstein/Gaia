@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands._replay_build import (
@@ -24,6 +25,8 @@ from gaia.cli.commands.starmap_replay import (
     merge_events,
 )
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 

@@ -86,6 +86,7 @@ testpaths = ["tests"]
 markers = [
     "legacy_dsl: tests that intentionally exercise deprecated v5 DSL compatibility",
     "slow: slower regression tests kept out of the default fast feedback slice",
+    "pr_gate: tests gated at PR CI time (fast feedback; full suite runs in nightly via make test-all)",
 ]
 
 [project.scripts]

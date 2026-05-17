@@ -11,6 +11,8 @@ from typer.testing import CliRunner
 from gaia.cli.commands import register as register_module
 from gaia.cli.main import app
 
+pytestmark = pytest.mark.pr_gate
+
 runner = CliRunner()
 
 
