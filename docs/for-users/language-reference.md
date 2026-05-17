@@ -797,7 +797,7 @@ from gaia.engine.lang.compat import (
 |---|---|---|
 | `setting(...)` / `context(...)` | `note(...)` | Background context only; never participates in BP. |
 | `support([P], C, prior=...)` | `derive(C, given=[P])` (deterministic) or `infer(P, hypothesis=C, p_e_given_h=..., p_e_given_not_h=...)` / `bayes.likelihood(...)` (probabilistic) | `P` is the evidence; `C` is the hypothesis whose belief gets updated. |
-| `deduction([P], C)` | `derive(C, given=[P])` | Strict logical entailment lowers to a hard conditional implication. |
+| `deduction([P], C)` | `derive(C, given=[P])` | Strict logical entailment lowers to a hard implication constraint. |
 | `compare / abduction / induction / analogy / extrapolation / elimination / case_analysis / mathematical_induction` | Author the deterministic skeleton with `derive(...)` + relation verbs, or `bayes.likelihood(...)` for explicit Bayesian comparisons | Do not use these as shortcuts for uncertainty that hasn't been spelled out as claims. |
 | `composite(..., sub_strategies=[...])` | Plain `derive(...)` chains plus `@compose` for the workflow boundary | Sub-strategy priors are no longer the v0.5 surface for soft leaves; use `infer(...)` / `bayes.likelihood(...)` instead. |
 | `infer([premises], conclusion, ...)` (legacy positional) | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` | The legacy positional form is preserved as a deprecated path; the keyword form is the v0.5 contract. |

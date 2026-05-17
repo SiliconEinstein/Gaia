@@ -3,7 +3,6 @@
 import pytest
 
 from gaia.engine.bp import FactorGraph, FactorType, TRWBeliefPropagation
-from gaia.engine.bp.factor_graph import CROMWELL_EPS
 from gaia.engine.bp.mean_field import MeanFieldVI
 
 
@@ -261,7 +260,7 @@ class TestTRWResidualSchedule:
         fg.add_factor("f2", FactorType.SOFT_ENTAILMENT, ["B"], "C", p1=0.85, p2=0.9)
         fg.add_evidence("A", 1)
         result = TRWBeliefPropagation(max_iterations=50).run(fg)
-        assert result.beliefs["A"] == pytest.approx(1.0 - CROMWELL_EPS, abs=1e-6)
+        assert result.beliefs["A"] == pytest.approx(1.0, abs=1e-12)
         assert result.beliefs["B"] > 0.7
 
     def test_convergence_threshold_triggers(self):
@@ -325,14 +324,14 @@ class TestMeanFieldVI:
         assert result.diagnostics.converged
         assert result.beliefs["B"] > 0.5
 
-    def test_hard_evidence_clamped(self):
+    def test_hard_evidence_strict(self):
         fg = FactorGraph()
         fg.add_variable("A", 0.5)
         fg.add_variable("B", 0.5)
         fg.add_factor("f", FactorType.SOFT_ENTAILMENT, ["A"], "B", p1=0.9, p2=0.9)
         fg.add_evidence("A", 1)
         result = MeanFieldVI().run(fg)
-        assert result.beliefs["A"] == pytest.approx(1.0 - CROMWELL_EPS, abs=1e-6)
+        assert result.beliefs["A"] == pytest.approx(1.0, abs=1e-12)
         assert result.beliefs["B"] > 0.7
 
     def test_track_elbo(self):
@@ -384,7 +383,7 @@ class TestTRWExtraPaths:
         fg.add_variable("B", 0.5)
         fg.add_evidence("A", 0)
         result = TRWBeliefPropagation().run(fg)
-        assert result.beliefs["A"] == pytest.approx(CROMWELL_EPS, abs=1e-6)
+        assert result.beliefs["A"] == pytest.approx(0.0, abs=1e-12)
 
     def test_hard_evidence_zero_in_synchronous(self):
         fg = FactorGraph()
@@ -393,7 +392,7 @@ class TestTRWExtraPaths:
         fg.add_factor("f", FactorType.SOFT_ENTAILMENT, ["A"], "B", p1=0.9, p2=0.9)
         fg.add_evidence("A", 0)
         result = TRWBeliefPropagation().run(fg)
-        assert result.beliefs["A"] == pytest.approx(CROMWELL_EPS, abs=1e-6)
+        assert result.beliefs["A"] < 1e-12
         assert result.beliefs["B"] < 0.5
 
     def test_prior_for_hard_evidence_zero(self):
@@ -429,7 +428,7 @@ class TestTRWExtraPaths:
         bp = TRWBeliefPropagation(max_iterations=50)
         object.__setattr__(bp, "_schedule", "residual")
         result = bp.run(fg)
-        assert result.beliefs["A"] == pytest.approx(1.0 - CROMWELL_EPS, abs=1e-6)
+        assert result.beliefs["A"] == pytest.approx(1.0, abs=1e-12)
 
     def test_run_residual_hard_evidence_zero(self):
         fg = FactorGraph()
@@ -440,7 +439,7 @@ class TestTRWExtraPaths:
         bp = TRWBeliefPropagation(max_iterations=50)
         object.__setattr__(bp, "_schedule", "residual")
         result = bp.run(fg)
-        assert result.beliefs["A"] == pytest.approx(CROMWELL_EPS, abs=1e-6)
+        assert result.beliefs["A"] < 1e-12
         assert result.beliefs["B"] < 0.5
 
     def test_run_residual_convergence(self):

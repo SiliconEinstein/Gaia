@@ -43,7 +43,7 @@ from __future__ import annotations
 import logging
 from itertools import product as cartesian_product
 
-from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph
+from gaia.engine.bp.factor_graph import Factor, FactorGraph
 from gaia.engine.bp.potentials import evaluate_potential
 from gaia.engine.bp.trw_bp import TRWDiagnostics, TRWResult
 
@@ -677,7 +677,7 @@ class JunctionTreeInference:
             # Priority: hard_evidence > unary_factors > neutral MaxEnt
             def _belief0(vid: str) -> float:
                 if vid in graph.hard_evidence:
-                    return (1.0 - CROMWELL_EPS) if graph.hard_evidence[vid] == 1 else CROMWELL_EPS
+                    return float(graph.hard_evidence[vid])
                 return graph.unary_factors.get(vid, 0.5)
 
             beliefs = {vid: _belief0(vid) for vid in graph.variables}
@@ -724,10 +724,7 @@ class JunctionTreeInference:
             local_priors: dict[str, float] = {}
             for v in var_list:
                 if v in graph.hard_evidence and v not in unary_assigned:
-                    # Hard evidence: use δ function (0.0 or 1.0, no Cromwell ε)
-                    local_priors[v] = (
-                        (1.0 - CROMWELL_EPS) if graph.hard_evidence[v] == 1 else CROMWELL_EPS
-                    )
+                    local_priors[v] = float(graph.hard_evidence[v])
                     unary_assigned.add(v)
                 elif v in graph.unary_factors and v not in unary_assigned:
                     local_priors[v] = graph.unary_factors[v]

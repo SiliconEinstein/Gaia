@@ -119,11 +119,23 @@ def test_forall_lowers_to_implication_per_domain_member_not_conjunction():
 
     fg = lower_local_graph(artifact.graph)
     instance_ids = {k.id for k in instance_claims}
-    formula_factors = [f for f in fg.factors if f.conclusion in instance_ids]
+    formula_factors = [
+        f
+        for f in fg.factors
+        if f.factor_type == FactorType.DEDUCTIVE_IMPLICATION
+        and len(f.variables) == 1
+        and f.variables[0] == universal_id
+        and f.conclusion in instance_ids
+    ]
     assert len(formula_factors) == 2
-    assert {f.factor_type for f in formula_factors} == {FactorType.CONDITIONAL}
+    for op in implication_ops:
+        assert fg.hard_evidence[op.conclusion] == 1
     beliefs, _ = exact_inference(fg)
+    # Unobserved instances do not penalize the universal claim. If the universal
+    # is false, each instance remains MaxEnt-neutral.
     assert beliefs[universal_id] == pytest.approx(0.9)
+    for instance_id in instance_ids:
+        assert beliefs[instance_id] == pytest.approx(0.95)
 
 
 def test_exists_lowers_to_disjunction_over_domain_instances():

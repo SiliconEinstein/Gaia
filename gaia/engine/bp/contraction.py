@@ -24,11 +24,11 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorType
+from gaia.engine.bp.factor_graph import Factor, FactorType
 from gaia.engine.ir.strategy import Strategy
 
-_HIGH: float = 1.0 - CROMWELL_EPS
-_LOW: float = CROMWELL_EPS
+_HIGH: float = 1.0
+_LOW: float = 0.0
 type FloatArray = NDArray[np.float64]
 type StrategyCpt = tuple[FloatArray, list[str]]
 type TensorBuilder = Callable[[Factor, list[str], tuple[int, ...]], StrategyCpt]
@@ -146,6 +146,20 @@ def _conditional_tensor(f: Factor, axes: list[str], shape: tuple[int, ...]) -> S
     return np.where(conclusion == 1, p, 1.0 - p), axes
 
 
+def _deductive_implication_tensor(
+    _f: Factor, axes: list[str], shape: tuple[int, ...]
+) -> StrategyCpt:
+    """Build normalized hard deduction tensor: P(B|A), MaxEnt for ¬A."""
+    grids = np.indices(shape)
+    antecedent = grids[0]
+    conclusion = grids[1]
+    return np.where(
+        antecedent == 1,
+        np.where(conclusion == 1, _HIGH, _LOW),
+        0.5,
+    ).astype(np.float64), axes
+
+
 def _pairwise_tensor(f: Factor, axes: list[str], _shape: tuple[int, ...]) -> StrategyCpt:
     """Build the tensor for a pairwise potential."""
     if f.cpt is None:
@@ -166,6 +180,7 @@ _TENSOR_BUILDERS: dict[FactorType, TensorBuilder] = {
     FactorType.SOFT_ENTAILMENT: _soft_entailment_tensor,
     FactorType.CONDITIONAL: _conditional_tensor,
     FactorType.PAIRWISE_POTENTIAL: _pairwise_tensor,
+    FactorType.DEDUCTIVE_IMPLICATION: _deductive_implication_tensor,
 }
 
 
@@ -175,9 +190,10 @@ def factor_to_tensor(f: Factor) -> StrategyCpt:
     Shape: ``(2,) * (len(f.variables) + 1)``.
     Axis order: ``f.variables`` in order, then ``f.conclusion``.
 
-    Deterministic factors use ``_HIGH``/``_LOW`` (Cromwell clamp) so they
-    match the semantics of ``gaia.engine.bp.potentials`` exactly.  Parametric
-    factors (SOFT_ENTAILMENT, CONDITIONAL) use their stored parameters.
+    Deterministic factors use strict ``_HIGH``/``_LOW`` values (1.0 / 0.0) so
+    they match the semantics of ``gaia.engine.bp.potentials`` exactly.
+    Parametric factors (SOFT_ENTAILMENT, CONDITIONAL) use their stored
+    parameters.
     """
     axes = [*f.variables, f.conclusion]
     shape = (2,) * len(axes)

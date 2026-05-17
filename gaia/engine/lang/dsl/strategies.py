@@ -316,7 +316,7 @@ def deduction(
     """Deduction lowered via the canonical IR formalizer at compile time.
 
     ``prior`` is accepted for legacy source compatibility. Current BP lowering
-    treats deduction as hard Jaynes conditional implication; review gates
+    treats deduction as a strict Jaynes implication constraint; review gates
     publication quality, not the local inference preview or proof probability.
     """
     if len(premises) < 1:

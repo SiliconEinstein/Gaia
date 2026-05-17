@@ -65,6 +65,11 @@ def _prior_to_msg(pi: float) -> Msg:
     return np.array([1.0 - pi, pi], dtype=np.float64)
 
 
+def _evidence_to_msg(value: int) -> Msg:
+    """Convert hard evidence to a strict delta message."""
+    return np.array([1.0, 0.0], dtype=np.float64) if value == 0 else np.array([0.0, 1.0])
+
+
 def _normalize(msg: Msg) -> Msg:
     """Normalize a 2-vector so entries sum to 1.
 
@@ -255,13 +260,20 @@ def _compute_f2v(
 
 def _unfactored_beliefs(graph: FactorGraph) -> dict[str, float]:
     """Return unary or neutral beliefs for a graph with no factors."""
-    return {vid: graph.unary_factors.get(vid, 0.5) for vid in graph.variables}
+    return {
+        vid: float(graph.hard_evidence[vid])
+        if vid in graph.hard_evidence
+        else graph.unary_factors.get(vid, 0.5)
+        for vid in graph.variables
+    }
 
 
 def _graph_prior_messages(graph: FactorGraph) -> dict[str, Msg]:
     """Build per-variable prior message vectors from unary factors."""
     return {
-        vid: _prior_to_msg(graph.unary_factors[vid])
+        vid: _evidence_to_msg(graph.hard_evidence[vid])
+        if vid in graph.hard_evidence
+        else _prior_to_msg(graph.unary_factors[vid])
         if vid in graph.unary_factors
         else _uniform_msg()
         for vid in graph.variables
@@ -286,7 +298,11 @@ def _initialize_belief_history(graph: FactorGraph, diag: BPDiagnostics) -> dict[
     """Seed diagnostic belief history from unary factors only."""
     prev_beliefs: dict[str, float] = {}
     for vid in graph.variables:
-        pi = graph.unary_factors.get(vid, 0.5)
+        pi = (
+            float(graph.hard_evidence[vid])
+            if vid in graph.hard_evidence
+            else graph.unary_factors.get(vid, 0.5)
+        )
         prev_beliefs[vid] = pi
         diag.belief_history[vid] = [pi]
     return prev_beliefs

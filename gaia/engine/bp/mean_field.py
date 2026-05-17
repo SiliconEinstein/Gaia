@@ -18,10 +18,9 @@ CAVI update for variable i (holding all others fixed):
 For binary variables with {0,1} potentials (delta-like), the expectation
 reduces to a sum over factor assignments weighted by the current q values.
 
-Hard evidence (Class I) — Gaia adjusted Jaynes:
-    Variables in graph.hard_evidence are clamped to {ε, 1-ε} (Cromwell)
-    rather than strict {0, 1}. They are excluded from the CAVI update
-    loop (treated as fixed strong prior).
+Hard evidence (Class I):
+    Variables in graph.hard_evidence are clamped to strict {0, 1}. They are
+    excluded from the CAVI update loop.
 
 Convergence:
     ELBO is non-decreasing under CAVI (guaranteed).
@@ -37,7 +36,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph
+from gaia.engine.bp.factor_graph import FactorGraph
 from gaia.engine.bp.potentials import evaluate_potential
 
 __all__ = ["MFDiagnostics", "MFResult", "MeanFieldVI"]
@@ -233,12 +232,11 @@ class MeanFieldVI:
 
         var_to_factors = graph.get_var_to_factors()
 
-        # Initialise mu: hard_evidence -> Cromwell-clamped {ε, 1-ε},
-        # others -> prior or 0.5
+        # Initialise mu: hard_evidence -> strict delta, others -> prior or 0.5
         mu: dict[str, float] = {}
         for vid in graph.variables:
             if vid in graph.hard_evidence:
-                mu[vid] = (1.0 - CROMWELL_EPS) if graph.hard_evidence[vid] == 1 else CROMWELL_EPS
+                mu[vid] = float(graph.hard_evidence[vid])
             elif vid in graph.unary_factors:
                 mu[vid] = _clamp(graph.unary_factors[vid])
             else:
