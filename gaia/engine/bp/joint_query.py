@@ -12,6 +12,7 @@ from gaia.engine.bp.exact import exact_joint_over
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph
 from gaia.engine.bp.junction_tree import JunctionTreeCalibration, calibrate_junction_tree
 from gaia.engine.bp.mean_field import MeanFieldVI
+from gaia.engine.bp.trw_bp import TRWBeliefPropagation
 
 JointQueryMethod = Literal["exact", "junction_tree", "trw_bp", "mean_field"]
 JointDistributionBasis = Literal[
@@ -107,11 +108,7 @@ def joint_over(
     if method == "junction_tree":
         return _junction_tree_joint_over(graph, requested)
     if method == "trw_bp":
-        raise JointQueryUnavailableError(
-            method,
-            requested,
-            "trw_bp factor-scope joint queries are added in Task 3",
-        )
+        return _trw_bp_joint_over(graph, requested)
 
     raise ValueError(f"Unknown joint query method: {method!r}")
 
@@ -302,6 +299,69 @@ def _marginalize_table_to_variables(
     if total <= 0.0:
         raise ValueError("marginalized joint table has zero total mass")
     return [probability / total for probability in probabilities]
+
+
+def _probability_list_to_assignment_table(
+    probabilities: list[float],
+    variables: list[str],
+) -> dict[tuple[int, ...], float]:
+    table: dict[tuple[int, ...], float] = {}
+    for assignment_index, probability in enumerate(probabilities):
+        values = tuple((assignment_index >> bit) & 1 for bit in range(len(variables)))
+        table[values] = float(probability)
+    return table
+
+
+def _trw_bp_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribution:
+    result = TRWBeliefPropagation().run(graph)
+    requested = set(variables)
+    factor_joint_tables = result.diagnostics.factor_joint_tables
+    available_scopes = [list(table["variables"]) for table in factor_joint_tables]
+
+    for table in factor_joint_tables:
+        table_variables = list(table["variables"])
+        if requested <= set(table_variables):
+            assignment_table = _probability_list_to_assignment_table(
+                list(table["probabilities"]),
+                table_variables,
+            )
+            probabilities = _marginalize_table_to_variables(
+                assignment_table,
+                table_variables,
+                variables,
+            )
+            return JointDistribution(
+                variables=variables,
+                probabilities=probabilities,
+                method="trw_bp",
+                is_exact=False,
+                basis="approximate_joint_distribution",
+                diagnostics={
+                    "source_factor_index": table["factor_index"],
+                    "source_factor_id": table["factor_id"],
+                    "source_factor_variables": table_variables,
+                    "source_factor_rho": table["rho"],
+                    "converged": result.diagnostics.converged,
+                    "iterations_run": result.diagnostics.iterations_run,
+                    "max_change_at_stop": result.diagnostics.max_change_at_stop,
+                    "available_scopes": available_scopes,
+                    "factor_joint_table_count": len(factor_joint_tables),
+                    "cromwell_eps": CROMWELL_EPS,
+                },
+            )
+
+    raise JointQueryUnavailableError(
+        "trw_bp",
+        variables,
+        "requested variables are not contained in a single factor-scope pseudo-joint",
+        diagnostics={
+            "available_scopes": available_scopes,
+            "converged": result.diagnostics.converged,
+            "iterations_run": result.diagnostics.iterations_run,
+            "max_change_at_stop": result.diagnostics.max_change_at_stop,
+            "factor_joint_table_count": len(factor_joint_tables),
+        },
+    )
 
 
 def _mean_field_joint_over(graph: FactorGraph, variables: list[str]) -> JointDistribution:

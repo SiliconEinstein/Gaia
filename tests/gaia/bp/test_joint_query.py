@@ -4,6 +4,7 @@ from gaia.engine.bp.factor_graph import FactorGraph, FactorType
 from gaia.engine.bp.joint_query import (
     JointDistribution,
     JointQueryUnavailable,
+    JointQueryUnavailableError,
     compare_joint_over,
     joint_over,
 )
@@ -33,6 +34,15 @@ def _chain_graph() -> FactorGraph:
     graph.add_variable("C", 0.5)
     graph.add_factor("f:a_to_b", FactorType.SOFT_ENTAILMENT, ["A"], "B", p1=0.9, p2=0.9)
     graph.add_factor("f:b_to_c", FactorType.SOFT_ENTAILMENT, ["B"], "C", p1=0.85, p2=0.9)
+    return graph
+
+
+def _contradiction_graph() -> FactorGraph:
+    graph = FactorGraph()
+    graph.add_variable("A", 0.8)
+    graph.add_variable("B", 0.25)
+    graph.add_variable("H", 0.7)
+    graph.add_factor("f:not_both", FactorType.CONTRADICTION, ["A", "B"], "H")
     return graph
 
 
@@ -221,3 +231,33 @@ def test_junction_tree_returns_unavailable_without_covering_clique():
     assert isinstance(unavailable, JointQueryUnavailable)
     assert unavailable.method == "junction_tree"
     assert "single calibrated clique" in unavailable.reason
+
+
+def test_trw_bp_returns_factor_scope_pseudo_joint():
+    joint = joint_over(_contradiction_graph(), ["A", "B"], method="trw_bp")
+
+    assert joint.method == "trw_bp"
+    assert joint.is_exact is False
+    assert joint.basis == "approximate_joint_distribution"
+    assert joint.variables == ["A", "B"]
+    assert sum(joint.probabilities) == pytest.approx(1.0)
+
+    expected = [0.105 / 0.62, 0.42 / 0.62, 0.035 / 0.62, 0.06 / 0.62]
+    assert joint.probabilities == pytest.approx(expected, abs=1e-5)
+    assert joint.probabilities[1] > joint.probabilities[2]
+
+    assert joint.diagnostics["source_factor_id"] == "f:not_both"
+    assert joint.diagnostics["source_factor_variables"] == ["A", "B", "H"]
+    assert joint.diagnostics["source_factor_rho"] == pytest.approx(1.0)
+    assert joint.diagnostics["converged"] is True
+    assert joint.diagnostics["iterations_run"] >= 1
+
+
+def test_trw_bp_returns_unavailable_without_factor_scope_joint():
+    with pytest.raises(JointQueryUnavailableError, match="factor-scope pseudo-joint") as exc_info:
+        joint_over(_chain_graph(), ["A", "C"], method="trw_bp")
+
+    error = exc_info.value
+    assert error.method == "trw_bp"
+    assert error.variables == ["A", "C"]
+    assert error.diagnostics["available_scopes"] == [["A", "B"], ["B", "C"]]
