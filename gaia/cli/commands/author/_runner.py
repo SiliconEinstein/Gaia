@@ -203,6 +203,11 @@ def run_author_op(
                 strict=True,
             )
         ]
+    # R6: verb-specific tags (e.g. ``conclusion_kind`` for derive) flow
+    # through ``extra_payload`` without the runner needing to know the
+    # individual key set per verb.
+    if proposed_op.extra_payload:
+        payload.update(proposed_op.extra_payload)
 
     # Carry pre-write warnings through into the final envelope so JSON
     # consumers see them even when --interactive auto-suppresses prompts.

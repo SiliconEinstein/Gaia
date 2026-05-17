@@ -161,7 +161,7 @@ gaia author decompose --whole <ident> --parts <csv> --label <ident> \
 ### `derive`
 
 ```
-gaia author derive (--conclusion <ident> | --conclusion-content "<prose>") \
+gaia author derive (--conclusion <ident> | --conclusion-content "<prose>" | --conclusion-prose "<prose>") \
     --given <csv> --label <ident> [--target <path>]
     [--conclusion-label <ident>] [--rationale <text>]
     [--background <csv>] [--metadata <json>] ...
@@ -170,10 +170,16 @@ gaia author derive (--conclusion <ident> | --conclusion-content "<prose>") \
 | Flag | Required | Description |
 |---|---|---|
 | `--conclusion <ident>` | one-of | Reference an already-declared conclusion Claim. |
-| `--conclusion-content "<prose>"` | one-of | **Prose mode** — cli mints a fresh `slug = claim(prose)` line and uses the slug as `conclusion`. Mutually exclusive with `--conclusion`. See [Prose mode](#prose-mode-introducing-new-statement-verbs). |
+| `--conclusion-content "<prose>"` | one-of | **Prose mode (auto-mint)** — cli prepends `slug = claim(prose)` and uses the slug as `conclusion`. Mutually exclusive with `--conclusion` / `--conclusion-prose`. See [Prose mode](#prose-mode-introducing-new-statement-verbs). |
+| `--conclusion-prose "<prose>"` | one-of | **Prose mode (inline)** — emits `derive('<prose>', ...)` directly via the engine's `Claim \| str` polymorphism; no named binding minted. Mutex with the other two; no companion `--conclusion-label` (no Claim to label). The payload tag `conclusion_kind` is `"inline_prose"`. |
 | `--conclusion-label <ident>` | no | Explicit label for the auto-minted Claim (only valid with `--conclusion-content`). |
 | `--given <csv>` | yes | Comma-separated premise identifiers. |
 | `--background <csv>` | no | Comma-separated background identifiers (rendered as `background=`). |
+
+The envelope `payload.conclusion_kind` distinguishes the three shapes:
+`"qid"` (referencing a declared identifier), `"auto_mint"` (cli minted a
+named conclusion Claim), `"inline_prose"` (engine wraps the bare string
+into an anonymous Claim at runtime).
 
 ### `observe`
 
@@ -514,7 +520,7 @@ inline rather than referencing an existing identifier:
 
 | Verb | Flag | Mutex with | Label override |
 |---|---|---|---|
-| `derive` | `--conclusion-content "<prose>"` | `--conclusion` | `--conclusion-label` |
+| `derive` | `--conclusion-content "<prose>"` | `--conclusion`, `--conclusion-prose` | `--conclusion-label` |
 | `claim` | `--predicate "<formula-expr>"` | — (predicate-mode is additive, not replacement) | — |
 | `infer` | `--hypothesis-content "<prose>"` | `--hypothesis` | `--hypothesis-label` |
 | `observe` | `--observation-content "<prose>"` | `--conclusion`, also `--value`/`--error` | `--observation-label` |
@@ -538,6 +544,34 @@ standard `prewrite.collision` hard error.
 formula-expression flag rendered as the `formula=` kwarg. The expression
 goes through the same restricted-globals sandbox as `decompose
 --formula-expr`.
+
+### Inline-prose mode — `derive --conclusion-prose` (R6)
+
+`derive` carries a third shape, `--conclusion-prose "<prose>"`, that
+**does not** mint a named binding. The prose is emitted at the call
+site as a bare string literal:
+
+```python
+visibility_warrant = derive('Stars are visible tonight.', given=[hypothesis], label='visibility_warrant')
+```
+
+The engine's `derive(conclusion: Claim | str, ...)` polymorphism wraps
+the string into an anonymous Claim at runtime. The shape is byte-text
+closer to a hand-authored package that uses the inline-string idiom
+(see [Galileo divergence #1](../../examples/galileo-v0-5-gaia/CLI-AUTHORED.md#1-prose-mode-auto-mint-introduces-named-claim-bindings)),
+at the cost of losing referenceability — subsequent author calls
+cannot reach the conclusion Claim by name. The envelope payload tags
+the shape via `conclusion_kind`:
+
+| `conclusion_kind` | Trigger | Source effect |
+|---|---|---|
+| `"qid"` | `--conclusion <ident>` | Reuses a declared identifier; no extra statements written. |
+| `"auto_mint"` | `--conclusion-content "<prose>"` | Prepends `slug = claim(prose)`; uses the slug. |
+| `"inline_prose"` | `--conclusion-prose "<prose>"` | Emits `derive('<prose>', ...)` directly; no prepended statement. |
+
+Pick `--conclusion-content` (auto-mint, default) when downstream author
+calls might need to reference the conclusion. Pick `--conclusion-prose`
+when byte-text fidelity to a target source layout matters more.
 
 ## Restricted-globals sandbox
 

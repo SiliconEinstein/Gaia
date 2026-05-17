@@ -17,7 +17,7 @@ bearing reasoning) or always invalid (scaffold-only graphs).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 # OpKind mirrors the runtime distinction at a level the pre-write checks
 # can use without depending on the engine import surface. ``reasoning`` is
@@ -69,3 +69,11 @@ class ProposedAuthorOp:
     # reference-resolution invariant, and the snippet is appended to the
     # source file ahead of ``generated_code`` during the write step.
     prepended_statements: tuple[tuple[str, str], ...] = ()
+    # R6 inline-prose mode: verb-specific keys to merge into the final
+    # envelope ``payload`` (e.g. ``derive --conclusion-prose`` tags the
+    # envelope with ``conclusion_kind: "inline_prose"`` so an agent
+    # consumer can distinguish the three conclusion-arg shapes without
+    # parsing the source snippet). Keys must not collide with the runner-
+    # owned payload fields (``target``, ``written_to``, ``label``,
+    # ``verb``, ``snippet``, ``auto_generated``, ``check``).
+    extra_payload: dict[str, Any] = field(default_factory=dict)

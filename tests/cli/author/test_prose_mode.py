@@ -1,4 +1,4 @@
-"""R3+R4 prose-mode tests for ``--<arg>-content`` flags.
+"""R3+R4+R6 prose-mode tests for ``--<arg>-content`` and ``--conclusion-prose`` flags.
 
 R3·❓A=A — uniform ``--<arg>-content``-suffix flags. The R3 cut implements
 two named call sites — ``derive --conclusion-content`` (mints an
@@ -12,6 +12,13 @@ posterior-update) and ``observe --observation-content`` (the
 observation is a fresh measurement statement). Both reuse the same
 ``prepended_statements`` infra + helper functions.
 
+R6·❓A=A — ``derive --conclusion-prose``: emits ``derive('<prose>', ...)``
+inline via the engine's ``conclusion: Claim | str`` polymorphism. Closes
+the Galileo strict-reproducibility divergence #1 (auto-mint bindings).
+Three-way mutex with ``--conclusion`` (QID) and ``--conclusion-content``
+(auto-mint). No named binding minted — prose is a bare string literal
+at the call site.
+
 These tests cover:
 
 * ``derive --conclusion-content`` happy path: auto-generated claim
@@ -24,6 +31,8 @@ These tests cover:
 * ``infer --hypothesis-content`` happy path + label override + mutex.
 * ``observe --observation-content`` happy path + label override + mutex
   + prose/value compatibility rejection.
+* ``derive --conclusion-prose`` happy path + no auto-mint + triple mutex
+  + conclusion_kind payload tag + pre-write invariants under prose mode.
 * :func:`slugify_label` corner cases.
 """
 
@@ -715,3 +724,372 @@ def test_observe_observation_content_collision_against_seeded_resolves(
         ],
     )
     assert result.exit_code == 3, result.output
+
+
+# --------------------------------------------------------------------------- #
+# derive conclusion prose (R6)                                                #
+# --------------------------------------------------------------------------- #
+
+
+def test_derive_conclusion_prose_emits_inline_string_literal(
+    gaia_package: FixturePackage,
+) -> None:
+    """``--conclusion-prose`` renders ``derive('<prose>', ...)`` directly.
+
+    No auto-mint statement is prepended — the prose flows to the DSL
+    call site as a bare string literal, leveraging the engine's
+    ``conclusion: Claim | str`` polymorphism. This closes the Galileo
+    strict-reproducibility divergence #1 (prose-mode auto-mint
+    introducing named Claim bindings).
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-prose",
+            "Stars are visible tonight.",
+            "--given",
+            "hypothesis",
+            "--label",
+            "visibility_warrant",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    assert envelope["status"] == "ok"
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    assert payload.get("conclusion_kind") == "inline_prose"
+    # No auto-generated entry — the inline shape mints nothing.
+    assert "auto_generated" not in payload
+
+    written = gaia_package.source_init.read_text()
+    # No ``claim('Stars are visible tonight.')`` prepended.
+    assert "claim('Stars are visible tonight.')" not in written
+    # The derive call carries the prose as a bare string literal.
+    assert (
+        "visibility_warrant = derive('Stars are visible tonight.', "
+        "given=[hypothesis], label='visibility_warrant')" in written
+    )
+
+
+def test_derive_conclusion_prose_payload_distinguishes_kind(
+    gaia_package: FixturePackage,
+) -> None:
+    """The ``conclusion_kind`` payload tag distinguishes the three shapes."""
+    # qid mode
+    result_qid = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion",
+            "observation",
+            "--given",
+            "hypothesis",
+            "--label",
+            "qid_warrant",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result_qid.exit_code == 0, result_qid.output
+    payload_qid = _parse(result_qid.output)["payload"]
+    assert isinstance(payload_qid, dict)
+    assert payload_qid.get("conclusion_kind") == "qid"
+
+    # auto-mint mode
+    result_auto = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-content",
+            "An auto-mint prose conclusion.",
+            "--given",
+            "hypothesis",
+            "--label",
+            "auto_warrant",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result_auto.exit_code == 0, result_auto.output
+    payload_auto = _parse(result_auto.output)["payload"]
+    assert isinstance(payload_auto, dict)
+    assert payload_auto.get("conclusion_kind") == "auto_mint"
+
+    # inline-prose mode
+    result_inline = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-prose",
+            "An inline prose conclusion.",
+            "--given",
+            "hypothesis",
+            "--label",
+            "inline_warrant",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result_inline.exit_code == 0, result_inline.output
+    payload_inline = _parse(result_inline.output)["payload"]
+    assert isinstance(payload_inline, dict)
+    assert payload_inline.get("conclusion_kind") == "inline_prose"
+
+
+def test_derive_conclusion_prose_mutex_with_conclusion(
+    gaia_package: FixturePackage,
+) -> None:
+    """``--conclusion`` and ``--conclusion-prose`` are mutually exclusive."""
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion",
+            "observation",
+            "--conclusion-prose",
+            "Conflicting prose.",
+            "--given",
+            "hypothesis",
+            "--label",
+            "doomed",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 2
+    envelope = _parse(result.output)
+    diags = envelope["diagnostics"]
+    assert isinstance(diags, list)
+    assert "mutually exclusive" in diags[0]["message"]
+
+
+def test_derive_conclusion_prose_mutex_with_conclusion_content(
+    gaia_package: FixturePackage,
+) -> None:
+    """``--conclusion-content`` and ``--conclusion-prose`` are mutually exclusive."""
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-content",
+            "Auto-mint prose.",
+            "--conclusion-prose",
+            "Inline prose.",
+            "--given",
+            "hypothesis",
+            "--label",
+            "doomed",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 2
+    envelope = _parse(result.output)
+    diags = envelope["diagnostics"]
+    assert isinstance(diags, list)
+    assert "mutually exclusive" in diags[0]["message"]
+
+
+def test_derive_conclusion_prose_triple_mutex(gaia_package: FixturePackage) -> None:
+    """All three conclusion-mode flags set → triple-mutex error (exit 2)."""
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion",
+            "observation",
+            "--conclusion-content",
+            "Auto prose.",
+            "--conclusion-prose",
+            "Inline prose.",
+            "--given",
+            "hypothesis",
+            "--label",
+            "doomed",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 2
+
+
+def test_derive_conclusion_prose_unresolved_premise_still_rejected(
+    gaia_package: FixturePackage,
+) -> None:
+    """Inline-prose mode does NOT short-circuit (c)-reference validation.
+
+    The prose itself is not a reference, but the ``--given`` premises
+    must still resolve in module scope. A missing premise surfaces as
+    ``prewrite.reference_unresolved`` (exit 3), same as in the other
+    two conclusion modes.
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-prose",
+            "Stars are visible tonight.",
+            "--given",
+            "ghost_premise",
+            "--label",
+            "visibility_warrant",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 3
+    envelope = _parse(result.output)
+    diags = envelope["diagnostics"]
+    assert isinstance(diags, list)
+    assert diags[0]["kind"] == "prewrite.reference_unresolved"
+
+
+def test_derive_conclusion_prose_label_collision_still_rejected(
+    gaia_package: FixturePackage,
+) -> None:
+    """Inline-prose mode does NOT short-circuit (c)-collision validation.
+
+    The verb's own label must remain a fresh module-scope symbol even
+    when the conclusion is inline prose. A collision against a seeded
+    binding surfaces as ``prewrite.collision`` (exit 3). Use a premise
+    distinct from the colliding label so (d) self-loop doesn't fire
+    first.
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-prose",
+            "Stars are visible tonight.",
+            "--given",
+            "observation",
+            "--label",
+            "hypothesis",  # collides with seeded binding (but not in given)
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 3
+    envelope = _parse(result.output)
+    diags = envelope["diagnostics"]
+    assert isinstance(diags, list)
+    assert diags[0]["kind"] == "prewrite.collision"
+
+
+def test_derive_conclusion_prose_compiles_clean_via_postwrite(
+    gaia_package: FixturePackage,
+) -> None:
+    """Inline-prose derive survives the post-write ``gaia build check``.
+
+    Verifies the engine's ``conclusion: Claim | str`` polymorphism
+    actually compiles the prose-only conclusion at v0.5 — the R6
+    architectural premise. ``--check`` (default on) re-runs the full
+    package compile after writing the statement.
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-prose",
+            "Stars are visible tonight.",
+            "--given",
+            "hypothesis",
+            "--label",
+            "visibility_warrant",
+            "--target",
+            str(gaia_package.root),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    check = payload.get("check")
+    assert isinstance(check, dict)
+    # The fresh package starts with 2 seed claims; adding one derive
+    # introduces 1 strategy + the conclusion Claim + the warrant Claim.
+    assert check["strategy_count"] == 1
+
+
+def test_derive_conclusion_prose_with_rationale_and_background(
+    gaia_package: FixturePackage,
+) -> None:
+    """Inline-prose mode honours all the standard ``derive`` kwargs."""
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--conclusion-prose",
+            "The composite falls faster than the heavy alone.",
+            "--given",
+            "hypothesis",
+            "--background",
+            "observation",
+            "--rationale",
+            "Greater weight implies greater natural speed.",
+            "--label",
+            "composite_faster",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    assert "composite_faster = derive(" in written
+    assert "'The composite falls faster than the heavy alone.'" in written
+    assert "given=[hypothesis]" in written
+    assert "background=[observation]" in written
+    assert "rationale='Greater weight implies greater natural speed.'" in written
+
+
+def test_derive_requires_one_of_three_conclusion_modes(
+    gaia_package: FixturePackage,
+) -> None:
+    """No conclusion-mode flag set → exit 2 with diagnostic naming all three."""
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "derive",
+            "--given",
+            "hypothesis",
+            "--label",
+            "doomed",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 2
+    envelope = _parse(result.output)
+    diags = envelope["diagnostics"]
+    assert isinstance(diags, list)
+    msg = diags[0]["message"]
+    assert "--conclusion" in msg
+    assert "--conclusion-content" in msg
+    assert "--conclusion-prose" in msg

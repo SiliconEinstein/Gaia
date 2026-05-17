@@ -278,6 +278,29 @@ shape: each conclusion claim is namable, inspectable, and referenceable
 by subsequent author calls. The trade-off vs strict source-text
 equivalence is intentional.
 
+> **R6 update — `--conclusion-prose` closes this divergence on opt-in.**
+> Authors who want byte-text equivalence with the hand-authored shape
+> can use the R6 inline-prose flag instead:
+>
+> ```bash
+> gaia author derive \
+>     --conclusion-prose "Under Model A, heavy bodies should fall faster than light bodies in air." \
+>     --given aristotle_model \
+>     --rationale "If weight directly increases natural falling speed, ..." \
+>     --label aristotle_daily_observation_path \
+>     --target ./galileo-cli-mirror-gaia --no-check
+> ```
+>
+> Renders directly as `aristotle_daily_observation_path = derive('Under Model A, ...', ...)` — no
+> named Claim binding minted, the engine's `Claim | str` polymorphism
+> wraps the prose into an anonymous Claim at runtime, matching the
+> hand-authored shape. The walkthrough above sticks with
+> `--conclusion-content` because the agent-first ergonomic argument
+> (named conclusions are referenceable by subsequent author calls) is
+> the default we want to encourage. `--conclusion-prose` is the escape
+> hatch for cases where source-text fidelity to a pre-existing
+> hand-authored package matters more than later referenceability.
+
 ### 2. LHS binding equals `label=` kwarg
 
 The hand-authored file frequently uses different identifiers for the
