@@ -10,8 +10,8 @@ The CLI organizes verbs into 7 groups + `trace` independent:
   pkg      add / register / scaffold
   author   claim / equal / derive / note / question / contradict / exclusive /
            decompose / observe / compute / infer / associate / parameter /
-           register-prior / depends-on / candidate-relation / materialize
-           + compose (stub) / composition (stub)
+           register-prior / depends-on / candidate-relation / materialize /
+           compose / composition
   trace    (sub-app, NOT part of the groups: verify / review / show)
 
 See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
@@ -184,7 +184,8 @@ app.add_typer(pkg_app, name="pkg")
 
 
 # --------------------------------------------------------------------------- #
-# author — agent-first authoring CLI (17 live + 2 stubbed)                    #
+# author — agent-first authoring CLI (19 verbs: 17 statement-emitting +     #
+#          2 file-based validate-and-register)                                #
 # --------------------------------------------------------------------------- #
 #
 # Per 协作单 BOmHwyFRCixqy0k7gR3cCNMInId §五 + §六: the author group is
@@ -192,9 +193,9 @@ app.add_typer(pkg_app, name="pkg")
 # Gaia DSL statements through structured commands instead of editing
 # `.gaia.py` source by hand. R1 shipped 3 verbs (claim / equal / derive)
 # end-to-end; R2 adds the remaining 14 statement-level verbs against
-# the same pre-write + envelope skeleton. ``compose`` / ``composition``
-# remain stubbed — their content is fundamentally an arbitrary-Python
-# function body, not a CLI-flag-shaped op.
+# the same pre-write + envelope skeleton. R3 lifts ``compose`` /
+# ``composition`` from stub to live via the file-based
+# validate-and-register surface (see gaia.cli.commands.author.compose).
 
 author_app = typer.Typer(
     name="author",
@@ -202,7 +203,7 @@ author_app = typer.Typer(
         "Author DSL statements (claim / equal / derive / note / question / "
         "contradict / exclusive / decompose / observe / compute / infer / "
         "associate / parameter / register-prior / depends-on / "
-        "candidate-relation / materialize + compose [stub] / composition [stub])."
+        "candidate-relation / materialize / compose / composition)."
     ),
     no_args_is_help=True,
 )
@@ -230,7 +231,7 @@ author_app.command(name="register-prior")(register_prior_command)
 author_app.command(name="depends-on")(depends_on_command)
 author_app.command(name="candidate-relation")(candidate_relation_command)
 author_app.command(name="materialize")(materialize_command)
-# R1 stubs.
+# R3 file-based verbs: validate-and-register a @compose/@composition pattern.
 author_app.command(name="compose")(compose_command)
 author_app.command(name="composition")(composition_command)
 app.add_typer(author_app, name="author")

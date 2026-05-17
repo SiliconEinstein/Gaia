@@ -19,7 +19,11 @@ because their content is fundamentally an arbitrary-Python function
 body, not a CLI-flag-shaped op). R2 fills in the remaining 14
 statement-level verbs against the same pre-write + envelope skeleton,
 activates ``--interactive`` uniformly, and adds the ``gaia pkg
-scaffold`` package-initialisation verb in a sibling module.
+scaffold`` package-initialisation verb in a sibling module. R3 lifts
+``compose`` / ``composition`` from stub to live via a file-based
+validate-and-register shape (see :mod:`.compose`), plus adds prose-mode
+``--<arg>-content`` flags, 2 pre-write warning kinds, and a restricted-
+globals formula sandbox.
 
 See ``docs/specs`` / 协作单 BOmHwyFRCixqy0k7gR3cCNMInId for the full
 contract and rationale.
@@ -27,10 +31,10 @@ contract and rationale.
 
 from __future__ import annotations
 
-from gaia.cli.commands.author._stubs import compose_command, composition_command
 from gaia.cli.commands.author.associate import associate_command
 from gaia.cli.commands.author.candidate_relation import candidate_relation_command
 from gaia.cli.commands.author.claim import claim_command
+from gaia.cli.commands.author.compose import compose_command, composition_command
 from gaia.cli.commands.author.compute import compute_command
 from gaia.cli.commands.author.contradict import contradict_command
 from gaia.cli.commands.author.decompose import decompose_command

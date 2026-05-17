@@ -100,17 +100,17 @@ def test_envelope_shape_error_path(gaia_package: FixturePackage) -> None:
     assert first["kind"] == "prewrite.collision"
 
 
-def test_envelope_shape_stub_path() -> None:
-    """The composition stubs produce the envelope with `source: stub`."""
+def test_envelope_shape_compose_missing_from_file() -> None:
+    """``gaia author compose`` requires --from-file (R3 lifts the stubbed shape).
+
+    Pre-R3 this test exercised the stub envelope; R3 makes compose live
+    via the file-based validate-and-register path. Typer surfaces the
+    missing-argument error through its own usage path, so we just
+    assert the exit code is non-zero (Typer convention: 2).
+    """
     result = runner.invoke(app, ["author", "compose"])
-    assert result.exit_code == EXIT_INPUT_SYNTAX, result.output
-    envelope = _parse(result.output)
-    assert envelope["status"] == "error"
-    assert envelope["code"] == EXIT_INPUT_SYNTAX
-    diagnostics = envelope["diagnostics"]
-    assert isinstance(diagnostics, list)
-    assert diagnostics and diagnostics[0]["source"] == "stub"
-    assert diagnostics[0]["kind"] == "stub.not_implemented"
+    assert result.exit_code != 0, result.output
+    assert "--from-file" in result.output
 
 
 def test_human_rendering_smoke(gaia_package: FixturePackage) -> None:
