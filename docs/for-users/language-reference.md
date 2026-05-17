@@ -226,17 +226,20 @@ hypothesis predicts the observed data better?"
 
 ```python
 import gaia.engine.bayes as bayes
-from gaia.engine.lang import Constant, Nat, Probability, Variable, claim, equals, observe, parameter
+from gaia.engine.lang import Nat, Probability, Variable, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
-k = Variable(symbol="k", domain=Nat, value=295)
+k = Variable(symbol="k", domain=Nat)
 n = 395
 
 h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.")
 h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.")
 
-data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
-observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
+data = bayes.data(
+    k,
+    value=295,
+    rationale="F2 count table reports 295 dominant phenotypes.",
+)
 
 model_3_1 = bayes.model(
     h_3_1,
@@ -540,17 +543,20 @@ like "which hypothesis makes this count, measurement, or dataset more likely?"
 
 ```python
 import gaia.engine.bayes as bayes
-from gaia.engine.lang import Constant, Nat, Probability, Variable, claim, equals, observe, parameter
+from gaia.engine.lang import Nat, Probability, Variable, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
-k = Variable(symbol="k", domain=Nat, value=295)
+k = Variable(symbol="k", domain=Nat)
 n = 395
 
 h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.")
 h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.")
 
-data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
-observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
+data = bayes.data(
+    k,
+    value=295,
+    rationale="F2 count table reports 295 dominant phenotypes.",
+)
 
 model_3_1 = bayes.model(
     h_3_1,

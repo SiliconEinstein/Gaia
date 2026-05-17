@@ -25,14 +25,18 @@ def cleanup_bayes_modules() -> Generator[None, None, None]:
 
 
 def test_bayes_canonical_peer_module_imports() -> None:
-    from gaia.engine.bayes import likelihood, model
+    import gaia.engine.bayes as bayes
+    from gaia.engine.bayes import data, likelihood, model
+    from gaia.engine.bayes.dsl import data as dsl_data
     from gaia.engine.bayes.dsl import likelihood as dsl_likelihood
     from gaia.engine.bayes.dsl import model as dsl_model
     from gaia.engine.bayes.runtime import BayesInference, Likelihood, PredictiveModel
     from gaia.engine.lang.runtime.action import Reasoning
 
+    assert data is dsl_data
     assert model is dsl_model
     assert likelihood is dsl_likelihood
+    assert "data" in bayes.__all__
     assert issubclass(BayesInference, Reasoning)
     assert issubclass(PredictiveModel, BayesInference)
     assert issubclass(Likelihood, BayesInference)
