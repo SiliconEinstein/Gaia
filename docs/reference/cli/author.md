@@ -685,6 +685,33 @@ conclusion argument. The two shapes compile to equivalent runtime
 graphs but diverge at the source-text level; see CLI-AUTHORED.md for
 the explicit delta inventory.
 
+## Mendel as a worked example (bayes + Variable + formula + multi-file)
+
+The Mendel single-factor cross example at `examples/mendel-v0-5-gaia/`
+exercises the harder cli surface that R7 unlocked. Where Galileo uses
+5 author verbs, Mendel additionally reaches for:
+
+* **`gaia author variable`** to declare two `Variable(...)` typed terms
+  (`f2_total_count`, `f2_dominant_count`).
+* **`gaia author claim --formula`** to author a predicate-logic claim
+  wrapping `land(equals(...), equals(...))`.
+* **`gaia bayes binomial` / `gaia bayes beta-binomial` / `gaia bayes model`
+  / `gaia bayes likelihood`** for the quantitative
+  count-comparison sub-pipeline.
+* **`gaia pkg add-module` + `gaia author register-prior --file priors.py`**
+  for the multi-file authoring layout that mirrors the hand-authored
+  package's `priors.py` sibling module.
+
+A scripted walkthrough lives at
+[`examples/mendel-v0-5-gaia/CLI-AUTHORED.md`](../../../examples/mendel-v0-5-gaia/CLI-AUTHORED.md).
+The pytest fixture at `tests/cli/mendel_demo/test_equivalence.py`
+re-runs the cli sequence on every PR-gate run and asserts equivalence
+through the multi-level tolerance helper at
+`tests/cli/_equivalence_levels.py` — BYTE_TEXT on the user-authored
+content axes + structural counts, CONTENT_SET on the intrinsic
+single-`--label` discipline axis. Mendel is therefore the empirical
+demonstration of R7's "cli surface covers full engine" claim.
+
 ## See also
 
 * [`gaia pkg`](pkg.md) — install / publish / scaffold packages.
