@@ -117,6 +117,62 @@ def append_statement(
 # --------------------------------------------------------------------------- #
 
 
+def _collect_existing_imports(tree: ast.Module) -> dict[str, set[str]]:
+    """Map ``package_name -> {imported symbols}`` from a parsed module's body."""
+    already_imported: dict[str, set[str]] = {}
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module:
+            already_imported.setdefault(node.module, set()).update(
+                alias.asname or alias.name for alias in node.names
+            )
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                already_imported.setdefault(alias.asname or alias.name, set())
+    return already_imported
+
+
+def _select_new_imports(
+    needed: tuple[tuple[str, str], ...],
+    already_imported: dict[str, set[str]],
+    default_package: str | None,
+) -> tuple[dict[str, list[str]], list[str]]:
+    """Filter ``needed`` against ``already_imported`` and group by package.
+
+    Returns ``(grouped, added)`` where ``grouped`` is ``{pkg: [symbols]}`` for
+    fresh entries and ``added`` is a flat list of newly-introduced symbols.
+    """
+    grouped_new: dict[str, list[str]] = {}
+    added_symbols: list[str] = []
+    for symbol, pkg_in in needed:
+        pkg = pkg_in or default_package or ""
+        if not pkg or symbol in already_imported.get(pkg, set()):
+            continue
+        if symbol in grouped_new.get(pkg, []):
+            continue
+        grouped_new.setdefault(pkg, []).append(symbol)
+        added_symbols.append(symbol)
+    return grouped_new, added_symbols
+
+
+def _splice_imports(source: str, tree: ast.Module, grouped_new: dict[str, list[str]]) -> str:
+    """Splice the ``from <pkg> import ...`` lines into ``source`` at the right spot."""
+    insertion_offset = _find_import_insertion_offset(source, tree)
+    new_lines = [
+        f"from {pkg} import {', '.join(sorted(symbols))}"
+        for pkg, symbols in sorted(grouped_new.items())
+    ]
+    insert_block = "\n".join(new_lines) + "\n"
+    head = source[:insertion_offset]
+    tail = source[insertion_offset:]
+    if head and not head.endswith("\n"):
+        head += "\n"
+    if head and not head.endswith("\n\n"):
+        head += "\n"
+    if tail and not tail.startswith("\n"):
+        insert_block += "\n"
+    return head + insert_block + tail
+
+
 def _ensure_sibling_imports(
     source: str,
     needed: tuple[tuple[str, str], ...],
@@ -126,11 +182,9 @@ def _ensure_sibling_imports(
     """Insert ``from <pkg> import <symbol>`` for any missing ``needed`` entries.
 
     Cheap approach: parse the source to find existing top-level imports;
-    group new entries by package; emit each group either by extending an
-    existing ``from <pkg> import (...)`` line (merging members) or by
-    appending a new ``from <pkg> import <symbol>`` line after the
-    leading docstring + future-imports block. Order within a group is
-    alphabetical.
+    group new entries by package; append a single ``from <pkg> import
+    <symbols>`` line per package after the leading docstring + future-
+    imports block. Order within a group is alphabetical.
 
     Returns ``(new_source, added_symbols)`` where ``added_symbols`` lists
     the symbols that were actually newly inserted (an entry already
@@ -145,64 +199,11 @@ def _ensure_sibling_imports(
         # pre-write surface the issue separately.
         return source, []
 
-    # Map: package_name -> set of already-imported symbols (idempotency)
-    already_imported: dict[str, set[str]] = {}
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and node.module:
-            already_imported.setdefault(node.module, set()).update(
-                alias.asname or alias.name for alias in node.names
-            )
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                already_imported.setdefault(alias.asname or alias.name, set())
-
-    # Decide which entries we actually need to add.
-    grouped_new: dict[str, list[str]] = {}
-    added_symbols: list[str] = []
-    for symbol, pkg_in in needed:
-        pkg = pkg_in or default_package or ""
-        if not pkg:
-            continue
-        if symbol in already_imported.get(pkg, set()):
-            continue
-        # Also skip if the symbol was already in this batch (idempotency
-        # against duplicate sibling_imports entries from upstream).
-        if symbol in grouped_new.get(pkg, []):
-            continue
-        grouped_new.setdefault(pkg, []).append(symbol)
-        added_symbols.append(symbol)
-
+    already_imported = _collect_existing_imports(tree)
+    grouped_new, added_symbols = _select_new_imports(needed, already_imported, default_package)
     if not grouped_new:
         return source, []
-
-    # Insertion point: after the leading module docstring + any
-    # ``from __future__ ...`` imports. Past that, we drop the new
-    # ``from <pkg> import ...`` lines (a blank line above + below).
-    insertion_offset = _find_import_insertion_offset(source, tree)
-
-    new_lines: list[str] = []
-    for pkg in sorted(grouped_new):
-        symbols = sorted(grouped_new[pkg])
-        new_lines.append(f"from {pkg} import {', '.join(symbols)}")
-    if not new_lines:
-        return source, []
-
-    insert_block = "\n".join(new_lines) + "\n"
-    head = source[:insertion_offset]
-    tail = source[insertion_offset:]
-    # Make sure we don't smash an existing line — pad with newline if
-    # the head doesn't already end with one.
-    if head and not head.endswith("\n"):
-        head += "\n"
-    # Add a blank line above the new block if the head doesn't already
-    # end with a blank line.
-    if head and not head.endswith("\n\n"):
-        head += "\n"
-    # Tail will start with whatever was after the insertion point;
-    # ensure separation.
-    if tail and not tail.startswith("\n"):
-        insert_block += "\n"
-    return head + insert_block + tail, added_symbols
+    return _splice_imports(source, tree, grouped_new), added_symbols
 
 
 def _find_import_insertion_offset(source: str, tree: ast.Module) -> int:

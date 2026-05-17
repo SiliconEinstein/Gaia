@@ -22,6 +22,7 @@ agent consumer does not have stdin to drive prompts. See the
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -100,6 +101,82 @@ def _maybe_consume_warnings(
     return False, aborted
 
 
+@dataclass
+class _WriteOutcome:
+    """Result of the write-phase helper."""
+
+    write_result_path: Path
+    written_segments: list[str]
+    sibling_added_total: list[str]
+    all_warning_messages: list[str]
+    all_managed: bool
+
+
+def _execute_writes(
+    proposed_op: ProposedAuthorOp,
+    *,
+    pre_source_init: Path,
+    write_target: Path,
+    pre_import_name: str | None,
+) -> _WriteOutcome:
+    """Run the prepended + main writes. Raises OSError/PermissionError on IO fail."""
+    written_segments: list[str] = []
+    all_warning_messages: list[str] = []
+    for _prep_label, prep_code in proposed_op.prepended_statements:
+        prep_write = append_statement(pre_source_init, prep_code, new_label=_prep_label)
+        written_segments.append(prep_write.appended)
+        if prep_write.all_warning:
+            all_warning_messages.append(prep_write.all_warning)
+    write_result = append_statement(
+        write_target,
+        proposed_op.generated_code,
+        new_label=proposed_op.label,
+        sibling_imports=proposed_op.sibling_imports,
+        import_package_name=pre_import_name,
+    )
+    written_segments.append(write_result.appended)
+    if write_result.all_warning:
+        all_warning_messages.append(write_result.all_warning)
+    return _WriteOutcome(
+        write_result_path=write_result.path,
+        written_segments=written_segments,
+        sibling_added_total=list(write_result.sibling_imports_added),
+        all_warning_messages=all_warning_messages,
+        all_managed=write_result.all_managed,
+    )
+
+
+def _build_payload(
+    proposed_op: ProposedAuthorOp,
+    target_path: Path,
+    outcome: _WriteOutcome,
+) -> dict[str, object]:
+    """Assemble the canonical envelope payload from the write outcome."""
+    payload: dict[str, object] = {
+        "target": str(target_path),
+        "written_to": str(outcome.write_result_path),
+        "label": proposed_op.label,
+        "verb": proposed_op.verb,
+        "snippet": "".join(outcome.written_segments),
+    }
+    if proposed_op.prepended_statements:
+        payload["auto_generated"] = [
+            {"label": label, "snippet": snip}
+            for (label, _code), snip in zip(
+                proposed_op.prepended_statements,
+                outcome.written_segments[:-1],
+                strict=True,
+            )
+        ]
+    if outcome.sibling_added_total:
+        payload["sibling_imports_added"] = outcome.sibling_added_total
+    if outcome.all_managed:
+        payload["all_managed"] = True
+    if proposed_op.extra_payload:
+        payload.update(proposed_op.extra_payload)
+    return payload
+
+
 def run_author_op(
     proposed_op: ProposedAuthorOp,
     *,
@@ -136,24 +213,20 @@ def run_author_op(
         )
         return  # unreachable — emit raises typer.Exit
     if not pre.ok:
-        result = AuthorResult(
-            verb=proposed_op.verb,
-            status="error",
-            code=pre.exit_code,
-            payload={"target": str(target_path)},
-            diagnostics=pre.diagnostics,
+        emit(
+            AuthorResult(
+                verb=proposed_op.verb,
+                status="error",
+                code=pre.exit_code,
+                payload={"target": str(target_path)},
+                diagnostics=pre.diagnostics,
+            ),
+            human=human,
         )
-        emit(result, human=human)
         return
 
     assert pre.source_init_path is not None  # invariant after a successful prewrite
-    # R7 G1: write_target_path defaults to source_init_path when the
-    # verb did not request a sibling target via --file. The runner uses
-    # this resolved path uniformly so per-verb code never has to think
-    # about the multi-file layout.
     write_target = pre.write_target_path or pre.source_init_path
-
-    # ---- step 1b: optional interactive gate on pre-write warnings ------- #
 
     proceed, abort_result = _maybe_consume_warnings(
         proposed_op.verb,
@@ -168,39 +241,14 @@ def run_author_op(
     sys.stdout.flush()  # keep prompt output and JSON output disjoint
 
     # ---- step 2: write -------------------------------------------------- #
-    #
-    # Prepended statements (R3 prose mode auto-claim) land in source
-    # order before the main snippet. The final ``snippet`` payload joins
-    # all written pieces so an agent can reproduce the diff from one
-    # field.
 
-    written_segments: list[str] = []
-    sibling_added_total: list[str] = []
-    all_warning_messages: list[str] = []
     try:
-        # Prepended statements always land in __init__.py — they are
-        # support claims for prose-mode auto-mint and must be visible at
-        # module scope regardless of the main statement's target file.
-        for _prep_label, prep_code in proposed_op.prepended_statements:
-            prep_write = append_statement(
-                pre.source_init_path,
-                prep_code,
-                new_label=_prep_label,
-            )
-            written_segments.append(prep_write.appended)
-            if prep_write.all_warning:
-                all_warning_messages.append(prep_write.all_warning)
-        write_result = append_statement(
-            write_target,
-            proposed_op.generated_code,
-            new_label=proposed_op.label,
-            sibling_imports=proposed_op.sibling_imports,
-            import_package_name=pre.import_name,
+        outcome = _execute_writes(
+            proposed_op,
+            pre_source_init=pre.source_init_path,
+            write_target=write_target,
+            pre_import_name=pre.import_name,
         )
-        written_segments.append(write_result.appended)
-        sibling_added_total.extend(write_result.sibling_imports_added)
-        if write_result.all_warning:
-            all_warning_messages.append(write_result.all_warning)
     except (OSError, PermissionError) as exc:
         emit(
             system_error(
@@ -212,38 +260,12 @@ def run_author_op(
         )
         return
 
-    payload: dict[str, object] = {
-        "target": str(target_path),
-        "written_to": str(write_result.path),
-        "label": proposed_op.label,
-        "verb": proposed_op.verb,
-        "snippet": "".join(written_segments),
-    }
-    if proposed_op.prepended_statements:
-        payload["auto_generated"] = [
-            {"label": label, "snippet": snip}
-            for (label, _code), snip in zip(
-                proposed_op.prepended_statements,
-                written_segments[:-1],
-                strict=True,
-            )
-        ]
-    if sibling_added_total:
-        payload["sibling_imports_added"] = sibling_added_total
-    if write_result.all_managed:
-        payload["all_managed"] = True
-    # R6: verb-specific tags (e.g. ``conclusion_kind`` for derive) flow
-    # through ``extra_payload`` without the runner needing to know the
-    # individual key set per verb.
-    if proposed_op.extra_payload:
-        payload.update(proposed_op.extra_payload)
+    payload = _build_payload(proposed_op, target_path, outcome)
 
     # Carry pre-write warnings through into the final envelope so JSON
     # consumers see them even when --interactive auto-suppresses prompts.
     prewrite_warnings = list(pre.warnings)
-    # R7 G10: __all__-management warnings surface as their own kind so an
-    # agent can detect dynamic __all__ blocks without parsing source.
-    for warning_msg in all_warning_messages:
+    for warning_msg in outcome.all_warning_messages:
         prewrite_warnings.append(
             Diagnostic(
                 kind="postwrite.all_dynamic",
@@ -261,15 +283,17 @@ def run_author_op(
         post_warnings.extend(post.warnings)
         if not post.ok:
             combined_warnings = prewrite_warnings + post.warnings
-            result = AuthorResult(
-                verb=proposed_op.verb,
-                status="error",
-                code=EXIT_PREWRITE_STRUCTURAL,
-                payload=payload,
-                warnings=[w.message for w in combined_warnings],
-                diagnostics=post.diagnostics,
+            emit(
+                AuthorResult(
+                    verb=proposed_op.verb,
+                    status="error",
+                    code=EXIT_PREWRITE_STRUCTURAL,
+                    payload=payload,
+                    warnings=[w.message for w in combined_warnings],
+                    diagnostics=post.diagnostics,
+                ),
+                human=human,
             )
-            emit(result, human=human)
             return
         payload["check"] = {
             "knowledge_count": post.knowledge_count,
@@ -282,15 +306,17 @@ def run_author_op(
     # ---- step 4: emit ok ------------------------------------------------ #
 
     final_warnings = prewrite_warnings + post_warnings
-    result = AuthorResult(
-        verb=proposed_op.verb,
-        status="ok",
-        code=EXIT_OK,
-        payload=payload,
-        warnings=[w.message for w in final_warnings],
-        diagnostics=list(final_warnings),
+    emit(
+        AuthorResult(
+            verb=proposed_op.verb,
+            status="ok",
+            code=EXIT_OK,
+            payload=payload,
+            warnings=[w.message for w in final_warnings],
+            diagnostics=list(final_warnings),
+        ),
+        human=human,
     )
-    emit(result, human=human)
 
 
 __all__ = ["run_author_op"]

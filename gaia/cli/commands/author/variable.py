@@ -218,7 +218,7 @@ def variable_command(
 
     required_imports: tuple[str, ...] = ("Constant",) if const else ("Variable",)
     if domain in _PRIMITIVE_DOMAINS:
-        required_imports = required_imports + (domain,)
+        required_imports = (*required_imports, domain)
 
     proposed_op = ProposedAuthorOp(
         verb="variable",
