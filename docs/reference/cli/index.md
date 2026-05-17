@@ -1,6 +1,8 @@
 # Gaia CLI
 
 > **Status:** Reference layer for the `gaia` command-line app.
+>
+> **本页定位：** **Reference / CLI Internals** 区的 engine-internal invocation specs；面向作者的命令查询见 Reference / [CLI Commands](../../for-users/cli-commands.md)，CLI workflow 设计见 Foundations / [CLI Workflow](../../foundations/cli/workflow.md)。
 
 The installed entrypoint is `gaia`. Alpha 0 organizes verbs into 6 logical
 groups plus the independent `trace` sub-app:

@@ -6,6 +6,8 @@ since: v0.5
 
 # CLI Workflow
 
+> **本页定位：** **Foundations** 区的 CLI 设计文档（authoring 流水线分层、子命令的设计意图）；面向作者的命令查询见 Reference / [CLI Commands](../../for-users/cli-commands.md)，engine-internal invocation 规格见 Reference / [CLI Internals](../../reference/cli/index.md)。
+
 ## Overview
 
 The Gaia CLI is a knowledge package authoring toolkit. The main authoring pipeline takes a Python DSL package from scaffolding to registry registration:

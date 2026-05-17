@@ -6,6 +6,8 @@ since: v0.5
 
 # Knowledge Types and Reasoning Semantics
 
+> **本页定位：** **Foundations / Gaia Lang Design** 区的语言设计文档（Knowledge 本体、Reasoning lowering 规则、设计动机）；面向作者的 DSL 速查见 Reference / [Language Reference](../../for-users/language-reference.md)。
+
 This document bridges the Gaia Lang v0.5 Python DSL to the Gaia IR semantics layer. It covers:
 
 - The **Knowledge** hierarchy authors declare (`Claim`, `Note`, `Question`, plus `ClaimKind` shape discriminators).

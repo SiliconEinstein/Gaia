@@ -1,6 +1,8 @@
 # CLI Commands
 
 > **Status:** Current canonical (alpha 0)
+>
+> **本页定位：** **Reference** 区的用户面 CLI 命令查询；CLI 的 workflow 设计（authoring 流水线、子命令分组的设计意图）见 Foundations / [CLI Workflow](../foundations/cli/workflow.md)，engine-internal invocation 规格见 Reference / [CLI Internals](../reference/cli/index.md)。
 
 Reference for the Gaia Lang v0.5 CLI. The installed entrypoint is `gaia`.
 
