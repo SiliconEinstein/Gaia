@@ -19,7 +19,7 @@ from gaia.engine.ir.logic.probability import (
     score_condition,
     score_diagnostic_conditions,
 )
-from gaia.engine.lang import ClaimAtom, claim, contradict, lnot
+from gaia.engine.lang import ClaimAtom, associate, claim, lnot
 from gaia.engine.lang.compiler import compile_package_artifact
 from gaia.engine.lang.runtime.package import CollectedPackage
 
@@ -263,21 +263,36 @@ def test_score_diagnostic_conditions_from_python_dsl_e2e():
     with CollectedPackage(package, namespace="t", version="0.1.0") as pkg:
         a = claim("A base proposition.", prior=0.8)
         a.label = "a"
-        left = claim("A holds.", formula=ClaimAtom(a), prior=0.7)
+        left = claim("A holds.", formula=ClaimAtom(a), prior=0.6)
         left.label = "left"
-        right = claim("A does not hold.", formula=lnot(ClaimAtom(a)), prior=0.25)
+        right = claim("A does not hold.", formula=lnot(ClaimAtom(a)), prior=0.5)
         right.label = "right"
-        helper = contradict(
+        helper = associate(
             left,
             right,
-            rationale="A and not-A cannot both hold.",
-            label="left_right_conflict",
+            p_a_given_b=0.9,
+            p_b_given_a=0.75,
+            pattern=None,
+            rationale="Current belief model says these claims co-occur often enough to inspect.",
+            label="left_right_belief_assoc",
         )
-        helper.label = "left_right_conflict_helper"
+        helper.label = "belief_assoc_helper"
 
     artifact = compile_package_artifact(pkg)
     report = inspect_formula_graphs(artifact.graph)
-    graph = lower_local_graph(artifact.graph)
+    # Score the warning under the current belief graph, not under the formula
+    # operators that generated the warning itself. Otherwise the hard logic
+    # relation is conditioned on as evidence and Cromwell-clamps the event.
+    belief_graph_ir = artifact.graph.model_copy(
+        update={
+            "operators": [
+                op
+                for op in artifact.graph.operators
+                if not (op.metadata or {}).get("formula_lowering")
+            ]
+        }
+    )
+    graph = lower_local_graph(belief_graph_ir)
 
     left_id = f"t:{package}::left"
     right_id = f"t:{package}::right"
@@ -292,7 +307,7 @@ def test_score_diagnostic_conditions_from_python_dsl_e2e():
     }
 
     factor_types = {factor.factor_type for factor in graph.factors}
-    assert {FactorType.CONTRADICTION, FactorType.EQUIVALENCE, FactorType.NEGATION} <= factor_types
+    assert factor_types == {FactorType.PAIRWISE_POTENTIAL}
 
     scored = score_diagnostic_conditions(
         [diagnostic],
@@ -314,7 +329,9 @@ def test_score_diagnostic_conditions_from_python_dsl_e2e():
     assert estimates["trw_bp"].is_exact is False
     assert estimates["mean_field"].is_exact is False
     assert estimates["junction_tree"].probability == pytest.approx(estimates["exact"].probability)
-    assert 0.0 < estimates["exact"].probability < 1e-5
+    assert estimates["exact"].probability == pytest.approx(0.45)
+    assert estimates["trw_bp"].probability > 0.4
+    assert estimates["mean_field"].probability > 0.3
 
 
 def test_score_diagnostic_conditions_propagates_unexpected_provider_errors(monkeypatch):
