@@ -28,6 +28,13 @@ from gaia.engine.ir.logic.diagnostics import (
     FormulaDiagnosticReport,
     inspect_formula_graphs,
 )
+from gaia.engine.ir.logic.probability import (
+    ConditionProbabilityEstimate,
+    DiagnosticProbability,
+    event_probability,
+    score_condition,
+    score_diagnostic_conditions,
+)
 from gaia.engine.ir.logic.propositional import (
     are_equivalent,
     is_satisfiable,
@@ -39,12 +46,17 @@ from gaia.engine.ir.logic.propositional import (
 )
 
 __all__ = [
+    "ConditionProbabilityEstimate",
     "DiagnosticCondition",
+    "DiagnosticProbability",
     "FormulaDiagnostic",
     "FormulaDiagnosticReport",
     "are_equivalent",
+    "event_probability",
     "inspect_formula_graphs",
     "is_satisfiable",
+    "score_condition",
+    "score_diagnostic_conditions",
     "simplify_proposition",
     "to_cnf_proposition",
     "to_dnf_proposition",

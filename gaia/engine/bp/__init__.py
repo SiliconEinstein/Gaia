@@ -30,6 +30,15 @@ from gaia.engine.bp.exact import (
     exact_joint_over,
 )
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
+from gaia.engine.bp.joint_query import (
+    JointDistribution,
+    JointDistributionBasis,
+    JointQueryMethod,
+    JointQueryUnavailable,
+    JointQueryUnavailableError,
+    compare_joint_over,
+    joint_over,
+)
 from gaia.engine.bp.junction_tree import JunctionTreeInference, jt_treewidth
 from gaia.engine.bp.lowering import (
     lower_local_graph,
@@ -56,12 +65,19 @@ __all__ = [
     "FactorType",
     "InferenceEngine",
     "InferenceResult",
+    "JointDistribution",
+    "JointDistributionBasis",
+    "JointQueryMethod",
+    "JointQueryUnavailable",
+    "JointQueryUnavailableError",
     "JunctionTreeInference",
     "MeanFieldVI",
     "TRWBeliefPropagation",
+    "compare_joint_over",
     "exact_inference",
     "exact_joint_over",
     "infer",
+    "joint_over",
     "jt_treewidth",
     "lower_local_graph",
     "merge_factor_graphs",

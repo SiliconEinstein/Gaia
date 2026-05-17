@@ -34,6 +34,30 @@ def _condition(expression: dict) -> DiagnosticCondition:
     )
 
 
+def test_logic_package_exports_diagnostic_probability_api():
+    from gaia.engine.ir.logic import (
+        ConditionProbabilityEstimate as ExportedConditionProbabilityEstimate,
+    )
+    from gaia.engine.ir.logic import (
+        DiagnosticProbability as ExportedDiagnosticProbability,
+    )
+    from gaia.engine.ir.logic import (
+        event_probability as exported_event_probability,
+    )
+    from gaia.engine.ir.logic import (
+        score_condition as exported_score_condition,
+    )
+    from gaia.engine.ir.logic import (
+        score_diagnostic_conditions as exported_score_diagnostic_conditions,
+    )
+
+    assert ExportedConditionProbabilityEstimate is probability_module.ConditionProbabilityEstimate
+    assert ExportedDiagnosticProbability is probability_module.DiagnosticProbability
+    assert exported_event_probability is probability_module.event_probability
+    assert exported_score_condition is probability_module.score_condition
+    assert exported_score_diagnostic_conditions is probability_module.score_diagnostic_conditions
+
+
 def test_event_probability_sums_joint_assignments_in_bit_index_order():
     joint = _joint_ab()
 

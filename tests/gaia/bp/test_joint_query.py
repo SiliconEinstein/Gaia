@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+import gaia.engine.bp.joint_query as joint_query_module
 from gaia.engine.bp.factor_graph import FactorGraph, FactorType
 from gaia.engine.bp.joint_query import (
     JointDistribution,
@@ -60,6 +61,38 @@ def _nested_covering_factor_graph() -> FactorGraph:
     graph.add_factor("f:larger", FactorType.CONTRADICTION, ["A", "B"], "H")
     graph.add_factor("f:smaller", FactorType.PAIRWISE_POTENTIAL, ["A"], "B", cpt=[1, 4, 2, 8])
     return graph
+
+
+def test_bp_package_exports_joint_query_api():
+    from gaia.engine.bp import (
+        JointDistribution as ExportedJointDistribution,
+    )
+    from gaia.engine.bp import (
+        JointDistributionBasis as ExportedJointDistributionBasis,
+    )
+    from gaia.engine.bp import (
+        JointQueryMethod as ExportedJointQueryMethod,
+    )
+    from gaia.engine.bp import (
+        JointQueryUnavailable as ExportedJointQueryUnavailable,
+    )
+    from gaia.engine.bp import (
+        JointQueryUnavailableError as ExportedJointQueryUnavailableError,
+    )
+    from gaia.engine.bp import (
+        compare_joint_over as exported_compare_joint_over,
+    )
+    from gaia.engine.bp import (
+        joint_over as exported_joint_over,
+    )
+
+    assert ExportedJointDistribution is joint_query_module.JointDistribution
+    assert ExportedJointDistributionBasis is joint_query_module.JointDistributionBasis
+    assert ExportedJointQueryMethod is joint_query_module.JointQueryMethod
+    assert ExportedJointQueryUnavailable is joint_query_module.JointQueryUnavailable
+    assert ExportedJointQueryUnavailableError is joint_query_module.JointQueryUnavailableError
+    assert exported_compare_joint_over is joint_query_module.compare_joint_over
+    assert exported_joint_over is joint_query_module.joint_over
 
 
 def test_joint_distribution_validates_bit_order_and_normalization():
