@@ -8,11 +8,23 @@
 > 它依赖 [`01-plausible-reasoning.md`](01-plausible-reasoning.md)（Cox 定理、三条规则）
 > 和 [`02-maxent-grounding.md`](02-maxent-grounding.md)（MaxEnt / Min-KL）。
 
-> **Status:** Target design — foundation baseline (v0.6+)
+> **Status: Target design (v0.6+) — NOT current v0.5 contract.**
 >
-> 本文档不重写 v0.5 已有的命题层理论（[`01-plausible-reasoning.md`](01-plausible-reasoning.md) 与 [`02-maxent-grounding.md`](02-maxent-grounding.md) 在命题层完全有效）。
-> 它把因果机制的引入定位为**本体扩展**而非命题语义内的修正，并给出二者交汇的精确语义。
+> 本文档不重写 v0.5 已有的命题层理论（[`01-plausible-reasoning.md`](01-plausible-reasoning.md) 与 [`02-maxent-grounding.md`](02-maxent-grounding.md) 在命题层完全有效）。它把因果机制的引入定位为**本体扩展**而非命题语义内的修正，并给出二者交汇的精确语义。
+>
+> **v0.5 mapping 提示——读到本文中具体名词时请按下表换算：**
+>
+> | 本文用词（v0.6+） | v0.5 IR 中的对应 |
+> |---|---|
+> | `Claim` | `Claim`（`KnowledgeType.claim`，仍然有效） |
+> | `Action` | `Strategy`（基类）/ `CompositeStrategy` / `FormalStrategy` —— v0.5 IR 用 `Strategy` 这个词；`Action` 是 v0.6+ 设想的别称 |
+> | `Mechanism` / `CausalFactor` | **v0.5 中没有对应的 IR 类型与 `FactorType`**——仅在本文档作为 v0.6+ 目标讨论 |
+> | `mutilate()` / `do(...)` 查询 | **v0.5 不实现**；属于 v0.6+ 目标 |
+>
+> 因此：本文里像 `gaia build check --hole` 作用于 `Mechanism`、或 `Mechanism` 进入因子图等说法都是**目标设计**，**不是**当前 CLI 行为。v0.5 中所有与因果机制相关的认识论需求暂时都只能通过普通 `Claim` + `Strategy` + 关系算子（`equivalence` / `contradiction` / `complement`）的组合表达。
+>
 > 工程实现细节（IR schema、`mutilate()` 算法、do-calculus identification）参见对应 spec（`docs/specs/` 不在 published site，请通过 repo 浏览）：
+>
 > - [`2026-05-06-causal-mechanism-first-class-design.md`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/docs/specs/2026-05-06-causal-mechanism-first-class-design.md)
 > - [`2026-05-06-causal-counterfactual-binary-noise-design.md`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/docs/specs/2026-05-06-causal-counterfactual-binary-noise-design.md)
 > - [`2026-05-06-causal-transport-y0-design.md`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/docs/specs/2026-05-06-causal-transport-y0-design.md)

@@ -57,14 +57,15 @@ CI 自动验证（register.yml）
 
 ### CI 验证做什么
 
-CI 做的是**纯机械验证**——不需要人类判断，不涉及科学评估：
+CI 做的是**纯机械验证**——不需要人类判断，不涉及科学评估。下表中 `[Current CLI precheck]` 是当前 `gaia pkg register` 的本地预检 + 写入操作；`[Target registry CI]` 是生态层目标设计（独立克隆、依赖 registry 校验、reviewer 指派 / `.gaia/reviews/` 流程），未在当前本地 CLI 中实现：
 
-| 验证项 | 做什么 | 为什么 |
-|--------|--------|--------|
-| **编译重现** | 克隆包仓库，重新 `gaia build compile` / `gaia build check`，比对 ir_hash | 确保编译产物没有被篡改 |
-| **依赖可解析** | 检查所有依赖是否已在 Official Registry 中注册 | 注册的前提条件：要注册就必须所有依赖也已注册，确保推理链完整。纯包层（Level 0）用 git URL 引用未注册包不受此限 |
-| **Schema 合法** | 检查编译产物的结构是否符合规范 | 确保后续处理不会出错 |
-| **Review reports 验证** | 检查 `.gaia/reviews/` 是否存在、reviewer 是否已注册、reviewer 是否属于 Registry 指派集合、report 数量是否达到 minimal policy、参数范围是否合法 | 确保官方 prior / strategy 的来源可信，且达到最低审核门槛 |
+| 验证项 | 状态 | 做什么 | 为什么 |
+|--------|------|--------|--------|
+| **本地编译 / ir_hash 预检** | `[Current CLI precheck]` | 读取本地包，编译 / 校验 IR，检查 `.gaia/ir_hash`、schema、git/tag 状态并写入 registry metadata | 确保提交的本地产物和源码状态一致 |
+| **克隆重现** | `[Target registry CI]` | 在干净环境克隆包仓库，重新 `gaia build compile` / `gaia build check`，比对 ir_hash | 确保编译产物没有被篡改 |
+| **依赖可解析** | `[Target registry CI]` | 检查所有依赖是否已在 Official Registry 中注册 | 注册的前提条件：要注册就必须所有依赖也已注册，确保推理链完整。纯包层（Level 0）用 git URL 引用未注册包不受此限 |
+| **Schema 合法** | `[Current CLI precheck]` | 检查编译产物的结构是否符合规范 | 确保后续处理不会出错 |
+| **Review reports 验证** | `[Target registry CI]` | 检查 `.gaia/reviews/` 是否存在、reviewer 是否已注册、reviewer 是否属于 Registry 指派集合、report 数量是否达到 minimal policy、参数范围是否合法 | 确保官方 prior / strategy 的来源可信，且达到最低审核门槛 |
 
 ### 等待期的作用
 
