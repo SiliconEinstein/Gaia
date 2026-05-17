@@ -107,12 +107,20 @@ class Diagnostic:
         return out
 
 
+AuthorStatus = Literal["ok", "error", "aborted"]
+
+
 @dataclass
 class AuthorResult:
-    """Envelope returned by every ``gaia author <verb>`` invocation."""
+    """Envelope returned by every ``gaia author <verb>`` invocation.
+
+    R2 adds the ``"aborted"`` status for user-driven interactive aborts;
+    R1 only used ``"ok"`` / ``"error"``. ``"aborted"`` carries ``code=0``
+    by convention (the run did not fail — the user opted not to proceed).
+    """
 
     verb: str
-    status: Literal["ok", "error"] = "ok"
+    status: AuthorStatus = "ok"
     code: int = EXIT_OK
     payload: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)

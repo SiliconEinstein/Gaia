@@ -1,6 +1,6 @@
 """Shared verb dispatch for ``gaia author <verb>``.
 
-Each per-verb module (:mod:`.claim`, :mod:`.equal`, :mod:`.derive`)
+Each per-verb module (:mod:`.claim`, :mod:`.equal`, :mod:`.derive`, ...)
 constructs a :class:`ProposedAuthorOp` from its parsed flags and calls
 :func:`run_author_op` to execute the uniform pipeline:
 
@@ -11,11 +11,20 @@ constructs a :class:`ProposedAuthorOp` from its parsed flags and calls
 
 The runner owns the JSON envelope and exit-code semantics so individual
 verbs only have to know their argument-to-snippet mapping.
+
+R2 wires the ``--interactive`` flag uniformly: any pre-write warning
+surfaces a numbered prompt, default-skip semantics. In JSON mode (the
+default) the prompts are auto-suppressed and the run proceeds, since the
+agent consumer does not have stdin to drive prompts. See the
+``_maybe_consume_warnings`` helper for the activation logic.
 """
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+import typer
 
 from gaia.cli.commands.author._envelope import (
     EXIT_OK,
@@ -29,6 +38,66 @@ from gaia.cli.commands.author._postwrite import postwrite_check
 from gaia.cli.commands.author._prewrite import prewrite_check
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._writer import append_statement
+
+
+def _maybe_consume_warnings(
+    verb: str,
+    warnings: list[Diagnostic],
+    *,
+    interactive: bool,
+    human: bool,
+) -> tuple[bool, AuthorResult | None]:
+    """Apply ``--interactive`` activation against ``warnings``.
+
+    Returns ``(proceed, optional_abort_result)``:
+
+    * ``(True, None)`` — proceed to write. Default when there are no
+      warnings, when ``--interactive`` is not set, or when the caller
+      accepted the prompt.
+    * ``(False, result)`` — abort. The caller should ``emit(result, ...)``
+      and stop. Used when the user said no at the prompt.
+
+    Activation rules (CD-pick, ratified):
+
+    * JSON mode (``human=False``) auto-suppresses prompts even when
+      ``--interactive`` is set — agents do not drive stdin. Warnings still
+      flow into the envelope; the run continues.
+    * ``--interactive`` + ``human`` mode + at least one warning →
+      numbered prompt, default ``N``.
+
+    The abort envelope uses ``status="aborted"`` with a ``user.aborted``
+    diagnostic so an agent that parses an abort log can tell user-driven
+    aborts apart from pre-write errors.
+    """
+    if not warnings or not interactive:
+        return True, None
+    if not human:
+        # JSON consumers can't drive a prompt; warnings already appear in
+        # the envelope.warnings array. Proceed silently.
+        return True, None
+
+    typer.echo("Pre-write warnings:")
+    for idx, warning in enumerate(warnings, start=1):
+        typer.echo(f"  {idx}) {warning.kind}: {warning.message}")
+    answer = typer.prompt("Continue? [y/N]", default="N", show_default=False).strip().lower()
+    if answer in {"y", "yes"}:
+        return True, None
+    aborted = AuthorResult(
+        verb=verb,
+        status="aborted",
+        code=EXIT_OK,
+        warnings=[w.message for w in warnings],
+        diagnostics=[
+            Diagnostic(
+                kind="user.aborted",
+                level="warning",
+                message="user declined to proceed past pre-write warnings",
+                source="prewrite",
+            ),
+            *warnings,
+        ],
+    )
+    return False, aborted
 
 
 def run_author_op(
@@ -51,13 +120,9 @@ def run_author_op(
         check: When ``True``, run the post-write ``gaia build check`` step
             after a successful write. Short-circuited if pre-write fails.
         interactive: When ``True``, surface pre-write warnings as
-            interactive prompts. R1 implements no warnings yet (the four
-            invariants are error-only), so this flag is reserved for R2;
-            its presence in the signature locks the surface so R2's
-            additions don't require a CLI-flag breaking change.
+            interactive prompts (human mode only — JSON mode auto-
+            suppresses). See :func:`_maybe_consume_warnings`.
     """
-    del interactive  # R1: no pre-write warnings emit prompts yet; reserved.
-
     target_path = Path(target).resolve()
 
     # ---- step 1: pre-write ---------------------------------------------- #
@@ -83,6 +148,20 @@ def run_author_op(
 
     assert pre.source_init_path is not None  # invariant after a successful prewrite
 
+    # ---- step 1b: optional interactive gate on pre-write warnings ------- #
+
+    proceed, abort_result = _maybe_consume_warnings(
+        proposed_op.verb,
+        pre.warnings,
+        interactive=interactive,
+        human=human,
+    )
+    if not proceed:
+        assert abort_result is not None
+        emit(abort_result, human=human)
+        return
+    sys.stdout.flush()  # keep prompt output and JSON output disjoint
+
     # ---- step 2: write -------------------------------------------------- #
 
     try:
@@ -106,6 +185,10 @@ def run_author_op(
         "snippet": write_result.appended,
     }
 
+    # Carry pre-write warnings through into the final envelope so JSON
+    # consumers see them even when --interactive auto-suppresses prompts.
+    prewrite_warnings = list(pre.warnings)
+
     # ---- step 3: post-write --------------------------------------------- #
 
     post_warnings: list[Diagnostic] = []
@@ -113,12 +196,13 @@ def run_author_op(
         post = postwrite_check(target_path)
         post_warnings.extend(post.warnings)
         if not post.ok:
+            combined_warnings = prewrite_warnings + post.warnings
             result = AuthorResult(
                 verb=proposed_op.verb,
                 status="error",
                 code=EXIT_PREWRITE_STRUCTURAL,
                 payload=payload,
-                warnings=[w.message for w in post.warnings],
+                warnings=[w.message for w in combined_warnings],
                 diagnostics=post.diagnostics,
             )
             emit(result, human=human)
@@ -133,13 +217,14 @@ def run_author_op(
 
     # ---- step 4: emit ok ------------------------------------------------ #
 
+    final_warnings = prewrite_warnings + post_warnings
     result = AuthorResult(
         verb=proposed_op.verb,
         status="ok",
         code=EXIT_OK,
         payload=payload,
-        warnings=[w.message for w in post_warnings],
-        diagnostics=list(post_warnings),
+        warnings=[w.message for w in final_warnings],
+        diagnostics=list(final_warnings),
     )
     emit(result, human=human)
 
