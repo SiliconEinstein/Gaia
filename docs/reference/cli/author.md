@@ -20,6 +20,24 @@ This reference is scannable, not tutorial. For a worked walkthrough using
 all 5 of the DSL verbs the canonical Galileo example exercises, see
 [Galileo as a worked example](#galileo-as-a-worked-example) at the end.
 
+**R7 additions** (see also [`bayes.md`](bayes.md)):
+
+- **`--file <relative>`** on every author verb — route the statement to
+  a sibling Python module instead of `__init__.py`. Pair with
+  `gaia pkg add-module --name <name>` to scaffold the sibling.
+- **`--background <csv>`** on `equal` / `contradict` / `exclusive` /
+  `observe` — passes through to the engine's `background=[...]` kwarg.
+- **`derive --conclusion-prose`** / **`observe --observation-prose`** /
+  **`infer --hypothesis-prose`** — inline-prose mode that emits the
+  prose directly at the call site (no auto-mint Claim binding).
+- **`claim --formula <expr>`** — canonical name for the predicate-mode
+  formula expression (R7 G4); `--predicate` stays as a backwards-
+  compatible alias.
+- **`gaia author variable`** — declare a `Variable(...)` or `Constant(...)`
+  typed term (R7 G3).
+- **`gaia bayes <verb>`** group — predictive-model authoring surface
+  (R7 G2). Covered in [`bayes.md`](bayes.md).
+
 ## Verb inventory — 19 author verbs + 1 pkg verb
 
 The `gaia author` group exposes **19 verbs** partitioned by DSL layer.
@@ -49,6 +67,7 @@ records its metadata in `pyproject.toml`).
 | Scaffold | `materialize` | `materialize(scaffold, *, by, rationale="", label=None)` | yes |
 | Composition | `compose` | `@compose(name=…, version=…)` decorating `def fn(...) -> Claim` | **no — file-based** |
 | Composition | `composition` | alias of `compose` | **no — file-based** |
+| Typed terms | `variable` | `Variable(symbol=…, domain=…, value=…)` or `Constant(value, primitive)` (R7 G3) | yes |
 
 The 20th verb in this reference, `gaia pkg scaffold`, lives in the `pkg`
 group alongside `add` / `register`. It bootstraps a fresh `-gaia` package
@@ -62,6 +81,7 @@ cutting flags. Per-verb flags layer on top of these.
 | Flag | Type | Default | Purpose |
 |---|---|---|---|
 | `--target <path>` | string | `.` | Path to the target Gaia package root (the directory containing `pyproject.toml`). |
+| `--file <relative>` | string | `__init__.py` | **R7 G1** — relative path under `src/<import_name>/` to append the statement to. Default routes to the package entrypoint. Sibling files (e.g. `priors.py`) must exist first; use `gaia pkg add-module --name <name>` to scaffold them. |
 | `--label <ident>` | string | required (most verbs) | Python identifier the produced binding takes. Must not collide with module or DSL names. |
 | `--rationale <text>` | string | none | Natural-language justification carried through to the DSL kwarg. |
 | `--metadata <json>` | JSON object | none | Optional metadata dict; rendered as the DSL `metadata=` kwarg. |

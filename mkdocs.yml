@@ -127,6 +127,7 @@ nav:
       - CLI:
           - Overview: reference/cli/index.md
           - author: reference/cli/author.md
+          - bayes: reference/cli/bayes.md
           - build: reference/cli/build.md
           - run: reference/cli/run.md
           - inspect: reference/cli/inspect.md

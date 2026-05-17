@@ -6,38 +6,48 @@ directory and asserts content-equivalence between the cli-authored
 mirror and the hand-authored ground truth at
 ``examples/galileo-v0-5-gaia/``.
 
-Tolerance choice — content-set equivalence, not byte-equivalence
-----------------------------------------------------------------
+R7 tolerance level
+------------------
 
-The hand-authored Galileo package exercises the engine's
-``derive(conclusion: Claim | str, ...)`` polymorphism by passing the
-conclusion as a bare string literal; the engine wraps it into an
-anonymous ``Claim`` at runtime.
+R7 G6 inline-prose (``derive --conclusion-prose``) + G8 deprecation-
+scan narrowing + G1 multi-file (``register-prior --file priors.py``)
+closed three of the four original divergences. The remaining
+divergence is the cli's "LHS binding == DSL ``label=`` kwarg" rule
+(G7), which is intrinsic per R7·❓A=A and not addressed here.
 
-The cli's ``--conclusion-content`` prose mode mints a **named** Claim
-binding instead, then references it from the ``derive(...)`` call.
-This produces the same compiled graph node for the conclusion but
-exposes it as a referenceable module symbol. The cli-authored mirror
-therefore has additional named-binding statements at the source-text
-level, and the auto-generated implication-warrant claim contents embed
-the (different) conclusion-claim labels.
+Specifically, the cli-authored mirror now matches the hand-authored
+shape on:
 
-We assert at the **content set** level instead of source-text or
-ir-hash level:
+* **Divergence #1 (auto-mint)** — closed via R7 G6 inline-prose mode.
+  Each ``derive`` call emits ``derive('<prose>', ...)`` with no named
+  Claim binding, exactly like the hand-authored file. Auto-generated
+  warrant claim contents are byte-identical.
+* **Divergence #3 (context rename)** — closed via R7 G8. The
+  ``context = note(...)`` binding no longer trips the deprecation
+  scan (narrowed to call positions), so we use the hand-authored
+  ``context`` label verbatim.
+* **Divergence #4 (register-prior location)** — closed via R7 G1.
+  ``register-prior --file priors.py`` lands in the sibling module that
+  matches the hand-authored layout, and the writer auto-inserts the
+  cross-file ``from galileo_v0_5 import daily_observation`` line.
+
+The only remaining divergence is **#2 (redundant ``label=`` kwarg)** —
+the cli always renders ``label=<x>`` on every statement so a
+``--label`` flag is uniformly honoured; the hand-authored file omits
+the kwarg on relations whose binding name happens to equal the label.
+This is a non-semantic source-text difference; both compile to the
+same IR.
+
+We assert at the **content set** level for cross-side IR equivalence:
 
 * User-authored Claim and note contents must be byte-identical sets
-  between hand-authored and cli-authored compiled IRs. (Auto-
-  generated warrant strings are excluded — they embed conclusion
-  labels which differ by the prose-mode auto-mint suffix.)
+  between hand-authored and cli-authored compiled IRs. With G6 inline-
+  prose mode the auto-warrant strings now ALSO match byte-for-byte
+  (they reference the same anonymous Claim, not a named auto-mint
+  slug).
 * Strategy and operator counts must match exactly.
 * Total knowledge node count must match.
 * Knowledge type multiset (claim / note / etc.) must match.
-
-These invariants make the cli-authored mirror a faithful reproduction
-of the canonical Galileo example given the two documented divergences
-(prose-mode auto-mint introducing named conclusion-claim bindings, and
-cli forcing LHS binding to equal the DSL ``label=`` kwarg). The
-divergences are documented at length in CLI-AUTHORED.md.
 """
 
 from __future__ import annotations
@@ -166,10 +176,10 @@ def _author_galileo(target: Path) -> None:
     hand-authored file expresses inline + 1 prior).
     """
     # ---- 3 contextual notes -------------------------------------------- #
-    # Rename hand-authored ``context`` → ``preamble_context`` to avoid the
-    # ``prewrite.deprecated_ref`` warning on the deprecated DSL helper
-    # ``context``. Non-blocking; we pick a non-shadowing label for
-    # hygiene. Content string stays byte-identical.
+    # R7 G8 narrowed the deprecation scan to call positions, so the
+    # hand-authored ``context = note(...)`` shape no longer trips
+    # ``prewrite.deprecated_ref``. Use the hand-authored ``context``
+    # label verbatim (was ``preamble_context`` in R5/R6 mirror).
     _author(
         target,
         "note",
@@ -177,7 +187,7 @@ def _author_galileo(target: Path) -> None:
         "comparison between two explanatory models. It does not treat vacuum "
         "falling as an observed fact inside the package.",
         "--label",
-        "preamble_context",
+        "context",
     )
     _author(
         target,
@@ -219,13 +229,13 @@ def _author_galileo(target: Path) -> None:
     )
 
     # ---- daily-observation predictions + matches ----------------------- #
+    # R7 G6 inline-prose mode (--conclusion-prose) matches the hand-
+    # authored shape: derive(<prose>, ...) with no named binding.
     _author(
         target,
         "derive",
-        "--conclusion-content",
+        "--conclusion-prose",
         "Under Model A, heavy bodies should fall faster than light bodies in air.",
-        "--conclusion-label",
-        "aristotle_daily_prediction_claim",
         "--given",
         "aristotle_model",
         "--rationale",
@@ -250,10 +260,8 @@ def _author_galileo(target: Path) -> None:
     _author(
         target,
         "derive",
-        "--conclusion-content",
+        "--conclusion-prose",
         "Under Model B, heavy bodies can fall faster than light bodies in air.",
-        "--conclusion-label",
-        "medium_daily_prediction_claim",
         "--given",
         "medium_model",
         "--rationale",
@@ -281,10 +289,8 @@ def _author_galileo(target: Path) -> None:
     _author(
         target,
         "derive",
-        "--conclusion-content",
+        "--conclusion-prose",
         "The tied composite should fall faster than the heavy body alone.",
-        "--conclusion-label",
-        "aristotle_composite_faster_claim",
         "--given",
         "aristotle_model",
         "--background",
@@ -300,10 +306,8 @@ def _author_galileo(target: Path) -> None:
     _author(
         target,
         "derive",
-        "--conclusion-content",
+        "--conclusion-prose",
         "The tied composite should fall slower than the heavy body alone.",
-        "--conclusion-label",
-        "aristotle_composite_slower_claim",
         "--given",
         "aristotle_model",
         "--background",
@@ -331,10 +335,8 @@ def _author_galileo(target: Path) -> None:
     _author(
         target,
         "derive",
-        "--conclusion-content",
+        "--conclusion-prose",
         "In vacuum, bodies of different weights fall at the same rate.",
-        "--conclusion-label",
-        "medium_vacuum_equal_fall_claim",
         "--given",
         "medium_model",
         "--background",
@@ -348,6 +350,23 @@ def _author_galileo(target: Path) -> None:
     )
 
     # ---- empirical-background prior ------------------------------------ #
+    # R7 G1 multi-file: scaffold a priors.py sibling and route the
+    # register-prior into it, matching the hand-authored layout. The
+    # writer auto-inserts ``from galileo_v0_5 import daily_observation``.
+    result = runner.invoke(
+        app,
+        [
+            "pkg",
+            "add-module",
+            "--name",
+            "priors",
+            "--imports",
+            "register_prior",
+            "--target",
+            str(target),
+        ],
+    )
+    assert result.exit_code == 0, f"add-module priors failed: {result.output}"
     _author(
         target,
         "register-prior",
@@ -358,6 +377,8 @@ def _author_galileo(target: Path) -> None:
         "--justification",
         "The everyday observation is treated as familiar empirical background, "
         "not as a new vacuum experiment.",
+        "--file",
+        "priors.py",
     )
 
 
