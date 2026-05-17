@@ -42,6 +42,29 @@ Validation contract (each failure exits 2 with a structured diagnostic):
 
 The ``composition`` alias verb in :mod:`._init_` reuses this impl with
 ``verb="composition"`` to keep the cli-surface inventory symmetric.
+
+R4·❓B=A — ``--check`` (default on) now drives a real
+:func:`postwrite_check` against the target package after registration
+succeeds. Semantics:
+
+* Pre-write / shape failures still abort before any write touches disk
+  (no registration on failure).
+* Registration is the **truth-bearing** action: once the
+  ``pyproject.toml`` write completes, the entry stays on disk
+  regardless of post-write outcome. The author-time discipline is
+  "register first, validate second" — composition registration is a
+  metadata fact, while postwrite validates compilation hygiene of the
+  whole package.
+* If post-write fails, the envelope reports ``status="error"``,
+  ``code=1``, ``source="postwrite"`` so an agent can detect "compose
+  registered but the target package does not compile cleanly" and
+  decide whether to rollback by hand (typically by re-running
+  ``compose`` with a fixed pattern file, or removing the entry
+  manually). The payload still carries the registration details, so
+  the agent has the breadcrumbs for both the registered entry and the
+  failure mode.
+* ``--no-check`` skips post-write entirely; payload carries
+  ``check: "skipped"``.
 """
 
 from __future__ import annotations
@@ -57,11 +80,13 @@ import typer
 
 from gaia.cli.commands.author._envelope import (
     EXIT_OK,
+    EXIT_PREWRITE_STRUCTURAL,
     AuthorResult,
     Diagnostic,
     emit,
     exit_code_for_diagnostic,
 )
+from gaia.cli.commands.author._postwrite import postwrite_check
 
 _COMPOSE_DECORATOR_NAMES = frozenset({"compose", "composition"})
 
@@ -215,6 +240,36 @@ def _emit_success(
         code=EXIT_OK,
         payload=payload,
         warnings=warnings_list,
+    )
+    emit(result, human=human)
+
+
+def _emit_postwrite_failure(
+    verb: str,
+    *,
+    payload: dict[str, Any],
+    diagnostics: list[Diagnostic],
+    warnings_list: list[str],
+    human: bool,
+) -> None:
+    """Emit an envelope reflecting a postwrite failure with registration preserved.
+
+    Per R4·❓B=A: composition registration is the truth-bearing action;
+    once it completes, the entry stays on disk regardless of the
+    subsequent post-write compile check. The envelope reports the
+    failure mode (``status="error"``, exit 1, source="postwrite") and
+    carries the registration payload so the caller has both pieces of
+    state to act on.
+    """
+    payload = dict(payload)
+    payload["check"] = "failed"
+    result = AuthorResult(
+        verb=verb,
+        status="error",
+        code=EXIT_PREWRITE_STRUCTURAL,
+        payload=payload,
+        warnings=warnings_list,
+        diagnostics=diagnostics,
     )
     emit(result, human=human)
 
@@ -427,11 +482,18 @@ def _run_compose(
     from_file: str,
     target: str,
     human: bool,
+    check: bool,
 ) -> None:
     """Shared compose / composition implementation.
 
     R3·❓D=A path: read file → AST-validate compose decorator shape → if
     exactly one match, write into pyproject ``[tool.gaia.compositions]``.
+
+    R4·❓B=A path: when ``check`` is True (default), run
+    :func:`postwrite_check` against the target package after a
+    successful registration. Registration is preserved on disk
+    regardless of the postwrite outcome; the envelope distinguishes
+    "registered and verified" from "registered but failed validation".
     """
     target_root = Path(target).resolve()
     file_path = Path(from_file).resolve()
@@ -497,20 +559,45 @@ def _run_compose(
         )
         return
 
-    _emit_success(
-        verb,
-        payload={
-            "target": str(target_root),
-            "file_path": str(file_path),
-            "composition_name": entry["name"],
-            "composition_version": entry["version"],
-            "function": entry["function"],
-            "registered_at": entry["registered_at"],
-            "pyproject": str(pyproject_path),
-        },
-        warnings_list=[],
-        human=human,
-    )
+    payload: dict[str, Any] = {
+        "target": str(target_root),
+        "file_path": str(file_path),
+        "composition_name": entry["name"],
+        "composition_version": entry["version"],
+        "function": entry["function"],
+        "registered_at": entry["registered_at"],
+        "pyproject": str(pyproject_path),
+    }
+
+    # ---- postwrite: optional --check integration --------------------- #
+    #
+    # Per R4·❓B=A: --check runs ``postwrite_check`` against the target
+    # package after registration. Registration stays on disk regardless
+    # of postwrite outcome — composition registration is metadata about
+    # which patterns the package owns; postwrite validates that the
+    # package itself compiles cleanly. The two are decoupled by design.
+    if not check:
+        payload["check"] = "skipped"
+        _emit_success(verb, payload=payload, warnings_list=[], human=human)
+        return
+
+    post = postwrite_check(target_root)
+    warnings_messages = [w.message for w in post.warnings]
+    if not post.ok:
+        _emit_postwrite_failure(
+            verb,
+            payload=payload,
+            diagnostics=post.diagnostics,
+            warnings_list=warnings_messages,
+            human=human,
+        )
+        return
+    payload["check"] = {
+        "knowledge_count": post.knowledge_count,
+        "strategy_count": post.strategy_count,
+        "operator_count": post.operator_count,
+    }
+    _emit_success(verb, payload=payload, warnings_list=warnings_messages, human=human)
 
 
 # --------------------------------------------------------------------------- #
@@ -530,7 +617,12 @@ def compose_command(
     check: bool = typer.Option(
         True,
         "--check/--no-check",
-        help="Reserved for symmetry; compose does not yet run gaia build check (default on).",
+        help=(
+            "Run postwrite_check against the target package after registration "
+            "(default on). Registration is preserved on disk even when post-check "
+            "fails — the envelope reports source='postwrite' so the caller can "
+            "detect a register-but-validation-broken state."
+        ),
     ),
     human: bool = typer.Option(
         False,
@@ -547,8 +639,8 @@ def compose_command(
     ),
 ) -> None:
     r"""Validate + register a @compose-decorated function into pkg metadata."""
-    del json_, check, interactive
-    _run_compose("compose", from_file=from_file, target=target, human=human)
+    del json_, interactive
+    _run_compose("compose", from_file=from_file, target=target, human=human, check=check)
 
 
 # Add the example to the typer rich-help epilog by attaching __doc__ shaped text.
@@ -567,7 +659,12 @@ def composition_command(
     check: bool = typer.Option(
         True,
         "--check/--no-check",
-        help="Reserved for symmetry; composition does not yet run gaia build check (default on).",
+        help=(
+            "Run postwrite_check against the target package after registration "
+            "(default on). Registration is preserved on disk even when post-check "
+            "fails — the envelope reports source='postwrite' so the caller can "
+            "detect a register-but-validation-broken state."
+        ),
     ),
     human: bool = typer.Option(
         False,
@@ -584,8 +681,8 @@ def composition_command(
     ),
 ) -> None:
     r"""Alias of ``compose``; validate + register a @composition-decorated function."""
-    del json_, check, interactive
-    _run_compose("composition", from_file=from_file, target=target, human=human)
+    del json_, interactive
+    _run_compose("composition", from_file=from_file, target=target, human=human, check=check)
 
 
 composition_command.__doc__ = (composition_command.__doc__ or "") + "\n" + _EPILOG_EXAMPLE

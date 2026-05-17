@@ -1,9 +1,15 @@
-"""R3 tests for ``gaia author compose`` / ``gaia author composition``.
+"""R3+R4 tests for ``gaia author compose`` / ``gaia author composition``.
 
 R3·❓D=A — file-based validate-and-register. The cli reads a Python file
 containing exactly one ``@compose`` / ``@composition``-decorated
 function, validates the shape, and inserts/updates an entry in the
 target package's ``[[tool.gaia.compositions]]`` pyproject table.
+
+R4·❓B=A — ``--check`` (default on) now drives ``postwrite_check``
+against the target package after registration. Registration is
+preserved on disk regardless of postwrite outcome; the envelope
+distinguishes "registered+verified" from "registered but validation
+failed".
 
 These tests cover:
 
@@ -17,6 +23,10 @@ These tests cover:
 * idempotency: re-running for the same composition name updates in place.
 * ``composition`` alias verb shares the same impl.
 * ``--help`` epilog contains the example.
+* R4: ``--check`` default runs postwrite and surfaces stats in payload.
+* R4: ``--no-check`` skips postwrite (``payload.check == "skipped"``).
+* R4: postwrite failure preserves the pyproject entry but returns
+  ``status="error"`` with ``source="postwrite"`` diagnostics.
 """
 
 from __future__ import annotations
@@ -482,3 +492,176 @@ def test_compose_help_contains_example() -> None:
     assert result.exit_code == 0
     assert "@compose" in result.output
     assert "pattern.py" in result.output or "Example" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# R4: --check postwrite integration                                           #
+# --------------------------------------------------------------------------- #
+
+
+def test_compose_check_default_runs_postwrite(gaia_package: FixturePackage, tmp_path: Path) -> None:
+    """Default ``--check`` runs postwrite + payload exposes stats."""
+    pattern = tmp_path / "pattern.py"
+    _write_compose_file(pattern, body=_VALID_PATTERN)
+
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "compose",
+            "--from-file",
+            str(pattern),
+            "--target",
+            str(gaia_package.root),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    # When postwrite succeeds, payload.check is a stats dict (not "skipped").
+    check_info = payload.get("check")
+    assert isinstance(check_info, dict), check_info
+    assert "knowledge_count" in check_info
+    assert "strategy_count" in check_info
+    assert "operator_count" in check_info
+
+
+def test_compose_no_check_skips_postwrite(gaia_package: FixturePackage, tmp_path: Path) -> None:
+    """``--no-check`` bypasses postwrite and reports check='skipped'."""
+    pattern = tmp_path / "pattern.py"
+    _write_compose_file(pattern, body=_VALID_PATTERN)
+
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "compose",
+            "--from-file",
+            str(pattern),
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    assert payload["check"] == "skipped"
+
+    # Registration still happened.
+    cfg = tomllib.loads((gaia_package.root / "pyproject.toml").read_text())
+    assert cfg["tool"]["gaia"]["compositions"][0]["name"] == "my-pkg:my-pattern"
+
+
+def _break_package_init(gaia_package: FixturePackage) -> None:
+    """Corrupt the package's __init__.py to force postwrite to fail.
+
+    Appends a syntactically valid statement that references an
+    undefined name. The package source still parses, but the engine's
+    package loader will trip when it evaluates the module.
+    """
+    existing = gaia_package.source_init.read_text()
+    gaia_package.source_init.write_text(existing + "\nbroken_ref = nonexistent_symbol\n")
+
+
+def test_compose_postwrite_failure_preserves_registration(
+    gaia_package: FixturePackage, tmp_path: Path
+) -> None:
+    """A postwrite failure does NOT roll back the pyproject entry.
+
+    Per R4·❓B=A: registration is the truth-bearing action and stays on
+    disk; the envelope returns ``status="error"`` with ``code=1`` and
+    ``source="postwrite"`` so the caller can detect the
+    register-but-validation-broken state.
+    """
+    pattern = tmp_path / "pattern.py"
+    _write_compose_file(pattern, body=_VALID_PATTERN)
+
+    _break_package_init(gaia_package)
+
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "compose",
+            "--from-file",
+            str(pattern),
+            "--target",
+            str(gaia_package.root),
+        ],
+    )
+    assert result.exit_code == 1, result.output
+    envelope = _parse(result.output)
+    assert envelope["status"] == "error"
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    # Registration payload is still present.
+    assert payload["composition_name"] == "my-pkg:my-pattern"
+    assert payload["check"] == "failed"
+    # Diagnostic is sourced at postwrite.
+    diags = envelope["diagnostics"]
+    assert isinstance(diags, list)
+    assert diags
+    sources = {d["source"] for d in diags}
+    assert "postwrite" in sources
+
+    # Registration entry survives on disk.
+    cfg = tomllib.loads((gaia_package.root / "pyproject.toml").read_text())
+    comps = cfg["tool"]["gaia"]["compositions"]
+    assert len(comps) == 1
+    assert comps[0]["name"] == "my-pkg:my-pattern"
+
+
+def test_compose_postwrite_failure_with_no_check_still_succeeds(
+    gaia_package: FixturePackage, tmp_path: Path
+) -> None:
+    """``--no-check`` bypasses postwrite even when the package is broken."""
+    pattern = tmp_path / "pattern.py"
+    _write_compose_file(pattern, body=_VALID_PATTERN)
+
+    _break_package_init(gaia_package)
+
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "compose",
+            "--from-file",
+            str(pattern),
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    assert payload["check"] == "skipped"
+
+
+def test_composition_alias_check_default_runs_postwrite(
+    gaia_package: FixturePackage, tmp_path: Path
+) -> None:
+    """``composition`` alias inherits the same postwrite behavior."""
+    pattern = tmp_path / "alias.py"
+    _write_compose_file(pattern, body=_COMPOSITION_ALIAS_FILE)
+
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "composition",
+            "--from-file",
+            str(pattern),
+            "--target",
+            str(gaia_package.root),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    assert isinstance(payload.get("check"), dict)
