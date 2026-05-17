@@ -1,0 +1,529 @@
+"""Galileo strict-reproducibility equivalence assertion.
+
+Re-runs the cli authoring sequence documented in
+``examples/galileo-v0-5-gaia/CLI-AUTHORED.md`` against a fresh temp
+directory and asserts content-equivalence between the cli-authored
+mirror and the hand-authored ground truth at
+``examples/galileo-v0-5-gaia/``.
+
+Tolerance choice — content-set equivalence, not byte-equivalence
+----------------------------------------------------------------
+
+The hand-authored Galileo package exercises the engine's
+``derive(conclusion: Claim | str, ...)`` polymorphism by passing the
+conclusion as a bare string literal; the engine wraps it into an
+anonymous ``Claim`` at runtime.
+
+The cli's ``--conclusion-content`` prose mode mints a **named** Claim
+binding instead, then references it from the ``derive(...)`` call.
+This produces the same compiled graph node for the conclusion but
+exposes it as a referenceable module symbol. The cli-authored mirror
+therefore has additional named-binding statements at the source-text
+level, and the auto-generated implication-warrant claim contents embed
+the (different) conclusion-claim labels.
+
+We assert at the **content set** level instead of source-text or
+ir-hash level:
+
+* User-authored Claim and note contents must be byte-identical sets
+  between hand-authored and cli-authored compiled IRs. (Auto-
+  generated warrant strings are excluded — they embed conclusion
+  labels which differ by the prose-mode auto-mint suffix.)
+* Strategy and operator counts must match exactly.
+* Total knowledge node count must match.
+* Knowledge type multiset (claim / note / etc.) must match.
+
+These invariants make the cli-authored mirror a faithful reproduction
+of the canonical Galileo example given the two documented divergences
+(prose-mode auto-mint introducing named conclusion-claim bindings, and
+cli forcing LHS binding to equal the DSL ``label=`` kwarg). The
+divergences are documented at length in CLI-AUTHORED.md.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from gaia.cli.main import app
+from gaia.engine.packaging import (
+    apply_package_priors,
+    compile_loaded_package_artifact,
+    load_gaia_package,
+)
+
+pytestmark = pytest.mark.pr_gate
+
+runner = CliRunner()
+
+# Path to the hand-authored ground-truth package on disk. Computed once
+# at import time; resolved relative to the test file so the fixture
+# survives a tests/-relative reorganisation.
+_GROUND_TRUTH_PKG = Path(__file__).resolve().parents[3] / "examples" / "galileo-v0-5-gaia"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_galileo_imports() -> Iterator[None]:
+    """Reset ``sys.path`` and ``sys.modules`` for the ``galileo_v0_5`` name.
+
+    Each test scaffolds the cli-authored mirror under its own ``tmp_path``
+    and then loads both that mirror and the canonical hand-authored
+    package — both share import name ``galileo_v0_5``. The engine
+    loader prepends each package's source root to ``sys.path`` on
+    ``load_gaia_package``, and stale entries from previous tests
+    persist into the current process: a subsequent ``import_module``
+    pass walks ``sys.path`` head-to-tail and may hit a removed temp
+    directory before reaching the right source root. Snapshot
+    ``sys.path`` and the ``galileo_v0_5`` ``sys.modules`` entries
+    before each test, restore on teardown.
+    """
+    path_snapshot = list(sys.path)
+    modules_snapshot = {
+        name: sys.modules[name]
+        for name in list(sys.modules)
+        if name == "galileo_v0_5" or name.startswith("galileo_v0_5.")
+    }
+    try:
+        yield
+    finally:
+        sys.path[:] = path_snapshot
+        for name in list(sys.modules):
+            if name == "galileo_v0_5" or name.startswith("galileo_v0_5."):
+                sys.modules.pop(name, None)
+        sys.modules.update(modules_snapshot)
+
+
+# --------------------------------------------------------------------------- #
+# Cli authoring sequence — mirrors CLI-AUTHORED.md step-by-step               #
+# --------------------------------------------------------------------------- #
+
+
+def _parse(output: str) -> dict[str, object]:
+    """Parse the last JSON-shaped line in cli stdout as an envelope."""
+    for line in reversed(output.strip().splitlines()):
+        line = line.strip()
+        if line.startswith("{"):
+            return json.loads(line)
+    raise AssertionError(f"no JSON envelope in cli stdout: {output!r}")
+
+
+def _scaffold_mirror(tmp_path: Path) -> Path:
+    """Run ``gaia pkg scaffold`` and return the cli-authored package root."""
+    target = tmp_path / "galileo-cli-mirror-gaia"
+    result = runner.invoke(
+        app,
+        [
+            "pkg",
+            "scaffold",
+            "--target",
+            str(target),
+            "--name",
+            "galileo-v0-5-gaia",
+            "--import-name",
+            "galileo_v0_5",
+            "--namespace",
+            "example",
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, f"scaffold failed: {result.output}"
+    env = _parse(result.output)
+    assert env["status"] == "ok"
+    # Strip the scaffold-default placeholder claim so the cli-authored
+    # source has only the 15 Galileo statements + 1 register-prior.
+    init_path = target / "src" / "galileo_v0_5" / "__init__.py"
+    src = init_path.read_text()
+    placeholder_start = src.find("hypothesis = claim(")
+    assert placeholder_start > 0, "scaffold template should seed a hypothesis claim"
+    init_path.write_text(src[:placeholder_start].rstrip() + "\n")
+    return target
+
+
+def _author(target: Path, *args: str) -> dict[str, object]:
+    """Run a single ``gaia author`` invocation, asserting success."""
+    cli_args = ["author", *args, "--target", str(target), "--no-check"]
+    result = runner.invoke(app, cli_args)
+    assert result.exit_code == 0, (
+        f"gaia author {' '.join(args)} failed (exit {result.exit_code}): {result.output}"
+    )
+    env = _parse(result.output)
+    assert env["status"] == "ok", f"non-ok envelope: {env}"
+    return env
+
+
+def _author_galileo(target: Path) -> None:
+    """Author the full Galileo example via the cli surface.
+
+    The 16 invocations mirror the walkthrough in
+    ``examples/galileo-v0-5-gaia/CLI-AUTHORED.md`` step-by-step:
+    3 notes + 3 claims + 5 derives + 2 equals + 1 contradict +
+    1 register-prior = 16 author calls (15 statements that the
+    hand-authored file expresses inline + 1 prior).
+    """
+    # ---- 3 contextual notes -------------------------------------------- #
+    # Rename hand-authored ``context`` → ``preamble_context`` to avoid the
+    # ``prewrite.deprecated_ref`` warning on the deprecated DSL helper
+    # ``context``. Non-blocking; we pick a non-shadowing label for
+    # hygiene. Content string stays byte-identical.
+    _author(
+        target,
+        "note",
+        "This package models Galileo's falling-body thought experiment as a "
+        "comparison between two explanatory models. It does not treat vacuum "
+        "falling as an observed fact inside the package.",
+        "--label",
+        "preamble_context",
+    )
+    _author(
+        target,
+        "note",
+        "In the tied-body thought experiment, a heavy body and a light body are "
+        "bound together and considered as one composite system.",
+        "--label",
+        "thought_experiment_setup",
+    )
+    _author(
+        target,
+        "note",
+        "The vacuum case is a counterfactual setup in which the resisting medium is absent.",
+        "--label",
+        "vacuum_setup",
+    )
+
+    # ---- 3 model + observation claims ---------------------------------- #
+    _author(
+        target,
+        "claim",
+        "In air, heavy bodies are often observed to fall faster than light bodies.",
+        "--label",
+        "daily_observation",
+    )
+    _author(
+        target,
+        "claim",
+        "Model A: weight itself causes heavier bodies to have greater natural falling speed.",
+        "--label",
+        "aristotle_model",
+    )
+    _author(
+        target,
+        "claim",
+        "Model B: differences in falling speed in air are caused by resistance from the medium.",
+        "--label",
+        "medium_model",
+    )
+
+    # ---- daily-observation predictions + matches ----------------------- #
+    _author(
+        target,
+        "derive",
+        "--conclusion-content",
+        "Under Model A, heavy bodies should fall faster than light bodies in air.",
+        "--conclusion-label",
+        "aristotle_daily_prediction_claim",
+        "--given",
+        "aristotle_model",
+        "--rationale",
+        "If weight directly increases natural falling speed, then heavier bodies "
+        "falling faster in air is expected.",
+        "--label",
+        "aristotle_daily_observation_path",
+    )
+    _author(
+        target,
+        "equal",
+        "--a",
+        "aristotle_daily_observation_path",
+        "--b",
+        "daily_observation",
+        "--rationale",
+        "The daily falling-body observation matches the prediction generated by the "
+        "weight-speed model.",
+        "--label",
+        "aristotle_daily_match",
+    )
+    _author(
+        target,
+        "derive",
+        "--conclusion-content",
+        "Under Model B, heavy bodies can fall faster than light bodies in air.",
+        "--conclusion-label",
+        "medium_daily_prediction_claim",
+        "--given",
+        "medium_model",
+        "--rationale",
+        "If air resistance creates the observed speed differences, then heavier "
+        "compact bodies can fall faster in air without weight itself setting the "
+        "natural speed.",
+        "--label",
+        "medium_daily_observation_path",
+    )
+    _author(
+        target,
+        "equal",
+        "--a",
+        "medium_daily_observation_path",
+        "--b",
+        "daily_observation",
+        "--rationale",
+        "The daily falling-body observation matches the prediction generated by the "
+        "medium-resistance model.",
+        "--label",
+        "medium_daily_match",
+    )
+
+    # ---- Aristotelian paradox under thought experiment ----------------- #
+    _author(
+        target,
+        "derive",
+        "--conclusion-content",
+        "The tied composite should fall faster than the heavy body alone.",
+        "--conclusion-label",
+        "aristotle_composite_faster_claim",
+        "--given",
+        "aristotle_model",
+        "--background",
+        "thought_experiment_setup",
+        "--rationale",
+        "Under the weight-speed model, greater total weight implies greater "
+        "natural falling speed. In the tied-body setup, the composite contains "
+        "the heavy body plus an additional light body, so it is heavier than "
+        "the heavy body alone.",
+        "--label",
+        "aristotle_composite_faster",
+    )
+    _author(
+        target,
+        "derive",
+        "--conclusion-content",
+        "The tied composite should fall slower than the heavy body alone.",
+        "--conclusion-label",
+        "aristotle_composite_slower_claim",
+        "--given",
+        "aristotle_model",
+        "--background",
+        "thought_experiment_setup",
+        "--rationale",
+        "Under the same weight-speed model, the slower light body should retard "
+        "the faster heavy body when the two are tied together.",
+        "--label",
+        "aristotle_composite_slower",
+    )
+    _author(
+        target,
+        "contradict",
+        "--a",
+        "aristotle_composite_faster",
+        "--b",
+        "aristotle_composite_slower",
+        "--rationale",
+        "For the same tied composite, the weight-speed model yields incompatible predictions.",
+        "--label",
+        "aristotle_paradox",
+    )
+
+    # ---- vacuum prediction under Model B ------------------------------- #
+    _author(
+        target,
+        "derive",
+        "--conclusion-content",
+        "In vacuum, bodies of different weights fall at the same rate.",
+        "--conclusion-label",
+        "medium_vacuum_equal_fall_claim",
+        "--given",
+        "medium_model",
+        "--background",
+        "vacuum_setup",
+        "--rationale",
+        "If observed speed differences come from medium resistance, then in the "
+        "vacuum setup, where the resisting medium is absent by definition, the "
+        "source of those differences is absent.",
+        "--label",
+        "medium_vacuum_equal_fall_prediction",
+    )
+
+    # ---- empirical-background prior ------------------------------------ #
+    _author(
+        target,
+        "register-prior",
+        "--claim",
+        "daily_observation",
+        "--value",
+        "0.90",
+        "--justification",
+        "The everyday observation is treated as familiar empirical background, "
+        "not as a new vacuum experiment.",
+    )
+
+
+# --------------------------------------------------------------------------- #
+# IR loaders                                                                  #
+# --------------------------------------------------------------------------- #
+
+
+def _compile_ir(pkg_root: Path) -> dict[str, object]:
+    """Programmatic ``gaia build compile`` — returns the IR as a dict.
+
+    Mirrors ``postwrite_check`` minus the validation passes; the
+    equivalence test only needs the structural IR for comparison.
+
+    Both packages ship under import name ``galileo_v0_5``; the engine's
+    package loader handles the module-cache invalidation needed when
+    the same import name maps to two different disk locations.
+    """
+    loaded = load_gaia_package(pkg_root)
+    apply_package_priors(loaded)
+    compiled = compile_loaded_package_artifact(loaded)
+    return compiled.to_json()
+
+
+def _user_authored_contents(ir: dict[str, object]) -> list[str]:
+    """Project IR knowledges down to user-authored content strings.
+
+    Auto-generated warrant claims carry contents starting with
+    ``derive warrants `` (implication-warrant prose) or ``implies(...)``
+    (formula-implication helper); both embed the conclusion claim
+    label and are not byte-equal between the hand-authored and
+    cli-authored shapes. Excluded from the equivalence set so the
+    remaining items are exactly what an author wrote.
+    """
+    return sorted(
+        k["content"]  # type: ignore[index]
+        for k in ir["knowledges"]  # type: ignore[index]
+        if not k["content"].startswith("derive warrants ")  # type: ignore[index]
+        and not k["content"].startswith("implies(")  # type: ignore[index]
+    )
+
+
+def _knowledge_type_multiset(ir: dict[str, object]) -> dict[str, int]:
+    """Count knowledge nodes by ``type`` field (claim / note / formula_claim / ...)."""
+    counts: dict[str, int] = {}
+    for k in ir["knowledges"]:  # type: ignore[index]
+        kind = k.get("type", "<unknown>")  # type: ignore[union-attr]
+        counts[kind] = counts.get(kind, 0) + 1
+    return counts
+
+
+# --------------------------------------------------------------------------- #
+# Tests                                                                       #
+# --------------------------------------------------------------------------- #
+
+
+def test_galileo_cli_authoring_compiles(tmp_path: Path) -> None:
+    """The cli authoring sequence produces a package that compiles cleanly.
+
+    Smoke test — the equivalence assertions below all require a clean
+    compile, so this test surfaces compilation failure as a discrete
+    error rather than a confusing equivalence mismatch.
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_galileo(mirror)
+    ir = _compile_ir(mirror)
+    assert ir["knowledges"], "cli-authored package compiled to zero knowledges"
+    assert ir["package_name"]
+
+
+def test_user_authored_contents_match_ground_truth(tmp_path: Path) -> None:
+    """Every user-authored claim/note content matches the hand-authored package.
+
+    This is the primary strict-reproducibility invariant. The two packages
+    must agree on the sorted list of content strings for everything an
+    author wrote — auto-generated warrants are excluded because they
+    embed conclusion-claim labels that differ by the prose-mode auto-mint
+    suffix (documented in CLI-AUTHORED.md as the central divergence).
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_galileo(mirror)
+
+    hand_ir = _compile_ir(_GROUND_TRUTH_PKG)
+    cli_ir = _compile_ir(mirror)
+
+    hand_contents = _user_authored_contents(hand_ir)
+    cli_contents = _user_authored_contents(cli_ir)
+
+    # Expect 14 user-authored entries: 3 notes + 3 model/observation
+    # claims + 5 prose-conclusion claims (one per derive) + 3 derive-
+    # warrant Claim shells from the engine's implication helper
+    # (whose content is the prose itself; the "derive warrants <prose>"
+    # form lives in the warrant-claim filter above).
+    assert hand_contents == cli_contents, (
+        "user-authored content mismatch:\n"
+        f"  in hand only: {sorted(set(hand_contents) - set(cli_contents))}\n"
+        f"  in cli only:  {sorted(set(cli_contents) - set(hand_contents))}"
+    )
+
+
+def test_strategy_count_matches_ground_truth(tmp_path: Path) -> None:
+    """Both packages compile to the same number of derive strategies (5)."""
+    mirror = _scaffold_mirror(tmp_path)
+    _author_galileo(mirror)
+
+    hand_ir = _compile_ir(_GROUND_TRUTH_PKG)
+    cli_ir = _compile_ir(mirror)
+
+    assert len(hand_ir["strategies"]) == len(cli_ir["strategies"]), (
+        f"strategy count diverged: hand={len(hand_ir['strategies'])} "
+        f"cli={len(cli_ir['strategies'])}"
+    )
+    # Defensive lower bound — the Galileo example has 5 derives.
+    assert len(hand_ir["strategies"]) == 5
+
+
+def test_operator_count_matches_ground_truth(tmp_path: Path) -> None:
+    """Both packages compile to the same number of structural operators (3)."""
+    mirror = _scaffold_mirror(tmp_path)
+    _author_galileo(mirror)
+
+    hand_ir = _compile_ir(_GROUND_TRUTH_PKG)
+    cli_ir = _compile_ir(mirror)
+
+    assert len(hand_ir["operators"]) == len(cli_ir["operators"]), (
+        f"operator count diverged: hand={len(hand_ir['operators'])} cli={len(cli_ir['operators'])}"
+    )
+    # Defensive lower bound — 2 equals + 1 contradict = 3.
+    assert len(hand_ir["operators"]) == 3
+
+
+def test_total_knowledge_count_matches_ground_truth(tmp_path: Path) -> None:
+    """Total knowledge node count matches between hand-authored and cli-authored.
+
+    Auto-generated warrant claims also count here — the same 5 derives
+    produce the same 5 warrant claims plus 5 derive-warrant prose
+    Claims on both sides, so the total is invariant.
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_galileo(mirror)
+
+    hand_ir = _compile_ir(_GROUND_TRUTH_PKG)
+    cli_ir = _compile_ir(mirror)
+
+    assert len(hand_ir["knowledges"]) == len(cli_ir["knowledges"]), (
+        f"total knowledge count diverged: hand={len(hand_ir['knowledges'])} "
+        f"cli={len(cli_ir['knowledges'])}"
+    )
+    # Defensive lower bound — the Galileo example shipped 24 nodes at
+    # v0.5 HEAD.
+    assert len(hand_ir["knowledges"]) == 24
+
+
+def test_knowledge_type_multiset_matches_ground_truth(tmp_path: Path) -> None:
+    """The multiset of knowledge ``type`` fields matches.
+
+    Ensures the cli-authored mirror produces the same distribution of
+    claim / note / formula_claim / ... types as the hand-authored
+    package; would catch e.g. a future regression where prose mode
+    starts emitting a different ``type`` field on the auto-minted
+    Claim.
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_galileo(mirror)
+
+    hand_ir = _compile_ir(_GROUND_TRUTH_PKG)
+    cli_ir = _compile_ir(mirror)
+
+    assert _knowledge_type_multiset(hand_ir) == _knowledge_type_multiset(cli_ir)
