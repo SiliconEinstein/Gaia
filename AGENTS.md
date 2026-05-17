@@ -86,21 +86,12 @@ The marker can apply per-test or per-file (module-level
 **Do not bypass the pre-push hook** with `--no-verify` or any other hook-skip flag. If the
 hook fails, fix the underlying issue and create a new commit. Bypassing produces silent
 drift between local and CI state and defeats the entire point of byte-aligning the gates.
-Applies equally to in-repo agents; only the human contributor can override in genuinely
-exceptional circumstances, and the override should be called out in the PR description.
+Applies equally to in-repo agents.
 
 ### CLAUDE.md ↔ AGENTS.md sync
 
 `CLAUDE.md` is a symlink to `AGENTS.md`; pre-commit + pre-push both verify the relationship.
-Editing `AGENTS.md` is the canonical action. If `CLAUDE.md` ever diverges (symlink replaced
-by a real file), restore with `rm CLAUDE.md && ln -sf AGENTS.md CLAUDE.md`.
-
-### Ruff mccabe complexity
-
-Ruff's mccabe complexity limit is set to 12. An earlier limit of 9 proved too tight for
-Gaia's mix of CLI workflows with BP message passing, IR coarsening, DSL compile/lower/link
-passes, and inquiry orchestration. 12 is mainstream for mixed CLI + library + algorithmic
-codebases while still requiring true decomposition of high-complexity functions.
+Editing `AGENTS.md` is the canonical action.
 
 ## Commits
 
@@ -116,23 +107,14 @@ exempt by commitizen defaults.
 
 ## Code Style
 
-- Python target: 3.12.
-- Ruff line length: 100.
+Machine-enforced style (Python target, ruff line length, mccabe complexity, mypy
+strictness) lives in `pyproject.toml`. The conventions below are not lint-enforced — they
+live here so reviewers and agents apply them consistently:
+
 - Use PEP 604 annotations: `X | None`, not `Optional[X]`; `list[X]`, not `List[X]`.
 - Use Google-style docstrings for new or touched public modules, classes, and functions.
 - Use Pydantic v2 APIs: `.model_dump()`, `.model_validate()`, `.model_validate_json()`.
 - Keep Typer command docstrings concise because they can affect `--help` output.
-
-## Design Discipline
-
-- Design-level changes (IR contract, channel/release contract, public API surface) start
-  in `docs/specs/` and land via PR review, not silent in-code edits.
-- If you find code drifting from a current spec, flag it in the PR description; don't
-  silently "fix in passing" — the drift may be intentional and undocumented, or the spec
-  may be the stale side.
-- Scope edits to the work unit. Don't clean up unrelated files, generated fixtures, or
-  user changes in the same pass.
-- Prefer existing repo patterns and helper APIs over new abstractions.
 
 ## Git and Worktrees
 
