@@ -2,8 +2,10 @@
 
 > **Status:** Current canonical (v0.5 + logic diagnostics probability scoring, 2026-05-17)
 >
-> **定位：** 本页说明如何给 reviewer-facing logic warning 计算概率。它是 BP
-> 层的契约文档，不是完整 API reference；具体 signature 和 Pydantic 字段见
+> **定位：** 本页说明如何给 reviewer-facing logic warning 计算概率。上游
+> formula logic 的作者/编译/诊断语义见
+> [Formula Logic In Gaia Lang](../gaia-lang/formula-logic.md)。本页是 BP 层的
+> 契约文档，不是完整 API reference；具体 signature 和 Pydantic 字段见
 > [Python API Reference](../../reference/engine/index.md)。
 
 Formula diagnostics answer a structural question:
@@ -241,7 +243,8 @@ Unavailable providers are not errors in comparison mode. They appear in the
 
 ## 8. Related docs and code
 
-- [`../gaia-lang/predicate-logic.md`](../gaia-lang/predicate-logic.md) — authoring formulas that compile to `FormulaGraph`.
+- [`../gaia-lang/formula-logic.md`](../gaia-lang/formula-logic.md) — formula-bearing claims, `FormulaGraph`, and logic diagnostics.
+- [`../gaia-lang/predicate-logic.md`](../gaia-lang/predicate-logic.md) — variables, domains, predicates, and quantifiers used inside formulas.
 - [`inference.md`](inference.md) — FactorGraph construction, priors, Cromwell clamp, and inference algorithms.
 - [`potentials.md`](potentials.md) — FactorType potential definitions, including pairwise potentials.
 - [`../gaia-ir/07-lowering.md`](../gaia-ir/07-lowering.md) — backend-facing lowering boundary.

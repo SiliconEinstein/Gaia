@@ -78,6 +78,7 @@ nav:
           - Related Systems: foundations/ecosystem/07-related-systems.md
       - Gaia Lang Design:
           - Knowledge And Reasoning: foundations/gaia-lang/knowledge-and-reasoning.md
+          - Formula Logic: foundations/gaia-lang/formula-logic.md
           - Predicate Logic: foundations/gaia-lang/predicate-logic.md
           - Bayes Semantics: foundations/gaia-lang/bayes.md
           - Package Model: foundations/gaia-lang/package.md
