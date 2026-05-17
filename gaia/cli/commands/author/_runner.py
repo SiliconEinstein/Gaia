@@ -147,6 +147,11 @@ def run_author_op(
         return
 
     assert pre.source_init_path is not None  # invariant after a successful prewrite
+    # R7 G1: write_target_path defaults to source_init_path when the
+    # verb did not request a sibling target via --file. The runner uses
+    # this resolved path uniformly so per-verb code never has to think
+    # about the multi-file layout.
+    write_target = pre.write_target_path or pre.source_init_path
 
     # ---- step 1b: optional interactive gate on pre-write warnings ------- #
 
@@ -170,17 +175,37 @@ def run_author_op(
     # field.
 
     written_segments: list[str] = []
+    sibling_added_total: list[str] = []
+    all_warning_messages: list[str] = []
     try:
+        # Prepended statements always land in __init__.py — they are
+        # support claims for prose-mode auto-mint and must be visible at
+        # module scope regardless of the main statement's target file.
         for _prep_label, prep_code in proposed_op.prepended_statements:
-            prep_write = append_statement(pre.source_init_path, prep_code)
+            prep_write = append_statement(
+                pre.source_init_path,
+                prep_code,
+                new_label=_prep_label,
+            )
             written_segments.append(prep_write.appended)
-        write_result = append_statement(pre.source_init_path, proposed_op.generated_code)
+            if prep_write.all_warning:
+                all_warning_messages.append(prep_write.all_warning)
+        write_result = append_statement(
+            write_target,
+            proposed_op.generated_code,
+            new_label=proposed_op.label,
+            sibling_imports=proposed_op.sibling_imports,
+            import_package_name=pre.import_name,
+        )
         written_segments.append(write_result.appended)
+        sibling_added_total.extend(write_result.sibling_imports_added)
+        if write_result.all_warning:
+            all_warning_messages.append(write_result.all_warning)
     except (OSError, PermissionError) as exc:
         emit(
             system_error(
                 proposed_op.verb,
-                f"failed to write to {pre.source_init_path}: {exc}",
+                f"failed to write to {write_target}: {exc}",
                 kind="prewrite.target_invalid",
             ),
             human=human,
@@ -203,6 +228,10 @@ def run_author_op(
                 strict=True,
             )
         ]
+    if sibling_added_total:
+        payload["sibling_imports_added"] = sibling_added_total
+    if write_result.all_managed:
+        payload["all_managed"] = True
     # R6: verb-specific tags (e.g. ``conclusion_kind`` for derive) flow
     # through ``extra_payload`` without the runner needing to know the
     # individual key set per verb.
@@ -212,6 +241,17 @@ def run_author_op(
     # Carry pre-write warnings through into the final envelope so JSON
     # consumers see them even when --interactive auto-suppresses prompts.
     prewrite_warnings = list(pre.warnings)
+    # R7 G10: __all__-management warnings surface as their own kind so an
+    # agent can detect dynamic __all__ blocks without parsing source.
+    for warning_msg in all_warning_messages:
+        prewrite_warnings.append(
+            Diagnostic(
+                kind="postwrite.all_dynamic",
+                level="warning",
+                message=warning_msg,
+                source="postwrite",
+            )
+        )
 
     # ---- step 3: post-write --------------------------------------------- #
 

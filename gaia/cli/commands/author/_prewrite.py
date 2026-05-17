@@ -81,6 +81,12 @@ class AuthorPrewriteResult:
     exit_code: int
     diagnostics: list[Diagnostic]
     warnings: list[Diagnostic]
+    # R7 G1 multi-file target: the absolute path the writer should
+    # append to. Defaults to ``source_init_path`` when the verb did not
+    # request a different file via ``ProposedAuthorOp.target_file``;
+    # otherwise points at ``src/<import_name>/<relative>``.
+    write_target_path: Path | None = None
+    source_root: Path | None = None
 
 
 def prewrite_check(
@@ -131,11 +137,45 @@ def prewrite_check(
             exit_code=_first_exit_code(structure.errors),
             diagnostics=structure.errors,
             warnings=warnings,
+            write_target_path=None,
+            source_root=None,
         )
 
     source_init_path = structure.source_init_path
     import_name = structure.import_name
     project_name = structure.project_name
+    source_root = structure.source_root
+
+    # ---- R7 G1: resolve the write target file --------------------------- #
+    #
+    # Default is ``source_init_path`` (i.e. ``__init__.py``). When the
+    # verb supplied ``target_file``, resolve it relative to the source
+    # root and require the file to already exist (an explicit non-init
+    # target on a fresh package is a usage error: use ``gaia pkg
+    # add-module`` first). The runner uses this path; the writer then
+    # appends to it.
+    if proposed_op.target_file:
+        relative = proposed_op.target_file
+        write_target_path, target_file_errors = _resolve_write_target(
+            source_root=source_root,
+            relative=relative,
+        )
+        if target_file_errors:
+            return AuthorPrewriteResult(
+                ok=False,
+                target_path=target_root,
+                source_init_path=source_init_path,
+                import_name=import_name,
+                project_name=project_name,
+                module_symbols=set(),
+                exit_code=_first_exit_code(target_file_errors),
+                diagnostics=target_file_errors,
+                warnings=warnings,
+                write_target_path=None,
+                source_root=source_root,
+            )
+    else:
+        write_target_path = source_init_path
 
     # ---- (b) Input syntax ----------------------------------------------- #
     #
@@ -155,6 +195,8 @@ def prewrite_check(
                 exit_code=_first_exit_code(prep_syntax_errors),
                 diagnostics=prep_syntax_errors,
                 warnings=warnings,
+                write_target_path=write_target_path,
+                source_root=source_root,
             )
 
     syntax_errors = _validate_proposed_syntax(proposed_op.generated_code)
@@ -169,6 +211,8 @@ def prewrite_check(
             exit_code=_first_exit_code(syntax_errors),
             diagnostics=syntax_errors,
             warnings=warnings,
+            write_target_path=write_target_path,
+            source_root=source_root,
         )
 
     # ---- (c) Collision + reference resolution --------------------------- #
@@ -180,7 +224,7 @@ def prewrite_check(
     # name bindings; this gives us a fast, side-effect-free collision +
     # ref table that's correct for the cases we need (label conflicts,
     # ref-to-undeclared-name).
-    module_symbols = _collect_module_symbols(structure.source_root, import_name)
+    module_symbols = _collect_module_symbols(source_root, import_name)
 
     # R3 prose-mode: prepended labels (e.g. an auto-claim minted from
     # ``--conclusion-content``) need to be validated against module
@@ -206,6 +250,8 @@ def prewrite_check(
             exit_code=_first_exit_code(prepend_collision_errors),
             diagnostics=prepend_collision_errors,
             warnings=warnings,
+            write_target_path=write_target_path,
+            source_root=source_root,
         )
     # Treat prepended labels as available bindings for the main op's
     # reference resolution + warning detection.
@@ -230,6 +276,8 @@ def prewrite_check(
             exit_code=_first_exit_code(structural_errors),
             diagnostics=structural_errors,
             warnings=warnings,
+            write_target_path=write_target_path,
+            source_root=source_root,
         )
 
     collision_errors = _validate_label_collision(proposed_op.label, module_symbols)
@@ -244,6 +292,8 @@ def prewrite_check(
             exit_code=_first_exit_code(collision_errors),
             diagnostics=collision_errors,
             warnings=warnings,
+            write_target_path=write_target_path,
+            source_root=source_root,
         )
 
     reference_errors = _validate_references(proposed_op.references, module_symbols)
@@ -258,6 +308,8 @@ def prewrite_check(
             exit_code=_first_exit_code(reference_errors),
             diagnostics=reference_errors,
             warnings=warnings,
+            write_target_path=write_target_path,
+            source_root=source_root,
         )
 
     # ---- R3 warning kinds ---------------------------------------------- #
@@ -284,7 +336,92 @@ def prewrite_check(
         exit_code=0,
         diagnostics=[],
         warnings=warnings,
+        write_target_path=write_target_path,
+        source_root=source_root,
     )
+
+
+# --------------------------------------------------------------------------- #
+# R7 G1: Resolve the verb-requested target file inside the package source.    #
+# --------------------------------------------------------------------------- #
+
+
+def _resolve_write_target(
+    *,
+    source_root: Path,
+    relative: str,
+) -> tuple[Path | None, list[Diagnostic]]:
+    """Resolve the relative ``--file`` path against the package source root.
+
+    Constraints:
+
+    * The path must be relative (no absolute, no leading ``..``).
+    * The path must end with ``.py`` (we only support Python source
+      siblings; non-py targets are out-of-scope for the author surface).
+    * The resolved file must already exist — use ``gaia pkg add-module``
+      to scaffold a fresh sibling before authoring into it. This keeps
+      the writer's pre-write invariants honest: writing into a brand-new
+      file demands a slightly different invariant set (no module symbols
+      to collide against, etc.) which we'd rather not weave through
+      every verb.
+
+    Returns ``(resolved_path, errors)``. Both ``None`` and a non-empty
+    error list means the resolution failed; a non-``None`` path with an
+    empty list means success.
+    """
+    rel_path = Path(relative)
+    if rel_path.is_absolute() or any(part == ".." for part in rel_path.parts):
+        return None, [
+            Diagnostic(
+                kind="prewrite.target_invalid",
+                level="error",
+                message=(
+                    f"--file path {relative!r} must be relative to the package "
+                    "source root and may not contain '..'"
+                ),
+                source="prewrite",
+                where={"file": relative},
+            )
+        ]
+    if rel_path.suffix != ".py":
+        return None, [
+            Diagnostic(
+                kind="prewrite.target_invalid",
+                level="error",
+                message=(
+                    f"--file path {relative!r} must end with .py (the author "
+                    "surface writes Python source files)"
+                ),
+                source="prewrite",
+                where={"file": relative},
+            )
+        ]
+    resolved = (source_root / rel_path).resolve()
+    if not str(resolved).startswith(str(source_root.resolve())):
+        return None, [
+            Diagnostic(
+                kind="prewrite.target_invalid",
+                level="error",
+                message=(f"--file path {relative!r} resolves outside the package source root"),
+                source="prewrite",
+                where={"file": relative, "resolved": str(resolved)},
+            )
+        ]
+    if not resolved.exists():
+        return None, [
+            Diagnostic(
+                kind="prewrite.target_invalid",
+                level="error",
+                message=(
+                    f"--file path {relative!r} does not exist under the "
+                    "package source root; run `gaia pkg add-module "
+                    f"{rel_path.with_suffix('').name}` first"
+                ),
+                source="prewrite",
+                where={"file": relative, "resolved": str(resolved)},
+            )
+        ]
+    return resolved, []
 
 
 # --------------------------------------------------------------------------- #
@@ -725,67 +862,96 @@ def _module_all_entries(tree: ast.Module) -> set[str]:
 
 
 def _detect_deprecated_refs(proposed_op: ProposedAuthorOp) -> list[Diagnostic]:
-    """Warn when the proposed op references a name engine-flagged as deprecated.
+    """Warn when the proposed op references a deprecated name at a **call** position.
 
-    Scans:
+    R7 G8 narrows the scan: R3-R6 walked every ``ast.Name`` in
+    ``generated_code`` and every entry in ``references`` /
+    ``required_imports``, which fired the warning for any binding name
+    that happened to match a deprecated function. The Galileo demo's
+    ``context = note(...)`` hand-authored shape repeatedly tripped this
+    even though the deprecation is about *calling* the legacy
+    ``context()`` factory, not about a local binding name.
 
-    * ``proposed_op.required_imports`` — the names the verb's DSL
-      surface uses (``derive``, ``claim``, ...). The render path always
-      passes the canonical name, so this would never fire for a verb
-      shipped through ``gaia author``. Included for completeness in
-      case a future verb routes through a deprecated factory.
-    * ``proposed_op.references`` — identifiers the user named on the
-      command line. If an agent passes ``--given context`` where
-      ``context`` is the local module's alias for the deprecated
-      knowledge factory, the warning fires.
-    * ``proposed_op.generated_code`` AST — names appearing in the
-      proposed call expression (catches the case where a verb's prose
-      argument or rationale text happens to look like a deprecated
-      function reference; the warning is informational only).
+    R7 narrows to **call positions only**:
 
-    The warning carries the engine's recommended replacement.
+    * Walk the generated code AST.
+    * For each ``ast.Call`` node, examine ``node.func``:
+        - bare ``ast.Name`` (``foo(...)``) → check name.
+        - ``ast.Attribute`` (``module.foo(...)``) → check the attr.
+      Both forms are how deprecated DSL factories actually get called.
+    * ``proposed_op.required_imports`` is no longer scanned (the verb
+      renderer always emits the canonical name; a deprecated rendering
+      would be a cli bug, not an authoring warning).
+    * ``proposed_op.references`` is still scanned but only for cases
+      where a user names a deprecated symbol as a reference — that's a
+      real authoring smell because the eventual call site will trip the
+      engine's deprecation warning at compile.
+
+    The narrowing preserves the warning's purpose (catch the user
+    invoking deprecated DSL factories) without the false positives on
+    binding names.
     """
     diagnostics: list[Diagnostic] = []
     flagged: set[str] = set()
+    deprecated = _deprecated_dsl_names()
 
-    candidates: list[str] = []
-    candidates.extend(proposed_op.required_imports)
-    candidates.extend(proposed_op.references)
-
-    # Walk the generated code's AST for any Name node that matches the
-    # deprecated set; references-list-only matching misses the rare
-    # case of an inline deprecated-call inside ``--rationale`` etc.
-    # ``--rationale`` strings stay literal so the inline-call case is
-    # genuinely rare — we still scan because the cost is negligible.
+    # Call-position scan over the generated code.
     try:
         tree = ast.parse(proposed_op.generated_code)
     except SyntaxError:
         tree = None
     if tree is not None:
         for node in ast.walk(tree):
-            if isinstance(node, ast.Name):
-                candidates.append(node.id)
+            if not isinstance(node, ast.Call):
+                continue
+            call_name: str | None = None
+            if isinstance(node.func, ast.Name):
+                call_name = node.func.id
+            elif isinstance(node.func, ast.Attribute):
+                call_name = node.func.attr
+            if call_name is None:
+                continue
+            if call_name in flagged or call_name not in deprecated:
+                continue
+            flagged.add(call_name)
+            replacement, since = deprecated[call_name]
+            diagnostics.append(
+                Diagnostic(
+                    kind="prewrite.deprecated_ref",
+                    level="warning",
+                    message=(
+                        f"call to {call_name!r} is deprecated since "
+                        f"v{since}; suggest {replacement!r} instead"
+                    ),
+                    source="prewrite",
+                    where={
+                        "name": call_name,
+                        "replacement": replacement,
+                        "since": since,
+                    },
+                )
+            )
 
-    deprecated = _deprecated_dsl_names()
-    for name in candidates:
-        if name in flagged:
+    # Reference-list scan — covers ``--given context`` style cases where
+    # an agent points at a deprecated factory by name on the CLI.
+    for ref in proposed_op.references:
+        if ref in flagged or ref not in deprecated:
             continue
-        if name not in deprecated:
-            continue
-        flagged.add(name)
-        replacement, since = deprecated[name]
+        flagged.add(ref)
+        replacement, since = deprecated[ref]
         diagnostics.append(
             Diagnostic(
                 kind="prewrite.deprecated_ref",
                 level="warning",
                 message=(
-                    f"reference {name!r} is deprecated since v{since}; "
+                    f"reference {ref!r} is deprecated since v{since}; "
                     f"suggest {replacement!r} instead"
                 ),
                 source="prewrite",
-                where={"name": name, "replacement": replacement, "since": since},
+                where={"name": ref, "replacement": replacement, "since": since},
             )
         )
+
     return diagnostics
 
 

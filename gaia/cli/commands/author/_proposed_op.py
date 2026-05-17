@@ -77,3 +77,17 @@ class ProposedAuthorOp:
     # owned payload fields (``target``, ``written_to``, ``label``,
     # ``verb``, ``snippet``, ``auto_generated``, ``check``).
     extra_payload: dict[str, Any] = field(default_factory=dict)
+    # R7 G1 multi-file target: the relative path under ``src/<import_name>/``
+    # the verb writes to. ``None`` selects ``__init__.py`` (the historic
+    # default). Path is resolved by the runner against the source root
+    # discovered in pre-write invariant (a).
+    target_file: str | None = None
+    # R7 G1 multi-file target: when the statement lands in a sibling file
+    # (e.g., ``priors.py``), pre-write needs to know the cross-file
+    # ``from <import_name> import <label>`` import lines that must already
+    # exist (or be auto-managed) so the references resolve at engine load
+    # time. The writer post-step inserts any missing entries from this
+    # tuple into the target sibling file. Each entry is a (label, source)
+    # pair — typically ``source`` is the bare package import name and the
+    # statement becomes ``from <pkg> import <label>``.
+    sibling_imports: tuple[tuple[str, str], ...] = ()
