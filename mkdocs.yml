@@ -94,6 +94,7 @@ nav:
           - Belief State: foundations/bp/belief-state.md
           - Formal Strategy Lowering: foundations/bp/formal-strategy-lowering.md
           - Inference: foundations/bp/inference.md
+          - Choosing An Algorithm: foundations/bp/choosing-algorithm.md
           - Local Vs Global: foundations/bp/local-vs-global.md
           - Potentials: foundations/bp/potentials.md
       - Review:
