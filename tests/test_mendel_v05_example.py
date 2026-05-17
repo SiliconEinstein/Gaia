@@ -112,9 +112,10 @@ def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path
     assert "f2_dominant_count_specific" not in knowledge_by_label
     assert "mendel_count_association" not in knowledge_by_label
 
-    # The quantitative comparison stores executable Bayes likelihood metadata.
+    # The quantitative comparison stores executable Bayes comparison metadata.
+    # v0.6 unified surface writes metadata["comparison"] (not metadata["bayes"]).
     assert likelihood["metadata"]["helper_kind"] == "model_preference"
-    likelihoods = likelihood["metadata"]["bayes"]["likelihoods"]
+    likelihoods = likelihood["metadata"]["comparison"]["likelihoods"]
     mendel_id = knowledge_by_label["mendelian_segregation_model"]["id"]
     blending_id = knowledge_by_label["blending_inheritance_model"]["id"]
     assert likelihoods[mendel_id] == pytest.approx(stats.binom.logpmf(295, n=395, p=3 / 4))
@@ -129,17 +130,21 @@ def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path
         likelihood_parameters.p_count_given_mendelian > likelihood_parameters.p_count_given_diffuse
     )
 
-    assert {
-        (param["name"], param["type"], param["value"]) for param in count_observation["parameters"]
-    } == {
-        ("n_f2", "Nat", 395),
-        ("k_dominant", "Nat", 295),
+    # v0.6 unified surface: the count observation is observe(Variable, value=k),
+    # so the data Claim carries metadata["observation"] (not a formula). No
+    # formula_lowering / formula_bindings metadata anymore; value and target
+    # descriptor live inline under metadata["observation"].
+    observation_meta = count_observation["metadata"]["observation"]
+    assert observation_meta["kind"] == "observation"
+    assert observation_meta["value"] == 295
+    assert observation_meta["target"] == {
+        "kind": "variable",
+        "symbol": "k_dominant",
+        "domain": "Nat",
     }
-    assert count_observation["metadata"]["formula_lowering"] == "binding_conjunction"
-    assert count_observation["metadata"]["formula_bindings"] == [
-        {"symbol": "n_f2", "domain": "Nat", "value": 395, "source": "formula"},
-        {"symbol": "k_dominant", "domain": "Nat", "value": 295, "source": "formula"},
-    ]
+    # Noise-free observation: noise is None (no measurement-error Distribution
+    # was supplied to observe(...)).
+    assert observation_meta.get("noise") is None
 
     _accept_all_reviews(package)
 

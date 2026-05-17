@@ -207,6 +207,7 @@ def _knowledge_id(
 def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
     from gaia.engine.lang.dsl.bool_expr import BoolExpr, DerivedDistribution
     from gaia.engine.lang.runtime.distribution import Distribution
+    from gaia.engine.lang.runtime.variable import Variable
     from gaia.unit import is_quantity, to_literal
 
     if is_quantity(value):
@@ -230,6 +231,21 @@ def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
             "content": value.content,
             "distribution_kind": value.kind,
             "params": value.params,
+        }
+    if isinstance(value, Variable):
+        # Variables are Lang-only Knowledge: they do not enter the package's
+        # IR-bound knowledge map but they DO appear in metadata that the
+        # v0.6 Bayes verbs write (observe(variable, ...) target, predict
+        # target, ...). Inline-serialize them to a descriptor so IR
+        # consumers can render the referenced variable's symbol/domain
+        # without needing to walk back to the Lang object.
+        domain = (
+            getattr(value.domain, "name", None) or getattr(value.domain, "label", None)
+        )
+        return {
+            "kind": "variable",
+            "symbol": value.symbol,
+            "domain": domain,
         }
     if isinstance(value, BoolExpr):
         return {

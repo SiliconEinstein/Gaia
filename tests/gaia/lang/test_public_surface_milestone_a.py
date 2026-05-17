@@ -76,12 +76,28 @@ def test_gaia_lang_does_not_export_marker_only_causal_surface():
     assert not hasattr(lang.ClaimKind, "CAUSAL")
 
 
-def test_bayes_surface_uses_model_not_predict_alias():
+def test_bayes_surface_exposes_v05_and_v06_authoring_verbs():
+    """v0.6 PoC: legacy ``bayes.model`` coexists with the new ``bayes.predict``.
+
+    The Milestone-A test originally asserted that ``bayes.predict`` was
+    *not* present (the v0.5 design picked ``bayes.model`` as the verb name
+    deliberately). The v0.6 unified-bayes redesign (see
+    ``docs/specs/2026-05-17-bayes-unified-design.md``) introduces
+    ``predict`` and ``compare`` as the canonical surface; the legacy
+    ``model`` / ``likelihood`` verbs stay importable through one release
+    so existing packages keep compiling. This assertion captures both:
+    legacy names are still reachable, new names are wired up.
+    """
     import gaia.engine.bayes as bayes
 
     assert hasattr(bayes, "model")
-    assert not hasattr(bayes, "predict")
-    assert "predict" not in bayes.__all__
+    assert hasattr(bayes, "predict")
+    assert hasattr(bayes, "likelihood")
+    assert hasattr(bayes, "compare")
+    assert "model" in bayes.__all__
+    assert "predict" in bayes.__all__
+    assert "likelihood" in bayes.__all__
+    assert "compare" in bayes.__all__
 
 
 def test_gaia_lang_import_does_not_eagerly_import_bayes():

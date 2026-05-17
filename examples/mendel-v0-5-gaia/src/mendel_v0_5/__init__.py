@@ -1,4 +1,4 @@
-"""Mendel-style probability example for Gaia v0.5.
+"""Mendel-style probability example — v0.6 unified Bayes interface.
 
 Architecture
 ------------
@@ -10,32 +10,35 @@ Two theories compete for the same single-factor cross:
 * ``blending_inheritance_model`` — continuous averaging of parental traits;
   denies that discrete dominant/recessive classes exist in F2 at all.
 
-The quantitative count comparison is expressed through ``gaia.engine.bayes``:
+The quantitative count comparison uses the v0.6 unified Bayes surface
+(``predict / observe / compare``) rather than the v0.5 trio
+(``bayes.model / bayes.data / bayes.likelihood``):
 
-* Mendel is represented by ``bayes.Binomial(n=395, p=3/4)``.
+* Mendel is represented by ``Binomial(name, n=395, p=3/4)``.
 * The diffuse alternative is represented by
-  ``bayes.BetaBinomial(n=395, alpha=1, beta=1)``, which is the predictive
+  ``BetaBinomial(name, n=395, alpha=1, beta=1)``, which is the predictive
   distribution obtained by integrating ``Binomial(n, p)`` over
   ``p ~ Uniform[0, 1]``.
+* The observed count is recorded via ``observe(f2_dominant_count,
+  value=DOMINANT_COUNT)`` directly on the count Variable — no separate
+  data-formula claim is needed.
 
-The observed count remains a normal observation with a reliability prior. The
-Bayes likelihood values are attached as structured metadata by the Bayes
-lowering pass, not placed in the observation's content or hidden behind an
-intermediate count-event claim.
+Predictive distributions are :class:`Distribution` Knowledge objects from
+``gaia.engine.lang``, so each distribution carries a human-readable name
+("F2 dominant count under Mendel 3:1") and is independently reviewable.
 """
 
 import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
-    Constant,
+    BetaBinomial,
+    Binomial,
     Nat,
     Variable,
     claim,
     contradict,
     derive,
     equal,
-    equals,
     exclusive,
-    land,
     note,
     observe,
 )
@@ -106,22 +109,15 @@ f2_recessive_reappears_observation = observe(
     label="f2_recessive_reappears_observation",
 )
 
-_f2_count_observation_binding = claim(
-    (
-        f"F2 计数为 {DOMINANT_COUNT} 个显性表型和 {RECESSIVE_COUNT} 个隐性表型，"
-        f"共 {TOTAL_COUNT} 个个体。"
-    ),
-    formula=land(
-        equals(f2_total_count, Constant(TOTAL_COUNT, Nat)),
-        equals(f2_dominant_count, Constant(DOMINANT_COUNT, Nat)),
-    ),
-)
-_f2_count_observation_binding.label = "f2_count_observation"
-
 f2_count_observation = observe(
-    _f2_count_observation_binding,
+    f2_dominant_count,
+    value=DOMINANT_COUNT,
     background=[monohybrid_cross_setup, f2_has_discrete_classes_observation],
-    rationale="这是用于贝叶斯点似然比较的 F2 显性/隐性计数数据。",
+    source_refs=["Mendel 1866 dominant phenotype count"],
+    rationale=(
+        f"F2 计数：{DOMINANT_COUNT} 个显性表型，{RECESSIVE_COUNT} 个隐性表型，"
+        f"共 {TOTAL_COUNT} 个个体。这是用于贝叶斯点似然比较的 F2 计数数据。"
+    ),
     label="f2_count_observation",
 )
 
@@ -193,13 +189,20 @@ mendel_predicts_three_to_one_ratio = derive(
 )
 
 # -----------------------------------------------------------------------------
-# Quantitative count comparison via gaia.engine.bayes
+# Quantitative count comparison via gaia.engine.bayes (v0.6 unified surface)
 # -----------------------------------------------------------------------------
+#
+# predict(...) declares the predictive distribution as a named Distribution
+# Knowledge object (reviewable in its own right). compare(data, models=[...])
+# evaluates the log-likelihood of f2_count_observation under each predictive
+# distribution and emits one infer factor per hypothesis. The observation
+# itself is a Variable-targeted observe(...) — no formula plumbing.
 
-mendel_count_model = bayes.model(
+mendel_count_model = bayes.predict(
     mendelian_segregation_model,
-    observable=f2_dominant_count,
-    distribution=bayes.Binomial(
+    target=f2_dominant_count,
+    distribution=Binomial(
+        "F2 dominant count under Mendel 3:1",
         n=TOTAL_COUNT,
         p=MENDELIAN_DOMINANT_PROBABILITY,
     ),
@@ -211,10 +214,11 @@ mendel_count_model = bayes.model(
     label="mendel_count_model",
 )
 
-diffuse_count_model = bayes.model(
+diffuse_count_model = bayes.predict(
     blending_inheritance_model,
-    observable=f2_dominant_count,
-    distribution=bayes.BetaBinomial(
+    target=f2_dominant_count,
+    distribution=BetaBinomial(
+        "F2 dominant count under p ~ Uniform[0, 1]",
         n=TOTAL_COUNT,
         alpha=1.0,
         beta=1.0,
@@ -227,10 +231,9 @@ diffuse_count_model = bayes.model(
     label="diffuse_count_model",
 )
 
-mendel_count_likelihood = bayes.likelihood(
+mendel_count_likelihood = bayes.compare(
     f2_count_observation,
-    model=mendel_count_model,
-    against=[diffuse_count_model],
+    models=[mendel_count_model, diffuse_count_model],
     background=[monohybrid_cross_setup, finite_sample_background],
     rationale=(
         "直接比较观测到的 F2 显性计数在 Mendel 点模型和 diffuse 参考模型下的"

@@ -666,6 +666,33 @@ def Binomial(
     )
 
 
+def BetaBinomial(
+    content: str,
+    *,
+    n: Any,
+    alpha: Any,
+    beta: Any,
+    **kwargs: Any,
+) -> Distribution:
+    """Create a Beta-Binomial-distributed discrete quantity with a name.
+
+    Predictive distribution of ``Binomial(n, p)`` integrated over
+    ``p ~ Beta(alpha, beta)``. All three parameters are dimensionless.
+    The closed-form uniform marginal ``BetaBinomial(n, 1, 1)`` is the
+    canonical diffuse reference: ``P(k) = 1 / (n + 1)`` for ``k ∈ [0, n]``.
+    """
+    from gaia.engine.bayes.distributions.discrete import BetaBinomial as _BaseBetaBinomial
+
+    return _build_distribution(
+        content,
+        impl_cls=_BaseBetaBinomial,
+        raw_params={"n": n, "alpha": alpha, "beta": beta},
+        dimensionless_params=("n", "alpha", "beta"),
+        distribution_name="BetaBinomial",
+        kwargs=kwargs,
+    )
+
+
 def Poisson(
     content: str,
     *,
@@ -691,6 +718,7 @@ def Poisson(
 
 __all__ = [
     "Beta",
+    "BetaBinomial",
     "Binomial",
     "Cauchy",
     "ChiSquared",

@@ -374,16 +374,33 @@ def _hypothesis_prior(node: dict[str, Any] | None) -> float:
 
 
 def _bayes_referenced_models(comparisons: dict[str, dict[str, Any]]) -> set[str]:
-    """Return model ids referenced by Bayes likelihood comparisons."""
-    referenced = {
-        model
-        for comparison in comparisons.values()
-        if isinstance((model := _bayes_metadata(comparison).get("model")), str)
-    }
+    """Return model ids referenced by Bayes likelihood comparisons.
+
+    Walks both v0.5 ``metadata["bayes"]`` (``model`` + ``against=[...]``)
+    and v0.6 ``metadata["comparison"]`` (``models=[...]`` equal-positioned
+    list). A package that mixes both surfaces during migration will have
+    its prediction helpers reachable through either namespace.
+    """
+    referenced: set[str] = set()
     for comparison in comparisons.values():
-        against = _bayes_metadata(comparison).get("against")
-        if isinstance(against, list):
-            referenced.update(model for model in against if isinstance(model, str))
+        metadata = comparison.get("metadata") or {}
+
+        # v0.5: bayes.model= + bayes.against=[...]
+        bayes_meta = metadata.get("bayes") or {}
+        if isinstance(bayes_meta, dict):
+            model = bayes_meta.get("model")
+            if isinstance(model, str):
+                referenced.add(model)
+            against = bayes_meta.get("against")
+            if isinstance(against, list):
+                referenced.update(m for m in against if isinstance(m, str))
+
+        # v0.6: comparison.models=[...]
+        comparison_meta = metadata.get("comparison") or {}
+        if isinstance(comparison_meta, dict):
+            models = comparison_meta.get("models")
+            if isinstance(models, list):
+                referenced.update(m for m in models if isinstance(m, str))
     return referenced
 
 
@@ -495,6 +512,98 @@ def _check_bayes_prior_coherence(
     return hypothesis_ids
 
 
+_RECOMMENDED_PRECOMPUTED_DIAGNOSTIC_FIELDS: frozenset[str] = frozenset(
+    {
+        # At least one of these signals the wrapper recorded enough
+        # provenance to make the precomputed likelihoods reproducible /
+        # auditable. The set is intentionally union-permissive: quadrature
+        # solvers report ``epsabs`` / ``abs_error_estimate``; MCMC solvers
+        # report ``seed`` / ``r_hat_max`` / ``ess_min``; other solvers may
+        # carry ``solver_version`` or ``code_hash``. Requiring exactly
+        # one would force every wrapper to standardise on the same
+        # vocabulary; requiring at least one keeps the contract honest
+        # without dictating method.
+        "seed",
+        "solver_version",
+        "r_hat_max",
+        "ess_min",
+        "divergences",
+        "epsabs",
+        "epsrel",
+        "abs_error_estimate",
+        "code_hash",
+        "per_chain",
+        "draws",
+        "chains",
+        "method",
+        "solver_method",
+    }
+)
+
+
+def _check_v06_precomputed_solver_diagnostics(
+    *,
+    nodes: dict[str, dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Warn when a PrecomputedLikelihoods Claim has an empty diagnostics payload.
+
+    The v0.6 compute-layer contract (see
+    ``docs/specs/2026-05-17-bayes-unified-design.md`` §4.1, §6) treats
+    ``PrecomputedLikelihoods.diagnostics`` as the audit channel for
+    external-solver runs — at minimum a seed (for reproducibility) or
+    a convergence statistic (for MCMC / SMC / quadrature). An empty
+    payload is a soft red flag: the wrapper plugged a number into the
+    BP factor graph without recording how it got there.
+
+    This is a warning, not an error: solvers without natural
+    diagnostics (a deterministic analytic function, say) can still be
+    audited through the ``Compute`` action's ``code_hash``. We surface
+    the gap so reviewers notice, not block compilation.
+    """
+    for node_id, node in nodes.items():
+        metadata = node.get("metadata") or {}
+        if metadata.get("kind") != "precomputed_likelihoods":
+            continue
+        diag = metadata.get("diagnostics")
+        if not isinstance(diag, dict) or not diag:
+            diagnostics.warnings.append(
+                "bayes:precomputed-solver-diagnostics-missing: "
+                f"PrecomputedLikelihoods {_node_name(node)} has an empty "
+                "diagnostics payload. Record at least a seed (for "
+                "reproducibility) or a convergence statistic (r_hat_max, "
+                "ess_min, divergences, abs_error_estimate, ...) so "
+                "gaia audit can flag suspicious solver runs."
+            )
+            continue
+        if not any(_diagnostic_key_recognised(key) for key in diag):
+            sample = ", ".join(sorted(diag.keys())[:6])
+            diagnostics.warnings.append(
+                "bayes:precomputed-solver-diagnostics-missing: "
+                f"PrecomputedLikelihoods {_node_name(node)} diagnostics "
+                f"do not include any of the recommended audit fields "
+                f"(seed, solver_version, r_hat_max, ess_min, "
+                f"abs_error_estimate, ...). Got keys: {sample}. "
+                "Add one so gaia audit can decide whether to trust the "
+                "precomputed log-likelihoods."
+            )
+
+
+def _diagnostic_key_recognised(key: object) -> bool:
+    if not isinstance(key, str):
+        return False
+    if key in _RECOMMENDED_PRECOMPUTED_DIAGNOSTIC_FIELDS:
+        return True
+    # Allow per-hypothesis / per-chain nesting where the parent key is custom
+    # but the descendants are recognised (e.g. "per_hypothesis" containing
+    # {"diffuse": {"abs_error_estimate": ...}}). Trying to do full recursive
+    # validation here would over-fit; this prefix heuristic lets wrappers
+    # use slightly different vocabularies (e.g. "ess" vs "ess_min") without
+    # tripping the warning.
+    lowered = key.lower()
+    return any(lowered.startswith(f) for f in _RECOMMENDED_PRECOMPUTED_DIAGNOSTIC_FIELDS)
+
+
 def _check_bayes_infer_overlap(
     *,
     comparison_name: str,
@@ -532,6 +641,11 @@ def _bayes_check_diagnostics(ir: dict[str, Any]) -> _BayesCheckDiagnostics:
 
     referenced_models = _bayes_referenced_models(comparisons)
     observed_symbols = _bayes_observed_symbols(nodes)
+
+    _check_v06_precomputed_solver_diagnostics(
+        nodes=nodes,
+        diagnostics=diagnostics,
+    )
 
     for prediction_id, prediction in predictions.items():
         _check_bayes_prediction(

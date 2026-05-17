@@ -90,6 +90,7 @@ from gaia.engine.lang.runtime import (
 )
 from gaia.engine.lang.runtime.distribution import (
     Beta,
+    BetaBinomial,
     Binomial,
     Cauchy,
     ChiSquared,
@@ -164,6 +165,7 @@ __all__ = [
     "ArithOp",
     "Associate",
     "Beta",
+    "BetaBinomial",
     "Binomial",
     "Bool",
     "BoolExpr",
