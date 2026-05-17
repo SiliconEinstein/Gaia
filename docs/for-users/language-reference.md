@@ -615,7 +615,7 @@ overloaded, and `Claim` objects intentionally reject truth-value checks such as
 
 ### Propositional analysis
 
-Compiled operator graphs can be analyzed with `gaia.engine.ir.logic`. The API keeps Gaia IR as the stored representation and uses a mature Boolean backend for normalization and checks:
+Compiled operator graphs can be analyzed with `gaia.engine.ir.logic`. The API keeps Gaia IR as the stored representation and uses a mature Boolean backend for normalization and checks. The snippet assumes `pkg` is an already-collected package object:
 
 ```python
 from gaia.engine.lang.compiler import compile_package_artifact

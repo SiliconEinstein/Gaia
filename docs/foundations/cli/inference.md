@@ -307,7 +307,8 @@ is returned with `diagnostics.converged = False`.
 The `diagnostics` object in `beliefs.json` records:
 
 - `converged` — whether inference reached the convergence threshold
-- `iterations_run` — number of complete iterations (0 for JT exact)
+- `iterations_run` — number of complete iterations or exact-pass count (JT
+  exact records `2`, for collect + distribute)
 - `max_change_at_stop` — maximum belief change in the final iteration
 - `treewidth` — estimated treewidth of the factor graph (-1 if not computed)
 - `belief_history` — `{var_id: [belief_at_iter_0, ...]}` per variable
