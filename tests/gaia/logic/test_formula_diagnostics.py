@@ -1,7 +1,14 @@
 import pytest
 from sympy import And, Implies, Not, Symbol
 
-from gaia.engine.ir import FormulaGraph, FormulaNode, formula_node_id
+from gaia.engine.ir import (
+    FormulaGraph,
+    FormulaNode,
+    Knowledge,
+    KnowledgeType,
+    LocalCanonicalGraph,
+    formula_node_id,
+)
 from gaia.engine.ir.logic import FormulaDiagnosticReport as ExportedFormulaDiagnosticReport
 from gaia.engine.ir.logic import inspect_formula_graphs as exported_inspect_formula_graphs
 from gaia.engine.ir.logic.diagnostics import (
@@ -154,6 +161,57 @@ def test_formula_graph_to_sympy_rejects_missing_op_child_id():
         formula_graph_to_sympy(graph)
 
 
+def test_inspect_formula_graphs_reports_malformed_projection_and_continues():
+    bad_descriptor = {
+        "kind": "op",
+        "operator": "conjunction",
+        "children": ["fg:missing"],
+    }
+    bad_root = FormulaNode(
+        id=formula_node_id(bad_descriptor),
+        kind="op",
+        descriptor=bad_descriptor,
+    )
+    bad_graph = FormulaGraph(
+        source_claim="t:malformed_pkg::bad",
+        root=bad_root.id,
+        nodes=[bad_root],
+    )
+
+    good_descriptor = {"kind": "claim", "qid": "t:malformed_pkg::a"}
+    good_root = FormulaNode(
+        id=formula_node_id(good_descriptor),
+        kind="atom",
+        descriptor=good_descriptor,
+    )
+    good_graph = FormulaGraph(
+        source_claim="t:malformed_pkg::good",
+        root=good_root.id,
+        nodes=[good_root],
+    )
+    graph = LocalCanonicalGraph(
+        namespace="t",
+        package_name="malformed_pkg",
+        knowledges=[
+            Knowledge(id="t:malformed_pkg::bad", type=KnowledgeType.CLAIM, content="bad"),
+            Knowledge(id="t:malformed_pkg::good", type=KnowledgeType.CLAIM, content="good"),
+            Knowledge(id="t:malformed_pkg::a", type=KnowledgeType.CLAIM, content="A"),
+        ],
+        formula_graphs=[bad_graph, good_graph],
+    )
+
+    report = inspect_formula_graphs(graph)
+
+    malformed = next(d for d in report.diagnostics if d.code == "formula_projection_malformed")
+    assert malformed.severity == "warning"
+    assert malformed.scope == "claim"
+    assert malformed.logic_strength == "unknown"
+    assert malformed.source_claim == "t:malformed_pkg::bad"
+    assert malformed.formula_nodes == [bad_root.id]
+    assert "fg:missing" in malformed.details["error"]
+    assert not report.has_fatal
+
+
 def test_inspect_formula_graphs_reports_claim_local_unsat_as_fatal():
     package = "formula_diag_local_unsat"
     with CollectedPackage(package, namespace="t") as pkg:
@@ -292,4 +350,22 @@ def test_pairwise_diagnostics_skip_locally_unsat_formulas():
     report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
 
     assert any(d.code == "formula_unsat" and d.severity == "fatal" for d in report.diagnostics)
+    assert [d for d in report.diagnostics if d.scope == "claim_pair"] == []
+
+
+def test_pairwise_diagnostics_skip_locally_tautological_formulas():
+    package = "formula_diag_pair_skip_tautology"
+    with CollectedPackage(package, namespace="t") as pkg:
+        a = claim("A.")
+        a.label = "a"
+        tautology = claim("A or not A.", formula=lor(ClaimAtom(a), lnot(ClaimAtom(a))))
+        tautology.label = "tautology"
+        ordinary = claim("A holds.", formula=ClaimAtom(a))
+        ordinary.label = "ordinary"
+
+    report = inspect_formula_graphs(compile_package_artifact(pkg).graph)
+
+    assert any(
+        d.code == "formula_tautology" and d.severity == "warning" for d in report.diagnostics
+    )
     assert [d for d in report.diagnostics if d.scope == "claim_pair"] == []

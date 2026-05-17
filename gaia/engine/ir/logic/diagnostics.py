@@ -188,16 +188,17 @@ def inspect_formula_graphs(
 
     for formula_graph in graph.formula_graphs:
         diagnostics.extend(_redundant_operand_diagnostics(formula_graph))
-        projection = _project_formula_graph(formula_graph)
+        try:
+            projection = _project_formula_graph(formula_graph)
+        except ValueError as error:
+            diagnostics.append(_projection_malformed_diagnostic(formula_graph, error))
+            continue
         if projection is None:
             diagnostics.append(_projection_unsupported_diagnostic(formula_graph))
             continue
         local_diagnostics = _claim_local_diagnostics(projection)
         diagnostics.extend(local_diagnostics)
-        if not any(
-            diagnostic.code == "formula_unsat" and diagnostic.severity == "fatal"
-            for diagnostic in local_diagnostics
-        ):
+        if _is_pairwise_candidate(local_diagnostics):
             projected.append(projection)
 
     if include_pairwise:
@@ -303,6 +304,27 @@ def _projection_unsupported_diagnostic(formula_graph: FormulaGraph) -> FormulaDi
             "propositional diagnostics subset."
         ),
     )
+
+
+def _projection_malformed_diagnostic(
+    formula_graph: FormulaGraph,
+    error: ValueError,
+) -> FormulaDiagnostic:
+    return FormulaDiagnostic(
+        code="formula_projection_malformed",
+        severity="warning",
+        scope="claim",
+        logic_strength="unknown",
+        source_claim=formula_graph.source_claim,
+        formula_nodes=[formula_graph.root],
+        message=f"Formula for claim {formula_graph.source_claim!r} is malformed.",
+        details={"error": str(error)},
+    )
+
+
+def _is_pairwise_candidate(local_diagnostics: list[FormulaDiagnostic]) -> bool:
+    excluded_codes = {"formula_unsat", "formula_tautology"}
+    return not any(diagnostic.code in excluded_codes for diagnostic in local_diagnostics)
 
 
 def _condition(
