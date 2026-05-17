@@ -20,10 +20,11 @@ option flags. Only the top-level argument structure changed.
 
 ## Migrating from earlier versions
 
-Alpha 0 removes the 9 historical flat verbs (`gaia compile`, `gaia infer`,
-`gaia starmap`, etc.). Each tombstoned verb prints a redirect to stderr
-and exits with code 2. See [Migration to alpha 0](../../migration.md) for
-the full old-to-new mapping and the related Python import-path changes.
+Alpha 0 removed the 9 historical flat verbs (`gaia compile`, `gaia infer`,
+`gaia starmap`, etc.); invoking them now fails with typer's standard
+`No such command` usage error and exits with code 2. See
+[Migration to alpha 0](../../migration.md) for the full old-to-new
+mapping and the related Python import-path changes.
 
 ## Internals
 

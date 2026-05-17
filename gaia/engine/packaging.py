@@ -2,8 +2,7 @@
 
 Public facade `gaia.engine.packaging`: loading Gaia user packages from disk,
 compiling them into IR artifacts, priors application, and dependency-graph
-loading. Migrated out of `gaia.cli._packages` per alpha 0 architectural
-split; the old import path is tombstoned with per-symbol redirects.
+loading.
 """
 
 from __future__ import annotations

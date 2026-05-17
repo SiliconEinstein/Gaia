@@ -1,8 +1,0 @@
-{
-  "argv": [
-    "infer"
-  ],
-  "exit_code": 2,
-  "stderr": "error: `gaia infer` was removed in alpha 0. Use `gaia run infer` instead.\n",
-  "stdout": ""
-}

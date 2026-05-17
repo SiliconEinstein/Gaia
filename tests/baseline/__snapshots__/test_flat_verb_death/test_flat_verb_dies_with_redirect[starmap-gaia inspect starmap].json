@@ -1,8 +1,0 @@
-{
-  "argv": [
-    "starmap"
-  ],
-  "exit_code": 2,
-  "stderr": "error: `gaia starmap` was removed in alpha 0. Use `gaia inspect starmap` instead.\n",
-  "stdout": ""
-}

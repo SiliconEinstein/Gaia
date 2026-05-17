@@ -122,9 +122,7 @@ None of these sub-commands mutate `.py` source, IR, priors, or beliefs — they 
 
 Source: `gaia/engine/inquiry/review_manifest.py`. `gaia inquiry review` and
 `gaia build check` import these helpers from
-`gaia.engine.inquiry.review_manifest`; `gaia/cli/commands/_review_manifest.py`
-is a narrow tombstone for the pre-alpha-0 `load_or_generate_review_manifest`
-entry point.
+`gaia.engine.inquiry.review_manifest`.
 
 ```python
 def load_or_generate_review_manifest(pkg_path: Path | str, compiled) -> ReviewManifest

@@ -41,10 +41,10 @@ they are not part of the top-level `gaia.engine.ir` facade count.
 
 Alpha 0 makes `gaia.engine.*` the canonical Python contract. The historical
 top-level `gaia.lang`, `gaia.bp`, `gaia.ir`, `gaia.logic`, `gaia.inquiry`,
-and `gaia.trace` namespaces are tombstoned: any attribute access on them
-raises `ImportError` with a redirect message. A handful of CLI-internal
-helpers also moved into the engine. See [Migration to alpha 0](../../migration.md)
-for the full import-path migration table.
+and `gaia.trace` namespaces no longer exist; importing them raises
+`ModuleNotFoundError`. A handful of CLI-internal helpers also moved into
+the engine. See [Migration to alpha 0](../../migration.md) for the full
+import-path migration table.
 
 ## Building these docs
 

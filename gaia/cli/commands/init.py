@@ -10,10 +10,9 @@ import typer
 
 from gaia.engine.packaging import GaiaPackagingError
 
-# The DSL template emits the alpha-0 canonical import path
-# `from gaia.engine.lang import ...`. The legacy top-level `gaia.lang`
-# namespace is tombstoned in Stage B; new packages should never see it.
-# See `docs/migration.md` for the user-side import migration guide.
+# The DSL template emits the canonical import path
+# `from gaia.engine.lang import ...`. See `docs/migration.md` for the
+# user-side import migration guide.
 _DSL_TEMPLATE = """\
 from gaia.engine.lang import claim, derive, note
 

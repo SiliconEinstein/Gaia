@@ -1,8 +1,0 @@
-{
-  "argv": [
-    "render"
-  ],
-  "exit_code": 2,
-  "stderr": "error: `gaia render` was removed in alpha 0. Use `gaia run render` instead.\n",
-  "stdout": ""
-}

@@ -11,9 +11,16 @@ covers the three migration layers you may need to update:
    onto the v0.5 action/relation surface.
 
 If you have an existing Gaia knowledge package built on a pre-alpha version,
-this is the work needed to get it green again. The CLI helpfully refuses to
-silently absorb old invocations: each removed flat verb dies with `exit 2`
-and a stderr message naming the new grouped form.
+this is the work needed to get it green again.
+
+> **Note on tombstones (v0.5.x, post-alpha-0):** The alpha-0 release
+> shipped explicit "tombstone" stubs that intercepted old import paths and
+> flat-verb invocations with friendly redirect messages. Those stubs were
+> always intended as a short-lived migration aid and have since been
+> removed. Old paths now fail with plain Python `ModuleNotFoundError` and
+> typer's standard `No such command` usage error rather than the
+> hand-written redirect messages. The migration tables below remain the
+> authoritative old-to-new mapping.
 
 ---
 
@@ -55,19 +62,29 @@ subcommands are **unchanged**.
 
 ### What happens if I run an old flat verb?
 
-Old flat verbs are tombstoned. Each prints a redirect to stderr and exits
-with code 2 — no side effects, no partial work:
+Old flat verbs are no longer registered. Typer surfaces its standard
+usage error and exits with code 2 — no side effects, no partial work:
 
 ```console
 $ gaia compile ./my-pkg
-error: `gaia compile` was removed in alpha 0. Use `gaia build compile` instead.
+Usage: gaia [OPTIONS] COMMAND [ARGS]...
+Try 'gaia --help' for help.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ No such command 'compile'.                                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
 $ echo $?
 2
 ```
 
-Per the alpha-0 cutover policy, there is no warn-and-execute alias window —
-the deprecation path is `error → remove`. If you have CI / shell aliases /
-Makefiles / docs invoking the flat form, update them now.
+There is no warn-and-execute alias window — the cutover is direct. If you
+have CI / shell aliases / Makefiles / docs invoking the flat form, update
+them using the mapping above.
+
+> Alpha 0 originally shipped each flat verb as a hidden tombstone stub
+> whose stderr message named the new grouped form (e.g. *"`gaia compile`
+> was removed in alpha 0. Use `gaia build compile` instead."*). Those
+> stubs were removed in v0.5.x; the typer-default `No such command`
+> response shown above is the current behavior.
 
 ### `check` option flags are unchanged
 
@@ -85,16 +102,15 @@ All flags accept the same values, in the same order, with the same defaults.
 ## Layer 2: Import path migration
 
 Alpha 0 makes `gaia.engine.*` the canonical Python import path for engine
-code. The historical top-level `gaia.<sub>` packages are tombstoned: any
-attribute access on them raises `ImportError` with a redirect message
-pointing at the new path. A handful of symbols that used to live under
-`gaia.cli.*` have moved into the engine and follow the same pattern.
+code. The historical top-level `gaia.<sub>` packages no longer exist; any
+import against them raises `ModuleNotFoundError`. A handful of symbols
+that used to live under `gaia.cli.*` have also moved into the engine.
 
 ### Namespace-level moves (6)
 
 Move every `from gaia.<sub> import X` to `from gaia.engine.<sub> import X`:
 
-| Old (tombstoned) | New |
+| Old (removed) | New |
 |---|---|
 | `from gaia.bp import X` | `from gaia.engine.bp import X` |
 | `from gaia.ir import X` | `from gaia.engine.ir import X` |
@@ -103,12 +119,14 @@ Move every `from gaia.<sub> import X` to `from gaia.engine.<sub> import X`:
 | `from gaia.inquiry import X` | `from gaia.engine.inquiry import X` |
 | `from gaia.trace import X` | `from gaia.engine.trace import X` |
 
-Attribute access on any of the 6 old namespaces raises `ImportError` with a
-message of the form:
+Importing any of the 6 old namespaces raises a standard
+`ModuleNotFoundError: No module named 'gaia.<sub>'`.
 
-> `gaia.<sub>.<symbol> has moved to gaia.engine.<sub>.<symbol>; this path
-> was never public API and is removed in alpha 0. Update imports to
-> 'gaia.engine.<sub>.<symbol>'.`
+> Alpha 0 originally installed each old namespace as a tombstone shim
+> whose `__getattr__` raised a redirect `ImportError` naming the new
+> path (e.g. *"`gaia.lang.claim` has moved to `gaia.engine.lang.claim`
+> …"*). The shims were removed in v0.5.x; the plain
+> `ModuleNotFoundError` shown above is the current behavior.
 
 ### Bayes peer-module move
 
@@ -239,9 +257,9 @@ Anywhere you call `gaia <verb>` in automation, prefix the new group name:
 + gaia inspect starmap ./pkg --out site.html
 ```
 
-The CLI's redirect message also tells you exactly what to write — if you
-forget which group a verb landed in, just run the old form once and read the
-error.
+If you forget which group a verb landed in, consult the Layer 1 table
+above — the old form now fails with typer's generic
+`No such command '<verb>'` rather than naming the new form for you.
 
 ### 3. Newly scaffolded packages already use the new paths
 
@@ -260,9 +278,9 @@ verbs from `gaia.engine.lang`.
 
 ## Reference
 
-- 协作单 `VgdMw7N5NikAHIkFu6UckWuznHI` (二·共识) — original cutover spec
-- `gaia.cli.commands._flat_tombstones._FLAT_VERB_REDIRECTS` — machine-readable
-  map of flat-verb → grouped-form redirects (the source-of-truth for the
-  Layer 1 table above)
-- `gaia._legacy_imports` — `TOMBSTONED_NAMESPACES` and `TOMBSTONED_SYMBOLS`
-  dicts driving the Layer 2 ImportError stubs
+- The Layer 1 and Layer 2 tables above are the authoritative old-to-new
+  mappings.
+- The alpha-0 release of this repository included tombstone stubs that
+  enforced these mappings at runtime; they were removed in v0.5.x as part
+  of normal cleanup. See the repository history for the original
+  implementation (PR #607 added them, the follow-up branch removed them).

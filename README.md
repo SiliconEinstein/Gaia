@@ -355,9 +355,7 @@ premise or use `infer(...)`; do not hide it inside a prose rationale.
 ```
 gaia/
 ├── engine/     DSL runtime, Gaia IR schema, validation, compiler, BP engine, inquiry, and trace
-├── cli/        CLI command groups (build, run, inspect, pkg, inquiry, trace)
-├── inquiry/    Backward-compat tombstone; live code is gaia.engine.inquiry
-└── trace/      Backward-compat tombstone; live code is gaia.engine.trace
+└── cli/        CLI command groups (build, run, inspect, pkg, inquiry, trace)
 ```
 
 ## Documentation

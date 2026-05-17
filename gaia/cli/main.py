@@ -1,26 +1,21 @@
 """Gaia CLI — knowledge package authoring toolkit.
 
-Alpha 0 reorganizes the historical 9 flat verbs into 6 groups + `trace`
-independent (per 协作单 `VgdMw7N5NikAHIkFu6UckWuznHI` 二·共识):
+The CLI organizes verbs into 6 groups + `trace` independent:
 
   build    init / compile / check
   run      infer / render
   inspect  starmap / starmap-replay
-  review   (alpha 0: empty skeleton — held for downstream reviewer tooling)
-  inquiry  (unchanged sub-app: focus / review / obligation / hypothesis / tactics / reject)
+  review   (empty skeleton — held for downstream reviewer tooling)
+  inquiry  (sub-app: focus / review / obligation / hypothesis / tactics / reject)
   pkg      add / register
-  trace    (unchanged sub-app, NOT part of the 6 groups: verify / review / show)
+  trace    (sub-app, NOT part of the 6 groups: verify / review / show)
 
-Old flat verbs (`gaia compile <pkg>` etc.) are tombstoned: invoking them
-prints a redirect message to stderr and exits with code 2. See
-`gaia.cli.commands._flat_tombstones` for the mapping and
-`docs/migration.md` for the migration guide.
+See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
 """
 
 import typer
 
 from gaia._meta import IR_SCHEMA, get_channel, get_commit, get_library_version
-from gaia.cli.commands._flat_tombstones import register_flat_tombstones
 from gaia.cli.commands.add import add_command
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
@@ -164,16 +159,3 @@ app.add_typer(pkg_app, name="pkg")
 # --------------------------------------------------------------------------- #
 
 app.add_typer(trace_app, name="trace")
-
-
-# --------------------------------------------------------------------------- #
-# Flat-verb tombstones — direct cutover, no alias                             #
-# --------------------------------------------------------------------------- #
-#
-# Each of the 9 historical flat verbs is replaced with a hidden stub that
-# exits with code 2 and a stderr message pointing to the new grouped form.
-# Hidden so they don't pollute `gaia --help`, but `gaia <flat>` still
-# dispatches into the stub (Typer resolves command names regardless of
-# `hidden` for invocation purposes).
-
-register_flat_tombstones(app)

@@ -1,8 +1,0 @@
-{
-  "argv": [
-    "starmap-replay"
-  ],
-  "exit_code": 2,
-  "stderr": "error: `gaia starmap-replay` was removed in alpha 0. Use `gaia inspect starmap-replay` instead.\n",
-  "stdout": ""
-}

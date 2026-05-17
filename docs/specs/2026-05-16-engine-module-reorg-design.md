@@ -662,3 +662,18 @@ Items considered and deliberately rejected for this spec:
 - **Adding `engine.causal/` / `engine.statistics/` as part of this PR**: the spec sets the precedent (§6) but does not implement extensions that don't yet exist. They land as separate PRs when the feature work is ready.
 
 - **Removing tombstones**: post-deprecation cleanup is independent of this reorg. Tombstones are alpha-0 hard-error redirects, not soft deprecation; they stay in place indefinitely as long as `gaia.<old>` paths could plausibly appear in user code.
+
+---
+
+## 15. Post-launch update (v0.5.x)
+
+The alpha-0 tombstones described throughout this spec (namespace shims
+under `gaia/{bp,ir,lang,logic,inquiry,trace}/`, per-symbol shims under
+`gaia/cli/*`, flat-verb stubs in `gaia/cli/commands/_flat_tombstones.py`,
+plus the `gaia/_legacy_imports.py` machinery and the
+`tests/baseline/test_l2_tombstones.py` / `test_flat_verb_death.py`
+contract tests) were removed in a follow-up branch off `v0.5` after
+external callers migrated. The spec body above is preserved as a
+point-in-time record; current behavior for old paths is plain
+`ModuleNotFoundError` (Python imports) and typer's standard
+`No such command` usage error (CLI invocations).

@@ -1,8 +1,0 @@
-{
-  "argv": [
-    "check"
-  ],
-  "exit_code": 2,
-  "stderr": "error: `gaia check` was removed in alpha 0. Use `gaia build check` instead.\n",
-  "stdout": ""
-}

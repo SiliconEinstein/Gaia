@@ -19,10 +19,11 @@ pytestmark = pytest.mark.pr_gate
 
 # Every reachable help path. Order matters only for readability.
 #
-# Alpha 0 reorganizes 9 flat verbs into 6 groups + trace independent
-# (协作单 二·共识). The HELP_PATHS list mirrors the new invocation
-# surface: `gaia <group> <leaf>`. Old flat verbs are tombstoned and
-# covered separately in `test_flat_verb_death.py`.
+# Alpha 0 reorganizes 9 flat verbs into 6 groups + trace independent.
+# The HELP_PATHS list mirrors the new invocation surface:
+# `gaia <group> <leaf>`. The historical flat verbs are no longer
+# registered; invoking them surfaces typer's standard `No such command`
+# usage error (exit 2) rather than a Gaia-authored redirect message.
 HELP_PATHS: list[tuple[str, ...]] = [
     # root
     ("--help",),

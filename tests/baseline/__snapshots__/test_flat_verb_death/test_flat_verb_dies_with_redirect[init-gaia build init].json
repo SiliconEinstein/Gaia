@@ -1,8 +1,0 @@
-{
-  "argv": [
-    "init"
-  ],
-  "exit_code": 2,
-  "stderr": "error: `gaia init` was removed in alpha 0. Use `gaia build init` instead.\n",
-  "stdout": ""
-}

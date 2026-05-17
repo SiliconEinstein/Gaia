@@ -520,10 +520,11 @@ gaia pkg register . --registry-dir ../gaia-registry --create-pr      # 10. Publi
 
 The historical flat top-level verbs (`gaia compile`, `gaia infer`, `gaia check`,
 `gaia init`, `gaia render`, `gaia starmap`, `gaia starmap-replay`, `gaia add`,
-`gaia register`) are tombstoned in alpha 0. The grouped forms documented above
+`gaia register`) were removed in alpha 0. The grouped forms documented above
 (`gaia build compile`, `gaia run infer`, `gaia inspect starmap`, etc.) are the
 current canonical replacements.
 
-Invoking a tombstoned flat verb prints a redirect to stderr and exits with
-code 2 — no side effects, no partial work. See
-[Migration to alpha 0](../migration.md) for the full old-to-new mapping.
+Invoking one of the removed flat verbs now fails with typer's standard
+`No such command` usage error and exits with code 2 — no side effects, no
+partial work. See [Migration to alpha 0](../migration.md) for the full
+old-to-new mapping.
