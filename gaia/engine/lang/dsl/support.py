@@ -496,7 +496,9 @@ def _coerce_variable_scalar(
                 f"observe(variable, {role}=...) unit {raw.units!s} is not compatible "
                 f"with target unit {target_unit!r}: {err}"
             ) from err
-        return float(converted.magnitude), target_unit
+        return _coerce_variable_domain_value(
+            float(converted.magnitude), target=target, role=role
+        ), target_unit
 
     if is_quantity(raw):
         raise TypeError(
@@ -508,7 +510,37 @@ def _coerce_variable_scalar(
             f"observe(variable, {role}=...) must be a numeric scalar, got "
             f"{type(raw).__name__}: {raw!r}."
         )
-    return raw, None
+    return _coerce_variable_domain_value(raw, target=target, role=role), None
+
+
+def _coerce_variable_domain_value(
+    value: int | float,
+    *,
+    target: Variable,
+    role: str,
+) -> int | float:
+    """Validate an observed scalar against the Variable's declared domain."""
+    from gaia.engine.lang.formula.primitives import Nat, PrimitiveType
+    from gaia.engine.lang.runtime.domain import Domain
+
+    candidate: int | float = value
+    if target.domain is Nat and isinstance(value, float) and value.is_integer():
+        candidate = int(value)
+
+    if isinstance(target.domain, PrimitiveType):
+        if not target.domain.accepts(candidate):
+            raise ValueError(
+                f"observe(variable, {role}=...) value {value!r} is not accepted by "
+                f"target {target.symbol!r} domain {target.domain}."
+            )
+        return candidate
+
+    if isinstance(target.domain, Domain) and candidate not in target.domain.members:
+        raise ValueError(
+            f"observe(variable, {role}=...) value {value!r} is not in domain members "
+            f"of target {target.symbol!r}."
+        )
+    return candidate
 
 
 def _coerce_variable_error(

@@ -50,7 +50,7 @@ from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
 # Detect when ``--distribution`` carries an inline Distribution
-# expression (e.g. ``bayes.Binomial(n=395, p=3/4)``) instead of a bare
+# expression (e.g. ``Binomial("k under H", n=395, p=3/4)``) instead of a bare
 # identifier. The cli accepts both shapes: bare-identifier routes
 # through pre-write reference resolution; inline-expression routes
 # through the formula sandbox.
@@ -102,7 +102,7 @@ def model_command(
             "of a Distribution binding (created via `bayes binomial` / "
             "`bayes normal` / ...) — resolved in module scope, or "
             "(b) an inline Distribution expression like "
-            "`bayes.Binomial(n=395, p=3/4)` — validated via the formula "
+            "`Binomial('k under H', n=395, p=3/4)` — validated via the formula "
             "sandbox and emitted verbatim into the `distribution=` slot."
         ),
     ),
@@ -189,7 +189,7 @@ def model_command(
     # Bare identifier → push into references for pre-write resolution.
     # Inline expression (anything with parentheses or attribute syntax) →
     # validate via the formula sandbox (which whitelists Distribution
-    # factories + bayes.<Factory> attribute shape) and skip the
+    # factories imported from gaia.engine.lang) and skip the
     # reference-resolution path for the distribution itself.
     references_list, references_error = split_csv_idents(references)
     if references_error:

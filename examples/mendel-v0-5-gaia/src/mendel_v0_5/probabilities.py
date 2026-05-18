@@ -12,8 +12,8 @@ The statistical comparison is between two clearly identified alternatives:
 Every number produced by this module is therefore traceable to ``MENDELIAN_P``
 and the uniform-over-``p`` reference measure. There is no tolerance window,
 no post-hoc ratio band, and no strawman binomial with an arbitrary second
-``p``. The point hypothesis is represented by ``bayes.Binomial`` and the
-diffuse alternative by ``bayes.BetaBinomial(n, 1, 1)`` in the example package.
+``p``. The point hypothesis is represented by ``Binomial`` and the diffuse
+alternative by ``BetaBinomial(n, 1, 1)`` in the example package.
 """
 
 from __future__ import annotations

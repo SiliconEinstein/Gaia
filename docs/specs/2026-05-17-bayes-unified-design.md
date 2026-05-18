@@ -325,6 +325,14 @@ class PrecomputedLikelihoods(Claim):
 - `diagnostics` is solver-specific but follows a recommended schema (see below). It is mirrored into `metadata["diagnostics"]` at construction time so the IR / `gaia build check` / `gaia explain` can introspect it without walking back to the runtime object.
 - `solver` is a free-form label for review and explain output.
 
+`PrecomputedLikelihoods` is deliberately Bayes-specific. It records a numeric
+interpretation of external work as log-likelihoods over hypotheses; it is not
+the common evidence abstraction for all solver output, clinical trial records,
+benchmark traces, or simulation artifacts. A future `gaia.engine.evidence`
+layer should keep raw artifacts, provenance, and domain-specific evidence
+interpretations separate; this PR only installs the Bayes interpretation needed
+by `compare(precomputed=...)`.
+
 #### Recommended `diagnostics` schema
 
 External solvers report different convergence and provenance information depending on their method (MCMC vs SMC vs quadrature vs deterministic). The contract does not dictate a single key vocabulary; instead it requires that **at least one audit-relevant field** be present. `gaia build check` recognises the following keys as evidence that the wrapper has recorded enough to make the run reproducible / auditable:

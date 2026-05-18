@@ -9,7 +9,7 @@
 > **Depends on:**
 >   - PR #505 (claim formula schema — `Variable` / `Domain` / `Formula AST` / `parameter()` / `observation()` sugar)
 >   - PR #524 (v0.5 Action hierarchy refactor — `Relate`/`Correlate` removed; `Structural`/`Probabilistic` are the public categories; `Decompose` added; new `roles.py` projection system). See `docs/specs/2026-05-05-role-on-action-graph-design.md` and `docs/specs/2026-05-05-decompose-action-design.md`.
-> **Implementation note (2026-05-13):** The current v0.5 implementation removed the proposed core `Predict` action, core `predict()` verb, and deprecated `bayes.predict(...)` alias. Treat the sections below that describe those APIs as historical rejected design; current authoring uses `derive / observe / compute` in core and `bayes.model(...) / bayes.likelihood(...)` for Bayes.
+> **Implementation note (2026-05-13, updated 2026-05-18):** The current v0.5 implementation removed the proposed core `Predict` action, core `predict()` verb, and deprecated `bayes.predict(...)` alias. Treat the sections below that describe those APIs as historical rejected design; current authoring uses `derive / observe / compute` in core and `bayes.model(...) / bayes.compare(...)` for Bayes.
 
 ---
 

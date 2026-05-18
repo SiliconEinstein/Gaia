@@ -1,6 +1,6 @@
 """``gaia bayes <distribution>`` — Distribution-literal verbs.
 
-One verb per shipping :mod:`gaia.engine.bayes.distributions` class.
+One verb per shipping :mod:`gaia.engine.lang` Distribution factory.
 Each verb binds a Distribution literal to a module-scope identifier so
 subsequent ``bayes model`` / ``observe`` invocations can reference it
 by name.
@@ -41,8 +41,9 @@ from gaia.cli.commands.author._runner import run_author_op
 
 
 def _render_dist_call(*, label: str, dist_name: str, kwargs_pairs: list[str]) -> str:
-    """Render ``label = bayes.<dist_name>(<kwargs>)``."""
-    return f"{label} = bayes.{dist_name}({', '.join(kwargs_pairs)})"
+    """Render ``label = <dist_name>(content, <kwargs>)``."""
+    args = [repr(label), *kwargs_pairs]
+    return f"{label} = {dist_name}({', '.join(args)})"
 
 
 def _validate_params(
@@ -113,7 +114,7 @@ def _run_dist_op(
         label=label,
         references=references,
         generated_code=generated_code,
-        required_imports=("bayes",),
+        required_imports=(dist_name,),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
         extra_payload={"distribution_kind": dist_name},
@@ -145,9 +146,9 @@ def binomial_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Binomial(n=..., p=...)`` literal binding.
+    r"""Declare a ``Binomial(content, n=..., p=...)`` literal binding.
 
-    Renders ``<label> = bayes.Binomial(n=..., p=...)`` into the target
+    Renders ``<label> = Binomial('<label>', n=..., p=...)`` into the target
     module. ``--n`` and ``--p`` accept a numeric literal (``--n 395``,
     ``--p 0.75``) or a bare module-scope identifier (``--n TOTAL_COUNT``,
     ``--p MENDELIAN_DOMINANT_PROBABILITY``); each identifier must already
@@ -188,7 +189,7 @@ def betabinomial_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.BetaBinomial(n=..., alpha=..., beta=...)`` literal.
+    r"""Declare a ``BetaBinomial(content, n=..., alpha=..., beta=...)`` literal.
 
     Renders the BetaBinomial(n, alpha, beta) predictive distribution as
     a standalone binding; common as the diffuse / uniform-mean reference
@@ -230,7 +231,7 @@ def poisson_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Poisson(rate=...)`` literal binding.
+    r"""Declare a ``Poisson(content, rate=...)`` literal binding.
 
     Renders the single-parameter Poisson(rate) distribution as a
     standalone binding. ``--rate`` accepts a numeric literal or a bare
@@ -275,7 +276,7 @@ def normal_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Normal(mu=..., sigma=...)`` literal binding.
+    r"""Declare a ``Normal(content, mu=..., sigma=...)`` literal binding.
 
     Renders the Normal(mu, sigma) distribution as a standalone binding.
     Each parameter accepts a numeric literal or a bare module-scope
@@ -315,7 +316,7 @@ def lognormal_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.LogNormal(mu=..., sigma=...)`` literal binding.
+    r"""Declare a ``LogNormal(content, mu=..., sigma=...)`` literal binding.
 
     Renders LogNormal(mu, sigma) — the distribution of ``exp(X)`` for
     ``X ~ Normal(mu, sigma)``. Common for positively-supported
@@ -356,7 +357,7 @@ def beta_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Beta(alpha=..., beta=...)`` literal binding.
+    r"""Declare a ``Beta(content, alpha=..., beta=...)`` literal binding.
 
     Renders Beta(alpha, beta) on (0, 1) — the canonical conjugate prior
     for Bernoulli / Binomial success rates. ``alpha=1, beta=1`` is
@@ -396,7 +397,7 @@ def exponential_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Exponential(rate=...)`` literal binding.
+    r"""Declare a ``Exponential(content, rate=...)`` literal binding.
 
     Renders the single-parameter Exponential(rate) distribution on
     positive reals — mean ``1/rate``. ``--rate`` accepts a numeric
@@ -436,7 +437,7 @@ def gamma_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Gamma(alpha=..., rate=...)`` literal binding.
+    r"""Declare a ``Gamma(content, alpha=..., rate=...)`` literal binding.
 
     Renders Gamma(alpha, rate) on positive reals — mean ``alpha/rate``.
     Common as a conjugate prior for Poisson rates. Each parameter accepts
@@ -477,7 +478,7 @@ def studentt_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.StudentT(df=..., mu=..., sigma=...)`` literal binding.
+    r"""Declare a ``StudentT(content, df=..., mu=..., sigma=...)`` literal binding.
 
     Renders Student's t-distribution. ``--mu`` and ``--sigma`` are
     optional location/scale (defaults 0.0 / 1.0); ``--df`` (degrees of
@@ -518,7 +519,7 @@ def cauchy_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Cauchy(mu=..., gamma=...)`` literal binding.
+    r"""Declare a ``Cauchy(content, mu=..., gamma=...)`` literal binding.
 
     Renders Cauchy(mu, gamma) — undefined mean / variance; useful as a
     heavy-tailed robust alternative to Normal. Each parameter accepts a
@@ -557,7 +558,7 @@ def chisquared_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.ChiSquared(df=...)`` literal binding.
+    r"""Declare a ``ChiSquared(content, df=...)`` literal binding.
 
     Renders ChiSquared(df) on positive reals — sum of squared standard
     Normals with ``df`` degrees of freedom. ``--df`` accepts a numeric

@@ -193,13 +193,13 @@ a `DeprecationWarning`.
 | Legacy helper | Recommended v0.5 shape |
 |---|---|
 | `setting(...)` / `context(...)` | `note(...)` |
-| `support([P], C, prior=...)` | `derive(C, given=[P])` for deterministic support, or `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence links |
+| `support([P], C, prior=...)` | `derive(C, given=[P])` for deterministic support, or `infer(...)` / `bayes.compare(...)` for probabilistic evidence links |
 | `deduction([P], C)` | `derive(C, given=[P])` |
 | `infer([premises], conclusion, ...)` | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` |
 | `compare(...)` / `abduction(...)` | Declare observations, alternatives, relations, and likelihood links explicitly |
 | `induction(...)` | Author each evidence step with `derive(...)`, `observe(...)`, or `infer(...)`; let graph topology accumulate evidence |
 | `analogy(...)` / `extrapolation(...)` / `elimination(...)` / `case_analysis(...)` / `mathematical_induction(...)` | Author the deterministic skeleton with `derive(...)` plus relation verbs |
-| `noisy_and(...)` | `derive(...)` for deterministic conjunction, or `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence links |
+| `noisy_and(...)` | `derive(...)` for deterministic conjunction, or `infer(...)` / `bayes.compare(...)` for probabilistic evidence links |
 | `contradiction(a, b)` / `equivalence(a, b)` / `complement(a, b)` | `contradict(a, b)` / `equal(a, b)` / `exclusive(a, b)` |
 | `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | Formula claims such as `claim(..., formula=lor(...))`, `claim(..., formula=land(...))`, and `claim(..., formula=lnot(...))`; `a \| b`, `a & b`, and `~a` are Formula-returning sugar |
 

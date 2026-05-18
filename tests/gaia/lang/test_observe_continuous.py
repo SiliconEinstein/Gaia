@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from gaia.engine.ir.parameterization import CROMWELL_EPS
-from gaia.engine.lang import Normal, claim, observe
+from gaia.engine.lang import Domain, Nat, Normal, Probability, Variable, claim, observe
 from gaia.unit import q
 
 
@@ -102,6 +102,23 @@ def test_observe_distribution_rejects_given_clause():
     other = claim("conditioning premise")
     with pytest.raises(TypeError, match="not supported"):
         observe(T_c, value=203, given=[other])
+
+
+def test_observe_variable_rejects_value_outside_primitive_domain():
+    k = Variable(symbol="k", domain=Nat)
+    with pytest.raises(ValueError, match="domain Nat"):
+        observe(k, value=1.5)
+
+    p = Variable(symbol="p", domain=Probability)
+    with pytest.raises(ValueError, match="domain Probability"):
+        observe(p, value=1.5)
+
+
+def test_observe_variable_rejects_value_outside_custom_domain():
+    states = Domain("allowed count states", members=[1, 2], label="AllowedCounts")
+    x = Variable(symbol="x", domain=states)
+    with pytest.raises(ValueError, match="domain members"):
+        observe(x, value=3)
 
 
 def test_observe_discrete_claim_unchanged():

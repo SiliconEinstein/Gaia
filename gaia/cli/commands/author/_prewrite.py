@@ -93,9 +93,9 @@ KNOWLEDGE_AUTHOR_VERBS = frozenset(
         "parameter",
         "variable",
         "bayes.model",
-        "bayes.likelihood",
+        "bayes.compare",
         # Distribution-literal verbs all declare new Knowledge bindings
-        # via ``label = bayes.<Factory>(...)``.
+        # via ``label = <Factory>(...)``.
         "bayes.Binomial",
         "bayes.BetaBinomial",
         "bayes.Poisson",

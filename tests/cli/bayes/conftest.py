@@ -30,12 +30,23 @@ uuid = "{uuid}"
 _INIT_TEMPLATE = """\
 from gaia.engine import bayes
 from gaia.engine.lang import (
+    Beta,
+    BetaBinomial,
+    Binomial,
     Bool,
+    Cauchy,
+    ChiSquared,
     ClaimAtom,
     Constant,
+    Exponential,
+    Gamma,
+    LogNormal,
     Nat,
+    Normal,
+    Poisson,
     Probability,
     Real,
+    StudentT,
     Variable,
     claim,
     contradict,

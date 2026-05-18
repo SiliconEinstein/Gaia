@@ -9,15 +9,14 @@ mirror and the hand-authored ground truth at
 Multi-level tolerance
 ---------------------
 
-The mendel mirror exercises the cli's bayes / Variable / ``claim
---formula`` / multi-file capability surface.
+The mendel mirror exercises the cli's bayes / Variable / observation /
+multi-file capability surface.
 
 **Closed divergences (cli capability level)**:
 
-* ``--references`` is formula-sandbox-only, split from ``--background``
-  (rendered kwarg). The cli mirror no longer emits a spurious
-  ``background=[Variable, Variable]`` on the F2-count formula claim.
-* Inline ``bayes.Binomial(n=..., p=...)`` accepted on
+* Variable-targeted ``observe(..., value=...)`` produces the
+  ``metadata["observation"]`` payload consumed by Bayes compare lowering.
+* Inline ``Binomial(name, n=..., p=...)`` accepted on
   ``bayes.model --distribution``. The cli mirror no longer pre-binds
   helper distribution literals.
 * Default ``source_id='user_priors'`` omitted when caller doesn't pass
@@ -28,14 +27,6 @@ The mendel mirror exercises the cli's bayes / Variable / ``claim
   place; this test exercises the literal path because the mirror passes
   literals).
 
-**Remaining intrinsic divergence**:
-
-* The single-``--label`` discipline forces every cli statement to
-  render ``label=``; the hand-authored file uses ``.label = ...``
-  post-binding for the F2-count claim. Post-binding label-rename is
-  not added to the cli surface; the label-bag axis stays at
-  CONTENT_SET tolerance to absorb the divergence.
-
 Per-axis tolerance map (see ``CLI-AUTHORED.md`` §Equivalence guarantees):
 
 * ``user-authored-contents`` — BYTE_TEXT (claim/note prose is identical).
@@ -44,9 +35,8 @@ Per-axis tolerance map (see ``CLI-AUTHORED.md`` §Equivalence guarantees):
   (structural counts identical).
 * ``bayes-model-count`` / ``register-prior-count`` — BYTE_TEXT (verb
   use is identical at the engine-call level).
-* ``label-bag`` — CONTENT_SET (single-``--label`` discipline + extra
-  cli-only bindings for pre-bound distributions cause multiset
-  differences; the set of distinct labels referenced anywhere matches).
+* ``label-bag`` — CONTENT_SET (single-``--label`` discipline can affect
+  source text, while the set of distinct IR labels should match).
 
 The helper module ``tests/cli/_equivalence_levels.py`` underwrites
 both this test and the galileo test.
@@ -310,32 +300,15 @@ def _author_mendel(target: Path) -> None:
         "f2_recessive_reappears_observation",
     )
 
-    # The F2 count observation uses claim --formula to bind a predicate
-    # claim, then observe(--conclusion ...) wraps it. Hand-authored
-    # mutates ``.label`` after the call; the cli emits label= inline.
-    # --references is formula-sandbox-only (does not render as
-    # background=); hand-authored mendel doesn't list f2_total_count /
-    # f2_dominant_count in the claim's background, so the cli mirror
-    # also doesn't.
-    _author(
-        target,
-        "claim",
-        ("F2 计数为 295 个显性表型和 100 个隐性表型，共 395 个个体。"),
-        "--dsl-binding-name",
-        "f2_count_observation_binding",
-        "--references",
-        "f2_total_count,f2_dominant_count",
-        "--formula",
-        (
-            "land(equals(f2_total_count, Constant(395, Nat)), "
-            "equals(f2_dominant_count, Constant(295, Nat)))"
-        ),
-    )
+    # The quantitative F2 count is a Variable-targeted measurement.
+    # This is the data shape consumed by bayes.compare lowering.
     _author(
         target,
         "observe",
         "--conclusion",
-        "f2_count_observation_binding",
+        "f2_dominant_count",
+        "--value",
+        "295",
         "--background",
         "monohybrid_cross_setup,f2_has_discrete_classes_observation",
         "--rationale",
@@ -459,7 +432,7 @@ def _author_mendel(target: Path) -> None:
     )
 
     # ---- 7. Quantitative bayes comparison ---------------------------- #
-    # Inline ``bayes.Binomial(...)`` / ``bayes.BetaBinomial(...)``
+    # Inline ``Binomial(...)`` / ``BetaBinomial(...)``
     # passed via ``--distribution``. No pre-binding step; matches the
     # hand-authored shape that inlines the Distribution literal inside
     # ``bayes.model(distribution=...)``.
@@ -471,7 +444,7 @@ def _author_mendel(target: Path) -> None:
         "--observable",
         "f2_dominant_count",
         "--distribution",
-        "bayes.Binomial(n=395, p=3/4)",
+        "Binomial('F2 dominant count under Mendel 3:1', n=395, p=3/4)",
         "--background",
         "monohybrid_cross_setup,dominance_background,finite_sample_background",
         "--rationale",
@@ -490,7 +463,7 @@ def _author_mendel(target: Path) -> None:
         "--observable",
         "f2_dominant_count",
         "--distribution",
-        "bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)",
+        ("BetaBinomial('F2 dominant count under p ~ Uniform[0, 1]', n=395, alpha=1.0, beta=1.0)"),
         "--background",
         "monohybrid_cross_setup,finite_sample_background",
         "--rationale",
@@ -503,7 +476,7 @@ def _author_mendel(target: Path) -> None:
     )
     _bayes(
         target,
-        "likelihood",
+        "compare",
         "--data",
         "f2_count_observation",
         "--model",
@@ -517,8 +490,6 @@ def _author_mendel(target: Path) -> None:
             "直接比较观测到的 F2 显性计数在 Mendel 点模型和 diffuse 参考模型下的"
             "log likelihood；观测可靠性仍留在 f2_count_observation 的 prior 中。"
         ),
-        "--exclusivity",
-        "none",
         "--label",
         "mendel_count_likelihood",
     )
@@ -871,17 +842,8 @@ def test_mendel_label_bag_content_set(tmp_path: Path) -> None:
 
     The single-``--label`` discipline forces every cli statement to
     render ``label=``; some hand-authored statements omit the kwarg
-    when the binding name happens to equal the label. Additionally the
-    cli pre-binds two extra Distribution literals
-    (``mendel_count_distribution``, ``diffuse_count_distribution``) that
-    the hand-authored file inlines. So the set of distinct labels
-    (excluding cli-only bookkeeping labels) is the right tolerance
-    level here.
-
-    The cli-only labels (``mendel_count_distribution`` /
-    ``diffuse_count_distribution``) are added by the cli's pre-binding
-    discipline; we accept them on the cli side without requiring
-    matching entries on the hand side.
+    when the binding name happens to equal the label. The set of distinct
+    labels is the stable IR-level comparison axis.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
@@ -892,39 +854,19 @@ def test_mendel_label_bag_content_set(tmp_path: Path) -> None:
     hand_labels = set(_label_bag(hand_ir))
     cli_labels = set(_label_bag(cli_ir))
 
-    # Cli-only bookkeeping bindings:
-    # * ``f2_count_observation_binding`` — the cli's predicate-claim
-    #   binding for the F2 count observation. The hand-authored file
-    #   uses ``_f2_count_observation_binding`` then mutates ``.label``
-    #   to ``"f2_count_observation"``; in the IR the underlying claim
-    #   ends up labelled ``f2_count_observation`` on the hand side.
-    #   The cli's single-``--label`` discipline doesn't have a way to
-    #   re-label a claim after it's bound, so the cli mirror keeps the
-    #   claim's original binding name as its label.
-    #
-    # The cli inlines ``bayes.Binomial(...)`` /
-    # ``bayes.BetaBinomial(...)`` directly in --distribution, matching
+    # The cli inlines ``Binomial(...)`` /
+    # ``BetaBinomial(...)`` directly in --distribution, matching
     # the hand-authored shape; no extra Distribution-binding labels
     # (``mendel_count_distribution`` / ``diffuse_count_distribution``)
     # are minted.
-    cli_only_known = {
-        "f2_count_observation_binding",
-    }
-    # Hand-side labels that the cli mirror represents under a different
-    # binding name (see comment above on f2_count_observation_binding).
-    hand_only_relabel = {"f2_count_observation"}
-    cli_labels_normalized = cli_labels - cli_only_known
-    hand_labels_normalized = hand_labels - hand_only_relabel
-
-    # Every (normalized) hand-authored label must appear on the cli side.
-    missing = hand_labels_normalized - cli_labels_normalized
+    missing = hand_labels - cli_labels
     assert not missing, f"hand-authored labels missing from cli mirror: {sorted(missing)}"
 
 
 def test_mendel_bayes_engine_invocation_round_trip(tmp_path: Path) -> None:
     """The cli-authored bayes statements load + compile through the engine.
 
-    A targeted sanity check that the cli's bayes.model / bayes.likelihood
+    A targeted sanity check that the cli's bayes.model / bayes.compare
     rendering survives the engine round trip — the hand-authored test
     side will have already exercised this on the canonical package; the
     cli mirror just needs to produce a clean IR.
@@ -933,7 +875,7 @@ def test_mendel_bayes_engine_invocation_round_trip(tmp_path: Path) -> None:
     _author_mendel(mirror)
     cli_ir = _compile_ir(mirror)
     # Filter knowledges that carry a bayes-derived label or come from
-    # bayes.model / bayes.likelihood helper claims (they show up as
+    # bayes.model / bayes.compare helper claims (they show up as
     # claim knowledges in the IR with their helper label).
     bayes_labels = {"mendel_count_model", "diffuse_count_model", "mendel_count_likelihood"}
     cli_labels = {
@@ -1006,43 +948,29 @@ def test_mendel_register_prior_omits_default_source_id(tmp_path: Path) -> None:
     assert hand_priors.count("source_id=") == 0
 
 
-def test_mendel_claim_formula_no_redundant_background(tmp_path: Path) -> None:
-    """Cli mirror's F2-count claim has no spurious background=.
-
-    Hand-authored ``_f2_count_observation_binding = claim(content,
-    formula=land(...))`` does NOT list f2_total_count / f2_dominant_count
-    in a ``background=`` kwarg (the engine drops Variables from
-    claim-background anyway). The cli mirror does not emit a redundant
-    ``background=[Variable, Variable]`` because ``--references`` is
-    sandbox-only and ``--background`` (the rendered kwarg) is empty
-    here.
-    """
+def test_mendel_count_observation_uses_variable_value(tmp_path: Path) -> None:
+    """Cli mirror records the F2 count as observe(Variable, value=...)."""
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
 
     cli_init = (mirror / "src" / "mendel_v0_5" / "__init__.py").read_text()
-    # The F2-count predicate claim line should NOT contain background=.
-    formula_claim_lines = [
-        line
-        for line in cli_init.splitlines()
-        if line.startswith("f2_count_observation_binding = claim(")
+    observation_lines = [
+        line for line in cli_init.splitlines() if line.startswith("f2_count_observation = observe(")
     ]
-    assert formula_claim_lines, "cli mirror missing f2_count_observation_binding claim"
-    formula_claim = formula_claim_lines[0]
-    assert "formula=land(equals(f2_total_count" in formula_claim
-    assert "background=" not in formula_claim, (
-        f"background= unexpectedly emitted on formula claim: {formula_claim}"
-    )
+    assert observation_lines, "cli mirror missing f2_count_observation"
+    observation_line = observation_lines[0]
+    assert "observe(f2_dominant_count" in observation_line
+    assert "value=295" in observation_line
 
 
 def test_mendel_bayes_model_inline_distribution(tmp_path: Path) -> None:
-    """bayes.model emits inline bayes.Binomial(...) in source.
+    """bayes.model emits inline bare Distribution factories in source.
 
-    Hand-authored: ``bayes.model(..., distribution=bayes.Binomial(n=..., p=...))``.
+    Hand-authored: ``bayes.model(..., distribution=Binomial("name", n=..., p=...))``.
     The cli matches that shape by emitting the inline Distribution
-    expression directly via ``--distribution 'bayes.Binomial(...)'``;
-    no separate pre-binding ``mendel_count_distribution =
-    bayes.Binomial(...)`` line is minted.
+    expression directly via ``--distribution 'Binomial(...)'``; no
+    separate pre-binding ``mendel_count_distribution = Binomial(...)``
+    line is minted.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
@@ -1050,12 +978,13 @@ def test_mendel_bayes_model_inline_distribution(tmp_path: Path) -> None:
     cli_init = (mirror / "src" / "mendel_v0_5" / "__init__.py").read_text()
     # The mendel_count_model line should embed the inline Distribution
     # expression directly.
-    assert "distribution=bayes.Binomial(n=395, p=3/4)" in cli_init, (
-        "bayes.model did not inline bayes.Binomial(...)"
-    )
-    assert "distribution=bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)" in cli_init, (
-        "bayes.model did not inline bayes.BetaBinomial(...)"
-    )
+    assert (
+        "distribution=Binomial('F2 dominant count under Mendel 3:1', n=395, p=3/4)" in cli_init
+    ), "bayes.model did not inline Binomial(...)"
+    assert (
+        "distribution=BetaBinomial('F2 dominant count under p ~ Uniform[0, 1]', "
+        "n=395, alpha=1.0, beta=1.0)" in cli_init
+    ), "bayes.model did not inline BetaBinomial(...)"
     # The cli mirror does not emit standalone pre-binding lines.
     assert "mendel_count_distribution =" not in cli_init, (
         "unexpected pre-bound distribution emitted"

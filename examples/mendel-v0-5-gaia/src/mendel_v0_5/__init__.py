@@ -11,8 +11,8 @@ Two theories compete for the same single-factor cross:
   denies that discrete dominant/recessive classes exist in F2 at all.
 
 The quantitative count comparison uses the v0.6 unified Bayes surface
-(``model / observe / compare``) rather than the v0.5 trio
-(``bayes.model / bayes.data / bayes.likelihood``):
+(``bayes.model / observe / bayes.compare``) rather than the earlier
+alpha trio (``bayes.model / bayes.data / bayes.likelihood``):
 
 * Mendel is represented by ``Binomial(name, n=395, p=3/4)``.
 * The diffuse alternative is represented by

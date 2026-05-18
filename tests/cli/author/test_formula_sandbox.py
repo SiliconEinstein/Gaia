@@ -48,35 +48,23 @@ def test_whitelist_contains_formula_primitives() -> None:
         assert name in WHITELIST
 
 
-def test_whitelist_omits_bare_distribution_factories() -> None:
-    """Distribution factories must be reached via the dotted ``bayes.<X>`` shape.
-
-    Bare ``Normal`` / ``Binomial`` / ... are NOT in WHITELIST because
-    the scaffold imports the ``bayes`` module alias, not bare names.
-    The dotted attribute path
-    (:meth:`_SandboxVisitor.visit_Attribute`) accepts ``bayes.<X>``
-    where ``<X>`` is a Distribution factory.
-    """
+def test_whitelist_contains_bare_distribution_factories() -> None:
+    """Distribution factories are imported as bare ``gaia.engine.lang`` names."""
     for name in ("Normal", "LogNormal", "Beta", "Gamma", "Poisson", "Binomial"):
-        assert name not in WHITELIST
+        assert name in WHITELIST
 
 
-def test_dotted_bayes_distribution_factory_accepted() -> None:
-    """The dotted ``bayes.<Factory>`` shape passes the sandbox visitor."""
+def test_bare_distribution_factory_accepted() -> None:
+    """The bare ``<Factory>`` shape passes the sandbox visitor."""
     from gaia.cli.commands.author._formula_sandbox import validate_formula_expr
 
     # No assert needed beyond a non-raising call.
-    validate_formula_expr("bayes.Normal(mu=0, sigma=1)")
-    validate_formula_expr("bayes.Binomial(n=5, p=0.5)")
+    validate_formula_expr("Normal('normal variable', mu=0, sigma=1)")
+    validate_formula_expr("Binomial('count variable', n=5, p=0.5)")
 
 
-def test_bare_distribution_factory_now_refused() -> None:
-    """A bare ``Normal(mu=0, sigma=1)`` is refused by the sandbox.
-
-    The scaffold doesn't import bare ``Normal``, so allowing the bare
-    shape in WHITELIST would let it pass the sandbox but trip with
-    NameError at postwrite import. Reject at the flag boundary instead.
-    """
+def test_dotted_bayes_distribution_factory_now_refused() -> None:
+    """A dotted ``bayes.Normal(...)`` is refused by the sandbox."""
     import pytest as _pytest
 
     from gaia.cli.commands.author._formula_sandbox import (
@@ -85,7 +73,7 @@ def test_bare_distribution_factory_now_refused() -> None:
     )
 
     with _pytest.raises(FormulaSandboxError):
-        validate_formula_expr("Normal(mu=0, sigma=1)")
+        validate_formula_expr("bayes.Normal(mu=0, sigma=1)")
 
 
 def test_whitelist_contains_claim_atom() -> None:
@@ -125,9 +113,9 @@ def test_nested_implies_iff_passes() -> None:
     assert "implies" in out.referenced_names
 
 
-def test_distribution_factory_passes_via_dotted_shape() -> None:
-    """Distribution factories are reached as ``bayes.<Factory>``, not bare."""
-    out = validate_formula_expr("bayes.Normal(mu=200, sigma=50)")
+def test_distribution_factory_passes_via_bare_shape() -> None:
+    """Distribution factories are reached as bare ``gaia.engine.lang`` imports."""
+    out = validate_formula_expr("Normal('response', mu=200, sigma=50)")
     assert "Normal" in out.referenced_names
 
 

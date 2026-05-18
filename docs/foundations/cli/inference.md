@@ -363,14 +363,14 @@ deterministic truth-table potential itself.
 
 ### Strategy lowering
 
-Strategies are lowered by type. In v0.5 the canonical authoring path is through Action verbs (`derive` / `observe` / `compute` / `infer` / `associate` / `equal` / `contradict` / `exclusive` / `decompose`) plus the lifted `bayes.model(...)` / `bayes.likelihood(...)` helpers for predictive distributions; the entries below describe how each underlying strategy type lowers, regardless of whether it came from an Action verb or a legacy v5 strategy verb.
+Strategies are lowered by type. In v0.5 the canonical authoring path is through Action verbs (`derive` / `observe` / `compute` / `infer` / `associate` / `equal` / `contradict` / `exclusive` / `decompose`) plus the lifted `bayes.model(...)` / `bayes.compare(...)` helpers for predictive distributions; the entries below describe how each underlying strategy type lowers, regardless of whether it came from an Action verb or a legacy v5 strategy verb.
 
 - **`infer`**: `CONDITIONAL` factor with full CPT. With `given=G` on the action, the CPT gates on `G` so that the relation collapses to MaxEnt (0.5) when any of `G` is false (the *infer-with-given gating* introduced in v0.5). When `infer_use_degraded_noisy_and=True`, falls back to `CONJUNCTION + SOFT_ENTAILMENT`.
 - **`deduction`** (lowering target of `derive` and the deprecated `deduction` strategy): `CONJUNCTION` for multiple premises, then deterministic `IMPLICATION`. Review gates publication quality; it does not supply a numeric prior and does not suppress `gaia run infer` local preview output.
 - **`support`** (deprecated v5 strategy; lowering preserved for compatibility): soft implication via `SOFT_ENTAILMENT`; legacy `prior=` folds into its effective `p1`.
 - **`noisy_and`** (deprecated): `CONJUNCTION + SOFT_ENTAILMENT`. Single premise omits conjunction.
 - **`associate`**: `PAIRWISE_POTENTIAL` factor over two Claims with joint weights derived from `p_a_given_b`, `p_b_given_a`, and at least one marginal prior. No helper conclusion variable.
-- **Bayes likelihood** (`bayes.likelihood(...)`): emits one `infer` strategy per hypothesis with `[0.5, clamp(exp(logL_i - logL_max))]`, plus rigid relation operators driven by the `exclusivity` setting.
+- **Bayes comparison** (`bayes.compare(...)`): emits one `infer` strategy per hypothesis with `[0.5, clamp(exp(logL_i - logL_max))]`, plus rigid relation operators driven by the `exclusivity` setting.
 - **Other named formal types** (legacy v5: `elimination`, `case_analysis`, `analogy`, `extrapolation`, ...): auto-formalized via `formalize_named_strategy()`, then expanded to deterministic factors.
 - **`FormalStrategy`**: each embedded operator maps to a deterministic factor via `_OPERATOR_MAP`.
 - **`CompositeStrategy`**: recursively lowers each sub-strategy.

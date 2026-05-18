@@ -1,18 +1,17 @@
-"""``gaia bayes likelihood`` — append a ``bayes.likelihood(...)`` statement.
+"""``gaia bayes compare`` — append a ``bayes.compare(...)`` statement.
 
-Maps to ``gaia.engine.bayes.dsl.likelihood.likelihood``:
+Maps to ``gaia.engine.bayes.dsl.compare.compare``:
 
 .. code-block:: python
 
-    bayes.likelihood(
+    bayes.compare(
         data: Claim | list[Claim],
         *,
-        model: Claim,
-        against: Claim | list[Claim] = (),
+        models: list[Claim],
         background=None,
         rationale="",
         label=None,
-        exclusivity="pairwise_contradiction",
+        exclusivity="exhaustive_pairwise_complement",
         metadata=None,
     )
 
@@ -22,10 +21,9 @@ Cli surface:
   Claims (one or more).
 * ``--model <ident>`` — identifier of the primary bayes.model helper Claim.
 * ``--against <csv>`` — comma-separated identifier list of alternative
-  model Claims (zero or more).
-* ``--exclusivity <mode>`` — one of ``none`` /
-  ``pairwise_contradiction`` / ``exhaustive_pairwise_complement``;
-  default ``pairwise_contradiction`` matches the engine default.
+  model Claims (one or more for an actual comparison).
+* ``--exclusivity <mode>`` — one of ``pairwise_contradiction`` /
+  ``exhaustive_pairwise_complement``; default matches the engine default.
 """
 
 from __future__ import annotations
@@ -45,12 +43,10 @@ from gaia.cli.commands.author._common import (
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
-_EXCLUSIVITY_VALUES = frozenset(
-    {"none", "pairwise_contradiction", "exhaustive_pairwise_complement"}
-)
+_EXCLUSIVITY_VALUES = frozenset({"pairwise_contradiction", "exhaustive_pairwise_complement"})
 
 
-def _render_likelihood_statement(
+def _render_compare_statement(
     *,
     label: str,
     data: list[str],
@@ -61,30 +57,29 @@ def _render_likelihood_statement(
     exclusivity: str,
     metadata: dict[str, Any] | None,
 ) -> str:
-    """Render the proposed ``bayes.likelihood(...)`` statement."""
+    """Render the proposed ``bayes.compare(...)`` statement."""
     # Data is a single Claim or a list of Claims; render as bare
     # identifier when single, as ``[...]`` when multiple.
     data_arg = data[0] if len(data) == 1 else "[" + ", ".join(data) + "]"
     args = [data_arg]
-    kwargs = [f"model={model}"]
-    if against:
-        kwargs.append(f"against=[{', '.join(against)}]")
+    models = [model, *against]
+    kwargs = [f"models=[{', '.join(models)}]"]
     if background:
         kwargs.append(f"background=[{', '.join(background)}]")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
-    if exclusivity != "pairwise_contradiction":
+    if exclusivity != "exhaustive_pairwise_complement":
         # Only emit when non-default to keep the rendered call concise.
         kwargs.append(f"exclusivity={exclusivity!r}")
     kwargs.append(f"label={label!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = bayes.likelihood({', '.join(args)}, {', '.join(kwargs)})"
+    return f"{label} = bayes.compare({', '.join(args)}, {', '.join(kwargs)})"
 
 
-def likelihood_command(
+def compare_command(
     label: str = typer.Option(
-        ..., "--label", help="Identifier the likelihood helper Claim binds to."
+        ..., "--label", help="Identifier the comparison helper Claim binds to."
     ),
     data: str = typer.Option(
         ...,
@@ -102,11 +97,11 @@ def likelihood_command(
         help="Comma-separated identifier(s) of alternative model Claim(s).",
     ),
     exclusivity: str = typer.Option(
-        "pairwise_contradiction",
+        "exhaustive_pairwise_complement",
         "--exclusivity",
         help=(
-            "Structural-action mode: 'none' / 'pairwise_contradiction' (default) / "
-            "'exhaustive_pairwise_complement'."
+            "Structural-action mode: 'exhaustive_pairwise_complement' (default) "
+            "/ 'pairwise_contradiction'."
         ),
     ),
     target: str = typer.Option(
@@ -143,17 +138,16 @@ def likelihood_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``bayes.likelihood(data, model=..., against=...)`` statement.
+    r"""Author a ``bayes.compare(data, models=[model, ...])`` statement.
 
     Example:
 
     .. code-block:: bash
 
-        gaia bayes likelihood \
+        gaia bayes compare \
             --data f2_count_observation \
             --model mendel_count_model \
             --against diffuse_count_model \
-            --exclusivity none \
             --rationale "Compare Mendel vs diffuse on F2 counts." \
             --label mendel_count_likelihood
     """
@@ -162,7 +156,7 @@ def likelihood_command(
     if exclusivity not in _EXCLUSIVITY_VALUES:
         allowed = ", ".join(sorted(_EXCLUSIVITY_VALUES))
         emit_syntax_error(
-            "bayes.likelihood",
+            "bayes.compare",
             f"--exclusivity must be one of: {allowed} (got {exclusivity!r})",
             target=str(target),
             human=human,
@@ -171,17 +165,17 @@ def likelihood_command(
 
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
-        emit_syntax_error("bayes.likelihood", metadata_error, target=str(target), human=human)
+        emit_syntax_error("bayes.compare", metadata_error, target=str(target), human=human)
         return
 
     if not validate_identifier_flag(
-        model, verb="bayes.likelihood", flag="--model", target=str(target), human=human
+        model, verb="bayes.compare", flag="--model", target=str(target), human=human
     ):
         return
     data_list, data_error = split_csv_idents(data)
     if data_error:
         emit_syntax_error(
-            "bayes.likelihood",
+            "bayes.compare",
             f"--data rejected: {data_error}",
             target=str(target),
             human=human,
@@ -190,7 +184,7 @@ def likelihood_command(
         return
     if not data_list:
         emit_syntax_error(
-            "bayes.likelihood",
+            "bayes.compare",
             "--data must list at least one observation identifier",
             target=str(target),
             human=human,
@@ -199,7 +193,7 @@ def likelihood_command(
     against_list, against_error = split_csv_idents(against)
     if against_error:
         emit_syntax_error(
-            "bayes.likelihood",
+            "bayes.compare",
             f"--against rejected: {against_error}",
             target=str(target),
             human=human,
@@ -209,7 +203,7 @@ def likelihood_command(
     background_list, background_error = split_csv_idents(background)
     if background_error:
         emit_syntax_error(
-            "bayes.likelihood",
+            "bayes.compare",
             f"--background rejected: {background_error}",
             target=str(target),
             human=human,
@@ -217,7 +211,7 @@ def likelihood_command(
         )
         return
 
-    generated_code = _render_likelihood_statement(
+    generated_code = _render_compare_statement(
         label=label,
         data=data_list,
         model=model,
@@ -230,7 +224,7 @@ def likelihood_command(
     references = [*data_list, model, *against_list, *background_list]
     target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
-        verb="bayes.likelihood",
+        verb="bayes.compare",
         kind="reasoning",
         label=label,
         references=references,
@@ -248,4 +242,4 @@ def likelihood_command(
     )
 
 
-__all__ = ["likelihood_command"]
+__all__ = ["compare_command"]

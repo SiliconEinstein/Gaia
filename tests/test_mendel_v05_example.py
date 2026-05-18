@@ -61,7 +61,7 @@ def _load_probability_module(package: Path):
     return module
 
 
-def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path: Path):
+def test_mendel_fixture_models_competing_theories_with_bayes_compare(tmp_path: Path):
     package = _copy_mendel_example(tmp_path)
     probabilities = _load_probability_module(package)
 
@@ -74,7 +74,7 @@ def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path
     knowledge_by_label = {item["label"]: item for item in ir["knowledges"] if item.get("label")}
     strategy_types = {item["type"] for item in ir["strategies"]}
     count_observation = knowledge_by_label["f2_count_observation"]
-    likelihood = knowledge_by_label["mendel_count_likelihood"]
+    comparison = knowledge_by_label["mendel_count_likelihood"]
 
     # The package uses the Bayes module for the quantitative count comparison,
     # not the old associate workaround node that conflated observation
@@ -114,8 +114,8 @@ def test_mendel_fixture_models_competing_theories_with_bayes_likelihood(tmp_path
 
     # The quantitative comparison stores executable Bayes comparison metadata.
     # v0.6 unified surface writes metadata["comparison"] (not metadata["bayes"]).
-    assert likelihood["metadata"]["helper_kind"] == "model_preference"
-    likelihoods = likelihood["metadata"]["comparison"]["likelihoods"]
+    assert comparison["metadata"]["helper_kind"] == "model_preference"
+    likelihoods = comparison["metadata"]["comparison"]["likelihoods"]
     mendel_id = knowledge_by_label["mendelian_segregation_model"]["id"]
     blending_id = knowledge_by_label["blending_inheritance_model"]["id"]
     assert likelihoods[mendel_id] == pytest.approx(stats.binom.logpmf(295, n=395, p=3 / 4))

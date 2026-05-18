@@ -44,7 +44,7 @@ def test_binomial_happy_path(bayes_package: BayesPackage) -> None:
     )
     assert result.exit_code == 0, result.output
     text = bayes_package.source_init.read_text()
-    assert "mendel_binomial = bayes.Binomial(n=395, p=0.75)" in text
+    assert "mendel_binomial = Binomial('mendel_binomial', n=395, p=0.75)" in text
 
 
 def test_beta_binomial_happy_path(bayes_package: BayesPackage) -> None:
@@ -68,7 +68,7 @@ def test_beta_binomial_happy_path(bayes_package: BayesPackage) -> None:
     )
     assert result.exit_code == 0, result.output
     text = bayes_package.source_init.read_text()
-    assert "diffuse_betabin = bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)" in text
+    assert "diffuse_betabin = BetaBinomial('diffuse_betabin', n=395, alpha=1.0, beta=1.0)" in text
 
 
 def test_normal_happy_path(bayes_package: BayesPackage) -> None:
@@ -89,7 +89,9 @@ def test_normal_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "standard_normal = bayes.Normal(mu=0, sigma=1)" in bayes_package.source_init.read_text()
+    assert "standard_normal = Normal('standard_normal', mu=0, sigma=1)" in (
+        bayes_package.source_init.read_text()
+    )
 
 
 def test_poisson_happy_path(bayes_package: BayesPackage) -> None:
@@ -108,7 +110,9 @@ def test_poisson_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "rare_events = bayes.Poisson(rate=3.5)" in bayes_package.source_init.read_text()
+    assert "rare_events = Poisson('rare_events', rate=3.5)" in (
+        bayes_package.source_init.read_text()
+    )
 
 
 def test_beta_happy_path(bayes_package: BayesPackage) -> None:
@@ -129,7 +133,9 @@ def test_beta_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "beta_prior = bayes.Beta(alpha=2, beta=5)" in bayes_package.source_init.read_text()
+    assert "beta_prior = Beta('beta_prior', alpha=2, beta=5)" in (
+        bayes_package.source_init.read_text()
+    )
 
 
 def test_lognormal_happy_path(bayes_package: BayesPackage) -> None:
@@ -150,7 +156,9 @@ def test_lognormal_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "lognorm = bayes.LogNormal(mu=0, sigma=1)" in bayes_package.source_init.read_text()
+    assert "lognorm = LogNormal('lognorm', mu=0, sigma=1)" in (
+        bayes_package.source_init.read_text()
+    )
 
 
 def test_exponential_happy_path(bayes_package: BayesPackage) -> None:
@@ -169,7 +177,7 @@ def test_exponential_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "lifetime = bayes.Exponential(rate=0.5)" in bayes_package.source_init.read_text()
+    assert "lifetime = Exponential('lifetime', rate=0.5)" in (bayes_package.source_init.read_text())
 
 
 def test_gamma_happy_path(bayes_package: BayesPackage) -> None:
@@ -190,7 +198,9 @@ def test_gamma_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "gamma_dist = bayes.Gamma(alpha=2, rate=1)" in bayes_package.source_init.read_text()
+    assert "gamma_dist = Gamma('gamma_dist', alpha=2, rate=1)" in (
+        bayes_package.source_init.read_text()
+    )
 
 
 def test_studentt_default_mu_sigma(bayes_package: BayesPackage) -> None:
@@ -211,7 +221,8 @@ def test_studentt_default_mu_sigma(bayes_package: BayesPackage) -> None:
     )
     assert result.exit_code == 0, result.output
     assert (
-        "t_dist = bayes.StudentT(df=5, mu=0.0, sigma=1.0)" in bayes_package.source_init.read_text()
+        "t_dist = StudentT('t_dist', df=5, mu=0.0, sigma=1.0)"
+        in bayes_package.source_init.read_text()
     )
 
 
@@ -233,7 +244,9 @@ def test_cauchy_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "cauchy_dist = bayes.Cauchy(mu=0, gamma=1)" in bayes_package.source_init.read_text()
+    assert "cauchy_dist = Cauchy('cauchy_dist', mu=0, gamma=1)" in (
+        bayes_package.source_init.read_text()
+    )
 
 
 def test_chisquared_happy_path(bayes_package: BayesPackage) -> None:
@@ -252,7 +265,7 @@ def test_chisquared_happy_path(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "chi_dist = bayes.ChiSquared(df=3)" in bayes_package.source_init.read_text()
+    assert "chi_dist = ChiSquared('chi_dist', df=3)" in bayes_package.source_init.read_text()
 
 
 def test_distribution_envelope_carries_distribution_kind(

@@ -22,12 +22,12 @@ The DSL recognises two authoring shapes:
    observation pins ``my_claim.prior`` to ``1 - CROMWELL_EPS``. Use
    ``--given`` to record a conditional observation that does not pin
    the conclusion.
-2. **Continuous quantity observation** — ``observe(distribution,
+2. **Quantity observation** — ``observe(variable_or_distribution,
    value=v, error=sigma)``. Records a measurement event for a
-   :class:`Distribution`-typed quantity.
+   :class:`Variable` or :class:`Distribution` quantity.
 
 The cli supports both the discrete-claim form with optional ``--given``
-and the continuous form via ``--value`` / ``--error``. Both shapes go
+and the quantity form via ``--value`` / ``--error``. Both shapes go
 through the same pre-write pipeline; the rendered statement diverges
 only in which kwargs land on the call.
 
@@ -43,10 +43,9 @@ prepends the auto-claim to the target file ahead of the
 ``observe(...)`` statement. Mutually exclusive with ``--conclusion``;
 ``--observation-label`` overrides the auto-derived slug (mirrors the
 ``--conclusion-label`` discipline on ``derive``). Only the
-discrete-claim observation form supports prose mode; the continuous
-form (``--value`` / ``--error``) targets an existing Distribution by
-construction and so retains the identifier-only ``--conclusion``
-shape.
+discrete-claim observation form supports prose mode; the quantity form
+(``--value`` / ``--error``) targets an existing Variable or Distribution by
+construction and so retains the identifier-only ``--conclusion`` shape.
 """
 
 from __future__ import annotations
@@ -231,9 +230,9 @@ def _check_observation_mode_mutex(
             human=human,
         )
         return False
-    # The continuous form needs a Distribution-typed identifier as the
-    # observation target, so prose mode (which generates a Claim, not a
-    # Distribution) is incompatible with --value / --error.
+    # The continuous form needs an existing Variable or Distribution as
+    # the observation target, so prose mode (which generates a Claim) is
+    # incompatible with --value / --error.
     if (observation_content is not None or observation_prose is not None) and (
         value is not None or error is not None
     ):
@@ -241,8 +240,8 @@ def _check_observation_mode_mutex(
             "observe",
             (
                 "prose mode (--observation-content / --observation-prose) is "
-                "incompatible with --value / --error (continuous form targets "
-                "an existing Distribution; use --conclusion <dist_label>)"
+                "incompatible with --value / --error (quantity form targets "
+                "an existing Variable or Distribution; use --conclusion <label>)"
             ),
             target=target,
             human=human,
@@ -355,8 +354,9 @@ def observe_command(
         None,
         "--conclusion",
         help=(
-            "Identifier of the observed Claim or Distribution (must already be "
-            "declared). Mutually exclusive with --observation-content."
+            "Identifier of the observed Claim, Variable, or Distribution "
+            "(must already be declared). Mutually exclusive with "
+            "--observation-content."
         ),
     ),
     observation_content: str | None = typer.Option(
@@ -366,8 +366,8 @@ def observe_command(
             "Prose for an auto-generated observation Claim. Mutually exclusive with "
             "--conclusion. Cli derives a snake-case slug for the label (override "
             "via --observation-label). Only valid for discrete observations; the "
-            "continuous form (--value / --error) targets a Distribution and so "
-            "must use --conclusion."
+            "quantity form (--value / --error) targets a Variable or "
+            "Distribution and so must use --conclusion."
         ),
     ),
     observation_prose: str | None = typer.Option(
@@ -400,14 +400,14 @@ def observe_command(
         None,
         "--value",
         help=(
-            "Numeric value (continuous form). Forwarded verbatim — pass a literal "
+            "Numeric value (quantity form). Forwarded verbatim — pass a literal "
             "(`--value 203`) or a Quantity expression (`--value '203 * ureg.K'`)."
         ),
     ),
     error: str | None = typer.Option(
         None,
         "--error",
-        help="Observation error (continuous form): scalar sigma or Distribution.",
+        help="Observation error (quantity form): scalar sigma or Distribution.",
     ),
     given: str | None = typer.Option(
         None,

@@ -181,7 +181,7 @@ def test_chain_bayes_binomial_clean_inputs_round_trip(tmp_path: Path) -> None:
     check = payload.get("check")
     assert isinstance(check, dict), check
     init_path = target / "src" / "chain" / "__init__.py"
-    assert "fair_coin = bayes.Binomial(n=100, p=0.5)" in init_path.read_text()
+    assert "fair_coin = Binomial('fair_coin', n=100, p=0.5)" in init_path.read_text()
 
 
 def test_chain_cross_module_reference_with_check(tmp_path: Path) -> None:

@@ -281,6 +281,14 @@ unrecognised-only diagnostics. A standalone PyMC integration demo lives
 at `scripts/demo_v06_pymc_integration.py` (requires
 `pip install pymc arviz`).
 
+`PrecomputedLikelihoods` is intentionally a Bayes artifact, not Gaia's
+universal evidence abstraction. It says "this external computation has been
+interpreted as log-likelihoods for these hypotheses" and is consumed only by
+`compare(precomputed=...)`. Raw simulation traces, clinical trial tables,
+benchmark runs, and other evidence artifacts should keep their own provenance
+and await a separate common evidence layer instead of being forced through this
+Bayes-specific record.
+
 ### Wrapper pattern for fully-specified vs latent-bearing distributions
 
 PyMC SMC, NumPyro NUTS, and similar samplers cannot run on a model with

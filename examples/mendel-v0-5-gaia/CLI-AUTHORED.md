@@ -1,6 +1,6 @@
-# CLI-authored Mendel — bayes + formula-claim + multi-file walkthrough
+# CLI-authored Mendel — bayes + Variable observation + multi-file walkthrough
 
-> **Companion to** [`docs/reference/cli/author.md`](../../docs/reference/cli/author.md) and the hand-authored package at `src/mendel_v0_5/__init__.py`. This document shows how the Mendel single-factor cross example can be authored end-to-end through `gaia author <verb>`, `gaia bayes <verb>`, and `gaia pkg <verb>`, without hand-editing the Python source. It mirrors the galileo walkthrough at `examples/galileo-v0-5-gaia/CLI-AUTHORED.md` and exercises the harder of the two v0.5 example packages: `bayes` group + `Variable` + `claim --formula` + multi-file (`priors.py`) + `--background` on every relation verb.
+> **Companion to** [`docs/reference/cli/author.md`](../../docs/reference/cli/author.md) and the hand-authored package at `src/mendel_v0_5/__init__.py`. This document shows how the Mendel single-factor cross example can be authored end-to-end through `gaia author <verb>`, `gaia bayes <verb>`, and `gaia pkg <verb>`, without hand-editing the Python source. It mirrors the galileo walkthrough at `examples/galileo-v0-5-gaia/CLI-AUTHORED.md` and exercises the harder of the two v0.5 example packages: `bayes` group + `Variable` + Variable-targeted `observe(..., value=...)` + multi-file (`priors.py`) + `--background` on every relation verb.
 
 > **Reproduction semantics**: this walkthrough reproduces the IR (knowledge/strategy content + counts + types) of the hand-authored package, not the byte-text source. See the equivalence test under `tests/cli/mendel_demo/` for the asserted axes; a small set of source-text divergences (chiefly the single-`--label` discipline) is documented at end-of-doc and is intrinsic-by-design.
 
@@ -24,10 +24,10 @@ Mendel touches every cli capability that galileo did not:
 | --- | --- |
 | Multi-file (`--file priors.py`) | 6 `register_prior` calls in sibling `priors.py` |
 | `pkg add-module` | scaffolding `priors.py` before authoring into it |
-| `bayes` group | 2 `bayes.model` + 1 `bayes.likelihood` + 2 inline distribution literals (`bayes.Binomial`, `bayes.BetaBinomial`) |
+| `bayes` group | 2 `bayes.model` + 1 `bayes.compare` + 2 inline distribution literals (`Binomial`, `BetaBinomial`) |
 | `author variable` | 2 `Variable(...)` declarations (`f2_total_count`, `f2_dominant_count`) |
-| `claim --formula` | 1 predicate-mode claim (`f2_count_observation_binding`) wrapping `land(equals(...), equals(...))` |
-| `--background` on relations | `exclusive`, every `observe`, every `derive`, every `equal`, every `contradict`, every `bayes.model`, `bayes.likelihood` |
+| `author observe --value` | 1 Variable-targeted quantitative observation (`f2_count_observation`) |
+| `--background` on relations | `exclusive`, every `observe`, every `derive`, every `equal`, every `contradict`, every `bayes.model`, `bayes.compare` |
 | Inline-prose `derive --conclusion-prose` | every mendel `derive(...)` uses the inline-prose shape |
 | Single-`--label` discipline (intrinsic) | every cli statement renders `label=` inside the call |
 | Narrowed deprecation scan | hand-authored binding names like `competing_models` reused verbatim |
@@ -74,7 +74,7 @@ if end > 0:
 
 ### 2. Declare the two `Variable(...)` typed terms
 
-The Mendel package uses Variables for the F2 counts that feed the `bayes.Binomial(n=..., p=3/4)` observable and the predicate-claim formula. The cli renders `Variable(symbol=..., domain=..., value=...)` exactly:
+The Mendel package uses Variables for the F2 counts that feed the `Binomial(name, n=..., p=3/4)` observable and the quantitative observation. The cli renders `Variable(symbol=..., domain=..., value=...)` exactly:
 
 ```bash
 gaia author variable \
@@ -140,9 +140,11 @@ gaia author exclusive \
   --target ./mendel-cli-mirror-gaia
 ```
 
-### 5. Author the four qualitative observations
+### 5. Author the observations
 
-The first three are simple identifier observations; the fourth uses **`claim --formula`** to bind a predicate-logic claim that the `observe(...)` call then references.
+The first three are qualitative prose observations. The fourth records the
+quantitative F2 dominant-count measurement directly on the `Variable` that the
+Bayes models use as their observable.
 
 ```bash
 gaia author observe \
@@ -165,32 +167,19 @@ gaia author observe \
   --rationale "这是单因子杂交实验中 F2 代的定性观察。" \
   --label f2_recessive_reappears_observation \
   --target ./mendel-cli-mirror-gaia
-```
-
-The fourth observation embeds Mendel's quantitative measurement as a formula-claim. The hand-authored source binds the predicate claim separately and then mutates its `.label` attribute; the cli emits the label inside the `claim(...)` call directly. Both compile to the same IR.
-
-```bash
-gaia author claim \
-  "F2 计数为 295 个显性表型和 100 个隐性表型，共 395 个个体。" \
-  --label f2_count_observation_binding \
-  --references f2_total_count,f2_dominant_count \
-  --formula 'land(equals(f2_total_count, Constant(395, Nat)), equals(f2_dominant_count, Constant(295, Nat)))' \
-  --target ./mendel-cli-mirror-gaia
 
 gaia author observe \
-  --conclusion f2_count_observation_binding \
+  --conclusion f2_dominant_count \
+  --value 295 \
   --background monohybrid_cross_setup,f2_has_discrete_classes_observation \
   --rationale "这是用于贝叶斯点似然比较的 F2 显性/隐性计数数据。" \
   --label f2_count_observation \
   --target ./mendel-cli-mirror-gaia
 ```
 
-On `claim`, `--references` is formula-sandbox-only — it whitelists
-identifiers for use inside the `--formula` expression and does NOT
-flow into the rendered claim's `background=[...]`. Use the separate
-`--background` flag when you want identifiers in the rendered kwarg.
-The cli mirror's F2-count claim line therefore matches the
-hand-authored shape (no `background=` kwarg on a formula-only claim).
+`gaia author observe --value` renders `observe(f2_dominant_count,
+value=295, ...)`, which carries the `metadata["observation"]` payload that
+`bayes.compare(...)` needs for likelihood evaluation.
 
 ### 6. Author the five Mendel qualitative derivations + three matches
 
@@ -254,9 +243,9 @@ gaia author derive \
 ### 7. Author the quantitative bayes comparison
 
 `bayes model --distribution` accepts an inline Distribution expression
-(validated through the formula sandbox, which whitelists
-`bayes.<DistributionFactory>` attribute access). The cli mirror inlines
-`bayes.Binomial(...)` / `bayes.BetaBinomial(...)` directly inside
+(validated through the formula sandbox, which whitelists bare
+`gaia.engine.lang` Distribution factories). The cli mirror inlines
+`Binomial(...)` / `BetaBinomial(...)` directly inside
 `bayes.model(distribution=...)`, byte-matching the hand-authored shape
 — no helper `mendel_count_distribution` / `diffuse_count_distribution`
 pre-binding step. Bare-identifier `--distribution <ident>` still works
@@ -266,7 +255,7 @@ when an author *does* want a separately-bound Distribution helper.
 gaia bayes model \
   --hypothesis mendelian_segregation_model \
   --observable f2_dominant_count \
-  --distribution 'bayes.Binomial(n=395, p=3/4)' \
+  --distribution 'Binomial("F2 dominant count under Mendel 3:1", n=395, p=3/4)' \
   --background monohybrid_cross_setup,dominance_background,finite_sample_background \
   --rationale "孟德尔分离模型给出 F2 每个个体以概率 3/4 表现显性的生成模型，因此显性计数服从 Binomial(N, 3/4)。" \
   --label mendel_count_model \
@@ -275,19 +264,18 @@ gaia bayes model \
 gaia bayes model \
   --hypothesis blending_inheritance_model \
   --observable f2_dominant_count \
-  --distribution 'bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)' \
+  --distribution 'BetaBinomial("F2 dominant count under p ~ Uniform[0, 1]", n=395, alpha=1.0, beta=1.0)' \
   --background monohybrid_cross_setup,finite_sample_background \
   --rationale "把对照项写成 p ~ Uniform[0, 1] 下的 BetaBinomial(N, 1, 1) 预测分布；它给出任意具体计数的边际概率 1 / (N + 1)，不人为指定第二个二项参数。" \
   --label diffuse_count_model \
   --target ./mendel-cli-mirror-gaia
 
-gaia bayes likelihood \
+gaia bayes compare \
   --data f2_count_observation \
   --model mendel_count_model \
   --against diffuse_count_model \
   --background monohybrid_cross_setup,finite_sample_background \
   --rationale "直接比较观测到的 F2 显性计数在 Mendel 点模型和 diffuse 参考模型下的 log likelihood；观测可靠性仍留在 f2_count_observation 的 prior 中。" \
-  --exclusivity none \
   --label mendel_count_likelihood \
   --target ./mendel-cli-mirror-gaia
 ```
@@ -419,22 +407,9 @@ Same as the galileo intrinsic divergence. The cli enforces
 and the DSL `label=` kwarg are forced equal because the cli's single
 `--label` flag drives both.
 
-The hand-authored Mendel file uses a distinctive variant of this gap
-for the F2-count predicate claim: it binds the claim with a
-leading-underscore Python identifier (`_f2_count_observation_binding`)
-and then **mutates the claim's `.label` attribute** to
-`"f2_count_observation"` so the IR-side label matches the corresponding
-observation. The cli can't replicate the post-binding `.label = ...`
-mutation — it issues
-`gaia author claim --label f2_count_observation_binding`, which renders
-`label='f2_count_observation_binding'` inside the claim call. The
-underlying IR claim ends up with label `f2_count_observation_binding`
-on the cli side vs `f2_count_observation` on the hand side — both
-reference the same content + formula, and the test's label-bag axis
-applies a per-axis CONTENT_SET tolerance that accepts the rename.
-**Compiles to IR-content-equivalent shape; the label-bag axis tolerates
-the rename.** Post-binding label-rename is not added to the cli surface
-by design (the cli's single-`--label` discipline is intrinsic).
+The current Mendel package no longer needs a post-binding label mutation for
+the F2-count data. The CLI-authored source emits the same Variable-targeted
+observation shape as the hand-authored package.
 
 ### 2. `Variable(value=<literal>)` vs `value=<imported-constant>` (numeric-equivalent)
 
@@ -482,13 +457,13 @@ The pytest fixture at `tests/cli/mendel_demo/test_equivalence.py` runs the full 
 | `total-knowledge-count` | BYTE_TEXT | 44 knowledge nodes on both sides. |
 | `knowledge-type-multiset` | BYTE_TEXT | `{note: 3, claim: 41}` on both sides. |
 | `label-bag` | CONTENT_SET | Single-`--label` discipline forces every cli statement to render `label=`; some hand-authored statements omit it when binding name == label. Set is identical; multiset differs by the `label=` rendering choice. |
-| `bayes-model-count` | BYTE_TEXT | 2 `bayes.model` calls + 1 `bayes.likelihood` call on both sides. |
+| `bayes-model-count` | BYTE_TEXT | 2 `bayes.model` calls + 1 `bayes.compare` call on both sides. |
 | `register-prior-count` | BYTE_TEXT | 6 `register_prior` calls in `priors.py` on both sides. |
 | `source-id-count` | BYTE_TEXT | `register_prior` calls render zero `source_id=` mentions on both sides — the cli omits the kwarg when `--source-id` is not explicitly passed. |
-| `formula-claim-no-background` | structural assertion | The F2-count predicate-claim line does NOT contain `background=` on either side — `claim --references` is sandbox-only, not rendered into the claim's kwargs. |
-| `bayes-inline-distribution` | structural assertion | `bayes.model(...)` calls inline `bayes.Binomial(...)` / `bayes.BetaBinomial(...)` directly — no pre-bound `mendel_count_distribution` / `diffuse_count_distribution` helper bindings. |
+| `variable-observation` | structural assertion | The F2-count data line uses `observe(f2_dominant_count, value=295, ...)`, producing the observation metadata required by Bayes compare. |
+| `bayes-inline-distribution` | structural assertion | `bayes.model(...)` calls inline `Binomial(...)` / `BetaBinomial(...)` directly — no pre-bound `mendel_count_distribution` / `diffuse_count_distribution` helper bindings. |
 
-The multi-level helper at `tests/cli/_equivalence_levels.py` underwrites both this mendel demo and the galileo demo's equivalence (galileo applies BYTE_TEXT on the resolvable axes, CONTENT_SET on the intrinsic single-`--label` axis; mendel adds the bayes / formula-claim / multi-file axes on top).
+The multi-level helper at `tests/cli/_equivalence_levels.py` underwrites both this mendel demo and the galileo demo's equivalence (galileo applies BYTE_TEXT on the resolvable axes, CONTENT_SET on the intrinsic single-`--label` axis; mendel adds the bayes / Variable-observation / multi-file axes on top).
 
 ## See also
 

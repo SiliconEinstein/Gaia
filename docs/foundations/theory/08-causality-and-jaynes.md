@@ -276,7 +276,7 @@ P(Y_{x'} | E, I)
 | **"X 是 Y 的因，机制 CPD 是 (α, β)"** | **`mechanism(cause=X, effect=Y, cpd=(α, β))`** | **结构层声明，可触发 do() 查询** |
 | "如果干预把 X 设为 x，Y 会是什么" | `do(X=x).query(Y)` | 干预性查询 |
 | "现实是 E，假如 X 当时是 x'，Y 会是什么" | `do(X=x').counterfactual(observed=E).query(Y)` | 反事实查询 |
-| "假说 H 预测可观测量 Z 服从分布 D，并用数据 E 做模型比较" | `bayes.model(H, observable=Z, distribution=D)` + `bayes.likelihood(E, model=..., against=[...])` | model comparison（命题层） |
+| "假说 H 预测可观测量 Z 服从分布 D，并用数据 E 做模型比较" | `bayes.model(H, observable=Z, distribution=D)` + `bayes.compare(E, models=[...])` | model comparison（命题层） |
 
 ### 8.1 何时该选 `mechanism()` vs `derive()` 的关键差别
 

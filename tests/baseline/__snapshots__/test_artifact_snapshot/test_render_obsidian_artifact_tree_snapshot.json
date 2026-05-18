@@ -11,57 +11,57 @@
       "path": "_index.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: daily_observation\naliases: [daily_observation]\nclaim_number: 4\nqid: \"example:galileo_v0_5::daily_observation\"\nmodule: Root\nexported: true\nprior: 0.9\nbelief: 0.9643754047119271\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #04 daily observation ★\n\n> In air, heavy bodies are often observed to fall faster than light bodies.\n\n## Review\n**Prior**: 0.90\n**Justification**: The everyday observation is treated as familiar empirical background, not as a new vacuum experiment.\n**Belief**: 0.96\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: daily_observation\naliases: [daily_observation]\nclaim_number: 4\nqid: \"example:galileo_v0_5::daily_observation\"\nmodule: Root\nexported: true\nprior: 0.9\nbelief: 0.9643738975925831\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #04 daily observation ★\n\n> In air, heavy bodies are often observed to fall faster than light bodies.\n\n## Review\n**Prior**: 0.90\n**Justification**: The everyday observation is treated as familiar empirical background, not as a new vacuum experiment.\n**Belief**: 0.96\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/04 - daily observation.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: aristotle_model\naliases: [aristotle_model]\nclaim_number: 5\nqid: \"example:galileo_v0_5::aristotle_model\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.0076315926278272056\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #05 aristotle model ★\n\n> Model A: weight itself causes heavier bodies to have greater natural falling speed.\n\n## Supports\n- → [[aristotle_daily_prediction|#07 aristotle_daily_prediction]] via deduction\n- → [[composite_faster|#09 composite_faster]] via deduction\n- → [[composite_slower|#10 composite_slower]] via deduction\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: aristotle_model\naliases: [aristotle_model]\nclaim_number: 5\nqid: \"example:galileo_v0_5::aristotle_model\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.010134844762181109\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #05 aristotle model ★\n\n> Model A: weight itself causes heavier bodies to have greater natural falling speed.\n\n## Supports\n- → [[aristotle_daily_prediction|#07 aristotle_daily_prediction]] via deduction\n- → [[composite_faster|#09 composite_faster]] via deduction\n- → [[composite_slower|#10 composite_slower]] via deduction\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/05 - aristotle model.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: medium_model\naliases: [medium_model]\nclaim_number: 6\nqid: \"example:galileo_v0_5::medium_model\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.6426299719876486\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #06 medium model ★\n\n> Model B: differences in falling speed in air are caused by resistance from the medium.\n\n## Supports\n- → [[medium_daily_prediction|#08 medium_daily_prediction]] via deduction\n- → [[vacuum_equal_fall_prediction|#11 vacuum_equal_fall_prediction]] via deduction\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: medium_model\naliases: [medium_model]\nclaim_number: 6\nqid: \"example:galileo_v0_5::medium_model\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.6424850770846258\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #06 medium model ★\n\n> Model B: differences in falling speed in air are caused by resistance from the medium.\n\n## Supports\n- → [[medium_daily_prediction|#08 medium_daily_prediction]] via deduction\n- → [[vacuum_equal_fall_prediction|#11 vacuum_equal_fall_prediction]] via deduction\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/06 - medium model.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: aristotle_daily_prediction\naliases: [aristotle_daily_prediction]\nclaim_number: 7\nqid: \"example:galileo_v0_5::aristotle_daily_prediction\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.963454561133652\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #07 aristotle daily prediction ★\n\n> Under Model A, heavy bodies should fall faster than light bodies in air.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[aristotle_model|#05 aristotle_model]]\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: aristotle_daily_prediction\naliases: [aristotle_daily_prediction]\nclaim_number: 7\nqid: \"example:galileo_v0_5::aristotle_daily_prediction\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.9625392414751576\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #07 aristotle daily prediction ★\n\n> Under Model A, heavy bodies should fall faster than light bodies in air.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[aristotle_model|#05 aristotle_model]]\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/07 - aristotle daily prediction.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: medium_daily_prediction\naliases: [medium_daily_prediction]\nclaim_number: 8\nqid: \"example:galileo_v0_5::medium_daily_prediction\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.9641592511678401\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #08 medium daily prediction ★\n\n> Under Model B, heavy bodies can fall faster than light bodies in air.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[medium_model|#06 medium_model]]\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: medium_daily_prediction\naliases: [medium_daily_prediction]\nclaim_number: 8\nqid: \"example:galileo_v0_5::medium_daily_prediction\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.9639411831773084\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #08 medium daily prediction ★\n\n> Under Model B, heavy bodies can fall faster than light bodies in air.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[medium_model|#06 medium_model]]\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/08 - medium daily prediction.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: composite_faster\naliases: [composite_faster]\nclaim_number: 9\nqid: \"example:galileo_v0_5::composite_faster\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.33609617393014396\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #09 composite faster ★\n\n> The tied composite should fall faster than the heavy body alone.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[aristotle_model|#05 aristotle_model]]\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: composite_faster\naliases: [composite_faster]\nclaim_number: 9\nqid: \"example:galileo_v0_5::composite_faster\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.3379943686617819\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #09 composite faster ★\n\n> The tied composite should fall faster than the heavy body alone.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[aristotle_model|#05 aristotle_model]]\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/09 - composite faster.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: composite_slower\naliases: [composite_slower]\nclaim_number: 10\nqid: \"example:galileo_v0_5::composite_slower\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.33609617393014396\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #10 composite slower ★\n\n> The tied composite should fall slower than the heavy body alone.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[aristotle_model|#05 aristotle_model]]\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: composite_slower\naliases: [composite_slower]\nclaim_number: 10\nqid: \"example:galileo_v0_5::composite_slower\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.3379943686617819\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #10 composite slower ★\n\n> The tied composite should fall slower than the heavy body alone.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[aristotle_model|#05 aristotle_model]]\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/10 - composite slower.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: vacuum_equal_fall_prediction\naliases: [vacuum_equal_fall_prediction]\nclaim_number: 11\nqid: \"example:galileo_v0_5::vacuum_equal_fall_prediction\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.8206723560218367\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #11 vacuum equal fall prediction ★\n\n> In vacuum, bodies of different weights fall at the same rate.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[medium_model|#06 medium_model]]\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: vacuum_equal_fall_prediction\naliases: [vacuum_equal_fall_prediction]\nclaim_number: 11\nqid: \"example:galileo_v0_5::vacuum_equal_fall_prediction\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.8206000534652284\nstrategy_type: deduction\npremise_count: 1\ntags: [claim, Root]\n---\n\n# #11 vacuum equal fall prediction ★\n\n> In vacuum, bodies of different weights fall at the same rate.\n\n## Derivation\n- **Strategy**: deduction\n- **Premises**:\n  - [[medium_model|#06 medium_model]]\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/11 - vacuum equal fall prediction.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: aristotle_daily_match\naliases: [aristotle_daily_match]\nclaim_number: 12\nqid: \"example:galileo_v0_5::aristotle_daily_match\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.9990073395238146\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #12 aristotle daily match ★\n\n> Under Model A, heavy bodies should fall faster than light bodies in air. and In air, heavy bodies are often observed to fall faster than light bodies. are equivalent.\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: aristotle_daily_match\naliases: [aristotle_daily_match]\nclaim_number: 12\nqid: \"example:galileo_v0_5::aristotle_daily_match\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.9990097358337503\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #12 aristotle daily match ★\n\n> Under Model A, heavy bodies should fall faster than light bodies in air. and In air, heavy bodies are often observed to fall faster than light bodies. are equivalent.\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/12 - aristotle daily match.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: medium_daily_match\naliases: [medium_daily_match]\nclaim_number: 13\nqid: \"example:galileo_v0_5::medium_daily_match\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.999571091551165\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #13 medium daily match ★\n\n> Under Model B, heavy bodies can fall faster than light bodies in air. and In air, heavy bodies are often observed to fall faster than light bodies. are equivalent.\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: medium_daily_match\naliases: [medium_daily_match]\nclaim_number: 13\nqid: \"example:galileo_v0_5::medium_daily_match\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.9995705113908119\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #13 medium daily match ★\n\n> Under Model B, heavy bodies can fall faster than light bodies in air. and In air, heavy bodies are often observed to fall faster than light bodies. are equivalent.\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/13 - medium daily match.md"
     },
     {
-      "content": "---\ntype: claim\nlabel: aristotle_paradox\naliases: [aristotle_paradox]\nclaim_number: 14\nqid: \"example:galileo_v0_5::aristotle_paradox\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.9971259741685885\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #14 aristotle paradox ★\n\n> The tied composite should fall faster than the heavy body alone. and The tied composite should fall slower than the heavy body alone. contradict.\n\n## Module\n[[Root]]\n",
+      "content": "---\ntype: claim\nlabel: aristotle_paradox\naliases: [aristotle_paradox]\nclaim_number: 14\nqid: \"example:galileo_v0_5::aristotle_paradox\"\nmodule: Root\nexported: true\nprior: null\nbelief: 0.997135862974886\nstrategy_type: null\npremise_count: 0\ntags: [claim, Root]\n---\n\n# #14 aristotle paradox ★\n\n> The tied composite should fall faster than the heavy body alone. and The tied composite should fall slower than the heavy body alone. contradict.\n\n## Module\n[[Root]]\n",
       "kind": "text",
       "path": "claims/conclusions/14 - aristotle paradox.md"
     },

@@ -85,19 +85,11 @@ _FORMULA_PRIMITIVES: frozenset[str] = frozenset(
 _ATOM_CONSTRUCTORS: frozenset[str] = frozenset({"ClaimAtom"})
 
 # Distribution factories — concrete shipping set from
-# ``gaia.engine.lang.runtime.distribution`` ``__all__``. These names are
-# reachable only via the ``bayes.<Factory>`` dotted shape: the
-# ``visit_Attribute`` path treats them as valid attributes of the bound
-# ``bayes`` module. They are NOT in :data:`WHITELIST` as bare names — a
-# package's scaffold imports ``from gaia.engine import bayes`` (not bare
-# ``Normal`` / ``Binomial``), so accepting them as bare-Name references
-# in the sandbox would let an author write ``--formula 'Normal(0, 1)'``
-# only to have the postwrite import trip a NameError.
-#
-# Tightening to ``bayes.<Factory>``-only means the scaffold imports
-# and the sandbox accept set match: every bare name in WHITELIST
-# resolves at scaffold load (parity enforced by
-# tests/cli/pkg/test_scaffold_formula_sandbox_parity.py).
+# ``gaia.engine.lang.runtime.distribution`` ``__all__``. The default
+# scaffold imports these as bare names from ``gaia.engine.lang``. The
+# sandbox therefore accepts bare ``Binomial(...)`` / ``Normal(...)`` shapes
+# and rejects ``bayes.Binomial(...)`` because the Bayes facade no longer
+# owns Distribution factories.
 _DISTRIBUTION_FACTORIES: frozenset[str] = frozenset(
     {
         "Normal",
@@ -134,13 +126,12 @@ _TYPED_TERMS: frozenset[str] = frozenset(
     }
 )
 
-# Bare Distribution names (``Normal`` / ``Binomial`` / ...) are NOT in
-# WHITELIST: the scaffold imports the ``bayes`` module alias (not bare
-# names), so accepting a bare ``Normal`` in a formula would sandbox-pass
-# but produce a NameError at postwrite. The dotted shape
-# ``bayes.<Factory>`` lands via :meth:`visit_Attribute` which checks the
-# attr against :data:`_DISTRIBUTION_FACTORIES`.
-WHITELIST: frozenset[str] = _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _CONSTANTS | _TYPED_TERMS
+# Bare Distribution names (``Normal`` / ``Binomial`` / ...) are in the
+# whitelist because the default scaffold imports them from
+# ``gaia.engine.lang``.
+WHITELIST: frozenset[str] = (
+    _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _CONSTANTS | _TYPED_TERMS | _DISTRIBUTION_FACTORIES
+)
 
 
 # Engine-lang names that need to live on the rendered module's import line
@@ -261,11 +252,8 @@ class _SandboxVisitor(ast.NodeVisitor):
     # ``k > 1e-2`` style predicates parse).
     #
     # ``ast.Attribute`` is handled by :meth:`visit_Attribute`, which
-    # allows the narrow shape ``bayes.<DistributionFactory>`` (e.g.
-    # ``bayes.Binomial``) so inline Distribution expressions on
-    # ``bayes.model --distribution`` / ``bayes.likelihood --against``
-    # work. All other attribute access (``foo.bar``, ``x.__class__``,
-    # etc.) is rejected by the dedicated visitor.
+    # rejects attribute access. Inline Distribution expressions use bare
+    # factories imported from ``gaia.engine.lang``.
     _DISALLOWED_NODES: ClassVar[dict[type[ast.AST], str]] = {
         ast.Subscript: "subscripting",
         ast.Lambda: "lambda",
@@ -311,16 +299,11 @@ class _SandboxVisitor(ast.NodeVisitor):
             )
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
-        """Allow ``bayes.<DistributionFactory>`` only; reject all other attribute access.
+        """Reject attribute access.
 
-        Inline Distribution expressions like
-        ``bayes.Binomial(n=395, p=3/4)`` are accepted on
-        ``bayes.model --distribution`` / ``bayes.likelihood`` against
-        flags. The sandbox extension is deliberately narrow: only a
-        bare ``ast.Name('bayes').<DistributionFactoryName>`` chain
-        passes; chained attributes (``bayes.foo.bar``), non-``bayes``
-        attribute access (``np.array``), and dunder attrs
-        (``x.__class__``) all raise.
+        The current Bayes facade owns verbs, not Distribution factories.
+        Inline Distribution expressions should use bare factories imported
+        from ``gaia.engine.lang`` (for example ``Binomial("k", n=395, p=3/4)``).
         """
         attr = node.attr
         # Reject dunder attribute names outright. ``x.__class__`` is the
@@ -331,18 +314,7 @@ class _SandboxVisitor(ast.NodeVisitor):
                 f"dunder attribute access ({attr!r}) is not allowed in the formula sandbox",
                 offending_name=attr,
             )
-        # Only the shape ``<Name>.<attr>`` is permitted (single-level
-        # attribute on a bare name).
-        if not isinstance(node.value, ast.Name):
-            raise FormulaSandboxError(
-                "expression uses attribute access, which is not allowed in the formula sandbox",
-            )
-        base_name = node.value.id
-        # ``bayes.<DistributionFactory>`` is the only sanctioned shape.
-        if base_name == "bayes" and attr in _DISTRIBUTION_FACTORIES:
-            # Treat the dotted spelling as referencing the factory itself.
-            self.referenced_names.add(attr)
-            return
+        base_name = node.value.id if isinstance(node.value, ast.Name) else "<expr>"
         raise FormulaSandboxError(
             f"attribute access {base_name!r}.{attr!r} is not allowed in the formula sandbox",
             offending_name=f"{base_name}.{attr}",

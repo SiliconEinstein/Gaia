@@ -212,8 +212,8 @@ gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
 
 | Flag | Required | Description |
 |---|---|---|
-| `--conclusion <ident>` | one-of | Identifier of the observed Claim or Distribution (continuous form). |
-| `--observation-content "<prose>"` | one-of | **Prose mode** for discrete observations only. Mutex with `--value` / `--error` (those target a Distribution). |
+| `--conclusion <ident>` | one-of | Identifier of the observed Claim, Variable, or Distribution. |
+| `--observation-content "<prose>"` | one-of | **Prose mode** for discrete observations only. Mutex with `--value` / `--error` (those target a Variable or Distribution). |
 | `--observation-label <ident>` | no | Explicit label for the auto-minted Claim. |
 | `--value <expr>` | no | Numeric / Quantity expression for the continuous observation (`value=` kwarg). |
 | `--error <expr>` | no | Observation error sigma or Distribution (`error=` kwarg); requires `--value`. |
@@ -701,11 +701,11 @@ Mendel additionally reaches for:
 
 * **`gaia author variable`** to declare two `Variable(...)` typed terms
   (`f2_total_count`, `f2_dominant_count`).
-* **`gaia author claim --formula`** to author a predicate-logic claim
-  wrapping `land(equals(...), equals(...))`.
-* **`gaia bayes model`** with an inline `bayes.Binomial(...)` /
-  `bayes.BetaBinomial(...)` Distribution expression on `--distribution`,
-  followed by **`gaia bayes likelihood`** for the quantitative
+* **`gaia author observe --conclusion <Variable> --value <number>`** to
+  record the quantitative count data used by Bayes comparison.
+* **`gaia bayes model`** with an inline `Binomial(...)` /
+  `BetaBinomial(...)` Distribution expression on `--distribution`,
+  followed by **`gaia bayes compare`** for the quantitative
   count-comparison sub-pipeline.
 * **`gaia pkg add-module` + `gaia author register-prior --file priors.py`**
   for the multi-file authoring layout that mirrors the hand-authored

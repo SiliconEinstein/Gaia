@@ -57,7 +57,7 @@ Current code uses the following shapes:
 | `infer` | Returns the evidence claim, creates a likelihood helper, stores that helper in `action.warrants`, and appends the action to `evidence.from_actions`. |
 | `equal`, `contradict`, `exclusive` | Return a relation helper claim and store the same helper in `action.warrants`, but do not append the action to `helper.from_actions`. |
 | `associate` | Returns an association helper claim and stores the same helper in `action.warrants`, but does not append the action to `helper.from_actions`. |
-| `bayes.model`, `bayes.likelihood` | Return helper claims, store those same helpers in `action.warrants`, and append the actions to `helper.from_actions`. |
+| `bayes.model`, `bayes.compare` | Return helper claims, store those same helpers in `action.warrants`, and append the actions to `helper.from_actions`. |
 | `depends_on` | Currently appends scaffold to `conclusion.from_actions`; the GaiaGraph scaffold spec changes this to return scaffold records instead. |
 
 The active field name is `Claim.from_actions`, both in the current branch and
@@ -123,7 +123,7 @@ to the reasoning record.
 | `Decompose` | `decompose` | whole claim | `whole.from_actions += action` | no generated runtime self-warrant |
 | `Compose` | `compose` | function result claim | `result.from_actions += action` | explicit compose warrants only |
 | Bayes record | `bayes.model` | predictive-model helper claim | `helper.from_actions += action` | no self-warrant; use only separate warrants if needed |
-| Bayes record | `bayes.likelihood` | likelihood helper claim | `helper.from_actions += action` | no self-warrant; use only separate warrants if needed |
+| Bayes record | `bayes.compare` | comparison helper claim | `helper.from_actions += action` | no self-warrant; use only separate warrants if needed |
 | Scaffold | `depends_on` | scaffold record | no claim `from_actions` write | scaffold has no warrants |
 | Scaffold | `candidate_relation` | scaffold record | no claim `from_actions` write | scaffold has no warrants |
 
@@ -237,7 +237,7 @@ DSL:
 
 Bayes:
 
-- Keep `bayes.model` and `bayes.likelihood` return values unchanged.
+- Keep `bayes.model` and `bayes.compare` return values unchanged.
 - Keep their helper `from_actions` links, because Bayes lowering already uses
   them to recover predictive-model actions.
 - Remove the returned helper from `action.warrants` unless there is a separate
@@ -251,7 +251,7 @@ Compiler and review:
 - Update review-manifest generation if it currently assumes every reviewable
   helper must appear in `metadata["warrants"]`.
 - Keep Bayes lowering keyed from helper `from_actions`, because
-  `bayes.likelihood(...)` already recovers `PredictiveModel` actions that way.
+  `bayes.compare(...)` already recovers `Model` actions that way.
 
 ## 8. Tests
 
@@ -267,7 +267,7 @@ Minimum tests for the migration:
   record.
 - Relation and association helpers are not present in their own
   `action.warrants`.
-- `bayes.model(...)` and `bayes.likelihood(...)` return helper claims whose
+- `bayes.model(...)` and `bayes.compare(...)` return helper claims whose
   `from_actions` contain the Bayes reasoning record.
 - Bayes helper claims are not present in their own `action.warrants`.
 - `decompose(...)` still rejects duplicate decomposition through

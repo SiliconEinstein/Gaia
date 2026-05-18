@@ -1,6 +1,6 @@
 """Gaia CLI — knowledge package authoring toolkit.
 
-The CLI organizes verbs into 7 groups + `trace` independent:
+The CLI organizes verbs into 8 groups + `trace` independent:
 
   build    init / compile / check
   run      infer / render
@@ -12,6 +12,7 @@ The CLI organizes verbs into 7 groups + `trace` independent:
            decompose / observe / compute / infer / associate / parameter /
            register-prior / depends-on / candidate-relation / materialize /
            compose / composition
+  bayes    model / compare / distribution factories
   trace    (sub-app, NOT part of the groups: verify / review / show)
 
 See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
@@ -58,9 +59,7 @@ from gaia.cli.commands.bayes import (
     poisson_command,
     studentt_command,
 )
-from gaia.cli.commands.bayes import (
-    likelihood_command as bayes_likelihood_command,
-)
+from gaia.cli.commands.bayes import compare_command as bayes_compare_command
 from gaia.cli.commands.bayes import (
     model_command as bayes_model_command,
 )
@@ -263,20 +262,20 @@ app.add_typer(author_app, name="author")
 # --------------------------------------------------------------------------- #
 #
 # Top-level group `gaia bayes <verb>` mirrors `gaia.engine.bayes`
-# organisation. Verbs: model / likelihood plus one verb per shipping
+# organisation. Verbs: model / compare plus one verb per shipping
 # Distribution class.
 
 bayes_app = typer.Typer(
     name="bayes",
     help=(
-        "Bayesian-modelling authoring (model / likelihood / Binomial / "
+        "Bayesian-modelling authoring (model / compare / Binomial / "
         "BetaBinomial / Normal / LogNormal / Beta / Exponential / Gamma / "
         "StudentT / Cauchy / ChiSquared / Poisson)."
     ),
     no_args_is_help=True,
 )
 bayes_app.command(name="model")(bayes_model_command)
-bayes_app.command(name="likelihood")(bayes_likelihood_command)
+bayes_app.command(name="compare")(bayes_compare_command)
 # Distribution literal verbs — one per shipping class.
 bayes_app.command(name="binomial")(binomial_command)
 bayes_app.command(name="beta-binomial")(betabinomial_command)

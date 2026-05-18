@@ -55,7 +55,7 @@ already chose a canonical answer per action shape, captured in
 | Action family | Target the label resolves to |
 |---|---|
 | `Derive / Observe / Compute / Predict` (`Support`) | the `conclusion` Claim QID |
-| `Infer` / `Associate` / `bayes.likelihood` (`Probabilistic`) | the warrant `helper` Claim QID |
+| `Infer` / `Associate` / `bayes.compare` (`Probabilistic`) | the warrant `helper` Claim QID |
 | `Equal / Contradict / Exclusive / Decompose` (`Structural`) | the warrant `helper` Claim QID |
 | `Compose` | the IR `Compose` node QID |
 | `DependsOn` (`Scaffold`) | not addressable — does not enter IR |

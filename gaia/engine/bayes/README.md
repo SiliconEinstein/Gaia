@@ -17,7 +17,8 @@
   the full trade-off.
 - `PrecomputedLikelihoods` — audit-bearing Claim subclass for plugging
   external-solver output (PyMC / Stan / NumPyro / scipy quadrature /
-  custom MCMC) into `compare(precomputed=...)`.
+  custom MCMC) into `compare(precomputed=...)`. This is a Bayes-specific
+  log-likelihood record, not the future common evidence-artifact layer.
 
 Predictive distributions are :class:`Distribution` Knowledge objects
 created through :mod:`gaia.engine.lang` factories (``Normal``,
