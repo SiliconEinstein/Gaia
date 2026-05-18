@@ -22,31 +22,22 @@ write to catch obvious malformations.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import typer
 
 from gaia.cli.commands.author._common import (
+    PrewriteUnsafeError,
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
+    parse_literal_or_identifier,
     parse_metadata,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
 _PRIMITIVE_DOMAINS = frozenset({"Nat", "Real", "Bool", "Probability"})
-
-# R9 #4 — recognise a bare Python identifier in ``--value`` so the cli
-# can let authors reference module-scope constants (e.g. an imported
-# ``DOMINANT_COUNT``) instead of literal numbers. A matching identifier
-# is forwarded verbatim into the rendered ``value=`` slot AND pushed
-# into the proposed-op references list so pre-write invariant (c)
-# verifies it resolves in module scope.
-#
-# Bare-identifier shape only: dotted lookups, calls, expressions still
-# render verbatim (back-compat) but skip the reference-list push.
-_BARE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _render_variable_statement(
@@ -212,16 +203,6 @@ def variable_command(
         emit_syntax_error("variable", metadata_error, target=str(target), human=human)
         return
 
-    generated_code = _render_variable_statement(
-        label=label,
-        symbol=symbol or "",
-        domain=domain,
-        value=value,
-        content=content,
-        metadata=metadata_dict,
-        const=const,
-    )
-
     # References: the domain identifier always resolves either against
     # the standing whitelist of primitives or against a module-scope
     # Domain binding. We push the domain into pre-write's reference list
@@ -231,33 +212,50 @@ def variable_command(
     if domain not in _PRIMITIVE_DOMAINS:
         references.append(domain)
 
-    # R9 #4 — when ``--value`` is a bare Python identifier (no dots,
-    # no calls), treat it as a module-scope reference and push it into
-    # pre-write's reference resolution. Matches the hand-authored
-    # ``Variable(value=DOMINANT_COUNT)`` pattern where the constant is
-    # imported from a sibling module. Literal values (``395``, ``0.75``,
-    # ``True``) still bypass the reference list — pre-write's syntax
-    # invariant catches malformed expressions; literal values aren't
-    # module-scope names. Dunder names rejected because they'd collide
-    # with Python's reserved internals (caught by pre-write's collision
-    # invariant downstream, but cheaper to filter here).
-    # Skip Python literal keywords + primitive domain names already
-    # handled above. ``True`` / ``False`` / ``None`` are bare
-    # identifiers per the regex but are reserved literal keywords
-    # the engine accepts directly without resolution.
-    if (
-        value is not None
-        and _BARE_IDENTIFIER_RE.match(value)
-        and not value.startswith("__")
-        and value not in {"True", "False", "None"}
-        and value not in _PRIMITIVE_DOMAINS
-    ):
-        references.append(value)
+    # R10 Axis 1 — every ``--value`` is now a literal or a bare
+    # identifier. Anything else (calls, dotted lookups, dunder names)
+    # is rejected at the flag boundary so the splice-into-generated-
+    # source RCE vector is closed. The validator pushes a bare
+    # identifier into ``references`` so prewrite invariant (c) verifies
+    # it resolves in module scope (matches the R9 #4 intent).
+    rendered_value: str | None = None
+    if value is not None:
+        # Primitive domain names appear as literals/idents — keep them
+        # out of the references list since the engine surfaces them as
+        # built-in symbols, not module-scope bindings.
+        try:
+            _, rendered_value = parse_literal_or_identifier(
+                value,
+                references_sink=references,
+            )
+        except PrewriteUnsafeError as exc:
+            emit_syntax_error(
+                "variable",
+                f"--value rejected: {exc}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
+        # Strip primitive-domain false-positives back out of references.
+        if rendered_value in _PRIMITIVE_DOMAINS and rendered_value in references:
+            references.remove(rendered_value)
+
+    generated_code = _render_variable_statement(
+        label=label,
+        symbol=symbol or "",
+        domain=domain,
+        value=rendered_value,
+        content=content,
+        metadata=metadata_dict,
+        const=const,
+    )
 
     required_imports: tuple[str, ...] = ("Constant",) if const else ("Variable",)
     if domain in _PRIMITIVE_DOMAINS:
         required_imports = (*required_imports, domain)
 
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="variable",
         kind="reasoning",
@@ -265,7 +263,8 @@ def variable_command(
         references=references,
         generated_code=generated_code,
         required_imports=required_imports,
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
         extra_payload={"variable_kind": "const" if const else "variable"},
     )
     run_author_op(

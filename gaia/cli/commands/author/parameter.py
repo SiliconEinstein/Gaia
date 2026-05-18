@@ -39,8 +39,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    PrewriteUnsafeError,
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
+    parse_literal_or_identifier,
     parse_metadata,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
@@ -139,24 +142,44 @@ def parameter_command(
         emit_syntax_error("parameter", metadata_error, target=str(target), human=human)
         return
 
+    # R10 Axis 1 — --value must be a literal or a bare identifier; the
+    # rendered statement splices it directly into the parameter() call
+    # and the postwrite import would otherwise execute arbitrary Python.
+    # The validator pushes a bare identifier into references so prewrite
+    # verifies module-scope resolution.
+    references: list[str] = [variable]
+    try:
+        _, rendered_value = parse_literal_or_identifier(value, references_sink=references)
+    except PrewriteUnsafeError as exc:
+        emit_syntax_error(
+            "parameter",
+            f"--value rejected: {exc}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+
     generated_code = _render_parameter_statement(
         label=label,
         variable=variable,
-        value=value,
+        value=rendered_value,
         content=content,
         title=title,
         prior=prior,
         rationale=rationale,
         metadata=metadata_dict,
     )
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="parameter",
         kind="reasoning",
         label=label,
-        references=[variable],
+        references=references,
         generated_code=generated_code,
         required_imports=("parameter",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

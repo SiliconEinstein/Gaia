@@ -60,10 +60,14 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    PrewriteUnsafeError,
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
+    parse_literal_or_identifier,
     parse_metadata,
     split_csv,
+    split_csv_idents,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._prose import build_auto_claim_statement, slugify_label
@@ -281,9 +285,60 @@ def observe_command(
         emit_syntax_error("observe", metadata_error, target=str(target), human=human)
         return
 
-    given_list = split_csv(given)
-    background_list = split_csv(background)
+    given_list, given_error = split_csv_idents(given)
+    if given_error:
+        emit_syntax_error(
+            "observe",
+            f"--given rejected: {given_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "observe",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    # ``--source-refs`` is free-form annotation text — keep the
+    # permissive splitter; repr() renders the strings safely into source.
     source_refs_list = split_csv(source_refs)
+
+    # R10 Axis 1 — --value / --error are spliced directly into the
+    # rendered observe() call. Validate as literal-or-identifier so the
+    # postwrite import can't execute crafted argv.
+    references_sink: list[str] = []
+    rendered_value: str | None = None
+    rendered_error: str | None = None
+    if value is not None:
+        try:
+            _, rendered_value = parse_literal_or_identifier(value, references_sink=references_sink)
+        except PrewriteUnsafeError as exc:
+            emit_syntax_error(
+                "observe",
+                f"--value rejected: {exc}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
+    if error is not None:
+        try:
+            _, rendered_error = parse_literal_or_identifier(error, references_sink=references_sink)
+        except PrewriteUnsafeError as exc:
+            emit_syntax_error(
+                "observe",
+                f"--error rejected: {exc}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
 
     # Mutual-exclusion sanity: continuous form (with value) cannot accept --given.
     if value is not None and given_list:
@@ -337,17 +392,24 @@ def observe_command(
         references = [conclusion, *given_list, *background_list]
         observation_kind = "qid"
 
+    # Merge value/error bare-identifier references into the verb-level
+    # reference list so prewrite resolves them (and Axis 2 inserts
+    # cross-file imports when ``--file <sibling>`` lands the statement
+    # in a non-init module).
+    references = [*references, *references_sink]
+
     generated_code = _render_observe_statement(
         label=label,
         conclusion_expr=conclusion_expr,
-        value=value,
-        error=error,
+        value=rendered_value,
+        error=rendered_error,
         given=given_list,
         source_refs=source_refs_list,
         rationale=rationale,
         metadata=metadata_dict,
         background=background_list,
     )
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="observe",
         kind="reasoning",
@@ -355,7 +417,8 @@ def observe_command(
         references=references,
         generated_code=generated_code,
         required_imports=("observe",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
         prepended_statements=prepended,
         extra_payload={"observation_kind": observation_kind},
     )
