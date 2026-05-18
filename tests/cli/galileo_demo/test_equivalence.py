@@ -610,6 +610,33 @@ def test_knowledge_type_multiset_matches_ground_truth(tmp_path: Path) -> None:
     assert report.passed, report.format()
 
 
+def test_galileo_register_prior_omits_default_source_id(tmp_path: Path) -> None:
+    """R9 #3 closure — cli mirror's priors.py omits default source_id.
+
+    Hand-authored galileo `priors.py` does not render `source_id=`
+    because it relies on the engine default. With R9 #3 the cli mirror
+    matches at BYTE_TEXT (zero `source_id=` mentions on both sides).
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_galileo(mirror)
+
+    cli_priors = (mirror / "src" / "galileo_v0_5" / "priors.py").read_text()
+    hand_priors = (_GROUND_TRUTH_PKG / "src" / "galileo_v0_5" / "priors.py").read_text()
+
+    report = compare_authored(
+        axis_tolerance_map={"source-id-count": ToleranceLevel.BYTE_TEXT},
+        axis_projection={
+            "source-id-count": (
+                [hand_priors.count("source_id=")],
+                [cli_priors.count("source_id=")],
+            ),
+        },
+    )
+    assert report.passed, report.format()
+    # Defensive lower bound — hand-authored galileo never writes source_id=.
+    assert hand_priors.count("source_id=") == 0
+
+
 def test_label_bag_distinct_count_matches_at_byte_text(tmp_path: Path) -> None:
     """Distinct-label count matches at BYTE_TEXT (intrinsic G7-tolerant axis).
 

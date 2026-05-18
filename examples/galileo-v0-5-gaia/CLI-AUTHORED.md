@@ -294,6 +294,16 @@ R5/R6 wrote every author statement (including `register-prior`) to
 matches the hand-authored layout**, and the writer auto-inserts the
 cross-file `from galileo_v0_5 import daily_observation` import.
 
+### 5. `register-prior` default `source_id=` (closed in R9 via #3)
+
+R7-R8 cli always rendered `source_id='user_priors'` on every
+`register_prior(...)` call, while the hand-authored galileo
+`priors.py` omits the kwarg when relying on the engine default. **R9
+#3 makes the cli's `--source-id` default-absence-aware**: when the
+caller doesn't pass `--source-id` explicitly, the rendered call omits
+the kwarg entirely. The cli mirror's `priors.py` is now byte-text-
+identical to the hand-authored shape on the `source_id=` axis.
+
 ## Equivalence guarantees
 
 The pytest fixture at `tests/cli/galileo_demo/test_equivalence.py` runs

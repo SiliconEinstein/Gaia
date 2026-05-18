@@ -188,3 +188,116 @@ def test_likelihood_invalid_exclusivity(bayes_package: BayesPackage) -> None:
         ],
     )
     assert result.exit_code == 2
+
+
+def test_model_accepts_inline_distribution(bayes_package: BayesPackage) -> None:
+    """R9 #2 — `--distribution 'bayes.Binomial(n=395, p=3/4)'` emits inline.
+
+    Hand-authored mendel inlines `bayes.Binomial(...)` directly inside
+    `bayes.model(distribution=...)`. R9 lets the cli mirror that shape:
+    when `--distribution` is not a bare identifier, route through the
+    formula sandbox (which whitelists `bayes.<DistributionFactory>` per
+    R9 #2 extension) and emit verbatim.
+    """
+    result = runner.invoke(
+        app,
+        [
+            "bayes",
+            "model",
+            "--hypothesis",
+            "hypothesis_a",
+            "--observable",
+            "observable_x",
+            "--distribution",
+            "bayes.Binomial(n=395, p=3/4)",
+            "--label",
+            "inline_model",
+            "--target",
+            str(bayes_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    text = bayes_package.source_init.read_text()
+    assert "inline_model = bayes.model(hypothesis_a" in text
+    assert "distribution=bayes.Binomial(n=395, p=3/4)" in text
+
+
+def test_model_accepts_inline_beta_binomial(bayes_package: BayesPackage) -> None:
+    """R9 #2 — BetaBinomial inline expression also works."""
+    result = runner.invoke(
+        app,
+        [
+            "bayes",
+            "model",
+            "--hypothesis",
+            "hypothesis_a",
+            "--observable",
+            "observable_x",
+            "--distribution",
+            "bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)",
+            "--label",
+            "inline_bb",
+            "--target",
+            str(bayes_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    text = bayes_package.source_init.read_text()
+    assert "distribution=bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)" in text
+
+
+def test_model_inline_distribution_rejects_attribute_breakout(
+    bayes_package: BayesPackage,
+) -> None:
+    """R9 #2 — non-bayes attribute access in --distribution is sandboxed."""
+    result = runner.invoke(
+        app,
+        [
+            "bayes",
+            "model",
+            "--hypothesis",
+            "hypothesis_a",
+            "--observable",
+            "observable_x",
+            "--distribution",
+            "os.system('rm -rf /')",
+            "--label",
+            "bad",
+            "--target",
+            str(bayes_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 2
+    envelope = _parse(result.output)
+    diagnostics = envelope["diagnostics"]
+    assert isinstance(diagnostics, list)
+    assert diagnostics[0]["kind"] == "prewrite.expr_unsafe"
+
+
+def test_model_bare_identifier_still_works(bayes_package: BayesPackage) -> None:
+    """R9 #2 — back-compat: bare-identifier `--distribution` keeps working."""
+    _seed_distribution(bayes_package)
+    result = runner.invoke(
+        app,
+        [
+            "bayes",
+            "model",
+            "--hypothesis",
+            "hypothesis_a",
+            "--observable",
+            "observable_x",
+            "--distribution",
+            "shared_dist",
+            "--label",
+            "bare_model",
+            "--target",
+            str(bayes_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    text = bayes_package.source_init.read_text()
+    assert "distribution=shared_dist" in text

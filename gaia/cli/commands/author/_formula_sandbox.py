@@ -97,6 +97,7 @@ _DISTRIBUTION_FACTORIES: frozenset[str] = frozenset(
         "Normal",
         "LogNormal",
         "Beta",
+        "BetaBinomial",
         "Exponential",
         "Gamma",
         "StudentT",
@@ -216,8 +217,15 @@ class _SandboxVisitor(ast.NodeVisitor):
     # allow ``Call`` (formula construction lives in calls), ``Tuple`` /
     # ``List`` (operands), and ``Compare`` / ``BoolOp`` / ``BinOp`` (so
     # ``k > 1e-2`` style predicates parse).
+    #
+    # R9 #2 — ``ast.Attribute`` is NO LONGER in the blanket-refuse set.
+    # It's now handled by :meth:`visit_Attribute`, which allows the
+    # narrow shape ``bayes.<DistributionFactory>`` (e.g. ``bayes.Binomial``)
+    # so inline Distribution expressions on bayes.model --distribution
+    # / bayes.likelihood --against work. All other attribute access
+    # (``foo.bar``, ``x.__class__``, etc.) is still rejected by the
+    # dedicated visitor.
     _DISALLOWED_NODES: ClassVar[dict[type[ast.AST], str]] = {
-        ast.Attribute: "attribute access",
         ast.Subscript: "subscripting",
         ast.Lambda: "lambda",
         ast.IfExp: "ternary expression",
@@ -260,6 +268,44 @@ class _SandboxVisitor(ast.NodeVisitor):
                 f"name {name!r} is not in the formula sandbox whitelist",
                 offending_name=name,
             )
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        """Allow ``bayes.<DistributionFactory>`` only; reject all other attribute access.
+
+        R9 #2 — inline Distribution expressions like
+        ``bayes.Binomial(n=395, p=3/4)`` are accepted on
+        ``bayes.model --distribution`` / ``bayes.likelihood`` against
+        flags. The sandbox extension is deliberately narrow: only a
+        bare ``ast.Name('bayes').<DistributionFactoryName>`` chain
+        passes; chained attributes (``bayes.foo.bar``), non-``bayes``
+        attribute access (``np.array``), and dunder attrs
+        (``x.__class__``) all still raise.
+        """
+        attr = node.attr
+        # Reject dunder attribute names outright. ``x.__class__`` is the
+        # canonical breakout vector and dunders never appear on
+        # ``bayes`` itself.
+        if attr.startswith("__"):
+            raise FormulaSandboxError(
+                f"dunder attribute access ({attr!r}) is not allowed in the formula sandbox",
+                offending_name=attr,
+            )
+        # Only the shape ``<Name>.<attr>`` is permitted (single-level
+        # attribute on a bare name).
+        if not isinstance(node.value, ast.Name):
+            raise FormulaSandboxError(
+                "expression uses attribute access, which is not allowed in the formula sandbox",
+            )
+        base_name = node.value.id
+        # ``bayes.<DistributionFactory>`` is the only sanctioned shape.
+        if base_name == "bayes" and attr in _DISTRIBUTION_FACTORIES:
+            # Treat the dotted spelling as referencing the factory itself.
+            self.referenced_names.add(attr)
+            return
+        raise FormulaSandboxError(
+            f"attribute access {base_name!r}.{attr!r} is not allowed in the formula sandbox",
+            offending_name=f"{base_name}.{attr}",
+        )
 
     def visit_Call(self, node: ast.Call) -> None:
         # Reject keyword-only ``**kwargs`` unpacking; we still allow

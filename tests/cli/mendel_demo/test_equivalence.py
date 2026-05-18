@@ -6,27 +6,38 @@ directory and asserts content-equivalence between the cli-authored
 mirror and the hand-authored ground truth at
 ``examples/mendel-v0-5-gaia/``.
 
-R8 multi-level tolerance
-------------------------
+R8 multi-level tolerance — R9 closure follow-through
+----------------------------------------------------
 
 The mendel mirror exercises R7's bayes / Variable / claim --formula /
-multi-file capability surface. Several mendel-specific intrinsic
-divergences surface that don't exist in the simpler galileo demo:
+multi-file capability surface.
 
-* ``--references`` flows into the rendered claim's ``background=[...]``
-  (cli design choice; hand-authored uses formula symbols without listing
-  them as background).
-* ``bayes.model --distribution <ident>`` requires a pre-bound Distribution
-  binding (cli design choice; hand-authored inlines ``bayes.Binomial(...)``).
-* ``Variable --value <literal>`` forwards the argument verbatim
-  (cli design choice; hand-authored imports constants from
-  ``probabilities.py``).
-* ``register_prior`` always renders ``source_id='user_priors'`` (cli
-  design choice; hand-authored omits when default).
-* The single-``--label`` discipline (R7·❓A=A intrinsic) forces every cli
-  statement to render ``label=``; the hand-authored file sometimes
-  uses a different binding name and label (e.g.
-  ``_f2_count_observation_binding`` with ``.label = ...``).
+**R9 closed four of the five mendel-surfaced divergences**:
+
+* R9 #1 — split ``--references`` (formula-sandbox only) from
+  ``--background`` (rendered kwarg). The cli mirror no longer emits a
+  spurious ``background=[Variable, Variable]`` on the F2-count formula
+  claim.
+* R9 #2 — inline ``bayes.Binomial(n=..., p=...)`` accepted on
+  ``bayes.model --distribution``. The cli mirror no longer pre-binds
+  helper distribution literals.
+* R9 #3 — default ``source_id='user_priors'`` omitted when caller
+  doesn't pass ``--source-id``. The cli mirror's priors.py now matches
+  the hand-authored omit-when-default pattern.
+* R9 #4 — bare-identifier ``--value`` resolves against module scope,
+  so the cli mirror can pass through imported constants (not exercised
+  in this test path because the mirror still passes literals — the cli
+  surface is in place; the divergence is closed at the cli capability
+  level).
+
+**Remaining intrinsic divergence (G7, R7·❓A=A)**:
+
+* The single-``--label`` discipline forces every cli statement to
+  render ``label=``; the hand-authored file uses ``.label = ...``
+  post-binding for the F2-count claim. Per R7·❓C user dispatch,
+  post-binding label-rename is **not** added to the cli surface; the
+  label-bag axis stays at CONTENT_SET tolerance to absorb the
+  divergence.
 
 Per-axis tolerance map (see ``CLI-AUTHORED.md`` §Equivalence guarantees):
 
@@ -309,6 +320,10 @@ def _author_mendel(target: Path) -> None:
     # The F2 count observation uses claim --formula to bind a predicate
     # claim, then observe(--conclusion ...) wraps it. Hand-authored
     # mutates ``.label`` after the call; the cli emits label= inline.
+    # R9 #1 — --references is now formula-sandbox-only (doesn't render
+    # as background=); hand-authored mendel doesn't list f2_total_count
+    # / f2_dominant_count in the claim's background, so the cli mirror
+    # also doesn't.
     _author(
         target,
         "claim",
@@ -451,19 +466,10 @@ def _author_mendel(target: Path) -> None:
     )
 
     # ---- 7. Quantitative bayes comparison ---------------------------- #
-    _bayes(target, "binomial", "--label", "mendel_count_distribution", "--n", "395", "--p", "3/4")
-    _bayes(
-        target,
-        "beta-binomial",
-        "--label",
-        "diffuse_count_distribution",
-        "--n",
-        "395",
-        "--alpha",
-        "1.0",
-        "--beta",
-        "1.0",
-    )
+    # R9 #2 — inline `bayes.Binomial(...)` / `bayes.BetaBinomial(...)`
+    # passed via `--distribution`. No pre-binding step; matches the
+    # hand-authored shape that inlines the Distribution literal inside
+    # `bayes.model(distribution=...)`.
     _bayes(
         target,
         "model",
@@ -472,7 +478,7 @@ def _author_mendel(target: Path) -> None:
         "--observable",
         "f2_dominant_count",
         "--distribution",
-        "mendel_count_distribution",
+        "bayes.Binomial(n=395, p=3/4)",
         "--background",
         "monohybrid_cross_setup,dominance_background,finite_sample_background",
         "--rationale",
@@ -491,7 +497,7 @@ def _author_mendel(target: Path) -> None:
         "--observable",
         "f2_dominant_count",
         "--distribution",
-        "diffuse_count_distribution",
+        "bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)",
         "--background",
         "monohybrid_cross_setup,finite_sample_background",
         "--rationale",
@@ -894,9 +900,6 @@ def test_mendel_label_bag_content_set(tmp_path: Path) -> None:
     cli_labels = set(_label_bag(cli_ir))
 
     # Cli-only bookkeeping bindings:
-    # * ``mendel_count_distribution`` / ``diffuse_count_distribution`` —
-    #   pre-bound Distribution literals required by
-    #   ``bayes model --distribution <ident>``.
     # * ``f2_count_observation_binding`` — the cli's predicate-claim
     #   binding for the F2 count observation. The hand-authored file
     #   uses ``_f2_count_observation_binding`` then mutates ``.label``
@@ -905,9 +908,12 @@ def test_mendel_label_bag_content_set(tmp_path: Path) -> None:
     #   The cli's single-``--label`` discipline doesn't have a way to
     #   re-label a claim after it's bound, so the cli mirror keeps the
     #   claim's original binding name as its label.
+    #
+    # R9 #2 closed the prior cli-only Distribution-binding labels
+    # (``mendel_count_distribution`` / ``diffuse_count_distribution``)
+    # — the cli now inlines `bayes.Binomial(...)` / `bayes.BetaBinomial(...)`
+    # directly in --distribution, matching the hand-authored shape.
     cli_only_known = {
-        "mendel_count_distribution",
-        "diffuse_count_distribution",
         "f2_count_observation_binding",
     }
     # Hand-side labels that the cli mirror represents under a different
@@ -970,4 +976,95 @@ def test_mendel_register_prior_in_sibling_module(tmp_path: Path) -> None:
     )
     assert "register_prior(" not in init_text, (
         "register_prior calls leaked into __init__.py instead of priors.py"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# R9 closure tightening — new BYTE_TEXT axes                                  #
+# --------------------------------------------------------------------------- #
+
+
+def test_mendel_register_prior_omits_default_source_id(tmp_path: Path) -> None:
+    """R9 #3 closure — cli mirror's priors.py omits default source_id.
+
+    Hand-authored priors.py never renders ``source_id=`` because it
+    relies on the engine default. With R9 #3 the cli mirror does the
+    same when ``--source-id`` is not passed. This axis asserts BYTE_TEXT
+    closure: zero ``source_id=`` mentions in either side's priors.py.
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_mendel(mirror)
+
+    cli_priors = (mirror / "src" / "mendel_v0_5" / "priors.py").read_text()
+    hand_priors = (_GROUND_TRUTH_PKG / "src" / "mendel_v0_5" / "priors.py").read_text()
+
+    report = compare_authored(
+        axis_tolerance_map={"source-id-count": ToleranceLevel.BYTE_TEXT},
+        axis_projection={
+            "source-id-count": (
+                [hand_priors.count("source_id=")],
+                [cli_priors.count("source_id=")],
+            ),
+        },
+    )
+    assert report.passed, report.format()
+    # Defensive lower bound — hand-authored mendel never writes source_id=.
+    assert hand_priors.count("source_id=") == 0
+
+
+def test_mendel_claim_formula_no_redundant_background(tmp_path: Path) -> None:
+    """R9 #1 closure — cli mirror's F2-count claim has no spurious background=.
+
+    Hand-authored ``_f2_count_observation_binding = claim(content,
+    formula=land(...))`` does NOT list f2_total_count / f2_dominant_count
+    in a ``background=`` kwarg (the engine drops Variables from
+    claim-background anyway). With R9 #1's split of --references
+    (sandbox-only) from --background (rendered kwarg), the cli mirror
+    no longer emits a redundant background=[Variable, Variable] on this
+    claim.
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_mendel(mirror)
+
+    cli_init = (mirror / "src" / "mendel_v0_5" / "__init__.py").read_text()
+    # The F2-count predicate claim line should NOT contain background=.
+    formula_claim_lines = [
+        line
+        for line in cli_init.splitlines()
+        if line.startswith("f2_count_observation_binding = claim(")
+    ]
+    assert formula_claim_lines, "cli mirror missing f2_count_observation_binding claim"
+    formula_claim = formula_claim_lines[0]
+    assert "formula=land(equals(f2_total_count" in formula_claim
+    assert "background=" not in formula_claim, (
+        f"R9 #1 closure incomplete — background= still emitted: {formula_claim}"
+    )
+
+
+def test_mendel_bayes_model_inline_distribution(tmp_path: Path) -> None:
+    """R9 #2 closure — bayes.model emits inline bayes.Binomial(...) in source.
+
+    Hand-authored: ``bayes.model(..., distribution=bayes.Binomial(n=..., p=...))``.
+    Pre-R9 cli: ``bayes.model(..., distribution=mendel_count_distribution)`` plus
+    a separate ``mendel_count_distribution = bayes.Binomial(...)`` line.
+    R9 #2 closure: cli emits the inline shape directly.
+    """
+    mirror = _scaffold_mirror(tmp_path)
+    _author_mendel(mirror)
+
+    cli_init = (mirror / "src" / "mendel_v0_5" / "__init__.py").read_text()
+    # The mendel_count_model line should embed the inline Distribution
+    # expression directly.
+    assert "distribution=bayes.Binomial(n=395, p=3/4)" in cli_init, (
+        "R9 #2 closure incomplete — bayes.model did not inline bayes.Binomial(...)"
+    )
+    assert "distribution=bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)" in cli_init, (
+        "R9 #2 closure incomplete — bayes.model did not inline bayes.BetaBinomial(...)"
+    )
+    # And the cli mirror no longer has the standalone pre-binding lines.
+    assert "mendel_count_distribution =" not in cli_init, (
+        "R9 #2 closure incomplete — pre-bound distribution still emitted"
+    )
+    assert "diffuse_count_distribution =" not in cli_init, (
+        "R9 #2 closure incomplete — pre-bound distribution still emitted"
     )

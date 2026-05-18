@@ -29,6 +29,7 @@ Cli surface:
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import typer
@@ -39,8 +40,19 @@ from gaia.cli.commands.author._common import (
     parse_metadata,
     split_csv,
 )
+from gaia.cli.commands.author._formula_sandbox import (
+    FormulaSandboxError,
+    validate_formula_expr,
+)
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
+
+# R9 #2 — detect when ``--distribution`` carries an inline Distribution
+# expression (e.g. ``bayes.Binomial(n=395, p=3/4)``) instead of a bare
+# identifier. The cli accepts both shapes: bare-identifier routes
+# through pre-write reference resolution; inline-expression routes
+# through the formula sandbox.
+_BARE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _render_model_statement(
@@ -84,8 +96,12 @@ def model_command(
         ...,
         "--distribution",
         help=(
-            "Identifier of the Distribution binding (e.g. one created via "
-            "`bayes binomial` / `bayes normal` / ...)."
+            "Distribution binding. Accepts either (a) a bare identifier "
+            "of a Distribution binding (created via `bayes binomial` / "
+            "`bayes normal` / ...) — resolved in module scope, or "
+            "(b) R9 #2: an inline Distribution expression like "
+            "`bayes.Binomial(n=395, p=3/4)` — validated via the formula "
+            "sandbox and emitted verbatim into the `distribution=` slot."
         ),
     ),
     target: str = typer.Option(
@@ -143,6 +159,26 @@ def model_command(
         emit_syntax_error("bayes.model", metadata_error, target=str(target), human=human)
         return
 
+    # R9 #2 — detect inline Distribution expression vs bare identifier.
+    # Bare identifier → push into references for pre-write resolution.
+    # Inline expression (anything with parentheses or attribute syntax) →
+    # validate via the formula sandbox (which whitelists Distribution
+    # factories + bayes.<Factory> attribute shape) and skip the
+    # reference-resolution path for the distribution itself.
+    distribution_is_inline = not _BARE_IDENTIFIER_RE.match(distribution)
+    if distribution_is_inline:
+        try:
+            validate_formula_expr(distribution)
+        except FormulaSandboxError as exc:
+            emit_syntax_error(
+                "bayes.model",
+                f"--distribution rejected by sandbox: {exc}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
+
     background_list = split_csv(background)
     generated_code = _render_model_statement(
         label=label,
@@ -153,7 +189,9 @@ def model_command(
         rationale=rationale,
         metadata=metadata_dict,
     )
-    references = [hypothesis, observable, distribution, *background_list]
+    references = [hypothesis, observable, *background_list]
+    if not distribution_is_inline:
+        references.insert(2, distribution)
     proposed_op = ProposedAuthorOp(
         verb="bayes.model",
         kind="reasoning",

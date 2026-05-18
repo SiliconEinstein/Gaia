@@ -34,7 +34,9 @@ Mendel is therefore the empirical demonstration of R7's "cli surface covers full
 
 ## Authoring sequence
 
-The 35 cli invocations below produce the cli-authored mirror. Each invocation is shown with its full flag set; in practice an agent scripts this from a JSON template. Output is JSON by default.
+The cli invocations below produce the cli-authored mirror. Each invocation is shown with its full flag set; in practice an agent scripts this from a JSON template. Output is JSON by default.
+
+R9 simplification: two prior-bound `bayes binomial` / `bayes beta-binomial` invocations dropped (replaced by R9 #2 inline `bayes.Binomial(...)` / `bayes.BetaBinomial(...)` on `bayes model --distribution`).
 
 ### 1. Scaffold the package skeleton
 
@@ -82,7 +84,7 @@ gaia author variable \
   --target ./mendel-cli-mirror-gaia --no-check
 ```
 
-**Documented divergence** — the hand-authored file imports `TOTAL_COUNT` and `DOMINANT_COUNT` from `mendel_v0_5.probabilities` and passes them through (`value=TOTAL_COUNT`). The cli does not (yet) know how to import a constant from a sibling module via a single author verb; it forwards the `--value` argument verbatim as a Python expression. Both shapes compile to the same IR (a `Variable` with `value=395` / `value=295`). See [Documented divergences](#documented-divergences) §2.
+**R9 #4 capability** — `--value` now also accepts a bare Python identifier (`--value DOMINANT_COUNT`) which is resolved against the package's module scope. The walkthrough keeps literal values for readability; an agent mirroring the hand-authored shape (which imports `TOTAL_COUNT` / `DOMINANT_COUNT` from a sibling `probabilities.py`) can opt into the identifier path by first scaffolding `probabilities.py` and then passing `--value TOTAL_COUNT`. The cli forwards the identifier verbatim into the rendered `value=` slot AND pushes it through pre-write reference resolution. The original [Documented divergence §2](#2-variablevalueliteral-vs-valueimported-constant-r9-closed) is now closed at the cli capability level.
 
 ### 3. Author the three contextual notes
 
@@ -171,7 +173,7 @@ gaia author observe \
   --target ./mendel-cli-mirror-gaia --no-check
 ```
 
-**Documented divergence** — `claim --references` performs two jobs: it whitelists the listed identifiers inside the formula sandbox **and** flows them through as `background=[...]` in the rendered claim. The hand-authored file uses formula-symbol references that are **not** in the claim's background list. Both shapes compile to the same IR claim (the rendered `background=[f2_total_count, f2_dominant_count]` references Variables; the IR drops Variables on the claim-background slot). See [Documented divergences](#documented-divergences) §3.
+**R9 #1 closed** — `claim --references` is now formula-sandbox-only and does NOT flow into the rendered claim's `background=[...]`. The cli mirror's F2-count claim line matches the hand-authored shape (no `background=` kwarg). Use the new `--background` flag when you want identifiers in the rendered kwarg. See [Documented divergences §3 (R9-closed)](#3-claim-references-vs-rendered-background-r9-closed).
 
 ### 6. Author the five Mendel qualitative derivations + three matches
 
@@ -234,23 +236,13 @@ gaia author derive \
 
 ### 7. Author the quantitative bayes comparison
 
-The hand-authored file inlines `bayes.Binomial(n=TOTAL_COUNT, p=MENDELIAN_DOMINANT_PROBABILITY)` directly inside the `bayes.model(...)` call's `distribution=` slot. The cli's `bayes model` verb requires `--distribution <ident>`, so we pre-bind the two distributions as standalone statements.
+R9 #2 lets `bayes model --distribution` accept an inline Distribution expression (validated through the formula sandbox, which whitelists `bayes.<DistributionFactory>` shape). The cli mirror inlines `bayes.Binomial(...)` / `bayes.BetaBinomial(...)` directly inside `bayes.model(distribution=...)`, byte-matching the hand-authored shape — no helper `mendel_count_distribution` / `diffuse_count_distribution` pre-binding step.
 
 ```bash
-gaia bayes binomial \
-  --label mendel_count_distribution \
-  --n 395 --p '3/4' \
-  --target ./mendel-cli-mirror-gaia --no-check
-
-gaia bayes beta-binomial \
-  --label diffuse_count_distribution \
-  --n 395 --alpha 1.0 --beta 1.0 \
-  --target ./mendel-cli-mirror-gaia --no-check
-
 gaia bayes model \
   --hypothesis mendelian_segregation_model \
   --observable f2_dominant_count \
-  --distribution mendel_count_distribution \
+  --distribution 'bayes.Binomial(n=395, p=3/4)' \
   --background monohybrid_cross_setup,dominance_background,finite_sample_background \
   --rationale "孟德尔分离模型给出 F2 每个个体以概率 3/4 表现显性的生成模型，因此显性计数服从 Binomial(N, 3/4)。" \
   --label mendel_count_model \
@@ -259,7 +251,7 @@ gaia bayes model \
 gaia bayes model \
   --hypothesis blending_inheritance_model \
   --observable f2_dominant_count \
-  --distribution diffuse_count_distribution \
+  --distribution 'bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)' \
   --background monohybrid_cross_setup,finite_sample_background \
   --rationale "把对照项写成 p ~ Uniform[0, 1] 下的 BetaBinomial(N, 1, 1) 预测分布；它给出任意具体计数的边际概率 1 / (N + 1)，不人为指定第二个二项参数。" \
   --label diffuse_count_model \
@@ -276,7 +268,7 @@ gaia bayes likelihood \
   --target ./mendel-cli-mirror-gaia --no-check
 ```
 
-**Documented divergence** — the cli pre-binds `bayes.Binomial(...)` and `bayes.BetaBinomial(...)` as standalone bindings (`mendel_count_distribution`, `diffuse_count_distribution`); the hand-authored file inlines them inside `bayes.model(distribution=bayes.Binomial(...))`. Both compile to the same IR (the engine wraps inline Distribution literals into the same internal shape as a pre-bound one). See [Documented divergences](#documented-divergences) §4.
+**R9 #2 closed** — the cli no longer requires a pre-bound Distribution binding. Bare-identifier `--distribution <ident>` still works for back-compat when an author *does* want a separately-bound Distribution; the inline expression path is the new default. See [Documented divergences §4 (R9-closed)](#4-bayesmodel-distribution-pre-bound-vs-inline-r9-closed).
 
 ### 8. Author the three Blending derivations + three contradictions
 
@@ -372,7 +364,9 @@ gaia author register-prior \
 
 The writer auto-inserts `from mendel_v0_5 import <claim>` for each newly referenced binding in `priors.py`, so the resulting file imports the same six claims that the hand-authored `priors.py` does.
 
-**Documented divergence** — the hand-authored `register_prior(blending_inheritance_model, value=1.0 - PRIOR_MENDELIAN_MODEL, ...)` references the `PRIOR_MENDELIAN_MODEL` constant from `mendel_v0_5.probabilities`. The cli forwards `--value 0.5` verbatim. Numerically identical; structurally a constant-reference vs literal-value choice. See [Documented divergences](#documented-divergences) §5.
+**Documented divergence** — the hand-authored `register_prior(blending_inheritance_model, value=1.0 - PRIOR_MENDELIAN_MODEL, ...)` references the `PRIOR_MENDELIAN_MODEL` constant from `mendel_v0_5.probabilities`. The cli forwards `--value 0.5` verbatim. Numerically identical; structurally a constant-reference vs literal-value choice. See [Documented divergences §5](#5-register_priorvalueimported-constant-vs-valueliteral-intrinsic).
+
+**R9 #3 closure** — the cli no longer renders `source_id='user_priors'` when `--source-id` is not explicitly provided. The cli mirror's `priors.py` is byte-text-identical to the hand-authored shape on the `source_id=` axis (zero mentions on both sides). See [Documented divergences §6 (R9-closed)](#6-register_prior-default-source_id-r9-closed).
 
 ## Compile + check
 
@@ -387,33 +381,33 @@ The counts match the hand-authored package compile (`44 / 9 / 7`).
 
 ## Documented divergences
 
-R7 closed three of galileo's four R5/R6 divergences; mendel's surface (bayes, formula, multi-file) surfaces three additional intrinsic divergences. Every divergence below is either ratified intrinsic (G7) or a non-semantic source-text difference that compiles to the same IR.
+R7 closed three of galileo's four R5/R6 divergences; mendel's surface (bayes, formula, multi-file) surfaced three additional divergences. **R9 closed four of the six mendel-tracked items** (#2 partially-closed at the cli-capability level, #3 / #4 / #6 fully closed). Every remaining divergence is either ratified intrinsic (G7) or a non-semantic source-text difference that compiles to the same IR.
 
 ### 1. LHS binding equals `label=` kwarg (intrinsic, R7·❓A=A)
 
 Same as galileo Divergence #2. The cli enforces `label_name = verb(..., label="label_name")` — the LHS Python binding and the DSL `label=` kwarg are forced equal because the cli's single `--label` flag drives both.
 
-The hand-authored Mendel file uses a distinctive variant of this gap for the F2-count predicate claim: it binds the claim with a leading-underscore Python identifier (`_f2_count_observation_binding`) and then **mutates the claim's `.label` attribute** to `"f2_count_observation"` so the IR-side label matches the corresponding observation. The cli can't replicate the post-binding `.label = ...` mutation — it issues `gaia author claim --label f2_count_observation_binding`, which renders `label='f2_count_observation_binding'` inside the claim call. The underlying IR claim ends up with label `f2_count_observation_binding` on the cli side vs `f2_count_observation` on the hand side — both reference the same content + formula, and the test's label-bag axis applies a per-axis CONTENT_SET tolerance that accepts the rename. **Compiles to IR-content-equivalent shape; the label-bag axis tolerates the rename.**
+The hand-authored Mendel file uses a distinctive variant of this gap for the F2-count predicate claim: it binds the claim with a leading-underscore Python identifier (`_f2_count_observation_binding`) and then **mutates the claim's `.label` attribute** to `"f2_count_observation"` so the IR-side label matches the corresponding observation. The cli can't replicate the post-binding `.label = ...` mutation — it issues `gaia author claim --label f2_count_observation_binding`, which renders `label='f2_count_observation_binding'` inside the claim call. The underlying IR claim ends up with label `f2_count_observation_binding` on the cli side vs `f2_count_observation` on the hand side — both reference the same content + formula, and the test's label-bag axis applies a per-axis CONTENT_SET tolerance that accepts the rename. **Compiles to IR-content-equivalent shape; the label-bag axis tolerates the rename.** Per R7·❓C user dispatch, post-binding label-rename is **not** added to the cli surface (the cli's single-`--label` discipline is intrinsic-by-design).
 
-### 2. `Variable(value=<literal>)` vs `value=<imported-constant>` (intrinsic)
+### 2. `Variable(value=<literal>)` vs `value=<imported-constant>` (R9 cli-capability closed)
 
-The hand-authored Mendel file imports `TOTAL_COUNT` / `DOMINANT_COUNT` from `mendel_v0_5.probabilities` and passes them through to `Variable(value=TOTAL_COUNT)`. The cli's `gaia author variable --value 395` forwards the argument verbatim, emitting `Variable(symbol='n_f2', domain=Nat, value=395)`. **Numerically identical at the IR level**; this is a source-text style choice (named constant vs literal).
+The hand-authored Mendel file imports `TOTAL_COUNT` / `DOMINANT_COUNT` from `mendel_v0_5.probabilities` and passes them through to `Variable(value=TOTAL_COUNT)`. **R9 #4** added bare-identifier support to `--value`: `gaia author variable --value DOMINANT_COUNT` now resolves the identifier against module scope and emits it verbatim into the rendered `value=` slot. The walkthrough still passes literal values for self-containment; an agent that scaffolds `probabilities.py` first can hit byte-text equivalence via the identifier path. Numerically identical at the IR level either way.
 
-### 3. `claim --references` flows into the rendered `background=[...]` (intrinsic)
+### 3. `claim --references` vs rendered `background=` (R9-closed)
 
-The cli's `--references` flag has two jobs: it whitelists the listed identifiers inside the formula sandbox AND flows them through as the rendered claim's `background=[...]`. The hand-authored `claim(content, formula=land(equals(my_var, ...)))` references Variable identifiers inside the formula without listing them as background. Both shapes compile to the same IR — the rendered claim ingests Variables as background, but the engine drops Variables from the claim-background slot since they're typed terms rather than Knowledge nodes.
+**R9 #1** split the cli's `claim --references` flag into two: `--references` is now formula-sandbox-only (whitelists identifiers for use inside the `--formula` expression) and does NOT flow into the rendered claim's `background=`. The new `--background` flag is what now populates the rendered `background=[...]` kwarg. The hand-authored `claim(content, formula=land(equals(my_var, ...)))` shape that references Variables inside the formula without listing them as background is now exactly reproducible from cli.
 
-### 4. `bayes.model(distribution=<pre-bound>)` vs inline `bayes.Binomial(...)` (intrinsic)
+### 4. `bayes.model(distribution=<pre-bound>)` vs inline (R9-closed)
 
-The hand-authored file inlines `bayes.Binomial(n=TOTAL_COUNT, p=MENDELIAN_DOMINANT_PROBABILITY)` directly inside `bayes.model(distribution=...)`. The cli's `gaia bayes model --distribution <ident>` requires a pre-bound Distribution identifier; the cli-authored mirror adds two extra `mendel_count_distribution` / `diffuse_count_distribution` bindings ahead of the `bayes.model` calls. The engine wraps inline Distribution literals into the same internal shape as a pre-bound one, so **both compile to equivalent bayes-model IR**.
+**R9 #2** extended the cli's formula sandbox to accept `bayes.<DistributionFactory>` attribute access, and `gaia bayes model --distribution` now routes through the sandbox when the argument is not a bare identifier. The hand-authored `bayes.model(distribution=bayes.Binomial(n=TOTAL_COUNT, p=MENDELIAN_DOMINANT_PROBABILITY))` shape is now exactly reproducible from cli. Bare-identifier mode still works for back-compat (when an author *does* want a separately-bound Distribution helper).
 
 ### 5. `register_prior(value=<imported-constant>)` vs `value=<literal>` (intrinsic)
 
-Same root cause as §2 above. The hand-authored `priors.py` imports `PRIOR_MENDELIAN_MODEL` from `mendel_v0_5.probabilities` and references it as `value=PRIOR_MENDELIAN_MODEL` (and `value=1.0 - PRIOR_MENDELIAN_MODEL`). The cli forwards literal values. **Numerically identical**.
+Same root cause as §2 above (R9 #4 partially closes it at the cli-capability level — bare-identifier `--value` resolution applies equally to `register-prior --value`). The walkthrough's `priors.py` step still passes literal values for self-containment; an agent that scaffolds `probabilities.py` and imports `PRIOR_MENDELIAN_MODEL` first can hit byte-text equivalence here too. Numerically identical.
 
-### 6. `register_prior` always renders `source_id='user_priors'` (intrinsic)
+### 6. `register_prior` default `source_id` (R9-closed)
 
-The cli always renders `register_prior(claim, value, justification=..., source_id='user_priors')` for source-id discoverability. The hand-authored file omits the kwarg when it would equal the default. Source-text-only difference; both engines parse to the same `PriorRecord.source_id`.
+**R9 #3** made the cli's `--source-id` flag default-absence-aware: when the caller does not pass `--source-id`, the rendered `register_prior(...)` call omits the kwarg entirely so the engine default applies. The hand-authored mendel `priors.py` never writes `source_id=`, and the cli mirror now matches byte-text.
 
 ### 7. Scaffold `__init__.py` carries full import block (intrinsic)
 
@@ -434,6 +428,9 @@ The pytest fixture at `tests/cli/mendel_demo/test_equivalence.py` runs the full 
 | `label-bag` | CONTENT_SET | Single-`--label` discipline forces every cli statement to render `label=`; some hand-authored statements omit it when binding name == label. Set is identical; multiset differs by the `label=` rendering choice. |
 | `bayes-model-count` | BYTE_TEXT | 2 `bayes.model` calls + 1 `bayes.likelihood` call on both sides. |
 | `register-prior-count` | BYTE_TEXT | 6 `register_prior` calls in `priors.py` on both sides. |
+| `source-id-count` (R9) | BYTE_TEXT | `register_prior` calls render zero `source_id=` mentions on both sides (R9 #3 closure). |
+| `formula-claim-no-background` (R9) | structural assertion | The F2-count predicate-claim line does NOT contain `background=` on either side (R9 #1 closure — `--references` is now sandbox-only, not rendered). |
+| `bayes-inline-distribution` (R9) | structural assertion | `bayes.model(...)` calls inline `bayes.Binomial(...)` / `bayes.BetaBinomial(...)` directly (R9 #2 closure — no pre-bound `mendel_count_distribution` / `diffuse_count_distribution` helper bindings). |
 
 The multi-level helper at `tests/cli/_equivalence_levels.py` underwrites both this mendel demo and the galileo demo's R8-tightened equivalence (galileo had been content-set on all axes; R7 closed 3 of 4 divergences, so R8 tightens to BYTE_TEXT on the R7-closed axes while keeping content-set on the intrinsic G7 axis).
 
