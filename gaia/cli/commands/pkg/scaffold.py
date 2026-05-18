@@ -135,6 +135,8 @@ from gaia.engine.lang import (
     equal,
     equals,
     exclusive,
+    exists,
+    forall,
     iff,
     implies,
     infer,
