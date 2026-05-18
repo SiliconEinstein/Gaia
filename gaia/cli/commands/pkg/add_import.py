@@ -51,9 +51,52 @@ def _is_valid_identifier(s: str) -> bool:
     return all(ch in _IDENT_OK for ch in s)
 
 
-def _resolve_module(  # noqa: C901
-    from_: str, default_package: str | None
+def _validate_dotted_segments(name: str) -> str | None:
+    """Validate every dotted segment of ``name`` as a Python identifier.
+
+    Returns an error message naming the first bad segment, or ``None``
+    when every segment is a valid identifier.
+    """
+    for part in name.split("."):
+        if not _is_valid_identifier(part):
+            return (
+                f"--from contains invalid module segment {part!r}; "
+                "each dotted segment must be a Python identifier"
+            )
+    return None
+
+
+def _resolve_relative_from(
+    cleaned: str, default_package: str | None
 ) -> tuple[str | None, str | None]:
+    """Resolve the leading-dot relative shape (``.probabilities``).
+
+    Strips leading dots and prepends ``default_package`` so the output is
+    the absolute form ``<pkg>.probabilities``.
+    """
+    bare = cleaned.lstrip(".")
+    if not bare:
+        return None, "--from must include a module name (saw only leading dots)"
+    seg_err = _validate_dotted_segments(bare)
+    if seg_err is not None:
+        return None, seg_err
+    if default_package is None:
+        return None, "--from used relative form but target package import name is unavailable"
+    return f"{default_package}.{bare}", None
+
+
+def _resolve_bare_from(cleaned: str, default_package: str | None) -> tuple[str | None, str | None]:
+    """Resolve a bare identifier against ``default_package``."""
+    if not _is_valid_identifier(cleaned):
+        return None, f"--from {cleaned!r} is not a valid Python identifier"
+    if default_package is None:
+        return None, (
+            "--from used bare-identifier form but target package import name is unavailable"
+        )
+    return f"{default_package}.{cleaned}", None
+
+
+def _resolve_module(from_: str, default_package: str | None) -> tuple[str | None, str | None]:
     """Resolve ``--from`` into a fully-qualified module string.
 
     A bare identifier (``probabilities``) becomes ``<default_package>.<name>``
@@ -67,40 +110,14 @@ def _resolve_module(  # noqa: C901
     if not cleaned:
         return None, "--from must be a non-empty module name"
     if cleaned.startswith("."):
-        # Explicit relative import like ``.probabilities`` — strip the
-        # leading dot(s) and prepend default_package so the resolved
-        # output is the absolute form ``<pkg>.probabilities``.
-        bare = cleaned.lstrip(".")
-        if not bare:
-            return None, "--from must include a module name (saw only leading dots)"
-        if "." in bare:
-            for part in bare.split("."):
-                if not _is_valid_identifier(part):
-                    return None, (
-                        f"--from contains invalid module segment {part!r}; "
-                        "each dotted segment must be a Python identifier"
-                    )
-        elif not _is_valid_identifier(bare):
-            return None, f"--from {bare!r} is not a valid Python identifier"
-        if default_package is None:
-            return None, "--from used relative form but target package import name is unavailable"
-        return f"{default_package}.{bare}", None
+        return _resolve_relative_from(cleaned, default_package)
     if "." in cleaned:
         # Dotted absolute form — accept verbatim after segment validation.
-        for part in cleaned.split("."):
-            if not _is_valid_identifier(part):
-                return None, (
-                    f"--from contains invalid module segment {part!r}; "
-                    "each dotted segment must be a Python identifier"
-                )
+        seg_err = _validate_dotted_segments(cleaned)
+        if seg_err is not None:
+            return None, seg_err
         return cleaned, None
-    if not _is_valid_identifier(cleaned):
-        return None, f"--from {cleaned!r} is not a valid Python identifier"
-    if default_package is None:
-        return None, (
-            "--from used bare-identifier form but target package import name is unavailable"
-        )
-    return f"{default_package}.{cleaned}", None
+    return _resolve_bare_from(cleaned, default_package)
 
 
 def add_import_command(

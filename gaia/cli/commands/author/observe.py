@@ -178,6 +178,115 @@ def _validate_value_and_error(
     return rendered_value, rendered_error, references_sink
 
 
+def _check_observation_mode_mutex(
+    *,
+    conclusion: str | None,
+    observation_content: str | None,
+    observation_prose: str | None,
+    observation_label: str | None,
+    value: str | None,
+    error: str | None,
+    target: str,
+    human: bool,
+) -> bool:
+    """Enforce the mode-shape rules for observe(...).
+
+    Exactly one of ``--conclusion`` / ``--observation-content`` /
+    ``--observation-prose`` must be set. ``--observation-label`` only
+    applies with ``--observation-content``. Prose modes are incompatible
+    with the continuous form (``--value`` / ``--error``).
+
+    Returns ``True`` to proceed, ``False`` after emitting the rejection
+    envelope.
+    """
+    obs_modes = [conclusion, observation_content, observation_prose]
+    obs_modes_set = sum(1 for value_ in obs_modes if value_ is not None)
+    if obs_modes_set == 0:
+        emit_syntax_error(
+            "observe",
+            (
+                "observe requires exactly one of --conclusion / "
+                "--observation-content / --observation-prose"
+            ),
+            target=target,
+            human=human,
+        )
+        return False
+    if obs_modes_set > 1:
+        emit_syntax_error(
+            "observe",
+            (
+                "--conclusion, --observation-content, and --observation-prose "
+                "are mutually exclusive — pick exactly one"
+            ),
+            target=target,
+            human=human,
+        )
+        return False
+    if observation_label is not None and observation_content is None:
+        emit_syntax_error(
+            "observe",
+            "--observation-label only applies with --observation-content",
+            target=target,
+            human=human,
+        )
+        return False
+    # The continuous form needs a Distribution-typed identifier as the
+    # observation target, so prose mode (which generates a Claim, not a
+    # Distribution) is incompatible with --value / --error.
+    if (observation_content is not None or observation_prose is not None) and (
+        value is not None or error is not None
+    ):
+        emit_syntax_error(
+            "observe",
+            (
+                "prose mode (--observation-content / --observation-prose) is "
+                "incompatible with --value / --error (continuous form targets "
+                "an existing Distribution; use --conclusion <dist_label>)"
+            ),
+            target=target,
+            human=human,
+        )
+        return False
+    return True
+
+
+def _resolve_observation_mode(
+    *,
+    conclusion: str | None,
+    observation_content: str | None,
+    observation_prose: str | None,
+    observation_label: str | None,
+    dsl_binding_name: str | None,
+    given_list: list[str],
+    background_list: list[str],
+) -> tuple[str, list[str], str, tuple[tuple[str, str], ...]]:
+    """Resolve the observation-mode dispatch.
+
+    Returns ``(conclusion_expr, references, observation_kind, prepended)``.
+    The caller has already enforced mode mutex via
+    :func:`_check_observation_mode_mutex`.
+    """
+    if observation_content is not None:
+        if observation_label is not None:
+            auto_label = observation_label
+        else:
+            reserved = {*given_list, *background_list}
+            if dsl_binding_name is not None:
+                reserved.add(dsl_binding_name)
+            auto_label = slugify_label(observation_content, existing=reserved)
+        prepended = ((auto_label, build_auto_claim_statement(auto_label, observation_content)),)
+        return auto_label, [auto_label, *given_list, *background_list], "auto_mint", prepended
+    if observation_prose is not None:
+        # Inline-prose: emit ``observe('<prose>', ...)`` directly. The
+        # engine's ``observe(conclusion: Claim | str, ...)`` polymorphism
+        # wraps the prose into an anonymous Claim at runtime; no named
+        # module-scope binding is introduced.
+        return repr(observation_prose), [*given_list, *background_list], "inline_prose", ()
+    assert conclusion is not None  # mutex check above
+    return conclusion, [conclusion, *given_list, *background_list], "qid", ()
+
+
 def _render_observe_statement(
     *,
     binding_name: str | None,
@@ -225,7 +334,7 @@ def _render_observe_statement(
     return f"{binding_name} = {call}"
 
 
-def observe_command(  # noqa: C901
+def observe_command(
     label: str | None = typer.Option(
         None,
         "--label",
@@ -351,54 +460,16 @@ def observe_command(  # noqa: C901
     del json_
 
     # --- mutual-exclusion check on observation-mode ---------------------- #
-    obs_modes = [conclusion, observation_content, observation_prose]
-    obs_modes_set = sum(1 for value_ in obs_modes if value_ is not None)
-    if obs_modes_set == 0:
-        emit_syntax_error(
-            "observe",
-            (
-                "observe requires exactly one of --conclusion / "
-                "--observation-content / --observation-prose"
-            ),
-            target=str(target),
-            human=human,
-        )
-        return
-    if obs_modes_set > 1:
-        emit_syntax_error(
-            "observe",
-            (
-                "--conclusion, --observation-content, and --observation-prose "
-                "are mutually exclusive — pick exactly one"
-            ),
-            target=str(target),
-            human=human,
-        )
-        return
-    if observation_label is not None and observation_content is None:
-        emit_syntax_error(
-            "observe",
-            "--observation-label only applies with --observation-content",
-            target=str(target),
-            human=human,
-        )
-        return
-    # The continuous form needs a Distribution-typed identifier as the
-    # observation target, so prose mode (which generates a Claim, not a
-    # Distribution) is incompatible with --value / --error.
-    if (observation_content is not None or observation_prose is not None) and (
-        value is not None or error is not None
+    if not _check_observation_mode_mutex(
+        conclusion=conclusion,
+        observation_content=observation_content,
+        observation_prose=observation_prose,
+        observation_label=observation_label,
+        value=value,
+        error=error,
+        target=str(target),
+        human=human,
     ):
-        emit_syntax_error(
-            "observe",
-            (
-                "prose mode (--observation-content / --observation-prose) is "
-                "incompatible with --value / --error (continuous form targets "
-                "an existing Distribution; use --conclusion <dist_label>)"
-            ),
-            target=str(target),
-            human=human,
-        )
         return
 
     metadata_dict, metadata_error = parse_metadata(metadata)
@@ -440,34 +511,15 @@ def observe_command(  # noqa: C901
     # ``conclusion_expr`` is the Python source spelling at the call site;
     # ``references`` lists the identifiers the pre-write (c) check must
     # resolve in module scope (inline-prose contributes none of its own).
-    prepended: tuple[tuple[str, str], ...] = ()
-    references: list[str]
-    observation_kind: str
-    if observation_content is not None:
-        if observation_label is not None:
-            auto_label = observation_label
-        else:
-            reserved = {*given_list, *background_list}
-            if dsl_binding_name is not None:
-                reserved.add(dsl_binding_name)
-            auto_label = slugify_label(observation_content, existing=reserved)
-        prepended = ((auto_label, build_auto_claim_statement(auto_label, observation_content)),)
-        conclusion_expr = auto_label
-        references = [auto_label, *given_list, *background_list]
-        observation_kind = "auto_mint"
-    elif observation_prose is not None:
-        # Inline-prose: emit ``observe('<prose>', ...)`` directly.
-        # The engine's ``observe(conclusion: Claim | str, ...)``
-        # polymorphism wraps the prose into an anonymous Claim at
-        # runtime; no named module-scope binding is introduced.
-        conclusion_expr = repr(observation_prose)
-        references = [*given_list, *background_list]
-        observation_kind = "inline_prose"
-    else:
-        assert conclusion is not None  # mutex check above
-        conclusion_expr = conclusion
-        references = [conclusion, *given_list, *background_list]
-        observation_kind = "qid"
+    conclusion_expr, references, observation_kind, prepended = _resolve_observation_mode(
+        conclusion=conclusion,
+        observation_content=observation_content,
+        observation_prose=observation_prose,
+        observation_label=observation_label,
+        dsl_binding_name=dsl_binding_name,
+        given_list=given_list,
+        background_list=background_list,
+    )
 
     # Merge value/error bare-identifier references into the verb-level
     # reference list so prewrite resolves them (and Axis 2 inserts
