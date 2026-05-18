@@ -20,8 +20,8 @@ What this module does NOT own:
 * Reading observation value or noise out of ``claim.formula`` — value and
   noise live exclusively in ``metadata["observation"]``.
 * Any compatibility shim for an earlier in-flight Bayes surface. The
-  legacy ``bayes.model`` / ``bayes.likelihood`` / ``bayes.data`` verbs
-  and the typed-value ``bayes.Normal`` aliases were removed in the
+  legacy ``bayes.likelihood`` / ``bayes.data`` verbs, old model metadata
+  shape, and typed-value ``bayes.Normal`` aliases were removed in the
   unified-design clean break.
 """
 

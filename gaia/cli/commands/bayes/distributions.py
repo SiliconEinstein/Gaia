@@ -90,13 +90,6 @@ def _run_dist_op(
     metadata_dict: dict[str, Any] | None,
 ) -> None:
     """Shared dispatch path for every distribution-literal verb."""
-    if metadata_dict:
-        # Distributions don't accept ``metadata=`` directly; we emit a
-        # comment so the agent can locate the binding when scanning the
-        # source. Pre-write doesn't see comments, so this is purely a
-        # human-readable affordance.
-        # Note: we deliberately omit metadata from the Distribution call.
-        pass
     validation = _validate_params(
         verb=f"bayes.{dist_name}",
         params=params,
@@ -106,6 +99,8 @@ def _run_dist_op(
     if validation is None:
         return
     kwargs_pairs, references = validation
+    if metadata_dict:
+        kwargs_pairs.append(f"metadata={metadata_dict!r}")
     generated_code = _render_dist_call(label=label, dist_name=dist_name, kwargs_pairs=kwargs_pairs)
     target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(

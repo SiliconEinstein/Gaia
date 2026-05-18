@@ -47,6 +47,32 @@ def test_binomial_happy_path(bayes_package: BayesPackage) -> None:
     assert "mendel_binomial = Binomial('mendel_binomial', n=395, p=0.75)" in text
 
 
+def test_distribution_metadata_is_rendered(bayes_package: BayesPackage) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "bayes",
+            "normal",
+            "--mu",
+            "0",
+            "--sigma",
+            "1",
+            "--label",
+            "temperature_noise",
+            "--metadata",
+            '{"unit": "K"}',
+            "--target",
+            str(bayes_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    text = bayes_package.source_init.read_text()
+    assert (
+        "temperature_noise = Normal('temperature_noise', mu=0, sigma=1, metadata={'unit': 'K'})"
+    ) in text
+
+
 def test_beta_binomial_happy_path(bayes_package: BayesPackage) -> None:
     result = runner.invoke(
         app,
