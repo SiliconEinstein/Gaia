@@ -324,10 +324,7 @@ def observe_command(  # noqa: C901
     export: bool = typer.Option(
         True,
         "--export/--no-export",
-        help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for observe)."
-        ),
+        help=("Add --dsl-binding-name to __all__ on a successful write (default on for observe)."),
     ),
     check: bool = typer.Option(
         True,

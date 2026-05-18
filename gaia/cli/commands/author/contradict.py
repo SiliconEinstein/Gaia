@@ -98,8 +98,7 @@ def contradict_command(
         True,
         "--export/--no-export",
         help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for contradict)."
+            "Add --dsl-binding-name to __all__ on a successful write (default on for contradict)."
         ),
     ),
     check: bool = typer.Option(

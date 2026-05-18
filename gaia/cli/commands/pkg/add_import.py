@@ -189,10 +189,7 @@ def add_import_command(
                         Diagnostic(
                             kind="prewrite.syntax",
                             level="error",
-                            message=(
-                                f"--names entry {n!r} is not a valid Python "
-                                "identifier"
-                            ),
+                            message=(f"--names entry {n!r} is not a valid Python identifier"),
                             source="prewrite",
                         )
                     ],

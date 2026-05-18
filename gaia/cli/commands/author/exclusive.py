@@ -99,8 +99,7 @@ def exclusive_command(
         True,
         "--export/--no-export",
         help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for exclusive)."
+            "Add --dsl-binding-name to __all__ on a successful write (default on for exclusive)."
         ),
     ),
     check: bool = typer.Option(

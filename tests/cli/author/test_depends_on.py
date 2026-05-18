@@ -43,10 +43,7 @@ def test_depends_on_happy_path(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
-    assert (
-        "obs_depends_on_h = depends_on(observation, given=[hypothesis])"
-        in written
-    )
+    assert "obs_depends_on_h = depends_on(observation, given=[hypothesis])" in written
 
 
 def test_depends_on_multi_given(gaia_package: FixturePackage) -> None:

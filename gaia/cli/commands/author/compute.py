@@ -120,10 +120,7 @@ def compute_command(
     export: bool = typer.Option(
         True,
         "--export/--no-export",
-        help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for compute)."
-        ),
+        help=("Add --dsl-binding-name to __all__ on a successful write (default on for compute)."),
     ),
     check: bool = typer.Option(
         True,

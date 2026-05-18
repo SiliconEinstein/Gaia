@@ -357,9 +357,7 @@ def claim_command(
     # inserts the missing names into the rendered ``from gaia.engine.lang
     # import (...)`` line so the postwrite check can import the module
     # cleanly without an explicit ``--imports`` flag at scaffold time.
-    formula_imports = (
-        extract_engine_lang_names(formula_expr) if formula_expr is not None else ()
-    )
+    formula_imports = extract_engine_lang_names(formula_expr) if formula_expr is not None else ()
     required_imports = ("claim", *formula_imports)
     proposed_op = ProposedAuthorOp(
         verb="claim",

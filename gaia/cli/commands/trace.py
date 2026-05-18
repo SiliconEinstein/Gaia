@@ -23,10 +23,7 @@ from gaia.engine.trace.schema import Trace
 
 trace_app = typer.Typer(
     name="trace",
-    help=(
-        "Gaia ARM Trace — verify and review execution traces "
-        "(verify / review / show)."
-    ),
+    help=("Gaia ARM Trace — verify and review execution traces (verify / review / show)."),
     no_args_is_help=True,
 )
 

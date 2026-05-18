@@ -191,10 +191,7 @@ def infer_command(
     export: bool = typer.Option(
         True,
         "--export/--no-export",
-        help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for infer)."
-        ),
+        help=("Add --dsl-binding-name to __all__ on a successful write (default on for infer)."),
     ),
     check: bool = typer.Option(
         True,

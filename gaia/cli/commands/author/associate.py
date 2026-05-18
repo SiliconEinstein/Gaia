@@ -118,8 +118,7 @@ def associate_command(
         True,
         "--export/--no-export",
         help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for associate)."
+            "Add --dsl-binding-name to __all__ on a successful write (default on for associate)."
         ),
     ),
     check: bool = typer.Option(

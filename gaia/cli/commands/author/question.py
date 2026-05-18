@@ -95,10 +95,7 @@ def question_command(
     export: bool = typer.Option(
         True,
         "--export/--no-export",
-        help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for question)."
-        ),
+        help=("Add --dsl-binding-name to __all__ on a successful write (default on for question)."),
     ),
     check: bool = typer.Option(
         True,

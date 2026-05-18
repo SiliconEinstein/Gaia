@@ -43,10 +43,7 @@ def test_exclusive_happy_path(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
-    assert (
-        "exclusive_partition = exclusive(hypothesis, observation)"
-        in written
-    )
+    assert "exclusive_partition = exclusive(hypothesis, observation)" in written
 
 
 def test_exclusive_unresolved_exits_3(gaia_package: FixturePackage) -> None:

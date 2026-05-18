@@ -139,8 +139,7 @@ def parameter_command(
         True,
         "--export/--no-export",
         help=(
-            "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for parameter)."
+            "Add --dsl-binding-name to __all__ on a successful write (default on for parameter)."
         ),
     ),
     check: bool = typer.Option(

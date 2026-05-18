@@ -772,8 +772,7 @@ def test_derive_conclusion_prose_emits_inline_string_literal(
     assert "claim('Stars are visible tonight.')" not in written
     # The derive call carries the prose as a bare string literal.
     assert (
-        "visibility_warrant = derive('Stars are visible tonight.', "
-        "given=[hypothesis])" in written
+        "visibility_warrant = derive('Stars are visible tonight.', given=[hypothesis])" in written
     )
 
 

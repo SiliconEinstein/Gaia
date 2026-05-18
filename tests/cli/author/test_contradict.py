@@ -44,9 +44,7 @@ def test_contradict_happy_path(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
-    assert (
-        "they_contradict = contradict(hypothesis, observation)" in written
-    )
+    assert "they_contradict = contradict(hypothesis, observation)" in written
 
 
 def test_contradict_unresolved_exits_3(gaia_package: FixturePackage) -> None:
