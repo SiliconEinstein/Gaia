@@ -2,6 +2,8 @@
 
 > **Companion to** [`docs/reference/cli/author.md`](../../docs/reference/cli/author.md) and the hand-authored package at `src/mendel_v0_5/__init__.py`. This document shows how the Mendel single-factor cross example can be authored end-to-end through `gaia author <verb>`, `gaia bayes <verb>`, and `gaia pkg <verb>`, without hand-editing the Python source. It mirrors the galileo walkthrough at `examples/galileo-v0-5-gaia/CLI-AUTHORED.md` and exercises the harder of the two v0.5 example packages — the surface that R7 actually unlocked: `bayes` group + `Variable` + `claim --formula` + multi-file (`priors.py`) + `--background` on every relation verb.
 
+> **Reproduction semantics**: this walkthrough reproduces the IR (knowledge/strategy content + counts + types) of the hand-authored package, not the byte-text source. See the equivalence test under `tests/cli/mendel_demo/` for the asserted axes; a small set of source-text divergences (chiefly the single-`--label` discipline) is documented at end-of-doc and is intrinsic-by-design.
+
 ## What you get
 
 A scripted sequence of cli invocations produces a separately-scaffolded
