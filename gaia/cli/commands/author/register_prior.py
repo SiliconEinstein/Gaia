@@ -65,14 +65,18 @@ def _render_register_prior_statement(
     returns ``None``. ``comment_label`` is optionally rendered as a
     trailing ``# label`` comment so a reader can scan the source.
 
+    ``value`` is rendered as the kwarg ``value=<num>`` (G11 — matches the
+    hand-authored pattern in the example packages; the engine signature
+    accepts it positionally but kwarg form reads better at the call site).
+
     ``emit_source_id`` toggles whether the ``source_id=`` kwarg appears
     in the rendered call. ``False`` is reserved for the case where the
     caller did not explicitly pass ``--source-id`` AND the value matches
     the engine default (:data:`_ENGINE_DEFAULT_SOURCE_ID`), matching the
     hand-authored mendel pattern of omitting the kwarg when redundant.
     """
-    args = [claim_ref, repr(value)]
-    kwargs = [f"justification={justification!r}"]
+    args = [claim_ref]
+    kwargs = [f"value={value!r}", f"justification={justification!r}"]
     if emit_source_id:
         kwargs.append(f"source_id={source_id!r}")
     if metadata:
@@ -127,6 +131,15 @@ def register_prior_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        False,
+        "--export/--no-export",
+        help=(
+            "Add the statement's binding to __all__ on a successful write "
+            "(default off for register_prior: the call has no LHS binding, "
+            "so this flag is reserved for surface uniformity)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -142,13 +155,11 @@ def register_prior_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``register_prior(...)`` prior-registration statement.
+    r"""Append a ``register_prior(...)`` prior-registration statement.
 
     Example:
 
-    .. code-block:: bash
-
-        gaia author register-prior --claim hypothesis_x --value 0.7 \
+        gaia author register-prior --claim my_hypothesis --value 0.7 \
             --justification "Prior elicited from domain expert."
     """
     del json_
@@ -207,6 +218,7 @@ def register_prior_command(
         required_imports=("register_prior",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

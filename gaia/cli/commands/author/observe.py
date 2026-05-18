@@ -180,7 +180,8 @@ def _validate_value_and_error(
 
 def _render_observe_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     conclusion_expr: str,
     value: str | None,
     error: str | None,
@@ -197,7 +198,9 @@ def _render_observe_statement(
     quoted string literal (``--observation-prose``).
     """
     args = [conclusion_expr]
-    kwargs: list[str] = [f"label={label!r}"]
+    kwargs: list[str] = []
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if value is not None:
         # Forward verbatim so callers can pass numeric literals or
         # Quantity expressions; lexically safe because pre-write parses
@@ -215,11 +218,30 @@ def _render_observe_statement(
         kwargs.append(f"rationale={rationale!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = observe({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"observe({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def observe_command(
-    label: str = typer.Option(..., "--label", help="Identifier the observation Claim binds to."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered observe(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "observe(...)``). Omit to emit a bare expression."
+        ),
+    ),
     conclusion: str | None = typer.Option(
         None,
         "--conclusion",
@@ -299,6 +321,14 @@ def observe_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default on for observe)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -314,22 +344,13 @@ def observe_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author an ``observe(...)`` measurement event.
+    r"""Append an ``observe(...)`` measurement event.
 
-    Examples:
+    Example:
 
-    .. code-block:: bash
-
-        # Discrete claim observation
-        gaia author observe --conclusion stars_visible --label visible_obs
-
-        # Continuous measurement
-        gaia author observe --conclusion T_c --value 203 --error 5 \
-            --label temperature_obs
-
-        # Mint a fresh observation from prose (auto-mint prose mode)
-        gaia author observe --observation-content "Stars visible in zenith." \
-            --label visible_obs
+        gaia author observe --conclusion my_distribution \
+            --value 203 --error 5 \
+            --dsl-binding-name temperature_obs --label temperature_obs
     """
     del json_
 
@@ -430,7 +451,9 @@ def observe_command(
         if observation_label is not None:
             auto_label = observation_label
         else:
-            reserved = {label, *given_list, *background_list}
+            reserved = {*given_list, *background_list}
+            if dsl_binding_name is not None:
+                reserved.add(dsl_binding_name)
             auto_label = slugify_label(observation_content, existing=reserved)
         prepended = ((auto_label, build_auto_claim_statement(auto_label, observation_content)),)
         conclusion_expr = auto_label
@@ -457,7 +480,8 @@ def observe_command(
     references = [*references, *references_sink]
 
     generated_code = _render_observe_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         conclusion_expr=conclusion_expr,
         value=rendered_value,
         error=rendered_error,
@@ -471,7 +495,7 @@ def observe_command(
     proposed_op = ProposedAuthorOp(
         verb="observe",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("observe",),
@@ -479,6 +503,7 @@ def observe_command(
         sibling_imports=build_sibling_imports(references, target_file=target_file),
         prepended_statements=prepended,
         extra_payload={"observation_kind": observation_kind},
+        export=export,
     )
     run_author_op(
         proposed_op,

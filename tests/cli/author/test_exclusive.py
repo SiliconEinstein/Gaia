@@ -34,7 +34,7 @@ def test_exclusive_happy_path(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "exclusive_partition",
             "--target",
             str(gaia_package.root),
@@ -44,7 +44,7 @@ def test_exclusive_happy_path(gaia_package: FixturePackage) -> None:
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
     assert (
-        "exclusive_partition = exclusive(hypothesis, observation, label='exclusive_partition')"
+        "exclusive_partition = exclusive(hypothesis, observation)"
         in written
     )
 
@@ -59,7 +59,7 @@ def test_exclusive_unresolved_exits_3(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "ghost",
-            "--label",
+            "--dsl-binding-name",
             "x",
             "--target",
             str(gaia_package.root),
@@ -79,7 +79,7 @@ def test_exclusive_self_loop_exits_1(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "observation",
             "--target",
             str(gaia_package.root),
@@ -99,7 +99,7 @@ def test_exclusive_postwrite_check(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "checked_exclusive",
             "--target",
             str(gaia_package.root),
@@ -118,7 +118,7 @@ def test_exclusive_human_mode(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "human_excl",
             "--target",
             str(gaia_package.root),

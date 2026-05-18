@@ -43,7 +43,8 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_compute_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     conclusion_type: str,
     fn: str | None,
     given: list[str],
@@ -57,16 +58,36 @@ def _render_compute_statement(
         kwargs.append(f"fn={fn}")
     if given:
         kwargs.append(f"given=[{', '.join(given)}]")
-    kwargs.append(f"label={label!r}")
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = compute({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"compute({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def compute_command(
-    label: str = typer.Option(..., "--label", help="Identifier the produced Claim binds to."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered compute(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "compute(...)``). Omit to emit a bare expression."
+        ),
+    ),
     conclusion_type: str = typer.Option(
         ...,
         "--conclusion-type",
@@ -96,6 +117,14 @@ def compute_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default on for compute)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -111,14 +140,13 @@ def compute_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``compute(...)`` deterministic-computation statement.
+    r"""Append a ``compute(...)`` deterministic-computation statement.
 
     Example:
 
-    .. code-block:: bash
-
-        gaia author compute --label result --conclusion-type Probability \
-            --fn compute_prob --given hypothesis_x,hypothesis_y
+        gaia author compute --conclusion-type Probability \
+            --fn my_compute_prob --given my_hypothesis_x \
+            --dsl-binding-name my_result --label my_result
     """
     del json_
 
@@ -172,7 +200,8 @@ def compute_command(
             return
 
     generated_code = _render_compute_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         conclusion_type=rendered_conclusion,
         fn=rendered_fn,
         given=given_list,
@@ -184,12 +213,13 @@ def compute_command(
     proposed_op = ProposedAuthorOp(
         verb="compute",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("compute",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

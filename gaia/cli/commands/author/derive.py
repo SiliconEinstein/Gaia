@@ -22,14 +22,28 @@ The verb supports three CLI shapes for ``conclusion``:
   overrides the auto-derived slug.
 * ``--conclusion-prose "<prose>"`` — emits ``derive('<prose>', ...)``
   directly, leveraging the engine's ``conclusion: Claim | str``
-  polymorphism. No named Claim binding is minted; the prose flows to
-  the DSL call site as a bare string literal.
+  polymorphism. Skips the separate ``slug = claim(prose)`` declaration
+  the auto-mint shape introduces; the prose flows to the DSL call site
+  as a bare string literal. A named module-scope binding is still
+  produced when ``--dsl-binding-name`` is supplied (the derive() result
+  is the warrant Claim that downstream verbs reference).
 
 The three shapes are mutually exclusive — pick exactly one. The
 auto-mint shape uses the prose-mode helper infra in
 :mod:`gaia.cli.commands.author._prose`; the inline-prose shape closes
 the Galileo strict-reproducibility divergence around named Claim
 bindings introduced by auto-mint.
+
+Two ``label``-like surfaces (clean split):
+
+* ``--label <engine-label>`` — passed through as the engine's ``label=``
+  kwarg on the rendered ``derive(...)`` call. Does not affect the
+  Python module-scope binding name.
+* ``--dsl-binding-name <python-ident>`` — Python binding produced on the
+  rendered statement (``<python-ident> = derive(...)``). When omitted,
+  the rendered statement is a bare expression with no LHS binding (the
+  engine's ``derive()`` result is held only by transitive Claim
+  references inside the IR).
 """
 
 from __future__ import annotations
@@ -70,7 +84,8 @@ def _parse_metadata(metadata_json: str | None) -> tuple[dict[str, Any] | None, s
 
 def _render_derive_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     conclusion_expr: str,
     given: list[str],
     rationale: str | None,
@@ -84,10 +99,17 @@ def _render_derive_statement(
     (``--conclusion`` / ``--conclusion-content`` auto-mint slug) or a
     quoted string literal (``--conclusion-prose``). The caller is
     responsible for shaping the spelling before handing it in.
+
+    ``binding_name`` is the Python module-scope identifier the rendered
+    statement binds to (``<binding_name> = derive(...)``); ``None``
+    renders a bare expression statement. ``engine_label`` is the
+    ``derive()`` ``label=`` kwarg; ``None`` omits it.
     """
     given_repr = "[" + ", ".join(given) + "]" if given else "[]"
     args = [conclusion_expr]
-    kwargs = [f"given={given_repr}", f"label={label!r}"]
+    kwargs = [f"given={given_repr}"]
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if background:
@@ -95,7 +117,10 @@ def _render_derive_statement(
         kwargs.append(f"background={bg_repr}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = derive({', '.join(args)}, {', '.join(kwargs)})"
+    call = f"derive({', '.join(args)}, {', '.join(kwargs)})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def derive_command(
@@ -136,7 +161,25 @@ def derive_command(
         "--given",
         help="Comma-separated identifiers of the premise Claim(s) the conclusion is derived from.",
     ),
-    label: str = typer.Option(..., "--label", help="Identifier the produced binding takes."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg passed through to the rendered derive(...) "
+            "call. Distinct from --dsl-binding-name (the Python LHS). Omit "
+            "both to render derive(...) without a label= kwarg and no LHS."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python module-scope identifier the rendered statement binds to "
+            "(``<name> = derive(...)``). Omit to emit a bare expression "
+            "statement (no LHS); the derive() result is then only reachable "
+            "via transitive Claim references in the IR."
+        ),
+    ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
@@ -155,6 +198,15 @@ def derive_command(
         None,
         "--background",
         help="Comma-separated identifiers passed as the derive() background kwarg.",
+    ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Append --dsl-binding-name to the target module's __all__ on a "
+            "successful write (default on for derive: its result is a warrant "
+            "Claim downstream verbs reference)."
+        ),
     ),
     check: bool = typer.Option(
         True,
@@ -175,26 +227,14 @@ def derive_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``derive(conclusion, given=[...])`` support relation.
+    r"""Append a ``derive(conclusion, given=[...])`` support relation.
 
-    Examples:
+    Example:
 
-    .. code-block:: bash
-
-        # Reference an existing conclusion
-        gaia author derive --conclusion stars_visible \
-            --given clear_night,observer_present \
-            --label visibility_warrant
-
-        # Mint a fresh conclusion from prose (auto-mint prose mode)
-        gaia author derive --conclusion-content "Stars are visible tonight." \
-            --given clear_night,observer_present \
-            --label visibility_warrant
-
-        # Emit prose inline via the engine's Claim|str polymorphism
-        gaia author derive --conclusion-prose "Stars are visible tonight." \
-            --given clear_night,observer_present \
-            --label visibility_warrant
+        gaia author derive --conclusion-content "B follows from A." \
+            --given my_claim_a \
+            --dsl-binding-name my_derivation \
+            --label my_derivation_path
     """
     del json_
 
@@ -299,14 +339,16 @@ def derive_command(
     if conclusion_content is not None:
         # Auto-mint: derive a slug, prepend a ``slug = claim(prose)``
         # statement, use the slug as ``conclusion``. The slug must avoid
-        # the verb's own label and the caller-supplied identifiers; the
-        # prewrite (c) collision check also runs against module symbols,
-        # so a slug collision against an existing binding surfaces as
-        # the standard ``prewrite.collision`` error.
+        # the caller-supplied identifiers; the prewrite (c) collision
+        # check also runs against module symbols, so a slug collision
+        # against an existing binding surfaces as the standard
+        # ``prewrite.collision`` error.
         if conclusion_label is not None:
             auto_label = conclusion_label
         else:
-            reserved = {label, *given_list, *background_list}
+            reserved = {*given_list, *background_list}
+            if dsl_binding_name is not None:
+                reserved.add(dsl_binding_name)
             auto_label = slugify_label(conclusion_content, existing=reserved)
         prepended = ((auto_label, build_auto_claim_statement(auto_label, conclusion_content)),)
         conclusion_expr = auto_label
@@ -316,8 +358,8 @@ def derive_command(
         # Inline-prose: pass the prose through as a bare string
         # literal. The engine's ``derive(conclusion: Claim | str, ...)``
         # polymorphism wraps it into an anonymous Claim at runtime; no
-        # named module-scope binding is introduced. References list
-        # omits the prose entirely.
+        # auto-claim binding is prepended. References list omits the
+        # prose entirely.
         conclusion_expr = repr(conclusion_prose)
         references = [*given_list, *background_list]
         conclusion_kind = "inline_prose"
@@ -328,7 +370,8 @@ def derive_command(
         conclusion_kind = "qid"
 
     generated_code = _render_derive_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         conclusion_expr=conclusion_expr,
         given=given_list,
         rationale=rationale,
@@ -339,7 +382,7 @@ def derive_command(
     proposed_op = ProposedAuthorOp(
         verb="derive",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("derive",),
@@ -347,6 +390,7 @@ def derive_command(
         sibling_imports=build_sibling_imports(references, target_file=target_file),
         prepended_statements=prepended,
         extra_payload={"conclusion_kind": conclusion_kind},
+        export=export,
     )
     run_author_op(
         proposed_op,

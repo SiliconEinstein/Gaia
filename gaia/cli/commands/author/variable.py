@@ -42,7 +42,7 @@ _PRIMITIVE_DOMAINS = frozenset({"Nat", "Real", "Bool", "Probability"})
 
 def _render_variable_statement(
     *,
-    label: str,
+    binding_name: str | None,
     symbol: str,
     domain: str,
     value: str | None,
@@ -52,30 +52,44 @@ def _render_variable_statement(
 ) -> str:
     """Render the proposed ``Variable(...)`` (or ``Constant(...)``) statement.
 
-    Binds the result to ``label``. The DSL re-exports both
-    ``Variable`` and ``Constant`` from ``gaia.engine.lang``; the
-    difference is binding semantics — ``Variable`` carries an optional
-    bound value; ``Constant`` is a frozen literal expression term that
-    only appears inside formulas. The cli renders one or the other based
-    on the ``--const`` flag.
+    The DSL re-exports both ``Variable`` and ``Constant`` from
+    ``gaia.engine.lang``; the difference is binding semantics —
+    ``Variable`` carries an optional bound value; ``Constant`` is a
+    frozen literal expression term that only appears inside formulas.
+    The cli renders one or the other based on the ``--const`` flag.
+
+    Neither ``Variable`` nor ``Constant`` takes an engine ``label=``
+    kwarg, so only the Python LHS is settable.
     """
     if const:
         # Constant(value, primitive) — frozen literal term, no symbol /
         # binding semantics. ``--symbol`` is ignored for const mode.
-        kwargs = [f"{value}, {domain}"]
-        return f"{label} = Constant({', '.join(kwargs)})"
-    kwargs = [f"symbol={symbol!r}", f"domain={domain}"]
-    if value is not None:
-        kwargs.append(f"value={value}")
-    if content is not None:
-        kwargs.append(f"content={content!r}")
-    if metadata:
-        kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = Variable({', '.join(kwargs)})"
+        call = f"Constant({value}, {domain})"
+    else:
+        kwargs = [f"symbol={symbol!r}", f"domain={domain}"]
+        if value is not None:
+            kwargs.append(f"value={value}")
+        if content is not None:
+            kwargs.append(f"content={content!r}")
+        if metadata:
+            kwargs.append(f"metadata={metadata!r}")
+        call = f"Variable({', '.join(kwargs)})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def variable_command(
-    label: str = typer.Option(..., "--label", help="Identifier the Variable / Constant binds to."),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered Variable/Constant declaration "
+            "(``<name> = Variable(...)``). Omit to emit a bare expression. "
+            "Variable / Constant do not take an engine ``label=`` kwarg, "
+            "so this is the only label-like flag the verb exposes."
+        ),
+    ),
     symbol: str | None = typer.Option(
         None,
         "--symbol",
@@ -135,6 +149,15 @@ def variable_command(
             "does not carry a symbol or bind a runtime value."
         ),
     ),
+    export: bool = typer.Option(
+        False,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default off for variable: typed-term declarations are "
+            "internal scaffolding, not part of the public Knowledge surface)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -150,23 +173,12 @@ def variable_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``Variable(...)`` or ``Constant(...)`` typed-term declaration.
+    r"""Append a ``Variable(...)`` or ``Constant(...)`` typed-term declaration.
 
-    Examples:
+    Example:
 
-    .. code-block:: bash
-
-        # Variable bound to a value
-        gaia author variable --symbol n_f2 --domain Nat --value 395 \
-            --label f2_total_count
-
-        # Boolean variable (no bound value)
-        gaia author variable --symbol switch_on --domain Bool \
-            --label switch_state
-
-        # Constant literal for formula use
-        gaia author variable --const --domain Nat --value 395 \
-            --label f2_total_literal
+        gaia author variable --symbol my_n --domain Nat --value 395 \
+            --dsl-binding-name my_count
     """
     del json_
 
@@ -242,7 +254,7 @@ def variable_command(
             references.remove(rendered_value)
 
     generated_code = _render_variable_statement(
-        label=label,
+        binding_name=dsl_binding_name,
         symbol=symbol or "",
         domain=domain,
         value=rendered_value,
@@ -259,13 +271,14 @@ def variable_command(
     proposed_op = ProposedAuthorOp(
         verb="variable",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=required_imports,
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
         extra_payload={"variable_kind": "const" if const else "variable"},
+        export=export,
     )
     run_author_op(
         proposed_op,

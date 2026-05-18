@@ -60,7 +60,8 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_infer_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     evidence: str,
     hypothesis_expr: str,
     p_e_given_h: float,
@@ -85,17 +86,35 @@ def _render_infer_statement(
         kwargs.append(f"given=[{', '.join(given)}]")
     if background:
         kwargs.append(f"background=[{', '.join(background)}]")
-    kwargs.append(f"label={label!r}")
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = infer({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"infer({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def infer_command(
-    label: str = typer.Option(
-        ..., "--label", help="Identifier the evidence Claim takes after `infer()` returns it."
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered infer(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "infer(...)``). Omit to emit a bare expression."
+        ),
     ),
     evidence: str = typer.Option(..., "--evidence", help="Identifier of the evidence Claim."),
     hypothesis: str | None = typer.Option(
@@ -169,6 +188,14 @@ def infer_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default on for infer)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -184,20 +211,13 @@ def infer_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author an ``infer(...)`` Bayesian-inference statement.
+    r"""Append an ``infer(...)`` Bayesian-inference statement.
 
-    Examples:
+    Example:
 
-    .. code-block:: bash
-
-        # Reference an existing hypothesis Claim
-        gaia author infer --evidence sky_red --hypothesis storm_tonight \
-            --p-e-given-h 0.7 --p-e-given-not-h 0.2 --label sky_evidence
-
-        # Mint a fresh hypothesis from prose (auto-mint prose mode)
-        gaia author infer --evidence sky_red \
-            --hypothesis-content "A storm rolls in tonight." \
-            --p-e-given-h 0.7 --label sky_evidence
+        gaia author infer --evidence my_evidence \
+            --hypothesis my_hypothesis --p-e-given-h 0.7 \
+            --dsl-binding-name my_inference --label my_inference
     """
     del json_
 
@@ -269,7 +289,9 @@ def infer_command(
         if hypothesis_label is not None:
             auto_label = hypothesis_label
         else:
-            reserved = {label, evidence, *given_list, *background_list}
+            reserved = {evidence, *given_list, *background_list}
+            if dsl_binding_name is not None:
+                reserved.add(dsl_binding_name)
             auto_label = slugify_label(hypothesis_content, existing=reserved)
         prepended = ((auto_label, build_auto_claim_statement(auto_label, hypothesis_content)),)
         hypothesis_expr = auto_label
@@ -290,7 +312,8 @@ def infer_command(
         hypothesis_kind = "qid"
 
     generated_code = _render_infer_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         evidence=evidence,
         hypothesis_expr=hypothesis_expr,
         p_e_given_h=p_e_given_h,
@@ -309,7 +332,7 @@ def infer_command(
     proposed_op = ProposedAuthorOp(
         verb="infer",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=required_imports,
@@ -317,6 +340,7 @@ def infer_command(
         sibling_imports=build_sibling_imports(references, target_file=target_file),
         prepended_statements=prepended,
         extra_payload={"hypothesis_kind": hypothesis_kind},
+        export=export,
     )
     run_author_op(
         proposed_op,

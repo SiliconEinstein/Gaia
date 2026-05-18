@@ -43,7 +43,8 @@ _ASSOCIATE_PATTERNS = frozenset({"equal", "contradict", "exclusive"})
 
 def _render_associate_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     a: str,
     b: str,
     p_a_given_b: float,
@@ -57,19 +58,39 @@ def _render_associate_statement(
     kwargs = [
         f"p_a_given_b={p_a_given_b!r}",
         f"p_b_given_a={p_b_given_a!r}",
-        f"label={label!r}",
     ]
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if pattern is not None:
         kwargs.append(f"pattern={pattern!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = associate({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"associate({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def associate_command(
-    label: str = typer.Option(..., "--label", help="Identifier the helper Claim binds to."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered associate(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "associate(...)``). Omit to emit a bare expression."
+        ),
+    ),
     a: str = typer.Option(..., "--a", help="Identifier of the first Claim."),
     b: str = typer.Option(..., "--b", help="Identifier of the second Claim."),
     p_a_given_b: float = typer.Option(..., "--p-a-given-b", help="P(a | b) — required."),
@@ -93,6 +114,14 @@ def associate_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default on for associate)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -108,14 +137,13 @@ def associate_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author an ``associate(...)`` probabilistic-association statement.
+    r"""Append an ``associate(...)`` probabilistic-association statement.
 
     Example:
 
-    .. code-block:: bash
-
-        gaia author associate --a clouds --b rain --label cloud_rain \
-            --p-a-given-b 0.9 --p-b-given-a 0.6
+        gaia author associate --a my_claim_a --b my_claim_b \
+            --p-a-given-b 0.9 --p-b-given-a 0.6 \
+            --dsl-binding-name my_association
     """
     del json_
 
@@ -144,7 +172,8 @@ def associate_command(
         return
 
     generated_code = _render_associate_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         a=a,
         b=b,
         p_a_given_b=p_a_given_b,
@@ -158,12 +187,13 @@ def associate_command(
     proposed_op = ProposedAuthorOp(
         verb="associate",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("associate",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

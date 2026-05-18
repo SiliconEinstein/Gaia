@@ -31,7 +31,8 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_exclusive_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     a: str,
     b: str,
     rationale: str | None,
@@ -40,18 +41,39 @@ def _render_exclusive_statement(
 ) -> str:
     """Render the proposed ``exclusive(...)`` statement."""
     args = [a, b]
-    kwargs: list[str] = [f"label={label!r}"]
+    kwargs: list[str] = []
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if background:
         kwargs.append(f"background=[{', '.join(background)}]")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = exclusive({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"exclusive({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def exclusive_command(
-    label: str = typer.Option(..., "--label", help="Identifier the helper Claim binds to."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered exclusive(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "exclusive(...)``). Omit to emit a bare expression."
+        ),
+    ),
     a: str = typer.Option(..., "--a", help="Identifier of the first Claim."),
     b: str = typer.Option(..., "--b", help="Identifier of the second Claim."),
     target: str = typer.Option(
@@ -73,6 +95,14 @@ def exclusive_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default on for exclusive)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -88,14 +118,12 @@ def exclusive_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author an ``exclusive(a, b, ...)`` closed-partition statement.
+    r"""Append an ``exclusive(a, b, ...)`` closed-partition statement.
 
     Example:
 
-    .. code-block:: bash
-
-        gaia author exclusive --a coin_heads --b coin_tails \
-            --label coin_outcome --rationale "Exactly one of heads/tails per flip."
+        gaia author exclusive --a my_outcome_a --b my_outcome_b \
+            --dsl-binding-name my_partition
     """
     del json_
 
@@ -124,7 +152,8 @@ def exclusive_command(
         )
         return
     generated_code = _render_exclusive_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         a=a,
         b=b,
         rationale=rationale,
@@ -136,12 +165,13 @@ def exclusive_command(
     proposed_op = ProposedAuthorOp(
         verb="exclusive",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("exclusive",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

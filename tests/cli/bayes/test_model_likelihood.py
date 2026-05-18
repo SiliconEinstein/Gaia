@@ -132,7 +132,7 @@ def test_likelihood_happy_path(bayes_package: BayesPackage) -> None:
             "author",
             "claim",
             "Observed count.",
-            "--label",
+            "--dsl-binding-name",
             "data_obs",
             "--target",
             str(bayes_package.root),

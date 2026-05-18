@@ -35,7 +35,7 @@ def test_equal_happy_path_writes_statement(gaia_package: FixturePackage) -> None
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "are_equal",
             "--target",
             str(gaia_package.root),
@@ -47,7 +47,7 @@ def test_equal_happy_path_writes_statement(gaia_package: FixturePackage) -> None
     assert envelope["status"] == "ok"
     assert envelope["verb"] == "equal"
     written = gaia_package.source_init.read_text()
-    assert "are_equal = equal(hypothesis, observation, label='are_equal')" in written
+    assert "are_equal = equal(hypothesis, observation)" in written
 
 
 def test_equal_with_rationale_and_metadata(gaia_package: FixturePackage) -> None:
@@ -61,7 +61,7 @@ def test_equal_with_rationale_and_metadata(gaia_package: FixturePackage) -> None
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "are_equal",
             "--rationale",
             "Stated in two ways.",
@@ -90,7 +90,7 @@ def test_equal_unresolved_reference_exits_3(gaia_package: FixturePackage) -> Non
             "hypothesis",
             "--b",
             "nonexistent",
-            "--label",
+            "--dsl-binding-name",
             "x",
             "--target",
             str(gaia_package.root),
@@ -130,7 +130,7 @@ def test_equal_collision_with_seed(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "extra_symbol",  # collides, not in --a / --b
             "--target",
             str(gaia_package.root),
@@ -161,7 +161,7 @@ def test_equal_self_loop_exits_1(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "hypothesis",  # collision with --a → self-loop wins
             "--target",
             str(gaia_package.root),
@@ -186,7 +186,7 @@ def test_equal_postwrite_check_succeeds(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "checked_equal",
             "--target",
             str(gaia_package.root),
@@ -211,7 +211,7 @@ def test_equal_human_mode(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "human_equal",
             "--target",
             str(gaia_package.root),

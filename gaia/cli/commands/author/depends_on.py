@@ -40,7 +40,8 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_depends_on_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     conclusion: str,
     given: list[str],
     rationale: str | None,
@@ -50,18 +51,39 @@ def _render_depends_on_statement(
     """Render the proposed ``depends_on(...)`` statement."""
     args = [conclusion]
     given_repr = "[" + ", ".join(given) + "]"
-    kwargs = [f"given={given_repr}", f"label={label!r}"]
+    kwargs = [f"given={given_repr}"]
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if background:
         kwargs.append(f"background=[{', '.join(background)}]")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = depends_on({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"depends_on({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def depends_on_command(
-    label: str = typer.Option(..., "--label", help="Identifier the scaffold action takes."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered depends_on(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "depends_on(...)``). Omit to emit a bare expression."
+        ),
+    ),
     conclusion: str = typer.Option(..., "--conclusion", help="Identifier of the dependent Claim."),
     given: str = typer.Option(
         ...,
@@ -87,6 +109,15 @@ def depends_on_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        False,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default off for depends_on: scaffold actions are structural, "
+            "not part of the package's public Knowledge surface)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -102,14 +133,13 @@ def depends_on_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``depends_on(...)`` scaffold dependency.
+    r"""Append a ``depends_on(...)`` scaffold dependency.
 
     Example:
 
-    .. code-block:: bash
-
-        gaia author depends-on --conclusion big_claim --given small_claim_a,small_claim_b \
-            --label big_depends_on_smalls
+        gaia author depends-on --conclusion my_big_claim \
+            --given my_small_claim_a,my_small_claim_b \
+            --dsl-binding-name my_dependency
     """
     del json_
 
@@ -152,7 +182,8 @@ def depends_on_command(
         return
 
     generated_code = _render_depends_on_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         conclusion=conclusion,
         given=given_list,
         rationale=rationale,
@@ -164,12 +195,13 @@ def depends_on_command(
     proposed_op = ProposedAuthorOp(
         verb="depends_on",
         kind="scaffold",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("depends_on",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

@@ -34,7 +34,7 @@ def test_depends_on_happy_path(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "obs_depends_on_h",
             "--target",
             str(gaia_package.root),
@@ -44,7 +44,7 @@ def test_depends_on_happy_path(gaia_package: FixturePackage) -> None:
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
     assert (
-        "obs_depends_on_h = depends_on(observation, given=[hypothesis], label='obs_depends_on_h')"
+        "obs_depends_on_h = depends_on(observation, given=[hypothesis])"
         in written
     )
 
@@ -60,7 +60,7 @@ def test_depends_on_multi_given(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "hypothesis,observation",
-            "--label",
+            "--dsl-binding-name",
             "multi_dep",
             "--target",
             str(gaia_package.root),
@@ -82,7 +82,7 @@ def test_depends_on_empty_given_exits_2(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "",
-            "--label",
+            "--dsl-binding-name",
             "x",
             "--target",
             str(gaia_package.root),
@@ -102,7 +102,7 @@ def test_depends_on_unresolved_exits_3(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "ghost",
-            "--label",
+            "--dsl-binding-name",
             "x",
             "--target",
             str(gaia_package.root),
@@ -123,7 +123,7 @@ def test_depends_on_self_loop_exits_1(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "observation",
             "--target",
             str(gaia_package.root),
@@ -143,7 +143,7 @@ def test_depends_on_human_mode(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "human_dep",
             "--target",
             str(gaia_package.root),
