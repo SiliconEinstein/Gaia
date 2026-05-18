@@ -128,14 +128,18 @@ def test_scaffold_explicit_name_and_namespace(tmp_path: Path) -> None:
 
 
 def test_scaffold_human_mode(tmp_path: Path) -> None:
-    """`--human` produces non-JSON output."""
+    """`--human` produces non-JSON output prefixed with the correct group.
+
+    S4 / audit §H.1 / chenkun #3 — pkg verbs render as ``gaia pkg
+    <verb>``, not the old hardcoded ``gaia author <verb>``.
+    """
     target = tmp_path / "human-gaia"
     result = runner.invoke(
         app,
         ["pkg", "scaffold", "--target", str(target), "--no-check", "--human"],
     )
     assert result.exit_code == 0, result.output
-    assert "gaia author scaffold" in result.output
+    assert "gaia pkg scaffold" in result.output
 
 
 def test_scaffold_envelope_shape(tmp_path: Path) -> None:

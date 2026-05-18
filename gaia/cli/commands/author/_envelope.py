@@ -139,6 +139,14 @@ class AuthorResult:
     R2 adds the ``"aborted"`` status for user-driven interactive aborts;
     R1 only used ``"ok"`` / ``"error"``. ``"aborted"`` carries ``code=0``
     by convention (the run did not fail — the user opted not to proceed).
+
+    S4 / audit §H.1 / chenkun #3 — the ``group`` field replaces the
+    hardcoded ``"gaia author"`` prefix in :func:`render_human`. The
+    envelope carries the command group ("author" / "pkg" / "bayes")
+    so the human renderer can prefix correctly. JSON consumers are
+    unaffected: ``to_dict()`` does not surface the group, since the
+    verb name already carries its namespace (``pkg.scaffold`` /
+    ``bayes.Binomial``).
     """
 
     verb: str
@@ -147,6 +155,7 @@ class AuthorResult:
     payload: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     diagnostics: list[Diagnostic] = field(default_factory=list)
+    group: str = "author"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -164,16 +173,53 @@ class AuthorResult:
 # --------------------------------------------------------------------------- #
 
 
+def infer_group(verb: str) -> str:
+    """Infer the cli command group from the verb namespace.
+
+    S4 / audit §H.1 / chenkun #3 — verbs carry their group in the
+    namespaced form (``pkg.scaffold``, ``bayes.Binomial``); strip it
+    out to get the group name. Bare verbs without a dot fall through
+    to ``"author"`` (the original cli group + the historic default).
+    """
+    if "." in verb:
+        head, _, _ = verb.partition(".")
+        if head == "pkg":
+            return "pkg"
+        if head == "bayes":
+            return "bayes"
+    if verb in {"scaffold", "add_module"}:
+        return "pkg"
+    return "author"
+
+
 def render_human(result: AuthorResult) -> str:
     """Render an :class:`AuthorResult` as a short human-readable summary.
 
     The text form is a courtesy; the JSON form is the contract. We keep it
     deliberately short — no boxes, no tables — so it stays useful when a
     human is scanning a flood of verb invocations from an agent run.
+
+    S4 / audit §H.1 / chenkun #3 — the prefix is now
+    ``gaia <group> <verb>`` where ``group`` comes from
+    :attr:`AuthorResult.group` (verb-emitter sets it; defaults to
+    ``"author"`` for backwards compat with the bulk of verbs). Falls
+    back to :func:`infer_group` when the group is the default and the
+    verb is namespaced.
     """
     lines: list[str] = []
     glyph = "ok" if result.status == "ok" else f"error[{result.code}]"
-    lines.append(f"gaia author {result.verb}: {glyph}")
+    group = result.group
+    if group == "author":
+        group = infer_group(result.verb)
+    # For namespaced verbs, the verb already carries the group prefix
+    # (``bayes.Binomial``), so we drop the dotted head to avoid the
+    # ugly ``gaia bayes bayes.Binomial`` shape.
+    display_verb = result.verb
+    if "." in display_verb:
+        head, sep, tail = display_verb.partition(".")
+        if head in {"pkg", "bayes"}:
+            display_verb = tail
+    lines.append(f"gaia {group} {display_verb}: {glyph}")
     if result.payload:
         for key, value in result.payload.items():
             lines.append(f"  {key}: {value}")
