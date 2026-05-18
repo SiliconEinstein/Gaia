@@ -14,7 +14,6 @@ and the whole run):
 
     gaia build compile <pkg>
     gaia build check <pkg>
-    gaia build check --gate <pkg>
     gaia run infer <pkg>
     gaia run render <pkg> --target docs
     gaia run render <pkg> --target github
@@ -86,7 +85,6 @@ CORPUS_PACKAGES: tuple[tuple[str, Path], ...] = (
 TOOLCHAIN_STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("build-compile", ("build", "compile")),
     ("build-check", ("build", "check")),
-    ("build-check-gate", ("build", "check", "--gate")),
     ("run-infer", ("run", "infer")),
     ("render-docs", ("run", "render", "--target", "docs")),
     ("render-github", ("run", "render", "--target", "github")),
