@@ -267,15 +267,15 @@ def model_command(
         rationale=rationale,
         metadata=metadata_dict,
     )
-    references = [hypothesis, observable, *background_list, *references_list]
+    all_references = [hypothesis, observable, *background_list, *references_list]
     if not distribution_is_inline:
-        references.insert(2, distribution)
+        all_references.insert(2, distribution)
     target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="bayes.model",
         kind="reasoning",
         label=label,
-        references=references,
+        references=all_references,
         generated_code=generated_code,
         # ``bayes`` must be importable in the target file. The scaffold
         # template seeds ``from gaia.engine import bayes``; the
@@ -283,7 +283,7 @@ def model_command(
         # ``bayes`` itself is the bound name in module scope.
         required_imports=("bayes",),
         target_file=target_file,
-        sibling_imports=build_sibling_imports(references, target_file=target_file),
+        sibling_imports=build_sibling_imports(all_references, target_file=target_file),
     )
     run_author_op(
         proposed_op,
