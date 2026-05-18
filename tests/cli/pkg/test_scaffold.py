@@ -81,22 +81,25 @@ def test_scaffold_rejects_invalid_name(tmp_path: Path) -> None:
     assert diagnostics[0]["kind"] == "prewrite.target_not_gaia_package"
 
 
-def test_scaffold_rejects_invalid_import_name(tmp_path: Path) -> None:
-    """An invalid Python identifier is rejected (exit 4)."""
-    target = tmp_path / "weird-gaia"
+def test_scaffold_rejects_stdlib_import_name_collision(tmp_path: Path) -> None:
+    """A package name that derives a stdlib import_name is rejected (exit 4)."""
+    target = tmp_path / "os-gaia"
     result = runner.invoke(
         app,
-        [
-            "pkg",
-            "scaffold",
-            "--target",
-            str(target),
-            "--import-name",
-            "123invalid",
-            "--no-check",
-        ],
+        ["pkg", "scaffold", "--target", str(target), "--no-check"],
     )
+    # S7 / audit §E.7 — ``os-gaia`` would derive ``os`` as the import
+    # name, which collides with the stdlib module; the scaffold refuses
+    # so the engine doesn't surface a misleading "not a Gaia package"
+    # error downstream.
     assert result.exit_code == 4
+    envelope = _parse(result.output)
+    diagnostics = envelope["diagnostics"]
+    assert isinstance(diagnostics, list)
+    assert diagnostics[0]["kind"] == "prewrite.target_invalid"
+    message = diagnostics[0]["message"]
+    assert isinstance(message, str)
+    assert "stdlib" in message
 
 
 def test_scaffold_explicit_name_and_namespace(tmp_path: Path) -> None:

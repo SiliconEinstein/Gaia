@@ -134,6 +134,10 @@ def _parse(output: str) -> dict[str, object]:
 def _scaffold_mirror(tmp_path: Path) -> Path:
     """Run ``gaia pkg scaffold`` and return the cli-authored package root."""
     target = tmp_path / "galileo-cli-mirror-gaia"
+    # ``--import-name`` was removed (S1 / audit §E.1); import_name is
+    # derived from --name per the engine convention (galileo-v0-5-gaia
+    # → galileo_v_0_5 → strip ``v_`` → no, actually: strip ``-gaia`` and
+    # replace ``-`` with ``_``: ``galileo-v0-5-gaia`` → ``galileo_v0_5``).
     result = runner.invoke(
         app,
         [
@@ -143,8 +147,6 @@ def _scaffold_mirror(tmp_path: Path) -> Path:
             str(target),
             "--name",
             "galileo-v0-5-gaia",
-            "--import-name",
-            "galileo_v0_5",
             "--namespace",
             "example",
             "--no-check",

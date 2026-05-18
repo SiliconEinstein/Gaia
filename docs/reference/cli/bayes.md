@@ -133,10 +133,9 @@ likelihood comparison. The cli sequence to reproduce its `bayes`
 authoring slice:
 
 ```bash
-# Scaffold
+# Scaffold (--import-name is derived from --name; no separate flag)
 gaia pkg scaffold --target ./mendel-cli-mirror-gaia \
-    --name mendel-v0-5-gaia --import-name mendel_v0_5 --namespace example \
-    --no-check
+    --name mendel-v0-5-gaia --namespace example
 
 # Declare typed variables for observables
 gaia author variable --symbol n_f2 --domain Nat --value 395 \

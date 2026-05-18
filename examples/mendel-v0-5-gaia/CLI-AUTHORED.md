@@ -44,10 +44,12 @@ The cli invocations below produce the cli-authored mirror. Each invocation is sh
 gaia pkg scaffold \
     --target ./mendel-cli-mirror-gaia \
     --name mendel-v0-5-gaia \
-    --import-name mendel_v0_5 \
-    --namespace example \
-    --no-check
+    --namespace example
 ```
+
+The `import_name` is derived from `--name` (strip `-gaia`,
+hyphen→underscore: `mendel-v0-5-gaia` → `mendel_v0_5`); the cli does
+not accept a separate `--import-name` override.
 
 The scaffold writes:
 

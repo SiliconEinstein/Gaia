@@ -394,7 +394,7 @@ Bootstrap a fresh `-gaia` package directory layout.
 
 ```
 gaia pkg scaffold --target <path> [--name <pkg-name>] [--namespace <ns>]
-    [--import-name <ident>] [--description <text>]
+    [--description <text>] [--with-uuid] [--minimal-imports]
     [--check/--no-check] [--human] [--interactive] [--json/--no-json]
 ```
 
@@ -403,8 +403,15 @@ gaia pkg scaffold --target <path> [--name <pkg-name>] [--namespace <ns>]
 | `--target <path>` | yes | Directory to initialise (must be empty or non-existent). |
 | `--name <pkg-name>` | no | Package name; **must end with `-gaia`**. Defaults to target directory name. |
 | `--namespace <ns>` | no | Package namespace; defaults to the import name. |
-| `--import-name <ident>` | no | Source-root identifier; defaults to `<name without -gaia, hyphen→underscore>`. Must be a valid Python identifier. |
 | `--description <text>` | no | Short description for `pyproject.toml`. |
+
+The `import_name` is **derived from `--name`** by stripping the
+trailing `-gaia` and converting hyphens to underscores
+(`foo-bar-gaia` → `foo_bar`). This matches the engine's loader
+convention; the cli does not accept a separate `--import-name`
+override because doing so produced packages the engine could not load.
+If the derived name collides with a Python stdlib module (e.g.
+`os-gaia` → `os`), the verb refuses with exit 4.
 
 The verb writes:
 
@@ -422,8 +429,9 @@ emitting verbs use against the freshly created package; reports
 
 Refuses to write into a non-empty target (exit 2, `prewrite.collision`).
 Validates `--name` ends with `-gaia` (exit 4,
-`prewrite.target_not_gaia_package`). Validates `--import-name` is a valid
-Python identifier (exit 4, `prewrite.target_invalid`).
+`prewrite.target_not_gaia_package`). Rejects a derived import name that
+is not a valid Python identifier or collides with stdlib (exit 4,
+`prewrite.target_invalid`).
 
 ## Envelope shape
 

@@ -192,7 +192,6 @@ def _validate_inputs(
     target: Path,
     name: str | None,
     namespace: str | None,
-    import_name_opt: str | None,
     description: str | None,
     with_uuid: bool,
     minimal_imports: bool,
@@ -217,15 +216,45 @@ def _validate_inputs(
         )
         return None, diagnostics
 
-    import_name = import_name_opt or _derive_import_name(pkg_name)
+    # S1 / audit §E.1 — import_name is derived from [project].name per the
+    # engine convention (``foo-gaia`` → ``foo``); the legacy
+    # ``--import-name`` override is removed because it let scaffold lay
+    # down a package the engine couldn't load.
+    import_name = _derive_import_name(pkg_name)
     if not _IDENTIFIER_RE.match(import_name) or import_name.startswith("__"):
         diagnostics.append(
             Diagnostic(
                 kind="prewrite.target_invalid",
                 level="error",
-                message=(f"import name {import_name!r} is not a valid Python module identifier"),
+                message=(
+                    f"derived import name {import_name!r} is not a valid Python "
+                    "module identifier (derived from --name by stripping "
+                    "'-gaia' and converting '-' to '_'; pick a different "
+                    "--name to fix)"
+                ),
                 source="prewrite",
-                where={"import_name": import_name},
+                where={"import_name": import_name, "pkg_name": pkg_name},
+            )
+        )
+        return None, diagnostics
+
+    # S7 / audit §E.7 — refuse to lay down a package whose import name
+    # collides with a stdlib module. The engine's ``importlib.import_module``
+    # would return the stdlib module instead of the package and produce
+    # an inscrutable "not a Gaia package" error downstream.
+    import sys as _sys
+
+    if import_name in _sys.stdlib_module_names:
+        diagnostics.append(
+            Diagnostic(
+                kind="prewrite.target_invalid",
+                level="error",
+                message=(
+                    f"derived import name {import_name!r} collides with a "
+                    "Python stdlib module; pick a different --name"
+                ),
+                source="prewrite",
+                where={"import_name": import_name, "pkg_name": pkg_name},
             )
         )
         return None, diagnostics
@@ -368,11 +397,6 @@ def scaffold_command(
         "--namespace",
         help="Package namespace; defaults to the import name.",
     ),
-    import_name: str | None = typer.Option(
-        None,
-        "--import-name",
-        help="Source-root identifier (defaults to <name without -gaia, hyphen→underscore>).",
-    ),
     description: str | None = typer.Option(
         None, "--description", help="Short description for pyproject.toml."
     ),
@@ -427,7 +451,6 @@ def scaffold_command(
         target=target_root,
         name=name,
         namespace=namespace,
-        import_name_opt=import_name,
         description=description,
         with_uuid=with_uuid,
         minimal_imports=minimal_imports,

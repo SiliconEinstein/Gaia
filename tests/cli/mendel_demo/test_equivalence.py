@@ -126,6 +126,8 @@ def _parse(output: str) -> dict[str, object]:
 def _scaffold_mirror(tmp_path: Path) -> Path:
     """Run ``gaia pkg scaffold`` and return the cli-authored mendel package root."""
     target = tmp_path / "mendel-cli-mirror-gaia"
+    # ``--import-name`` was removed (S1 / audit §E.1); import_name is
+    # derived from --name (``mendel-v0-5-gaia`` → ``mendel_v0_5``).
     result = runner.invoke(
         app,
         [
@@ -135,8 +137,6 @@ def _scaffold_mirror(tmp_path: Path) -> Path:
             str(target),
             "--name",
             "mendel-v0-5-gaia",
-            "--import-name",
-            "mendel_v0_5",
             "--namespace",
             "example",
             "--no-check",

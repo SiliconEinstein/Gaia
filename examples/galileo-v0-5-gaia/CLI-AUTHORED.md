@@ -37,10 +37,13 @@ per call. The full envelope flows on every stdout.
 gaia pkg scaffold \
     --target ./galileo-cli-mirror-gaia \
     --name galileo-v0-5-gaia \
-    --import-name galileo_v0_5 \
-    --namespace example \
-    --no-check
+    --namespace example
 ```
+
+The `import_name` is derived from `--name` (strip `-gaia`,
+hyphen→underscore: `galileo-v0-5-gaia` → `galileo_v0_5`) to match the
+engine's convention; the cli does not accept a separate
+`--import-name` override.
 
 The scaffold writes:
 
