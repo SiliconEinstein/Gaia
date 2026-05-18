@@ -169,9 +169,14 @@ model-selection posterior. `pairwise_contradiction` is the "at most one
 true" mode; pairwise odds are still meaningful, but the marginals can
 sum to less than one because the "all-false" joint state carries
 probability mass — this is the open-world mode for incomplete model
-coverage. `"none"` skips emitting a structural action altogether and is
-only meaningful when the author has declared exclusivity externally
-(e.g. via a top-level `exclusive(...)` action with its own rationale).
+coverage. `compare()` deduplicates against same-type external
+`exclusive(...)` or `contradict(...)` declarations over the same
+hypothesis pair, so authors who already declared the structural
+action upstream (typically with their own rationale and background)
+can simply omit the argument and let the default skip auto-emission.
+Cross-type external structural actions are allowed to coexist —
+`Exclusive` implies `Contradict`, so the IR's own consistency machinery
+governs whether the combined graph is legal.
 
 Currently `exhaustive_pairwise_complement` is only implemented for two
 hypotheses. With three or more hypotheses, `compare()` raises

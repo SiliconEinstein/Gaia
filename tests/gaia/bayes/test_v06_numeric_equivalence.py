@@ -152,10 +152,14 @@ def test_mendel_betabinomial_diffuse_matches_scipy_betabinom():
             distribution=LangBetaBinomial("k under diffuse", n=n, alpha=1.0, beta=1.0),
             label="diffuse_pred",
         )
+        # Default ``exhaustive_pairwise_complement`` is fine here: the
+        # test only reads metadata["comparison"]["likelihoods"], so the
+        # auto-emitted Exclusive(mendel, diffuse) does not affect the
+        # quantities being asserted. The earlier ``exclusivity="none"``
+        # is no longer accepted.
         cmp_v06 = bayes.compare(
             data,
             models=[mendel_pred, diffuse_pred],
-            exclusivity="none",
             label="comparison",
         )
     finally:

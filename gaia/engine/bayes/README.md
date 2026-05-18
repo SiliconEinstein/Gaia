@@ -9,9 +9,12 @@
   default `exclusivity` is `"exhaustive_pairwise_complement"` — the
   standard Bayesian model-selection contract for two hypotheses — and
   is currently restricted to 2 hypotheses pending an N-ary Exclusive
-  operator. See the `compare()` docstring for the trade-off across
-  `"exhaustive_pairwise_complement"`, `"pairwise_contradiction"`, and
-  `"none"`.
+  operator. The other accepted mode is `"pairwise_contradiction"`
+  (at-most-one for open-world model sets). `compare()` deduplicates
+  against same-type external `exclusive(...)` / `contradict(...)`
+  declarations over the same hypothesis pair, so no explicit "skip
+  auto-emission" flag is required. See the `compare()` docstring for
+  the full trade-off.
 - `PrecomputedLikelihoods` — audit-bearing Claim subclass for plugging
   external-solver output (PyMC / Stan / NumPyro / scipy quadrature /
   custom MCMC) into `compare(precomputed=...)`.

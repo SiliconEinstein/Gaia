@@ -277,11 +277,15 @@ factor graph allows:
   Pairwise odds are meaningful, but the listed marginals can sum to
   less than one because the "all-false" joint state carries probability
   mass. Use this when you do not believe your model set is exhaustive.
-* `"none"` — emit no structural action at all. Only meaningful when
-  exclusivity is already declared externally (e.g. a top-level
-  `exclusive(...)` action with its own rationale); otherwise each
-  hypothesis is updated independently against a hardcoded `α=0.5`
-  baseline, which is **not** Bayesian model selection.
+
+`compare()` deduplicates against same-type external `exclusive(...)`
+or `contradict(...)` declarations covering the same hypothesis pair —
+if you have already declared the structural action upstream (with its
+own rationale and background), `compare()` skips emitting a second
+helper. Cross-type coexistence is allowed: an external `contradict()`
+plus an auto-emitted `exclusive()` is logically consistent
+(`Exclusive` implies `Contradict`), and the IR's structural-relation
+consistency checks govern legality of the combined graph.
 
 The example leaves the two hypotheses without external priors. Gaia then uses
 the maximum-entropy starting point subject to the declared exclusivity relation.

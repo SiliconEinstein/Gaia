@@ -267,8 +267,9 @@ Differences from the legacy `bayes.likelihood` it replaces:
 - `precomputed=` accepts either a `dict[Claim, float]` (back-of-the-envelope escape hatch) or a `PrecomputedLikelihoods` Claim (§4).
 - Returns the comparison helper Claim, with `metadata["comparison"]` carrying the likelihood table and exclusivity contract.
 - **Default exclusivity is `"exhaustive_pairwise_complement"`**, not `"pairwise_contradiction"`. The earlier default silently diluted Bayesian model-selection posteriors by the probability mass that the hardcoded `α=0.5` `infer`-factor anchor assigned to the "all-false" joint state — for the canonical Mendel 1000:1 likelihood ratio the posterior settled at ~0.667 instead of ~0.999. The new default matches strict Bayesian model selection for the 2-hypothesis case.
-  - For 3+ hypotheses, `exhaustive_pairwise_complement` currently raises `NotImplementedError` (the N-ary Exclusive operator is a follow-up — see §10). Authors comparing more than two models must pass `exclusivity="pairwise_contradiction"` explicitly (at-most-one semantics; the posterior is no longer a strict normalised model-selection result) or declare an external structural action and pass `exclusivity="none"`.
-  - `exclusivity="none"` is preserved (and used by the canonical Mendel example package, which declares `exclusive(mendelian_segregation_model, blending_inheritance_model)` separately with its own rationale). The verb docstring warns that without an external declaration `"none"` collapses to "each hypothesis updated independently against a hardcoded α=0.5 baseline" — not model comparison.
+  - For 3+ hypotheses, `exhaustive_pairwise_complement` currently raises `NotImplementedError` (the N-ary Exclusive operator is a follow-up — see §10). Authors comparing more than two models must pass `exclusivity="pairwise_contradiction"` explicitly (at-most-one semantics; the posterior is no longer a strict normalised model-selection result).
+  - **`exclusivity="none"` is removed.** The previous escape hatch ("skip auto-generation; I declared exclusivity externally") was redundant: `compare()` now deduplicates against any same-type external structural action over the same hypothesis pair, looking up the active package via both the `_current_package` ContextVar and `infer_package_from_callstack()` so the dedup works in both unit-test and `gaia build compile` flows. The canonical Mendel example package therefore drops the argument: its external `exclusive(mendelian_segregation_model, blending_inheritance_model)` is detected automatically.
+  - **Cross-type external structural actions are allowed to coexist.** An external `contradict(m1, m2)` does not prevent `compare()` from auto-generating an `exclusive(m1, m2)` (or vice-versa); the two are logically consistent (Exclusive implies Contradict). The IR's existing structural-relation consistency checks (notably the D2 "same operator + same args + distinct conclusions" rule) are the authority on whether the combined graph is legal.
 
 ### 3.4 Action class names
 
@@ -628,7 +629,11 @@ diffuse_pred = predict(
 cmp = compare(
     f2_count_data,
     models=[mendel_pred, diffuse_pred],
-    exclusivity="none",
+    # exclusivity defaults to "exhaustive_pairwise_complement"; the
+    # external ``exclusive(mendelian_segregation_model,
+    # blending_inheritance_model)`` declared elsewhere in the package
+    # is detected via same-type dedup, so no second Exclusive helper
+    # is emitted.
     label="f2_count_comparison",
 )
 ```
@@ -679,6 +684,11 @@ These four points are listed as the spec's authoritative defaults. PR review can
     Bayes-factor posteriors via α=0.5 mass on the "all-false" state)
 [x] compare() with 3+ models + exhaustive_pairwise_complement raises
     NotImplementedError until the N-ary Exclusive operator lands
+[x] compare(exclusivity="none") removed; same-type dedup against
+    external structural actions replaces the explicit escape hatch
+[x] _existing_pair_relation falls back to infer_package_from_callstack
+    so the dedup works in the gaia build compile flow (where
+    _current_package is unset)
 ```
 
 ### 10.1 Follow-up issues
@@ -692,11 +702,3 @@ These four points are listed as the spec's authoritative defaults. PR review can
   IR `Operator` (or a generalisation of the existing `Exclusive`) and
   the corresponding BP factor-graph encoding for "exactly one of N is
   true".
-* **`bayes:comparison-no-external-exclusivity` check rule.** When
-  `compare()` is called with `exclusivity="none"` and ≥2 models, the
-  package should contain matching external `exclusive(...)` /
-  `contradict(...)` actions over every pair of compared hypotheses. A
-  `gaia build check` diagnostic would surface orphaned `"none"`
-  usages whose posterior collapses to "each hypothesis updated
-  independently against a hardcoded α=0.5 baseline" — not what
-  `compare()` connotes.

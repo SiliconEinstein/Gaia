@@ -239,7 +239,12 @@ mendel_count_likelihood = bayes.compare(
         "直接比较观测到的 F2 显性计数在 Mendel 点模型和 diffuse 参考模型下的"
         "log likelihood；观测可靠性仍留在 f2_count_observation 的 prior 中。"
     ),
-    exclusivity="none",
+    # ``exclusivity`` defaults to ``"exhaustive_pairwise_complement"``;
+    # the external ``competing_models = exclusive(...)`` declared above
+    # already covers (mendelian_segregation_model,
+    # blending_inheritance_model), so compare() deduplicates against it
+    # rather than re-emitting a second Exclusive helper. The earlier
+    # ``exclusivity="none"`` workaround is no longer needed.
     label="mendel_count_likelihood",
 )
 

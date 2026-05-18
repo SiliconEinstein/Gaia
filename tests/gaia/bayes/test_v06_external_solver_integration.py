@@ -131,9 +131,10 @@ def _build_v06_with_external_solver(
     Uses ``exhaustive_pairwise_complement`` by default so the comparison
     is self-contained: ``compare()`` auto-generates the Exclusive action
     that pins mendel XOR diffuse. The canonical Mendel example package
-    declares ``exclusive(mendel, blending)`` separately and uses
-    ``exclusivity="none"``; either route reaches the same BP shape, but
-    the self-contained one is cleaner for unit-test fixtures.
+    instead declares ``exclusive(mendelian, blending)`` separately
+    upstream of ``compare()`` and relies on ``compare()``'s same-type
+    dedup to skip auto-emission — either route reaches the same BP
+    shape.
     """
     pkg = CollectedPackage(name="mendel_v06_quad_solver", namespace="t")
     token = _current_package.set(pkg)

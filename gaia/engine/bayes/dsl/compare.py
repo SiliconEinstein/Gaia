@@ -22,7 +22,17 @@ clean break replaces):
   2-model comparisons, and ``compare()`` rejects ``len(models) > 2``
   under it until the N-ary Exclusive operator lands. See the
   ``compare()`` docstring's "Exclusivity contracts" section for the
-  full trade-off across the three modes.
+  full trade-off across the two modes.
+* ``compare()`` deduplicates against same-type external
+  ``exclusive(...)`` / ``contradict(...)`` declarations over the same
+  hypothesis pair — authors who used to write ``exclusivity="none"``
+  to defer to an external structural action should now drop that
+  argument and let the default dedup path take over. The ``"none"``
+  option is no longer accepted (raises ``ValueError`` with a
+  remediation hint). Cross-type coexistence
+  (e.g. external ``contradict()`` + auto-emitted ``exclusive()``) is
+  allowed: the two are logically consistent and the IR's own
+  consistency checks govern whether the combined graph is legal.
 * ``precomputed=`` accepts either the bare ``dict[Claim, float]``
   shortcut or a :class:`PrecomputedLikelihoods` Claim carrying solver
   diagnostics. NaN / +inf log-likelihoods are rejected at the entry
@@ -50,7 +60,6 @@ from gaia.engine.lang.runtime.action import (
 from gaia.engine.lang.runtime.knowledge import Claim, Knowledge, _current_package
 
 _EXCLUSIVITY_VALUES = {
-    "none",
     "pairwise_contradiction",
     "exhaustive_pairwise_complement",
 }
@@ -99,15 +108,33 @@ def _label_part(claim: Claim) -> str:
     return normalized
 
 
-def _relation_exists(kind: type, a: Claim, b: Claim) -> bool:
+def _existing_pair_relation(
+    a: Claim, b: Claim
+) -> Exclusive | Contradict | None:
+    """Return any existing ``Exclusive`` or ``Contradict`` over (a, b).
+
+    Looks at the active package the same way action registration does:
+    first the ContextVar-bound ``_current_package``, then — if unset —
+    fall back to ``infer_package_from_callstack()``. Without the
+    fallback the dedup silently misses the ``gaia build compile``
+    path, where ``load_gaia_package()`` registers actions through the
+    inferred package without ever binding ``_current_package``.
+    """
+    from gaia.engine.lang.runtime.package import infer_package_from_callstack
+
     pkg = _current_package.get()
     if pkg is None:
-        return False
+        pkg = infer_package_from_callstack()
+    if pkg is None:
+        return None
     pair = {id(a), id(b)}
     for action in pkg.actions:
-        if isinstance(action, kind) and {id(action.a), id(action.b)} == pair:
-            return True
-    return False
+        if (
+            isinstance(action, (Exclusive, Contradict))
+            and {id(action.a), id(action.b)} == pair
+        ):
+            return action
+    return None
 
 
 def _auto_structural_label(base: str | None, relation: str, a: Claim, b: Claim) -> str:
@@ -119,9 +146,7 @@ def _auto_generated_by(label: str | None) -> str:
     return f"compare:{label or 'anonymous'}"
 
 
-def _auto_contradict(a: Claim, b: Claim, *, label: str | None) -> None:
-    if _relation_exists(Contradict, a, b):
-        return
+def _emit_contradict(a: Claim, b: Claim, *, label: str | None) -> None:
     helper = Claim(
         f"{_claim_ref(a)} and {_claim_ref(b)} contradict.",
         metadata={
@@ -144,9 +169,7 @@ def _auto_contradict(a: Claim, b: Claim, *, label: str | None) -> None:
     attach_reasoning(helper, action)
 
 
-def _auto_exclusive(a: Claim, b: Claim, *, label: str | None) -> None:
-    if _relation_exists(Exclusive, a, b):
-        return
+def _emit_exclusive(a: Claim, b: Claim, *, label: str | None) -> None:
     helper = Claim(
         f"exactly one of {_claim_ref(a)} and {_claim_ref(b)} is true.",
         metadata={
@@ -169,13 +192,42 @@ def _auto_exclusive(a: Claim, b: Claim, *, label: str | None) -> None:
     attach_reasoning(helper, action)
 
 
+def _auto_exclusive(a: Claim, b: Claim, *, label: str | None) -> None:
+    """Emit ``Exclusive(a, b)`` unless an existing same-type relation covers it.
+
+    Cross-type coexistence (e.g. external ``contradict()`` + this
+    ``exclusive()``) is logically consistent — ``Exclusive`` implies
+    ``Contradict``, so the joint constraint is just ``Exclusive``. We
+    therefore do **not** raise when only a ``Contradict`` already exists
+    over the pair; the IR's structural-relation consistency checks
+    (e.g. the D2 "same operator + same args + distinct conclusions"
+    rule) are the authority on whether the combined factor graph is
+    legal.
+    """
+    if isinstance(_existing_pair_relation(a, b), Exclusive):
+        return
+    _emit_exclusive(a, b, label=label)
+
+
+def _auto_contradict(a: Claim, b: Claim, *, label: str | None) -> None:
+    """Emit ``Contradict(a, b)`` unless an existing same-type relation covers it.
+
+    Symmetric to :func:`_auto_exclusive` — only same-type dedup,
+    cross-type coexistence is left to the IR's own consistency
+    machinery.
+    """
+    if isinstance(_existing_pair_relation(a, b), Contradict):
+        return
+    _emit_contradict(a, b, label=label)
+
+
 def _ensure_structural_actions(
     hypotheses: tuple[Claim, ...],
     *,
     exclusivity: str,
     label: str | None,
 ) -> None:
-    if exclusivity == "none" or len(hypotheses) < 2:
+    if len(hypotheses) < 2:
         return
     if exclusivity == "exhaustive_pairwise_complement":
         if len(hypotheses) > 2:
@@ -192,10 +244,13 @@ def _ensure_structural_actions(
                 "operator that is not yet implemented. Either: (a) use "
                 "exclusivity='pairwise_contradiction' explicitly and "
                 "accept at-most-one semantics (posterior will be diluted "
-                "by the 'all-false' state), (b) declare your own "
-                "structural action externally and pass "
-                "exclusivity='none' to compare(), or (c) restrict the "
-                "comparison to two models."
+                "by the 'all-false' state), or (b) restrict the "
+                "comparison to two models. Authors who previously relied "
+                "on exclusivity='none' to defer to an external "
+                "exclusive()/contradict() declaration can simply drop "
+                "the argument: compare() now deduplicates against any "
+                "external same-type structural action over the same "
+                "hypothesis pair."
             )
         _auto_exclusive(hypotheses[0], hypotheses[1], label=label)
         return
@@ -335,43 +390,73 @@ def compare(
     joint hypothesis states the factor graph is allowed to occupy:
 
     * ``"exhaustive_pairwise_complement"`` (**default**, 2 models only):
-      auto-generate ``exclusive(m1, m2)`` — exactly one of the two
-      hypotheses is true. Posterior odds equal the (Cromwell-clamped)
-      likelihood ratio. This is the standard Bayesian model-selection
-      contract and the right default when the author intends "which of
-      these two competing models best explains the data".
-      Currently rejected for ``len(models) > 2`` until an N-ary
-      Exclusive operator is implemented; use ``"none"`` plus an
-      external structural declaration meanwhile.
+      ensure ``exclusive(m1, m2)`` is in the package — exactly one of
+      the two hypotheses is true. Posterior odds equal the
+      (Cromwell-clamped) likelihood ratio. This is the standard
+      Bayesian model-selection contract and the right default when the
+      author intends "which of these two competing models best explains
+      the data". Currently rejected for ``len(models) > 2`` until an
+      N-ary Exclusive operator is implemented; use
+      ``"pairwise_contradiction"`` (at-most-one semantics) meanwhile.
 
-    * ``"pairwise_contradiction"`` (≥2 models): auto-generate
-      ``contradict(m_i, m_j)`` for every pair. At-most-one is true; an
-      "all false" joint state is allowed. The hardcoded ``α=0.5`` anchor
-      in each ``infer`` factor's CPT then assigns substantial mass to
-      that joint state, **diluting model-comparison posterior odds**.
-      Use this only when you genuinely believe the listed models may
-      all be wrong and want the posterior to reflect that.
+    * ``"pairwise_contradiction"`` (≥2 models): ensure
+      ``contradict(m_i, m_j)`` is in the package for every pair.
+      At-most-one is true; an "all false" joint state is allowed. The
+      hardcoded ``α=0.5`` anchor in each ``infer`` factor's CPT then
+      assigns substantial mass to that joint state, **diluting
+      model-comparison posterior odds**. Use this only when you
+      genuinely believe the listed models may all be wrong and want the
+      posterior to reflect that.
 
-    * ``"none"`` (≥2 models): emit no structural action at all. Each
-      hypothesis is updated independently by its ``infer`` factor; the
-      models do not compete. Two legitimate use cases:
+    Deduplication
+    -------------
+    ``compare()`` does not blindly create new structural actions —
+    before emitting it scans the active package for an existing
+    same-type relation covering the same hypothesis pair:
 
-      1. You have already declared ``exclusive(...)`` or
-         ``contradict(...)`` externally — typically with its own
-         rationale and background — and don't want ``compare()`` to
-         duplicate it. (This is what
-         :mod:`examples.mendel-v0-5-gaia` does.)
-      2. You only want the log-likelihood table (visible via
-         ``metadata["comparison"]["likelihoods"]``) and do not need
-         BP-level model-selection posteriors.
+    * **No same-type external declaration**: ``compare()`` emits the
+      auto-generated structural action matching ``exclusivity``.
+    * **Same-type external declaration already in place** (e.g.
+      external ``exclusive(m1, m2)`` and ``exclusivity=
+      "exhaustive_pairwise_complement"``): ``compare()`` skips
+      emission. The external author's helper Claim and rationale are
+      preserved.
+    * **Different-type external declaration** (e.g. external
+      ``contradict(m1, m2)`` while ``compare()`` wants to emit
+      ``exclusive(m1, m2)``): both actions coexist. They are logically
+      consistent — ``Exclusive`` implies ``Contradict``, so the joint
+      factor-graph constraint is just ``Exclusive``. The IR's own
+      structural-relation consistency checks (the D2 "same operator +
+      same args + distinct conclusions" rule and friends) are the
+      authority on whether the combined graph is legal, not the DSL.
 
-      In all other cases, ``"none"`` plus ≥2 models silently produces
-      posteriors that look like Bayesian model selection but are not.
+    The previous ``exclusivity="none"`` escape hatch (which suppressed
+    auto-generation entirely) is no longer accepted: same-type dedup
+    serves the same purpose without letting authors silently bypass
+    any contract.
     """
     data_tuple = _as_claim_tuple(data, name="data")
     if not models:
         raise ValueError("compare() requires at least one model")
     models_tuple = _as_claim_tuple(models, name="models")
+    if exclusivity == "none":
+        # 'none' used to mean "skip auto-generation; I declared exclusivity
+        # externally myself". It is no longer accepted because compare()
+        # now deduplicates against external exclusive()/contradict()
+        # actions over the same hypothesis pair, so the dedicated escape
+        # hatch is redundant. Keeping it would also let authors silently
+        # bypass any exclusivity contract, which the new default exists
+        # precisely to prevent.
+        raise ValueError(
+            "compare(exclusivity='none') is no longer accepted. compare() "
+            "now deduplicates against any external exclusive() / "
+            "contradict() declaration over the same hypothesis pair, so "
+            "you can drop the argument: the default "
+            "('exhaustive_pairwise_complement') will skip auto-emission "
+            "when an external structural action is already in place. If "
+            "you want at-most-one semantics, pass "
+            "exclusivity='pairwise_contradiction' explicitly."
+        )
     if exclusivity not in _EXCLUSIVITY_VALUES:
         raise ValueError(f"unknown exclusivity mode: {exclusivity!r}")
 

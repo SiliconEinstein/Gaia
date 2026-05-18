@@ -674,6 +674,145 @@ def test_three_model_exhaustive_raises_not_implemented():
         _current_package.reset(token)
 
 
+def test_compare_rejects_exclusivity_none():
+    """``exclusivity='none'`` is no longer accepted; remediation hint surfaced."""
+    pkg = CollectedPackage(name="bayes_none_rejection_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        theta = Variable(symbol="theta", domain=Probability)
+        k = Variable(symbol="k", domain=Nat, value=4)
+        h1 = parameter(theta, 0.3, content="theta = 0.3.", prior=0.5, label="h1")
+        h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
+        data = observe(k, value=4, label="data")
+        m1 = bayes.predict(
+            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        )
+        m2 = bayes.predict(
+            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        )
+        with pytest.raises(ValueError, match="exclusivity='none'"):
+            bayes.compare(data, models=[m1, m2], exclusivity="none", label="cmp")
+    finally:
+        _current_package.reset(token)
+
+
+def test_compare_dedups_against_external_exclusive():
+    """An external ``exclusive(h1, h2)`` prevents compare() from emitting a duplicate.
+
+    The external author's helper Claim, label, and rationale are preserved;
+    compare() reuses them rather than auto-generating a second ``Exclusive``
+    with an anonymous helper that would later trip the IR's D2 check on
+    distinct conclusions for the same complement operator.
+    """
+    from gaia.engine.lang.dsl.relate import exclusive
+
+    pkg = CollectedPackage(name="bayes_external_exclusive_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        theta = Variable(symbol="theta", domain=Probability)
+        k = Variable(symbol="k", domain=Nat, value=4)
+        h1 = parameter(theta, 0.3, content="theta = 0.3.", prior=0.5, label="h1")
+        h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
+        competing = exclusive(h1, h2, rationale="external rationale", label="competing")
+        data = observe(k, value=4, label="data")
+        m1 = bayes.predict(
+            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        )
+        m2 = bayes.predict(
+            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        )
+        bayes.compare(data, models=[m1, m2], label="cmp")
+    finally:
+        _current_package.reset(token)
+
+    exclusives = [a for a in pkg.actions if isinstance(a, Exclusive)]
+    assert len(exclusives) == 1, "dedup should leave only the external Exclusive"
+    assert exclusives[0].helper is competing
+    # Also: compiling the package should not trip the IR D2 check.
+    compile_package_artifact(pkg)
+
+
+def test_compare_dedups_through_callstack_inferred_package():
+    """Dedup works even when ``_current_package`` is unset.
+
+    The ``gaia build compile`` pipeline registers actions into the
+    inferred package (looked up via ``infer_package_from_callstack``)
+    without ever binding ``_current_package``. ``compare()`` must therefore
+    fall back to the same lookup when checking for an existing structural
+    action. This regression test exercises the inferred-package path by
+    invoking the loader directly.
+    """
+    from gaia.engine.lang.runtime.action import Exclusive as ExclusiveAction
+    from gaia.engine.packaging import (
+        compile_loaded_package_artifact,
+        load_gaia_package,
+    )
+
+    loaded = load_gaia_package("examples/mendel-v0-5-gaia")
+    pkg = loaded.package
+
+    pair_ids = None
+    for action in pkg.actions:
+        if isinstance(action, ExclusiveAction) and (action.label or "").startswith(
+            "competing_models"
+        ):
+            pair_ids = {id(action.a), id(action.b)}
+            break
+    assert pair_ids is not None, "Mendel example must declare competing_models externally"
+
+    matching = [
+        action
+        for action in pkg.actions
+        if isinstance(action, ExclusiveAction)
+        and {id(action.a), id(action.b)} == pair_ids
+    ]
+    assert len(matching) == 1, (
+        "compare() must dedup against external Exclusive(mendel, blending) "
+        f"even when actions are registered via inferred package; "
+        f"found {len(matching)} duplicates"
+    )
+
+    # IR compile must also succeed without the D2 "two complement conclusions" violation.
+    compile_loaded_package_artifact(loaded)
+
+
+def test_compare_coexists_with_external_contradict_of_different_type():
+    """External ``contradict(h1, h2)`` does not block compare() from emitting Exclusive.
+
+    The two structural-action types are logically consistent (``Exclusive``
+    implies ``Contradict``), so cross-type coexistence is allowed at the
+    DSL layer. The IR's own consistency checks govern whether the combined
+    graph is legal.
+    """
+    pkg = CollectedPackage(name="bayes_cross_type_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        theta = Variable(symbol="theta", domain=Probability)
+        k = Variable(symbol="k", domain=Nat, value=4)
+        h1 = parameter(theta, 0.3, content="theta = 0.3.", prior=0.5, label="h1")
+        h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
+        manual_conflict = contradict(h1, h2, rationale="manual", label="manual_conflict")
+        data = observe(k, value=4, label="data")
+        m1 = bayes.predict(
+            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        )
+        m2 = bayes.predict(
+            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        )
+        bayes.compare(data, models=[m1, m2], label="cmp")
+    finally:
+        _current_package.reset(token)
+
+    exclusives = [a for a in pkg.actions if isinstance(a, Exclusive)]
+    contradicts = [a for a in pkg.actions if isinstance(a, Contradict)]
+    assert len(exclusives) == 1, (
+        "compare() must still auto-emit Exclusive when only a Contradict is external"
+    )
+    assert manual_conflict in (a.helper for a in contradicts), (
+        "the external manual_conflict Contradict must remain in the package"
+    )
+
+
 def test_three_model_pairwise_contradiction_remains_supported():
     """``pairwise_contradiction`` with 3 models is still accepted.
 
