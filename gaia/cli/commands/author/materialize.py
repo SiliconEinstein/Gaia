@@ -57,7 +57,8 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_materialize_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     scaffold: str,
     by: list[str],
     rationale: str | None,
@@ -66,17 +67,36 @@ def _render_materialize_statement(
     """Render the proposed ``materialize(...)`` statement."""
     by_repr = "[" + ", ".join(by) + "]"
     args = [scaffold]
-    kwargs = [f"by={by_repr}", f"label={label!r}"]
+    kwargs = [f"by={by_repr}"]
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = materialize({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"materialize({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def materialize_command(
-    label: str = typer.Option(
-        ..., "--label", help="Identifier the MaterializationLink action takes."
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered materialize(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "materialize(...)``). Omit to emit a bare expression."
+        ),
     ),
     scaffold: str = typer.Option(
         ...,
@@ -102,6 +122,15 @@ def materialize_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        False,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default off for materialize: the link is structural metadata, "
+            "not part of the public Knowledge surface)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -117,14 +146,11 @@ def materialize_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``materialize(scaffold, by=...)`` scaffold-to-formal-record link.
+    r"""Append a ``materialize(scaffold, by=...)`` scaffold-to-formal-record link.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author materialize --scaffold maybe_equal --by formal_equal \
-            --label maybe_equal_materialized --rationale "Pattern matched."
+        gaia author materialize --scaffold my_maybe_equal \
+            --by my_formal_equal --dsl-binding-name my_materialization
     """
     del json_
 
@@ -157,7 +183,8 @@ def materialize_command(
         return
 
     generated_code = _render_materialize_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         scaffold=scaffold,
         by=by_list,
         rationale=rationale,
@@ -168,12 +195,13 @@ def materialize_command(
     proposed_op = ProposedAuthorOp(
         verb="materialize",
         kind="scaffold",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("materialize",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

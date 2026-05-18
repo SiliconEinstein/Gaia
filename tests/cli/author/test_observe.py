@@ -33,7 +33,7 @@ def test_observe_discrete_claim(gaia_package: FixturePackage) -> None:
             "observe",
             "--conclusion",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "obs_h",
             "--target",
             str(gaia_package.root),
@@ -42,7 +42,7 @@ def test_observe_discrete_claim(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
-    assert "obs_h = observe(hypothesis, label='obs_h')" in written
+    assert "obs_h = observe(hypothesis)" in written
 
 
 def test_observe_continuous_with_value(gaia_package: FixturePackage) -> None:
@@ -61,7 +61,7 @@ def test_observe_continuous_with_value(gaia_package: FixturePackage) -> None:
             "203",
             "--error",
             "5",
-            "--label",
+            "--dsl-binding-name",
             "obs_continuous",
             "--target",
             str(gaia_package.root),
@@ -85,7 +85,7 @@ def test_observe_with_given_conditional(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--given",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "cond_obs",
             "--target",
             str(gaia_package.root),
@@ -110,7 +110,7 @@ def test_observe_value_and_given_mutually_exclusive(gaia_package: FixturePackage
             "1.0",
             "--given",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "bad_obs",
             "--target",
             str(gaia_package.root),
@@ -131,7 +131,7 @@ def test_observe_error_requires_value(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--error",
             "0.1",
-            "--label",
+            "--dsl-binding-name",
             "lonely_error",
             "--target",
             str(gaia_package.root),
@@ -150,7 +150,7 @@ def test_observe_self_loop_exits_1(gaia_package: FixturePackage) -> None:
             "observe",
             "--conclusion",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "hypothesis",
             "--target",
             str(gaia_package.root),
@@ -168,7 +168,7 @@ def test_observe_human_mode(gaia_package: FixturePackage) -> None:
             "observe",
             "--conclusion",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "human_obs",
             "--target",
             str(gaia_package.root),

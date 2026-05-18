@@ -35,7 +35,7 @@ def test_contradict_happy_path(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "they_contradict",
             "--target",
             str(gaia_package.root),
@@ -44,9 +44,7 @@ def test_contradict_happy_path(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
-    assert (
-        "they_contradict = contradict(hypothesis, observation, label='they_contradict')" in written
-    )
+    assert "they_contradict = contradict(hypothesis, observation)" in written
 
 
 def test_contradict_unresolved_exits_3(gaia_package: FixturePackage) -> None:
@@ -59,7 +57,7 @@ def test_contradict_unresolved_exits_3(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "ghost",
-            "--label",
+            "--dsl-binding-name",
             "c",
             "--target",
             str(gaia_package.root),
@@ -84,7 +82,7 @@ def test_contradict_self_loop_exits_1(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "hypothesis",
             "--target",
             str(gaia_package.root),
@@ -108,7 +106,7 @@ def test_contradict_postwrite_check(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "checked_contradict",
             "--target",
             str(gaia_package.root),
@@ -127,7 +125,7 @@ def test_contradict_human_mode(gaia_package: FixturePackage) -> None:
             "hypothesis",
             "--b",
             "observation",
-            "--label",
+            "--dsl-binding-name",
             "human_contra",
             "--target",
             str(gaia_package.root),

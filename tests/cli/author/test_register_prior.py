@@ -51,7 +51,7 @@ def test_register_prior_happy_path(gaia_package: FixturePackage) -> None:
     assert payload["label"] is None
 
     written = gaia_package.source_init.read_text()
-    assert "register_prior(hypothesis, 0.7" in written
+    assert "register_prior(hypothesis, value=0.7" in written
     assert "justification='Prior from expert.'" in written
     # Default source_id is omitted from the rendered call when caller
     # didn't explicitly pass --source-id. Engine fills in the default

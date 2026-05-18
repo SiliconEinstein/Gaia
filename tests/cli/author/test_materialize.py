@@ -46,7 +46,7 @@ def test_materialize_happy_path(gaia_package: FixturePackage) -> None:
             "scaffold_action",
             "--by",
             "formal_record",
-            "--label",
+            "--dsl-binding-name",
             "scaffold_materialized",
             "--target",
             str(gaia_package.root),
@@ -55,10 +55,7 @@ def test_materialize_happy_path(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
-    assert (
-        "scaffold_materialized = materialize(scaffold_action, by=[formal_record], "
-        "label='scaffold_materialized')"
-    ) in written
+    assert "scaffold_materialized = materialize(scaffold_action, by=[formal_record])" in written
 
 
 def test_materialize_unresolved_scaffold_exits_3(gaia_package: FixturePackage) -> None:
@@ -72,7 +69,7 @@ def test_materialize_unresolved_scaffold_exits_3(gaia_package: FixturePackage) -
             "ghost_scaffold",
             "--by",
             "formal_record",
-            "--label",
+            "--dsl-binding-name",
             "ghost_mat",
             "--target",
             str(gaia_package.root),
@@ -93,7 +90,7 @@ def test_materialize_empty_by_exits_2(gaia_package: FixturePackage) -> None:
             "scaffold_action",
             "--by",
             "",
-            "--label",
+            "--dsl-binding-name",
             "empty_by",
             "--target",
             str(gaia_package.root),
@@ -115,7 +112,7 @@ def test_materialize_self_loop_exits_1(gaia_package: FixturePackage) -> None:
             "scaffold_action",
             "--by",
             "formal_record",
-            "--label",
+            "--dsl-binding-name",
             "scaffold_action",
             "--target",
             str(gaia_package.root),
@@ -136,7 +133,7 @@ def test_materialize_human_mode(gaia_package: FixturePackage) -> None:
             "scaffold_action",
             "--by",
             "formal_record",
-            "--label",
+            "--dsl-binding-name",
             "human_mat",
             "--target",
             str(gaia_package.root),

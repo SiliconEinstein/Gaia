@@ -40,7 +40,11 @@ def _parse_envelope(output: str) -> dict[str, object]:
 
 
 def _scaffold(tmp_path: Path, *, name: str = "chain-gaia") -> Path:
-    """Run ``pkg scaffold`` and return the target package root."""
+    """Run ``pkg scaffold`` and return the target package root.
+
+    Wave 1 cleanup: the scaffold template no longer pre-seeds a
+    ``hypothesis`` placeholder claim, so there is nothing to strip here.
+    """
     target = tmp_path / name
     result = runner.invoke(
         app,
@@ -57,13 +61,6 @@ def _scaffold(tmp_path: Path, *, name: str = "chain-gaia") -> Path:
         ],
     )
     assert result.exit_code == 0, result.output
-    # Strip the placeholder hypothesis claim so the chain tests start
-    # from a clean ``__init__.py``.
-    init_py = target / "src" / name.removesuffix("-gaia").replace("-", "_") / "__init__.py"
-    src = init_py.read_text()
-    end = src.find("hypothesis = claim(")
-    if end > 0:
-        init_py.write_text(src[:end].rstrip() + "\n")
     return target
 
 
@@ -92,7 +89,7 @@ def test_chain_scaffold_add_module_author_check_clean(tmp_path: Path) -> None:
             "author",
             "claim",
             "Sibling claim.",
-            "--label",
+            "--dsl-binding-name",
             "sibling_claim",
             "--file",
             "extra.py",
@@ -155,7 +152,7 @@ def test_chain_bayes_binomial_clean_inputs_round_trip(tmp_path: Path) -> None:
             "author",
             "claim",
             "Seed claim for bayes chain.",
-            "--label",
+            "--dsl-binding-name",
             "seed_claim",
             "--target",
             str(target),
@@ -198,7 +195,7 @@ def test_chain_cross_module_reference_with_check(tmp_path: Path) -> None:
             "author",
             "claim",
             "Base observation.",
-            "--label",
+            "--dsl-binding-name",
             "base_obs",
             "--target",
             str(target),
@@ -230,7 +227,7 @@ def test_chain_cross_module_reference_with_check(tmp_path: Path) -> None:
             "Derived from the base observation.",
             "--given",
             "base_obs",
-            "--label",
+            "--dsl-binding-name",
             "follow_warrant",
             "--file",
             "evidence.py",
@@ -262,7 +259,7 @@ def test_chain_priors_policy_rejects_claim(tmp_path: Path) -> None:
             "author",
             "claim",
             "Forbidden in priors.",
-            "--label",
+            "--dsl-binding-name",
             "forbidden_claim",
             "--file",
             "priors.py",

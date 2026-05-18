@@ -50,6 +50,7 @@ from gaia.cli.commands.author._envelope import (
 )
 from gaia.cli.commands.author._formula_sandbox import (
     FormulaSandboxError,
+    extract_engine_lang_names,
     validate_formula_expr,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
@@ -71,13 +72,14 @@ def _format_metadata_kwargs(metadata_json: str | None) -> tuple[dict[str, Any] |
 
 def _render_claim_statement(
     *,
-    label: str,
+    binding_name: str | None,
     content: str,
     title: str | None,
     prior: float | None,
     metadata: dict[str, Any] | None,
     background: list[str],
     predicate: str | None = None,
+    label: str | None = None,
 ) -> str:
     """Produce the Python source for the proposed ``claim(...)`` statement.
 
@@ -89,6 +91,15 @@ def _render_claim_statement(
     ``--references`` is formula-sandbox-only and is NOT rendered into
     the claim call: this matches the hand-authored mendel pattern of
     using formula-symbols without listing them as Knowledge-background.
+
+    ``claim()`` does not take an engine ``label=`` kwarg (the engine
+    signature has only ``**metadata``). When ``label`` is set the cli
+    emits a follow-up ``<binding>.label = "<label>"`` assignment after
+    the call so the Claim's mutable ``label`` attribute matches the
+    hand-authored ``claim_obj.label = ...`` pattern in the example
+    packages. The follow-up line requires ``binding_name`` — without an
+    LHS there is nothing to mutate; the caller rejects that combination
+    at the flag boundary.
     """
     args: list[str] = [repr(content)]
     if title is not None:
@@ -104,12 +115,27 @@ def _render_claim_statement(
         # repr() on a dict produces valid-Python output for plain JSON
         # types (str / int / float / bool / None / list / dict).
         args.append(f"metadata={metadata!r}")
-    return f"{label} = claim({', '.join(args)})"
+    call = f"claim({', '.join(args)})"
+    if binding_name is None:
+        return call
+    rendered = f"{binding_name} = {call}"
+    if label is not None:
+        rendered += f"\n{binding_name}.label = {label!r}"
+    return rendered
 
 
 def claim_command(
     content: str = typer.Argument(..., help="Claim content (natural-language statement)."),
-    label: str = typer.Option(..., "--label", help="Identifier the statement binds to."),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python module-scope identifier the rendered statement binds to "
+            "(``<name> = claim(...)``). Omit to emit a bare expression "
+            "statement. ``claim()`` does not take an engine ``label=`` "
+            "kwarg, so this is the only label-like flag the verb exposes."
+        ),
+    ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
@@ -177,6 +203,27 @@ def claim_command(
             "ClaimAtom(p))'`. Mutually exclusive with --predicate."
         ),
     ),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Optional Claim label. ``claim()`` does not take an engine "
+            "``label=`` kwarg, so the cli emits a follow-up "
+            "``<binding>.label = '<label>'`` assignment line after the "
+            "rendered ``claim(...)`` call — matching the hand-authored "
+            "pattern in the example packages. Requires --dsl-binding-name "
+            "(no LHS means nothing to mutate)."
+        ),
+    ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to the target module's __all__ on a "
+            "successful write (default on for claim: claims are referenceable "
+            "Knowledge bindings other verbs cite by name)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -196,15 +243,23 @@ def claim_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    """Author a ``claim(...)`` statement.
+    r"""Append a ``claim(...)`` Knowledge declaration.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author claim "The reaction is fast." --label fast_reaction --prior 0.7
+        gaia author claim "The reaction is fast." \
+            --dsl-binding-name fast_reaction --prior 0.7
     """
     del json_  # JSON-vs-human is governed by `--human`; --json is a courtesy alias.
+
+    if label is not None and dsl_binding_name is None:
+        emit_syntax_error(
+            "claim",
+            "--label requires --dsl-binding-name (the follow-up "
+            "`<binding>.label = ...` line needs an LHS to mutate)",
+            target=str(target),
+            human=human,
+        )
+        return
 
     metadata_dict, metadata_error = _format_metadata_kwargs(metadata)
     if metadata_error:
@@ -280,13 +335,14 @@ def claim_command(
             return
 
     generated_code = _render_claim_statement(
-        label=label,
+        binding_name=dsl_binding_name,
         content=content,
         title=title,
         prior=prior,
         metadata=metadata_dict,
         background=background_list,
         predicate=formula_expr,
+        label=label,
     )
     # Pre-write resolves BOTH --references (formula-sandbox identifiers)
     # and --background (rendered kwarg identifiers) against module scope.
@@ -295,15 +351,24 @@ def claim_command(
     # ``background=``; references stay sandbox-only).
     op_references = list(dict.fromkeys((*ref_list, *background_list)))
     target_file = normalize_file_option(file)
+    # Extend the required-imports tuple with any formula-primitive names
+    # (``land`` / ``equals`` / ``Constant`` / ``Nat`` / ...) referenced
+    # inside the validated formula expression. The G1 writer step then
+    # inserts the missing names into the rendered ``from gaia.engine.lang
+    # import (...)`` line so the postwrite check can import the module
+    # cleanly without an explicit ``--imports`` flag at scaffold time.
+    formula_imports = extract_engine_lang_names(formula_expr) if formula_expr is not None else ()
+    required_imports = ("claim", *formula_imports)
     proposed_op = ProposedAuthorOp(
         verb="claim",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=op_references,
         generated_code=generated_code,
-        required_imports=("claim",),
+        required_imports=required_imports,
         target_file=target_file,
         sibling_imports=build_sibling_imports(op_references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

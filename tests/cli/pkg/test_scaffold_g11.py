@@ -71,26 +71,62 @@ def test_scaffold_with_uuid_flag_emits_uuid(tmp_path: Path) -> None:
     assert payload["uuid"] is not None
 
 
-def test_scaffold_default_imports_bayes_and_typed_terms(tmp_path: Path) -> None:
-    """Default __init__.py includes bayes + Variable/Constant/domain primitives."""
-    target = tmp_path / "fullimport-gaia"
-    result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
-    assert result.exit_code == 0, result.output
-    init_py = (target / "src" / "fullimport" / "__init__.py").read_text()
-    assert "from gaia.engine import bayes" in init_py
-    for symbol in ("Variable", "Constant", "Nat", "Real", "Bool", "Probability"):
-        assert symbol in init_py
+def test_scaffold_default_uses_minimal_import(tmp_path: Path) -> None:
+    """Default __init__.py imports only `claim` and ships empty __all__.
 
-
-def test_scaffold_minimal_imports_uses_sparse_template(tmp_path: Path) -> None:
-    """`--minimal-imports` ships only `from gaia.engine.lang import claim`."""
+    The placeholder ``hypothesis = claim(...)`` demo statement was removed —
+    fresh packages start empty, and author commands populate __all__ as
+    statements are added. Wave 2 will make the import dynamic.
+    """
     target = tmp_path / "minimal-gaia"
-    result = runner.invoke(
-        app,
-        ["pkg", "scaffold", "--target", str(target), "--minimal-imports", "--no-check"],
-    )
+    result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
     assert result.exit_code == 0, result.output
     init_py = (target / "src" / "minimal" / "__init__.py").read_text()
     assert "from gaia.engine.lang import claim" in init_py
+    assert "__all__: list[str] = []" in init_py
+    # No placeholder demo statement, no wide-import preamble.
+    assert "hypothesis = claim(" not in init_py
+    assert "from gaia.engine import bayes" not in init_py
     assert "ClaimAtom" not in init_py
-    assert "bayes" not in init_py
+
+
+def test_scaffold_with_docstring_writes_module_docstring(tmp_path: Path) -> None:
+    """`--docstring` writes a triple-quoted module docstring at line 1."""
+    target = tmp_path / "docstring-gaia"
+    result = runner.invoke(
+        app,
+        [
+            "pkg",
+            "scaffold",
+            "--target",
+            str(target),
+            "--docstring",
+            "My package docstring.",
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    init_py = (target / "src" / "docstring" / "__init__.py").read_text()
+    assert init_py.startswith('"""My package docstring."""\n')
+    envelope = _parse(result.output)
+    payload = envelope["payload"]
+    assert isinstance(payload, dict)
+    assert payload["docstring"] == "My package docstring."
+
+
+def test_scaffold_without_docstring_writes_no_docstring(tmp_path: Path) -> None:
+    """No `--docstring` flag means no module docstring at all."""
+    target = tmp_path / "nodoc-gaia"
+    result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
+    assert result.exit_code == 0, result.output
+    init_py = (target / "src" / "nodoc" / "__init__.py").read_text()
+    assert not init_py.lstrip().startswith('"""')
+
+
+def test_scaffold_pyproject_omits_authors(tmp_path: Path) -> None:
+    """Scaffold's pyproject.toml never includes `[project] authors`."""
+    target = tmp_path / "noauth-gaia"
+    result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
+    assert result.exit_code == 0, result.output
+    pyproject = (target / "pyproject.toml").read_text()
+    assert "authors" not in pyproject

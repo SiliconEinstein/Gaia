@@ -145,7 +145,20 @@ def binomial_command(
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Binomial(n=..., p=...)`` literal binding."""
+    r"""Declare a ``bayes.Binomial(n=..., p=...)`` literal binding.
+
+    Renders ``<label> = bayes.Binomial(n=..., p=...)`` into the target
+    module. ``--n`` and ``--p`` accept a numeric literal (``--n 395``,
+    ``--p 0.75``) or a bare module-scope identifier (``--n TOTAL_COUNT``,
+    ``--p MENDELIAN_DOMINANT_PROBABILITY``); each identifier must already
+    be importable in the target file.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes binomial --label mendel_binomial --n 395 --p 0.75
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.Binomial", metadata_error, target=str(target), human=human)
@@ -164,18 +177,32 @@ def binomial_command(
 
 
 def betabinomial_command(
-    label: str = typer.Option(..., "--label"),
+    label: str = typer.Option(..., "--label", help="Identifier the BetaBinomial binding takes."),
     n: str = typer.Option(..., "--n", help="Trial count: numeric literal or bare identifier."),
     alpha: str = typer.Option(..., "--alpha", help="Beta prior alpha (>0): literal or identifier."),
     beta: str = typer.Option(..., "--beta", help="Beta prior beta (>0): literal or identifier."),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.BetaBinomial(n=..., alpha=..., beta=...)`` literal."""
+    r"""Declare a ``bayes.BetaBinomial(n=..., alpha=..., beta=...)`` literal.
+
+    Renders the BetaBinomial(n, alpha, beta) predictive distribution as
+    a standalone binding; common as the diffuse / uniform-mean reference
+    model in a likelihood comparison (``alpha=1, beta=1`` collapses to
+    the uniform 1/(n+1) over counts). Each parameter accepts a numeric
+    literal or a bare module-scope identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes beta-binomial --label diffuse_binomial \\
+            --n 395 --alpha 1.0 --beta 1.0
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.BetaBinomial", metadata_error, target=str(target), human=human)
@@ -194,16 +221,27 @@ def betabinomial_command(
 
 
 def poisson_command(
-    label: str = typer.Option(..., "--label"),
+    label: str = typer.Option(..., "--label", help="Identifier the Poisson binding takes."),
     rate: str = typer.Option(..., "--rate", help="Poisson rate (>0): literal or identifier."),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Poisson(rate=...)`` literal binding."""
+    r"""Declare a ``bayes.Poisson(rate=...)`` literal binding.
+
+    Renders the single-parameter Poisson(rate) distribution as a
+    standalone binding. ``--rate`` accepts a numeric literal or a bare
+    module-scope identifier (e.g. an expected-count constant).
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes poisson --label arrival_rate_model --rate 4.2
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.Poisson", metadata_error, target=str(target), human=human)
@@ -227,17 +265,28 @@ def poisson_command(
 
 
 def normal_command(
-    label: str = typer.Option(..., "--label"),
+    label: str = typer.Option(..., "--label", help="Identifier the Normal binding takes."),
     mu: str = typer.Option(..., "--mu", help="Location parameter: literal or identifier."),
     sigma: str = typer.Option(..., "--sigma", help="Scale parameter (>0): literal or identifier."),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Normal(mu=..., sigma=...)`` literal binding."""
+    r"""Declare a ``bayes.Normal(mu=..., sigma=...)`` literal binding.
+
+    Renders the Normal(mu, sigma) distribution as a standalone binding.
+    Each parameter accepts a numeric literal or a bare module-scope
+    identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes normal --label measurement_noise --mu 0.0 --sigma 1.5
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.Normal", metadata_error, target=str(target), human=human)
@@ -256,17 +305,29 @@ def normal_command(
 
 
 def lognormal_command(
-    label: str = typer.Option(..., "--label"),
-    mu: str = typer.Option(..., "--mu"),
-    sigma: str = typer.Option(..., "--sigma"),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    label: str = typer.Option(..., "--label", help="Identifier the LogNormal binding takes."),
+    mu: str = typer.Option(..., "--mu", help="Location parameter of the underlying Normal."),
+    sigma: str = typer.Option(..., "--sigma", help="Scale of the underlying Normal (>0)."),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.LogNormal(mu=..., sigma=...)`` literal binding."""
+    r"""Declare a ``bayes.LogNormal(mu=..., sigma=...)`` literal binding.
+
+    Renders LogNormal(mu, sigma) — the distribution of ``exp(X)`` for
+    ``X ~ Normal(mu, sigma)``. Common for positively-supported
+    multiplicative noise. Each parameter accepts a numeric literal or a
+    bare module-scope identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes log-normal --label price_noise --mu 0.0 --sigma 0.3
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.LogNormal", metadata_error, target=str(target), human=human)
@@ -285,17 +346,29 @@ def lognormal_command(
 
 
 def beta_command(
-    label: str = typer.Option(..., "--label"),
-    alpha: str = typer.Option(..., "--alpha"),
-    beta: str = typer.Option(..., "--beta"),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    label: str = typer.Option(..., "--label", help="Identifier the Beta binding takes."),
+    alpha: str = typer.Option(..., "--alpha", help="Shape alpha (>0): literal or identifier."),
+    beta: str = typer.Option(..., "--beta", help="Shape beta (>0): literal or identifier."),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Beta(alpha=..., beta=...)`` literal binding."""
+    r"""Declare a ``bayes.Beta(alpha=..., beta=...)`` literal binding.
+
+    Renders Beta(alpha, beta) on (0, 1) — the canonical conjugate prior
+    for Bernoulli / Binomial success rates. ``alpha=1, beta=1`` is
+    uniform. Each parameter accepts a numeric literal or a bare
+    module-scope identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes beta --label success_rate_prior --alpha 2.0 --beta 5.0
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.Beta", metadata_error, target=str(target), human=human)
@@ -314,16 +387,27 @@ def beta_command(
 
 
 def exponential_command(
-    label: str = typer.Option(..., "--label"),
-    rate: str = typer.Option(..., "--rate"),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    label: str = typer.Option(..., "--label", help="Identifier the Exponential binding takes."),
+    rate: str = typer.Option(..., "--rate", help="Rate (>0): literal or identifier."),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Exponential(rate=...)`` literal binding."""
+    r"""Declare a ``bayes.Exponential(rate=...)`` literal binding.
+
+    Renders the single-parameter Exponential(rate) distribution on
+    positive reals — mean ``1/rate``. ``--rate`` accepts a numeric
+    literal or a bare module-scope identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes exponential --label decay_time --rate 0.5
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.Exponential", metadata_error, target=str(target), human=human)
@@ -342,17 +426,28 @@ def exponential_command(
 
 
 def gamma_command(
-    label: str = typer.Option(..., "--label"),
+    label: str = typer.Option(..., "--label", help="Identifier the Gamma binding takes."),
     alpha: str = typer.Option(..., "--alpha", help="Shape parameter (>0)."),
     rate: str = typer.Option(..., "--rate", help="Rate parameter (>0)."),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Gamma(alpha=..., rate=...)`` literal binding."""
+    r"""Declare a ``bayes.Gamma(alpha=..., rate=...)`` literal binding.
+
+    Renders Gamma(alpha, rate) on positive reals — mean ``alpha/rate``.
+    Common as a conjugate prior for Poisson rates. Each parameter accepts
+    a numeric literal or a bare module-scope identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes gamma --label rate_prior --alpha 2.0 --rate 0.5
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.Gamma", metadata_error, target=str(target), human=human)
@@ -371,18 +466,30 @@ def gamma_command(
 
 
 def studentt_command(
-    label: str = typer.Option(..., "--label"),
+    label: str = typer.Option(..., "--label", help="Identifier the StudentT binding takes."),
     df: str = typer.Option(..., "--df", help="Degrees of freedom (>0)."),
     mu: str = typer.Option("0.0", "--mu", help="Location parameter (default 0.0)."),
     sigma: str = typer.Option("1.0", "--sigma", help="Scale parameter (default 1.0, >0)."),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.StudentT(df=..., mu=..., sigma=...)`` literal binding."""
+    r"""Declare a ``bayes.StudentT(df=..., mu=..., sigma=...)`` literal binding.
+
+    Renders Student's t-distribution. ``--mu`` and ``--sigma`` are
+    optional location/scale (defaults 0.0 / 1.0); ``--df`` (degrees of
+    freedom) is required. Heavier-tailed than Normal; useful for
+    robust-likelihood comparisons.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes student-t --label robust_noise --df 4.0 --mu 0.0 --sigma 1.0
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.StudentT", metadata_error, target=str(target), human=human)
@@ -401,17 +508,28 @@ def studentt_command(
 
 
 def cauchy_command(
-    label: str = typer.Option(..., "--label"),
+    label: str = typer.Option(..., "--label", help="Identifier the Cauchy binding takes."),
     mu: str = typer.Option(..., "--mu", help="Location parameter."),
     gamma: str = typer.Option(..., "--gamma", help="Scale parameter (>0)."),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.Cauchy(mu=..., gamma=...)`` literal binding."""
+    r"""Declare a ``bayes.Cauchy(mu=..., gamma=...)`` literal binding.
+
+    Renders Cauchy(mu, gamma) — undefined mean / variance; useful as a
+    heavy-tailed robust alternative to Normal. Each parameter accepts a
+    numeric literal or a bare module-scope identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes cauchy --label heavy_tail_noise --mu 0.0 --gamma 1.0
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.Cauchy", metadata_error, target=str(target), human=human)
@@ -430,16 +548,27 @@ def cauchy_command(
 
 
 def chisquared_command(
-    label: str = typer.Option(..., "--label"),
+    label: str = typer.Option(..., "--label", help="Identifier the ChiSquared binding takes."),
     df: str = typer.Option(..., "--df", help="Degrees of freedom (>0)."),
-    target: str = typer.Option(".", "--target"),
-    file: str | None = typer.Option(None, "--file"),
-    metadata: str | None = typer.Option(None, "--metadata"),
+    target: str = typer.Option(".", "--target", help="Target package path."),
+    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
     interactive: bool = typer.Option(False, "--interactive"),
 ) -> None:
-    r"""Declare a ``bayes.ChiSquared(df=...)`` literal binding."""
+    r"""Declare a ``bayes.ChiSquared(df=...)`` literal binding.
+
+    Renders ChiSquared(df) on positive reals — sum of squared standard
+    Normals with ``df`` degrees of freedom. ``--df`` accepts a numeric
+    literal or a bare module-scope identifier.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia bayes chi-squared --label variance_test_stat --df 5
+    """
     metadata_dict, metadata_error = parse_metadata(metadata)
     if metadata_error:
         emit_syntax_error("bayes.ChiSquared", metadata_error, target=str(target), human=human)

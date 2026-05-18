@@ -30,13 +30,17 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_question_statement(
     *,
-    label: str,
+    binding_name: str | None,
     content: str,
     title: str | None,
     targets: list[str],
     metadata: dict[str, Any] | None,
 ) -> str:
-    """Render the proposed ``question(...)`` statement."""
+    """Render the proposed ``question(...)`` statement.
+
+    ``question()`` does not take an engine ``label=`` kwarg (the engine
+    signature has only ``**metadata``); only the Python LHS is settable.
+    """
     args = [repr(content)]
     if title is not None:
         args.append(f"title={title!r}")
@@ -47,14 +51,26 @@ def _render_question_statement(
         args.append(f"targets={rendered_targets}")
     if metadata:
         args.append(f"metadata={metadata!r}")
-    return f"{label} = question({', '.join(args)})"
+    call = f"question({', '.join(args)})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def question_command(
     content: str = typer.Argument(
         ..., help="Question content (natural-language research question)."
     ),
-    label: str = typer.Option(..., "--label", help="Identifier the question binds to."),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "question(...)``). Omit to emit a bare expression. "
+            "``question()`` does not take an engine ``label=`` kwarg, "
+            "so this is the only label-like flag the verb exposes."
+        ),
+    ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
@@ -76,6 +92,11 @@ def question_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=("Add --dsl-binding-name to __all__ on a successful write (default on for question)."),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -91,14 +112,12 @@ def question_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``question(...)`` research-question statement.
+    r"""Append a ``question(...)`` research-question statement.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author question "Does X cause Y?" --label rq_x_causes_y \
-            --targets hypothesis_x,hypothesis_y
+        gaia author question "Does X cause Y?" \
+            --dsl-binding-name rq_x_causes_y \
+            --targets my_hypothesis_x,my_hypothesis_y
     """
     del json_
 
@@ -118,7 +137,7 @@ def question_command(
         )
         return
     generated_code = _render_question_statement(
-        label=label,
+        binding_name=dsl_binding_name,
         content=content,
         title=title,
         targets=target_list,
@@ -128,12 +147,13 @@ def question_command(
     proposed_op = ProposedAuthorOp(
         verb="question",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=target_list,
         generated_code=generated_code,
         required_imports=("question",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(target_list, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

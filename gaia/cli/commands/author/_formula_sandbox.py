@@ -143,6 +143,38 @@ _TYPED_TERMS: frozenset[str] = frozenset(
 WHITELIST: frozenset[str] = _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _CONSTANTS | _TYPED_TERMS
 
 
+# Engine-lang names that need to live on the rendered module's import line
+# when a formula expression references them. ``True`` / ``False`` / ``None``
+# are Python builtins (skip); user-named references resolve separately.
+_ENGINE_LANG_NAMES: frozenset[str] = _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _TYPED_TERMS
+
+
+def extract_engine_lang_names(expr: str) -> tuple[str, ...]:
+    """Return ``gaia.engine.lang`` names referenced inside ``expr``.
+
+    AST-walks the validated formula expression and collects every
+    ``ast.Name`` whose id matches an engine-lang primitive. The result is
+    deduplicated and alphabetically sorted so callers can merge it into
+    a verb's ``required_imports`` tuple without further normalisation.
+
+    Unknown names (user identifiers, sibling references, etc.) are
+    excluded — they resolve through the verb's standard reference flow.
+    """
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError:
+        return ()
+    seen: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in _ENGINE_LANG_NAMES:
+            seen.add(node.id)
+        elif isinstance(node, ast.Attribute) and node.attr in _DISTRIBUTION_FACTORIES:
+            # ``bayes.Binomial(...)`` — the ``bayes`` module itself is
+            # the load-bearing name; the factory attr resolves under it.
+            seen.add("bayes")
+    return tuple(sorted(seen))
+
+
 # --------------------------------------------------------------------------- #
 # Sandbox error                                                               #
 # --------------------------------------------------------------------------- #
@@ -332,5 +364,6 @@ __all__ = [
     "WHITELIST",
     "FormulaSandboxError",
     "SandboxValidation",
+    "extract_engine_lang_names",
     "validate_formula_expr",
 ]

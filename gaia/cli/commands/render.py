@@ -214,6 +214,19 @@ def render_command(
     when fresh inference results are available.
     `--target all` (default) always renders docs and adds github when
     inference results are available, emitting a warning when they are not.
+
+    Compile freshness is required; beliefs freshness is required when
+    present. Typical pipeline: ``gaia build compile`` → ``gaia run infer``
+    → ``gaia run render``.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia build compile .
+        gaia run infer .
+        gaia run render . --target all
+        gaia run render . --target obsidian
     """
     loaded, compiled = _load_render_inputs(path)
     _emit_render_validation(compiled)

@@ -50,7 +50,8 @@ def _parse_metadata(metadata_json: str | None) -> tuple[dict[str, Any] | None, s
 
 def _render_equal_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     a: str,
     b: str,
     rationale: str | None,
@@ -59,18 +60,39 @@ def _render_equal_statement(
 ) -> str:
     """Render the proposed ``equal(...)`` statement."""
     args = [a, b]
-    kwargs: list[str] = [f"label={label!r}"]
+    kwargs: list[str] = []
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if background:
         kwargs.append(f"background=[{', '.join(background)}]")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = equal({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"equal({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def equal_command(
-    label: str = typer.Option(..., "--label", help="Identifier the helper Claim binds to."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered equal(...) call. Distinct "
+            "from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = equal(...)``). "
+            "Omit to emit a bare expression statement."
+        ),
+    ),
     a: str = typer.Option(..., "--a", help="Identifier of the first Claim."),
     b: str = typer.Option(..., "--b", help="Identifier of the second Claim."),
     target: str = typer.Option(
@@ -92,6 +114,14 @@ def equal_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to the target module's __all__ on a "
+            "successful write (default on for equal)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -111,14 +141,11 @@ def equal_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author an ``equal(a, b, ...)`` structural relation.
+    r"""Append an ``equal(a, b, ...)`` structural relation.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author equal --a heliocentric --b copernican_model \
-            --label same_theory --rationale "Re-statement, not new content."
+        gaia author equal --a my_claim_a --b my_claim_b \
+            --dsl-binding-name my_equivalence --label my_equivalence
     """
     del json_
 
@@ -157,7 +184,8 @@ def equal_command(
         )
         return
     generated_code = _render_equal_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         a=a,
         b=b,
         rationale=rationale,
@@ -169,12 +197,13 @@ def equal_command(
     proposed_op = ProposedAuthorOp(
         verb="equal",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("equal",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

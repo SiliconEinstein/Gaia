@@ -37,7 +37,10 @@ from gaia.engine.inquiry.state import (
 
 inquiry_app = typer.Typer(
     name="inquiry",
-    help="Gaia Inquiry — semantic review loop.",
+    help=(
+        "Gaia Inquiry — semantic review loop "
+        "(focus / review / reject / obligation / hypothesis / tactics)."
+    ),
     no_args_is_help=True,
 )
 
@@ -70,7 +73,36 @@ def focus_command(
     show_stack: bool = typer.Option(False, "--stack", help="Print focus stack."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
-    """Inspect or update the current inquiry focus."""
+    """Inspect or update the current inquiry focus.
+
+    The inquiry focus is a state.json-only pointer to the claim, strategy,
+    or freeform topic the agent is currently working on. ``focus`` is
+    inspect-or-set: no args reads the current focus; a bare ``TARGET``
+    sets it. The focus stack supports push/pop semantics so the agent
+    can dive into a sub-claim and resume.
+
+    Example:
+
+    .. code-block:: bash
+
+        # Read current focus:
+        gaia inquiry focus
+
+        # Set focus to a claim label:
+        gaia inquiry focus my_claim_label
+
+        # Push current focus and switch to a new one:
+        gaia inquiry focus other_claim --push
+
+        # Pop back to the prior focus:
+        gaia inquiry focus --pop
+
+        # Inspect the focus stack:
+        gaia inquiry focus --stack
+
+        # Clear the focus entirely:
+        gaia inquiry focus --clear
+    """
     flags_set = sum([bool(clear), bool(push), bool(pop), bool(show_stack)])
     if flags_set > 1:
         typer.echo("Error: --clear/--push/--pop/--stack are mutually exclusive.", err=True)
@@ -161,7 +193,25 @@ def obligation_add(
     kind: str = typer.Option("other", "--kind", help="Diagnostic kind."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
-    """Add a synthetic obligation for an inquiry target."""
+    r"""Add a synthetic obligation for an inquiry target.
+
+    Records a "what must be shown" note against a target QID — a
+    ProofState-style obligation visible in the inquiry review report.
+    Pure state.json mutation; no IR / priors / beliefs change.
+
+    ``--kind`` selects the diagnostic kind; allowed values are
+    ``focus_weakness`` / ``other`` (default) / ``prior_hole`` /
+    ``structural_hole`` / ``support_weak`` (see ``VALID_OBLIGATION_KINDS``
+    in :mod:`gaia.engine.inquiry.state`).
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry obligation add my_claim \
+            -c "Show the prior is justified by the cited evidence." \
+            --kind prior_hole
+    """
     if kind not in VALID_OBLIGATION_KINDS:
         typer.echo(
             f"Error: invalid --kind {kind!r}; allowed: {sorted(VALID_OBLIGATION_KINDS)}",
@@ -188,7 +238,19 @@ def obligation_list(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """List open synthetic obligations."""
+    """List open synthetic obligations.
+
+    Prints every open obligation (kind, qid, target_qid, content) in
+    state.json. ``--json`` emits the same rows as a JSON array for
+    machine consumption.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry obligation list
+        gaia inquiry obligation list --json
+    """
     state = load_state(path)
     rows = [
         {
@@ -215,7 +277,19 @@ def obligation_close(
     qid: str = typer.Argument(...),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """Close a synthetic obligation by QID."""
+    """Close a synthetic obligation by QID.
+
+    Removes the obligation with the given QID from state.json; logs a
+    ``obligation_close`` tactic event. Exits non-zero when no obligation
+    matches the QID. QIDs are printed by ``gaia inquiry obligation
+    list``.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry obligation close oblig_a1b2c3d4
+    """
     state = load_state(path)
     before = len(state.synthetic_obligations)
     state.synthetic_obligations = [o for o in state.synthetic_obligations if o.qid != qid]
@@ -238,7 +312,22 @@ def hypothesis_add(
     scope: str | None = typer.Option(None, "--scope", help="Scope QID."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """Add a working hypothesis to inquiry state."""
+    r"""Add a working hypothesis to inquiry state.
+
+    Records a tentative hypothesis the agent wants to track during
+    inquiry without committing it to the DSL / IR. Pure state.json
+    mutation. ``--scope`` optionally pins the hypothesis to a specific
+    target QID so the inquiry review report can group it with related
+    claims.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry hypothesis add "The prior is robust to ±10% perturbation."
+        gaia inquiry hypothesis add "Bayes factor > 10 under diffuse alt." \
+            --scope my_claim_id
+    """
     state = load_state(path)
     qid = mint_qid("hyp")
     state.synthetic_hypotheses.append(
@@ -254,7 +343,18 @@ def hypothesis_list(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """List working hypotheses from inquiry state."""
+    """List working hypotheses from inquiry state.
+
+    Prints every recorded hypothesis (qid, scope_qid, content) from
+    state.json. ``--json`` emits a JSON array for machine consumption.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry hypothesis list
+        gaia inquiry hypothesis list --json
+    """
     state = load_state(path)
     rows = [
         {
@@ -281,7 +381,17 @@ def hypothesis_remove(
     qid: str = typer.Argument(...),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """Remove a working hypothesis by QID."""
+    """Remove a working hypothesis by QID.
+
+    Drops the hypothesis with the given QID from state.json. QIDs are
+    printed by ``gaia inquiry hypothesis list``.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry hypothesis remove hyp_a1b2c3d4
+    """
     state = load_state(path)
     before = len(state.synthetic_hypotheses)
     state.synthetic_hypotheses = [h for h in state.synthetic_hypotheses if h.qid != qid]
@@ -304,7 +414,21 @@ def reject_command(
     content: str = typer.Option(..., "-c", "--content", help="Reason."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """Record a synthetic rejection for a strategy."""
+    r"""Record a synthetic rejection for a strategy.
+
+    Annotates a strategy with a free-text rejection note (e.g. "the
+    cited evidence does not actually support this", "argument is
+    circular"). Pure state.json mutation; the strategy stays in the IR.
+    Useful as a self-review affordance: a rejected strategy can later be
+    revisited or removed from the DSL source.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry reject my_strategy_label \
+            -c "Premise A is not yet established."
+    """
     state = load_state(path)
     qid = mint_qid("rej")
     state.synthetic_rejections.append(
@@ -325,7 +449,20 @@ def tactics_log(
     json_out: bool = typer.Option(False, "--json"),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """Print the inquiry tactic event log."""
+    """Print the inquiry tactic event log.
+
+    Renders the append-only audit log of every inquiry state mutation
+    (focus / obligation / hypothesis / reject / review events) in
+    chronological order. ``--json`` emits one JSON record per entry for
+    machine consumption.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry tactics log
+        gaia inquiry tactics log --json
+    """
     from gaia.engine.inquiry.state import read_tactic_log
 
     rows = read_tactic_log(path)
@@ -359,7 +496,34 @@ def review_command(
     markdown_out: bool = typer.Option(False, "--markdown"),
     strict: bool = typer.Option(False, "--strict"),
 ) -> None:
-    """Run the local semantic inquiry review."""
+    """Run the local semantic inquiry review.
+
+    Executes the semantic inquiry loop on the package: graph-health
+    diagnostics, focus-relevance analysis, optional inference, and
+    publish-readiness blockers. Writes a timestamped review artifact
+    under ``.gaia/inquiry/reviews/``.
+
+    ``--mode`` selects the review profile:
+
+    * ``auto`` (default) — pick a profile based on the package state
+    * ``formalize`` — emphasise scaffolded / unformalised claims
+    * ``explore`` — bias towards weak / orphaned claims
+    * ``verify`` — emphasise prior coherence + Bayes diagnostics
+    * ``publish`` — full publish-readiness gates (combine with ``--strict``)
+
+    ``--no-infer`` skips the BP inference step (faster but misses
+    belief-derived diagnostics); ``--depth N`` controls dependency
+    inference depth as in ``gaia run infer``.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia inquiry review .
+        gaia inquiry review . --mode publish --strict
+        gaia inquiry review . --no-infer --json
+        gaia inquiry review . --focus my_claim_label --markdown > review.md
+    """
     if mode not in {"auto", "formalize", "explore", "verify", "publish"}:
         typer.echo(f"Error: invalid --mode {mode!r}.", err=True)
         raise typer.Exit(2)

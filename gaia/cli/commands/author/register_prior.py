@@ -29,9 +29,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    PrewriteUnsafeError,
     build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
+    parse_literal_or_identifier,
     parse_metadata,
     validate_identifier_flag,
 )
@@ -52,7 +54,7 @@ a default).
 def _render_register_prior_statement(
     *,
     claim_ref: str,
-    value: float,
+    value: str,
     justification: str,
     source_id: str,
     emit_source_id: bool,
@@ -65,14 +67,23 @@ def _render_register_prior_statement(
     returns ``None``. ``comment_label`` is optionally rendered as a
     trailing ``# label`` comment so a reader can scan the source.
 
+    ``value`` is the *Python source spelling* the caller wants at the
+    rendered call site — either a numeric literal (``'0.5'``,
+    ``'1.0 - PRIOR_MENDELIAN_MODEL'`` is **not** accepted at the
+    flag boundary; only bare identifiers like ``'PRIOR_MENDELIAN_MODEL'``
+    are) or a bare identifier resolved against module scope. The cli
+    forwards it verbatim into ``value=<spelling>`` — matches the
+    hand-authored pattern in the example packages where mendel uses
+    ``value=PRIOR_MENDELIAN_MODEL`` rather than a numeric literal.
+
     ``emit_source_id`` toggles whether the ``source_id=`` kwarg appears
     in the rendered call. ``False`` is reserved for the case where the
     caller did not explicitly pass ``--source-id`` AND the value matches
     the engine default (:data:`_ENGINE_DEFAULT_SOURCE_ID`), matching the
     hand-authored mendel pattern of omitting the kwarg when redundant.
     """
-    args = [claim_ref, repr(value)]
-    kwargs = [f"justification={justification!r}"]
+    args = [claim_ref]
+    kwargs = [f"value={value}", f"justification={justification!r}"]
     if emit_source_id:
         kwargs.append(f"source_id={source_id!r}")
     if metadata:
@@ -87,8 +98,17 @@ def register_prior_command(
     claim: str = typer.Option(
         ..., "--claim", help="Identifier of the Claim to attach the prior to."
     ),
-    value: float = typer.Option(
-        ..., "--value", help="Prior probability in (CROMWELL_EPS, 1 - CROMWELL_EPS)."
+    value: str = typer.Option(
+        ...,
+        "--value",
+        help=(
+            "Prior probability in (CROMWELL_EPS, 1 - CROMWELL_EPS). Accepts "
+            "either a numeric literal (`--value 0.5`) or a bare Python "
+            "identifier (`--value PRIOR_MENDELIAN_MODEL`) resolved against "
+            "the module scope so callers can reference imported constants "
+            "(e.g. from a sibling `probabilities.py`). Arbitrary Python "
+            "expressions are refused at the flag boundary."
+        ),
     ),
     justification: str = typer.Option(
         ...,
@@ -127,6 +147,15 @@ def register_prior_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        False,
+        "--export/--no-export",
+        help=(
+            "Add the statement's binding to __all__ on a successful write "
+            "(default off for register_prior: the call has no LHS binding, "
+            "so this flag is reserved for surface uniformity)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -142,13 +171,10 @@ def register_prior_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``register_prior(...)`` prior-registration statement.
+    r"""Append a ``register_prior(...)`` prior-registration statement.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author register-prior --claim hypothesis_x --value 0.7 \
+        gaia author register-prior --claim my_hypothesis --value 0.7 \
             --justification "Prior elicited from domain expert."
     """
     del json_
@@ -172,6 +198,25 @@ def register_prior_command(
     ):
         return
 
+    # Parse --value: either a numeric literal or a bare identifier.
+    # Identifier values are pushed onto the references list so pre-write
+    # invariant (c) verifies they resolve in module scope.
+    extra_value_refs: list[str] = []
+    try:
+        _, rendered_value = parse_literal_or_identifier(
+            value,
+            references_sink=extra_value_refs,
+        )
+    except PrewriteUnsafeError as exc:
+        emit_syntax_error(
+            "register_prior",
+            f"--value rejected: {exc}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+
     # Emit ``source_id=`` only when the caller passed ``--source-id``
     # explicitly (any value, including ``user_priors`` if that was the
     # explicit choice). When omitted on the cli, render without the
@@ -181,7 +226,7 @@ def register_prior_command(
     effective_source_id = source_id if source_id is not None else _ENGINE_DEFAULT_SOURCE_ID
     generated_code = _render_register_prior_statement(
         claim_ref=claim,
-        value=value,
+        value=rendered_value,
         justification=justification,
         source_id=effective_source_id,
         emit_source_id=emit_source_id,
@@ -194,7 +239,7 @@ def register_prior_command(
     # (the helper short-circuits) so the default-file behaviour is
     # unchanged.
     target_file = normalize_file_option(file)
-    references = [claim]
+    references = [claim, *extra_value_refs]
     proposed_op = ProposedAuthorOp(
         verb="register_prior",
         kind="reasoning",
@@ -207,6 +252,7 @@ def register_prior_command(
         required_imports=("register_prior",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

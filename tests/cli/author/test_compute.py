@@ -43,7 +43,7 @@ def test_compute_happy_path(gaia_package: FixturePackage) -> None:
         [
             "author",
             "compute",
-            "--label",
+            "--dsl-binding-name",
             "result",
             "--conclusion-type",
             "Probability",
@@ -69,7 +69,7 @@ def test_compute_without_fn(gaia_package: FixturePackage) -> None:
         [
             "author",
             "compute",
-            "--label",
+            "--dsl-binding-name",
             "result2",
             "--conclusion-type",
             "Probability",
@@ -93,7 +93,7 @@ def test_compute_unresolved_type_exits_3(gaia_package: FixturePackage) -> None:
         [
             "author",
             "compute",
-            "--label",
+            "--dsl-binding-name",
             "r",
             "--conclusion-type",
             "Ghostly",
@@ -114,7 +114,7 @@ def test_compute_human_mode(gaia_package: FixturePackage) -> None:
         [
             "author",
             "compute",
-            "--label",
+            "--dsl-binding-name",
             "human_compute",
             "--conclusion-type",
             "Probability",

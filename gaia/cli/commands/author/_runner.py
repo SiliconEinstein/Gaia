@@ -142,7 +142,19 @@ def _execute_writes(
     written_segments: list[str] = []
     all_warning_messages: list[str] = []
     for _prep_label, prep_code in proposed_op.prepended_statements:
-        prep_write = append_statement(write_target, prep_code, new_label=_prep_label)
+        # Prepended statements (e.g. auto-mint claim ahead of a derive) inherit
+        # the main op's required_imports — the auto-claim needs ``claim`` and
+        # the main statement needs the verb itself; passing both at every
+        # write keeps the import line current. Auto-mint claims are
+        # export=True by default: they're real Knowledge bindings the
+        # downstream verb references by name.
+        prep_write = append_statement(
+            write_target,
+            prep_code,
+            new_label=_prep_label,
+            required_imports=("claim", *proposed_op.required_imports),
+            export=True,
+        )
         written_segments.append(prep_write.appended)
         if prep_write.all_warning:
             all_warning_messages.append(prep_write.all_warning)
@@ -152,6 +164,8 @@ def _execute_writes(
         new_label=proposed_op.label,
         sibling_imports=proposed_op.sibling_imports,
         import_package_name=pre_import_name,
+        required_imports=proposed_op.required_imports,
+        export=proposed_op.export,
     )
     written_segments.append(write_result.appended)
     if write_result.all_warning:

@@ -23,7 +23,7 @@ from gaia.engine.trace.schema import Trace
 
 trace_app = typer.Typer(
     name="trace",
-    help="Gaia ARM Trace — verify and review execution traces.",
+    help=("Gaia ARM Trace — verify and review execution traces (verify / review / show)."),
     no_args_is_help=True,
 )
 
@@ -40,9 +40,22 @@ def verify_command(
 ) -> None:
     """Verify trace schema and hash chain.
 
-    exit 0：clean
-    exit 1：hash chain / manifest mismatch
-    exit 2：schema 错误
+    Fast schema + hash-chain check (seconds, fail-fast). Loads the trace,
+    validates each event's prev_hash forms an unbroken chain from
+    GENESIS, then checks the manifest's ``events_root`` and
+    ``manifest_hash`` against recomputed values.
+
+    Exit codes:
+      * 0 — clean
+      * 1 — hash chain / manifest mismatch (tampering)
+      * 2 — schema error / unreadable file
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia trace verify path/to/trace.json
+        gaia trace verify path/to/trace.jsonl --quiet
     """
     res = load_trace(trace_path)
     if res.issues:
@@ -133,11 +146,28 @@ def review_command(
         help="Exit non-zero whenever any error/warning diagnostic is present.",
     ),
 ) -> None:
-    """Run the full ARM trace review.
+    """Run the full ARM trace review (eight-section review).
 
-    exit 0：clean
-    exit 1：含 error 级 diagnostic 或 --strict 下含 warning
-    exit 2：CLI 参数非法
+    Performs the complete ARM trace review: schema + chain + decision
+    soundness + tool-call validity + retry hygiene + claim_ref resolution
+    + manifest coherence + ranking. ``--mode trace`` (default) emits the
+    generic review; ``--mode publish`` adds publish-readiness gates.
+    ``--package`` lets the reviewer resolve ``claim_ref`` review_ids against
+    a Gaia package's review manifest.
+
+    Exit codes:
+      * 0 — clean (no error diagnostics; no warning blockers under --strict)
+      * 1 — error-level diagnostic, or any warning under ``--strict``
+      * 2 — invalid CLI argument combination
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia trace review path/to/trace.json
+        gaia trace review path/to/trace.json --mode publish --strict
+        gaia trace review path/to/trace.json --json > review.json
+        gaia trace review path/to/trace.json --markdown > review.md
     """
     if mode not in _SUPPORTED_REVIEW_MODES:
         typer.echo(
@@ -185,9 +215,24 @@ def show_command(
     ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSONL of selected events."),
 ) -> None:
-    """Print the trace event stream.
+    """Print the trace event stream (tactic_log style).
 
-    schema_violation 时仍然尽量打可解析事件 + 报错到 stderr。
+    Walks the events list in seq order and prints a compact one-line
+    summary per event (kind, actor, ts, plus kind-specific detail). On
+    schema violations the loadable events are still printed; schema
+    issues go to stderr.
+
+    ``--kind`` filters by event kind (``decision`` / ``tool_call`` /
+    ``retry`` / etc.); ``--limit 0`` shows every event; ``--json``
+    emits one JSON line per event for machine consumption.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia trace show path/to/trace.json
+        gaia trace show path/to/trace.json --kind tool_call --limit 0
+        gaia trace show path/to/trace.json --json > events.jsonl
     """
     res = load_trace(trace_path)
     if res.issues and not res.trace:

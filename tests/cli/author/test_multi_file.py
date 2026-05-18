@@ -127,7 +127,7 @@ def test_author_file_routes_to_sibling(gaia_package: FixturePackage) -> None:
             "author",
             "claim",
             "Test claim landing in extras.",
-            "--label",
+            "--dsl-binding-name",
             "extras_test_claim",
             "--file",
             "extras.py",
@@ -166,7 +166,7 @@ def test_author_claim_into_priors_py_refused(gaia_package: FixturePackage) -> No
             "author",
             "claim",
             "Forbidden claim.",
-            "--label",
+            "--dsl-binding-name",
             "forbidden",
             "--file",
             "priors.py",
@@ -209,7 +209,7 @@ def test_author_claim_into_reviews_subdir_refused(gaia_package: FixturePackage) 
             "author",
             "claim",
             "Ghost claim under reviews/.",
-            "--label",
+            "--dsl-binding-name",
             "ghost",
             "--file",
             "reviews/r1.py",
@@ -236,7 +236,7 @@ def test_author_file_rejects_nonexistent_sibling(gaia_package: FixturePackage) -
             "author",
             "claim",
             "Will not land.",
-            "--label",
+            "--dsl-binding-name",
             "wont_land",
             "--file",
             "ghost.py",
@@ -260,7 +260,7 @@ def test_author_file_rejects_absolute_path(gaia_package: FixturePackage) -> None
             "author",
             "claim",
             "Will not land.",
-            "--label",
+            "--dsl-binding-name",
             "absurd",
             "--file",
             "/etc/passwd",
@@ -284,7 +284,7 @@ def test_author_file_rejects_dot_dot_traversal(gaia_package: FixturePackage) -> 
             "author",
             "claim",
             "Will not land.",
-            "--label",
+            "--dsl-binding-name",
             "absurd",
             "--file",
             "../../etc/passwd.py",
@@ -326,7 +326,7 @@ def test_register_prior_to_priors_py_adds_sibling_import(
     sibling = Path(gaia_package.root) / "src" / gaia_package.import_name / "priors.py"
     text = sibling.read_text()
     assert f"from {gaia_package.import_name} import hypothesis" in text
-    assert "register_prior(hypothesis, 0.9" in text
+    assert "register_prior(hypothesis, value=0.9" in text
 
 
 def test_postwrite_failure_rolls_back_snapshot(gaia_package: FixturePackage) -> None:
@@ -363,7 +363,7 @@ def test_postwrite_failure_rolls_back_snapshot(gaia_package: FixturePackage) -> 
         [
             "author",
             "compute",
-            "--label",
+            "--dsl-binding-name",
             "doomed",
             "--conclusion-type",
             "broken_callable",

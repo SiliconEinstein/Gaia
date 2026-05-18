@@ -43,7 +43,8 @@ _CANDIDATE_PATTERNS = frozenset({"equal", "contradict", "exclusive"})
 
 def _render_candidate_relation_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     claims: list[str],
     pattern: str | None,
     rationale: str | None,
@@ -52,7 +53,9 @@ def _render_candidate_relation_statement(
 ) -> str:
     """Render the proposed ``candidate_relation(...)`` statement."""
     claims_repr = "[" + ", ".join(claims) + "]"
-    kwargs = [f"claims={claims_repr}", f"label={label!r}"]
+    kwargs = [f"claims={claims_repr}"]
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if pattern is not None:
         kwargs.append(f"pattern={pattern!r}")
     if rationale:
@@ -61,11 +64,29 @@ def _render_candidate_relation_statement(
         kwargs.append(f"background=[{', '.join(background)}]")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = candidate_relation({', '.join(kwargs)})"
+    call = f"candidate_relation({', '.join(kwargs)})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def candidate_relation_command(
-    label: str = typer.Option(..., "--label", help="Identifier the scaffold action takes."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered candidate_relation(...) "
+            "call. Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "candidate_relation(...)``). Omit to emit a bare expression."
+        ),
+    ),
     claims: str = typer.Option(
         ...,
         "--claims",
@@ -93,6 +114,15 @@ def candidate_relation_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        False,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default off for candidate_relation: scaffold-tier output is "
+            "structural, not part of the public Knowledge surface)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -108,14 +138,12 @@ def candidate_relation_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``candidate_relation(...)`` scaffold-tier hypothesised relation.
+    r"""Append a ``candidate_relation(...)`` scaffold-tier hypothesised relation.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author candidate-relation --claims a,b,c --pattern equal \
-            --label maybe_equal --rationale "Pending materialization."
+        gaia author candidate-relation \
+            --claims my_claim_a,my_claim_b,my_claim_c \
+            --pattern equal --dsl-binding-name my_maybe_equal
     """
     del json_
 
@@ -172,7 +200,8 @@ def candidate_relation_command(
         return
 
     generated_code = _render_candidate_relation_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         claims=claim_list,
         pattern=pattern,
         rationale=rationale,
@@ -184,12 +213,13 @@ def candidate_relation_command(
     proposed_op = ProposedAuthorOp(
         verb="candidate_relation",
         kind="scaffold",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("candidate_relation",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

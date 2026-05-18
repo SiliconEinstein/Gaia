@@ -55,6 +55,7 @@ from gaia.cli.commands.author._common import (
 )
 from gaia.cli.commands.author._formula_sandbox import (
     FormulaSandboxError,
+    extract_engine_lang_names,
     validate_formula_expr,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
@@ -87,7 +88,8 @@ def _render_formula_from_template(template: str, parts: list[str]) -> tuple[str 
 
 def _render_decompose_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     whole: str,
     parts: list[str],
     formula_src: str,
@@ -97,16 +99,37 @@ def _render_decompose_statement(
     """Render the proposed ``decompose(...)`` statement."""
     parts_repr = "[" + ", ".join(parts) + "]"
     args = [whole]
-    kwargs = [f"parts={parts_repr}", f"formula={formula_src}", f"label={label!r}"]
+    kwargs = [f"parts={parts_repr}", f"formula={formula_src}"]
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if rationale:
         kwargs.append(f"rationale={rationale!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = decompose({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"decompose({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def decompose_command(
-    label: str = typer.Option(..., "--label", help="Identifier the decomposition action takes."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered decompose(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "decompose(...)``). Omit to emit a bare expression."
+        ),
+    ),
     whole: str = typer.Option(
         ..., "--whole", help="Identifier of the composite Claim being decomposed."
     ),
@@ -143,6 +166,15 @@ def decompose_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write "
+            "(default on for decompose: the action's helper Claim is "
+            "referenceable by downstream verbs)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -158,14 +190,13 @@ def decompose_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``decompose(whole, parts=..., formula=...)`` decomposition.
+    r"""Append a ``decompose(whole, parts=..., formula=...)`` decomposition.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author decompose --whole composite --parts atom_a,atom_b \
-            --formula-template and --label split_composite
+        gaia author decompose --whole my_composite \
+            --parts my_atom_a,my_atom_b \
+            --formula-template and \
+            --dsl-binding-name my_decomposition
     """
     del json_
 
@@ -249,7 +280,8 @@ def decompose_command(
         formula_src = formula_expr
 
     generated_code = _render_decompose_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         whole=whole,
         parts=part_list,
         formula_src=formula_src,
@@ -258,15 +290,22 @@ def decompose_command(
     )
     references = [whole, *part_list]
     target_file = normalize_file_option(file)
+    # Track which engine-lang primitives the rendered ``formula=...``
+    # expression actually uses; G1 then injects only the needed names.
+    # ``ClaimAtom`` is always needed in the template path; user-supplied
+    # ``--formula-expr`` may reference any subset of the whitelist.
+    primitive_imports = extract_engine_lang_names(formula_src)
+    required_imports = ("decompose", *primitive_imports)
     proposed_op = ProposedAuthorOp(
         verb="decompose",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
-        required_imports=("decompose", "ClaimAtom", "land", "lor"),
+        required_imports=required_imports,
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

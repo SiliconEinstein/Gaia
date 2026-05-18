@@ -35,7 +35,7 @@ def test_derive_happy_path_writes_statement(gaia_package: FixturePackage) -> Non
             "observation",
             "--given",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "warranted",
             "--target",
             str(gaia_package.root),
@@ -47,7 +47,7 @@ def test_derive_happy_path_writes_statement(gaia_package: FixturePackage) -> Non
     assert envelope["status"] == "ok"
     assert envelope["verb"] == "derive"
     written = gaia_package.source_init.read_text()
-    assert "warranted = derive(observation, given=[hypothesis], label='warranted')" in written
+    assert "warranted = derive(observation, given=[hypothesis])" in written
 
 
 def test_derive_with_rationale_and_multiple_given(gaia_package: FixturePackage) -> None:
@@ -61,7 +61,7 @@ def test_derive_with_rationale_and_multiple_given(gaia_package: FixturePackage) 
             "observation",
             "--given",
             "hypothesis,observation",
-            "--label",
+            "--dsl-binding-name",
             "doubly_warranted",
             "--rationale",
             "Both premises imply the conclusion.",
@@ -87,7 +87,7 @@ def test_derive_missing_given_exits_2(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "",
-            "--label",
+            "--dsl-binding-name",
             "x",
             "--target",
             str(gaia_package.root),
@@ -112,7 +112,7 @@ def test_derive_unresolved_premise_exits_3(gaia_package: FixturePackage) -> None
             "observation",
             "--given",
             "ghost_premise",
-            "--label",
+            "--dsl-binding-name",
             "x",
             "--target",
             str(gaia_package.root),
@@ -144,7 +144,7 @@ def test_derive_self_loop_exits_1(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "observation",  # conclusion's identifier == label
             "--target",
             str(gaia_package.root),
@@ -169,7 +169,7 @@ def test_derive_postwrite_check_succeeds(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "checked_derive",
             "--target",
             str(gaia_package.root),
@@ -194,7 +194,7 @@ def test_derive_human_mode(gaia_package: FixturePackage) -> None:
             "observation",
             "--given",
             "hypothesis",
-            "--label",
+            "--dsl-binding-name",
             "human_derive",
             "--target",
             str(gaia_package.root),

@@ -54,7 +54,8 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_parameter_statement(
     *,
-    label: str,
+    binding_name: str | None,
+    engine_label: str | None,
     variable: str,
     value: str,
     content: str | None,
@@ -65,7 +66,9 @@ def _render_parameter_statement(
 ) -> str:
     """Render the proposed ``parameter(...)`` statement."""
     args = [variable, value]
-    kwargs = [f"label={label!r}"]
+    kwargs: list[str] = []
+    if engine_label is not None:
+        kwargs.append(f"label={engine_label!r}")
     if content is not None:
         kwargs.append(f"content={content!r}")
     if title is not None:
@@ -79,11 +82,30 @@ def _render_parameter_statement(
         metadata.setdefault("rationale", rationale)
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
-    return f"{label} = parameter({', '.join(args)}, {', '.join(kwargs)})"
+    rendered_args = ", ".join([*args, *kwargs])
+    call = f"parameter({rendered_args})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def parameter_command(
-    label: str = typer.Option(..., "--label", help="Identifier the parameter Claim binds to."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Engine `label=` kwarg on the rendered parameter(...) call. "
+            "Distinct from --dsl-binding-name (the Python LHS)."
+        ),
+    ),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python LHS for the rendered statement (``<name> = "
+            "parameter(...)``). Omit to emit a bare expression."
+        ),
+    ),
     variable: str = typer.Option(..., "--variable", help="Identifier of the bound Variable."),
     value: str = typer.Option(
         ...,
@@ -113,6 +135,13 @@ def parameter_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    export: bool = typer.Option(
+        True,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write (default on for parameter)."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -128,14 +157,11 @@ def parameter_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``parameter(...)`` Variable-to-value binding.
+    r"""Append a ``parameter(...)`` Variable-to-value binding.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author parameter --variable theta --value 0.5 \
-            --label theta_default --prior 0.5
+        gaia author parameter --variable my_theta --value 0.5 \
+            --dsl-binding-name my_theta_default --prior 0.5
     """
     del json_
 
@@ -163,7 +189,8 @@ def parameter_command(
         return
 
     generated_code = _render_parameter_statement(
-        label=label,
+        binding_name=dsl_binding_name,
+        engine_label=label,
         variable=variable,
         value=rendered_value,
         content=content,
@@ -176,12 +203,13 @@ def parameter_command(
     proposed_op = ProposedAuthorOp(
         verb="parameter",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=references,
         generated_code=generated_code,
         required_imports=("parameter",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        export=export,
     )
     run_author_op(
         proposed_op,

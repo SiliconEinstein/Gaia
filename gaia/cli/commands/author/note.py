@@ -28,12 +28,16 @@ from gaia.cli.commands.author._runner import run_author_op
 
 def _render_note_statement(
     *,
-    label: str,
+    binding_name: str | None,
     content: str,
     title: str | None,
     metadata: dict[str, Any] | None,
 ) -> str:
-    """Render the proposed ``note(...)`` statement."""
+    """Render the proposed ``note(...)`` statement.
+
+    ``note()`` does not take an engine ``label=`` kwarg (the engine
+    signature has only ``**metadata``); only the Python LHS is settable.
+    """
     args = [repr(content)]
     if title is not None:
         args.append(f"title={title!r}")
@@ -41,12 +45,24 @@ def _render_note_statement(
         # note() takes **metadata, so we flatten the dict literally as kwargs.
         # repr() on a dict produces valid-Python output for plain JSON types.
         args.append(f"metadata={metadata!r}")
-    return f"{label} = note({', '.join(args)})"
+    call = f"note({', '.join(args)})"
+    if binding_name is None:
+        return call
+    return f"{binding_name} = {call}"
 
 
 def note_command(
     content: str = typer.Argument(..., help="Note content (natural-language background)."),
-    label: str = typer.Option(..., "--label", help="Identifier the note binds to."),
+    dsl_binding_name: str | None = typer.Option(
+        None,
+        "--dsl-binding-name",
+        help=(
+            "Python module-scope identifier the rendered statement binds to "
+            "(``<name> = note(...)``). Omit to emit a bare expression. "
+            "``note()`` does not take an engine ``label=`` kwarg, so this "
+            "is the only label-like flag the verb exposes."
+        ),
+    ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
@@ -58,6 +74,15 @@ def note_command(
     title: str | None = typer.Option(None, "--title", help="Optional short title for the note."),
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
+    ),
+    export: bool = typer.Option(
+        False,
+        "--export/--no-export",
+        help=(
+            "Add --dsl-binding-name to the target module's __all__ on a "
+            "successful write (default off for note: notes are contextual "
+            "background, not part of the package's public Knowledge surface)."
+        ),
     ),
     check: bool = typer.Option(
         True,
@@ -74,14 +99,11 @@ def note_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Author a ``note(...)`` background statement.
+    r"""Append a ``note(...)`` background statement.
 
     Example:
-
-    .. code-block:: bash
-
-        gaia author note "Earlier work by Galileo established the setup." \
-            --label galileo_background --title "Galileo's setup"
+        gaia author note "Earlier work established the setup." \
+            --dsl-binding-name background_setup --title "Setup background"
     """
     del json_
 
@@ -91,7 +113,7 @@ def note_command(
         return
 
     generated_code = _render_note_statement(
-        label=label,
+        binding_name=dsl_binding_name,
         content=content,
         title=title,
         metadata=metadata_dict,
@@ -99,11 +121,12 @@ def note_command(
     proposed_op = ProposedAuthorOp(
         verb="note",
         kind="reasoning",
-        label=label,
+        label=dsl_binding_name,
         references=[],
         generated_code=generated_code,
         required_imports=("note",),
         target_file=normalize_file_option(file),
+        export=export,
     )
     run_author_op(
         proposed_op,

@@ -46,7 +46,7 @@ def test_parameter_happy_path(gaia_package: FixturePackage) -> None:
             "theta",
             "--value",
             "0.5",
-            "--label",
+            "--dsl-binding-name",
             "theta_default",
             "--target",
             str(gaia_package.root),
@@ -55,7 +55,7 @@ def test_parameter_happy_path(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
-    assert "theta_default = parameter(theta, 0.5, label='theta_default')" in written
+    assert "theta_default = parameter(theta, 0.5)" in written
 
 
 def test_parameter_with_prior(gaia_package: FixturePackage) -> None:
@@ -69,7 +69,7 @@ def test_parameter_with_prior(gaia_package: FixturePackage) -> None:
             "theta",
             "--value",
             "0.75",
-            "--label",
+            "--dsl-binding-name",
             "theta_prior",
             "--prior",
             "0.6",
@@ -93,7 +93,7 @@ def test_parameter_unresolved_variable_exits_3(gaia_package: FixturePackage) -> 
             "phantom_var",
             "--value",
             "1.0",
-            "--label",
+            "--dsl-binding-name",
             "x",
             "--target",
             str(gaia_package.root),
@@ -114,7 +114,7 @@ def test_parameter_human_mode(gaia_package: FixturePackage) -> None:
             "theta",
             "--value",
             "0.5",
-            "--label",
+            "--dsl-binding-name",
             "human_param",
             "--target",
             str(gaia_package.root),

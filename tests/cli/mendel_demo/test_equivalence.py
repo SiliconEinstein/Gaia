@@ -142,12 +142,8 @@ def _scaffold_mirror(tmp_path: Path) -> Path:
     assert result.exit_code == 0, f"scaffold failed: {result.output}"
     env = _parse(result.output)
     assert env["status"] == "ok"
-    # Strip the scaffold-default placeholder claim.
-    init_path = target / "src" / "mendel_v0_5" / "__init__.py"
-    src = init_path.read_text()
-    placeholder_start = src.find("hypothesis = claim(")
-    assert placeholder_start > 0, "scaffold template should seed a hypothesis claim"
-    init_path.write_text(src[:placeholder_start].rstrip() + "\n")
+    # Wave 1 cleanup: scaffold no longer seeds a placeholder ``hypothesis``
+    # claim, so there's nothing to strip.
     return target
 
 
@@ -188,7 +184,7 @@ def _author_mendel(target: Path) -> None:
     _author(
         target,
         "variable",
-        "--label",
+        "--dsl-binding-name",
         "f2_total_count",
         "--symbol",
         "n_f2",
@@ -200,7 +196,7 @@ def _author_mendel(target: Path) -> None:
     _author(
         target,
         "variable",
-        "--label",
+        "--dsl-binding-name",
         "f2_dominant_count",
         "--symbol",
         "k_dominant",
@@ -218,14 +214,14 @@ def _author_mendel(target: Path) -> None:
             "单因子杂交实验从两个稳定亲本品系开始：一个亲本稳定表现显性表型，"
             "另一个亲本稳定表现隐性表型；二者杂交得到 F1，再让 F1 自交得到 F2。"
         ),
-        "--label",
+        "--dsl-binding-name",
         "monohybrid_cross_setup",
     )
     _author(
         target,
         "note",
         "在该性状上，显性遗传因子会在表型上遮蔽隐性遗传因子。",
-        "--label",
+        "--dsl-binding-name",
         "dominance_background",
     )
     _author(
@@ -236,7 +232,7 @@ def _author_mendel(target: Path) -> None:
             "衡量模型与数据的贴合度；对手理论取 p ~ Uniform[0,1] 的 diffuse 先验作为"
             "参考尺度，不引入任何具体的替代二项参数。"
         ),
-        "--label",
+        "--dsl-binding-name",
         "finite_sample_background",
     )
 
@@ -248,7 +244,7 @@ def _author_mendel(target: Path) -> None:
             "孟德尔分离模型：遗传因子是离散的；每个个体对某一性状携带一对因子；"
             "形成配子时成对因子分离，受精时重新配对；显性因子会遮蔽隐性因子。"
         ),
-        "--label",
+        "--dsl-binding-name",
         "mendelian_segregation_model",
     )
     _author(
@@ -258,7 +254,7 @@ def _author_mendel(target: Path) -> None:
             "混合遗传模型：亲本性状在后代中连续平均；一旦平均，离散的显性/隐性类别"
             "就不应在 F2 中作为可计数的类型存在。"
         ),
-        "--label",
+        "--dsl-binding-name",
         "blending_inheritance_model",
     )
     _author(
@@ -272,7 +268,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "在同一个单因子性状解释上，离散分离模型和连续混合模型是竞争解释。",
-        "--label",
+        "--dsl-binding-name",
         "competing_models",
     )
 
@@ -286,7 +282,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "这是单因子杂交实验中 F1 代的定性观察。",
-        "--label",
+        "--dsl-binding-name",
         "f1_uniform_dominant_observation",
     )
     _author(
@@ -298,7 +294,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "这是单因子杂交实验中 F2 代的定性观察：表型呈两类，不是连续分布。",
-        "--label",
+        "--dsl-binding-name",
         "f2_has_discrete_classes_observation",
     )
     _author(
@@ -310,7 +306,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "这是单因子杂交实验中 F2 代的定性观察。",
-        "--label",
+        "--dsl-binding-name",
         "f2_recessive_reappears_observation",
     )
 
@@ -325,7 +321,7 @@ def _author_mendel(target: Path) -> None:
         target,
         "claim",
         ("F2 计数为 295 个显性表型和 100 个隐性表型，共 395 个个体。"),
-        "--label",
+        "--dsl-binding-name",
         "f2_count_observation_binding",
         "--references",
         "f2_total_count,f2_dominant_count",
@@ -344,7 +340,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup,f2_has_discrete_classes_observation",
         "--rationale",
         "这是用于贝叶斯点似然比较的 F2 显性/隐性计数数据。",
-        "--label",
+        "--dsl-binding-name",
         "f2_count_observation",
     )
 
@@ -363,7 +359,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup,dominance_background",
         "--rationale",
         "显性因子在杂合 F1 个体中遮蔽隐性因子。",
-        "--label",
+        "--dsl-binding-name",
         "mendel_predicts_f1_dominance",
     )
     _author(
@@ -377,7 +373,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "孟德尔模型对 F1 统一显性的预测与观察相符。",
-        "--label",
+        "--dsl-binding-name",
         "f1_mendel_match",
     )
     _author(
@@ -395,7 +391,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup,dominance_background",
         "--rationale",
         "离散因子 + 遮蔽 → 两个离散表型类别。",
-        "--label",
+        "--dsl-binding-name",
         "mendel_predicts_discrete_classes",
     )
     _author(
@@ -409,7 +405,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "孟德尔模型预言的两类离散表型与观察到的 F2 两类表型一致。",
-        "--label",
+        "--dsl-binding-name",
         "f2_discrete_classes_mendel_match",
     )
     _author(
@@ -426,7 +422,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup,dominance_background",
         "--rationale",
         "分离模型保留了隐性因子，并允许它在 F2 中重新组合为纯合隐性。",
-        "--label",
+        "--dsl-binding-name",
         "mendel_predicts_recessive_reappearance",
     )
     _author(
@@ -440,7 +436,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "孟德尔模型对 F2 隐性重现的预测与观察相符。",
-        "--label",
+        "--dsl-binding-name",
         "f2_reappearance_mendel_match",
     )
     _author(
@@ -458,7 +454,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup,dominance_background,finite_sample_background",
         "--rationale",
         "F1 配子等概率结合，给出 1:2:1 的基因型分布，即每个 F2 个体独立以概率 3/4 表现为显性。",
-        "--label",
+        "--dsl-binding-name",
         "mendel_predicts_three_to_one_ratio",
     )
 
@@ -539,7 +535,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "连续平均模型把亲本性状视为在后代中均化。",
-        "--label",
+        "--dsl-binding-name",
         "blending_predicts_intermediate_f1",
     )
     _author(
@@ -553,7 +549,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "F1 统一显性与混合模型的中间表型预测相冲突。",
-        "--label",
+        "--dsl-binding-name",
         "f1_blending_conflict",
     )
     _author(
@@ -570,7 +566,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "连续平均不保留可重新组合的离散遗传单位，因此不给出离散的表型分类。",
-        "--label",
+        "--dsl-binding-name",
         "blending_predicts_f2_continuous",
     )
     _author(
@@ -587,7 +583,7 @@ def _author_mendel(target: Path) -> None:
             "F2 明确划分为两类离散表型，与混合模型的连续分布预测相冲突——"
             "这是 framework 级别的冲突：blending 否认的是 F2 可被分类这件事本身。"
         ),
-        "--label",
+        "--dsl-binding-name",
         "f2_discrete_classes_blending_conflict",
     )
     _author(
@@ -604,7 +600,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "混合模型没有保留可重新组合的离散隐性因子。",
-        "--label",
+        "--dsl-binding-name",
         "blending_predicts_no_recessive_reappearance",
     )
     _author(
@@ -618,7 +614,7 @@ def _author_mendel(target: Path) -> None:
         "monohybrid_cross_setup",
         "--rationale",
         "F2 隐性表型作为离散类别重新出现，与混合模型的预测相冲突。",
-        "--label",
+        "--dsl-binding-name",
         "f2_reappearance_blending_conflict",
     )
 
