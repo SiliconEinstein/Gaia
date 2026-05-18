@@ -8,6 +8,7 @@ true end-to-end CLI surface (not Typer's in-process CliRunner).
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -210,6 +211,21 @@ def cli_snapshot(result: CliResult) -> dict[str, object]:
         "stdout": mask_output(result.stdout),
         "stderr": mask_output(result.stderr),
     }
+
+
+def normalize_artifact_content(rel_path: str, content: str) -> str:
+    """Normalize release-injected metadata without weakening artifact checks."""
+    if rel_path not in {"compile_metadata.json", "beliefs.json"}:
+        return content
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError:
+        return content
+    if not isinstance(payload, dict) or "gaia_lang_version" not in payload:
+        return content
+    payload["gaia_lang_version"] = "<GAIA_LANG_VERSION>"
+    rendered = json.dumps(payload, indent=2, ensure_ascii=False)
+    return rendered + ("\n" if content.endswith("\n") else "")
 
 
 # --------------------------------------------------------------------------- #
@@ -458,6 +474,7 @@ def serialize_artifact_tree(
         except UnicodeDecodeError:
             entries.append({"path": rel_str_masked, "kind": "binary", "size": path.stat().st_size})
             continue
+        content = normalize_artifact_content(rel_str, content)
         entries.append({"path": rel_str_masked, "kind": "text", "content": mask_output(content)})
     return {"root": root.name, "files": entries}
 
