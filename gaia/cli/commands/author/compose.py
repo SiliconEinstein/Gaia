@@ -89,6 +89,11 @@ _COMPOSE_DECORATOR_NAMES = frozenset({"compose", "composition"})
 
 # Human-readable epilog example for ``--help`` output.
 _EPILOG_EXAMPLE = """
+Invoke:
+
+    $ gaia author compose --from-file pattern.py --target ./my-pkg
+    $ gaia author composition --from-file pattern.py --target ./my-pkg
+
 Example pattern file (`pattern.py`):
 
     from gaia.engine.lang import compose, claim, derive

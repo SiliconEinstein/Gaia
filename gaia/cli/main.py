@@ -75,9 +75,19 @@ from gaia.cli.commands.starmap import starmap_command
 from gaia.cli.commands.starmap_replay import starmap_replay_command
 from gaia.cli.commands.trace import trace_app
 
+_ROOT_EPILOG = (
+    "Typical authoring flow:\n\n"
+    "  $ gaia build init my-pkg-gaia\n\n"
+    '  $ gaia author claim "..." --target ./my-pkg-gaia\n\n'
+    "  $ gaia build compile ./my-pkg-gaia\n\n"
+    "  $ gaia run infer ./my-pkg-gaia\n\n"
+    "Run `gaia <group> --help` for per-group verb references."
+)
+
 app = typer.Typer(
     name="gaia",
     help="Gaia — knowledge package authoring toolkit.",
+    epilog=_ROOT_EPILOG,
     no_args_is_help=True,
 )
 
