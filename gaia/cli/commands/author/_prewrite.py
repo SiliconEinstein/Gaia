@@ -68,6 +68,53 @@ from gaia.cli.commands.author._envelope import Diagnostic, exit_code_for_diagnos
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 
 
+# S3 / audit §D.1+§D.2 — file-role policy. The engine reserves a small
+# set of source modules as Knowledge-free zones (``priors.py`` /
+# ``review.py``) and treats ``reviews/`` directory contents as
+# auxiliary (ignored at load). The cli mirrors these rules in prewrite
+# so an author can't write a verb that the engine will later reject
+# (chenkun #7 / audit §D.1) or that the engine will silently ignore
+# (audit §D.2).
+RESERVED_KNOWLEDGE_FREE_FILES = frozenset({"priors.py", "review.py"})
+RESERVED_KNOWLEDGE_FREE_PREFIX = "reviews/"
+KNOWLEDGE_AUTHOR_VERBS = frozenset(
+    {
+        "claim",
+        "note",
+        "question",
+        "equal",
+        "contradict",
+        "exclusive",
+        "decompose",
+        "derive",
+        "observe",
+        "compute",
+        "infer",
+        "associate",
+        "depends_on",
+        "candidate_relation",
+        "materialize",
+        "parameter",
+        "variable",
+        "bayes.model",
+        "bayes.likelihood",
+        # Distribution-literal verbs all declare new Knowledge bindings
+        # via ``label = bayes.<Factory>(...)``.
+        "bayes.Binomial",
+        "bayes.BetaBinomial",
+        "bayes.Poisson",
+        "bayes.Normal",
+        "bayes.LogNormal",
+        "bayes.Beta",
+        "bayes.Exponential",
+        "bayes.Gamma",
+        "bayes.StudentT",
+        "bayes.Cauchy",
+        "bayes.ChiSquared",
+    }
+)
+
+
 @dataclass
 class AuthorPrewriteResult:
     """Outcome of a single :func:`prewrite_check` call."""
@@ -170,6 +217,31 @@ def prewrite_check(
                 module_symbols=set(),
                 exit_code=_first_exit_code(target_file_errors),
                 diagnostics=target_file_errors,
+                warnings=warnings,
+                write_target_path=None,
+                source_root=source_root,
+            )
+        # S3 / audit §D.1+§D.2 — refuse to write a Knowledge-declaring
+        # verb into a reserved-role file (priors.py / review.py /
+        # reviews/<sub>.py). The engine's _load_resolution_policy +
+        # _is_auxiliary_source_module enforce these zones at load
+        # time; mirroring the check at prewrite avoids leaving the
+        # source file half-mutated when the engine subsequently
+        # rejects.
+        role_errors = _validate_target_role(
+            verb=proposed_op.verb,
+            relative=relative,
+        )
+        if role_errors:
+            return AuthorPrewriteResult(
+                ok=False,
+                target_path=target_root,
+                source_init_path=source_init_path,
+                import_name=import_name,
+                project_name=project_name,
+                module_symbols=set(),
+                exit_code=_first_exit_code(role_errors),
+                diagnostics=role_errors,
                 warnings=warnings,
                 write_target_path=None,
                 source_root=source_root,
@@ -422,6 +494,65 @@ def _resolve_write_target(
             )
         ]
     return resolved, []
+
+
+# --------------------------------------------------------------------------- #
+# S3 — file-role policy                                                       #
+# --------------------------------------------------------------------------- #
+
+
+def _validate_target_role(*, verb: str, relative: str) -> list[Diagnostic]:
+    """Refuse Knowledge-emitting verbs on reserved-role files / paths.
+
+    S3 / audit §D.1+§D.2 closure. Roles tracked:
+
+    * ``priors.py`` — engine loads it via ``_load_resolution_policy``
+      and explicitly rejects any new Knowledge declarations.
+    * ``review.py`` — flagged as auxiliary by
+      ``_is_auxiliary_source_module``; engine ignores its contents.
+    * ``reviews/<sub>.py`` — same auxiliary rule (silently dropped
+      from the IR walk).
+
+    The verbs ``register_prior`` and ``add_module`` are permitted
+    inside priors.py / reviews/ regardless (they don't emit
+    Knowledge). Anything else gets ``prewrite.target_role_forbidden``.
+    """
+    if verb not in KNOWLEDGE_AUTHOR_VERBS:
+        return []
+    normalized = relative.replace("\\", "/").lstrip("./")
+    if normalized in RESERVED_KNOWLEDGE_FREE_FILES:
+        kind = "priors" if normalized == "priors.py" else "review"
+        return [
+            Diagnostic(
+                kind="prewrite.target_role_forbidden",
+                level="error",
+                message=(
+                    f"{verb!r} cannot write into {normalized!r}: the engine "
+                    f"treats this file as a reserved {kind}-only zone "
+                    "(Knowledge declarations would be rejected at load). "
+                    "Use register_prior for prior values; declare Claims "
+                    "in __init__.py or a sibling module."
+                ),
+                source="prewrite",
+                where={"file": relative, "role": kind},
+            )
+        ]
+    if normalized.startswith(RESERVED_KNOWLEDGE_FREE_PREFIX):
+        return [
+            Diagnostic(
+                kind="prewrite.target_role_forbidden",
+                level="error",
+                message=(
+                    f"{verb!r} cannot write into {relative!r}: the engine "
+                    "treats files under reviews/ as auxiliary and ignores "
+                    "their Knowledge declarations at IR load. Author into "
+                    "__init__.py or a non-reviews/ sibling instead."
+                ),
+                source="prewrite",
+                where={"file": relative, "role": "reviews"},
+            )
+        ]
+    return []
 
 
 # --------------------------------------------------------------------------- #

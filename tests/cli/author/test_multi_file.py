@@ -112,22 +112,25 @@ def test_add_module_rejects_invalid_name(gaia_package: FixturePackage) -> None:
 
 
 def test_author_file_routes_to_sibling(gaia_package: FixturePackage) -> None:
-    """`gaia author claim --file priors.py` appends to priors.py."""
-    # First create the sibling file.
+    """`gaia author claim --file <non-reserved>.py` appends to the sibling."""
+    # First create the sibling file. Use ``extras`` rather than
+    # ``priors`` since S3 / audit §D.1 now refuses Knowledge writes to
+    # the reserved priors.py role; this test is about the routing
+    # mechanic, not the role policy (covered in its own test below).
     runner.invoke(
         app,
-        ["pkg", "add-module", "--name", "priors", "--target", str(gaia_package.root)],
+        ["pkg", "add-module", "--name", "extras", "--target", str(gaia_package.root)],
     )
     result = runner.invoke(
         app,
         [
             "author",
             "claim",
-            "Test claim landing in priors.",
+            "Test claim landing in extras.",
             "--label",
-            "prior_test_claim",
+            "extras_test_claim",
             "--file",
-            "priors.py",
+            "extras.py",
             "--target",
             str(gaia_package.root),
             "--no-check",
@@ -139,11 +142,90 @@ def test_author_file_routes_to_sibling(gaia_package: FixturePackage) -> None:
     assert isinstance(payload, dict)
     written_to = payload["written_to"]
     assert isinstance(written_to, str)
-    assert written_to.endswith("priors.py")
-    sibling = Path(gaia_package.root) / "src" / gaia_package.import_name / "priors.py"
-    assert "prior_test_claim = claim(" in sibling.read_text()
+    assert written_to.endswith("extras.py")
+    sibling = Path(gaia_package.root) / "src" / gaia_package.import_name / "extras.py"
+    assert "extras_test_claim = claim(" in sibling.read_text()
     # __init__.py should NOT have the binding.
-    assert "prior_test_claim" not in gaia_package.source_init.read_text()
+    assert "extras_test_claim" not in gaia_package.source_init.read_text()
+
+
+def test_author_claim_into_priors_py_refused(gaia_package: FixturePackage) -> None:
+    """S3 / audit §D.1 / chenkun #7 — claim --file priors.py exits 3.
+
+    The engine's _load_resolution_policy refuses any new Knowledge
+    declarations in priors.py; the cli prewrite now mirrors the rule
+    so the source file isn't half-mutated before the rejection.
+    """
+    runner.invoke(
+        app,
+        ["pkg", "add-module", "--name", "priors", "--target", str(gaia_package.root)],
+    )
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "claim",
+            "Forbidden claim.",
+            "--label",
+            "forbidden",
+            "--file",
+            "priors.py",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 3, result.output
+    envelope = _parse(result.output)
+    diagnostics = envelope["diagnostics"]
+    assert isinstance(diagnostics, list)
+    assert diagnostics[0]["kind"] == "prewrite.target_role_forbidden"
+    where = diagnostics[0].get("where", {})
+    assert isinstance(where, dict)
+    assert where.get("role") == "priors"
+    # The forbidden claim must NOT have been appended to priors.py.
+    priors_path = Path(gaia_package.root) / "src" / gaia_package.import_name / "priors.py"
+    assert "forbidden = claim(" not in priors_path.read_text()
+
+
+def test_author_claim_into_reviews_subdir_refused(gaia_package: FixturePackage) -> None:
+    """S3 / audit §D.2 — files under reviews/ are auxiliary; cli refuses.
+
+    The engine's _is_auxiliary_source_module flags any file under
+    reviews/ and silently drops its declarations from the IR walk; the
+    cli refuses upfront so authors don't accumulate ghost Knowledge.
+    """
+    # Manually drop a file under reviews/ since `pkg add-module` does
+    # not support directory-shaped names.
+    reviews_dir = Path(gaia_package.root) / "src" / gaia_package.import_name / "reviews"
+    reviews_dir.mkdir()
+    (reviews_dir / "__init__.py").write_text("")
+    (reviews_dir / "r1.py").write_text(
+        "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n"
+    )
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "claim",
+            "Ghost claim under reviews/.",
+            "--label",
+            "ghost",
+            "--file",
+            "reviews/r1.py",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 3, result.output
+    envelope = _parse(result.output)
+    diagnostics = envelope["diagnostics"]
+    assert isinstance(diagnostics, list)
+    assert diagnostics[0]["kind"] == "prewrite.target_role_forbidden"
+    where = diagnostics[0].get("where", {})
+    assert isinstance(where, dict)
+    assert where.get("role") == "reviews"
 
 
 def test_author_file_rejects_nonexistent_sibling(gaia_package: FixturePackage) -> None:

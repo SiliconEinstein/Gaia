@@ -59,8 +59,20 @@ EXIT_SYSTEM_IO = 4
 # explicitly listed fall through to EXIT_PREWRITE_STRUCTURAL (1).
 _KIND_TO_EXIT = {
     "prewrite.target_invalid": EXIT_SYSTEM_IO,
+    # S8 / audit §H.4 — split the overloaded ``target_invalid`` kind
+    # into four distinct kinds so downstream dispatch can distinguish
+    # the four shapes (missing pyproject / missing source root /
+    # missing __init__.py / TOML parse failure). All four map to the
+    # same exit code as the parent for backwards compatibility.
+    "prewrite.target_no_pyproject": EXIT_SYSTEM_IO,
+    "prewrite.target_no_source_root": EXIT_SYSTEM_IO,
+    "prewrite.target_no_init_py": EXIT_SYSTEM_IO,
+    "prewrite.target_bad_toml": EXIT_SYSTEM_IO,
     "prewrite.target_missing": EXIT_SYSTEM_IO,
     "prewrite.target_not_gaia_package": EXIT_SYSTEM_IO,
+    # S3 / audit §D.1+§D.2 — reserved-role rejection (priors.py /
+    # review.py / reviews/<sub>.py) for Knowledge-emitting verbs.
+    "prewrite.target_role_forbidden": EXIT_COLLISION_OR_REF,
     "prewrite.syntax": EXIT_INPUT_SYNTAX,
     "prewrite.expr_unsafe": EXIT_INPUT_SYNTAX,
     "prewrite.collision": EXIT_COLLISION_OR_REF,
@@ -73,6 +85,11 @@ _KIND_TO_EXIT = {
     "prewrite.deprecated_ref": EXIT_OK,
     "postwrite.compile_fail": EXIT_PREWRITE_STRUCTURAL,
     "postwrite.check_fail": EXIT_PREWRITE_STRUCTURAL,
+    # S9 / audit §F.1 — snapshot-rollback diagnostic when postwrite
+    # fails. Informational; the underlying error already carries the
+    # rollback context, so the snapshot kind maps to the parent's
+    # exit code for consistency.
+    "writer.rolled_back": EXIT_PREWRITE_STRUCTURAL,
     "stub.not_implemented": EXIT_INPUT_SYNTAX,
 }
 
