@@ -36,6 +36,16 @@ from gaia.cli.commands.author._common import (
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
+_ENGINE_DEFAULT_SOURCE_ID = "user_priors"
+"""Mirrors :data:`gaia.engine.lang.dsl.register_prior.DEFAULT_SOURCE_ID`.
+
+R9 #3 — when the cli would render ``source_id='user_priors'``, omit the
+kwarg instead so the rendered statement matches the hand-authored
+pattern of relying on the engine's default. Pinned locally so a CLI
+parse-time check stays side-effect free (no engine import needed just
+to compare a default).
+"""
+
 
 def _render_register_prior_statement(
     *,
@@ -43,6 +53,7 @@ def _render_register_prior_statement(
     value: float,
     justification: str,
     source_id: str,
+    emit_source_id: bool,
     metadata: dict[str, Any] | None,
     comment_label: str | None,
 ) -> str:
@@ -51,9 +62,18 @@ def _render_register_prior_statement(
     The statement is a bare call (no LHS) since ``register_prior``
     returns ``None``. ``comment_label`` is optionally rendered as a
     trailing ``# label`` comment so a reader can scan the source.
+
+    R9 #3 — ``emit_source_id`` toggles whether the ``source_id=`` kwarg
+    appears in the rendered call. ``False`` is reserved for the case
+    where the caller did not explicitly pass ``--source-id`` AND the
+    value matches the engine default (:data:`_ENGINE_DEFAULT_SOURCE_ID`),
+    matching the hand-authored mendel pattern of omitting the kwarg when
+    redundant.
     """
     args = [claim_ref, repr(value)]
-    kwargs = [f"justification={justification!r}", f"source_id={source_id!r}"]
+    kwargs = [f"justification={justification!r}"]
+    if emit_source_id:
+        kwargs.append(f"source_id={source_id!r}")
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
     statement = f"register_prior({', '.join(args)}, {', '.join(kwargs)})"
@@ -87,10 +107,16 @@ def register_prior_command(
             "auto-insert `from <import_name> import <claim>` if missing."
         ),
     ),
-    source_id: str = typer.Option(
-        "user_priors",
+    source_id: str | None = typer.Option(
+        None,
         "--source-id",
-        help="Source identifier (defaults to 'user_priors'; engines use namespaced ids).",
+        help=(
+            "Source identifier. Defaults to the engine's `user_priors`; when "
+            "omitted on the cli, the rendered call omits the `source_id=` "
+            "kwarg so the engine default applies (R9 #3 — matches the hand-"
+            "authored pattern of relying on the default). Engines use "
+            "namespaced ids (e.g. `continuous_inference`, `reviewer_alice`)."
+        ),
     ),
     statement_label: str | None = typer.Option(
         None,
@@ -140,11 +166,19 @@ def register_prior_command(
         )
         return
 
+    # R9 #3 — emit ``source_id=`` only when the caller passed
+    # ``--source-id`` explicitly (any value, including ``user_priors`` if
+    # that was the explicit choice). When omitted on the cli, render
+    # without the kwarg so the engine default applies and the rendered
+    # statement matches the hand-authored omit-when-default pattern.
+    emit_source_id = source_id is not None
+    effective_source_id = source_id if source_id is not None else _ENGINE_DEFAULT_SOURCE_ID
     generated_code = _render_register_prior_statement(
         claim_ref=claim,
         value=value,
         justification=justification,
-        source_id=source_id,
+        source_id=effective_source_id,
+        emit_source_id=emit_source_id,
         metadata=metadata_dict,
         comment_label=statement_label,
     )

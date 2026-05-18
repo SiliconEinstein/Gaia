@@ -53,7 +53,10 @@ def test_register_prior_happy_path(gaia_package: FixturePackage) -> None:
     written = gaia_package.source_init.read_text()
     assert "register_prior(hypothesis, 0.7" in written
     assert "justification='Prior from expert.'" in written
-    assert "source_id='user_priors'" in written
+    # R9 #3 — default source_id omitted from the rendered call when
+    # caller didn't explicitly pass --source-id. Engine fills in the
+    # default at load time.
+    assert "source_id=" not in written
 
 
 def test_register_prior_custom_source_id(gaia_package: FixturePackage) -> None:
@@ -79,6 +82,39 @@ def test_register_prior_custom_source_id(gaia_package: FixturePackage) -> None:
     assert result.exit_code == 0, result.output
     written = gaia_package.source_init.read_text()
     assert "source_id='calibration_2026q2'" in written
+
+
+def test_register_prior_explicit_default_source_id_still_emits(
+    gaia_package: FixturePackage,
+) -> None:
+    """Explicit ``--source-id user_priors`` still renders the kwarg.
+
+    R9 #3 — omission of ``source_id=`` is driven by *absence* of the
+    --source-id flag, not by value comparison. A user who explicitly
+    types ``--source-id user_priors`` gets the kwarg rendered (no silent
+    drop based on value matching the engine default).
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "register-prior",
+            "--claim",
+            "hypothesis",
+            "--value",
+            "0.5",
+            "--justification",
+            "Explicit default.",
+            "--source-id",
+            "user_priors",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    assert "source_id='user_priors'" in written
 
 
 def test_register_prior_empty_justification_exits_2(gaia_package: FixturePackage) -> None:
