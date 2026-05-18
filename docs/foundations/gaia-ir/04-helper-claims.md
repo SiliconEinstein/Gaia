@@ -37,7 +37,7 @@ Knowledge(type=claim)
 
 ## 2. 当前范围
 
-当前 contract 下，helper claim 主要包括以下结构型结果。其中 **expression 类**（`negation_result` / `conjunction_result` / `disjunction_result`）也是 `gaia.engine.ir.knowledge.STRUCTURAL_EXPRESSION_HELPER_KINDS` frozenset 的成员，由 `is_structural_expression_helper(...)` 标记为 **non-reviewable**（来自废弃的 `~A` / `A & B` / `A | B` 快捷写法的兼容路径）；**relation 类**（`equivalence_result` / `contradiction_result` / `complement_result`）默认参与 review manifest。
+当前 contract 下，helper claim 主要包括以下结构型结果。其中 **expression 类**（`negation_result` / `conjunction_result` / `disjunction_result`）也是 `gaia.engine.ir.knowledge.STRUCTURAL_EXPRESSION_HELPER_KINDS` frozenset 的成员，由 `is_structural_expression_helper(...)` 标记为 **non-reviewable**（来自废弃的兼容函数 `not_(A)` / `and_(A, B)` / `or_(A, B)`）；现代 `~A` / `A & B` / `A | B` 快捷写法只返回 Formula AST，不直接生成 helper claim。**relation 类**（`equivalence_result` / `contradiction_result` / `complement_result`）默认参与 review manifest。
 
 | helper_kind | 来源 | 例子 | reviewable |
 |-------------|------|------|------------|

@@ -454,15 +454,17 @@ This is what eliminates the duplicate-numbers pain: numbers live in Variable def
 
 ### 8.1 What must change
 
-Today's helper-creating DSL functions are subsumed by formula AST. When a
-formula refers to an existing claim, wrap the claim in `ClaimAtom(...)`; raw
-`Claim` objects are not formula leaves.
+Today's helper-creating DSL functions are subsumed by formula AST. `ClaimAtom`
+remains the canonical AST bridge for referring to an existing claim, but
+propositional connectives now accept raw `Claim` operands and coerce them to
+`ClaimAtom(...)` as authoring sugar. Raw `Claim` objects are accepted only at
+propositional connective boundaries; term-level predicates stay strict.
 
 | Today (v0.5) | Tomorrow (v0.6) |
 |---|---|
-| `helper = and_(P, Q)` | `claim(..., formula=land(ClaimAtom(P), ClaimAtom(Q)))` |
-| `helper = or_(P, Q)` | `claim(..., formula=lor(ClaimAtom(P), ClaimAtom(Q)))` |
-| `helper = not_(P)` | `claim(..., formula=lnot(ClaimAtom(P)))` |
+| `helper = and_(P, Q)` | `claim(..., formula=land(P, Q))` or `claim(..., formula=P & Q)` |
+| `helper = or_(P, Q)` | `claim(..., formula=lor(P, Q))` or `claim(..., formula=P \| Q)` |
+| `helper = not_(P)` | `claim(..., formula=~P)` |
 | `helper = contradiction(P, Q, prior=0.99)` | `claim(..., formula=lnot(land(ClaimAtom(P), ClaimAtom(Q))), prior=0.99)` |
 | `helper = equivalence(P, Q, prior=0.99)` | `claim(..., formula=iff(ClaimAtom(P), ClaimAtom(Q)), prior=0.99)` |
 | `helper = complement(P, Q)` | `claim(..., formula=lnot(iff(ClaimAtom(P), ClaimAtom(Q))))` (XOR) |

@@ -2,8 +2,6 @@ import pytest
 
 from gaia.engine.lang import Claim
 from gaia.engine.lang.compat import and_, or_
-from gaia.engine.lang.compiler import compile_package_artifact
-from gaia.engine.lang.runtime.package import CollectedPackage
 
 pytestmark = pytest.mark.legacy_dsl
 
@@ -14,26 +12,15 @@ def test_claim_boolean_truth_value_is_not_allowed():
         bool(a)
 
 
-def test_claim_logical_operator_overloads_create_expression_helpers():
-    a = Claim("A.")
-    b = Claim("B.")
-
-    with pytest.warns(DeprecationWarning, match="not_\\(\\) is deprecated"):
-        not_a = ~a
-    with pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"):
-        both = a & b
-    with pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"):
-        either = a | b
-
-    assert not_a.metadata["helper_kind"] == "negation_result"
-    assert both.metadata["helper_kind"] == "conjunction_result"
-    assert either.metadata["helper_kind"] == "disjunction_result"
-    assert not_a.metadata["review"] is False
-    assert both.metadata["review"] is False
-    assert either.metadata["review"] is False
-
-
 def test_explicit_and_or_functions_accept_multiple_claims():
+    """``and_``/``or_`` remain available as deprecated v5-compat functions.
+
+    They still return helper Claim nodes (the legacy shape) and still emit
+    ``DeprecationWarning`` so explicit callers learn to migrate to
+    ``claim(formula=land(...))``. The modern dunder operators ``~ & |`` no
+    longer route through these helpers; see ``test_formula_claim_sugar.py``
+    for their Formula-returning behavior.
+    """
     a = Claim("A.")
     b = Claim("B.")
     c = Claim("C.")
@@ -59,31 +46,3 @@ def test_propositional_functions_reject_non_claim_inputs():
         pytest.raises(TypeError, match="Claim"),
     ):
         or_(a, object())
-
-
-def test_compile_propositional_expression_helpers_to_nonreviewed_operators():
-    with CollectedPackage("prop_pkg") as pkg:
-        a = Claim("A.")
-        a.label = "a"
-        b = Claim("B.")
-        b.label = "b"
-        with pytest.warns(DeprecationWarning, match="not_\\(\\) is deprecated"):
-            not_a = ~a
-        not_a.label = "not_a"
-        with pytest.warns(DeprecationWarning, match="and_\\(\\) is deprecated"):
-            both = a & b
-        both.label = "both"
-        with pytest.warns(DeprecationWarning, match="or_\\(\\) is deprecated"):
-            either = a | b
-        either.label = "either"
-
-    compiled = compile_package_artifact(pkg)
-    by_conclusion = {op.conclusion: op for op in compiled.graph.operators}
-
-    assert by_conclusion["github:prop_pkg::not_a"].operator == "negation"
-    assert by_conclusion["github:prop_pkg::not_a"].variables == ["github:prop_pkg::a"]
-    assert by_conclusion["github:prop_pkg::both"].operator == "conjunction"
-    assert by_conclusion["github:prop_pkg::either"].operator == "disjunction"
-    assert all("action_label" not in (op.metadata or {}) for op in compiled.graph.operators)
-    assert compiled.review is not None
-    assert compiled.review.reviews == []

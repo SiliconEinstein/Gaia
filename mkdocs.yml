@@ -78,6 +78,7 @@ nav:
           - Related Systems: foundations/ecosystem/07-related-systems.md
       - Gaia Lang Design:
           - Knowledge And Reasoning: foundations/gaia-lang/knowledge-and-reasoning.md
+          - Formula Logic: foundations/gaia-lang/formula-logic.md
           - Predicate Logic: foundations/gaia-lang/predicate-logic.md
           - Bayes Semantics: foundations/gaia-lang/bayes.md
           - Package Model: foundations/gaia-lang/package.md
@@ -94,6 +95,7 @@ nav:
           - Belief State: foundations/bp/belief-state.md
           - Formal Strategy Lowering: foundations/bp/formal-strategy-lowering.md
           - Inference: foundations/bp/inference.md
+          - Diagnostic Probabilities: foundations/bp/diagnostic-probabilities.md
           - Choosing An Algorithm: foundations/bp/choosing-algorithm.md
           - Local Vs Global: foundations/bp/local-vs-global.md
           - Potentials: foundations/bp/potentials.md

@@ -224,17 +224,20 @@ hypothesis predicts the observed data better?"
 
 ```python
 import gaia.engine.bayes as bayes
-from gaia.engine.lang import Constant, Nat, Probability, Variable, claim, equals, observe, parameter
+from gaia.engine.lang import Nat, Probability, Variable, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
-k = Variable(symbol="k", domain=Nat, value=295)
+k = Variable(symbol="k", domain=Nat)
 n = 395
 
 h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.")
 h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.")
 
-data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
-observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
+data = bayes.data(
+    k,
+    value=295,
+    rationale="F2 count table reports 295 dominant phenotypes.",
+)
 
 model_3_1 = bayes.model(
     h_3_1,
@@ -538,17 +541,20 @@ like "which hypothesis makes this count, measurement, or dataset more likely?"
 
 ```python
 import gaia.engine.bayes as bayes
-from gaia.engine.lang import Constant, Nat, Probability, Variable, claim, equals, observe, parameter
+from gaia.engine.lang import Nat, Probability, Variable, parameter
 
 theta = Variable(symbol="theta", domain=Probability)
-k = Variable(symbol="k", domain=Nat, value=295)
+k = Variable(symbol="k", domain=Nat)
 n = 395
 
 h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.")
 h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.")
 
-data = claim("Observed k = 295 dominant plants.", formula=equals(k, Constant(295, Nat)))
-observe(data, rationale="F2 count table reports 295 dominant phenotypes.")
+data = bayes.data(
+    k,
+    value=295,
+    rationale="F2 count table reports 295 dominant phenotypes.",
+)
 
 model_3_1 = bayes.model(
     h_3_1,
@@ -593,32 +599,36 @@ records, or deterministic relation helpers.
 
 ### Structured formula replacements
 
-For new packages, prefer explicit formula claims when you need a structural
-Boolean expression over existing claims. Wrap referenced claims in `ClaimAtom`
-so the compiler can connect the formula truth variable to the existing IR node.
+For new packages, prefer formula claims when you need a structural Boolean
+expression over existing claims. Propositional connectives auto-wrap referenced
+`Claim` operands as `ClaimAtom(...)`, so the compiler can connect the formula
+truth variable to the existing IR node without extra boilerplate. You can still
+write `ClaimAtom(...)` explicitly when you want the bridge to be visible.
 
 ```python
-from gaia.engine.lang import ClaimAtom, claim, land, lnot, lor
+from gaia.engine.lang import ClaimAtom, claim, land, lor
 
 not_classical = claim(
     "The classical prediction does not hold.",
-    formula=lnot(ClaimAtom(classical_prediction)),
+    formula=~classical_prediction,
 )
 joint_case = claim(
     "Both pieces of evidence hold.",
-    formula=land(ClaimAtom(evidence_a), ClaimAtom(evidence_b)),
+    formula=land(evidence_a, evidence_b),  # equivalent to evidence_a & evidence_b
 )
 either_mechanism = claim(
     "At least one mechanism holds.",
-    formula=lor(ClaimAtom(mech_a), ClaimAtom(mech_b)),
+    formula=lor(ClaimAtom(mech_a), ClaimAtom(mech_b)),  # explicit bridge still works
 )
 ```
 
-The legacy shortcuts `~a`, `a & b`, `a | b`, `not_(a)`, `and_(...)`, and
-`or_(...)` still compile to structural helper claims, but they now emit
-`DeprecationWarning`. Python keywords `not`, `and`, and `or` still cannot be
-overloaded, and `Claim` objects intentionally reject truth-value checks such as
-`if claim:`.
+The modern `Claim` shortcuts `~a`, `a & b`, and `a | b` return Formula nodes and
+do not emit `DeprecationWarning`. They do not create first-class `Claim` nodes
+until you wrap them in `claim(..., formula=...)`. The deprecated function-call
+helpers `not_(a)`, `and_(...)`, and `or_(...)` remain compatibility-only: they
+still compile to structural helper claims and still emit `DeprecationWarning`.
+Python keywords `not`, `and`, and `or` still cannot be overloaded, and `Claim`
+objects intentionally reject truth-value checks such as `if claim:`.
 
 ### First-order quantifiers
 
@@ -802,7 +812,7 @@ from gaia.engine.lang.compat import (
 | `composite(..., sub_strategies=[...])` | Plain `derive(...)` chains plus `@compose` for the workflow boundary | Sub-strategy priors are no longer the v0.5 surface for soft leaves; use `infer(...)` / `bayes.likelihood(...)` instead. |
 | `infer([premises], conclusion, ...)` (legacy positional) | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` | The legacy positional form is preserved as a deprecated path; the keyword form is the v0.5 contract. |
 | `contradiction(a, b)` / `equivalence(a, b)` / `complement(a, b)` | `contradict(a, b)` / `equal(a, b)` / `exclusive(a, b)` | The relation-verb forms appear in review manifests and emit reviewable warrant helpers. |
-| `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | `lor(...)` / `land(...)` / `lnot(...)` formula helpers, or explicit `Operator(disjunction, ...)` | Formula AST is the v0.5 way to express structural Boolean expressions. |
+| `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | `claim(..., formula=lor(...))` / `claim(..., formula=land(...))` / `claim(..., formula=lnot(...))`, or the dunder formula sugar `a \| b`, `a & b`, `~a` | Formula AST is the v0.5 way to express structural Boolean expressions; dunders now return Formula nodes, not legacy helper claims. |
 | `noisy_and(...)` | `derive(...)` for deterministic conjunction; `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence aggregation | Currently delegates to legacy `support()`. |
 
 `fills(...)` (cross-package interface bridging) is still the v0.5 surface for

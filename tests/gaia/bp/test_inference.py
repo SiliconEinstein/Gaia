@@ -233,6 +233,17 @@ class TestJunctionTree:
         assert isinstance(result, TRWResult)
         assert 0 < result.beliefs["A"] < 1
 
+    def test_no_factors_reports_zero_treewidth(self):
+        fg = FactorGraph()
+        fg.add_variable("A", 0.7)
+        fg.add_variable("B", 0.3)
+
+        result = JunctionTreeInference().run(fg)
+
+        assert result.beliefs == {"A": pytest.approx(0.7), "B": pytest.approx(0.3)}
+        assert result.diagnostics.converged is True
+        assert result.diagnostics.treewidth == 0
+
     def test_jt_matches_exact(self):
         fg = _diamond_graph()
         exact_beliefs, _ = exact_inference(fg)

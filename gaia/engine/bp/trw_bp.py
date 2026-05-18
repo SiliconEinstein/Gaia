@@ -43,7 +43,7 @@ from __future__ import annotations
 import heapq
 from dataclasses import dataclass, field
 from itertools import product as cartesian_product
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -234,6 +234,62 @@ def _compute_beliefs_trw(
     return beliefs
 
 
+def _compute_factor_joint_tables(
+    graph: FactorGraph,
+    v2f_msgs: dict[tuple[str, int], Msg],
+    rho: dict[int, float],
+) -> list[dict[str, Any]]:
+    """Compute normalized factor-scope pseudo-joints from current TRW messages.
+
+    Gaia records the factor belief convention
+    ``b_f(x_f) ∝ psi_f(x_f) * prod_v m_{v->f}(x_v)``. The tree-reweighting
+    factor weight ``rho_f`` is already baked into message updates, so this
+    diagnostic table deliberately does not raise ``psi_f`` to ``1 / rho_f``.
+    """
+    tables: list[dict[str, Any]] = []
+
+    for fi, factor in enumerate(graph.factors):
+        variables = [variable for variable in factor.all_vars if variable in graph.variables]
+        if not variables:
+            continue
+
+        rho_f = rho.get(fi, 1.0)
+        probabilities: list[float] = []
+        for assignment_index in range(1 << len(variables)):
+            assignment = {
+                variable: (assignment_index >> bit) & 1 for bit, variable in enumerate(variables)
+            }
+            potential = evaluate_potential(factor, assignment)
+            if potential <= 0.0:
+                probabilities.append(0.0)
+                continue
+
+            # Keep the recorded pseudo-joint on the message convention above;
+            # do not reweight the potential again at diagnostic extraction time.
+            weight = float(potential)
+            for variable, value in assignment.items():
+                v2f = v2f_msgs.get((variable, fi))
+                if v2f is not None:
+                    weight *= float(v2f[value])
+            probabilities.append(weight)
+
+        total = sum(probabilities)
+        if total <= 0.0:
+            continue
+
+        tables.append(
+            {
+                "factor_index": fi,
+                "factor_id": factor.factor_id,
+                "variables": variables,
+                "rho": float(rho_f),
+                "probabilities": [probability / total for probability in probabilities],
+            }
+        )
+
+    return tables
+
+
 # ---------------------------------------------------------------------------
 # Diagnostics
 # ---------------------------------------------------------------------------
@@ -250,6 +306,7 @@ class TRWDiagnostics:
     direction_changes: dict[str, int] = field(default_factory=dict)
     rho: float = 1.0  # factor weight used (uniform scheme)
     treewidth: int | None = None  # junction tree width (JT only)
+    factor_joint_tables: list[dict[str, Any]] = field(default_factory=list)
 
     def compute_direction_changes(self) -> None:
         """Compute direction changes in belief updates for oscillation detection."""
@@ -349,6 +406,8 @@ class TRWBeliefPropagation:
                     beliefs[vid] = graph.unary_factors.get(vid, 0.5)
             for vid, b in beliefs.items():
                 diag.belief_history[vid] = [b]
+            diag.converged = True
+            diag.factor_joint_tables = []
             return TRWResult(beliefs=beliefs, diagnostics=diag)
 
         var_to_factors = graph.get_var_to_factors()
@@ -459,12 +518,14 @@ class TRWBeliefPropagation:
                 diag.iterations_run = iteration + 1
                 diag.max_change_at_stop = max_change
                 diag.compute_direction_changes()
+                diag.factor_joint_tables = _compute_factor_joint_tables(graph, v2f_msgs, rho)
                 return TRWResult(beliefs=beliefs, diagnostics=diag)
 
         diag.converged = False
         diag.iterations_run = self._max_iter
         diag.max_change_at_stop = max_change
         diag.compute_direction_changes()
+        diag.factor_joint_tables = _compute_factor_joint_tables(graph, v2f_msgs, rho)
         return TRWResult(beliefs=prev_beliefs, diagnostics=diag)
 
     def _run_residual(  # noqa: C901
@@ -590,4 +651,5 @@ class TRWBeliefPropagation:
         diag.iterations_run = total_updates // check_interval
         diag.max_change_at_stop = max_change
         diag.compute_direction_changes()
+        diag.factor_joint_tables = _compute_factor_joint_tables(graph, v2f_msgs, rho)
         return TRWResult(beliefs=beliefs, diagnostics=diag)

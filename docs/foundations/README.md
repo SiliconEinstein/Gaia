@@ -41,6 +41,7 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 ## Gaia Lang — 编著语言设计
 
 - [知识类型与推理语义](gaia-lang/knowledge-and-reasoning.md) — Gaia Lang 的心智模型、Action 层、helper claim 和 legacy 边界
+- [Formula Logic](gaia-lang/formula-logic.md) — `claim(formula=...)`、FormulaGraph、formula diagnostics 与 BP/probability 的分工
 - [谓词逻辑](gaia-lang/predicate-logic.md) — Variable、Domain、Formula AST、forall/exists 与 grounding/lowering 边界
 - [Bayes 语义](gaia-lang/bayes.md) — 模型、预测分布、似然和 Bayes action 的语义边界
 - [包模型](gaia-lang/package.md) — pyproject.toml、命名规范、目录布局、priors.py
@@ -62,6 +63,7 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 
 - [因子势函数](bp/potentials.md) — 各因子类型的势函数
 - [推理](bp/inference.md) — BP 算法应用于 Gaia IR
+- [Diagnostic Probabilities](bp/diagnostic-probabilities.md) — 用 joint query 为 logic warning 计算 reviewer-facing 概率
 - [局部与全局](bp/local-vs-global.md) — CLI 局部推理 vs LKM 全局推理
 - [BeliefState](bp/belief-state.md) — BP 输出、可重现性
 

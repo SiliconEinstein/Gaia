@@ -201,7 +201,7 @@ a `DeprecationWarning`.
 | `analogy(...)` / `extrapolation(...)` / `elimination(...)` / `case_analysis(...)` / `mathematical_induction(...)` | Author the deterministic skeleton with `derive(...)` plus relation verbs |
 | `noisy_and(...)` | `derive(...)` for deterministic conjunction, or `infer(...)` / `bayes.likelihood(...)` for probabilistic evidence links |
 | `contradiction(a, b)` / `equivalence(a, b)` / `complement(a, b)` | `contradict(a, b)` / `equal(a, b)` / `exclusive(a, b)` |
-| `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | Formula AST helpers such as `lor(...)`, `land(...)`, and `lnot(...)` |
+| `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | Formula claims such as `claim(..., formula=lor(...))`, `claim(..., formula=land(...))`, and `claim(..., formula=lnot(...))`; `a \| b`, `a & b`, and `~a` are Formula-returning sugar |
 
 See `docs/foundations/gaia-lang/knowledge-and-reasoning.md` §7 for the fuller
 compatibility surface and the reasoning contract behind each replacement.
