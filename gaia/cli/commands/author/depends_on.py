@@ -136,7 +136,6 @@ def depends_on_command(
     r"""Append a ``depends_on(...)`` scaffold dependency.
 
     Example:
-
         gaia author depends-on --conclusion my_big_claim \
             --given my_small_claim_a,my_small_claim_b \
             --dsl-binding-name my_dependency

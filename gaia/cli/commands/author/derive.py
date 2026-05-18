@@ -230,7 +230,6 @@ def derive_command(
     r"""Append a ``derive(conclusion, given=[...])`` support relation.
 
     Example:
-
         gaia author derive --conclusion-content "B follows from A." \
             --given my_claim_a \
             --dsl-binding-name my_derivation \

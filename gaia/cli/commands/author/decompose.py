@@ -193,7 +193,6 @@ def decompose_command(
     r"""Append a ``decompose(whole, parts=..., formula=...)`` decomposition.
 
     Example:
-
         gaia author decompose --whole my_composite \
             --parts my_atom_a,my_atom_b \
             --formula-template and \

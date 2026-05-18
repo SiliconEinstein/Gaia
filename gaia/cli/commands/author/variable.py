@@ -176,7 +176,6 @@ def variable_command(
     r"""Append a ``Variable(...)`` or ``Constant(...)`` typed-term declaration.
 
     Example:
-
         gaia author variable --symbol my_n --domain Nat --value 395 \
             --dsl-binding-name my_count
     """

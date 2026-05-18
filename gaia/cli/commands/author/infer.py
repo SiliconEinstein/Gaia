@@ -214,7 +214,6 @@ def infer_command(
     r"""Append an ``infer(...)`` Bayesian-inference statement.
 
     Example:
-
         gaia author infer --evidence my_evidence \
             --hypothesis my_hypothesis --p-e-given-h 0.7 \
             --dsl-binding-name my_inference --label my_inference

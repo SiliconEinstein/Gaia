@@ -118,7 +118,6 @@ def question_command(
     r"""Append a ``question(...)`` research-question statement.
 
     Example:
-
         gaia author question "Does X cause Y?" \
             --dsl-binding-name rq_x_causes_y \
             --targets my_hypothesis_x,my_hypothesis_y

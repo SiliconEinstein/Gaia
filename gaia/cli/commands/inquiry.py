@@ -193,7 +193,7 @@ def obligation_add(
     kind: str = typer.Option("other", "--kind", help="Diagnostic kind."),
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
-    """Add a synthetic obligation for an inquiry target.
+    r"""Add a synthetic obligation for an inquiry target.
 
     Records a "what must be shown" note against a target QID — a
     ProofState-style obligation visible in the inquiry review report.
@@ -208,8 +208,8 @@ def obligation_add(
 
     .. code-block:: bash
 
-        gaia inquiry obligation add my_claim \\
-            -c "Show the prior is justified by the cited evidence." \\
+        gaia inquiry obligation add my_claim \
+            -c "Show the prior is justified by the cited evidence." \
             --kind prior_hole
     """
     if kind not in VALID_OBLIGATION_KINDS:
@@ -312,7 +312,7 @@ def hypothesis_add(
     scope: str | None = typer.Option(None, "--scope", help="Scope QID."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """Add a working hypothesis to inquiry state.
+    r"""Add a working hypothesis to inquiry state.
 
     Records a tentative hypothesis the agent wants to track during
     inquiry without committing it to the DSL / IR. Pure state.json
@@ -325,7 +325,7 @@ def hypothesis_add(
     .. code-block:: bash
 
         gaia inquiry hypothesis add "The prior is robust to ±10% perturbation."
-        gaia inquiry hypothesis add "Bayes factor > 10 under diffuse alt." \\
+        gaia inquiry hypothesis add "Bayes factor > 10 under diffuse alt." \
             --scope my_claim_id
     """
     state = load_state(path)
@@ -414,7 +414,7 @@ def reject_command(
     content: str = typer.Option(..., "-c", "--content", help="Reason."),
     path: str = typer.Option(".", "--path"),
 ) -> None:
-    """Record a synthetic rejection for a strategy.
+    r"""Record a synthetic rejection for a strategy.
 
     Annotates a strategy with a free-text rejection note (e.g. "the
     cited evidence does not actually support this", "argument is
@@ -426,7 +426,7 @@ def reject_command(
 
     .. code-block:: bash
 
-        gaia inquiry reject my_strategy_label \\
+        gaia inquiry reject my_strategy_label \
             -c "Premise A is not yet established."
     """
     state = load_state(path)

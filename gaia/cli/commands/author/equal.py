@@ -144,7 +144,6 @@ def equal_command(
     r"""Append an ``equal(a, b, ...)`` structural relation.
 
     Example:
-
         gaia author equal --a my_claim_a --b my_claim_b \
             --dsl-binding-name my_equivalence --label my_equivalence
     """

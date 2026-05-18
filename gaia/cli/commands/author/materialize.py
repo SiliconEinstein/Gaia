@@ -149,7 +149,6 @@ def materialize_command(
     r"""Append a ``materialize(scaffold, by=...)`` scaffold-to-formal-record link.
 
     Example:
-
         gaia author materialize --scaffold my_maybe_equal \
             --by my_formal_equal --dsl-binding-name my_materialization
     """

@@ -143,7 +143,6 @@ def compute_command(
     r"""Append a ``compute(...)`` deterministic-computation statement.
 
     Example:
-
         gaia author compute --conclusion-type Probability \
             --fn my_compute_prob --given my_hypothesis_x \
             --dsl-binding-name my_result --label my_result

@@ -174,7 +174,6 @@ def register_prior_command(
     r"""Append a ``register_prior(...)`` prior-registration statement.
 
     Example:
-
         gaia author register-prior --claim my_hypothesis --value 0.7 \
             --justification "Prior elicited from domain expert."
     """

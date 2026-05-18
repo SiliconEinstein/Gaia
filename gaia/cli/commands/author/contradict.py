@@ -120,7 +120,6 @@ def contradict_command(
     r"""Append a ``contradict(a, b, ...)`` structural relation.
 
     Example:
-
         gaia author contradict --a my_claim_a --b my_claim_b \
             --dsl-binding-name my_contradiction --label my_contradiction
     """

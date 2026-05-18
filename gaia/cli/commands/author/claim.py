@@ -243,11 +243,10 @@ def claim_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    """Append a ``claim(...)`` Knowledge declaration.
+    r"""Append a ``claim(...)`` Knowledge declaration.
 
     Example:
-
-        gaia author claim "The reaction is fast." \\
+        gaia author claim "The reaction is fast." \
             --dsl-binding-name fast_reaction --prior 0.7
     """
     del json_  # JSON-vs-human is governed by `--human`; --json is a courtesy alias.

@@ -51,7 +51,9 @@ def _is_valid_identifier(s: str) -> bool:
     return all(ch in _IDENT_OK for ch in s)
 
 
-def _resolve_module(from_: str, default_package: str | None) -> tuple[str | None, str | None]:
+def _resolve_module(  # noqa: C901
+    from_: str, default_package: str | None
+) -> tuple[str | None, str | None]:
     """Resolve ``--from`` into a fully-qualified module string.
 
     A bare identifier (``probabilities``) becomes ``<default_package>.<name>``
@@ -95,7 +97,9 @@ def _resolve_module(from_: str, default_package: str | None) -> tuple[str | None
     if not _is_valid_identifier(cleaned):
         return None, f"--from {cleaned!r} is not a valid Python identifier"
     if default_package is None:
-        return None, "--from used bare-identifier form but target package import name is unavailable"
+        return None, (
+            "--from used bare-identifier form but target package import name is unavailable"
+        )
     return f"{default_package}.{cleaned}", None
 
 

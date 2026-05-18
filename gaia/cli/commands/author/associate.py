@@ -140,7 +140,6 @@ def associate_command(
     r"""Append an ``associate(...)`` probabilistic-association statement.
 
     Example:
-
         gaia author associate --a my_claim_a --b my_claim_b \
             --p-a-given-b 0.9 --p-b-given-a 0.6 \
             --dsl-binding-name my_association

@@ -490,8 +490,9 @@ def _extend_engine_lang_import(
     target_node: ast.ImportFrom,
     missing: list[str],
 ) -> str:
-    """Replace ``target_node``'s text span with a new import line carrying
-    the union of the existing names and ``missing``.
+    """Replace ``target_node``'s text span with a new import line.
+
+    The new line carries the union of the existing names and ``missing``.
     """
     combined = sorted({alias.asname or alias.name for alias in target_node.names} | set(missing))
     new_line = _render_engine_lang_import(combined)

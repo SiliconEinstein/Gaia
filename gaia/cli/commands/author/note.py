@@ -102,7 +102,6 @@ def note_command(
     r"""Append a ``note(...)`` background statement.
 
     Example:
-
         gaia author note "Earlier work established the setup." \
             --dsl-binding-name background_setup --title "Setup background"
     """

@@ -141,7 +141,6 @@ def candidate_relation_command(
     r"""Append a ``candidate_relation(...)`` scaffold-tier hypothesised relation.
 
     Example:
-
         gaia author candidate-relation \
             --claims my_claim_a,my_claim_b,my_claim_c \
             --pattern equal --dsl-binding-name my_maybe_equal

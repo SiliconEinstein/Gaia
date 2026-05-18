@@ -161,7 +161,6 @@ def parameter_command(
     r"""Append a ``parameter(...)`` Variable-to-value binding.
 
     Example:
-
         gaia author parameter --variable my_theta --value 0.5 \
             --dsl-binding-name my_theta_default --prior 0.5
     """

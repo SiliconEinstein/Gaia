@@ -121,7 +121,6 @@ def exclusive_command(
     r"""Append an ``exclusive(a, b, ...)`` closed-partition statement.
 
     Example:
-
         gaia author exclusive --a my_outcome_a --b my_outcome_b \
             --dsl-binding-name my_partition
     """

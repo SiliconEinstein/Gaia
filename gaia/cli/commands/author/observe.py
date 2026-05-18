@@ -225,7 +225,7 @@ def _render_observe_statement(
     return f"{binding_name} = {call}"
 
 
-def observe_command(
+def observe_command(  # noqa: C901
     label: str | None = typer.Option(
         None,
         "--label",
@@ -347,7 +347,6 @@ def observe_command(
     r"""Append an ``observe(...)`` measurement event.
 
     Example:
-
         gaia author observe --conclusion my_distribution \
             --value 203 --error 5 \
             --dsl-binding-name temperature_obs --label temperature_obs
