@@ -141,9 +141,9 @@ def claim_command(
         help=(
             "Comma-separated identifiers to whitelist inside the formula "
             "sandbox (no effect when --formula / --predicate is absent). "
-            "R9 #1 — references are NOT rendered into the claim's "
-            "`background=` kwarg. Use --background for that. Typical "
-            "shape: `--references f2_total_count,f2_dominant_count "
+            "References are NOT rendered into the claim's `background=` "
+            "kwarg — use --background for that. Typical shape: "
+            "`--references f2_total_count,f2_dominant_count "
             "--formula 'equals(f2_total_count, Constant(395, Nat))'`."
         ),
     ),
@@ -154,7 +154,8 @@ def claim_command(
             "Comma-separated Knowledge identifiers passed to the rendered "
             "claim's `background=[...]` kwarg. Pre-write resolves each "
             "identifier in module scope. Independent of --references "
-            "(R9 #1 — split from --references in R9)."
+            "(--references is sandbox-only and not rendered into the "
+            "claim call)."
         ),
     ),
     predicate: str | None = typer.Option(
@@ -190,7 +191,7 @@ def claim_command(
     interactive: bool = typer.Option(
         False,
         "--interactive",
-        help="Prompt on pre-write warnings (no-op in R1; reserved for R2).",
+        help="Prompt on pre-write warnings (currently a no-op; reserved for future use).",
     ),
     json_: bool = typer.Option(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."

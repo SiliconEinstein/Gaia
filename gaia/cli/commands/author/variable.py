@@ -106,12 +106,13 @@ def variable_command(
         None,
         "--value",
         help=(
-            "Bound value (literal, identifier, or expression). Forwarded "
-            "verbatim (e.g. `--value 395`, `--value 0.75`, `--value True`). "
-            "R9 #4 — a bare Python identifier (`--value DOMINANT_COUNT`) "
-            "is also resolved against module scope so authors can reference "
-            "imported constants (e.g. from a sibling `probabilities.py`). "
-            "For Constant this is required."
+            "Bound value: numeric literal (`--value 395`), boolean / None "
+            "(`--value True`), or a bare Python identifier "
+            "(`--value DOMINANT_COUNT`) resolved against the package's "
+            "module scope so authors can reference imported constants "
+            "(e.g. from a sibling `probabilities.py`). Required for "
+            "Constant; arbitrary Python expressions are refused at the "
+            "flag boundary."
         ),
     ),
     content: str | None = typer.Option(

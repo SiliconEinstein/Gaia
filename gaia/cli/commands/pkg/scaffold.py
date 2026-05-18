@@ -429,7 +429,7 @@ def scaffold_command(
     interactive: bool = typer.Option(
         False,
         "--interactive",
-        help="Prompt on pre-write warnings (no-op for scaffold — R2 emits no warnings).",
+        help="Prompt on pre-write warnings (no-op for scaffold — it emits no warnings).",
     ),
     json_: bool = typer.Option(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."

@@ -113,10 +113,10 @@ def register_prior_command(
         None,
         "--source-id",
         help=(
-            "Source identifier. Defaults to the engine's `user_priors`; when "
-            "omitted on the cli, the rendered call omits the `source_id=` "
-            "kwarg so the engine default applies (R9 #3 — matches the hand-"
-            "authored pattern of relying on the default). Engines use "
+            "Source identifier. Defaults to the engine's `user_priors`; "
+            "when omitted on the cli, the rendered call omits the "
+            "`source_id=` kwarg so the engine default applies (matches "
+            "the hand-authored omit-when-default pattern). Engines use "
             "namespaced ids (e.g. `continuous_inference`, `reviewer_alice`)."
         ),
     ),

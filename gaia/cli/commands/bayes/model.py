@@ -101,7 +101,7 @@ def model_command(
             "Distribution binding. Accepts either (a) a bare identifier "
             "of a Distribution binding (created via `bayes binomial` / "
             "`bayes normal` / ...) — resolved in module scope, or "
-            "(b) R9 #2: an inline Distribution expression like "
+            "(b) an inline Distribution expression like "
             "`bayes.Binomial(n=395, p=3/4)` — validated via the formula "
             "sandbox and emitted verbatim into the `distribution=` slot."
         ),

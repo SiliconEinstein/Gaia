@@ -105,7 +105,7 @@ def equal_command(
     interactive: bool = typer.Option(
         False,
         "--interactive",
-        help="Prompt on pre-write warnings (no-op in R1; reserved for R2).",
+        help="Prompt on pre-write warnings (currently a no-op; reserved for future use).",
     ),
     json_: bool = typer.Option(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
