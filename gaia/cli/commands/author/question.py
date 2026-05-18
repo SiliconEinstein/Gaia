@@ -18,10 +18,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -106,7 +107,16 @@ def question_command(
         emit_syntax_error("question", metadata_error, target=str(target), human=human)
         return
 
-    target_list = split_csv(targets)
+    target_list, target_error = split_csv_idents(targets)
+    if target_error:
+        emit_syntax_error(
+            "question",
+            f"--targets rejected: {target_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     generated_code = _render_question_statement(
         label=label,
         content=content,
@@ -114,6 +124,7 @@ def question_command(
         targets=target_list,
         metadata=metadata_dict,
     )
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="question",
         kind="reasoning",
@@ -121,7 +132,8 @@ def question_command(
         references=target_list,
         generated_code=generated_code,
         required_imports=("question",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(target_list, target_file=target_file),
     )
     run_author_op(
         proposed_op,

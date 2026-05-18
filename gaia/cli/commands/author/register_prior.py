@@ -29,9 +29,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
+    validate_identifier_flag,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -166,6 +168,11 @@ def register_prior_command(
         )
         return
 
+    if not validate_identifier_flag(
+        claim, verb="register_prior", flag="--claim", target=str(target), human=human
+    ):
+        return
+
     # R9 #3 — emit ``source_id=`` only when the caller passed
     # ``--source-id`` explicitly (any value, including ``user_priors`` if
     # that was the explicit choice). When omitted on the cli, render
@@ -182,17 +189,13 @@ def register_prior_command(
         metadata=metadata_dict,
         comment_label=statement_label,
     )
-    # R7 G1: register_prior may now target a sibling file (e.g. priors.py)
-    # so it matches the hand-authored pattern where prior records live
-    # alongside __init__.py rather than inside it. When writing to a
-    # sibling, the referenced ``claim`` identifier must be imported from
-    # the package — declare a sibling_imports entry so the writer adds
-    # ``from <import_name> import <claim>`` if missing.
-    sibling_imports: tuple[tuple[str, str], ...] = ()
+    # R7 G1 + R10 Axis 2 — register_prior may target a sibling file (e.g.
+    # priors.py); the shared ``build_sibling_imports`` helper now wires
+    # the cross-file import. Tuple is empty when target_file is None or
+    # ``__init__.py`` (the helper short-circuits) so the historic
+    # default-file behaviour is unchanged.
     target_file = normalize_file_option(file)
-    if target_file and target_file != "__init__.py":
-        sibling_imports = ((claim, ""),)  # package name filled in by writer
-
+    references = [claim]
     proposed_op = ProposedAuthorOp(
         verb="register_prior",
         kind="reasoning",
@@ -200,11 +203,11 @@ def register_prior_command(
         # in place. Pre-write skips the label-collision invariant when
         # label is None (see _prewrite._validate_label_collision).
         label=None,
-        references=[claim],
+        references=references,
         generated_code=generated_code,
         required_imports=("register_prior",),
         target_file=target_file,
-        sibling_imports=sibling_imports,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

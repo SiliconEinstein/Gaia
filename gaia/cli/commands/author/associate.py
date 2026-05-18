@@ -29,9 +29,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
+    validate_identifier_flag,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -132,6 +134,15 @@ def associate_command(
         emit_syntax_error("associate", metadata_error, target=str(target), human=human)
         return
 
+    if not validate_identifier_flag(
+        a, verb="associate", flag="--a", target=str(target), human=human
+    ):
+        return
+    if not validate_identifier_flag(
+        b, verb="associate", flag="--b", target=str(target), human=human
+    ):
+        return
+
     generated_code = _render_associate_statement(
         label=label,
         a=a,
@@ -142,14 +153,17 @@ def associate_command(
         rationale=rationale,
         metadata=metadata_dict,
     )
+    target_file = normalize_file_option(file)
+    references = [a, b]
     proposed_op = ProposedAuthorOp(
         verb="associate",
         kind="reasoning",
         label=label,
-        references=[a, b],
+        references=references,
         generated_code=generated_code,
         required_imports=("associate",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

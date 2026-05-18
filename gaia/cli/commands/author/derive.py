@@ -39,7 +39,12 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, normalize_file_option
+from gaia.cli.commands.author._common import (
+    build_sibling_imports,
+    emit_syntax_error,
+    normalize_file_option,
+    split_csv_idents,
+)
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
@@ -61,12 +66,6 @@ def _parse_metadata(metadata_json: str | None) -> tuple[dict[str, Any] | None, s
     if not isinstance(parsed, dict):
         return None, "--metadata must encode a JSON object (got non-object value)"
     return parsed, None
-
-
-def _split_csv(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def _render_derive_statement(
@@ -251,8 +250,26 @@ def derive_command(
         emit(result, human=human)
         return
 
-    given_list = _split_csv(given)
-    background_list = _split_csv(background)
+    given_list, given_error = split_csv_idents(given)
+    if given_error:
+        emit_syntax_error(
+            "derive",
+            f"--given rejected: {given_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "derive",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     if not given_list:
         diag = Diagnostic(
             kind="prewrite.syntax",
@@ -318,6 +335,7 @@ def derive_command(
         metadata=metadata_dict,
         background=background_list,
     )
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="derive",
         kind="reasoning",
@@ -325,7 +343,8 @@ def derive_command(
         references=references,
         generated_code=generated_code,
         required_imports=("derive",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
         prepended_statements=prepended,
         extra_payload={"conclusion_kind": conclusion_kind},
     )

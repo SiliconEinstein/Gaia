@@ -29,10 +29,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -133,8 +134,26 @@ def candidate_relation_command(
         emit_syntax_error("candidate_relation", metadata_error, target=str(target), human=human)
         return
 
-    claim_list = split_csv(claims)
-    background_list = split_csv(background)
+    claim_list, claim_error = split_csv_idents(claims)
+    if claim_error:
+        emit_syntax_error(
+            "candidate_relation",
+            f"--claims rejected: {claim_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "candidate_relation",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     if len(claim_list) < 2:
         emit_syntax_error(
             "candidate_relation",
@@ -161,6 +180,7 @@ def candidate_relation_command(
         metadata=metadata_dict,
     )
     references = [*claim_list, *background_list]
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="candidate_relation",
         kind="scaffold",
@@ -168,7 +188,8 @@ def candidate_relation_command(
         references=references,
         generated_code=generated_code,
         required_imports=("candidate_relation",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

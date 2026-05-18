@@ -48,10 +48,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._prose import build_auto_claim_statement, slugify_label
@@ -240,8 +241,26 @@ def infer_command(
         emit_syntax_error("infer", metadata_error, target=str(target), human=human)
         return
 
-    given_list = split_csv(given)
-    background_list = split_csv(background)
+    given_list, given_error = split_csv_idents(given)
+    if given_error:
+        emit_syntax_error(
+            "infer",
+            f"--given rejected: {given_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "infer",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
 
     # --- resolve hypothesis mode ---------------------------------------- #
     prepended: tuple[tuple[str, str], ...] = ()
@@ -287,6 +306,7 @@ def infer_command(
         # Inline-prose wraps the prose with ``claim(...)`` at the call
         # site, so the target file needs ``claim`` importable.
         required_imports = ("infer", "claim")
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="infer",
         kind="reasoning",
@@ -294,7 +314,8 @@ def infer_command(
         references=references,
         generated_code=generated_code,
         required_imports=required_imports,
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
         prepended_statements=prepended,
         extra_payload={"hypothesis_kind": hypothesis_kind},
     )

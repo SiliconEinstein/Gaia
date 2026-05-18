@@ -119,11 +119,23 @@ def _execute_writes(
     write_target: Path,
     pre_import_name: str | None,
 ) -> _WriteOutcome:
-    """Run the prepended + main writes. Raises OSError/PermissionError on IO fail."""
+    """Run the prepended + main writes. Raises OSError/PermissionError on IO fail.
+
+    R10 Axis 2 §C.2 — prepended statements now land in the **same file**
+    as the main statement (``write_target``), not unconditionally in
+    ``__init__.py`` via ``pre_source_init``. The previous behaviour
+    half-mutated a package when ``--file <sibling>`` was passed: the
+    auto-mint claim went into ``__init__.py`` while the consuming
+    derive/observe/infer statement landed in the sibling, leaving the
+    sibling with an unresolved reference and ``__init__.py`` with an
+    orphan binding. Routing prepended writes to ``write_target`` keeps
+    them next to their consumer.
+    """
+    del pre_source_init  # retained as a kwarg for API symmetry / future use
     written_segments: list[str] = []
     all_warning_messages: list[str] = []
     for _prep_label, prep_code in proposed_op.prepended_statements:
-        prep_write = append_statement(pre_source_init, prep_code, new_label=_prep_label)
+        prep_write = append_statement(write_target, prep_code, new_label=_prep_label)
         written_segments.append(prep_write.appended)
         if prep_write.all_warning:
             all_warning_messages.append(prep_write.all_warning)

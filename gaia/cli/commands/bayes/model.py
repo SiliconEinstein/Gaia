@@ -35,10 +35,12 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
+    validate_identifier_flag,
 )
 from gaia.cli.commands.author._formula_sandbox import (
     FormulaSandboxError,
@@ -159,6 +161,16 @@ def model_command(
         emit_syntax_error("bayes.model", metadata_error, target=str(target), human=human)
         return
 
+    # Axis 1 identifier-shape gates on --hypothesis / --observable.
+    if not validate_identifier_flag(
+        hypothesis, verb="bayes.model", flag="--hypothesis", target=str(target), human=human
+    ):
+        return
+    if not validate_identifier_flag(
+        observable, verb="bayes.model", flag="--observable", target=str(target), human=human
+    ):
+        return
+
     # R9 #2 — detect inline Distribution expression vs bare identifier.
     # Bare identifier → push into references for pre-write resolution.
     # Inline expression (anything with parentheses or attribute syntax) →
@@ -178,8 +190,49 @@ def model_command(
                 kind="prewrite.expr_unsafe",
             )
             return
+        # S5 / audit §E.5 — semantic-type check on the inline shape:
+        # ``ast.parse(mode="eval")`` and require Call / Attribute /
+        # Name. A bare literal (``1`` / ``"foo"`` / ``[1, 2]``) fails
+        # the engine at load time; reject it here at the flag boundary
+        # with a precise error.
+        import ast as _ast
 
-    background_list = split_csv(background)
+        try:
+            tree = _ast.parse(distribution, mode="eval")
+        except SyntaxError as exc:
+            emit_syntax_error(
+                "bayes.model",
+                f"--distribution is not a valid expression: {exc.msg}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
+        root = tree.body
+        if not isinstance(root, (_ast.Call, _ast.Attribute, _ast.Name)):
+            emit_syntax_error(
+                "bayes.model",
+                (
+                    f"--distribution must be a Distribution factory call or "
+                    f"reference (got {type(root).__name__}); literal values "
+                    "are not Distributions"
+                ),
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
+
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "bayes.model",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     generated_code = _render_model_statement(
         label=label,
         hypothesis=hypothesis,
@@ -192,6 +245,7 @@ def model_command(
     references = [hypothesis, observable, *background_list]
     if not distribution_is_inline:
         references.insert(2, distribution)
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="bayes.model",
         kind="reasoning",
@@ -203,7 +257,8 @@ def model_command(
         # pre-write reference check accepts the dotted-call form because
         # ``bayes`` itself is the bound name in module scope.
         required_imports=("bayes",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

@@ -19,7 +19,13 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import normalize_file_option
+from gaia.cli.commands.author._common import (
+    build_sibling_imports,
+    emit_syntax_error,
+    normalize_file_option,
+    split_csv_idents,
+    validate_identifier_flag,
+)
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
@@ -61,12 +67,6 @@ def _render_equal_statement(
     if metadata:
         kwargs.append(f"metadata={metadata!r}")
     return f"{label} = equal({', '.join(args)}, {', '.join(kwargs)})"
-
-
-def _split_csv(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def equal_command(
@@ -140,7 +140,22 @@ def equal_command(
         emit(result, human=human)
         return
 
-    background_list = _split_csv(background)
+    # Axis 1 — identifier-shape gates on --a / --b.
+    if not validate_identifier_flag(a, verb="equal", flag="--a", target=str(target), human=human):
+        return
+    if not validate_identifier_flag(b, verb="equal", flag="--b", target=str(target), human=human):
+        return
+
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "equal",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     generated_code = _render_equal_statement(
         label=label,
         a=a,
@@ -149,14 +164,17 @@ def equal_command(
         metadata=metadata_dict,
         background=background_list,
     )
+    target_file = normalize_file_option(file)
+    references = [a, b, *background_list]
     proposed_op = ProposedAuthorOp(
         verb="equal",
         kind="reasoning",
         label=label,
-        references=[a, b, *background_list],
+        references=references,
         generated_code=generated_code,
         required_imports=("equal",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

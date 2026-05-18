@@ -29,10 +29,13 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    PrewriteUnsafeError,
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
+    parse_literal_or_identifier,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -124,18 +127,60 @@ def compute_command(
         emit_syntax_error("compute", metadata_error, target=str(target), human=human)
         return
 
-    given_list = split_csv(given)
+    given_list, given_error = split_csv_idents(given)
+    if given_error:
+        emit_syntax_error(
+            "compute",
+            f"--given rejected: {given_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+
+    # R10 Axis 1 — --conclusion-type and --fn both splice into the
+    # rendered compute() call. The references list only catches
+    # malformed values incidentally (string-membership test against
+    # module symbols); add explicit identifier-shape gates here.
+    references: list[str] = []
+    try:
+        _, rendered_conclusion = parse_literal_or_identifier(
+            conclusion_type,
+            references_sink=references,
+        )
+    except PrewriteUnsafeError as exc:
+        emit_syntax_error(
+            "compute",
+            f"--conclusion-type rejected: {exc}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    rendered_fn: str | None = None
+    if fn is not None:
+        try:
+            _, rendered_fn = parse_literal_or_identifier(fn, references_sink=references)
+        except PrewriteUnsafeError as exc:
+            emit_syntax_error(
+                "compute",
+                f"--fn rejected: {exc}",
+                target=str(target),
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return
+
     generated_code = _render_compute_statement(
         label=label,
-        conclusion_type=conclusion_type,
-        fn=fn,
+        conclusion_type=rendered_conclusion,
+        fn=rendered_fn,
         given=given_list,
         rationale=rationale,
         metadata=metadata_dict,
     )
-    references: list[str] = [conclusion_type, *given_list]
-    if fn is not None:
-        references.append(fn)
+    references = [*references, *given_list]
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="compute",
         kind="reasoning",
@@ -143,7 +188,8 @@ def compute_command(
         references=references,
         generated_code=generated_code,
         required_imports=("compute",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

@@ -18,10 +18,12 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
+    validate_identifier_flag,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -102,7 +104,25 @@ def exclusive_command(
         emit_syntax_error("exclusive", metadata_error, target=str(target), human=human)
         return
 
-    background_list = split_csv(background)
+    if not validate_identifier_flag(
+        a, verb="exclusive", flag="--a", target=str(target), human=human
+    ):
+        return
+    if not validate_identifier_flag(
+        b, verb="exclusive", flag="--b", target=str(target), human=human
+    ):
+        return
+
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "exclusive",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     generated_code = _render_exclusive_statement(
         label=label,
         a=a,
@@ -111,14 +131,17 @@ def exclusive_command(
         metadata=metadata_dict,
         background=background_list,
     )
+    target_file = normalize_file_option(file)
+    references = [a, b, *background_list]
     proposed_op = ProposedAuthorOp(
         verb="exclusive",
         kind="reasoning",
         label=label,
-        references=[a, b, *background_list],
+        references=references,
         generated_code=generated_code,
         required_imports=("exclusive",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

@@ -27,10 +27,12 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
+    validate_identifier_flag,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -116,8 +118,30 @@ def depends_on_command(
         emit_syntax_error("depends_on", metadata_error, target=str(target), human=human)
         return
 
-    given_list = split_csv(given)
-    background_list = split_csv(background)
+    if not validate_identifier_flag(
+        conclusion, verb="depends_on", flag="--conclusion", target=str(target), human=human
+    ):
+        return
+    given_list, given_error = split_csv_idents(given)
+    if given_error:
+        emit_syntax_error(
+            "depends_on",
+            f"--given rejected: {given_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "depends_on",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     if not given_list:
         emit_syntax_error(
             "depends_on",
@@ -136,6 +160,7 @@ def depends_on_command(
         background=background_list,
     )
     references = [conclusion, *given_list, *background_list]
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="depends_on",
         kind="scaffold",
@@ -143,7 +168,8 @@ def depends_on_command(
         references=references,
         generated_code=generated_code,
         required_imports=("depends_on",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

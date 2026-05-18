@@ -47,10 +47,12 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
+    validate_identifier_flag,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -134,7 +136,20 @@ def materialize_command(
         emit_syntax_error("materialize", metadata_error, target=str(target), human=human)
         return
 
-    by_list = split_csv(by)
+    if not validate_identifier_flag(
+        scaffold, verb="materialize", flag="--scaffold", target=str(target), human=human
+    ):
+        return
+    by_list, by_error = split_csv_idents(by)
+    if by_error:
+        emit_syntax_error(
+            "materialize",
+            f"--by rejected: {by_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     if not by_list:
         emit_syntax_error(
             "materialize",
@@ -152,6 +167,7 @@ def materialize_command(
         metadata=metadata_dict,
     )
     references = [scaffold, *by_list]
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="materialize",
         kind="scaffold",
@@ -159,7 +175,8 @@ def materialize_command(
         references=references,
         generated_code=generated_code,
         required_imports=("materialize",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

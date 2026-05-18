@@ -197,6 +197,36 @@ def split_csv_idents(value: str | None) -> tuple[list[str], str | None]:
     return tokens, None
 
 
+def validate_identifier_flag(
+    value: str,
+    *,
+    verb: str,
+    flag: str,
+    target: str,
+    human: bool,
+    references_sink: list[str] | None = None,
+) -> bool:
+    """Run :func:`parse_literal_or_identifier` on a single flag value.
+
+    Returns ``True`` on success; emits ``prewrite.expr_unsafe`` and
+    returns ``False`` when the validator rejects (the emission raises
+    :class:`typer.Exit`, so the ``False`` return is unreachable in
+    practice — but the explicit return keeps the type checker happy).
+    """
+    try:
+        parse_literal_or_identifier(value, references_sink=references_sink)
+    except PrewriteUnsafeError as exc:
+        emit_syntax_error(
+            verb,
+            f"{flag} rejected: {exc}",
+            target=target,
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return False
+    return True
+
+
 def emit_syntax_error(
     verb: str,
     message: str,
@@ -298,4 +328,5 @@ __all__ = [
     "parse_metadata",
     "split_csv",
     "split_csv_idents",
+    "validate_identifier_flag",
 ]

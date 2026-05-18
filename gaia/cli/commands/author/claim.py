@@ -36,7 +36,12 @@ from typing import Any
 
 import typer
 
-from gaia.cli.commands.author._common import emit_syntax_error, normalize_file_option
+from gaia.cli.commands.author._common import (
+    build_sibling_imports,
+    emit_syntax_error,
+    normalize_file_option,
+    split_csv_idents,
+)
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
@@ -62,13 +67,6 @@ def _format_metadata_kwargs(metadata_json: str | None) -> tuple[dict[str, Any] |
     if not isinstance(parsed, dict):
         return None, "--metadata must encode a JSON object (got non-object value)"
     return parsed, None
-
-
-def _split_csv(value: str | None) -> list[str]:
-    """Split a comma-separated CLI option into a clean list of identifiers."""
-    if not value:
-        return []
-    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def _render_claim_statement(
@@ -226,8 +224,26 @@ def claim_command(
         emit(result, human=human)
         return
 
-    ref_list = _split_csv(references)
-    background_list = _split_csv(background)
+    ref_list, ref_error = split_csv_idents(references)
+    if ref_error:
+        emit_syntax_error(
+            "claim",
+            f"--references rejected: {ref_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "claim",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
 
     # --- R3/R7 formula mode: sandbox-validate the formula expression ---- #
     if predicate is not None and formula is not None:
@@ -278,6 +294,7 @@ def claim_command(
     # difference is the rendered output (background appears in the
     # claim's `background=`; references stay sandbox-only).
     op_references = list(dict.fromkeys((*ref_list, *background_list)))
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="claim",
         kind="reasoning",
@@ -285,7 +302,8 @@ def claim_command(
         references=op_references,
         generated_code=generated_code,
         required_imports=("claim",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(op_references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

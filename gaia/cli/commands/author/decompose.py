@@ -45,10 +45,13 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    PrewriteUnsafeError,
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
+    parse_literal_or_identifier,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
 )
 from gaia.cli.commands.author._formula_sandbox import (
     FormulaSandboxError,
@@ -188,7 +191,28 @@ def decompose_command(
         emit_syntax_error("decompose", metadata_error, target=str(target), human=human)
         return
 
-    part_list = split_csv(parts)
+    # --- Axis 1 — identifier-shape gates on --whole / --parts -------- #
+    try:
+        parse_literal_or_identifier(whole)
+    except PrewriteUnsafeError as exc:
+        emit_syntax_error(
+            "decompose",
+            f"--whole rejected: {exc}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    part_list, part_error = split_csv_idents(parts)
+    if part_error:
+        emit_syntax_error(
+            "decompose",
+            f"--parts rejected: {part_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     if not part_list:
         emit_syntax_error(
             "decompose",
@@ -233,6 +257,7 @@ def decompose_command(
         metadata=metadata_dict,
     )
     references = [whole, *part_list]
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="decompose",
         kind="reasoning",
@@ -240,7 +265,8 @@ def decompose_command(
         references=references,
         generated_code=generated_code,
         required_imports=("decompose", "ClaimAtom", "land", "lor"),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,

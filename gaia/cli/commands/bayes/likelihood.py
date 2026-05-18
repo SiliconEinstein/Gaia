@@ -35,10 +35,12 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv,
+    split_csv_idents,
+    validate_identifier_flag,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -172,7 +174,20 @@ def likelihood_command(
         emit_syntax_error("bayes.likelihood", metadata_error, target=str(target), human=human)
         return
 
-    data_list = split_csv(data)
+    if not validate_identifier_flag(
+        model, verb="bayes.likelihood", flag="--model", target=str(target), human=human
+    ):
+        return
+    data_list, data_error = split_csv_idents(data)
+    if data_error:
+        emit_syntax_error(
+            "bayes.likelihood",
+            f"--data rejected: {data_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
     if not data_list:
         emit_syntax_error(
             "bayes.likelihood",
@@ -181,8 +196,26 @@ def likelihood_command(
             human=human,
         )
         return
-    against_list = split_csv(against)
-    background_list = split_csv(background)
+    against_list, against_error = split_csv_idents(against)
+    if against_error:
+        emit_syntax_error(
+            "bayes.likelihood",
+            f"--against rejected: {against_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "bayes.likelihood",
+            f"--background rejected: {background_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
 
     generated_code = _render_likelihood_statement(
         label=label,
@@ -195,6 +228,7 @@ def likelihood_command(
         metadata=metadata_dict,
     )
     references = [*data_list, model, *against_list, *background_list]
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb="bayes.likelihood",
         kind="reasoning",
@@ -202,7 +236,8 @@ def likelihood_command(
         references=references,
         generated_code=generated_code,
         required_imports=("bayes",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
     )
     run_author_op(
         proposed_op,
