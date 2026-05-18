@@ -57,13 +57,19 @@ def test_prewrite_target_not_gaia_package(not_a_gaia_package: Path) -> None:
 
 
 def test_prewrite_target_invalid_toml(tmp_path: Path) -> None:
-    """Invariant (a): pyproject.toml that fails to parse."""
+    """Invariant (a): pyproject.toml that fails to parse.
+
+    S8 / audit §H.4 — the kind was split from the overloaded
+    ``prewrite.target_invalid`` into ``prewrite.target_bad_toml`` so
+    downstream dispatch can distinguish bad-TOML from missing-pyproject
+    / missing-source-root / missing-init.py.
+    """
     root = tmp_path / "broken-gaia"
     root.mkdir()
     (root / "pyproject.toml").write_text("this is not = valid toml [[")
     result = prewrite_check(root, _claim_op())
     assert not result.ok
-    assert result.diagnostics[0].kind == "prewrite.target_invalid"
+    assert result.diagnostics[0].kind == "prewrite.target_bad_toml"
 
 
 def test_prewrite_syntax_failure(gaia_package: FixturePackage) -> None:

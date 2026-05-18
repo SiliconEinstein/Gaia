@@ -590,10 +590,14 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
 
     pyproject = target_root / "pyproject.toml"
     if not pyproject.exists():
+        # S8 / audit §H.4 — distinct kind ``prewrite.target_no_pyproject``
+        # so downstream dispatch can tell "missing pyproject" apart from
+        # the other target_invalid shapes. Backwards compatible: same
+        # exit code as the parent kind.
         return _TargetStructure(
             errors=[
                 Diagnostic(
-                    kind="prewrite.target_not_gaia_package",
+                    kind="prewrite.target_no_pyproject",
                     level="error",
                     message=(
                         f"no pyproject.toml under {target_root}; expected a Gaia "
@@ -612,10 +616,11 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
     try:
         config = tomllib.loads(pyproject.read_text())
     except (OSError, tomllib.TOMLDecodeError) as exc:
+        # S8 / audit §H.4 — distinct kind ``prewrite.target_bad_toml``.
         return _TargetStructure(
             errors=[
                 Diagnostic(
-                    kind="prewrite.target_invalid",
+                    kind="prewrite.target_bad_toml",
                     level="error",
                     message=f"pyproject.toml is not valid TOML: {exc}",
                     source="prewrite",
@@ -672,10 +677,11 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
     candidates = [target_root / import_name, target_root / "src" / import_name]
     source_root = next((c for c in candidates if c.exists()), None)
     if source_root is None:
+        # S8 / audit §H.4 — distinct kind ``prewrite.target_no_source_root``.
         return _TargetStructure(
             errors=[
                 Diagnostic(
-                    kind="prewrite.target_invalid",
+                    kind="prewrite.target_no_source_root",
                     level="error",
                     message=(
                         f"package source directory '{import_name}/' not found "
@@ -695,10 +701,11 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
 
     init_py = source_root / "__init__.py"
     if not init_py.exists():
+        # S8 / audit §H.4 — distinct kind ``prewrite.target_no_init_py``.
         return _TargetStructure(
             errors=[
                 Diagnostic(
-                    kind="prewrite.target_invalid",
+                    kind="prewrite.target_no_init_py",
                     level="error",
                     message=f"missing source entrypoint: {init_py}",
                     source="prewrite",
