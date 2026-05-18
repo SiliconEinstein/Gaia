@@ -27,7 +27,26 @@ def add_command(
     version: str | None = typer.Option(None, "--version", "-v", help="Specific version"),
     registry: str = typer.Option(DEFAULT_REGISTRY, "--registry", help="Registry GitHub repo"),
 ) -> None:
-    """Install a registered Gaia knowledge package."""
+    """Install a registered Gaia knowledge package.
+
+    Resolves ``<package>`` against the gaia registry (default:
+    ``SiliconEinstein/gaia-registry`` on GitHub), runs ``uv add`` on the
+    resolved ``git+<repo>@<sha>`` spec, and best-effort downloads the
+    upstream ``beliefs.json`` into ``.gaia/dep_beliefs/<import_name>.json``
+    so foreign-node priors flow into local inference. Must be run from
+    within a Gaia knowledge package (``pyproject.toml`` carrying
+    ``[tool.gaia]``).
+
+    ``--version`` pins a specific release; omit to take the latest
+    registered version.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia pkg add galileo-falling-bodies-gaia
+        gaia pkg add mendel-v0-5-gaia --version 0.1.0
+    """
     try:
         resolved = resolve_package(package, version=version, registry=registry)
     except GaiaPackagingError as exc:

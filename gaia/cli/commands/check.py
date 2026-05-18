@@ -1200,7 +1200,35 @@ def check_command(
         help="Run quality gate checks and exit non-zero on failure",
     ),
 ) -> None:
-    """Validate structure and artifact consistency for a Gaia knowledge package."""
+    """Validate structure and artifact consistency for a Gaia knowledge package.
+
+    Compiles the package in-memory, validates the resulting IR (including
+    Bayes coherence: dangling predictions, unobserved targets, prior
+    coherence), checks that any stored ``.gaia/ir.json`` is fresh, and
+    classifies every claim into a role bucket (independent / derived /
+    structural / background / scaffolded / orphaned). Exits non-zero on
+    any error diagnostic. After ``gaia author <verb>`` cycles, this is
+    the natural quality probe before ``gaia build compile``.
+
+    Common option combinations:
+
+    * ``--brief`` / ``--show <label>`` — per-module warrant brief or
+      expand a single claim/strategy
+    * ``--hole`` — list independent claims with no external prior
+    * ``--warrants`` / ``--blind`` — show v6 ReviewManifest warrants
+      (use ``--blind`` to hide statuses for self-review)
+    * ``--inquiry`` — render goal-oriented inquiry trees
+    * ``--gate`` — apply ``[tool.gaia.quality]`` thresholds, exit
+      non-zero on failure (CI-friendly)
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia build check .
+        gaia build check . --hole
+        gaia build check . --gate
+    """
     loaded, compiled, ir = _load_check_artifacts(path)
     errors, warnings = _collect_check_diagnostics(loaded, ir)
     _emit_check_diagnostics(errors, warnings)

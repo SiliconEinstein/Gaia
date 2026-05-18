@@ -177,15 +177,27 @@ def infer_command(
 ) -> None:
     """Run BP inference on a compiled knowledge package.
 
-    Priors come from claim metadata (set by priors.py and reason+prior
-    DSL pairing during compilation). Review status is qualitative and never
-    supplies numeric priors; `gaia run infer` previews the compiled graph
-    without gating unreviewed warrants. Use `gaia build check --gate` or
-    `gaia inquiry review` for publish-quality review gating.
+    Reads fresh ``.gaia/ir.json`` (run ``gaia build compile`` first),
+    lowers the IR into a factor graph, runs belief propagation, and
+    writes ``.gaia/beliefs.json``. Priors come from claim metadata (set
+    by ``priors.py`` and ``reason+prior`` DSL pairing during
+    compilation). Review status is qualitative and never supplies
+    numeric priors; ``gaia run infer`` previews the compiled graph
+    without gating unreviewed warrants. Use ``gaia build check --gate``
+    or ``gaia inquiry review`` for publish-quality review gating.
 
     With ``--depth N`` (N>0), dependency packages' factor graphs are
     merged for joint cross-package inference instead of using flat
-    prior injection from dep_beliefs/.
+    prior injection from ``dep_beliefs/``. ``--depth -1`` merges all
+    transitive deps.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia build compile .
+        gaia run infer .
+        gaia run infer . --depth 1
     """
     loaded, compiled = _load_inference_inputs(path)
     _emit_graph_validation_errors(compiled)

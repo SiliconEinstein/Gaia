@@ -22,7 +22,20 @@ from gaia.engine.packaging import (
 def compile_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
 ) -> None:
-    """Compile a knowledge package to .gaia/ir.json."""
+    """Compile a knowledge package to ``.gaia/ir.json``.
+
+    Loads the package's Python DSL, applies any sidecar priors (``priors.py``),
+    lowers it into the canonical IR v2 JSON, runs the IR validator, and
+    writes ``.gaia/ir.json`` + ``.gaia/ir_hash`` + ``.gaia/compile_metadata.json``.
+    Downstream verbs (``gaia run infer``, ``gaia run render``, ``gaia inspect
+    starmap``, ``gaia pkg register``) all require fresh compile artifacts.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia build compile .
+    """
     try:
         ensure_package_env(Path(path).resolve())
         loaded = load_gaia_package(path)

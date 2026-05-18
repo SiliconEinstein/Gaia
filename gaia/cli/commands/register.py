@@ -664,7 +664,31 @@ def register_command(
     ),
     create_pr: bool = typer.Option(False, help="Push the registry branch and open a GitHub PR."),
 ) -> None:
-    """Prepare or submit a registration for a tagged GitHub-backed Gaia package."""
+    """Prepare or submit a registration for a tagged GitHub-backed Gaia package.
+
+    Reads the freshly-compiled package, validates git state (clean
+    worktree, tag pointing at HEAD, tag pushed to origin), builds the
+    registry-side ``Package.toml`` / ``Versions.toml`` / ``Deps.toml`` +
+    per-release manifests + ``beliefs.json``, and either prints the
+    registration plan as JSON (default) or writes it into a local
+    checkout of the registry repo and opens a PR.
+
+    Preconditions checked: ``[project].name`` ends with ``-gaia``,
+    ``[tool.gaia].uuid`` set to a valid UUID, ``.gaia/ir_hash`` matches
+    the freshly-compiled IR (run ``gaia build compile`` first), git
+    worktree clean, tag ``v<version>`` (or ``--tag``) on HEAD and
+    pushed.
+
+    Example:
+
+    .. code-block:: bash
+
+        # Dry run — print the registration plan as JSON:
+        gaia pkg register .
+
+        # Write a registry branch into a local checkout and open a PR:
+        gaia pkg register . --registry-dir ~/dev/gaia-registry --create-pr
+    """
     loaded, compiled, ir, manifests = _load_registration_artifacts(path)
     _validate_registration_ir(ir)
     gaia_uuid, _dependencies = _validate_registration_package_config(loaded, ir)
