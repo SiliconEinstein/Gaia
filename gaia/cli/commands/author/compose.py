@@ -390,6 +390,62 @@ def _render_compositions_block(entries: list[dict[str, Any]]) -> list[str]:
 # --------------------------------------------------------------------------- #
 
 
+def _assert_compose_file_outside_package(
+    verb: str,
+    *,
+    file_path: Path,
+    target_root: Path,
+    human: bool,
+) -> bool:
+    """Reject a pattern file that resolves under the target package's source root.
+
+    Audit §A.8: ``--from-file`` is `ast.parse`d (no execution), but if
+    the agent allows the attacker to drop the file *inside*
+    ``src/<import_name>/`` then the postwrite ``load_gaia_package``
+    will ``importlib.import_module`` it, which executes arbitrary code.
+    The defense closes the gap by requiring the pattern file to live
+    outside the package source tree. Convention: pattern files live in
+    a sibling directory next to the package root.
+    """
+    import tomllib as _tomllib
+
+    pyproject = target_root / "pyproject.toml"
+    if not pyproject.exists():
+        return True
+    try:
+        config = _tomllib.loads(pyproject.read_text())
+    except (OSError, _tomllib.TOMLDecodeError):
+        return True
+    project_name = config.get("project", {}).get("name")
+    if not isinstance(project_name, str):
+        return True
+    import_name = project_name.removesuffix("-gaia").replace("-", "_")
+    candidate_roots = [target_root / import_name, target_root / "src" / import_name]
+    resolved_file = file_path.resolve()
+    for candidate in candidate_roots:
+        if not candidate.exists():
+            continue
+        candidate_resolved = candidate.resolve()
+        try:
+            resolved_file.relative_to(candidate_resolved)
+        except ValueError:
+            continue
+        _emit_error(
+            verb,
+            kind="prewrite.expr_unsafe",
+            message=(
+                f"--from-file {file_path} resolves inside the target package's "
+                f"source root ({candidate_resolved}); pattern files must live "
+                "outside src/<import_name>/ so the engine doesn't import them "
+                "on load"
+            ),
+            where={"file": str(file_path), "source_root": str(candidate_resolved)},
+            human=human,
+        )
+        return False
+    return True
+
+
 def _load_pattern_file(verb: str, file_path: Path, *, human: bool) -> ast.Module | None:
     """Read + parse a pattern file; emit a diagnostic + return None on failure."""
     if not file_path.exists():
@@ -508,6 +564,18 @@ def _run_compose(
             where={"target": str(target_root)},
             human=human,
         )
+        return
+
+    # ---- pre: --from-file path-escape guard --------------------------- #
+    # Audit §A.8 — reject pattern files that resolve inside the target
+    # package's source root, where the engine's postwrite check would
+    # ``importlib.import_module`` them.
+    if not _assert_compose_file_outside_package(
+        verb,
+        file_path=file_path,
+        target_root=target_root,
+        human=human,
+    ):
         return
 
     # ---- pre: --from-file load + parse -------------------------------- #
