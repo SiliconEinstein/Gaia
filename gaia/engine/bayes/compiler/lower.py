@@ -459,7 +459,7 @@ def _log_likelihood_with_noise(
     """Convolve predictive with Normal additive noise."""
     if noise.kind != "normal":
         raise NotImplementedError("Bayes compare currently supports only Normal additive noise")
-    noise_impl = noise.impl
+    noise_impl: Any = noise.impl
     sigma = float(noise_impl.params["sigma"])
     low, high = distribution_impl.support()
     if distribution_impl.kind in {"betabinomial", "binomial", "poisson"}:

@@ -32,6 +32,8 @@ Why this is useful beyond the mock test:
 """
 
 import math
+from collections.abc import Callable
+from typing import cast
 
 import scipy.stats as stats
 
@@ -55,7 +57,7 @@ from gaia.engine.lang import (
     parameter,
 )
 from gaia.engine.lang.compiler.compile import compile_package_artifact
-from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.knowledge import Claim, _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
 
 N_TRIALS = 395
@@ -64,9 +66,9 @@ K_OBSERVED = 295
 
 @compute
 def scipy_quad_log_marginals(
-    data: object,  # noqa: ARG001 — recorded as Compute action dependency
-    mendel_hypothesis: object,
-    diffuse_hypothesis: object,
+    data: Claim,  # noqa: ARG001 — recorded as Compute action dependency
+    mendel_hypothesis: Claim,
+    diffuse_hypothesis: Claim,
 ) -> PrecomputedLikelihoods:
     """Compute log marginal likelihoods via scipy.integrate.quad.
 
@@ -157,7 +159,11 @@ def _build_v06_with_external_solver(
         )
 
         if use_precomputed:
-            precomputed_claim = scipy_quad_log_marginals(data, mendel, diffuse)
+            solver = cast(
+                Callable[[Claim, Claim, Claim], PrecomputedLikelihoods],
+                scipy_quad_log_marginals,
+            )
+            precomputed_claim = solver(data, mendel, diffuse)
             cmp_result = bayes.compare(
                 data,
                 models=[mendel_pred, diffuse_pred],

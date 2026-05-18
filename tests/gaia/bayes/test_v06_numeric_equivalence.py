@@ -20,6 +20,8 @@ under ``exhaustive_pairwise_complement``).
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
+from typing import cast
 
 import scipy.stats as stats
 
@@ -43,7 +45,7 @@ from gaia.engine.lang import (
     parameter,
 )
 from gaia.engine.lang.compiler.compile import compile_package_artifact
-from gaia.engine.lang.runtime.knowledge import _current_package
+from gaia.engine.lang.runtime.knowledge import Claim, _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
 
 
@@ -320,9 +322,9 @@ def test_precomputed_via_compute_decorator():
 
         @compute
         def mock_solver_run(
-            data: object,  # noqa: ARG001 — recorded as Compute action dependency
-            h_31: object,
-            h_null: object,
+            data: Claim,  # noqa: ARG001 — recorded as Compute action dependency
+            h_31: Claim,
+            h_null: Claim,
         ) -> PrecomputedLikelihoods:
             """Deterministic stub of an external solver."""
             return PrecomputedLikelihoods(
@@ -335,7 +337,11 @@ def test_precomputed_via_compute_decorator():
                 solver="mock-stub",
             )
 
-        result = mock_solver_run(data, h_31, h_null)
+        solver = cast(
+            Callable[[Claim, Claim, Claim], PrecomputedLikelihoods],
+            mock_solver_run,
+        )
+        result = solver(data, h_31, h_null)
         assert isinstance(result, PrecomputedLikelihoods)
         bayes.compare(
             data,
