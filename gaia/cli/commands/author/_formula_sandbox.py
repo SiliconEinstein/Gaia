@@ -88,12 +88,23 @@ _FORMULA_PRIMITIVES: frozenset[str] = frozenset(
 _ATOM_CONSTRUCTORS: frozenset[str] = frozenset({"ClaimAtom"})
 
 # Distribution factories — concrete shipping set from
-# ``gaia.engine.lang.runtime.distribution`` ``__all__``. ``Distribution``
-# (the base class) is also listed because the DSL surface re-exports
-# it as the umbrella name authors reach for first.
+# ``gaia.engine.lang.runtime.distribution`` ``__all__``. These names are
+# reachable only via the ``bayes.<Factory>`` dotted shape: the
+# ``visit_Attribute`` path treats them as valid attributes of the bound
+# ``bayes`` module. They are NOT in :data:`WHITELIST` as bare names — a
+# package's scaffold imports ``from gaia.engine import bayes`` (not bare
+# ``Normal`` / ``Binomial``), so accepting them as bare-Name references
+# in the sandbox would let an author write ``--formula 'Normal(0, 1)'``
+# only to have the postwrite import trip a NameError.
+#
+# S5 / audit §E.4 closure — the previous (R7) shape included these in
+# WHITELIST and made the sandbox/scaffold parity test (in
+# tests/cli/pkg/test_scaffold_formula_sandbox_parity.py) exempt them
+# from the import-coverage check. Tightening to ``bayes.<Factory>``-only
+# means the scaffold imports and the sandbox accept set match: every
+# bare name in WHITELIST resolves at scaffold load.
 _DISTRIBUTION_FACTORIES: frozenset[str] = frozenset(
     {
-        "Distribution",
         "Normal",
         "LogNormal",
         "Beta",
@@ -128,9 +139,13 @@ _TYPED_TERMS: frozenset[str] = frozenset(
     }
 )
 
-WHITELIST: frozenset[str] = (
-    _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _DISTRIBUTION_FACTORIES | _CONSTANTS | _TYPED_TERMS
-)
+# S5 / audit §E.4 — bare Distribution names (``Normal`` / ``Binomial``
+# / ...) are NOT in WHITELIST: the scaffold imports the ``bayes``
+# module alias (not bare names), so accepting a bare ``Normal`` in a
+# formula would sandbox-pass but produce a NameError at postwrite. The
+# dotted shape ``bayes.<Factory>`` lands via :meth:`visit_Attribute`
+# which checks the attr against :data:`_DISTRIBUTION_FACTORIES`.
+WHITELIST: frozenset[str] = _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _CONSTANTS | _TYPED_TERMS
 
 
 # --------------------------------------------------------------------------- #
