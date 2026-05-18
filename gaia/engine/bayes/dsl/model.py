@@ -76,9 +76,7 @@ def model(
     if not isinstance(hypothesis, Claim):
         raise TypeError("model() hypothesis must be a Claim")
     if not isinstance(observable, Variable):
-        raise TypeError(
-            f"model() observable must be a Variable; got {type(observable).__name__}"
-        )
+        raise TypeError(f"model() observable must be a Variable; got {type(observable).__name__}")
     if not isinstance(distribution, Distribution):
         raise TypeError(
             "model() distribution must be a Distribution Knowledge object "

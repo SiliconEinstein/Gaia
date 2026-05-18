@@ -449,11 +449,7 @@ def _check_bayes_model(
 
     observable = _model_metadata(model).get("observable")
     key = _observable_descriptor_key(observable)
-    if (
-        _is_local_ir_id(ir, model_id)
-        and key is not None
-        and key not in observed_observables
-    ):
+    if _is_local_ir_id(ir, model_id) and key is not None and key not in observed_observables:
         diagnostics.warnings.append(
             "bayes:unobserved-model-observable: "
             f"model {model_name} observable {_observable_descriptor_label(observable)} has no "
