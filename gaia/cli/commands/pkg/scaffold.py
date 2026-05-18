@@ -1,0 +1,519 @@
+"""``gaia pkg scaffold`` — initialise a fresh Gaia knowledge package.
+
+Maps the agent-first authoring story to package initialisation: given a
+target directory and a package name, lay down the minimal layout that
+the rest of the ``gaia author`` cycle needs (``pyproject.toml`` with
+``[tool.gaia]`` block, ``src/<import_name>/__init__.py`` template,
+``.gaia/`` artifact directory).
+
+Why a new verb instead of reusing the legacy ``gaia init`` /
+``gaia build init``? Two reasons:
+
+1. **Agent-first envelope.** ``gaia init`` writes human-oriented text
+   to stdout and shells out to ``uv``; ``gaia pkg scaffold`` emits the
+   same uniform ``{status, code, verb, payload, warnings, diagnostics}``
+   shape the ``gaia author <verb>`` family does, so an LLM agent can
+   parse one envelope schema across the whole package lifecycle.
+2. **Independent pre-validation surface.** ``scaffold`` knows about
+   ``-gaia`` naming, namespace defaults, and ``--check`` integration
+   that runs ``gaia build check`` against the freshly created package.
+
+The ``scaffold`` verb writes its own pre-validation pipeline (target
+directory absence + name ending + import-name validity) rather than
+reusing :mod:`gaia.cli.commands.author._prewrite` — its 4 invariants
+assume a *pre-existing* Gaia package, while ``scaffold`` creates one
+from scratch. The JSON envelope is shared verbatim.
+"""
+
+from __future__ import annotations
+
+import re
+import uuid
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import typer
+
+from gaia.cli.commands.author._envelope import (
+    EXIT_INPUT_SYNTAX,
+    EXIT_OK,
+    EXIT_PREWRITE_STRUCTURAL,
+    EXIT_SYSTEM_IO,
+    AuthorResult,
+    Diagnostic,
+    emit,
+)
+from gaia.cli.commands.author._postwrite import postwrite_check
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+_PYPROJECT_TEMPLATE_WITH_UUID = """\
+[project]
+name = "{name}"
+version = "0.1.0"
+description = "{description}"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{import_name}"]
+
+[tool.gaia]
+type = "knowledge-package"
+uuid = "{uuid}"
+namespace = "{namespace}"
+
+[tool.gaia.quality]
+allow_holes = true
+"""
+
+
+_PYPROJECT_TEMPLATE_NO_UUID = """\
+[project]
+name = "{name}"
+version = "0.1.0"
+description = "{description}"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{import_name}"]
+
+[tool.gaia]
+type = "knowledge-package"
+namespace = "{namespace}"
+
+[tool.gaia.quality]
+allow_holes = true
+"""
+
+
+# A minimal but non-trivial DSL template: a single hypothesis claim plus
+# an ``__all__`` so the freshly created package is loadable by
+# ``gaia build check`` immediately after scaffolding.
+#
+# The import line covers the full agent-author surface — the same set
+# of names ``gaia author <verb>`` knows about — so subsequent author
+# verbs land into the package without requiring a manual import edit.
+# Names listed here mirror the canonical re-exports from
+# ``gaia.engine.lang``; if the engine surface changes, this template
+# moves in lockstep.
+#
+# Domain primitives ``Variable`` / ``Constant`` / ``Nat`` / ``Real`` /
+# ``Bool`` / ``Probability`` (used by ``gaia author variable`` and
+# ``claim --formula``), plus the ``bayes`` module alias (so
+# ``bayes.model(...)`` / ``bayes.likelihood(...)`` / ``bayes.Normal(...)``
+# cli-authored statements load).
+_INIT_TEMPLATE_FULL = """\
+from gaia.engine import bayes
+from gaia.engine.lang import (
+    Bool,
+    ClaimAtom,
+    Constant,
+    Nat,
+    Probability,
+    Real,
+    Variable,
+    associate,
+    candidate_relation,
+    claim,
+    compute,
+    contradict,
+    decompose,
+    depends_on,
+    derive,
+    equal,
+    equals,
+    exclusive,
+    exists,
+    forall,
+    iff,
+    implies,
+    infer,
+    land,
+    lnot,
+    lor,
+    materialize,
+    note,
+    observe,
+    parameter,
+    question,
+    register_prior,
+)
+
+hypothesis = claim("A scientific hypothesis to be evaluated.", title="Hypothesis")
+
+__all__ = ["hypothesis"]
+"""
+
+
+# ``--minimal-imports`` opt-in: emit only the canonical ``claim``
+# import and the placeholder. The author can manage imports from
+# there. The default stays the full surface; minimal is a self-aware
+# power-user mode.
+_INIT_TEMPLATE_MINIMAL = """\
+from gaia.engine.lang import claim
+
+hypothesis = claim("A scientific hypothesis to be evaluated.", title="Hypothesis")
+
+__all__ = ["hypothesis"]
+"""
+
+
+@dataclass
+class _ScaffoldPlan:
+    """Resolved scaffold parameters after argument validation."""
+
+    target_root: Path
+    pkg_name: str
+    import_name: str
+    namespace: str
+    description: str
+    pkg_uuid: str | None
+    minimal_imports: bool
+
+
+def _derive_import_name(pkg_name: str) -> str:
+    return pkg_name.removesuffix("-gaia").replace("-", "_")
+
+
+def _validate_inputs(
+    *,
+    target: Path,
+    name: str | None,
+    namespace: str | None,
+    description: str | None,
+    with_uuid: bool,
+    minimal_imports: bool,
+) -> tuple[_ScaffoldPlan | None, list[Diagnostic]]:
+    """Run the scaffold-specific pre-validation."""
+    diagnostics: list[Diagnostic] = []
+
+    pkg_name = name or target.name
+    if not pkg_name.endswith("-gaia"):
+        suggested = f"{pkg_name}-gaia"
+        diagnostics.append(
+            Diagnostic(
+                kind="prewrite.target_not_gaia_package",
+                level="error",
+                message=(
+                    f"package name must end with '-gaia' (got {pkg_name!r}; "
+                    f"did you mean {suggested!r}?)"
+                ),
+                source="prewrite",
+                where={"pkg_name": pkg_name},
+            )
+        )
+        return None, diagnostics
+
+    # import_name is derived from [project].name per the engine
+    # convention (``foo-gaia`` → ``foo``); no override flag, since an
+    # override could lay down a package the engine couldn't load.
+    import_name = _derive_import_name(pkg_name)
+    if not _IDENTIFIER_RE.match(import_name) or import_name.startswith("__"):
+        diagnostics.append(
+            Diagnostic(
+                kind="prewrite.target_invalid",
+                level="error",
+                message=(
+                    f"derived import name {import_name!r} is not a valid Python "
+                    "module identifier (derived from --name by stripping "
+                    "'-gaia' and converting '-' to '_'; pick a different "
+                    "--name to fix)"
+                ),
+                source="prewrite",
+                where={"import_name": import_name, "pkg_name": pkg_name},
+            )
+        )
+        return None, diagnostics
+
+    # Refuse to lay down a package whose import name collides with a
+    # stdlib module. The engine's ``importlib.import_module`` would
+    # return the stdlib module instead of the package and produce an
+    # inscrutable "not a Gaia package" error downstream.
+    import sys as _sys
+
+    if import_name in _sys.stdlib_module_names:
+        diagnostics.append(
+            Diagnostic(
+                kind="prewrite.target_invalid",
+                level="error",
+                message=(
+                    f"derived import name {import_name!r} collides with a "
+                    "Python stdlib module; pick a different --name"
+                ),
+                source="prewrite",
+                where={"import_name": import_name, "pkg_name": pkg_name},
+            )
+        )
+        return None, diagnostics
+
+    namespace_resolved = namespace or import_name
+
+    if target.exists() and any(target.iterdir()):
+        # Refuse to write into a non-empty directory — keeps idempotency
+        # honest (running scaffold twice should produce identical output
+        # only if the first run was clean).
+        offenders = [p.name for p in sorted(target.iterdir())]
+        diagnostics.append(
+            Diagnostic(
+                kind="prewrite.collision",
+                level="error",
+                message=(
+                    f"target directory {target} is not empty (contains: "
+                    + ", ".join(offenders[:5])
+                    + (", ...)" if len(offenders) > 5 else ")")
+                ),
+                source="prewrite",
+                where={"target": str(target), "existing": offenders[:5]},
+            )
+        )
+        return None, diagnostics
+
+    # uuid is opt-in via --with-uuid (both shipping example packages
+    # omit it). Default is no uuid.
+    pkg_uuid = str(uuid.uuid4()) if with_uuid else None
+    desc_resolved = description or f"Gaia knowledge package: {pkg_name}"
+    return (
+        _ScaffoldPlan(
+            target_root=target,
+            pkg_name=pkg_name,
+            import_name=import_name,
+            namespace=namespace_resolved,
+            description=desc_resolved,
+            pkg_uuid=pkg_uuid,
+            minimal_imports=minimal_imports,
+        ),
+        [],
+    )
+
+
+def _scaffold_layout(plan: _ScaffoldPlan) -> list[Path]:
+    """Lay down the package directory structure and return the created files."""
+    created: list[Path] = []
+    plan.target_root.mkdir(parents=True, exist_ok=True)
+
+    pyproject_path = plan.target_root / "pyproject.toml"
+    if plan.pkg_uuid is not None:
+        pyproject_text = _PYPROJECT_TEMPLATE_WITH_UUID.format(
+            name=plan.pkg_name,
+            description=plan.description,
+            import_name=plan.import_name,
+            uuid=plan.pkg_uuid,
+            namespace=plan.namespace,
+        )
+    else:
+        pyproject_text = _PYPROJECT_TEMPLATE_NO_UUID.format(
+            name=plan.pkg_name,
+            description=plan.description,
+            import_name=plan.import_name,
+            namespace=plan.namespace,
+        )
+    pyproject_path.write_text(pyproject_text)
+    created.append(pyproject_path)
+
+    src_pkg = plan.target_root / "src" / plan.import_name
+    src_pkg.mkdir(parents=True)
+    init_py = src_pkg / "__init__.py"
+    init_py.write_text(_INIT_TEMPLATE_MINIMAL if plan.minimal_imports else _INIT_TEMPLATE_FULL)
+    created.append(init_py)
+
+    gaia_dir = plan.target_root / ".gaia"
+    gaia_dir.mkdir()
+    gaia_keep = gaia_dir / ".gitkeep"
+    gaia_keep.write_text("")
+    created.append(gaia_keep)
+
+    return created
+
+
+def _emit_scaffold_envelope(
+    *,
+    plan: _ScaffoldPlan,
+    created: list[Path],
+    post_diagnostics: list[Diagnostic],
+    post_warnings: list[Diagnostic],
+    counts: dict[str, int] | None,
+    human: bool,
+) -> None:
+    payload: dict[str, Any] = {
+        "pkg_path": str(plan.target_root),
+        "pkg_name": plan.pkg_name,
+        "import_name": plan.import_name,
+        "namespace": plan.namespace,
+        "uuid": plan.pkg_uuid,
+        "minimal_imports": plan.minimal_imports,
+        "files_created": [str(p) for p in created],
+    }
+    if counts is not None:
+        payload["check"] = counts
+    elif not post_diagnostics:
+        payload["check"] = "skipped"
+    if post_diagnostics:
+        result = AuthorResult(
+            verb="scaffold",
+            status="error",
+            code=EXIT_PREWRITE_STRUCTURAL,
+            payload=payload,
+            warnings=[w.message for w in post_warnings],
+            diagnostics=post_diagnostics,
+        )
+    else:
+        result = AuthorResult(
+            verb="scaffold",
+            status="ok",
+            code=EXIT_OK,
+            payload=payload,
+            warnings=[w.message for w in post_warnings],
+            diagnostics=list(post_warnings),
+        )
+    emit(result, human=human)
+
+
+def scaffold_command(
+    target: str = typer.Option(
+        ...,
+        "--target",
+        help="Path to the directory to initialise (must be empty or non-existent).",
+    ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Package name (must end with '-gaia'); defaults to target dir name.",
+    ),
+    namespace: str | None = typer.Option(
+        None,
+        "--namespace",
+        help="Package namespace; defaults to the import name.",
+    ),
+    description: str | None = typer.Option(
+        None, "--description", help="Short description for pyproject.toml."
+    ),
+    with_uuid: bool = typer.Option(
+        False,
+        "--with-uuid",
+        help=(
+            "Generate a [tool.gaia].uuid for the package. Default is to omit "
+            "the field (matches the shipping example packages)."
+        ),
+    ),
+    minimal_imports: bool = typer.Option(
+        False,
+        "--minimal-imports",
+        help=(
+            "Seed __init__.py with only `claim` instead of the full author "
+            "surface. Default is the full-surface preamble for downstream "
+            "NameError protection (default); minimal is for power users "
+            "managing their own imports (matches shipping example shape)."
+        ),
+    ),
+    check: bool = typer.Option(
+        True,
+        "--check/--no-check",
+        help="Run post-write `gaia build check` on the freshly created package (default on).",
+    ),
+    human: bool = typer.Option(
+        False, "--human", help="Render the envelope in human-readable form instead of JSON."
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        help="Prompt on pre-write warnings (no-op for scaffold — it emits no warnings).",
+    ),
+    json_: bool = typer.Option(
+        True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
+    ),
+) -> None:
+    r"""Scaffold a fresh Gaia knowledge package.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia pkg scaffold --target ./my-domain-gaia --name my-domain-gaia
+    """
+    del json_, interactive  # see helper-doc rationale
+
+    target_root = Path(target).resolve()
+
+    plan, pre_diagnostics = _validate_inputs(
+        target=target_root,
+        name=name,
+        namespace=namespace,
+        description=description,
+        with_uuid=with_uuid,
+        minimal_imports=minimal_imports,
+    )
+    if plan is None:
+        # Pick semantic exit code from the first diagnostic kind.
+        first = pre_diagnostics[0]
+        code = {
+            "prewrite.target_not_gaia_package": EXIT_SYSTEM_IO,
+            "prewrite.target_invalid": EXIT_SYSTEM_IO,
+            "prewrite.collision": EXIT_INPUT_SYNTAX,
+        }.get(first.kind, EXIT_PREWRITE_STRUCTURAL)
+        result = AuthorResult(
+            verb="scaffold",
+            status="error",
+            code=code,
+            payload={"target": str(target_root)},
+            diagnostics=pre_diagnostics,
+        )
+        emit(result, human=human)
+        return
+
+    try:
+        created = _scaffold_layout(plan)
+    except (OSError, PermissionError) as exc:
+        result = AuthorResult(
+            verb="scaffold",
+            status="error",
+            code=EXIT_SYSTEM_IO,
+            payload={"target": str(target_root)},
+            diagnostics=[
+                Diagnostic(
+                    kind="prewrite.target_invalid",
+                    level="error",
+                    message=f"failed to lay out scaffold under {target_root}: {exc}",
+                    source="prewrite",
+                    where={"target": str(target_root)},
+                )
+            ],
+        )
+        emit(result, human=human)
+        return
+
+    post_diagnostics: list[Diagnostic] = []
+    post_warnings: list[Diagnostic] = []
+    counts: dict[str, int] | None = None
+    if check:
+        post = postwrite_check(target_root)
+        post_diagnostics.extend(post.diagnostics)
+        post_warnings.extend(post.warnings)
+        if post.ok:
+            counts = {
+                "knowledge_count": post.knowledge_count,
+                "strategy_count": post.strategy_count,
+                "operator_count": post.operator_count,
+            }
+
+    _emit_scaffold_envelope(
+        plan=plan,
+        created=created,
+        post_diagnostics=post_diagnostics,
+        post_warnings=post_warnings,
+        counts=counts,
+        human=human,
+    )
+
+
+__all__ = ["scaffold_command"]
