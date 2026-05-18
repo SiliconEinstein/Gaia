@@ -171,3 +171,98 @@ def test_variable_const_without_value_rejected(gaia_package: FixturePackage) -> 
         ],
     )
     assert result.exit_code == 2
+
+
+def test_variable_value_as_bare_identifier_resolves(gaia_package: FixturePackage) -> None:
+    """R9 #4 — `--value DOMINANT_COUNT` resolves against module scope.
+
+    Hand-authored mendel imports `DOMINANT_COUNT` / `TOTAL_COUNT` from a
+    sibling module and passes them through to `Variable(value=...)`. The
+    cli now mirrors that shape: a bare identifier in ``--value`` is
+    pushed into pre-write's reference list AND rendered verbatim into
+    the ``value=`` slot.
+    """
+    # Seed the module-scope constant so the reference resolves.
+    existing = gaia_package.source_init.read_text()
+    gaia_package.source_init.write_text(existing + "\nDOMINANT_COUNT = 295\n")
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "variable",
+            "--symbol",
+            "k_dominant",
+            "--domain",
+            "Nat",
+            "--value",
+            "DOMINANT_COUNT",
+            "--label",
+            "f2_dominant",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    assert "f2_dominant = Variable(symbol='k_dominant', domain=Nat, value=DOMINANT_COUNT)" in (
+        written
+    )
+
+
+def test_variable_value_unresolved_identifier_rejected(gaia_package: FixturePackage) -> None:
+    """R9 #4 — bare identifier in --value that doesn't resolve is rejected.
+
+    Pre-write's invariant (c) reference-resolution must fire when the
+    user passes ``--value SOME_UNDEFINED_NAME`` — otherwise the cli would
+    silently emit a statement that the engine later fails to load.
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "variable",
+            "--symbol",
+            "k",
+            "--domain",
+            "Nat",
+            "--value",
+            "MISSING_CONSTANT",
+            "--label",
+            "x",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 3
+
+
+def test_variable_value_literal_still_works(gaia_package: FixturePackage) -> None:
+    """R9 #4 — back-compat: literal `--value 395` keeps current behavior.
+
+    The bare-identifier path is a *strict superset* of the literal path:
+    numeric / boolean / string literals continue to render verbatim
+    without going through reference resolution.
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "variable",
+            "--symbol",
+            "n",
+            "--domain",
+            "Nat",
+            "--value",
+            "395",
+            "--label",
+            "f2_total",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    assert "f2_total = Variable(symbol='n', domain=Nat, value=395)" in written

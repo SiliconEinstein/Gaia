@@ -22,6 +22,7 @@ write to catch obvious malformations.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import typer
@@ -35,6 +36,17 @@ from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
 _PRIMITIVE_DOMAINS = frozenset({"Nat", "Real", "Bool", "Probability"})
+
+# R9 #4 — recognise a bare Python identifier in ``--value`` so the cli
+# can let authors reference module-scope constants (e.g. an imported
+# ``DOMINANT_COUNT``) instead of literal numbers. A matching identifier
+# is forwarded verbatim into the rendered ``value=`` slot AND pushed
+# into the proposed-op references list so pre-write invariant (c)
+# verifies it resolves in module scope.
+#
+# Bare-identifier shape only: dotted lookups, calls, expressions still
+# render verbatim (back-compat) but skip the reference-list push.
+_BARE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _render_variable_statement(
@@ -103,9 +115,12 @@ def variable_command(
         None,
         "--value",
         help=(
-            "Bound value (literal or expression). Forwarded verbatim (e.g. "
-            "`--value 395`, `--value 0.75`, `--value True`). For Constant "
-            "this is required."
+            "Bound value (literal, identifier, or expression). Forwarded "
+            "verbatim (e.g. `--value 395`, `--value 0.75`, `--value True`). "
+            "R9 #4 — a bare Python identifier (`--value DOMINANT_COUNT`) "
+            "is also resolved against module scope so authors can reference "
+            "imported constants (e.g. from a sibling `probabilities.py`). "
+            "For Constant this is required."
         ),
     ),
     content: str | None = typer.Option(
@@ -215,6 +230,29 @@ def variable_command(
     references: list[str] = []
     if domain not in _PRIMITIVE_DOMAINS:
         references.append(domain)
+
+    # R9 #4 — when ``--value`` is a bare Python identifier (no dots,
+    # no calls), treat it as a module-scope reference and push it into
+    # pre-write's reference resolution. Matches the hand-authored
+    # ``Variable(value=DOMINANT_COUNT)`` pattern where the constant is
+    # imported from a sibling module. Literal values (``395``, ``0.75``,
+    # ``True``) still bypass the reference list — pre-write's syntax
+    # invariant catches malformed expressions; literal values aren't
+    # module-scope names. Dunder names rejected because they'd collide
+    # with Python's reserved internals (caught by pre-write's collision
+    # invariant downstream, but cheaper to filter here).
+    # Skip Python literal keywords + primitive domain names already
+    # handled above. ``True`` / ``False`` / ``None`` are bare
+    # identifiers per the regex but are reserved literal keywords
+    # the engine accepts directly without resolution.
+    if (
+        value is not None
+        and _BARE_IDENTIFIER_RE.match(value)
+        and not value.startswith("__")
+        and value not in {"True", "False", "None"}
+        and value not in _PRIMITIVE_DOMAINS
+    ):
+        references.append(value)
 
     required_imports: tuple[str, ...] = ("Constant",) if const else ("Variable",)
     if domain in _PRIMITIVE_DOMAINS:
