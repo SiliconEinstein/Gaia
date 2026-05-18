@@ -9,6 +9,7 @@ verbs and the two stubbed verbs.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from typer.testing import CliRunner
@@ -32,6 +33,21 @@ runner = CliRunner()
 
 
 _ENVELOPE_TOP_KEYS = {"status", "code", "verb", "payload", "warnings", "diagnostics"}
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[mK]")
+
+
+def _strip_ansi(s: str) -> str:
+    """Remove ANSI color escape sequences from ``s``.
+
+    Typer's rich-based help renderer color-segments each part of a long
+    flag (e.g. ``--from-file`` becomes three ANSI-wrapped spans:
+    ``-``, ``-from``, ``-file``) so the raw flag name does not survive
+    as a contiguous substring of ``result.output`` in CI environments
+    where color is enabled. Stripping the escapes first restores the
+    plain flag spelling for substring assertions.
+    """
+    return _ANSI_RE.sub("", s)
 
 
 def _parse(output: str) -> dict[str, object]:
@@ -110,11 +126,14 @@ def test_envelope_shape_compose_missing_from_file() -> None:
     """
     result = runner.invoke(app, ["author", "compose"])
     assert result.exit_code != 0, result.output
-    # Substring drops the leading dashes so the assertion survives Typer's
-    # ANSI color escapes in CI (which split ``--from-file`` into three
-    # colored segments). The contract still asserts the missing-option
-    # diagnostic surfaces.
-    assert "from-file" in result.output
+    # Strip ANSI before substring assertion: in CI environments where
+    # color is enabled, typer's rich-based help renderer splits
+    # ``--from-file`` into three independently-coloured spans (``-``,
+    # ``-from``, ``-file``), so neither the flag nor any sub-token
+    # survives as a contiguous substring of the raw ``result.output``.
+    # Stripping the escapes restores the plain spelling and keeps the
+    # flag-name contract intact.
+    assert "--from-file" in _strip_ansi(result.output)
 
 
 def test_human_rendering_smoke(gaia_package: FixturePackage) -> None:
