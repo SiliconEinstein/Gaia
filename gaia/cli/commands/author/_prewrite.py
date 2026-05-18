@@ -67,7 +67,6 @@ from gaia.cli.commands.author._deprecation_scan import get_deprecated_names
 from gaia.cli.commands.author._envelope import Diagnostic, exit_code_for_diagnostic
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 
-
 # S3 / audit §D.1+§D.2 — file-role policy. The engine reserves a small
 # set of source modules as Knowledge-free zones (``priors.py`` /
 # ``review.py``) and treats ``reviews/`` directory contents as
@@ -201,53 +200,25 @@ def prewrite_check(
     # target on a fresh package is a usage error: use ``gaia pkg
     # add-module`` first). The runner uses this path; the writer then
     # appends to it.
-    if proposed_op.target_file:
-        relative = proposed_op.target_file
-        write_target_path, target_file_errors = _resolve_write_target(
+    target_errors, write_target_path = _resolve_target_file_or_default(
+        proposed_op=proposed_op,
+        source_root=source_root,
+        source_init_path=source_init_path,
+    )
+    if target_errors:
+        return AuthorPrewriteResult(
+            ok=False,
+            target_path=target_root,
+            source_init_path=source_init_path,
+            import_name=import_name,
+            project_name=project_name,
+            module_symbols=set(),
+            exit_code=_first_exit_code(target_errors),
+            diagnostics=target_errors,
+            warnings=warnings,
+            write_target_path=None,
             source_root=source_root,
-            relative=relative,
         )
-        if target_file_errors:
-            return AuthorPrewriteResult(
-                ok=False,
-                target_path=target_root,
-                source_init_path=source_init_path,
-                import_name=import_name,
-                project_name=project_name,
-                module_symbols=set(),
-                exit_code=_first_exit_code(target_file_errors),
-                diagnostics=target_file_errors,
-                warnings=warnings,
-                write_target_path=None,
-                source_root=source_root,
-            )
-        # S3 / audit §D.1+§D.2 — refuse to write a Knowledge-declaring
-        # verb into a reserved-role file (priors.py / review.py /
-        # reviews/<sub>.py). The engine's _load_resolution_policy +
-        # _is_auxiliary_source_module enforce these zones at load
-        # time; mirroring the check at prewrite avoids leaving the
-        # source file half-mutated when the engine subsequently
-        # rejects.
-        role_errors = _validate_target_role(
-            verb=proposed_op.verb,
-            relative=relative,
-        )
-        if role_errors:
-            return AuthorPrewriteResult(
-                ok=False,
-                target_path=target_root,
-                source_init_path=source_init_path,
-                import_name=import_name,
-                project_name=project_name,
-                module_symbols=set(),
-                exit_code=_first_exit_code(role_errors),
-                diagnostics=role_errors,
-                warnings=warnings,
-                write_target_path=None,
-                source_root=source_root,
-            )
-    else:
-        write_target_path = source_init_path
 
     # ---- (b) Input syntax ----------------------------------------------- #
     #
@@ -494,6 +465,40 @@ def _resolve_write_target(
             )
         ]
     return resolved, []
+
+
+# --------------------------------------------------------------------------- #
+# Target-file resolution + role policy                                        #
+# --------------------------------------------------------------------------- #
+
+
+def _resolve_target_file_or_default(
+    *,
+    proposed_op: ProposedAuthorOp,
+    source_root: Path,
+    source_init_path: Path | None,
+) -> tuple[list[Diagnostic], Path | None]:
+    """Resolve ``proposed_op.target_file`` against source root + role policy.
+
+    Lifted out of :func:`prewrite_check` to keep its complexity below
+    the ruff C901 budget. Returns ``(errors, write_target_path)``;
+    errors is non-empty when the file path is invalid or the role
+    policy refuses the verb. When ``target_file`` is unset, the path
+    defaults to ``source_init_path`` and no errors are returned.
+    """
+    if not proposed_op.target_file:
+        return [], source_init_path
+    relative = proposed_op.target_file
+    write_target_path, target_file_errors = _resolve_write_target(
+        source_root=source_root,
+        relative=relative,
+    )
+    if target_file_errors:
+        return target_file_errors, None
+    role_errors = _validate_target_role(verb=proposed_op.verb, relative=relative)
+    if role_errors:
+        return role_errors, None
+    return [], write_target_path
 
 
 # --------------------------------------------------------------------------- #

@@ -334,7 +334,7 @@ def _update_compositions_table(
     file_path: str,
     function: str,
 ) -> dict[str, Any]:
-    """Insert-or-update a ``[[tool.gaia.compositions]]`` entry in pyproject.toml.
+    r"""Insert-or-update a ``[[tool.gaia.compositions]]`` entry in pyproject.toml.
 
     S2 / audit §B.1 / chenkun #5 — values are now TOML-escaped via
     ``tomli_w`` so user-controlled strings (e.g. a malicious composition
@@ -411,8 +411,7 @@ def _render_compositions_toml(entries: list[dict[str, Any]]) -> str:
     # API; build a wrapper doc and serialise the full thing, then strip
     # the wrapper. The output for ``{"tool": {"gaia": {"compositions": [...]}}}``
     # is the canonical ``[[tool.gaia.compositions]]`` block sequence.
-    rendered = tomli_w.dumps({"tool": {"gaia": {"compositions": entries}}})
-    return rendered
+    return tomli_w.dumps({"tool": {"gaia": {"compositions": entries}}})
 
 
 # --------------------------------------------------------------------------- #

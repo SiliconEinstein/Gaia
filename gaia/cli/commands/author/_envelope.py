@@ -216,7 +216,7 @@ def render_human(result: AuthorResult) -> str:
     # ugly ``gaia bayes bayes.Binomial`` shape.
     display_verb = result.verb
     if "." in display_verb:
-        head, sep, tail = display_verb.partition(".")
+        head, _sep, tail = display_verb.partition(".")
         if head in {"pkg", "bayes"}:
             display_verb = tail
     lines.append(f"gaia {group} {display_verb}: {glyph}")

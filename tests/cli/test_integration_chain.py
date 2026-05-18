@@ -70,7 +70,7 @@ def _scaffold(tmp_path: Path, *, name: str = "chain-gaia") -> Path:
 
 
 def test_chain_scaffold_add_module_author_check_clean(tmp_path: Path) -> None:
-    """pkg scaffold → add-module --name extra → author claim --file extra.py → check ok."""
+    """Pkg scaffold → add-module --name extra → author claim --file extra.py → check ok."""
     target = _scaffold(tmp_path)
 
     add_result = runner.invoke(
@@ -118,7 +118,7 @@ def test_chain_scaffold_add_module_author_check_clean(tmp_path: Path) -> None:
 
 
 def test_chain_bayes_binomial_unsafe_n_rejected(tmp_path: Path) -> None:
-    """bayes binomial --n with an unsafe expression exits 2 (prewrite.expr_unsafe)."""
+    """Bayes binomial --n with an unsafe expression exits 2 (prewrite.expr_unsafe)."""
     target = _scaffold(tmp_path)
     result = runner.invoke(
         app,
@@ -143,7 +143,7 @@ def test_chain_bayes_binomial_unsafe_n_rejected(tmp_path: Path) -> None:
 
 
 def test_chain_bayes_binomial_clean_inputs_round_trip(tmp_path: Path) -> None:
-    """bayes binomial with literal n/p produces a valid rendered binding.
+    """Bayes binomial with literal n/p produces a valid rendered binding.
 
     Distribution-only packages are rejected by the engine (no Knowledge
     declarations) — so we seed a single claim first to satisfy the
@@ -249,7 +249,7 @@ def test_chain_cross_module_reference_with_check(tmp_path: Path) -> None:
 
 
 def test_chain_priors_policy_rejects_claim(tmp_path: Path) -> None:
-    """author claim --file priors.py exits 3 with prewrite.target_role_forbidden."""
+    """Author claim --file priors.py exits 3 with prewrite.target_role_forbidden."""
     target = _scaffold(tmp_path)
 
     # Scaffold priors.py first so the file exists (else target_invalid

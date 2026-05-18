@@ -74,6 +74,114 @@ from gaia.cli.commands.author._prose import build_auto_claim_statement, slugify_
 from gaia.cli.commands.author._runner import run_author_op
 
 
+def _validate_given_and_background(
+    *,
+    given: str | None,
+    background: str | None,
+    target: str,
+    human: bool,
+) -> tuple[list[str], list[str]] | None:
+    """Run --given / --background through :func:`split_csv_idents`."""
+    given_list, given_error = split_csv_idents(given)
+    if given_error:
+        emit_syntax_error(
+            "observe",
+            f"--given rejected: {given_error}",
+            target=target,
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return None
+    background_list, background_error = split_csv_idents(background)
+    if background_error:
+        emit_syntax_error(
+            "observe",
+            f"--background rejected: {background_error}",
+            target=target,
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return None
+    return given_list, background_list
+
+
+def _check_continuous_mutex(
+    *,
+    value: str | None,
+    error: str | None,
+    given_list: list[str],
+    target: str,
+    human: bool,
+) -> bool:
+    """Continuous-form rules: --value forbids --given; --error needs --value.
+
+    Returns ``True`` to proceed, ``False`` after emitting the
+    rejection envelope.
+    """
+    if value is not None and given_list:
+        emit_syntax_error(
+            "observe",
+            (
+                "--value (continuous observe) is incompatible with --given "
+                "(use a wrapper Claim instead)"
+            ),
+            target=target,
+            human=human,
+        )
+        return False
+    if error is not None and value is None:
+        emit_syntax_error(
+            "observe",
+            "--error requires --value (continuous observation form)",
+            target=target,
+            human=human,
+        )
+        return False
+    return True
+
+
+def _validate_value_and_error(
+    *,
+    value: str | None,
+    error: str | None,
+    target: str,
+    human: bool,
+) -> tuple[str | None, str | None, list[str]] | None:
+    """Run --value / --error through parse_literal_or_identifier.
+
+    Returns ``(rendered_value, rendered_error, references_sink)`` on
+    success or ``None`` after emitting the rejection envelope.
+    """
+    references_sink: list[str] = []
+    rendered_value: str | None = None
+    rendered_error: str | None = None
+    if value is not None:
+        try:
+            _, rendered_value = parse_literal_or_identifier(value, references_sink=references_sink)
+        except PrewriteUnsafeError as exc:
+            emit_syntax_error(
+                "observe",
+                f"--value rejected: {exc}",
+                target=target,
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return None
+    if error is not None:
+        try:
+            _, rendered_error = parse_literal_or_identifier(error, references_sink=references_sink)
+        except PrewriteUnsafeError as exc:
+            emit_syntax_error(
+                "observe",
+                f"--error rejected: {exc}",
+                target=target,
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return None
+    return rendered_value, rendered_error, references_sink
+
+
 def _render_observe_statement(
     *,
     label: str,
@@ -285,26 +393,12 @@ def observe_command(
         emit_syntax_error("observe", metadata_error, target=str(target), human=human)
         return
 
-    given_list, given_error = split_csv_idents(given)
-    if given_error:
-        emit_syntax_error(
-            "observe",
-            f"--given rejected: {given_error}",
-            target=str(target),
-            human=human,
-            kind="prewrite.expr_unsafe",
-        )
+    csv_pair = _validate_given_and_background(
+        given=given, background=background, target=str(target), human=human
+    )
+    if csv_pair is None:
         return
-    background_list, background_error = split_csv_idents(background)
-    if background_error:
-        emit_syntax_error(
-            "observe",
-            f"--background rejected: {background_error}",
-            target=str(target),
-            human=human,
-            kind="prewrite.expr_unsafe",
-        )
-        return
+    given_list, background_list = csv_pair
     # ``--source-refs`` is free-form annotation text — keep the
     # permissive splitter; repr() renders the strings safely into source.
     source_refs_list = split_csv(source_refs)
@@ -312,53 +406,21 @@ def observe_command(
     # R10 Axis 1 — --value / --error are spliced directly into the
     # rendered observe() call. Validate as literal-or-identifier so the
     # postwrite import can't execute crafted argv.
-    references_sink: list[str] = []
-    rendered_value: str | None = None
-    rendered_error: str | None = None
-    if value is not None:
-        try:
-            _, rendered_value = parse_literal_or_identifier(value, references_sink=references_sink)
-        except PrewriteUnsafeError as exc:
-            emit_syntax_error(
-                "observe",
-                f"--value rejected: {exc}",
-                target=str(target),
-                human=human,
-                kind="prewrite.expr_unsafe",
-            )
-            return
-    if error is not None:
-        try:
-            _, rendered_error = parse_literal_or_identifier(error, references_sink=references_sink)
-        except PrewriteUnsafeError as exc:
-            emit_syntax_error(
-                "observe",
-                f"--error rejected: {exc}",
-                target=str(target),
-                human=human,
-                kind="prewrite.expr_unsafe",
-            )
-            return
-
-    # Mutual-exclusion sanity: continuous form (with value) cannot accept --given.
-    if value is not None and given_list:
-        emit_syntax_error(
-            "observe",
-            (
-                "--value (continuous observe) is incompatible with --given "
-                "(use a wrapper Claim instead)"
-            ),
-            target=str(target),
-            human=human,
-        )
+    val_err_refs = _validate_value_and_error(
+        value=value, error=error, target=str(target), human=human
+    )
+    if val_err_refs is None:
         return
-    if error is not None and value is None:
-        emit_syntax_error(
-            "observe",
-            "--error requires --value (continuous observation form)",
-            target=str(target),
-            human=human,
-        )
+    rendered_value, rendered_error, references_sink = val_err_refs
+
+    # Mutual-exclusion sanity for continuous form.
+    if not _check_continuous_mutex(
+        value=value,
+        error=error,
+        given_list=given_list,
+        target=str(target),
+        human=human,
+    ):
         return
 
     # --- resolve observation mode ---------------------------------------- #
