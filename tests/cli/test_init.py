@@ -22,7 +22,11 @@ runner = CliRunner()
 
 
 def _fake_uv_init(args, *, cwd, text, capture_output):
-    """Simulate `uv init --lib <name>`: create the directory tree that uv would create."""
+    """Simulate `uv init --lib <name>`: create the directory tree that uv would create.
+
+    ``uv init`` populates ``[project] authors`` from the local git config — we
+    include the field here so the cli's strip step is exercised by the test.
+    """
     del capture_output, text
     # Invocation shape uses uv init --lib <name>.
     name = args[3]
@@ -32,6 +36,7 @@ def _fake_uv_init(args, *, cwd, text, capture_output):
     (pkg_dir / "pyproject.toml").write_text(
         f'[project]\nname = "{name}"\nversion = "0.1.0"\n'
         f'description = "Add your description here"\n'
+        f'authors = [\n    {{ name = "Test User", email = "test@example.com" }},\n]\n'
     )
     src_dir = pkg_dir / "src" / uv_import_name
     src_dir.mkdir(parents=True)
@@ -110,21 +115,55 @@ def test_init_creates_package(tmp_path, monkeypatch):
     uv_default_dir = pkg_dir / "src" / "my_research_gaia"
     assert not uv_default_dir.exists()
 
-    # __init__.py has DSL template
+    # __init__.py has minimal DSL template: no placeholder, no docstring (default),
+    # empty __all__. Author commands populate __all__ as statements are added.
     init_py = import_dir / "__init__.py"
     content = init_py.read_text()
-    assert "from gaia.engine.lang import claim, derive, note" in content
-    assert "noisy_and" not in content
-    assert "context = note(" in content
-    assert "hypothesis = claim(" in content
-    assert "prediction = derive(" in content
-    assert "given=hypothesis" in content
-    assert "background=[context]" in content
-    assert '__all__ = ["hypothesis", "prediction"]' in content
+    assert "from gaia.engine.lang import claim" in content
+    assert "__all__: list[str] = []" in content
+    # No hypothesis placeholder, no derive/note demo statements.
+    assert "hypothesis = claim(" not in content
+    assert "prediction = derive(" not in content
+    assert "context = note(" not in content
+    # No docstring when --docstring is omitted.
+    assert not content.lstrip().startswith('"""')
+
+    # pyproject.toml has no [project] authors (stripped from uv init's git-config leak)
+    assert "authors =" not in pyproject.read_text()
 
     # .gitignore includes .gaia/
     gitignore = pkg_dir / ".gitignore"
     assert ".gaia/" in gitignore.read_text()
+
+
+def test_init_with_docstring_writes_module_docstring(tmp_path, monkeypatch):
+    """`--docstring` writes a triple-quoted module docstring at line 1."""
+    monkeypatch.chdir(tmp_path)
+    with patch("gaia.cli.commands.init.subprocess.run", side_effect=_fake_subprocess_run):
+        result = runner.invoke(
+            app,
+            ["build", "init", "doc-gaia", "--docstring", "Hello docstring."],
+        )
+
+    assert result.exit_code == 0, f"Failed: {result.output}"
+    init_py = tmp_path / "doc-gaia" / "src" / "doc" / "__init__.py"
+    content = init_py.read_text()
+    assert content.startswith('"""Hello docstring."""\n')
+    assert "from gaia.engine.lang import claim" in content
+    assert "__all__: list[str] = []" in content
+
+
+def test_init_strips_uv_authors_leak(tmp_path, monkeypatch):
+    """`[project] authors` populated by `uv init` from git config is stripped."""
+    monkeypatch.chdir(tmp_path)
+    with patch("gaia.cli.commands.init.subprocess.run", side_effect=_fake_subprocess_run):
+        result = runner.invoke(app, ["build", "init", "noauth-gaia"])
+
+    assert result.exit_code == 0, f"Failed: {result.output}"
+    pyproject_text = (tmp_path / "noauth-gaia" / "pyproject.toml").read_text()
+    # No authors field at all — users add their own
+    assert "authors" not in pyproject_text
+    assert "test@example.com" not in pyproject_text
 
 
 def test_init_simple_name(tmp_path, monkeypatch):

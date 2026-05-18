@@ -112,9 +112,12 @@ def _validate_inputs(
     return None
 
 
-def _build_module_text(*, imports: tuple[str, ...]) -> str:
+def _build_module_text(*, imports: tuple[str, ...], docstring: str | None) -> str:
     """Render the sibling module's seed text."""
-    lines = ['"""Sibling module created via `gaia pkg add-module`."""', ""]
+    lines: list[str] = []
+    if docstring is not None:
+        lines.append(f'"""{docstring}"""')
+        lines.append("")
     if imports:
         lines.append("from __future__ import annotations")
         lines.append("")
@@ -146,6 +149,14 @@ def add_module_command(
             "`from __future__ import annotations`."
         ),
     ),
+    docstring: str | None = typer.Option(
+        None,
+        "--docstring",
+        help=(
+            "Module docstring for the generated sibling file. Wrapped in "
+            "triple quotes at line 1. Default: no docstring."
+        ),
+    ),
     human: bool = typer.Option(
         False, "--human", help="Render the envelope in human-readable form instead of JSON."
     ),
@@ -160,7 +171,7 @@ def add_module_command(
     .. code-block:: bash
 
         gaia pkg add-module --name priors --imports register_prior \
-            --target ./my-domain-gaia
+            --target ./mypkg-gaia --docstring "Priors module."
     """
     del json_
 
@@ -240,7 +251,7 @@ def add_module_command(
     )
 
     try:
-        module_path.write_text(_build_module_text(imports=imports_tuple))
+        module_path.write_text(_build_module_text(imports=imports_tuple, docstring=docstring))
     except (OSError, PermissionError) as exc:
         result = AuthorResult(
             verb="add_module",

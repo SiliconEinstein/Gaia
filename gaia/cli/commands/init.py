@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import uuid
 from pathlib import Path
@@ -10,23 +11,24 @@ import typer
 
 from gaia.engine.packaging import GaiaPackagingError
 
-# The DSL template emits the canonical import path
-# `from gaia.engine.lang import ...`. See `docs/migration.md` for the
-# user-side import migration guide.
-_DSL_TEMPLATE = """\
-from gaia.engine.lang import claim, derive, note
+# Minimal DSL template: just the canonical ``claim`` import and an empty
+# ``__all__``. Subsequent ``gaia author <verb>`` commands populate
+# ``__all__`` as statements are added. No placeholder demo statement —
+# the package starts empty.
+_DSL_BODY_NO_DOCSTRING = """\
+from gaia.engine.lang import claim
 
-context = note("Background context for this package.")
-hypothesis = claim("A scientific hypothesis.")
-prediction = derive(
-    "A testable prediction follows from the hypothesis.",
-    given=hypothesis,
-    background=[context],
-    rationale="Explain why the hypothesis entails this prediction.",
-)
-
-__all__ = ["hypothesis", "prediction"]
+__all__: list[str] = []
 """
+
+
+_DSL_BODY_WITH_DOCSTRING = '''\
+"""{docstring}"""
+
+from gaia.engine.lang import claim
+
+__all__: list[str] = []
+'''
 
 
 def _run_uv(
@@ -47,10 +49,40 @@ def _run_uv(
     return result
 
 
+def _strip_authors_from_pyproject(pyproject_text: str) -> str:
+    """Remove a leading ``[project] authors = [...]`` block written by ``uv init``.
+
+    ``uv init`` populates ``authors`` from the local git config (``user.name`` /
+    ``user.email``). For a public-tier scaffold we drop that line entirely;
+    users add their own afterward. Matches both single-line and multi-line
+    array forms.
+    """
+    # Multi-line form: `authors = [\n    { name = "...", email = "..." },\n]`
+    pattern_multiline = re.compile(
+        r"^authors\s*=\s*\[\s*\n(?:[^\]\n]*\n)*?\]\s*\n",
+        re.MULTILINE,
+    )
+    pyproject_text = pattern_multiline.sub("", pyproject_text)
+    # Single-line form: `authors = [{ name = "...", email = "..." }]`
+    pattern_singleline = re.compile(r"^authors\s*=\s*\[.*\]\s*\n", re.MULTILINE)
+    return pattern_singleline.sub("", pyproject_text)
+
+
 def init_command(
     name: str = typer.Argument(help="Package name (must end with '-gaia')."),
+    docstring: str | None = typer.Option(
+        None,
+        "--docstring",
+        help=(
+            "Module docstring for the generated src/<import_name>/__init__.py. "
+            "Wrapped in triple quotes at line 1. Default: no docstring."
+        ),
+    ),
 ) -> None:
-    """Create a new Gaia knowledge package."""
+    """Create a new Gaia knowledge package.
+
+    Example: ``gaia build init mypkg-gaia --docstring "My package."``
+    """
     # --- validate name suffix ---------------------------------------------------
     if not name.endswith("-gaia"):
         suggested = f"{name}-gaia"
@@ -74,7 +106,15 @@ def init_command(
     import_name = name.removesuffix("-gaia").replace("-", "_")
 
     # --- patch pyproject.toml with [tool.hatch] + [tool.gaia] sections ---------
+    # First strip any ``[project] authors`` block that ``uv init`` populated from
+    # local git config — public-tier scaffold leaves authors empty so users
+    # don't inadvertently expose internal email domains.
     pyproject_path = pkg_dir / "pyproject.toml"
+    existing_pyproject = pyproject_path.read_text()
+    cleaned_pyproject = _strip_authors_from_pyproject(existing_pyproject)
+    if cleaned_pyproject != existing_pyproject:
+        pyproject_path.write_text(cleaned_pyproject)
+
     gaia_uuid = str(uuid.uuid4())
     extra_sections = (
         f"\n[tool.hatch.build.targets.wheel]\n"
@@ -100,7 +140,10 @@ def init_command(
 
     # --- write DSL template into __init__.py -----------------------------------
     init_py = target_pkg_dir / "__init__.py"
-    init_py.write_text(_DSL_TEMPLATE)
+    if docstring is not None:
+        init_py.write_text(_DSL_BODY_WITH_DOCSTRING.format(docstring=docstring))
+    else:
+        init_py.write_text(_DSL_BODY_NO_DOCSTRING)
 
     # --- append Gaia ignore patterns to .gitignore --------------------------------
     # .gaia/ir.json and .gaia/ir_hash should be tracked (registry needs them).

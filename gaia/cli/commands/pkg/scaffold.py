@@ -97,76 +97,29 @@ allow_holes = true
 """
 
 
-# A minimal but non-trivial DSL template: a single hypothesis claim plus
-# an ``__all__`` so the freshly created package is loadable by
-# ``gaia build check`` immediately after scaffolding.
+# Minimal DSL template: just the canonical ``claim`` import and an
+# empty ``__all__``. Subsequent ``gaia author <verb>`` commands populate
+# ``__all__`` as statements are added. No placeholder demo statement —
+# the package starts empty.
 #
-# The import line covers the full agent-author surface — the same set
-# of names ``gaia author <verb>`` knows about — so subsequent author
-# verbs land into the package without requiring a manual import edit.
-# Names listed here mirror the canonical re-exports from
-# ``gaia.engine.lang``; if the engine surface changes, this template
-# moves in lockstep.
-#
-# Domain primitives ``Variable`` / ``Constant`` / ``Nat`` / ``Real`` /
-# ``Bool`` / ``Probability`` (used by ``gaia author variable`` and
-# ``claim --formula``), plus the ``bayes`` module alias (so
-# ``bayes.model(...)`` / ``bayes.likelihood(...)`` / ``bayes.Normal(...)``
-# cli-authored statements load).
-_INIT_TEMPLATE_FULL = """\
-from gaia.engine import bayes
-from gaia.engine.lang import (
-    Bool,
-    ClaimAtom,
-    Constant,
-    Nat,
-    Probability,
-    Real,
-    Variable,
-    associate,
-    candidate_relation,
-    claim,
-    compute,
-    contradict,
-    decompose,
-    depends_on,
-    derive,
-    equal,
-    equals,
-    exclusive,
-    exists,
-    forall,
-    iff,
-    implies,
-    infer,
-    land,
-    lnot,
-    lor,
-    materialize,
-    note,
-    observe,
-    parameter,
-    question,
-    register_prior,
-)
-
-hypothesis = claim("A scientific hypothesis to be evaluated.", title="Hypothesis")
-
-__all__ = ["hypothesis"]
-"""
-
-
-# ``--minimal-imports`` opt-in: emit only the canonical ``claim``
-# import and the placeholder. The author can manage imports from
-# there. The default stays the full surface; minimal is a self-aware
-# power-user mode.
-_INIT_TEMPLATE_MINIMAL = """\
+# The import line stays narrow (``claim`` only) for the default. Wave 2
+# will make this dynamic — added imports follow added author verbs. For
+# now the freshly scaffolded package is loadable by ``gaia build check``
+# because the import is satisfied and ``__all__`` is well-formed.
+_INIT_BODY_NO_DOCSTRING = """\
 from gaia.engine.lang import claim
 
-hypothesis = claim("A scientific hypothesis to be evaluated.", title="Hypothesis")
-
-__all__ = ["hypothesis"]
+__all__: list[str] = []
 """
+
+
+_INIT_BODY_WITH_DOCSTRING = '''\
+"""{docstring}"""
+
+from gaia.engine.lang import claim
+
+__all__: list[str] = []
+'''
 
 
 @dataclass
@@ -179,7 +132,7 @@ class _ScaffoldPlan:
     namespace: str
     description: str
     pkg_uuid: str | None
-    minimal_imports: bool
+    docstring: str | None
 
 
 def _derive_import_name(pkg_name: str) -> str:
@@ -193,7 +146,7 @@ def _validate_inputs(
     namespace: str | None,
     description: str | None,
     with_uuid: bool,
-    minimal_imports: bool,
+    docstring: str | None,
 ) -> tuple[_ScaffoldPlan | None, list[Diagnostic]]:
     """Run the scaffold-specific pre-validation."""
     diagnostics: list[Diagnostic] = []
@@ -291,7 +244,7 @@ def _validate_inputs(
             namespace=namespace_resolved,
             description=desc_resolved,
             pkg_uuid=pkg_uuid,
-            minimal_imports=minimal_imports,
+            docstring=docstring,
         ),
         [],
     )
@@ -324,7 +277,11 @@ def _scaffold_layout(plan: _ScaffoldPlan) -> list[Path]:
     src_pkg = plan.target_root / "src" / plan.import_name
     src_pkg.mkdir(parents=True)
     init_py = src_pkg / "__init__.py"
-    init_py.write_text(_INIT_TEMPLATE_MINIMAL if plan.minimal_imports else _INIT_TEMPLATE_FULL)
+    if plan.docstring is not None:
+        init_text = _INIT_BODY_WITH_DOCSTRING.format(docstring=plan.docstring)
+    else:
+        init_text = _INIT_BODY_NO_DOCSTRING
+    init_py.write_text(init_text)
     created.append(init_py)
 
     gaia_dir = plan.target_root / ".gaia"
@@ -351,7 +308,7 @@ def _emit_scaffold_envelope(
         "import_name": plan.import_name,
         "namespace": plan.namespace,
         "uuid": plan.pkg_uuid,
-        "minimal_imports": plan.minimal_imports,
+        "docstring": plan.docstring,
         "files_created": [str(p) for p in created],
     }
     if counts is not None:
@@ -406,20 +363,23 @@ def scaffold_command(
             "the field (matches the shipping example packages)."
         ),
     ),
-    minimal_imports: bool = typer.Option(
-        False,
-        "--minimal-imports",
+    docstring: str | None = typer.Option(
+        None,
+        "--docstring",
         help=(
-            "Seed __init__.py with only `claim` instead of the full author "
-            "surface. Default is the full-surface preamble for downstream "
-            "NameError protection (default); minimal is for power users "
-            "managing their own imports (matches shipping example shape)."
+            "Module docstring for the generated src/<import_name>/__init__.py. "
+            "Wrapped in triple quotes at line 1. Default: no docstring."
         ),
     ),
     check: bool = typer.Option(
-        True,
+        False,
         "--check/--no-check",
-        help="Run post-write `gaia build check` on the freshly created package (default on).",
+        help=(
+            "Run post-write `gaia build check` on the freshly created package. "
+            "Default off — a fresh scaffold has no declarations yet, which the "
+            "engine treats as an error. Re-run with `gaia build check` once "
+            "author commands have added statements."
+        ),
     ),
     human: bool = typer.Option(
         False, "--human", help="Render the envelope in human-readable form instead of JSON."
@@ -439,7 +399,8 @@ def scaffold_command(
 
     .. code-block:: bash
 
-        gaia pkg scaffold --target ./my-domain-gaia --name my-domain-gaia
+        gaia pkg scaffold --target ./mypkg-gaia --name mypkg-gaia \
+            --docstring "My package."
     """
     del json_, interactive  # see helper-doc rationale
 
@@ -451,7 +412,7 @@ def scaffold_command(
         namespace=namespace,
         description=description,
         with_uuid=with_uuid,
-        minimal_imports=minimal_imports,
+        docstring=docstring,
     )
     if plan is None:
         # Pick semantic exit code from the first diagnostic kind.

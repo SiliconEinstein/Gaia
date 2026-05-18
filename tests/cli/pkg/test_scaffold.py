@@ -44,17 +44,22 @@ def test_scaffold_happy_path_empty_dir(tmp_path: Path) -> None:
     assert (target / ".gaia").exists()
 
 
-def test_scaffold_postwrite_check(tmp_path: Path) -> None:
-    """Default --check loads the freshly-scaffolded package."""
-    target = tmp_path / "checked-gaia"
+def test_scaffold_check_skipped_by_default(tmp_path: Path) -> None:
+    """Default scaffold skips post-write check (empty pkg cannot pass engine check).
+
+    Wave 1 cleanup: the hypothesis placeholder is gone, so a freshly
+    scaffolded package has no declarations — the engine treats that as
+    an error. The flag default flipped to `--no-check`; users opt back
+    in once author commands have added statements.
+    """
+    target = tmp_path / "skip-check-gaia"
     result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target)])
     assert result.exit_code == 0, result.output
     envelope = _parse(result.output)
     payload = envelope["payload"]
     assert isinstance(payload, dict)
-    check = payload["check"]
-    assert isinstance(check, dict)
-    assert check["knowledge_count"] == 1  # the template's hypothesis claim
+    # `--no-check` is the default → no check counts in payload.
+    assert payload.get("check") == "skipped" or "check" not in payload
 
 
 def test_scaffold_refuses_non_empty_dir(tmp_path: Path) -> None:
