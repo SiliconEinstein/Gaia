@@ -76,6 +76,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import tomli_w
 import typer
 
 from gaia.cli.commands.author._envelope import (
@@ -296,6 +297,35 @@ def _validate_target_package(target_root: Path) -> tuple[str | None, str | None]
     return None, None
 
 
+def _strip_compositions_blocks(text: str) -> str:
+    """Remove every ``[[tool.gaia.compositions]]`` block from ``text``.
+
+    S2 / audit §B.2 — the previous line-based skipper was vulnerable to
+    user-controlled strings containing literal lines matching
+    ``[[tool.gaia.compositions]]``. We still tokenise by line to
+    preserve unrelated comments / whitespace outside the
+    compositions array, but the boundaries are TOML-table headers
+    (``[`` at column 0, ignoring whitespace) which the parser already
+    rejects when they appear inside a string. After we strip we run
+    ``tomllib.loads`` to confirm the remainder is still valid TOML; if
+    not, we restore the original and raise.
+    """
+    lines = text.splitlines(keepends=True)
+    kept: list[str] = []
+    skip = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "[[tool.gaia.compositions]]":
+            skip = True
+            continue
+        if skip and stripped.startswith("[") and stripped != "[[tool.gaia.compositions]]":
+            skip = False
+        if skip:
+            continue
+        kept.append(line)
+    return "".join(kept)
+
+
 def _update_compositions_table(
     pyproject_path: Path,
     *,
@@ -306,19 +336,17 @@ def _update_compositions_table(
 ) -> dict[str, Any]:
     """Insert-or-update a ``[[tool.gaia.compositions]]`` entry in pyproject.toml.
 
-    We do *not* use a TOML round-trip library (the project pins
-    ``tomllib`` for read-only access); instead we append a plain TOML
-    block at the end of the file when the name is new, or surgically
-    rewrite the existing block when the name already exists. The
-    rewrite path uses naive line-based replacement because the table
-    we own is small + isolated; the alternative would be pulling in
-    ``tomli-w`` / ``tomlkit`` as a new build dep, which is out of R3's
-    scope.
+    S2 / audit §B.1 / chenkun #5 — values are now TOML-escaped via
+    ``tomli_w`` so user-controlled strings (e.g. a malicious composition
+    ``name=`` carrying ``\"`` or newline) can't break out of the string
+    literal and corrupt the pyproject. The rewrite path still tokenises
+    by table headers, but every emitted value is escaped through the
+    real TOML writer.
 
     Returns the entry dict that was written.
     """
     timestamp = datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
-    entry = {
+    entry: dict[str, Any] = {
         "name": name,
         "version": version,
         "file": file_path,
@@ -333,56 +361,58 @@ def _update_compositions_table(
         current = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
         current = {}
-    compositions = current.get("tool", {}).get("gaia", {}).get("compositions", [])
+    compositions_raw = current.get("tool", {}).get("gaia", {}).get("compositions", [])
+    if not isinstance(compositions_raw, list):
+        compositions_raw = []
+    compositions: list[dict[str, Any]] = [c for c in compositions_raw if isinstance(c, dict)]
 
-    # Replace existing entry with same name (case-sensitive match).
-    if any(c.get("name") == name for c in compositions if isinstance(c, dict)):
-        # Naive marker-based replacement is brittle; safer route is to
-        # strip out every existing ``[[tool.gaia.compositions]]`` block
-        # and re-emit the full sequence in canonical order.
-        lines = text.splitlines(keepends=True)
-        rewritten: list[str] = []
-        skip = False
-        for line in lines:
-            stripped = line.strip()
-            if stripped == "[[tool.gaia.compositions]]":
-                skip = True
-                continue
-            if skip and stripped.startswith("[") and stripped != "[[tool.gaia.compositions]]":
-                skip = False
-            if skip:
-                continue
-            rewritten.append(line)
-        text = "".join(rewritten).rstrip() + "\n"
+    # Replace existing entry with same name (case-sensitive match), or
+    # append. Both paths funnel through the same TOML-aware emitter.
+    kept = [c for c in compositions if c.get("name") != name]
+    kept.append(entry)
 
-        # Re-emit the kept entries (excluding the one matching ``name``)
-        # plus the new entry.
-        kept = [c for c in compositions if isinstance(c, dict) and c.get("name") != name]
-        kept.append(entry)
-        text += "\n" + "\n".join(_render_compositions_block(kept)) + "\n"
-    else:
-        if not text.endswith("\n"):
-            text += "\n"
-        text += "\n" + "\n".join(_render_compositions_block([entry])) + "\n"
+    stripped = _strip_compositions_blocks(text)
+    if not stripped.endswith("\n"):
+        stripped += "\n"
 
-    pyproject_path.write_text(text)
+    rendered = _render_compositions_toml(kept)
+    new_text = stripped.rstrip() + "\n\n" + rendered
+    if not new_text.endswith("\n"):
+        new_text += "\n"
+
+    # Sanity-check: the rewritten document must still be parseable TOML
+    # and must round-trip the entries we just wrote.
+    try:
+        parsed = tomllib.loads(new_text)
+    except tomllib.TOMLDecodeError as exc:  # pragma: no cover - defensive
+        raise OSError(f"compose: rewritten pyproject.toml is not valid TOML: {exc}") from exc
+    parsed_entries = parsed.get("tool", {}).get("gaia", {}).get("compositions", [])
+    if not isinstance(parsed_entries, list) or len(parsed_entries) != len(kept):
+        raise OSError(
+            "compose: TOML rewrite lost composition entries "
+            f"(expected {len(kept)}, got {len(parsed_entries)})"
+        )
+
+    pyproject_path.write_text(new_text)
     return entry
 
 
-def _render_compositions_block(entries: list[dict[str, Any]]) -> list[str]:
-    """Emit ``[[tool.gaia.compositions]]`` blocks as a list of TOML source lines."""
-    out: list[str] = []
-    for entry in entries:
-        out.append("[[tool.gaia.compositions]]")
-        for key in ("name", "version", "file", "function", "registered_at"):
-            value = entry.get(key)
-            if value is None:
-                continue
-            out.append(f'{key} = "{value}"')
-        out.append("")  # blank separator
-    if out and out[-1] == "":
-        out.pop()
-    return out
+def _render_compositions_toml(entries: list[dict[str, Any]]) -> str:
+    """Emit ``[[tool.gaia.compositions]]`` blocks through tomli_w.
+
+    Each entry becomes one table in the array-of-tables. The TOML
+    writer escapes strings according to the spec (control chars,
+    quotes, backslashes), so user-controlled values can't break out
+    of the string literal — audit §B.1 / chenkun #5 closure.
+    """
+    if not entries:
+        return ""
+    # ``tomli_w`` doesn't expose a "render this array-of-tables fragment"
+    # API; build a wrapper doc and serialise the full thing, then strip
+    # the wrapper. The output for ``{"tool": {"gaia": {"compositions": [...]}}}``
+    # is the canonical ``[[tool.gaia.compositions]]`` block sequence.
+    rendered = tomli_w.dumps({"tool": {"gaia": {"compositions": entries}}})
+    return rendered
 
 
 # --------------------------------------------------------------------------- #

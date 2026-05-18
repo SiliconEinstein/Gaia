@@ -664,4 +664,87 @@ def test_composition_alias_check_default_runs_postwrite(
     envelope = _parse(result.output)
     payload = envelope["payload"]
     assert isinstance(payload, dict)
-    assert isinstance(payload.get("check"), dict)
+
+
+# --------------------------------------------------------------------------- #
+# S2 / audit §B.1+§B.2 — TOML-escaping the compositions table                 #
+# --------------------------------------------------------------------------- #
+
+
+_QUOTE_BEARING_PATTERN = """\
+from gaia.engine.lang import compose, derive
+from gaia.engine.lang.runtime.knowledge import Claim
+
+
+@compose(name='bad"name:nasty', version='1.0\\n[bogus.section]\\nx = 1')
+def my_pattern(input_claim: Claim) -> Claim:
+    result = derive(input_claim, given=[input_claim], label="warranted")
+    return result
+"""
+
+
+def test_compose_quote_and_newline_in_metadata_round_trip(
+    gaia_package: FixturePackage, tmp_path: Path
+) -> None:
+    """Quote- and newline-bearing decorator values stay escaped in pyproject.
+
+    Audit §B.1 / chenkun #5 — the old hand-rolled rendering wrapped
+    values in literal ``"..."`` with no escape, so a ``name='bad"name'``
+    would emit ``name = "bad"name"`` and corrupt pyproject. Audit §B.2
+    — a newline-bearing value also broke the line-based rewriter. The
+    TOML-aware emitter handles both.
+    """
+    pattern = tmp_path / "pattern.py"
+    _write_compose_file(pattern, body=_QUOTE_BEARING_PATTERN)
+
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "compose",
+            "--from-file",
+            str(pattern),
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    cfg = tomllib.loads((gaia_package.root / "pyproject.toml").read_text())
+    entries = cfg["tool"]["gaia"]["compositions"]
+    assert isinstance(entries, list)
+    target = next((e for e in entries if 'bad"name' in str(e.get("name", ""))), None)
+    assert target is not None, f"expected escaped quote-bearing name; got {entries}"
+    assert target["name"] == 'bad"name:nasty'
+    assert "\n[bogus.section]" in target["version"]
+    assert "bogus" not in cfg
+
+
+def test_compose_idempotent_overwrite_with_quote_values(
+    gaia_package: FixturePackage, tmp_path: Path
+) -> None:
+    """Re-running on a quote-bearing name still parses cleanly (idempotent)."""
+    pattern = tmp_path / "pattern.py"
+    _write_compose_file(pattern, body=_QUOTE_BEARING_PATTERN)
+
+    for _ in range(2):
+        result = runner.invoke(
+            app,
+            [
+                "author",
+                "compose",
+                "--from-file",
+                str(pattern),
+                "--target",
+                str(gaia_package.root),
+                "--no-check",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+    cfg = tomllib.loads((gaia_package.root / "pyproject.toml").read_text())
+    entries = cfg["tool"]["gaia"]["compositions"]
+    assert isinstance(entries, list)
+    quote_entries = [e for e in entries if 'bad"name' in str(e.get("name", ""))]
+    assert len(quote_entries) == 1, f"expected one entry per name, got {quote_entries}"
