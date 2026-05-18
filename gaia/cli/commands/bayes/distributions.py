@@ -14,9 +14,12 @@ The 11 shipping distributions:
   StudentT(df, mu=0, sigma=1) / Cauchy(mu, gamma) / ChiSquared(df)
 
 Each verb shares the same JSON envelope + pre-write + post-write
-pipeline as the rest of the cli. Parameter values are forwarded
-verbatim (Pydantic validators inside the engine catch out-of-range
-values at engine-load time; pre-write only checks Python parse-ability).
+pipeline as the rest of the cli. R10 hardening: parameter values
+must now pass :func:`parse_literal_or_identifier` — a literal
+(``--n 395`` / ``--p 0.5``) or a bare identifier (``--n N_TRIALS``)
+is accepted; arbitrary Python expressions are refused at the flag
+boundary with ``prewrite.expr_unsafe`` so the splice-into-generated-
+source RCE vector is closed.
 """
 
 from __future__ import annotations
@@ -26,8 +29,11 @@ from typing import Any
 import typer
 
 from gaia.cli.commands.author._common import (
+    PrewriteUnsafeError,
+    build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
+    parse_literal_or_identifier,
     parse_metadata,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
@@ -39,11 +45,42 @@ def _render_dist_call(*, label: str, dist_name: str, kwargs_pairs: list[str]) ->
     return f"{label} = bayes.{dist_name}({', '.join(kwargs_pairs)})"
 
 
+def _validate_params(
+    *,
+    verb: str,
+    params: list[tuple[str, str]],
+    target: str,
+    human: bool,
+) -> tuple[list[str], list[str]] | None:
+    """Run every parameter through the literal-or-identifier validator.
+
+    Returns ``(kwargs_pairs, references)`` on success, or ``None`` when
+    a parameter is rejected (the helper has already emitted the
+    envelope and exited via :class:`typer.Exit`).
+    """
+    references: list[str] = []
+    kwargs_pairs: list[str] = []
+    for name, raw in params:
+        try:
+            _, rendered = parse_literal_or_identifier(raw, references_sink=references)
+        except PrewriteUnsafeError as exc:
+            emit_syntax_error(
+                verb,
+                f"--{name} rejected: {exc}",
+                target=target,
+                human=human,
+                kind="prewrite.expr_unsafe",
+            )
+            return None
+        kwargs_pairs.append(f"{name}={rendered}")
+    return kwargs_pairs, references
+
+
 def _run_dist_op(
     *,
     label: str,
     dist_name: str,
-    kwargs_pairs: list[str],
+    params: list[tuple[str, str]],
     target: str,
     file: str | None,
     human: bool,
@@ -59,15 +96,26 @@ def _run_dist_op(
         # human-readable affordance.
         # Note: we deliberately omit metadata from the Distribution call.
         pass
+    validation = _validate_params(
+        verb=f"bayes.{dist_name}",
+        params=params,
+        target=target,
+        human=human,
+    )
+    if validation is None:
+        return
+    kwargs_pairs, references = validation
     generated_code = _render_dist_call(label=label, dist_name=dist_name, kwargs_pairs=kwargs_pairs)
+    target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(
         verb=f"bayes.{dist_name}",
         kind="reasoning",
         label=label,
-        references=[],
+        references=references,
         generated_code=generated_code,
         required_imports=("bayes",),
-        target_file=normalize_file_option(file),
+        target_file=target_file,
+        sibling_imports=build_sibling_imports(references, target_file=target_file),
         extra_payload={"distribution_kind": dist_name},
     )
     run_author_op(
@@ -86,8 +134,10 @@ def _run_dist_op(
 
 def binomial_command(
     label: str = typer.Option(..., "--label", help="Identifier the Binomial binding takes."),
-    n: str = typer.Option(..., "--n", help="Trial count (forwarded verbatim)."),
-    p: str = typer.Option(..., "--p", help="Success probability (forwarded verbatim)."),
+    n: str = typer.Option(..., "--n", help="Trial count: numeric literal or bare identifier."),
+    p: str = typer.Option(
+        ..., "--p", help="Success probability: numeric literal or bare identifier."
+    ),
     target: str = typer.Option(".", "--target", help="Target package path."),
     file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
@@ -103,7 +153,7 @@ def binomial_command(
     _run_dist_op(
         label=label,
         dist_name="Binomial",
-        kwargs_pairs=[f"n={n}", f"p={p}"],
+        params=[("n", n), ("p", p)],
         target=target,
         file=file,
         human=human,
@@ -115,9 +165,9 @@ def binomial_command(
 
 def betabinomial_command(
     label: str = typer.Option(..., "--label"),
-    n: str = typer.Option(..., "--n", help="Trial count."),
-    alpha: str = typer.Option(..., "--alpha", help="Beta prior alpha (>0)."),
-    beta: str = typer.Option(..., "--beta", help="Beta prior beta (>0)."),
+    n: str = typer.Option(..., "--n", help="Trial count: numeric literal or bare identifier."),
+    alpha: str = typer.Option(..., "--alpha", help="Beta prior alpha (>0): literal or identifier."),
+    beta: str = typer.Option(..., "--beta", help="Beta prior beta (>0): literal or identifier."),
     target: str = typer.Option(".", "--target"),
     file: str | None = typer.Option(None, "--file"),
     metadata: str | None = typer.Option(None, "--metadata"),
@@ -133,7 +183,7 @@ def betabinomial_command(
     _run_dist_op(
         label=label,
         dist_name="BetaBinomial",
-        kwargs_pairs=[f"n={n}", f"alpha={alpha}", f"beta={beta}"],
+        params=[("n", n), ("alpha", alpha), ("beta", beta)],
         target=target,
         file=file,
         human=human,
@@ -145,7 +195,7 @@ def betabinomial_command(
 
 def poisson_command(
     label: str = typer.Option(..., "--label"),
-    rate: str = typer.Option(..., "--rate", help="Poisson rate (>0)."),
+    rate: str = typer.Option(..., "--rate", help="Poisson rate (>0): literal or identifier."),
     target: str = typer.Option(".", "--target"),
     file: str | None = typer.Option(None, "--file"),
     metadata: str | None = typer.Option(None, "--metadata"),
@@ -161,7 +211,7 @@ def poisson_command(
     _run_dist_op(
         label=label,
         dist_name="Poisson",
-        kwargs_pairs=[f"rate={rate}"],
+        params=[("rate", rate)],
         target=target,
         file=file,
         human=human,
@@ -178,8 +228,8 @@ def poisson_command(
 
 def normal_command(
     label: str = typer.Option(..., "--label"),
-    mu: str = typer.Option(..., "--mu", help="Location parameter."),
-    sigma: str = typer.Option(..., "--sigma", help="Scale parameter (>0)."),
+    mu: str = typer.Option(..., "--mu", help="Location parameter: literal or identifier."),
+    sigma: str = typer.Option(..., "--sigma", help="Scale parameter (>0): literal or identifier."),
     target: str = typer.Option(".", "--target"),
     file: str | None = typer.Option(None, "--file"),
     metadata: str | None = typer.Option(None, "--metadata"),
@@ -195,7 +245,7 @@ def normal_command(
     _run_dist_op(
         label=label,
         dist_name="Normal",
-        kwargs_pairs=[f"mu={mu}", f"sigma={sigma}"],
+        params=[("mu", mu), ("sigma", sigma)],
         target=target,
         file=file,
         human=human,
@@ -224,7 +274,7 @@ def lognormal_command(
     _run_dist_op(
         label=label,
         dist_name="LogNormal",
-        kwargs_pairs=[f"mu={mu}", f"sigma={sigma}"],
+        params=[("mu", mu), ("sigma", sigma)],
         target=target,
         file=file,
         human=human,
@@ -253,7 +303,7 @@ def beta_command(
     _run_dist_op(
         label=label,
         dist_name="Beta",
-        kwargs_pairs=[f"alpha={alpha}", f"beta={beta}"],
+        params=[("alpha", alpha), ("beta", beta)],
         target=target,
         file=file,
         human=human,
@@ -281,7 +331,7 @@ def exponential_command(
     _run_dist_op(
         label=label,
         dist_name="Exponential",
-        kwargs_pairs=[f"rate={rate}"],
+        params=[("rate", rate)],
         target=target,
         file=file,
         human=human,
@@ -310,7 +360,7 @@ def gamma_command(
     _run_dist_op(
         label=label,
         dist_name="Gamma",
-        kwargs_pairs=[f"alpha={alpha}", f"rate={rate}"],
+        params=[("alpha", alpha), ("rate", rate)],
         target=target,
         file=file,
         human=human,
@@ -340,7 +390,7 @@ def studentt_command(
     _run_dist_op(
         label=label,
         dist_name="StudentT",
-        kwargs_pairs=[f"df={df}", f"mu={mu}", f"sigma={sigma}"],
+        params=[("df", df), ("mu", mu), ("sigma", sigma)],
         target=target,
         file=file,
         human=human,
@@ -369,7 +419,7 @@ def cauchy_command(
     _run_dist_op(
         label=label,
         dist_name="Cauchy",
-        kwargs_pairs=[f"mu={mu}", f"gamma={gamma}"],
+        params=[("mu", mu), ("gamma", gamma)],
         target=target,
         file=file,
         human=human,
@@ -397,7 +447,7 @@ def chisquared_command(
     _run_dist_op(
         label=label,
         dist_name="ChiSquared",
-        kwargs_pairs=[f"df={df}"],
+        params=[("df", df)],
         target=target,
         file=file,
         human=human,
