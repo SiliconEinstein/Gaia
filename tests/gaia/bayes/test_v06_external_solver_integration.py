@@ -152,9 +152,7 @@ def _build_v06_with_external_solver(
         diffuse_pred = bayes.predict(
             diffuse,
             target=k_var,
-            distribution=LangBetaBinomial(
-                "k under Diffuse", n=N_TRIALS, alpha=1.0, beta=1.0
-            ),
+            distribution=LangBetaBinomial("k under Diffuse", n=N_TRIALS, alpha=1.0, beta=1.0),
             label="diffuse_pred",
         )
 
@@ -239,9 +237,7 @@ def test_external_solver_bp_posteriors_match_internal_evaluation():
     assert math.isclose(
         beliefs_internal["diffuse"], beliefs_quad["diffuse"], rel_tol=1e-9, abs_tol=1e-12
     )
-    assert math.isclose(
-        beliefs_internal["cmp"], beliefs_quad["cmp"], rel_tol=1e-9, abs_tol=1e-12
-    )
+    assert math.isclose(beliefs_internal["cmp"], beliefs_quad["cmp"], rel_tol=1e-9, abs_tol=1e-12)
 
 
 def test_precomputed_claim_carries_solver_diagnostics_through_compile():
@@ -264,9 +260,10 @@ def test_precomputed_claim_carries_solver_diagnostics_through_compile():
     assert precomputed_claim.diagnostics["method"] == "scipy.integrate.quad"
     assert precomputed_claim.diagnostics["epsabs"] == 1e-14
     assert "per_hypothesis" in precomputed_claim.diagnostics
-    assert precomputed_claim.diagnostics["per_hypothesis"]["diffuse"][
-        "marginal_kind"
-    ] == "numeric_quadrature"
+    assert (
+        precomputed_claim.diagnostics["per_hypothesis"]["diffuse"]["marginal_kind"]
+        == "numeric_quadrature"
+    )
 
     # Compile and walk the IR — the precomputed claim is in the knowledge map.
     compiled = compile_package_artifact(pkg)
@@ -320,17 +317,15 @@ def test_predict_target_distribution_flows_through_compare():
             distribution=LangNormal("y under far", mu=mu, sigma=1.0),
             label="model_far",
         )
-        cmp_result = bayes.compare(
-            data, models=[model_near, model_far], label="cmp"
-        )
+        cmp_result = bayes.compare(data, models=[model_near, model_far], label="cmp")
     finally:
         _current_package.reset(token)
 
     compiled = compile_package_artifact(pkg)
     cmp_id = compiled.knowledge_ids_by_object[id(cmp_result)]
-    likelihoods = next(
-        k for k in compiled.graph.knowledges if k.id == cmp_id
-    ).metadata["comparison"]["likelihoods"]
+    likelihoods = next(k for k in compiled.graph.knowledges if k.id == cmp_id).metadata[
+        "comparison"
+    ]["likelihoods"]
     h_near_id = compiled.knowledge_ids_by_object[id(h_near)]
     h_far_id = compiled.knowledge_ids_by_object[id(h_far)]
     # Direction: y=0.2 is much closer to mu=0 than mu=2, so the near
@@ -408,19 +403,22 @@ def test_compare_rejects_nan_precomputed_log_likelihood():
         )
         with pytest_raises_value("NaN"):
             bayes.compare(
-                data, models=[pred_a, pred_b],
+                data,
+                models=[pred_a, pred_b],
                 precomputed={h_a: -1.0, h_b: _math.nan},
                 label="cmp_nan",
             )
         with pytest_raises_value(r"\+inf"):
             bayes.compare(
-                data, models=[pred_a, pred_b],
+                data,
+                models=[pred_a, pred_b],
                 precomputed={h_a: -1.0, h_b: _math.inf},
                 label="cmp_inf",
             )
         # -inf is OK ("zero-likelihood hypothesis").
         bayes.compare(
-            data, models=[pred_a, pred_b],
+            data,
+            models=[pred_a, pred_b],
             precomputed={h_a: -1.0, h_b: -_math.inf},
             label="cmp_neginf",
         )

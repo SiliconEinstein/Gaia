@@ -239,9 +239,7 @@ def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
         # target, ...). Inline-serialize them to a descriptor so IR
         # consumers can render the referenced variable's symbol/domain
         # without needing to walk back to the Lang object.
-        domain = (
-            getattr(value.domain, "name", None) or getattr(value.domain, "label", None)
-        )
+        domain = getattr(value.domain, "name", None) or getattr(value.domain, "label", None)
         return {
             "kind": "variable",
             "symbol": value.symbol,

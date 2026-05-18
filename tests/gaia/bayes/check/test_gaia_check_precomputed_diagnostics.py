@@ -111,9 +111,7 @@ def test_diagnostics_with_seed_does_not_trigger_warning(tmp_path: Path):
 def test_diagnostics_with_unrecognised_keys_triggers_warning(tmp_path: Path):
     """Only opaque solver-private keys ⇒ warn so audit rules notice."""
     pkg_dir = tmp_path / "bayes_precomputed_check"
-    _write_package(
-        pkg_dir, _format_pkg("{'private_field_x': 1.0, 'another_private': 'hello'}")
-    )
+    _write_package(pkg_dir, _format_pkg("{'private_field_x': 1.0, 'another_private': 'hello'}"))
 
     result = runner.invoke(app, ["build", "check", str(pkg_dir)])
 

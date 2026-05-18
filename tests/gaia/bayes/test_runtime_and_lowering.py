@@ -801,8 +801,7 @@ def test_compare_dedups_through_callstack_inferred_package():
     matching = [
         action
         for action in pkg.actions
-        if isinstance(action, ExclusiveAction)
-        and {id(action.a), id(action.b)} == pair_ids
+        if isinstance(action, ExclusiveAction) and {id(action.a), id(action.b)} == pair_ids
     ]
     assert len(matching) == 1, (
         "compare() must dedup against external Exclusive(mendel, blending) "
@@ -886,9 +885,7 @@ def test_three_model_pairwise_contradiction_remains_supported():
         _current_package.reset(token)
 
     contradict_pairs = {
-        frozenset((id(a.a), id(a.b)))
-        for a in pkg.actions
-        if isinstance(a, Contradict)
+        frozenset((id(a.a), id(a.b))) for a in pkg.actions if isinstance(a, Contradict)
     }
     expected_pairs = {
         frozenset((id(h_a), id(h_b))),

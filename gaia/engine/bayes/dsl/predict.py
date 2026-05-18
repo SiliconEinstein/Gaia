@@ -60,8 +60,7 @@ def predict(
         raise TypeError("predict() hypothesis must be a Claim")
     if not isinstance(target, (Variable, Distribution)):
         raise TypeError(
-            "predict() target must be a Variable or a Distribution; got "
-            f"{type(target).__name__}"
+            f"predict() target must be a Variable or a Distribution; got {type(target).__name__}"
         )
     if not isinstance(distribution, Distribution):
         raise TypeError(
@@ -86,8 +85,7 @@ def predict(
         merged["reason"] = rationale
 
     content = (
-        f"{_claim_ref(hypothesis)} predicts "
-        f"{_target_descriptor(target)} ~ {distribution.kind}."
+        f"{_claim_ref(hypothesis)} predicts {_target_descriptor(target)} ~ {distribution.kind}."
     )
     helper = Claim(
         content,

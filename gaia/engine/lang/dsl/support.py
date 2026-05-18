@@ -173,8 +173,7 @@ def observe(
     if isinstance(conclusion, Variable):
         if value is _OBSERVE_VALUE_SENTINEL:
             raise TypeError(
-                "observe(variable, ...) requires `value=` (the measured "
-                "numeric value)."
+                "observe(variable, ...) requires `value=` (the measured numeric value)."
             )
         if given:
             raise TypeError(
@@ -465,9 +464,7 @@ def _coerce_variable_error(error: Any, *, value_unit: str | None) -> Distributio
     if is_quantity(error):
         magnitude = float(error.magnitude)
         if magnitude <= 0.0:
-            raise ValueError(
-                f"observe(variable, error=sigma) requires sigma > 0, got {error!r}."
-            )
+            raise ValueError(f"observe(variable, error=sigma) requires sigma > 0, got {error!r}.")
         return _anonymous_normal_noise(magnitude, value_unit=value_unit)
     if isinstance(error, bool) or not isinstance(error, (int, float)):
         raise TypeError(
@@ -477,9 +474,7 @@ def _coerce_variable_error(error: Any, *, value_unit: str | None) -> Distributio
         )
     sigma = float(error)
     if sigma <= 0.0:
-        raise ValueError(
-            f"observe(variable, error=sigma) requires sigma > 0, got {error!r}."
-        )
+        raise ValueError(f"observe(variable, error=sigma) requires sigma > 0, got {error!r}.")
     return _anonymous_normal_noise(sigma, value_unit=value_unit)
 
 

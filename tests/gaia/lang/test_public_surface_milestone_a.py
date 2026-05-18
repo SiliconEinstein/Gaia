@@ -98,15 +98,13 @@ def test_bayes_surface_exposes_predict_and_compare_verbs():
     # Legacy verbs are gone — no compatibility shim.
     for removed in ("model", "likelihood", "data"):
         assert not hasattr(bayes, removed), (
-            f"gaia.engine.bayes.{removed} should be gone; "
-            "use predict / compare / observe instead"
+            f"gaia.engine.bayes.{removed} should be gone; use predict / compare / observe instead"
         )
 
     # Typed-value distribution re-exports are gone — use gaia.engine.lang.
     for removed in ("Normal", "Binomial", "BetaBinomial", "Beta", "Poisson"):
         assert not hasattr(bayes, removed), (
-            f"gaia.engine.bayes.{removed} should be gone; "
-            f"import gaia.engine.lang.{removed} instead"
+            f"gaia.engine.bayes.{removed} should be gone; import gaia.engine.lang.{removed} instead"
         )
 
 

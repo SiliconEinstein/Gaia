@@ -113,9 +113,7 @@ def _pymc_smc_log_marginal_diffuse(
     with pm.Model() as diffuse_model:  # noqa: F841
         p = pm.Beta("p", alpha=1.0, beta=1.0)
         k_obs = pm.Binomial("k", n=N_TRIALS, p=p, observed=K_OBSERVED)  # noqa: F841
-        trace = pm.sample_smc(
-            draws=draws, chains=chains, random_seed=seed, progressbar=False
-        )
+        trace = pm.sample_smc(draws=draws, chains=chains, random_seed=seed, progressbar=False)
     arr = trace.sample_stats.log_marginal_likelihood.values  # shape (chain, beta_step)
     final_per_chain = []
     for chain_values in arr:
@@ -267,14 +265,16 @@ def print_report(result: dict[str, Any]) -> None:
     print("Gaia v0.6 PyMC integration demo — Mendel 3:1 vs Diffuse(Uniform on p)")
     print("=" * 72)
     print()
-    print(textwrap.dedent(f"""\
+    print(
+        textwrap.dedent(f"""\
         Setup:
           n_trials       = {N_TRIALS}
           k_observed     = {K_OBSERVED}
           smc_draws      = {SMC_DRAWS}
           smc_chains     = {SMC_CHAINS}
           seed           = {SMC_SEED}
-        """))
+        """)
+    )
 
     print("Log marginal likelihoods:")
     print(

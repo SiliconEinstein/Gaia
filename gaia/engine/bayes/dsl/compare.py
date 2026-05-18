@@ -129,8 +129,7 @@ def _existing_pair_relations(a: Claim, b: Claim) -> tuple[Exclusive | Contradict
     return tuple(
         action
         for action in pkg.actions
-        if isinstance(action, (Exclusive, Contradict))
-        and {id(action.a), id(action.b)} == pair
+        if isinstance(action, (Exclusive, Contradict)) and {id(action.a), id(action.b)} == pair
     )
 
 

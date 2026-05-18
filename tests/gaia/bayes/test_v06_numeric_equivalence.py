@@ -98,28 +98,20 @@ def _beliefs(pkg, h_31, h_null, cmp_result) -> dict[str, float]:
 
 
 def test_mendel_log_likelihoods_match_scipy_under_exhaustive_exclusivity():
-    pkg, h_31, h_null, _, cmp_result = _build_mendel(
-        exclusivity="exhaustive_pairwise_complement"
-    )
+    pkg, h_31, h_null, _, cmp_result = _build_mendel(exclusivity="exhaustive_pairwise_complement")
     compiled = compile_package_artifact(pkg)
     cmp_id = compiled.knowledge_ids_by_object[id(cmp_result)]
     h_31_id = compiled.knowledge_ids_by_object[id(h_31)]
     h_null_id = compiled.knowledge_ids_by_object[id(h_null)]
     metadata = next(k for k in compiled.graph.knowledges if k.id == cmp_id).metadata
     likelihoods = metadata["comparison"]["likelihoods"]
-    assert math.isclose(
-        likelihoods[h_31_id], stats.binom.logpmf(295, n=395, p=0.75), rel_tol=1e-9
-    )
-    assert math.isclose(
-        likelihoods[h_null_id], stats.binom.logpmf(295, n=395, p=0.5), rel_tol=1e-9
-    )
+    assert math.isclose(likelihoods[h_31_id], stats.binom.logpmf(295, n=395, p=0.75), rel_tol=1e-9)
+    assert math.isclose(likelihoods[h_null_id], stats.binom.logpmf(295, n=395, p=0.5), rel_tol=1e-9)
 
 
 def test_mendel_posteriors_match_worked_example_under_exhaustive_exclusivity():
     """exhaustive_pairwise_complement + equal 0.5 priors → Cromwell-clamped odds ≈ 498."""
-    pkg, h_31, h_null, _, cmp_result = _build_mendel(
-        exclusivity="exhaustive_pairwise_complement"
-    )
+    pkg, h_31, h_null, _, cmp_result = _build_mendel(exclusivity="exhaustive_pairwise_complement")
     b = _beliefs(pkg, h_31, h_null, cmp_result)
     assert b["h_31"] > 0.95
     assert b["h_null"] < 0.05
@@ -169,9 +161,9 @@ def test_mendel_betabinomial_diffuse_matches_scipy_betabinom():
     cmp_id = compiled.knowledge_ids_by_object[id(cmp_v06)]
     mendel_id = compiled.knowledge_ids_by_object[id(mendel)]
     diffuse_id = compiled.knowledge_ids_by_object[id(diffuse)]
-    likelihoods = next(
-        k for k in compiled.graph.knowledges if k.id == cmp_id
-    ).metadata["comparison"]["likelihoods"]
+    likelihoods = next(k for k in compiled.graph.knowledges if k.id == cmp_id).metadata[
+        "comparison"
+    ]["likelihoods"]
     assert math.isclose(
         likelihoods[mendel_id], stats.binom.logpmf(k_observed, n=n, p=3 / 4), rel_tol=1e-9
     )

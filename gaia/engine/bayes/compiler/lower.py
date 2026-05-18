@@ -143,9 +143,7 @@ def _prediction_metadata(
     action_label: str | None,
 ) -> dict[str, Any]:
     if action.hypothesis is None or action.target is None or action.distribution is None:
-        raise ValueError(
-            "Bayes Prediction action requires hypothesis, target, distribution"
-        )
+        raise ValueError("Bayes Prediction action requires hypothesis, target, distribution")
     payload = {
         "kind": "prediction",
         "distribution": action.distribution.model_dump(),
@@ -161,9 +159,7 @@ def _prediction_metadata(
 
 def _target_descriptor(target: Variable | Distribution) -> dict[str, Any]:
     if isinstance(target, Variable):
-        domain = (
-            getattr(target.domain, "name", None) or getattr(target.domain, "label", None)
-        )
+        domain = getattr(target.domain, "name", None) or getattr(target.domain, "label", None)
         return {"kind": "variable", "symbol": target.symbol, "domain": domain}
     return {
         "kind": "distribution",
@@ -181,9 +177,7 @@ def _prediction_action(helper: Claim) -> Prediction:
     for candidate in helper.from_actions:
         if isinstance(candidate, Prediction) and candidate.helper is helper:
             return candidate
-    raise ValueError(
-        f"{helper.label or helper.content!r} is not a predict() helper"
-    )
+    raise ValueError(f"{helper.label or helper.content!r} is not a predict() helper")
 
 
 def _comparison_prediction_actions(action: ModelComparison) -> tuple[Prediction, ...]:
@@ -312,11 +306,7 @@ def _likelihoods(
 
     likelihoods: dict[Claim, float] = {}
     for p_action in prediction_actions:
-        if (
-            p_action.hypothesis is None
-            or p_action.distribution is None
-            or p_action.target is None
-        ):
+        if p_action.hypothesis is None or p_action.distribution is None or p_action.target is None:
             raise ValueError("Bayes Prediction action is incomplete")
         hypothesis = p_action.hypothesis
         distribution_impl = _bind_distribution_impl(p_action.distribution, hypothesis)
@@ -468,9 +458,7 @@ def _log_likelihood_with_noise(
 ) -> float:
     """Convolve predictive with Normal additive noise."""
     if noise.kind != "normal":
-        raise NotImplementedError(
-            "Bayes compare currently supports only Normal additive noise"
-        )
+        raise NotImplementedError("Bayes compare currently supports only Normal additive noise")
     noise_impl = noise.impl
     sigma = float(noise_impl.params["sigma"])
     low, high = distribution_impl.support()
