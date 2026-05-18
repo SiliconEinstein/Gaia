@@ -578,10 +578,10 @@ visibility_warrant = derive('Stars are visible tonight.', given=[hypothesis], la
 The engine's `derive(conclusion: Claim | str, ...)` polymorphism wraps
 the string into an anonymous Claim at runtime. The shape is byte-text
 closer to a hand-authored package that uses the inline-string idiom
-(see [Galileo divergence #1](../../examples/galileo-v0-5-gaia/CLI-AUTHORED.md#1-prose-mode-auto-mint-introduces-named-claim-bindings)),
-at the cost of losing referenceability — subsequent author calls
-cannot reach the conclusion Claim by name. The envelope payload tags
-the shape via `conclusion_kind`:
+(see the Galileo prose-mode divergence note in the walkthrough under
+`examples/galileo-v0-5-gaia/`), at the cost of losing referenceability —
+subsequent author calls cannot reach the conclusion Claim by name. The
+envelope payload tags the shape via `conclusion_kind`:
 
 | `conclusion_kind` | Trigger | Source effect |
 |---|---|---|
@@ -702,8 +702,7 @@ exercises the harder cli surface that R7 unlocked. Where Galileo uses
   for the multi-file authoring layout that mirrors the hand-authored
   package's `priors.py` sibling module.
 
-A scripted walkthrough lives at
-[`examples/mendel-v0-5-gaia/CLI-AUTHORED.md`](../../../examples/mendel-v0-5-gaia/CLI-AUTHORED.md).
+A scripted walkthrough lives at `examples/mendel-v0-5-gaia/CLI-AUTHORED.md`.
 The pytest fixture at `tests/cli/mendel_demo/test_equivalence.py`
 re-runs the cli sequence on every PR-gate run and asserts equivalence
 through the multi-level tolerance helper at
