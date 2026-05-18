@@ -1,12 +1,12 @@
 # ruff: noqa: RUF002
 # Greek letters appear in scientific docstrings; keep them as-is.
 
-"""Bayes ``compare`` verb — compare equal-positioned predictive models.
+"""Bayes ``compare`` verb - compare equal-positioned predictive models.
 
 ``compare(data, models=[m1, m2, ...])`` evaluates the log-likelihood of
 the observation Claim(s) ``data`` under each model's predictive
 distribution and emits one IR ``infer`` strategy per hypothesis. Each
-model is a helper Claim returned by :func:`predict`.
+model is a helper Claim returned by :func:`model`.
 
 Key design points (vs the earlier in-flight Bayes alpha that this
 clean break replaces):
@@ -48,7 +48,7 @@ from collections.abc import Mapping
 from itertools import combinations
 from typing import Any
 
-from gaia.engine.bayes.runtime import ModelComparison, Prediction
+from gaia.engine.bayes.runtime import Model, ModelComparison
 from gaia.engine.bayes.runtime.precomputed import PrecomputedLikelihoods
 from gaia.engine.bp.factor_graph import CROMWELL_EPS
 from gaia.engine.lang.runtime.action import (
@@ -80,13 +80,13 @@ def _as_claim_tuple(
     return items
 
 
-def _prediction_action(helper: Claim) -> Prediction:
+def _model_action(helper: Claim) -> Model:
     for action in helper.from_actions:
-        if isinstance(action, Prediction) and action.helper is helper:
+        if isinstance(action, Model) and action.helper is helper:
             return action
     raise TypeError(
-        "compare() models entries must be Claims returned by predict() "
-        f"(no Prediction action attached to {helper.label or helper.content[:40]!r})"
+        "compare() models entries must be Claims returned by model() "
+        f"(no Model action attached to {helper.label or helper.content[:40]!r})"
     )
 
 
@@ -254,32 +254,26 @@ def _ensure_structural_actions(
         _auto_contradict(a, b, label=label)
 
 
-def _comparison_hypotheses(prediction_actions: tuple[Prediction, ...]) -> tuple[Claim, ...]:
-    hypotheses = tuple(action.hypothesis for action in prediction_actions)
+def _comparison_hypotheses(model_actions: tuple[Model, ...]) -> tuple[Claim, ...]:
+    hypotheses = tuple(action.hypothesis for action in model_actions)
     if any(h is None for h in hypotheses):
-        raise ValueError("predict() action is missing its hypothesis")
+        raise ValueError("model() action is missing its hypothesis")
     typed_tuple = tuple(h for h in hypotheses if h is not None)
     if len({id(h) for h in typed_tuple}) != len(typed_tuple):
         raise ValueError("compare() received duplicate hypotheses through model helpers")
     return typed_tuple
 
 
-def _validate_shared_target(prediction_actions: tuple[Prediction, ...]) -> None:
-    """All compared models must predict the same target.
-
-    Targets compare by Python identity when they are runtime objects
-    (Variable / Distribution Knowledge). This catches the v0.5 bug where
-    two predictive models accidentally referenced different Variable
-    objects with the same symbol.
-    """
-    if not prediction_actions:
+def _validate_shared_observable(model_actions: tuple[Model, ...]) -> None:
+    """All compared models must predict the same observable."""
+    if not model_actions:
         return
-    first_target = prediction_actions[0].target
-    for action in prediction_actions[1:]:
-        if action.target is not first_target:
+    first_observable = model_actions[0].observable
+    for action in model_actions[1:]:
+        if action.observable is not first_observable:
             raise ValueError(
-                "compare() model helpers must share one target; got "
-                f"{first_target!r} vs {action.target!r}"
+                "compare() model helpers must share one observable; got "
+                f"{first_observable!r} vs {action.observable!r}"
             )
 
 
@@ -456,9 +450,9 @@ def compare(
     if exclusivity not in _EXCLUSIVITY_VALUES:
         raise ValueError(f"unknown exclusivity mode: {exclusivity!r}")
 
-    prediction_actions = tuple(_prediction_action(m) for m in models_tuple)
-    hypothesis_tuple = _comparison_hypotheses(prediction_actions)
-    _validate_shared_target(prediction_actions)
+    model_actions = tuple(_model_action(m) for m in models_tuple)
+    hypothesis_tuple = _comparison_hypotheses(model_actions)
+    _validate_shared_observable(model_actions)
     log_likelihoods, precomputed_claim = _normalize_precomputed(precomputed, hypothesis_tuple)
 
     _ensure_structural_actions(hypothesis_tuple, exclusivity=exclusivity, label=label)

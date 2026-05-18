@@ -1,14 +1,15 @@
-"""Bayes ``predict`` / ``compare`` runtime actions and compiler lowering."""
+"""Bayes ``model`` / ``compare`` runtime actions and compiler lowering."""
 
 from __future__ import annotations
 
 import math
+import textwrap
 
 import pytest
 import scipy.stats as stats
 
 import gaia.engine.bayes as bayes
-from gaia.engine.bayes.runtime import ModelComparison, Prediction
+from gaia.engine.bayes.runtime import Model, ModelComparison
 from gaia.engine.bp.exact import exact_inference
 from gaia.engine.bp.factor_graph import FactorType
 from gaia.engine.bp.lowering import lower_local_graph
@@ -16,6 +17,7 @@ from gaia.engine.ir.operator import OperatorType
 from gaia.engine.ir.parameterization import CROMWELL_EPS
 from gaia.engine.lang import (
     Binomial,
+    Domain,
     Nat,
     Normal,
     Probability,
@@ -30,6 +32,7 @@ from gaia.engine.lang.runtime.action import Contradict, Exclusive, Observe
 from gaia.engine.lang.runtime.knowledge import _current_package
 from gaia.engine.lang.runtime.package import CollectedPackage
 from gaia.engine.lang.runtime.roles import roles_for_package
+from gaia.unit import q as gaia_q
 
 
 def _compiled_mendel_bayes(
@@ -48,15 +51,15 @@ def _compiled_mendel_bayes(
         h_31 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
         h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
         data = observe(k, value=295, label="data", rationale="Observed k = 295.")
-        model_31 = bayes.predict(
+        model_31 = bayes.model(
             h_31,
-            target=k,
+            observable=k,
             distribution=Binomial("k under 3:1", n=n, p=theta),
             label="f2_model_3_1",
         )
-        model_null = bayes.predict(
+        model_null = bayes.model(
             h_null,
-            target=k,
+            observable=k,
             distribution=Binomial("k under null", n=n, p=theta),
             label="f2_model_null",
         )
@@ -78,17 +81,17 @@ def test_bayes_module_does_not_extend_factor_or_operator_enums():
     assert not any("bayes" in str(operator_type).lower() for operator_type in OperatorType)
 
 
-def test_predict_and_compare_are_action_backed_helper_claims():
+def test_model_and_compare_are_action_backed_helper_claims():
     pkg, h_31, _h_null, data, model_31, model_null, cmp_result = _compiled_mendel_bayes()
 
     model_action = model_31.from_actions[0]
-    assert isinstance(model_action, Prediction)
+    assert isinstance(model_action, Model)
     assert model_action.hypothesis is h_31
-    assert isinstance(model_action.target, Variable)
-    assert model_action.target.symbol == "k"
+    assert isinstance(model_action.observable, Variable)
+    assert model_action.observable.symbol == "k"
     assert model_action.helper is model_31
-    assert model_31.metadata["helper_kind"] == "predictive_model"
-    assert model_31.metadata["prediction"]["kind"] == "prediction"
+    assert model_31.metadata["helper_kind"] == "model"
+    assert model_31.metadata["model"]["kind"] == "model"
 
     cmp_action = cmp_result.from_actions[0]
     assert isinstance(cmp_action, ModelComparison)
@@ -110,6 +113,120 @@ def test_predict_and_compare_are_action_backed_helper_claims():
     assert "compared_model" in [occ.role for occ in roles[model_null]]
     assert "likelihood_data" in [occ.role for occ in roles[data]]
     assert "model_preference_helper" in [occ.role for occ in roles[cmp_result]]
+
+
+def test_model_rejects_distribution_observable() -> None:
+    h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+    y = Normal("observed y", mu=0, sigma=1)
+    with pytest.raises(TypeError, match="observable must be a Variable"):
+        bayes.model(
+            h,
+            observable=y,  # type: ignore[arg-type]
+            distribution=Normal("y under H", mu=0, sigma=1),
+            label="bad_model",
+        )
+
+
+def test_model_accepts_unit_typed_variable_and_distribution() -> None:
+    h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+    y = Variable(symbol="y", domain=Real, unit="K")
+    model = bayes.model(
+        h,
+        observable=y,
+        distribution=Normal("y under H", mu=gaia_q(200, "K"), sigma=gaia_q(50, "K")),
+        label="model_h",
+    )
+    action = next(a for a in model.from_actions if isinstance(a, Model))
+    assert action.observable is y
+    assert action.distribution is not None
+    assert action.distribution.metadata["unit"] == "kelvin"
+
+
+def test_model_rejects_unit_mismatch_between_observable_and_distribution() -> None:
+    h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+    y = Variable(symbol="y", domain=Real, unit="K")
+    with pytest.raises(ValueError, match="not compatible"):
+        bayes.model(
+            h,
+            observable=y,
+            distribution=Normal("length under H", mu=gaia_q(0, "m"), sigma=gaia_q(1, "m")),
+            label="bad_model",
+        )
+
+
+def test_compare_rejects_same_symbol_observation_with_different_unit() -> None:
+    pkg = CollectedPackage(name="bayes_same_symbol_unit_mismatch_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        model_y = Variable(symbol="y", domain=Real, unit="m")
+        data_y = Variable(symbol="y", domain=Real, unit="cm")
+        h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+        data = observe(data_y, value=gaia_q(20, "cm"), label="data")
+        model = bayes.model(
+            h,
+            observable=model_y,
+            distribution=Normal("y under h", mu=gaia_q(1, "m"), sigma=gaia_q(0.1, "m")),
+            label="model_h",
+        )
+        bayes.compare(data, models=[model], exclusivity="pairwise_contradiction", label="cmp")
+    finally:
+        _current_package.reset(token)
+
+    with pytest.raises(ValueError, match=r"unit.*model observable.*data observable"):
+        compile_package_artifact(pkg)
+
+
+def test_compare_allows_same_symbol_observation_with_same_unit() -> None:
+    pkg = CollectedPackage(name="bayes_same_symbol_same_unit_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        model_y = Variable(symbol="y", domain=Real, unit="m")
+        data_y = Variable(symbol="y", domain=Real, unit="m")
+        h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+        data = observe(data_y, value=gaia_q(1.2, "m"), label="data")
+        model = bayes.model(
+            h,
+            observable=model_y,
+            distribution=Normal("y under h", mu=gaia_q(1, "m"), sigma=gaia_q(0.1, "m")),
+            label="model_h",
+        )
+        cmp_result = bayes.compare(
+            data,
+            models=[model],
+            exclusivity="pairwise_contradiction",
+            label="cmp",
+        )
+    finally:
+        _current_package.reset(token)
+
+    compiled = compile_package_artifact(pkg)
+    cmp_id = compiled.knowledge_ids_by_object[id(cmp_result)]
+    cmp_ir = next(k for k in compiled.graph.knowledges if k.id == cmp_id)
+    assert "comparison" in cmp_ir.metadata
+
+
+def test_compare_rejects_same_symbol_same_label_custom_domains_with_different_members() -> None:
+    pkg = CollectedPackage(name="bayes_same_symbol_domain_mismatch_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        model_domain = Domain("model states", members=[1, 2], label="State")
+        data_domain = Domain("model states", members=[1, 3], label="State")
+        model_x = Variable(symbol="x", domain=model_domain)
+        data_x = Variable(symbol="x", domain=data_domain)
+        h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+        data = observe(data_x, value=1, label="data")
+        model = bayes.model(
+            h,
+            observable=model_x,
+            distribution=Normal("x under h", mu=0, sigma=1),
+            label="model_h",
+        )
+        bayes.compare(data, models=[model], exclusivity="pairwise_contradiction", label="cmp")
+    finally:
+        _current_package.reset(token)
+
+    with pytest.raises(ValueError, match=r"data observable .* does not match model observable"):
+        compile_package_artifact(pkg)
 
 
 def test_observe_variable_with_distribution_noise_stores_knowledge_object():
@@ -274,15 +391,15 @@ def test_continuous_normal_noise_likelihood_uses_convolution():
             error=Normal("measurement noise", mu=0.0, sigma=2.0),
             label="data",
         )
-        model_near = bayes.predict(
+        model_near = bayes.model(
             h_near,
-            target=y,
+            observable=y,
             distribution=Normal("y under near", mu=mu, sigma=1.0),
             label="model_near",
         )
-        model_far = bayes.predict(
+        model_far = bayes.model(
             h_far,
-            target=y,
+            observable=y,
             distribution=Normal("y under far", mu=mu, sigma=1.0),
             label="model_far",
         )
@@ -318,15 +435,15 @@ def test_observe_with_scalar_error_consumed_by_compare_lowering():
         h_near = parameter(mu, 2.5, content="mu = 2.5.", prior=0.5, label="h_near")
         h_far = parameter(mu, 0.0, content="mu = 0.", prior=0.5, label="h_far")
         data = observe(y, value=3.0, error=2.0, label="data")
-        model_near = bayes.predict(
+        model_near = bayes.model(
             h_near,
-            target=y,
+            observable=y,
             distribution=Normal("y under near", mu=mu, sigma=1.0),
             label="model_near",
         )
-        model_far = bayes.predict(
+        model_far = bayes.model(
             h_far,
-            target=y,
+            observable=y,
             distribution=Normal("y under far", mu=mu, sigma=1.0),
             label="model_far",
         )
@@ -361,15 +478,15 @@ def test_compare_errors_when_all_hypotheses_have_zero_support():
         h_low = parameter(theta, 0.2, content="theta = 0.2.", prior=0.5, label="h_low")
         h_high = parameter(theta, 0.8, content="theta = 0.8.", prior=0.5, label="h_high")
         data = observe(k, value=3, label="data", rationale="Observed impossible k = 3.")
-        model_low = bayes.predict(
+        model_low = bayes.model(
             h_low,
-            target=k,
+            observable=k,
             distribution=Binomial("k under low", n=1, p=theta),
             label="model_low",
         )
-        model_high = bayes.predict(
+        model_high = bayes.model(
             h_high,
-            target=k,
+            observable=k,
             distribution=Binomial("k under high", n=1, p=theta),
             label="model_high",
         )
@@ -390,15 +507,15 @@ def test_compare_does_not_duplicate_existing_pairwise_contradiction():
         h_31 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
         h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
         data = observe(k, value=295, label="data", rationale="Observed k = 295.")
-        model_31 = bayes.predict(
+        model_31 = bayes.model(
             h_31,
-            target=k,
+            observable=k,
             distribution=Binomial("k under 3:1", n=395, p=theta),
             label="model_31",
         )
-        model_null = bayes.predict(
+        model_null = bayes.model(
             h_null,
-            target=k,
+            observable=k,
             distribution=Binomial("k under null", n=395, p=theta),
             label="model_null",
         )
@@ -479,15 +596,21 @@ def test_three_model_pairwise_contradiction_argmax_tracks_largest_log_likelihood
         h_mid = parameter(theta, 0.5, content="theta = 0.5.", prior=1 / 3, label="h_mid")
         h_high = parameter(theta, 0.8, content="theta = 0.8.", prior=1 / 3, label="h_high")
         data = observe(k, value=4, label="data", rationale="Observed k = 4.")
-        model_low = bayes.predict(
-            h_low, target=k, distribution=Binomial("k under low", n=5, p=theta), label="model_low"
+        model_low = bayes.model(
+            h_low,
+            observable=k,
+            distribution=Binomial("k under low", n=5, p=theta),
+            label="model_low",
         )
-        model_mid = bayes.predict(
-            h_mid, target=k, distribution=Binomial("k under mid", n=5, p=theta), label="model_mid"
+        model_mid = bayes.model(
+            h_mid,
+            observable=k,
+            distribution=Binomial("k under mid", n=5, p=theta),
+            label="model_mid",
         )
-        model_high = bayes.predict(
+        model_high = bayes.model(
             h_high,
-            target=k,
+            observable=k,
             distribution=Binomial("k under high", n=5, p=theta),
             label="model_high",
         )
@@ -559,11 +682,11 @@ def test_default_exclusivity_emits_exclusive_for_two_models():
         h1 = parameter(theta, 0.3, content="theta = 0.3.", prior=0.5, label="h1")
         h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
         data = observe(k, value=4, label="data")
-        m1 = bayes.predict(
-            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        m1 = bayes.model(
+            h1, observable=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
         )
-        m2 = bayes.predict(
-            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        m2 = bayes.model(
+            h2, observable=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
         )
         cmp_result = bayes.compare(data, models=[m1, m2], label="cmp")
     finally:
@@ -612,11 +735,17 @@ def test_default_exclusivity_yields_bayes_factor_posterior():
         h_31 = parameter(theta, 0.75, content="theta = 0.75.", prior=0.5, label="h_3_1")
         h_null = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h_null")
         data = observe(k, value=295, label="data")
-        m_31 = bayes.predict(
-            h_31, target=k, distribution=Binomial("k under 3:1", n=n, p=theta), label="m_31"
+        m_31 = bayes.model(
+            h_31,
+            observable=k,
+            distribution=Binomial("k under 3:1", n=n, p=theta),
+            label="m_31",
         )
-        m_null = bayes.predict(
-            h_null, target=k, distribution=Binomial("k under null", n=n, p=theta), label="m_null"
+        m_null = bayes.model(
+            h_null,
+            observable=k,
+            distribution=Binomial("k under null", n=n, p=theta),
+            label="m_null",
         )
         # No explicit ``exclusivity=`` — we want the verb's own default.
         bayes.compare(data, models=[m_31, m_null], label="cmp")
@@ -654,14 +783,14 @@ def test_three_model_exhaustive_raises_not_implemented():
         h_b = parameter(theta, 0.5, content="theta = 0.5.", prior=1 / 3, label="h_b")
         h_c = parameter(theta, 0.8, content="theta = 0.8.", prior=1 / 3, label="h_c")
         data = observe(k, value=4, label="data")
-        m_a = bayes.predict(
-            h_a, target=k, distribution=Binomial("k under a", n=5, p=theta), label="m_a"
+        m_a = bayes.model(
+            h_a, observable=k, distribution=Binomial("k under a", n=5, p=theta), label="m_a"
         )
-        m_b = bayes.predict(
-            h_b, target=k, distribution=Binomial("k under b", n=5, p=theta), label="m_b"
+        m_b = bayes.model(
+            h_b, observable=k, distribution=Binomial("k under b", n=5, p=theta), label="m_b"
         )
-        m_c = bayes.predict(
-            h_c, target=k, distribution=Binomial("k under c", n=5, p=theta), label="m_c"
+        m_c = bayes.model(
+            h_c, observable=k, distribution=Binomial("k under c", n=5, p=theta), label="m_c"
         )
         with pytest.raises(NotImplementedError, match="N-ary Exclusive"):
             bayes.compare(
@@ -684,11 +813,11 @@ def test_compare_rejects_exclusivity_none():
         h1 = parameter(theta, 0.3, content="theta = 0.3.", prior=0.5, label="h1")
         h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
         data = observe(k, value=4, label="data")
-        m1 = bayes.predict(
-            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        m1 = bayes.model(
+            h1, observable=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
         )
-        m2 = bayes.predict(
-            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        m2 = bayes.model(
+            h2, observable=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
         )
         with pytest.raises(ValueError, match="exclusivity='none'"):
             bayes.compare(data, models=[m1, m2], exclusivity="none", label="cmp")
@@ -715,11 +844,11 @@ def test_compare_dedups_against_external_exclusive():
         h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
         competing = exclusive(h1, h2, rationale="external rationale", label="competing")
         data = observe(k, value=4, label="data")
-        m1 = bayes.predict(
-            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        m1 = bayes.model(
+            h1, observable=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
         )
-        m2 = bayes.predict(
-            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        m2 = bayes.model(
+            h2, observable=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
         )
         bayes.compare(data, models=[m1, m2], label="cmp")
     finally:
@@ -751,11 +880,11 @@ def test_compare_dedups_external_exclusive_even_after_contradict():
         manual_conflict = contradict(h1, h2, rationale="manual", label="manual_conflict")
         competing = exclusive(h1, h2, rationale="external rationale", label="competing")
         data = observe(k, value=4, label="data")
-        m1 = bayes.predict(
-            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        m1 = bayes.model(
+            h1, observable=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
         )
-        m2 = bayes.predict(
-            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        m2 = bayes.model(
+            h2, observable=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
         )
         bayes.compare(data, models=[m1, m2], label="cmp")
     finally:
@@ -770,7 +899,7 @@ def test_compare_dedups_external_exclusive_even_after_contradict():
     lower_local_graph(compiled.graph)
 
 
-def test_compare_dedups_through_callstack_inferred_package():
+def test_compare_dedups_through_callstack_inferred_package(tmp_path):
     """Dedup works even when ``_current_package`` is unset.
 
     The ``gaia build compile`` pipeline registers actions into the
@@ -786,7 +915,63 @@ def test_compare_dedups_through_callstack_inferred_package():
         load_gaia_package,
     )
 
-    loaded = load_gaia_package("examples/mendel-v0-5-gaia")
+    pkg_dir = tmp_path / "mini-mendel-gaia"
+    src_dir = pkg_dir / "src" / "mini_mendel"
+    src_dir.mkdir(parents=True)
+    (pkg_dir / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "mini-mendel-gaia"
+            version = "0.1.0"
+
+            [tool.gaia]
+            type = "knowledge-package"
+            namespace = "t"
+            """
+        ).strip(),
+        encoding="utf-8",
+    )
+    (src_dir / "__init__.py").write_text(
+        textwrap.dedent(
+            """
+            import gaia.engine.bayes as bayes
+            from gaia.engine.lang import (
+                Binomial,
+                Nat,
+                Probability,
+                Variable,
+                exclusive,
+                observe,
+                parameter,
+            )
+
+            theta = Variable(symbol="theta", domain=Probability)
+            k = Variable(symbol="k", domain=Nat, value=4)
+            h1 = parameter(theta, 0.3, content="theta = 0.3.", prior=0.5, label="h1")
+            h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
+            competing_models = exclusive(h1, h2, label="competing_models")
+            data = observe(k, value=4, label="data")
+            m1 = bayes.model(
+                h1,
+                observable=k,
+                distribution=Binomial("k under h1", n=5, p=theta),
+                label="m1",
+            )
+            m2 = bayes.model(
+                h2,
+                observable=k,
+                distribution=Binomial("k under h2", n=5, p=theta),
+                label="m2",
+            )
+            cmp = bayes.compare(data, models=[m1, m2], label="cmp")
+            __all__ = ["h1", "h2", "competing_models", "data", "m1", "m2", "cmp"]
+            """
+        ).strip(),
+        encoding="utf-8",
+    )
+
+    loaded = load_gaia_package(pkg_dir)
     pkg = loaded.package
 
     pair_ids = None
@@ -830,11 +1015,11 @@ def test_compare_coexists_with_external_contradict_of_different_type():
         h2 = parameter(theta, 0.7, content="theta = 0.7.", prior=0.5, label="h2")
         manual_conflict = contradict(h1, h2, rationale="manual", label="manual_conflict")
         data = observe(k, value=4, label="data")
-        m1 = bayes.predict(
-            h1, target=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
+        m1 = bayes.model(
+            h1, observable=k, distribution=Binomial("k under h1", n=5, p=theta), label="m1"
         )
-        m2 = bayes.predict(
-            h2, target=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
+        m2 = bayes.model(
+            h2, observable=k, distribution=Binomial("k under h2", n=5, p=theta), label="m2"
         )
         bayes.compare(data, models=[m1, m2], label="cmp")
     finally:
@@ -866,14 +1051,14 @@ def test_three_model_pairwise_contradiction_remains_supported():
         h_b = parameter(theta, 0.5, content="theta = 0.5.", prior=1 / 3, label="h_b")
         h_c = parameter(theta, 0.8, content="theta = 0.8.", prior=1 / 3, label="h_c")
         data = observe(k, value=4, label="data")
-        m_a = bayes.predict(
-            h_a, target=k, distribution=Binomial("k under a", n=5, p=theta), label="m_a"
+        m_a = bayes.model(
+            h_a, observable=k, distribution=Binomial("k under a", n=5, p=theta), label="m_a"
         )
-        m_b = bayes.predict(
-            h_b, target=k, distribution=Binomial("k under b", n=5, p=theta), label="m_b"
+        m_b = bayes.model(
+            h_b, observable=k, distribution=Binomial("k under b", n=5, p=theta), label="m_b"
         )
-        m_c = bayes.predict(
-            h_c, target=k, distribution=Binomial("k under c", n=5, p=theta), label="m_c"
+        m_c = bayes.model(
+            h_c, observable=k, distribution=Binomial("k under c", n=5, p=theta), label="m_c"
         )
         cmp_result = bayes.compare(
             data,

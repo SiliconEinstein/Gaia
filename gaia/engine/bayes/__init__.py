@@ -18,6 +18,7 @@ authoring surface.
 
 from __future__ import annotations
 
+from gaia.engine.bayes.compiler import register_bayes_lowerer as _register_bayes_lowerer
 from gaia.engine.bayes.dsl import compare, model
 from gaia.engine.bayes.runtime import (
     BayesInference,
@@ -49,18 +50,8 @@ def _register_bayes_roles() -> None:
     register_role_handler(ModelComparison, model_comparison_roles)
 
 
-def _register_bayes_lowerer_if_available() -> None:
-    try:
-        from gaia.engine.bayes.compiler import register_bayes_lowerer
-    except ImportError as err:
-        if "Prediction" not in str(err):
-            raise
-        return
-    register_bayes_lowerer()
-
-
 _register_bayes_roles()
-_register_bayes_lowerer_if_available()
+_register_bayes_lowerer()
 
 __all__ = [
     "BayesInference",

@@ -1,13 +1,13 @@
-"""Bayes lowering — ``Prediction`` / ``ModelComparison`` → Gaia IR.
+"""Bayes lowering - ``Model`` / ``ModelComparison`` -> Gaia IR.
 
-Dispatches on :class:`Prediction` and :class:`ModelComparison` (the
-Actions produced by :func:`predict` and :func:`compare`), and reads the
-unified ``metadata["observation"]`` / ``metadata["prediction"]`` schema.
+Dispatches on :class:`Model` and :class:`ModelComparison` (the Actions
+produced by :func:`model` and :func:`compare`), and reads the unified
+``metadata["observation"]`` / ``metadata["model"]`` schema.
 
 What this module owns:
 
-* Helper Claims compiled from ``Prediction`` actions get their
-  ``metadata["prediction"]`` finalised with the IR-side reference shape
+* Helper Claims compiled from ``Model`` actions get their
+  ``metadata["model"]`` finalised with the IR-side reference shape
   (knowledge IDs in place of runtime object references).
 * ``ModelComparison`` actions emit one ``infer`` strategy per hypothesis
   whose CPT is ``[0.5, clamp(LR_i)]`` with ``LR_i = exp(logL_i - logL_max)``.
@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gaia.engine.bayes.distributions.base import _is_deferred_reference
-from gaia.engine.bayes.runtime import ModelComparison, PrecomputedLikelihoods, Prediction
+from gaia.engine.bayes.runtime import Model, ModelComparison, PrecomputedLikelihoods
 from gaia.engine.bp.factor_graph import CROMWELL_EPS
 from gaia.engine.ir import Knowledge as IrKnowledge
 from gaia.engine.ir import Operator as IrOperator
@@ -43,8 +43,9 @@ from gaia.engine.ir.operator import OperatorType
 from gaia.engine.ir.strategy import StrategyType
 from gaia.engine.lang.formula.connective import Land
 from gaia.engine.lang.formula.predicate import Equals
+from gaia.engine.lang.formula.primitives import PrimitiveType
 from gaia.engine.lang.formula.term import Constant
-from gaia.engine.lang.runtime import Claim, Distribution, Knowledge, Variable
+from gaia.engine.lang.runtime import Claim, Distribution, Domain, Knowledge, Variable
 
 
 @dataclass(frozen=True)
@@ -74,7 +75,7 @@ def lower_bayes_claims(
     action_labels_by_object: dict[int, str] | None = None,
     existing_operators: list[IrOperator] | None = None,
 ) -> BayesLoweringResult:
-    """Lower ``Prediction`` and ``ModelComparison`` actions to IR."""
+    """Lower ``Model`` and ``ModelComparison`` actions to IR."""
     del knowledge_nodes
     knowledges: list[IrKnowledge] = []
     operators: list[IrOperator] = []
@@ -85,13 +86,13 @@ def lower_bayes_claims(
     existing_relations = _existing_relations(existing_operators or [])
     labels_by_object = action_labels_by_object or {}
 
-    # Phase 1: settle prediction helper metadata with IR-side references.
+    # Phase 1: settle model helper metadata with IR-side references.
     for action in actions:
-        if not isinstance(action, Prediction):
+        if not isinstance(action, Model):
             continue
         action_label = labels_by_object.get(id(action))
         helper_id = knowledge_map[id(action.helper)]
-        metadata_updates[helper_id] = _prediction_metadata(
+        metadata_updates[helper_id] = _model_metadata(
             action,
             knowledge_map,
             action_label=action_label,
@@ -132,39 +133,38 @@ def lower_bayes_claims(
 
 
 # ---------------------------------------------------------------------------
-# Prediction metadata
+# Model metadata
 # ---------------------------------------------------------------------------
 
 
-def _prediction_metadata(
-    action: Prediction,
+def _model_metadata(
+    action: Model,
     knowledge_map: dict[int, str],
     *,
     action_label: str | None,
 ) -> dict[str, Any]:
-    if action.hypothesis is None or action.target is None or action.distribution is None:
-        raise ValueError("Bayes Prediction action requires hypothesis, target, distribution")
+    if action.hypothesis is None or action.observable is None or action.distribution is None:
+        raise ValueError("Bayes Model action requires hypothesis, observable, distribution")
     payload = {
-        "kind": "prediction",
+        "kind": "model",
         "distribution": action.distribution.model_dump(),
         "hypothesis": knowledge_map[id(action.hypothesis)],
         "hypotheses": [knowledge_map[id(action.hypothesis)]],
-        "target": _target_descriptor(action.target),
+        "observable": _observable_descriptor(action.observable),
     }
-    metadata: dict[str, Any] = {"prediction": payload}
+    metadata: dict[str, Any] = {"model": payload}
     if action_label:
-        metadata["review_target"] = {"action_label": action_label, "pattern": "prediction"}
+        metadata["review_target"] = {"action_label": action_label, "pattern": "model"}
     return metadata
 
 
-def _target_descriptor(target: Variable | Distribution) -> dict[str, Any]:
-    if isinstance(target, Variable):
-        domain = getattr(target.domain, "name", None) or getattr(target.domain, "label", None)
-        return {"kind": "variable", "symbol": target.symbol, "domain": domain}
+def _observable_descriptor(observable: Variable) -> dict[str, Any]:
+    domain = getattr(observable.domain, "name", None) or getattr(observable.domain, "label", None)
     return {
-        "kind": "distribution",
-        "label": target.label,
-        "family": target.kind,
+        "kind": "variable",
+        "symbol": observable.symbol,
+        "domain": domain,
+        "unit": observable.unit,
     }
 
 
@@ -173,23 +173,23 @@ def _target_descriptor(target: Variable | Distribution) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _prediction_action(helper: Claim) -> Prediction:
+def _model_action(helper: Claim) -> Model:
     for candidate in helper.from_actions:
-        if isinstance(candidate, Prediction) and candidate.helper is helper:
+        if isinstance(candidate, Model) and candidate.helper is helper:
             return candidate
-    raise ValueError(f"{helper.label or helper.content!r} is not a predict() helper")
+    raise ValueError(f"{helper.label or helper.content!r} is not a model() helper")
 
 
-def _comparison_prediction_actions(action: ModelComparison) -> tuple[Prediction, ...]:
+def _comparison_model_actions(action: ModelComparison) -> tuple[Model, ...]:
     if not action.models:
         raise ValueError("Bayes ModelComparison action requires models")
-    return tuple(_prediction_action(helper) for helper in action.models)
+    return tuple(_model_action(helper) for helper in action.models)
 
 
 def _comparison_hypotheses(action: ModelComparison) -> tuple[Claim, ...]:
-    hypotheses = tuple(p.hypothesis for p in _comparison_prediction_actions(action))
+    hypotheses = tuple(model.hypothesis for model in _comparison_model_actions(action))
     if any(h is None for h in hypotheses):
-        raise ValueError("predict() action is missing its hypothesis")
+        raise ValueError("model() action is missing its hypothesis")
     return tuple(h for h in hypotheses if h is not None)
 
 
@@ -207,10 +207,10 @@ def _lower_comparison(
     cmp_id = knowledge_map[id(action.helper)]
     model_ids = [knowledge_map[id(m)] for m in action.models]
     data_ids = [knowledge_map[id(d)] for d in action.data]
-    prediction_actions = _comparison_prediction_actions(action)
+    model_actions = _comparison_model_actions(action)
     hypotheses = _comparison_hypotheses(action)
 
-    likelihoods = _likelihoods(action, prediction_actions)
+    likelihoods = _likelihoods(action, model_actions)
     action.log_likelihoods = dict(likelihoods)
     if not any(math.isfinite(value) for value in likelihoods.values()):
         raise ValueError(
@@ -292,27 +292,31 @@ def _lower_comparison(
 
 def _likelihoods(
     action: ModelComparison,
-    prediction_actions: tuple[Prediction, ...],
+    model_actions: tuple[Model, ...],
 ) -> dict[Claim, float]:
     if action.precomputed is not None and action.log_likelihoods:
         # The DSL verb already validated and stored these; just hand them back
-        # in the iteration order matching prediction_actions.
+        # in the iteration order matching model_actions.
         out: dict[Claim, float] = {}
-        for p_action in prediction_actions:
-            if p_action.hypothesis is None:
-                raise ValueError("Bayes Prediction action is missing its hypothesis")
-            out[p_action.hypothesis] = float(action.log_likelihoods[p_action.hypothesis])
+        for model_action in model_actions:
+            if model_action.hypothesis is None:
+                raise ValueError("Bayes Model action is missing its hypothesis")
+            out[model_action.hypothesis] = float(action.log_likelihoods[model_action.hypothesis])
         return out
 
     likelihoods: dict[Claim, float] = {}
-    for p_action in prediction_actions:
-        if p_action.hypothesis is None or p_action.distribution is None or p_action.target is None:
-            raise ValueError("Bayes Prediction action is incomplete")
-        hypothesis = p_action.hypothesis
-        distribution_impl = _bind_distribution_impl(p_action.distribution, hypothesis)
+    for model_action in model_actions:
+        if (
+            model_action.hypothesis is None
+            or model_action.distribution is None
+            or model_action.observable is None
+        ):
+            raise ValueError("Bayes Model action is incomplete")
+        hypothesis = model_action.hypothesis
+        distribution_impl = _bind_distribution_impl(model_action.distribution, hypothesis)
         total = 0.0
         for data_claim in action.data:
-            value = _observation_value(data_claim, p_action.target)
+            value = _observation_value(data_claim, model_action.observable)
             noise = _observation_noise(data_claim)
             total += _log_likelihood(distribution_impl, value, noise)
         likelihoods[hypothesis] = total
@@ -384,42 +388,68 @@ def _equals_variable_constant_pairs(formula: Any) -> list[tuple[Variable, Any]]:
     return []
 
 
-def _observation_value(data_claim: Claim, target: Variable | Distribution) -> Any:
-    """Read the observed value from the unified metadata['observation'] schema.
-
-    The match between observation and prediction targets is by Python
-    object identity (Variable / Distribution Knowledge); symbol-name
-    fallback is permitted for Variables to support hand-built data
-    Claims.
-    """
+def _observation_value(data_claim: Claim, observable: Variable) -> Any:
+    """Read the observed value from metadata['observation'] for a model observable."""
     observation = (data_claim.metadata or {}).get("observation")
     if not isinstance(observation, dict):
         raise ValueError(
             f"compare() data {data_claim.label or data_claim.content!r} has no "
-            "metadata['observation'] payload (use observe(target, value=...))"
+            "metadata['observation'] payload (use observe(observable, value=...))"
         )
     observed_target = observation.get("target")
-    if observed_target is not target:
-        # Fall back to symbol match for Variables only. Distribution targets
-        # are Knowledge objects and must match by identity so observations
-        # for one measured quantity cannot silently feed another.
-        if isinstance(target, Variable) and isinstance(observed_target, Variable):
-            if observed_target.symbol != target.symbol:
+    if observed_target is not observable:
+        if isinstance(observed_target, Variable):
+            if not _same_variable_fallback(observed_target, observable):
                 raise ValueError(
-                    f"compare() data target {observed_target!r} does not match "
-                    f"prediction target {target!r}"
+                    f"compare() data observable {observed_target!r} does not match "
+                    f"model observable {observable!r}"
                 )
         else:
             raise ValueError(
                 f"compare() data {data_claim.label or data_claim.content!r} target "
-                f"{observed_target!r} does not match prediction target {target!r}"
+                f"{observed_target!r} does not match model observable {observable!r}"
             )
+    observed_unit = observation.get("unit")
+    if observed_unit != observable.unit:
+        raise ValueError(
+            "compare() data observation unit does not match model observable unit: "
+            f"data observable {observed_target!r} has observation unit {observed_unit!r}; "
+            f"model observable {observable!r} has unit {observable.unit!r}"
+        )
     if "value" not in observation:
         raise ValueError(
             f"compare() data {data_claim.label or data_claim.content!r} "
             "metadata['observation'] is missing 'value'"
         )
     return observation["value"]
+
+
+def _same_variable_fallback(data_observable: Variable, model_observable: Variable) -> bool:
+    if data_observable.symbol != model_observable.symbol:
+        return False
+    if not _same_domain(data_observable.domain, model_observable.domain):
+        return False
+    if data_observable.unit != model_observable.unit:
+        raise ValueError(
+            "compare() data observable unit does not match model observable unit: "
+            f"data observable {data_observable!r} has unit {data_observable.unit!r}; "
+            f"model observable {model_observable!r} has unit {model_observable.unit!r}"
+        )
+    return True
+
+
+def _same_domain(left: Any, right: Any) -> bool:
+    if left is right:
+        return True
+    if isinstance(left, PrimitiveType) and isinstance(right, PrimitiveType):
+        return left.name == right.name
+    if isinstance(left, Domain) and isinstance(right, Domain):
+        return (
+            left.label == right.label
+            and left.content == right.content
+            and left.members == right.members
+        )
+    return False
 
 
 def _observation_noise(data_claim: Claim) -> Distribution | None:

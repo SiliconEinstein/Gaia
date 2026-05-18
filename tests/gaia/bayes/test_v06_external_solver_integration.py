@@ -145,17 +145,17 @@ def _build_v06_with_external_solver(
         mendel = claim("mendelian segregation", prior=0.5, label="mendel")
         diffuse = claim("diffuse alternative", prior=0.5, label="diffuse")
         data = observe(k_var, value=K_OBSERVED, label="data")
-        mendel_pred = bayes.predict(
+        mendel_model = bayes.model(
             mendel,
-            target=k_var,
+            observable=k_var,
             distribution=LangBinomial("k under Mendel", n=N_TRIALS, p=0.75),
-            label="mendel_pred",
+            label="mendel_model",
         )
-        diffuse_pred = bayes.predict(
+        diffuse_model = bayes.model(
             diffuse,
-            target=k_var,
+            observable=k_var,
             distribution=LangBetaBinomial("k under Diffuse", n=N_TRIALS, alpha=1.0, beta=1.0),
-            label="diffuse_pred",
+            label="diffuse_model",
         )
 
         if use_precomputed:
@@ -166,7 +166,7 @@ def _build_v06_with_external_solver(
             precomputed_claim = solver(data, mendel, diffuse)
             cmp_result = bayes.compare(
                 data,
-                models=[mendel_pred, diffuse_pred],
+                models=[mendel_model, diffuse_model],
                 exclusivity=exclusivity,
                 precomputed=precomputed_claim,
                 label="comparison",
@@ -175,7 +175,7 @@ def _build_v06_with_external_solver(
             precomputed_claim = None
             cmp_result = bayes.compare(
                 data,
-                models=[mendel_pred, diffuse_pred],
+                models=[mendel_model, diffuse_model],
                 exclusivity=exclusivity,
                 label="comparison",
             )
@@ -284,42 +284,33 @@ def test_precomputed_claim_carries_solver_diagnostics_through_compile():
     assert cmp_node.metadata["comparison"]["precomputed_source"] == pre_id
 
 
-def test_predict_target_distribution_flows_through_compare():
-    """``predict(target=Distribution)`` is symmetric with ``predict(target=Variable)``.
-
-    Regression for the PR review finding that the Distribution-target
-    path failed lowering because ``observe(Distribution, ...)`` wrote
-    the old ``{target_distribution, error, kind: 'continuous_observation'}``
-    schema while the comparison lowering only reads the unified
-    ``{target, noise, kind: 'observation'}`` shape. Both observation
-    paths now write the same schema.
-    """
+def test_model_variable_observable_flows_through_compare():
+    """``model(observable=Variable)`` flows through compare lowering."""
     import gaia.engine.bayes as bayes
     from gaia.engine.lang import Normal as LangNormal
     from gaia.engine.lang import Real
 
-    pkg = CollectedPackage(name="dist_target_smoke", namespace="t")
+    pkg = CollectedPackage(name="variable_observable_smoke", namespace="t")
     token = _current_package.set(pkg)
     try:
         mu = Variable(symbol="mu", domain=Real)
-        y = LangNormal("measured y", mu=0.0, sigma=1.0, label="y")
+        y = Variable(symbol="y", domain=Real)
         h_near = parameter(mu, 0.0, content="mu = 0.", prior=0.5, label="h_near")
         h_far = parameter(mu, 2.0, content="mu = 2.", prior=0.5, label="h_far")
         data = observe(y, value=0.2, error=0.1, label="data")
-        # Distribution-target observation must write the unified schema.
         observation = data.metadata["observation"]
         assert observation["target"] is y
         assert observation["kind"] == "observation"
         assert observation["noise"].kind == "normal"
-        model_near = bayes.predict(
+        model_near = bayes.model(
             h_near,
-            target=y,
+            observable=y,
             distribution=LangNormal("y under near", mu=mu, sigma=1.0),
             label="model_near",
         )
-        model_far = bayes.predict(
+        model_far = bayes.model(
             h_far,
-            target=y,
+            observable=y,
             distribution=LangNormal("y under far", mu=mu, sigma=1.0),
             label="model_far",
         )
@@ -339,32 +330,32 @@ def test_predict_target_distribution_flows_through_compare():
     assert likelihoods[h_near_id] > likelihoods[h_far_id]
 
 
-def test_predict_target_distribution_rejects_different_observed_distribution():
-    """Distribution-target compare must not accept a same-class but different target."""
+def test_model_variable_observable_rejects_different_observed_variable():
+    """Variable-observable compare must not accept a different observed variable."""
     import pytest
 
     import gaia.engine.bayes as bayes
     from gaia.engine.lang import Normal as LangNormal
     from gaia.engine.lang import Real
 
-    pkg = CollectedPackage(name="dist_target_mismatch", namespace="t")
+    pkg = CollectedPackage(name="variable_observable_mismatch", namespace="t")
     token = _current_package.set(pkg)
     try:
         mu = Variable(symbol="mu", domain=Real)
-        expected_y = LangNormal("expected y", mu=0.0, sigma=1.0, label="expected_y")
-        other_y = LangNormal("other y", mu=10.0, sigma=1.0, label="other_y")
+        expected_y = Variable(symbol="y_expected", domain=Real)
+        other_y = Variable(symbol="y_other", domain=Real)
         h_near = parameter(mu, 0.0, content="mu = 0.", prior=0.5, label="h_near")
         h_far = parameter(mu, 2.0, content="mu = 2.", prior=0.5, label="h_far")
         data = observe(other_y, value=0.2, error=0.1, label="data_other")
-        model_near = bayes.predict(
+        model_near = bayes.model(
             h_near,
-            target=expected_y,
+            observable=expected_y,
             distribution=LangNormal("y under near", mu=mu, sigma=1.0),
             label="model_near",
         )
-        model_far = bayes.predict(
+        model_far = bayes.model(
             h_far,
-            target=expected_y,
+            observable=expected_y,
             distribution=LangNormal("y under far", mu=mu, sigma=1.0),
             label="model_far",
         )
@@ -372,7 +363,7 @@ def test_predict_target_distribution_rejects_different_observed_distribution():
     finally:
         _current_package.reset(token)
 
-    with pytest.raises(ValueError, match="does not match prediction target"):
+    with pytest.raises(ValueError, match="does not match model observable"):
         compile_package_artifact(pkg)
 
 
@@ -395,36 +386,36 @@ def test_compare_rejects_nan_precomputed_log_likelihood():
         h_a = parameter(theta, 0.5, label="h_a", prior=0.5)
         h_b = parameter(theta, 0.7, label="h_b", prior=0.5)
         data = observe(k_var, value=3, label="data")
-        pred_a = bayes.predict(
+        model_a = bayes.model(
             h_a,
-            target=k_var,
+            observable=k_var,
             distribution=LangBinomial2("k under a", n=5, p=theta),
-            label="pred_a",
+            label="model_a",
         )
-        pred_b = bayes.predict(
+        model_b = bayes.model(
             h_b,
-            target=k_var,
+            observable=k_var,
             distribution=LangBinomial2("k under b", n=5, p=theta),
-            label="pred_b",
+            label="model_b",
         )
         with pytest_raises_value("NaN"):
             bayes.compare(
                 data,
-                models=[pred_a, pred_b],
+                models=[model_a, model_b],
                 precomputed={h_a: -1.0, h_b: _math.nan},
                 label="cmp_nan",
             )
         with pytest_raises_value(r"\+inf"):
             bayes.compare(
                 data,
-                models=[pred_a, pred_b],
+                models=[model_a, model_b],
                 precomputed={h_a: -1.0, h_b: _math.inf},
                 label="cmp_inf",
             )
         # -inf is OK ("zero-likelihood hypothesis").
         bayes.compare(
             data,
-            models=[pred_a, pred_b],
+            models=[model_a, model_b],
             precomputed={h_a: -1.0, h_b: -_math.inf},
             label="cmp_neginf",
         )
