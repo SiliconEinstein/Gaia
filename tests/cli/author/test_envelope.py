@@ -110,7 +110,11 @@ def test_envelope_shape_compose_missing_from_file() -> None:
     """
     result = runner.invoke(app, ["author", "compose"])
     assert result.exit_code != 0, result.output
-    assert "--from-file" in result.output
+    # Substring drops the leading dashes so the assertion survives Typer's
+    # ANSI color escapes in CI (which split ``--from-file`` into three
+    # colored segments). The contract still asserts the missing-option
+    # diagnostic surfaces.
+    assert "from-file" in result.output
 
 
 def test_human_rendering_smoke(gaia_package: FixturePackage) -> None:
