@@ -168,12 +168,28 @@ def _select_new_imports(
 
     Returns ``(grouped, added)`` where ``grouped`` is ``{pkg: [symbols]}`` for
     fresh entries and ``added`` is a flat list of newly-introduced symbols.
+
+    A symbol that is already accessible under *any* existing import line is
+    treated as satisfied — the writer does not duplicate a binding from a
+    different module just because the caller did not specify the source
+    explicitly. This matches the agent ergonomic of "if the name is
+    already in scope, don't re-import it"; symbols intentionally aliased
+    from multiple sources are caller territory and are not the auto-
+    insertion path's concern.
     """
+    all_imported: set[str] = set()
+    for symbols in already_imported.values():
+        all_imported.update(symbols)
     grouped_new: dict[str, list[str]] = {}
     added_symbols: list[str] = []
     for symbol, pkg_in in needed:
         pkg = pkg_in or default_package or ""
         if not pkg or symbol in already_imported.get(pkg, set()):
+            continue
+        if symbol in all_imported:
+            # Already accessible under a different module — skip the
+            # auto-insertion. The caller's deliberate cross-module path
+            # (likely set up via ``gaia pkg add-import``) wins.
             continue
         if symbol in grouped_new.get(pkg, []):
             continue

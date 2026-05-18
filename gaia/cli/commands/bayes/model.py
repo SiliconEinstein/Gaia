@@ -125,6 +125,20 @@ def model_command(
     metadata: str | None = typer.Option(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
+    references: str | None = typer.Option(
+        None,
+        "--references",
+        help=(
+            "Comma-separated identifiers to whitelist inside the formula "
+            "sandbox when --distribution carries an inline expression "
+            "referencing module-scope constants (e.g. `--distribution "
+            "'bayes.Binomial(n=TOTAL_COUNT, p=MENDELIAN_DOMINANT_PROBABILITY)' "
+            "--references TOTAL_COUNT,MENDELIAN_DOMINANT_PROBABILITY`). "
+            "Each name is also pushed into pre-write reference resolution "
+            "so module-scope binding is verified. No effect when "
+            "--distribution is a bare identifier."
+        ),
+    ),
     check: bool = typer.Option(
         True,
         "--check/--no-check",
@@ -177,10 +191,21 @@ def model_command(
     # validate via the formula sandbox (which whitelists Distribution
     # factories + bayes.<Factory> attribute shape) and skip the
     # reference-resolution path for the distribution itself.
+    references_list, references_error = split_csv_idents(references)
+    if references_error:
+        emit_syntax_error(
+            "bayes.model",
+            f"--references rejected: {references_error}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
+        return
+
     distribution_is_inline = not _BARE_IDENTIFIER_RE.match(distribution)
     if distribution_is_inline:
         try:
-            validate_formula_expr(distribution)
+            validate_formula_expr(distribution, extra_names=frozenset(references_list))
         except FormulaSandboxError as exc:
             emit_syntax_error(
                 "bayes.model",
@@ -242,7 +267,7 @@ def model_command(
         rationale=rationale,
         metadata=metadata_dict,
     )
-    references = [hypothesis, observable, *background_list]
+    references = [hypothesis, observable, *background_list, *references_list]
     if not distribution_is_inline:
         references.insert(2, distribution)
     target_file = normalize_file_option(file)

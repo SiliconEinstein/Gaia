@@ -14,7 +14,8 @@ See ``docs/reference/cli/pkg.md`` for the per-verb contract.
 
 from __future__ import annotations
 
+from gaia.cli.commands.pkg.add_import import add_import_command
 from gaia.cli.commands.pkg.add_module import add_module_command
 from gaia.cli.commands.pkg.scaffold import scaffold_command
 
-__all__ = ["add_module_command", "scaffold_command"]
+__all__ = ["add_import_command", "add_module_command", "scaffold_command"]

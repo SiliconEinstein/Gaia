@@ -79,6 +79,7 @@ def _render_claim_statement(
     metadata: dict[str, Any] | None,
     background: list[str],
     predicate: str | None = None,
+    label: str | None = None,
 ) -> str:
     """Produce the Python source for the proposed ``claim(...)`` statement.
 
@@ -92,8 +93,13 @@ def _render_claim_statement(
     using formula-symbols without listing them as Knowledge-background.
 
     ``claim()`` does not take an engine ``label=`` kwarg (the engine
-    signature has only ``**metadata``); the cli surface therefore offers
-    only ``--dsl-binding-name`` for the Python LHS — no ``--label``.
+    signature has only ``**metadata``). When ``label`` is set the cli
+    emits a follow-up ``<binding>.label = "<label>"`` assignment after
+    the call so the Claim's mutable ``label`` attribute matches the
+    hand-authored ``claim_obj.label = ...`` pattern in the example
+    packages. The follow-up line requires ``binding_name`` — without an
+    LHS there is nothing to mutate; the caller rejects that combination
+    at the flag boundary.
     """
     args: list[str] = [repr(content)]
     if title is not None:
@@ -112,7 +118,10 @@ def _render_claim_statement(
     call = f"claim({', '.join(args)})"
     if binding_name is None:
         return call
-    return f"{binding_name} = {call}"
+    rendered = f"{binding_name} = {call}"
+    if label is not None:
+        rendered += f"\n{binding_name}.label = {label!r}"
+    return rendered
 
 
 def claim_command(
@@ -194,6 +203,18 @@ def claim_command(
             "ClaimAtom(p))'`. Mutually exclusive with --predicate."
         ),
     ),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help=(
+            "Optional Claim label. ``claim()`` does not take an engine "
+            "``label=`` kwarg, so the cli emits a follow-up "
+            "``<binding>.label = '<label>'`` assignment line after the "
+            "rendered ``claim(...)`` call — matching the hand-authored "
+            "pattern in the example packages. Requires --dsl-binding-name "
+            "(no LHS means nothing to mutate)."
+        ),
+    ),
     export: bool = typer.Option(
         True,
         "--export/--no-export",
@@ -230,6 +251,16 @@ def claim_command(
             --dsl-binding-name fast_reaction --prior 0.7
     """
     del json_  # JSON-vs-human is governed by `--human`; --json is a courtesy alias.
+
+    if label is not None and dsl_binding_name is None:
+        emit_syntax_error(
+            "claim",
+            "--label requires --dsl-binding-name (the follow-up "
+            "`<binding>.label = ...` line needs an LHS to mutate)",
+            target=str(target),
+            human=human,
+        )
+        return
 
     metadata_dict, metadata_error = _format_metadata_kwargs(metadata)
     if metadata_error:
@@ -312,6 +343,7 @@ def claim_command(
         metadata=metadata_dict,
         background=background_list,
         predicate=formula_expr,
+        label=label,
     )
     # Pre-write resolves BOTH --references (formula-sandbox identifiers)
     # and --background (rendered kwarg identifiers) against module scope.
