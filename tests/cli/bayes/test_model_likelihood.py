@@ -1,4 +1,4 @@
-"""CLI E2E tests for ``gaia bayes model`` + ``gaia bayes likelihood`` (R7 G2)."""
+"""CLI E2E tests for ``gaia bayes model`` + ``gaia bayes likelihood``."""
 
 from __future__ import annotations
 
@@ -191,13 +191,13 @@ def test_likelihood_invalid_exclusivity(bayes_package: BayesPackage) -> None:
 
 
 def test_model_accepts_inline_distribution(bayes_package: BayesPackage) -> None:
-    """R9 #2 — `--distribution 'bayes.Binomial(n=395, p=3/4)'` emits inline.
+    """`--distribution 'bayes.Binomial(n=395, p=3/4)'` emits inline.
 
-    Hand-authored mendel inlines `bayes.Binomial(...)` directly inside
-    `bayes.model(distribution=...)`. R9 lets the cli mirror that shape:
-    when `--distribution` is not a bare identifier, route through the
-    formula sandbox (which whitelists `bayes.<DistributionFactory>` per
-    R9 #2 extension) and emit verbatim.
+    Hand-authored mendel inlines ``bayes.Binomial(...)`` directly
+    inside ``bayes.model(distribution=...)``. The cli mirrors that
+    shape: when ``--distribution`` is not a bare identifier, route
+    through the formula sandbox (which whitelists
+    ``bayes.<DistributionFactory>``) and emit verbatim.
     """
     result = runner.invoke(
         app,
@@ -224,7 +224,7 @@ def test_model_accepts_inline_distribution(bayes_package: BayesPackage) -> None:
 
 
 def test_model_accepts_inline_beta_binomial(bayes_package: BayesPackage) -> None:
-    """R9 #2 — BetaBinomial inline expression also works."""
+    """BetaBinomial inline expression also works."""
     result = runner.invoke(
         app,
         [
@@ -251,7 +251,7 @@ def test_model_accepts_inline_beta_binomial(bayes_package: BayesPackage) -> None
 def test_model_inline_distribution_rejects_attribute_breakout(
     bayes_package: BayesPackage,
 ) -> None:
-    """R9 #2 — non-bayes attribute access in --distribution is sandboxed."""
+    """Non-bayes attribute access in --distribution is sandboxed."""
     result = runner.invoke(
         app,
         [
@@ -278,7 +278,7 @@ def test_model_inline_distribution_rejects_attribute_breakout(
 
 
 def test_model_bare_identifier_still_works(bayes_package: BayesPackage) -> None:
-    """R9 #2 — back-compat: bare-identifier `--distribution` keeps working."""
+    """Bare-identifier `--distribution` keeps working alongside the inline shape."""
     _seed_distribution(bayes_package)
     result = runner.invoke(
         app,

@@ -117,12 +117,12 @@ def test_envelope_shape_error_path(gaia_package: FixturePackage) -> None:
 
 
 def test_envelope_shape_compose_missing_from_file() -> None:
-    """``gaia author compose`` requires --from-file (R3 lifts the stubbed shape).
+    """``gaia author compose`` requires --from-file.
 
-    Pre-R3 this test exercised the stub envelope; R3 makes compose live
-    via the file-based validate-and-register path. Typer surfaces the
-    missing-argument error through its own usage path, so we just
-    assert the exit code is non-zero (Typer convention: 2).
+    Compose is live via the file-based validate-and-register path;
+    omitting ``--from-file`` is a Typer usage error. Typer surfaces it
+    through its own usage path, so we just assert the exit code is
+    non-zero (Typer convention: 2).
     """
     result = runner.invoke(app, ["author", "compose"])
     assert result.exit_code != 0, result.output
@@ -159,7 +159,7 @@ def test_human_rendering_smoke(gaia_package: FixturePackage) -> None:
 
 
 def test_exit_code_table_covers_dispatch_kinds() -> None:
-    """The kind→exit table covers the kinds we emit from R1 surfaces."""
+    """The kind→exit table covers the kinds we emit from the cli surface."""
     expected = {
         "prewrite.target_missing": EXIT_SYSTEM_IO,
         "prewrite.target_not_gaia_package": EXIT_SYSTEM_IO,

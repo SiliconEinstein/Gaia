@@ -1,9 +1,8 @@
 """Tests for the multi-level equivalence-tolerance helper.
 
-R8·❓C — the helper module ``tests/cli/_equivalence_levels.py`` underwrites
-the post-R7 tightening of the galileo + mendel strict-reproducibility
-demos. These tests cover each tolerance level + per-axis dispatch + the
-report-format path.
+The helper module ``tests/cli/_equivalence_levels.py`` underwrites the
+galileo + mendel strict-reproducibility demos. These tests cover each
+tolerance level + per-axis dispatch + the report-format path.
 """
 
 from __future__ import annotations

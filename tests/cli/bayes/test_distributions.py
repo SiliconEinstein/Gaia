@@ -1,4 +1,4 @@
-"""CLI E2E tests for ``gaia bayes <distribution>`` (R7 G2)."""
+"""CLI E2E tests for ``gaia bayes <distribution>``."""
 
 from __future__ import annotations
 

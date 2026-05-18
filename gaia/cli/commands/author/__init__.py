@@ -13,23 +13,20 @@ validation, file appending, and (by default) a post-write
 JSON-by-default through a uniform envelope (see :mod:`._envelope`);
 ``--human`` opts into a human-readable rendering of the same payload.
 
-R1 shipped 3 representative verbs end-to-end (``claim`` / ``equal`` /
-``derive``) plus stubs for ``compose`` / ``composition``. R2 fills in
-the remaining 14 statement-level verbs against the same pre-write +
-envelope skeleton, activates ``--interactive`` uniformly, and adds the
-``gaia pkg scaffold`` package-initialisation verb in a sibling module.
-R3 lifts ``compose`` / ``composition`` from stub to live via a
-file-based validate-and-register shape (see :mod:`.compose`), plus
-adds prose-mode ``--<arg>-content`` flags, 2 pre-write warning kinds,
-and a restricted-globals formula sandbox. R4 extends prose mode to
-``infer --hypothesis-content`` and ``observe --observation-content``,
-wires ``compose --check`` to a real ``postwrite_check`` (registration
-preserved on failure), and replaces the R3 hand-curated deprecated-name
-constant with an AST scan over engine DSL source (see
-:mod:`._deprecation_scan`).
+The author surface ships 19 verbs end-to-end against a uniform pre-write
++ envelope skeleton: 17 statement-emitting verbs (``claim`` / ``equal`` /
+``derive`` / ``note`` / ``question`` / ``contradict`` / ``exclusive`` /
+``decompose`` / ``observe`` / ``compute`` / ``infer`` / ``associate`` /
+``parameter`` / ``register_prior`` / ``depends_on`` /
+``candidate_relation`` / ``materialize``) plus the typed-term ``variable``
+verb and the two file-based ``compose`` / ``composition``
+validate-and-register verbs (see :mod:`.compose`). Prose-mode
+``--<arg>-content`` flags, two pre-write warning kinds, and a
+restricted-globals formula sandbox round out the authoring surface; the
+engine's deprecation catalog is discovered via an AST scan over the DSL
+source (see :mod:`._deprecation_scan`).
 
-See ``docs/specs`` / 协作单 BOmHwyFRCixqy0k7gR3cCNMInId for the full
-contract and rationale.
+See ``docs/reference/cli/author.md`` for the per-verb contract.
 """
 
 from __future__ import annotations

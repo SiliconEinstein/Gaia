@@ -190,13 +190,13 @@ def test_claim_human_mode(gaia_package: FixturePackage) -> None:
 
 
 def test_claim_background_flag_renders_kwarg(gaia_package: FixturePackage) -> None:
-    """R9 #1 — `--background a,b` populates `background=[a, b]` kwarg.
+    """`--background a,b` populates `background=[a, b]` kwarg.
 
-    R9 split `--references` (formula-sandbox only) from `--background`
-    (rendered claim kwarg). This test pins the new explicit-background
-    path: comma-separated identifiers in `--background` flow through
-    pre-write reference resolution and emerge as `background=[...]` in
-    the rendered claim.
+    ``--references`` (formula-sandbox only) and ``--background``
+    (rendered claim kwarg) are independent flags. This test pins the
+    explicit-background path: comma-separated identifiers in
+    ``--background`` flow through pre-write reference resolution and
+    emerge as ``background=[...]`` in the rendered claim.
     """
     result = runner.invoke(
         app,
@@ -222,13 +222,13 @@ def test_claim_background_flag_renders_kwarg(gaia_package: FixturePackage) -> No
 def test_claim_references_alone_skips_background_kwarg(
     gaia_package: FixturePackage,
 ) -> None:
-    """R9 #1 — `--references` alone no longer renders `background=`.
+    """`--references` alone does not render `background=`.
 
     Hand-authored mendel uses formula symbols (e.g. Variable identifiers)
     that should be sandbox-whitelisted without showing up in the claim's
-    `background=` slot. The cli now matches: `--references X,Y --formula
-    'equals(X, ...)'` whitelists X/Y for the sandbox but does NOT emit
-    `background=[X, Y]`.
+    ``background=`` slot. The cli matches: ``--references X,Y --formula
+    'equals(X, ...)'`` whitelists X/Y for the sandbox but does NOT emit
+    ``background=[X, Y]``.
     """
     # Seed a Variable so the reference resolves.
     existing = gaia_package.source_init.read_text()
@@ -254,8 +254,8 @@ def test_claim_references_alone_skips_background_kwarg(
     written = gaia_package.source_init.read_text()
     assert "formula_only = claim(" in written
     assert "formula=equals(my_var, Constant(395, Nat))" in written
-    # The critical R9 #1 invariant: --references on its own does NOT
-    # render a background= kwarg. Hand-authored matches this shape.
+    # The critical invariant: --references on its own does NOT render
+    # a background= kwarg. Hand-authored matches this shape.
     formula_only_line = next(
         line for line in written.splitlines() if line.startswith("formula_only = claim(")
     )
@@ -263,12 +263,12 @@ def test_claim_references_alone_skips_background_kwarg(
 
 
 def test_claim_references_and_background_combined(gaia_package: FixturePackage) -> None:
-    """R9 #1 — `--references` + `--background` are independent.
+    """`--references` + `--background` are independent.
 
     Mixed usage: the formula can reference Variables (sandbox-only) while
-    Knowledge-level premises pass through `--background`. The rendered
-    `background=` lists ONLY the --background identifiers, not the
-    --references ones.
+    Knowledge-level premises pass through ``--background``. The rendered
+    ``background=`` lists ONLY the ``--background`` identifiers, not the
+    ``--references`` ones.
     """
     existing = gaia_package.source_init.read_text()
     gaia_package.source_init.write_text(existing + "\nmy_var = Variable(symbol='x', domain=Nat)\n")

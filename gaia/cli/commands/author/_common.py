@@ -1,18 +1,14 @@
 """Shared helpers for ``gaia author`` verbs.
 
-R2 lifts the duplicate ``_parse_metadata`` / ``_split_csv`` / metadata-error
-envelope helpers out of every per-verb file into one place. The shape stays
-identical to what R1's ``claim`` / ``equal`` / ``derive`` did inline — this
-module is a refactor, not a behavior change.
-
-R10 (post-review hardening round) extends this module with the
-literal-or-identifier validator and the identifier-only csv splitter that
-close the RCE family of findings: every ``--value`` / ``--n`` / ``--p`` /
-``--alpha`` / etc. flag must now route its value through
-:func:`parse_literal_or_identifier`, and every reference-list flag (``--given``,
-``--against``, ``--data``, ``--whole`` / ``--parts``, ``--by``, etc.) must
-route through :func:`split_csv_idents`. Free-form CSV (``--source-refs``,
-``--imports``) keeps the existing :func:`split_csv`.
+This module owns the ``_parse_metadata`` / ``_split_csv`` /
+metadata-error envelope helpers used by every per-verb file, plus the
+literal-or-identifier validator and the identifier-only csv splitter
+that close the RCE family of findings: every ``--value`` / ``--n`` /
+``--p`` / ``--alpha`` / etc. flag routes its value through
+:func:`parse_literal_or_identifier`, and every reference-list flag
+(``--given``, ``--against``, ``--data``, ``--whole`` / ``--parts``,
+``--by``, etc.) routes through :func:`split_csv_idents`. Free-form CSV
+(``--source-refs``, ``--imports``) keeps the existing :func:`split_csv`.
 """
 
 from __future__ import annotations
@@ -295,7 +291,7 @@ def build_sibling_imports(
     package marker that the writer interprets as ``default_package``
     (the target package's own import name).
 
-    Note (audit §C.6): the empty-string source is the intentional shape
+    Note: the empty-string source is the intentional shape
     — :func:`gaia.cli.commands.author._writer._select_new_imports`
     falls back through ``pkg = "" or default_package or ""`` so the
     sibling import lands on ``from <import_name> import <symbol>``. A

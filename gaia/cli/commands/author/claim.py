@@ -18,11 +18,11 @@ The CLI surface maps to ``gaia.engine.lang.dsl.knowledge.claim``:
         ...
     )
 
-R1 covered the prose-claim shape (positional ``content`` + optional
-``title`` / ``prior`` / ``metadata`` / ``references``). R3 adds the
-predicate-claim shape via ``--predicate "<formula-expr>"``: the cli
-sandbox-validates the expression (whitelisted formula primitives +
-Distribution factories + ``ClaimAtom`` per
+The cli supports both the prose-claim shape (positional ``content`` +
+optional ``title`` / ``prior`` / ``metadata`` / ``references``) and the
+predicate-claim shape via ``--formula "<formula-expr>"`` (alias
+``--predicate``): the cli sandbox-validates the expression (whitelisted
+formula primitives + Distribution factories + ``ClaimAtom`` per
 :mod:`gaia.cli.commands.author._formula_sandbox`) and renders it
 verbatim as the ``formula=`` kwarg. The naming reads as "predicate
 mode" from the agent's point of view; the engine spelling is
@@ -85,11 +85,10 @@ def _render_claim_statement(
     kwarg — the DSL spelling of "predicate-logic claim". The expression
     has already been sandbox-validated by the caller.
 
-    R9 #1 — only ``background`` populates the rendered ``background=``
-    kwarg. ``--references`` is now formula-sandbox-only and is NOT
-    rendered into the claim call: this matches the hand-authored mendel
-    pattern of using formula-symbols without listing them as
-    Knowledge-background.
+    Only ``background`` populates the rendered ``background=`` kwarg.
+    ``--references`` is formula-sandbox-only and is NOT rendered into
+    the claim call: this matches the hand-authored mendel pattern of
+    using formula-symbols without listing them as Knowledge-background.
     """
     args: list[str] = [repr(content)]
     if title is not None:
@@ -246,7 +245,7 @@ def claim_command(
         )
         return
 
-    # --- R3/R7 formula mode: sandbox-validate the formula expression ---- #
+    # --- formula mode: sandbox-validate the formula expression ---------- #
     if predicate is not None and formula is not None:
         emit_syntax_error(
             "claim",
@@ -255,14 +254,14 @@ def claim_command(
             human=human,
         )
         return
-    # R7 G4 canonical name is --formula; --predicate stays as a
-    # backwards-compatible alias (R3 shipped that spelling). The render
-    # path treats them interchangeably.
+    # Canonical name is --formula; --predicate stays as a
+    # backwards-compatible alias. The render path treats them
+    # interchangeably.
     formula_expr = formula if formula is not None else predicate
     if formula_expr is not None:
         # Permitted identifiers: the standing whitelist plus user-named
         # references (so ``ClaimAtom(some_ref)`` resolves when
-        # ``some_ref`` is on the --references list). R9 #1 — background
+        # ``some_ref`` is on the --references list). Background
         # identifiers are also permitted in the formula sandbox: a user
         # who lists a Knowledge claim in --background may still reference
         # it inside a ClaimAtom(...) inside the formula.
@@ -289,11 +288,11 @@ def claim_command(
         background=background_list,
         predicate=formula_expr,
     )
-    # R9 #1 — pre-write resolves BOTH --references (formula-sandbox
-    # identifiers) and --background (rendered kwarg identifiers) against
-    # module scope. Both lists must point at already-bound names; the
-    # difference is the rendered output (background appears in the
-    # claim's `background=`; references stay sandbox-only).
+    # Pre-write resolves BOTH --references (formula-sandbox identifiers)
+    # and --background (rendered kwarg identifiers) against module scope.
+    # Both lists must point at already-bound names; the difference is
+    # the rendered output (background appears in the claim's
+    # ``background=``; references stay sandbox-only).
     op_references = list(dict.fromkeys((*ref_list, *background_list)))
     target_file = normalize_file_option(file)
     proposed_op = ProposedAuthorOp(

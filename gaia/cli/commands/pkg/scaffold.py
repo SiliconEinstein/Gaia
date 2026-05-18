@@ -18,12 +18,11 @@ Why a new verb instead of reusing the legacy ``gaia init`` /
    ``-gaia`` naming, namespace defaults, and ``--check`` integration
    that runs ``gaia build check`` against the freshly created package.
 
-Per the brief's CD-pick territory: the ``scaffold`` verb writes its own
-pre-validation pipeline (target directory absence + name ending +
-import-name validity) rather than reusing
-:mod:`gaia.cli.commands.author._prewrite` — its 4 invariants assume a
-*pre-existing* Gaia package, while ``scaffold`` creates one from
-scratch. The JSON envelope is shared verbatim.
+The ``scaffold`` verb writes its own pre-validation pipeline (target
+directory absence + name ending + import-name validity) rather than
+reusing :mod:`gaia.cli.commands.author._prewrite` — its 4 invariants
+assume a *pre-existing* Gaia package, while ``scaffold`` creates one
+from scratch. The JSON envelope is shared verbatim.
 """
 
 from __future__ import annotations
@@ -109,11 +108,11 @@ allow_holes = true
 # ``gaia.engine.lang``; if the engine surface changes, this template
 # moves in lockstep.
 #
-# R7 G11 additions: ``Variable`` / ``Constant`` / ``Nat`` / ``Real`` /
-# ``Bool`` / ``Probability`` (the domain primitives + Variable types
-# used by ``gaia author variable`` and ``claim --formula``), plus the
-# ``bayes`` module alias (so ``bayes.model(...)`` / ``bayes.likelihood(...)``
-# / ``bayes.Normal(...)`` cli-authored statements load).
+# Domain primitives ``Variable`` / ``Constant`` / ``Nat`` / ``Real`` /
+# ``Bool`` / ``Probability`` (used by ``gaia author variable`` and
+# ``claim --formula``), plus the ``bayes`` module alias (so
+# ``bayes.model(...)`` / ``bayes.likelihood(...)`` / ``bayes.Normal(...)``
+# cli-authored statements load).
 _INIT_TEMPLATE_FULL = """\
 from gaia.engine import bayes
 from gaia.engine.lang import (
@@ -157,10 +156,10 @@ __all__ = ["hypothesis"]
 """
 
 
-# R7 G11 ``--minimal-imports`` opt-in: emit only the canonical
-# ``claim`` import and the placeholder. The author can manage imports
-# from there. The R2 default stays the full surface; minimal is a
-# self-aware power-user mode.
+# ``--minimal-imports`` opt-in: emit only the canonical ``claim``
+# import and the placeholder. The author can manage imports from
+# there. The default stays the full surface; minimal is a self-aware
+# power-user mode.
 _INIT_TEMPLATE_MINIMAL = """\
 from gaia.engine.lang import claim
 
@@ -216,10 +215,9 @@ def _validate_inputs(
         )
         return None, diagnostics
 
-    # S1 / audit §E.1 — import_name is derived from [project].name per the
-    # engine convention (``foo-gaia`` → ``foo``); the legacy
-    # ``--import-name`` override is removed because it let scaffold lay
-    # down a package the engine couldn't load.
+    # import_name is derived from [project].name per the engine
+    # convention (``foo-gaia`` → ``foo``); no override flag, since an
+    # override could lay down a package the engine couldn't load.
     import_name = _derive_import_name(pkg_name)
     if not _IDENTIFIER_RE.match(import_name) or import_name.startswith("__"):
         diagnostics.append(
@@ -238,10 +236,10 @@ def _validate_inputs(
         )
         return None, diagnostics
 
-    # S7 / audit §E.7 — refuse to lay down a package whose import name
-    # collides with a stdlib module. The engine's ``importlib.import_module``
-    # would return the stdlib module instead of the package and produce
-    # an inscrutable "not a Gaia package" error downstream.
+    # Refuse to lay down a package whose import name collides with a
+    # stdlib module. The engine's ``importlib.import_module`` would
+    # return the stdlib module instead of the package and produce an
+    # inscrutable "not a Gaia package" error downstream.
     import sys as _sys
 
     if import_name in _sys.stdlib_module_names:
@@ -281,8 +279,8 @@ def _validate_inputs(
         )
         return None, diagnostics
 
-    # R7 G11: uuid becomes opt-in via --with-uuid (both shipping example
-    # packages omit it). Default is no uuid.
+    # uuid is opt-in via --with-uuid (both shipping example packages
+    # omit it). Default is no uuid.
     pkg_uuid = str(uuid.uuid4()) if with_uuid else None
     desc_resolved = description or f"Gaia knowledge package: {pkg_name}"
     return (
@@ -414,7 +412,7 @@ def scaffold_command(
         help=(
             "Seed __init__.py with only `claim` instead of the full author "
             "surface. Default is the full-surface preamble for downstream "
-            "NameError protection (R2 default); minimal is for power users "
+            "NameError protection (default); minimal is for power users "
             "managing their own imports (matches shipping example shape)."
         ),
     ),

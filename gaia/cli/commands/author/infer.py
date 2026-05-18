@@ -25,20 +25,19 @@ The legacy v5 list-of-premises shape (``infer([premises], conclusion)``)
 is not exposed through the CLI — agents authoring fresh content should
 use the v6 form.
 
-R4·❓A=A — prose mode for the hypothesis slot. ``--hypothesis-content
-"<prose>"`` mints a fresh ``claim(prose)`` statement, uses the
-cli-derived slug as the ``hypothesis=`` kwarg, and prepends the
-auto-claim to the target file ahead of the ``infer(...)`` statement.
-Mutually exclusive with ``--hypothesis``; ``--hypothesis-label``
-overrides the auto-derived slug (mirrors R3's ``--conclusion-label``
-discipline). This is a semantically-honest fit because the hypothesis
-in an ``infer()`` call is a fresh assertion being introduced for
-posterior-update — the prose maps cleanly onto a new Claim.
+Prose mode for the hypothesis slot. ``--hypothesis-content "<prose>"``
+mints a fresh ``claim(prose)`` statement, uses the cli-derived slug as
+the ``hypothesis=`` kwarg, and prepends the auto-claim to the target
+file ahead of the ``infer(...)`` statement. Mutually exclusive with
+``--hypothesis``; ``--hypothesis-label`` overrides the auto-derived
+slug (mirrors the ``--conclusion-label`` discipline on ``derive``).
+This is a semantically-honest fit because the hypothesis in an
+``infer()`` call is a fresh assertion being introduced for posterior
+update — the prose maps cleanly onto a new Claim.
 
-R4 prose mode scope is bounded to ``--hypothesis-content`` only (not
+Prose mode scope is bounded to ``--hypothesis-content`` only (not
 ``--evidence-content``); evidence usually references prior claims, so
-the auto-mint pattern doesn't fit. R5+ may revisit if authoring
-patterns demand it.
+the auto-mint pattern doesn't fit.
 """
 
 from __future__ import annotations
@@ -76,7 +75,7 @@ def _render_infer_statement(
     ``hypothesis_expr`` is the Python source spelling at the call site:
     either a bare identifier (``--hypothesis`` / ``--hypothesis-content``
     auto-mint slug) or an inline ``claim('<prose>')`` call expression
-    (R7 G6 ``--hypothesis-prose``).
+    (``--hypothesis-prose``).
     """
     args = [evidence]
     kwargs = [f"hypothesis={hypothesis_expr}", f"p_e_given_h={p_e_given_h!r}"]
@@ -195,7 +194,7 @@ def infer_command(
         gaia author infer --evidence sky_red --hypothesis storm_tonight \
             --p-e-given-h 0.7 --p-e-given-not-h 0.2 --label sky_evidence
 
-        # Mint a fresh hypothesis from prose (R4 prose mode)
+        # Mint a fresh hypothesis from prose (auto-mint prose mode)
         gaia author infer --evidence sky_red \
             --hypothesis-content "A storm rolls in tonight." \
             --p-e-given-h 0.7 --label sky_evidence
@@ -277,7 +276,7 @@ def infer_command(
         references = [evidence, auto_label, *given_list, *background_list]
         hypothesis_kind = "auto_mint"
     elif hypothesis_prose is not None:
-        # R7 G6 inline-prose: wrap the prose with claim() at the call
+        # Inline-prose: wrap the prose with claim() at the call
         # site. The engine's infer() hypothesis kwarg is strictly Claim-
         # typed (no ``Claim | str`` polymorphism unlike derive/observe).
         # No named binding is introduced; references list omits the prose.

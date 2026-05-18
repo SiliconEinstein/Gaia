@@ -1,9 +1,10 @@
-"""CLI E2E tests for R7 G8 — deprecated_ref narrowing to call positions.
+"""CLI E2E tests for ``prewrite.deprecated_ref`` narrowing to call positions.
 
-R3-R6 walked every ast.Name in the proposed snippet, which flagged
-``context = note(...)`` because ``context`` happens to match a
-deprecated note alias. R7 narrows the scan to ``ast.Call`` ``node.func``
-positions plus the reference-list (so `--given context` still warns).
+The scan walks ``ast.Call`` ``node.func`` positions plus the
+reference-list — a bare ``ast.Name`` binding (e.g. ``context =
+note(...)``) does not trip the warning, but ``--given context`` (where
+context is a local binding) still warns because the agent is naming the
+deprecated factory on the command line.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ def _parse(output: str) -> dict[str, object]:
     raise AssertionError(f"no JSON envelope in output: {output!r}")
 
 
-def test_g8_binding_named_context_no_warning(
+def test_binding_named_context_no_warning(
     gaia_package: FixturePackage,
 ) -> None:
     """`gaia author note ... --label context` does NOT trip deprecated_ref.
@@ -62,11 +63,11 @@ def test_g8_binding_named_context_no_warning(
         assert diag.get("kind") != "prewrite.deprecated_ref", diag
 
 
-def test_g8_reference_still_warns(gaia_package: FixturePackage) -> None:
+def test_reference_still_warns(gaia_package: FixturePackage) -> None:
     """`--given context` (where context is a local binding) still warns.
 
-    The reference-list scan is preserved post-G8 because the agent is
-    *naming* the deprecated factory on the command line.
+    The reference-list scan is preserved because the agent is *naming*
+    the deprecated factory on the command line.
     """
     existing = gaia_package.source_init.read_text()
     gaia_package.source_init.write_text(existing + "\ncontext = note('legacy alias')\n")

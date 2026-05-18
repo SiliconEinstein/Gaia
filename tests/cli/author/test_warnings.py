@@ -1,6 +1,6 @@
-"""R3 pre-write warning kind tests.
+"""Tests for the two pre-write warning kinds.
 
-R3·❓B=A — two warning kinds:
+Two warning kinds:
 
 * ``prewrite.label_shadow`` — proposed label matches a local binding
   not listed in ``__all__``.

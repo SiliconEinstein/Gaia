@@ -1,6 +1,6 @@
 """``gaia author variable`` — append a ``Variable(symbol, domain, value)`` statement.
 
-R7 G3 — exposes the engine's :class:`gaia.engine.lang.runtime.variable.Variable`
+Exposes the engine's :class:`gaia.engine.lang.runtime.variable.Variable`
 class through a structured cli verb so an agent can declare typed terms
 for use in formulas, parameter() calls, and bayes.model() observables
 without hand-editing source.
@@ -52,7 +52,7 @@ def _render_variable_statement(
 ) -> str:
     """Render the proposed ``Variable(...)`` (or ``Constant(...)``) statement.
 
-    G3 binds the result to ``label``. The DSL re-exports both
+    Binds the result to ``label``. The DSL re-exports both
     ``Variable`` and ``Constant`` from ``gaia.engine.lang``; the
     difference is binding semantics — ``Variable`` carries an optional
     bound value; ``Constant`` is a frozen literal expression term that
@@ -213,12 +213,11 @@ def variable_command(
     if domain not in _PRIMITIVE_DOMAINS:
         references.append(domain)
 
-    # R10 Axis 1 — every ``--value`` is now a literal or a bare
-    # identifier. Anything else (calls, dotted lookups, dunder names)
-    # is rejected at the flag boundary so the splice-into-generated-
-    # source RCE vector is closed. The validator pushes a bare
-    # identifier into ``references`` so prewrite invariant (c) verifies
-    # it resolves in module scope (matches the R9 #4 intent).
+    # Every ``--value`` must be a literal or a bare identifier. Anything
+    # else (calls, dotted lookups, dunder names) is rejected at the
+    # flag boundary so the splice-into-generated-source RCE vector is
+    # closed. The validator pushes a bare identifier into ``references``
+    # so prewrite invariant (c) verifies it resolves in module scope.
     rendered_value: str | None = None
     if value is not None:
         # Primitive domain names appear as literals/idents — keep them

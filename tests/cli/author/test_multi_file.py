@@ -1,4 +1,4 @@
-"""CLI E2E tests for R7 G1 multi-file `--file` routing.
+"""CLI E2E tests for multi-file `--file` routing.
 
 Covers:
 
@@ -114,7 +114,7 @@ def test_add_module_rejects_invalid_name(gaia_package: FixturePackage) -> None:
 def test_author_file_routes_to_sibling(gaia_package: FixturePackage) -> None:
     """`gaia author claim --file <non-reserved>.py` appends to the sibling."""
     # First create the sibling file. Use ``extras`` rather than
-    # ``priors`` since S3 / audit §D.1 now refuses Knowledge writes to
+    # ``priors`` since the file-role policy refuses Knowledge writes to
     # the reserved priors.py role; this test is about the routing
     # mechanic, not the role policy (covered in its own test below).
     runner.invoke(
@@ -150,11 +150,11 @@ def test_author_file_routes_to_sibling(gaia_package: FixturePackage) -> None:
 
 
 def test_author_claim_into_priors_py_refused(gaia_package: FixturePackage) -> None:
-    """S3 / audit §D.1 / chenkun #7 — claim --file priors.py exits 3.
+    """``claim --file priors.py`` exits 3 under the file-role policy.
 
-    The engine's _load_resolution_policy refuses any new Knowledge
-    declarations in priors.py; the cli prewrite now mirrors the rule
-    so the source file isn't half-mutated before the rejection.
+    The engine's ``_load_resolution_policy`` refuses any new Knowledge
+    declarations in priors.py; the cli prewrite mirrors the rule so the
+    source file isn't half-mutated before the rejection.
     """
     runner.invoke(
         app,
@@ -189,9 +189,9 @@ def test_author_claim_into_priors_py_refused(gaia_package: FixturePackage) -> No
 
 
 def test_author_claim_into_reviews_subdir_refused(gaia_package: FixturePackage) -> None:
-    """S3 / audit §D.2 — files under reviews/ are auxiliary; cli refuses.
+    """Files under reviews/ are auxiliary; the cli refuses.
 
-    The engine's _is_auxiliary_source_module flags any file under
+    The engine's ``_is_auxiliary_source_module`` flags any file under
     reviews/ and silently drops its declarations from the IR walk; the
     cli refuses upfront so authors don't accumulate ghost Knowledge.
     """
@@ -330,13 +330,13 @@ def test_register_prior_to_priors_py_adds_sibling_import(
 
 
 def test_postwrite_failure_rolls_back_snapshot(gaia_package: FixturePackage) -> None:
-    """S9 / audit §F.1 — a postwrite failure restores the pre-write source.
+    """A postwrite failure restores the pre-write source via snapshot rollback.
 
     Construct an op whose generated_code parses + prewrite-accepts but
     the postwrite import trips because the rendered claim references a
     name the engine can't resolve at load (the cli's prewrite reference
     scan accepts module-symbol membership; the engine ultimately
-    rejects when the binding shape isn't a Claim). Before this fix the
+    rejects when the binding shape isn't a Claim). Without rollback the
     source file would carry the dangling statement after the failure;
     with rollback the file matches the pre-write snapshot.
     """

@@ -1,14 +1,14 @@
 """File-append helper for ``gaia author`` verbs.
 
-R7 G1 multi-file target — the writer now supports routing each authored
-statement to an arbitrary ``src/<import_name>/<file>.py`` instead of the
-historic always-``__init__.py``. The caller chooses the target file via
+Multi-file target — the writer routes each authored statement to an
+arbitrary ``src/<import_name>/<file>.py`` (or ``__init__.py`` by
+default). The caller chooses the target file via
 :attr:`ProposedAuthorOp.target_file`; the runner resolves the absolute
 path and hands it here. Cross-file references are handled by inserting
 ``from <import_name> import <label>`` lines into the sibling file at
 write time (see :func:`append_statement` ``sibling_imports`` arg).
 
-R7 G10 ``__all__`` auto-management — when the target file declares a
+``__all__`` auto-management — when the target file declares a
 module-level ``__all__ = [...]`` literal, the writer parses it and
 inserts the newly-bound label alphabetically (if absent). Dynamically-
 constructed ``__all__`` blocks emit a warning and are left untouched.
@@ -54,10 +54,10 @@ def append_statement(
             ``__init__.py``) to mutate.
         generated_code: The Python snippet to append.
         new_label: When set, the writer attempts to insert ``new_label``
-            into the module's ``__all__`` literal (R7 G10). A missing
-            ``__all__`` is left absent (no synthesis); a dynamically-
-            constructed one is left untouched and a warning is captured
-            on :attr:`WriteResult.all_warning`.
+            into the module's ``__all__`` literal. A missing ``__all__``
+            is left absent (no synthesis); a dynamically-constructed
+            one is left untouched and a warning is captured on
+            :attr:`WriteResult.all_warning`.
         sibling_imports: A tuple of ``(symbol, package_name)`` pairs the
             writer should ensure are imported at the top of the file. Used
             when the statement lands in a sibling file (e.g.
@@ -251,7 +251,7 @@ def _find_import_insertion_offset(source: str, tree: ast.Module) -> int:
 
 
 # --------------------------------------------------------------------------- #
-# __all__ auto-management (R7 G10)                                            #
+# __all__ auto-management                                                     #
 # --------------------------------------------------------------------------- #
 
 
@@ -261,7 +261,7 @@ def _maybe_update_all_block(source: str, new_label: str) -> tuple[str, bool, str
     Behavior:
 
     * No top-level ``__all__`` assignment present → return source
-      unchanged. R7 G10 does **not** synthesize ``__all__``; that is
+      unchanged. We do **not** synthesize ``__all__``; that is
       package-author territory.
     * Top-level ``__all__`` present + list/tuple literal of strings →
       insert ``new_label`` in alphabetical position. Returns updated

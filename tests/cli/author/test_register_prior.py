@@ -53,9 +53,9 @@ def test_register_prior_happy_path(gaia_package: FixturePackage) -> None:
     written = gaia_package.source_init.read_text()
     assert "register_prior(hypothesis, 0.7" in written
     assert "justification='Prior from expert.'" in written
-    # R9 #3 — default source_id omitted from the rendered call when
-    # caller didn't explicitly pass --source-id. Engine fills in the
-    # default at load time.
+    # Default source_id is omitted from the rendered call when caller
+    # didn't explicitly pass --source-id. Engine fills in the default
+    # at load time.
     assert "source_id=" not in written
 
 
@@ -89,8 +89,8 @@ def test_register_prior_explicit_default_source_id_still_emits(
 ) -> None:
     """Explicit ``--source-id user_priors`` still renders the kwarg.
 
-    R9 #3 — omission of ``source_id=`` is driven by *absence* of the
-    --source-id flag, not by value comparison. A user who explicitly
+    Omission of ``source_id=`` is driven by *absence* of the
+    ``--source-id`` flag, not by value comparison. A user who explicitly
     types ``--source-id user_priors`` gets the kwarg rendered (no silent
     drop based on value matching the engine default).
     """

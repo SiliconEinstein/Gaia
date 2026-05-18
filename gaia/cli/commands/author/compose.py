@@ -1,21 +1,18 @@
 """``gaia author compose`` / ``gaia author composition`` — validate + register.
 
-R3·❓D=A (locked in 协作单 §三 / §五). The composition primitive is a
-Python-decorator-level concept (its body is an arbitrary Python function
-capturing nested ``Action`` invocations through a ContextVar; see
-:mod:`gaia.engine.lang.runtime.composition`). The cli surface therefore
-does not emit a statement to ``__init__.py`` like the other 17 author
-verbs — instead, it takes a **file path** containing a
-``@compose`` / ``@composition``-decorated function, validates the
-shape, and registers ``(file, composition_name, version)`` into the
-package's pyproject ``[tool.gaia]`` metadata so downstream tooling can
-discover compositions without importing the package.
+The composition primitive is a Python-decorator-level concept (its body
+is an arbitrary Python function capturing nested ``Action`` invocations
+through a ContextVar; see :mod:`gaia.engine.lang.runtime.composition`).
+The cli surface therefore does not emit a statement to ``__init__.py``
+like the other 17 author verbs — instead, it takes a **file path**
+containing a ``@compose`` / ``@composition``-decorated function,
+validates the shape, and registers ``(file, composition_name, version)``
+into the package's pyproject ``[tool.gaia]`` metadata so downstream
+tooling can discover compositions without importing the package.
 
-This lifts ``compose`` / ``composition`` from R1's "stub" status to
-"live, just at a different cli shape" — file-based validate-and-register
-instead of statement-emitting. Per the 协作单, post-R3 the inventory
-reads "19 total: 17 statement-emitting + 2 file-based" rather than
-"17 live + 2 stubbed".
+The author inventory totals 19 verbs: 17 statement-emitting plus the
+two file-based ``compose`` / ``composition`` validate-and-register
+verbs documented here.
 
 CLI surface::
 
@@ -43,9 +40,8 @@ Validation contract (each failure exits 2 with a structured diagnostic):
 The ``composition`` alias verb in :mod:`._init_` reuses this impl with
 ``verb="composition"`` to keep the cli-surface inventory symmetric.
 
-R4·❓B=A — ``--check`` (default on) now drives a real
-:func:`postwrite_check` against the target package after registration
-succeeds. Semantics:
+``--check`` (default on) drives a real :func:`postwrite_check` against
+the target package after registration succeeds. Semantics:
 
 * Pre-write / shape failures still abort before any write touches disk
   (no registration on failure).
@@ -255,12 +251,12 @@ def _emit_postwrite_failure(
 ) -> None:
     """Emit an envelope reflecting a postwrite failure with registration preserved.
 
-    Per R4·❓B=A: composition registration is the truth-bearing action;
-    once it completes, the entry stays on disk regardless of the
-    subsequent post-write compile check. The envelope reports the
-    failure mode (``status="error"``, exit 1, source="postwrite") and
-    carries the registration payload so the caller has both pieces of
-    state to act on.
+    Composition registration is the truth-bearing action; once it
+    completes, the entry stays on disk regardless of the subsequent
+    post-write compile check. The envelope reports the failure mode
+    (``status="error"``, exit 1, source="postwrite") and carries the
+    registration payload so the caller has both pieces of state to act
+    on.
     """
     payload = dict(payload)
     payload["check"] = "failed"
@@ -300,13 +296,12 @@ def _validate_target_package(target_root: Path) -> tuple[str | None, str | None]
 def _strip_compositions_blocks(text: str) -> str:
     """Remove every ``[[tool.gaia.compositions]]`` block from ``text``.
 
-    S2 / audit §B.2 — the previous line-based skipper was vulnerable to
-    user-controlled strings containing literal lines matching
-    ``[[tool.gaia.compositions]]``. We still tokenise by line to
-    preserve unrelated comments / whitespace outside the
-    compositions array, but the boundaries are TOML-table headers
-    (``[`` at column 0, ignoring whitespace) which the parser already
-    rejects when they appear inside a string. After we strip we run
+    The boundaries are TOML-table headers (``[`` at column 0, ignoring
+    whitespace) which the parser rejects when they appear inside a
+    string, so user-controlled strings containing literal lines matching
+    ``[[tool.gaia.compositions]]`` can't trick the skipper. We still
+    tokenise by line to preserve unrelated comments / whitespace
+    outside the compositions array. After we strip we run
     ``tomllib.loads`` to confirm the remainder is still valid TOML; if
     not, we restore the original and raise.
     """
@@ -336,12 +331,11 @@ def _update_compositions_table(
 ) -> dict[str, Any]:
     r"""Insert-or-update a ``[[tool.gaia.compositions]]`` entry in pyproject.toml.
 
-    S2 / audit §B.1 / chenkun #5 — values are now TOML-escaped via
-    ``tomli_w`` so user-controlled strings (e.g. a malicious composition
-    ``name=`` carrying ``\"`` or newline) can't break out of the string
-    literal and corrupt the pyproject. The rewrite path still tokenises
-    by table headers, but every emitted value is escaped through the
-    real TOML writer.
+    Values are TOML-escaped via ``tomli_w`` so user-controlled strings
+    (e.g. a malicious composition ``name=`` carrying ``\"`` or newline)
+    can't break out of the string literal and corrupt the pyproject.
+    The rewrite path still tokenises by table headers, but every
+    emitted value is escaped through the real TOML writer.
 
     Returns the entry dict that was written.
     """
@@ -403,7 +397,7 @@ def _render_compositions_toml(entries: list[dict[str, Any]]) -> str:
     Each entry becomes one table in the array-of-tables. The TOML
     writer escapes strings according to the spec (control chars,
     quotes, backslashes), so user-controlled values can't break out
-    of the string literal — audit §B.1 / chenkun #5 closure.
+    of the string literal.
     """
     if not entries:
         return ""
@@ -571,14 +565,14 @@ def _run_compose(
 ) -> None:
     """Shared compose / composition implementation.
 
-    R3·❓D=A path: read file → AST-validate compose decorator shape → if
-    exactly one match, write into pyproject ``[tool.gaia.compositions]``.
+    Read file → AST-validate compose decorator shape → if exactly one
+    match, write into pyproject ``[tool.gaia.compositions]``.
 
-    R4·❓B=A path: when ``check`` is True (default), run
-    :func:`postwrite_check` against the target package after a
-    successful registration. Registration is preserved on disk
-    regardless of the postwrite outcome; the envelope distinguishes
-    "registered and verified" from "registered but failed validation".
+    When ``check`` is True (default), run :func:`postwrite_check`
+    against the target package after a successful registration.
+    Registration is preserved on disk regardless of the postwrite
+    outcome; the envelope distinguishes "registered and verified" from
+    "registered but failed validation".
     """
     target_root = Path(target).resolve()
     file_path = Path(from_file).resolve()
@@ -596,8 +590,8 @@ def _run_compose(
         return
 
     # ---- pre: --from-file path-escape guard --------------------------- #
-    # Audit §A.8 — reject pattern files that resolve inside the target
-    # package's source root, where the engine's postwrite check would
+    # Reject pattern files that resolve inside the target package's
+    # source root, where the engine's postwrite check would
     # ``importlib.import_module`` them.
     if not _assert_compose_file_outside_package(
         verb,
@@ -668,11 +662,11 @@ def _run_compose(
 
     # ---- postwrite: optional --check integration --------------------- #
     #
-    # Per R4·❓B=A: --check runs ``postwrite_check`` against the target
-    # package after registration. Registration stays on disk regardless
-    # of postwrite outcome — composition registration is metadata about
-    # which patterns the package owns; postwrite validates that the
-    # package itself compiles cleanly. The two are decoupled by design.
+    # --check runs ``postwrite_check`` against the target package after
+    # registration. Registration stays on disk regardless of postwrite
+    # outcome — composition registration is metadata about which
+    # patterns the package owns; postwrite validates that the package
+    # itself compiles cleanly. The two are decoupled by design.
     if not check:
         payload["check"] = "skipped"
         _emit_success(verb, payload=payload, warnings_list=[], human=human)

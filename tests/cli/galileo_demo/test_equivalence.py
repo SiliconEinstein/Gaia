@@ -6,38 +6,39 @@ directory and asserts content-equivalence between the cli-authored
 mirror and the hand-authored ground truth at
 ``examples/galileo-v0-5-gaia/``.
 
-R8 multi-level tolerance
-------------------------
+Multi-level tolerance
+---------------------
 
-R7 G6 inline-prose (``derive --conclusion-prose``) + G8 deprecation-
-scan narrowing + G1 multi-file (``register-prior --file priors.py``)
-closed three of the four original divergences. The remaining
-divergence is the cli's "LHS binding == DSL ``label=`` kwarg" rule
-(G7), which is intrinsic per R7·❓A=A.
+The cli surface closes most galileo divergences against the
+hand-authored shape: inline-prose mode (``derive --conclusion-prose``),
+narrowed deprecation scan (call positions only), and multi-file routing
+(``register-prior --file priors.py``) each remove one. The only
+remaining divergence is the cli's "LHS binding == DSL ``label=`` kwarg"
+discipline, which is intrinsic to the single-``--label`` rule.
 
-R8·❓C tightens the test from "content-set on every axis" to
-multi-level: BYTE_TEXT on the R7-closed axes, CONTENT_SET only on
-the intrinsic G7 axis. The helper module
-``tests/cli/_equivalence_levels.py`` exposes the
+Tests use multi-level tolerance: BYTE_TEXT on resolvable axes,
+CONTENT_SET only on the intrinsic single-``--label`` axis. The helper
+module ``tests/cli/_equivalence_levels.py`` exposes the
 :class:`ToleranceLevel` enum + :func:`compare_authored` driver this
 test uses. The same helper underwrites the mendel demo at
 ``tests/cli/mendel_demo/test_equivalence.py``.
 
-Specifically, the cli-authored mirror now matches the hand-authored
-shape on:
+Specifically, the cli-authored mirror matches the hand-authored shape
+on:
 
-* **Divergence #1 (auto-mint)** — closed via R7 G6 inline-prose mode.
-  Each ``derive`` call emits ``derive('<prose>', ...)`` with no named
-  Claim binding, exactly like the hand-authored file. Auto-generated
-  warrant claim contents are byte-identical.
-* **Divergence #3 (context rename)** — closed via R7 G8. The
-  ``context = note(...)`` binding no longer trips the deprecation
-  scan (narrowed to call positions), so we use the hand-authored
-  ``context`` label verbatim.
-* **Divergence #4 (register-prior location)** — closed via R7 G1.
-  ``register-prior --file priors.py`` lands in the sibling module that
-  matches the hand-authored layout, and the writer auto-inserts the
-  cross-file ``from galileo_v0_5 import daily_observation`` line.
+* **Divergence #1 (auto-mint)** — closed via inline-prose mode. Each
+  ``derive`` call emits ``derive('<prose>', ...)`` with no named Claim
+  binding, exactly like the hand-authored file. Auto-generated warrant
+  claim contents are byte-identical.
+* **Divergence #3 (context rename)** — closed via the narrowed
+  deprecation scan. The ``context = note(...)`` binding no longer trips
+  the scan (which targets call positions only), so the hand-authored
+  ``context`` label is used verbatim.
+* **Divergence #4 (register-prior location)** — closed via multi-file
+  routing. ``register-prior --file priors.py`` lands in the sibling
+  module that matches the hand-authored layout, and the writer
+  auto-inserts the cross-file ``from galileo_v0_5 import
+  daily_observation`` line.
 
 The only remaining divergence is **#2 (redundant ``label=`` kwarg)** —
 the cli always renders ``label=<x>`` on every statement so a
@@ -46,13 +47,14 @@ the kwarg on relations whose binding name happens to equal the label.
 This is a non-semantic source-text difference; both compile to the
 same IR.
 
-Per-axis tolerance (R8):
+Per-axis tolerance:
 
-* ``user-authored-contents`` — BYTE_TEXT (R7 G6 inline-prose closure).
+* ``user-authored-contents`` — BYTE_TEXT (inline-prose closure).
 * ``strategy-count`` / ``operator-count`` / ``total-knowledge-count``
   / ``knowledge-type-multiset`` — BYTE_TEXT (structural invariant).
-* ``label-bag`` — CONTENT_SET (intrinsic G7; cli renders ``label=``
-  on every statement, hand-authored omits where binding == label).
+* ``label-bag`` — CONTENT_SET (intrinsic single-``--label`` axis; cli
+  renders ``label=`` on every statement, hand-authored omits where
+  binding == label).
 """
 
 from __future__ import annotations
@@ -134,7 +136,7 @@ def _parse(output: str) -> dict[str, object]:
 def _scaffold_mirror(tmp_path: Path) -> Path:
     """Run ``gaia pkg scaffold`` and return the cli-authored package root."""
     target = tmp_path / "galileo-cli-mirror-gaia"
-    # ``--import-name`` was removed (S1 / audit §E.1); import_name is
+    # ``--import-name`` flag is not exposed; import_name is
     # derived from --name per the engine convention (galileo-v0-5-gaia
     # → galileo_v_0_5 → strip ``v_`` → no, actually: strip ``-gaia`` and
     # replace ``-`` with ``_``: ``galileo-v0-5-gaia`` → ``galileo_v0_5``).
@@ -187,10 +189,10 @@ def _author_galileo(target: Path) -> None:
     hand-authored file expresses inline + 1 prior).
     """
     # ---- 3 contextual notes -------------------------------------------- #
-    # R7 G8 narrowed the deprecation scan to call positions, so the
+    # The deprecation scan is narrowed to call positions, so the
     # hand-authored ``context = note(...)`` shape no longer trips
     # ``prewrite.deprecated_ref``. Use the hand-authored ``context``
-    # label verbatim (was ``preamble_context`` in R5/R6 mirror).
+    # label verbatim.
     _author(
         target,
         "note",
@@ -240,8 +242,8 @@ def _author_galileo(target: Path) -> None:
     )
 
     # ---- daily-observation predictions + matches ----------------------- #
-    # R7 G6 inline-prose mode (--conclusion-prose) matches the hand-
-    # authored shape: derive(<prose>, ...) with no named binding.
+    # Inline-prose mode (--conclusion-prose) matches the hand-authored
+    # shape: derive(<prose>, ...) with no named binding.
     _author(
         target,
         "derive",
@@ -361,7 +363,7 @@ def _author_galileo(target: Path) -> None:
     )
 
     # ---- empirical-background prior ------------------------------------ #
-    # R7 G1 multi-file: scaffold a priors.py sibling and route the
+    # Multi-file routing: scaffold a priors.py sibling and route the
     # register-prior into it, matching the hand-authored layout. The
     # writer auto-inserts ``from galileo_v0_5 import daily_observation``.
     result = runner.invoke(
@@ -449,7 +451,7 @@ def _knowledge_type_list(ir: dict[str, object]) -> list[str]:
 def _label_bag(ir: dict[str, object]) -> list[str]:
     """Distinct labels visible on knowledge nodes / strategies / operators.
 
-    Used at CONTENT_SET tolerance — the intrinsic G7 single-``--label``
+    Used at CONTENT_SET tolerance — the intrinsic single-``--label``
     discipline means the multiset of source-text-rendered labels
     diverges between cli and hand-authored, but the set of distinct
     referenceable labels is invariant.
@@ -492,12 +494,11 @@ def test_galileo_cli_authoring_compiles(tmp_path: Path) -> None:
 def test_user_authored_contents_match_ground_truth(tmp_path: Path) -> None:
     """Every user-authored claim/note content matches at BYTE_TEXT.
 
-    R8 multi-level — primary strict-reproducibility invariant routed
-    through the multi-level helper. R7 G6 inline-prose closure tightened
-    this from "content-set" to "BYTE_TEXT" (multiset of strings must
-    match byte-for-byte). Auto-generated warrants are excluded because
-    they embed conclusion-claim labels that the prose-mode helpers
-    handle separately.
+    Primary strict-reproducibility invariant routed through the
+    multi-level helper. Inline-prose closure lets this run at BYTE_TEXT
+    (multiset of strings must match byte-for-byte). Auto-generated
+    warrants are excluded because they embed conclusion-claim labels
+    that the prose-mode helpers handle separately.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_galileo(mirror)
@@ -613,11 +614,11 @@ def test_knowledge_type_multiset_matches_ground_truth(tmp_path: Path) -> None:
 
 
 def test_galileo_register_prior_omits_default_source_id(tmp_path: Path) -> None:
-    """R9 #3 closure — cli mirror's priors.py omits default source_id.
+    """Cli mirror's priors.py omits default source_id.
 
-    Hand-authored galileo `priors.py` does not render `source_id=`
-    because it relies on the engine default. With R9 #3 the cli mirror
-    matches at BYTE_TEXT (zero `source_id=` mentions on both sides).
+    Hand-authored galileo ``priors.py`` does not render ``source_id=``
+    because it relies on the engine default. The cli mirror matches at
+    BYTE_TEXT (zero ``source_id=`` mentions on both sides).
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_galileo(mirror)
@@ -640,26 +641,26 @@ def test_galileo_register_prior_omits_default_source_id(tmp_path: Path) -> None:
 
 
 def test_label_bag_distinct_count_matches_at_byte_text(tmp_path: Path) -> None:
-    """Distinct-label count matches at BYTE_TEXT (intrinsic G7-tolerant axis).
+    """Distinct-label count matches at BYTE_TEXT (intrinsic-label-tolerant axis).
 
-    R8·❓C — the single-``--label`` discipline (R7·❓A=A intrinsic) means
-    the cli renders ``label=`` on every statement; the hand-authored
-    file uses the Python binding name as the IR label when omitting the
-    kwarg. For galileo's surface, the two sides produce **different
-    sets of label strings** because the cli's ``--label`` kwarg drives
-    the IR label (e.g. ``aristotle_daily_observation_path``) while the
-    hand-authored binding name lands in the IR (e.g.
-    ``aristotle_daily_prediction``). The set of label strings is NOT
-    invariant; what IS invariant is the **count** of distinct labels
-    referenced — both sides ship the same 19 entries.
+    The single-``--label`` discipline means the cli renders ``label=``
+    on every statement; the hand-authored file uses the Python binding
+    name as the IR label when omitting the kwarg. For galileo's surface,
+    the two sides produce **different sets of label strings** because
+    the cli's ``--label`` kwarg drives the IR label (e.g.
+    ``aristotle_daily_observation_path``) while the hand-authored
+    binding name lands in the IR (e.g. ``aristotle_daily_prediction``).
+    The set of label strings is NOT invariant; what IS invariant is the
+    **count** of distinct labels referenced — both sides ship the same
+    19 entries.
 
     This axis is therefore tightened from "CONTENT_SET on label set"
-    (which would force the test red on the intrinsic G7 axis) to
-    "BYTE_TEXT on label count" (which catches a regression where the
-    cli accidentally produces extra or missing label slots). The
-    mendel demo gets a true CONTENT_SET label-bag axis because mendel
-    hand-authored uses binding-name == label uniformly except for the
-    F2-count predicate claim.
+    (which would force the test red on the intrinsic single-``--label``
+    axis) to "BYTE_TEXT on label count" (which catches a regression
+    where the cli accidentally produces extra or missing label slots).
+    The mendel demo gets a true CONTENT_SET label-bag axis because
+    mendel hand-authored uses binding-name == label uniformly except
+    for the F2-count predicate claim.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_galileo(mirror)

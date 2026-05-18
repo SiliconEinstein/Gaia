@@ -1,6 +1,6 @@
 # `gaia bayes`
 
-> **Status:** Reference for the R7 Bayesian-modelling cli surface (v0.5).
+> **Status:** Reference for the Bayesian-modelling cli surface (v0.5).
 
 The `gaia bayes` subcommand group exposes the engine's
 [`gaia.engine.bayes`](https://github.com/SiliconEinstein/gaia/tree/main/gaia/engine/bayes)

@@ -41,11 +41,11 @@ from gaia.cli.commands.author._runner import run_author_op
 _ENGINE_DEFAULT_SOURCE_ID = "user_priors"
 """Mirrors :data:`gaia.engine.lang.dsl.register_prior.DEFAULT_SOURCE_ID`.
 
-R9 #3 — when the cli would render ``source_id='user_priors'``, omit the
-kwarg instead so the rendered statement matches the hand-authored
-pattern of relying on the engine's default. Pinned locally so a CLI
-parse-time check stays side-effect free (no engine import needed just
-to compare a default).
+When the cli would render ``source_id='user_priors'``, omit the kwarg
+instead so the rendered statement matches the hand-authored pattern of
+relying on the engine's default. Pinned locally so a CLI parse-time
+check stays side-effect free (no engine import needed just to compare
+a default).
 """
 
 
@@ -65,12 +65,11 @@ def _render_register_prior_statement(
     returns ``None``. ``comment_label`` is optionally rendered as a
     trailing ``# label`` comment so a reader can scan the source.
 
-    R9 #3 — ``emit_source_id`` toggles whether the ``source_id=`` kwarg
-    appears in the rendered call. ``False`` is reserved for the case
-    where the caller did not explicitly pass ``--source-id`` AND the
-    value matches the engine default (:data:`_ENGINE_DEFAULT_SOURCE_ID`),
-    matching the hand-authored mendel pattern of omitting the kwarg when
-    redundant.
+    ``emit_source_id`` toggles whether the ``source_id=`` kwarg appears
+    in the rendered call. ``False`` is reserved for the case where the
+    caller did not explicitly pass ``--source-id`` AND the value matches
+    the engine default (:data:`_ENGINE_DEFAULT_SOURCE_ID`), matching the
+    hand-authored mendel pattern of omitting the kwarg when redundant.
     """
     args = [claim_ref, repr(value)]
     kwargs = [f"justification={justification!r}"]
@@ -173,11 +172,11 @@ def register_prior_command(
     ):
         return
 
-    # R9 #3 — emit ``source_id=`` only when the caller passed
-    # ``--source-id`` explicitly (any value, including ``user_priors`` if
-    # that was the explicit choice). When omitted on the cli, render
-    # without the kwarg so the engine default applies and the rendered
-    # statement matches the hand-authored omit-when-default pattern.
+    # Emit ``source_id=`` only when the caller passed ``--source-id``
+    # explicitly (any value, including ``user_priors`` if that was the
+    # explicit choice). When omitted on the cli, render without the
+    # kwarg so the engine default applies and the rendered statement
+    # matches the hand-authored omit-when-default pattern.
     emit_source_id = source_id is not None
     effective_source_id = source_id if source_id is not None else _ENGINE_DEFAULT_SOURCE_ID
     generated_code = _render_register_prior_statement(
@@ -189,11 +188,11 @@ def register_prior_command(
         metadata=metadata_dict,
         comment_label=statement_label,
     )
-    # R7 G1 + R10 Axis 2 — register_prior may target a sibling file (e.g.
-    # priors.py); the shared ``build_sibling_imports`` helper now wires
-    # the cross-file import. Tuple is empty when target_file is None or
-    # ``__init__.py`` (the helper short-circuits) so the historic
-    # default-file behaviour is unchanged.
+    # register_prior may target a sibling file (e.g. priors.py); the
+    # shared ``build_sibling_imports`` helper wires the cross-file
+    # import. Tuple is empty when target_file is None or ``__init__.py``
+    # (the helper short-circuits) so the default-file behaviour is
+    # unchanged.
     target_file = normalize_file_option(file)
     references = [claim]
     proposed_op = ProposedAuthorOp(

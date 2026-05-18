@@ -1,9 +1,9 @@
 """Prose-mode helpers for ``gaia author <verb>`` commands.
 
-R3·❓A=A — uniform ``--<arg>-content`` flags. Several DSL verbs accept a
-``Claim`` identifier as input (e.g. ``derive(conclusion=...)``); when the
-agent does not yet have a labelled Claim for that slot, the cli can mint
-a fresh one inline from prose, using a slug derived from the prose for
+Uniform ``--<arg>-content`` flags. Several DSL verbs accept a ``Claim``
+identifier as input (e.g. ``derive(conclusion=...)``); when the agent
+does not yet have a labelled Claim for that slot, the cli can mint a
+fresh one inline from prose, using a slug derived from the prose for
 the label. The auto-generated claim is appended to the target file
 *before* the verb's own statement, so the resulting source remains
 loadable.
@@ -18,10 +18,8 @@ This module owns two narrow concerns:
    statement the cli will prepend to the target file when a verb's
    ``--<arg>-content`` flag is used.
 
-The R3 scope is two named call sites: ``derive --conclusion-content`` and
-``claim --predicate``. The pattern is parameterised so R4+ can extend
-other verbs (``observe --conclusion-content``, ``contradict --a-content``,
-etc.) by reusing this helper rather than mass-rewriting per-verb files.
+The pattern is parameterised so every prose-mode verb reuses these
+helpers rather than carrying its own slug + auto-claim rendering.
 """
 
 from __future__ import annotations

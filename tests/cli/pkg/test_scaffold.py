@@ -88,10 +88,9 @@ def test_scaffold_rejects_stdlib_import_name_collision(tmp_path: Path) -> None:
         app,
         ["pkg", "scaffold", "--target", str(target), "--no-check"],
     )
-    # S7 / audit §E.7 — ``os-gaia`` would derive ``os`` as the import
-    # name, which collides with the stdlib module; the scaffold refuses
-    # so the engine doesn't surface a misleading "not a Gaia package"
-    # error downstream.
+    # ``os-gaia`` would derive ``os`` as the import name, which collides
+    # with the stdlib module; the scaffold refuses so the engine doesn't
+    # surface a misleading "not a Gaia package" error downstream.
     assert result.exit_code == 4
     envelope = _parse(result.output)
     diagnostics = envelope["diagnostics"]
@@ -130,8 +129,8 @@ def test_scaffold_explicit_name_and_namespace(tmp_path: Path) -> None:
 def test_scaffold_human_mode(tmp_path: Path) -> None:
     """`--human` produces non-JSON output prefixed with the correct group.
 
-    S4 / audit §H.1 / chenkun #3 — pkg verbs render as ``gaia pkg
-    <verb>``, not the old hardcoded ``gaia author <verb>``.
+    Pkg verbs render as ``gaia pkg <verb>``, not the old hardcoded
+    ``gaia author <verb>``.
     """
     target = tmp_path / "human-gaia"
     result = runner.invoke(

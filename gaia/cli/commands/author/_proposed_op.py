@@ -23,9 +23,7 @@ from typing import Any, Literal
 # can use without depending on the engine import surface. ``reasoning`` is
 # for warrant-bearing verbs (claim / derive / observe / compute / equal /
 # contradict / exclusive / etc.); ``scaffold`` is for graph-only verbs
-# (depends_on / candidate_relation / materialize). R1's three verbs are
-# all reasoning-shaped, but R2 will need both, so we lock the taxonomy in
-# now.
+# (depends_on / candidate_relation / materialize).
 OpKind = Literal["reasoning", "scaffold"]
 
 
@@ -38,9 +36,10 @@ class ProposedAuthorOp:
             Drives diagnostic ``verb`` field + human-readable rendering.
         kind: Runtime taxonomy slot — see :data:`OpKind`.
         label: Module-scope identifier the generated statement binds to.
-            ``None`` is legal for some verbs (the helper Claim is unnamed),
-            but R1 requires it for all three implemented verbs so the
-            written statement is referenceable.
+            ``None`` is legal for some verbs (e.g. ``register_prior``,
+            where the call returns ``None`` and the statement has no
+            LHS); most verbs require it so the written statement is
+            referenceable.
         references: Identifier names that must resolve in either the
             current package's module scope or a loaded dep. Empty list
             means "no references to check".
@@ -51,8 +50,7 @@ class ProposedAuthorOp:
         required_imports: Module-level imports the generated code depends
             on. ``("derive",)`` means ``from gaia.engine.lang import
             derive`` must exist (or be added) in the target module.
-            R1 verifies they're present; R2 may add missing imports
-            (escalated to a separate ❓ if needed).
+            Pre-write verifies they're present.
     """
 
     verb: str
@@ -61,7 +59,7 @@ class ProposedAuthorOp:
     references: list[str] = field(default_factory=list)
     generated_code: str = ""
     required_imports: tuple[str, ...] = ()
-    # R3 prose mode: optional auto-generated supporting statement that
+    # Prose mode: optional auto-generated supporting statement that
     # must be written **before** ``generated_code`` (e.g. an auto-claim
     # minted from ``--conclusion-content``). Each entry is a
     # ``(label, snippet)`` tuple: the label is treated as a binding that
@@ -69,7 +67,7 @@ class ProposedAuthorOp:
     # reference-resolution invariant, and the snippet is appended to the
     # source file ahead of ``generated_code`` during the write step.
     prepended_statements: tuple[tuple[str, str], ...] = ()
-    # R6 inline-prose mode: verb-specific keys to merge into the final
+    # Inline-prose mode: verb-specific keys to merge into the final
     # envelope ``payload`` (e.g. ``derive --conclusion-prose`` tags the
     # envelope with ``conclusion_kind: "inline_prose"`` so an agent
     # consumer can distinguish the three conclusion-arg shapes without
@@ -77,12 +75,12 @@ class ProposedAuthorOp:
     # owned payload fields (``target``, ``written_to``, ``label``,
     # ``verb``, ``snippet``, ``auto_generated``, ``check``).
     extra_payload: dict[str, Any] = field(default_factory=dict)
-    # R7 G1 multi-file target: the relative path under ``src/<import_name>/``
-    # the verb writes to. ``None`` selects ``__init__.py`` (the historic
-    # default). Path is resolved by the runner against the source root
-    # discovered in pre-write invariant (a).
+    # Multi-file target: the relative path under ``src/<import_name>/``
+    # the verb writes to. ``None`` selects ``__init__.py`` (the default).
+    # Path is resolved by the runner against the source root discovered
+    # in pre-write invariant (a).
     target_file: str | None = None
-    # R7 G1 multi-file target: when the statement lands in a sibling file
+    # Multi-file target: when the statement lands in a sibling file
     # (e.g., ``priors.py``), pre-write needs to know the cross-file
     # ``from <import_name> import <label>`` import lines that must already
     # exist (or be auto-managed) so the references resolve at engine load

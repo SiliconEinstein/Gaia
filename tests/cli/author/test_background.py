@@ -1,4 +1,4 @@
-"""CLI E2E tests for R7 G5 `--background` on equal/contradict/exclusive/observe."""
+"""CLI E2E tests for `--background` on equal/contradict/exclusive/observe."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
-"""R4 tests for the engine-DSL deprecation AST scanner.
+"""Tests for the engine-DSL deprecation AST scanner.
 
-R4·❓C=A — replace the R3 hand-curated ``_DEPRECATED_DSL_NAMES`` constant
+The scanner replaces a hand-curated ``_DEPRECATED_DSL_NAMES`` constant
 with a live AST scan of ``gaia.engine.lang.dsl.**.py``. Two engine
 shapes are recognised:
 
@@ -12,8 +12,8 @@ shapes are recognised:
 
 These tests cover:
 
-* Coverage of R3's hand-curated set: every name the R3 constant carried
-  is still surfaced post-scan.
+* Coverage of the hand-curated fallback set: every name it carries is
+  still surfaced post-scan.
 * Replacement-hint extraction for each shape (direct + indirect).
 * Caching: repeated calls return the same dict identity.
 * Fallback merge for names the scanner would miss.
@@ -25,7 +25,7 @@ import pytest
 
 from gaia.cli.commands.author import _deprecation_scan
 from gaia.cli.commands.author._deprecation_scan import (
-    _R3_FALLBACK_NAMES,
+    _FALLBACK_NAMES,
     _extract_replacement_hint,
     get_deprecated_names,
 )
@@ -38,11 +38,11 @@ pytestmark = pytest.mark.pr_gate
 # --------------------------------------------------------------------------- #
 
 
-def test_get_deprecated_names_covers_r3_hand_curated_set() -> None:
-    """All 10 names R3 hand-curated remain present after R4's AST scan."""
+def test_get_deprecated_names_covers_hand_curated_set() -> None:
+    """All hand-curated fallback names remain present after the AST scan."""
     discovered = get_deprecated_names()
-    for name in _R3_FALLBACK_NAMES:
-        assert name in discovered, f"R3 name {name!r} missing from AST scan"
+    for name in _FALLBACK_NAMES:
+        assert name in discovered, f"hand-curated name {name!r} missing from AST scan"
 
 
 def test_get_deprecated_names_includes_known_engine_deprecations() -> None:
@@ -58,17 +58,17 @@ def test_get_deprecated_names_includes_known_engine_deprecations() -> None:
     assert "noisy_and" in discovered
 
 
-def test_get_deprecated_names_picks_up_support_beyond_r3_set() -> None:
-    """The AST scanner finds ``support`` (a direct-shape deprecation R3 missed).
+def test_get_deprecated_names_picks_up_support_beyond_fallback_set() -> None:
+    """The AST scanner finds ``support`` (a direct-shape deprecation outside the fallback).
 
     Validates that the scan is genuinely picking up engine source — not
-    just regurgitating the R3 fallback — by spotting at least one
-    deprecation outside the curated set. ``support`` lives next to
+    just regurgitating the hand-curated fallback — by spotting at least
+    one deprecation outside the curated set. ``support`` lives next to
     ``noisy_and`` in strategies.py with the same direct-call pattern.
     """
     discovered = get_deprecated_names()
     assert "support" in discovered
-    assert "support" not in _R3_FALLBACK_NAMES
+    assert "support" not in _FALLBACK_NAMES
 
 
 def test_replacement_hint_present_for_known_indirect_helpers() -> None:
@@ -106,11 +106,11 @@ def test_get_deprecated_names_returns_cached_dict_on_repeat() -> None:
 def test_get_deprecated_names_includes_fallback_only_when_unseen(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A name in the R3 fallback but not in the scan still surfaces."""
+    """A name in the hand-curated fallback but not in the scan still surfaces."""
     monkeypatch.setattr(_deprecation_scan, "_CACHED", None)
     monkeypatch.setattr(
         _deprecation_scan,
-        "_R3_FALLBACK_NAMES",
+        "_FALLBACK_NAMES",
         {"_test_only_fallback_name": ("test-replacement", "0.5")},
     )
     discovered = get_deprecated_names()

@@ -1,20 +1,20 @@
-"""R3+R4+R6 prose-mode tests for ``--<arg>-content`` and ``--conclusion-prose`` flags.
+"""Prose-mode tests for ``--<arg>-content`` and ``--conclusion-prose`` flags.
 
-R3·❓A=A — uniform ``--<arg>-content``-suffix flags. The R3 cut implements
-two named call sites — ``derive --conclusion-content`` (mints an
-auto-claim) and ``claim --predicate`` (sandbox-validated formula) — plus
-the small helper infra in :mod:`gaia.cli.commands.author._prose` for
-future verbs.
+Uniform ``--<arg>-content``-suffix flags cover four call sites:
 
-R4·❓A=A — bounded extension to two more semantically-honest call sites:
-``infer --hypothesis-content`` (the hypothesis is a fresh assertion for
-posterior-update) and ``observe --observation-content`` (the
-observation is a fresh measurement statement). Both reuse the same
-``prepended_statements`` infra + helper functions.
+* ``derive --conclusion-content`` — mints a fresh auto-claim.
+* ``claim --predicate`` — sandbox-validated formula.
+* ``infer --hypothesis-content`` — the hypothesis is a fresh assertion
+  for posterior-update.
+* ``observe --observation-content`` — the observation is a fresh
+  measurement statement.
 
-R6·❓A=A — ``derive --conclusion-prose``: emits ``derive('<prose>', ...)``
-inline via the engine's ``conclusion: Claim | str`` polymorphism. Closes
-the Galileo strict-reproducibility divergence #1 (auto-mint bindings).
+All four reuse the same ``prepended_statements`` infra + helper
+functions in :mod:`gaia.cli.commands.author._prose`.
+
+``derive --conclusion-prose`` emits ``derive('<prose>', ...)`` inline
+via the engine's ``conclusion: Claim | str`` polymorphism. Closes the
+Galileo strict-reproducibility divergence around auto-mint bindings.
 Three-way mutex with ``--conclusion`` (QID) and ``--conclusion-content``
 (auto-mint). No named binding minted — prose is a bare string literal
 at the call site.
@@ -334,7 +334,7 @@ def test_claim_predicate_unresolved_reference_rejected(
 
 
 # --------------------------------------------------------------------------- #
-# infer hypothesis prose (R4)                                                 #
+# infer hypothesis prose                                                      #
 # --------------------------------------------------------------------------- #
 
 
@@ -517,7 +517,7 @@ def test_infer_hypothesis_content_payload_has_auto_generated_entry(
 
 
 # --------------------------------------------------------------------------- #
-# observe observation prose (R4)                                              #
+# observe observation prose                                                   #
 # --------------------------------------------------------------------------- #
 
 
@@ -727,7 +727,7 @@ def test_observe_observation_content_collision_against_seeded_resolves(
 
 
 # --------------------------------------------------------------------------- #
-# derive conclusion prose (R6)                                                #
+# derive conclusion-prose inline                                              #
 # --------------------------------------------------------------------------- #
 
 
@@ -1004,9 +1004,9 @@ def test_derive_conclusion_prose_compiles_clean_via_postwrite(
     """Inline-prose derive survives the post-write ``gaia build check``.
 
     Verifies the engine's ``conclusion: Claim | str`` polymorphism
-    actually compiles the prose-only conclusion at v0.5 — the R6
-    architectural premise. ``--check`` (default on) re-runs the full
-    package compile after writing the statement.
+    actually compiles the prose-only conclusion at v0.5 — the
+    architectural premise behind inline-prose mode. ``--check`` (default
+    on) re-runs the full package compile after writing the statement.
     """
     result = runner.invoke(
         app,

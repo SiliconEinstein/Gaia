@@ -14,21 +14,19 @@ constructs a :class:`ProposedAuthorOp` from its parsed flags and calls
 The runner owns the JSON envelope and exit-code semantics so individual
 verbs only have to know their argument-to-snippet mapping.
 
-R2 wires the ``--interactive`` flag uniformly: any pre-write warning
+The ``--interactive`` flag is wired uniformly: any pre-write warning
 surfaces a numbered prompt, default-skip semantics. In JSON mode (the
 default) the prompts are auto-suppressed and the run proceeds, since the
 agent consumer does not have stdin to drive prompts. See the
 ``_maybe_consume_warnings`` helper for the activation logic.
 
-S9 / audit §F.1 — lightweight snapshot/rollback. Before the write
-phase mutates ``write_target`` (and ``pre_source_init`` when
-prepended-statements would land there pre-Axis2), the runner captures
-the file's existing text (or ``None`` if absent). On postwrite
-failure the snapshot is restored and a ``writer.rolled_back``
-diagnostic appended to the envelope. This handles the single-file
-case (chenkun's #2 repro); the compose / pkg-scaffold / pkg-add_module
-verbs have their own write surfaces and are documented as residual
-ordering hazards in the PR body.
+Lightweight snapshot/rollback: before the write phase mutates
+``write_target``, the runner captures the file's existing text (or
+``None`` if absent). On postwrite failure the snapshot is restored and
+a ``writer.rolled_back`` diagnostic appended to the envelope. This
+handles the single-file case; the compose / pkg-scaffold /
+pkg-add_module verbs have their own write surfaces and are documented
+as residual ordering hazards in the PR body.
 """
 
 from __future__ import annotations
@@ -70,7 +68,7 @@ def _maybe_consume_warnings(
     * ``(False, result)`` — abort. The caller should ``emit(result, ...)``
       and stop. Used when the user said no at the prompt.
 
-    Activation rules (CD-pick, ratified):
+    Activation rules:
 
     * JSON mode (``human=False``) auto-suppresses prompts even when
       ``--interactive`` is set — agents do not drive stdin. Warnings still
@@ -133,15 +131,12 @@ def _execute_writes(
 ) -> _WriteOutcome:
     """Run the prepended + main writes. Raises OSError/PermissionError on IO fail.
 
-    R10 Axis 2 §C.2 — prepended statements now land in the **same file**
-    as the main statement (``write_target``), not unconditionally in
-    ``__init__.py`` via ``pre_source_init``. The previous behaviour
-    half-mutated a package when ``--file <sibling>`` was passed: the
-    auto-mint claim went into ``__init__.py`` while the consuming
-    derive/observe/infer statement landed in the sibling, leaving the
-    sibling with an unresolved reference and ``__init__.py`` with an
-    orphan binding. Routing prepended writes to ``write_target`` keeps
-    them next to their consumer.
+    Prepended statements land in the **same file** as the main statement
+    (``write_target``), not unconditionally in ``__init__.py``. This
+    keeps the multi-file path consistent: when ``--file <sibling>`` is
+    passed, the auto-mint claim lands next to its consumer in the
+    sibling instead of leaving the sibling with an unresolved reference
+    and ``__init__.py`` with an orphan binding.
     """
     del pre_source_init  # retained as a kwarg for API symmetry / future use
     written_segments: list[str] = []
@@ -264,7 +259,7 @@ def run_author_op(
         return
     sys.stdout.flush()  # keep prompt output and JSON output disjoint
 
-    # ---- step 2: snapshot (S9 / audit §F.1) ---------------------------- #
+    # ---- step 2: snapshot ---------------------------------------------- #
     #
     # Capture the pre-write contents of every file the write phase may
     # mutate so postwrite failure can restore them. The snapshot is a
@@ -329,11 +324,11 @@ def run_author_op(
         post = postwrite_check(target_path)
         post_warnings.extend(post.warnings)
         if not post.ok:
-            # S9 / audit §F.1 — restore the pre-write snapshot so the
-            # source file isn't left half-mutated. The caller can re-
-            # author with a corrected verb. The rollback is annotated
-            # via a ``writer.rolled_back`` diagnostic so the envelope
-            # records the recovery path.
+            # Restore the pre-write snapshot so the source file isn't
+            # left half-mutated. The caller can re-author with a
+            # corrected verb. The rollback is annotated via a
+            # ``writer.rolled_back`` diagnostic so the envelope records
+            # the recovery path.
             rollback_diags = _rollback_snapshot(snapshot)
             combined_warnings = prewrite_warnings + post.warnings
             emit(

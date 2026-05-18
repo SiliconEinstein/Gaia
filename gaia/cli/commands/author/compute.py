@@ -138,10 +138,10 @@ def compute_command(
         )
         return
 
-    # R10 Axis 1 — --conclusion-type and --fn both splice into the
-    # rendered compute() call. The references list only catches
-    # malformed values incidentally (string-membership test against
-    # module symbols); add explicit identifier-shape gates here.
+    # --conclusion-type and --fn both splice into the rendered
+    # compute() call. The references list only catches malformed
+    # values incidentally (string-membership test against module
+    # symbols); add explicit identifier-shape gates here.
     references: list[str] = []
     try:
         _, rendered_conclusion = parse_literal_or_identifier(

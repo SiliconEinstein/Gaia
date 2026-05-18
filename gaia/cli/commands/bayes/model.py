@@ -49,7 +49,7 @@ from gaia.cli.commands.author._formula_sandbox import (
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
 
-# R9 #2 — detect when ``--distribution`` carries an inline Distribution
+# Detect when ``--distribution`` carries an inline Distribution
 # expression (e.g. ``bayes.Binomial(n=395, p=3/4)``) instead of a bare
 # identifier. The cli accepts both shapes: bare-identifier routes
 # through pre-write reference resolution; inline-expression routes
@@ -171,7 +171,7 @@ def model_command(
     ):
         return
 
-    # R9 #2 — detect inline Distribution expression vs bare identifier.
+    # Detect inline Distribution expression vs bare identifier.
     # Bare identifier → push into references for pre-write resolution.
     # Inline expression (anything with parentheses or attribute syntax) →
     # validate via the formula sandbox (which whitelists Distribution
@@ -190,7 +190,7 @@ def model_command(
                 kind="prewrite.expr_unsafe",
             )
             return
-        # S5 / audit §E.5 — semantic-type check on the inline shape:
+        # Semantic-type check on the inline shape:
         # ``ast.parse(mode="eval")`` and require Call / Attribute /
         # Name. A bare literal (``1`` / ``"foo"`` / ``[1, 2]``) fails
         # the engine at load time; reject it here at the flag boundary

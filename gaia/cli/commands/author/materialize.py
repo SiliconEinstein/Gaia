@@ -28,12 +28,9 @@ materialise it. The DSL enforces:
   ``exclusive``), the materialising records' patterns must be
   consistent with it.
 
-**Audit (R2 task item)**: The ``materialize`` signature is the v0.5
-newcomer — added in the +35-commit reconcile between R0's audit point
-(``841269b4``) and R1's worktree base (``bd59456f``). The signature is
-keyword-only on ``by`` and identical in shape to ``depends_on`` /
-``candidate_relation`` (label / rationale / metadata kwargs). No quirks;
-it folds into the standard Scaffold cli pattern.
+The ``materialize`` signature is keyword-only on ``by`` and identical in
+shape to ``depends_on`` / ``candidate_relation`` (label / rationale /
+metadata kwargs).
 
 CLI surface: ``--scaffold <identifier>`` and ``--by <ident1,ident2,...>``;
 the rendered ``by=`` kwarg becomes a Python list literal so identifier

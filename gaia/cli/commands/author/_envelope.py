@@ -1,8 +1,8 @@
 """Uniform JSON envelope + semantic exit codes for ``gaia author <verb>``.
 
-Per 协作单 §五, every author verb returns the same envelope shape so an
-agent consumer can ``json.loads(stdout)`` once and dispatch on ``verb`` to
-interpret ``payload``. The envelope is:
+Every author verb returns the same envelope shape so an agent consumer
+can ``json.loads(stdout)`` once and dispatch on ``verb`` to interpret
+``payload``. The envelope is:
 
 .. code-block:: json
 
@@ -23,7 +23,7 @@ interpret ``payload``. The envelope is:
       ]
     }
 
-Semantic exit codes (R1·❓-6=A dispatch, locked in §三 of the 协作单):
+Semantic exit codes:
 
 * ``0`` — success.
 * ``1`` — pre-write semantic failure (collision-refs, structural).
@@ -59,19 +59,19 @@ EXIT_SYSTEM_IO = 4
 # explicitly listed fall through to EXIT_PREWRITE_STRUCTURAL (1).
 _KIND_TO_EXIT = {
     "prewrite.target_invalid": EXIT_SYSTEM_IO,
-    # S8 / audit §H.4 — split the overloaded ``target_invalid`` kind
-    # into four distinct kinds so downstream dispatch can distinguish
-    # the four shapes (missing pyproject / missing source root /
-    # missing __init__.py / TOML parse failure). All four map to the
-    # same exit code as the parent for backwards compatibility.
+    # Distinct kinds split out of ``target_invalid`` so downstream
+    # dispatch can distinguish the four shapes (missing pyproject /
+    # missing source root / missing __init__.py / TOML parse failure).
+    # All four map to the same exit code as the parent for backwards
+    # compatibility.
     "prewrite.target_no_pyproject": EXIT_SYSTEM_IO,
     "prewrite.target_no_source_root": EXIT_SYSTEM_IO,
     "prewrite.target_no_init_py": EXIT_SYSTEM_IO,
     "prewrite.target_bad_toml": EXIT_SYSTEM_IO,
     "prewrite.target_missing": EXIT_SYSTEM_IO,
     "prewrite.target_not_gaia_package": EXIT_SYSTEM_IO,
-    # S3 / audit §D.1+§D.2 — reserved-role rejection (priors.py /
-    # review.py / reviews/<sub>.py) for Knowledge-emitting verbs.
+    # Reserved-role rejection (priors.py / review.py / reviews/<sub>.py)
+    # for Knowledge-emitting verbs.
     "prewrite.target_role_forbidden": EXIT_COLLISION_OR_REF,
     "prewrite.syntax": EXIT_INPUT_SYNTAX,
     "prewrite.expr_unsafe": EXIT_INPUT_SYNTAX,
@@ -79,16 +79,15 @@ _KIND_TO_EXIT = {
     "prewrite.reference_unresolved": EXIT_COLLISION_OR_REF,
     "prewrite.order_structure": EXIT_PREWRITE_STRUCTURAL,
     "prewrite.self_loop": EXIT_PREWRITE_STRUCTURAL,
-    # R3 warning kinds — level=warning, but kind→code is still meaningful
+    # Warning kinds — level=warning, but kind→code is still meaningful
     # for downstream consumers building dispatch tables.
     "prewrite.label_shadow": EXIT_OK,
     "prewrite.deprecated_ref": EXIT_OK,
     "postwrite.compile_fail": EXIT_PREWRITE_STRUCTURAL,
     "postwrite.check_fail": EXIT_PREWRITE_STRUCTURAL,
-    # S9 / audit §F.1 — snapshot-rollback diagnostic when postwrite
-    # fails. Informational; the underlying error already carries the
-    # rollback context, so the snapshot kind maps to the parent's
-    # exit code for consistency.
+    # Snapshot-rollback diagnostic when postwrite fails. Informational;
+    # the underlying error already carries the rollback context, so the
+    # snapshot kind maps to the parent's exit code for consistency.
     "writer.rolled_back": EXIT_PREWRITE_STRUCTURAL,
     "stub.not_implemented": EXIT_INPUT_SYNTAX,
 }
@@ -136,17 +135,15 @@ AuthorStatus = Literal["ok", "error", "aborted"]
 class AuthorResult:
     """Envelope returned by every ``gaia author <verb>`` invocation.
 
-    R2 adds the ``"aborted"`` status for user-driven interactive aborts;
-    R1 only used ``"ok"`` / ``"error"``. ``"aborted"`` carries ``code=0``
-    by convention (the run did not fail — the user opted not to proceed).
+    The ``"aborted"`` status covers user-driven interactive aborts and
+    carries ``code=0`` by convention (the run did not fail — the user
+    opted not to proceed).
 
-    S4 / audit §H.1 / chenkun #3 — the ``group`` field replaces the
-    hardcoded ``"gaia author"`` prefix in :func:`render_human`. The
-    envelope carries the command group ("author" / "pkg" / "bayes")
-    so the human renderer can prefix correctly. JSON consumers are
-    unaffected: ``to_dict()`` does not surface the group, since the
-    verb name already carries its namespace (``pkg.scaffold`` /
-    ``bayes.Binomial``).
+    The ``group`` field carries the command group ("author" / "pkg" /
+    "bayes") so :func:`render_human` can prefix correctly. JSON
+    consumers are unaffected: ``to_dict()`` does not surface the
+    group, since the verb name already carries its namespace
+    (``pkg.scaffold`` / ``bayes.Binomial``).
     """
 
     verb: str
@@ -176,10 +173,9 @@ class AuthorResult:
 def infer_group(verb: str) -> str:
     """Infer the cli command group from the verb namespace.
 
-    S4 / audit §H.1 / chenkun #3 — verbs carry their group in the
-    namespaced form (``pkg.scaffold``, ``bayes.Binomial``); strip it
-    out to get the group name. Bare verbs without a dot fall through
-    to ``"author"`` (the original cli group + the historic default).
+    Verbs carry their group in the namespaced form (``pkg.scaffold``,
+    ``bayes.Binomial``); strip it out to get the group name. Bare verbs
+    without a dot fall through to ``"author"`` (the default cli group).
     """
     if "." in verb:
         head, _, _ = verb.partition(".")
@@ -199,12 +195,10 @@ def render_human(result: AuthorResult) -> str:
     deliberately short — no boxes, no tables — so it stays useful when a
     human is scanning a flood of verb invocations from an agent run.
 
-    S4 / audit §H.1 / chenkun #3 — the prefix is now
-    ``gaia <group> <verb>`` where ``group`` comes from
+    The prefix is ``gaia <group> <verb>`` where ``group`` comes from
     :attr:`AuthorResult.group` (verb-emitter sets it; defaults to
-    ``"author"`` for backwards compat with the bulk of verbs). Falls
-    back to :func:`infer_group` when the group is the default and the
-    verb is namespaced.
+    ``"author"``). Falls back to :func:`infer_group` when the group is
+    the default and the verb is namespaced.
     """
     lines: list[str] = []
     glyph = "ok" if result.status == "ok" else f"error[{result.code}]"

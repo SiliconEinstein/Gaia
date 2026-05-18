@@ -1,11 +1,11 @@
 """Restricted-globals sandbox for cli-author formula / predicate expressions.
 
-R3·❓C=A (locked in 协作单 §三 / §五) — when a user passes a Python expression
-through ``decompose --formula-expr`` or ``claim --predicate``, the cli compiles
-it inside a sandbox whose globals contain ``__builtins__ = {}`` and an
-explicit whitelist of formula primitives + Distribution factories. Names
-outside the whitelist raise :class:`FormulaSandboxError`, which the caller
-maps to a ``prewrite.expr_unsafe`` diagnostic with exit code 2
+When a user passes a Python expression through ``decompose --formula-expr``
+or ``claim --predicate``, the cli compiles it inside a sandbox whose
+globals contain ``__builtins__ = {}`` and an explicit whitelist of
+formula primitives + Distribution factories. Names outside the whitelist
+raise :class:`FormulaSandboxError`, which the caller maps to a
+``prewrite.expr_unsafe`` diagnostic with exit code 2
 (``EXIT_INPUT_SYNTAX``).
 
 Why restricted-globals rather than refusing to eval at all? The DSL formula
@@ -17,25 +17,22 @@ pre-write (b) invariant, and the engine performs its own type checks when
 the rendered statement is loaded. The sandbox is what prevents
 ``__import__("os").system("…")`` shapes from ever reaching the file.
 
-Whitelist sources (rev 58 §五 explicit + concrete-shipping reality):
+Whitelist sources:
 
 * Formula primitives — ``land`` / ``lor`` / ``lnot`` / ``implies`` / ``iff``
   / ``equals`` / ``forall`` / ``exists``. All exported by
   ``gaia.engine.lang.dsl.formula``.
 * Atom constructor — ``ClaimAtom`` from
   ``gaia.engine.lang.dsl.bool_expr`` (so authors can wrap a Claim
-  identifier inside ``land(...)`` etc.). The brief listed only the
-  bare formula primitives; the engine surface always pairs them with
-  ``ClaimAtom`` for authoring shape, so we include the atom constructor
-  alongside.
+  identifier inside ``land(...)`` etc.). The engine surface always
+  pairs the formula primitives with ``ClaimAtom`` for authoring shape,
+  so we include the atom constructor alongside.
 * Distribution factories — the engine's shipping set
   (``Normal`` / ``LogNormal`` / ``Beta`` / ``Exponential`` / ``Gamma``
   / ``StudentT`` / ``Cauchy`` / ``ChiSquared`` / ``Binomial`` /
-  ``Poisson``). The brief listed ``Uniform`` but that family is not
-  in the v0.5 surface (see ``gaia.engine.lang.runtime.distribution``
-  ``__all__``); listing only the shipping concrete factories keeps the
-  sandbox honest. Including all of them prevents
-  ``"Uniform not whitelisted but Poisson is"`` confusion.
+  ``Poisson``). The ``Uniform`` family is not in the v0.5 surface
+  (see ``gaia.engine.lang.runtime.distribution`` ``__all__``); listing
+  only the shipping concrete factories keeps the sandbox honest.
 
 Identifier resolution at sandbox time: the caller passes a ``locals_map``
 of identifier → value pairs (typically the ``ClaimAtom`` references the
@@ -97,12 +94,10 @@ _ATOM_CONSTRUCTORS: frozenset[str] = frozenset({"ClaimAtom"})
 # in the sandbox would let an author write ``--formula 'Normal(0, 1)'``
 # only to have the postwrite import trip a NameError.
 #
-# S5 / audit §E.4 closure — the previous (R7) shape included these in
-# WHITELIST and made the sandbox/scaffold parity test (in
-# tests/cli/pkg/test_scaffold_formula_sandbox_parity.py) exempt them
-# from the import-coverage check. Tightening to ``bayes.<Factory>``-only
-# means the scaffold imports and the sandbox accept set match: every
-# bare name in WHITELIST resolves at scaffold load.
+# Tightening to ``bayes.<Factory>``-only means the scaffold imports
+# and the sandbox accept set match: every bare name in WHITELIST
+# resolves at scaffold load (parity enforced by
+# tests/cli/pkg/test_scaffold_formula_sandbox_parity.py).
 _DISTRIBUTION_FACTORIES: frozenset[str] = frozenset(
     {
         "Normal",
@@ -122,12 +117,12 @@ _DISTRIBUTION_FACTORIES: frozenset[str] = frozenset(
 # Constants — bare literals.
 _CONSTANTS: frozenset[str] = frozenset({"True", "False", "None"})
 
-# R7 G4 — Variable + Constant + Domain primitives. Allows formula
-# expressions to reference typed terms (e.g. ``equals(my_var,
-# Constant(395, Nat))`` matches the mendel pattern). The whitelist
-# permits the class names; pre-write resolves user-named identifiers
-# (the Variable's own label) through the same ``extra_names`` channel
-# decompose / claim --formula already feed in.
+# Variable + Constant + Domain primitives. Allows formula expressions
+# to reference typed terms (e.g. ``equals(my_var, Constant(395, Nat))``
+# matches the mendel pattern). The whitelist permits the class names;
+# pre-write resolves user-named identifiers (the Variable's own label)
+# through the same ``extra_names`` channel decompose / claim --formula
+# already feed in.
 _TYPED_TERMS: frozenset[str] = frozenset(
     {
         "Variable",
@@ -139,12 +134,12 @@ _TYPED_TERMS: frozenset[str] = frozenset(
     }
 )
 
-# S5 / audit §E.4 — bare Distribution names (``Normal`` / ``Binomial``
-# / ...) are NOT in WHITELIST: the scaffold imports the ``bayes``
-# module alias (not bare names), so accepting a bare ``Normal`` in a
-# formula would sandbox-pass but produce a NameError at postwrite. The
-# dotted shape ``bayes.<Factory>`` lands via :meth:`visit_Attribute`
-# which checks the attr against :data:`_DISTRIBUTION_FACTORIES`.
+# Bare Distribution names (``Normal`` / ``Binomial`` / ...) are NOT in
+# WHITELIST: the scaffold imports the ``bayes`` module alias (not bare
+# names), so accepting a bare ``Normal`` in a formula would sandbox-pass
+# but produce a NameError at postwrite. The dotted shape
+# ``bayes.<Factory>`` lands via :meth:`visit_Attribute` which checks the
+# attr against :data:`_DISTRIBUTION_FACTORIES`.
 WHITELIST: frozenset[str] = _FORMULA_PRIMITIVES | _ATOM_CONSTRUCTORS | _CONSTANTS | _TYPED_TERMS
 
 
@@ -233,13 +228,12 @@ class _SandboxVisitor(ast.NodeVisitor):
     # ``List`` (operands), and ``Compare`` / ``BoolOp`` / ``BinOp`` (so
     # ``k > 1e-2`` style predicates parse).
     #
-    # R9 #2 — ``ast.Attribute`` is NO LONGER in the blanket-refuse set.
-    # It's now handled by :meth:`visit_Attribute`, which allows the
-    # narrow shape ``bayes.<DistributionFactory>`` (e.g. ``bayes.Binomial``)
-    # so inline Distribution expressions on bayes.model --distribution
-    # / bayes.likelihood --against work. All other attribute access
-    # (``foo.bar``, ``x.__class__``, etc.) is still rejected by the
-    # dedicated visitor.
+    # ``ast.Attribute`` is handled by :meth:`visit_Attribute`, which
+    # allows the narrow shape ``bayes.<DistributionFactory>`` (e.g.
+    # ``bayes.Binomial``) so inline Distribution expressions on
+    # ``bayes.model --distribution`` / ``bayes.likelihood --against``
+    # work. All other attribute access (``foo.bar``, ``x.__class__``,
+    # etc.) is rejected by the dedicated visitor.
     _DISALLOWED_NODES: ClassVar[dict[type[ast.AST], str]] = {
         ast.Subscript: "subscripting",
         ast.Lambda: "lambda",
@@ -287,14 +281,14 @@ class _SandboxVisitor(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:
         """Allow ``bayes.<DistributionFactory>`` only; reject all other attribute access.
 
-        R9 #2 — inline Distribution expressions like
+        Inline Distribution expressions like
         ``bayes.Binomial(n=395, p=3/4)`` are accepted on
         ``bayes.model --distribution`` / ``bayes.likelihood`` against
         flags. The sandbox extension is deliberately narrow: only a
         bare ``ast.Name('bayes').<DistributionFactoryName>`` chain
         passes; chained attributes (``bayes.foo.bar``), non-``bayes``
         attribute access (``np.array``), and dunder attrs
-        (``x.__class__``) all still raise.
+        (``x.__class__``) all raise.
         """
         attr = node.attr
         # Reject dunder attribute names outright. ``x.__class__`` is the

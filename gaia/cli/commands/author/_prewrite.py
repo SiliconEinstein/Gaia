@@ -1,8 +1,7 @@
 """Pre-write defensive sanity check for ``gaia author <verb>``.
 
-Per R1·❓-C=C1 (locked in 协作单 §三), pre-write covers exactly 4
-invariants — anything beyond stays in post-write ``gaia build check`` and
-its lowering pipeline:
+Pre-write covers exactly 4 invariants — anything beyond stays in
+post-write ``gaia build check`` and its lowering pipeline:
 
 (a) **Target package structural validity** — the cwd / ``--target`` path is
     a real Gaia knowledge package: ``pyproject.toml`` exists, parses as
@@ -22,7 +21,7 @@ its lowering pipeline:
     no self-loops (``label`` not in ``references``) and the produced
     snippet does not redeclare ``__all__`` with a conflicting symbol.
 
-Two checks are *deliberately out of R1 scope* (per R1·❓-C=C1):
+Two checks are *deliberately out of scope* for pre-write:
 
 * forward-ref-in-dep detection (would require partial-load of the
   dependency graph);
@@ -32,7 +31,7 @@ Two checks are *deliberately out of R1 scope* (per R1·❓-C=C1):
 Both belong on post-write because they need state that pre-write would
 have to half-build the package to obtain.
 
-R3 adds two pre-write **warning** kinds (per R3·❓B=A):
+Pre-write surfaces two **warning** kinds:
 
 * ``prewrite.label_shadow`` — the proposed label matches a local
   binding that is not in ``__all__`` (shadowing a private name). Hint:
@@ -46,13 +45,12 @@ R3 adds two pre-write **warning** kinds (per R3·❓B=A):
 Both warnings flow through the existing ``--interactive`` activation
 in :func:`gaia.cli.commands.author._runner.run_author_op`.
 
-R4 replaces the R3 hand-curated deprecated-name constant with an AST
-scan of the engine DSL source (see
-:mod:`gaia.cli.commands.author._deprecation_scan`). The scan walks
-``gaia.engine.lang.dsl.**.py`` at first use, recognising both the
-direct ``warnings.warn(..., DeprecationWarning)`` shape and the
-indirect ``_warn_deprecated_*(name, replacement)`` helper shape used
-in the v0.5 engine source. A small R3 fallback dict survives for any
+Deprecated-name discovery happens via an AST scan of the engine DSL
+source (see :mod:`gaia.cli.commands.author._deprecation_scan`). The
+scan walks ``gaia.engine.lang.dsl.**.py`` at first use, recognising
+both the direct ``warnings.warn(..., DeprecationWarning)`` shape and
+the indirect ``_warn_deprecated_*(name, replacement)`` helper shape
+used in the v0.5 engine source. A small fallback dict survives for any
 deprecation expressed in a shape the scanner does not yet model.
 """
 
@@ -67,13 +65,12 @@ from gaia.cli.commands.author._deprecation_scan import get_deprecated_names
 from gaia.cli.commands.author._envelope import Diagnostic, exit_code_for_diagnostic
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 
-# S3 / audit §D.1+§D.2 — file-role policy. The engine reserves a small
-# set of source modules as Knowledge-free zones (``priors.py`` /
-# ``review.py``) and treats ``reviews/`` directory contents as
-# auxiliary (ignored at load). The cli mirrors these rules in prewrite
-# so an author can't write a verb that the engine will later reject
-# (chenkun #7 / audit §D.1) or that the engine will silently ignore
-# (audit §D.2).
+# File-role policy. The engine reserves a small set of source modules
+# as Knowledge-free zones (``priors.py`` / ``review.py``) and treats
+# ``reviews/`` directory contents as auxiliary (ignored at load). The
+# cli mirrors these rules in prewrite so an author can't write a verb
+# that the engine will later reject or that the engine will silently
+# ignore.
 RESERVED_KNOWLEDGE_FREE_FILES = frozenset({"priors.py", "review.py"})
 RESERVED_KNOWLEDGE_FREE_PREFIX = "reviews/"
 KNOWLEDGE_AUTHOR_VERBS = frozenset(
@@ -127,10 +124,10 @@ class AuthorPrewriteResult:
     exit_code: int
     diagnostics: list[Diagnostic]
     warnings: list[Diagnostic]
-    # R7 G1 multi-file target: the absolute path the writer should
-    # append to. Defaults to ``source_init_path`` when the verb did not
-    # request a different file via ``ProposedAuthorOp.target_file``;
-    # otherwise points at ``src/<import_name>/<relative>``.
+    # Multi-file target: the absolute path the writer should append to.
+    # Defaults to ``source_init_path`` when the verb did not request a
+    # different file via ``ProposedAuthorOp.target_file``; otherwise
+    # points at ``src/<import_name>/<relative>``.
     write_target_path: Path | None = None
     source_root: Path | None = None
 
@@ -192,7 +189,7 @@ def prewrite_check(
     project_name = structure.project_name
     source_root = structure.source_root
 
-    # ---- R7 G1: resolve the write target file --------------------------- #
+    # ---- Resolve the multi-file write target --------------------------- #
     #
     # Default is ``source_init_path`` (i.e. ``__init__.py``). When the
     # verb supplied ``target_file``, resolve it relative to the source
@@ -269,7 +266,7 @@ def prewrite_check(
     # ref-to-undeclared-name).
     module_symbols = _collect_module_symbols(source_root, import_name)
 
-    # R3 prose-mode: prepended labels (e.g. an auto-claim minted from
+    # Prose-mode: prepended labels (e.g. an auto-claim minted from
     # ``--conclusion-content``) need to be validated against module
     # symbols too, then folded into the available-symbol pool so the
     # main statement can reference them. Order matters: collision
@@ -355,7 +352,7 @@ def prewrite_check(
             source_root=source_root,
         )
 
-    # ---- R3 warning kinds ---------------------------------------------- #
+    # ---- Warning kinds ------------------------------------------------- #
     #
     # Warnings do not abort pre-write — they surface in the envelope and,
     # in human mode + ``--interactive``, become numbered prompts. The
@@ -385,7 +382,7 @@ def prewrite_check(
 
 
 # --------------------------------------------------------------------------- #
-# R7 G1: Resolve the verb-requested target file inside the package source.    #
+# Resolve the verb-requested target file inside the package source.           #
 # --------------------------------------------------------------------------- #
 
 
@@ -502,14 +499,14 @@ def _resolve_target_file_or_default(
 
 
 # --------------------------------------------------------------------------- #
-# S3 — file-role policy                                                       #
+# File-role policy                                                            #
 # --------------------------------------------------------------------------- #
 
 
 def _validate_target_role(*, verb: str, relative: str) -> list[Diagnostic]:
     """Refuse Knowledge-emitting verbs on reserved-role files / paths.
 
-    S3 / audit §D.1+§D.2 closure. Roles tracked:
+    Roles tracked:
 
     * ``priors.py`` — engine loads it via ``_load_resolution_policy``
       and explicitly rejects any new Knowledge declarations.
@@ -595,10 +592,10 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
 
     pyproject = target_root / "pyproject.toml"
     if not pyproject.exists():
-        # S8 / audit §H.4 — distinct kind ``prewrite.target_no_pyproject``
-        # so downstream dispatch can tell "missing pyproject" apart from
-        # the other target_invalid shapes. Backwards compatible: same
-        # exit code as the parent kind.
+        # Distinct kind ``prewrite.target_no_pyproject`` so downstream
+        # dispatch can tell "missing pyproject" apart from the other
+        # target_invalid shapes. Backwards compatible: same exit code
+        # as the parent kind.
         return _TargetStructure(
             errors=[
                 Diagnostic(
@@ -621,7 +618,7 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
     try:
         config = tomllib.loads(pyproject.read_text())
     except (OSError, tomllib.TOMLDecodeError) as exc:
-        # S8 / audit §H.4 — distinct kind ``prewrite.target_bad_toml``.
+        # Distinct kind ``prewrite.target_bad_toml``.
         return _TargetStructure(
             errors=[
                 Diagnostic(
@@ -682,7 +679,7 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
     candidates = [target_root / import_name, target_root / "src" / import_name]
     source_root = next((c for c in candidates if c.exists()), None)
     if source_root is None:
-        # S8 / audit §H.4 — distinct kind ``prewrite.target_no_source_root``.
+        # Distinct kind ``prewrite.target_no_source_root``.
         return _TargetStructure(
             errors=[
                 Diagnostic(
@@ -706,7 +703,7 @@ def _validate_target_structure(target_root: Path) -> _TargetStructure:
 
     init_py = source_root / "__init__.py"
     if not init_py.exists():
-        # S8 / audit §H.4 — distinct kind ``prewrite.target_no_init_py``.
+        # Distinct kind ``prewrite.target_no_init_py``.
         return _TargetStructure(
             errors=[
                 Diagnostic(
@@ -774,8 +771,8 @@ def _collect_module_symbols(source_root: Path, import_name: str | None) -> set[s
     We deliberately don't import the package — pre-write must be
     side-effect-free. AST-walking ``__init__.py`` (and any sibling ``.py``
     that ``__init__.py`` would import) is sufficient for label-collision
-    + reference-resolution at R1; post-write ``gaia build check`` does
-    the full lowering when its higher fidelity is needed.
+    + reference-resolution; post-write ``gaia build check`` does the
+    full lowering when its higher fidelity is needed.
     """
     symbols: set[str] = set()
     if not source_root.exists() or not source_root.is_dir():
@@ -894,9 +891,9 @@ def _validate_references(
 def _validate_structural_sanity(proposed_op: ProposedAuthorOp) -> list[Diagnostic]:
     """Catch self-loops + obvious structural malformations.
 
-    R1 keeps this deliberately thin (per R1·❓-C=C1) — anything that needs
-    the loaded IR (forward-ref-in-dep, ``__all__`` export simulation) stays
-    in post-write.
+    Deliberately thin — anything that needs the loaded IR
+    (forward-ref-in-dep, ``__all__`` export simulation) stays in
+    post-write.
     """
     if proposed_op.label is not None and proposed_op.label in proposed_op.references:
         return [
@@ -915,15 +912,15 @@ def _validate_structural_sanity(proposed_op: ProposedAuthorOp) -> list[Diagnosti
 
 
 # --------------------------------------------------------------------------- #
-# R3 warning detection                                                        #
+# Warning detection                                                           #
 # --------------------------------------------------------------------------- #
 
 
-# DSL names the engine flags as deprecated. R4·❓C=A lifted this from a
-# hand-curated constant to the AST scan in :mod:`._deprecation_scan`.
-# The accessor is called lazily at the warning-detection site so the
-# cli import cost is paid once per process and cached. Result schema is
-# unchanged from R3: ``name -> (replacement-hint, since-version)``.
+# DSL names the engine flags as deprecated — discovered via the AST
+# scan in :mod:`._deprecation_scan`. The accessor is called lazily at
+# the warning-detection site so the cli import cost is paid once per
+# process and cached. Result schema: ``name -> (replacement-hint,
+# since-version)``.
 
 
 def _deprecated_dsl_names() -> dict[str, tuple[str, str]]:
@@ -1007,32 +1004,24 @@ def _module_all_entries(tree: ast.Module) -> set[str]:
 def _detect_deprecated_refs(proposed_op: ProposedAuthorOp) -> list[Diagnostic]:
     """Warn when the proposed op references a deprecated name at a **call** position.
 
-    R7 G8 narrows the scan: R3-R6 walked every ``ast.Name`` in
-    ``generated_code`` and every entry in ``references`` /
-    ``required_imports``, which fired the warning for any binding name
-    that happened to match a deprecated function. The Galileo demo's
-    ``context = note(...)`` hand-authored shape repeatedly tripped this
-    even though the deprecation is about *calling* the legacy
-    ``context()`` factory, not about a local binding name.
-
-    R7 narrows to **call positions only**:
+    The scan targets **call positions only**:
 
     * Walk the generated code AST.
     * For each ``ast.Call`` node, examine ``node.func``:
         - bare ``ast.Name`` (``foo(...)``) → check name.
         - ``ast.Attribute`` (``module.foo(...)``) → check the attr.
       Both forms are how deprecated DSL factories actually get called.
-    * ``proposed_op.required_imports`` is no longer scanned (the verb
-      renderer always emits the canonical name; a deprecated rendering
-      would be a cli bug, not an authoring warning).
-    * ``proposed_op.references`` is still scanned but only for cases
-      where a user names a deprecated symbol as a reference — that's a
-      real authoring smell because the eventual call site will trip the
+    * ``proposed_op.required_imports`` is not scanned (the verb renderer
+      always emits the canonical name; a deprecated rendering would be
+      a cli bug, not an authoring warning).
+    * ``proposed_op.references`` is scanned but only for cases where a
+      user names a deprecated symbol as a reference — that's a real
+      authoring smell because the eventual call site will trip the
       engine's deprecation warning at compile.
 
-    The narrowing preserves the warning's purpose (catch the user
-    invoking deprecated DSL factories) without the false positives on
-    binding names.
+    This call-position narrowing avoids false positives where a local
+    binding name (e.g. ``context = note(...)``) happens to match a
+    deprecated function while the user is not actually invoking it.
     """
     diagnostics: list[Diagnostic] = []
     flagged: set[str] = set()

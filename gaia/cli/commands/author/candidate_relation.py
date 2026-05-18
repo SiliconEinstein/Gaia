@@ -17,9 +17,9 @@ Maps to ``gaia.engine.lang.dsl.scaffold.candidate_relation`` (v0.5 variadic shap
 Records a hypothesised relation without triggering formal semantics —
 Scaffold tier, no warrants. ``pattern`` (if set) is one of
 ``equal`` / ``contradict`` / ``exclusive``; ``contradict`` requires
-exactly two claims, the others are variadic. CLI hard-cuts to the v0.5
-variadic shape per R0·❓-4=A; the legacy ``(a, b, *, proposed=...)``
-form is not exposed.
+exactly two claims, the others are variadic. CLI exposes only the v0.5
+variadic shape; the legacy ``(a, b, *, proposed=...)`` form is not
+surfaced.
 """
 
 from __future__ import annotations

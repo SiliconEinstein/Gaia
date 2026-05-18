@@ -25,11 +25,11 @@ The verb supports three CLI shapes for ``conclusion``:
   polymorphism. No named Claim binding is minted; the prose flows to
   the DSL call site as a bare string literal.
 
-The three shapes are mutually exclusive — pick exactly one. ``R3`` ships
-the auto-mint shape via the prose-mode helper infra in
-:mod:`gaia.cli.commands.author._prose`; ``R6`` adds the inline-prose
-shape that closes the Galileo strict-reproducibility divergence #1
-(prose-mode auto-mint introducing named Claim bindings).
+The three shapes are mutually exclusive — pick exactly one. The
+auto-mint shape uses the prose-mode helper infra in
+:mod:`gaia.cli.commands.author._prose`; the inline-prose shape closes
+the Galileo strict-reproducibility divergence around named Claim
+bindings introduced by auto-mint.
 """
 
 from __future__ import annotations
@@ -186,12 +186,12 @@ def derive_command(
             --given clear_night,observer_present \
             --label visibility_warrant
 
-        # Mint a fresh conclusion from prose (R3 prose mode)
+        # Mint a fresh conclusion from prose (auto-mint prose mode)
         gaia author derive --conclusion-content "Stars are visible tonight." \
             --given clear_night,observer_present \
             --label visibility_warrant
 
-        # Emit prose inline via the engine's Claim|str polymorphism (R6)
+        # Emit prose inline via the engine's Claim|str polymorphism
         gaia author derive --conclusion-prose "Stars are visible tonight." \
             --given clear_night,observer_present \
             --label visibility_warrant
@@ -297,7 +297,7 @@ def derive_command(
     references: list[str]
     conclusion_kind: str
     if conclusion_content is not None:
-        # R3 auto-mint: derive a slug, prepend a ``slug = claim(prose)``
+        # Auto-mint: derive a slug, prepend a ``slug = claim(prose)``
         # statement, use the slug as ``conclusion``. The slug must avoid
         # the verb's own label and the caller-supplied identifiers; the
         # prewrite (c) collision check also runs against module symbols,
@@ -313,7 +313,7 @@ def derive_command(
         references = [auto_label, *given_list, *background_list]
         conclusion_kind = "auto_mint"
     elif conclusion_prose is not None:
-        # R6 inline-prose: pass the prose through as a bare string
+        # Inline-prose: pass the prose through as a bare string
         # literal. The engine's ``derive(conclusion: Claim | str, ...)``
         # polymorphism wraps it into an anonymous Claim at runtime; no
         # named module-scope binding is introduced. References list

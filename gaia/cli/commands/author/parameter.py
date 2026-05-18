@@ -26,10 +26,12 @@ The verb auto-generates an ``equals(variable, value)`` formula behind
 the scenes; the CLI surface just forwards the ``variable`` identifier
 and ``value`` literal.
 
-R2 forwards ``--value`` verbatim — pass a numeric literal
+The cli forwards ``--value`` verbatim — pass a numeric literal
 (``--value 0.5``), a string (``--value "'fast'"``), or a Quantity
-expression. Pre-write parses the rendered statement as Python before
-write, so obvious malformations still surface as a syntax error.
+expression. The flag boundary gates the value through
+:func:`parse_literal_or_identifier`; pre-write also parses the rendered
+statement as Python before write, so obvious malformations surface as
+a syntax error.
 """
 
 from __future__ import annotations
@@ -142,10 +144,10 @@ def parameter_command(
         emit_syntax_error("parameter", metadata_error, target=str(target), human=human)
         return
 
-    # R10 Axis 1 — --value must be a literal or a bare identifier; the
-    # rendered statement splices it directly into the parameter() call
-    # and the postwrite import would otherwise execute arbitrary Python.
-    # The validator pushes a bare identifier into references so prewrite
+    # --value must be a literal or a bare identifier; the rendered
+    # statement splices it directly into the parameter() call and the
+    # postwrite import would otherwise execute arbitrary Python. The
+    # validator pushes a bare identifier into references so prewrite
     # verifies module-scope resolution.
     references: list[str] = [variable]
     try:

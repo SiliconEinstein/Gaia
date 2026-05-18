@@ -230,8 +230,8 @@ def decompose_command(
         assert formula_src is not None
     else:
         assert formula_expr is not None
-        # R3·❓C=A: validate the raw expression against the formula sandbox
-        # before letting pre-write parse the rendered statement. Identifier
+        # Validate the raw expression against the formula sandbox before
+        # letting pre-write parse the rendered statement. Identifier
         # whitelist = standing primitives + each ``--parts`` entry (so
         # ``ClaimAtom(atom_a)`` resolves).
         extra = frozenset({whole, *part_list})

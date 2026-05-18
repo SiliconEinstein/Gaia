@@ -1,4 +1,4 @@
-"""CLI E2E tests for R7 G10 ``__all__`` auto-management."""
+"""CLI E2E tests for ``__all__`` auto-management."""
 
 from __future__ import annotations
 

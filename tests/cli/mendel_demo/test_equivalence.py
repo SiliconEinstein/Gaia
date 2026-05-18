@@ -6,38 +6,35 @@ directory and asserts content-equivalence between the cli-authored
 mirror and the hand-authored ground truth at
 ``examples/mendel-v0-5-gaia/``.
 
-R8 multi-level tolerance — R9 closure follow-through
-----------------------------------------------------
+Multi-level tolerance
+---------------------
 
-The mendel mirror exercises R7's bayes / Variable / claim --formula /
-multi-file capability surface.
+The mendel mirror exercises the cli's bayes / Variable / ``claim
+--formula`` / multi-file capability surface.
 
-**R9 closed four of the five mendel-surfaced divergences**:
+**Closed divergences (cli capability level)**:
 
-* R9 #1 — split ``--references`` (formula-sandbox only) from
-  ``--background`` (rendered kwarg). The cli mirror no longer emits a
-  spurious ``background=[Variable, Variable]`` on the F2-count formula
-  claim.
-* R9 #2 — inline ``bayes.Binomial(n=..., p=...)`` accepted on
+* ``--references`` is formula-sandbox-only, split from ``--background``
+  (rendered kwarg). The cli mirror no longer emits a spurious
+  ``background=[Variable, Variable]`` on the F2-count formula claim.
+* Inline ``bayes.Binomial(n=..., p=...)`` accepted on
   ``bayes.model --distribution``. The cli mirror no longer pre-binds
   helper distribution literals.
-* R9 #3 — default ``source_id='user_priors'`` omitted when caller
-  doesn't pass ``--source-id``. The cli mirror's priors.py now matches
-  the hand-authored omit-when-default pattern.
-* R9 #4 — bare-identifier ``--value`` resolves against module scope,
-  so the cli mirror can pass through imported constants (not exercised
-  in this test path because the mirror still passes literals — the cli
-  surface is in place; the divergence is closed at the cli capability
-  level).
+* Default ``source_id='user_priors'`` omitted when caller doesn't pass
+  ``--source-id``. The cli mirror's priors.py matches the hand-authored
+  omit-when-default pattern.
+* Bare-identifier ``--value`` resolves against module scope, so the cli
+  mirror can pass through imported constants (the cli surface is in
+  place; this test exercises the literal path because the mirror passes
+  literals).
 
-**Remaining intrinsic divergence (G7, R7·❓A=A)**:
+**Remaining intrinsic divergence**:
 
 * The single-``--label`` discipline forces every cli statement to
   render ``label=``; the hand-authored file uses ``.label = ...``
-  post-binding for the F2-count claim. Per R7·❓C user dispatch,
-  post-binding label-rename is **not** added to the cli surface; the
-  label-bag axis stays at CONTENT_SET tolerance to absorb the
-  divergence.
+  post-binding for the F2-count claim. Post-binding label-rename is
+  not added to the cli surface; the label-bag axis stays at
+  CONTENT_SET tolerance to absorb the divergence.
 
 Per-axis tolerance map (see ``CLI-AUTHORED.md`` §Equivalence guarantees):
 
@@ -51,8 +48,8 @@ Per-axis tolerance map (see ``CLI-AUTHORED.md`` §Equivalence guarantees):
   cli-only bindings for pre-bound distributions cause multiset
   differences; the set of distinct labels referenced anywhere matches).
 
-The helper module ``tests/cli/_equivalence_levels.py`` underwrites both
-this test and the R8-tightened galileo test.
+The helper module ``tests/cli/_equivalence_levels.py`` underwrites
+both this test and the galileo test.
 """
 
 from __future__ import annotations
@@ -126,8 +123,8 @@ def _parse(output: str) -> dict[str, object]:
 def _scaffold_mirror(tmp_path: Path) -> Path:
     """Run ``gaia pkg scaffold`` and return the cli-authored mendel package root."""
     target = tmp_path / "mendel-cli-mirror-gaia"
-    # ``--import-name`` was removed (S1 / audit §E.1); import_name is
-    # derived from --name (``mendel-v0-5-gaia`` → ``mendel_v0_5``).
+    # ``--import-name`` flag is not exposed; import_name is derived
+    # from --name (``mendel-v0-5-gaia`` → ``mendel_v0_5``).
     result = runner.invoke(
         app,
         [
@@ -320,9 +317,9 @@ def _author_mendel(target: Path) -> None:
     # The F2 count observation uses claim --formula to bind a predicate
     # claim, then observe(--conclusion ...) wraps it. Hand-authored
     # mutates ``.label`` after the call; the cli emits label= inline.
-    # R9 #1 — --references is now formula-sandbox-only (doesn't render
-    # as background=); hand-authored mendel doesn't list f2_total_count
-    # / f2_dominant_count in the claim's background, so the cli mirror
+    # --references is formula-sandbox-only (does not render as
+    # background=); hand-authored mendel doesn't list f2_total_count /
+    # f2_dominant_count in the claim's background, so the cli mirror
     # also doesn't.
     _author(
         target,
@@ -466,10 +463,10 @@ def _author_mendel(target: Path) -> None:
     )
 
     # ---- 7. Quantitative bayes comparison ---------------------------- #
-    # R9 #2 — inline `bayes.Binomial(...)` / `bayes.BetaBinomial(...)`
-    # passed via `--distribution`. No pre-binding step; matches the
+    # Inline ``bayes.Binomial(...)`` / ``bayes.BetaBinomial(...)``
+    # passed via ``--distribution``. No pre-binding step; matches the
     # hand-authored shape that inlines the Distribution literal inside
-    # `bayes.model(distribution=...)`.
+    # ``bayes.model(distribution=...)``.
     _bayes(
         target,
         "model",
@@ -720,8 +717,8 @@ def _user_authored_contents(ir: dict[str, object]) -> list[str]:
     Excludes auto-generated warrant claims (``derive warrants ...``,
     ``observe warrants ...``, ``implies(...)``, etc.) and operator-
     minted helper claims (``exactly one of ...``, ``... and ...``) so
-    only the contents an author actually wrote remain. R7 G6 inline-
-    prose closure means both sides emit the same auto-warrant strings
+    only the contents an author actually wrote remain. Inline-prose
+    closure means both sides emit the same auto-warrant strings
     byte-for-byte, but excluding them keeps the assertion focused on
     user-authored data.
     """
@@ -810,7 +807,7 @@ def test_mendel_cli_authoring_compiles(tmp_path: Path) -> None:
 
 
 def test_mendel_user_authored_contents_byte_text(tmp_path: Path) -> None:
-    """User-authored content strings match BYTE_TEXT (R7 G6 inline-prose).
+    """User-authored content strings match BYTE_TEXT (inline-prose closure).
 
     The primary strict-reproducibility invariant: every Claim or note
     content string the author wrote in the hand-authored file appears
@@ -876,12 +873,12 @@ def test_mendel_structural_counts_byte_text(tmp_path: Path) -> None:
 def test_mendel_label_bag_content_set(tmp_path: Path) -> None:
     """Label-bag axis matches at CONTENT_SET (intrinsic single-``--label`` axis).
 
-    The single-``--label`` discipline (R7·❓A=A intrinsic) forces every
-    cli statement to render ``label=``; some hand-authored statements
-    omit the kwarg when the binding name happens to equal the label.
-    Additionally the cli pre-binds two extra Distribution literals
-    (``mendel_count_distribution``, ``diffuse_count_distribution``)
-    that the hand-authored file inlines. So the set of distinct labels
+    The single-``--label`` discipline forces every cli statement to
+    render ``label=``; some hand-authored statements omit the kwarg
+    when the binding name happens to equal the label. Additionally the
+    cli pre-binds two extra Distribution literals
+    (``mendel_count_distribution``, ``diffuse_count_distribution``) that
+    the hand-authored file inlines. So the set of distinct labels
     (excluding cli-only bookkeeping labels) is the right tolerance
     level here.
 
@@ -909,10 +906,11 @@ def test_mendel_label_bag_content_set(tmp_path: Path) -> None:
     #   re-label a claim after it's bound, so the cli mirror keeps the
     #   claim's original binding name as its label.
     #
-    # R9 #2 closed the prior cli-only Distribution-binding labels
+    # The cli inlines ``bayes.Binomial(...)`` /
+    # ``bayes.BetaBinomial(...)`` directly in --distribution, matching
+    # the hand-authored shape; no extra Distribution-binding labels
     # (``mendel_count_distribution`` / ``diffuse_count_distribution``)
-    # — the cli now inlines `bayes.Binomial(...)` / `bayes.BetaBinomial(...)`
-    # directly in --distribution, matching the hand-authored shape.
+    # are minted.
     cli_only_known = {
         "f2_count_observation_binding",
     }
@@ -954,10 +952,10 @@ def test_mendel_bayes_engine_invocation_round_trip(tmp_path: Path) -> None:
 def test_mendel_register_prior_in_sibling_module(tmp_path: Path) -> None:
     """All 6 ``register_prior`` calls landed in ``priors.py``, not ``__init__.py``.
 
-    The R7 G1 multi-file plumbing is what makes mendel's hand-authored
-    layout (``priors.py`` sibling module) reproducible via cli. This
-    test verifies the cli sequence routed the prior records to the
-    sibling module rather than the main authoring file.
+    The multi-file plumbing is what makes mendel's hand-authored layout
+    (``priors.py`` sibling module) reproducible via cli. This test
+    verifies the cli sequence routed the prior records to the sibling
+    module rather than the main authoring file.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
@@ -980,17 +978,17 @@ def test_mendel_register_prior_in_sibling_module(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# R9 closure tightening — new BYTE_TEXT axes                                  #
+# Source-shape closure — BYTE_TEXT axes                                       #
 # --------------------------------------------------------------------------- #
 
 
 def test_mendel_register_prior_omits_default_source_id(tmp_path: Path) -> None:
-    """R9 #3 closure — cli mirror's priors.py omits default source_id.
+    """Cli mirror's priors.py omits default source_id.
 
     Hand-authored priors.py never renders ``source_id=`` because it
-    relies on the engine default. With R9 #3 the cli mirror does the
-    same when ``--source-id`` is not passed. This axis asserts BYTE_TEXT
-    closure: zero ``source_id=`` mentions in either side's priors.py.
+    relies on the engine default. The cli mirror does the same when
+    ``--source-id`` is not passed. This axis asserts BYTE_TEXT closure:
+    zero ``source_id=`` mentions in either side's priors.py.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
@@ -1013,15 +1011,15 @@ def test_mendel_register_prior_omits_default_source_id(tmp_path: Path) -> None:
 
 
 def test_mendel_claim_formula_no_redundant_background(tmp_path: Path) -> None:
-    """R9 #1 closure — cli mirror's F2-count claim has no spurious background=.
+    """Cli mirror's F2-count claim has no spurious background=.
 
     Hand-authored ``_f2_count_observation_binding = claim(content,
     formula=land(...))`` does NOT list f2_total_count / f2_dominant_count
     in a ``background=`` kwarg (the engine drops Variables from
-    claim-background anyway). With R9 #1's split of --references
-    (sandbox-only) from --background (rendered kwarg), the cli mirror
-    no longer emits a redundant background=[Variable, Variable] on this
-    claim.
+    claim-background anyway). The cli mirror does not emit a redundant
+    ``background=[Variable, Variable]`` because ``--references`` is
+    sandbox-only and ``--background`` (the rendered kwarg) is empty
+    here.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
@@ -1037,17 +1035,18 @@ def test_mendel_claim_formula_no_redundant_background(tmp_path: Path) -> None:
     formula_claim = formula_claim_lines[0]
     assert "formula=land(equals(f2_total_count" in formula_claim
     assert "background=" not in formula_claim, (
-        f"R9 #1 closure incomplete — background= still emitted: {formula_claim}"
+        f"background= unexpectedly emitted on formula claim: {formula_claim}"
     )
 
 
 def test_mendel_bayes_model_inline_distribution(tmp_path: Path) -> None:
-    """R9 #2 closure — bayes.model emits inline bayes.Binomial(...) in source.
+    """bayes.model emits inline bayes.Binomial(...) in source.
 
     Hand-authored: ``bayes.model(..., distribution=bayes.Binomial(n=..., p=...))``.
-    Pre-R9 cli: ``bayes.model(..., distribution=mendel_count_distribution)`` plus
-    a separate ``mendel_count_distribution = bayes.Binomial(...)`` line.
-    R9 #2 closure: cli emits the inline shape directly.
+    The cli matches that shape by emitting the inline Distribution
+    expression directly via ``--distribution 'bayes.Binomial(...)'``;
+    no separate pre-binding ``mendel_count_distribution =
+    bayes.Binomial(...)`` line is minted.
     """
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
@@ -1056,15 +1055,15 @@ def test_mendel_bayes_model_inline_distribution(tmp_path: Path) -> None:
     # The mendel_count_model line should embed the inline Distribution
     # expression directly.
     assert "distribution=bayes.Binomial(n=395, p=3/4)" in cli_init, (
-        "R9 #2 closure incomplete — bayes.model did not inline bayes.Binomial(...)"
+        "bayes.model did not inline bayes.Binomial(...)"
     )
     assert "distribution=bayes.BetaBinomial(n=395, alpha=1.0, beta=1.0)" in cli_init, (
-        "R9 #2 closure incomplete — bayes.model did not inline bayes.BetaBinomial(...)"
+        "bayes.model did not inline bayes.BetaBinomial(...)"
     )
-    # And the cli mirror no longer has the standalone pre-binding lines.
+    # The cli mirror does not emit standalone pre-binding lines.
     assert "mendel_count_distribution =" not in cli_init, (
-        "R9 #2 closure incomplete — pre-bound distribution still emitted"
+        "unexpected pre-bound distribution emitted"
     )
     assert "diffuse_count_distribution =" not in cli_init, (
-        "R9 #2 closure incomplete — pre-bound distribution still emitted"
+        "unexpected pre-bound distribution emitted"
     )

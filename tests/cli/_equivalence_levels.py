@@ -1,12 +1,9 @@
 """Multi-level equivalence-tolerance helper for cli-as-client demos.
 
-R8·❓C — a single tolerance level (content-set) collapsed the post-R7
-equivalence frontier into the lowest common denominator: with three of
-the four original galileo divergences now byte-text-closed (R7 G6 / G8
-/ G1), strict-reproducibility tests should be able to assert byte-text
-on the closed axes while still tolerating intrinsic-by-design axes
-(such as the cli's single-``--label`` rule, R7·❓A=A) at content-set
-level.
+Strict-reproducibility tests assert byte-text equivalence on source-text
+axes where the cli renders identical to hand-authored source, while
+tolerating intrinsic-by-design axes (such as the cli's single-``--label``
+rule) at content-set level.
 
 This module provides:
 
@@ -16,8 +13,9 @@ This module provides:
     multiset of strings on each side must match byte-for-byte).
   * ``AST_EQUIVALENT`` — for source-text axes: parse both sides as
     Python and compare the resulting AST modulo whitespace + label-
-    kwarg rendering choice. Reserved for future use (R8 ships byte-text
-    + content-set only; the third level documents the design space).
+    kwarg rendering choice. Reserved for future use; the demos use
+    byte-text + content-set only, but the third level documents the
+    design space.
   * ``CONTENT_SET`` — compare the sorted set of values (de-dup + ignore
     multiset multiplicity, e.g. for label-bag axes where two source-
     text spellings collapse to the same IR slot).
@@ -32,8 +30,8 @@ This module provides:
   and a per-axis ``(hand_values, cli_values)`` projection, return a
   full report.
 
-Per-axis tolerance maps are chosen by the demo author. The R8 galileo
-mapping pins all R7-closed axes to ``BYTE_TEXT`` and the intrinsic
+Per-axis tolerance maps are chosen by the demo author. The galileo
+mapping pins resolvable axes to ``BYTE_TEXT`` and the intrinsic
 ``label-kwarg`` axis to ``CONTENT_SET``. Mendel inherits the same
 backbone plus mendel-specific axes (bayes statement shape, variable
 declarations, formula-claim emission).
@@ -51,17 +49,17 @@ from typing import Any
 class ToleranceLevel(Enum):
     """Per-axis equivalence-tolerance level.
 
-    Three levels (R8 ships two; AST_EQUIVALENT reserved as the
-    intermediate slot so axis maps can be tightened in-place when a
-    future closure surfaces a third byte-text vs content-set frontier).
+    Three levels (the demos use two; AST_EQUIVALENT is reserved as the
+    intermediate slot so axis maps can be tightened in-place if a future
+    closure surfaces a third byte-text vs content-set frontier).
 
     Attributes:
         BYTE_TEXT: Multiset of strings must match byte-for-byte. Use
             when the cli renders source-text identical to the hand-
-            authored source (e.g. R7-closed divergences).
+            authored source.
         AST_EQUIVALENT: Python-AST equivalence modulo whitespace +
             redundant kwarg rendering. Reserved for future use; not
-            consumed by R8 demos.
+            consumed by the current demos.
         CONTENT_SET: Sorted set of unique values must match. Use when
             two source-text spellings legitimately compile to the same
             IR slot (e.g. multiple cli statements binding to identical
@@ -237,12 +235,12 @@ def compare_axis(
             else ""
         )
     elif level is ToleranceLevel.AST_EQUIVALENT:
-        # Reserved slot. R8 demos don't consume AST_EQUIVALENT; if a
-        # future axis needs it, hook a per-axis parser+comparator here.
-        # Until then, treat it as a strict-fail with an informative
-        # message so the level isn't silently degraded.
+        # Reserved slot. The current demos don't consume AST_EQUIVALENT;
+        # if a future axis needs it, hook a per-axis parser+comparator
+        # here. Until then, treat it as a strict-fail with an
+        # informative message so the level isn't silently degraded.
         raise NotImplementedError(
-            "ToleranceLevel.AST_EQUIVALENT is reserved (not implemented in R8). "
+            "ToleranceLevel.AST_EQUIVALENT is reserved (not implemented). "
             "Pick BYTE_TEXT or CONTENT_SET, or extend compare_axis to dispatch."
         )
     else:  # pragma: no cover — Enum exhaustion

@@ -152,9 +152,9 @@ app.add_typer(inspect_app, name="inspect")
 # review — reviewer tooling skeleton (alpha 0: empty)                         #
 # --------------------------------------------------------------------------- #
 #
-# Per 协作单 二·共识, the `review` top-level group lands as a help-visible
-# empty skeleton so downstream reviewer-tooling work has a stable home.
-# It is *different* from `gaia inquiry review` and `gaia trace review` —
+# The `review` top-level group lands as a help-visible empty skeleton
+# so downstream reviewer-tooling work has a stable home. It is
+# *different* from `gaia inquiry review` and `gaia trace review` —
 # those are pre-existing inner subcommands, untouched by alpha 0.
 
 review_app = typer.Typer(
@@ -209,14 +209,12 @@ app.add_typer(pkg_app, name="pkg")
 #          2 file-based validate-and-register)                                #
 # --------------------------------------------------------------------------- #
 #
-# Per 协作单 BOmHwyFRCixqy0k7gR3cCNMInId §五 + §六: the author group is
-# the cli-as-client surface that lets an LLM agent (or a human) CRUD
-# Gaia DSL statements through structured commands instead of editing
-# `.gaia.py` source by hand. R1 shipped 3 verbs (claim / equal / derive)
-# end-to-end; R2 adds the remaining 14 statement-level verbs against
-# the same pre-write + envelope skeleton. R3 lifts ``compose`` /
-# ``composition`` from stub to live via the file-based
-# validate-and-register surface (see gaia.cli.commands.author.compose).
+# The author group is the cli-as-client surface that lets an LLM agent
+# (or a human) CRUD Gaia DSL statements through structured commands
+# instead of editing `.gaia.py` source by hand. 17 statement-emitting
+# verbs share the same pre-write + envelope skeleton; ``compose`` /
+# ``composition`` use a file-based validate-and-register surface (see
+# gaia.cli.commands.author.compose).
 
 author_app = typer.Typer(
     name="author",
@@ -228,45 +226,44 @@ author_app = typer.Typer(
     ),
     no_args_is_help=True,
 )
-# R1 verbs.
+# Knowledge tier.
 author_app.command(name="claim")(claim_command)
-author_app.command(name="equal")(equal_command)
-author_app.command(name="derive")(derive_command)
-# R2 verbs — Knowledge.
 author_app.command(name="note")(note_command)
 author_app.command(name="question")(question_command)
-# R2 verbs — Structural relations.
+# Structural relations.
+author_app.command(name="equal")(equal_command)
 author_app.command(name="contradict")(contradict_command)
 author_app.command(name="exclusive")(exclusive_command)
 author_app.command(name="decompose")(decompose_command)
-# R2 verbs — Support.
+# Support tier.
+author_app.command(name="derive")(derive_command)
 author_app.command(name="observe")(observe_command)
 author_app.command(name="compute")(compute_command)
-# R2 verbs — Probabilistic.
+# Probabilistic.
 author_app.command(name="infer")(author_infer_command)
 author_app.command(name="associate")(associate_command)
-# R2 verbs — Sugar + prior.
+# Sugar + prior.
 author_app.command(name="parameter")(parameter_command)
 author_app.command(name="register-prior")(register_prior_command)
-# R7 verbs — Typed terms.
+# Typed terms.
 author_app.command(name="variable")(variable_command)
-# R2 verbs — Scaffold (Scaffold tier of the DSL surface).
+# Scaffold tier of the DSL surface.
 author_app.command(name="depends-on")(depends_on_command)
 author_app.command(name="candidate-relation")(candidate_relation_command)
 author_app.command(name="materialize")(materialize_command)
-# R3 file-based verbs: validate-and-register a @compose/@composition pattern.
+# File-based verbs: validate-and-register a @compose/@composition pattern.
 author_app.command(name="compose")(compose_command)
 author_app.command(name="composition")(composition_command)
 app.add_typer(author_app, name="author")
 
 
 # --------------------------------------------------------------------------- #
-# bayes — Bayesian-modelling cli surface (R7 G2)                              #
+# bayes — Bayesian-modelling cli surface                                      #
 # --------------------------------------------------------------------------- #
 #
-# Top-level group `gaia bayes <verb>` (CD-pick A from R7 brief):
-# mirrors `gaia.engine.bayes` organisation. Verbs: model / likelihood
-# plus one verb per shipping Distribution class.
+# Top-level group `gaia bayes <verb>` mirrors `gaia.engine.bayes`
+# organisation. Verbs: model / likelihood plus one verb per shipping
+# Distribution class.
 
 bayes_app = typer.Typer(
     name="bayes",

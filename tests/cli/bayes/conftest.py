@@ -2,7 +2,7 @@
 
 The :func:`bayes_package` fixture produces a Gaia knowledge package
 that already imports ``bayes`` + the typed-term primitives, mirroring
-what a fresh ``gaia pkg scaffold`` (R7 G11 default) would lay down.
+what a fresh ``gaia pkg scaffold`` would lay down by default.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """``gaia bayes`` subcommand group — Bayesian-modelling cli surface.
 
-R7 G2 — exposes :mod:`gaia.engine.bayes` through structured cli verbs.
-Mirrors the engine's authoring surface:
+Exposes :mod:`gaia.engine.bayes` through structured cli verbs. Mirrors
+the engine's authoring surface:
 
 * ``bayes model``     — declare a predictive model linking a hypothesis
                         Claim to a Variable observable and a Distribution.
@@ -15,13 +15,12 @@ Mirrors the engine's authoring surface:
                         / LogNormal / Beta / Exponential / Gamma /
                         StudentT / Cauchy / ChiSquared / Poisson).
 
-**Namespace choice (R7 CD-pick): top-level ``gaia bayes <verb>``.** The
-brief listed both options A (top-level group) and B (flat-under-author);
-the engine's bayes surface is a coherent sub-domain (its own
-``gaia.engine.bayes`` package), so giving it a top-level cli group
-mirrors the engine organisation. ``bayes model`` / ``bayes likelihood``
-reads naturally; flat-under-author would have produced
-``author bayes-model`` which felt forced.
+**Namespace choice: top-level ``gaia bayes <verb>``.** The engine's
+bayes surface is a coherent sub-domain (its own ``gaia.engine.bayes``
+package), so giving it a top-level cli group mirrors the engine
+organisation. ``bayes model`` / ``bayes likelihood`` reads naturally;
+flat-under-author would have produced ``author bayes-model`` which
+felt forced.
 
 All bayes verbs share the same JSON envelope + pre-write + post-write
 pipeline as the ``gaia author`` family via the runner in

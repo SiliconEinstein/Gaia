@@ -1,11 +1,10 @@
 """End-to-end integration chains for the cli surface.
 
-R10 Axis 3 — net-new regression guards covering the cross-verb
-authoring paths that the audit identified as under-tested:
+Regression guards covering the cross-verb authoring paths:
 
 * ``pkg scaffold`` → ``pkg add-module`` → ``author claim --file <sib>``
   → ``gaia build check`` clean (sibling-imports + role policy).
-* ``bayes binomial --n <unsafe>`` rejected by the new
+* ``bayes binomial --n <unsafe>`` rejected by the
   :func:`parse_literal_or_identifier` gate; clean input round-trips.
 * Cross-module reference: ``--file <sib>`` referencing an identifier
   bound in ``__init__.py``; the writer auto-inserts the import.
@@ -13,8 +12,7 @@ authoring paths that the audit identified as under-tested:
   ``prewrite.target_role_forbidden`` before write.
 
 These tests run with ``--check`` (default) so the postwrite path is
-fully exercised. The brief flags them pr_gate so they run on every
-PR.
+fully exercised. They are pr_gate-marked so they run on every PR.
 """
 
 from __future__ import annotations

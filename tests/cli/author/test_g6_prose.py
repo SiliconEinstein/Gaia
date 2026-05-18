@@ -1,4 +1,4 @@
-"""CLI E2E tests for R7 G6 inline-prose on observe + infer."""
+"""CLI E2E tests for inline-prose on observe + infer."""
 
 from __future__ import annotations
 

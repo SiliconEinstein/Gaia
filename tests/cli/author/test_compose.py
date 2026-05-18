@@ -1,15 +1,14 @@
-"""R3+R4 tests for ``gaia author compose`` / ``gaia author composition``.
+"""Tests for ``gaia author compose`` / ``gaia author composition``.
 
-R3·❓D=A — file-based validate-and-register. The cli reads a Python file
+File-based validate-and-register: the cli reads a Python file
 containing exactly one ``@compose`` / ``@composition``-decorated
 function, validates the shape, and inserts/updates an entry in the
 target package's ``[[tool.gaia.compositions]]`` pyproject table.
 
-R4·❓B=A — ``--check`` (default on) now drives ``postwrite_check``
-against the target package after registration. Registration is
-preserved on disk regardless of postwrite outcome; the envelope
-distinguishes "registered+verified" from "registered but validation
-failed".
+``--check`` (default on) drives ``postwrite_check`` against the target
+package after registration. Registration is preserved on disk
+regardless of postwrite outcome; the envelope distinguishes
+"registered+verified" from "registered but validation failed".
 
 These tests cover:
 
@@ -23,9 +22,9 @@ These tests cover:
 * idempotency: re-running for the same composition name updates in place.
 * ``composition`` alias verb shares the same impl.
 * ``--help`` epilog contains the example.
-* R4: ``--check`` default runs postwrite and surfaces stats in payload.
-* R4: ``--no-check`` skips postwrite (``payload.check == "skipped"``).
-* R4: postwrite failure preserves the pyproject entry but returns
+* ``--check`` default runs postwrite and surfaces stats in payload.
+* ``--no-check`` skips postwrite (``payload.check == "skipped"``).
+* postwrite failure preserves the pyproject entry but returns
   ``status="error"`` with ``source="postwrite"`` diagnostics.
 """
 
@@ -495,7 +494,7 @@ def test_compose_help_contains_example() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# R4: --check postwrite integration                                           #
+# --check postwrite integration                                               #
 # --------------------------------------------------------------------------- #
 
 
@@ -571,8 +570,8 @@ def test_compose_postwrite_failure_preserves_registration(
 ) -> None:
     """A postwrite failure does NOT roll back the pyproject entry.
 
-    Per R4·❓B=A: registration is the truth-bearing action and stays on
-    disk; the envelope returns ``status="error"`` with ``code=1`` and
+    Registration is the truth-bearing action and stays on disk; the
+    envelope returns ``status="error"`` with ``code=1`` and
     ``source="postwrite"`` so the caller can detect the
     register-but-validation-broken state.
     """
@@ -667,7 +666,7 @@ def test_composition_alias_check_default_runs_postwrite(
 
 
 # --------------------------------------------------------------------------- #
-# S2 / audit §B.1+§B.2 — TOML-escaping the compositions table                 #
+# TOML-escaping the compositions table                                        #
 # --------------------------------------------------------------------------- #
 
 
@@ -688,11 +687,10 @@ def test_compose_quote_and_newline_in_metadata_round_trip(
 ) -> None:
     """Quote- and newline-bearing decorator values stay escaped in pyproject.
 
-    Audit §B.1 / chenkun #5 — the old hand-rolled rendering wrapped
-    values in literal ``"..."`` with no escape, so a ``name='bad"name'``
-    would emit ``name = "bad"name"`` and corrupt pyproject. Audit §B.2
-    — a newline-bearing value also broke the line-based rewriter. The
-    TOML-aware emitter handles both.
+    A hand-rolled string-literal rendering would emit
+    ``name = "bad"name"`` for ``name='bad"name'`` and corrupt pyproject;
+    a newline-bearing value would also break a line-based rewriter. The
+    TOML-aware emitter (via ``tomli_w``) escapes both shapes correctly.
     """
     pattern = tmp_path / "pattern.py"
     _write_compose_file(pattern, body=_QUOTE_BEARING_PATTERN)

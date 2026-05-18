@@ -1,4 +1,4 @@
-"""CLI E2E tests for R7 G11 scaffold defaults + new flags."""
+"""CLI E2E tests for scaffold defaults + flags."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _parse(output: str) -> dict[str, object]:
 
 
 def test_scaffold_default_requires_python_312(tmp_path: Path) -> None:
-    """G11 — pyproject template uses requires-python = '>=3.12'."""
+    """Pyproject template uses requires-python = '>=3.12'."""
     target = tmp_path / "default-gaia"
     result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
     assert result.exit_code == 0, result.output
@@ -33,7 +33,7 @@ def test_scaffold_default_requires_python_312(tmp_path: Path) -> None:
 
 
 def test_scaffold_default_has_allow_holes(tmp_path: Path) -> None:
-    """G11 — pyproject ships [tool.gaia.quality] allow_holes = true."""
+    """Pyproject ships [tool.gaia.quality] allow_holes = true."""
     target = tmp_path / "holes-gaia"
     result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
     assert result.exit_code == 0, result.output
@@ -43,7 +43,7 @@ def test_scaffold_default_has_allow_holes(tmp_path: Path) -> None:
 
 
 def test_scaffold_default_omits_uuid(tmp_path: Path) -> None:
-    """G11 — default no uuid in pyproject."""
+    """Default has no uuid in pyproject."""
     target = tmp_path / "no-uuid-gaia"
     result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
     assert result.exit_code == 0, result.output
@@ -72,7 +72,7 @@ def test_scaffold_with_uuid_flag_emits_uuid(tmp_path: Path) -> None:
 
 
 def test_scaffold_default_imports_bayes_and_typed_terms(tmp_path: Path) -> None:
-    """G11 — default __init__.py includes bayes + Variable/Constant/domain primitives."""
+    """Default __init__.py includes bayes + Variable/Constant/domain primitives."""
     target = tmp_path / "fullimport-gaia"
     result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
     assert result.exit_code == 0, result.output

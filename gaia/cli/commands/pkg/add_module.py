@@ -1,6 +1,6 @@
 """``gaia pkg add-module`` — scaffold a fresh sibling Python module.
 
-R7 G1 — sibling files in a Gaia knowledge package (e.g. ``priors.py``,
+Sibling files in a Gaia knowledge package (e.g. ``priors.py``,
 ``probabilities.py``) need a precondition step before
 ``gaia author <verb> --file <relative>`` can write into them. This verb
 fills the gap by:

@@ -1,4 +1,4 @@
-"""CLI E2E tests for R7 G4 ``claim --formula`` (canonical name)."""
+"""CLI E2E tests for ``claim --formula`` (canonical name)."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def test_claim_formula_basic_expression(gaia_package: FixturePackage) -> None:
 
 
 def test_claim_formula_with_typed_terms(gaia_package: FixturePackage) -> None:
-    """G4 sandbox extension allows Variable / Constant / Nat in formula."""
+    """Sandbox extension allows Variable / Constant / Nat in formula."""
     # Seed a Variable in the package so the reference resolves.
     existing = gaia_package.source_init.read_text()
     gaia_package.source_init.write_text(existing + "\nmy_var = Variable(symbol='x', domain=Nat)\n")

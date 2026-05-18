@@ -1,4 +1,4 @@
-"""CLI E2E tests for ``gaia author variable`` (R7 G3)."""
+"""CLI E2E tests for ``gaia author variable``."""
 
 from __future__ import annotations
 
@@ -174,13 +174,13 @@ def test_variable_const_without_value_rejected(gaia_package: FixturePackage) -> 
 
 
 def test_variable_value_as_bare_identifier_resolves(gaia_package: FixturePackage) -> None:
-    """R9 #4 — `--value DOMINANT_COUNT` resolves against module scope.
+    """`--value DOMINANT_COUNT` resolves against module scope.
 
-    Hand-authored mendel imports `DOMINANT_COUNT` / `TOTAL_COUNT` from a
-    sibling module and passes them through to `Variable(value=...)`. The
-    cli now mirrors that shape: a bare identifier in ``--value`` is
-    pushed into pre-write's reference list AND rendered verbatim into
-    the ``value=`` slot.
+    Hand-authored mendel imports ``DOMINANT_COUNT`` / ``TOTAL_COUNT``
+    from a sibling module and passes them through to
+    ``Variable(value=...)``. The cli mirrors that shape: a bare
+    identifier in ``--value`` is pushed into pre-write's reference list
+    AND rendered verbatim into the ``value=`` slot.
     """
     # Seed the module-scope constant so the reference resolves.
     existing = gaia_package.source_init.read_text()
@@ -211,7 +211,7 @@ def test_variable_value_as_bare_identifier_resolves(gaia_package: FixturePackage
 
 
 def test_variable_value_unresolved_identifier_rejected(gaia_package: FixturePackage) -> None:
-    """R9 #4 — bare identifier in --value that doesn't resolve is rejected.
+    """A bare identifier in --value that doesn't resolve is rejected.
 
     Pre-write's invariant (c) reference-resolution must fire when the
     user passes ``--value SOME_UNDEFINED_NAME`` — otherwise the cli would
@@ -239,7 +239,7 @@ def test_variable_value_unresolved_identifier_rejected(gaia_package: FixturePack
 
 
 def test_variable_value_literal_still_works(gaia_package: FixturePackage) -> None:
-    """R9 #4 — back-compat: literal `--value 395` keeps current behavior.
+    """Literal `--value 395` still works alongside the bare-identifier path.
 
     The bare-identifier path is a *strict superset* of the literal path:
     numeric / boolean / string literals continue to render verbatim

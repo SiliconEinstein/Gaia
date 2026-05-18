@@ -1,11 +1,11 @@
 """Post-write integration with ``gaia build check``.
 
-Per R1·❓-D=D1 (locked in 协作单 §三): pre-write and post-write are
-**separate gates**. Pre-write always runs fail-fast (no flag); post-write
-``gaia build check`` runs by default after a successful write, gated by
-``--check / --no-check`` (default on). When pre-write fails, post-write is
-short-circuited — there's no point running compile-grade validation
-against a write that did not happen.
+Pre-write and post-write are **separate gates**. Pre-write always runs
+fail-fast (no flag); post-write ``gaia build check`` runs by default
+after a successful write, gated by ``--check / --no-check`` (default
+on). When pre-write fails, post-write is short-circuited — there's no
+point running compile-grade validation against a write that did not
+happen.
 
 This module talks to the engine through its programmatic API
 (``load_gaia_package`` + ``compile_loaded_package_artifact``) rather than

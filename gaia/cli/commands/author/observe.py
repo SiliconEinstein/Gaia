@@ -26,27 +26,23 @@ The DSL recognises two authoring shapes:
    value=v, error=sigma)``. Records a measurement event for a
    :class:`Distribution`-typed quantity.
 
-R2 ships the discrete-claim form with optional ``--given`` plus the
-continuous form via ``--value`` / ``--error``. Both shapes go through
-the same pre-write pipeline; the rendered statement diverges only in
-which kwargs land on the call.
+The cli supports both the discrete-claim form with optional ``--given``
+and the continuous form via ``--value`` / ``--error``. Both shapes go
+through the same pre-write pipeline; the rendered statement diverges
+only in which kwargs land on the call.
 
-R2 does not parse ``--value`` / ``--error`` as expressions — they are
-forwarded verbatim as numeric literals (``--value 203`` →
-``value=203``). For Quantity-valued observations the user can pass a
-Python expression with the right unit accessors via the same channel,
-since the rendered snippet is Python source that the engine evaluates at
-package-load time.
+``--value`` / ``--error`` values are forwarded verbatim (``--value 203``
+→ ``value=203``); the literal-or-identifier validator gates the flag
+boundary, and the rendered snippet is Python source that the engine
+evaluates at package-load time.
 
-R4·❓A=A — prose mode for the observation slot. ``--observation-content
-"<prose>"`` mints a fresh ``claim(prose)`` statement, uses the
+Prose mode for the observation slot via ``--observation-content
+"<prose>"``: mints a fresh ``claim(prose)`` statement, uses the
 cli-derived slug as the first positional arg of ``observe(...)``, and
 prepends the auto-claim to the target file ahead of the
 ``observe(...)`` statement. Mutually exclusive with ``--conclusion``;
-``--observation-label`` overrides the auto-derived slug (mirrors R3's
-``--conclusion-label`` discipline). Semantically honest because a
-discrete observation is a fresh measurement statement being introduced
-into the package — the prose maps cleanly onto a new Claim. Only the
+``--observation-label`` overrides the auto-derived slug (mirrors the
+``--conclusion-label`` discipline on ``derive``). Only the
 discrete-claim observation form supports prose mode; the continuous
 form (``--value`` / ``--error``) targets an existing Distribution by
 construction and so retains the identifier-only ``--conclusion``
@@ -198,7 +194,7 @@ def _render_observe_statement(
 
     ``conclusion_expr`` is the Python source spelling at the call site:
     either a bare identifier (``--conclusion`` / auto-mint slug) or a
-    quoted string literal (R7 G6 ``--observation-prose``).
+    quoted string literal (``--observation-prose``).
     """
     args = [conclusion_expr]
     kwargs: list[str] = [f"label={label!r}"]
@@ -331,7 +327,7 @@ def observe_command(
         gaia author observe --conclusion T_c --value 203 --error 5 \
             --label temperature_obs
 
-        # Mint a fresh observation from prose (R4 prose mode)
+        # Mint a fresh observation from prose (auto-mint prose mode)
         gaia author observe --observation-content "Stars visible in zenith." \
             --label visible_obs
     """
@@ -403,9 +399,9 @@ def observe_command(
     # permissive splitter; repr() renders the strings safely into source.
     source_refs_list = split_csv(source_refs)
 
-    # R10 Axis 1 — --value / --error are spliced directly into the
-    # rendered observe() call. Validate as literal-or-identifier so the
-    # postwrite import can't execute crafted argv.
+    # --value / --error are spliced directly into the rendered
+    # observe() call. Validate as literal-or-identifier so the postwrite
+    # import can't execute crafted argv.
     val_err_refs = _validate_value_and_error(
         value=value, error=error, target=str(target), human=human
     )
@@ -441,7 +437,7 @@ def observe_command(
         references = [auto_label, *given_list, *background_list]
         observation_kind = "auto_mint"
     elif observation_prose is not None:
-        # R7 G6 inline-prose: emit ``observe('<prose>', ...)`` directly.
+        # Inline-prose: emit ``observe('<prose>', ...)`` directly.
         # The engine's ``observe(conclusion: Claim | str, ...)``
         # polymorphism wraps the prose into an anonymous Claim at
         # runtime; no named module-scope binding is introduced.

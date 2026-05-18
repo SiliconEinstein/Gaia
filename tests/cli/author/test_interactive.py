@@ -1,11 +1,9 @@
 """Tests for the ``--interactive`` flow on ``gaia author <verb>``.
 
-R2 wires ``--interactive`` uniformly: any pre-write warning surfaces a
-numbered prompt in human mode; JSON mode auto-suppresses. R2's
-pre-write pipeline does not yet surface real warnings (the 4 invariants
-are still error-only per R1·❓-C=C1), so these tests exercise the
-activation logic against a synthesised :class:`AuthorPrewriteResult`
-with warnings injected.
+``--interactive`` is wired uniformly: any pre-write warning surfaces a
+numbered prompt in human mode; JSON mode auto-suppresses. These tests
+exercise the activation logic against a synthesised
+:class:`AuthorPrewriteResult` with warnings injected.
 
 The shape of the prompt + the abort envelope is the load-bearing
 contract.

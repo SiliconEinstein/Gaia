@@ -1,9 +1,9 @@
 """``gaia bayes <distribution>`` — Distribution-literal verbs.
 
-R7 G2 — one verb per shipping :mod:`gaia.engine.bayes.distributions`
-class. Each verb binds a Distribution literal to a module-scope
-identifier so subsequent ``bayes model`` / ``observe`` invocations
-can reference it by name.
+One verb per shipping :mod:`gaia.engine.bayes.distributions` class.
+Each verb binds a Distribution literal to a module-scope identifier so
+subsequent ``bayes model`` / ``observe`` invocations can reference it
+by name.
 
 The 11 shipping distributions:
 
@@ -14,12 +14,12 @@ The 11 shipping distributions:
   StudentT(df, mu=0, sigma=1) / Cauchy(mu, gamma) / ChiSquared(df)
 
 Each verb shares the same JSON envelope + pre-write + post-write
-pipeline as the rest of the cli. R10 hardening: parameter values
-must now pass :func:`parse_literal_or_identifier` — a literal
-(``--n 395`` / ``--p 0.5``) or a bare identifier (``--n N_TRIALS``)
-is accepted; arbitrary Python expressions are refused at the flag
-boundary with ``prewrite.expr_unsafe`` so the splice-into-generated-
-source RCE vector is closed.
+pipeline as the rest of the cli. Parameter values pass through
+:func:`parse_literal_or_identifier` — a literal (``--n 395`` /
+``--p 0.5``) or a bare identifier (``--n N_TRIALS``) is accepted;
+arbitrary Python expressions are refused at the flag boundary with
+``prewrite.expr_unsafe`` so the splice-into-generated-source RCE
+vector is closed.
 """
 
 from __future__ import annotations

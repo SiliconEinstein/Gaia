@@ -1,4 +1,4 @@
-"""Unit tests for the restricted-globals formula sandbox (R3·❓C=A).
+"""Unit tests for the restricted-globals formula sandbox.
 
 The sandbox lives at :mod:`gaia.cli.commands.author._formula_sandbox` and
 is invoked by ``decompose --formula-expr`` and ``claim --predicate``. The
@@ -43,7 +43,7 @@ def _parse(output: str) -> dict[str, object]:
 
 
 def test_whitelist_contains_formula_primitives() -> None:
-    """All R3·❓C named primitives are in the whitelist."""
+    """All named primitives are in the whitelist."""
     for name in ("land", "lor", "lnot", "implies", "iff", "equals", "forall", "exists"):
         assert name in WHITELIST
 
@@ -51,9 +51,9 @@ def test_whitelist_contains_formula_primitives() -> None:
 def test_whitelist_omits_bare_distribution_factories() -> None:
     """Distribution factories must be reached via the dotted ``bayes.<X>`` shape.
 
-    S5 / audit §E.4 — bare ``Normal`` / ``Binomial`` / ... are NOT in
-    WHITELIST because the scaffold imports the ``bayes`` module alias,
-    not bare names. The dotted attribute path
+    Bare ``Normal`` / ``Binomial`` / ... are NOT in WHITELIST because
+    the scaffold imports the ``bayes`` module alias, not bare names.
+    The dotted attribute path
     (:meth:`_SandboxVisitor.visit_Attribute`) accepts ``bayes.<X>``
     where ``<X>`` is a Distribution factory.
     """
@@ -73,9 +73,9 @@ def test_dotted_bayes_distribution_factory_accepted() -> None:
 def test_bare_distribution_factory_now_refused() -> None:
     """A bare ``Normal(mu=0, sigma=1)`` is refused by the sandbox.
 
-    Audit §E.4 — the old WHITELIST accepted this shape but the scaffold
-    didn't import ``Normal``, so the postwrite import would fail with
-    NameError. Reject at the flag boundary instead.
+    The scaffold doesn't import bare ``Normal``, so allowing the bare
+    shape in WHITELIST would let it pass the sandbox but trip with
+    NameError at postwrite import. Reject at the flag boundary instead.
     """
     import pytest as _pytest
 
@@ -94,11 +94,10 @@ def test_whitelist_contains_claim_atom() -> None:
 
 
 def test_whitelist_omits_uniform() -> None:
-    """``Uniform`` was named in the brief but does not ship in v0.5 (sanity check)."""
-    # The actual engine ``__all__`` from
-    # ``gaia.engine.lang.runtime.distribution`` carries no Uniform.
-    # CD-pick: align sandbox with the concrete shipping set rather than
-    # the brief's example.
+    """``Uniform`` does not ship in v0.5 (sanity check)."""
+    # The engine ``__all__`` from ``gaia.engine.lang.runtime.distribution``
+    # carries no Uniform; the sandbox aligns with the concrete shipping
+    # set.
     assert "Uniform" not in WHITELIST
 
 
@@ -127,7 +126,7 @@ def test_nested_implies_iff_passes() -> None:
 
 
 def test_distribution_factory_passes_via_dotted_shape() -> None:
-    """S5 — Distribution factories are reached as ``bayes.<Factory>``, not bare."""
+    """Distribution factories are reached as ``bayes.<Factory>``, not bare."""
     out = validate_formula_expr("bayes.Normal(mu=200, sigma=50)")
     assert "Normal" in out.referenced_names
 

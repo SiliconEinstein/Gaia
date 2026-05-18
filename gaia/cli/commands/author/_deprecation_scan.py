@@ -1,11 +1,10 @@
-"""AST-driven discovery of deprecated DSL surface names (R4·❓C=A).
+"""AST-driven discovery of deprecated DSL surface names.
 
-R3 carried a hand-curated ``_DEPRECATED_DSL_NAMES`` dict at the top of
-:mod:`._prewrite`. That set was authored once against v0.5 engine
-``DeprecationWarning`` sites and required manual sync if the engine added
-or removed deprecations. R4 lifts that constant into a one-time AST scan
-of the engine DSL source so the warning catalog stays aligned with the
-shipping engine surface without per-engine-release maintenance.
+The cli derives its deprecation catalog from a one-time AST scan of the
+engine DSL source so the warning catalog stays aligned with the
+shipping engine surface without per-engine-release maintenance. A small
+fallback dict survives for any deprecation expressed in a shape the
+scanner does not yet model.
 
 Engine pattern survey
 ---------------------
@@ -51,9 +50,8 @@ Caching + fallback
 The scan is invoked lazily on first access via :func:`get_deprecated_names`
 and the result is cached for the lifetime of the cli process. Any name
 that the AST scan does NOT pick up (e.g., a future engine deprecation
-shape we don't model yet) is filled from a small ``_R3_FALLBACK_NAMES``
-dict carried over from R3's hand-curated set; the fallback never wins
-over a hit from the live scan.
+shape we don't model yet) is filled from a small ``_FALLBACK_NAMES``
+dict; the fallback never wins over a hit from the live scan.
 """
 
 from __future__ import annotations
@@ -93,11 +91,10 @@ _HELPER_NAMES_FIXED_REPLACEMENT: dict[str, str] = {
 _USE_PATTERN = re.compile(r"\buse\s+([^.;]+?)(?:\s+for\b|[.;]|$)", re.IGNORECASE)
 
 
-# Carry-over fallback from R3's hand-curated set. Used only for names
-# the AST scan misses entirely (defensive); the scan is authoritative
-# for any name it does find. Keys = deprecated name, values =
-# (replacement, since-version).
-_R3_FALLBACK_NAMES: dict[str, tuple[str, str]] = {
+# Hand-curated fallback. Used only for names the AST scan misses
+# entirely (defensive); the scan is authoritative for any name it does
+# find. Keys = deprecated name, values = (replacement, since-version).
+_FALLBACK_NAMES: dict[str, tuple[str, str]] = {
     # Note aliases (engine knowledge.py).
     "context": ("note", "0.5"),
     "setting": ("note", "0.5"),
@@ -127,14 +124,14 @@ def get_deprecated_names() -> dict[str, tuple[str, str]]:
     subsequent calls return the cached result. The mapping merges:
 
     1. live scan hits (authoritative);
-    2. ``_R3_FALLBACK_NAMES`` entries for any name the scan did not pick
+    2. ``_FALLBACK_NAMES`` entries for any name the scan did not pick
        up (defensive — catches engine deprecations expressed in a shape
        the scanner does not yet model).
     """
     global _CACHED
     if _CACHED is None:
         _CACHED = _scan_engine_for_deprecations()
-        for name, replacement_tuple in _R3_FALLBACK_NAMES.items():
+        for name, replacement_tuple in _FALLBACK_NAMES.items():
             _CACHED.setdefault(name, replacement_tuple)
     return _CACHED
 
