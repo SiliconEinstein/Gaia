@@ -76,6 +76,7 @@ include = [
 [tool.setuptools.package-data]
 "gaia.cli.starmap_assets" = ["**/*"]
 "gaia.cli.starmap_replay_assets" = ["**/*"]
+"gaia.cli.example_assets" = ["**/*"]
 
 [tool.pytest.ini_options]
 addopts = [

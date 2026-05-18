@@ -1,6 +1,6 @@
 """Gaia CLI — knowledge package authoring toolkit.
 
-The CLI organizes verbs into 8 groups + `trace` independent:
+The CLI organizes verbs into 9 groups + `trace` independent:
 
   build    init / compile / check
   run      infer / render
@@ -13,6 +13,8 @@ The CLI organizes verbs into 8 groups + `trace` independent:
            register-prior / depends-on / candidate-relation / materialize /
            compose / composition
   bayes    model / compare / distribution factories
+  example  galileo / mendel (print or save the cli walkthrough for a
+           shipping v0.5 example package)
   trace    (sub-app, NOT part of the groups: verify / review / show)
 
 See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
@@ -65,6 +67,7 @@ from gaia.cli.commands.bayes import (
 )
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
+from gaia.cli.commands.example import example_app
 from gaia.cli.commands.infer import infer_command
 from gaia.cli.commands.init import init_command
 from gaia.cli.commands.inquiry import inquiry_app
@@ -81,7 +84,8 @@ _ROOT_EPILOG = (
     '  $ gaia author claim "..." --target ./my-pkg-gaia\n\n'
     "  $ gaia build compile ./my-pkg-gaia\n\n"
     "  $ gaia run infer ./my-pkg-gaia\n\n"
-    "Run `gaia <group> --help` for per-group verb references."
+    "Run `gaia <group> --help` for per-group verb references.\n\n"
+    "Run `gaia example --help` to see how a full demo is authored."
 )
 
 app = typer.Typer(
@@ -299,6 +303,20 @@ bayes_app.command(name="student-t")(studentt_command)
 bayes_app.command(name="cauchy")(cauchy_command)
 bayes_app.command(name="chi-squared")(chisquared_command)
 app.add_typer(bayes_app, name="bayes")
+
+
+# --------------------------------------------------------------------------- #
+# example — print or save cli walkthrough scripts                             #
+# --------------------------------------------------------------------------- #
+#
+# Show-cli surface for the shipping v0.5 example packages. Each subverb
+# reads a bundled ``walkthrough.sh`` from
+# :mod:`gaia.cli.example_assets`, substitutes the ``--target NAME``
+# placeholder, and either prints to stdout or writes to a file. The
+# verb does NOT execute the commands; it is a documentation / scaffold
+# helper that hands the user a runnable sequence.
+
+app.add_typer(example_app, name="example")
 
 
 # --------------------------------------------------------------------------- #
