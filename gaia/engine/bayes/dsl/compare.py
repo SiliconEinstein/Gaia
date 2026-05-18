@@ -48,7 +48,7 @@ from collections.abc import Mapping
 from itertools import combinations
 from typing import Any
 
-from gaia.engine.bayes.runtime import Model, ModelComparison
+from gaia.engine.bayes.runtime import Model, ModelCompare
 from gaia.engine.bayes.runtime.precomputed import PrecomputedLikelihoods
 from gaia.engine.bp.factor_graph import CROMWELL_EPS
 from gaia.engine.lang.runtime.action import (
@@ -426,9 +426,9 @@ def compare(
     any contract.
     """
     data_tuple = _as_claim_tuple(data, name="data")
-    if not models:
-        raise ValueError("compare() requires at least one model")
     models_tuple = _as_claim_tuple(models, name="models")
+    if len(models_tuple) < 2:
+        raise ValueError("compare() requires at least two models")
     if exclusivity == "none":
         # 'none' used to mean "skip auto-generation; I declared exclusivity
         # externally myself". It is no longer accepted because compare()
@@ -471,11 +471,11 @@ def compare(
         recorded_precomputed = dict(log_likelihoods)
     else:
         recorded_precomputed = None
-    action = ModelComparison(
+    action = ModelCompare(
         label=label,
         rationale=rationale,
         background=list(background or []),
-        metadata={"bayes": {"action": "model_comparison"}},
+        metadata={"bayes": {"action": "model_compare"}},
         helper=helper,
         models=models_tuple,
         data=data_tuple,

@@ -3,7 +3,7 @@
 Locks the 7-submodule public surface:
 
 - `gaia.engine.bayes` (6) — clean-break to the unified surface
-  (``model`` / ``compare`` / ``Model`` / ``ModelComparison`` /
+  (``model`` / ``compare`` / ``Model`` / ``ModelCompare`` /
   ``PrecomputedLikelihoods`` / ``BayesInference``); typed-value
   distribution aliases moved to ``gaia.engine.lang``.
 - `gaia.engine.bp` (24)

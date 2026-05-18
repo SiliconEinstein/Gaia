@@ -23,7 +23,7 @@ from gaia.engine.bayes.dsl import compare, model
 from gaia.engine.bayes.runtime import (
     BayesInference,
     Model,
-    ModelComparison,
+    ModelCompare,
     PrecomputedLikelihoods,
 )
 from gaia.engine.lang.runtime.action import Action
@@ -37,8 +37,8 @@ def _register_bayes_roles() -> None:
         add(action.hypothesis, "hypothesis")
         add(action.helper, "model_helper")
 
-    def model_comparison_roles(action: Action, add: RoleAdder) -> None:
-        if not isinstance(action, ModelComparison):
+    def model_compare_roles(action: Action, add: RoleAdder) -> None:
+        if not isinstance(action, ModelCompare):
             return
         for model_helper in action.models:
             add(model_helper, "compared_model")
@@ -47,7 +47,7 @@ def _register_bayes_roles() -> None:
         add(action.helper, "model_preference_helper")
 
     register_role_handler(Model, model_roles)
-    register_role_handler(ModelComparison, model_comparison_roles)
+    register_role_handler(ModelCompare, model_compare_roles)
 
 
 _register_bayes_roles()
@@ -56,7 +56,7 @@ _register_bayes_lowerer()
 __all__ = [
     "BayesInference",
     "Model",
-    "ModelComparison",
+    "ModelCompare",
     "PrecomputedLikelihoods",
     "compare",
     "model",

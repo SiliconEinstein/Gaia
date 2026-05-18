@@ -37,12 +37,12 @@ Gaia claims:
 3. `observe(target, value=..., error=...)` records measured data with
    optional Distribution-typed noise — same verb that records
    continuous-quantity observations.
-4. `compare(data, models=[...])` computes likelihood factors over the
-   equal-positioned list of competing models and lowers them to
+4. `compare(data, models=[...])` computes likelihood factors over an
+   equal-positioned list of at least two competing models and lowers them to
    existing IR `infer` strategies plus structural exclusivity operators.
 
 The Bayes module adds no new IR knowledge types, BP factor types, or
-operator enums. `Model` and `ModelComparison` are `BayesInference`
+operator enums. `Model` and `ModelCompare` are `BayesInference`
 reasoning records; their helper Claims carry `metadata["model"]`
 and `metadata["comparison"]` respectively. Both records go through the
 standard action lowering pipeline (see
@@ -569,7 +569,7 @@ capture. They are non-fatal — packages compile successfully.
 
 - `gaia/engine/bayes/dsl/model.py`, `dsl/compare.py` — verbs.
 - `gaia/engine/bayes/runtime/actions.py` — `Model` /
-  `ModelComparison` Action classes.
+  `ModelCompare` Action classes.
 - `gaia/engine/bayes/runtime/precomputed.py` — `PrecomputedLikelihoods`.
 - `gaia/engine/bayes/compiler/lower.py` — single lowering pass through
   one unified reader for model / observation / comparison

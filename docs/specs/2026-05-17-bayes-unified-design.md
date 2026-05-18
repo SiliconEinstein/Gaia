@@ -72,7 +72,7 @@ Same concept ("measurement uncertainty"), two representations. Downstream consum
 │  gaia.engine.bayes  (hypothesis-comparison verbs)                          │
 │                                                                              │
 │   model(hypothesis, observable=, distribution=)     → predictive helper Claim │
-│   compare(data, models=[...])                     → comparison helper Claim │
+│   compare(data, models=[...])  # len(models) ≥ 2  → comparison helper Claim │
 │   PrecomputedLikelihoods                          (Claim subclass for      │
 │                                                    external-solver results) │
 │                                                                              │
@@ -99,7 +99,7 @@ Same concept ("measurement uncertainty"), two representations. Downstream consum
 ### 1.2 What is preserved
 
 - The three-step paper narrative (model → observe → compare).
-- The `PredictiveModel` / `Likelihood` Action subclasses (renamed: `Model` / `ModelComparison`).
+- The `PredictiveModel` / `Likelihood` Action subclasses (renamed: `Model` / `ModelCompare`).
 - Cromwell clamp semantics on emitted infer factor.
 - Exclusivity policy for `"pairwise_contradiction"` / `"exhaustive_pairwise_complement"`;
   the earlier `"none"` escape hatch is removed.
@@ -123,13 +123,16 @@ BetaBinomial(content, *, n, alpha, beta, **knowledge_kwargs) -> Distribution
 
 The underlying scipy-backed `_BaseDistribution` lives at `Distribution._impl`. It is internal — users never construct it directly. The pydantic class hierarchy is preserved; only the user surface contracts on the typed-value alias.
 
-Anonymous distributions (no human label) are allowed and remain Knowledge nodes:
+Anonymous distributions (no `label`) are allowed and remain Knowledge nodes, but
+the current factories still require a content string:
 
 ```python
-noise = Normal(mu=0, sigma=0.2)        # content auto-generated, label None
+noise = Normal("measurement noise Normal(mu=0, sigma=0.2)", mu=0, sigma=0.2)
 ```
 
-When `content` is omitted, the factory derives one from the family name and the param dict (e.g. `"Normal(mu=0, sigma=0.2)"`). This keeps Knowledge-style identity even for inline anonymous distributions and lets `gaia review` reach them.
+Scalar `observe(..., error=0.2)` sugar creates that content internally. This
+keeps Knowledge-style identity even for inline anonymous distributions and lets
+`gaia review` reach them.
 
 `BetaBinomial`, `Cauchy`, `Gamma`, `ChiSquared`, `StudentT`, `LogNormal` — every family currently in `gaia/engine/bayes/distributions/` gets a corresponding factory in `gaia/engine/lang/runtime/distribution.py`. (Most are already there; `BetaBinomial` is the one that needs to be added.)
 
@@ -265,7 +268,7 @@ def compare(
 
 Differences from the legacy `bayes.likelihood` it replaces:
 
-- `model=` + `against=[...]` becomes a single `models=[...]` list. The first-position "advocated" model is no longer privileged — all hypotheses are equal. (Authorial preference is recorded via Claim prior, not API asymmetry.)
+- `model=` + `against=[...]` becomes a single `models=[...]` list with at least two models. The first-position "advocated" model is no longer privileged — all hypotheses are equal. (Authorial preference is recorded via Claim prior, not API asymmetry.)
 - `precomputed=` accepts either a `dict[Claim, float]` (back-of-the-envelope escape hatch) or a `PrecomputedLikelihoods` Claim (§4).
 - Returns the comparison helper Claim, with `metadata["comparison"]` carrying the likelihood table and exclusivity contract.
 - **Default exclusivity is `"exhaustive_pairwise_complement"`**, not `"pairwise_contradiction"`. The earlier default silently diluted Bayesian model-selection posteriors by the probability mass that the hardcoded `α=0.5` `infer`-factor anchor assigned to the "all-false" joint state — for the canonical Mendel 1000:1 likelihood ratio the posterior settled at ~0.667 instead of ~0.999. The new default matches strict Bayesian model selection for the 2-hypothesis case.
@@ -278,7 +281,7 @@ Differences from the legacy `bayes.likelihood` it replaces:
 | Legacy name        | Current name        | Reason                                                              |
 |--------------------|---------------------|---------------------------------------------------------------------|
 | `PredictiveModel`  | `Model`        | Aligns with the model verb; shorter; "predictive model" was overloaded |
-| `Likelihood`       | `ModelComparison`   | Aligns with verb `compare`; `Likelihood` is too generic              |
+| `Likelihood`       | `ModelCompare`   | Aligns with verb `compare`; `Likelihood` is too generic              |
 | `BayesInference`   | `BayesInference`    | Unchanged. Marker base class                                         |
 
 Action fields:
@@ -292,11 +295,11 @@ class Model(BayesInference):
     helper: Claim | None = None
 
 @dataclass
-class ModelComparison(BayesInference):
+class ModelCompare(BayesInference):
     helper: Claim | None = None
     models: tuple[Claim, ...] = ()
     data: tuple[Claim, ...] = ()
-    exclusivity: str = "pairwise_contradiction"
+    exclusivity: str = "exhaustive_pairwise_complement"
     precomputed: PrecomputedLikelihoods | None = None
     log_likelihoods: dict[Claim, float] = field(default_factory=dict)
 ```
@@ -466,7 +469,7 @@ def register_bayes_lowerer() -> None:
     ...
 ```
 
-The lowerer now dispatches on `Model` and `ModelComparison`. Internal helpers `_observation_value` / `_log_likelihood_with_noise` are replaced with the unified `_dist_param` reader of §2.4.
+The lowerer now dispatches on `Model` and `ModelCompare`. Internal helpers `_observation_value` / `_log_likelihood_with_noise` are replaced with the unified `_dist_param` reader of §2.4.
 
 ### 5.2 Likelihood evaluation
 

@@ -183,6 +183,12 @@ def test_compose_can_reference_bayes_model_and_compare_actions():
             prior=0.5,
         )
         h.label = "h"
+        h_alt = Claim(
+            "theta = 0.8.",
+            formula=None,
+            prior=0.5,
+        )
+        h_alt.label = "h_alt"
         data = Claim("Observed k = 3.")
         data.label = "data"
 
@@ -194,10 +200,16 @@ def test_compose_can_reference_bayes_model_and_compare_actions():
                 distribution=Binomial("k under h", n=5, p=0.5),
                 label="model_h",
             )
+            model_alt = bayes.model(
+                h_alt,
+                observable=k,
+                distribution=Binomial("k under h_alt", n=5, p=0.8),
+                label="model_h_alt",
+            )
             return bayes.compare(
                 observation,
-                models=[model],
-                precomputed={hypothesis: -1.0},
+                models=[model, model_alt],
+                precomputed={hypothesis: -1.0, h_alt: -2.0},
                 label="cmp_h",
             )
 
@@ -207,10 +219,14 @@ def test_compose_can_reference_bayes_model_and_compare_actions():
     node = compiled.graph.composes[0]
 
     assert node.conclusion == "github:v6_bayes_composition::cmp_h"
-    assert node.actions == [
+    assert node.actions[:2] == [
         compiled.action_label_map["github:v6_bayes_composition::action::model_h"],
-        compiled.action_label_map["github:v6_bayes_composition::action::cmp_h"],
+        compiled.action_label_map["github:v6_bayes_composition::action::model_h_alt"],
     ]
+    assert (
+        node.actions[-1] == compiled.action_label_map["github:v6_bayes_composition::action::cmp_h"]
+    )
+    assert len(node.actions) == 4
     assert compiled.action_label_map["github:v6_bayes_composition::action::cmp_h"] == (
         "github:v6_bayes_composition::cmp_h"
     )

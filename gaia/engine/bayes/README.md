@@ -4,8 +4,8 @@
 
 - `model(hypothesis, observable=..., distribution=...)` — declare a
   predictive distribution for one hypothesis.
-- `compare(data, models=[...], exclusivity=...)` — compare
-  equal-positioned predictive models against observation data. The
+- `compare(data, models=[...], exclusivity=...)` — compare at least
+  two equal-positioned predictive models against observation data. The
   default `exclusivity` is `"exhaustive_pairwise_complement"` — the
   standard Bayesian model-selection contract for two hypotheses — and
   is currently restricted to 2 hypotheses pending an N-ary Exclusive

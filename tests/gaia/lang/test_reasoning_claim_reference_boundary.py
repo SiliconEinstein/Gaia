@@ -58,6 +58,7 @@ def test_bayes_helpers_are_primary_attachments_not_self_warrants() -> None:
     with CollectedPackage("reference_boundary") as pkg:
         theta = Variable(symbol="theta", domain=Probability)
         h = claim("Hypothesis.", prior=0.5)
+        h_alt = claim("Alternative hypothesis.", prior=0.5)
         data = claim("Data.")
         model = bayes.model(
             h,
@@ -65,7 +66,13 @@ def test_bayes_helpers_are_primary_attachments_not_self_warrants() -> None:
             distribution=Beta("theta", alpha=3, beta=1),
             label="model",
         )
-        comparison = bayes.compare(data, models=[model], label="comparison")
+        model_alt = bayes.model(
+            h_alt,
+            observable=theta,
+            distribution=Beta("theta under alternative", alpha=1, beta=3),
+            label="model_alt",
+        )
+        comparison = bayes.compare(data, models=[model, model_alt], label="comparison")
 
     model_action = model.from_actions[0]
     comparison_action = comparison.from_actions[0]

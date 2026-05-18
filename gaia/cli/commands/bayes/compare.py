@@ -21,7 +21,7 @@ Cli surface:
   Claims (one or more).
 * ``--model <ident>`` — identifier of the primary bayes.model helper Claim.
 * ``--against <csv>`` — comma-separated identifier list of alternative
-  model Claims (one or more for an actual comparison).
+  model Claims (one or more; ``compare`` requires at least two models).
 * ``--exclusivity <mode>`` — one of ``pairwise_contradiction`` /
   ``exhaustive_pairwise_complement``; default matches the engine default.
 """
@@ -94,7 +94,7 @@ def compare_command(
     against: str | None = typer.Option(
         None,
         "--against",
-        help="Comma-separated identifier(s) of alternative model Claim(s).",
+        help="Comma-separated identifier(s) of alternative model Claim(s); at least one required.",
     ),
     exclusivity: str = typer.Option(
         "exhaustive_pairwise_complement",
@@ -198,6 +198,14 @@ def compare_command(
             target=str(target),
             human=human,
             kind="prewrite.expr_unsafe",
+        )
+        return
+    if not against_list:
+        emit_syntax_error(
+            "bayes.compare",
+            "--against must list at least one alternative model",
+            target=str(target),
+            human=human,
         )
         return
     background_list, background_error = split_csv_idents(background)

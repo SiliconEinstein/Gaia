@@ -165,6 +165,28 @@ def test_compare_happy_path(bayes_package: BayesPackage) -> None:
     assert "models=[model_a, model_b]" in text
 
 
+def test_compare_rejects_missing_against(bayes_package: BayesPackage) -> None:
+    """`bayes compare` requires an actual second model."""
+    result = runner.invoke(
+        app,
+        [
+            "bayes",
+            "compare",
+            "--data",
+            "hypothesis_a",
+            "--model",
+            "hypothesis_b",
+            "--label",
+            "bad_comparison",
+            "--target",
+            str(bayes_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--against must list at least one alternative model" in result.output
+
+
 def test_compare_invalid_exclusivity(bayes_package: BayesPackage) -> None:
     """Bad --exclusivity value is rejected."""
     result = runner.invoke(

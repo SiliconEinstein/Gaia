@@ -1,6 +1,6 @@
-"""Bayes lowering - ``Model`` / ``ModelComparison`` -> Gaia IR.
+"""Bayes lowering - ``Model`` / ``ModelCompare`` -> Gaia IR.
 
-Dispatches on :class:`Model` and :class:`ModelComparison` (the Actions
+Dispatches on :class:`Model` and :class:`ModelCompare` (the Actions
 produced by :func:`model` and :func:`compare`), and reads the unified
 ``metadata["observation"]`` / ``metadata["model"]`` schema.
 
@@ -9,7 +9,7 @@ What this module owns:
 * Helper Claims compiled from ``Model`` actions get their
   ``metadata["model"]`` finalised with the IR-side reference shape
   (knowledge IDs in place of runtime object references).
-* ``ModelComparison`` actions emit one ``infer`` strategy per hypothesis
+* ``ModelCompare`` actions emit one ``infer`` strategy per hypothesis
   whose CPT is ``[0.5, clamp(LR_i)]`` with ``LR_i = exp(logL_i - logL_max)``.
 * Supported exclusivity contracts ("pairwise_contradiction" /
   "exhaustive_pairwise_complement") emit Structural Actions. The
@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from gaia.engine.bayes.distributions.base import _is_deferred_reference
-from gaia.engine.bayes.runtime import Model, ModelComparison, PrecomputedLikelihoods
+from gaia.engine.bayes.runtime import Model, ModelCompare, PrecomputedLikelihoods
 from gaia.engine.bp.factor_graph import CROMWELL_EPS
 from gaia.engine.ir import Knowledge as IrKnowledge
 from gaia.engine.ir import Operator as IrOperator
@@ -75,7 +75,7 @@ def lower_bayes_claims(
     action_labels_by_object: dict[int, str] | None = None,
     existing_operators: list[IrOperator] | None = None,
 ) -> BayesLoweringResult:
-    """Lower ``Model`` and ``ModelComparison`` actions to IR."""
+    """Lower ``Model`` and ``ModelCompare`` actions to IR."""
     del knowledge_nodes
     knowledges: list[IrKnowledge] = []
     operators: list[IrOperator] = []
@@ -103,7 +103,7 @@ def lower_bayes_claims(
 
     # Phase 2: lower model-comparison actions into infer strategies.
     for action in actions:
-        if not isinstance(action, ModelComparison):
+        if not isinstance(action, ModelCompare):
             continue
         action_label = labels_by_object.get(id(action))
         lowered = _lower_comparison(
@@ -173,7 +173,7 @@ def _observable_descriptor(observable: Variable) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# ModelComparison → IR strategies
+# ModelCompare → IR strategies
 # ---------------------------------------------------------------------------
 
 
@@ -184,13 +184,13 @@ def _model_action(helper: Claim) -> Model:
     raise ValueError(f"{helper.label or helper.content!r} is not a model() helper")
 
 
-def _comparison_model_actions(action: ModelComparison) -> tuple[Model, ...]:
+def _comparison_model_actions(action: ModelCompare) -> tuple[Model, ...]:
     if not action.models:
-        raise ValueError("Bayes ModelComparison action requires models")
+        raise ValueError("Bayes ModelCompare action requires models")
     return tuple(_model_action(helper) for helper in action.models)
 
 
-def _comparison_hypotheses(action: ModelComparison) -> tuple[Claim, ...]:
+def _comparison_hypotheses(action: ModelCompare) -> tuple[Claim, ...]:
     hypotheses = tuple(model.hypothesis for model in _comparison_model_actions(action))
     if any(h is None for h in hypotheses):
         raise ValueError("model() action is missing its hypothesis")
@@ -198,7 +198,7 @@ def _comparison_hypotheses(action: ModelComparison) -> tuple[Claim, ...]:
 
 
 def _lower_comparison(
-    action: ModelComparison,
+    action: ModelCompare,
     *,
     namespace: str,
     package_name: str,
@@ -207,7 +207,7 @@ def _lower_comparison(
     existing_relations: set[tuple[str, frozenset[str]]],
 ) -> BayesLoweringResult:
     if action.helper is None:
-        raise ValueError("Bayes ModelComparison action requires helper")
+        raise ValueError("Bayes ModelCompare action requires helper")
     cmp_id = knowledge_map[id(action.helper)]
     model_ids = [knowledge_map[id(m)] for m in action.models]
     data_ids = [knowledge_map[id(d)] for d in action.data]
@@ -295,7 +295,7 @@ def _lower_comparison(
 
 
 def _likelihoods(
-    action: ModelComparison,
+    action: ModelCompare,
     model_actions: tuple[Model, ...],
 ) -> dict[Claim, float]:
     if action.precomputed is not None and action.log_likelihoods:
@@ -530,7 +530,7 @@ def _logsumexp(values: list[float]) -> float:
 
 def _exhaustive_disjunction_operator(
     hypotheses: list[Claim],
-    action: ModelComparison,
+    action: ModelCompare,
     *,
     namespace: str,
     package_name: str,

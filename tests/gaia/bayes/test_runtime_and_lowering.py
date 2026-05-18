@@ -9,7 +9,7 @@ import pytest
 import scipy.stats as stats
 
 import gaia.engine.bayes as bayes
-from gaia.engine.bayes.runtime import Model, ModelComparison
+from gaia.engine.bayes.runtime import Model, ModelCompare
 from gaia.engine.bp.exact import exact_inference
 from gaia.engine.bp.factor_graph import FactorType
 from gaia.engine.bp.lowering import lower_local_graph
@@ -94,7 +94,7 @@ def test_model_and_compare_are_action_backed_helper_claims():
     assert model_31.metadata["model"]["kind"] == "model"
 
     cmp_action = cmp_result.from_actions[0]
-    assert isinstance(cmp_action, ModelComparison)
+    assert isinstance(cmp_action, ModelCompare)
     assert cmp_action.models == (model_31, model_null)
     assert cmp_action.data == (data,)
     assert cmp_action.helper is cmp_result
@@ -113,6 +113,22 @@ def test_model_and_compare_are_action_backed_helper_claims():
     assert "compared_model" in [occ.role for occ in roles[model_null]]
     assert "likelihood_data" in [occ.role for occ in roles[data]]
     assert "model_preference_helper" in [occ.role for occ in roles[cmp_result]]
+
+
+def test_compare_requires_at_least_two_models() -> None:
+    theta = Variable(symbol="theta", domain=Probability)
+    k = Variable(symbol="k", domain=Nat)
+    h = parameter(theta, 0.5, content="theta = 0.5.", prior=0.5, label="h")
+    data = observe(k, value=3, label="data")
+    model = bayes.model(
+        h,
+        observable=k,
+        distribution=Binomial("k under h", n=5, p=theta),
+        label="model_h",
+    )
+
+    with pytest.raises(ValueError, match="at least two models"):
+        bayes.compare(data, models=[model], label="cmp")
 
 
 def test_model_rejects_distribution_observable() -> None:
@@ -160,7 +176,9 @@ def test_compare_rejects_same_symbol_observation_with_different_unit() -> None:
     try:
         model_y = Variable(symbol="y", domain=Real, unit="m")
         data_y = Variable(symbol="y", domain=Real, unit="cm")
-        h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+        theta = Variable(symbol="theta", domain=Probability)
+        h = parameter(theta, 0.5, prior=0.5, label="h")
+        h_alt = parameter(theta, 0.6, prior=0.5, label="h_alt")
         data = observe(data_y, value=gaia_q(20, "cm"), label="data")
         model = bayes.model(
             h,
@@ -168,7 +186,15 @@ def test_compare_rejects_same_symbol_observation_with_different_unit() -> None:
             distribution=Normal("y under h", mu=gaia_q(1, "m"), sigma=gaia_q(0.1, "m")),
             label="model_h",
         )
-        bayes.compare(data, models=[model], exclusivity="pairwise_contradiction", label="cmp")
+        model_alt = bayes.model(
+            h_alt,
+            observable=model_y,
+            distribution=Normal("y under h_alt", mu=gaia_q(2, "m"), sigma=gaia_q(0.1, "m")),
+            label="model_h_alt",
+        )
+        bayes.compare(
+            data, models=[model, model_alt], exclusivity="pairwise_contradiction", label="cmp"
+        )
     finally:
         _current_package.reset(token)
 
@@ -182,7 +208,9 @@ def test_compare_allows_same_symbol_observation_with_same_unit() -> None:
     try:
         model_y = Variable(symbol="y", domain=Real, unit="m")
         data_y = Variable(symbol="y", domain=Real, unit="m")
-        h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+        theta = Variable(symbol="theta", domain=Probability)
+        h = parameter(theta, 0.5, prior=0.5, label="h")
+        h_alt = parameter(theta, 0.6, prior=0.5, label="h_alt")
         data = observe(data_y, value=gaia_q(1.2, "m"), label="data")
         model = bayes.model(
             h,
@@ -190,9 +218,15 @@ def test_compare_allows_same_symbol_observation_with_same_unit() -> None:
             distribution=Normal("y under h", mu=gaia_q(1, "m"), sigma=gaia_q(0.1, "m")),
             label="model_h",
         )
+        model_alt = bayes.model(
+            h_alt,
+            observable=model_y,
+            distribution=Normal("y under h_alt", mu=gaia_q(2, "m"), sigma=gaia_q(0.1, "m")),
+            label="model_h_alt",
+        )
         cmp_result = bayes.compare(
             data,
-            models=[model],
+            models=[model, model_alt],
             exclusivity="pairwise_contradiction",
             label="cmp",
         )
@@ -213,7 +247,9 @@ def test_compare_rejects_same_symbol_same_label_custom_domains_with_different_me
         data_domain = Domain("model states", members=[1, 3], label="State")
         model_x = Variable(symbol="x", domain=model_domain)
         data_x = Variable(symbol="x", domain=data_domain)
-        h = parameter(Variable(symbol="theta", domain=Probability), 0.5, prior=0.5, label="h")
+        theta = Variable(symbol="theta", domain=Probability)
+        h = parameter(theta, 0.5, prior=0.5, label="h")
+        h_alt = parameter(theta, 0.6, prior=0.5, label="h_alt")
         data = observe(data_x, value=1, label="data")
         model = bayes.model(
             h,
@@ -221,7 +257,15 @@ def test_compare_rejects_same_symbol_same_label_custom_domains_with_different_me
             distribution=Normal("x under h", mu=0, sigma=1),
             label="model_h",
         )
-        bayes.compare(data, models=[model], exclusivity="pairwise_contradiction", label="cmp")
+        model_alt = bayes.model(
+            h_alt,
+            observable=model_x,
+            distribution=Normal("x under h_alt", mu=1, sigma=1),
+            label="model_h_alt",
+        )
+        bayes.compare(
+            data, models=[model, model_alt], exclusivity="pairwise_contradiction", label="cmp"
+        )
     finally:
         _current_package.reset(token)
 

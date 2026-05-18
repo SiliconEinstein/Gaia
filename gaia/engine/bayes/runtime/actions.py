@@ -1,4 +1,4 @@
-"""Bayes runtime action shapes - Model and ModelComparison."""
+"""Bayes runtime action shapes - Model and ModelCompare."""
 
 from __future__ import annotations
 
@@ -27,12 +27,12 @@ class Model(BayesInference):
 
 
 @dataclass
-class ModelComparison(BayesInference):
+class ModelCompare(BayesInference):
     """Equal-positioned list of competing predictive models."""
 
     helper: Claim | None = None
     models: tuple[Claim, ...] = ()
     data: tuple[Claim, ...] = ()
-    exclusivity: str = "pairwise_contradiction"
+    exclusivity: str = "exhaustive_pairwise_complement"
     precomputed: Any | None = None
     log_likelihoods: dict[Claim, float] = field(default_factory=dict)

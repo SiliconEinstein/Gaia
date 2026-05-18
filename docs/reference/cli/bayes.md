@@ -17,7 +17,7 @@ for the contract.
 | Layer | Verb | DSL signature |
 |---|---|---|
 | Structural | `model` | `bayes.model(hypothesis, *, observable, distribution, background=…, rationale="", label=…)` |
-| Structural | `compare` | `bayes.compare(data, *, models=[…], background=…, rationale="", label=…, exclusivity=…)` |
+| Structural | `compare` | `bayes.compare(data, *, models=[…], background=…, rationale="", label=…, exclusivity=…)` with at least two models |
 | Discrete dist | `binomial` | `Binomial(content, n=…, p=…)` |
 | Discrete dist | `beta-binomial` | `BetaBinomial(content, n=…, alpha=…, beta=…)` |
 | Discrete dist | `poisson` | `Poisson(content, rate=…)` |
