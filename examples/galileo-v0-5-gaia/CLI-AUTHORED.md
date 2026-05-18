@@ -44,8 +44,9 @@ gaia pkg scaffold \
 
 The scaffold writes:
 
-- `pyproject.toml` with `[tool.gaia] type = "knowledge-package"`,
-  `uuid = "<auto>"`, `namespace = "example"`.
+- `pyproject.toml` with `[tool.gaia] type = "knowledge-package"` and
+  `namespace = "example"` (no `uuid` by default — `--with-uuid` opts in
+  to a generated uuid; both shipping example packages omit it).
 - `src/galileo_v0_5/__init__.py` importing the full author-surface DSL
   (so each `gaia author <verb>` does not trip the postwrite `NameError`
   from missing imports) and seeding a placeholder
@@ -93,16 +94,12 @@ gaia author note \
   --target ./galileo-cli-mirror-gaia --no-check
 ```
 
-**R7 update — the first label matches hand-authored.** R7 G8 narrowed
-the `prewrite.deprecated_ref` scan to call positions, so `context =
-note(...)` no longer trips the warning (the deprecation is about
-*calling* `context()` as a DSL factory, not about a binding name that
-happens to match). We can use the hand-authored `context` label
-verbatim, eliminating divergence #3 from the R5/R6 mirror. The note's
-**content string** is byte-identical to the hand-authored version, so
-the compiled IR node
-content matches. See
-[Documented divergences](#documented-divergences) below.
+The first label matches the hand-authored binding name verbatim. The
+`prewrite.deprecated_ref` scan is narrowed to call positions, so
+`context = note(...)` does not trip the warning — the deprecation is
+about *calling* `context()` as a DSL factory, not about a binding name
+that happens to match. The note's **content string** is byte-identical
+to the hand-authored version, so the compiled IR node content matches.
 
 ### 3. Author the model + observation claims
 
@@ -129,13 +126,14 @@ gaia author claim \
 
 ### 4. Author the daily-observation derivations + matches
 
-Each model predicts the daily falling-body observation. **R7 update —
-the canonical demo now uses `--conclusion-prose` (inline-prose mode)
-instead of `--conclusion-content` (auto-mint).** The inline form
-matches the hand-authored shape byte-for-byte: it emits
-`derive('<prose>', ...)` directly via the engine's
-`derive(conclusion: Claim | str, ...)` polymorphism, with no auto-
-minted named Claim binding.
+Each model predicts the daily falling-body observation. The walkthrough
+uses `--conclusion-prose` (inline-prose mode) rather than
+`--conclusion-content` (auto-mint). The inline form matches the
+hand-authored shape byte-for-byte: it emits `derive('<prose>', ...)`
+directly via the engine's `derive(conclusion: Claim | str, ...)`
+polymorphism, with no auto-minted named Claim binding. `--conclusion-content`
+remains available when the agent wants a referenceable named conclusion
+Claim.
 
 ```bash
 gaia author derive \
@@ -205,12 +203,12 @@ gaia author derive \
 
 ### 7. Register the empirical-background prior in `priors.py`
 
-**R7 update — `register-prior --file priors.py` now matches the hand-
-authored layout.** First scaffold a sibling `priors.py` module via
-`gaia pkg add-module`, then route the `register-prior` call into it.
-The writer auto-inserts `from galileo_v0_5 import daily_observation`
-because the referenced claim is bound in `__init__.py` rather than
-`priors.py` itself.
+`register-prior --file priors.py` routes the prior into a sibling
+module that mirrors the hand-authored layout. First scaffold the
+sibling via `gaia pkg add-module`, then route the `register-prior` call
+into it. The writer auto-inserts
+`from galileo_v0_5 import daily_observation` because the referenced
+claim is bound in `__init__.py` rather than `priors.py` itself.
 
 ```bash
 gaia pkg add-module \
@@ -226,6 +224,11 @@ gaia author register-prior \
   --target ./galileo-cli-mirror-gaia --no-check
 ```
 
+Because `--source-id` is omitted, the rendered call also omits the
+`source_id=` kwarg — the engine default (`"user_priors"`) applies at
+load time. This matches the hand-authored `priors.py` byte-for-byte on
+that axis.
+
 ## Compile + check
 
 ```bash
@@ -239,24 +242,11 @@ The counts match the hand-authored package compile (`24 / 5 / 3`).
 
 ## Documented divergences
 
-R7 closed three of the four R5/R6 divergences. The cli-authored mirror
-is now **closer-to-byte-text-equivalent** with the hand-authored
-package; the only remaining divergence is intrinsic to the cli's
-single-`--label` flag discipline.
+The cli-authored mirror is **closer-to-byte-text-equivalent** with the
+hand-authored package on every axis other than the cli's
+single-`--label` flag discipline, which is intrinsic-by-design.
 
-### 1. Prose-mode shape (closed in R7 via `--conclusion-prose`)
-
-R5/R6 used `--conclusion-content` (auto-mint), which introduced named
-Claim bindings into the cli-authored source. **R7 G6 makes
-`--conclusion-prose` the canonical Galileo demo shape** — it uses the
-engine's `derive(conclusion: Claim | str, ...)` polymorphism to emit
-`derive('<prose>', ...)` directly, matching the hand-authored file
-byte-for-byte. The auto-mint mode (`--conclusion-content`) remains
-available for cases where the agent wants a referenceable named
-conclusion Claim; the inline-prose form is now the canonical option
-when byte-text equivalence matters.
-
-### 2. LHS binding equals `label=` kwarg (intrinsic)
+### LHS binding equals `label=` kwarg (intrinsic)
 
 The hand-authored file frequently uses different identifiers for the
 Python binding (LHS of `=`) and the DSL `label=` kwarg:
@@ -272,39 +262,15 @@ aristotle_daily_prediction = derive(    # ← Python binding
 The cli enforces `label = derive(..., label="label", ...)` — the LHS
 binding and the DSL `label=` kwarg are forced equal because the cli's
 single `--label` flag drives both. This is intrinsic to the cli's
-single-`--label` discipline (R7·❓A=A ratification); it keeps every
-author call's binding name match its referenceable identifier.
-Subsequent `gaia author equal --a aristotle_daily_observation_path`
-calls reference the Python binding directly. The two source-text
-forms compile to the same IR.
+single-`--label` discipline; it keeps every author call's binding name
+match its referenceable identifier. Subsequent
+`gaia author equal --a aristotle_daily_observation_path` calls
+reference the Python binding directly. The two source-text forms
+compile to the same IR.
 
-### 3. `context` label rename (closed in R7 via G8)
-
-R5/R6 renamed the hand-authored `context = note(...)` binding to
-`preamble_context` because the cli's `prewrite.deprecated_ref` scan
-flagged any ast.Name matching a deprecated DSL helper, including the
-binding name. **R7 G8 narrows the scan to call positions** — the
-deprecation is about *calling* `context()` as a DSL factory, not about
-a binding name. We now use the hand-authored `context` label
-verbatim.
-
-### 4. `register-prior` location (closed in R7 via G1)
-
-R5/R6 wrote every author statement (including `register-prior`) to
-`__init__.py`. **R7 G1 multi-file routing makes
-`register-prior --file priors.py` land in the sibling module that
-matches the hand-authored layout**, and the writer auto-inserts the
-cross-file `from galileo_v0_5 import daily_observation` import.
-
-### 5. `register-prior` default `source_id=` (closed in R9 via #3)
-
-R7-R8 cli always rendered `source_id='user_priors'` on every
-`register_prior(...)` call, while the hand-authored galileo
-`priors.py` omits the kwarg when relying on the engine default. **R9
-#3 makes the cli's `--source-id` default-absence-aware**: when the
-caller doesn't pass `--source-id` explicitly, the rendered call omits
-the kwarg entirely. The cli mirror's `priors.py` is now byte-text-
-identical to the hand-authored shape on the `source_id=` axis.
+The galileo equivalence test asserts the **distinct label count** axis
+on this dimension at BYTE_TEXT, rather than label identity — both sides
+produce the same number of label slots.
 
 ## Equivalence guarantees
 
@@ -314,18 +280,19 @@ the full cli sequence above against a fresh temp directory and asserts:
 1. **User-authored content equivalence**: every Claim or note content
    string that an author wrote in the hand-authored file appears in the
    cli-authored compiled IR, byte-identical.
-2. **Auto-warrant content equivalence**: R7 G6 inline-prose mode makes
-   the engine's auto-generated implication-warrant Claim contents
-   match byte-for-byte (no more named auto-mint slug suffix in the
-   warrant prose).
+2. **Auto-warrant content equivalence**: the engine's auto-generated
+   implication-warrant Claim contents match byte-for-byte because the
+   inline-prose mode emits no named auto-mint slug suffix.
 3. **Structural-count equivalence**: strategies and operators match
    exactly (5 / 3); total knowledge node count matches (24).
 4. **Knowledge type equivalence**: the multiset of (claim, note,
    formula_claim) types matches.
+5. **`register_prior` source-id omission**: `register_prior` calls
+   render zero `source_id=` mentions on both sides — the cli omits
+   the kwarg when `--source-id` is not explicitly passed.
 
-The R7 G6 + G8 + G1 closures tighten the equivalence: the only
-remaining source-text divergence is the cli's single-`--label`
-discipline (Divergence #2), which is non-semantic at the IR level.
+The only remaining source-text divergence is the cli's single-`--label`
+discipline, which is non-semantic at the IR level.
 
 ## See also
 

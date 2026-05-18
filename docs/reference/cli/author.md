@@ -20,7 +20,7 @@ This reference is scannable, not tutorial. For a worked walkthrough using
 all 5 of the DSL verbs the canonical Galileo example exercises, see
 [Galileo as a worked example](#galileo-as-a-worked-example) at the end.
 
-**R7 additions** (see also [`bayes.md`](bayes.md)):
+**Capabilities at a glance** (see also [`bayes.md`](bayes.md)):
 
 - **`--file <relative>`** on every author verb — route the statement to
   a sibling Python module instead of `__init__.py`. Pair with
@@ -31,12 +31,12 @@ all 5 of the DSL verbs the canonical Galileo example exercises, see
   **`infer --hypothesis-prose`** — inline-prose mode that emits the
   prose directly at the call site (no auto-mint Claim binding).
 - **`claim --formula <expr>`** — canonical name for the predicate-mode
-  formula expression (R7 G4); `--predicate` stays as a backwards-
-  compatible alias.
-- **`gaia author variable`** — declare a `Variable(...)` or `Constant(...)`
-  typed term (R7 G3).
-- **`gaia bayes <verb>`** group — predictive-model authoring surface
-  (R7 G2). Covered in [`bayes.md`](bayes.md).
+  formula expression; `--predicate` stays as a backwards-compatible
+  alias.
+- **`gaia author variable`** — declare a `Variable(...)` or
+  `Constant(...)` typed term.
+- **`gaia bayes <verb>`** group — predictive-model authoring surface.
+  Covered in [`bayes.md`](bayes.md).
 
 ## Verb inventory — 19 author verbs + 1 pkg verb
 
@@ -67,7 +67,7 @@ records its metadata in `pyproject.toml`).
 | Scaffold | `materialize` | `materialize(scaffold, *, by, rationale="", label=None)` | yes |
 | Composition | `compose` | `@compose(name=…, version=…)` decorating `def fn(...) -> Claim` | **no — file-based** |
 | Composition | `composition` | alias of `compose` | **no — file-based** |
-| Typed terms | `variable` | `Variable(symbol=…, domain=…, value=…)` or `Constant(value, primitive)` (R7 G3) | yes |
+| Typed terms | `variable` | `Variable(symbol=…, domain=…, value=…)` or `Constant(value, primitive)` | yes |
 
 The 20th verb in this reference, `gaia pkg scaffold`, lives in the `pkg`
 group alongside `add` / `register`. It bootstraps a fresh `-gaia` package
@@ -81,7 +81,7 @@ cutting flags. Per-verb flags layer on top of these.
 | Flag | Type | Default | Purpose |
 |---|---|---|---|
 | `--target <path>` | string | `.` | Path to the target Gaia package root (the directory containing `pyproject.toml`). |
-| `--file <relative>` | string | `__init__.py` | **R7 G1** — relative path under `src/<import_name>/` to append the statement to. Default routes to the package entrypoint. Sibling files (e.g. `priors.py`) must exist first; use `gaia pkg add-module --name <name>` to scaffold them. |
+| `--file <relative>` | string | `__init__.py` | Relative path under `src/<import_name>/` to append the statement to. Default routes to the package entrypoint. Sibling files (e.g. `priors.py`) must exist first; use `gaia pkg add-module --name <name>` to scaffold them. |
 | `--label <ident>` | string | required (most verbs) | Python identifier the produced binding takes. Must not collide with module or DSL names. |
 | `--rationale <text>` | string | none | Natural-language justification carried through to the DSL kwarg. |
 | `--metadata <json>` | JSON object | none | Optional metadata dict; rendered as the DSL `metadata=` kwarg. |
@@ -524,7 +524,7 @@ unresolved-ref machinery (exit 3). Documented in
 | Kind | Fires when | Behavior |
 |---|---|---|
 | `prewrite.label_shadow` | The proposed `--label` collides with a Python builtin or DSL surface name (defensive — most shadow cases are intercepted by the (c) hard error). | Run proceeds; warning flows to envelope. |
-| `prewrite.deprecated_ref` | One of `references` (or `required_imports`) names a DSL symbol carrying a `DeprecationWarning` in the engine (sourced via AST scan of `gaia/engine/lang/dsl/**.py` at cli import; merged with an R3 hand-curated fallback for safety). | Run proceeds; `replacement` hint in `where`. |
+| `prewrite.deprecated_ref` | A call site in the generated code or one of `references` names a DSL symbol carrying a `DeprecationWarning` in the engine (sourced via AST scan of `gaia/engine/lang/dsl/**.py` at cli import; merged with a small hand-curated fallback for safety). Scan is narrowed to call positions, so a binding name that happens to match a deprecated factory does not trip the warning. | Run proceeds; `replacement` hint in `where`. |
 
 Both flow through `--interactive`: in human mode + `--interactive` + at
 least one warning, the cli surfaces a numbered prompt with default
@@ -565,7 +565,7 @@ formula-expression flag rendered as the `formula=` kwarg. The expression
 goes through the same restricted-globals sandbox as `decompose
 --formula-expr`.
 
-### Inline-prose mode — `derive --conclusion-prose` (R6)
+### Inline-prose mode — `derive --conclusion-prose`
 
 `derive` carries a third shape, `--conclusion-prose "<prose>"`, that
 **does not** mint a named binding. The prose is emitted at the call
@@ -688,15 +688,16 @@ the explicit delta inventory.
 ## Mendel as a worked example (bayes + Variable + formula + multi-file)
 
 The Mendel single-factor cross example at `examples/mendel-v0-5-gaia/`
-exercises the harder cli surface that R7 unlocked. Where Galileo uses
-5 author verbs, Mendel additionally reaches for:
+exercises the harder cli surface. Where Galileo uses 5 author verbs,
+Mendel additionally reaches for:
 
 * **`gaia author variable`** to declare two `Variable(...)` typed terms
   (`f2_total_count`, `f2_dominant_count`).
 * **`gaia author claim --formula`** to author a predicate-logic claim
   wrapping `land(equals(...), equals(...))`.
-* **`gaia bayes binomial` / `gaia bayes beta-binomial` / `gaia bayes model`
-  / `gaia bayes likelihood`** for the quantitative
+* **`gaia bayes model`** with an inline `bayes.Binomial(...)` /
+  `bayes.BetaBinomial(...)` Distribution expression on `--distribution`,
+  followed by **`gaia bayes likelihood`** for the quantitative
   count-comparison sub-pipeline.
 * **`gaia pkg add-module` + `gaia author register-prior --file priors.py`**
   for the multi-file authoring layout that mirrors the hand-authored
@@ -709,7 +710,7 @@ through the multi-level tolerance helper at
 `tests/cli/_equivalence_levels.py` — BYTE_TEXT on the user-authored
 content axes + structural counts, CONTENT_SET on the intrinsic
 single-`--label` discipline axis. Mendel is therefore the empirical
-demonstration of R7's "cli surface covers full engine" claim.
+demonstration that the cli surface covers the v0.5 engine end-to-end.
 
 ## See also
 
