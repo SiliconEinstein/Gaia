@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "content": "{\n  \"compiled_at\": \"<ISO_TS>\",\n  \"gaia_lang_version\": \"0.5.0\",\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\"\n}\n",
+      "content": "{\n  \"compiled_at\": \"<ISO_TS>\",\n  \"gaia_lang_version\": \"<GAIA_LANG_VERSION>\",\n  \"ir_hash\": \"sha256:be51e91cc043efffb37b0364688a862127a906e3d9e4e83fbe53cfc0d367aaaa\"\n}\n",
       "kind": "text",
       "path": "compile_metadata.json"
     },
