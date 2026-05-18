@@ -78,7 +78,7 @@ def _render_claim_statement(
     title: str | None,
     prior: float | None,
     metadata: dict[str, Any] | None,
-    references: list[str],
+    background: list[str],
     predicate: str | None = None,
 ) -> str:
     """Produce the Python source for the proposed ``claim(...)`` statement.
@@ -86,6 +86,12 @@ def _render_claim_statement(
     When ``predicate`` is set, the cli renders it as the ``formula=``
     kwarg — the DSL spelling of "predicate-logic claim". The expression
     has already been sandbox-validated by the caller.
+
+    R9 #1 — only ``background`` populates the rendered ``background=``
+    kwarg. ``--references`` is now formula-sandbox-only and is NOT
+    rendered into the claim call: this matches the hand-authored mendel
+    pattern of using formula-symbols without listing them as
+    Knowledge-background.
     """
     args: list[str] = [repr(content)]
     if title is not None:
@@ -94,11 +100,9 @@ def _render_claim_statement(
         args.append(f"prior={prior!r}")
     if predicate is not None:
         args.append(f"formula={predicate}")
-    if references:
-        # claim() takes background=[...] for premise context; the CLI's
-        # ``--references`` flag is the agent-facing name (same value).
-        rendered_refs = "[" + ", ".join(references) + "]"
-        args.append(f"background={rendered_refs}")
+    if background:
+        rendered_bg = "[" + ", ".join(background) + "]"
+        args.append(f"background={rendered_bg}")
     if metadata:
         # repr() on a dict produces valid-Python output for plain JSON
         # types (str / int / float / bool / None / list / dict).
@@ -136,7 +140,24 @@ def claim_command(
     references: str | None = typer.Option(
         None,
         "--references",
-        help="Comma-separated background references (must resolve in target package).",
+        help=(
+            "Comma-separated identifiers to whitelist inside the formula "
+            "sandbox (no effect when --formula / --predicate is absent). "
+            "R9 #1 — references are NOT rendered into the claim's "
+            "`background=` kwarg. Use --background for that. Typical "
+            "shape: `--references f2_total_count,f2_dominant_count "
+            "--formula 'equals(f2_total_count, Constant(395, Nat))'`."
+        ),
+    ),
+    background: str | None = typer.Option(
+        None,
+        "--background",
+        help=(
+            "Comma-separated Knowledge identifiers passed to the rendered "
+            "claim's `background=[...]` kwarg. Pre-write resolves each "
+            "identifier in module scope. Independent of --references "
+            "(R9 #1 — split from --references in R9)."
+        ),
     ),
     predicate: str | None = typer.Option(
         None,
@@ -206,6 +227,7 @@ def claim_command(
         return
 
     ref_list = _split_csv(references)
+    background_list = _split_csv(background)
 
     # --- R3/R7 formula mode: sandbox-validate the formula expression ---- #
     if predicate is not None and formula is not None:
@@ -223,8 +245,11 @@ def claim_command(
     if formula_expr is not None:
         # Permitted identifiers: the standing whitelist plus user-named
         # references (so ``ClaimAtom(some_ref)`` resolves when
-        # ``some_ref`` is on the --references list).
-        extra = frozenset(ref_list)
+        # ``some_ref`` is on the --references list). R9 #1 — background
+        # identifiers are also permitted in the formula sandbox: a user
+        # who lists a Knowledge claim in --background may still reference
+        # it inside a ClaimAtom(...) inside the formula.
+        extra = frozenset(ref_list) | frozenset(background_list)
         try:
             validate_formula_expr(formula_expr, extra_names=extra)
         except FormulaSandboxError as exc:
@@ -244,14 +269,20 @@ def claim_command(
         title=title,
         prior=prior,
         metadata=metadata_dict,
-        references=ref_list,
+        background=background_list,
         predicate=formula_expr,
     )
+    # R9 #1 — pre-write resolves BOTH --references (formula-sandbox
+    # identifiers) and --background (rendered kwarg identifiers) against
+    # module scope. Both lists must point at already-bound names; the
+    # difference is the rendered output (background appears in the
+    # claim's `background=`; references stay sandbox-only).
+    op_references = list(dict.fromkeys((*ref_list, *background_list)))
     proposed_op = ProposedAuthorOp(
         verb="claim",
         kind="reasoning",
         label=label,
-        references=ref_list,
+        references=op_references,
         generated_code=generated_code,
         required_imports=("claim",),
         target_file=normalize_file_option(file),

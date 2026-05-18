@@ -187,3 +187,115 @@ def test_claim_human_mode(gaia_package: FixturePackage) -> None:
     )
     assert result.exit_code == 0, result.output
     assert "gaia author claim" in result.output
+
+
+def test_claim_background_flag_renders_kwarg(gaia_package: FixturePackage) -> None:
+    """R9 #1 — `--background a,b` populates `background=[a, b]` kwarg.
+
+    R9 split `--references` (formula-sandbox only) from `--background`
+    (rendered claim kwarg). This test pins the new explicit-background
+    path: comma-separated identifiers in `--background` flow through
+    pre-write reference resolution and emerge as `background=[...]` in
+    the rendered claim.
+    """
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "claim",
+            "Premise-bearing claim.",
+            "--label",
+            "with_bg",
+            "--background",
+            "hypothesis,observation",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    assert "with_bg = claim(" in written
+    assert "background=[hypothesis, observation]" in written
+
+
+def test_claim_references_alone_skips_background_kwarg(
+    gaia_package: FixturePackage,
+) -> None:
+    """R9 #1 — `--references` alone no longer renders `background=`.
+
+    Hand-authored mendel uses formula symbols (e.g. Variable identifiers)
+    that should be sandbox-whitelisted without showing up in the claim's
+    `background=` slot. The cli now matches: `--references X,Y --formula
+    'equals(X, ...)'` whitelists X/Y for the sandbox but does NOT emit
+    `background=[X, Y]`.
+    """
+    # Seed a Variable so the reference resolves.
+    existing = gaia_package.source_init.read_text()
+    gaia_package.source_init.write_text(existing + "\nmy_var = Variable(symbol='x', domain=Nat)\n")
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "claim",
+            "Formula claim with sandbox-only refs.",
+            "--label",
+            "formula_only",
+            "--references",
+            "my_var",
+            "--formula",
+            "equals(my_var, Constant(395, Nat))",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    assert "formula_only = claim(" in written
+    assert "formula=equals(my_var, Constant(395, Nat))" in written
+    # The critical R9 #1 invariant: --references on its own does NOT
+    # render a background= kwarg. Hand-authored matches this shape.
+    formula_only_line = next(
+        line for line in written.splitlines() if line.startswith("formula_only = claim(")
+    )
+    assert "background=" not in formula_only_line
+
+
+def test_claim_references_and_background_combined(gaia_package: FixturePackage) -> None:
+    """R9 #1 — `--references` + `--background` are independent.
+
+    Mixed usage: the formula can reference Variables (sandbox-only) while
+    Knowledge-level premises pass through `--background`. The rendered
+    `background=` lists ONLY the --background identifiers, not the
+    --references ones.
+    """
+    existing = gaia_package.source_init.read_text()
+    gaia_package.source_init.write_text(existing + "\nmy_var = Variable(symbol='x', domain=Nat)\n")
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "claim",
+            "Mixed-mode claim.",
+            "--label",
+            "mixed",
+            "--references",
+            "my_var",
+            "--background",
+            "hypothesis",
+            "--formula",
+            "equals(my_var, Constant(1, Nat))",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    mixed_line = next(line for line in written.splitlines() if line.startswith("mixed = claim("))
+    assert "formula=equals(my_var, Constant(1, Nat))" in mixed_line
+    # Background lists only the --background identifier, not the
+    # sandbox-only --references identifier.
+    assert "background=[hypothesis]" in mixed_line
+    assert "my_var" not in mixed_line.split("background=[", 1)[1].split("]", 1)[0]
