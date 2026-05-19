@@ -405,17 +405,24 @@ def derive_command(
 # before scanning each flag's individual help text.
 _EPILOG_WHEN_TO_USE = """
 
-When to use which --conclusion shape:
+When to use which --conclusion-* flag:
 
-    --conclusion <label>           reference an already-declared Claim
-    --conclusion-content "<prose>" create a fresh bound Claim inline
-                                   (auto-derives the slug; override
-                                   with --conclusion-label)
-    --conclusion-prose   "<prose>" inline prose with no new module-scope
-                                   binding (engine wraps as anonymous
-                                   Claim at the call site)
+    --conclusion <label>           Reference an existing Claim by its
+                                   label. Use when the conclusion was
+                                   already authored with `gaia author
+                                   claim` and you want to link to it.
+    --conclusion-content "<prose>" Bind a fresh Claim inline. Gaia
+                                   auto-derives a slug; override with
+                                   --conclusion-label. Use when you
+                                   want a named module-scope binding
+                                   that later verbs can reference.
+    --conclusion-prose   "<prose>" Pass prose directly as an anonymous
+                                   string; no new Claim binding is
+                                   created. Use when no later verb
+                                   needs to reference this conclusion
+                                   by name.
 
-Pick exactly one — the three shapes are mutually exclusive.
+Pick exactly one — the three flags are mutually exclusive.
 """
 
 derive_command.__doc__ = (derive_command.__doc__ or "") + _EPILOG_WHEN_TO_USE
