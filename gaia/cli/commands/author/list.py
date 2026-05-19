@@ -52,6 +52,7 @@ from gaia.cli.commands.author._envelope import (
     AuthorResult,
     Diagnostic,
     emit,
+    exit_code_for_diagnostic,
 )
 
 # ---------------------------------------------------------------------------- #
@@ -824,7 +825,7 @@ def _emit_outcome(
         result = AuthorResult(
             verb="list",
             status="error",
-            code=EXIT_SYSTEM_IO,
+            code=exit_code_for_diagnostic(parse_errors[0].kind),
             payload=payload,
             warnings=warnings_list,
             diagnostics=parse_errors,

@@ -256,10 +256,10 @@ def test_empty_init_returns_zero_bindings(gaia_package: FixturePackage) -> None:
 
 
 def test_syntax_error_surfaces_diagnostic_and_nonzero_exit(gaia_package: FixturePackage) -> None:
-    """A syntax-broken file → exit 4 with a ``prewrite.syntax`` diagnostic."""
+    """A syntax-broken file → exit 2 (EXIT_INPUT_SYNTAX) with a ``prewrite.syntax`` diagnostic."""
     _write_init(gaia_package, "def foo(:\n    pass\n")
     code, output = _invoke_list(gaia_package)
-    assert code != 0, output
+    assert code == 2, output
     envelope = _parse(output)
     diags = envelope["diagnostics"]
     assert isinstance(diags, list)
