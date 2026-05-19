@@ -37,6 +37,7 @@ from gaia.cli.commands.author import (
     derive_command,
     equal_command,
     exclusive_command,
+    list_command,
     materialize_command,
     note_command,
     observe_command,
@@ -219,8 +220,8 @@ app.add_typer(pkg_app, name="pkg")
 
 
 # --------------------------------------------------------------------------- #
-# author — agent-first authoring CLI (20 verbs: 18 statement-emitting +     #
-#          2 file-based validate-and-register)                                #
+# author — agent-first authoring CLI (21 verbs: 18 statement-emitting +     #
+#          2 file-based validate-and-register + 1 read-only list)             #
 # --------------------------------------------------------------------------- #
 #
 # The author group is the cli-as-client surface that lets an LLM agent
@@ -236,7 +237,7 @@ author_app = typer.Typer(
         "Author DSL statements (claim / equal / derive / note / question / "
         "contradict / exclusive / decompose / observe / compute / infer / "
         "associate / parameter / register-prior / variable / depends-on / "
-        "candidate-relation / materialize / compose / composition)."
+        "candidate-relation / materialize / compose / composition / list)."
     ),
     no_args_is_help=True,
 )
@@ -268,6 +269,8 @@ author_app.command(name="materialize")(materialize_command)
 # File-based verbs: validate-and-register a @compose/@composition pattern.
 author_app.command(name="compose")(compose_command)
 author_app.command(name="composition")(composition_command)
+# Read-only inspection: walk source AST + pyproject for a snapshot.
+author_app.command(name="list")(list_command)
 app.add_typer(author_app, name="author")
 
 

@@ -43,6 +43,7 @@ from gaia.cli.commands.author.derive import derive_command
 from gaia.cli.commands.author.equal import equal_command
 from gaia.cli.commands.author.exclusive import exclusive_command
 from gaia.cli.commands.author.infer import infer_command
+from gaia.cli.commands.author.list import list_command
 from gaia.cli.commands.author.materialize import materialize_command
 from gaia.cli.commands.author.note import note_command
 from gaia.cli.commands.author.observe import observe_command
@@ -65,6 +66,7 @@ __all__ = [
     "equal_command",
     "exclusive_command",
     "infer_command",
+    "list_command",
     "materialize_command",
     "note_command",
     "observe_command",
