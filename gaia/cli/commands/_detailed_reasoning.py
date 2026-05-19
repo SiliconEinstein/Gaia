@@ -306,7 +306,7 @@ def _append_mermaid_operator_edges(
 
 _MERMAID_LEGEND = (
     "**Diagram legend:**\n"
-    "nodes: rectangle = claim/note/question;"
+    "nodes: rectangle = claim/note/question (★ = exported conclusion);"
     " oval = derivation strategy; hexagon = structural operator.\n"
     "edges: solid arrow (`-->`) = premise; dotted arrow (`-.->`) = background note.\n"
     "operators: ⊕ exclusive partition; ⊗ contradiction; ≡ equivalence.\n"
@@ -579,6 +579,7 @@ def _render_overview_graph(
     lines.append(_MERMAID_STYLES)
     lines.append("```")
     lines.append("")
+    lines.append(_MERMAID_LEGEND)
 
     return lines
 
