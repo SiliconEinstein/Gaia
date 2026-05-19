@@ -103,7 +103,11 @@ def init_command(
         raise typer.Exit(1) from exc
 
     # --- compute import name early (needed for both pyproject patch and rename) --
-    import_name = name.removesuffix("-gaia").replace("-", "_")
+    # Wheel-build convention: dash → underscore, full name (no suffix stripping).
+    # This matches the directory that ``uv init --lib`` creates, so the rename
+    # below is a no-op for the common case and the pyproject wheel target is
+    # consistent with the actual src/ layout.
+    import_name = name.replace("-", "_")
 
     # --- patch pyproject.toml with [tool.hatch] + [tool.gaia] sections ---------
     # First strip any ``[project] authors`` block that ``uv init`` populated from

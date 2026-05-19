@@ -100,8 +100,12 @@ def test_init_creates_package(tmp_path, monkeypatch):
     # pyproject.toml has [tool.hatch] wheel config and [tool.gaia] section
     pyproject = pkg_dir / "pyproject.toml"
     config = tomllib.loads(pyproject.read_text())
-    # Regression for #349: hatch wheel packages must be present
-    assert config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/my_research"]
+    # Regression for #349: hatch wheel packages must be present.
+    # import_name is now the full dash→underscore form (no -gaia suffix stripping)
+    # so it matches what uv init --lib creates and the wheel target is consistent.
+    assert config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == [
+        "src/my_research_gaia"
+    ]
     assert config["tool"]["gaia"]["type"] == "knowledge-package"
     assert "uuid" in config["tool"]["gaia"]
     # uuid should be a valid UUID string
@@ -109,11 +113,9 @@ def test_init_creates_package(tmp_path, monkeypatch):
 
     uuid.UUID(config["tool"]["gaia"]["uuid"])
 
-    # src directory was renamed: my_research_gaia → my_research
-    import_dir = pkg_dir / "src" / "my_research"
+    # src directory matches the uv-created layout (no rename needed for the common case)
+    import_dir = pkg_dir / "src" / "my_research_gaia"
     assert import_dir.exists()
-    uv_default_dir = pkg_dir / "src" / "my_research_gaia"
-    assert not uv_default_dir.exists()
 
     # __init__.py has minimal DSL template: no placeholder, no docstring (default),
     # empty __all__. Author commands populate __all__ as statements are added.
@@ -146,7 +148,7 @@ def test_init_with_docstring_writes_module_docstring(tmp_path, monkeypatch):
         )
 
     assert result.exit_code == 0, f"Failed: {result.output}"
-    init_py = tmp_path / "doc-gaia" / "src" / "doc" / "__init__.py"
+    init_py = tmp_path / "doc-gaia" / "src" / "doc_gaia" / "__init__.py"
     content = init_py.read_text()
     assert content.startswith('"""Hello docstring."""\n')
     assert "from gaia.engine.lang import claim" in content
@@ -167,7 +169,7 @@ def test_init_strips_uv_authors_leak(tmp_path, monkeypatch):
 
 
 def test_init_simple_name(tmp_path, monkeypatch):
-    """A simple name like 'foo-gaia' removes the -gaia suffix for the import name."""
+    """A simple name like 'foo-gaia' uses the full dash→underscore import name."""
     monkeypatch.chdir(tmp_path)
     with patch("gaia.cli.commands.init.subprocess.run", side_effect=_fake_subprocess_run):
         result = runner.invoke(app, ["build", "init", "foo-gaia"])
@@ -175,9 +177,8 @@ def test_init_simple_name(tmp_path, monkeypatch):
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     pkg_dir = tmp_path / "foo-gaia"
-    # src/foo_gaia → src/foo
-    assert (pkg_dir / "src" / "foo").exists()
-    assert not (pkg_dir / "src" / "foo_gaia").exists()
+    # src layout matches the uv-created directory (full name, no suffix stripping)
+    assert (pkg_dir / "src" / "foo_gaia").exists()
 
 
 def test_init_uv_add_failure_warns_but_succeeds(tmp_path, monkeypatch):
