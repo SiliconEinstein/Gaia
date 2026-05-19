@@ -15,18 +15,20 @@ This flow has been exercised against the official `SiliconEinstein/gaia-registry
 
 You do **not** mark holes manually.
 
-Given an exported conclusion, Gaia computes its dependency closure during `gaia compile`:
+Given an exported conclusion, Gaia computes its dependency closure during `gaia build compile`:
 
 - unresolved local claim premise -> `local_hole`
 - unresolved foreign claim premise -> `foreign_dependency`
 
 Those results are written into:
 
-- `exports.json`
-- `premises.json`
-- `holes.json`
-- `bridges.json`
+- `.gaia/manifests/exports.json`
+- `.gaia/manifests/premises.json`
+- `.gaia/manifests/holes.json`
+- `.gaia/manifests/bridges.json`
 
+When a package is registered, the same manifest files are copied into the
+registry release directory under `packages/<name>/releases/<version>/`.
 `holes.json` is just the `local_hole` subset of `premises.json`.
 
 ## Package A: Produce A Hole
@@ -38,7 +40,7 @@ Those results are written into:
 name = "paper-a-gaia"
 version = "1.0.0"
 dependencies = [
-  "gaia-lang>=0.1.0",
+  "gaia-lang>=0.5",
 ]
 
 [tool.gaia]
@@ -50,7 +52,8 @@ uuid = "11111111-1111-1111-1111-111111111111"
 `src/paper_a/__init__.py`:
 
 ```python
-from gaia.lang import claim, deduction
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import deduction
 
 missing_lemma = claim("A missing lemma.")
 main_theorem = claim("A theorem that depends on the missing lemma.")
@@ -58,17 +61,23 @@ main_theorem = claim("A theorem that depends on the missing lemma.")
 deduction(
     premises=[missing_lemma],
     conclusion=main_theorem,
-    reason="The theorem requires the missing lemma.",
 )
 
 __all__ = ["main_theorem"]
 ```
 
+> **Why `compat.deduction`?** `deduction` is the v5 named-strategy verb; in v0.5
+> the canonical replacement is `derive(main_theorem, given=[missing_lemma])`,
+> which is functionally equivalent. We use `compat.deduction` here only because
+> the tutorial deliberately walks you through the *legacy authoring shape* that
+> exposes a missing premise as a `local_hole`. New v0.5 packages should prefer
+> `derive(...)`; see [Migration to alpha 0 §Layer 3](../migration.md#layer-3-legacy-dsl-verb-migration).
+
 Compile and inspect:
 
 ```bash
-gaia compile .
-gaia check .
+gaia build compile .
+gaia build check .
 ```
 
 Expected result:
@@ -81,6 +90,17 @@ Expected result:
 
 Package B depends on package A.
 
+If you are following this tutorial locally before package A is registered,
+make package A importable inside package B's environment after compiling A:
+
+```bash
+cd ../paper-b-gaia
+uv add --editable ../paper-a-gaia
+```
+
+For an already registered dependency, `gaia pkg add paper-a-gaia` is the preferred
+path; it installs the pinned package version and caches any release beliefs.
+
 `pyproject.toml`:
 
 ```toml
@@ -88,7 +108,7 @@ Package B depends on package A.
 name = "paper-b-gaia"
 version = "1.0.0"
 dependencies = [
-  "gaia-lang>=0.1.0",
+  "gaia-lang>=0.5",
   "paper-a-gaia>=1.0.0,<2.0.0",
 ]
 
@@ -101,7 +121,8 @@ uuid = "22222222-2222-2222-2222-222222222222"
 `src/paper_b/__init__.py`:
 
 ```python
-from gaia.lang import claim, fills
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import fills
 from paper_a import missing_lemma
 
 bridge_result = claim("A result that establishes the missing lemma.")
@@ -118,8 +139,8 @@ __all__ = ["bridge_result"]
 Compile and inspect:
 
 ```bash
-gaia compile .
-gaia check .
+gaia build compile .
+gaia build check .
 ```
 
 Expected result:
@@ -149,8 +170,8 @@ If A's current release no longer exposes that premise as a hole, B's compile fai
 Register package A first, then package B.
 
 ```bash
-gaia register /path/to/paper-a
-gaia register /path/to/paper-b
+gaia pkg register /path/to/paper-a
+gaia pkg register /path/to/paper-b
 ```
 
 Why the order matters:

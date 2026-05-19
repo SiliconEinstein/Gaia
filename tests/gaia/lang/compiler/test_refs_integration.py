@@ -12,6 +12,10 @@ from gaia.cli.main import app
 
 runner = CliRunner()
 
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
+
 
 def _write_package(
     root: Path,
@@ -34,13 +38,16 @@ def _write_package(
 
 
 def test_compile_errors_on_label_citation_collision(tmp_path: Path) -> None:
-    """Per spec §3.5, a key that exists in both the label table and
-    references.json must cause a compile error."""
+    """Verify compile errors on label citation collision.
+
+    Per spec §3.5, a key that exists in both the label table and references.json must cause a
+    compile error.
+    """
     pkg = _write_package(
         tmp_path,
         name="collision_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
             'bell_lemma = claim("A lemma about Bell.")\n'
             'main_result = claim("Main result.")\n'
             "deduction(premises=[bell_lemma], conclusion=main_result)\n"
@@ -53,7 +60,7 @@ def test_compile_errors_on_label_citation_collision(tmp_path: Path) -> None:
             }
         },
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code != 0, f"Expected non-zero exit but got output: {result.output}"
     assert "ambiguous" in result.output.lower()
     assert "bell_lemma" in result.output
@@ -65,7 +72,7 @@ def test_compile_errors_on_mixed_type_bracket_group(tmp_path: Path) -> None:
         tmp_path,
         name="mixed_group_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
             'lemma_a = claim("A helper lemma.")\n'
             'main_result = claim("Main result. See [see @lemma_a; @Bell1964, p. 5] for context.")\n'
             "deduction(premises=[lemma_a], conclusion=main_result)\n"
@@ -73,7 +80,7 @@ def test_compile_errors_on_mixed_type_bracket_group(tmp_path: Path) -> None:
         ),
         references_json={"Bell1964": {"type": "article-journal", "title": "On EPR"}},
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code != 0, f"Expected non-zero exit but got: {result.output}"
     assert "mixed" in result.output.lower()
     assert "lemma_a" in result.output
@@ -86,14 +93,14 @@ def test_compile_errors_on_strict_miss(tmp_path: Path) -> None:
         tmp_path,
         name="strict_miss_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
             'premise_a = claim("Premise A.")\n'
             'main_result = claim("Main result. See [@nothing_at_all] for context.")\n'
             "deduction(premises=[premise_a], conclusion=main_result)\n"
             '__all__ = ["main_result", "premise_a"]\n'
         ),
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code != 0, f"Expected non-zero exit but got: {result.output}"
     assert "nothing_at_all" in result.output
     # Error message should mention unknown/strict/bracket
@@ -107,36 +114,43 @@ def test_compile_tolerates_opportunistic_miss(tmp_path: Path) -> None:
         tmp_path,
         name="opp_miss_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
             'premise_a = claim("Premise A.")\n'
             'main_result = claim("Use the @dataclass decorator for this.")\n'
             "deduction(premises=[premise_a], conclusion=main_result)\n"
             '__all__ = ["main_result", "premise_a"]\n'
         ),
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code == 0, f"Expected success but got: {result.output}"
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_scans_sub_strategy_reasons(tmp_path: Path) -> None:
-    """Spec §3.2: sub_strategies of composite strategies must also be scanned
-    for references. A strict-form unknown ref in a sub_strategy must error."""
+    """Verify compile scans sub strategy reasons.
+
+    Spec §3.2: sub_strategies of composite strategies must also be scanned for references. A
+    strict-form unknown ref in a sub_strategy must error.
+    """
     pkg = _write_package(
         tmp_path,
         name="sub_strategy_refs_pkg",
         module_body=(
-            "from gaia.lang import claim, support, induction\n\n"
+            "from gaia.engine.lang import claim\n"
+            "from gaia.engine.lang.compat import induction, support\n\n"
             'obs1 = claim("First observation.")\n'
             'obs2 = claim("Second observation.")\n'
             'law = claim("A general law.")\n'
             # Create sub-strategies manually to test recursion
             "sub1 = support(premises=[law], conclusion=obs1)\n"
-            "sub2 = support(premises=[law], conclusion=obs2, reason='Justification [@missing_key]', prior=0.9)\n"
+            "sub2 = support(premises=[law], conclusion=obs2, "
+            "reason='Justification [@missing_key]', prior=0.9)\n"
             "induction(sub1, sub2, law)\n"
             '__all__ = ["law", "obs1", "obs2"]\n'
         ),
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     # The sub_strategy's reason has a strict-form unknown ref,
     # so this should fail. (Verifies sub_strategy recursion works.)
     assert result.exit_code != 0, f"Expected error but got: {result.output}"
@@ -149,7 +163,7 @@ def test_compile_records_provenance_metadata(tmp_path: Path) -> None:
         tmp_path,
         name="provenance_pkg",
         module_body=(
-            "from gaia.lang import claim, deduction\n\n"
+            "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
             'lemma_a = claim("A helper lemma.")\n'
             'main_result = claim("Main result depends on [@lemma_a] and [@Bell1964].")\n'
             "deduction(premises=[lemma_a], conclusion=main_result)\n"
@@ -157,7 +171,7 @@ def test_compile_records_provenance_metadata(tmp_path: Path) -> None:
         ),
         references_json={"Bell1964": {"type": "article-journal", "title": "On EPR"}},
     )
-    result = runner.invoke(app, ["compile", str(pkg)])
+    result = runner.invoke(app, ["build", "compile", str(pkg)])
     assert result.exit_code == 0, result.output
 
     ir_path = pkg / ".gaia" / "ir.json"
@@ -200,14 +214,14 @@ def two_package_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     dep_src = dep_dir / "src" / "refs_dep_pkg"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'foreign_lemma = claim("A foundational lemma from a dependency package.")\n'
         '__all__ = ["foreign_lemma"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
 
     # Compile refs_dep_pkg so its exports manifest is available.
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, f"refs_dep_pkg compile failed:\n{dep_compile.output}"
 
     # --- refs_main_pkg -----------------------------------------------------
@@ -229,8 +243,10 @@ def two_package_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def test_imported_foreign_label_resolves_in_strict_form(
     two_package_setup: tuple,
 ) -> None:
-    """Spec §3.1 regression: foreign label imported into the compile closure
-    must resolve in strict ``[@foreign_lemma]`` form.
+    """Verify imported foreign label resolves in strict form.
+
+    Spec §3.1 regression: foreign label imported into the compile closure must resolve in strict
+    ``[@foreign_lemma]`` form.
 
     If someone later narrows label_to_id to local-only labels, the strict
     form will raise an "unknown reference key" error — this test is the
@@ -238,7 +254,7 @@ def test_imported_foreign_label_resolves_in_strict_form(
     """
     _dep_dir, main_dir, main_src = two_package_setup
     (main_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from refs_dep_pkg import foreign_lemma\n\n"
         "main_result = claim(\n"
         '    "Main result. This follows from [@foreign_lemma]."\n'
@@ -247,7 +263,7 @@ def test_imported_foreign_label_resolves_in_strict_form(
         '__all__ = ["main_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(main_dir)])
+    result = runner.invoke(app, ["build", "compile", str(main_dir)])
     assert result.exit_code == 0, (
         f"Strict form [@foreign_lemma] failed to compile — "
         f"the symbol table may not include the full closure.\n{result.output}"
@@ -270,9 +286,10 @@ def test_imported_foreign_label_resolves_in_strict_form(
 def test_imported_foreign_label_resolves_in_opportunistic_form(
     two_package_setup: tuple,
 ) -> None:
-    """Spec §3.1 regression: foreign label imported into the compile closure
-    must also resolve in opportunistic ``@foreign_lemma`` form (bare @-ref in
-    a strategy reason).
+    """Verify imported foreign label resolves in opportunistic form.
+
+    Spec §3.1 regression: foreign label imported into the compile closure must also resolve in
+    opportunistic ``@foreign_lemma`` form (bare @-ref in a strategy reason).
 
     In opportunistic form an unknown key becomes a literal, so if the symbol
     table is missing the foreign label the reference silently disappears from
@@ -281,7 +298,7 @@ def test_imported_foreign_label_resolves_in_opportunistic_form(
     """
     _dep_dir, main_dir, main_src = two_package_setup
     (main_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from refs_dep_pkg import foreign_lemma\n\n"
         'main_result = claim("Main result.")\n'
         "deduction(\n"
@@ -293,7 +310,7 @@ def test_imported_foreign_label_resolves_in_opportunistic_form(
         '__all__ = ["main_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(main_dir)])
+    result = runner.invoke(app, ["build", "compile", str(main_dir)])
     assert result.exit_code == 0, (
         f"Opportunistic form @foreign_lemma failed to compile.\n{result.output}"
     )
@@ -318,9 +335,10 @@ def test_imported_foreign_label_resolves_in_opportunistic_form(
 def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression for Codex review P1: consumer must not re-validate the
-    content of foreign (imported) knowledge nodes against its own symbol
-    table.
+    """Verify consumer compile tolerates dep content with unknown refs.
+
+    Regression for Codex review P1: consumer must not re-validate the content of foreign
+    (imported) knowledge nodes against its own symbol table.
 
     Scenario:
       - dep_pkg has a claim whose content contains ``[@Bell1964]``, a
@@ -343,13 +361,13 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
     dep_src = dep_dir / "src" / "refs_dep_p1"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'foreign_lemma = claim("An important lemma [@Bell1964].")\n'
         '__all__ = ["foreign_lemma"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
 
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, f"dep compile failed:\n{dep_compile.output}"
 
     # --- consumer_pkg WITHOUT references.json -----------------------------
@@ -365,14 +383,14 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
     main_src = main_dir / "refs_consumer_p1"
     main_src.mkdir()
     (main_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n"
         "from refs_dep_p1 import foreign_lemma\n\n"
         'main_result = claim("Main result.")\n'
         "deduction(premises=[foreign_lemma], conclusion=main_result)\n"
         '__all__ = ["main_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(main_dir)])
+    result = runner.invoke(app, ["build", "compile", str(main_dir)])
     assert result.exit_code == 0, (
         f"Consumer compile failed because it re-validated the dep's content "
         f"against its own (empty) references.json. Foreign node content is "
@@ -383,9 +401,11 @@ def test_consumer_compile_tolerates_dep_content_with_unknown_refs(
 def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression for Codex adversarial review finding #2: a bridge
-    package's fills() reason may contain citations, but those citations
-    must NOT be attributed to the foreign ``target`` node's IR metadata.
+    """Verify bridge reason does not leak provenance to foreign target.
+
+    Regression for Codex adversarial review finding #2: a bridge package's fills() reason may
+    contain citations, but those citations must NOT be attributed to the foreign ``target``
+    node's IR metadata.
 
     Scenario:
       - dep_pkg has a ``missing_lemma`` claim that is a local hole
@@ -408,14 +428,14 @@ def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
     dep_src = dep_dir / "src" / "refs_dep_bridge"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
         '__all__ = ["main_theorem"]\n'
     )
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     # --- bridge_pkg that fills() the foreign hole with a citation ----------
@@ -441,7 +461,7 @@ def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
     bridge_src = bridge_dir / "refs_bridge_pkg"
     bridge_src.mkdir()
     (bridge_src / "__init__.py").write_text(
-        "from gaia.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from refs_dep_bridge import missing_lemma\n\n"
         'b_result = claim("A new theorem that proves the missing lemma.")\n'
         "fills(\n"
@@ -452,7 +472,7 @@ def test_bridge_reason_does_not_leak_provenance_to_foreign_target(
         '__all__ = ["b_result"]\n'
     )
 
-    result = runner.invoke(app, ["compile", str(bridge_dir)])
+    result = runner.invoke(app, ["build", "compile", str(bridge_dir)])
     assert result.exit_code == 0, result.output
 
     ir_path = bridge_dir / ".gaia" / "ir.json"

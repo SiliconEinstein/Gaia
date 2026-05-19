@@ -1,19 +1,16 @@
 ## Summary
 
-<!-- What changed and why? Keep it concise. -->
+<!-- What changed and why. Link related issue/spec if any. -->
 
-## Changes
+## Type
 
--
+- [ ] feat
+- [ ] fix
+- [ ] refactor
+- [ ] docs
+- [ ] chore / build / ci / test
+- [ ] Breaking change (describe migration below)
 
-## Test plan
+## Notes for reviewers
 
-- [ ] `pytest tests` passes locally
-- [ ] `ruff check . && ruff format --check .` passes
-- [ ] Manually tested the affected functionality
-
-## Checklist
-
-- [ ] Branch is rebased on latest `main`
-- [ ] No `.env`, secrets, or large binary files included
-- [ ] PR is focused on a single feature/fix (split if >3 days of work)
+<!-- Anything specific reviewers should focus on, edge cases manually tested, follow-ups not in this PR. -->

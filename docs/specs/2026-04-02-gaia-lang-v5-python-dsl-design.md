@@ -1,6 +1,9 @@
 # Gaia Lang v5 — Python DSL Design
 
-> **Status:** Current canonical for Phase 1 structural authoring
+> **Status:** Historical design snapshot for Phase 1 structural authoring.
+> Current v0.5 authoring contracts live in
+> [Gaia Lang foundations](../foundations/gaia-lang/knowledge-and-reasoning.md)
+> and [Language Reference](../for-users/language-reference.md).
 >
 > **Replaces:** [2026-03-20-typst-dsl-v4-design.md](2026-03-20-typst-dsl-v4-design.md), [2026-03-25-gaia-lang-alignment-design.md](2026-03-25-gaia-lang-alignment-design.md)
 >

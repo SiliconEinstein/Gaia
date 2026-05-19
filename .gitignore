@@ -6,6 +6,10 @@ __pycache__/
 dist/
 build/
 
+# Build-time metadata injected by release workflows (channel + commit);
+# must not be committed — `gaia/_meta.py` falls back gracefully when absent.
+gaia/_build_info.py
+
 # Environment
 .env
 .env.*
@@ -24,17 +28,22 @@ Thumbs.db
 .pytest_cache/
 htmlcov/
 .coverage
+coverage.xml
+site/
 
 # Worktrees
 .worktrees/
+
+# Per-worktree git hooks (populated by `make bootstrap` via core.hooksPath)
+.githooks/
 
 # Logs
 logs/
 *.log
 trace.md
+!docs/**/trace.md
 
 # Agent sidecar state
-.claude/state/
 
 # Temporary test/review artifacts
 review_*.json
@@ -58,3 +67,9 @@ viz/dist-replay/
 gaia/cli/templates/pages/node_modules/
 gaia/cli/templates/pages/package-lock.json
 pipeline.local.toml
+.superpowers/
+
+# Stray scratch outputs accidentally committed during BP work; see chore: remove stray test artifacts
+/BP_LARGE_SCALE_TEST_REPORT.md
+/loopy_bp_test_results.txt
+/test_strict_output.txt

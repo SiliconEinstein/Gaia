@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "inquiry",
+    "tactics",
+    "log",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "(no tactic log entries)\n"
+}

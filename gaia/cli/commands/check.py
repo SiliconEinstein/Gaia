@@ -1,119 +1,1390 @@
-"""gaia check -- validate a Gaia knowledge package."""
+"""gaia build check -- validate a Gaia knowledge package."""
 
 from __future__ import annotations
 
-import json
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from math import log2
+from typing import Any
 
 import typer
+from sympy import And, Equivalent, Symbol
+from sympy.logic.boolalg import Not
+from sympy.logic.inference import satisfiable
 
-from gaia.cli._packages import GaiaCliError, load_gaia_package, validate_fills_relations
-from gaia.cli._packages import apply_package_priors
-from gaia.cli._packages import compile_loaded_package_artifact
-from gaia.cli.commands.check_core import (
-    analyze_knowledge_breakdown,
+from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees, render_inquiry
+from gaia.engine._stale_check import check_compiled_artifacts
+from gaia.engine.bp import lower_local_graph
+from gaia.engine.bp.exact import exact_joint_over
+from gaia.engine.bp.factor_graph import CROMWELL_EPS
+from gaia.engine.inquiry._classify import (
+    KnowledgeClassification,
+    classify_ir,
+    is_note_type,
+    node_role,
 )
-from gaia.ir import LocalCanonicalGraph
-from gaia.ir.validator import validate_local_graph
+from gaia.engine.inquiry.review_manifest import (
+    latest_reviews,
+    load_or_generate_review_manifest,
+)
+from gaia.engine.ir import LocalCanonicalGraph, ReviewManifest
+from gaia.engine.ir.logic.propositional import to_sympy_proposition
+from gaia.engine.ir.operator import OperatorType
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import (
+    GaiaPackagingError,
+    apply_package_priors,
+    compile_loaded_package_artifact,
+    load_gaia_package,
+    validate_fills_relations,
+)
+
+_RELATION_OPERATOR_NAMES = frozenset(
+    {
+        str(OperatorType.EQUIVALENCE),
+        str(OperatorType.CONTRADICTION),
+        str(OperatorType.COMPLEMENT),
+        str(OperatorType.IMPLICATION),
+    }
+)
+_MAXENT_ENUM_LIMIT = 12
 
 
-def _knowledge_diagnostics(ir: dict) -> list[str]:
-    """Format the role-based knowledge breakdown for `gaia check` output.
+@dataclass
+class _BoundaryAnalysis:
+    boundary_claim_ids: set[str]
+    scoped_to_exports: bool
 
-    Detection lives in ``check_core.analyze_knowledge_breakdown``; this is the
-    text-rendering wrapper.
+
+@dataclass
+class _MaxEntStateSpace:
+    feasible_assignments: int | None = None
+    total_assignments: int | None = None
+    effective_bits: float | None = None
+    skipped_reason: str | None = None
+
+
+@dataclass
+class _InducedMaxEntSummary:
+    entropy_bits: float | None = None
+    effective_states: float | None = None
+    skipped_reason: str | None = None
+
+
+@dataclass
+class _BayesCheckDiagnostics:
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class _KnowledgeBuckets:
+    independent: list[tuple[str, str]] = field(default_factory=list)
+    derived: list[str] = field(default_factory=list)
+    structural: list[str] = field(default_factory=list)
+    background_only: list[str] = field(default_factory=list)
+    scaffolded: list[str] = field(default_factory=list)
+    candidate_relation_endpoints: list[str] = field(default_factory=list)
+    orphaned: list[str] = field(default_factory=list)
+
+
+def _walk_inquiry_nodes(node: InquiryNode) -> Iterator[InquiryNode]:
+    yield node
+    for edge in node.incoming:
+        if edge.kind == "candidate_relation":
+            continue
+        for child in edge.inputs:
+            yield from _walk_inquiry_nodes(child)
+
+
+def _boundary_claim_analysis(
+    ir: dict[str, Any],
+    *,
+    formalization_manifest: dict[str, Any] | None = None,
+) -> _BoundaryAnalysis:
+    """Identify load-bearing boundary claims for exported goals.
+
+    Prefer the goal-oriented inquiry boundary when exported goals exist. A
+    zero-premise observe action pins its conclusion to 1 - CROMWELL_EPS, so it
+    is not treated as an unparameterized boundary DOF.
     """
-    kb = analyze_knowledge_breakdown(ir)
-    lines: list[str] = []
-    n_holes = len(kb.holes)
 
-    lines.append("")
-    lines.append(f"  Settings:  {len(kb.settings)}")
-    lines.append(f"  Questions: {len(kb.questions)}")
-    lines.append(
-        f"  Claims:    {len(kb.independent) + len(kb.derived) + len(kb.structural) + len(kb.background_only) + len(kb.orphaned)}"
+    def needs_probability_input(node: InquiryNode) -> bool:
+        return not node.incoming or all(edge.kind == "candidate_relation" for edge in node.incoming)
+
+    def expand_decomposition_boundary(boundary_ids: set[str]) -> set[str]:
+        expanded = set(boundary_ids)
+        for operator in ir.get("operators", []):
+            metadata = operator.get("metadata") or {}
+            decomposition = metadata.get("decomposition")
+            if not isinstance(decomposition, dict):
+                continue
+            whole = decomposition.get("whole")
+            parts = decomposition.get("parts")
+            if whole not in expanded or not isinstance(parts, list):
+                continue
+            expanded.discard(whole)
+            expanded.update(part for part in parts if isinstance(part, str) and part)
+        return expanded
+
+    trees = build_goal_trees(
+        ir,
+        ReviewManifest(reviews=[]),
+        formalization_manifest=formalization_manifest,
     )
-    lines.append(f"    Independent (need prior):  {len(kb.independent)}")
-    if n_holes:
-        lines.append(f"      Holes (no prior set):   {n_holes}")
-    lines.append(f"    Derived (BP propagates):   {len(kb.derived)}")
-    lines.append(f"    Structural (deterministic): {len(kb.structural)}")
-    if kb.background_only:
-        lines.append(f"    Background-only:           {len(kb.background_only)}")
-    if kb.orphaned:
-        lines.append(f"    Orphaned (no connections): {len(kb.orphaned)}")
-
-    if kb.independent:
-        lines.append("")
-        lines.append("  Independent premises:")
-        for entry in sorted(kb.independent, key=lambda e: e.label):
-            if entry.prior is not None:
-                lines.append(f"    - {entry.label}  prior={entry.prior}")
-            else:
-                lines.append(f"    - {entry.label}  ⚠ no prior (defaults to 0.5)")
-
-    if kb.derived:
-        lines.append("")
-        lines.append("  Derived conclusions (belief from BP, prior optional):")
-        for label in sorted(kb.derived):
-            lines.append(f"    - {label}")
-
-    if kb.background_only:
-        lines.append("")
-        lines.append(
-            "  Background-only claims (referenced in strategy background, not in BP graph):"
+    if trees:
+        boundary_claim_ids = {
+            node.knowledge_id
+            for tree in trees
+            for node in _walk_inquiry_nodes(tree)
+            if needs_probability_input(node)
+        }
+        return _BoundaryAnalysis(
+            boundary_claim_ids=expand_decomposition_boundary(boundary_claim_ids),
+            scoped_to_exports=True,
         )
-        for label in sorted(kb.background_only):
-            lines.append(f"    - {label}")
 
-    if kb.orphaned:
-        lines.append("")
-        lines.append("  Orphaned claims (not referenced anywhere):")
-        for label in sorted(kb.orphaned):
-            lines.append(f"    - {label}")
+    c = classify_ir(ir)
+    boundary_claim_ids = {
+        knowledge["id"]
+        for knowledge in ir.get("knowledges", [])
+        if knowledge.get("type") == "claim"
+        and knowledge.get("id")
+        and node_role(knowledge["id"], "claim", c) == "independent"
+    }
+    return _BoundaryAnalysis(
+        boundary_claim_ids=expand_decomposition_boundary(boundary_claim_ids),
+        scoped_to_exports=False,
+    )
+
+
+def _deterministic_operator_theory(graph: LocalCanonicalGraph) -> Any:
+    constraints = []
+    for operator in graph.operators:
+        if not operator.conclusion:
+            continue
+        expression = to_sympy_proposition(graph, operator.conclusion)
+        if str(operator.operator) in _RELATION_OPERATOR_NAMES:
+            constraints.append(expression)
+        else:
+            constraints.append(Equivalent(Symbol(operator.conclusion), expression))
+    if not constraints:
+        return None
+    return And(*constraints)
+
+
+def _maxent_state_space(ir: dict[str, Any], claim_ids: set[str]) -> _MaxEntStateSpace:
+    ordered_ids = sorted(claim_ids)
+    total_assignments = 1 << len(ordered_ids)
+    if not ordered_ids:
+        return _MaxEntStateSpace(feasible_assignments=1, total_assignments=1, effective_bits=0.0)
+    if len(ordered_ids) > _MAXENT_ENUM_LIMIT:
+        return _MaxEntStateSpace(
+            skipped_reason=f"too many MaxEnt claims ({len(ordered_ids)} > {_MAXENT_ENUM_LIMIT})"
+        )
+
+    try:
+        graph = LocalCanonicalGraph(**ir)
+        theory = _deterministic_operator_theory(graph)
+    except Exception as exc:  # pragma: no cover - defensive diagnostic path
+        return _MaxEntStateSpace(skipped_reason=str(exc))
+
+    if theory is None:
+        return _MaxEntStateSpace(
+            feasible_assignments=total_assignments,
+            total_assignments=total_assignments,
+            effective_bits=float(len(ordered_ids)),
+        )
+
+    symbols = {claim_id: Symbol(claim_id) for claim_id in ordered_ids}
+    feasible = 0
+    for assignment in range(total_assignments):
+        assumptions = [
+            symbols[claim_id] if ((assignment >> bit) & 1) else Not(symbols[claim_id])
+            for bit, claim_id in enumerate(ordered_ids)
+        ]
+        if satisfiable(And(theory, *assumptions)) is not False:
+            feasible += 1
+
+    return _MaxEntStateSpace(
+        feasible_assignments=feasible,
+        total_assignments=total_assignments,
+        effective_bits=log2(feasible) if feasible > 0 else 0.0,
+    )
+
+
+def _state_space_line(state_space: _MaxEntStateSpace) -> str | None:
+    if state_space.feasible_assignments is not None and state_space.total_assignments is not None:
+        return (
+            "      Effective MaxEnt state space: "
+            f"{state_space.feasible_assignments}/{state_space.total_assignments} "
+            f"assignments ({state_space.effective_bits:.2f} bits)"
+        )
+    if state_space.skipped_reason:
+        return f"      Effective MaxEnt state space: skipped ({state_space.skipped_reason})"
+    return None
+
+
+def _induced_maxent_summary(
+    graph: LocalCanonicalGraph,
+    *,
+    review_manifest: ReviewManifest | None,
+    claim_ids: set[str],
+) -> _InducedMaxEntSummary:
+    ordered_ids = sorted(claim_ids)
+    if not ordered_ids:
+        return _InducedMaxEntSummary(entropy_bits=0.0, effective_states=1.0)
+
+    try:
+        factor_graph = lower_local_graph(graph, review_manifest=review_manifest)
+        probs = exact_joint_over(factor_graph, ordered_ids)
+    except Exception as exc:  # pragma: no cover - diagnostic path
+        return _InducedMaxEntSummary(skipped_reason=str(exc))
+
+    positive = [float(p) for p in probs if p > 0]
+    entropy_bits = -sum(p * log2(p) for p in positive)
+    return _InducedMaxEntSummary(
+        entropy_bits=entropy_bits,
+        effective_states=2**entropy_bits,
+    )
+
+
+def _induced_entropy_line(summary: _InducedMaxEntSummary) -> str | None:
+    if summary.entropy_bits is not None and summary.effective_states is not None:
+        return (
+            "      Induced MaxEnt entropy: "
+            f"{summary.entropy_bits:.2f} bits "
+            f"({summary.effective_states:.2f} effective states)"
+        )
+    if summary.skipped_reason:
+        return f"      Induced MaxEnt entropy: skipped ({summary.skipped_reason})"
+    return None
+
+
+def _formalization_dependency_claim_ids(
+    formalization_manifest: dict[str, Any] | None,
+) -> tuple[set[str], set[str]]:
+    conclusions: set[str] = set()
+    inputs: set[str] = set()
+    for dependency in (formalization_manifest or {}).get("dependencies", []):
+        if not isinstance(dependency, dict):
+            continue
+        kind = dependency.get("kind")
+        if kind == "depends_on":
+            conclusion = dependency.get("conclusion")
+            if isinstance(conclusion, str) and conclusion:
+                conclusions.add(conclusion)
+            for given in dependency.get("given", []):
+                if isinstance(given, str) and given:
+                    inputs.add(given)
+    return conclusions, inputs
+
+
+def _candidate_relation_dependencies(
+    formalization_manifest: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    relations: list[dict[str, Any]] = []
+    for dependency in (formalization_manifest or {}).get("dependencies", []):
+        if isinstance(dependency, dict) and dependency.get("kind") == "candidate_relation":
+            relations.append(dependency)
+    return relations
+
+
+def _candidate_relation_claim_ids(relations: list[dict[str, Any]]) -> set[str]:
+    claim_ids: set[str] = set()
+    for relation in relations:
+        for claim_id in relation.get("claims", []):
+            if isinstance(claim_id, str) and claim_id:
+                claim_ids.add(claim_id)
+    return claim_ids
+
+
+def _candidate_relation_line(relation: dict[str, Any], claims: dict[str, dict[str, Any]]) -> str:
+    label = relation.get("label") or relation.get("id") or "candidate_relation"
+    pattern = relation.get("pattern") or "relation"
+    status = relation.get("status") or "hypothesis"
+    claim_labels = [
+        _node_name(claims.get(claim_id), claim_id)
+        for claim_id in relation.get("claims", [])
+        if isinstance(claim_id, str) and claim_id
+    ]
+    endpoints = " <-> ".join(claim_labels) if claim_labels else "<no claims>"
+    return f"    - {label} [{pattern}, {status}]: {endpoints}"
+
+
+def _get_prior(k: dict[str, Any]) -> float | None:
+    """Extract prior from a knowledge node's metadata, or None if absent."""
+    meta = k.get("metadata") or {}
+    return meta.get("prior")
+
+
+def _node_name(node: dict[str, Any] | None, fallback: str | None = None) -> str:
+    if node is None:
+        return fallback or "<missing>"
+    return str(node.get("label") or node.get("id") or fallback or "<unknown>")
+
+
+def _model_metadata(node: dict[str, Any]) -> dict[str, Any]:
+    """Return the ``metadata["model"]`` payload (empty dict if absent)."""
+    metadata = node.get("metadata") or {}
+    model = metadata.get("model") or {}
+    return model if isinstance(model, dict) else {}
+
+
+def _comparison_metadata(node: dict[str, Any]) -> dict[str, Any]:
+    """Return the ``metadata["comparison"]`` payload (empty dict if absent)."""
+    metadata = node.get("metadata") or {}
+    comparison = metadata.get("comparison") or {}
+    return comparison if isinstance(comparison, dict) else {}
+
+
+def _bayes_role(node: dict[str, Any]) -> str | None:
+    """Detect a Bayes role on a knowledge node via the unified metadata schema.
+
+    ``metadata["model"]["kind"] == "model"`` is the marker written by
+    :func:`gaia.engine.bayes.model`; ``metadata["comparison"]["kind"] ==
+    "comparison"`` is the marker written by :func:`gaia.engine.bayes.compare`.
+    """
+    if _model_metadata(node).get("kind") == "model":
+        return "model"
+    if _comparison_metadata(node).get("kind") == "comparison":
+        return "comparison"
+    return None
+
+
+def _observation_metadata(node: dict[str, Any]) -> dict[str, Any]:
+    """Return the ``metadata["observation"]`` payload (empty dict if absent)."""
+    metadata = node.get("metadata") or {}
+    observation = metadata.get("observation") or {}
+    return observation if isinstance(observation, dict) else {}
+
+
+def _is_local_ir_id(ir: dict[str, Any], qid: str) -> bool:
+    namespace = ir.get("namespace")
+    package_name = ir.get("package_name")
+    if not isinstance(namespace, str) or not isinstance(package_name, str):
+        return True
+    return qid.startswith(f"{namespace}:{package_name}::")
+
+
+def _hypothesis_prior(node: dict[str, Any] | None) -> float:
+    # Fallback to 0.5 when a hypothesis has no IR-level prior. This treats
+    # un-priored hypotheses as maximally uninformative for the prior-coherence
+    # sum, matching how authors typically read "no prior set yet". gaia build check
+    # applies priors.py before compilation, so sidecar priors are visible here
+    # once they have been injected into the IR metadata.
+    if node is None:
+        return 0.5
+    prior = _get_prior(node)
+    if prior is None:
+        return 0.5
+    try:
+        return float(prior)
+    except (TypeError, ValueError):
+        return 0.5
+
+
+def _bayes_referenced_models(comparisons: dict[str, dict[str, Any]]) -> set[str]:
+    """Return model-helper ids referenced by ``compare()`` calls.
+
+    Reads the unified ``metadata["comparison"]["models"]`` list written by
+    :func:`gaia.engine.bayes.compare`.
+    """
+    referenced: set[str] = set()
+    for comparison in comparisons.values():
+        models = _comparison_metadata(comparison).get("models")
+        if isinstance(models, list):
+            referenced.update(m for m in models if isinstance(m, str))
+    return referenced
+
+
+_JsonScalar = str | int | float | bool | None
+_ObservableKey = tuple[
+    str,
+    str | None,
+    str | None,
+    str | None,
+    str | None,
+    tuple[_JsonScalar, ...] | None,
+]
+
+
+def _bayes_observed_observables(nodes: dict[str, dict[str, Any]]) -> set[_ObservableKey]:
+    """Return observed Variable descriptor keys for model observables.
+
+    The unified ``observe(...)`` schema stores the target descriptor at
+    ``metadata["observation"]["target"]``. For a Variable target this is
+    keyed by ``kind``, ``symbol``, ``domain``, ``unit``, and, for custom
+    Domain-backed Variables, ``domain_content`` plus ``domain_members``.
+    Bayes model observables are Variables, so Distribution observations
+    are ignored for this model-observable check.
+    """
+    observables: set[_ObservableKey] = set()
+    for node in nodes.values():
+        observation = _observation_metadata(node)
+        key = _observable_descriptor_key(observation.get("target"))
+        if key is not None:
+            observables.add(key)
+    return observables
+
+
+def _check_bayes_model(
+    *,
+    ir: dict[str, Any],
+    model_id: str,
+    model: dict[str, Any],
+    referenced_models: set[str],
+    observed_observables: set[_ObservableKey],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Append diagnostics for one Bayes model node."""
+    model_name = _node_name(model)
+    if _is_local_ir_id(ir, model_id) and model_id not in referenced_models:
+        diagnostics.warnings.append(
+            "bayes:dangling-model: "
+            f"model {model_name} is never referenced by compare(). "
+            "Fix: add bayes.compare(data, models=[...]) or remove the "
+            "unused model."
+        )
+
+    observable = _model_metadata(model).get("observable")
+    key = _observable_descriptor_key(observable)
+    if _is_local_ir_id(ir, model_id) and key is not None and key not in observed_observables:
+        diagnostics.warnings.append(
+            "bayes:unobserved-model-observable: "
+            f"model {model_name} observable {_observable_descriptor_label(observable)} has no "
+            "matching observe(...) call. Fix: add observe(observable, value=...) "
+            "for the measured Variable, or remove the unused model."
+        )
+
+
+def _observable_descriptor_key(observable: Any) -> _ObservableKey | None:
+    """Extract a strict Variable descriptor key from model/observation metadata.
+
+    ``metadata["model"]["observable"]`` and
+    ``metadata["observation"]["target"]`` use
+    ``{"kind": "variable", "symbol": ..., "domain": ..., "unit": ...}``.
+    Custom Domain descriptors also carry ``domain_content`` and
+    ``domain_members`` so same-label user domains with different members
+    do not collapse together. This helper intentionally accepts only
+    Variable descriptors because Bayes model observables are Variables.
+    """
+    if not isinstance(observable, dict):
+        return None
+    if observable.get("kind") != "variable":
+        return None
+    symbol = observable.get("symbol")
+    if not isinstance(symbol, str):
+        return None
+    domain = observable.get("domain")
+    unit = observable.get("unit")
+    domain_content = observable.get("domain_content")
+    domain_members = observable.get("domain_members")
+    return (
+        "variable",
+        symbol,
+        domain if isinstance(domain, str) else None,
+        unit if isinstance(unit, str) else None,
+        domain_content if isinstance(domain_content, str) else None,
+        _json_scalar_tuple(domain_members) if isinstance(domain_members, list) else None,
+    )
+
+
+def _json_scalar_tuple(values: list[Any]) -> tuple[_JsonScalar, ...]:
+    result: list[_JsonScalar] = []
+    for value in values:
+        if isinstance(value, str | int | float | bool) or value is None:
+            result.append(value)
+        else:
+            result.append(repr(value))
+    return tuple(result)
+
+
+def _observable_descriptor_label(observable: Any) -> str:
+    if not isinstance(observable, dict):
+        return repr(observable)
+    if observable.get("kind") == "variable":
+        return repr(
+            {
+                "kind": "variable",
+                "symbol": observable.get("symbol"),
+                "domain": observable.get("domain"),
+                "unit": observable.get("unit"),
+                "domain_content": observable.get("domain_content"),
+                "domain_members": observable.get("domain_members"),
+            }
+        )
+    return repr(observable)
+
+
+def _check_bayes_comparison_data(
+    *,
+    comparison_name: str,
+    comparison: dict[str, Any],
+    model_payload: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Append missing-data diagnostics for a ``compare()`` call.
+
+    Reads the unified ``metadata["comparison"]["data"]`` list and verifies
+    each referenced Claim carries a ``metadata["observation"]`` payload
+    with at least a ``value`` field, and that its target descriptor
+    matches the model observable descriptor by symbol, domain, unit, and
+    custom-domain structure. The unified schema stores value and target
+    inline as metadata so the check is a direct dictionary lookup.
+    """
+    expected_observable = model_payload.get("observable")
+    expected_key = _observable_descriptor_key(expected_observable)
+
+    for data_id in comparison.get("data") or []:
+        if not isinstance(data_id, str):
+            continue
+        data_node = nodes.get(data_id)
+        if data_node is None:
+            diagnostics.errors.append(
+                "bayes:comparison-without-data: "
+                f"compare {comparison_name} references missing data {data_id}. "
+                "Fix: pass an observe(observable, value=...) Claim that is compiled "
+                "with the package."
+            )
+            continue
+        observation = _observation_metadata(data_node)
+        if "value" not in observation:
+            diagnostics.errors.append(
+                "bayes:comparison-without-data: "
+                f"compare {comparison_name} references data {_node_name(data_node)} "
+                "without a metadata['observation'] payload. Fix: use "
+                "observe(observable, value=...) so the data Claim carries the unified "
+                "observation schema, or pass precomputed likelihoods with a "
+                "reviewable observation Claim."
+            )
+            continue
+        observed_observable = observation.get("target")
+        observed_key = _observable_descriptor_key(observed_observable)
+        if expected_key is not None and observed_key != expected_key:
+            diagnostics.errors.append(
+                "bayes:comparison-without-data: "
+                f"compare {comparison_name} references data {_node_name(data_node)} "
+                f"whose observable {_observable_descriptor_label(observed_observable)} "
+                "does not match the model observable "
+                f"{_observable_descriptor_label(expected_observable)}. Fix: pass an "
+                "observe(observable, value=...) Claim for the model's observable."
+            )
+
+
+def _check_bayes_prior_coherence(
+    *,
+    comparison_name: str,
+    comparison: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> list[str]:
+    """Append prior-coherence diagnostics and return hypothesis ids."""
+    hypotheses = comparison.get("hypotheses") or []
+    hypothesis_ids = [h for h in hypotheses if isinstance(h, str)]
+    if not hypothesis_ids:
+        return []
+    prior_sum = sum(_hypothesis_prior(nodes.get(hypothesis_id)) for hypothesis_id in hypothesis_ids)
+    exclusivity = comparison.get("exclusivity")
+    if exclusivity == "pairwise_contradiction" and prior_sum > 1.0 + CROMWELL_EPS:
+        diagnostics.errors.append(
+            "bayes:hypothesis-prior-coherence: "
+            f"compare {comparison_name} uses pairwise_contradiction over "
+            f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
+            "Fix: reduce the listed hypothesis priors so their at-most-one mass "
+            "does not exceed 1, or choose a different exclusivity mode."
+        )
+    elif exclusivity == "exhaustive_pairwise_complement" and abs(prior_sum - 1.0) > CROMWELL_EPS:
+        diagnostics.errors.append(
+            "bayes:hypothesis-prior-coherence: "
+            f"compare {comparison_name} uses exhaustive_pairwise_complement over "
+            f"{len(hypothesis_ids)} hypotheses with prior sum={prior_sum:g}. "
+            "Fix: set the exhaustive alternatives' priors to sum to 1."
+        )
+    return hypothesis_ids
+
+
+_RECOMMENDED_PRECOMPUTED_DIAGNOSTIC_FIELDS: frozenset[str] = frozenset(
+    {
+        # At least one of these signals the wrapper recorded enough
+        # provenance to make the precomputed likelihoods reproducible /
+        # auditable. The set is intentionally union-permissive: quadrature
+        # solvers report ``epsabs`` / ``abs_error_estimate``; MCMC solvers
+        # report ``seed`` / ``r_hat_max`` / ``ess_min``; other solvers may
+        # carry ``solver_version`` or ``code_hash``. Requiring exactly
+        # one would force every wrapper to standardise on the same
+        # vocabulary; requiring at least one keeps the contract honest
+        # without dictating method.
+        "seed",
+        "solver_version",
+        "r_hat_max",
+        "ess_min",
+        "divergences",
+        "epsabs",
+        "epsrel",
+        "abs_error_estimate",
+        "code_hash",
+        "per_chain",
+        "draws",
+        "chains",
+        "method",
+        "solver_method",
+    }
+)
+
+
+def _check_v06_precomputed_solver_diagnostics(
+    *,
+    nodes: dict[str, dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Warn when a PrecomputedLikelihoods Claim has an empty diagnostics payload.
+
+    The v0.6 compute-layer contract (see
+    ``docs/specs/2026-05-17-bayes-unified-design.md`` §4.1, §6) treats
+    ``PrecomputedLikelihoods.diagnostics`` as the audit channel for
+    external-solver runs — at minimum a seed (for reproducibility) or
+    a convergence statistic (for MCMC / SMC / quadrature). An empty
+    payload is a soft red flag: the wrapper plugged a number into the
+    BP factor graph without recording how it got there.
+
+    This is a warning, not an error: solvers without natural
+    diagnostics (a deterministic analytic function, say) can still be
+    audited through the ``Compute`` action's ``code_hash``. We surface
+    the gap so reviewers notice, not block compilation.
+    """
+    for _node_id, node in nodes.items():
+        metadata = node.get("metadata") or {}
+        if metadata.get("kind") != "precomputed_likelihoods":
+            continue
+        diag = metadata.get("diagnostics")
+        if not isinstance(diag, dict) or not diag:
+            diagnostics.warnings.append(
+                "bayes:precomputed-solver-diagnostics-missing: "
+                f"PrecomputedLikelihoods {_node_name(node)} has an empty "
+                "diagnostics payload. Record at least a seed (for "
+                "reproducibility) or a convergence statistic (r_hat_max, "
+                "ess_min, divergences, abs_error_estimate, ...) so "
+                "gaia audit can flag suspicious solver runs."
+            )
+            continue
+        if not any(_diagnostic_key_recognised(key) for key in diag):
+            sample = ", ".join(sorted(diag.keys())[:6])
+            diagnostics.warnings.append(
+                "bayes:precomputed-solver-diagnostics-missing: "
+                f"PrecomputedLikelihoods {_node_name(node)} diagnostics "
+                f"do not include any of the recommended audit fields "
+                f"(seed, solver_version, r_hat_max, ess_min, "
+                f"abs_error_estimate, ...). Got keys: {sample}. "
+                "Add one so gaia audit can decide whether to trust the "
+                "precomputed log-likelihoods."
+            )
+
+
+def _diagnostic_key_recognised(key: object) -> bool:
+    if not isinstance(key, str):
+        return False
+    if key in _RECOMMENDED_PRECOMPUTED_DIAGNOSTIC_FIELDS:
+        return True
+    # Allow per-hypothesis / per-chain nesting where the parent key is custom
+    # but the descendants are recognised (e.g. "per_hypothesis" containing
+    # {"diffuse": {"abs_error_estimate": ...}}). Trying to do full recursive
+    # validation here would over-fit; this prefix heuristic lets wrappers
+    # use slightly different vocabularies (e.g. "ess" vs "ess_min") without
+    # tripping the warning.
+    lowered = key.lower()
+    return any(lowered.startswith(f) for f in _RECOMMENDED_PRECOMPUTED_DIAGNOSTIC_FIELDS)
+
+
+def _check_bayes_infer_overlap(
+    *,
+    comparison_name: str,
+    comparison: dict[str, Any],
+    hypothesis_ids: list[str],
+    strategies: list[dict[str, Any]],
+    diagnostics: _BayesCheckDiagnostics,
+) -> None:
+    """Warn when hand-written infer() overlaps a Bayes comparison factor.
+
+    The unified lowering tags its emitted strategies with
+    ``metadata["comparison_factor"]["kind"] == "comparison_factor"``;
+    anything else with ``type == "infer"`` is a hand-written CPT that
+    might collide with the Bayes-emitted factor on the same
+    ``(hypothesis, data)`` pair.
+    """
+    for strategy in strategies:
+        strategy_meta = strategy.get("metadata") or {}
+        comparison_factor = strategy_meta.get("comparison_factor") or {}
+        is_bayes_factor = (
+            isinstance(comparison_factor, dict)
+            and comparison_factor.get("kind") == "comparison_factor"
+        )
+        if is_bayes_factor or strategy.get("type") != "infer":
+            continue
+        premises = set(strategy.get("premises") or [])
+        conclusion = strategy.get("conclusion")
+        if premises.intersection(hypothesis_ids) and conclusion in (comparison.get("data") or []):
+            diagnostics.warnings.append(
+                "bayes:infer-comparison-overlap: "
+                f"compare {comparison_name} overlaps with a low-level infer() "
+                "strategy for the same hypothesis/data pair. Fix: keep either "
+                "bayes.compare() or the hand-written infer() CPT."
+            )
+            return
+
+
+def _bayes_check_diagnostics(ir: dict[str, Any]) -> _BayesCheckDiagnostics:
+    diagnostics = _BayesCheckDiagnostics()
+    nodes = {node["id"]: node for node in ir.get("knowledges", []) if node.get("id")}
+    models = {node_id: node for node_id, node in nodes.items() if _bayes_role(node) == "model"}
+    comparisons = {
+        node_id: node for node_id, node in nodes.items() if _bayes_role(node) == "comparison"
+    }
+
+    referenced_models = _bayes_referenced_models(comparisons)
+    observed_observables = _bayes_observed_observables(nodes)
+
+    _check_v06_precomputed_solver_diagnostics(
+        nodes=nodes,
+        diagnostics=diagnostics,
+    )
+
+    for model_id, model in models.items():
+        _check_bayes_model(
+            ir=ir,
+            model_id=model_id,
+            model=model,
+            referenced_models=referenced_models,
+            observed_observables=observed_observables,
+            diagnostics=diagnostics,
+        )
+
+    for _comparison_id, comparison in comparisons.items():
+        comparison_payload = _comparison_metadata(comparison)
+        comparison_name = _node_name(comparison)
+        # The compare() lowering emits an equal-positioned ``models`` list;
+        # using the first as the "anchor" for the model-observable check
+        # is sufficient because compare() validates observable identity across
+        # the whole list at construction time.
+        comparison_models = comparison_payload.get("models") or []
+        first_model = (
+            nodes.get(comparison_models[0])
+            if comparison_models and isinstance(comparison_models[0], str)
+            else None
+        )
+        first_model_payload = _model_metadata(first_model) if first_model is not None else {}
+
+        _check_bayes_comparison_data(
+            comparison_name=comparison_name,
+            comparison=comparison_payload,
+            model_payload=first_model_payload,
+            nodes=nodes,
+            diagnostics=diagnostics,
+        )
+        hypothesis_ids = _check_bayes_prior_coherence(
+            comparison_name=comparison_name,
+            comparison=comparison_payload,
+            nodes=nodes,
+            diagnostics=diagnostics,
+        )
+        if not hypothesis_ids:
+            continue
+        _check_bayes_infer_overlap(
+            comparison_name=comparison_name,
+            comparison=comparison_payload,
+            hypothesis_ids=hypothesis_ids,
+            strategies=ir.get("strategies", []),
+            diagnostics=diagnostics,
+        )
+
+    return diagnostics
+
+
+def _bucket_knowledge_roles(
+    *,
+    claims: dict[str, dict[str, Any]],
+    classification: KnowledgeClassification,
+    boundary: _BoundaryAnalysis,
+    formalization_manifest: dict[str, Any] | None,
+) -> tuple[_KnowledgeBuckets, list[dict[str, Any]]]:
+    """Classify claims into the role buckets printed by `gaia build check`."""
+    buckets = _KnowledgeBuckets()
+    scaffold_conclusions, scaffold_inputs = _formalization_dependency_claim_ids(
+        formalization_manifest
+    )
+    scaffold_connected = scaffold_conclusions | scaffold_inputs
+    candidate_relations = _candidate_relation_dependencies(formalization_manifest)
+    candidate_relation_claim_ids = _candidate_relation_claim_ids(candidate_relations)
+
+    for cid, claim in claims.items():
+        label = claim.get("label", cid.split("::")[-1])
+        role = node_role(cid, "claim", classification)
+        if role == "structural":
+            buckets.structural.append(label)
+        elif role == "derived":
+            buckets.derived.append(label)
+        elif cid in boundary.boundary_claim_ids:
+            buckets.independent.append((label, cid))
+        elif role == "background":
+            buckets.background_only.append(label)
+        elif cid in scaffold_connected:
+            buckets.scaffolded.append(label)
+        elif cid in candidate_relation_claim_ids:
+            buckets.candidate_relation_endpoints.append(label)
+        else:
+            buckets.orphaned.append(label)
+    return buckets, candidate_relations
+
+
+def _knowledge_summary_lines(
+    *,
+    claims: dict[str, dict[str, Any]],
+    notes: dict[str, dict[str, Any]],
+    questions: dict[str, dict[str, Any]],
+    buckets: _KnowledgeBuckets,
+    state_space: _MaxEntStateSpace,
+    induced_summary: _InducedMaxEntSummary | None,
+) -> list[str]:
+    """Return the top-level knowledge diagnostic summary lines."""
+    n_holes = sum(1 for _, cid in buckets.independent if _get_prior(claims[cid]) is None)
+    lines = [
+        "",
+        f"  Notes:     {len(notes)}",
+        f"  Questions: {len(questions)}",
+        f"  Claims:    {len(claims)}",
+        f"    Independent DOF:           {len(buckets.independent)}",
+    ]
+    if n_holes:
+        lines.append(f"      MaxEnt (no external prior): {n_holes}")
+        state_space_line = _state_space_line(state_space)
+        if state_space_line is not None:
+            lines.append(state_space_line)
+        induced_line = _induced_entropy_line(induced_summary or _InducedMaxEntSummary())
+        if induced_line is not None:
+            lines.append(induced_line)
+    lines.append(f"    Derived (BP propagates):   {len(buckets.derived)}")
+    lines.append(f"    Structural (deterministic): {len(buckets.structural)}")
+    if buckets.scaffolded:
+        lines.append(f"    Scaffolded (unformalized): {len(buckets.scaffolded)}")
+    if buckets.candidate_relation_endpoints:
+        lines.append(
+            f"    Candidate relation endpoints: {len(buckets.candidate_relation_endpoints)}"
+        )
+    if buckets.background_only:
+        lines.append(f"    Background-only:           {len(buckets.background_only)}")
+    if buckets.orphaned:
+        lines.append(f"    Orphaned (no connections): {len(buckets.orphaned)}")
+    return lines
+
+
+def _append_label_section(lines: list[str], title: str, labels: list[str]) -> None:
+    """Append a titled bullet list when labels are present."""
+    if not labels:
+        return
+    lines.append("")
+    lines.append(title)
+    for label in sorted(labels):
+        lines.append(f"    - {label}")
+
+
+def _append_independent_section(
+    lines: list[str],
+    independent: list[tuple[str, str]],
+    claims: dict[str, dict[str, Any]],
+) -> None:
+    """Append independent boundary premise details."""
+    if not independent:
+        return
+    lines.append("")
+    lines.append("  Independent boundary premises:")
+    for label, cid in sorted(independent):
+        prior = _get_prior(claims[cid])
+        if prior is not None:
+            lines.append(f"    - {label}  prior={prior}")
+        else:
+            lines.append(f"    - {label}  no external prior (MaxEnt)")
+
+
+def _append_candidate_relation_section(
+    lines: list[str],
+    candidate_relations: list[dict[str, Any]],
+    claims: dict[str, dict[str, Any]],
+) -> None:
+    """Append candidate-relation diagnostic lines."""
+    if not candidate_relations:
+        return
+    lines.append("")
+    lines.append("  Candidate relations (tracked in formalization manifest):")
+    for relation in sorted(
+        candidate_relations,
+        key=lambda item: str(item.get("label") or item.get("id") or ""),
+    ):
+        lines.append(_candidate_relation_line(relation, claims))
+
+
+def _partition_independent_priors(
+    claims: dict[str, dict[str, Any]],
+    boundary: _BoundaryAnalysis,
+) -> tuple[list[tuple[str, dict[str, Any]]], list[tuple[str, dict[str, Any]]]]:
+    """Split boundary claims into MaxEnt holes and prior-covered claims."""
+    holes: list[tuple[str, dict[str, Any]]] = []
+    covered: list[tuple[str, dict[str, Any]]] = []
+    for cid, claim in claims.items():
+        if cid not in boundary.boundary_claim_ids:
+            continue
+        if _get_prior(claim) is None:
+            holes.append((cid, claim))
+        else:
+            covered.append((cid, claim))
+    return holes, covered
+
+
+def _append_hole_header(
+    lines: list[str],
+    *,
+    holes: list[tuple[str, dict[str, Any]]],
+    covered: list[tuple[str, dict[str, Any]]],
+    state_space: _MaxEntStateSpace,
+    induced_summary: _InducedMaxEntSummary | None,
+) -> None:
+    """Append the independent DOF header for the hole report."""
+    lines.append("")
+    lines.append(
+        f"  Independent DOF analysis: {len(holes)} MaxEnt / "
+        f"{len(holes) + len(covered)} independent claims"
+    )
+    if not holes:
+        return
+    state_space_line = _state_space_line(state_space)
+    if state_space_line is not None:
+        lines.append(state_space_line)
+    induced_line = _induced_entropy_line(induced_summary or _InducedMaxEntSummary())
+    if induced_line is not None:
+        lines.append(induced_line)
+
+
+def _append_hole_details(lines: list[str], holes: list[tuple[str, dict[str, Any]]]) -> None:
+    """Append MaxEnt independent claim details."""
+    if not holes:
+        return
+    lines.append("")
+    lines.append("  MaxEnt independent claims (no external prior):")
+    for cid, claim in sorted(holes, key=lambda x: x[0]):
+        label = claim.get("label", cid.split("::")[-1])
+        content = claim.get("content", "")
+        preview = (content[:72] + "...") if len(content) > 75 else content
+        lines.append(f"    {label}")
+        lines.append(f"      id:      {cid}")
+        lines.append(f"      content: {preview}")
+        lines.append("      prior:   not externalized; MaxEnt over independent DOF")
+
+
+def _append_covered_prior_details(
+    lines: list[str],
+    covered: list[tuple[str, dict[str, Any]]],
+) -> None:
+    """Append prior-covered independent claim details with multi-source view.
+
+    For each independent claim with a registered prior, prints the resolution
+    winner on the headline and (when more than one record exists) the
+    overridden records as ``↪ also: ...`` follow-up lines so the author can
+    see which sources were ignored at a glance.
+    """
+    if not covered:
+        return
+    lines.append("")
+    lines.append("  Covered (independent claims with prior set):")
+    for cid, claim in sorted(covered, key=lambda x: x[0]):
+        label = claim.get("label", cid.split("::")[-1])
+        winning_prior = _get_prior(claim)
+        metadata = claim.get("metadata") or {}
+        records = metadata.get("prior_records") or []
+        winning_source = metadata.get("prior_source_id") or _winning_source_id(
+            records, winning_prior
+        )
+        justification = metadata.get("prior_justification", "")
+        suffix = f" (source: {winning_source})" if winning_source else ""
+        lines.append(f"    {label}  prior={winning_prior}{suffix}")
+        if justification:
+            preview = (justification[:72] + "...") if len(justification) > 75 else justification
+            lines.append(f"      reason: {preview}")
+        if isinstance(records, list) and len(records) > 1:
+            for line in _overridden_record_lines(records, winning_prior):
+                lines.append(line)
+
+
+def _winning_source_id(records: Any, winning_prior: Any) -> str | None:
+    """Identify the source_id of the record matching the resolution winner.
+
+    Returns the matching source_id, or None when records is empty / malformed
+    / when the winner cannot be unambiguously matched (e.g. two records share
+    the winning value).
+    """
+    if not isinstance(records, list) or not records:
+        return None
+    try:
+        target = float(winning_prior)
+    except (TypeError, ValueError):
+        return None
+    matches = [
+        r
+        for r in records
+        if isinstance(r, dict) and "value" in r and abs(float(r["value"]) - target) < 1e-9
+    ]
+    if len(matches) == 1:
+        return str(matches[0].get("source_id", "")) or None
+    if not matches:
+        return None
+    # Multiple records share the winning value — surface the latest one (the
+    # ResolutionPolicy tiebreaker), but only as a best-effort annotation.
+    latest = max(matches, key=lambda r: str(r.get("created_at", "")))
+    return str(latest.get("source_id", "")) or None
+
+
+def _overridden_record_lines(records: list[Any], winning_prior: Any) -> list[str]:
+    """Render overridden PriorRecords as `↪ also:` follow-up lines."""
+    try:
+        target = float(winning_prior)
+    except (TypeError, ValueError):
+        return []
+    overridden = [
+        r
+        for r in records
+        if isinstance(r, dict) and "value" in r and abs(float(r["value"]) - target) > 1e-9
+    ]
+    if not overridden:
+        return []
+    sorted_records = sorted(
+        overridden,
+        key=lambda r: (str(r.get("source_id", "")), str(r.get("created_at", ""))),
+    )
+    return [
+        f"      ↪ also: {float(r['value']):.3f} (source: {r.get('source_id', '?')}, overridden)"
+        for r in sorted_records
+    ]
+
+
+def _knowledge_diagnostics(
+    ir: dict[str, Any],
+    *,
+    induced_summary: _InducedMaxEntSummary | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
+) -> list[str]:
+    """Analyze the knowledge graph and return diagnostic lines."""
+    lines: list[str] = []
+
+    claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
+    notes = {k["id"]: k for k in ir["knowledges"] if is_note_type(k["type"])}
+    questions = {k["id"]: k for k in ir["knowledges"] if k["type"] == "question"}
+
+    c = classify_ir(ir)
+    boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
+
+    buckets, candidate_relations = _bucket_knowledge_roles(
+        claims=claims,
+        classification=c,
+        boundary=boundary,
+        formalization_manifest=formalization_manifest,
+    )
+    state_space = _maxent_state_space(
+        ir,
+        {cid for _, cid in buckets.independent if _get_prior(claims[cid]) is None},
+    )
+
+    lines.extend(
+        _knowledge_summary_lines(
+            claims=claims,
+            notes=notes,
+            questions=questions,
+            buckets=buckets,
+            state_space=state_space,
+            induced_summary=induced_summary,
+        )
+    )
+    _append_independent_section(lines, buckets.independent, claims)
+    _append_label_section(
+        lines,
+        "  Derived conclusions (belief from BP, prior optional):",
+        buckets.derived,
+    )
+    _append_label_section(
+        lines,
+        "  Background-only claims (referenced in strategy background, not in BP graph):",
+        buckets.background_only,
+    )
+    _append_label_section(
+        lines, "  Scaffolded claims (tracked in formalization manifest):", buckets.scaffolded
+    )
+    _append_candidate_relation_section(lines, candidate_relations, claims)
+    _append_label_section(lines, "  Orphaned claims (not referenced anywhere):", buckets.orphaned)
 
     return lines
 
 
-def _hole_report(ir: dict) -> list[str]:
-    """Format the hole-vs-covered breakdown for `gaia check --hole`."""
-    kb = analyze_knowledge_breakdown(ir)
-    holes = sorted(kb.holes, key=lambda e: e.cid)
-    covered = sorted(kb.covered, key=lambda e: e.cid)
+def _hole_report(
+    ir: dict[str, Any],
+    *,
+    induced_summary: _InducedMaxEntSummary | None = None,
+    formalization_manifest: dict[str, Any] | None = None,
+) -> list[str]:
+    """Return detailed report of all independent claims without priors (holes)."""
+    claims = {k["id"]: k for k in ir["knowledges"] if k["type"] == "claim"}
+    boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
     lines: list[str] = []
+    holes, covered = _partition_independent_priors(claims, boundary)
+    state_space = _maxent_state_space(ir, {cid for cid, _ in holes})
 
-    lines.append("")
-    lines.append(
-        f"  Hole analysis: {len(holes)} hole(s) / {len(holes) + len(covered)} independent claims"
+    _append_hole_header(
+        lines,
+        holes=holes,
+        covered=covered,
+        state_space=state_space,
+        induced_summary=induced_summary,
     )
-
-    if holes:
-        lines.append("")
-        lines.append("  Holes (independent claims missing prior — defaults to 0.5):")
-        for entry in holes:
-            preview = (entry.content[:72] + "...") if len(entry.content) > 75 else entry.content
-            lines.append(f"    {entry.label}")
-            lines.append(f"      id:      {entry.cid}")
-            lines.append(f"      content: {preview}")
-            lines.append("      prior:   NOT SET (defaults to 0.5)")
-
-    if covered:
-        lines.append("")
-        lines.append("  Covered (independent claims with prior set):")
-        for entry in covered:
-            lines.append(f"    {entry.label}  prior={entry.prior}")
-            if entry.prior_justification:
-                preview = (
-                    entry.prior_justification[:72] + "..."
-                    if len(entry.prior_justification) > 75
-                    else entry.prior_justification
-                )
-                lines.append(f"      reason: {preview}")
+    _append_hole_details(lines, holes)
+    _append_covered_prior_details(lines, covered)
 
     if not holes:
         lines.append("")
-        lines.append("  All independent claims have priors assigned.")
+        lines.append("  All independent claims have external priors assigned.")
 
     return lines
+
+
+def _warrant_report(manifest: ReviewManifest, *, blind: bool = False) -> list[str]:
+    reviews = latest_reviews(manifest)
+    lines: list[str] = []
+    lines.append("")
+    lines.append(f"Review warrants: {len(reviews)}")
+    if not reviews:
+        lines.append("  No reviewable v6 actions.")
+        return lines
+
+    for review in reviews:
+        lines.append(f"  - {review.action_label}")
+        lines.append(f"    target: {review.target_kind} {review.target_id}")
+        if blind:
+            lines.append("    status:")
+        else:
+            lines.append(f"    status: {review.status.value}")
+        lines.append(f"    question: {review.audit_question}")
+    return lines
+
+
+def _load_check_artifacts(path: str) -> tuple[Any, Any, dict[str, Any]]:
+    """Load, compile, and validate package-specific references for check."""
+    try:
+        loaded = load_gaia_package(path)
+        apply_package_priors(loaded)
+        compiled = compile_loaded_package_artifact(loaded)
+        ir = compiled.to_json()
+        validate_fills_relations(loaded, compiled)
+    except GaiaPackagingError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    return loaded, compiled, ir
+
+
+def _collect_check_diagnostics(loaded: Any, ir: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Collect structural and artifact-state diagnostics for ``gaia build check``."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not loaded.project_name.endswith("-gaia"):
+        errors.append("Project name must end with '-gaia'.")
+
+    validation = validate_local_graph(LocalCanonicalGraph(**ir))
+    errors.extend(validation.errors)
+    warnings.extend(validation.warnings)
+    bayes_diagnostics = _bayes_check_diagnostics(ir)
+    errors.extend(bayes_diagnostics.errors)
+    warnings.extend(bayes_diagnostics.warnings)
+    _collect_compiled_artifact_diagnostics(loaded, ir, errors, warnings)
+    return errors, warnings
+
+
+def _collect_compiled_artifact_diagnostics(
+    loaded: Any,
+    ir: dict[str, Any],
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    """Check stored compile artifacts against the freshly compiled IR."""
+    staleness = check_compiled_artifacts(loaded.pkg_path, ir_hash=ir["ir_hash"])
+    if staleness.ir_hash_exists:
+        if staleness.ir_hash_stale:
+            errors.append("Compiled artifacts are stale; run `gaia build compile` again.")
+        if not staleness.ir_json_exists:
+            errors.append("Found .gaia/ir_hash but missing .gaia/ir.json.")
+    else:
+        warnings.append(
+            "Compiled artifacts missing; run `gaia build compile` before `gaia pkg register`."
+        )
+
+    if not staleness.ir_json_exists:
+        return
+    if staleness.ir_json_invalid_reason is not None:
+        errors.append(f".gaia/ir.json is not valid JSON: {staleness.ir_json_invalid_reason}")
+    elif staleness.ir_json_hash_mismatch:
+        errors.append(
+            "Stored .gaia/ir.json does not match current source; run `gaia build compile`."
+        )
+
+
+def _emit_check_diagnostics(errors: list[str], warnings: list[str]) -> None:
+    """Print diagnostics and exit on errors."""
+    for warning in warnings:
+        typer.echo(f"Warning: {warning}")
+    if errors:
+        for error in errors:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1)
+
+
+def _check_review_manifest_needed(
+    *,
+    warrants: bool,
+    inquiry: bool,
+    gate: bool,
+    hole: bool,
+    blind: bool,
+) -> bool:
+    """Return whether check needs a ReviewManifest."""
+    return warrants or inquiry or gate or hole or not (warrants and blind)
+
+
+def _load_check_review_manifest(loaded: Any, compiled: Any) -> ReviewManifest:
+    """Load or generate a review manifest with CLI error handling."""
+    try:
+        return load_or_generate_review_manifest(loaded.pkg_path, compiled)
+    except GaiaPackagingError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+
+def _check_induced_summary(
+    ir: dict[str, Any],
+    compiled: Any,
+    review_manifest: ReviewManifest | None,
+) -> _InducedMaxEntSummary:
+    """Build induced MaxEnt summary for prior diagnostics."""
+    boundary = _boundary_claim_analysis(
+        ir,
+        formalization_manifest=compiled.formalization_manifest,
+    )
+    maxent_claim_ids = {
+        cid
+        for cid in boundary.boundary_claim_ids
+        if (node := next((k for k in ir["knowledges"] if k.get("id") == cid), None))
+        and _get_prior(node) is None
+    }
+    return _induced_maxent_summary(
+        compiled.graph,
+        review_manifest=review_manifest,
+        claim_ids=maxent_claim_ids,
+    )
+
+
+def _emit_warrant_and_inquiry_sections(
+    *,
+    ir: dict[str, Any],
+    compiled: Any,
+    review_manifest: ReviewManifest,
+    warrants: bool,
+    blind: bool,
+    inquiry: bool,
+) -> None:
+    """Print optional warrant and inquiry sections."""
+    if warrants:
+        for line in _warrant_report(review_manifest, blind=blind):
+            typer.echo(line)
+    if inquiry:
+        trees = build_goal_trees(
+            ir,
+            review_manifest,
+            formalization_manifest=compiled.formalization_manifest,
+        )
+        typer.echo("")
+        typer.echo(render_inquiry(trees))
+
+
+def _run_check_quality_gate(
+    *,
+    ir: dict[str, Any],
+    loaded: Any,
+    compiled: Any,
+    review_manifest: ReviewManifest,
+) -> None:
+    """Run the quality gate and print its result."""
+    from gaia.cli.commands._quality_gate import (
+        check_quality_gate,
+        load_beliefs,
+        load_quality_config,
+    )
+
+    try:
+        config = load_quality_config(loaded.gaia_config.get("quality"))
+        beliefs = load_beliefs(loaded.pkg_path)
+        failures = check_quality_gate(
+            ir,
+            beliefs,
+            review_manifest,
+            config,
+            formalization_manifest=compiled.formalization_manifest,
+        )
+    except GaiaPackagingError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if failures:
+        typer.echo("")
+        typer.echo("Quality gate failed:")
+        for failure in failures:
+            typer.echo(f"  - {failure}")
+        raise typer.Exit(1)
+    typer.echo("")
+    typer.echo("Quality gate passed")
+
+
+def _emit_check_brief_sections(ir: dict[str, Any], *, brief: bool, show: str | None) -> None:
+    """Print optional brief and show sections."""
+    from gaia.cli.commands._brief import (
+        dispatch_show,
+        generate_brief_overview,
+    )
+
+    if brief:
+        for line in generate_brief_overview(ir):
+            typer.echo(line)
+    if show:
+        for line in dispatch_show(ir, show):
+            typer.echo(line)
+
+
+def _emit_prior_diagnostic_sections(
+    *,
+    ir: dict[str, Any],
+    compiled: Any,
+    induced_summary: _InducedMaxEntSummary | None,
+    blind: bool,
+    warrants: bool,
+    hole: bool,
+) -> None:
+    """Print knowledge and hole diagnostics."""
+    if not (warrants and blind):
+        for line in _knowledge_diagnostics(
+            ir,
+            induced_summary=induced_summary,
+            formalization_manifest=compiled.formalization_manifest,
+        ):
+            typer.echo(line)
+
+    if hole:
+        for line in _hole_report(
+            ir,
+            induced_summary=induced_summary,
+            formalization_manifest=compiled.formalization_manifest,
+        ):
+            typer.echo(line)
 
 
 def check_command(
@@ -132,57 +1403,59 @@ def check_command(
         "--hole",
         help="Show detailed prior review report for all independent claims",
     ),
+    warrants: bool = typer.Option(
+        False,
+        "--warrants",
+        help="Show v6 ReviewManifest warrants with audit questions",
+    ),
+    blind: bool = typer.Option(
+        False,
+        "--blind",
+        help="With --warrants, omit status values and prior diagnostics",
+    ),
+    inquiry: bool = typer.Option(
+        False,
+        "--inquiry",
+        help="Show goal-oriented reasoning progress and review status",
+    ),
+    gate: bool = typer.Option(
+        False,
+        "--gate",
+        help="Run quality gate checks and exit non-zero on failure",
+    ),
 ) -> None:
-    """Validate structure and artifact consistency for a Gaia knowledge package."""
-    try:
-        loaded = load_gaia_package(path)
-        apply_package_priors(loaded)
-        compiled = compile_loaded_package_artifact(loaded)
-        ir = compiled.to_json()
-        validate_fills_relations(loaded, compiled)
-    except GaiaCliError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+    """Validate structure and artifact consistency for a Gaia knowledge package.
 
-    errors: list[str] = []
-    warnings: list[str] = []
+    Compiles the package in-memory, validates the resulting IR (including
+    Bayes coherence: dangling predictions, unobserved targets, prior
+    coherence), checks that any stored ``.gaia/ir.json`` is fresh, and
+    classifies every claim into a role bucket (independent / derived /
+    structural / background / scaffolded / orphaned). Exits non-zero on
+    any error diagnostic. After ``gaia author <verb>`` cycles, this is
+    the natural quality probe before ``gaia build compile``.
 
-    if not loaded.project_name.endswith("-gaia"):
-        errors.append("Project name must end with '-gaia'.")
+    Common option combinations:
 
-    validation = validate_local_graph(LocalCanonicalGraph(**ir))
-    errors.extend(validation.errors)
-    warnings.extend(validation.warnings)
+    * ``--brief`` / ``--show <label>`` — per-module warrant brief or
+      expand a single claim/strategy
+    * ``--hole`` — list independent claims with no external prior
+    * ``--warrants`` / ``--blind`` — show v6 ReviewManifest warrants
+      (use ``--blind`` to hide statuses for self-review)
+    * ``--inquiry`` — render goal-oriented inquiry trees
+    * ``--gate`` — apply ``[tool.gaia.quality]`` thresholds, exit
+      non-zero on failure (CI-friendly)
 
-    ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
-    ir_json_path = loaded.pkg_path / ".gaia" / "ir.json"
-    if ir_hash_path.exists():
-        stored_hash = ir_hash_path.read_text().strip()
-        if stored_hash != ir["ir_hash"]:
-            errors.append("Compiled artifacts are stale; run `gaia compile` again.")
-        if not ir_json_path.exists():
-            errors.append("Found .gaia/ir_hash but missing .gaia/ir.json.")
-    else:
-        warnings.append("Compiled artifacts missing; run `gaia compile` before `gaia register`.")
+    Example:
 
-    if ir_json_path.exists():
-        try:
-            stored_ir = json.loads(ir_json_path.read_text())
-        except json.JSONDecodeError as exc:
-            errors.append(f".gaia/ir.json is not valid JSON: {exc}")
-        else:
-            if stored_ir.get("ir_hash") != ir["ir_hash"]:
-                errors.append(
-                    "Stored .gaia/ir.json does not match current source; run `gaia compile`."
-                )
+    .. code-block:: bash
 
-    for warning in warnings:
-        typer.echo(f"Warning: {warning}")
-
-    if errors:
-        for error in errors:
-            typer.echo(f"Error: {error}", err=True)
-        raise typer.Exit(1)
+        gaia build check .
+        gaia build check . --hole
+        gaia build check . --gate
+    """
+    loaded, compiled, ir = _load_check_artifacts(path)
+    errors, warnings = _collect_check_diagnostics(loaded, ir)
+    _emit_check_diagnostics(errors, warnings)
 
     typer.echo(
         f"Check passed: {len(ir['knowledges'])} knowledge, "
@@ -190,22 +1463,50 @@ def check_command(
         f"{len(ir['operators'])} operators"
     )
 
-    for line in _knowledge_diagnostics(ir):
-        typer.echo(line)
+    review_manifest = None
+    induced_summary = None
+    if _check_review_manifest_needed(
+        warrants=warrants,
+        inquiry=inquiry,
+        gate=gate,
+        hole=hole,
+        blind=blind,
+    ):
+        review_manifest = _load_check_review_manifest(loaded, compiled)
 
-    if brief or show:
-        from gaia.cli.commands._brief import (
-            dispatch_show,
-            generate_brief_overview,
+    if hole or not (warrants and blind):
+        induced_summary = _check_induced_summary(ir, compiled, review_manifest)
+
+    if review_manifest is not None:
+        _emit_warrant_and_inquiry_sections(
+            ir=ir,
+            compiled=compiled,
+            review_manifest=review_manifest,
+            warrants=warrants,
+            blind=blind,
+            inquiry=inquiry,
         )
 
-        if brief:
-            for line in generate_brief_overview(ir):
-                typer.echo(line)
-        if show:
-            for line in dispatch_show(ir, show):
-                typer.echo(line)
+    if gate:
+        assert review_manifest is not None
+        _run_check_quality_gate(
+            ir=ir,
+            loaded=loaded,
+            compiled=compiled,
+            review_manifest=review_manifest,
+        )
 
-    if hole:
-        for line in _hole_report(ir):
-            typer.echo(line)
+    if warrants and blind and not (brief or show or hole):
+        return
+
+    if brief or show:
+        _emit_check_brief_sections(ir, brief=brief, show=show)
+
+    _emit_prior_diagnostic_sections(
+        ir=ir,
+        compiled=compiled,
+        induced_summary=induced_summary,
+        blind=blind,
+        warrants=warrants,
+        hole=hole,
+    )

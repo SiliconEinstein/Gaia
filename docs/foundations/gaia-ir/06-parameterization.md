@@ -1,149 +1,250 @@
 # Parameterization — 参数定义
 
-> **Status:** Target design
+> **Status:** Current v0.5 contract
 >
-> **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。
+> **Protected Contract Layer** — 本目录定义 CLI 和 LKM 之间的结构契约。变更需要独立 PR 并经负责人审查批准。
 
-Parameterization 是 Gaia IR 上的概率参数层。它由一组**原子记录**构成——每条记录是一个 Knowledge 的先验概率，或一个**需要外部概率参数的 Strategy** 的条件概率。不同 review 来源（不同模型、不同策略）产出不同的记录，推理运行前按 resolution policy 组装成完整参数集。
+Parameterization 是 Gaia IR 上的 **claim prior** 层。它只保存对
+`type=claim` Knowledge 的外生先验判断；每条记录带有来源信息，多个
+source 可以给同一个 claim 写入不同 prior，推理运行前再由
+`ResolutionPolicy` 选择 winner。
 
-Gaia IR 结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。推理输出见 [../bp/belief-state.md](../bp/belief-state.md)。三者的关系见 [01-overview.md](01-overview.md)。
+Strategy 的条件概率参数不再有独立的 `StrategyParamRecord` 层。v0.5 的
+实际 IR contract 是：
 
-backend-facing lowering 如何消费这些参数，见 [07-lowering.md](07-lowering.md)。
+- `infer` / `noisy_and` 的 `conditional_probabilities` 保存在
+  `Strategy` 自身；
+- `associate` 的 `p_a_given_b` / `p_b_given_a` 保存在 `Strategy` 自身；
+- `FormalStrategy` 不携带独立 strategy-level 概率参数，其行为由
+  `FormalExpr`、接口 claim 的 prior，以及确定性 `Operator` 结构导出。
 
-本文件定义 **parameterization contract**——参数化模型在 `LocalCanonicalGraph` 上实现参数化。
+Gaia IR 结构定义见 [02-gaia-ir.md](02-gaia-ir.md)。推理输出见
+[../bp/belief-state.md](../bp/belief-state.md)。backend-facing lowering
+如何消费这些 inline strategy 参数，见 [07-lowering.md](07-lowering.md)。
 
 ## 存储层：原子记录
 
-数据库中存储独立的参数记录，每条记录携带来源信息：
+数据库中存储独立的 claim prior 记录，每条记录携带来源信息：
 
-```
+```text
 PriorRecord:
     knowledge_id:       str              # claim Knowledge QID
-    value:              float            # ∈ (ε, 1-ε)
+    value:              float            # ∈ [ε, 1-ε]
     source_id:          str              # 哪个 ParameterizationSource 产出的
+    justification:      str
     created_at:         str              # ISO 8601
-
-StrategyParamRecord:
-    strategy_id:                str          # Strategy ID（lcs_ 前缀；仅对参数化 Strategy）
-    conditional_probabilities:  list[float]  # 参数数量由 type 决定（见下表）
-    source_id:                  str          # 哪个 ParameterizationSource 产出的
-    created_at:                 str          # ISO 8601
 
 ParameterizationSource:
     source_id:          str              # 唯一 ID
-    model:              str              # "gpt-5-mini" | "claude-opus" | ...
-    policy:             str | None       # "conservative" | "aggressive" | 自定义策略名
+    model:              str              # "user" | "gpt-5-mini" | ...
+    policy:             str | None       # "user_priors" | "continuous_inference" | ...
     config:             dict | None      # threshold, prompt version 等具体配置
     created_at:         str              # ISO 8601
 ```
 
 **关键规则：**
 
-- **PriorRecord 只对 claim**：只有 `type=claim` 的 Knowledge 有记录。Setting 和 question 不携带概率。
-- **helper claim 仍按 claim 处理，但当前默认只指结构型 result claim**：这类 helper claim 默认由 Operator 确定，不额外引入自由 prior。
-- **只有参数化 Strategy 才有 conditional_probabilities**：目前包括 `infer`、`noisy_and`。
-- **直接 FormalStrategy** 不携带独立的 StrategyParamRecord：其有效条件行为由 FormalExpr、相关显式 claim 的 PriorRecord，以及确定性 Operator 共同导出。
-- **Operator 是纯确定性的（真值表完全确定），不需要参数记录。**
-- **一个 Knowledge/Strategy 可以有多条记录**（来自不同 source），推理运行时选择用哪条。
-- **Cromwell's rule**：所有值钳制到 `[ε, 1-ε]`，ε = 1e-3。
-
-**三层语义：**
-
-1. **持久化输入层**：这里只存 review 明确给出的外部参数，即 `StrategyParamRecord`
-2. **结构推导层**：直接 FormalStrategy 的行为由 `FormalExpr` + 相关显式 claim prior 决定；结构型 helper claim 由 Operator 确定
-3. **运行时 assembled / compiled 层**：系统可以为任意 Strategy 生成一份等效的 `conditional_probabilities` 视图，但这份视图不是新的持久化 source of truth
-
-## 参数模型
-
-`conditional_probabilities` 作为**持久化输入字段**，只对需要外部概率参数的 Strategy 定义：
-
-| type | conditional_probabilities | 说明 |
-|------|--------------------------|------|
-| **`infer`** | `[p₁, p₂, ..., p_{2^k}]`（2^k 个） | 完整条件概率表，每种前提真值组合一个参数。默认 MaxEnt 0.5 |
-| **`noisy_and`** | `[p]`（1 个） | P(conclusion=true \| all premises=true) = p。前提不全真时 leak=ε |
-| **`toolcall`**（deferred） | — | 未引入 |
-| **`proof`**（deferred） | — | 未引入 |
+- **PriorRecord 只对 claim**：只有 `type=claim` 的 Knowledge 有记录。
+  Setting 和 question 不携带概率。
+- **helper claim 仍按 claim 处理**：public interface helper claim 可以像
+  普通 claim 一样拥有 prior；结构型 private/helper result claim 由
+  Operator 确定，禁止携带独立 PriorRecord。
+- **Strategy 参数是 inline IR 字段**：不要在 parameterization 层为
+  Strategy 另建记录。
+- **Operator 是纯确定性的**：真值表完全确定，不需要参数记录。
+- **一个 claim 可以有多条 PriorRecord**：来自不同 source，resolution
+  时选择 winner，同时保留 losers 供 audit。
+- **Cromwell's rule**：所有值钳制到 `[ε, 1-ε]`，ε = `1e-3`。
 
 ## Resolution Policy
 
-推理运行前，按 resolution policy 从原子记录中为每个 Knowledge/Strategy 选择一个值，组装成完整参数集：
+推理运行前，按 resolution policy 从同一 claim 的多条 PriorRecord 中选择
+winner。组装过程是现算的，不持久化为新的 source of truth。`prior_cutoff`
+可以把 records 过滤到某个时间点之前，从而复现历史快照。
 
 | policy | 说明 |
 |--------|------|
-| **latest** | 每个 Knowledge/Strategy 取最新的记录（按 `created_at`） |
-| **source:\<source_id\>** | 指定使用某个 ParameterizationSource 的记录 |
+| `explicit_priority`（默认） | 按 `priority_order` 模式列表中第一个匹配的 source 选；同 source 内 recency tiebreaker。模式支持 trailing wildcard（`reviewer_*`）和 catch-all（`*`） |
+| `latest` | 每个 claim 取最新记录，source-agnostic |
+| `source:<source_id>` | 只使用某个 source 的记录，同 source 内 recency tiebreaker |
 
-组装过程是**现算的**，不持久化。组装时使用 `prior_cutoff` 时间戳过滤记录——只取该时间点之前的记录，确保结果可重现（见 [../bp/belief-state.md](../bp/belief-state.md)）。
+### 默认 priority_order
 
-## 多分辨率支持
+`ResolutionPolicy` 的默认策略 `explicit_priority` 配合下列默认
+`priority_order`（定义在 `gaia.engine.ir.DEFAULT_PRIORITY_ORDER`）：
 
-Strategy 的三种形态（基本 Strategy、CompositeStrategy、FormalStrategy）支持多分辨率推理。Parameterization 层为此提供两类持久化输入，并允许在运行时生成等效视图：
-
-- **外部策略参数**：StrategyParamRecord.conditional_probabilities——仅参数化 Strategy 有，用于 `infer` / `noisy_and` 等 leaf probabilistic strategies。
-- **显式 claim 先验**：相关显式中间 claim 与其他不确定 claim 的 PriorRecord——直接 FormalStrategy 的有效条件行为由这些 prior 与内部 skeleton 导出。
-
-纯结构型 helper claim 即使显式存在于图中，也默认不作为新的独立参数入口；它们的值由对应 Operator 决定。
-
-运行时 compiled 层可以进一步为每个 Strategy 生成一份等效 `conditional_probabilities`：
-
-- 对参数化 Strategy：直接读取 StrategyParamRecord
-- 对直接 FormalStrategy：对其私有内部变量做 marginalization，从 `FormalExpr` + interface-claim `PriorRecord` 导出
-
-**Marginalization 的数学定义：** 对 FormalStrategy 的私有中间变量做变量消去（variable elimination）——在联合分布中对内部变量求和，得到仅关于接口变量（premises、conclusion）的等效条件概率 P(conclusion | premises)。
-
-以 `FormalStrategy(type=deduction, premises=[A₁, A₂], conclusion=C)` 为例，其内部结构是：
-
-```
-conjunction([A₁, A₂], conclusion=M)    ← M=1 iff A₁=1 ∧ A₂=1
-implication([M], conclusion=C)          ← M=1 时 C 必须=1
+```python
+DEFAULT_PRIORITY_ORDER = (
+    "calibration_*",          # 1. 历史校准（未来 feature）
+    "user_priors",            # 2. 作者用 register_prior() 默认 source
+    "reviewer_*",             # 3. 人工 reviewer 估计
+    "continuous_inference",   # 4. 连续参数推断引擎
+    "evidence_factor_*",      # 5. EvidenceFactor 派生（未来）
+    "agent_*",                # 6. LLM agent 自动建议
+    "claim_inline",           # 7. claim(prior=X) 内联 shortcut
+    "*",                      # 8. catch-all
+)
 ```
 
-M 是私有中间变量。要导出等效条件概率 P(C | A₁, A₂)，对 M 做变量消去：
+核心原则：
 
+1. 明确审议大于便利 shortcut：显式 `register_prior()` 默认
+   `user_priors`，优先于 `claim(prior=X)` 产生的 `claim_inline`。
+2. 作者意图通常大于引擎产出；retrospective calibration 是例外，因为它
+   可能纳入作者写作时没有的真实 outcome evidence。
+
+作者可以在 `priors.py` 中导出自定义 `RESOLUTION_POLICY`：
+
+```python
+from gaia.engine.ir import ResolutionPolicy
+
+RESOLUTION_POLICY = ResolutionPolicy(
+    strategy="explicit_priority",
+    priority_order=["calibration_2026q2", "user_priors", "continuous_inference", "*"],
+)
 ```
-P(C=1 | A₁, A₂) = Σ_m P(C=1 | M=m) × P(M=m | A₁, A₂)
+
+## 作者面 API
+
+Prior 是 Bayesian 推理唯一的非数据输入，承载作者的主观判断、领域知识和
+不确定性立场。Gaia v0.5+ 提供两个作者面入口：
+
+### `register_prior` — 规范入口
+
+```python
+from gaia.engine.lang import register_prior
+
+register_prior(
+    claim_obj,
+    value=0.7,
+    justification="literature consensus from Doll-Hill 1956 + replications",
+    source_id="user_priors",
+)
 ```
 
-由于两个 Operator 都是确定性的（P(M=1 | A₁=1, A₂=1)=1，其余=0；P(C=1 | M=1)=1），结果是：当 A₁=1 ∧ A₂=1 时 P(C=1)=1，否则 P(C=1)=0。这就是纯演绎的确定性语义。
+契约：
 
-对含不确定性的命名策略（如 abduction），不确定性也应落在**接口 claim** 上，而不是私有内部节点上。例如 abduction 中承载自由度的是 public interface claim `AlternativeExplanationForObs`；内部的 `disjunction_result` / `equivalence_result` 仍是纯结构型 helper claim。marginalization 只是把这些私有 helper 节点安全消去，而不会为 private node 发明新的 prior。
+- `claim_obj` 必须是现有 `Claim` 实例；
+- `value` 必须落在 `[CROMWELL_EPS, 1 - CROMWELL_EPS]`；
+- `justification` 必须非空；
+- `source_id` 默认 `"user_priors"`；
+- 多次调用同一 claim 会 append 多条记录，resolution 时仲裁。
 
-这是精确的数学操作，属于 IR 的概率语义定义；具体推理后端可以用精确或近似算法实现（见 [bp/](../bp/) 层）。
+编译时，winning record 会写入 `metadata["prior"]`,
+`metadata["prior_justification"]`, `metadata["prior_source_id"]`；所有候选
+record 保留在 `metadata["prior_records"]` 供 audit / diagnostics 使用。
 
-由于 FormalExpr 内部节点是严格私有的（禁止外部引用，见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装)），FormalStrategy **总是可以被折叠的**——所有内部变量都可以安全消去。
+### `claim(prior=X)` — 低优先级便利 shortcut
 
-哪些 Strategy 折叠、哪些展开，由推理引擎的 `expand_set` 决定。对直接 FormalStrategy，折叠视图应由其内部结构现算出等效行为，而不是读取独立的 StrategyParamRecord。
+```python
+my_claim = claim("Subject p smokes daily.", prior=0.3)
+```
+
+等价于注册一条 `source_id="claim_inline"` 的 prior record。inline shortcut
+在默认 `priority_order` 中低于 `user_priors`，适合作为草稿先验；经过审议的
+prior 应写成 `register_prior(...)`。
+
+### `priors.py` 文件约定
+
+`priors.py` 在 `gaia build compile` / `gaia run infer` 时被自动 import，触发其中的
+`register_prior` 调用作为 side effect。文件可以同时导出可选的
+`RESOLUTION_POLICY`。
+
+```python
+from gaia.engine.lang import register_prior
+
+from . import daily_observation
+
+register_prior(
+    daily_observation,
+    0.90,
+    justification="empirical background in air",
+)
+```
+
+不再支持 `PRIORS = {claim: (value, justification)}` dict 格式；检测到该
+dict 会报 migration error。不要为了表达“中立”而注册 `0.5` prior；如果
+一个独立模型假设暂时没有外部信息来源，应保持 unset，由 MaxEnt 给出中立
+起点。
+
+## 诊断
+
+`gaia inquiry review` 在多源场景下额外发出两类 diagnostic：
+
+| Diagnostic | Severity | 触发条件 |
+|-----------|----------|---------|
+| `prior_dissent` | warning | 同一 claim 有多条 PriorRecord 且 `max(values) - min(values) > PRIOR_DISSENT_THRESHOLD` |
+| `prior_overridden` | info | ResolutionPolicy 选中一条 record 并覆盖其他候选 |
+
+`gaia build check --hole` 在显示已覆盖的独立 claim 时也会展示所有 source：
+
+```text
+- daily_observation  prior=0.9 (source: user_priors)
+                       ↪ also: 0.85 (source: continuous_inference, overridden)
+- aristotle_model    no external prior (MaxEnt)
+- some_predicate     prior=0.27 (source: continuous_inference)
+```
+
+## 与 Strategy 参数的关系
+
+Parameterization 只管 claim prior；Strategy 概率参数留在 IR 的 Strategy
+字段上：
+
+| Strategy type | 参数位置 | 说明 |
+|---------------|----------|------|
+| `infer` | `Strategy.conditional_probabilities` | 完整 CPT，长度为 `2^k`；compiler 可按 MaxEnt 填默认 0.5 |
+| `noisy_and` | `Strategy.conditional_probabilities` | 兼容路径，单参数 p |
+| `associate` | `Strategy.p_a_given_b`, `Strategy.p_b_given_a` | 对称关联的两个条件概率 |
+| `support` / `deduction` 等 FormalStrategy | 无独立 strategy 参数 | 行为由 FormalExpr + interface claim prior + Operator 结构导出 |
+
+这意味着 `.gaia/ir.json` 的 source of truth 是 `Strategy` inline 字段，而不是
+额外的 strategy parameter record。若未来引入 first-class EvidenceFactor 或
+校准层，应作为新的明确 contract 设计，而不是复活半接线的 sidecar 参数层。
 
 ## 完整性检查
 
-推理运行前验证组装结果的完整性：
+本地 `gaia run infer` 和发布 / LKM 摄入应区分：
 
-- 图中每个承载外生不确定性的 `type=claim` Knowledge 都必须有对应的 PriorRecord
-- 每个参数化 Strategy 都必须有 StrategyParamRecord
-- 每个直接 FormalStrategy 所依赖的相关 interface claim 都必须有 PriorRecord；这包括 formalization 自动补齐的 public interface claim（如 abduction 的 `AlternativeExplanationForObs`）
+- 本地 preview 允许独立 claim 缺少外部 PriorRecord；这些自由变量按
+  MaxEnt 进入推理，用于帮助作者发现还没有覆盖的输入。
+- `gaia build check --gate` / 发布流程可以要求更严格的完整性：structural
+  holes、unformalized dependencies、unaccepted review warrants 或低 posterior
+  都可以阻断发布质量 gate。
+- Strategy 结论 claim 的 belief 由对应 Strategy / BP 推导，不要求独立
+  prior。
+- 结构型 helper claim 和 FormalExpr private node 禁止携带独立 PriorRecord。
+- 如果某个 public interface helper 被设计成普通独立 claim，它应按普通
+  claim 处理；但 relation/decompose/infer 生成的 helper 通常是 review target
+  或结构变量，不应获得外部 prior。
 
-结构型 helper claim **禁止**携带独立 PriorRecord——它们的分布完全由 Operator 确定性约束决定，没有自由度（详细解释见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）。
+## 与 IR schema 版本的关系
 
-**Operator 不属于 parameterization 的范围。** Operator 纯确定性，不携带任何概率参数。Parameterization 只管两类输入：claim 的 PriorRecord 和参数化 Strategy 的 StrategyParamRecord。每种 Operator 的行为完全由其真值表定义（见 [02-gaia-ir.md §2.2](02-gaia-ir.md#22-算子类型与真值表)），例如 conjunction 的约束是 `M=1 iff 所有输入=1`，implication 的约束是 `A=1 时 B 必须=1`——这些都是确定性关系，不需要额外的概率参数。
+参数化层附加在某个 IR graph 上；相邻的 LKM / 下游消费者通过
+`gaia._meta.IR_SCHEMA`（`"ir-vN+<hash>"`）和 `ALLOWED_IR_VERSIONS` 来校验
+IR schema 是否兼容：
 
-否则拒绝运行。
+```python
+from gaia._meta import IR_SCHEMA, IR_SCHEMA_VERSION, ALLOWED_IR_VERSIONS, check_ir_compat
+check_ir_compat("ir-v1+...")  # raises IncompatibleIRError if version prefix not allowed
+```
 
-> **Open question：CompositeStrategy 折叠时的参数来源。** 当前 contract 只定义了参数化 leaf Strategy（读 StrategyParamRecord）和 FormalStrategy（从 FormalExpr + claim prior 导出）的折叠路径。CompositeStrategy 折叠为单个单元时的条件概率来源尚未定义——是需要显式 StrategyParamRecord，还是从 sub_strategies 自动 marginalize，或禁止折叠？待后续设计明确。
-
-## Prior 来源
-
-每个 claim Knowledge 的 prior 由 review 赋值。
-
-## Strategy 条件概率来源
-
-| type | 条件概率来源 |
-|------|-------------|
-| `infer` | Review 赋值。完整 CPT（2^k 参数），默认 MaxEnt 0.5 |
-| `noisy_and` | Review 赋值。单参数 p，反映推理本身的可信度 |
-| 直接 FormalStrategy（`deduction` 至 `case_analysis`） | 不单独赋持久化 strategy 参数；其有效条件行为由 FormalExpr + 相关 interface claim 的 PriorRecord 导出。纯结构型 helper claim 作为 Operator 结果，不默认引入独立 prior；若 formalization 自动补齐了 public interface claim，则它与其他 premise/conclusion claim 一样需要参数化 |
-| `toolcall` / `proof`（deferred） | 未引入 |
+`IR_SCHEMA_VERSION` 是手动 bump 的 `ir-vN` 前缀；其后缀 hash 由所有 IR
+Pydantic model 的 JSON schema 派生，pre-push 钩子
+`scripts/check_ir_schema_bump.py` 在 schema 形状漂移时强制要求 bump
+`IR_SCHEMA_VERSION` 与 `IR_SCHEMA_SNAPSHOT_HASH`。这跟参数化记录的 schema
+是同一个机制，因此 `PriorRecord` / `ParameterizationSource` 的字段变更也会
+触发同样的 bump 检查。
 
 ## 源代码
 
-- `gaia/gaia_ir/parameterization.py` -- `PriorRecord`, `StrategyParamRecord`, `ResolutionPolicy`, `ParameterizationSource`
-- `gaia/gaia_ir/strategy.py` -- `Strategy`, `StrategyType`（type 决定参数模型）
+- `gaia/_meta.py` — `IR_SCHEMA`, `IR_SCHEMA_VERSION`, `ALLOWED_IR_VERSIONS`, `check_ir_compat`
+- `scripts/check_ir_schema_bump.py` — pre-push schema-bump 强制检查
+- `gaia/engine/ir/parameterization.py` — `PriorRecord`, `ResolutionPolicy`,
+  `ParameterizationSource`, `DEFAULT_PRIORITY_ORDER`, `default_resolution_policy`
+- `gaia/engine/ir/strategy.py` — `Strategy`, `StrategyType`（inline strategy probability fields）
+- `gaia/engine/lang/dsl/register_prior.py` — `register_prior()` 作者面 API、resolution 步骤、metadata schema 常量
+- `gaia/engine/lang/dsl/knowledge.py` — `claim(prior=X)` shortcut
+- `gaia/engine/packaging.py` — `apply_package_priors()` package-loading step
+- `gaia/engine/lang/compiler/compile.py` — `compile_package_artifact()` 入口处的 idempotent resolution 兜底
+- `gaia/engine/inquiry/diagnostics.py` — `detect_prior_dissent()`, `detect_prior_overridden()`
+- `gaia/cli/commands/check.py` — `_append_covered_prior_details` 的多源输出格式

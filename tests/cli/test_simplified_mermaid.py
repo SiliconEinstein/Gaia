@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from gaia.cli.commands._simplified_mermaid import (
     render_simplified_mermaid,
     select_simplified_nodes,
 )
 
+pytestmark = pytest.mark.pr_gate
 
 # ── Task 6: select_simplified_nodes ──
 

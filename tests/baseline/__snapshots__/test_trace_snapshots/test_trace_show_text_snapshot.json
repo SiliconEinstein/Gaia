@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "trace",
+    "show",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "trace_id     : t\narm_id       : arm-x\nsession_id   : s\nevents shown : 3 (of 3 total)\n------------------------------------------------------------------------\n  seq=0   decision           actor=arm      ts=2026-04-28T00:00:00+00:00  reason='grounded by inputs'\n  seq=1   decision           actor=arm      ts=2026-04-28T00:00:01+00:00  reason='grounded by inputs'\n  seq=2   decision           actor=arm      ts=2026-04-28T00:00:02+00:00  reason='grounded by inputs'\n"
+}

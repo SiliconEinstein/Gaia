@@ -1,6 +1,12 @@
 # 多级推理与质量涌现
 
-> **Status:** Current canonical
+> **Status:** Ecosystem architecture with v0.5 implementation notes
+
+> 当前 v0.5 CLI 的 Level 0 是 `gaia run infer` 本地 numerical preview：它允许
+> MaxEnt inputs，并且不因 review manifest 未 accepted 而抑制 belief 输出。
+> `gaia build check --gate` 才负责 publication-quality gate。本文的 Level 1/LKM
+> snapshot、validated review reports 和 official belief flow 是生态层设计，
+> 不代表当前 CLI 已实现的服务端流程。
 
 本文档描述 Gaia 的多级推理架构——可信度如何在不同层级流动，错误如何被发现和修正，知识质量如何从去中心化的贡献中涌现。
 
@@ -14,17 +20,19 @@
 Gaia 采用两级推理：
 
 ```
-Level 0: 包级推理（作者本地，gaia infer）
+Level 0: 包级推理（作者本地，gaia run infer）
 Level 1: LKM 推理（LKM Server，包含增量 snapshot 和全量收敛）
 ```
 
 LKM 内部可能区分快速增量更新（snapshot）和定期全量收敛（global），但这是 LKM 的实现策略，不是架构层面的分级。
 
+> **关于"federated registries / multi-LKM" 是不是第三层推理。** 不是。多个独立 registry / LKM 让一个生态可以同时存在多个 Level-1 实例（每个 LKM 各自跑一份全局推理，给出自己的 belief snapshot），这是 **tier-2 内部的多实例**，不是单独的 tier-3 推理引擎。"社区 / 治理"层处理的是哪个 LKM 信谁、谁可以 fork 谁这种 governance 问题，而不是另跑一套推理算法。下游可以自由选择跟随某个 LKM 的 snapshot，或并列对比多个 LKM。
+
 ## Level 0：包级推理（本地）
 
 ### 什么时候运行
 
-作者在本地运行 `gaia infer`，通常在编译（`gaia build`）之后。编译和推理的详细流程见 [03 包的创建与发布](03-authoring-and-publishing.md)。
+作者在本地运行 `gaia run infer`，通常在编译（`gaia build compile`）之后。编译和推理的详细流程见 [03 包的创建与发布](03-authoring-and-publishing.md)。
 
 ### 做什么
 
@@ -54,7 +62,7 @@ LKM 内部可能区分快速增量更新（snapshot）和定期全量收敛（gl
 
 1. **带合格 assigned review reports 的包版本被 Official Registry 接收** — 新命题的 prior 和推理链参数进入输入
 2. **curation 包合并** — duplicate / contradiction / refinement / connection 的结构变更进入图
-3. **撤回 / 修正合并**（未引入，见 [Gaia IR §5](../gaia-ir/02-gaia-ir.md#5-retraction-deferred)） — 已有参数或结构被回收，需要回到保守状态
+3. **撤回 / 修正合并**（未引入，见 [Gaia IR design](../gaia-ir/01-overview.md)） — 已有参数或结构被回收，需要回到保守状态
 4. **定期全量收敛** — 处理增量更新无法完整覆盖的长链传播和跨 Registry 关系
 
 ### 做什么
@@ -188,7 +196,7 @@ Official Registry 记录新版本
   "你的包依赖 X v3.0.0，X 已发布 v4.0.0（MAJOR 更新）"
   ↓
 下游维护者决定：
-  a. 更新依赖 → gaia build + gaia infer → 重新注册
+  a. 更新依赖 → gaia build compile + gaia run infer → 重新注册
   b. 暂不更新 → 继续使用旧版本（可信度基于旧数据）
   c. 不再需要该依赖 → 移除引用
 ```
@@ -279,7 +287,7 @@ Review Server（LLM/agent）评估推理逻辑并把 prior / strategy 写进 rev
 | | Level 0（包级） | Level 1（LKM） |
 |---|---|---|
 | **运行环境** | 作者本地 | LKM Server |
-| **触发** | `gaia infer` | 事件驱动（增量）+ 定期（全量） |
+| **触发** | `gaia run infer` | 事件驱动（增量）+ 定期（全量） |
 | **范围** | 本包 + 直接依赖 | 局部子图（增量）或整个知识网络（全量） |
 | **Review Server** | 本地 self-review 仅供预览 | 入库时通过 assignment + 校验的 review reports 作为推理输入 |
 | **LKM** | 不涉及 | 推理 + belief snapshot 发布 + curation（发现跨包关系） |

@@ -14,7 +14,7 @@
 
 Gaia IR (`ir.json`) is the canonical representation of a knowledge package's reasoning structure. It is precise, versioned, and machine-queryable. It is also **unreadable by humans**.
 
-Current rendering options (`gaia render --target docs`, `--target github`) produce static documents — a single long markdown file or a React SPA. These are better than raw JSON, but they are:
+Current rendering options (`gaia render --target docs`, `--target github`) produce static documents — a single long markdown file or a README/wiki/data publication bundle. These are better than raw JSON, but they are:
 
 - **Linear, not navigable** — you read top-to-bottom, you can't drill into a single claim and explore its reasoning chain interactively
 - **Monolithic** — one file (docs) or one build (github), not a collection of interlinked pages
@@ -467,7 +467,7 @@ Consistent with the existing differentiated strictness model:
 | Backend | Output | LLM involved? | Interactive? | When to use |
 |---|---|---|---|---|
 | `--target docs` | Single `detailed-reasoning.md` | No | No (linear read) | Quick structural check after compile |
-| `--target github` | `.github-output/` (React SPA + wiki + README) | Yes (via `/gaia:publish`) | Yes (React SPA) | Publishing to GitHub for external readers |
+| `--target github` | `.github-output/` (README + wiki + graph data/assets) | Yes (via `/gaia:publish`) | No | Publishing to GitHub for external readers |
 | `--target obsidian` | `gaia-wiki/` (Obsidian vault) | Yes (via `/gaia:publish --obsidian`) | Yes (Obsidian native) | Personal/team browsing, iterative exploration |
 
 `docs` is the lightweight check. `github` is the public-facing publication. `obsidian` is the working knowledge base.

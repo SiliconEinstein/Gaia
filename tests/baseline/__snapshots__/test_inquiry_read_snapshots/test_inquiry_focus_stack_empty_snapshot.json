@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "inquiry",
+    "focus",
+    "--stack",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "current: (none)\nstack: (empty)\n"
+}

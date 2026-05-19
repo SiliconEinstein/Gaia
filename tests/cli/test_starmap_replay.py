@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands._replay_build import (
@@ -23,6 +25,8 @@ from gaia.cli.commands.starmap_replay import (
     merge_events,
 )
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 
@@ -48,7 +52,7 @@ def test_starmap_replay_against_fixture(tmp_path):
     out_path = tmp_path / "replay.html"
     result = runner.invoke(
         app,
-        ["starmap-replay", str(FIXTURE_DIR), "--out", str(out_path)],
+        ["inspect", "starmap-replay", str(FIXTURE_DIR), "--out", str(out_path)],
     )
     assert result.exit_code == 0, result.output
     assert out_path.exists()
@@ -71,7 +75,7 @@ def test_starmap_replay_against_fixture(tmp_path):
     assert "ticks" in payload
     assert isinstance(payload["ticks"], list)
     # The fixture has a known set of IR-relevant gaia_actions
-    # (claim/deduction/support/contradiction/equivalence/prior); ticks
+    # with claim, deduction, support, contradiction, equivalence, and prior actions; ticks
     # must be non-empty and never exceed total gaia_actions count.
     assert len(payload["ticks"]) > 0
     total_actions = sum(len(e.get("gaia_actions") or []) for e in payload["events"])
@@ -112,7 +116,7 @@ def test_starmap_replay_default_output_path(tmp_path):
     pkg_dir = tmp_path / "mendelian_inheritance"
     shutil.copytree(FIXTURE_DIR, pkg_dir)
 
-    result = runner.invoke(app, ["starmap-replay", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(pkg_dir)])
     assert result.exit_code == 0, result.output
     expected = pkg_dir / ".gaia" / "starmap-replay.html"
     assert expected.is_file()
@@ -123,7 +127,7 @@ def test_starmap_replay_missing_logs(tmp_path):
     pkg_dir = tmp_path / "empty_pkg"
     (pkg_dir / "artifacts" / "lkm-discovery").mkdir(parents=True)
 
-    result = runner.invoke(app, ["starmap-replay", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(pkg_dir)])
     assert result.exit_code != 0
     assert "missing timeline log" in result.output
 
@@ -132,7 +136,7 @@ def test_starmap_replay_path_must_be_directory(tmp_path):
     """Non-directory path is rejected up front."""
     f = tmp_path / "not_a_dir.txt"
     f.write_text("hi")
-    result = runner.invoke(app, ["starmap-replay", str(f)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(f)])
     assert result.exit_code != 0
     assert "is not a directory" in result.output
 
@@ -287,9 +291,11 @@ def test_payload_carries_ticks_and_rounds_for_synthetic_input():
 
 
 def test_rekey_layout_moves_knowledge_keys_to_lkm_ids():
-    """Knowledge layout entries get re-keyed to their metadata.lkm_id; helpers
-    without an lkm_id keep their namespaced key; strat_/oper_ entries are
-    untouched."""
+    """Verify rekey layout moves knowledge keys to lkm ids.
+
+    Knowledge layout entries get re-keyed to their metadata.lkm_id; helpers without an lkm_id
+    keep their namespaced key; strat_/oper_ entries are untouched.
+    """
     layout = {
         "viewport": {"width": 100, "height": 50},
         "nodes": {
@@ -392,8 +398,11 @@ def test_rekey_layout_overlaps_with_event_ids_after_fix():
 
 
 def test_bridge_event_symbols_to_layout_handles_deduction_and_operator():
-    """Strategy gfac_* and operator-symbol contradictions get aliased to
-    their strat_<i> / oper_<i> pinned positions."""
+    """Verify bridge event symbols to layout handles deduction and operator.
+
+    Strategy gfac_* and operator-symbol contradictions get aliased to their strat_<i> / oper_<i>
+    pinned positions.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -517,12 +526,12 @@ def test_bridge_handles_multiple_actions_per_event():
 
 
 def test_bridge_resolves_sparse_payload_via_file_kind_uniqueness():
-    """Regression: an `accepted_contradiction` event whose payload lacks a
-    `contradicts` list AND whose `graph_delta.edges_added` references gcns
-    that don't match any IR operator's variables (a stale/renamed
-    relation) must still bridge — via file-uniqueness fallback when the
-    IR has exactly one unbridged contradiction operator declared in the
-    same source file as the action.
+    """Verify bridge resolves sparse payload via file kind uniqueness.
+
+    Regression: an `accepted_contradiction` event whose payload lacks a `contradicts` list AND
+    whose `graph_delta.edges_added` references gcns that don't match any IR operator's variables
+    (a stale/renamed relation) must still bridge — via file-uniqueness fallback when the IR has
+    exactly one unbridged contradiction operator declared in the same source file as the action.
 
     This is the 2dheg `n_quarter_scaling_vs_shell_filling_noise` shape:
     package author renamed the contradiction in `cross_paper.py` after
@@ -600,10 +609,11 @@ def test_bridge_resolves_sparse_payload_via_file_kind_uniqueness():
 
 
 def test_bridge_positional_fallback_pairs_sparse_events_in_declaration_order():
-    """When the file has multiple unbridged operators of the same kind
-    and the symbol-name doesn't match any of them, the positional
-    fallback pairs the Nth pending event with the Nth unbridged IR
-    operator in declaration order.
+    """Verify bridge positional fallback pairs sparse events in declaration order.
+
+    When the file has multiple unbridged operators of the same kind and the symbol-name doesn't
+    match any of them, the positional fallback pairs the Nth pending event with the Nth
+    unbridged IR operator in declaration order.
     """
     layout = {
         "viewport": {"width": 100, "height": 100},
@@ -690,11 +700,12 @@ def test_bridge_positional_fallback_pairs_sparse_events_in_declaration_order():
 
 
 def test_bridge_skips_fallback_when_action_file_lacks_py_extension():
-    """Degenerate `action.file` (no `.py` extension, e.g.
-    `src/perovskite_arpes_polaron`) must not trigger the file/positional
-    fallbacks — those guard against false matches in packages where the
-    agent emitted under-specified structural events that should remain
-    orphans on the canvas.
+    """Verify bridge skips fallback when action file lacks py extension.
+
+    Degenerate `action.file` (no `.py` extension, e.g `src/perovskite_arpes_polaron`) must not
+    trigger the file/positional fallbacks — those guard against false matches in packages where
+    the agent emitted under-specified structural events that should remain orphans on the
+    canvas.
     """
     layout = {
         "viewport": {"width": 100, "height": 100},
@@ -759,7 +770,8 @@ def test_rekey_layout_idempotent_without_ir():
 
 
 def test_annotate_layout_with_kinds_marks_strategies_and_operators():
-    """annotate_layout_with_kinds stamps `kind` + subtype on every entry the
+    """annotate_layout_with_kinds stamps `kind` + subtype on every entry the.
+
     IR can identify, so the replay frontend renders strategies as ellipses
     and operators as hexagons (red for contradictions) at their pinned
     positions — matching the static DOT output.
@@ -855,9 +867,11 @@ def test_annotate_layout_idempotent_without_ir():
 
 
 def test_annotate_ticks_with_survival_flags_orphan_deduction():
-    """A deduction action whose symbol the bridge could not alias to a
-    `strat_<i>` (because the IR doesn't have a strategy with that
-    `(premises, conclusion)` signature) is flagged orphan."""
+    """Verify annotate ticks with survival flags orphan deduction.
+
+    A deduction action whose symbol the bridge could not alias to a `strat_<i>` (because the IR
+    doesn't have a strategy with that `(premises, conclusion)` signature) is flagged orphan.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -940,9 +954,11 @@ def test_annotate_ticks_with_survival_defaults_true_without_ir_or_layout():
 
 
 def test_annotate_ticks_with_survival_treats_symbol_less_deduction_as_surviving():
-    """Symbol-less deductions (skip-pivot collapse: one action covers many
-    edges) are treated as surviving — the reconcile-final-layout pass on
-    the frontend admits the IR strategies anyway."""
+    """Verify annotate ticks with survival treats symbol less deduction as surviving.
+
+    Symbol-less deductions (skip-pivot collapse: one action covers many edges) are treated as
+    surviving — the reconcile-final-layout pass on the frontend admits the IR strategies anyway.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {"strat_0": {"x": 0.0, "y": 0.0, "kind": "strategy", "canonical_id": "strat_0"}},
@@ -969,8 +985,11 @@ def test_annotate_ticks_with_survival_treats_symbol_less_deduction_as_surviving(
 
 
 def test_topo_reorder_promotes_dependent_after_dependency():
-    """A contradiction action whose variable claim hasn't been admitted yet
-    in chronological order must be reordered after the claim."""
+    """Verify topo reorder promotes dependent after dependency.
+
+    A contradiction action whose variable claim hasn't been admitted yet in chronological order
+    must be reordered after the claim.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -1033,8 +1052,11 @@ def test_topo_reorder_promotes_dependent_after_dependency():
 
 
 def test_topo_reorder_preserves_chronology_when_no_dependency():
-    """Independent claims keep their original chronological order — the
-    tiebreak on tick_index leaves a no-op when no dep forces a swap."""
+    """Verify topo reorder preserves chronology when no dependency.
+
+    Independent claims keep their original chronological order — the tiebreak on tick_index
+    leaves a no-op when no dep forces a swap.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -1074,9 +1096,12 @@ def test_topo_reorder_preserves_chronology_when_no_dependency():
 
 
 def test_topo_reorder_handles_cross_round():
-    """A strategy in round_0 whose premise is a claim from round_2 must be
-    pushed past the round_2 claim by topo reorder. Dependency wins over
-    round membership; we do NOT preserve round boundaries as a constraint."""
+    """Verify topo reorder handles cross round.
+
+    A strategy in round_0 whose premise is a claim from round_2 must be pushed past the round_2
+    claim by topo reorder. Dependency wins over round membership; we do NOT preserve round
+    boundaries as a constraint.
+    """
     layout = {
         "viewport": {"width": 100, "height": 100},
         "nodes": {
@@ -1139,173 +1164,231 @@ def test_topo_reorder_handles_cross_round():
     assert any("topo_reorder: moved" in w for w in warnings)
 
 
-def _simulate_store_admission(payload: dict) -> dict:
-    """Replicate `viz/src/replay/store.ts::applyTick` admission rules in
-    Python so we can assert the final-tick node set matches the static DOT
-    rendering without spinning up a browser. Returns a dict counting the
-    admitted node kinds (knowledge/strategy/operator/contradiction/
-    equivalence) plus admitted edges.
-    """
-    layout = payload.get("final_layout") or {}
-    layout_nodes: dict[str, dict] = layout.get("nodes") or {}
+def _admit_linked_layout_nodes(
+    layout_nodes: dict[str, dict], admitted_ids: set[str], anchor_id: str
+) -> None:
+    """Admit knowledge nodes linked from a strategy/operator layout entry."""
+    entry = layout_nodes.get(anchor_id) or {}
+    for key in ("conclusion_id",):
+        value = entry.get(key)
+        if isinstance(value, str) and value in layout_nodes:
+            admitted_ids.add(value)
+    for key in ("premise_ids", "variable_ids"):
+        for value in entry.get(key) or []:
+            if value in layout_nodes:
+                admitted_ids.add(value)
 
-    admitted_ids: set[str] = set()
-    admitted_edges: set[tuple] = set()
 
-    def _co_admit_linked(anchor_id: str) -> None:
-        entry = layout_nodes.get(anchor_id) or {}
-        for k in ("conclusion_id",):
-            v = entry.get(k)
-            if isinstance(v, str) and v in layout_nodes:
-                admitted_ids.add(v)
-        for k in ("premise_ids", "variable_ids"):
-            for v in entry.get(k) or []:
-                if v in layout_nodes:
-                    admitted_ids.add(v)
+def _canonical_layout_id(layout_nodes: dict[str, dict], symbol: str | None) -> str | None:
+    """Resolve an action symbol to a canonical layout id."""
+    if not symbol:
+        return None
+    entry = layout_nodes.get(symbol) or {}
+    canonical_id = entry.get("canonical_id")
+    if canonical_id and canonical_id in layout_nodes:
+        return canonical_id
+    return symbol
 
-    def _canonical_of(sym: str | None) -> str | None:
-        """Resolve action symbol → canonical layout id (strat_<i>/oper_<i>)."""
-        if not sym:
-            return None
-        entry = layout_nodes.get(sym) or {}
-        cid = entry.get("canonical_id")
-        if cid and cid in layout_nodes:
-            return cid
-        return sym
 
-    events = payload.get("events", [])
-    for tick in payload.get("ticks", []):
-        # Mirror the frontend's orphan-tick guard: ticks that don't
-        # survive to the final IR are skipped entirely (no node, no
-        # edge admission). The CLI flagged these on `survives_to_final`.
-        if tick.get("survives_to_final") is False:
+def _admit_routed_edge(
+    edge: dict,
+    *,
+    kind: str,
+    canonical_symbol: str,
+    layout_nodes: dict[str, dict],
+    admitted_edges: set[tuple],
+) -> None:
+    """Admit an edge routed through the canonical strategy/operator hub."""
+    src = edge["from"]
+    tgt = edge["to"]
+    src_canon = _canonical_layout_id(layout_nodes, src) or src
+    tgt_canon = _canonical_layout_id(layout_nodes, tgt) or tgt
+    if src_canon == canonical_symbol:
+        admitted_edges.add((canonical_symbol, tgt, kind))
+    elif tgt_canon == canonical_symbol:
+        admitted_edges.add((src, canonical_symbol, kind))
+    else:
+        admitted_edges.add((src, canonical_symbol, kind))
+        admitted_edges.add((canonical_symbol, tgt, kind))
+
+
+def _admit_claim_tick(action: dict, delta: dict, admitted_ids: set[str]) -> None:
+    """Admit the claim node carried by a replay tick."""
+    symbol = action.get("symbol")
+    if symbol:
+        admitted_ids.add(symbol)
+    for node in delta.get("nodes_added") or []:
+        if (node.get("kind") or "claim") != "claim":
             continue
-        ev_idx = tick["event_index"]
-        if ev_idx >= len(events):
+        if node["id"].startswith("inquiry:"):
             continue
-        ev = events[ev_idx]
-        action = tick["action"]
-        kind = action.get("action")
-        symbol = action.get("symbol")
-        canonical_symbol = _canonical_of(symbol)
-        delta = ev.get("graph_delta") or {}
-        edges = delta.get("edges_added") or []
-        nodes_added = {n["id"]: n for n in (delta.get("nodes_added") or [])}
+        admitted_ids.add(node["id"])
 
-        if kind == "claim":
-            if symbol:
-                admitted_ids.add(symbol)
-            for n in delta.get("nodes_added") or []:
-                if (n.get("kind") or "claim") != "claim":
-                    continue
-                if n["id"].startswith("inquiry:"):
-                    continue
-                admitted_ids.add(n["id"])
-        elif kind == "deduction":
-            if canonical_symbol:
-                admitted_ids.add(canonical_symbol)
-                _co_admit_linked(canonical_symbol)
-            for e in edges:
-                if e.get("kind") != "deduction":
-                    continue
-                if not (canonical_symbol and canonical_symbol in layout_nodes):
-                    continue
-                # Some lkm-to-gaia worker variants emit two-leg edges
-                # already (gcn_premise → gfac → gcn_conclusion); others
-                # emit a single direct edge (gcn_premise → gcn_conclusion).
-                # Translate either form to the canonical
-                # (premise → strat → conclusion) by replacing the gfac-
-                # endpoint with the canonical symbol.
-                src = e["from"]
-                tgt = e["to"]
-                src_canon = _canonical_of(src) or src
-                tgt_canon = _canonical_of(tgt) or tgt
-                if src_canon == canonical_symbol:
-                    # Outgoing leg (hub → conclusion).
-                    admitted_edges.add((canonical_symbol, tgt, "deduction"))
-                elif tgt_canon == canonical_symbol:
-                    # Incoming leg (premise → hub).
-                    admitted_edges.add((src, canonical_symbol, "deduction"))
-                else:
-                    # Single-leg form: split into two routed legs.
-                    admitted_edges.add((src, canonical_symbol, "deduction"))
-                    admitted_edges.add((canonical_symbol, tgt, "deduction"))
-        elif kind in ("support", "contradiction", "equivalence"):
-            if canonical_symbol:
-                admitted_ids.add(canonical_symbol)
-                _co_admit_linked(canonical_symbol)
-            kind_edges = [e for e in edges if e.get("kind") == kind]
-            pos = -1
-            for a in ev.get("gaia_actions") or []:
-                if a.get("action") == kind:
-                    pos += 1
-                if a is action:
-                    break
-            if 0 <= pos < len(kind_edges) and kind == "support":
-                e = kind_edges[pos]
-                if canonical_symbol and canonical_symbol in layout_nodes:
-                    src = e["from"]
-                    tgt = e["to"]
-                    src_canon = _canonical_of(src) or src
-                    tgt_canon = _canonical_of(tgt) or tgt
-                    if src_canon == canonical_symbol:
-                        admitted_edges.add((canonical_symbol, tgt, kind))
-                    elif tgt_canon == canonical_symbol:
-                        admitted_edges.add((src, canonical_symbol, kind))
-                    else:
-                        admitted_edges.add((src, canonical_symbol, kind))
-                        admitted_edges.add((canonical_symbol, tgt, kind))
-        # `prior` admits no node/edge; metadata-only updates ignored.
-        _ = nodes_added  # silence linter; kept for parity with store.ts
 
-    # Final-state reconciliation: mirror `store.ts::reconcileFinalLayout`
-    # — at the last tick, force-admit every layout-known strat_/oper_
-    # entry plus its linked knowledge. The canonical_id collapse already
-    # happened at tick time, so we just walk strat_/oper_ entries and
-    # admit any that haven't been admitted yet (lossy events, etc.).
-    if payload.get("ticks"):
-        for nid, entry in layout_nodes.items():
-            if entry.get("kind") not in ("strategy", "operator"):
-                continue
-            if not (nid.startswith("strat_") or nid.startswith("oper_")):
-                continue
-            if nid in admitted_ids:
-                continue
-            admitted_ids.add(nid)
-            _co_admit_linked(nid)
-        # Edge reconciliation: ensure every strat_/oper_ has its
-        # premise/variable + conclusion edges admitted, anchored on the
-        # canonical layout id (matching the static DOT). Idempotent —
-        # duplicates are de-duped by the set semantics.
-        for nid, entry in layout_nodes.items():
-            if entry.get("kind") not in ("strategy", "operator"):
-                continue
-            if not (nid.startswith("strat_") or nid.startswith("oper_")):
-                continue
-            if nid not in admitted_ids:
-                continue
-            edge_kind = (
-                entry.get("operator_type") or "contradiction"
-                if entry.get("kind") == "operator"
-                else entry.get("strategy_type") or "deduction"
-            )
-            concl = entry.get("conclusion_id")
-            if concl and concl in admitted_ids:
-                admitted_edges.add((nid, concl, edge_kind))
-            incoming = (
-                entry.get("variable_ids")
-                if entry.get("kind") == "operator"
-                else entry.get("premise_ids")
-            )
-            for upstream in incoming or []:
-                if upstream in admitted_ids:
-                    admitted_edges.add((upstream, nid, edge_kind))
+def _admit_deduction_tick(
+    edges: list[dict],
+    *,
+    canonical_symbol: str | None,
+    layout_nodes: dict[str, dict],
+    admitted_ids: set[str],
+    admitted_edges: set[tuple],
+) -> None:
+    """Admit a deduction tick and any routed deduction edges."""
+    if canonical_symbol:
+        admitted_ids.add(canonical_symbol)
+        _admit_linked_layout_nodes(layout_nodes, admitted_ids, canonical_symbol)
+    for edge in edges:
+        if edge.get("kind") != "deduction":
+            continue
+        if not (canonical_symbol and canonical_symbol in layout_nodes):
+            continue
+        _admit_routed_edge(
+            edge,
+            kind="deduction",
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_edges=admitted_edges,
+        )
 
-    # Bucket admitted ids by what the layout entry says they are. Strategy
-    # and operator entries are deduped by `canonical_id` (set by the
-    # bridge): each strat_<i>/oper_<i> contributes at most one
-    # ellipse/hexagon to the final canvas, regardless of how many event-
-    # symbol aliases the bridge admitted at the same coordinates.
+
+def _action_position_in_event(event: dict, action: dict, kind: str) -> int:
+    """Return the zero-based position of an action among same-kind event actions."""
+    position = -1
+    for candidate in event.get("gaia_actions") or []:
+        if candidate.get("action") == kind:
+            position += 1
+        if candidate is action:
+            break
+    return position
+
+
+def _admit_structural_tick(
+    event: dict,
+    action: dict,
+    edges: list[dict],
+    *,
+    kind: str,
+    canonical_symbol: str | None,
+    layout_nodes: dict[str, dict],
+    admitted_ids: set[str],
+    admitted_edges: set[tuple],
+) -> None:
+    """Admit support/contradiction/equivalence ticks."""
+    if canonical_symbol:
+        admitted_ids.add(canonical_symbol)
+        _admit_linked_layout_nodes(layout_nodes, admitted_ids, canonical_symbol)
+    kind_edges = [edge for edge in edges if edge.get("kind") == kind]
+    position = _action_position_in_event(event, action, kind)
+    if not (0 <= position < len(kind_edges) and kind == "support"):
+        return
+    if canonical_symbol and canonical_symbol in layout_nodes:
+        _admit_routed_edge(
+            kind_edges[position],
+            kind=kind,
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_edges=admitted_edges,
+        )
+
+
+def _admit_replay_tick(
+    tick: dict,
+    events: list[dict],
+    *,
+    layout_nodes: dict[str, dict],
+    admitted_ids: set[str],
+    admitted_edges: set[tuple],
+) -> None:
+    """Apply one replay tick's node and edge admission rules."""
+    # Mirror the frontend's orphan-tick guard: ticks that don't survive
+    # to the final IR are skipped entirely (no node, no edge admission).
+    if tick.get("survives_to_final") is False:
+        return
+    event_index = tick["event_index"]
+    if event_index >= len(events):
+        return
+    event = events[event_index]
+    action = tick["action"]
+    kind = action.get("action")
+    canonical_symbol = _canonical_layout_id(layout_nodes, action.get("symbol"))
+    delta = event.get("graph_delta") or {}
+    edges = delta.get("edges_added") or []
+    nodes_added = {node["id"]: node for node in (delta.get("nodes_added") or [])}
+
+    if kind == "claim":
+        _admit_claim_tick(action, delta, admitted_ids)
+    elif kind == "deduction":
+        _admit_deduction_tick(
+            edges,
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_ids=admitted_ids,
+            admitted_edges=admitted_edges,
+        )
+    elif kind in ("support", "contradiction", "equivalence"):
+        _admit_structural_tick(
+            event,
+            action,
+            edges,
+            kind=kind,
+            canonical_symbol=canonical_symbol,
+            layout_nodes=layout_nodes,
+            admitted_ids=admitted_ids,
+            admitted_edges=admitted_edges,
+        )
+    # `prior` admits no node/edge; metadata-only updates ignored.
+    _ = nodes_added  # kept for parity with store.ts input validation
+
+
+def _is_final_layout_hub(node_id: str, entry: dict) -> bool:
+    """Return whether a layout entry is a canonical strategy/operator hub."""
+    return entry.get("kind") in ("strategy", "operator") and (
+        node_id.startswith("strat_") or node_id.startswith("oper_")
+    )
+
+
+def _reconciled_edge_kind(entry: dict) -> str:
+    """Return the frontend fallback edge kind for a reconciled hub."""
+    if entry.get("kind") == "operator":
+        return entry.get("operator_type") or "contradiction"
+    return entry.get("strategy_type") or "deduction"
+
+
+def _reconcile_final_layout(
+    layout_nodes: dict[str, dict], admitted_ids: set[str], admitted_edges: set[tuple]
+) -> None:
+    """Force-admit final strat_/oper_ entries and their canonical edges."""
+    for node_id, entry in layout_nodes.items():
+        if not _is_final_layout_hub(node_id, entry):
+            continue
+        if node_id in admitted_ids:
+            continue
+        admitted_ids.add(node_id)
+        _admit_linked_layout_nodes(layout_nodes, admitted_ids, node_id)
+
+    for node_id, entry in layout_nodes.items():
+        if not _is_final_layout_hub(node_id, entry):
+            continue
+        if node_id not in admitted_ids:
+            continue
+        edge_kind = _reconciled_edge_kind(entry)
+        conclusion = entry.get("conclusion_id")
+        if conclusion and conclusion in admitted_ids:
+            admitted_edges.add((node_id, conclusion, edge_kind))
+        incoming = (
+            entry.get("variable_ids")
+            if entry.get("kind") == "operator"
+            else entry.get("premise_ids")
+        )
+        for upstream in incoming or []:
+            if upstream in admitted_ids:
+                admitted_edges.add((upstream, node_id, edge_kind))
+
+
+def _count_admitted_layout_entries(
+    layout_nodes: dict[str, dict], admitted_ids: set[str], admitted_edges: set[tuple]
+) -> dict:
+    """Bucket admitted ids by the final-layout entry kind."""
     counts = {
         "knowledge": 0,
         "strategy": 0,
@@ -1315,37 +1398,60 @@ def _simulate_store_admission(payload: dict) -> dict:
         "unknown": 0,
         "edges": len(admitted_edges),
     }
-    for nid in admitted_ids:
-        entry = layout_nodes.get(nid) or {}
-        ekind = entry.get("kind")
-        if ekind == "strategy":
-            # Only canonical (strat_<i>) entries contribute; bridged
-            # event-symbol aliases would over-count.
-            if not nid.startswith("strat_"):
+    for node_id in admitted_ids:
+        entry = layout_nodes.get(node_id) or {}
+        entry_kind = entry.get("kind")
+        if entry_kind == "strategy":
+            # Only canonical (strat_<i>) entries contribute; bridged event-symbol aliases
+            # would over-count.
+            if not node_id.startswith("strat_"):
                 continue
             counts["strategy"] += 1
-        elif ekind == "operator":
-            if not nid.startswith("oper_"):
+        elif entry_kind == "operator":
+            if not node_id.startswith("oper_"):
                 continue
-            otype = entry.get("operator_type")
+            operator_type = entry.get("operator_type")
             counts["operator"] += 1
-            if otype == "contradiction":
+            if operator_type == "contradiction":
                 counts["contradiction"] += 1
-            elif otype == "equivalence":
+            elif operator_type == "equivalence":
                 counts["equivalence"] += 1
-        elif ekind == "knowledge":
+        elif entry_kind == "knowledge":
             counts["knowledge"] += 1
-        else:
-            # Inquiry hypotheses, helper claims with no IR mapping, etc.
-            # The static DOT excludes inquiry:* nodes too.
-            if not nid.startswith("inquiry:"):
-                counts["unknown"] += 1
+        elif not node_id.startswith("inquiry:"):
+            counts["unknown"] += 1
     return counts
 
 
+def _simulate_store_admission(payload: dict) -> dict:
+    """Replicate `viz/src/replay/store.ts::applyTick` admission rules."""
+    layout = payload.get("final_layout") or {}
+    layout_nodes: dict[str, dict] = layout.get("nodes") or {}
+    admitted_ids: set[str] = set()
+    admitted_edges: set[tuple] = set()
+    events = payload.get("events", [])
+    ticks = payload.get("ticks", [])
+
+    for tick in ticks:
+        _admit_replay_tick(
+            tick,
+            events,
+            layout_nodes=layout_nodes,
+            admitted_ids=admitted_ids,
+            admitted_edges=admitted_edges,
+        )
+
+    if ticks:
+        _reconcile_final_layout(layout_nodes, admitted_ids, admitted_edges)
+
+    return _count_admitted_layout_entries(layout_nodes, admitted_ids, admitted_edges)
+
+
 def _count_static_dot_shapes(dot_source: str) -> dict:
-    """Parse a Graphviz DOT source and count node shapes / edges. Used to
-    establish the ground-truth node set the replay's final state must match.
+    """Verify count static dot shapes.
+
+    Parse a Graphviz DOT source and count node shapes / edges. Used to establish the ground-
+    truth node set the replay's final state must match.
     """
     box = ellipse = hexagon = 0
     contradiction = equivalence = 0
@@ -1379,34 +1485,37 @@ def _real_pkg_dir(name: str) -> Path | None:
     """Resolve a real Gaia knowledge package directory for parity tests.
 
     Returns None when the package isn't present — the caller skips the
-    test. We probe a couple of likely locations for the dev packages.
+    test. The probe directory is read from the ``GAIA_DEV_PACKAGES_ROOT``
+    environment variable; set it to the directory containing the sibling
+    dev packages (each package directory is expected to live directly
+    under this root and contain a ``pyproject.toml``).
     """
-    candidates = [
-        Path.home() / "ThisIsDP" / "dev" / name,
-    ]
-    for p in candidates:
-        if (p / "pyproject.toml").is_file():
-            return p
+    env_root = os.environ.get("GAIA_DEV_PACKAGES_ROOT")
+    if not env_root:
+        return None
+    candidate = Path(env_root).expanduser() / name
+    if (candidate / "pyproject.toml").is_file():
+        return candidate
     return None
 
 
 def _final_state_parity(pkg_dir: Path) -> tuple[dict, dict]:
     """Return (static_counts, replay_counts) for *pkg_dir*."""
-    from gaia.cli._packages import (
-        apply_package_priors,
-        compile_loaded_package_artifact,
-        ensure_package_env,
-        load_gaia_package,
-    )
     from gaia.cli.commands._dot import to_dot
     from gaia.cli.commands._graph_json import generate_graph_json
     from gaia.cli.commands._render_priors import param_data_from_ir_metadata
     from gaia.cli.commands.starmap_replay import (
-        _read_jsonl,
-        _is_replayable,
         ARTIFACTS_SUBDIR,
         GROWTH_LOG_NAME,
         RETRIEVAL_LOG_NAME,
+        _is_replayable,
+        _read_jsonl,
+    )
+    from gaia.engine.packaging import (
+        apply_package_priors,
+        compile_loaded_package_artifact,
+        ensure_package_env,
+        load_gaia_package,
     )
 
     ensure_package_env(pkg_dir)
@@ -1436,10 +1545,11 @@ def _final_state_parity(pkg_dir: Path) -> tuple[dict, dict]:
 
 
 def test_final_state_matches_static_dot_for_2dheg():
-    """Load-bearing parity check: the replay's final-tick node set has the
-    same count of knowledge boxes / strategy ellipses / operator hexagons
-    (and the same contradiction-vs-equivalence split) as the static DOT
-    from `gaia starmap --format dot` for the 2dheg package.
+    """Verify final state matches static dot for 2dheg.
+
+    Load-bearing parity check: the replay's final-tick node set has the same count of knowledge
+    boxes / strategy ellipses / operator hexagons (and the same contradiction-vs-equivalence
+    split) as the static DOT from `gaia starmap --format dot` for the 2dheg package.
 
     Skipped silently when the dev package isn't present locally — this is
     a developer-environment integration test.
@@ -1448,7 +1558,9 @@ def test_final_state_matches_static_dot_for_2dheg():
     if pkg_dir is None:
         import pytest as _p
 
-        _p.skip("twodheg-effective-mass-gaia not found at ~/ThisIsDP/dev/")
+        _p.skip(
+            "twodheg-effective-mass-gaia not found (set GAIA_DEV_PACKAGES_ROOT to run this test)"
+        )
     static_counts, replay_counts = _final_state_parity(pkg_dir)
     # Final-state parity: counts must match exactly.
     for key in ("knowledge", "strategy", "operator", "contradiction", "equivalence", "edges"):
@@ -1463,7 +1575,7 @@ def test_final_state_matches_static_dot_for_lcdm():
     if pkg_dir is None:
         import pytest as _p
 
-        _p.skip("lcdm-hubble-tension-gaia not found at ~/ThisIsDP/dev/")
+        _p.skip("lcdm-hubble-tension-gaia not found (set GAIA_DEV_PACKAGES_ROOT to run this test)")
     static_counts, replay_counts = _final_state_parity(pkg_dir)
     for key in ("knowledge", "strategy", "operator", "contradiction", "equivalence", "edges"):
         assert replay_counts[key] == static_counts[key], (
@@ -1472,15 +1584,19 @@ def test_final_state_matches_static_dot_for_lcdm():
 
 
 def test_final_state_matches_static_dot_for_perovskite():
-    """Parity check for the perovskite package — the canonical orphan-tick
-    repro. Without `survives_to_final`, the seq=39 deduction ticks
-    (`gfac_c33c62750055451d` + `gfac_5e7aa7aa12474862`) would pile up at
-    the canvas centre and break parity."""
+    """Verify final state matches static dot for perovskite.
+
+    Parity check for the perovskite package — the canonical orphan-tick repro. Without
+    `survives_to_final`, the seq=39 deduction ticks (`gfac_c33c62750055451d` +
+    `gfac_5e7aa7aa12474862`) would pile up at the canvas centre and break parity.
+    """
     pkg_dir = _real_pkg_dir("perovskite-arpes-polaron-gaia")
     if pkg_dir is None:
         import pytest as _p
 
-        _p.skip("perovskite-arpes-polaron-gaia not found at ~/ThisIsDP/dev/")
+        _p.skip(
+            "perovskite-arpes-polaron-gaia not found (set GAIA_DEV_PACKAGES_ROOT to run this test)"
+        )
     static_counts, replay_counts = _final_state_parity(pkg_dir)
     for key in ("knowledge", "strategy", "operator", "contradiction", "equivalence", "edges"):
         assert replay_counts[key] == static_counts[key], (

@@ -13,7 +13,7 @@ try:
 except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
-from gaia.cli._packages import GaiaCliError
+from gaia.engine.packaging import GaiaPackagingError
 
 DEFAULT_REGISTRY = "SiliconEinstein/gaia-registry"
 
@@ -42,13 +42,15 @@ def _fetch_file(registry: str, path: str) -> str:
     try:
         resp = httpx.get(url, headers=_github_headers(), timeout=15)
     except httpx.HTTPError as exc:
-        raise GaiaCliError(f"Failed to reach registry: {exc}") from exc
+        raise GaiaPackagingError(f"Failed to reach registry: {exc}") from exc
     if resp.status_code == 404:
-        raise GaiaCliError(f"Not found in registry: {path}")
+        raise GaiaPackagingError(f"Not found in registry: {path}")
     if resp.status_code == 403:
-        raise GaiaCliError("GitHub API rate limit exceeded. Set GITHUB_TOKEN to authenticate.")
+        raise GaiaPackagingError(
+            "GitHub API rate limit exceeded. Set GITHUB_TOKEN to authenticate."
+        )
     if resp.status_code >= 400:
-        raise GaiaCliError(f"Registry API error ({resp.status_code}): {resp.text[:200]}")
+        raise GaiaPackagingError(f"Registry API error ({resp.status_code}): {resp.text[:200]}")
     content = resp.json().get("content", "")
     return base64.b64decode(content).decode()
 
@@ -87,7 +89,7 @@ def resolve_package(
 
     versions = ver_toml.get("versions", {})
     if not versions:
-        raise GaiaCliError(f"No versions found for package '{name}'.")
+        raise GaiaPackagingError(f"No versions found for package '{name}'.")
 
     if version is None:
         from packaging.version import Version
@@ -96,7 +98,9 @@ def resolve_package(
 
     if version not in versions:
         available = ", ".join(versions)
-        raise GaiaCliError(f"Version '{version}' not found for '{name}'. Available: {available}")
+        raise GaiaPackagingError(
+            f"Version '{version}' not found for '{name}'. Available: {available}"
+        )
 
     entry = versions[version]
     return RegistryVersion(

@@ -17,9 +17,9 @@ def _write_simple_pkg(pkg_dir: Path, name: str = "simple_pkg") -> Path:
     src = pkg_dir / name
     src.mkdir(exist_ok=True)
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, setting, question\n"
+        "from gaia.engine.lang import claim, note, question\n"
         'main_claim = claim("main hypothesis", metadata={"prior": 0.5})\n'
-        'iid_setting = setting("data is i.i.d.")\n'
+        'iid_setting = note("data is i.i.d.")\n'
         'rq = question("does the result generalize?")\n'
         '__all__ = ["main_claim", "iid_setting", "rq"]\n',
         encoding="utf-8",

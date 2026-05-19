@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from gaia.bp import FactorType, lower_local_graph, lower_operator
-from gaia.bp.factor_graph import FactorGraph
-from gaia.bp.exact import exact_inference
-from gaia.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
-from gaia.ir import Knowledge, Operator, Strategy, CompositeStrategy, LocalCanonicalGraph
+from gaia.engine.bp import FactorType, lower_local_graph, lower_operator
+from gaia.engine.bp.exact import exact_inference, exact_joint_over
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph
+from gaia.engine.bp.lowering import fold_composite_to_cpt, merge_factor_graphs
+from gaia.engine.ir import CompositeStrategy, Knowledge, LocalCanonicalGraph, Operator, Strategy
 
 NS, PKG = "github", "lowertest"
 
@@ -60,7 +60,7 @@ def test_equivalence_operator_round_trip():
 
 def test_contradiction_default_prior_near_one():
     """Relation-type operator conclusion defaults to ~1.0 (constraint active)."""
-    from gaia.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     g = _lg(
         knowledges=[
@@ -78,6 +78,248 @@ def test_contradiction_default_prior_near_one():
     )
     fg = lower_local_graph(g)
     assert fg.variables["github:lowertest::r"] == pytest.approx(1.0 - CROMWELL_EPS)
+
+
+def test_negation_default_prior_is_neutral():
+    """Compositional negation conclusion defaults to 0.5, not assertion true."""
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::x", type="claim", content="X"),
+            Knowledge(id="github:lowertest::not_x", type="claim", content="not X"),
+        ],
+        operators=[
+            Operator(
+                operator="negation",
+                variables=["github:lowertest::x"],
+                conclusion="github:lowertest::not_x",
+            ),
+        ],
+    )
+    fg = lower_local_graph(g)
+    assert fg.variables["github:lowertest::not_x"] == pytest.approx(0.5)
+    assert fg.factors[0].factor_type == FactorType.NEGATION
+
+
+def test_associate_lowers_to_pairwise_potential_without_double_counting_marginals():
+    a = "github:lowertest::a"
+    b = "github:lowertest::b"
+    helper = "github:lowertest::assoc"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=a, type="claim", content="A", metadata={"prior": 0.25}),
+            Knowledge(id=b, type="claim", content="B"),
+            Knowledge(id=helper, type="claim", content="A is associated with B"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=[a, b],
+                conclusion=helper,
+                p_a_given_b=0.75,
+                p_b_given_a=0.20,
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g)
+
+    assert helper not in fg.variables
+    assert fg.unary_factors[a] == pytest.approx(0.25)
+    assert fg.unary_factors[b] == pytest.approx(1 / 15)
+    assert len(fg.factors) == 1
+    factor = fg.factors[0]
+    assert factor.factor_type == FactorType.PAIRWISE_POTENTIAL
+    assert factor.variables == [a]
+    assert factor.conclusion == b
+    assert factor.cpt == pytest.approx(
+        (
+            22 / 21,  # psi(A=0,B=0)
+            6 / 7,  # psi(A=1,B=0)
+            1 / 3,  # psi(A=0,B=1)
+            3.0,  # psi(A=1,B=1)
+        )
+    )
+
+    joint = exact_joint_over(fg, [a, b])
+    assert joint == pytest.approx(
+        [
+            11 / 15,  # P(A=0,B=0)
+            0.20,  # P(A=1,B=0)
+            1 / 60,  # P(A=0,B=1)
+            0.05,  # P(A=1,B=1)
+        ]
+    )
+
+
+def test_associate_lowering_rejects_bayes_inconsistent_marginals():
+    a = "github:lowertest::a"
+    b = "github:lowertest::b"
+    helper = "github:lowertest::assoc"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=a, type="claim", content="A", metadata={"prior": 0.25}),
+            Knowledge(id=b, type="claim", content="B", metadata={"prior": 0.50}),
+            Knowledge(id=helper, type="claim", content="A is associated with B"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=[a, b],
+                conclusion=helper,
+                p_a_given_b=0.75,
+                p_b_given_a=0.20,
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Bayes-inconsistent"):
+        lower_local_graph(g)
+
+
+def test_infer_claim_metadata_priors_lower_as_unary_providers():
+    h = "github:lowertest::h"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H", metadata={"prior": 0.25}),
+            Knowledge(id=e, type="claim", content="E", metadata={"prior": 0.1}),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h],
+                conclusion=e,
+                conditional_probabilities=[0.2, 0.8],
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g)
+
+    assert fg.unary_factors[h] == pytest.approx(0.25)
+    assert fg.unary_factors[e] == pytest.approx(0.1)
+
+
+def test_infer_given_switch_cpt_is_neutral_when_gate_unlikely():
+    h = "github:lowertest::h"
+    gate = "github:lowertest::g"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H"),
+            Knowledge(id=gate, type="claim", content="G"),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h, gate],
+                conclusion=e,
+                conditional_probabilities=[0.5, 0.5, 0.1, 0.9],
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g, node_priors={h: 0.99, gate: 0.01})
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs[e] == pytest.approx(0.5, abs=0.01)
+
+
+def test_infer_given_switch_cpt_activates_when_gate_likely():
+    h = "github:lowertest::h"
+    gate = "github:lowertest::g"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H"),
+            Knowledge(id=gate, type="claim", content="G"),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h, gate],
+                conclusion=e,
+                conditional_probabilities=[0.5, 0.5, 0.1, 0.9],
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g, node_priors={h: 0.99, gate: 0.99})
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs[e] == pytest.approx(0.888, abs=0.01)
+
+
+def test_infer_given_switch_cpt_sends_reliability_feedback_to_gate():
+    h = "github:lowertest::h"
+    gate = "github:lowertest::g"
+    e = "github:lowertest::e"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=h, type="claim", content="H"),
+            Knowledge(id=gate, type="claim", content="G"),
+            Knowledge(id=e, type="claim", content="E"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=[h, gate],
+                conclusion=e,
+                conditional_probabilities=[0.5, 0.5, 0.1, 0.9],
+            )
+        ],
+    )
+
+    fg = lower_local_graph(g, node_priors={h: 0.99, e: 0.99, gate: 0.5})
+    beliefs, _ = exact_inference(fg)
+
+    assert beliefs[gate] > 0.5
+
+
+def test_structural_expression_metadata_prior_is_ignored():
+    """Expression helper beliefs must be determined by operators, not independent priors."""
+    g = _lg(
+        knowledges=[
+            Knowledge(id="github:lowertest::x", type="claim", content="X"),
+            Knowledge(id="github:lowertest::y", type="claim", content="Y"),
+            Knowledge(
+                id="github:lowertest::both",
+                type="claim",
+                content="X and Y",
+                metadata={
+                    "generated": True,
+                    "helper_kind": "conjunction_result",
+                    "review": False,
+                    "prior": 0.9,
+                },
+            ),
+        ],
+        operators=[
+            Operator(
+                operator="conjunction",
+                variables=["github:lowertest::x", "github:lowertest::y"],
+                conclusion="github:lowertest::both",
+            ),
+        ],
+    )
+
+    fg = lower_local_graph(g)
+
+    assert fg.variables["github:lowertest::both"] == pytest.approx(0.5)
+
+    fg_with_node_prior = lower_local_graph(
+        g,
+        node_priors={"github:lowertest::both": 0.9},
+    )
+    assert fg_with_node_prior.variables["github:lowertest::both"] == pytest.approx(0.5)
 
 
 def test_contradiction_actually_constrains():
@@ -150,7 +392,7 @@ def test_infer_conditional_lowering():
 
 
 def test_formal_strategy_expand_implication():
-    from gaia.ir.strategy import FormalExpr, FormalStrategy
+    from gaia.engine.ir.strategy import FormalExpr, FormalStrategy
 
     fs = FormalStrategy(
         scope="local",
@@ -176,12 +418,12 @@ def test_formal_strategy_expand_implication():
         strategies=[fs],
     )
     fg = lower_local_graph(g, expand_formal=True)
-    # Deduction implication is now lowered as SOFT_ENTAILMENT (proper CPT)
-    assert any(f.factor_type == FactorType.SOFT_ENTAILMENT for f in fg.factors)
+    # Deduction implication lowers to a hard Jaynes conditional CPT.
+    assert any(f.factor_type == FactorType.CONDITIONAL for f in fg.factors)
 
 
 def test_formal_fold_not_implemented():
-    from gaia.ir.strategy import FormalExpr, FormalStrategy
+    from gaia.engine.ir.strategy import FormalExpr, FormalStrategy
 
     fs = FormalStrategy(
         scope="local",
@@ -216,7 +458,7 @@ def test_formal_fold_not_implemented():
 
 
 def test_deduction_leaf_strategy_auto_formalizes():
-    """Plain Strategy(type=deduction) is auto-formalized to CONJUNCTION + SOFT_ENTAILMENT."""
+    """Plain Strategy(type=deduction) is auto-formalized to CONJUNCTION + CONDITIONAL."""
     s = Strategy(
         scope="local",
         type="deduction",
@@ -235,8 +477,8 @@ def test_deduction_leaf_strategy_auto_formalizes():
     assert not fg.validate()
     ftypes = {f.factor_type for f in fg.factors}
     assert FactorType.CONJUNCTION in ftypes
-    # Deduction implication is now lowered as SOFT_ENTAILMENT (proper CPT)
-    assert FactorType.SOFT_ENTAILMENT in ftypes
+    # Deduction implication lowers to a hard Jaynes conditional CPT.
+    assert FactorType.CONDITIONAL in ftypes
 
 
 def test_analogy_leaf_strategy_auto_formalizes():
@@ -303,7 +545,7 @@ def test_abduction_leaf_strategy_generates_interface_claim():
     fg = lower_local_graph(g)
     assert not fg.validate()
     ftypes = {f.factor_type for f in fg.factors}
-    # abduction skeleton: disjunction(H, Alt -> ExplainUnion) + equivalence(ExplainUnion, Obs -> EqH)
+    # Abduction skeleton includes disjunction and equivalence structure.
     assert FactorType.DISJUNCTION in ftypes
     assert FactorType.EQUIVALENCE in ftypes
     # The auto-generated AlternativeExplanationForObs must appear as a variable
@@ -370,7 +612,7 @@ def test_named_leaf_node_priors_respected():
     )
     # First pass: discover the auto-generated alt-explanation variable ID
     fg0 = lower_local_graph(g)
-    alt_id = [v for v in fg0.variables if "alternative_explanation" in v][0]
+    alt_id = next(v for v in fg0.variables if "alternative_explanation" in v)
 
     # Second pass: supply a custom prior for the auto-generated claim
     fg1 = lower_local_graph(g, node_priors={alt_id: 0.1})
@@ -425,11 +667,14 @@ def test_composite_strategy_expands_sub_strategies():
 
 
 def test_formal_expr_relation_conclusion_gets_assertion_prior():
-    """FormalExpr internal relation operator conclusions must get π=1-ε (assertion),
-    not the default 0.5.  Bug: lowering.py FormalExpr expand path uses
-    _ensure_claim_var for all conclusions, which defaults to 0.5."""
-    from gaia.bp.factor_graph import CROMWELL_EPS
-    from gaia.ir.strategy import FormalExpr, FormalStrategy
+    """Verify formal expr relation conclusion gets assertion prior.
+
+    FormalExpr internal relation operator conclusions must get π=1-ε (assertion) not the default
+    0.5. Bug: lowering.py FormalExpr expand path uses _ensure_claim_var for all conclusions,
+    which defaults to 0.5.
+    """
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.ir.strategy import FormalExpr, FormalStrategy
 
     # Build a FormalStrategy that contains an equivalence operator internally
     # (mimics elimination's equivalence([D, Exh]) → Eq)
@@ -509,10 +754,13 @@ def test_formal_expr_relation_conclusion_gets_assertion_prior():
 
 
 def test_auto_formalized_abduction_relation_conclusions_get_assertion_prior():
-    """Named strategy auto-formalization path: formalize_named_strategy generates
-    helper claims that are registered via _ensure_claim_var (π=0.5) BEFORE the
-    FormalStrategy expand path runs.  Relation conclusions must still get π=1-ε."""
-    from gaia.bp.factor_graph import CROMWELL_EPS
+    """Verify auto formalized abduction relation conclusions get assertion prior.
+
+    Named strategy auto-formalization path: formalize_named_strategy generates helper claims
+    that are registered via _ensure_claim_var (π=0.5) BEFORE the FormalStrategy expand path
+    runs. Relation conclusions must still get π=1-ε.
+    """
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     s = Strategy(
         scope="local",
@@ -634,7 +882,7 @@ def test_e2e_deduction_binary_implication_full_pipeline():
         strategies=[s],
     )
 
-    # Step 1: lower (auto-formalizes deduction → CONJUNCTION + SOFT_ENTAILMENT)
+    # Step 1: lower (auto-formalizes deduction → CONJUNCTION + CONDITIONAL)
     fg = lower_local_graph(
         g,
         node_priors={
@@ -648,15 +896,14 @@ def test_e2e_deduction_binary_implication_full_pipeline():
     # The factor graph should contain both factor types
     ftypes = {f.factor_type for f in fg.factors}
     assert FactorType.CONJUNCTION in ftypes
-    # Deduction implication is now lowered as SOFT_ENTAILMENT (proper CPT)
-    assert FactorType.SOFT_ENTAILMENT in ftypes
+    # Deduction implication lowers to a hard Jaynes conditional CPT.
+    assert FactorType.CONDITIONAL in ftypes
 
-    # SOFT_ENTAILMENT factor has 1 variable (premise/conjunction node) + conclusion
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    assert len(se_factors[0].variables) == 1
-    assert se_factors[0].p1 is not None
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    # CONDITIONAL factor has 1 variable (premise/conjunction node) + conclusion.
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert len(conditional_factors[0].variables) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
     # Step 2: run exact inference — must not error
     beliefs, _ = exact_inference(fg)
@@ -666,7 +913,7 @@ def test_e2e_deduction_binary_implication_full_pipeline():
 
 
 def test_e2e_single_premise_deduction_binary_implication():
-    """E2E: single-premise deduction uses SOFT_ENTAILMENT (no conjunction)."""
+    """E2E: single-premise deduction uses CONDITIONAL (no conjunction)."""
     s = Strategy(
         scope="local",
         type="deduction",
@@ -690,14 +937,14 @@ def test_e2e_single_premise_deduction_binary_implication():
     )
     assert not fg.validate()
 
-    # Only SOFT_ENTAILMENT factor (no CONJUNCTION for single premise)
+    # Only CONDITIONAL factor (no CONJUNCTION for single premise)
     ftypes = [f.factor_type for f in fg.factors]
-    assert FactorType.SOFT_ENTAILMENT in ftypes
+    assert FactorType.CONDITIONAL in ftypes
     assert FactorType.CONJUNCTION not in ftypes
 
-    # SOFT_ENTAILMENT has 1 variable (premise) + conclusion
-    se_f = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT][0]
-    assert len(se_f.variables) == 1
+    # CONDITIONAL has 1 variable (premise) + conclusion
+    conditional_f = next(f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL)
+    assert len(conditional_f.variables) == 1
 
     # Run inference
     beliefs, _ = exact_inference(fg)
@@ -706,11 +953,14 @@ def test_e2e_single_premise_deduction_binary_implication():
 
 
 def test_relation_helper_defaults_to_assertion_prior():
-    """For deduction/support, the helper claim's prior (1-ε) is marginalized into
-    SOFT_ENTAILMENT p1_eff. For standalone operators (equivalence, etc.),
-    relation helper claims still get the 1-ε default variable prior.
+    """Standalone relation helpers are asserted; deduction helpers are internal.
+
+    For standalone operators (equivalence, etc.), relation helper claims still
+    get the 1-ε default variable prior. Deduction implication helpers are not
+    belief variables after lowering; accepted deduction lowers to a hard
+    conditional CPT.
     """
-    from gaia.ir.operator import Operator as IROp
+    from gaia.engine.ir.operator import Operator as IROp
 
     # Case: standalone equivalence operator — helper claim gets 1-ε default
     g = _lg(
@@ -728,13 +978,13 @@ def test_relation_helper_defaults_to_assertion_prior():
         ],
     )
 
-    from gaia.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     fg = lower_local_graph(g)
     # Equivalence helper should be at assertion prior 1-ε
     assert fg.variables["github:lowertest::h_eq"] == pytest.approx(1.0 - CROMWELL_EPS)
 
-    # Case: deduction — SOFT_ENTAILMENT p1_eff encodes the helper prior
+    # Case: deduction — helper disappears and hard conditional CPT remains
     s = Strategy(
         scope="local",
         type="deduction",
@@ -755,12 +1005,9 @@ def test_relation_helper_defaults_to_assertion_prior():
             "github:lowertest::b": 0.5,
         },
     )
-    se_factors = [f for f in fg2.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    # p1_eff = π(H) * (1-ε) + (1-π(H)) * 0.5; with helper prior ~1-ε:
-    # p1_eff ≈ 0.999 * 0.999 + 0.001 * 0.5 ≈ 0.9985
-    assert se_factors[0].p1 > 0.99
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    conditional_factors = [f for f in fg2.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
     # BP propagates correctly
     beliefs, _ = exact_inference(fg2)
@@ -773,7 +1020,7 @@ def test_relation_helper_defaults_to_assertion_prior():
 
 
 def test_e2e_support_compiles_and_runs_bp():
-    """E2E: support([A], B) -> formalize (1 SOFT_ENTAILMENT) -> lower -> BP."""
+    """E2E: legacy Strategy(type='support') -> SOFT_ENTAILMENT -> BP."""
     s = Strategy(
         scope="local",
         type="support",
@@ -866,21 +1113,16 @@ def test_e2e_compare_compiles_and_runs_bp():
     assert all(0 < beliefs[v] < 1 for v in beliefs)
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_deprecated():
     """noisy_and() emits DeprecationWarning and delegates to support()."""
-    import warnings
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang.compat import noisy_and as dsl_noisy_and
 
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import noisy_and as dsl_noisy_and
-
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         a = dsl_claim("A")
         b = dsl_claim("B")
         s = dsl_noisy_and([a], b)
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "noisy_and" in str(w[0].message)
     # The returned strategy should be a support strategy
     assert s.type == "support"
 
@@ -890,6 +1132,8 @@ def test_noisy_and_deprecated():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_abduction_full_pipeline():
     """E2E: support + support + compare -> abduction -> CompositeStrategy (3 sub-strategies).
 
@@ -897,10 +1141,10 @@ def test_e2e_abduction_full_pipeline():
     CompositeStrategy with 2 supports + 1 compare, composition warrant,
     and comparison.conclusion as conclusion.
     """
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import compare as dsl_compare
-    from gaia.lang import support as dsl_support
-    from gaia.lang.dsl.strategies import abduction as dsl_abduction
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang.compat import compare as dsl_compare
+    from gaia.engine.lang.compat import support as dsl_support
+    from gaia.engine.lang.dsl.strategies import abduction as dsl_abduction
 
     h = dsl_claim("Theory H")
     alt = dsl_claim("Theory Alt")
@@ -940,11 +1184,13 @@ def test_e2e_abduction_full_pipeline():
     assert abd.conclusion is comp.conclusion
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_induction_chain():
     """E2E: support + support → induction chain → law accumulated."""
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import support as dsl_support
-    from gaia.lang.dsl.strategies import induction as dsl_induction
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang.compat import support as dsl_support
+    from gaia.engine.lang.dsl.strategies import induction as dsl_induction
 
     law = dsl_claim("Mendel's law")
     obs1 = dsl_claim("Seed shape 2.96:1")
@@ -978,7 +1224,7 @@ def test_e2e_induction_chain():
     assert ind_12.composition_warrant is not None
     assert ind_12.composition_warrant.metadata.get("helper_kind") == "composition_validity"
 
-    # Chain: induction(prev_induction, new_support, law)
+    # Then chain the previous induction with new support.
     ind_123 = dsl_induction(ind_12, s3, law=law, reason="flower color independent of seed traits")
     assert ind_123.type == "induction"
     assert ind_123.conclusion is law
@@ -987,14 +1233,16 @@ def test_e2e_induction_chain():
     assert ind_123.sub_strategies[1] is s3
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_e2e_mendel_peirce_cycle():
     """E2E: Full Peirce cycle -- deduction + support + compare + abduction + induction."""
-    from gaia.lang import claim as dsl_claim
-    from gaia.lang import compare as dsl_compare
-    from gaia.lang import deduction as dsl_deduction
-    from gaia.lang import support as dsl_support
-    from gaia.lang.dsl.strategies import abduction as dsl_abduction
-    from gaia.lang.dsl.strategies import induction as dsl_induction
+    from gaia.engine.lang import claim as dsl_claim
+    from gaia.engine.lang.compat import compare as dsl_compare
+    from gaia.engine.lang.compat import deduction as dsl_deduction
+    from gaia.engine.lang.compat import support as dsl_support
+    from gaia.engine.lang.dsl.strategies import abduction as dsl_abduction
+    from gaia.engine.lang.dsl.strategies import induction as dsl_induction
 
     # Knowledge
     H = dsl_claim("Discrete heritable factors")
@@ -1041,14 +1289,9 @@ def test_e2e_mendel_peirce_cycle():
 # ---------------------------------------------------------------------------
 
 
-def test_lowering_uses_author_prior_for_relation_helper():
-    """If helper claim has metadata['prior'], the author prior is encoded into p1_eff.
-
-    With proper CPT lowering, the implication helper is marginalized into
-    SOFT_ENTAILMENT p1_eff = π(H) * (1-ε) + (1-π(H)) * 0.5.  When the
-    author sets prior=0.85, p1_eff ≈ 0.85 * 0.999 + 0.15 * 0.5 ≈ 0.924.
-    """
-    from gaia.bp.factor_graph import CROMWELL_EPS
+def test_lowering_ignores_author_prior_for_deduction_helper():
+    """Deduction helper priors do not soften hard logical implication."""
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
 
     s = Strategy(
         scope="local",
@@ -1069,18 +1312,16 @@ def test_lowering_uses_author_prior_for_relation_helper():
         vid for vid in fg.variables if vid.startswith("github:lowertest::__implication_result")
     ]
     assert helper_vars == []
-    # SOFT_ENTAILMENT factor encodes the author prior via p1_eff
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    expected_p1 = 0.85 * (1.0 - CROMWELL_EPS) + 0.15 * 0.5
-    assert se_factors[0].p1 == pytest.approx(expected_p1, abs=1e-6)
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    # CONDITIONAL factor stays hard regardless of the legacy metadata prior.
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
 
-def test_compiled_formal_deduction_metadata_prior_used_for_p1_eff():
-    """Compiled FormalStrategy helper metadata prior is encoded into p1_eff."""
-    from gaia.bp.factor_graph import CROMWELL_EPS
-    from gaia.ir.formalize import formalize_named_strategy
+def test_compiled_formal_deduction_metadata_prior_ignored_for_hard_logic():
+    """Compiled FormalStrategy metadata prior does not soften deduction."""
+    from gaia.engine.bp.factor_graph import CROMWELL_EPS
+    from gaia.engine.ir.formalize import formalize_named_strategy
 
     formalized = formalize_named_strategy(
         scope="local",
@@ -1105,19 +1346,13 @@ def test_compiled_formal_deduction_metadata_prior_used_for_p1_eff():
     helper_ids = {k.id for k in formalized.knowledges if "implication_result" in (k.id or "")}
     assert helper_ids
     assert helper_ids.isdisjoint(fg.variables)
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    expected_p1 = 0.85 * (1.0 - CROMWELL_EPS) + 0.15 * 0.5
-    assert se_factors[0].p1 == pytest.approx(expected_p1, abs=1e-6)
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
 
 def test_lowering_default_prior_for_relation_helper_without_author():
-    """Without author prior, relation helper is marginalized into SOFT_ENTAILMENT p1_eff.
-
-    The helper claim itself is no longer in the factor graph as a variable —
-    its prior (1-ε by default for relation operators) is captured by p1_eff.
-    """
+    """Deduction helper claim is not a variable after hard conditional lowering."""
     s = Strategy(
         scope="local",
         type="deduction",
@@ -1137,17 +1372,15 @@ def test_lowering_default_prior_for_relation_helper_without_author():
     ]
     assert helper_vars == []
 
-    # SOFT_ENTAILMENT factor captures the helper's role
-    se_factors = [f for f in fg.factors if f.factor_type == FactorType.SOFT_ENTAILMENT]
-    assert len(se_factors) == 1
-    # p1_eff = (1-ε) * (1-ε) + ε * 0.5 ≈ 0.998
-    assert se_factors[0].p1 > 0.99
-    assert se_factors[0].p2 == pytest.approx(0.5)
+    # CONDITIONAL factor captures the hard implication role.
+    conditional_factors = [f for f in fg.factors if f.factor_type == FactorType.CONDITIONAL]
+    assert len(conditional_factors) == 1
+    assert conditional_factors[0].cpt == pytest.approx((0.5, 1.0 - CROMWELL_EPS))
 
 
 def test_claim_metadata_prior_used_in_lowering():
     """Claims with metadata['prior'] use that value instead of default 0.5."""
-    from gaia.ir import Knowledge
+    from gaia.engine.ir import Knowledge
 
     g = _lg(
         knowledges=[
