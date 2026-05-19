@@ -2,7 +2,10 @@
 
 import pytest
 
-from gaia.lang import claim, compare
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import compare
+
+pytestmark = pytest.mark.legacy_dsl
 
 
 def test_compare_basic():
@@ -74,7 +77,7 @@ def test_compare_prior_stored():
 
 def test_compare_reason_without_prior_raises():
     """compare() reason without prior raises ValueError."""
-    with pytest.raises(ValueError, match="reason.*prior.*paired"):
+    with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
         compare(claim("P1"), claim("P2"), claim("O"), reason="no prior")
 
 

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "run",
+    "render",
+    "<TMP>",
+    "--target",
+    "docs"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "Docs: <TMP>\n"
+}

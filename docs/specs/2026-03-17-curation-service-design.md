@@ -4,7 +4,7 @@
 |------|---|
 | 日期 | 2026-03-17 |
 | 状态 | Draft |
-| 关联文档 | [../../foundations/server/architecture.md](../../foundations/server/architecture.md) §5.3, [../../foundations/graph-ir.md](../../foundations/graph-ir.md), [../../foundations/theory/inference-theory.md](../../foundations/theory/inference-theory.md) §3 |
+| 关联文档 | Historical server/LKM draft. Current Gaia v0.5 repository does not ship `foundations/server/`; see [ecosystem scope](../foundations/ecosystem/01-product-scope.md) and external gaia-lkm docs for target LKM services. |
 
 ---
 

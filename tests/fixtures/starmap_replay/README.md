@@ -4,8 +4,9 @@ Hand-written timeline-log fixtures for the Gaia starmap frontend playback featur
 Each subdirectory mirrors the package layout that an `lkm-to-gaia` run would
 produce on disk, but the JSONL logs are authored, not captured from a real run.
 
-The contract these fixtures realise is
-`~/ThisIsDP/dev/test_lkm2gaia/skills/lkm-to-gaia/references/timeline-log-contract.md`.
+The contract these fixtures realise is the `lkm-to-gaia` timeline-log
+contract (see `references/timeline-log-contract.md` inside the
+`lkm-to-gaia` skill of the upstream `test_lkm2gaia` repo).
 
 ## Fixtures
 

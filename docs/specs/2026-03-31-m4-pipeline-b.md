@@ -2,7 +2,9 @@
 
 > **Status:** Draft (revised 2026-04-02)
 > **Date:** 2026-03-31
-> **实现文件:** `gaia_lkm/core/extract.py`, `gaia_lkm/pipelines/extract.py`
+> **实现文件:** target external LKM implementation
+> (`gaia_lkm/core/extract.py`, `gaia_lkm/pipelines/extract.py`), not present in
+> the current Gaia v0.5 CLI repository.
 
 ## 概述
 

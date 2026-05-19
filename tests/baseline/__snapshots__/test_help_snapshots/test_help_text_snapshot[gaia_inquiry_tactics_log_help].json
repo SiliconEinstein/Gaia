@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "inquiry",
+    "tactics",
+    "log",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia inquiry tactics log [OPTIONS]\n\n Print the inquiry tactic event log.\n\n Renders the append-only audit log of every inquiry state mutation\n (focus / obligation / hypothesis / reject / review events) in\n chronological order. ``--json`` emits one JSON record per entry for\n machine consumption.\n\n Example:\n\n .. code-block:: bash\n\n     gaia inquiry tactics log\n     gaia inquiry tactics log --json\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --json                                                                       │\n│ --path        TEXT  [default: .]                                             │\n│ --help              Show this message and exit.                              │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

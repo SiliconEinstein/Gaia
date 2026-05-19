@@ -1,4 +1,4 @@
-"""Graphviz DOT emitter for ``gaia starmap --format dot``.
+"""Graphviz DOT emitter for ``gaia inspect starmap --format dot``.
 
 Consumes the JSON string produced by ``_graph_json.generate_graph_json`` and
 returns a complete ``digraph { ... }`` block. Knowledge nodes are grouped by
@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from typing import Any, cast
 
 _CONTRADICTION = "contradiction"
 
@@ -247,15 +248,16 @@ def _belief_annotation(prior: float | None, belief: float | None) -> str:
         return f"\\n({round(prior, 2):.2f} → {round(belief, 2):.2f})"
     if belief is not None:
         return f"\\n({round(belief, 2):.2f})"
+    assert prior is not None
     return f"\\n({round(prior, 2):.2f})"
 
 
 def _quote_id(raw: str) -> str:
-    """Return ``"<raw>"`` with embedded ``"`` and ``\\`` escaped."""
+    r"""Return ``"<raw>"`` with embedded ``"`` and ``\\`` escaped."""
     return '"' + raw.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _knowledge_class(n: dict, derived_ids: set[str]) -> str:
+def _knowledge_class(n: dict[str, Any], derived_ids: set[str]) -> str:
     """Classify a knowledge node into one of: setting, question, exported, derived, premise.
 
     ``exported`` wins over ``derived``/``premise`` when ``n["exported"]`` is true,
@@ -276,7 +278,174 @@ def _knowledge_class(n: dict, derived_ids: set[str]) -> str:
 
 def _knowledge_attrs(cls: str, theme: _Theme) -> str:
     palette = theme.knowledge
-    return getattr(palette, cls)
+    return cast(str, getattr(palette, cls))
+
+
+_FLOAT_MODULE = object()
+
+
+def _partition_dot_nodes(
+    nodes: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split graph-json nodes into knowledge, strategy, and operator groups."""
+    knowledge_nodes = [n for n in nodes if n.get("type") not in ("strategy", "operator")]
+    strategy_nodes = [n for n in nodes if n.get("type") == "strategy"]
+    operator_nodes = [n for n in nodes if n.get("type") == "operator"]
+    return knowledge_nodes, strategy_nodes, operator_nodes
+
+
+def _dot_derived_ids(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> set[str]:
+    """Return knowledge ids targeted by strategy/operator-sourced edges."""
+    op_or_strat_ids = {n["id"] for n in nodes if n.get("type") in ("strategy", "operator")}
+    return {
+        e["target"]
+        for e in edges
+        if e.get("source") in op_or_strat_ids and e.get("target") is not None
+    }
+
+
+def _dot_shared_modules(
+    knowledge_nodes: list[dict[str, Any]],
+    op_or_strat_ids: set[str],
+    edges: list[dict[str, Any]],
+) -> dict[str, object]:
+    """Map strategy/operator ids to their single module or the floating sentinel."""
+    kid_module = {n["id"]: (n.get("module") or None) for n in knowledge_nodes}
+    shared_module: dict[str, object] = {}
+    for nid in op_or_strat_ids:
+        mods: set[str | None] = set()
+        for e in edges:
+            src, tgt = e.get("source"), e.get("target")
+            if src == nid and tgt in kid_module:
+                mods.add(kid_module[tgt])
+            if tgt == nid and src in kid_module:
+                mods.add(kid_module[src])
+        shared_module[nid] = next(iter(mods)) if len(mods) == 1 else _FLOAT_MODULE
+    return shared_module
+
+
+def _emit_dot_graph_header(out: list[str], theme: _Theme) -> None:
+    """Append graph-level DOT attributes."""
+    out.append("digraph starmap {")
+    if theme.layout_engine is not None:
+        out.append(f"    layout={theme.layout_engine};")
+    else:
+        out.append("    rankdir=TB;")
+    out.append("    compound=true;")
+    if theme.bgcolor is not None:
+        out.append(f'    bgcolor="{theme.bgcolor}";')
+    for attr in theme.extra_graph_attrs:
+        out.append(f"    {attr};")
+    out.append(f"    {theme.node_global};")
+    out.append(f"    {theme.edge_global};")
+    out.append("")
+
+
+def _emit_dot_knowledge_node(
+    out: list[str],
+    node: dict[str, Any],
+    indent: str,
+    theme: _Theme,
+    derived_ids: set[str],
+) -> None:
+    """Append one knowledge node."""
+    nid = node["id"]
+    base = node.get("title") or node.get("label") or ""
+    prefix = "★ " if bool(node.get("exported")) else ""
+    annotation = _belief_annotation(node.get("prior"), node.get("belief"))
+    label = _escape_label(prefix + str(base)) + annotation
+    attrs = _knowledge_attrs(_knowledge_class(node, derived_ids), theme)
+    out.append(f'{indent}{_quote_id(nid)} [label="{label}", {attrs}];')
+
+
+def _emit_dot_strategy_node(
+    out: list[str], node: dict[str, Any], indent: str, theme: _Theme
+) -> None:
+    """Append one strategy node."""
+    stype = node.get("strategy_type", "") or ""
+    label = "" if theme.name == "stellaris" else _escape_label(stype)
+    attrs = theme.strategy.support if stype == "support" else theme.strategy.ellipse
+    out.append(f'{indent}{_quote_id(node["id"])} [label="{label}", {attrs}];')
+
+
+def _emit_dot_operator_node(
+    out: list[str], node: dict[str, Any], indent: str, theme: _Theme
+) -> None:
+    """Append one operator node."""
+    otype = node.get("operator_type", "") or ""
+    symbol = _OPERATOR_SYMBOLS.get(otype, "")
+    if theme.name == "stellaris":
+        label = _escape_label(symbol or otype)
+    elif symbol and otype:
+        label = _escape_label(f"{symbol} {otype}")
+    elif symbol:
+        label = _escape_label(symbol)
+    else:
+        label = _escape_label(otype)
+    attrs = theme.operator.contradiction if otype == _CONTRADICTION else theme.operator.neutral
+    out.append(f'{indent}{_quote_id(node["id"])} [label="{label}", {attrs}];')
+
+
+def _emit_dot_op_or_strat(out: list[str], node: dict[str, Any], indent: str, theme: _Theme) -> None:
+    """Append a strategy or operator node."""
+    if node.get("type") == "strategy":
+        _emit_dot_strategy_node(out, node, indent, theme)
+    else:
+        _emit_dot_operator_node(out, node, indent, theme)
+
+
+def _emit_dot_cluster(
+    out: list[str],
+    *,
+    cluster_name: str,
+    label: str,
+    knowledge: list[dict[str, Any]],
+    op_strat: list[dict[str, Any]],
+    theme: _Theme,
+    derived_ids: set[str],
+) -> None:
+    """Append one module cluster."""
+    out.append(f"    subgraph {cluster_name} {{")
+    out.append(f'        label="{_escape_label(label)}";')
+    out.append(f"        style={theme.cluster.style};")
+    out.append(f"        fillcolor={theme.cluster.fillcolor};")
+    out.append(f"        color={theme.cluster.color};")
+    if theme.cluster.fontcolor is not None:
+        out.append(f"        fontcolor={theme.cluster.fontcolor};")
+    out.append("        fontsize=11;")
+    out.append("")
+    for node in knowledge:
+        _emit_dot_knowledge_node(out, node, "        ", theme, derived_ids)
+    for node in op_strat:
+        _emit_dot_op_or_strat(out, node, "        ", theme)
+    out.append("    }")
+    out.append("")
+
+
+def _emit_dot_edges(
+    out: list[str],
+    *,
+    nodes: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    contra_op_ids: set[str],
+    theme: _Theme,
+) -> None:
+    """Append DOT edges with role-specific styling."""
+    known_ids = {n["id"] for n in nodes}
+    out.append("    // edges")
+    for edge in edges:
+        src = edge.get("source")
+        tgt = edge.get("target")
+        if not isinstance(src, str) or not isinstance(tgt, str):
+            continue
+        if src not in known_ids or tgt not in known_ids:
+            continue
+        if src in contra_op_ids or tgt in contra_op_ids:
+            attrs = theme.edge.contradiction_incident
+        else:
+            role = edge.get("role")
+            attrs = getattr(theme.edge, role, theme.edge.default) if role else theme.edge.default
+        out.append(f"    {_quote_id(src)} -> {_quote_id(tgt)} [{attrs}];")
 
 
 # ── Main entry point ────────────────────────────────────────────────────────
@@ -297,32 +466,15 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
     """
     th = _resolve_theme(theme)
     graph = json.loads(graph_json_str)
-    nodes: list[dict] = graph.get("nodes", [])
-    edges: list[dict] = graph.get("edges", [])
-
-    # Partition nodes.
-    knowledge_nodes: list[dict] = [
-        n for n in nodes if n.get("type") not in ("strategy", "operator")
-    ]
-    strategy_nodes: list[dict] = [n for n in nodes if n.get("type") == "strategy"]
-    operator_nodes: list[dict] = [n for n in nodes if n.get("type") == "operator"]
-
-    # Derived ⇔ some strategy/operator-sourced edge points at it.
-    op_or_strat_ids: set[str] = {
-        n["id"] for n in nodes if n.get("type") in ("strategy", "operator")
-    }
-    derived_ids: set[str] = set()
-    for e in edges:
-        if e.get("source") in op_or_strat_ids and e.get("target") is not None:
-            derived_ids.add(e["target"])
-
-    # Operator ids by kind, for edge styling.
-    contra_op_ids: set[str] = {
-        n["id"] for n in operator_nodes if n.get("operator_type") == _CONTRADICTION
-    }
+    nodes: list[dict[str, Any]] = graph.get("nodes", [])
+    edges: list[dict[str, Any]] = graph.get("edges", [])
+    knowledge_nodes, strategy_nodes, operator_nodes = _partition_dot_nodes(nodes)
+    derived_ids = _dot_derived_ids(nodes, edges)
+    op_or_strat_ids = {n["id"] for n in strategy_nodes + operator_nodes}
+    contra_op_ids = {n["id"] for n in operator_nodes if n.get("operator_type") == _CONTRADICTION}
 
     # Group knowledge nodes by their module (None / empty → no_module bucket).
-    by_module: dict[str | None, list[dict]] = {}
+    by_module: dict[str | None, list[dict[str, Any]]] = {}
     for n in knowledge_nodes:
         mod = n.get("module") or None
         by_module.setdefault(mod, []).append(n)
@@ -330,150 +482,44 @@ def to_dot(graph_json_str: str, theme: str = "light") -> str:
     named_modules = sorted([m for m in by_module if m])
     has_no_module = None in by_module
 
-    # Topology-based floating: a strategy/operator floats iff its anchored
-    # knowledge spans more than one module. Single-module strategies/operators
-    # nest inside their module's cluster. No filename hardcode.
-    kid_module: dict[str, str | None] = {
-        n["id"]: (n.get("module") or None) for n in knowledge_nodes
-    }
-    _FLOAT = object()  # sentinel: cross-module / unanchored
-    shared_module: dict[str, object] = {}
-    for nid in op_or_strat_ids:
-        mods: set[str | None] = set()
-        for e in edges:
-            src, tgt = e.get("source"), e.get("target")
-            if src == nid and tgt in kid_module:
-                mods.add(kid_module[tgt])
-            if tgt == nid and src in kid_module:
-                mods.add(kid_module[src])
-        if len(mods) == 1:
-            (only,) = mods
-            shared_module[nid] = only
-        else:
-            shared_module[nid] = _FLOAT
+    shared_module = _dot_shared_modules(knowledge_nodes, op_or_strat_ids, edges)
 
-    op_strat_by_module: dict[object, list[dict]] = {}
+    op_strat_by_module: dict[object, list[dict[str, Any]]] = {}
     for n in strategy_nodes + operator_nodes:
         op_strat_by_module.setdefault(shared_module[n["id"]], []).append(n)
 
     out: list[str] = []
-    out.append("digraph starmap {")
-    if th.layout_engine is not None:
-        out.append(f"    layout={th.layout_engine};")
-    else:
-        out.append("    rankdir=TB;")
-    out.append("    compound=true;")
-    if th.bgcolor is not None:
-        out.append(f'    bgcolor="{th.bgcolor}";')
-    for attr in th.extra_graph_attrs:
-        out.append(f"    {attr};")
-    out.append(f"    {th.node_global};")
-    out.append(f"    {th.edge_global};")
-    out.append("")
-
-    def _emit_knowledge_node(n: dict, indent: str) -> None:
-        nid = n["id"]
-        base = n.get("title") or n.get("label") or ""
-        is_exported = bool(n.get("exported"))
-        prefix = "★ " if is_exported else ""
-        annotation = _belief_annotation(n.get("prior"), n.get("belief"))
-        label = _escape_label(prefix + str(base)) + annotation
-        cls = _knowledge_class(n, derived_ids)
-        attrs = _knowledge_attrs(cls, th)
-        out.append(f'{indent}{_quote_id(nid)} [label="{label}", {attrs}];')
-
-    def _emit_strategy_node(n: dict, indent: str) -> None:
-        stype = n.get("strategy_type", "") or ""
-        # Stellaris: shape-only (no text); type names live in the legend.
-        # Light: keep type name as inline label (paper-friendly default).
-        label = "" if th.name == "stellaris" else _escape_label(stype)
-        if stype == "support":
-            attrs = th.strategy.support
-        else:
-            attrs = th.strategy.ellipse
-        out.append(f'{indent}{_quote_id(n["id"])} [label="{label}", {attrs}];')
-
-    def _emit_operator_node(n: dict, indent: str) -> None:
-        otype = n.get("operator_type", "") or ""
-        symbol = _OPERATOR_SYMBOLS.get(otype, "")
-        # Stellaris: symbol-only (no type name); type names live in the legend.
-        # Light: symbol + type name inline (clearer paper-mode label).
-        if th.name == "stellaris":
-            label = _escape_label(symbol or otype)
-        elif symbol and otype:
-            label = _escape_label(f"{symbol} {otype}")
-        elif symbol:
-            label = _escape_label(symbol)
-        else:
-            label = _escape_label(otype)
-        if otype == _CONTRADICTION:
-            attrs = th.operator.contradiction
-        else:
-            attrs = th.operator.neutral
-        out.append(f'{indent}{_quote_id(n["id"])} [label="{label}", {attrs}];')
-
-    def _emit_op_or_strat(n: dict, indent: str) -> None:
-        if n.get("type") == "strategy":
-            _emit_strategy_node(n, indent)
-        else:
-            _emit_operator_node(n, indent)
-
-    def _emit_cluster(
-        cluster_name: str, label: str, knowledge: list[dict], op_strat: list[dict]
-    ) -> None:
-        out.append(f"    subgraph {cluster_name} {{")
-        out.append(f'        label="{_escape_label(label)}";')
-        out.append(f"        style={th.cluster.style};")
-        out.append(f"        fillcolor={th.cluster.fillcolor};")
-        out.append(f"        color={th.cluster.color};")
-        if th.cluster.fontcolor is not None:
-            out.append(f"        fontcolor={th.cluster.fontcolor};")
-        out.append("        fontsize=11;")
-        out.append("")
-        for n in knowledge:
-            _emit_knowledge_node(n, "        ")
-        for n in op_strat:
-            _emit_op_or_strat(n, "        ")
-        out.append("    }")
-        out.append("")
+    _emit_dot_graph_header(out, th)
 
     for mod in named_modules:
-        _emit_cluster(
-            f"cluster_{_sanitize_cluster_name(mod)}",
-            mod,
-            by_module[mod],
-            op_strat_by_module.get(mod, []),
+        _emit_dot_cluster(
+            out,
+            cluster_name=f"cluster_{_sanitize_cluster_name(mod)}",
+            label=mod,
+            knowledge=by_module[mod],
+            op_strat=op_strat_by_module.get(mod, []),
+            theme=th,
+            derived_ids=derived_ids,
         )
 
     if has_no_module and by_module[None]:
-        _emit_cluster(
-            "cluster_no_module",
-            "(no module)",
-            by_module[None],
-            op_strat_by_module.get(None, []),
+        _emit_dot_cluster(
+            out,
+            cluster_name="cluster_no_module",
+            label="(no module)",
+            knowledge=by_module[None],
+            op_strat=op_strat_by_module.get(None, []),
+            theme=th,
+            derived_ids=derived_ids,
         )
 
-    floating_op_strat = op_strat_by_module.get(_FLOAT, [])
+    floating_op_strat = op_strat_by_module.get(_FLOAT_MODULE, [])
     if floating_op_strat:
         out.append("    // cross-module strategy/operator nodes (outside clusters)")
         for n in floating_op_strat:
-            _emit_op_or_strat(n, "    ")
+            _emit_dot_op_or_strat(out, n, "    ", th)
         out.append("")
 
-    # Edges.
-    known_ids = {n["id"] for n in nodes}
-    out.append("    // edges")
-    for e in edges:
-        src = e.get("source")
-        tgt = e.get("target")
-        if src not in known_ids or tgt not in known_ids:
-            continue
-        if src in contra_op_ids or tgt in contra_op_ids:
-            attrs = th.edge.contradiction_incident
-        else:
-            role = e.get("role")
-            attrs = getattr(th.edge, role, th.edge.default) if role else th.edge.default
-        out.append(f"    {_quote_id(src)} -> {_quote_id(tgt)} [{attrs}];")
-
+    _emit_dot_edges(out, nodes=nodes, edges=edges, contra_op_ids=contra_op_ids, theme=th)
     out.append("}")
     return "\n".join(out) + "\n"

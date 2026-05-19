@@ -57,7 +57,7 @@ gaia-lang       (external: compiler, IR, validator, lowering, InferenceEngine)
 3. Maps every `Hyperedge` → `DslStrategy` (`formal` edges → `deduction`, others → `infer`)
 4. Detects contradictions/equivalences → `DslOperator`
 5. Compiles to `LocalCanonicalGraph` via `gaia.lang.compiler.compile_package_artifact()`
-6. Builds `PriorRecord` and `StrategyParamRecord` for parameterization
+6. Builds `PriorRecord` entries for claim priors and writes strategy probability parameters inline on `Strategy`
 7. Constructs CPT tables: for `infer` strategies, builds 2^n CPT where entry[0] = 1-p2 (no premises true), entry[2^n-1] = p1 (all premises true)
 
 **Key insight:** Gaia IR can be **programmatically constructed** at runtime, not just compiled from static DSL files. This "runtime compilation" pattern is not currently exposed in Gaia Lang but could be formalized in v6.

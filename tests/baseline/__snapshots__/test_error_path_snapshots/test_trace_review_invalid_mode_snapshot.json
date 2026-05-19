@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "trace",
+    "review",
+    "<TMP>",
+    "--mode",
+    "bogus"
+  ],
+  "exit_code": 2,
+  "stderr": "Error: invalid --mode 'bogus'; allowed: ['publish', 'trace']\n",
+  "stdout": ""
+}

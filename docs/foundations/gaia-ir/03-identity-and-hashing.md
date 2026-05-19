@@ -20,6 +20,9 @@ Gaia IR 里至少有三类容易混淆的“标识”：
 |------|------|--------|--------------|
 | `Knowledge.id` | 标识一个具体 Knowledge 对象 | QID | 否（含 package_name） |
 | `Knowledge.content_hash` | 标识 Knowledge 的内容指纹 | local | 是 |
+| `Strategy.strategy_id` | 标识一个 Strategy（hash-based） | local | 否 |
+| `Operator.operator_id` | 标识一个顶层 Operator | local | 否 |
+| `Compose.compose_id` | 标识一个 Compose 工作流 | local | 否 |
 | `LocalCanonicalGraph.ir_hash` | 标识整个 local graph 的 canonical serialization | local graph | 不适用 |
 
 ## 2. Knowledge 身份
@@ -40,10 +43,13 @@ Gaia IR 里至少有三类容易混淆的“标识”：
 
 示例：`github:galileo_falling_bodies::vacuum_prediction`、`paper:{metadata_id}::cmb_power_spectrum`
 
-**字符集约束：**
+**字符集约束（与 `gaia.engine.ir.knowledge._QID_RE` 严格一致）：**
+
 - `namespace`：以小写字母开头，后续为小写字母、数字或下划线（`[a-z][a-z0-9_]*`）
 - `package_name`：以小写字母或数字开头，后续为小写字母、数字、下划线或连字符（`[a-z0-9][a-z0-9_\-]*`）
-- `label`：以小写字母或下划线开头，后续为小写字母、数字或下划线（`[a-z_][a-z0-9_]*`）。自动生成的 label 以 `__` 开头
+- `label`：以**字母**或下划线开头，后续为字母、数字或下划线（**`[A-Za-z_][A-Za-z0-9_]*`**，**允许大小写**）。自动生成的 label 以 `__` 开头
+
+**风格建议（非合约）**：新包推荐使用 `snake_case`（全小写 + 下划线）label，便于 grep 与跨实现稳定排序。大小写仅作为合约层兜底允许的字符集存在；如果未来要收紧到全小写，是单独的代码 PR，不是文档变更。
 
 对 **本地声明** 且未显式指定 `id` 的 Knowledge，`LocalCanonicalGraph` 会用自己的 `(namespace, package_name)` 自动生成 QID。对 **外部引用** 的 Knowledge，则允许显式保留 foreign QID。
 
@@ -75,13 +81,17 @@ QID 是 name-addressed 身份，不是 content-addressed。内容变化不影响
 
 ## 3. Knowledge 内容指纹
 
-`Knowledge.content_hash` 是跨包稳定的内容指纹：
+`Knowledge.content_hash` 是跨包稳定的内容指纹。**其权威定义在 `gaia.engine.ir.knowledge._compute_content_hash`**：
 
 ```text
-SHA-256(type + content + sorted(parameters))
+content_hash = SHA-256(type + "|" + format + "|" + content + "|" + sorted((name, type) for p in parameters))
 ```
 
-它**不包含** `package_id`。
+字符串字段以 ASCII pipe `|` 分隔；参数列表序列化为按 `(name, type)` 字典序排序的元组列表。哈希取完整 SHA-256 hex digest（64 个十六进制字符）。
+
+**不进入哈希的字段**：`id`、`label`、`title`、`module`、`declaration_index`、`exported`、`metadata`、`provenance`、`template_*` / `sub_knowledge` / `conclusion`（即叙事层与 composition 专用字段）；`package_id` 也明确不进入。
+
+> **Backwards compatibility**：在引入 `format` 字段之前，老版本 IR 的 hash payload 是 `type|content|sorted_params`（不含 `format`）。当前 `Knowledge` model 在校验时如果给定 `content_hash` 不匹配新公式，但匹配 legacy 公式，且 `format` 字段没有被显式传入（仍取默认 `"markdown"`），则接受该输入并以新公式覆盖 `content_hash`；其他情况报 `content_hash must match the derived content fingerprint`。新写入的 Knowledge 总是带 `format` 字段并使用新公式。
 
 因此：
 
@@ -98,20 +108,21 @@ SHA-256(type + content + sorted(parameters))
 ### 3.2 不应如何使用
 
 - 不能把 `content_hash` 当作对象 `id`
-- 不能把两个 `content_hash` 相同的节点自动视为”同一条推理链”
+- 不能把两个 `content_hash` 相同的节点自动视为"同一条推理链"
 
-`content_hash` 只说明”内容完全一致”，不说明它在图中的结构角色完全一致。
+`content_hash` 只说明"内容完全一致"，不说明它在图中的结构角色完全一致。
 
-## 4. Strategy 与 Operator 的身份
+## 4. Strategy / Operator / Compose 的身份
 
 当前 contract 下：
 
-- `Strategy` 只有 `strategy_id`（hash-based，`lcs_` 前缀）
-- `Operator` 只有 `operator_id`（hash-based，`lco_` 前缀）
+- `Strategy` 使用 `strategy_id`（hash-based，**`lcs_` 前缀**）
+- `Operator` 使用 `operator_id`（**`lco_` 前缀**），但**只对顶层 Operator 强制**——嵌入在 `FormalStrategy.formal_expr` 内的 Operator 可以省略 `operator_id` 与 `scope`，它们由宿主 FormalStrategy 拥有
+- `Compose` 使用 `compose_id`（**`lcm_` 前缀**）
 
-它们没有独立的 `content_hash` 概念。Strategy 与 Operator 的主要身份来自图结构角色，而不是一段可独立去重的内容文本。
+它们没有独立的 `content_hash` 概念。Strategy / Operator / Compose 的身份来自图结构角色，而不是一段可独立去重的内容文本。
 
-**注意**：Strategy 和 Operator 中对 Knowledge 的引用（`premises`、`conclusion`、`variables`）使用 QID。
+**注意**：Strategy / Operator / Compose 中对 Knowledge 的引用（`premises`、`conclusion`、`variables`、`inputs`、`background`、`warrants`）使用 QID。Compose 的 `actions` 列表可以引用 QID（Knowledge）或 `lco_` / `lcs_` / `lcm_` ID（Operator / Strategy / Compose）。
 
 ### 4.1 Strategy ID 计算
 
@@ -129,13 +140,13 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 | CompositeStrategy | `SHA-256(sorted(sub_strategies))` |
 | FormalStrategy | `SHA-256(canonical(formal_expr))` |
 
-`canonical(formal_expr)` 是对 FormalExpr 内 Operator 列表的确定性序列化。具体序列化算法待实现时细化。
+`canonical(formal_expr)` 的权威实现是 `gaia.engine.ir.strategy._canonical_formal_expr`：每个 Operator 只纳入 `operator`、对称算子归一化后的 `variables`、以及 `conclusion`，再按完整 JSON 表示稳定排序。
 
 这意味着：同一组 premises/conclusion/type，如果内部结构不同（如 leaf vs FormalStrategy），会产生不同的 `strategy_id`。
 
 ## 5. 图哈希
 
-`LocalCanonicalGraph.ir_hash` 是对整个 local graph 的 canonical serialization 计算出的确定性哈希。
+`LocalCanonicalGraph.ir_hash` 是对整个 local graph 的 canonical serialization 计算出的确定性哈希（实现见 `gaia.engine.ir.graphs._canonical_json` + `LocalCanonicalGraph._compute_hash`）。
 
 它的作用是：
 
@@ -146,9 +157,13 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 
 - 本地声明的节点
 - imported external occurrences
-- 它们参与的 Strategy / Operator 引用关系
+- 它们参与的 `Operator` / `Strategy` / `Compose` 引用关系
+- `Compose.{compose_id, name, version, sorted(inputs), sorted(background), actions, sorted(warrants), conclusion, metadata}`
+- `formula_graphs` 的 canonicalized nodes / edges
 
-因此，external references 不是 graph hash 之外的“隐式上下文”；一旦进入 IR，它们就是 canonical serialization 的组成部分。
+因此，external references 不是 graph hash 之外的"隐式上下文"；一旦进入 IR，它们就是 canonical serialization 的组成部分。
+
+> **IR schema 版本与 ir_hash 的区别**：`ir_hash` 是 *某一份 graph* 的内容指纹；而 IR **schema** 版本（`gaia._meta.IR_SCHEMA = "ir-vN+<hash>"`，由 `IR_SCHEMA_VERSION` 与所有 IR Pydantic model 的 JSON schema 派生）反映 *contract* 形状。LKM / 下游消费者在 ingest 时通过 `gaia._meta.check_ir_compat` 比对 `ir-vN` 前缀；当 schema 形状漂移时，pre-push 钩子 `scripts/check_ir_schema_bump.py` 会要求 bump `IR_SCHEMA_VERSION` 与 `IR_SCHEMA_SNAPSHOT_HASH`。
 
 它**不是**：
 
@@ -178,8 +193,8 @@ strategy_id = lcs_{SHA-256(scope + type + sorted(premises) + conclusion + struct
 
 validator 至少应检查：
 
-1. `Knowledge.id` 是否为有效 QID 格式（`{namespace}:{package_name}::{label}`）
-2. `content_hash` 若存在，是否与 `type + content + sorted(parameters)` 一致
+1. `Knowledge.id` 是否为有效 QID 格式（`{namespace}:{package_name}::{label}`），label 字符集允许 `[A-Za-z_][A-Za-z0-9_]*`
+2. `content_hash` 若存在，是否与 `_compute_content_hash(type, content, parameters, format)` 派生值一致；如果 `format` 字段未显式给出，且给定 `content_hash` 匹配 legacy 公式（不含 `format`），则视为 backwards-compatible 输入
 3. `ir_hash` 若定义，是否与 canonical serialization 一致
 4. graph owner 只约束自动分配的本地 QID；foreign QID 作为 external occurrence 是合法输入
 

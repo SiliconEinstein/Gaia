@@ -1,0 +1,41 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/public/data/beliefs.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/public/data/graph.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "docs/public/data/meta.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "manifest.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "narrative-outline.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "wiki/Home.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "wiki/Inference-Results.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "wiki/Module-Root.md",
+      "size": "<NONZERO>"
+    }
+  ],
+  "root": ".github-output"
+}

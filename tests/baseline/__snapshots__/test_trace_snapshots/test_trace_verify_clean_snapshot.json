@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "trace",
+    "verify",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "[verify] OK\n  events             : 3\n  events_root        : 0cfd5aa0cf36c16decfe1fff344f5fe48390f0b41700988457c1edb762011073\n  manifest_hash      : a95fceb0192e749a21b4bc225a2fb6dff82b31b222a35fecaaef1557485757bb\n"
+}

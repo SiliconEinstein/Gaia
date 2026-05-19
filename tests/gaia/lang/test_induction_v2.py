@@ -2,12 +2,18 @@
 
 import pytest
 
-from gaia.lang import Knowledge, Strategy, claim, support
-from gaia.lang.dsl.strategies import induction
+from gaia.engine.lang import Knowledge, claim
+from gaia.engine.lang.compat import Strategy, support
+from gaia.engine.lang.dsl.strategies import induction
+
+pytestmark = [
+    pytest.mark.legacy_dsl,
+    pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning"),
+]
 
 
 def test_induction_binary_composite():
-    """induction takes 2 supports + law."""
+    """Induction takes 2 supports + law."""
     obs1 = claim("Iron expands when heated.")
     obs2 = claim("Copper expands when heated.")
     law = claim("All metals expand when heated.")
@@ -25,7 +31,7 @@ def test_induction_binary_composite():
 
 
 def test_induction_conclusion_is_law():
-    """conclusion is the law Knowledge."""
+    """Conclusion is the law Knowledge."""
     obs1 = claim("Obs 1.")
     obs2 = claim("Obs 2.")
     law = claim("Law.")

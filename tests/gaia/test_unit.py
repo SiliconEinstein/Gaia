@@ -1,0 +1,54 @@
+import pytest
+
+from gaia.engine.ir import QuantityLiteral
+from gaia.unit import Quantity, canonical_unit, from_literal, q, to_literal, ureg
+
+
+def test_q_creates_shared_registry_quantity():
+    qty = q(80, "K")
+
+    assert isinstance(qty, Quantity)
+    assert qty._REGISTRY is ureg
+    assert qty.magnitude == 80
+    assert str(qty.units) == "kelvin"
+
+
+def test_canonical_unit_normalizes_aliases() -> None:
+    assert canonical_unit("K") == "kelvin"
+    assert canonical_unit("m/s") == "meter / second"
+
+
+@pytest.mark.parametrize("unit", ["", " "])
+def test_canonical_unit_rejects_empty_or_blank_strings(unit: str) -> None:
+    with pytest.raises(TypeError, match="unit must be a non-empty string"):
+        canonical_unit(unit)
+
+
+def test_canonical_unit_rejects_non_string_input() -> None:
+    with pytest.raises(TypeError, match="unit must be a non-empty string"):
+        canonical_unit(1)  # type: ignore[arg-type]
+
+
+def test_to_literal_is_deterministic_json_native():
+    literal = to_literal(q(80, "K"))
+
+    assert literal == QuantityLiteral(value=80.0, unit="kelvin")
+    assert literal.model_dump(mode="json") == {
+        "schema_version": "gaia.quantity_literal.v1",
+        "value": 80.0,
+        "unit": "kelvin",
+    }
+
+
+def test_from_literal_roundtrips_quantity():
+    literal = QuantityLiteral(value=3.0, unit="meter / second")
+
+    qty = from_literal(literal)
+
+    assert isinstance(qty, Quantity)
+    assert qty.to("m/s").magnitude == pytest.approx(3.0)
+
+
+def test_to_literal_rejects_non_quantity():
+    with pytest.raises(TypeError, match=r"Expected a gaia.unit.Quantity"):
+        to_literal(80)

@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "run",
+    "infer",
+    "<TMP>"
+  ],
+  "exit_code": 1,
+  "stderr": "Error: no pyproject.toml found.\n",
+  "stdout": ""
+}

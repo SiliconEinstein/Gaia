@@ -1,11 +1,11 @@
-"""TR-1：schema 字段约束与 pydantic 校验。"""
+"""TR-1：schema 字段约束与 pydantic 校验。."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
 
-from gaia.trace.schema import (
+from gaia.engine.trace.schema import (
     SCHEMA_VERSION,
     ClaimRef,
     Trace,
@@ -15,7 +15,7 @@ from gaia.trace.schema import (
 
 
 def _utc(s: str) -> datetime:
-    return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+    return datetime.fromisoformat(s).replace(tzinfo=UTC)
 
 
 def test_schema_version_is_one_zero():

@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "trace",
+    "verify",
+    "<TMP>",
+    "--quiet"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": ""
+}

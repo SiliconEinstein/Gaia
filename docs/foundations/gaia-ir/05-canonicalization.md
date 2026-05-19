@@ -19,7 +19,7 @@ Gaia IR 只管理 **local package 内部的结构表示**。
 | 概念 | 所属层 | 说明 |
 |------|--------|------|
 | QID（name-addressed identity） | IR | `{namespace}:{package_name}::{label}`，标识 package 内的一次 Knowledge occurrence |
-| `content_hash`（内容指纹） | IR | `SHA-256(type + content + sorted(params))`，用于匹配与去重候选发现 |
+| `content_hash`（内容指纹） | IR | `SHA-256(type \| format \| content \| sorted((name,type)))`，详见 [03-identity-and-hashing.md](03-identity-and-hashing.md) §3（Knowledge 内容指纹），用于匹配与去重候选发现 |
 | `equivalence` Operator | IR | 作者在包中显式声明两个 claim 的真值等价 |
 | `metadata` / provenance | IR | 保留来源、上下文、相关引用等可审计信息 |
 | registered package versions | Official Registry | 哪些 package 版本进入官方索引 |
@@ -56,7 +56,7 @@ Gaia IR 只管理 **local package 内部的结构表示**。
 
 ### 2.2 Content Fingerprint
 
-`content_hash = SHA-256(type + content + sorted(parameters))`
+`content_hash = SHA-256(type | format | content | sorted((name, type) for p in parameters))`（权威定义见 [03-identity-and-hashing.md](03-identity-and-hashing.md) §3）。
 
 它不带 package 信息，因此同内容节点在不同 package 中会共享同一个哈希。它的作用是：
 
@@ -198,9 +198,14 @@ Gaia IR 不承诺以下内容：
 
 ## 7. FormalExpr 的生成方式
 
-- **所有当前已启用的命名策略**（`deduction`、`elimination`、`mathematical_induction`、`case_analysis`、`abduction`、`analogy`、`extrapolation`）：其 canonical `FormalExpr` 骨架由 `type` 和接口节点唯一确定，IR 侧应自动生成
+- **所有当前已启用的命名 FormalStrategy**（`support`、`compare`、`deduction`、`elimination`、`mathematical_induction`、`case_analysis`、`abduction`、`analogy`、`extrapolation`）：其 canonical `FormalExpr` 骨架由 `type` 和接口节点唯一确定，IR 侧应自动生成
 - 对 `abduction` 这类家族，formalization 还可以自动补齐所需的 public interface claim（如 `AlternativeExplanationForObs`），并生成配套的 structural helper claim 与 canonical `FormalExpr`
-- `reductio` 与 `induction` 在 theory 层保留，但 Gaia IR core 当前 defer；若需要表达 `induction`，先展开成多条共享同一结论的 abduction
-- 对 `analogy`、`extrapolation`，formalization 复用显式给定的接口 claim（如 `BridgeClaim`、`ContinuityClaim`），再生成所需 helper claim
+- `analogy`、`extrapolation`：formalization 复用显式给定的接口 claim（如 `BridgeClaim`、`ContinuityClaim`），再生成所需 helper claim
+- `induction`：作为 `CompositeStrategy` 包装多条共享同一 `conclusion` 的 `support` 子策略；每条子 `support` 各自走 FormalStrategy 路径生成自己的 canonical FormalExpr。归纳效应由因子图拓扑涌现，CompositeStrategy 本身不直接 formalize（详见 [02-gaia-ir.md §3.6](02-gaia-ir.md)）
+- `reductio`：theory 层保留，Gaia IR core 当前 defer，等 hypothetical assumption / consequence 接口契约稳定后再回引入
+- `toolcall` / `proof`：deferred，未引入
 - 规范中的 `formal_expr` 示例应理解为 **formalization 之后的 canonical stored form**，而不是要求用户在正常构图时手写 `operators`
-- **`toolcall` / `proof`**：deferred，未引入
+
+## 8. Compose 与 canonicalization
+
+`Compose`（`lcm_` 前缀）参与 `LocalCanonicalGraph` 的 canonical serialization：`Compose.{compose_id, name, version, sorted(inputs), sorted(background), actions, sorted(warrants), conclusion, metadata}` 都进入 `ir_hash`（实现见 `gaia.engine.ir.graphs._canonicalize_compose_dump`）。Compose 自身不参与 BP，也不在跨包 canonicalization 中被合并；它的 cross-package 角色与 Knowledge 一样，是被显式引用的 occurrence。Schema 与不变量见 [02-gaia-ir.md §1.4](02-gaia-ir.md)。
