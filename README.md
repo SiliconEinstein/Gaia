@@ -1,7 +1,7 @@
 # Gaia Lang
 
 [![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
-[![Nightly](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml/badge.svg?branch=v0.5)](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml)
+[![Nightly](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml/badge.svg?branch=main)](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml)
 [![Docs](https://github.com/SiliconEinstein/Gaia/actions/workflows/docs.yml/badge.svg)](https://siliconeinstein.github.io/Gaia/)
 [![PyPI](https://img.shields.io/pypi/v/gaia-lang.svg)](https://pypi.org/project/gaia-lang/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -16,6 +16,22 @@ The goal is practical: constrain an LLM agent with scientific logic until it can
 act more like **Jaynes' Robot**. The agent must say what it assumes, expose how
 claims depend on each other, and let probability theory compute what follows
 from the declared information set.
+
+## Version Status
+
+`main` is the active v0.5 development trunk. The published v0.5 artifact is
+currently the alpha preview `gaia-lang==0.5.0a1`; the source tree is tracking
+the upcoming `0.5.0` line until the stable v0.5 release is cut.
+
+- Use `gaia-lang==0.5.0a1` or `pip install --pre gaia-lang` if you want the
+  current v0.5 alpha CLI, DSL, Bayes, and package workflow.
+- Use `gaia-lang==0.4.4` and the [`release/0.4`](https://github.com/SiliconEinstein/Gaia/tree/release/0.4)
+  branch if you need the stable v0.4.x line.
+- v0.5 is breaking relative to v0.4; see the
+  [v0.5.0a1 release notes](docs/releases/0.5.0a1.md) and
+  [migration guide](docs/migration.md).
+- The historical `v0.5` branch is a temporary release-train branch; new PRs
+  should target `main`.
 
 ## What Gaia Does
 
@@ -46,8 +62,22 @@ whether the reasoning is publishable, auditable, or ready to register.
 
 ## Install
 
+For the current v0.5 alpha:
+
 ```bash
-pip install gaia-lang
+pip install gaia-lang==0.5.0a1
+```
+
+Or, if you intentionally allow prereleases:
+
+```bash
+pip install --pre gaia-lang
+```
+
+For the stable v0.4.x line:
+
+```bash
+pip install gaia-lang==0.4.4
 ```
 
 For development:
@@ -195,7 +225,7 @@ flowchart TD
     classDef contra fill:#ffebee,stroke:#c62828,color:#222
 ```
 
-Current local inference on the v0.5 branch gives:
+Current local inference on `main` / the v0.5 line gives:
 
 | Claim | Starting information | Local posterior belief |
 |-------|----------------------|-----------------------:|
