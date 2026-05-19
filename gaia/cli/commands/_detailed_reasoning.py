@@ -304,6 +304,14 @@ def _append_mermaid_operator_edges(
             lines.append(f"    {oid}{edge}{conc_label}")
 
 
+_MERMAID_LEGEND = """\
+**Diagram legend:**
+nodes: rectangle = claim/note/question; oval = derivation strategy; hexagon = structural operator.
+edges: solid arrow (`-->`) = premise; dotted arrow (`-.->`) = background note.
+operators: ⊕ exclusive partition; ⊗ contradiction; ≡ equivalence.
+colours: blue = premise/independent; green = derived; amber = question; grey/dashed = background or note; red = contradiction; dashed-yellow = non-deterministic strategy."""
+
+
 def render_mermaid(
     ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
@@ -328,6 +336,8 @@ def render_mermaid(
     lines.append("")
     lines.append(_MERMAID_STYLES)
     lines.append("```")
+    lines.append("")
+    lines.append(_MERMAID_LEGEND)
     return "\n".join(lines)
 
 
