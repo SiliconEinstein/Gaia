@@ -75,6 +75,8 @@ from gaia.cli.commands.inquiry import inquiry_app
 from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
+from gaia.cli.commands.skill import list_command as skill_list_command
+from gaia.cli.commands.skill import register_command as skill_register_command
 from gaia.cli.commands.starmap import starmap_command
 from gaia.cli.commands.starmap_replay import starmap_replay_command
 from gaia.cli.commands.trace import trace_app
@@ -333,6 +335,25 @@ app.add_typer(bayes_app, name="bayes")
 # helper that hands the user a runnable sequence.
 
 app.add_typer(example_app, name="example")
+
+
+# --------------------------------------------------------------------------- #
+# skill — materialise bundled SKILL.md registry into cwd                      #
+# --------------------------------------------------------------------------- #
+#
+# `gaia skill register` copies the in-package `gaia/_skills/` tree into a
+# per-cwd `.gaia-skills/` registry and symlinks each skill into
+# `.claude/skills/` and/or `.agent/skills/`. `gaia skill list` reports the
+# diff. POSIX-only; see `gaia.cli.commands.skill` for the safety contract.
+
+skill_app = typer.Typer(
+    name="skill",
+    help="Materialise bundled Gaia skills into cwd (register / list).",
+    no_args_is_help=True,
+)
+skill_app.command(name="register")(skill_register_command)
+skill_app.command(name="list")(skill_list_command)
+app.add_typer(skill_app, name="skill")
 
 
 # --------------------------------------------------------------------------- #
