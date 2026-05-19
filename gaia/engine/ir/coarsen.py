@@ -9,7 +9,22 @@ from __future__ import annotations
 
 from typing import Any
 
-_HELPER_LABEL_PREFIXES = ("__", "_anon")
+#: Prefix used by the compile pass for dunder helper claims
+#: (operator conclusions like ``__implication_result_<hash>``).
+DUNDER_HELPER_PREFIX = "__"
+
+#: Prefix used by the compile pass for unlabeled (anonymous) author claims
+#: (compiler-minted ``_anon_<NNN>`` labels).
+ANON_HELPER_PREFIX = "_anon"
+
+#: Canonical set of label prefixes used by the compile pass for synthetic
+#: helper claims. The CLI's user-facing surfaces (orphan list, starmap,
+#: graph.json) filter these so machine-readable views in ``.gaia/`` remain
+#: complete while human-facing views show only authored knowledge.
+HELPER_LABEL_PREFIXES = (DUNDER_HELPER_PREFIX, ANON_HELPER_PREFIX)
+
+# Backwards-compatible private alias.
+_HELPER_LABEL_PREFIXES = HELPER_LABEL_PREFIXES
 
 
 def coarsen_ir(ir: dict[str, Any], exported_ids: set[str]) -> dict[str, Any]:

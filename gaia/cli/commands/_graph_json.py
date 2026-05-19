@@ -11,6 +11,8 @@ import json
 from collections import Counter
 from typing import Any
 
+from gaia.engine.ir.coarsen import HELPER_LABEL_PREFIXES
+
 
 def _beliefs_from_payload(beliefs_data: dict[str, Any] | None) -> dict[str, float]:
     """Extract graph belief values from an optional beliefs payload."""
@@ -44,7 +46,13 @@ def _knowledge_nodes(
     nodes: list[dict[str, Any]] = []
     for k in ir["knowledges"]:
         label = k.get("label", "")
-        if label.startswith("__"):
+        if label.startswith(HELPER_LABEL_PREFIXES):
+            # `__` dunder helpers (operator conclusions like
+            # `__implication_result`) and `_anon_<NNN>` compiler-minted
+            # labels are not authored by the user; drop them from the
+            # visualization layer (graph.json → starmap, etc.).
+            # Prefix set sourced from gaia.engine.ir.coarsen so the
+            # helper-label naming convention has a single source of truth.
             continue
         kid = k["id"]
         nodes.append(
