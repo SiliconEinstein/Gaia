@@ -13,6 +13,7 @@ from typing import Any
 
 from gaia.cli.commands._graph_json import generate_graph_json
 from gaia.cli.commands._manifest import generate_manifest
+from gaia.cli.commands._render_priors import format_belief
 from gaia.cli.commands._wiki import generate_all_wiki
 from gaia.engine.ir.coarsen import coarsen_ir
 
@@ -305,12 +306,13 @@ def _render_coarse_mermaid(
         is_exp = kid in exported_ids
 
         prior_val = p if p is not None else 0.5
+        prior_str = format_belief(prior_val)
         if is_exp:
-            ann = f"{prior_val:.2f} → {b:.2f}" if b is not None else ""
+            ann = f"{prior_str} → {format_belief(b)}" if b is not None else ""
             display = f"★ {label}\\n({ann})" if ann else f"★ {label}"
             css = ":::exported"
         else:
-            ann = f"{prior_val:.2f} → {b:.2f}" if b is not None else f"{prior_val:.2f}"
+            ann = f"{prior_str} → {format_belief(b)}" if b is not None else prior_str
             display = f"{label}\\n({ann})"
             css = ":::premise"
 
@@ -502,8 +504,8 @@ def _generate_readme_skeleton(
             if len(content) > 80:
                 content = content[:77] + "..."
             kid = k["id"]
-            prior = f"{priors.get(kid, 0.5):.2f}"
-            belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "\u2014"
+            prior = format_belief(priors.get(kid, 0.5))
+            belief = format_belief(beliefs[kid]) if kid in beliefs else "\u2014"
             lines.append(f"| {label} | {content} | {prior} | {belief} |")
         lines.append("")
 

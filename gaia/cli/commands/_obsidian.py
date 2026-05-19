@@ -15,6 +15,7 @@ import json
 from typing import Any
 
 from gaia.cli.commands._detailed_reasoning import render_mermaid, topo_layers
+from gaia.cli.commands._render_priors import format_belief
 from gaia.cli.commands._simplified_mermaid import render_simplified_mermaid
 from gaia.engine.inquiry._classify import (
     KnowledgeClassification,
@@ -159,11 +160,11 @@ def _generate_claim_page(
     if prior_val is not None or justification:
         lines.append("## Review")
         if prior_val is not None:
-            lines.append(f"**Prior**: {prior_val:.2f}")
+            lines.append(f"**Prior**: {format_belief(prior_val)}")
         if justification:
             lines.append(f"**Justification**: {justification}")
         if belief_val is not None:
-            lines.append(f"**Belief**: {belief_val:.2f}")
+            lines.append(f"**Belief**: {format_belief(belief_val)}")
         lines.append("")
 
     if kid in strategies_by_premise:
@@ -225,8 +226,8 @@ def _generate_module_section_page(
         content = k.get("content", "")
         num = claim_numbers.get(kid, 0)
         star = " ★" if k.get("exported") else ""
-        prior_str = f"{priors[kid]:.2f}" if kid in priors else "—"
-        belief_str = f"{beliefs[kid]:.2f}" if kid in beliefs else "—"
+        prior_str = format_belief(priors[kid]) if kid in priors else "—"
+        belief_str = format_belief(beliefs[kid]) if kid in beliefs else "—"
 
         lines.append(f"### [[{label}|#{num:02d} {k_title}]]{star}")
         lines.append(f"> {content}")
@@ -265,8 +266,8 @@ def _generate_beliefs_page(
         label = k.get("label", "")
         ktype = k["type"]
         role = node_role(kid, ktype, classification)
-        prior = f"{priors[kid]:.2f}" if kid in priors else "—"
-        belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "—"
+        prior = format_belief(priors[kid]) if kid in priors else "—"
+        belief = format_belief(beliefs[kid]) if kid in beliefs else "—"
         num = claim_numbers.get(kid, 0)
         lines.append(f"| {num:02d} | [[{label}]] | {ktype} | {prior} | {belief} | {role} |")
 
@@ -355,7 +356,7 @@ def _generate_index(
         mod = k.get("module", "Root")
         num = claim_numbers.get(kid, 0)
         star = " ★" if k.get("exported") else ""
-        belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "—"
+        belief = format_belief(beliefs[kid]) if kid in beliefs else "—"
         lines.append(f"| {num:02d} | [[{label}]]{star} | {k['type']} | [[{mod}]] | {belief} |")
     lines.append("")
 
@@ -640,8 +641,8 @@ def generate_obsidian_vault(
             kid = k["id"]
             label = k.get("label", "")
             num = claim_numbers.get(kid, 0)
-            prior = f"{priors[kid]:.2f}" if kid in priors else "—"
-            belief = f"{beliefs[kid]:.2f}"
+            prior = format_belief(priors[kid]) if kid in priors else "—"
+            belief = format_belief(beliefs[kid])
             just = justifications.get(kid, "")
             weak_lines.append(f"| {num:02d} | [[{label}]] | {prior} | {belief} | {just} |")
         weak_lines.append("")
