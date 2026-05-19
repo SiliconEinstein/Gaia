@@ -2,8 +2,8 @@ name: Release (rc)
 
 # Manual release-candidate promotion per spec §8 step 5. workflow_dispatch
 # only; no auto-trigger. 协作单 五·Q7 + 七 locks: pre-release artifacts are
-# durable (never retracted from PyPI); rc does not tag or create a GitHub
-# release (only stable does).
+# durable (never retracted from PyPI), so every non-dry-run rc publish also
+# creates a matching `v<version>` tag and GitHub prerelease.
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ on:
         default: false
 
 permissions:
-  # `contents: write` kept for uniformity with stable (unused on rc).
+  # `contents: write` is needed for the git tag push + GitHub prerelease.
   # `id-token: write` is required for PyPI Trusted Publishing.
   contents: write
   id-token: write
@@ -60,3 +60,20 @@ jobs:
       - name: Publish to PyPI (OIDC trusted publishing)
         if: ${{ inputs.dry_run == false }}
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create git tag
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          git tag -a "v${{ inputs.version }}" -m "gaia-lang v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create GitHub prerelease
+        if: ${{ inputs.dry_run == false }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "Gaia Lang v${{ inputs.version }}" \
+            --prerelease \
+            --generate-notes \
+            dist/*.whl dist/*.tar.gz

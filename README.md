@@ -25,6 +25,9 @@ the upcoming `0.5.0` line until the stable v0.5 release is cut.
 
 - Use `gaia-lang==0.5.0a1` or `pip install --pre gaia-lang` if you want the
   current v0.5 alpha CLI, DSL, Bayes, and package workflow.
+- The exact alpha source is the
+  [`v0.5.0a1`](https://github.com/SiliconEinstein/Gaia/releases/tag/v0.5.0a1)
+  tag at `803c0918`.
 - Use `gaia-lang==0.4.4` and the [`release/0.4`](https://github.com/SiliconEinstein/Gaia/tree/release/0.4)
   branch if you need the stable v0.4.x line.
 - v0.5 is breaking relative to v0.4; see the
@@ -32,6 +35,12 @@ the upcoming `0.5.0` line until the stable v0.5 release is cut.
   [migration guide](docs/migration.md).
 - The historical `v0.5` branch is a temporary release-train branch; new PRs
   should target `main`.
+
+| Channel | Install | Source |
+|---------|---------|--------|
+| v0.5 alpha | `pip install gaia-lang==0.5.0a1` | [`v0.5.0a1`](https://github.com/SiliconEinstein/Gaia/releases/tag/v0.5.0a1) |
+| v0.5 nightly | install from `main` or use the nightly artifact | [`main`](https://github.com/SiliconEinstein/Gaia/tree/main) |
+| v0.4 stable | `pip install gaia-lang==0.4.4` | [`release/0.4`](https://github.com/SiliconEinstein/Gaia/tree/release/0.4) |
 
 ## What Gaia Does
 

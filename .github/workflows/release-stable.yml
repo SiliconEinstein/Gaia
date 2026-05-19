@@ -1,10 +1,9 @@
 name: Release (stable)
 
 # Manual stable promotion per spec §8 step 5. workflow_dispatch only; no
-# auto-trigger. 协作单 五·Q7 + 七 locks: pre-release artifacts are durable
-# (never retracted from PyPI). Stable is the only channel that creates a
-# git tag (`v<version>`) and a GitHub release; both steps are gated on
-# `inputs.dry_run == false` after PyPI publish succeeds.
+# auto-trigger. 协作单 五·Q7 + 七 locks: release artifacts are durable
+# (never retracted from PyPI), so every non-dry-run stable publish creates a
+# git tag (`v<version>`) and a GitHub release after PyPI publish succeeds.
 
 on:
   workflow_dispatch:
