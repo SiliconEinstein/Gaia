@@ -34,11 +34,11 @@ if end > 0:
 # 2. Declare the two `Variable(...)` typed terms
 
 gaia author variable \
-  --label f2_total_count --symbol n_f2 --domain Nat --value 395 \
+  --dsl-binding-name f2_total_count --symbol n_f2 --domain Nat --value 395 \
   --target ./mendel-cli-mirror-gaia
 
 gaia author variable \
-  --label f2_dominant_count --symbol k_dominant --domain Nat --value 295 \
+  --dsl-binding-name f2_dominant_count --symbol k_dominant --domain Nat --value 295 \
   --target ./mendel-cli-mirror-gaia
 
 
@@ -46,17 +46,17 @@ gaia author variable \
 
 gaia author note \
   "单因子杂交实验从两个稳定亲本品系开始：一个亲本稳定表现显性表型，另一个亲本稳定表现隐性表型；二者杂交得到 F1，再让 F1 自交得到 F2。" \
-  --label monohybrid_cross_setup \
+  --dsl-binding-name monohybrid_cross_setup \
   --target ./mendel-cli-mirror-gaia
 
 gaia author note \
   "在该性状上，显性遗传因子会在表型上遮蔽隐性遗传因子。" \
-  --label dominance_background \
+  --dsl-binding-name dominance_background \
   --target ./mendel-cli-mirror-gaia
 
 gaia author note \
   "F2 的显性/隐性计数是有限样本，因此用点似然（二项 PMF 在观测计数处的取值）衡量模型与数据的贴合度；对手理论取 p ~ Uniform[0,1] 的 diffuse 先验作为参考尺度，不引入任何具体的替代二项参数。" \
-  --label finite_sample_background \
+  --dsl-binding-name finite_sample_background \
   --target ./mendel-cli-mirror-gaia
 
 

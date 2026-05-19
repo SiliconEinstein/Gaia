@@ -35,17 +35,17 @@ if end > 0:
 
 gaia author note \
   "This package models Galileo's falling-body thought experiment as a comparison between two explanatory models. It does not treat vacuum falling as an observed fact inside the package." \
-  --label context \
+  --dsl-binding-name context \
   --target ./galileo-cli-mirror-gaia
 
 gaia author note \
   "In the tied-body thought experiment, a heavy body and a light body are bound together and considered as one composite system." \
-  --label thought_experiment_setup \
+  --dsl-binding-name thought_experiment_setup \
   --target ./galileo-cli-mirror-gaia
 
 gaia author note \
   "The vacuum case is a counterfactual setup in which the resisting medium is absent." \
-  --label vacuum_setup \
+  --dsl-binding-name vacuum_setup \
   --target ./galileo-cli-mirror-gaia
 
 
