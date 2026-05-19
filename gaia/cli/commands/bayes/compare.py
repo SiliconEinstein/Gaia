@@ -100,8 +100,14 @@ def compare_command(
         "exhaustive_pairwise_complement",
         "--exclusivity",
         help=(
-            "Structural-action mode: 'exhaustive_pairwise_complement' (default) "
-            "/ 'pairwise_contradiction'."
+            "Structural-action contract between the compared hypotheses. "
+            "'exhaustive_pairwise_complement' (default): hypotheses partition "
+            "the outcome space — exactly one is true, complementary mass is "
+            "distributed pairwise (standard Bayesian model-selection; 2 "
+            "models only). 'pairwise_contradiction': hypotheses are mutually "
+            "exclusive but not exhaustive — at most one is true, an "
+            "'all-false' joint state is allowed (use when you genuinely "
+            "believe all listed models may be wrong)."
         ),
     ),
     target: str = typer.Option(
