@@ -386,6 +386,7 @@ def _render_node(
     priors: dict[str, float],
     *,
     emit_anchor: bool = True,
+    operator_for: dict[str, dict[str, Any]] | None = None,
 ) -> list[str]:
     """Render a single knowledge node as markdown lines."""
     label = k.get("label", "")
@@ -428,7 +429,7 @@ def _render_node(
             lines.append(f"> {content_line}")
         lines.append("")
 
-    # Derivation
+    # Derivation (strategy)
     if kid in strategy_for:
         s = strategy_for[kid]
         stype = s.get("type", "")
@@ -442,6 +443,28 @@ def _render_node(
         lines.append(f"\U0001f517 **{stype}**({', '.join(premise_links)})")
         lines.append("")
         reason = (s.get("metadata") or {}).get("reason", "")
+        if reason:
+            lines.append("<details><summary>Reasoning</summary>")
+            lines.append("")
+            lines.append(reason)
+            lines.append("")
+            lines.append("</details>")
+            lines.append("")
+
+    # Structural link (operator: derive/contradict/equal/exclusive)
+    if operator_for and kid in operator_for:
+        o = operator_for[kid]
+        otype = o.get("operator", "")
+        var_links = []
+        for v in o.get("variables", []):
+            vk = knowledge_by_id.get(v, {})
+            v_label = vk.get("label", v.split("::")[-1])
+            v_title = vk.get("title") or v_label
+            if not _is_helper(v_label):
+                var_links.append(f"[{v_title}](#{_anchor_id(v_label)})")
+        lines.append(f"\U0001f517 **{otype}**({', '.join(var_links)})")
+        lines.append("")
+        reason = (o.get("metadata") or {}).get("reason", "")
         if reason:
             lines.append("<details><summary>Reasoning</summary>")
             lines.append("")
@@ -569,6 +592,10 @@ def _render_introduction(
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
             strategy_for[s["conclusion"]] = s
+    operator_for: dict[str, dict[str, Any]] = {}
+    for o in ir.get("operators", []):
+        if o.get("conclusion"):
+            operator_for[o["conclusion"]] = o
 
     exported = [
         k for k in ir["knowledges"] if k.get("exported") and not _is_helper(k.get("label", ""))
@@ -586,6 +613,7 @@ def _render_introduction(
                 beliefs,
                 priors,
                 emit_anchor=False,
+                operator_for=operator_for,
             )
         )
     return lines
@@ -605,6 +633,10 @@ def render_knowledge_nodes(
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
             strategy_for[s["conclusion"]] = s
+    operator_for: dict[str, dict[str, Any]] = {}
+    for o in ir.get("operators", []):
+        if o.get("conclusion"):
+            operator_for[o["conclusion"]] = o
 
     module_order = ir.get("module_order")
     has_modules = module_order and any(k.get("module") for k in knowledge_by_id.values())
@@ -636,7 +668,16 @@ def render_knowledge_nodes(
                 sections.append("")
 
             for k in nodes:
-                sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
+                sections.extend(
+                    _render_node(
+                        k,
+                        strategy_for,
+                        knowledge_by_id,
+                        beliefs,
+                        priors,
+                        operator_for=operator_for,
+                    )
+                )
     else:
         # Single-file/legacy: one global diagram + type-based grouping
         ordered = _narrative_order(ir)
@@ -654,7 +695,16 @@ def render_knowledge_nodes(
                 current_type = ktype
                 sections.append(f"### {ktype.title()}s")
                 sections.append("")
-            sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
+            sections.extend(
+                _render_node(
+                    k,
+                    strategy_for,
+                    knowledge_by_id,
+                    beliefs,
+                    priors,
+                    operator_for=operator_for,
+                )
+            )
 
     return "\n".join(sections)
 

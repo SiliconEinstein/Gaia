@@ -150,7 +150,7 @@ def _normalize_init_scaffold_artifacts(artifacts: dict[str, object]) -> dict[str
         config = tomllib.loads(content)
         assert config["project"]["name"] == "demo-gaia"
         assert config["project"]["requires-python"] == ">=3.12"
-        assert config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/demo"]
+        assert config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/demo_gaia"]
         assert config["tool"]["gaia"]["type"] == "knowledge-package"
         assert config["tool"]["gaia"]["uuid"] == "<UUID4>"
         entry["content"] = "<uv-generated pyproject; Gaia-owned contract validated>\n"
