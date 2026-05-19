@@ -13,9 +13,19 @@ from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 
 
 def _claim_ref(claim: Claim) -> str:
+    """Return a short reference to *claim* for use inside synthesized sentences.
+
+    When the claim has a label we use the ``[@label]`` form; otherwise we
+    fall back to the raw content string. A single trailing period is stripped
+    so that splicing the reference into a larger sentence does not produce
+    doubled-punctuation like ``"exactly one of God exists. and … is true."``.
+    """
     if claim.label:
         return f"[@{claim.label}]"
-    return claim.content
+    content = claim.content
+    if content.endswith("."):
+        content = content[:-1]
+    return content
 
 
 def equal(
