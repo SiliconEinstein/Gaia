@@ -25,9 +25,11 @@ from __future__ import annotations
 import os
 import shutil
 from dataclasses import dataclass, field
+from enum import StrEnum
 from importlib.resources import files
 from importlib.resources.abc import Traversable
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -39,6 +41,29 @@ _REGISTRY_DIRNAME = ".gaia-skills"
 
 # Agent surfaces we link skills into. Order is canonical for printing.
 _AGENT_SURFACES = ("claude", "agent")
+
+
+class TargetSurface(StrEnum):
+    """Where ``gaia skill register`` materialises consumer-side symlinks."""
+
+    AUTO = "auto"
+    CLAUDE = "claude"
+    AGENT = "agent"
+    BOTH = "both"
+
+
+_TARGET_OPTION: Any = typer.Option(
+    TargetSurface.AUTO,
+    "--target",
+    help=(
+        "Where to materialise consumer-side symlinks. "
+        "'auto' links only into surfaces whose parent dir "
+        "(.claude/ or .agent/) already exists; 'claude', 'agent', "
+        "and 'both' opt in to creating the parent dir."
+    ),
+    case_sensitive=False,
+    show_default=True,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -595,19 +620,7 @@ def _posix_or_exit() -> None:
 
 
 def register_command(
-    target: str = typer.Option(
-        "auto",
-        "--target",
-        help=(
-            "Where to materialise consumer-side symlinks: "
-            "claude / agent / both / auto. "
-            "Default 'auto' links only into surfaces whose parent dir "
-            "(.claude/ or .agent/) already exists; the explicit forms "
-            "opt in to creating the parent."
-        ),
-        case_sensitive=False,
-        show_default=True,
-    ),
+    target: TargetSurface = _TARGET_OPTION,
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
@@ -629,14 +642,7 @@ def register_command(
     """
     _posix_or_exit()
 
-    target_norm = target.lower()
-    if target_norm not in {"claude", "agent", "both", "auto"}:
-        typer.echo(
-            f"Error: invalid --target {target!r}; choose claude / agent / both / auto.",
-            err=True,
-        )
-        raise typer.Exit(2)
-
+    target_norm = target.value
     cwd = Path.cwd()
     registry_root = cwd / _REGISTRY_DIRNAME
 
