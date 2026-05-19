@@ -382,6 +382,55 @@ def _narrative_order(ir: dict[str, Any]) -> list[dict[str, Any]]:
 # ── Knowledge node rendering ──
 
 
+def _render_reasoning_details(lines: list[str], reason: str) -> None:
+    """Append a collapsible Reasoning block to *lines* if *reason* is non-empty."""
+    if reason:
+        lines.append("<details><summary>Reasoning</summary>")
+        lines.append("")
+        lines.append(reason)
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+
+def _render_strategy_link(
+    lines: list[str],
+    s: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> None:
+    """Append a strategy derivation line (+ optional reasoning block) to *lines*."""
+    stype = s.get("type", "")
+    premise_links = []
+    for p in s.get("premises", []):
+        pk = knowledge_by_id.get(p, {})
+        p_label = pk.get("label", p.split("::")[-1])
+        p_title = pk.get("title") or p_label
+        if not _is_helper(p_label):
+            premise_links.append(f"[{p_title}](#{_anchor_id(p_label)})")
+    lines.append(f"\U0001f517 **{stype}**({', '.join(premise_links)})")
+    lines.append("")
+    _render_reasoning_details(lines, (s.get("metadata") or {}).get("reason", ""))
+
+
+def _render_operator_link(
+    lines: list[str],
+    o: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> None:
+    """Append an operator structural-link line (+ optional reasoning block) to *lines*."""
+    otype = o.get("operator", "")
+    var_links = []
+    for v in o.get("variables", []):
+        vk = knowledge_by_id.get(v, {})
+        v_label = vk.get("label", v.split("::")[-1])
+        v_title = vk.get("title") or v_label
+        if not _is_helper(v_label):
+            var_links.append(f"[{v_title}](#{_anchor_id(v_label)})")
+    lines.append(f"\U0001f517 **{otype}**({', '.join(var_links)})")
+    lines.append("")
+    _render_reasoning_details(lines, (o.get("metadata") or {}).get("reason", ""))
+
+
 def _render_node(
     k: dict[str, Any],
     strategy_for: dict[str, dict[str, Any]],
@@ -403,7 +452,6 @@ def _render_node(
     marker = " \u2605" if exported else ""
     ktype = k.get("type", "claim")
 
-    # Keep a stable label-based anchor even when the visible heading uses title.
     if emit_anchor and label:
         lines.append(f'<a id="{_anchor_id(label)}"></a>')
         lines.append("")
@@ -411,7 +459,6 @@ def _render_node(
     lines.append(f"#### {title}{marker}")
     lines.append("")
 
-    # Type + label badge line
     type_emoji = {
         "note": "\U0001f4cb",
         "setting": "\U0001f4cb",
@@ -427,55 +474,16 @@ def _render_node(
     lines.append(" \u00a0\u00a0|\u00a0\u00a0 ".join(badge_parts))
     lines.append("")
 
-    # Content in blockquote
     if content:
         for content_line in content.split("\n"):
             lines.append(f"> {content_line}")
         lines.append("")
 
-    # Derivation (strategy)
     if kid in strategy_for:
-        s = strategy_for[kid]
-        stype = s.get("type", "")
-        premise_links = []
-        for p in s.get("premises", []):
-            pk = knowledge_by_id.get(p, {})
-            p_label = pk.get("label", p.split("::")[-1])
-            p_title = pk.get("title") or p_label
-            if not _is_helper(p_label):
-                premise_links.append(f"[{p_title}](#{_anchor_id(p_label)})")
-        lines.append(f"\U0001f517 **{stype}**({', '.join(premise_links)})")
-        lines.append("")
-        reason = (s.get("metadata") or {}).get("reason", "")
-        if reason:
-            lines.append("<details><summary>Reasoning</summary>")
-            lines.append("")
-            lines.append(reason)
-            lines.append("")
-            lines.append("</details>")
-            lines.append("")
+        _render_strategy_link(lines, strategy_for[kid], knowledge_by_id)
 
-    # Structural link (operator: derive/contradict/equal/exclusive)
     if operator_for and kid in operator_for:
-        o = operator_for[kid]
-        otype = o.get("operator", "")
-        var_links = []
-        for v in o.get("variables", []):
-            vk = knowledge_by_id.get(v, {})
-            v_label = vk.get("label", v.split("::")[-1])
-            v_title = vk.get("title") or v_label
-            if not _is_helper(v_label):
-                var_links.append(f"[{v_title}](#{_anchor_id(v_label)})")
-        lines.append(f"\U0001f517 **{otype}**({', '.join(var_links)})")
-        lines.append("")
-        reason = (o.get("metadata") or {}).get("reason", "")
-        if reason:
-            lines.append("<details><summary>Reasoning</summary>")
-            lines.append("")
-            lines.append(reason)
-            lines.append("")
-            lines.append("</details>")
-            lines.append("")
+        _render_operator_link(lines, operator_for[kid], knowledge_by_id)
 
     lines.append("")
     return lines
