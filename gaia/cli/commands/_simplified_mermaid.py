@@ -305,13 +305,18 @@ def _operator_visible_variables(
     return _OperatorVariables(all_vars, any_selected)
 
 
-_MERMAID_LEGEND = """\
-**Diagram legend:**
-nodes: rectangle = claim/note/question (★ = exported conclusion); oval = derivation strategy; hexagon = structural operator.
-edges: solid arrow (`-->`) = premise; dotted arrow (`-.->`) = background note.
-operators: ⊕ exclusive partition; ⊗ contradiction; ≡ equivalence.
-colours: green/bold-border = exported conclusion; blue = independent premise; green = derived; amber = question; grey/dashed = background or note; red = contradiction; dashed-yellow = non-deterministic strategy.
-annotations: `prior → belief` shows the prior probability and the inferred posterior for each node."""
+_MERMAID_LEGEND = (
+    "**Diagram legend:**\n"
+    "nodes: rectangle = claim/note/question"
+    " (★ = exported conclusion); oval = derivation strategy; hexagon = structural operator.\n"
+    "edges: solid arrow (`-->`) = premise; dotted arrow (`-.->`) = background note.\n"
+    "operators: ⊕ exclusive partition; ⊗ contradiction; ≡ equivalence.\n"
+    "colours: green/bold-border = exported conclusion; blue = independent premise;"
+    " green = derived; amber = question; grey/dashed = background or note;"
+    " red = contradiction; dashed-yellow = non-deterministic strategy.\n"
+    "annotations: `prior → belief` shows the prior probability"
+    " and the inferred posterior for each node."
+)
 
 
 def render_simplified_mermaid(

@@ -304,12 +304,16 @@ def _append_mermaid_operator_edges(
             lines.append(f"    {oid}{edge}{conc_label}")
 
 
-_MERMAID_LEGEND = """\
-**Diagram legend:**
-nodes: rectangle = claim/note/question; oval = derivation strategy; hexagon = structural operator.
-edges: solid arrow (`-->`) = premise; dotted arrow (`-.->`) = background note.
-operators: ⊕ exclusive partition; ⊗ contradiction; ≡ equivalence.
-colours: blue = premise/independent; green = derived; amber = question; grey/dashed = background or note; red = contradiction; dashed-yellow = non-deterministic strategy."""
+_MERMAID_LEGEND = (
+    "**Diagram legend:**\n"
+    "nodes: rectangle = claim/note/question;"
+    " oval = derivation strategy; hexagon = structural operator.\n"
+    "edges: solid arrow (`-->`) = premise; dotted arrow (`-.->`) = background note.\n"
+    "operators: ⊕ exclusive partition; ⊗ contradiction; ≡ equivalence.\n"
+    "colours: blue = premise/independent; green = derived; amber = question;"
+    " grey/dashed = background or note; red = contradiction;"
+    " dashed-yellow = non-deterministic strategy."
+)
 
 
 def render_mermaid(
