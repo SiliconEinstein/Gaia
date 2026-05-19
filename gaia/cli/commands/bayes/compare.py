@@ -148,6 +148,12 @@ def compare_command(
 ) -> None:
     r"""Author a ``bayes.compare(data, models=[model, ...])`` statement.
 
+    ``bayes compare`` is the quantitative culmination of a qualitative
+    authoring graph (claims, observations, derivations, exclusive
+    operators). For a self-contained two-prior posterior comparison
+    without a qualitative argument, libraries like PyMC or
+    scipy.stats may be a lighter fit.
+
     Example:
 
     .. code-block:: bash
