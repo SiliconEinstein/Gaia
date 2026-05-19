@@ -63,6 +63,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = [
     "gaia",
+    "gaia._skills*",
     "gaia.bp*",
     "gaia.cli*",
     "gaia.engine*",
@@ -77,6 +78,7 @@ include = [
 "gaia.cli.starmap_assets" = ["**/*"]
 "gaia.cli.starmap_replay_assets" = ["**/*"]
 "gaia.cli.example_assets" = ["**/*"]
+"gaia._skills" = ["**/*"]
 
 [tool.pytest.ini_options]
 addopts = [
