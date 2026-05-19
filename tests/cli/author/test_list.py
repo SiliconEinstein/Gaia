@@ -13,6 +13,7 @@ and the round-trip from ``gaia author claim`` → ``gaia author list``.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,8 @@ from .conftest import FixturePackage
 pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def _parse(output: str) -> dict[str, object]:
@@ -444,11 +447,17 @@ def test_target_not_gaia_package_exits_4(tmp_path: Path) -> None:
 
 
 def test_help_output_includes_flags() -> None:
-    """``gaia author list --help`` mentions every documented flag."""
+    """``gaia author list --help`` mentions every documented flag.
+
+    Strips ANSI escape codes before asserting: under ``FORCE_COLOR=1`` (CI),
+    Rich injects color codes between the two hyphens of each flag name,
+    breaking the literal ``--flag`` substring in the raw output.
+    """
     result = runner.invoke(app, ["author", "list", "--help"])
     assert result.exit_code == 0, result.output
+    plain = _ANSI_RE.sub("", result.output)
     for flag in ("--target", "--file", "--kind", "--unbound", "--human", "--json"):
-        assert flag in result.output, f"missing {flag} in --help text"
+        assert flag in plain, f"missing {flag} in --help text"
 
 
 def test_author_group_help_lists_list_verb() -> None:
