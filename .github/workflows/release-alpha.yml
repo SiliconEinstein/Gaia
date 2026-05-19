@@ -2,8 +2,9 @@ name: Release (alpha)
 
 # Manual alpha promotion per spec §8 step 5. workflow_dispatch only; no
 # auto-trigger (no schedule, no tag-push, no PR). 协作单 五·Q7 + 七 locks:
-# pre-release artifacts are durable (never retracted from PyPI); alpha does
-# not tag or create a GitHub release.
+# pre-release artifacts are durable (never retracted from PyPI), so every
+# non-dry-run alpha publish also creates a matching `v<version>` tag and
+# GitHub prerelease.
 
 on:
   workflow_dispatch:
@@ -60,3 +61,20 @@ jobs:
       - name: Publish to PyPI (OIDC trusted publishing)
         if: ${{ inputs.dry_run == false }}
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create git tag
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          git tag -a "v${{ inputs.version }}" -m "gaia-lang v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create GitHub prerelease
+        if: ${{ inputs.dry_run == false }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "Gaia Lang v${{ inputs.version }}" \
+            --prerelease \
+            --generate-notes \
+            dist/*.whl dist/*.tar.gz
