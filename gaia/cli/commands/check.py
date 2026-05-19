@@ -85,6 +85,7 @@ class _KnowledgeBuckets:
     background_only: list[str] = field(default_factory=list)
     scaffolded: list[str] = field(default_factory=list)
     candidate_relation_endpoints: list[str] = field(default_factory=list)
+    comparison_data: list[str] = field(default_factory=list)
     orphaned: list[str] = field(default_factory=list)
 
 
@@ -395,6 +396,24 @@ def _bayes_referenced_models(comparisons: dict[str, dict[str, Any]]) -> set[str]
         models = _comparison_metadata(comparison).get("models")
         if isinstance(models, list):
             referenced.update(m for m in models if isinstance(m, str))
+    return referenced
+
+
+def _bayes_referenced_compare_data(ir: dict[str, Any]) -> set[str]:
+    """Return claim ids passed as ``data`` to any ``bayes.compare()`` call.
+
+    Reads the unified ``metadata["comparison"]["data"]`` list written by
+    :func:`gaia.engine.bayes.compiler.lower._lower_comparison`. These claims
+    are the literal observations being compared and are NOT orphans from
+    the author's perspective — they are referenced by the comparison helper.
+    """
+    referenced: set[str] = set()
+    for node in ir.get("knowledges", []):
+        if _bayes_role(node) != "comparison":
+            continue
+        data = _comparison_metadata(node).get("data")
+        if isinstance(data, list):
+            referenced.update(d for d in data if isinstance(d, str))
     return referenced
 
 
@@ -807,8 +826,16 @@ def _bucket_knowledge_roles(
     classification: KnowledgeClassification,
     boundary: _BoundaryAnalysis,
     formalization_manifest: dict[str, Any] | None,
+    compare_data_ids: set[str],
 ) -> tuple[_KnowledgeBuckets, list[dict[str, Any]]]:
-    """Classify claims into the role buckets printed by `gaia build check`."""
+    """Classify claims into the role buckets printed by `gaia build check`.
+
+    ``compare_data_ids`` lists claim ids referenced as the ``data`` argument
+    of any ``bayes.compare(...)`` call. These claims are the literal
+    observations being compared and are excluded from the orphan bucket
+    even when they have no other graph-level incoming edge — from the
+    author's perspective they are used by the comparison helper.
+    """
     buckets = _KnowledgeBuckets()
     scaffold_conclusions, scaffold_inputs = _formalization_dependency_claim_ids(
         formalization_manifest
@@ -832,6 +859,11 @@ def _bucket_knowledge_roles(
             buckets.scaffolded.append(label)
         elif cid in candidate_relation_claim_ids:
             buckets.candidate_relation_endpoints.append(label)
+        elif cid in compare_data_ids:
+            # Observations passed to `bayes.compare --data ...` are not
+            # orphans — they are consumed by the comparison helper even
+            # though they have no outgoing structural edge in the IR.
+            buckets.comparison_data.append(label)
         else:
             buckets.orphaned.append(label)
     return buckets, candidate_relations
@@ -873,6 +905,8 @@ def _knowledge_summary_lines(
         )
     if buckets.background_only:
         lines.append(f"    Background-only:           {len(buckets.background_only)}")
+    if buckets.comparison_data:
+        lines.append(f"    Comparison data:           {len(buckets.comparison_data)}")
     if buckets.orphaned:
         lines.append(f"    Orphaned (no connections): {len(buckets.orphaned)}")
     return lines
@@ -1081,11 +1115,13 @@ def _knowledge_diagnostics(
     c = classify_ir(ir)
     boundary = _boundary_claim_analysis(ir, formalization_manifest=formalization_manifest)
 
+    compare_data_ids = _bayes_referenced_compare_data(ir)
     buckets, candidate_relations = _bucket_knowledge_roles(
         claims=claims,
         classification=c,
         boundary=boundary,
         formalization_manifest=formalization_manifest,
+        compare_data_ids=compare_data_ids,
     )
     state_space = _maxent_state_space(
         ir,
@@ -1117,6 +1153,11 @@ def _knowledge_diagnostics(
         lines, "  Scaffolded claims (tracked in formalization manifest):", buckets.scaffolded
     )
     _append_candidate_relation_section(lines, candidate_relations, claims)
+    _append_label_section(
+        lines,
+        "  Comparison data (observations consumed by bayes.compare):",
+        buckets.comparison_data,
+    )
     _append_label_section(lines, "  Orphaned claims (not referenced anywhere):", buckets.orphaned)
 
     return lines
