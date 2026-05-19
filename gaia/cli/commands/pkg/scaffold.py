@@ -293,6 +293,24 @@ def _scaffold_layout(plan: _ScaffoldPlan) -> list[Path]:
     return created
 
 
+def _next_steps_text(plan: _ScaffoldPlan) -> str:
+    """Return a plain-text Next-step block for the scaffolded package."""
+    parent = plan.target_root.parent
+    pkg_rel = plan.target_root.name
+    return (
+        f"Next:\n"
+        f"  cd {parent}\n"
+        f'  gaia author claim "..." --target ./{pkg_rel}\n'
+        f"\n"
+        f"Author verbs run from the parent directory, with --target pointing\n"
+        f"at ./{pkg_rel}. Running them from inside the package will not find\n"
+        f"gaia-lang.\n"
+        f"\n"
+        f"  gaia build compile ./{pkg_rel}\n"
+        f"  gaia run infer ./{pkg_rel}"
+    )
+
+
 def _emit_scaffold_envelope(
     *,
     plan: _ScaffoldPlan,
@@ -315,6 +333,8 @@ def _emit_scaffold_envelope(
         payload["check"] = counts
     elif not post_diagnostics:
         payload["check"] = "skipped"
+    if not post_diagnostics:
+        payload["next_steps"] = _next_steps_text(plan)
     if post_diagnostics:
         result = AuthorResult(
             verb="scaffold",
@@ -340,7 +360,10 @@ def scaffold_command(
     target: str = typer.Option(
         ...,
         "--target",
-        help="Path to the directory to initialise (must be empty or non-existent).",
+        help=(
+            "Path to the directory to initialise (must be empty or non-existent). "
+            "Author verbs are run from outside the package, with --target <path>."
+        ),
     ),
     name: str | None = typer.Option(
         None,
@@ -475,6 +498,8 @@ def scaffold_command(
         counts=counts,
         human=human,
     )
+    if not post_diagnostics and human:
+        typer.echo("\n" + _next_steps_text(plan))
 
 
 __all__ = ["scaffold_command"]

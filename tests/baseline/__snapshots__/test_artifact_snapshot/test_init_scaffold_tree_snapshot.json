@@ -23,12 +23,12 @@
     {
       "content": "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n",
       "kind": "text",
-      "path": "src/demo/__init__.py"
+      "path": "src/demo_gaia/__init__.py"
     },
     {
       "content": "",
       "kind": "text",
-      "path": "src/demo/py.typed"
+      "path": "src/demo_gaia/py.typed"
     }
   ],
   "root": "demo-gaia"

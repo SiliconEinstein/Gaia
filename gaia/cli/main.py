@@ -82,6 +82,13 @@ from gaia.cli.commands.starmap_replay import starmap_replay_command
 from gaia.cli.commands.trace import trace_app
 
 _ROOT_EPILOG = (
+    "What gaia does:\n\n"
+    "  Gaia turns a structured argument — claims, observations, "
+    "derivations — into a compiled Bayesian network. Author packages "
+    "incrementally with `gaia author …`, compile with "
+    "`gaia build compile`, run inference with `gaia run infer`, "
+    "and render a slide-deck-ready artifact with `gaia run render`. "
+    "See `gaia example galileo` for an end-to-end walkthrough.\n\n"
     "What is a knowledge package?\n\n"
     "  A knowledge package is a small Python project that captures a "
     "structured argument — premises, derivations, observations — that "
