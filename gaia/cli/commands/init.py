@@ -174,10 +174,15 @@ def init_command(
         _run_uv(["uv", "add", "gaia-lang"], cwd=pkg_dir)
     except GaiaPackagingError:
         typer.echo(
-            "Warning: could not add gaia-lang dependency to "
-            f"{pkg_dir}. Run 'uv add gaia-lang' from that directory "
-            "manually — without it, the new package cannot import "
-            "gaia-lang at runtime and `gaia build compile` will fail.",
+            f"Warning: could not add gaia-lang to {pkg_dir / 'pyproject.toml'}. "
+            "Run 'uv add gaia-lang' from inside the new package directory "
+            f"({pkg_dir}) to add it. "
+            "This affects the new package's own Python environment — not "
+            "the directory you are running gaia from. "
+            "Skipping this step is fine if you plan to author with "
+            "`gaia author …` from outside the package; the dependency is "
+            "required only when the package is imported at runtime or "
+            "compiled with `gaia build compile`.",
             err=True,
         )
 
