@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from gaia.cli.commands._render_priors import format_belief
 from gaia.engine.inquiry._classify import KnowledgeClassification, classify_ir, node_role
 
 # ── Mermaid CSS class definitions (self-contained, not imported from _detailed_reasoning) ──
@@ -123,7 +124,9 @@ def _render_selected_knowledge_nodes(
         title = k.get("title") or label
         is_exported = kid in exported_ids
         prior_val = priors.get(kid, 0.5)
-        annotation = f"{prior_val:.2f} \u2192 {beliefs.get(kid, prior_val):.2f}"
+        annotation = (
+            f"{format_belief(prior_val)} \u2192 {format_belief(beliefs.get(kid, prior_val))}"
+        )
         star = " \u2605" if is_exported else ""
         display = f"{title}{star} ({annotation})"
         display = display.replace('"', "#quot;").replace("*", "#ast;")
@@ -201,7 +204,7 @@ def _render_pulled_node(
     title = k.get("title") or label
     prior_val = priors.get(kid, 0.5)
     belief_val = beliefs.get(kid, prior_val)
-    display = f"{title} ({prior_val:.2f} \u2192 {belief_val:.2f})"
+    display = f"{title} ({format_belief(prior_val)} \u2192 {format_belief(belief_val)})"
     display = display.replace('"', "#quot;").replace("*", "#ast;")
     role = node_role(kid, k.get("type", "claim"), classification)
     return f'    {label}["{display}"]:::{_ROLE_TO_CSS.get(role, "orphan")}'

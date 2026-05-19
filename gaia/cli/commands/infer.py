@@ -232,3 +232,7 @@ def infer_command(
             f"after {result.diagnostics.iterations_run} iterations"
         )
     typer.echo(f"Output: {gaia_dir / 'beliefs.json'}")
+    typer.echo(
+        "Belief is the posterior probability of each claim under the "
+        "auto-compiled Bayesian network; default priors are uniform."
+    )

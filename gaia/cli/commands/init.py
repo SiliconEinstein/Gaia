@@ -174,7 +174,10 @@ def init_command(
         _run_uv(["uv", "add", "gaia-lang"], cwd=pkg_dir)
     except GaiaPackagingError:
         typer.echo(
-            "Warning: could not add gaia-lang dependency. Run 'uv add gaia-lang' manually.",
+            "Warning: could not add gaia-lang dependency to "
+            f"{pkg_dir}. Run 'uv add gaia-lang' from that directory "
+            "manually — without it, the new package cannot import "
+            "gaia-lang at runtime and `gaia build compile` will fail.",
             err=True,
         )
 

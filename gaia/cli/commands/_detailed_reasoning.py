@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
+from gaia.cli.commands._render_priors import format_belief
 from gaia.engine.inquiry._classify import classify_ir, is_note_type, node_role
 
 
@@ -199,7 +200,11 @@ def _mermaid_node_line(
     css_class_override: str | None = None,
 ) -> str:
     display_name = title or label
-    display = f"{display_name} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else display_name
+    display = (
+        f"{display_name} ({format_belief(beliefs[kid])})"
+        if beliefs and kid in beliefs
+        else display_name
+    )
     display = display.replace('"', "#quot;").replace("*", "#ast;")
     if css_class_override:
         css = css_class_override
@@ -401,9 +406,9 @@ def _render_node(
     }.get(ktype, "")
     badge_parts = [f"{type_emoji} `{label}`"]
     if kid in priors:
-        badge_parts.append(f"Prior: {priors[kid]:.2f}")
+        badge_parts.append(f"Prior: {format_belief(priors[kid])}")
     if kid in beliefs:
-        badge_parts.append(f"Belief: **{beliefs[kid]:.2f}**")
+        badge_parts.append(f"Belief: **{format_belief(beliefs[kid])}**")
     lines.append(" \u00a0\u00a0|\u00a0\u00a0 ".join(badge_parts))
     lines.append("")
 
@@ -512,7 +517,9 @@ def _render_overview_graph(
         label = k.get("label", "")
         kid = k["id"]
         title = k.get("title") or label
-        display = f"{title} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else title
+        display = (
+            f"{title} ({format_belief(beliefs[kid])})" if beliefs and kid in beliefs else title
+        )
         display = display.replace('"', "#quot;").replace("*", "#ast;")
         role = node_role(kid, k["type"], c)
         css = _ROLE_TO_CSS.get(role, "orphan")
@@ -673,8 +680,15 @@ def render_inference_results(
         label = b.get("label", kid.split("::")[-1])
         if _is_helper(label):
             continue
-        belief = f"{b['belief']:.4f}"
-        prior = f"{priors[kid]:.2f}" if kid in priors else "\u2014"
+        # Belief column keeps 4-decimal precision for "normal" values;
+        # tiny posteriors switch to scientific notation so they aren't
+        # silently rounded to 0.0000 (theme 002).
+        belief_value = b["belief"]
+        if abs(belief_value) < 0.0005 and belief_value != 0.0:
+            belief = f"{belief_value:.1e}"
+        else:
+            belief = f"{belief_value:.4f}"
+        prior = format_belief(priors[kid]) if kid in priors else "\u2014"
         k = knowledge_by_id.get(kid, {})
         ktype = k.get("type", "")
         role = node_role(kid, ktype, c)

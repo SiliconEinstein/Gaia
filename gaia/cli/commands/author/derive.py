@@ -400,4 +400,25 @@ def derive_command(
     )
 
 
+# Human-readable epilog appended to the rich-help output so authors see
+# a one-line decision tree across the three --conclusion-* shapes
+# before scanning each flag's individual help text.
+_EPILOG_WHEN_TO_USE = """
+
+When to use which --conclusion shape:
+
+    --conclusion <label>           reference an already-declared Claim
+    --conclusion-content "<prose>" create a fresh bound Claim inline
+                                   (auto-derives the slug; override
+                                   with --conclusion-label)
+    --conclusion-prose   "<prose>" inline prose with no new module-scope
+                                   binding (engine wraps as anonymous
+                                   Claim at the call site)
+
+Pick exactly one — the three shapes are mutually exclusive.
+"""
+
+derive_command.__doc__ = (derive_command.__doc__ or "") + _EPILOG_WHEN_TO_USE
+
+
 __all__ = ["derive_command"]
