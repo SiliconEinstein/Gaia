@@ -134,6 +134,67 @@ gaia build compile examples/galileo-v0-5-gaia
 gaia run infer examples/galileo-v0-5-gaia
 ```
 
+The compiled reasoning graph has three paths: both candidate models can explain
+the daily in-air observation, but only the Aristotelian weight-speed model also
+creates the tied-body contradiction.
+
+```mermaid
+flowchart TD
+    subgraph inputs["Starting claims"]
+        direction LR
+        daily["Heavy faster in air<br/>0.900 -> 0.964"]:::premise
+        aristotle["Weight-speed model<br/>0.500 -> 0.010"]:::premise
+        medium["Medium-resistance model<br/>0.500 -> 0.642"]:::premise
+    end
+
+    subgraph daily_paths["1. Daily check"]
+        direction LR
+        derive_a_daily(["derive"]):::strategy
+        a_pred["weight-speed predicts:<br/>heavy faster in air<br/>0.963"]:::derived
+        equal_a{{"equal<br/>0.999"}}:::relation_op
+
+        derive_m_daily(["derive"]):::strategy
+        m_pred["medium-resistance predicts:<br/>heavy faster in air<br/>0.964"]:::derived
+        equal_m{{"equal<br/>1.000"}}:::relation_op
+    end
+
+    subgraph contradiction_path["2. Tied-body contradiction"]
+        direction LR
+        derive_fast(["derive"]):::strategy
+        faster["tied composite faster<br/>than heavy body<br/>0.338"]:::derived
+        derive_slow(["derive"]):::strategy
+        slower["tied composite slower<br/>than heavy body<br/>0.338"]:::derived
+        contra{{"contradict<br/>0.997"}}:::contra
+    end
+
+    subgraph vacuum_path["3. Vacuum prediction"]
+        direction LR
+        derive_vacuum(["derive"]):::strategy
+        vacuum["equal fall in vacuum<br/>0.821"]:::derived
+    end
+
+    aristotle --> derive_a_daily --> a_pred
+    a_pred --- equal_a
+    daily --- equal_a
+
+    medium --> derive_m_daily --> m_pred
+    m_pred --- equal_m
+    daily --- equal_m
+
+    aristotle --> derive_fast --> faster
+    aristotle --> derive_slow --> slower
+    faster --- contra
+    slower --- contra
+
+    medium --> derive_vacuum --> vacuum
+
+    classDef premise fill:#ddeeff,stroke:#4488bb,color:#222
+    classDef strategy fill:#f3e5f5,stroke:#7b1fa2,color:#222
+    classDef derived fill:#ddffdd,stroke:#44aa44,color:#222
+    classDef relation_op fill:#fff3cd,stroke:#b58900,color:#222
+    classDef contra fill:#ffebee,stroke:#c62828,color:#222
+```
+
 Current local inference on the v0.5 branch gives:
 
 | Claim | Starting information | Local posterior belief |
