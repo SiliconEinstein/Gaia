@@ -70,7 +70,7 @@ The methodology below leans on this fixed set of CLI calls. Drill into `gaia <gr
   - `gaia author claim` — declare a `claim(...)` knowledge node (use when first surfacing a proposition).
   - `gaia author note` — declare a `note(...)` background statement (use for mathematical definitions, formal setups, fundamental principles).
   - `gaia author question` — declare a `question(...)` research question.
-  - `gaia author derive --conclusion ... --given ...` — author a directed implication: premises rigidly support the conclusion. Carry `--rationale` plus an optional inline `prior=` (via the resulting DSL) for warrant uncertainty.
+  - `gaia author derive --conclusion ... --given ...` — author a directed implication: premises rigidly support the conclusion. Carry `--rationale` for the natural-language justification; express residual warrant uncertainty by `gaia author register-prior` against the derive's labelled output Claim (or its auto-generated warrant helper).
   - `gaia author infer --evidence ... --hypothesis ... --p-e-given-h ...` — author a Bayesian update on new evidence; the `--p-e-given-h` likelihood is required, `--p-e-given-not-h` defaults to 0.5.
   - `gaia author observe --conclusion ... [--value ... --error ...]` — author a measurement event tied to a Claim, Variable, or Distribution.
   - `gaia author compute --conclusion-type ... --fn ... --given ...` — author a deterministic-computation step (a named callable produces the result Claim).
@@ -217,7 +217,7 @@ pred = claim("Theory T predicts Tc = 1.9 K under condition C.", title="Theory pr
 obs  = claim("Measured Tc = 1.2 K under condition C.", title="Measured Tc")
 ```
 
-When the source argues that one of several competing theories best explains the observation, extract each competing prediction as its own claim. Pass 2 will model the comparison either by chaining `infer` against each candidate (each gets its own `--p-e-given-h`) or — when the alternatives are mutually exclusive in the paper's framing — by adding an `exclusive(...)` relation across the candidate claims. The concept that the release/0.4 SKILL labelled "abduction" is preserved as a pattern: see [Pass 4](#pass-4--refine-strategy-types) for the explicit recipe and `../gaia-review/SKILL.md` for the prior-side π(Alt) discussion.
+When the source argues that one of several competing theories best explains the observation, extract each competing prediction as its own claim. Pass 2 will model the comparison either by chaining `infer` against each candidate (each gets its own `--p-e-given-h`) or — when the alternatives are mutually exclusive in the paper's framing — by adding an `exclusive(a, b)` relation (for the two-alternative case) or a `decompose --formula-template or` over the candidate claims (for three or more). `exclusive` is strictly binary. The concept that the release/0.4 SKILL labelled "abduction" is preserved as a pattern: see [Pass 4](#pass-4--refine-strategy-types) for the explicit recipe and `../gaia-review/SKILL.md` for the prior-side π(Alt) discussion.
 
 ### Repeated-observation pattern: extract every observation
 
@@ -312,7 +312,7 @@ Pass 2 wires the knowledge graph. The default starting verb is `infer` (`gaia au
 
 For each claim "supported by other claims," choose one of these author verbs:
 
-- `gaia author derive --conclusion C --given P1,P2,...` — rigid implication: premises jointly support the conclusion. Use when the source presents a step-by-step derivation that, given the premises, is the intended way to reach the conclusion. Optionally carry an inline `prior=` on the resulting `derive(...)` call to express warrant uncertainty (numerical methods, approximations, omitted conditions).
+- `gaia author derive --conclusion C --given P1,P2,...` — rigid implication: premises jointly support the conclusion. Use when the source presents a step-by-step derivation that, given the premises, is the intended way to reach the conclusion. To express warrant uncertainty (numerical methods, approximations, omitted conditions), label the `derive` with `--dsl-binding-name`/`--label` and then `gaia author register-prior --claim <warrant_label> --value ... --justification ...`.
 - `gaia author infer --evidence E --hypothesis H --p-e-given-h ...` — Bayesian update: explicit P(E|H) and (optional) P(E|~H). Use when the source argues "observing E updates belief in H," especially when comparing competing hypotheses against the same observation.
 - `gaia author observe --conclusion C [--value ... --error ...]` — raw measurement: ties a Claim, Variable, or Distribution to an observed value. Use for experimental measurements that anchor the graph in data.
 - `gaia author compute --conclusion-type T --fn f --given P1,P2,...` — deterministic mapping: a named callable produces the result from the premises. Use when the source presents a closed-form computation whose function is captured by code.
@@ -456,7 +456,7 @@ Passes 2-3 produce a graph dominated by `infer` (the general fall-back). Pass 4 
 
 | Verb | Semantics | When to use | Author-side cost |
 |----------|-----------|-------------|--------------|
-| `derive` | Directed implication: premises jointly support conclusion | Step-by-step derivations, theoretical results read off a formal framework, computation-application chains | Optional `prior=` on the warrant for residual uncertainty |
+| `derive` | Directed implication: premises jointly support conclusion | Step-by-step derivations, theoretical results read off a formal framework, computation-application chains | `register_prior` against the derive's labelled output (or its warrant helper) for residual uncertainty |
 | `infer` | Bayesian update: explicit P(E\|H), optional P(E\|~H) | Theory-vs-experiment fit, single-evidence updates to a hypothesis | `--p-e-given-h` (required), `--p-e-given-not-h` (defaults 0.5) |
 | `compute` | Deterministic mapping: callable `fn` produces conclusion from premises | Closed-form computations where the function is in code | `--fn` identifier of a callable; conclusion is the function's output Claim |
 | `observe` | Measurement event tying Claim / Variable / Distribution to data | Experimental observations that anchor the graph | `--value` / `--error` for quantity form, or discrete observation against a premise list |
@@ -484,7 +484,7 @@ For each `infer` relation drafted in Pass 2:
         NO  ↓
     Does the source present this as a deterministic step-by-step derivation that, given the premises,
     is the intended way to reach the conclusion (with at most residual numerical or approximation uncertainty)?
-        YES → derive   (optionally with prior= on the warrant)
+        YES → derive   (optionally register_prior against the derive's labelled output for warrant uncertainty)
         NO  ↓
     Is this a Bayesian update where the evidence's likelihood under hypothesis and under its negation
     is what carries the inferential weight (e.g. theory predicts X, experiment measured X')?
@@ -506,17 +506,17 @@ The release/0.4 SKILL talked about several named reasoning patterns. Several hav
 
 **Strict mathematical deduction** ("if all premises true, conclusion necessarily true"): use `derive` and omit the warrant prior (or set it very close to 1). `derive` carries the same skeleton (conjunction + directed implication); leaving the warrant near 1 expresses determinism. There is no separate "deduction" verb in v0.5.
 
-**Soft / probabilistic support** ("premises usually imply the conclusion, with uncertainty"): use `derive` with an explicit warrant prior in the resulting DSL (numerical methods, approximations, omitted conditions). Reach for `gaia author register-prior` against the `derive`'s output Claim — or hand-edit the `prior=` argument on the call.
+**Soft / probabilistic support** ("premises usually imply the conclusion, with uncertainty"): use `derive` for the relation, then reach for `gaia author register-prior --claim <warrant_label> --value ... --justification ...` against the `derive`'s labelled output Claim (or its auto-generated warrant helper) to express the residual uncertainty (numerical methods, approximations, omitted conditions). The engine's `derive(...)` signature does not accept an inline `prior=` — warrant priors are attached via `register_prior`.
 
-**Theory-experiment comparison ("abduction")**: extract the theoretical prediction and the experimental observation as separate claims (Pass 1), then use `infer(evidence=obs, hypothesis=pred, --p-e-given-h ...)`. When several alternative theories compete, chain `infer` against each candidate hypothesis with its own likelihoods. When the alternatives are mutually exclusive in the paper's framing, add `exclusive(...)`. The abduction *concept* — the prior on the alternative reflects explanatory power for the specific observation, not the alternative's truth in general — survives intact; that deep guide lives in `../gaia-review/SKILL.md`.
+**Theory-experiment comparison ("abduction")**: extract the theoretical prediction and the experimental observation as separate claims (Pass 1), then use `infer(evidence=obs, hypothesis=pred, --p-e-given-h ...)`. When several alternative theories compete, chain `infer` against each candidate hypothesis with its own likelihoods. When the alternatives are mutually exclusive in the paper's framing, add `exclusive(a, b)` for the two-alternative case or `decompose --formula-template or` for three or more (`exclusive` is strictly binary). The abduction *concept* — the prior on the alternative reflects explanatory power for the specific observation, not the alternative's truth in general — survives intact; that deep guide lives in `../gaia-review/SKILL.md`.
 
 **Repeated-observation generalisation ("induction")**: there is no single v0.5 verb. The recommended idiom is `derive` over a `compose`'d generalisation step. Specifically: author each observation as its own claim, then either (a) for the simple flat case, `derive(law, given=[obs_a, obs_b, obs_c], rationale=...)`, or (b) when the generalisation involves a named pattern, define a `@compose` function that takes the observations and the law and returns the law's `derive` step, and register it via `gaia author compose --from-file`. The underlying judgement — each observation must be **independent**; if dependent, extract the shared dependency as an explicit claim in Pass 5 — still applies.
 
 **Process of elimination, proof by cases, mathematical induction, cross-system analogy, extrapolation beyond measured range:** these patterns **have no single-verb v0.5 form**. The recommended idiom for each:
 
-- *Process of elimination:* `exclusive(candidates...)` over the exhaustive option set + `derive(survivor, given=[evidence_eliminating_alt_1, evidence_eliminating_alt_2, ...])`. The `exclusive` guarantees the survivor must be the one true option; the `derive` carries the per-alternative refutation reasoning.
-- *Proof by cases:* one `derive(conclusion, given=[case_k_premise, conclusion_holds_in_case_k])` per case, plus an `exclusive` (or `decompose --formula-template or`) over the case predicates.
-- *Mathematical induction:* one `derive` for the base case, one `derive` for the inductive step (`P(n) ⇒ P(n+1)`), and a `derive(for_all_law, given=[base_case, inductive_step])` whose rationale references the inductive schema.
+- *Process of elimination:* `decompose --formula-template or` over the exhaustive option set + `derive(survivor, given=[evidence_eliminating_alt_1, evidence_eliminating_alt_2, ...])`. The disjunctive decomposition guarantees the survivor must be the one true option; the `derive` carries the per-alternative refutation reasoning. (`exclusive(a, b)` is strictly binary — exactly two options — so it only fits the n=2 case; for n≥3 alternatives use `decompose --formula-template or`.)
+- *Proof by cases:* one `derive(conclusion, given=[case_k_premise, conclusion_holds_in_case_k])` per case, plus a `decompose --formula-template or` over the case predicates (or `exclusive(a, b)` when there are exactly two cases — `exclusive` is binary only).
+- *Mathematical induction:* one `derive` for the base case, one `derive` for the inductive step (`P(n) ⇒ P(n+1)`), and a `derive(for_all_law, given=[base_case, inductive_step])` whose rationale references the inductive schema. **The engine does not enforce the inductive schema** — it treats this as a generic two-premise `derive`. The author must carry the "this is induction over N" framing in the `rationale` text, and the Pass 5 reviewer must verify the base case + step actually warrant the universal. Do not assume the engine guarantees the quantifier reasoning.
 - *Analogy* and *extrapolation:* author the structural-similarity / continuity premise as a `claim`, then `derive(target, given=[source, similarity_premise])` or `derive(extrapolated, given=[measured_range_result, continuity_premise])`. The justification quality lives in the premise prior plus the `derive` warrant prior — see `../gaia-review/SKILL.md`.
 
 If your source has a derivation that does not map cleanly onto any of these idioms, that is signal: capture the gap in `ANALYSIS.md` under "unmodelled reasoning" so a reviewer can examine it.
@@ -607,19 +607,19 @@ Each factor in the factor graph represents an **independent constraint**. If the
 
 ```python
 # 1a. Exact duplicate: standalone derive + a derive inside a compose'd generalisation
-derive(law, given=[obs], rationale="law predicts obs", prior=0.9)
+derive(law, given=[obs], rationale="law predicts obs")
 derive_law_from_obs = derive(law, given=[obs_a, obs_b, obs], rationale="...")  # internally re-uses obs
 # FIX: remove the standalone derive, or fold it into the compose pattern.
 
 # 1b. Transitive shortcut: A→B→C chain + A→C that is just the chain compressed
-derive(B, given=[A], rationale="A implies B", prior=0.85)
-derive(C, given=[B], rationale="B implies C", prior=0.85)
-derive(C, given=[A], rationale="A implies B implies C", prior=0.85)  # redundant with the chain
+derive(B, given=[A], rationale="A implies B")
+derive(C, given=[B], rationale="B implies C")
+derive(C, given=[A], rationale="A implies B implies C")  # redundant with the chain
 # FIX: remove the shortcut, OR confirm it represents a genuinely different argument.
 
 # 1c. Derived premise redundancy: A→B, then derive(C, given=[A, B]) where A supports C only through B
-derive(B, given=[A], rationale="A implies B", prior=0.85)
-derive(C, given=[A, B], rationale="A leads to B which leads to C", prior=0.85)
+derive(B, given=[A], rationale="A implies B")
+derive(C, given=[A, B], rationale="A leads to B which leads to C")
 # FIX: remove A from C's premises → derive(C, given=[B], ...).
 ```
 
@@ -629,14 +629,14 @@ Two relations with identical premises but different `rationale` text. The differ
 
 ```python
 # BEFORE: same premises, different reasoning angles
-derive(law, given=[sample, obs_R], rationale="Zero resistance = hallmark of SC", prior=0.85)
-derive(law, given=[sample, obs_R], rationale="Transition width < 0.5 K = bulk SC", prior=0.85)
+derive(law, given=[sample, obs_R], rationale="Zero resistance = hallmark of SC")
+derive(law, given=[sample, obs_R], rationale="Transition width < 0.5 K = bulk SC")
 # The "transition width < 0.5 K" is evidence hidden in the rationale text.
 
 # AFTER: extract hidden evidence as a claim
 transition_sharpness = claim("Resistivity transition width < 0.5 K")
-derive(law, given=[sample, obs_R], rationale="Zero resistance = hallmark of SC", prior=0.85)
-derive(law, given=[sample, transition_sharpness], rationale="Sharp transition = bulk SC", prior=0.85)
+derive(law, given=[sample, obs_R], rationale="Zero resistance = hallmark of SC")
+derive(law, given=[sample, transition_sharpness], rationale="Sharp transition = bulk SC")
 ```
 
 **Pattern 3 — Unmodelled shared dependencies:**
@@ -651,8 +651,8 @@ derive(law, given=[obs_R, obs_chi], rationale="...")
 
 # AFTER: extract shared dependency — correlation preserved
 sample_quality = claim("Sample A is high-quality single crystal, confirmed by XRD")
-derive(obs_R,   given=[sample_quality], rationale="Resistivity depends on @sample_quality", prior=0.9)
-derive(obs_chi, given=[sample_quality], rationale="Susceptibility depends on @sample_quality", prior=0.9)
+derive(obs_R,   given=[sample_quality], rationale="Resistivity depends on @sample_quality")
+derive(obs_chi, given=[sample_quality], rationale="Susceptibility depends on @sample_quality")
 derive(law,     given=[obs_R, obs_chi],
        rationale="Conditionally independent given sample_quality")
 ```
@@ -671,8 +671,8 @@ You cannot create new experiments — you formalize what the paper provides. The
 
 ```python
 equal(claim_A, claim_B)
-derive(law, given=[claim_A], rationale="argument from A's perspective", prior=0.85)
-derive(law, given=[claim_B], rationale="argument from B's perspective", prior=0.85)
+derive(law, given=[claim_A], rationale="argument from A's perspective")
+derive(law, given=[claim_B], rationale="argument from B's perspective")
 
 # Ask: does the B→law relation add information that A→law + equal doesn't already provide?
 # If NO: remove B→law.
@@ -792,7 +792,7 @@ After Pass 6, you have a structurally complete graph and a passing `gaia build c
 
 ### Write `priors.py`
 
-`priors.py` assigns priors to leaf claims. Warrant priors on `derive` (and `infer` / `compute` where relevant) are set via the inline `prior=` kwarg in the DSL or by `gaia author register-prior --claim <warrant_label> --value ... --justification ...`.
+`priors.py` assigns priors to leaf claims. Warrant priors on `derive` (and `infer` / `compute` where relevant) are set by `gaia author register-prior --claim <warrant_label> --value ... --justification ...` against the verb's labelled output Claim (or its auto-generated warrant helper). The engine's verb signatures do not accept an inline `prior=` kwarg — `register_prior` is the only path.
 
 **Before writing `priors.py`, run `gaia build check --hole .`** to see exactly which independent claims need priors, along with their content and current status. Use this as your checklist — address each hole, then re-run `gaia build check --hole .` to confirm "All independent claims have priors assigned."
 
@@ -914,7 +914,7 @@ The critical analysis transforms a qualitative reading of the source into a quan
 | Marking a questionable proposition as `note` | That proposition cannot be updated via BP | When in doubt, mark as `claim`; only mathematical definitions are `note`s |
 | Marking a condition-dependent theoretical framework as `note` | Framework does not participate in BP | Condition-dependent conclusions should be claims |
 | Using `derive` for a Bayesian update | Loses the explicit P(E\|H) / P(E\|~H) the source supplied | Use `infer` with `--p-e-given-h` and `--p-e-given-not-h` |
-| Using `infer` for a step-by-step deterministic derivation | Forces a Bayesian update where rigid implication is the source's framing | Use `derive` (with optional warrant `prior=` for residual uncertainty) |
+| Using `infer` for a step-by-step deterministic derivation | Forces a Bayesian update where rigid implication is the source's framing | Use `derive` (with optional `register_prior` against the derive's labelled output for residual warrant uncertainty) |
 | Using `derive` for a numerical computation whose function is in code | Loses the deterministic-mapping framing | Use `compute --fn ...` with the named callable |
 | Anonymous relation (no `--dsl-binding-name`) | Relation invisible in `gaia build check --brief`, cannot be reviewed | Assign via `--dsl-binding-name <name> --label <name>` |
 | `_`-prefixed claim or relation | Node invisible in CLI output, gets no label | Use public names (no `_` prefix); only `__` is reserved for compiler |
