@@ -191,3 +191,13 @@ def init_command(
         )
 
     typer.echo(f"Created Gaia knowledge package: {name}")
+    typer.echo(
+        "\nNext steps:\n"
+        f"  cd <parent of {name}>\n"
+        f'  gaia author claim "..." --target ./{name}\n'
+        "\n"
+        "Author verbs run from the parent directory, with --target pointing\n"
+        f"at ./{name}. Running them from inside {name} will not find gaia-lang.\n"
+        f"\n  gaia build compile ./{name}\n"
+        f"  gaia run infer ./{name}"
+    )
