@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from gaia.cli.commands._render_priors import format_belief
 from gaia.engine.inquiry._classify import classify_ir, node_role
 
 
@@ -42,7 +43,7 @@ def generate_wiki_home(ir: dict[str, Any], beliefs_data: dict[str, Any] | None =
         kid = k["id"]
         ktype = k["type"]
         mod = k.get("module", "Root")
-        belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "\u2014"
+        belief = format_belief(beliefs[kid]) if kid in beliefs else "\u2014"
         lines.append(f"| {label} | {ktype} | {mod} | {belief} |")
 
     lines.append("")
@@ -103,8 +104,8 @@ def generate_wiki_inference(
         label = k.get("label", kid)
         ktype = k["type"]
         role = node_role(kid, ktype, classification)
-        prior = f"{priors[kid]:.2f}" if kid in priors else "\u2014"
-        belief = f"{beliefs[kid]:.2f}" if kid in beliefs else "\u2014"
+        prior = format_belief(priors[kid]) if kid in priors else "\u2014"
+        belief = format_belief(beliefs[kid]) if kid in beliefs else "\u2014"
         lines.append(f"| {label} | {ktype} | {prior} | {belief} | {role} |")
 
     lines.append("")
@@ -206,9 +207,9 @@ def _render_wiki_knowledge(
         f"**Content:** {knowledge.get('content', '')}",
     ]
     if kid in priors:
-        lines.append(f"**Prior:** {priors[kid]:.2f}")
+        lines.append(f"**Prior:** {format_belief(priors[kid])}")
     if kid in beliefs:
-        lines.append(f"**Belief:** {beliefs[kid]:.2f}")
+        lines.append(f"**Belief:** {format_belief(beliefs[kid])}")
     lines.extend(_wiki_derivation_lines(kid, strategies_by_conclusion))
     lines.extend(_wiki_metadata_lines(knowledge))
     lines.extend(_wiki_reference_lines(kid, strategies_by_premise, operators_by_variable))
