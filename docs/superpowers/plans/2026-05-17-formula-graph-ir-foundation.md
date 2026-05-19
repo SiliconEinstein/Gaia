@@ -1384,7 +1384,7 @@ Run:
 
 ```bash
 git status --short --branch
-git diff --stat origin/v0.5...HEAD
+git diff --stat origin/main...HEAD
 ```
 
 Expected: branch contains the implementation commits from Tasks 1-6 and no unstaged changes.

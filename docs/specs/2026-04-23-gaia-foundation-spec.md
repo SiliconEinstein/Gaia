@@ -1286,14 +1286,14 @@ The release plan **MUST** allocate a dedicated PR for this refactor. Mixing it i
 
 ## 17. Summary of required IR / schema / runtime changes
 
-Not an implementation plan, but the concrete diffs this spec implies. Each item is tagged against **`origin/v0.5` HEAD** reality (the merge target of this PR) — not the PR branch's own tree:
+Not an implementation plan, but the concrete diffs this spec implies. Each item is tagged against the **then-current v0.5-line HEAD** reality (the merge target of this PR) — not the PR branch's own tree:
 
-- `[implemented]` — the item is already present on `origin/v0.5` HEAD; foundation spec merely names / normatively describes it.
-- `[to-refactor]` — partial `origin/v0.5` support; needs restructuring or extension.
-- `[new]` — nothing on `origin/v0.5` corresponds; fresh schema / module / CLI.
-- `[retracted]` — listed in earlier drafts of this §17 but never existed on `origin/v0.5` in the assumed form; foundation no longer requires the change.
+- `[implemented]` — the item is already present on the v0.5-line HEAD; foundation spec merely names / normatively describes it.
+- `[to-refactor]` — partial v0.5-line support; needs restructuring or extension.
+- `[new]` — nothing on the v0.5 line corresponds; fresh schema / module / CLI.
+- `[retracted]` — listed in earlier drafts of this §17 but never existed on the v0.5 line in the assumed form; foundation no longer requires the change.
 
-**Note on file paths in this section.** This PR branch (`docs/gaia-v6-unified-spec`) was forked from a `v0.5`-line commit (`a42d95f4`) that predates the v6 Lang PRs #468–#474. Readers inspecting the PR branch tree alone may not find files referenced below (e.g., `gaia/lang/dsl/infer_verb.py`, `gaia/lang/runtime/action.py`, `gaia/lang/dsl/support.py`, `gaia/lang/runtime/knowledge.py`, `gaia/lang/dsl/relate.py`, `gaia/lang/dsl/propositional.py`) — those are present on `origin/v0.5` HEAD and will be present in the merged tree, but are absent on this PR branch's older base. All line numbers and paths below refer to `origin/v0.5` HEAD.
+**Note on file paths in this section.** This PR branch (`docs/gaia-v6-unified-spec`) was forked from a `v0.5`-line commit (`a42d95f4`) that predates the v6 Lang PRs #468–#474. Readers inspecting the PR branch tree alone may not find files referenced below (e.g., `gaia/lang/dsl/infer_verb.py`, `gaia/lang/runtime/action.py`, `gaia/lang/dsl/support.py`, `gaia/lang/runtime/knowledge.py`, `gaia/lang/dsl/relate.py`, `gaia/lang/dsl/propositional.py`) — those are present in the merged v0.5-line tree, but are absent on this PR branch's older base. All line numbers and paths below refer to the then-current v0.5-line HEAD.
 
 IR schema changes belong in change-controlled PRs against `docs/foundations/gaia-ir/` (protected layer per CLAUDE.md).
 

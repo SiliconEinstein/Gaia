@@ -1,7 +1,7 @@
 # Claim Formula Schema Design
 
 **Status:** Target design (proposal)
-**Branch:** `feat/v05-claim-formula-schema` (off `v0.5`)
+**Branch:** `feat/v05-claim-formula-schema` (v0.5 line)
 **Target release:** v0.6 (built on v0.5 foundation)
 **Date:** 2026-05-04
 

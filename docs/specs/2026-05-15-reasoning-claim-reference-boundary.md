@@ -2,7 +2,7 @@
 
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
-**Branch:** off `v0.5`
+**Base:** v0.5 line; future PRs should target `main`.
 **Related PRs:** #606
 **Refines:**
 `docs/specs/2026-05-15-gaia-graph-scaffold-reasoning-design.md` and
@@ -61,7 +61,7 @@ Current code uses the following shapes:
 | `depends_on` | Currently appends scaffold to `conclusion.from_actions`; the GaiaGraph scaffold spec changes this to return scaffold records instead. |
 
 The active field name is `Claim.from_actions`, both in the current branch and
-in `origin/v0.5`. This spec intentionally keeps that name for the first
+in the v0.5 line. This spec intentionally keeps that name for the first
 migration. A separate future cleanup may rename it to something clearer, but
 that is not part of this design.
 

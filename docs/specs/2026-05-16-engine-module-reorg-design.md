@@ -2,7 +2,7 @@
 
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-16
-**Branch:** off `v0.5`
+**Base:** v0.5 line; future PRs should target `main`.
 **Related PRs:** TBD (reorg PR a + reorg PR b)
 **Builds on:** alpha-0 engine facade split (PR #607); BayesInference shape decision in `docs/specs/2026-05-15-causal-cleanup-reasoning-shapes.md` is one of several catalysts but not the only one.
 **Scope:** Coordinated reorganization of first- and second-level modules under `gaia.engine`, sequenced as two PRs:
@@ -37,7 +37,7 @@ The motivation is **structural, not feature-driven**. Issue 3 is the largest in 
 
 ## 2. Current Code Facts
 
-(based on current `origin/v0.5`, i.e. v0.5 after PR #606 and PR #609)
+(based on the then-current v0.5 line, after PR #606 and PR #609)
 
 ```
 gaia/engine/
@@ -672,7 +672,7 @@ under `gaia/{bp,ir,lang,logic,inquiry,trace}/`, per-symbol shims under
 `gaia/cli/*`, flat-verb stubs in `gaia/cli/commands/_flat_tombstones.py`,
 plus the `gaia/_legacy_imports.py` machinery and the
 `tests/baseline/test_l2_tombstones.py` / `test_flat_verb_death.py`
-contract tests) were removed in a follow-up branch off `v0.5` after
+contract tests) were removed in a follow-up branch on the v0.5 line after
 external callers migrated. The spec body above is preserved as a
 point-in-time record; current behavior for old paths is plain
 `ModuleNotFoundError` (Python imports) and typer's standard

@@ -74,7 +74,7 @@ print(f"treewidth ≈ {tw}")
 |---|---|---|
 | 链式推理（`a₁ → a₂ → … → aₙ`） | 2 | 任何算法都精确，不必选 |
 | 树状（一个 root 的有限分支） | 1 | 同上 |
-| Block-DAG（独立小块通过少量共享节点连接） | 4–8 | 实测 [`tests/test_bp_large_scale.py::build_block_dag`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/tests/test_bp_large_scale.py)，JT 适合 |
+| Block-DAG（独立小块通过少量共享节点连接） | 4–8 | 实测 [`tests/test_bp_large_scale.py::build_block_dag`](https://github.com/SiliconEinstein/Gaia/blob/main/tests/test_bp_large_scale.py)，JT 适合 |
 | 单包含 1–2 条强 cycle 的 DAG | 5–15 | JT 仍可能精确 |
 | Diamond-heavy（很多 ⟨A→{B,C}→D⟩ 结构） | 10–25+ | 接近或越过 JT 阈值 |
 | Loopy（多条 cycle 互相纠缠） | 25+ | 通常进入 TRW-BP 路径 |
@@ -88,10 +88,10 @@ print(f"treewidth ≈ {tw}")
 
 | 算法 | 何时用 | 精度（vs exact） | 时间复杂度 | 实测来源 |
 |---|---|---|---|---|
-| **Exact (brute-force)** | n ≤ ~20 测试场景 | ground truth | O(2^n) | [`test_bp_large_scale.py::test_small_graph_exact_match`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/tests/test_bp_large_scale.py) |
+| **Exact (brute-force)** | n ≤ ~20 测试场景 | ground truth | O(2^n) | [`test_bp_large_scale.py::test_small_graph_exact_match`](https://github.com/SiliconEinstein/Gaia/blob/main/tests/test_bp_large_scale.py) |
 | **Junction Tree** | tw ≤ 20 | 精确（误差 < 1e-3 ⇒ 与 brute-force 在 Cromwell 量级一致） | O(n · 2^tw) | 同上 |
-| **TRW-BP** | tw > 20 或当 JT 内存爆 | 与 JT 差 < 1e-3（千分之一），block-DAG 50/100/250 实测 | O(I · k · F) per iter, I ≤ 200 | [`test_bp_large_scale.py::test_medium_graph_jt_vs_trw`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/tests/test_bp_large_scale.py) |
-| **Mean Field VI** | n > 2000 fallback | **30%–79% 系统误差**（block-DAG 上）。**非生产级。** | O(n · F · 2^k) per sweep | [`inference.md` § Mean Field VI](inference.md#mean-field-vi)、[`test_bp_large_scale.py::test_large_graph_mean_field`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/tests/test_bp_large_scale.py) (`max_diff < 0.3` 容忍阈值即说明这一点) |
+| **TRW-BP** | tw > 20 或当 JT 内存爆 | 与 JT 差 < 1e-3（千分之一），block-DAG 50/100/250 实测 | O(I · k · F) per iter, I ≤ 200 | [`test_bp_large_scale.py::test_medium_graph_jt_vs_trw`](https://github.com/SiliconEinstein/Gaia/blob/main/tests/test_bp_large_scale.py) |
+| **Mean Field VI** | n > 2000 fallback | **30%–79% 系统误差**（block-DAG 上）。**非生产级。** | O(n · F · 2^k) per sweep | [`inference.md` § Mean Field VI](inference.md#mean-field-vi)、[`test_bp_large_scale.py::test_large_graph_mean_field`](https://github.com/SiliconEinstein/Gaia/blob/main/tests/test_bp_large_scale.py) (`max_diff < 0.3` 容忍阈值即说明这一点) |
 
 读法：
 
@@ -121,7 +121,7 @@ print(f"treewidth ≈ {tw}")
 | `gaia.engine.bp.infer(graph, method="auto")` | **Loopy BP** (`_LOOPY_BP_NODE_LIMIT = 2000`) | 模块级私有 | Legacy convenience：旧代码、不需要 CLI parity 的小图测试 |
 | `gaia.engine.bp.engine.InferenceEngine().run(graph, method="auto")` | **Mean Field VI**（带 `UserWarning`） | `EngineConfig.mf_node_limit = 2000` | CLI 主路径（`gaia run infer`）、新代码 |
 
-二者除了大图 fallback 不同（Loopy BP vs MF VI），其他完全一致：treewidth ≤ 20 都走 JT，否则走 TRW-BP。**这条差异是历史包袱**，预期未来收敛到 `InferenceEngine`。Test 注释（[`test_bp_large_scale.py::test_auto_routing`](https://github.com/SiliconEinstein/Gaia/blob/v0.5/tests/test_bp_large_scale.py)）也指出 Loopy BP 在仓库内"与 TRW-BP 实测匹配，diff < 1e-9"——所以 `infer()` 在大图上其实**比** `InferenceEngine` 更准，但不发 warning，容易让用户对算法状态产生错觉。
+二者除了大图 fallback 不同（Loopy BP vs MF VI），其他完全一致：treewidth ≤ 20 都走 JT，否则走 TRW-BP。**这条差异是历史包袱**，预期未来收敛到 `InferenceEngine`。Test 注释（[`test_bp_large_scale.py::test_auto_routing`](https://github.com/SiliconEinstein/Gaia/blob/main/tests/test_bp_large_scale.py)）也指出 Loopy BP 在仓库内"与 TRW-BP 实测匹配，diff < 1e-9"——所以 `infer()` 在大图上其实**比** `InferenceEngine` 更准，但不发 warning，容易让用户对算法状态产生错觉。
 
 简而言之：
 

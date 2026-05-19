@@ -48,8 +48,8 @@ Release channels are stability contracts. They should answer:
 
 | Channel | Version form | Trigger | Intended users | Stability contract |
 |---|---|---|---|---|
-| PR/dev | none | Pull request to `main` / `v0.5`, or push to `main` / `v0.5`; also `workflow_dispatch` | Contributors | Not published; fast feedback only. |
-| Nightly | `0.5.0.dev20260516` | Scheduled daily at 20:00 UTC (04:00 Asia/Shanghai next day) via `schedule`, plus on-demand via `workflow_dispatch`; runs against the default branch (`v0.5`) tip (see §9 Q-schedule) | Package authors and maintainers | Rolling snapshot; may break APIs, but must identify the exact commit and validation result. |
+| PR/dev | none | Pull request to `main`, or push to `main`; also `workflow_dispatch` | Contributors | Not published; fast feedback only. |
+| Nightly | `0.5.0.dev20260516` | Scheduled daily at 20:00 UTC (04:00 Asia/Shanghai next day) via `schedule`, plus on-demand via `workflow_dispatch`; runs against the default branch (`main`) tip (see §9 Q-schedule) | Package authors and maintainers | Rolling snapshot; may break APIs, but must identify the exact commit and validation result. |
 | Alpha | `0.5.0a1` | Manual `workflow_dispatch` of `release-alpha.yml` (post-nightly green) | Early adopters trying real packages | Recognized preview; APIs and semantics may still change, but known breakages must be listed. |
 | Beta | `0.5.0b1` | Manual `workflow_dispatch` of `release-beta.yml` (post-alpha) | Users preparing migration | Feature and semantic surface should be mostly frozen; migration docs expected. |
 | Release candidate | `0.5.0rc1` | Manual `workflow_dispatch` of `release-rc.yml` (post-beta) | Final validators | Only release-blocking bug fixes should land after this point. |
@@ -61,11 +61,10 @@ Nightly and alpha are different:
 - Alpha is a human decision that a snapshot is worth broader early testing.
 
 Operational prerequisite: GitHub only exposes `workflow_dispatch` and
-`schedule` workflows from the repository default branch. Before v0.5 alpha
-promotion, the repository default branch must be switched to `v0.5`, or an
-equivalent default-branch dispatcher must invoke the v0.5 release workflows.
-Otherwise `release-alpha.yml` and `nightly.yml` can exist on `v0.5` while still
-being unavailable from the Actions UI/API.
+`schedule` workflows from the repository default branch. The repository default
+branch is now `main`, so nightly and prerelease workflows should live on `main`.
+Exact published prerelease snapshots are identified by immutable tags such as
+`v0.5.0a1`, not by a mutable release-train branch.
 
 ## 4. CI Layers
 
@@ -197,7 +196,7 @@ The same metadata is written into nightly/release manifests so a package-corpus 
 Promotion should be explicit:
 
 1. Merge PRs after PR CI.
-2. Nightly runs on the active release branch, currently `v0.5`.
+2. Nightly runs on the active development trunk, currently `main`.
 3. Promote to alpha only after nightly passes repository tests, wheel smoke, docs build, and package corpus e2e.
 4. Promote to beta only after alpha feedback has no known semantic blockers.
 5. Promote to rc only after the behavior and migration docs are frozen.

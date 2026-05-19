@@ -1,7 +1,7 @@
 # Action Label References Design
 
 **Status:** Design proposal (v0.5)
-**Branch:** off `v0.5`
+**Base:** v0.5 line; future PRs should target `main`.
 **Date:** 2026-05-10
 
 ## 1. Scope

@@ -1,7 +1,7 @@
 # Bayes Unified Design — One Distribution, One Observation Schema
 
 > **Status:** Implemented in v0.5
-> **Branch:** `feat/bayes-unified-design` (off `v0.5`)
+> **Branch:** `feat/bayes-unified-design` (v0.5 line)
 > **Target release:** v0.5 — clean break replacing the earlier in-flight Bayes surface
 > **Date:** 2026-05-17
 > **Scope:** Replace the parallel `gaia.engine.bayes` typed-value distributions plus the in-flight `bayes.model` / `bayes.data` / `bayes.likelihood` verbs with a single Distribution-Knowledge-centred surface that unifies hypothesis comparison and the quantity-with-predicate surface. Also fix the heterogeneous read paths for predictive mean, observed value, and noise sigma.

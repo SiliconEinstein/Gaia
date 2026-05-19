@@ -51,7 +51,7 @@ unsatisfiable. That makes the claim malformed as a logical object.
 
 ## 3. Current Code Facts
 
-The v0.5 branch already has the foundation needed for this API:
+The v0.5 line already has the foundation needed for this API:
 
 - `gaia.engine.ir.formula` defines `FormulaGraph`, `FormulaNode`,
   `FormulaEdge`, and `formula_node_id`.

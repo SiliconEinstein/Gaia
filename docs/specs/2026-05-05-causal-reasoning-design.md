@@ -1,7 +1,7 @@
 # Causal Reasoning Design — Structure + Intervention
 
 > **Status:** Target design (proposal)
-> **Branch:** `docs/causal-reasoning-design` (off `v0.5`)
+> **Branch:** `docs/causal-reasoning-design` (v0.5 line)
 > **Target release:** v0.6 (built on v0.5 foundation + PR #505 lifted Lang)
 > **Date:** 2026-05-05
 > **Scope:** Promote `Causes(X, Y)` from a v0.5 marker to first-class causal reasoning — DAG semantics, d-separation, `do(X=x)` interventions, numeric answers via existing Gaia BP, and optional symbolic do-calculus identification via y0.

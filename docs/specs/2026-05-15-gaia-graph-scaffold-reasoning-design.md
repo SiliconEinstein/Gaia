@@ -2,7 +2,7 @@
 
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
-**Branch:** off `v0.5`
+**Base:** v0.5 line; future PRs should target `main`.
 **Related PRs:** #606
 **Scope:** Minimal runtime and DSL model for `GaiaGraph`, `Scaffold`, `Reasoning`, `candidate_relation`, `associate(pattern=...)`, `compose`, and the `materialize(...)` linking function.
 **Non-goals:** No graph engine, no causal graph hierarchy, no automatic scaffold-to-formal-record conversion, and no assumption that scaffold can only be formalized by reasoning.

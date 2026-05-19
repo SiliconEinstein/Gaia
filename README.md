@@ -33,8 +33,8 @@ the upcoming `0.5.0` line until the stable v0.5 release is cut.
 - v0.5 is breaking relative to v0.4; see the
   [v0.5.0a1 release notes](docs/releases/0.5.0a1.md) and
   [migration guide](docs/migration.md).
-- The historical `v0.5` branch is a temporary release-train branch; new PRs
-  should target `main`.
+- New PRs should target `main`; exact prerelease sources are immutable tags
+  such as `v0.5.0a1`.
 
 | Channel | Install | Source |
 |---------|---------|--------|

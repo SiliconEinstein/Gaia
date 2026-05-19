@@ -2,7 +2,7 @@
 
 **Status:** Design proposal for v0.5 follow-up
 **Date:** 2026-05-15
-**Branch:** off `v0.5`
+**Base:** v0.5 line; future PRs should target `main`.
 **Related PRs:** #606
 **Scope:** Delete the current Gaia Lang causal marker surface and refactor the runtime `Reasoning` hierarchy around graph shape.
 **Refines:** `docs/specs/2026-05-15-gaia-graph-scaffold-reasoning-design.md`
