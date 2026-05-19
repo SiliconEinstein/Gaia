@@ -2,11 +2,15 @@
 
 > **Status:** Draft
 > **Date:** 2026-03-31
-> **实现文件:** `gaia_lkm/pipelines/lower.py`
+> **实现文件:** target external LKM implementation
+> (`gaia_lkm/pipelines/lower.py`), not present in the current Gaia v0.5 CLI
+> repository.
 
 ## 概述
 
-M3 将上游 `gaia.gaia_ir.LocalCanonicalGraph` lower 为 LKM 的 `(list[LocalVariableNode], list[LocalFactorNode])`，并从 validated review reports 提取参数化记录。Lowering 是确定性的——相同输入永远产出相同结果。
+M3 将上游 `gaia.engine.ir.LocalCanonicalGraph` lower 为 LKM 的
+`(list[LocalVariableNode], list[LocalFactorNode])`，并从 validated review
+reports 提取参数化记录。Lowering 是确定性的——相同输入永远产出相同结果。
 
 M3 是 Ingest 的第一步（Pipeline A 路径），产出 local FactorGraph 供 M5 Integrate 消费。
 
@@ -25,13 +29,13 @@ M3 是 Ingest 的第一步（Pipeline A 路径），产出 local FactorGraph 供
 ```python
 @dataclass
 class PipelineAInput:
-    package: LocalCanonicalGraph  # 上游 gaia.gaia_ir 的完整包
+    package: LocalCanonicalGraph  # 上游 gaia.engine.ir 的完整包
     review_reports: list[dict]     # validated review reports（经 registry 验证）
     package_id: str
     version: str
 ```
 
-- `LocalCanonicalGraph` 来自上游 `gaia.gaia_ir`，只读，不修改
+- `LocalCanonicalGraph` 来自上游 `gaia.engine.ir`，只读，不修改
 - `review_reports` 是通过 registry 完整验证流程的 assigned review reports
 
 ## 输出
@@ -193,7 +197,7 @@ ParameterizationSource:
 ## 关键约束
 
 1. **确定性**：相同 `LocalCanonicalGraph` + 相同 `review_reports` → 相同输出
-2. **上游只读**：不修改 `gaia.gaia_ir.*` 对象
+2. **上游只读**：不修改 `gaia.engine.ir.*` 对象
 3. **Lowering 和 canonicalize 严格分离**：M3 只做 lowering（IR → local FactorGraph），不做 canonicalization（local → global）
 4. **FormalStrategy 全展开**：当前实现默认展开所有 FormalStrategy（不折叠）
 5. **source_class = "official"**：Pipeline A 所有参数记录的 source_class 必须为 official

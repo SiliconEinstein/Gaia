@@ -1,11 +1,11 @@
 # Gaia 的相关系统与定位
 
-> **Status:** Current draft
+> **Status:** Current canonical — design positioning
 
 > 相关文档：
 > - [01-product-scope.md](01-product-scope.md)
-> - [../gaia-lang/dsl.md](../gaia-lang/dsl.md)
-> - [../gaia-ir/01-overview.md](../gaia-ir/01-overview.md)
+> - [Gaia Lang design](../gaia-lang/knowledge-and-reasoning.md)
+> - [Gaia IR design](../gaia-ir/01-overview.md)
 
 ## 目的
 

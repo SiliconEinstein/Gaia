@@ -2,31 +2,78 @@
 
 import pytest
 
-from gaia.lang import (
-    Step,
+from gaia.engine.lang import (
+    Claim,
     claim,
-    compare,
-    noisy_and,
-    setting,
-    composite,
+    derive,
+)
+from gaia.engine.lang.compat import (
+    Step,
     abduction,
+    compare,
+    composite,
     contradiction,
     fills,
     induction,
+    noisy_and,
+    setting,
     support,
 )
-from gaia.lang.compiler.compile import (
-    compile_package_artifact,
+from gaia.engine.lang.compiler.compile import (
+    _anonymous_label,
     _compile_reason,
+    _content_hash,
     _knowledge_id,
     _normalize_label,
-    _anonymous_label,
-    _content_hash,
+    compile_package_artifact,
 )
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.package import CollectedPackage
+from gaia.unit import q
+
+LEGACY_NOISY_AND_WARNING = pytest.mark.filterwarnings(
+    "ignore:noisy_and\\(\\) is deprecated:DeprecationWarning"
+)
+LEGACY_SUPPORT_WARNING = pytest.mark.filterwarnings(
+    "ignore:support\\(\\) is deprecated:DeprecationWarning"
+)
 
 
 # ── _content_hash / _anonymous_label / _normalize_label ──
+
+
+class TemperatureClaim(Claim):
+    """Temperature is {value}."""
+
+    value: object
+
+
+def test_quantity_parameter_compiles_to_literal_json():
+    with CollectedPackage("quantity_pkg") as pkg:
+        temp = TemperatureClaim(value=q(80, "K"))
+        temp.label = "temperature"
+
+    compiled = compile_package_artifact(pkg)
+    knowledge = next(k for k in compiled.graph.knowledges if k.label == "temperature")
+
+    assert [param.model_dump(mode="json") for param in knowledge.parameters] == [
+        {
+            "name": "value",
+            "type": "object",
+            "value": {
+                "schema_version": "gaia.quantity_literal.v1",
+                "value": 80.0,
+                "unit": "kelvin",
+            },
+        }
+    ]
+    json_knowledge = next(
+        k for k in compiled.to_json()["knowledges"] if k["label"] == "temperature"
+    )
+    assert json_knowledge["parameters"][0]["value"] == {
+        "schema_version": "gaia.quantity_literal.v1",
+        "value": 80.0,
+        "unit": "kelvin",
+    }
 
 
 def test_content_hash_deterministic():
@@ -88,7 +135,7 @@ def test_knowledge_id_foreign_with_metadata_qid():
     k = claim("Foreign claim.")
     k.metadata["qid"] = "external:other_pkg::foreign_claim"
     # NOT in pkg.knowledge → foreign
-    kid, counter = _knowledge_id(k, pkg, local_anon_counter=0)
+    kid, _counter = _knowledge_id(k, pkg, local_anon_counter=0)
     assert kid == "external:other_pkg::foreign_claim"
 
 
@@ -98,7 +145,7 @@ def test_knowledge_id_foreign_with_package():
     k = claim("Foreign claim.")
     k.label = "fc"
     k._package = foreign_pkg
-    kid, counter = _knowledge_id(k, pkg, local_anon_counter=0)
+    kid, _counter = _knowledge_id(k, pkg, local_anon_counter=0)
     assert kid == "github:other_pkg::fc"
 
 
@@ -107,7 +154,7 @@ def test_knowledge_id_foreign_fallback():
     k = claim("Orphan claim.")
     k.label = "orphan"
     k._package = None
-    kid, counter = _knowledge_id(k, pkg, local_anon_counter=0)
+    kid, _counter = _knowledge_id(k, pkg, local_anon_counter=0)
     assert kid == "external:anonymous::orphan"
 
 
@@ -154,7 +201,7 @@ def test_compile_basic_package():
         a.label = "a"
         b = claim("Claim B.")
         b.label = "b"
-        noisy_and([a], b)
+        derive(b, given=(a,), rationale="A derives B.")
     result = compile_package_artifact(pkg)
     assert result.graph.namespace == "github"
     assert result.graph.package_name == "test_pkg"
@@ -173,7 +220,7 @@ def test_compile_with_background():
         a.label = "a"
         b = claim("B.")
         b.label = "b"
-        noisy_and(premises=[a], conclusion=b, background=[ctx])
+        derive(b, given=(a,), background=[ctx], rationale="Contextual derivation.")
     result = compile_package_artifact(pkg)
     strat = result.graph.strategies[0]
     assert strat.background is not None
@@ -187,18 +234,15 @@ def test_compile_with_reason_steps():
         a.label = "a"
         b = claim("B.")
         b.label = "b"
-        noisy_and(
-            premises=[a],
-            conclusion=b,
-            reason=[Step(reason="A supports B", premises=[a])],
-        )
+        derive(b, given=(a,), rationale="A supports B.")
     result = compile_package_artifact(pkg)
     strat = result.graph.strategies[0]
     assert strat.steps is not None
-    assert strat.steps[0].reasoning == "A supports B"
-    assert strat.steps[0].premises == ["github:test_pkg::a"]
+    assert strat.steps[0].reasoning == "A supports B."
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_NOISY_AND_WARNING
 def test_compile_composite_strategy():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -216,6 +260,8 @@ def test_compile_composite_strategy():
     assert len(result.graph.strategies) == 3
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_abduction_creates_composite_strategy():
     pkg = CollectedPackage("test_pkg", namespace="github", version="1.0.0")
     with pkg:
@@ -251,7 +297,8 @@ def test_compile_operator():
         a.label = "a"
         b = claim("B.")
         b.label = "b"
-        c = contradiction(a, b, reason="they conflict", prior=0.9)
+        with pytest.warns(DeprecationWarning, match="contradiction\\(\\) is deprecated"):
+            c = contradiction(a, b, reason="they conflict", prior=0.9)
         c.label = "a_vs_b"
     result = compile_package_artifact(pkg)
     assert len(result.graph.operators) == 1
@@ -328,6 +375,8 @@ def test_compile_module_titles():
     assert result.graph.module_titles == {"intro": "Introduction"}
 
 
+@pytest.mark.legacy_dsl
+@LEGACY_SUPPORT_WARNING
 def test_compile_induction():
     """Induction compiles to CompositeStrategy with support sub-strategies."""
     pkg = CollectedPackage("test_induction", namespace="github", version="1.0.0")

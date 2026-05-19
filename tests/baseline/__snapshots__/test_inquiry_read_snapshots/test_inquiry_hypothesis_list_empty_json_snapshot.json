@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "inquiry",
+    "hypothesis",
+    "list",
+    "--json",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "[]\n"
+}

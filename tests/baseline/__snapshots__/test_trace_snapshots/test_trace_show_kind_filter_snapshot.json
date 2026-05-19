@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "trace",
+    "show",
+    "<TMP>",
+    "--kind",
+    "tool_call"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "trace_id     : t\narm_id       : arm-x\nsession_id   : s\nevents shown : 0 (of 3 total)\n------------------------------------------------------------------------\n"
+}

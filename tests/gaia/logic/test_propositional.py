@@ -1,0 +1,134 @@
+from sympy import Symbol
+
+from gaia.engine.ir import FormalExpr, FormalStrategy, Knowledge, LocalCanonicalGraph, Operator
+from gaia.engine.ir.logic.propositional import (
+    are_equivalent,
+    is_satisfiable,
+    simplify_proposition,
+    to_cnf_proposition,
+)
+from gaia.engine.lang import Claim, claim, exclusive, lnot
+from gaia.engine.lang.compiler import compile_package_artifact
+from gaia.engine.lang.runtime.package import CollectedPackage
+
+
+def _kid(package: str, label: str) -> str:
+    return f"github:{package}::{label}"
+
+
+def test_simplify_proposition_collapses_double_negation():
+    with CollectedPackage("logic_double_negation") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        double = claim("not not A.", formula=lnot(~a))
+        double.label = "double"
+
+    graph = compile_package_artifact(pkg).graph
+
+    assert simplify_proposition(graph, _kid("logic_double_negation", "double")) == Symbol(
+        _kid("logic_double_negation", "a")
+    )
+
+
+def test_cnf_and_equivalence_use_demorgan_law():
+    with CollectedPackage("logic_demorgan") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        both = claim("A and B.", formula=a & b)
+        both.label = "both"
+        left = claim("not (A and B).", formula=lnot(both))
+        left.label = "left"
+        not_a = claim("not A.", formula=~a)
+        not_a.label = "not_a"
+        not_b = claim("not B.", formula=~b)
+        not_b.label = "not_b"
+        right = claim("not A or not B.", formula=not_a | not_b)
+        right.label = "right"
+
+    graph = compile_package_artifact(pkg).graph
+
+    assert are_equivalent(graph, _kid("logic_demorgan", "left"), _kid("logic_demorgan", "right"))
+    assert str(to_cnf_proposition(graph, _kid("logic_demorgan", "left"), simplify=True)) in {
+        "~github:logic_demorgan::a | ~github:logic_demorgan::b",
+        "~github:logic_demorgan::b | ~github:logic_demorgan::a",
+    }
+
+
+def test_satisfiability_detects_contradictory_formula():
+    with CollectedPackage("logic_unsat") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        not_a = claim("not A.", formula=~a)
+        not_a.label = "not_a"
+        impossible = claim("A and not A.", formula=a & not_a)
+        impossible.label = "impossible"
+
+    graph = compile_package_artifact(pkg).graph
+
+    assert is_satisfiable(graph, _kid("logic_unsat", "a"))
+    assert not is_satisfiable(graph, _kid("logic_unsat", "impossible"))
+
+
+def test_exclusive_relation_is_equivalent_to_or_and_not_both():
+    with CollectedPackage("logic_exclusive") as pkg:
+        a = Claim("A.")
+        a.label = "a"
+        b = Claim("B.")
+        b.label = "b"
+        one_of = exclusive(a, b, rationale="closed binary split")
+        one_of.label = "one_of"
+        either = claim("A or B.", formula=a | b)
+        either.label = "either"
+        both = claim("A and B.", formula=a & b)
+        both.label = "both"
+        not_both = claim("not (A and B).", formula=lnot(both))
+        not_both.label = "not_both"
+        formula = claim("either and not both.", formula=either & not_both)
+        formula.label = "formula"
+
+    graph = compile_package_artifact(pkg).graph
+
+    assert are_equivalent(
+        graph, _kid("logic_exclusive", "one_of"), _kid("logic_exclusive", "formula")
+    )
+
+
+def test_formal_strategy_operator_conclusions_are_expanded():
+    graph = LocalCanonicalGraph(
+        namespace="github",
+        package_name="logic_formal_expr",
+        knowledges=[
+            Knowledge(id="github:logic_formal_expr::a", type="claim", content="A"),
+            Knowledge(id="github:logic_formal_expr::b", type="claim", content="B"),
+            Knowledge(id="github:logic_formal_expr::same", type="claim", content="same"),
+        ],
+        strategies=[
+            FormalStrategy(
+                scope="local",
+                type="deduction",
+                premises=["github:logic_formal_expr::a", "github:logic_formal_expr::b"],
+                conclusion="github:logic_formal_expr::same",
+                formal_expr=FormalExpr(
+                    operators=[
+                        Operator(
+                            operator="equivalence",
+                            variables=[
+                                "github:logic_formal_expr::a",
+                                "github:logic_formal_expr::b",
+                            ],
+                            conclusion="github:logic_formal_expr::same",
+                        )
+                    ]
+                ),
+            )
+        ],
+    )
+
+    assert str(to_cnf_proposition(graph, "github:logic_formal_expr::same", simplify=True)) in {
+        "(github:logic_formal_expr::a | ~github:logic_formal_expr::b) & "
+        "(github:logic_formal_expr::b | ~github:logic_formal_expr::a)",
+        "(github:logic_formal_expr::b | ~github:logic_formal_expr::a) & "
+        "(github:logic_formal_expr::a | ~github:logic_formal_expr::b)",
+    }

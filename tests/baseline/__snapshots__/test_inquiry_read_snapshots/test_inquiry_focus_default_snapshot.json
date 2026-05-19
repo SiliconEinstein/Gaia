@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "inquiry",
+    "focus",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "focus: (none)\n"
+}

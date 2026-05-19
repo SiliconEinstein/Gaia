@@ -1,0 +1,69 @@
+{
+  "files": [
+    {
+      "path": "galileo/.gaia/beliefs.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/compile_metadata.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/formalization_manifest.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/ir.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/ir_hash",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/manifests/bridges.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/manifests/exports.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/manifests/holes.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gaia/manifests/premises.json",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/.gitignore",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/CLI-AUTHORED.md",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/pyproject.toml",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/src/galileo_v0_5/__init__.py",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/src/galileo_v0_5/priors.py",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "galileo/uv.lock",
+      "size": "<NONZERO>"
+    },
+    {
+      "path": "starmap.html",
+      "size": "<NONZERO>"
+    }
+  ],
+  "root": "test_starmap_html_artifact_pat0"
+}

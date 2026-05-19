@@ -4,18 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from gaia.inquiry.diagnostics import Diagnostic, NextEdit
-from gaia.inquiry.diff import (
+from gaia.engine.inquiry.diagnostics import Diagnostic, NextEdit
+from gaia.engine.inquiry.diff import (
     SemanticDiff,
     compute_semantic_diff,
 )
-from gaia.inquiry.ranking import (
+from gaia.engine.inquiry.ranking import (
     rank_diagnostics,
     rank_next_edits,
     supported_modes,
 )
-from gaia.inquiry.review import render_markdown, run_review
-
+from gaia.engine.inquiry.review import render_markdown, run_review
 
 # --------------------------------------------------------------------------- #
 # §14.2 — extended diff categories                                            #
@@ -263,7 +262,7 @@ def test_render_markdown_diff_section_lists_added_categories(tmp_path: Path):
     src = pkg / "diffmd"
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, question\n"
+        "from gaia.engine.lang import claim, question\n"
         'a = claim("a")\n'
         'q = question("q")\n'
         '__all__ = ["a", "q"]\n',
@@ -272,7 +271,7 @@ def test_render_markdown_diff_section_lists_added_categories(tmp_path: Path):
     r1 = run_review(pkg, no_infer=True)
 
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim, question\n"
+        "from gaia.engine.lang import claim, question\n"
         'a = claim("a")\n'
         'b = claim("b")\n'
         'q = question("q")\n'

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "inquiry",
+    "hypothesis",
+    "list",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "(no hypotheses)\n"
+}

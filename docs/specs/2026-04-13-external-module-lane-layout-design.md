@@ -1,9 +1,11 @@
 # External Module Lane Layout Design
 
-**Status:** Target design
+**Status:** Superseded
 **Date:** 2026-04-13
 **Type of change:** Replacement + targeted visual behavior redesign
-**Scope:** `gaia/cli/templates/pages/src/components/ModuleSubgraph.tsx`, `gaia/cli/templates/pages/src/components/EdgeRenderer.tsx`, and supporting template-page tests only
+**Former scope:** React/Vite GitHub Pages template component layout.
+
+> **Superseded by v0.5 cleanup (2026-05-16):** the React/Vite GitHub Pages template was removed with its component tests.
 
 ## Problem
 

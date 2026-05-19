@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from gaia.inquiry.state import (
+from gaia.engine.inquiry.state import (
     STATE_SCHEMA_VERSION,
     InquiryState,
     SyntheticHypothesis,
@@ -82,6 +82,7 @@ def test_invalid_obligation_kind_rejected():
 
 
 def test_focus_push_and_pop_roundtrip(tmp_path: Path):
+    del tmp_path
     s = InquiryState()
     s.focus = "a"
     push_focus_frame(s)

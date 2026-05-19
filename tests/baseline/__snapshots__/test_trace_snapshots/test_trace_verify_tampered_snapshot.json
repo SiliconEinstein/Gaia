@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "trace",
+    "verify",
+    "<TMP>"
+  ],
+  "exit_code": 1,
+  "stderr": "[verify] FAIL\n  - events[2] (seq=2) prev_hash mismatch\n  - manifest.manifest_hash mismatch\n",
+  "stdout": ""
+}

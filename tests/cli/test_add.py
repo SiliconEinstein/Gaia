@@ -6,9 +6,11 @@ import httpx
 import pytest
 from typer.testing import CliRunner
 
-from gaia.cli._packages import GaiaCliError
 from gaia.cli._registry import RegistryVersion, _fetch_file, fetch_file_optional, resolve_package
 from gaia.cli.main import app
+from gaia.engine.packaging import GaiaPackagingError
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 
@@ -25,7 +27,7 @@ MOCK_VERSION = RegistryVersion(
 @patch("gaia.cli.commands.add._run_uv")
 def test_add_installs_with_git_url(mock_uv, mock_resolve):
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     mock_resolve.assert_called_once()
     uv_args = mock_uv.call_args[0][0]
@@ -37,7 +39,7 @@ def test_add_installs_with_git_url(mock_uv, mock_resolve):
 @patch("gaia.cli.commands.add._run_uv")
 def test_add_with_version(mock_uv, mock_resolve):
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia", "--version", "4.0.5"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia", "--version", "4.0.5"])
     assert result.exit_code == 0
     mock_resolve.assert_called_once_with(
         "galileo-falling-bodies-gaia",
@@ -48,8 +50,10 @@ def test_add_with_version(mock_uv, mock_resolve):
 
 @patch("gaia.cli.commands.add.resolve_package")
 def test_add_not_found(mock_resolve):
-    mock_resolve.side_effect = GaiaCliError("Not found in registry: packages/no-such/Package.toml")
-    result = runner.invoke(app, ["add", "no-such-gaia"])
+    mock_resolve.side_effect = GaiaPackagingError(
+        "Not found in registry: packages/no-such/Package.toml"
+    )
+    result = runner.invoke(app, ["pkg", "add", "no-such-gaia"])
     assert result.exit_code != 0
     assert "Not found" in result.output
 
@@ -61,8 +65,9 @@ def test_add_not_found(mock_resolve):
 @patch("gaia.cli.commands.add._run_uv")
 def test_add_canonicalizes_name_without_gaia_suffix(mock_uv, mock_resolve):
     """Package name without -gaia suffix still gets correct dep spec."""
+    del mock_resolve
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     uv_args = mock_uv.call_args[0][0]
     dep_spec = uv_args[2]
@@ -83,6 +88,7 @@ def test_resolve_package_picks_max_version_semantically(mock_fetch):
     )
 
     def fake_fetch(registry, path):
+        del registry
         if "Package.toml" in path:
             return pkg_toml
         return ver_toml
@@ -98,9 +104,9 @@ def test_resolve_package_picks_max_version_semantically(mock_fetch):
 
 @patch("gaia.cli._registry.httpx.get")
 def test_fetch_file_handles_timeout(mock_get):
-    """Timeout raises GaiaCliError, not raw httpx exception."""
+    """Timeout raises GaiaPackagingError, not raw httpx exception."""
     mock_get.side_effect = httpx.ConnectTimeout("timed out")
-    with pytest.raises(GaiaCliError, match="Failed to reach registry"):
+    with pytest.raises(GaiaPackagingError, match="Failed to reach registry"):
         _fetch_file("owner/repo", "some/path")
 
 
@@ -110,7 +116,7 @@ def test_fetch_file_handles_403_rate_limit(mock_get):
     mock_resp = MagicMock()
     mock_resp.status_code = 403
     mock_get.return_value = mock_resp
-    with pytest.raises(GaiaCliError, match="rate limit"):
+    with pytest.raises(GaiaPackagingError, match="rate limit"):
         _fetch_file("owner/repo", "some/path")
 
 
@@ -121,7 +127,7 @@ def test_fetch_file_handles_500_error(mock_get):
     mock_resp.status_code = 500
     mock_resp.text = "Internal Server Error"
     mock_get.return_value = mock_resp
-    with pytest.raises(GaiaCliError, match="Registry API error.*500"):
+    with pytest.raises(GaiaPackagingError, match=r"Registry API error.*500"):
         _fetch_file("owner/repo", "some/path")
 
 
@@ -132,7 +138,8 @@ def test_fetch_file_handles_500_error(mock_get):
 @patch("gaia.cli.commands.add.subprocess.run", side_effect=FileNotFoundError("uv"))
 def test_add_missing_uv_shows_install_hint(mock_run, mock_resolve):
     """Missing uv binary gives a helpful error message."""
-    result = runner.invoke(app, ["add", "some-gaia"])
+    del mock_resolve, mock_run
+    result = runner.invoke(app, ["pkg", "add", "some-gaia"])
     assert result.exit_code != 0
     assert "uv is not installed" in result.output
 
@@ -178,7 +185,8 @@ def test_fetch_file_optional_returns_none_on_network_error(mock_get):
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional")
 def test_add_downloads_dep_beliefs(mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch):
-    """gaia add downloads beliefs.json into .gaia/dep_beliefs/."""
+    """Gaia add downloads beliefs.json into .gaia/dep_beliefs/."""
+    del mock_resolve
     # Create a minimal Gaia package root so _find_gaia_package_root works
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "test-gaia"\nversion = "1.0.0"\n\n'
@@ -187,7 +195,7 @@ def test_add_downloads_dep_beliefs(mock_fetch, mock_uv, mock_resolve, tmp_path, 
     monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
     mock_fetch.return_value = '{"beliefs": [{"knowledge_id": "a", "belief": 0.8}]}'
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     assert "Saved upstream beliefs" in result.output
     dep_file = tmp_path / ".gaia" / "dep_beliefs" / "galileo_falling_bodies.json"
@@ -202,9 +210,10 @@ def test_add_downloads_dep_beliefs(mock_fetch, mock_uv, mock_resolve, tmp_path, 
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional", return_value=None)
 def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve):
-    """gaia add succeeds even when beliefs.json is not available."""
+    """Gaia add succeeds even when beliefs.json is not available."""
+    del mock_fetch, mock_resolve
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "no beliefs manifest" in result.output.lower()
 
@@ -213,9 +222,10 @@ def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional", return_value="not valid json {{{")
 def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
-    """gaia add gracefully handles invalid JSON in beliefs manifest."""
+    """Gaia add gracefully handles invalid JSON in beliefs manifest."""
+    del mock_fetch, mock_resolve
     mock_uv.return_value = MagicMock(returncode=0)
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "not valid json" in result.output.lower()
 
@@ -226,12 +236,13 @@ def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
 def test_add_skips_dep_beliefs_outside_gaia_package(
     mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
 ):
-    """gaia add skips dep_beliefs if not inside a Gaia package."""
+    """Gaia add skips dep_beliefs if not inside a Gaia package."""
+    del mock_resolve
     # tmp_path has no pyproject.toml — _find_gaia_package_root returns None
     monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
     mock_fetch.return_value = '{"beliefs": []}'
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "not inside a gaia package" in result.output.lower()
 
@@ -242,7 +253,8 @@ def test_add_skips_dep_beliefs_outside_gaia_package(
 def test_add_writes_dep_beliefs_at_package_root_from_subdir(
     mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
 ):
-    """gaia add from a subdirectory writes dep_beliefs at the package root."""
+    """Gaia add from a subdirectory writes dep_beliefs at the package root."""
+    del mock_resolve
     # Create package root with pyproject.toml
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "test-gaia"\nversion = "1.0.0"\n\n'
@@ -253,7 +265,7 @@ def test_add_writes_dep_beliefs_at_package_root_from_subdir(
     monkeypatch.chdir(subdir)
     mock_uv.return_value = MagicMock(returncode=0)
     mock_fetch.return_value = '{"beliefs": [{"knowledge_id": "a", "belief": 0.7}]}'
-    result = runner.invoke(app, ["add", "galileo-falling-bodies-gaia"])
+    result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     # dep_beliefs should be at the package root, not in the subdir
     dep_file = tmp_path / ".gaia" / "dep_beliefs" / "galileo_falling_bodies.json"

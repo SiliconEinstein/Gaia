@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from gaia.cli.commands._classify import classify_ir, node_role
+from typing import Any
+
+from gaia.engine.inquiry._classify import classify_ir, node_role
 
 
-def generate_wiki_home(ir: dict, beliefs_data: dict | None = None) -> str:
+def generate_wiki_home(ir: dict[str, Any], beliefs_data: dict[str, Any] | None = None) -> str:
     """Generate Wiki Home.md with package overview and claim index."""
     pkg = ir.get("package_name", "Package")
     lines = [f"# {pkg}", ""]
 
     # Module index
-    modules: dict[str, list[dict]] = {}
+    modules: dict[str, list[dict[str, Any]]] = {}
     for k in ir["knowledges"]:
         mod = k.get("module", "Root")
         modules.setdefault(mod, []).append(k)
@@ -48,9 +50,9 @@ def generate_wiki_home(ir: dict, beliefs_data: dict | None = None) -> str:
 
 
 def generate_wiki_inference(
-    ir: dict,
-    beliefs_data: dict,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    beliefs_data: dict[str, Any],
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Generate an Inference Results wiki page with diagnostics and a belief table.
 
@@ -110,9 +112,9 @@ def generate_wiki_inference(
 
 
 def generate_all_wiki(
-    ir: dict,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Generate all wiki pages and return them as ``{filename: markdown_content}``.
 
@@ -144,12 +146,119 @@ def generate_all_wiki(
     return pages
 
 
+def _beliefs_from_payload(beliefs_data: dict[str, Any] | None) -> dict[str, float]:
+    """Extract knowledge beliefs from an optional beliefs payload."""
+    if not beliefs_data:
+        return {}
+    return {b["knowledge_id"]: b["belief"] for b in beliefs_data.get("beliefs", [])}
+
+
+def _priors_from_payload(param_data: dict[str, Any] | None) -> dict[str, float]:
+    """Extract knowledge priors from an optional parameterization payload."""
+    if not param_data:
+        return {}
+    return {p["knowledge_id"]: p["value"] for p in param_data.get("priors", [])}
+
+
+def _strategy_indexes(
+    ir: dict[str, Any],
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+    """Index strategies by conclusion and premise."""
+    by_conclusion: dict[str, list[dict[str, Any]]] = {}
+    by_premise: dict[str, list[dict[str, Any]]] = {}
+    for s in ir.get("strategies", []):
+        conc = s.get("conclusion")
+        if conc:
+            by_conclusion.setdefault(conc, []).append(s)
+        for p in s.get("premises", []):
+            by_premise.setdefault(p, []).append(s)
+    return by_conclusion, by_premise
+
+
+def _operators_by_variable(ir: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Index operators by variable id."""
+    operators_by_variable: dict[str, list[dict[str, Any]]] = {}
+    for o in ir.get("operators", []):
+        for v in o.get("variables", []):
+            operators_by_variable.setdefault(v, []).append(o)
+    return operators_by_variable
+
+
+def _render_wiki_knowledge(
+    *,
+    knowledge: dict[str, Any],
+    role: str,
+    beliefs: dict[str, float],
+    priors: dict[str, float],
+    strategies_by_conclusion: dict[str, list[dict[str, Any]]],
+    strategies_by_premise: dict[str, list[dict[str, Any]]],
+    operators_by_variable: dict[str, list[dict[str, Any]]],
+) -> list[str]:
+    """Render one knowledge block for a wiki module page."""
+    kid = knowledge["id"]
+    label = knowledge.get("label", kid)
+    lines = [
+        f"### {label}",
+        "",
+        f"**QID:** `{kid}`",
+        f"**Type:** {knowledge['type']}",
+        f"**Role:** {role}",
+        f"**Content:** {knowledge.get('content', '')}",
+    ]
+    if kid in priors:
+        lines.append(f"**Prior:** {priors[kid]:.2f}")
+    if kid in beliefs:
+        lines.append(f"**Belief:** {beliefs[kid]:.2f}")
+    lines.extend(_wiki_derivation_lines(kid, strategies_by_conclusion))
+    lines.extend(_wiki_metadata_lines(knowledge))
+    lines.extend(_wiki_reference_lines(kid, strategies_by_premise, operators_by_variable))
+    lines.append("")
+    return lines
+
+
+def _wiki_derivation_lines(
+    kid: str,
+    strategies_by_conclusion: dict[str, list[dict[str, Any]]],
+) -> list[str]:
+    """Render derivation lines for strategies concluding a knowledge node."""
+    lines: list[str] = []
+    for strategy in strategies_by_conclusion.get(kid, []):
+        stype = strategy.get("type", "unknown")
+        lines.append(f"**Derived from:** {stype}")
+        premises = strategy.get("premises", [])
+        if premises:
+            lines.append(f"**Premises:** {', '.join(f'`{p}`' for p in premises)}")
+        reason = strategy.get("reason", "")
+        if reason:
+            lines.append(f"**Reasoning:** {reason}")
+    return lines
+
+
+def _wiki_metadata_lines(knowledge: dict[str, Any]) -> list[str]:
+    """Render metadata lines for a knowledge node."""
+    return [f"**{mk}:** {mv}" for mk, mv in (knowledge.get("metadata", {}) or {}).items()]
+
+
+def _wiki_reference_lines(
+    kid: str,
+    strategies_by_premise: dict[str, list[dict[str, Any]]],
+    operators_by_variable: dict[str, list[dict[str, Any]]],
+) -> list[str]:
+    """Render reverse-reference lines for a knowledge node."""
+    refs: list[str] = []
+    for strategy in strategies_by_premise.get(kid, []):
+        refs.append(f"{strategy.get('type', 'unknown')} -> `{strategy.get('conclusion', '?')}`")
+    for operator in operators_by_variable.get(kid, []):
+        refs.append(f"{operator.get('type', 'unknown')} -> `{operator.get('conclusion', '?')}`")
+    return [f"**Referenced by:** {'; '.join(refs)}"] if refs else []
+
+
 def generate_wiki_module(
-    ir: dict,
+    ir: dict[str, Any],
     module_name: str,
     *,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Generate a structured Wiki page for a single module.
 
@@ -158,30 +267,10 @@ def generate_wiki_module(
     """
     classification = classify_ir(ir)
 
-    # Build lookup maps
-    beliefs: dict[str, float] = {}
-    if beliefs_data:
-        beliefs = {b["knowledge_id"]: b["belief"] for b in beliefs_data.get("beliefs", [])}
-
-    priors: dict[str, float] = {}
-    if param_data:
-        priors = {p["knowledge_id"]: p["value"] for p in param_data.get("priors", [])}
-
-    # Index strategies by conclusion and by premise for cross-references
-    strategies_by_conclusion: dict[str, list[dict]] = {}
-    strategies_by_premise: dict[str, list[dict]] = {}
-    for s in ir.get("strategies", []):
-        conc = s.get("conclusion")
-        if conc:
-            strategies_by_conclusion.setdefault(conc, []).append(s)
-        for p in s.get("premises", []):
-            strategies_by_premise.setdefault(p, []).append(s)
-
-    # Index operators by premise/variable for cross-references
-    operators_by_variable: dict[str, list[dict]] = {}
-    for o in ir.get("operators", []):
-        for v in o.get("variables", []):
-            operators_by_variable.setdefault(v, []).append(o)
+    beliefs = _beliefs_from_payload(beliefs_data)
+    priors = _priors_from_payload(param_data)
+    strategies_by_conclusion, strategies_by_premise = _strategy_indexes(ir)
+    operators_by_variable = _operators_by_variable(ir)
 
     # Filter knowledges for this module, skip helpers
     module_knowledges = [
@@ -194,59 +283,18 @@ def generate_wiki_module(
 
     for k in module_knowledges:
         kid = k["id"]
-        label = k.get("label", kid)
         ktype = k["type"]
-        content = k.get("content", "")
         role = node_role(kid, ktype, classification)
-
-        lines.append(f"### {label}")
-        lines.append("")
-        lines.append(f"**QID:** `{kid}`")
-        lines.append(f"**Type:** {ktype}")
-        lines.append(f"**Role:** {role}")
-        lines.append(f"**Content:** {content}")
-
-        # Prior
-        if kid in priors:
-            lines.append(f"**Prior:** {priors[kid]:.2f}")
-
-        # Belief
-        if kid in beliefs:
-            lines.append(f"**Belief:** {beliefs[kid]:.2f}")
-
-        # Derivation info (strategies where this node is the conclusion)
-        if kid in strategies_by_conclusion:
-            for s in strategies_by_conclusion[kid]:
-                stype = s.get("type", "unknown")
-                lines.append(f"**Derived from:** {stype}")
-                premises = s.get("premises", [])
-                if premises:
-                    lines.append(f"**Premises:** {', '.join(f'`{p}`' for p in premises)}")
-                reason = s.get("reason", "")
-                if reason:
-                    lines.append(f"**Reasoning:** {reason}")
-
-        # Metadata
-        metadata = k.get("metadata", {})
-        if metadata:
-            for mk, mv in metadata.items():
-                lines.append(f"**{mk}:** {mv}")
-
-        # Referenced by: strategies/operators where this node appears as a premise/variable
-        refs: list[str] = []
-        if kid in strategies_by_premise:
-            for s in strategies_by_premise[kid]:
-                conc = s.get("conclusion", "?")
-                stype = s.get("type", "unknown")
-                refs.append(f"{stype} -> `{conc}`")
-        if kid in operators_by_variable:
-            for o in operators_by_variable[kid]:
-                conc = o.get("conclusion", "?")
-                otype = o.get("type", "unknown")
-                refs.append(f"{otype} -> `{conc}`")
-        if refs:
-            lines.append(f"**Referenced by:** {'; '.join(refs)}")
-
-        lines.append("")
+        lines.extend(
+            _render_wiki_knowledge(
+                knowledge=k,
+                role=role,
+                beliefs=beliefs,
+                priors=priors,
+                strategies_by_conclusion=strategies_by_conclusion,
+                strategies_by_premise=strategies_by_premise,
+                operators_by_variable=operators_by_variable,
+            )
+        )
 
     return "\n".join(lines)

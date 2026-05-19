@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "build",
+    "compile",
+    "<TMP>"
+  ],
+  "exit_code": 1,
+  "stderr": "Error: not a Gaia knowledge package ([tool.gaia].type != 'knowledge-package').\n",
+  "stdout": ""
+}

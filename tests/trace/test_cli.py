@@ -1,41 +1,40 @@
-"""TR-4：CliRunner 端到端三命令。"""
+"""TR-4：CliRunner 端到端三命令。."""
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.trace.hashing import (
+from gaia.engine.trace.hashing import (
     GENESIS_PREV_HASH,
     compute_events_root,
     compute_manifest_hash,
     hash_event,
 )
-from gaia.trace.schema import Trace, TraceEvent, TraceManifest
-
+from gaia.engine.trace.schema import Trace, TraceEvent, TraceManifest
 
 runner = CliRunner()
 
 
 def _ts(seq: int) -> datetime:
-    return datetime(2026, 4, 28, tzinfo=timezone.utc) + timedelta(seconds=seq)
+    return datetime(2026, 4, 28, tzinfo=UTC) + timedelta(seconds=seq)
 
 
 def _ev(seq: int, prev_hash: str, **kw) -> TraceEvent:
-    base = dict(
-        event_id=f"e{seq}",
-        seq=seq,
-        prev_hash=prev_hash,
-        ts=_ts(seq),
-        kind="decision",
-        actor="arm",
-        reason="grounded by inputs",
-        inputs={"step": "inputs"},
-    )
+    base = {
+        "event_id": f"e{seq}",
+        "seq": seq,
+        "prev_hash": prev_hash,
+        "ts": _ts(seq),
+        "kind": "decision",
+        "actor": "arm",
+        "reason": "grounded by inputs",
+        "inputs": {"step": "inputs"},
+    }
     base.update(kw)
     return TraceEvent(**base)
 

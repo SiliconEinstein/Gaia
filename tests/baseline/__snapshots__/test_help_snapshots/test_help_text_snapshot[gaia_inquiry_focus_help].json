@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "inquiry",
+    "focus",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia inquiry focus [OPTIONS] [TARGET]\n\n Inspect or update the current inquiry focus.\n\n The inquiry focus is a state.json-only pointer to the claim, strategy,\n or freeform topic the agent is currently working on. ``focus`` is\n inspect-or-set: no args reads the current focus; a bare ``TARGET``\n sets it. The focus stack supports push/pop semantics so the agent\n can dive into a sub-claim and resume.\n\n Example:\n\n .. code-block:: bash\n\n     # Read current focus:\n     gaia inquiry focus\n\n     # Set focus to a claim label:\n     gaia inquiry focus my_claim_label\n\n     # Push current focus and switch to a new one:\n     gaia inquiry focus other_claim --push\n\n     # Pop back to the prior focus:\n     gaia inquiry focus --pop\n\n     # Inspect the focus stack:\n     gaia inquiry focus --stack\n\n     # Clear the focus entirely:\n     gaia inquiry focus --clear\n\n╭─ Arguments ──────────────────────────────────────────────────────────────────╮\n│   target      [TARGET]  Focus target.                                        │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --clear              Clear current focus.                                    │\n│ --push               Push current focus and set new.                         │\n│ --pop                Pop saved focus off the stack.                          │\n│ --stack              Print focus stack.                                      │\n│ --path         TEXT  Package path. [default: .]                              │\n│ --help               Show this message and exit.                             │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

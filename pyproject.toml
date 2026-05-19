@@ -1,6 +1,6 @@
 [project]
 name = "gaia-lang"
-version = "0.4.4"
+version = "0.5.0"
 description = "Gaia Lang — Python DSL for knowledge authoring, compilation, and inference"
 readme = "README.md"
 license = {text = "MIT"}
@@ -20,9 +20,13 @@ dependencies = [
     "pydantic>=2.0",
     "typer[all]>=0.12",
     "numpy>=1.26,<2.4",  # numpy 2.4 breaks pytest-cov (double-import C extension)
+    "scipy>=1.13",
     "opt-einsum>=3.3",
+    "sympy>=1.13,<2",
+    "pint>=0.23",
     "httpx>=0.27",
     "faiss-cpu>=1.7",
+    "tomli-w>=1.2.0",
 ]
 
 [project.urls]
@@ -31,11 +35,25 @@ Repository = "https://github.com/SiliconEinstein/Gaia"
 Issues = "https://github.com/SiliconEinstein/Gaia/issues"
 
 [project.optional-dependencies]
+stats = [
+    "scipy>=1.12",
+]
 dev = [
+    "commitizen>=4.0,<5",
+    "mypy>=2.0.0",
+    "pre-commit>=4.6.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=5.0",
+    "pytest-xdist>=3.5",
     "ruff>=0.3",
+    "scipy-stubs>=1.17.1.4",
+    "syrupy>=5.1",
+]
+docs = [
+    "mkdocs>=1.6,<2",
+    "mkdocs-material>=9.6",
+    "mkdocstrings[python]>=0.29",
 ]
 
 [build-system]
@@ -43,18 +61,34 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["gaia", "gaia.ir*", "gaia.lang*", "gaia.bp*", "gaia.cli*", "gaia.review*"]
+include = [
+    "gaia",
+    "gaia.bp*",
+    "gaia.cli*",
+    "gaia.engine*",
+    "gaia.inquiry*",
+    "gaia.ir*",
+    "gaia.lang*",
+    "gaia.logic*",
+    "gaia.trace*",
+]
 
 [tool.setuptools.package-data]
-"gaia.cli.templates.pages" = ["**/*"]
 "gaia.cli.starmap_assets" = ["**/*"]
 "gaia.cli.starmap_replay_assets" = ["**/*"]
+"gaia.cli.example_assets" = ["**/*"]
 
 [tool.pytest.ini_options]
+addopts = [
+    "--strict-markers",
+]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 markers = [
-    "slow: slow tests (e.g. npm build)",
+    "legacy_dsl: tests that intentionally exercise deprecated v5 DSL compatibility",
+    "slow: slower regression tests kept out of the default fast feedback slice",
+    "pr_gate: tests gated at PR CI time (fast feedback; full suite runs in nightly via make test-all)",
 ]
 
 [project.scripts]
@@ -66,6 +100,122 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 
+[tool.mypy]
+python_version = "3.12"
+files = ["gaia", "tests"]
+strict = true
+warn_unused_configs = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+explicit_package_bases = true
+exclude = [
+    "^tmp/",
+    "^\\.venv/",
+    "^viz/node_modules/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "opt_einsum.*",
+    "sympy.*",
+    "tomli",
+    "scipy.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+check_untyped_defs = false
+disable_error_code = [
+    # Test fixtures intentionally use loose JSON-like dicts, invalid runtime inputs,
+    # and deprecated-path ignores that should not shape production annotations.
+    "arg-type",
+    "attr-defined",
+    "comparison-overlap",
+    "index",
+    "no-any-return",
+    "no-untyped-call",
+    "return-value",
+    "type-arg",
+    "union-attr",
+    "unused-ignore",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = [
+    "tmp",
+]
+
+[tool.ruff.lint]
+select = [
+    "ARG",
+    "B",
+    "C4",
+    "C90",
+    "D",
+    "DTZ",
+    "E",
+    "ERA",
+    "F",
+    "I",
+    "PGH",
+    "RET",
+    "RUF",
+    "SIM",
+    "UP",
+    "W",
+]
+ignore = [
+    # Mutually exclusive pydocstyle rules; keep the Google-compatible pair.
+    "D203",
+    "D213",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"tests/**/*.py" = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+"gaia/engine/trace/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/engine/bp/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/engine/inquiry/**/*.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/cli/commands/_dot.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/cli/commands/_stellaris_svg.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/cli/commands/trace.py" = ["RUF001", "RUF002", "RUF003"]
+"examples/mendel-v0-5-gaia/src/mendel_v0_5/*.py" = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = false
+
+[dependency-groups]
+dev = [
+    "scipy-stubs>=1.17.1.4",
+]

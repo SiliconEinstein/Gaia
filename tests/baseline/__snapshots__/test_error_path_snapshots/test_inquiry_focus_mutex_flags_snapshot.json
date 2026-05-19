@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "inquiry",
+    "focus",
+    "--clear",
+    "--push",
+    "anything",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 2,
+  "stderr": "Error: --clear/--push/--pop/--stack are mutually exclusive.\n",
+  "stdout": ""
+}

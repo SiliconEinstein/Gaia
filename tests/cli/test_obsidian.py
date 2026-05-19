@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 from gaia.cli.commands._obsidian import generate_obsidian_vault
+
+pytestmark = pytest.mark.pr_gate
 
 
 def _make_ir(knowledges=None, strategies=None, operators=None):

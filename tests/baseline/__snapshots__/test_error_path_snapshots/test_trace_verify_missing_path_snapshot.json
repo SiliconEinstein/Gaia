@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "trace",
+    "verify",
+    "<TMP>"
+  ],
+  "exit_code": 2,
+  "stderr": "[schema] 1 issue(s):\n  - <file>: file not found\n",
+  "stdout": ""
+}

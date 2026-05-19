@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "inquiry",
+    "review",
+    "<TMP>",
+    "--mode",
+    "bogus"
+  ],
+  "exit_code": 2,
+  "stderr": "Error: invalid --mode 'bogus'.\n",
+  "stdout": ""
+}

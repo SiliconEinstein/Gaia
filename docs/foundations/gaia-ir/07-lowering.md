@@ -21,12 +21,14 @@ BP 的具体运行时图和消息传递细节见 [../bp/inference.md](../bp/infe
 
 对**需要概率参数**的运行时后端，常见还会额外输入：
 
-- 与 graph 匹配的参数输入
+- claim prior 参数输入
 - `ResolutionPolicy`
 - `prior_cutoff`
 - backend 自己的运行配置
 
-对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic backend，规范输入是 `LocalCanonicalGraph + Parameterization`。
+对采用 [06-parameterization.md](06-parameterization.md) 的 probabilistic
+backend，规范输入是 `LocalCanonicalGraph + claim Parameterization`；
+Strategy 条件概率参数来自 graph 内的 inline Strategy 字段。
 
 lowering 的输出不是新的 Gaia IR，而是**后端的数据表示**。
 在当前 BP 后端里，这个输出是 `FactorGraph`（variable nodes + factor nodes 的二部图）；在其他后端里，也可以是别的表示。
@@ -99,17 +101,18 @@ Strategy 是不确定性承载层。lowering 时，需要决定：
 
 叶子 Strategy 直接 lower 为一个 backend-level probabilistic support unit。
 
-典型情形：
+典型情形（`gaia.engine.ir.StrategyType` 中作为参数化 leaf 出现的）：
 
-- `infer`
-- `noisy_and`
-- 未再细化的 leaf Strategy（`toolcall` / `proof` 未引入）
+- `infer`（`Strategy.conditional_probabilities` 完整 CPT）
+- `associate`（`Strategy.p_a_given_b` / `Strategy.p_b_given_a`）
+- `noisy_and`（deprecated；编译时自动转 `support`，仍接受为叶子输入）
+- 其它命名策略尚未升级为 FormalStrategy 的临时叶子形态（最终应升级为 FormalStrategy）
 
 它们的外部行为由：
 
 - `premises`
 - `conclusion`
-- parameterization 层提供的外部参数
+- `Strategy` inline 概率参数
 
 共同决定。
 
@@ -124,34 +127,57 @@ lowering 时有两种合法方式：
 
 具体选哪种，由 backend 的展开策略决定。
 
-> **Open question：CompositeStrategy 折叠时的参数来源。** 当前 contract 只定义了参数化 leaf Strategy（读 StrategyParamRecord）和 FormalStrategy（从 FormalExpr + claim prior 导出）的折叠路径。CompositeStrategy 折叠为单个单元时的条件概率来源尚未定义——是需要显式 StrategyParamRecord，还是从 sub_strategies 自动 marginalize，或禁止折叠？待后续设计明确。
+> **Open question：CompositeStrategy 折叠时的参数来源。** 当前 contract 只定义了参数化 leaf Strategy（读 Strategy inline 参数）和 FormalStrategy（从 FormalExpr + claim prior 导出）的折叠路径。CompositeStrategy 折叠为单个单元时的条件概率来源尚未定义——是从 sub_strategies 自动 marginalize，还是禁止折叠？待后续设计明确。
 
 ### 4.3 FormalStrategy
 
 FormalStrategy 表示一个已经给出确定性 skeleton 的命名推理单元。
 
-FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。lowering 时有两种方式：
+> **`support` 与 `deduction` 的 lowering 差异**：两者共享同一 skeleton（`conjunction` + directed `implication`），区别只在 implication warrant 的处理。`deduction` 在 BP lowering 中视为 hard conditional implication（`P(C=true | M=true) = 1-ε`，`P(C=true | M=false) = 0.5`，MaxEnt baseline）。`support` 保留 implication warrant 作为可调先验，由作者指定 warrant prior，反映经验性支持而非逻辑必然。详见 [`bp/formal-strategy-lowering.md`](../bp/formal-strategy-lowering.md)。
+
+FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy
+在语义上可以定义折叠视图。但当前 BP 后端尚未实现通用折叠路径：
+`expand_formal=False` 会直接报 `NotImplementedError`。当前可依赖的
+runtime 路径是展开 `formal_expr`，并对 deduction/support 的 implication
+做专门 lowering。未来后端可以在同一封装约束下加入折叠：
 
 - **折叠**：对私有中间变量做变量消去，整个 FormalStrategy 等效为 P(conclusion | premises)
 - **展开**：进入 `formal_expr`，把内部 Operator 结构显式 lower
 
-两种方式都合法，选择由 `expand_set` 决定。
+文档中的“折叠”描述是 backend contract / design target，不是当前
+`gaia.engine.bp` 的可用开关。
 
 对 `abduction` 这类带自动补齐 interface claim 的命名策略，这两条路都必须保留同一语义：
 
 - **折叠**：把 `Obs`、`AlternativeExplanationForObs` 等接口 claim 与内部 helper skeleton 一起消去为一个等效条件单元
 - **展开**：保留 public interface claim，显式 lower `disjunction` / `equivalence` 等 helper 结构
 
+当前 BP 后端对 `deduction` 做一个特化：FormalExpr 中的 implication helper 不作为独立 belief variable 保留，而是消去为 hard conditional implication，`P(C=true | M=true, I)=1-ε`，`P(C=true | M=false, I)=0.5`（MaxEnt baseline）。`support` 仍然使用 soft implication lowering。
+
+### 4.4 Compose
+
+`Compose`（`lcm_` 前缀，详见 [02-gaia-ir.md §1.4](02-gaia-ir.md)）在 lowering 时**不直接**翻译为 factor 或概率约束。它的 `actions` 列表里每个目标按各自类型走 lowering：
+
+- 引用的 `Knowledge`（`inputs / background / warrants / conclusion`）按 §3.1 处理；是否形成支持关系取决于被引用的 Strategy / Operator
+- 引用的 `Operator` 按 §3.2 / §4.x 处理
+- 引用的 `Strategy` / `CompositeStrategy` / `FormalStrategy` 按 §4.1–4.3 处理
+- 引用的其他 `Compose` 递归按本节处理
+
+也就是说，Compose 的语义在 lowering 层是 **review / audit 元数据**：它指出 "这条工作流由这些 action 共同贡献于 conclusion"，但不为 conclusion 引入新的因子。具体后端是否要把 Compose 物化为 runtime 节点（例如 trace 渲染、starmap 着色）由后端自行决定，本契约不强制。
+
 ## 5. FormalExpr 内部节点与 Lowering
 
-FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy 总是可以被折叠。封装规则和概率语义见 [04-helper-claims.md §3](04-helper-claims.md#3-formalexpr-内部-claim-的封装) 和 [06-parameterization.md](06-parameterization.md)。
+FormalExpr 内部节点是严格私有的（禁止外部引用），因此 FormalStrategy
+可以安全地定义一个未来折叠语义。当前 BP 后端只实现展开路径；封装
+规则和概率语义见 [04-helper-claims.md](04-helper-claims.md) 和
+[06-parameterization.md](06-parameterization.md)。
 
-Lowering 时，后端对每个 FormalStrategy 可以选择：
+Lowering contract 中，后端最终可以对每个 FormalStrategy 选择：
 
 - **折叠**：对私有中间变量做变量消去，整个 FormalStrategy 等效为 P(conclusion | premises)
 - **展开**：保留内部节点作为 runtime node，在展开后的图上推理
 
-两种方式都合法。选择哪种由 `expand_set` 决定
+当前 `gaia.engine.bp` 只支持展开；折叠路径尚未实现。
 
 ## 6. 参数层如何参与 Lowering
 
@@ -159,9 +185,11 @@ Lowering 只消费参数层，不定义参数层。
 
 当前 contract 下：
 
-- 参数化 Strategy 从 `StrategyParamRecord` 读取外部条件参数
+- 参数化 Strategy 从 `Strategy` inline 字段读取条件参数
 - 普通 claim 从 `PriorRecord` 读取外部 prior
-- 结构型 helper claim **禁止**携带独立 PriorRecord（见 [04-helper-claims.md §6](04-helper-claims.md#6-与-parameterization-的关系)）
+- 结构型 helper claim **不应**携带独立 PriorRecord（见
+  [04-helper-claims.md](04-helper-claims.md)）；当前 validator 对
+  structural-expression helper 的 `metadata["prior"]` 执行硬拒绝
 
 对直接 FormalStrategy：
 

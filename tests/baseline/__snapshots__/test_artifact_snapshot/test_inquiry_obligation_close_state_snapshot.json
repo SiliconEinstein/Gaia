@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "files": [
+      {
+        "content": "{\n  \"version\": 2,\n  \"focus\": null,\n  \"focus_kind\": null,\n  \"focus_resolved_id\": null,\n  \"mode\": \"auto\",\n  \"last_review_id\": null,\n  \"baseline_review_id\": null,\n  \"focus_stack\": [],\n  \"synthetic_obligations\": [],\n  \"synthetic_hypotheses\": [],\n  \"synthetic_rejections\": []\n}",
+        "kind": "text",
+        "path": "inquiry/state.json"
+      },
+      {
+        "content": "{\"timestamp\": \"<ISO_TS>\", \"event\": \"obligation_add\", \"payload\": {\"qid\": \"oblig_<QID8>\", \"target_qid\": \"some-target\", \"kind\": \"other\"}}\n{\"timestamp\": \"<ISO_TS>\", \"event\": \"obligation_close\", \"payload\": {\"qid\": \"oblig_<QID8>\"}}\n",
+        "kind": "text",
+        "path": "inquiry/tactics.jsonl"
+      }
+    ],
+    "root": ".gaia"
+  },
+  "cli": {
+    "argv": [
+      "inquiry",
+      "obligation",
+      "close",
+      "oblig_<QID8>",
+      "--path",
+      "<TMP>"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": "obligation closed oblig_<QID8>\n"
+  }
+}

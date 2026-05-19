@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "files": [
+      {
+        "content": "{\n  \"version\": 2,\n  \"focus\": null,\n  \"focus_kind\": null,\n  \"focus_resolved_id\": null,\n  \"mode\": \"auto\",\n  \"last_review_id\": null,\n  \"baseline_review_id\": null,\n  \"focus_stack\": [],\n  \"synthetic_obligations\": [],\n  \"synthetic_hypotheses\": [],\n  \"synthetic_rejections\": []\n}",
+        "kind": "text",
+        "path": "inquiry/state.json"
+      },
+      {
+        "content": "{\"timestamp\": \"<ISO_TS>\", \"event\": \"hypothesis_add\", \"payload\": {\"qid\": \"hyp_<QID8>\", \"scope\": null}}\n{\"timestamp\": \"<ISO_TS>\", \"event\": \"hypothesis_remove\", \"payload\": {\"qid\": \"hyp_<QID8>\"}}\n",
+        "kind": "text",
+        "path": "inquiry/tactics.jsonl"
+      }
+    ],
+    "root": ".gaia"
+  },
+  "cli": {
+    "argv": [
+      "inquiry",
+      "hypothesis",
+      "remove",
+      "hyp_<QID8>",
+      "--path",
+      "<TMP>"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": "hypothesis removed hyp_<QID8>\n"
+  }
+}

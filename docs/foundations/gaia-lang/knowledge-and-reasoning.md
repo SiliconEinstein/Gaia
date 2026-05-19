@@ -1,89 +1,385 @@
 ---
 status: current-canonical
 layer: gaia-lang
-since: v5-phase-1
+since: v0.5
 ---
 
 # Knowledge Types and Reasoning Semantics
 
-This document bridges the Gaia Lang v5 Python DSL to the Gaia IR semantics layer. It explains what the three knowledge types mean, how operators constrain the factor graph, how named strategies formalize into deterministic operator expansions, and the compile-time DSL-to-IR mapping.
+This document bridges the Gaia Lang v0.5 Python DSL to the Gaia IR semantics layer. It covers:
 
-Source code references: `gaia/ir/knowledge.py`, `gaia/ir/operator.py`, `gaia/ir/strategy.py`, `gaia/ir/formalize.py`, `gaia/bp/potentials.py`, `gaia/lang/compiler/compile.py`, `gaia/ir/parameterization.py`.
+- The **Knowledge** hierarchy authors declare (`Claim`, `Note`, `Question`, plus `ClaimKind` shape discriminators).
+- The **GaiaGraph / Reasoning** hierarchy that connects claims (`Directed`, `Relation`, `Decompose`, `Compose`) plus `Scaffold` records for unfinished formalization.
+- How Reasoning records lower to IR (strategies, operators, helper claims, `Compose` nodes) and how formula claims lower to IR operators.
+- How typed predicate-logic formulas (`Variable`, `Domain`, predicates, connectives, `forall` / `exists`) fit inside `Claim.formula`.
+- The legacy v5 **named strategies** (`support`, `deduction`, `abduction`, ...) that remain as a compatibility surface but are no longer the recommended way to author new packages.
+
+Source references: `gaia/engine/lang/runtime/knowledge.py`, `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/runtime/composition.py`, `gaia/engine/lang/runtime/roles.py`, `gaia/engine/lang/dsl/` (support, relate, decompose, infer_verb, associate_verb, propositional, scaffold), `gaia/engine/lang/formula/`, `gaia/engine/bayes/`, `gaia/engine/lang/compiler/compile.py`, `gaia/engine/ir/knowledge.py`, `gaia/engine/ir/operator.py`, `gaia/engine/ir/strategy.py`, `gaia/engine/ir/formalize.py`, `gaia/engine/bp/potentials.py`.
 
 ---
 
-## 1. Knowledge Types
+## 1. Two Parallel Hierarchies
 
-Three types, defined in [Gaia IR -- Knowledge](../gaia-ir/02-gaia-ir.md#1-knowledge知识).
+In v0.5 the authoring layer has **two parallel class trees**, both registered to the active `CollectedPackage`:
 
-### 1.1 Claim
+```
+Knowledge
+├── Claim (carries prior)
+│     formula: Formula | None
+│     kind: ClaimKind
+│       GENERAL
+│       PARAMETER
+│       QUANTIFIED
+├── Note  (no prior)
+│     ├── Setting (deprecated)
+│     └── Context (deprecated)
+└── Question
 
-The only type carrying probability (prior + posterior belief). Claims participate in BP as variable nodes. They may be **closed** (all variables bound, `parameters=[]`) or **universal** (quantified variables in `parameters`).
+GaiaGraph
+├── Scaffold
+│     ├── DependsOn
+│     └── CandidateRelation
+└── Reasoning
+      ├── Directed
+      │     ├── Derive / Observe / Compute
+      │     └── Infer
+      ├── Relation
+      │     ├── Equal / Contradict / Exclusive
+      │     └── Associate
+      ├── Decompose
+      └── Compose
+```
 
-DSL entry point: `gaia.lang.Knowledge(content=..., type="claim")`.
+`Knowledge` and `GaiaGraph` are **siblings**, not parent/child. Knowledge is *what is being claimed*; Reasoning is *how the author is formally connecting claims*; Scaffold is an explicit marker for work that is not formal yet. The legacy `Action` name remains as a compatibility alias for `Reasoning`.
 
-Key properties:
+The legacy v5 `Strategy / CompositeStrategy / FormalStrategy / Operator` runtime classes remain available under `gaia.engine.lang.compat`, with deprecated top-level fallback for older code (see [§7 Legacy Compatibility Surface](#7-legacy-compatibility-surface)), but new packages should author exclusively with `Claim` / `Note` / `Question` plus the action verbs.
 
-- Carries `PriorRecord` in parameterization layer
-- Appears in operator `variables` and `conclusion` positions
-- Appears in strategy `premises` and `conclusion` positions
-- Universal claims can be instantiated into closed claims via deduction
+---
 
-### 1.2 Setting
+## 2. Knowledge Types
 
-Background context -- not a probabilistic proposition.
+Three Knowledge subclasses exist. Reference IR schema: [Gaia IR — Knowledge](../gaia-ir/02-gaia-ir.md).
 
-- Does **not** participate in BP (no messages sent or received)
-- Can appear in strategy `background` parameter (context dependency, not probabilistic input)
-- Can appear in `metadata.refs` for weak association
-- Cannot appear in operator `variables` or `conclusion` (operators connect claims only)
+### 2.1 Claim
 
-DSL entry point: `gaia.lang.Knowledge(content=..., type="setting")`.
+The only Knowledge type carrying a prior probability. Claims are BP variable nodes.
 
-### 1.3 Question
+```python
+from gaia.engine.lang import claim
+
+orbit = claim("The Earth orbits the Sun.", prior=0.99)
+```
+
+Each `Claim` has a **shape discriminator** `kind: ClaimKind` and an optional structured `formula` payload:
+
+| `ClaimKind` value | Meaning | Typical author surface |
+|---|---|---|
+| `GENERAL` | default; opaque content, formula optional | bare `claim(...)` |
+| `PARAMETER` | asserts a `Variable` takes a specific value | `parameter(var, value, ...)` sugar |
+| `QUANTIFIED` | top-level `Forall` / `Exists` in `formula` | `claim(formula=Forall(...))` |
+
+`ClaimKind` is **not** a role label (hypothesis / prediction / observation-as-evidence) — those live on action graph nodes (see `roles_for_claim`). It is a structural shape so the compiler can lower the formula payload appropriately. See [§5 Formula Claims](#5-formula-claims), [Formula Logic In Gaia Lang](formula-logic.md), and [Predicate Logic In Gaia Lang](predicate-logic.md).
+
+A `Claim` is **closed** if `parameters=[]` and **universal** if quantified `Variables` appear. Opaque universal prose can record `parameters=[...]`; executable finite-domain quantification should use `claim(formula=Forall(...))` / `claim(formula=Exists(...))`, which the compiler lowers as described in [§5 Formula Claims](#5-formula-claims).
+
+### 2.2 Note
+
+Background context — not a probabilistic proposition.
+
+```python
+from gaia.engine.lang import note
+
+binding = note("x = YBCO")
+```
+
+- Does not participate in BP.
+- May be passed via the `background=` parameter on any action.
+- May appear in `metadata.refs` for weak association.
+- Cannot appear as the conclusion of any action.
+
+`Setting` and `Context` are deprecated v5 aliases of `Note` and remain only for compatibility (the metadata still records `legacy_kind` for round-trip).
+
+### 2.3 Question
 
 Open research inquiry documenting what the package investigates.
 
-- No probability, no BP participation
-- Same positional constraints as setting: `background` and `refs` only
+```python
+from gaia.engine.lang import question
 
-DSL entry point: `gaia.lang.Knowledge(content=..., type="question")`.
+open_problem = question("What is the maximum Tc in hydrogen-rich superconductors?")
+```
+
+No prior, no BP participation; same positional constraints as `Note`.
 
 ---
 
-## 2. Operator Semantics
+## 3. Action Types
 
-Operators encode **deterministic logical constraints** between claims. Each operator type has a fully determined potential matrix -- no free parameters. They express logical structure ("A and B are contradictory"), not reasoning judgment ("the author believes A implies B"). The latter is expressed by strategies.
+Actions are author-facing verbs that connect claims. Every action is dataclass-style: it auto-registers to the current package on construction, carries a `label` (which becomes a QID at compile time), a `rationale`, optional `background` notes, and an internal `warrants: list[Claim]` of helper claims that reviewers see. Source: `gaia/engine/lang/runtime/action.py`, `gaia/engine/lang/dsl/`.
 
-Reference: [Gaia IR -- Operators](../gaia-ir/02-gaia-ir.md#2-operator结构约束).
+### 3.1 Support — directional reasoning
 
-### 2.1 Arity Rules
+`Support` actions establish a `given → conclusion` direction. They all share the same shape (`given: tuple[Claim, ...]`, `conclusion: Claim`) and lower to the same operator skeleton (conjunction over `given` + directed `implication` to `conclusion`); the subclass choice records *what kind of step* the author took, not a different factor type. Each Support action emits an `implication_warrant` helper claim that reviewers gate.
+
+| Verb | Subclass | Intended use |
+|---|---|---|
+| `derive(c, given=..., rationale=...)` | `Derive` | Logical derivation from accepted premises |
+| `observe(c, given=..., rationale=...)` | `Observe` | Empirical observation. `given=()` is allowed and still produces a reviewable warrant; Python runtime records the action on `Claim.from_actions`, and compiled IR records the review metadata under `metadata["supported_by"]` |
+| `compute(C, fn=..., given=..., rationale=...)` or `@compute` | `Compute` | Deterministic code execution; `code_hash` records the function source SHA-256 |
+
+Support actions return the **conclusion** Claim. Authors typically chain calls by name:
+
+```python
+from gaia.engine.lang import claim, derive, observe
+
+evidence = claim("Stellar parallax is observed.")
+heliocentric = claim("The heliocentric model is correct.")
+observe(evidence, rationale="Parallax measurement campaign 1838.")
+derive(heliocentric, given=evidence, rationale="Parallax confirms orbital motion.")
+```
+
+### 3.2 Probabilistic reasoning — soft probabilistic constraint
+
+Probabilistic reasoning verbs carry author-specified conditional probabilities and lower to probabilistic factors. They emit warrant metadata/helper claims that reviewers gate. `infer(...)` is a `Directed` reasoning record and returns the evidence claim; `associate(...)` is a `Relation` reasoning record and returns its association helper because the relation itself is the authored semantic object (see [§4.3 Action Label References](#43-action-label-references)).
+
+#### `infer(evidence, *, hypothesis, given=(), p_e_given_h, p_e_given_not_h=0.5, ...)`
+
+Bayesian update: given a hypothesis Claim `H`, evidence Claim `E`, and explicit `P(E|H) / P(E|¬H)`, the action commits the author to a 2×2 (or 2^(k+1) when `given` adds `k` gating premises) CPT.
+
+- Without `given`: factor is `H → E`, CPT = `[P(E|¬H), P(E|H)]`.
+- With `given=G`: factor uses premises `[H, *G]`. When any of `G` is false, the CPT entry collapses to `0.5` (the soft-implication baseline) — the relation becomes neutral when its enabling preconditions are not in force. This is the *infer-with-given gating* contract introduced in v0.5.
+- `p_e_given_h` and `p_e_given_not_h` may be a literal float **or** a Claim whose first numeric `parameter("value", ...)` is read at compile time.
+
+Returns the evidence Claim. The author should prefer `bayes.model(...) + bayes.compare(...)` (see [§6 Bayes Module](#6-bayes-module)) when the probability is an instance of a predictive distribution.
+
+#### `associate(a, b, *, p_a_given_b, p_b_given_a, pattern=None, ...)`
+
+Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.engine.bayes`. Returns the association warrant helper Claim.
+
+### 3.3 Relation reasoning — hard constraint between Claims
+
+Relation reasoning records assert that the truth values of the named Claims jointly satisfy a deterministic relation. They lower to IR operators with the truth tables in [§8 Operator Truth Tables](#8-operator-truth-tables) and emit a relation-result helper Claim that the reviewer gates.
+
+| Verb | Subclass | Lowering | Returned helper |
+|---|---|---|---|
+| `equal(a, b, ...)` | `Equal` | `equivalence([a, b], helper)` | `same_truth(a, b)` |
+| `contradict(a, b, ...)` | `Contradict` | `contradiction([a, b], helper)` | `not_both_true(a, b)` |
+| `exclusive(a, b, ...)` | `Exclusive` | `complement([a, b], helper)` | XOR helper |
+| `decompose(whole, parts=..., formula=...)` | `Decompose` | formula lowering of `parts` + `equivalence(whole, formula_helper)` | `whole == formula(parts)` |
+
+`decompose` is a reasoning verb, but not a relation. It takes a `Formula`
+payload and the compiler validates that the formula's `ClaimAtom` set exactly
+matches `parts`, that `whole` does not appear in the formula, and that no
+decomposition cycle exists. Source: `gaia/engine/lang/dsl/decompose.py`.
+
+### 3.4 Scaffold — authoring metadata only
+
+Scaffold actions exist purely as authoring breadcrumbs and **do not enter IR or BP**. They are not reviewable warrants. Currently:
+
+- `depends_on(conclusion, given=...)` (`DependsOn`) — marks unformalized dependencies that the author intends to formalize later.
+- `candidate_relation(claims=[...], pattern=...)` (`CandidateRelation`) — records a hypothesized relation with `pattern=None`, `"equal"`, `"contradict"`, or `"exclusive"` before the author is ready to formalize it.
+- `materialize(scaffold, by=...)` — records that a scaffold has been formalized by one or more formal graph records.
+
+Scaffold actions compile only into `.gaia/formalization_manifest.json`. They are
+**not addressable** via `[@label]` references because they leave no IR target.
+
+### 3.5 Compose — action-level composition
+
+`@compose(name=..., version=..., warrants=None, ...)` decorates a Python function as a named action workflow. Inside the function the author calls other action verbs; calling the decorated function:
+
+1. Captures every action emitted inside the call into a `Compose` runtime object.
+2. Records `inputs` (Knowledge values passed as args, plus claims captured from background and child actions), `actions` (the ordered list of children, by reference or by id), and `conclusion` (the function's return value, which **must** be a `Claim`).
+3. Emits a single IR `Compose` node with deterministic `structure_hash` over the tuple of input QIDs, action QIDs, conclusion QID, warrant QIDs, and background QIDs.
+
+`Compose` is the **only** Action subclass that survives into the IR `LocalCanonicalGraph` as a first-class node (`composes: list[Compose]`). All other Actions are projected onto strategies, operators, and helper claims with reverse `action_label` metadata. Source: `gaia/engine/lang/runtime/composition.py`, `gaia/engine/ir/compose.py`.
+
+---
+
+## 4. Action Lowering
+
+The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's registered actions in declaration order and projects each one onto IR objects. Three things happen for every action:
+
+1. **Action QID assigned.** `_action_label(action, pkg, action_index)` returns
+   `{namespace}:{package}::action::{label or _anon_action_NNN}`. Scaffold and
+   materialization helpers use sibling namespaces:
+   `::scaffold::{label}` and `::materialization::{label}`.
+2. **Lowered target produced.** Depending on the action subclass (table below), one or more IR objects are created.
+3. **Reverse linkage attached.** The action QID is written to the lowered objects' `metadata["action_label"]` and recorded in two tables on the `CompiledPackage`:
+   - `action_label_map: dict[str, str]` — action QID → primary IR target QID
+   - `target_action_labels_by_id: dict[str, str]` — IR target QID → action QID
+
+### 4.1 Lowering Map
+
+| Action subclass | IR target | Helper claim emitted | Primary target for label resolution |
+|---|---|---|---|
+| `Derive / Compute`, and `Observe` with premises | `FormalStrategy` (conjunction + directed implication) | `implication_warrant` (review=true) | Strategy ID → warrant helper Claim QID (via `metadata['warrants']`) |
+| `Observe` with no premises | no Strategy | none | action QID → observed Claim QID |
+| `Infer` | `Strategy(type=infer)` with CPT | warrant helper Claim (review=true) | Strategy ID → warrant helper Claim QID |
+| `Associate` | `Strategy(type=associate)` with pairwise CPT | association helper Claim (review=true) | Strategy ID → association helper Claim QID |
+| `Equal` | `Operator(operator=equivalence)` | `equivalence_result` helper (review=true) | Operator ID → helper Claim QID |
+| `Contradict` | `Operator(operator=contradiction)` | `contradiction_result` helper (review=true) | Operator ID → helper Claim QID |
+| `Exclusive` | `Operator(operator=complement)` | `complement_result` helper (review=true) | Operator ID → helper Claim QID |
+| `Decompose` | formula operators over `parts` + `Operator(operator=equivalence, [whole, formula_helper])` | formula-derived helpers + decomposition helper | Operator ID → decomposition helper Claim QID |
+| `Compose` | `gaia.engine.ir.Compose` first-class node | (none directly) | `Compose` node QID |
+| `DependsOn` | (not lowered) | (none) | not addressable |
+| `CandidateRelation` | (not lowered) | (none) | not addressable |
+
+**Note:** `action_label_map` stores Strategy/Operator IDs (e.g., `lcs_*`, `lco_*`), not Knowledge QIDs directly. When resolving action label references in text, the compiler looks up the Strategy/Operator's `metadata['warrants']` to find the warrant helper Knowledge node(s) for provenance attribution. Exception: `Observe` actions with no premises (`given=()`) map directly to the conclusion Claim QID because they represent grounding observations with no inferential warrant.
+
+### 4.2 Helper Claim Visibility
+
+Most action helpers carry `metadata["review"] = true` and `metadata["helper_kind"]` indicating the lowering origin (`implication_warrant`, `equivalence_result`, `association`, ...). Reviewers see them in the review manifest. They carry no independent prior — their distribution is fully determined by the IR operator they back, except for `infer` / `associate` warrants which encode the author's CPT.
+
+Structural-expression helpers from the deprecated function-call compatibility helpers `not_(A)`, `and_(A, B)`, and `or_(A, B)` use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
+
+The modern `Claim` dunder shortcuts `~A`, `A & B`, and `A | B` no longer create helper `Claim` objects. They return Formula AST nodes (`Lnot`, `Land`, `Lor`) that become graph structure only when attached to an authored claim with `claim(..., formula=...)`.
+
+The IR-side public/private boundary for these helpers — including which helper Claims may be referenced from outside their FormalStrategy and which must stay encapsulated — is defined in [gaia-ir/04-helper-claims.md](../gaia-ir/04-helper-claims.md). Action lowering follows that boundary: the warrant helper for a `Derive` / `Observe` / `Compute` / `Infer` / `Associate` is a public Claim (reviewable, addressable via `[@label]`); the intermediate `conjunction_result` of a multi-premise `Derive` lives inside the FormalStrategy's `formal_expr` as a private node and is not addressable.
+
+### 4.3 Action Label References
+
+Author-side `[@label]` and `@label` references in claim content, action `rationale`, and notes resolve through a single `label_to_id` table built from:
+
+- every Knowledge `label` (claims, notes, questions, helper claims), and
+- every Action `label` registered on the package (resolved to the action's primary target QID per [§4.1](#41-lowering-map)).
+
+A label collision between a Claim and an Action in the same package is a compile error (`ambiguous reference key`). `DependsOn` labels are intentionally not addressable. Cross-package action references follow the same rules as cross-package Claim references once the registry supports them.
+
+Reference: `docs/specs/2026-05-10-action-label-references-design.md`, issue #539.
+
+### 4.4 Compiler extension registry
+
+Action lowering is dispatched through a small registry in
+`gaia/engine/lang/compiler/extensions.py`. Peer engine modules, such as
+`gaia.engine.bayes`, register lowerers by stable name:
+
+- `register_action_lowerer(name, *, handles, lower)` — add or replace a lowerer
+  selected by a predicate over runtime `Action` objects.
+- `registered_action_lowerers()` — return the current registry snapshot.
+
+This is an engine-extension hook, not a package-author DSL surface. The
+generated compiler reference currently renders `gaia.engine.lang.compiler`, not
+the private `extensions` submodule, so the source docstrings remain the
+authority for this hook.
+
+---
+
+## 5. Formula Claims
+
+`Claim.formula` carries an optional `Formula` AST that the compiler lowers to IR operators alongside the claim. The formula vocabulary lives in `gaia/engine/lang/formula/` and is exported from `gaia.engine.lang`:
+
+- **Terms.** `Variable`, `Constant`, `FunctionApp`, `ClaimAtom` (lifts a Claim into the formula universe).
+- **Predicates.** `Equals`, `NotEquals`, `Greater / GreaterEqual / Less / LessEqual`, `UserPredicate`.
+- **Connectives.** `Land`, `Lor`, `Lnot`, `Implies`, `Iff`.
+- **Quantifiers.** `Forall(var, body)`, `Exists(var, body)`.
+- **Domains.** `Bool`, `Nat`, `Real`, `Probability` (in `gaia.engine.lang.formula.primitives`).
+
+For a reader-facing explanation of where formula-bearing claims sit in the
+authoring/compile/review stack, see [Formula Logic In Gaia Lang](formula-logic.md).
+For the term-level predicate model, including the difference between opaque
+`parameters=[...]` and executable `claim(formula=...)`, see
+[Predicate Logic In Gaia Lang](predicate-logic.md).
+
+The compiler handles formula claims via `gaia/engine/lang/compiler/lower_formula.py` after the action pass. It (a) emits IR operators for each connective node (`conjunction / disjunction / negation / implication / equivalence`), (b) records variable bindings on the source Claim's `metadata.formula_bindings`, (c) generates intermediate helper Claims for sub-expressions.
+
+As authoring sugar, propositional connectives accept raw `Claim` operands and coerce them to `ClaimAtom(...)`; explicit `ClaimAtom` remains the canonical bridge in the AST. Thus `claim("A and B.", formula=a & b)`, `claim("A and B.", formula=land(a, b))`, and `claim("A and B.", formula=land(ClaimAtom(a), ClaimAtom(b)))` lower to the same connective operator shape.
+
+One sugar helper in `gaia/engine/lang/dsl/sugar.py` maps directly onto a
+non-default `ClaimKind` value:
+
+| Sugar | Produces | `ClaimKind` |
+|---|---|---|
+| `parameter(var, value, prior=...)` | `Equals(var, Constant(value))` | `PARAMETER` |
+
+Structured observed values are authored as formula claims and then marked with
+the `observe(...)` action; observation is an action/role, not a `ClaimKind`.
+`parameter(...)` and observed formula claims participate in the lifted Bayes
+pipeline (see [§6](#6-bayes-module)). Causal mechanism authoring is intentionally
+not represented as a marker-only `ClaimKind` or formula predicate; until a
+first-class causal mechanism surface lands, write causal statements as ordinary
+claims and connect support through reasoning actions.
+
+Schema reference: `docs/specs/2026-05-04-claim-formula-schema-design.md`.
+
+---
+
+## 6. Bayes Module
+
+`gaia.engine.bayes` provides the lifted authoring surface for model-data
+comparisons:
+
+- **Distribution Knowledge factories.** `Normal("T_c", mu=..., sigma=...)`, `Binomial("k", n=..., p=...)`, etc., imported from `gaia.engine.lang`. They are `Distribution(Knowledge)` nodes with identity, label, and provenance; the scipy-backed pydantic backend at `gaia.engine.bayes.distributions` is internal.
+- **`bayes.model(hypothesis, observable=..., distribution=...)`.** Returns a predictive-model helper Claim backed by a `Model(BayesInference)` record that ties one hypothesis Claim to one predictive distribution over a Variable observable.
+- **`observe(target, value=..., error=...)`.** Polymorphic on `Variable | Distribution | Claim`; the Variable / Distribution paths write the unified `metadata["observation"]` schema consumable by `bayes.compare(...)`. Scalar `error` is sugared into an anonymous `Normal(mu=0, sigma=error)` noise Distribution.
+- **`bayes.compare(data, models=[...], exclusivity=...)`.** Returns a model-preference helper Claim backed by a `ModelCompare(BayesInference)` record. The equal-positioned `models` list must contain at least two competing model Claims and replaces the earlier `model=` + `against=[...]` asymmetry. `exclusivity` defaults to `"exhaustive_pairwise_complement"` (2 hypotheses only — strict Bayesian model-selection contract); pass `"pairwise_contradiction"` for at-most-one semantics (open-world model sets). `compare()` deduplicates against same-type external `exclusive(...)` / `contradict(...)` declarations covering the same hypothesis pair, so externally-declared structural actions are honoured without explicit opt-out flags. Lowers to `infer` strategies plus the structural-action operators that encode the chosen contract.
+- **`PrecomputedLikelihoods` Claim subclass.** Audit-bearing return type for `@compute`-wrapped external solvers (PyMC / Stan / NumPyro / scipy quadrature / ...). `compare(precomputed=PrecomputedLikelihoods(...))` reads its `log_likelihoods` table into the infer factors.
+
+`bayes.model / bayes.compare` helper records go through the standard action lowering pipeline ([§4](#4-action-lowering)); they share the `action_label_map` table and emit helper Claims that the reviewer sees. See [bayes.md](bayes.md) for the executable Mendel example, the full distribution list, the external-solver wrapper pattern, and `gaia build check` diagnostics.
+
+Spec reference: `docs/specs/2026-05-17-bayes-unified-design.md`. The earlier in-flight Bayes alpha specs (`docs/specs/2026-05-04-bayes-module-design.md` and `docs/specs/2026-05-05-bayes-actions-design.md`) are historical only.
+
+---
+
+## 7. Legacy Compatibility Surface
+
+The v5 strategy DSL remains available for backward compatibility under `gaia.engine.lang.compat`. **New v0.5 packages should not use it.** Deprecated top-level fallback imports and legacy verb calls emit a `DeprecationWarning`; the compatibility surface is scheduled for removal once existing packages have migrated.
+
+| Legacy verb | v0.5 replacement |
+|---|---|
+| `support([P], C, prior=...)` | `derive(C, given=[P])` (deterministic) or `infer(P, hypothesis=C, p_e_given_h=..., p_e_given_not_h=...)` (probabilistic — `P` is the evidence we observe, `C` is the hypothesis whose belief we want to update). For exclusive model comparison, prefer `bayes.compare(...)`. |
+| `deduction([P], C)` | `derive(C, given=[P])` |
+| `infer([premises], conclusion, ...)` | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` |
+| `compare(pred_h, pred_alt, observation, ...)` | author the equivalences and implication explicitly, or use `bayes.compare(...)` |
+| `abduction(...)` | author observation + alternative + comparison explicitly |
+| `induction(s1, s2, law, ...)` | declare each support step with `derive` / `observe` and let factor-graph topology accumulate evidence |
+| `analogy / extrapolation / elimination / case_analysis / mathematical_induction` | author the deterministic operator skeleton with `derive` + relation verbs |
+| `noisy_and(...)` | delegates to legacy `support()`; use `derive(...)` for deterministic reasoning or `infer(...)` / `bayes.compare(...)` for probabilistic evidence links |
+| `contradiction(a, b, ...)` | `contradict(a, b, ...)` |
+| `equivalence(a, b, ...)` | `equal(a, b, ...)` |
+| `complement(a, b, ...)` | `exclusive(a, b, ...)` |
+| `disjunction(*claims, ...)` | author with `lor(...)` formula or explicit `Operator(disjunction, ...)` |
+
+When legacy named-strategy verbs are used, the compiler still routes them through `formalize_named_strategy()` (`gaia/engine/ir/formalize.py`), which expands them to a `FormalStrategy` containing helper claims plus a deterministic operator skeleton (conjunction + directed implication, optionally with extra equivalence / disjunction operators). The expansion preserves the behavior documented in the v5 reference; consult git history or `gaia/engine/ir/formalize.py` for the per-strategy templates.
+
+Legacy `Strategy / CompositeStrategy / FormalStrategy / Operator` objects also remain importable from `gaia.engine.lang.compat` for type annotations and for code that constructs IR-shaped objects directly. Direct `gaia.engine.lang` access is only a deprecated fallback for older packages.
+
+---
+
+## 8. Operator Truth Tables
+
+Operators encode **deterministic logical constraints**. Each operator type has a fully determined potential matrix — no free parameters. Reference: [Gaia IR — Operators](../gaia-ir/02-gaia-ir.md), `gaia/engine/bp/potentials.py`.
+
+### 8.1 Arity Rules
 
 | Operator | `variables` | `conclusion` |
 |----------|-------------|--------------|
-| `implication` | exactly 1 (antecedent A) | consequent B |
+| `implication` | exactly 2 (`antecedent`, `consequent`) | helper claim representing `antecedent -> consequent` |
 | `equivalence` | exactly 2 (A, B) | helper claim |
 | `contradiction` | exactly 2 (A, B) | helper claim |
 | `complement` | exactly 2 (A, B) | helper claim |
 | `conjunction` | >= 2 (A1, ..., Ak) | result M |
 | `disjunction` | >= 2 (A1, ..., Ak) | result D |
 
-The `conclusion` never appears in `variables` -- inputs and output are strictly separated.
+The `conclusion` never appears in `variables` — inputs and output are strictly separated.
 
-### 2.2 Truth Tables
+### 8.2 Truth Tables
 
-All potentials use Cromwell softening: logical "true" maps to `1 - eps`, logical "false" maps to `eps`, where `eps = CROMWELL_EPS = 1e-3`. Values below are from `gaia/bp/potentials.py`.
+Deterministic operator potentials use strict truth-table values: logical
+"true" maps to `1.0` and logical "false" maps to `0.0`. Cromwell softening
+is reserved for unary evidence/priors and soft probabilistic parameters, not
+for deterministic logical factors.
 
-**Implication** -- `implication_potential(A, B)`: forbid A=1, B=0.
+**Implication** — `implication_potential(A, B, H)`, where `H` is the helper
+claim asserting `A -> B`: when `H=1`, forbid A=1, B=0.
 
 | A | B | psi |
 |---|---|-----|
-| 0 | 0 | 1 - eps |
-| 0 | 1 | 1 - eps |
-| 1 | 0 | eps |
-| 1 | 1 | 1 - eps |
+| 0 | 0 | 1 |
+| 0 | 1 | 1 |
+| 1 | 0 | 0 |
+| 1 | 1 | 1 |
 
-**Conjunction** -- `conjunction_potential(inputs, M)`: M = AND(inputs).
+**Conjunction** — `conjunction_potential(inputs, M)`: M = AND(inputs).
 
 | all inputs = 1? | M | psi |
 |-----------------|---|-----|
@@ -92,7 +388,7 @@ All potentials use Cromwell softening: logical "true" maps to `1 - eps`, logical
 | no | 1 | eps |
 | no | 0 | 1 - eps |
 
-**Disjunction** -- `disjunction_potential(inputs, D)`: D = OR(inputs).
+**Disjunction** — `disjunction_potential(inputs, D)`: D = OR(inputs).
 
 | any input = 1? | D | psi |
 |-----------------|---|-----|
@@ -101,7 +397,7 @@ All potentials use Cromwell softening: logical "true" maps to `1 - eps`, logical
 | no | 1 | eps |
 | no | 0 | 1 - eps |
 
-**Equivalence** -- `equivalence_potential(A, B, H)`: H = (A == B).
+**Equivalence** — `equivalence_potential(A, B, H)`: H = (A == B).
 
 | A == B? | H | psi |
 |---------|---|-----|
@@ -110,7 +406,7 @@ All potentials use Cromwell softening: logical "true" maps to `1 - eps`, logical
 | no | 1 | eps |
 | no | 0 | 1 - eps |
 
-**Contradiction** -- `contradiction_potential(A, B, H)`: H = NOT(A AND B).
+**Contradiction** — `contradiction_potential(A, B, H)`: H = NOT(A AND B).
 
 | A=1 and B=1? | H | psi |
 |---------------|---|-----|
@@ -119,7 +415,7 @@ All potentials use Cromwell softening: logical "true" maps to `1 - eps`, logical
 | no | 0 | eps |
 | no | 1 | 1 - eps |
 
-**Complement** -- `complement_potential(A, B, H)`: H = (A XOR B).
+**Complement** — `complement_potential(A, B, H)`: H = (A XOR B).
 
 | A != B? | H | psi |
 |---------|---|-----|
@@ -128,286 +424,46 @@ All potentials use Cromwell softening: logical "true" maps to `1 - eps`, logical
 | no | 1 | eps |
 | no | 0 | 1 - eps |
 
-### 2.3 Helper Claims
+### 8.3 Helper Claims
 
-Operators produce a `conclusion` claim. For relation-type operators (`equivalence`, `contradiction`, `complement`, `disjunction`), this conclusion is a **helper claim** -- an ordinary `claim` node with metadata marking it as structural. Helper claims carry no independent prior; their distribution is fully determined by the operator's truth table.
-
-Reference: [Helper Claims](../gaia-ir/04-helper-claims.md).
+Operators that emit a relation-result conclusion (`equivalence`, `contradiction`, `complement`, `disjunction`) produce a **helper Claim** — an ordinary Claim node with metadata marking it as structural. Helper Claims carry no independent prior; their distribution is fully determined by the operator's truth table. Reference: [Helper Claims](../gaia-ir/04-helper-claims.md).
 
 ---
 
-## 3. Strategy Semantics
-
-Strategies express probabilistic reasoning: premises support a conclusion with some conditional probability. All uncertainty in Gaia IR lives at the strategy layer.
-
-Strategies have three forms (`Strategy`, `CompositeStrategy`, `FormalStrategy`) and a `type` field indicating the reasoning family. These two dimensions are orthogonal.
-
-### 3.1 Direct Strategy Types
-
-One strategy type carries explicit external probability parameters via `StrategyParamRecord`:
-
-**`infer`** -- Lowered to a CONDITIONAL factor with full CPT.
-
-- `2^k` conditional probability entries (one per premise truth-value combination)
-- Default MaxEnt: all entries = 0.5
-- Parameters from `StrategyParamRecord.conditional_probabilities`
-
-**`noisy_and`** (deprecated) -- Use `support` instead. Compiles to `support` internally.
-
-### 3.2 Named Strategy Formalization
-
-Named strategies expand at compile time into `FormalStrategy` with generated helper claims and deterministic operators. The expansion is performed by `formalize_named_strategy()` in `gaia/ir/formalize.py`. The result is a `FormalizationResult` containing:
-
-- `knowledges`: generated intermediate claim nodes (helper claims and interface claims)
-- `strategy`: a `FormalStrategy` with `formal_expr` containing the operator skeleton
-
-Named strategies carry **no independent `StrategyParamRecord`**. Their effective conditional behavior is derived from the `FormalExpr` skeleton plus the priors of interface claims.
-
-#### 3.2.1 Support (soft deduction)
-
-**Input:** `premises = [P1, P2, ..., Pk]` (k >= 1), `conclusion = C`.
-
-**Expansion (k >= 2):**
-
-```
-helper M = all_true(P1, ..., Pk)
-  conjunction([P1, ..., Pk], conclusion=M)
-  implication([M], conclusion=C)    # warrant prior from author
-```
-
-**Expansion (k = 1):**
-
-```
-  implication([P1], conclusion=C)   # warrant prior from author
-```
-
-**Semantics:** Based on the **directed** `implication` operator (A=1 → B must =1). Same skeleton as deduction (conjunction + directed implication), but support is a soft (probabilistic) assertion. The author-specified prior on the implication warrant captures the strength of the support. Because implication is directed, information flows from premises to conclusion: true premises drive the conclusion true, but a true conclusion does not force premises true. When prior is high (~0.99), support behaves like deduction. When prior is moderate (~0.5-0.8), it expresses weaker empirical support.
-
-#### 3.2.2 Deduction
-
-**Input:** `premises = [P1, P2, ..., Pk]` (k >= 1), `conclusion = C`.
-
-**Expansion:**
-
-```
-helper M = all_true(P1, ..., Pk)
-  conjunction([P1, ..., Pk], conclusion=M)
-  implication([M], conclusion=C)
-```
-
-**Semantics:** If all premises are true, the conclusion must be true. Pure deterministic entailment via directed `implication` operator. Same skeleton as support, but the reasoning is rigid (no epistemic uncertainty beyond the premises themselves).
-
-#### 3.2.3 Mathematical Induction
-
-**Input:** `premises = [Base, Step]` (exactly 2), `conclusion = C`.
-
-**Expansion:**
-
-```
-helper M = all_true(Base, Step)
-  conjunction([Base, Step], conclusion=M)
-  implication([M], conclusion=C)
-```
-
-**Semantics:** Structurally identical to deduction with exactly 2 premises. The `type` field distinguishes the reasoning family.
-
-#### 3.2.4 Analogy
-
-**Input:** `premises = [Source, Bridge]` (exactly 2), `conclusion = Target`.
-
-**Expansion:**
-
-```
-helper M = all_true(Source, Bridge)
-  conjunction([Source, Bridge], conclusion=M)
-  implication([M], conclusion=Target)
-```
-
-**Semantics:** The bridge claim (e.g., "the structural similarity between source and target domains is sufficient") is an interface claim carrying its own prior. When the bridge prior is low, the implication weakens -- the analogy is less convincing. M is a private helper claim.
-
-#### 3.2.5 Extrapolation
-
-**Input:** `premises = [Source, Continuity]` (exactly 2), `conclusion = Target`.
-
-**Expansion:**
-
-```
-helper M = all_true(Source, Continuity)
-  conjunction([Source, Continuity], conclusion=M)
-  implication([M], conclusion=Target)
-```
-
-**Semantics:** The continuity claim (e.g., "the observed trend continues into the extrapolated regime") carries the uncertainty. Structurally identical to analogy; distinguished by `type`.
-
-#### 3.2.6 Compare
-
-**Input:** `premises = [pred_h, pred_alt, observation]` (exactly 3), `conclusion = C`.
-
-**Expansion:**
-
-```
-helper H_match1 = matches(pred_h, observation)
-helper H_match2 = matches(pred_alt, observation)
-  equivalence([pred_h, observation], conclusion=H_match1)
-  equivalence([pred_alt, observation], conclusion=H_match2)
-  implication([H_match2, H_match1], conclusion=C)
-```
-
-**Semantics:** Each prediction is compared to the observation via equivalence (does the prediction match?). The implication asserts that if the alternative also matches, the hypothesis must also match -- expressing inferential ordering. The author-specified prior on the implication warrant captures the strength of the comparison. H_match1 and H_match2 are private helper claims.
-
-#### 3.2.7 Abduction
-
-**Input:** `premises = [Observation]` or `premises = [Observation, AlternativeExplanation]`, `conclusion = Hypothesis`.
-
-**Expansion (1-premise form -- alternative auto-generated):**
-
-```
-interface_claim Alt = alternative_explanation_for(Observation)
-helper D = explains(Observation)          # disjunction result
-helper Eq = same_truth(D, Observation)    # equivalence result
-  disjunction([Hypothesis, Alt], conclusion=D)
-  equivalence([D, Observation], conclusion=Eq)
-```
-
-When only the observation is provided, the compiler generates a **public interface claim** `AlternativeExplanationForObs` and appends it to `premises`. This interface claim carries an independent prior (it is *not* a helper claim) and may be supported by other strategies.
-
-**Expansion (2-premise form):**
-
-Same operator structure, but uses the author-provided alternative explanation instead of generating one.
-
-**Semantics:** The observation is equivalent to "at least one of the hypothesis or the alternative explanation is true." When the alternative explanation's prior is low, BP drives the hypothesis's posterior up. D and Eq are private helper claims.
-
-#### 3.2.8 Elimination
-
-**Input:** `premises = [Exhaustiveness, Cand1, Evid1, Cand2, Evid2, ...]`, `conclusion = Survivor`.
-
-Requires at least 3 premises; the remainder after `Exhaustiveness` must come in (candidate, evidence) pairs.
-
-**Expansion (with n candidate-evidence pairs):**
-
-```
-helper D = any_true(Cand1, ..., Candn, Survivor)
-helper Eq = same_truth(D, Exhaustiveness)
-  disjunction([Cand1, ..., Candn, Survivor], conclusion=D)
-  equivalence([D, Exhaustiveness], conclusion=Eq)
-
-for each (Candi, Evidi):
-  helper Contrai = not_both_true(Candi, Evidi)
-    contradiction([Candi, Evidi], conclusion=Contrai)
-
-gate_inputs = [Exhaustiveness, Evid1, Contra1, ..., Evidn, Contran]
-helper Gate = all_true(gate_inputs...)
-  conjunction(gate_inputs, conclusion=Gate)
-  implication([Gate], conclusion=Survivor)
-```
-
-**Semantics:** The candidates plus the survivor form an exhaustive disjunction (tied to the exhaustiveness claim via equivalence). Each candidate is eliminated by its contradicting evidence. The conjunction gate collects all the evidence and contradiction confirmations; when all pass, the survivor is implied.
-
-#### 3.2.9 Case Analysis
-
-**Input:** `premises = [Exhaustiveness, Case1, Support1, Case2, Support2, ...]`, `conclusion = C`.
-
-Requires at least 3 premises; the remainder after `Exhaustiveness` must come in (case, support) pairs.
-
-**Expansion (with n case-support pairs):**
-
-```
-helper D = any_true(Case1, ..., Casen)
-helper Eq = same_truth(D, Exhaustiveness)
-  disjunction([Case1, ..., Casen], conclusion=D)
-  equivalence([D, Exhaustiveness], conclusion=Eq)
-
-for each (Casei, Supporti):
-  helper Mi = all_true(Casei, Supporti)
-    conjunction([Casei, Supporti], conclusion=Mi)
-    implication([Mi], conclusion=C)
-```
-
-**Semantics:** The cases form an exhaustive disjunction. For each case, the case claim and its supporting evidence are conjoined and imply the conclusion. If any case is true and its support holds, the conclusion follows. Every case independently implies the conclusion.
-
-### 3.3 Composite Strategies
-
-`CompositeStrategy` references sub-strategies by `strategy_id`. It does not introduce new operators directly -- it organizes multiple strategy-level sub-structures into a larger argument tree.
-
-At lowering time, composite strategies are **recursively expanded** by default: each sub-strategy is resolved to its own `FormalStrategy` or leaf `Strategy`, and the full factor graph is assembled from all of them. Intermediate variables remain visible in the factor graph and participate in BP.
-
-A utility function `fold_composite_to_cpt()` is also provided to compute the composite's effective CPT by marginalization. It recursively computes each sub-strategy's effective CPT via tensor contraction, then contracts child CPTs along shared bridge variables to produce the composite's CPT. Exact, no BP iterations. This produces a 2^k CPT (k = number of premises) that captures the composite's aggregate reasoning behavior — useful for analysis or for collapsing a composite into a single `CONDITIONAL` factor.
-
-Composite strategies **do not require** separate parameterization -- only the leaf sub-strategies need `prior=` in the DSL (for `support`/`deduction`/`compare`) or CPT entries (for `infer` type). Named sub-strategies (support, deduction, abduction, etc.) carry their priors inline and need no additional configuration.
-
-### 3.4 Induction as Composite Strategy
-
-`induction` is a `CompositeStrategy` wrapping multiple `support` sub-strategies that share the same `conclusion` (the law being induced). The inductive effect emerges from factor graph topology: multiple supports sharing a conclusion node cause BP to accumulate evidence.
-
-```
-CompositeStrategy(type=induction, conclusion=Law):
-  sub_strategies:
-    - FormalStrategy(type=support, premises=[Law], conclusion=Obs1)
-    - FormalStrategy(type=support, premises=[Law], conclusion=Obs2)
-    - ...
-```
-
-At the DSL level, `induction(s1, s2, law)` takes two Strategy objects and a law claim, and is chainable: `induction(prev_induction, new_support, law)`.
-
-### 3.5 Deferred Strategy Types
-
-The following are recognized in the type enum but not yet formalized:
-
-- **`reductio`** -- The public-interface contract for hypothetical assumption/consequence nodes is not yet fixed.
+## 9. DSL → IR Mapping Summary
+
+| Authoring object | IR object | Key transformation |
+|---|---|---|
+| `Claim` (no formula) | `Knowledge(type=claim)` | QID assigned, `content_hash = SHA-256(type \| format \| content \| sorted(parameters))` |
+| `Claim` (with formula) | `Knowledge(type=claim)` + formula-derived `Operator`s + helper `Knowledge`s | formula lowered via `lower_claim_formula()`; bindings stored on source claim metadata |
+| `Note` / `Question` | `Knowledge(type=note / question)` | QID assigned; no prior, no operator participation |
+| `Support` action (`Derive / Observe / Compute`) | `FormalStrategy` (conjunction + implication) + warrant helper `Knowledge` | action QID linked via `metadata["action_label"]`; warrant helper has `review=true` |
+| `Infer` / `Associate` action | `Strategy` with explicit CPT + warrant helper `Knowledge` | warrant helper is the primary label resolution target |
+| `Equal` / `Contradict` / `Exclusive` action | `Operator` + helper `Knowledge` | top-level operator gets `lco_*` ID; helper is reviewable |
+| `Decompose` action | formula `Operator`s over `parts` + `Operator(equivalence, [whole, formula_helper])` | enforces atomic-parts match and acyclicity |
+| `@compose`-decorated function | `gaia.engine.ir.Compose` first-class IR node | structure-hashed over inputs, child actions, conclusion, warrants |
+| `DependsOn` action | (not lowered) | authoring metadata only |
+
+Identity assignment:
+
+- **Knowledge IDs.** Local declarations get QIDs from the package's namespace and name. Anonymous nodes get counter labels starting at `_anon_000`.
+- **Action IDs.** Action QID namespace; anonymous actions get `_anon_action_NNN`.
+- **Strategy IDs.** Deterministically computed as `lcs_{SHA-256(scope | type | sorted(premises) | conclusion | structure_hash)[:16]}`.
+- **Operator IDs.** Top-level operators get `lco_{...}` from the canonical operator dump. Symmetric operators sort `variables`; ordered operators such as `implication` preserve variable order.
+- **Compose IDs.** `lcm_{structure_hash}` over the canonicalized payload.
+
+Reference: [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md), [Lowering](../gaia-ir/07-lowering.md).
 
 ---
 
-## 4. DSL to IR Mapping
+## 10. Cromwell's Rule
 
-The compiler (`gaia/lang/compiler/compile.py`) transforms collected DSL objects into a `LocalCanonicalGraph`.
-
-### 4.1 Object Mapping
-
-| DSL Type | IR Type | Key Transformation |
-|----------|---------|-------------------|
-| `gaia.lang.Knowledge` | `gaia.ir.Knowledge` | QID assigned (`{namespace}:{package_name}::{label}`), `content_hash` computed as SHA-256(type + content + sorted(parameters)) |
-| `gaia.lang.Strategy` (leaf) | `gaia.ir.Strategy` | For `infer`: direct mapping. For named types (`support`, `deduction`, `compare`, `abduction`, `analogy`, `extrapolation`, `elimination`, `case_analysis`, `mathematical_induction`): `formalize_named_strategy()` produces `FormalStrategy` + generated `Knowledge` nodes |
-| `gaia.lang.Strategy` (with sub_strategies) | `gaia.ir.CompositeStrategy` | Sub-strategies compiled recursively; referenced by `strategy_id`. At lowering, expanded into sub-strategy factors. `fold_composite_to_cpt()` available for deriving aggregate CPT. |
-| `gaia.lang.Strategy` (with formal_expr) | `gaia.ir.FormalStrategy` | Operators mapped to IR operators; embedded (no `operator_id` / `scope`) |
-| `gaia.lang.Operator` | `gaia.ir.Operator` | Top-level: `operator_id` with `lco_` prefix, `scope="local"`. Within `formal_expr`: no ID/scope |
-| `gaia.lang.CollectedPackage` | `gaia.ir.LocalCanonicalGraph` | All knowledge (local + referenced foreign), operators, and strategies assembled |
-
-### 4.2 Compile-Time Formalization
-
-When the compiler encounters a leaf `Strategy` with a named type (`support`, `deduction`, `compare`, `abduction`, `analogy`, `extrapolation`, `elimination`, `case_analysis`, `mathematical_induction`), it calls `formalize_named_strategy()` which:
-
-1. Creates a `_TemplateBuilder` with the strategy's premises and conclusion
-2. Invokes the type-specific builder function (e.g., `_build_deduction`)
-3. The builder generates intermediate `Knowledge` nodes (helper claims and interface claims) and returns a list of `Operator` objects
-4. The result is packaged as a `FormalStrategy` with a `FormalExpr` containing the operators
-5. Generated knowledge nodes are appended to the graph's `knowledges` list
-
-### 4.3 Identity Assignment
-
-- **Knowledge IDs:** Local declarations get QIDs from the package's namespace and name. Anonymous nodes (no label) get auto-generated labels (`_anon_001`, `_anon_002`, ...). Foreign references preserve their original QID.
-- **Strategy IDs:** Deterministically computed as `lcs_{SHA-256(scope + type + sorted(premises) + conclusion + structure_hash)[:16]}`.
-- **Operator IDs:** Top-level operators get `lco_{SHA-256(operator + sorted(var_ids) + conclusion_id)[:16]}`.
-
----
-
-## 5. Cromwell's Rule
-
-All probabilities in Gaia IR are clamped to `[eps, 1 - eps]` where:
-
-```
-CROMWELL_EPS = 1e-3
-```
-
-Defined in `gaia/ir/parameterization.py` and `gaia/bp/factor_graph.py`.
-
-This applies to:
+All probabilities in Gaia IR are clamped to `[eps, 1 - eps]` where `CROMWELL_EPS = 1e-3` (defined in `gaia/engine/ir/parameterization.py` and `gaia/engine/bp/factor_graph.py`). This applies to:
 
 - `PriorRecord.value` (claim priors)
-- `StrategyParamRecord.conditional_probabilities` (strategy parameters)
-- All factor potential values (truth table entries use `1 - eps` instead of 1, `eps` instead of 0)
-- CPT entries in conditional factors
-- Soft entailment p1/p2 parameters
+- `Strategy.conditional_probabilities` (CPT entries on `infer` / `noisy_and` strategies)
+- `Strategy.p_a_given_b` / `Strategy.p_b_given_a` (conditional entries on `associate` strategies)
+- All factor potential values (truth-table entries use `1 - eps` instead of 1, `eps` instead of 0)
+- Author-supplied `p_e_given_h` / `p_e_given_not_h` on `infer`
 
-The rule ensures that no assignment is assigned zero probability, preserving the ability of BP to revise any belief given sufficient evidence.
-
-Reference: [Parameterization](../gaia-ir/06-parameterization.md).
+The rule ensures that no assignment is assigned zero probability, preserving BP's ability to revise any belief given sufficient evidence. Reference: [Parameterization](../gaia-ir/06-parameterization.md).

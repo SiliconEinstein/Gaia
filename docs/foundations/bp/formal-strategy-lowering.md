@@ -1,15 +1,19 @@
-# FormalStrategy 因子图 Lowering：统一三元因子模型
+# FormalStrategy 因子图 Lowering：确定性 FactorType 模型
 
-> **Status:** Target design — 替代 #340 旧方案（二元因子 / dead-end 检测）
+> **Status:** Current canonical (v0.5)
 >
-> 本文档论证 FormalStrategy 内部所有 Operator 的统一 lowering 方案。
+> 本文档说明 FormalStrategy 内部 Operator 如何 lower 到当前 `gaia.engine.bp`
+> 的确定性 FactorType。
 > 依赖：[potentials.md](potentials.md)（factor potential 定义）、[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)（因子图理论）。
+> 历史注脚：本方案已替代旧的二元因子 / dead-end 检测方案（issue #340）。
 
 ## 1. 统一因子模型
 
-### 1.1 所有 Operator 都是 CONDITIONAL 三元因子
+### 1.1 Operator 保留专门的 deterministic FactorType
 
-IR 中每个 Operator 有 `variables` 和 `conclusion`（[02-gaia-ir.md §2](../gaia-ir/02-gaia-ir.md)）。Lowering 时，**所有** Operator 统一映射为 CONDITIONAL 三元因子 $f(\text{variables}, \text{conclusion})$，CPT 编码真值表：
+IR 中每个 Operator 有 `variables` 和 `conclusion`（见 [Gaia IR structure](../gaia-ir/02-gaia-ir.md)）。Lowering 时，Operator 映射到对应的 deterministic `FactorType`：`IMPLICATION`、`NEGATION`、`CONJUNCTION`、`DISJUNCTION`、`EQUIVALENCE`、`CONTRADICTION`、或 `COMPLEMENT`。这些 FactorType 使用 strict 0/1 truth-table potential，而不是统一折叠成 `CONDITIONAL` CPT。
+
+概念上，每个确定性 factor 仍表达一个 truth-table constraint：
 
 $$\psi = \text{cpt}[idx] \text{ 当 } H=1, \quad \psi = 1 - \text{cpt}[idx] \text{ 当 } H=0$$
 
@@ -22,11 +26,18 @@ $$\psi = \text{cpt}[idx] \text{ 当 } H=1, \quad \psi = 1 - \text{cpt}[idx] \tex
 | complement | 0 | 1 | 1 | 0 | $A \oplus B$ |
 | conjunction | 0 | 0 | 0 | 1 | $A \wedge B$ |
 | disjunction | 0 | 1 | 1 | 1 | $A \vee B$ |
-| implication | 1 | 1 | 0 | 1 | $A \to B$（A 在 variables，B 是 conclusion） |
+| implication | 1 | 1 | 0 | 1 | $H = (A \to B)$（A/B 在 `variables`，H 是 helper `conclusion`） |
 
-实际 lowering 使用 Cromwell 软化（$0 \to \varepsilon$，$1 \to 1-\varepsilon$）。
+实际 potential 使用 strict delta（$0$ / $1$）。Cromwell clamp 用于 unary
+evidence / priors 和 soft probability 参数，不用于 deterministic truth
+table 本身。IR arity 上，`implication` 与其他二元关系一样使用
+`variables=[antecedent, consequent]` 和独立 helper `conclusion`；deduction
+/ support 的 FormalStrategy skeleton 在 BP lowering 中会特殊消费该 helper
+并降成 `CONDITIONAL` 或 `SOFT_ENTAILMENT`。
 
-**不需要** EQUIVALENCE / CONTRADICTION / COMPLEMENT 等特化 FactorType。命名的算子类型只是 CPT 模板（syntactic sugar），在因子图层面全部归约为 CONDITIONAL。
+一元 negation 使用二值 CPT：$P(N=1\mid A=0)=1$，$P(N=1\mid A=1)=0$。
+
+这些命名 FactorType 是当前实现契约，不是语法糖。
 
 ### 1.2 因子图中无 premise / conclusion 之分
 
@@ -43,7 +54,7 @@ $$P(x_1, \ldots, x_n) \propto \prod_i \pi_i(x_i) \cdot \prod_a f_a(\mathbf{x}_a)
 
 ## 2. Conclusion 先验的两种角色
 
-所有 Operator 结构上相同（三元 CONDITIONAL），但 conclusion 的**先验**有本质区别。
+所有 Operator 都有 `variables` + `conclusion` 的结构，但 conclusion 的**先验**有本质区别。
 
 ### 2.1 断言型（Relation operator）
 
@@ -57,7 +68,7 @@ $H = (A \leftrightarrow B)$ 说的是 "A 和 B 真值一致"——这个信息**
 
 ### 2.2 计算型（Directed operator）
 
-**conjunction / disjunction / implication**：conclusion $M$ 是 variables 的**确定性函数值**。
+**negation / conjunction / disjunction**：conclusion $M$ 是 variables 的**确定性函数值**。
 
 $M = A \wedge B$ 可以从 $\pi(A)$ 和 $\pi(B)$ 直接算出（在独立假设下）。设 $\pi(M) = 1 - \varepsilon$ 会引入与 $\pi(A)$、$\pi(B)$ 重复的信息。
 
@@ -125,7 +136,9 @@ $$0.5 \cdot \text{cpt}[idx] + 0.5 \cdot (1 - \text{cpt}[idx]) = 0.5 \quad \foral
 
 ## 4. 各 FormalStrategy 的因子图
 
-> 所有 Operator 统一为三元 CONDITIONAL 因子。Relation operator 的 conclusion 使用 $\pi = 1-\varepsilon$（断言），directed operator 的 conclusion 使用 $\pi = 0.5$（计算，中间变量）。
+> 所有 Operator lower 为专门的 deterministic FactorType。Relation operator
+> 的 conclusion 使用 `add_evidence(1)`（断言），directed operator 的
+> conclusion 使用 $\pi = 0.5$（计算，中间变量）。
 
 ### 4.1 Abduction
 
@@ -145,7 +158,7 @@ equivalence([D, Obs]) → Eq         # Eq: π=1-ε，断言型
 
 #### 4.1.1 完整 CPT：$P(H\!=\!1 \mid \text{Obs}, \text{Alt})$
 
-单因子 $f(H, \text{Alt}, \text{Obs})$ 编码 $\text{Obs} = H \vee \text{Alt}$（Cromwell 软化）。
+单因子 $f(H, \text{Alt}, \text{Obs})$ 编码 $\text{Obs} = H \vee \text{Alt}$。当前实现使用 strict deterministic potential；下表把不一致行按 $\varepsilon \to 0$ 的极限直觉解释，实际完全不一致的硬赋值是零权重状态。
 
 $$
 P(H\!=\!1 \mid \text{Obs}, \text{Alt}) = \frac{\pi(H\!=\!1) \cdot f(1, \text{Alt}, \text{Obs})}{\sum_{h} \pi(H\!=\!h) \cdot f(h, \text{Alt}, \text{Obs})}
@@ -156,7 +169,7 @@ $$
 | Obs | Alt | $H\!=\!0$: $H \vee \text{Alt}$ vs Obs | $H\!=\!1$: $H \vee \text{Alt}$ vs Obs | $P(H\!=\!1)$ | 解释 |
 |-----|-----|------|------|------|------|
 | 0 | 0 | $0 = 0$ ✓ | $1 \neq 0$ ✗ | $\to 0$ | 无观测无替代 → H 必假 |
-| 0 | 1 | $1 \neq 0$ ✗ | $1 \neq 0$ ✗ | $= h$ | 不一致（Cromwell），H 不更新 |
+| 0 | 1 | $1 \neq 0$ ✗ | $1 \neq 0$ ✗ | 零权重冲突 | 硬约束与观测不一致，需要上游修正 |
 | 1 | 0 | $0 \neq 1$ ✗ | $1 = 1$ ✓ | $\to 1$ | 观测真但无替代 → H 必真 |
 | 1 | 1 | $1 = 1$ ✓ | $1 = 1$ ✓ | $= h$ | 两者都能解释，H 不更新 |
 
@@ -323,8 +336,7 @@ $$m_{f \to M}(1) \propto m_{A \to f}(1) \cdot m_{B \to f}(1)$$
 ```python
 for op in formal_expr.operators:
     fid = generate_factor_id(op)
-    cpt = operator_to_cpt(op.operator)  # 查表：equivalence→[1-ε,ε,ε,1-ε], ...
-    add_conditional_factor(fid, op.variables, op.conclusion, cpt)
+    graph.add_factor(fid, _OPERATOR_MAP[op.operator], op.variables, op.conclusion)
 ```
 
 **不需要**：二元因子特殊路径、dead-end 检测、gate_var、`conclusion=None` 标记。
@@ -333,23 +345,24 @@ for op in formal_expr.operators:
 
 | Operator 类别 | conclusion 先验 | 理由 |
 |--------------|----------------|------|
-| Relation（equivalence, contradiction, complement） | $1 - \varepsilon$ | 断言：算子的存在 = 关系成立 |
-| Directed（conjunction, disjunction, implication） | $0.5$ | 计算：belief 由 variables 决定 |
+| Relation（equivalence, contradiction, complement, top-level implication） | $1 - \varepsilon$ | 断言：算子的存在 = 关系成立 |
+| Expression（negation, conjunction, disjunction） | $0.5$ | 计算：belief 由 variables 决定 |
 
-判定规则：conclusion 的 $P(H\!=\!1)$ 能否从 $\pi(\text{variables})$ 推导出来？能 → 0.5（计算型）；不能 → $1-\varepsilon$（断言型）。
+Deduction / support 的 FormalStrategy implication 是特殊路径：helper 会在
+lowering 中被消费并移除，分别变成 `CONDITIONAL` 和 `SOFT_ENTAILMENT`。
+除此之外的判定规则是：conclusion 的 $P(H\!=\!1)$ 能否从
+$\pi(\text{variables})$ 推导出来？能 → 0.5（计算型）；不能 →
+$1-\varepsilon$（断言型）。
 
-### 7.3 `potentials.md` 更新
+### 7.3 与势函数和推理文档的关系
 
-将所有确定性算子统一为 CONDITIONAL + CPT 模板的描述，替代当前按 FactorType 分列的格式。
-
-### 7.4 `inference.md` 更新
-
-删除 gate_var 机制的描述。Relation operator 的 conclusion 通过 $\pi = 1-\varepsilon$ 自然激活约束，不需要门控变量。
+- 势函数细节见 [`potentials.md`](potentials.md)：每种 deterministic FactorType 的势函数是 strict 0/1；Cromwell clamp 仅作用于 unary evidence/prior 和 soft probability 参数（例如 ↝ 的 `p₁ / p₂`），不出现在 deterministic potential 中。
+- Relation operator 的 conclusion 通过 §7.2 的 $\pi = 1-\varepsilon$ 先验自然激活约束，没有单独的门控变量；推理流程见 [`inference.md`](inference.md)。
 
 ## 参考
 
 - 因子图理论：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)
 - BP 算法：[../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)
-- IR Operator 定义：[../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md) §2
-- Helper claim 语义：[../gaia-ir/04-helper-claims.md](../gaia-ir/04-helper-claims.md)
+- IR Operator 定义：[Gaia IR structure](../gaia-ir/02-gaia-ir.md)
+- Helper claim 语义：[Helper Claims](../gaia-ir/04-helper-claims.md)
 - Factor potential 定义：[potentials.md](potentials.md)

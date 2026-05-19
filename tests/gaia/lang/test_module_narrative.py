@@ -1,7 +1,7 @@
 """Tests for module narrative tracking."""
 
-from gaia.lang.runtime.nodes import Knowledge
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.nodes import Knowledge
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
 def test_declaration_index_increments_within_module():

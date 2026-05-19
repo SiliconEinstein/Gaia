@@ -37,15 +37,16 @@ Knowledge(type=claim)
 
 ## 2. 当前范围
 
-当前 contract 下，helper claim 主要包括以下结构型结果：
+当前 contract 下，helper claim 主要包括以下结构型结果。其中 **expression 类**（`negation_result` / `conjunction_result` / `disjunction_result`）也是 `gaia.engine.ir.knowledge.STRUCTURAL_EXPRESSION_HELPER_KINDS` frozenset 的成员，由 `is_structural_expression_helper(...)` 标记为 **non-reviewable**（来自废弃的兼容函数 `not_(A)` / `and_(A, B)` / `or_(A, B)`）；现代 `~A` / `A & B` / `A | B` 快捷写法只返回 Formula AST，不直接生成 helper claim。**relation 类**（`equivalence_result` / `contradiction_result` / `complement_result`）默认参与 review manifest。
 
-| helper_kind | 来源 | 例子 |
-|-------------|------|------|
-| `conjunction_result` | conjunction | `M = A ∧ B` |
-| `disjunction_result` | disjunction | `D = A ∨ B ∨ C` |
-| `equivalence_result` | equivalence | `Eq = same_truth(A,B)` |
-| `contradiction_result` | contradiction | `Contra = not_both_true(A,B)` |
-| `complement_result` | complement | `Comp = opposite_truth(A,B)` |
+| helper_kind | 来源 | 例子 | reviewable |
+|-------------|------|------|------------|
+| `negation_result` | negation | `N = ¬A` | 否（structural expression） |
+| `conjunction_result` | conjunction | `M = A ∧ B` | 否（structural expression） |
+| `disjunction_result` | disjunction | `D = A ∨ B ∨ C` | 否（structural expression） |
+| `equivalence_result` | equivalence | `Eq = same_truth(A,B)` | 是 |
+| `contradiction_result` | contradiction | `Contra = not_both_true(A,B)` | 是 |
+| `complement_result` | complement | `Comp = opposite_truth(A,B)` | 是 |
 
 这些 helper claim 的共同点是：
 
@@ -72,11 +73,21 @@ FormalExpr 内部产生但不出现在任何 Strategy 的 `premises` / `conclusi
 
 **硬约束：私有节点禁止被外部 Strategy 引用。**
 
-**硬约束：私有节点不得承载独立 PriorRecord。** 任何需要独立 prior 的 claim，必须提升为该 Strategy 的接口节点（`premises` 或 `conclusion`），而不能藏在 `formal_expr` 私有层。
+**设计约束：私有节点不得承载独立 PriorRecord。** 任何需要独立 prior
+的 claim，必须提升为该 Strategy 的接口节点（`premises` 或 `conclusion`），
+而不能藏在 `formal_expr` 私有层。当前 graph validator 的硬拒绝范围是
+structural-expression helper 上的 `metadata["prior"]`；更宽的
+PriorRecord 入口仍依赖 package compile/check 与 review 规则保持这个
+contract。
 
-**为什么？** FormalStrategy 的核心价值是封装——它可以被折叠（marginalization）为一个等效的 P(conclusion | premises)，对外只暴露接口。折叠要求对内部变量做变量消去（求和消掉），这只有在没有外部代码依赖这些内部变量的身份时才是安全的。如果允许外部引用内部变量，消去就会破坏外部引用，折叠就不可能了。
+**为什么？** FormalStrategy 的核心价值是封装——它可以拥有一个未来
+折叠（marginalization）语义，等效为 P(conclusion | premises)，对外只
+暴露接口。折叠要求对内部变量做变量消去（求和消掉），这只有在没有
+外部代码依赖这些内部变量的身份时才是安全的。如果允许外部引用内部
+变量，消去就会破坏外部引用，折叠就不可能了。
 
-因此，私有节点的不可引用性保证了 FormalStrategy **总是可以被折叠的**。
+因此，私有节点的不可引用性保证了 FormalStrategy 的折叠语义是安全的；
+当前 BP 后端仍只实现展开路径。
 
 ### 3.2 示例
 
@@ -84,16 +95,16 @@ FormalExpr 内部产生但不出现在任何 Strategy 的 `premises` / `conclusi
 FormalStrategy(type=analogy, premises=[SourceLaw, BridgeClaim], conclusion=Target):
   formal_expr:
     - conjunction([SourceLaw, BridgeClaim], conclusion=M)
-    - implication([M], conclusion=Target)
+    - implication([M, Target], conclusion=ImplicationWarrant)
 ```
 
 这里 M 是私有节点——它只被 `formal_expr` 内部引用，不出现在任何 Strategy 的 premises/conclusion 中。外部 Strategy 不能直接引用 M。
 
-推理引擎可以选择：
+在 contract 层，推理引擎可以选择：
 - **折叠**：对 M 做变量消去，整个 FormalStrategy 等效为 P(Target | SourceLaw, BridgeClaim)
 - **展开**：保留 M 作为 runtime 节点，直接在展开后的图上推理
 
-两种方式都合法，因为 M 是严格私有的。选择哪种由推理引擎的 `expand_set` 决定。
+当前 `gaia.engine.bp` 实现的是展开路径；通用折叠路径还没有实现。
 
 ### 3.3 如果需要共享中间结果
 
@@ -138,13 +149,17 @@ any_true(A,B,...)
 
 ## 6. 与 Parameterization 的关系
 
-Helper claim 不引入新的 `StrategyParamRecord` 规则。
+Helper claim 不引入新的 strategy-parameter 记录规则；Parameterization 只为 claim prior 建记录。
 
-**硬性规则：**
+**设计规则：**
 
-- 结构型 helper claim **禁止**携带独立的 `PriorRecord`
+- 结构型 helper claim **不应**携带独立的 `PriorRecord`
 - helper claim 仍然是 `claim`，但在 parameterization 层不作为自由参数入口
 - 需要独立 prior 的自动生成节点（如 abduction 的 `AlternativeExplanationForObs`）不属于 helper claim；它们必须保持为 public interface claim
+
+当前 validator 已硬拒绝 structural-expression helper 的
+`metadata["prior"]`；其它 helper-prior 入口要通过 package check/review
+规则继续收紧。
 
 **为什么禁止？** 因为 helper claim 的概率分布没有自由度——它完全被 Operator 的确定性约束（真值表）决定。
 
@@ -158,7 +173,9 @@ Helper claim 不引入新的 `StrategyParamRecord` 规则。
 
 同理，`equivalence([O, Obs], conclusion=Eq)` 中的 Eq 也完全由 O 和 Obs 的真值决定，没有自由度
 
-因此，FormalStrategy 内部的私有 helper claim 可以被安全地 marginalize 掉——这正是 FormalStrategy 能够折叠为等效条件概率 P(conclusion | premises) 的数学基础
+因此，FormalStrategy 内部的私有 helper claim 可以在未来折叠后端中被
+安全地 marginalize 掉——这正是 FormalStrategy 能够定义等效条件概率
+P(conclusion | premises) 的数学基础；当前 BP 后端使用展开 lowering。
 
 ## 7. 例子
 
@@ -181,13 +198,13 @@ Operator(operator=contradiction, variables=[A, B], conclusion=Contra_AB)
 FormalStrategy(type=analogy, premises=[SourceLaw, BridgeClaim], conclusion=Target):
   formal_expr:
     - conjunction([SourceLaw, BridgeClaim], conclusion=M)
-    - implication([M], conclusion=Target)
+    - implication([M, Target], conclusion=Imp_M_Target)
 ```
 
 这里：
 
 - `BridgeClaim` 是普通 `premise claim`，不是 helper claim
-- `M` 是结构型 helper claim
+- `M` 和 `Imp_M_Target` 是结构型 helper claim
 - 若 `M` 只服务于这条 FormalStrategy，则它默认是私有 helper claim
 
 ## 8. 当前边界

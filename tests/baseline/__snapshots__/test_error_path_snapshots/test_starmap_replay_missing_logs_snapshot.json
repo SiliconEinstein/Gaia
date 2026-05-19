@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "inspect",
+    "starmap-replay",
+    "<TMP>"
+  ],
+  "exit_code": 1,
+  "stderr": "Error: missing timeline log: <TMP>\nError: missing timeline log: <TMP>\nRun the lkm-to-gaia discovery pipeline first; both logs must exist under <TMP>\n",
+  "stdout": ""
+}
