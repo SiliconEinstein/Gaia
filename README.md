@@ -1,9 +1,9 @@
 # Gaia Lang
 
-[![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
+[![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
 [![Nightly](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml/badge.svg?branch=main)](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml)
-[![Docs](https://github.com/SiliconEinstein/Gaia/actions/workflows/docs.yml/badge.svg)](https://siliconeinstein.github.io/Gaia/)
-[![PyPI](https://img.shields.io/pypi/v/gaia-lang.svg)](https://pypi.org/project/gaia-lang/)
+[![Docs](https://github.com/SiliconEinstein/Gaia/actions/workflows/docs.yml/badge.svg?branch=main)](https://siliconeinstein.github.io/Gaia/)
+[![PyPI alpha](https://img.shields.io/badge/pypi-0.5.0a1-orange)](https://pypi.org/project/gaia-lang/0.5.0a1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Contributing?** Read [`AGENTS.md`](AGENTS.md).
