@@ -136,7 +136,7 @@ def _normalize_lkm_chain(
     index: int,
     papers: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
-    provider_id = _string(chain.get("id")) or _string(chain.get("chain_id")) or f"chain_{index}"
+    provider_id = _chain_provider_id(chain, index=index)
     conclusion = _chain_conclusion(chain)
     paper_id = _string(chain.get("paper_id"))
     source_package = _string(chain.get("source_package")) or _chain_source_package(chain)
@@ -186,6 +186,23 @@ def _normalize_lkm_chain(
         "actions": actions,
         "raw": {"provider": "lkm", "payload": chain},
     }
+
+
+def _chain_provider_id(chain: dict[str, Any], *, index: int) -> str:
+    provider_id = (
+        _string(chain.get("id"))
+        or _string(chain.get("chain_id"))
+        or _string(chain.get("factor_id"))
+    )
+    if provider_id is not None:
+        return provider_id
+    for factor in _list(chain.get("factors")):
+        if not isinstance(factor, dict):
+            continue
+        factor_id = _string(factor.get("id")) or _string(factor.get("factor_id"))
+        if factor_id is not None:
+            return factor_id
+    return f"chain_{index}"
 
 
 def _normalize_lkm_paper_graph_item(item: dict[str, Any], *, index: int) -> dict[str, Any]:

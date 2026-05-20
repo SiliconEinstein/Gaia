@@ -110,6 +110,10 @@ def reasoning_command(
     ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
     """Search reasoning chains, or fetch them for one claim with --claim-id."""
+    if claim_id is None and query is not None and _looks_like_claim_id(query):
+        claim_id = query
+        query = None
+
     if query is not None and claim_id is not None:
         typer.echo("Error: pass either QUERY or --claim-id, not both.", err=True)
         raise typer.Exit(4)
@@ -160,6 +164,11 @@ def reasoning_command(
     if output_format == SearchOutputFormat.GAIA_JSON:
         payload = normalize_lkm_reasoning_search(payload, query=query)
     emit(payload, out)
+
+
+def _looks_like_claim_id(value: str) -> bool:
+    stripped = value.strip()
+    return stripped.startswith("gcn_") and stripped == value and " " not in stripped
 
 
 def _fetch_claim_reasoning(

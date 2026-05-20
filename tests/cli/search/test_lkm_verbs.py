@@ -480,6 +480,32 @@ class TestReasoning:
         assert call["path"] == "/claims/gcn_abc123/reasoning"
         assert call["params"] == {"max_chains": 10, "sort_by": "comprehensive"}
 
+    def test_legacy_positional_claim_id_fetches_claim_reasoning(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+        )
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "reasoning",
+                "gcn_abc123",
+                "--max-chains",
+                "3",
+                "--format",
+                "raw-json",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        call = _FakeClient.last_call
+        assert call["method"] == "GET"
+        assert call["path"] == "/claims/gcn_abc123/reasoning"
+        assert call["params"] == {"max_chains": 3, "sort_by": "comprehensive"}
+
     def test_query_search_calls_reasoning_search_endpoint(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -634,6 +660,34 @@ class TestReasoning:
         assert item["gaia"]["object_kind"] == "derive"
         assert item["source"]["has_factors"] is True
         assert item["source"]["can_compile"] is True
+
+    def test_claim_reasoning_uses_factor_id_when_chain_id_is_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "reasoning_chains": [
+                    {
+                        "factors": [
+                            {
+                                "id": "gfac_2d9b044b8de74fe4",
+                                "conclusion": {"id": "gcn_result", "title": "Result"},
+                                "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                            }
+                        ]
+                    }
+                ],
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["id"] == "lkm:gfac_2d9b044b8de74fe4"
+        assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
 
 
 # --------------------------------------------------------------------------- #
