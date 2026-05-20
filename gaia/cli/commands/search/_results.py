@@ -100,7 +100,8 @@ def _normalize_lkm_variable(
         actions.append(
             {
                 "kind": "inspect",
-                "command": f"gaia search lkm reasoning --claim-id {provider_id}",
+                "ref": f"lkm:claim:{provider_id}",
+                "next_steps": f"gaia search lkm reasoning --claim-id {provider_id}",
             }
         )
     actions.extend(_add_actions(paper_id))
@@ -159,7 +160,8 @@ def _normalize_lkm_chain(
         actions.append(
             {
                 "kind": "inspect",
-                "command": f"gaia search lkm package --paper-id {paper_id}",
+                "ref": f"lkm:paper:{paper_id}",
+                "next_steps": f"gaia search lkm package --paper-id {paper_id}",
             }
         )
     actions.extend(_add_actions(paper_id))
@@ -256,7 +258,7 @@ def _add_actions(paper_id: str | None) -> list[dict[str, str]]:
         {
             "kind": "add",
             "ref": ref,
-            "command": f"gaia pkg add {ref}",
+            "next_steps": f"gaia pkg add {ref}",
         }
     ]
 

@@ -322,12 +322,13 @@ class TestKnowledge:
         assert item["actions"] == [
             {
                 "kind": "inspect",
-                "command": "gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd",
+                "ref": "lkm:claim:gcn_579430355a0e4bbd",
+                "next_steps": "gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd",
             },
             {
                 "kind": "add",
                 "ref": "lkm:paper:811827932371615744",
-                "command": "gaia pkg add lkm:paper:811827932371615744",
+                "next_steps": "gaia pkg add lkm:paper:811827932371615744",
             },
         ]
 
@@ -626,6 +627,18 @@ class TestReasoning:
         assert item["source"]["conclusion_id"] == "7"
         assert item["source"]["has_factors"] is False
         assert item["source"]["can_compile"] is False
+        assert item["actions"] == [
+            {
+                "kind": "inspect",
+                "ref": "lkm:paper:811",
+                "next_steps": "gaia search lkm package --paper-id 811",
+            },
+            {
+                "kind": "add",
+                "ref": "lkm:paper:811",
+                "next_steps": "gaia pkg add lkm:paper:811",
+            },
+        ]
 
     def test_default_marks_complete_chain_as_derive_object(
         self, monkeypatch: pytest.MonkeyPatch
@@ -815,7 +828,7 @@ class TestReasoningSearch:
             {
                 "kind": "add",
                 "ref": "lkm:paper:811827932371615744",
-                "command": "gaia pkg add lkm:paper:811827932371615744",
+                "next_steps": "gaia pkg add lkm:paper:811827932371615744",
             }
         ]
 
@@ -1010,7 +1023,7 @@ class TestPackage:
             {
                 "kind": "add",
                 "ref": "lkm:paper:811827932371615744",
-                "command": "gaia pkg add lkm:paper:811827932371615744",
+                "next_steps": "gaia pkg add lkm:paper:811827932371615744",
             }
         ]
 

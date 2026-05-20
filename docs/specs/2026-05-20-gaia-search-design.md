@@ -133,12 +133,13 @@ Every Gaia-native search command should return:
       "actions": [
         {
           "kind": "inspect",
-          "command": "gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd"
+          "ref": "lkm:claim:gcn_579430355a0e4bbd",
+          "next_steps": "gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd"
         },
         {
           "kind": "add",
           "ref": "lkm:paper:811827932371615744",
-          "command": "gaia pkg add lkm:paper:811827932371615744"
+          "next_steps": "gaia pkg add lkm:paper:811827932371615744"
         }
       ],
       "raw": {
@@ -160,7 +161,7 @@ Field rules:
 | `rank.score` | Retrieval ranking only, never a prior |
 | `gaia` | Populated when the result already has a Gaia package identity |
 | `source` | Provider provenance needed for citations and follow-up calls |
-| `actions` | Suggested commands. Search may suggest, but not execute, mutations |
+| `actions` | Suggested follow-up actions. `kind` + `ref` are the machine-readable contract; `next_steps` is a human/agent hint |
 | `raw` | Optional original provider payload for debugging and migration |
 
 ## 5. Local Gaia Package Search
@@ -206,7 +207,8 @@ Minimal local result:
   "actions": [
     {
       "kind": "import",
-      "command": "from galileo_falling_bodies import vacuum_prediction"
+      "ref": "pkg:galileo-falling-bodies-gaia:github:galileo::vacuum_prediction",
+      "next_steps": "from galileo_falling_bodies import vacuum_prediction"
     }
   ]
 }
@@ -274,7 +276,8 @@ The important boundary is that search returns:
   "actions": [
     {
       "kind": "add",
-      "ref": "lkm:paper:811827932371615744"
+      "ref": "lkm:paper:811827932371615744",
+      "next_steps": "gaia pkg add lkm:paper:811827932371615744"
     }
   ]
 }

@@ -32,8 +32,11 @@ The `search` group is provider-shaped by design:
   Gaia-native result envelope.
 
 Search commands should not mutate the current project. They may suggest
-follow-up commands, but package installation and dependency changes belong to
-`gaia pkg add`.
+follow-up actions, but package installation and dependency changes belong to
+`gaia pkg add`. In normalized JSON, action `kind` + `ref` are the stable
+machine-readable contract; `next_steps` is only a human/agent hint, matching
+the broader Gaia CLI convention of printing "Next" guidance after scaffold or
+registration workflows.
 
 LKM retrieval scores are ranking signals only. They must not be copied into
 Gaia priors, beliefs, or warrant strengths.
