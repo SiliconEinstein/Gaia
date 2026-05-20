@@ -131,18 +131,22 @@ def _normalize_lkm_variable(
     paper_id = _paper_id(source_package)
     paper = _paper_metadata(papers, source_package=source_package, paper_id=paper_id)
     object_kind = _lkm_variable_kind(_string(variable.get("type")))
-    actions: list[dict[str, str]] = []
+    paper_title = _paper_title(paper)
+    doi = _string(paper.get("doi"))
+    actions: list[dict[str, Any]] = []
     if object_kind == "claim" and provider_id and variable.get("has_reasoning") is not False:
+        claim_title = _string(variable.get("title"))
         actions.append(
             {
                 "kind": "inspect",
                 "ref": _lkm_ref(server_id, "claim", provider_id),
+                "label": _inspect_label("claim", claim_title),
                 "next_steps": (
                     f"gaia search lkm reasoning --server {server_id} --claim-id {provider_id}"
                 ),
             }
         )
-    actions.extend(_add_actions(paper_id, server_id=server_id))
+    actions.extend(_add_actions(paper_id, server_id=server_id, paper_title=paper_title, doi=doi))
     return {
         "id": _lkm_result_id(server_id, provider_id),
         "provider": "lkm",
@@ -159,7 +163,8 @@ def _normalize_lkm_variable(
             "server_id": server_id,
             "source_package": source_package,
             "paper_id": paper_id,
-            "doi": _string(paper.get("doi")),
+            "paper_title": paper_title,
+            "doi": doi,
             "local_id": local_id,
             "role": _string(variable.get("role")),
             "has_evidence": variable.get("has_evidence"),
@@ -186,27 +191,30 @@ def _normalize_lkm_chain(
     if source_package is None and paper_id is not None:
         source_package = f"paper:{paper_id}"
     paper = _paper_metadata(papers, source_package=source_package, paper_id=paper_id)
+    paper_title = _paper_title(paper)
+    doi = _string(paper.get("doi"))
     title = (
         _string(chain.get("title"))
         or _string(conclusion.get("title"))
-        or _string(paper.get("en_title"))
+        or paper_title
         or provider_id
     )
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
     has_factors = bool(_list(chain.get("factors")))
     can_compile = _chain_can_compile(chain)
-    actions: list[dict[str, str]] = []
+    actions: list[dict[str, Any]] = []
     if not can_compile and paper_id is not None:
         actions.append(
             {
                 "kind": "inspect",
                 "ref": _lkm_ref(server_id, "paper", paper_id),
+                "label": _inspect_label("paper", paper_title),
                 "next_steps": (
                     f"gaia search lkm package --server {server_id} --paper-id {paper_id}"
                 ),
             }
         )
-    actions.extend(_add_actions(paper_id, server_id=server_id))
+    actions.extend(_add_actions(paper_id, server_id=server_id, paper_title=paper_title, doi=doi))
     return {
         "id": _lkm_result_id(server_id, provider_id),
         "provider": "lkm",
@@ -223,7 +231,8 @@ def _normalize_lkm_chain(
             "server_id": server_id,
             "source_package": source_package,
             "paper_id": paper_id,
-            "doi": _string(paper.get("doi")),
+            "paper_title": paper_title,
+            "doi": doi,
             "conclusion_id": _string(conclusion.get("id")) or _string(chain.get("conclusion_id")),
             "has_factors": has_factors,
             "can_compile": can_compile,
@@ -262,7 +271,9 @@ def _normalize_lkm_paper_graph_item(
     source_package = _string(paper.get("package_id"))
     if source_package is None and paper_id is not None:
         source_package = f"paper:{paper_id}"
-    title = _string(paper.get("en_title")) or _string(paper.get("zh_title")) or source_package
+    paper_title = _paper_title(paper)
+    title = paper_title or source_package
+    doi = _string(paper.get("doi"))
     content = _string(paper.get("en_abstract")) or _string(paper.get("zh_abstract"))
     return {
         "id": _lkm_result_id(server_id, provider_id),
@@ -280,10 +291,11 @@ def _normalize_lkm_paper_graph_item(
             "server_id": server_id,
             "source_package": source_package,
             "paper_id": paper_id,
-            "doi": _string(paper.get("doi")),
+            "paper_title": paper_title,
+            "doi": doi,
             "stats": _dict(item.get("stats")),
         },
-        "actions": _add_actions(paper_id, server_id=server_id),
+        "actions": _add_actions(paper_id, server_id=server_id, paper_title=paper_title, doi=doi),
         "raw": {"provider": "lkm", "payload": item},
     }
 
@@ -307,7 +319,19 @@ def _lkm_ref(server_id: str, kind: str, provider_id: str) -> str:
     return f"lkm:{server_id}:{kind}:{provider_id}"
 
 
-def _add_actions(paper_id: str | None, *, server_id: str) -> list[dict[str, str]]:
+def _inspect_label(kind: str, title: str | None) -> str:
+    if title:
+        return f'Inspect {kind} "{title}"'
+    return f"Inspect {kind}"
+
+
+def _add_actions(
+    paper_id: str | None,
+    *,
+    server_id: str,
+    paper_title: str | None,
+    doi: str | None,
+) -> list[dict[str, Any]]:
     if paper_id is None:
         return []
     ref = _lkm_ref(server_id, "paper", paper_id)
@@ -315,9 +339,23 @@ def _add_actions(paper_id: str | None, *, server_id: str) -> list[dict[str, str]
         {
             "kind": "add",
             "ref": ref,
+            "label": _add_paper_label(paper_title, paper_id),
+            "target": {
+                "kind": "paper",
+                "title": paper_title,
+                "doi": doi,
+                "server_id": server_id,
+                "paper_id": paper_id,
+            },
             "next_steps": f"gaia pkg add --lkm-server {server_id} --lkm-paper {paper_id}",
         }
     ]
+
+
+def _add_paper_label(paper_title: str | None, paper_id: str) -> str:
+    if paper_title:
+        return f'Add paper "{paper_title}"'
+    return f"Add LKM paper {paper_id}"
 
 
 def _lkm_variable_kind(raw_type: str | None) -> str:
@@ -440,6 +478,17 @@ def _paper_metadata(
     if paper_id and (paper := papers.get(f"paper:{paper_id}")):
         return paper
     return {}
+
+
+def _paper_title(paper: dict[str, Any]) -> str | None:
+    """Return the user-facing paper name from common LKM title fields."""
+    return (
+        _string(paper.get("en_title"))
+        or _string(paper.get("zh_title"))
+        or _string(paper.get("title"))
+        or _string(paper.get("paper_title"))
+        or _string(paper.get("name"))
+    )
 
 
 def _paper_id(source_package: str | None) -> str | None:

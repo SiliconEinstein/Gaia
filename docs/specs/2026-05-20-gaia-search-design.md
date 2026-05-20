@@ -135,6 +135,7 @@ Every Gaia-native search command should return:
         "server_id": "bohrium",
         "source_package": "paper:811827932371615744",
         "paper_id": "811827932371615744",
+        "paper_title": "Controlling phase and morphology of FAPbI3 films",
         "doi": "10.1016/j.jpcs.2021.110374",
         "role": "conclusion"
       },
@@ -142,11 +143,20 @@ Every Gaia-native search command should return:
         {
           "kind": "inspect",
           "ref": "lkm:bohrium:claim:gcn_579430355a0e4bbd",
+          "label": "Inspect claim \"Annealing temperature controls alpha-phase growth\"",
           "next_steps": "gaia search lkm reasoning --server bohrium --claim-id gcn_579430355a0e4bbd"
         },
         {
           "kind": "add",
           "ref": "lkm:bohrium:paper:811827932371615744",
+          "label": "Add paper \"Controlling phase and morphology of FAPbI3 films\"",
+          "target": {
+            "kind": "paper",
+            "title": "Controlling phase and morphology of FAPbI3 films",
+            "doi": "10.1016/j.jpcs.2021.110374",
+            "server_id": "bohrium",
+            "paper_id": "811827932371615744"
+          },
           "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"
         }
       ],
@@ -169,8 +179,14 @@ Field rules:
 | `rank.score` | Retrieval ranking only, never a prior |
 | `gaia` | Populated when the result already has a Gaia package identity |
 | `source` | Provider provenance needed for citations and follow-up calls |
-| `actions` | Suggested follow-up actions. `kind` + `ref` are the machine-readable contract; `next_steps` is a human/agent hint |
+| `actions` | Suggested follow-up actions. `kind` + `ref` are the machine-readable contract; `label` / `target` are display metadata; `next_steps` is a human/agent hint |
 | `raw` | Optional original provider payload for debugging and migration |
+
+Search output is name-first and id-backed. Paper titles are the primary display
+name when available (`title`, `source.paper_title`, `actions[].label`), while
+`source.paper_id` and `actions[].ref` remain the stable machine identity. This
+keeps the CLI friendly without making title strings into package or lockfile
+keys.
 
 ## 5. Local Gaia Package Search
 
@@ -250,6 +266,7 @@ LKM `package` output should preserve `paper`, `variables`, `factors`, and
 
 - `source.source_package`, e.g. `paper:811827932371615744`
 - `source.server_id`, e.g. `bohrium`; LKM-local ids are scoped to this server
+- `source.paper_title`, e.g. `Controlling phase and morphology of FAPbI3 films`
 - `source.paper_id`
 - candidate package ref `lkm:<server_id>:paper:<paper_id>`
 - whether the graph is already materialized as a Gaia package
@@ -295,6 +312,14 @@ The important boundary is that search returns:
     {
       "kind": "add",
       "ref": "lkm:bohrium:paper:811827932371615744",
+      "label": "Add paper \"Controlling phase and morphology of FAPbI3 films\"",
+      "target": {
+        "kind": "paper",
+        "title": "Controlling phase and morphology of FAPbI3 films",
+        "doi": "10.1016/j.jpcs.2021.110374",
+        "server_id": "bohrium",
+        "paper_id": "811827932371615744"
+      },
       "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"
     }
   ]
@@ -302,6 +327,13 @@ The important boundary is that search returns:
 ```
 
 and `pkg add` performs the mutation.
+
+Local package management should keep the same separation: use the paper title
+as the display name in `gaia search pkg`, `gaia pkg list`, and package summaries,
+but pin dependencies by package identity and source ref. A generated LKM package
+may use a stable slug such as `lkm-bohrium-controlling-phase-morphology-811827-gaia`,
+while its metadata records `source.ref = lkm:bohrium:paper:811827932371615744`
+and the full paper title.
 
 ## 8. Interaction With Existing Package Interfaces
 

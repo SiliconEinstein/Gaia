@@ -50,6 +50,12 @@ only compatibility aliases for the default server. Human-facing next steps
 should prefer explicit flags, for example
 `gaia pkg add --lkm-server bohrium --lkm-paper <paper_id>`.
 
+LKM paper results are name-first and id-backed. Search results and action labels
+should show the paper title when available (`source.paper_title`,
+`actions[].label`), while `actions[].ref` and `source.paper_id` remain the
+stable identity used by `gaia pkg add`, registry lookup, and local package
+metadata.
+
 LKM retrieval scores are ranking signals only. They must not be copied into
 Gaia priors, beliefs, or warrant strengths.
 

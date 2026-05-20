@@ -342,12 +342,14 @@ class TestKnowledge:
         assert item["gaia"]["object_kind"] == "claim"
         assert item["source"]["paper_id"] == "811827932371615744"
         assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["paper_title"] == "FAPbI3 processing paper"
         assert item["source"]["doi"] == "10.1016/j.jpcs.2021.110374"
         assert item["source"]["role"] == "conclusion"
         assert item["actions"] == [
             {
                 "kind": "inspect",
                 "ref": "lkm:bohrium:claim:gcn_579430355a0e4bbd",
+                "label": 'Inspect claim "Annealing temperature controls alpha-phase growth"',
                 "next_steps": (
                     "gaia search lkm reasoning --server bohrium --claim-id gcn_579430355a0e4bbd"
                 ),
@@ -355,6 +357,14 @@ class TestKnowledge:
             {
                 "kind": "add",
                 "ref": "lkm:bohrium:paper:811827932371615744",
+                "label": 'Add paper "FAPbI3 processing paper"',
+                "target": {
+                    "kind": "paper",
+                    "title": "FAPbI3 processing paper",
+                    "doi": "10.1016/j.jpcs.2021.110374",
+                    "server_id": "bohrium",
+                    "paper_id": "811827932371615744",
+                },
                 "next_steps": ("gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"),
             },
         ]
@@ -677,6 +687,7 @@ class TestReasoning:
         assert item["gaia"]["object_kind"] is None
         assert item["source"]["paper_id"] == "811"
         assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["paper_title"] is None
         assert item["source"]["conclusion_id"] == "7"
         assert item["source"]["has_factors"] is False
         assert item["source"]["can_compile"] is False
@@ -684,11 +695,20 @@ class TestReasoning:
             {
                 "kind": "inspect",
                 "ref": "lkm:bohrium:paper:811",
+                "label": "Inspect paper",
                 "next_steps": "gaia search lkm package --server bohrium --paper-id 811",
             },
             {
                 "kind": "add",
                 "ref": "lkm:bohrium:paper:811",
+                "label": "Add LKM paper 811",
+                "target": {
+                    "kind": "paper",
+                    "title": None,
+                    "doi": None,
+                    "server_id": "bohrium",
+                    "paper_id": "811",
+                },
                 "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811",
             },
         ]
@@ -831,6 +851,7 @@ class TestReasoningSearch:
                     "papers": {
                         "paper:811827932371615744": {
                             "doi": "10.1016/j.jpcs.2021.110374",
+                            "en_title": "FAPbI3 processing paper",
                             "id": "811827932371615744",
                         }
                     },
@@ -882,12 +903,21 @@ class TestReasoningSearch:
         assert item["content"] == "120 C is the optimal annealing window."
         assert item["source"]["paper_id"] == "811827932371615744"
         assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["paper_title"] == "FAPbI3 processing paper"
         assert item["source"]["has_factors"] is True
         assert item["source"]["can_compile"] is True
         assert item["actions"] == [
             {
                 "kind": "add",
                 "ref": "lkm:bohrium:paper:811827932371615744",
+                "label": 'Add paper "FAPbI3 processing paper"',
+                "target": {
+                    "kind": "paper",
+                    "title": "FAPbI3 processing paper",
+                    "doi": "10.1016/j.jpcs.2021.110374",
+                    "server_id": "bohrium",
+                    "paper_id": "811827932371615744",
+                },
                 "next_steps": ("gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"),
             }
         ]
@@ -1095,11 +1125,20 @@ class TestPackage:
         assert item["title"] == "Controlling phase and morphology"
         assert item["source"]["source_package"] == "paper:811827932371615744"
         assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["paper_title"] == "Controlling phase and morphology"
         assert item["source"]["stats"]["variables_total"] == 25
         assert item["actions"] == [
             {
                 "kind": "add",
                 "ref": "lkm:bohrium:paper:811827932371615744",
+                "label": 'Add paper "Controlling phase and morphology"',
+                "target": {
+                    "kind": "paper",
+                    "title": "Controlling phase and morphology",
+                    "doi": "10.1016/j.jpcs.2021.110374",
+                    "server_id": "bohrium",
+                    "paper_id": "811827932371615744",
+                },
                 "next_steps": ("gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"),
             }
         ]
@@ -1134,5 +1173,6 @@ class TestPackage:
         assert item["id"] == "lkm:bohrium:package:0"
         assert item["source"]["paper_id"] is None
         assert item["source"]["source_package"] is None
+        assert item["source"]["paper_title"] == "Unresolved paper candidate"
         assert item["source"]["server_id"] == "bohrium"
         assert item["actions"] == []
