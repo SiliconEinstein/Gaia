@@ -48,6 +48,20 @@ def test_add_with_version(mock_uv, mock_resolve):
     )
 
 
+@patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
+@patch("gaia.cli.commands.add._run_uv")
+def test_add_warns_when_lkm_index_is_unused_for_registry_package(mock_uv, mock_resolve):
+    del mock_resolve
+    mock_uv.return_value = MagicMock(returncode=0)
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "galileo-falling-bodies-gaia", "--lkm-index", "private_index"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "ignoring --lkm-index 'private-index'" in result.output
+    assert "resolves registry packages" in result.output
+
+
 @patch("gaia.cli.commands.add.resolve_package")
 def test_add_not_found(mock_resolve):
     mock_resolve.side_effect = GaiaPackagingError(
@@ -56,6 +70,67 @@ def test_add_not_found(mock_resolve):
     result = runner.invoke(app, ["pkg", "add", "no-such-gaia"])
     assert result.exit_code != 0
     assert "Not found" in result.output
+
+
+def test_add_accepts_lkm_paper_flags_as_source_ref():
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-server", "bohrium", "--lkm-paper", "811827932371615744"],
+    )
+    assert result.exit_code == 1
+    assert "lkm:bohrium:paper:811827932371615744" in result.output
+    assert "inside the package that should depend on this LKM paper" in result.output
+
+
+def test_add_accepts_lkm_index_paper_flags_as_source_ref():
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-paper", "811827932371615744"],
+    )
+    assert result.exit_code == 1
+    assert "lkm:bohrium:paper:811827932371615744" in result.output
+    assert "inside the package that should depend on this LKM paper" in result.output
+
+
+def test_add_accepts_canonical_lkm_paper_ref_as_source_ref():
+    result = runner.invoke(app, ["pkg", "add", "lkm:bohrium:paper:811827932371615744"])
+    assert result.exit_code == 1
+    assert "lkm:bohrium:paper:811827932371615744" in result.output
+    assert "inside the package that should depend on this LKM paper" in result.output
+
+
+def test_add_accepts_short_lkm_paper_ref_as_default_server_alias():
+    result = runner.invoke(app, ["pkg", "add", "lkm:paper:811827932371615744"])
+    assert result.exit_code == 1
+    assert "lkm:bohrium:paper:811827932371615744" in result.output
+
+
+def test_add_accepts_lkm_claim_flags_as_source_ref():
+    result = runner.invoke(app, ["pkg", "add", "--lkm-claim", "gcn_abc123"])
+    assert result.exit_code == 1
+    assert "lkm:bohrium:claim:gcn_abc123" in result.output
+    assert "gaia search lkm reasoning --index bohrium --claim-id gcn_abc123" in result.output
+
+
+def test_add_rejects_conflicting_lkm_inputs_before_registry_lookup():
+    result = runner.invoke(
+        app,
+        [
+            "pkg",
+            "add",
+            "galileo-falling-bodies-gaia",
+            "--lkm-paper",
+            "811827932371615744",
+        ],
+    )
+    assert result.exit_code == 4
+    assert "pass either PACKAGE or LKM flags" in result.output
+
+
+def test_add_rejects_malformed_lkm_ref():
+    result = runner.invoke(app, ["pkg", "add", "lkm:bohrium:dataset:123"])
+    assert result.exit_code == 4
+    assert "expected lkm:<index>:paper:<id>" in result.output
 
 
 # --- Issue 2: Canonicalize package name (add -gaia suffix) ---

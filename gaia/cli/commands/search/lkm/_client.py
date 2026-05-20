@@ -1,4 +1,4 @@
-"""HTTP client for the Bohrium LKM public search API.
+"""HTTP client for LKM search API indexes.
 
 Thin wrapper around ``httpx.Client`` that handles:
 
@@ -20,8 +20,9 @@ from typing import Any
 import httpx
 
 from gaia.cli._credentials import read_lkm_key
+from gaia.cli.commands.search.lkm._indexes import lkm_index_base_url
 
-BASE_URL = "https://open.bohrium.com/openapi/v1/lkm"
+BASE_URL = lkm_index_base_url("bohrium") or "https://open.bohrium.com/openapi/v1/lkm"
 
 
 class NoAccessKeyError(Exception):
@@ -45,7 +46,7 @@ class LKMError(Exception):
 class LKMClient:
     """Context manager wrapping ``httpx.Client`` with LKM-aware defaults."""
 
-    def __init__(self, access_key: str | None = None) -> None:
+    def __init__(self, access_key: str | None = None, base_url: str = BASE_URL) -> None:
         if access_key is None:
             access_key = read_lkm_key()
         if not access_key:
@@ -54,6 +55,7 @@ class LKMClient:
                 "or set GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY."
             )
         self._access_key = access_key
+        self._base_url = base_url.rstrip("/")
         self._client: httpx.Client | None = None
 
     def __enter__(self) -> LKMClient:
@@ -82,12 +84,12 @@ class LKMClient:
     ) -> dict[str, Any]:
         """Perform the call and return the parsed JSON response.
 
-        ``path`` is appended to :data:`BASE_URL`. Network / decoding errors
-        raise :class:`LKMTransportError`.
+        ``path`` is appended to the configured index base URL. Network /
+        decoding errors raise :class:`LKMTransportError`.
         """
         if self._client is None:
             raise RuntimeError("LKMClient must be used as a context manager.")
-        url = f"{BASE_URL}{path}"
+        url = f"{self._base_url}{path}"
         headers: dict[str, str] = {
             "accept": "*/*",
             "accessKey": self._access_key,

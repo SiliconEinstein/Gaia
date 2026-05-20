@@ -20,12 +20,14 @@ from gaia.cli.commands.search._results import (
     normalize_lkm_reasoning_search,
 )
 from gaia.cli.commands.search.lkm._shared import (
+    DEFAULT_LKM_INDEX_ID,
     MAX_KEYWORDS,
     MAX_LIMIT,
     MAX_OFFSET,
     MAX_PAPER_IDS,
     emit,
     run_request,
+    validate_lkm_index,
 )
 from gaia.cli.commands.search.lkm.knowledge import RetrievalMode
 
@@ -45,6 +47,10 @@ def reasoning_command(
         str | None,
         typer.Argument(help="Natural-language query for reasoning-chain search."),
     ] = None,
+    index: Annotated[
+        str,
+        typer.Option("--index", "--server", help="Configured LKM index id."),
+    ] = DEFAULT_LKM_INDEX_ID,
     claim_id: Annotated[
         str | None,
         typer.Option(
@@ -110,6 +116,7 @@ def reasoning_command(
     ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
     """Search reasoning chains, or fetch them for one claim with --claim-id."""
+    index_id = validate_lkm_index(index)
     if claim_id is None and query is not None and _looks_like_claim_id(query):
         claim_id = query
         query = None
@@ -138,10 +145,15 @@ def reasoning_command(
             claim_id=claim_id,
             max_chains=max_chains,
             sort_by=sort_by,
+            index_id=index_id,
         )
         payload = _normalize(payload)
         if output_format == SearchOutputFormat.GAIA_JSON:
-            payload = normalize_lkm_reasoning_search(payload, query=claim_id)
+            payload = normalize_lkm_reasoning_search(
+                payload,
+                query=claim_id,
+                index_id=index_id,
+            )
         emit(payload, out)
         return
 
@@ -160,9 +172,10 @@ def reasoning_command(
         paper_ids=paper_ids,
         offset=offset,
         limit=limit,
+        index_id=index_id,
     )
     if output_format == SearchOutputFormat.GAIA_JSON:
-        payload = normalize_lkm_reasoning_search(payload, query=query)
+        payload = normalize_lkm_reasoning_search(payload, query=query, index_id=index_id)
     emit(payload, out)
 
 
@@ -176,6 +189,7 @@ def _fetch_claim_reasoning(
     claim_id: str,
     max_chains: int,
     sort_by: SortBy,
+    index_id: str,
 ) -> dict[str, Any]:
     if not claim_id.strip():
         typer.echo("Error: claim id must be non-empty.", err=True)
@@ -192,6 +206,7 @@ def _fetch_claim_reasoning(
         "GET",
         f"/claims/{encoded}/reasoning",
         params={"max_chains": max_chains, "sort_by": sort_by.value},
+        index_id=index_id,
     )
 
 
@@ -203,6 +218,7 @@ def _search_reasoning(
     paper_ids: list[str] | None,
     offset: int,
     limit: int,
+    index_id: str,
 ) -> dict[str, Any]:
     if not query.strip():
         typer.echo("Error: query must be non-empty.", err=True)
@@ -252,7 +268,7 @@ def _search_reasoning(
     if paper_ids:
         body["filters"] = {"paper_ids": list(paper_ids)}
 
-    return run_request("POST", "/reasoning/search", json_body=body)
+    return run_request("POST", "/reasoning/search", json_body=body, index_id=index_id)
 
 
 def _normalize(payload: dict[str, Any]) -> dict[str, Any]:

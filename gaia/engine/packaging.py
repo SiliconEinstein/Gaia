@@ -20,6 +20,7 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import unquote, urlparse
 
 from packaging.requirements import InvalidRequirement, Requirement
 
@@ -243,6 +244,71 @@ def _source_root_for_package(pkg_path: Path, import_name: str, project_name: str
     )
 
 
+def _prepend_local_dependency_source_roots(config: dict[str, Any], pkg_path: Path) -> None:
+    """Expose local editable Gaia dependencies before importing the package."""
+    project_config = config.get("project", {})
+    if not isinstance(project_config, dict):
+        return
+    dependencies = project_config.get("dependencies", [])
+    if not isinstance(dependencies, list):
+        return
+    uv_sources = config.get("tool", {}).get("uv", {}).get("sources", {})
+    if not isinstance(uv_sources, dict):
+        uv_sources = {}
+
+    for raw in dependencies:
+        if not isinstance(raw, str):
+            continue
+        try:
+            requirement = Requirement(raw)
+        except InvalidRequirement:
+            continue
+        if not requirement.name.endswith("-gaia"):
+            continue
+        dependency_root = _local_dependency_root(
+            requirement,
+            uv_sources=uv_sources,
+            pkg_path=pkg_path,
+        )
+        if dependency_root is None:
+            continue
+        import_name = requirement.name.removesuffix("-gaia").replace("-", "_")
+        source_root = _local_dependency_source_root(dependency_root, import_name)
+        if source_root is None:
+            continue
+        source_root_str = str(source_root)
+        if source_root_str not in sys.path:
+            sys.path.insert(0, source_root_str)
+
+
+def _local_dependency_root(
+    requirement: Requirement,
+    *,
+    uv_sources: dict[str, Any],
+    pkg_path: Path,
+) -> Path | None:
+    if requirement.url:
+        parsed = urlparse(requirement.url)
+        if parsed.scheme == "file":
+            return Path(unquote(parsed.path)).resolve()
+    source = uv_sources.get(requirement.name)
+    if isinstance(source, dict):
+        raw_path = source.get("path")
+        if isinstance(raw_path, str) and raw_path:
+            path = Path(raw_path)
+            if not path.is_absolute():
+                path = pkg_path / path
+            return path.resolve()
+    return None
+
+
+def _local_dependency_source_root(root: Path, import_name: str) -> Path | None:
+    for candidate in (root, root / "src"):
+        if (candidate / import_name).exists():
+            return candidate
+    return None
+
+
 def _import_package_module(import_name: str) -> ModuleType:
     """Import a Gaia package module with CLI error wrapping."""
     try:
@@ -298,6 +364,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
 
     import_name = project_name.removesuffix("-gaia").replace("-", "_")
     reset_inferred_package(pyproject, module_name=import_name)
+    _prepend_local_dependency_source_roots(config, pkg_path)
     source_root = _source_root_for_package(pkg_path, import_name, project_name)
 
     source_root_str = str(source_root)

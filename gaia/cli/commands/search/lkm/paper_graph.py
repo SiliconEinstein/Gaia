@@ -15,7 +15,12 @@ from typing import Annotated, Any
 import typer
 
 from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_paper_graph
-from gaia.cli.commands.search.lkm._shared import emit, run_request
+from gaia.cli.commands.search.lkm._shared import (
+    DEFAULT_LKM_INDEX_ID,
+    emit,
+    run_request,
+    validate_lkm_index,
+)
 
 
 class PaperGraphInclude(StrEnum):
@@ -40,6 +45,10 @@ _TITLE_RESOLVE_CAP = 20
 
 
 def package_command(
+    index: Annotated[
+        str,
+        typer.Option("--index", "--server", help="Configured LKM index id."),
+    ] = DEFAULT_LKM_INDEX_ID,
     package_id: Annotated[
         str | None,
         typer.Option("--package-id", help="Identify by package id (form `paper:<digits>`)."),
@@ -95,6 +104,7 @@ def package_command(
     ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
     """Fetch an LKM paper package candidate (POST /papers/graph)."""
+    index_id = validate_lkm_index(index)
     identifiers = {
         "package_id": package_id,
         "paper_id": paper_id,
@@ -134,10 +144,14 @@ def package_command(
     if title is not None:
         body["title_resolve"] = {"limit": title_resolve_limit}
 
-    payload = run_request("POST", "/papers/graph", json_body=body)
+    payload = run_request("POST", "/papers/graph", json_body=body, index_id=index_id)
     if output_format == SearchOutputFormat.GAIA_JSON:
         query_text = next(iter(supplied.values()))
-        payload = normalize_lkm_paper_graph(payload, query=str(query_text))
+        payload = normalize_lkm_paper_graph(
+            payload,
+            query=str(query_text),
+            index_id=index_id,
+        )
     emit(payload, out)
 
 
