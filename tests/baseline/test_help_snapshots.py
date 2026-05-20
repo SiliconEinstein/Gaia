@@ -64,7 +64,7 @@ HELP_PATHS: list[tuple[str, ...]] = [
     # search group (lkm backend)
     ("search", "--help"),
     ("search", "lkm", "--help"),
-    ("search", "lkm", "claims", "--help"),
+    ("search", "lkm", "knowledge", "--help"),
     ("search", "lkm", "reasoning", "--help"),
     ("search", "lkm", "reasoning-search", "--help"),
     ("search", "lkm", "variables", "--help"),

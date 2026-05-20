@@ -18,8 +18,13 @@ class SearchOutputFormat(StrEnum):
     GAIA_JSON = "gaia-json"
 
 
-def normalize_lkm_claims(payload: dict[str, Any], *, query: str) -> dict[str, Any]:
-    """Normalize LKM claim/search variables into Gaia search results."""
+def normalize_lkm_knowledge(
+    payload: dict[str, Any],
+    *,
+    query: str,
+    kind: str = "knowledge",
+) -> dict[str, Any]:
+    """Normalize LKM /search variables into Gaia search results."""
     data = _dict(payload.get("data"))
     variables = _list(data.get("variables")) or _list(payload.get("variables"))
     papers = _papers(payload)
@@ -28,7 +33,7 @@ def normalize_lkm_claims(payload: dict[str, Any], *, query: str) -> dict[str, An
         for index, variable in enumerate(variables)
         if isinstance(variable, dict)
     ]
-    return _envelope(query=query, provider="lkm", kind="claim", results=results)
+    return _envelope(query=query, provider="lkm", kind=kind, results=results)
 
 
 def normalize_lkm_reasoning_search(payload: dict[str, Any], *, query: str) -> dict[str, Any]:
@@ -352,7 +357,7 @@ def _number(*values: Any) -> int | float | None:
 
 __all__ = [
     "SearchOutputFormat",
-    "normalize_lkm_claims",
+    "normalize_lkm_knowledge",
     "normalize_lkm_paper_graph",
     "normalize_lkm_reasoning_search",
 ]

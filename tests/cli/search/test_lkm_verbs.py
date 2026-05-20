@@ -92,14 +92,14 @@ def _install_constructor_error(monkeypatch: pytest.MonkeyPatch, raises: Exceptio
 
 
 # --------------------------------------------------------------------------- #
-# claims                                                                      #
+# knowledge                                                                   #
 # --------------------------------------------------------------------------- #
 
 
-class TestClaims:
+class TestKnowledge:
     def test_happy(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
-        result = runner.invoke(app, ["search", "lkm", "claims", "perovskite"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "perovskite"])
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
         assert body["query"] == "perovskite"
@@ -113,7 +113,7 @@ class TestClaims:
             [
                 "search",
                 "lkm",
-                "claims",
+                "knowledge",
                 "q",
                 "--scopes",
                 "claim",
@@ -145,32 +145,32 @@ class TestClaims:
 
     def test_business_error_exits_1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 290002, "msg": "bad params"})
-        result = runner.invoke(app, ["search", "lkm", "claims", "q"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
         assert result.exit_code == 1, result.output
         assert "290002" in result.output
 
     def test_transport_error_exits_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, raises=LKMTransportError("boom"))
-        result = runner.invoke(app, ["search", "lkm", "claims", "q"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
         assert result.exit_code == 2, result.output
 
     def test_no_key_exits_3(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, raises=NoAccessKeyError("no key"))
-        result = runner.invoke(app, ["search", "lkm", "claims", "q"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
         assert result.exit_code == 3, result.output
 
     def test_credential_permission_error_exits_2_without_traceback(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_constructor_error(monkeypatch, CredentialPermissionError("bad mode"))
-        result = runner.invoke(app, ["search", "lkm", "claims", "q"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
         assert result.exit_code == 2, result.output
         assert "bad mode" in result.output
         assert "Traceback" not in result.output
 
     def test_too_many_keywords_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
-        args = ["search", "lkm", "claims", "q"]
+        args = ["search", "lkm", "knowledge", "q"]
         for i in range(11):
             args += ["--keywords", f"k{i}"]
         result = runner.invoke(app, args)
@@ -180,7 +180,7 @@ class TestClaims:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "claims", "q", "--limit", "101"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q", "--limit", "101"])
         assert result.exit_code == 4, result.output
         assert _FakeClient.last_call == {}
 
@@ -188,7 +188,7 @@ class TestClaims:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "claims", "q", "--offset", "-1"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q", "--offset", "-1"])
         assert result.exit_code == 4, result.output
         assert _FakeClient.last_call == {}
 
@@ -197,7 +197,7 @@ class TestClaims:
             monkeypatch,
             response={"code": 290001, "error": {"msg": "context deadline exceeded"}},
         )
-        result = runner.invoke(app, ["search", "lkm", "claims", "q"])
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
         assert result.exit_code == 1, result.output
         assert "context deadline exceeded" in result.output
 
@@ -206,12 +206,20 @@ class TestClaims:
         dest = tmp_path / "nested" / "out.json"
         result = runner.invoke(
             app,
-            ["search", "lkm", "claims", "q", "--format", "raw-json", "--out", str(dest)],
+            ["search", "lkm", "knowledge", "q", "--format", "raw-json", "--out", str(dest)],
         )
         assert result.exit_code == 0, result.output
         assert json.loads(dest.read_text())["code"] == 0
 
-    def test_default_normalizes_claim_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_claims_alias_still_dispatches_to_search_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
+        result = runner.invoke(app, ["search", "lkm", "claims", "perovskite"])
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["path"] == "/search"
+
+    def test_default_normalizes_knowledge_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(
             monkeypatch,
             response={
@@ -250,13 +258,13 @@ class TestClaims:
 
         result = runner.invoke(
             app,
-            ["search", "lkm", "claims", "FAPbI3"],
+            ["search", "lkm", "knowledge", "FAPbI3"],
         )
 
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["schema_version"] == 1
-        assert out["query"] == {"text": "FAPbI3", "provider": "lkm", "kind": "claim"}
+        assert out["query"] == {"text": "FAPbI3", "provider": "lkm", "kind": "knowledge"}
         item = out["results"][0]
         assert item["id"] == "lkm:gcn_579430355a0e4bbd"
         assert item["kind"] == "claim"
@@ -299,7 +307,7 @@ class TestClaims:
 
         result = runner.invoke(
             app,
-            ["search", "lkm", "claims", "standalone"],
+            ["search", "lkm", "knowledge", "standalone"],
         )
 
         assert result.exit_code == 0, result.output
@@ -334,7 +342,7 @@ class TestClaims:
             [
                 "search",
                 "lkm",
-                "claims",
+                "knowledge",
                 "phase conversion",
                 "--scopes",
                 "action",
@@ -345,8 +353,33 @@ class TestClaims:
 
         assert result.exit_code == 0, result.output
         item = json.loads(result.output)["results"][0]
+        assert json.loads(result.output)["query"]["kind"] == "derive"
         assert item["kind"] == "derive"
         assert item["gaia"]["object_kind"] == "derive"
+
+    def test_single_question_scope_dispatches_query_kind_to_question(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch, response={"code": 0, "data": {"variables": []}})
+
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "open problem",
+                "--scopes",
+                "question",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["query"] == {
+            "text": "open problem",
+            "provider": "lkm",
+            "kind": "question",
+        }
 
     def test_gaia_json_maps_unknown_variable_types_to_note(
         self, monkeypatch: pytest.MonkeyPatch
@@ -370,7 +403,7 @@ class TestClaims:
 
         result = runner.invoke(
             app,
-            ["search", "lkm", "claims", "context", "--format", "gaia-json"],
+            ["search", "lkm", "knowledge", "context", "--format", "gaia-json"],
         )
 
         assert result.exit_code == 0, result.output

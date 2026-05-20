@@ -1,7 +1,7 @@
 """``gaia search lkm reasoning-search`` — POST /reasoning/search.
 
 Recall at the *reasoning-chain* granularity (vs single-node recall in
-``claims``). The body uses the plural ``filters.paper_ids`` array per the
+``knowledge``). The body uses the plural ``filters.paper_ids`` array per the
 apifox spec.
 """
 
@@ -24,7 +24,7 @@ from gaia.cli.commands.search.lkm._shared import (
     emit,
     run_request,
 )
-from gaia.cli.commands.search.lkm.claims import RetrievalMode
+from gaia.cli.commands.search.lkm.knowledge import RetrievalMode
 
 
 def reasoning_search_command(

@@ -10,7 +10,11 @@ from __future__ import annotations
 import typer
 
 from gaia.cli.commands.search.lkm.auth import auth_app
-from gaia.cli.commands.search.lkm.claims import _CLAIMS_EPILOG, claims_command
+from gaia.cli.commands.search.lkm.knowledge import (
+    _KNOWLEDGE_EPILOG,
+    claims_command,
+    knowledge_command,
+)
 from gaia.cli.commands.search.lkm.paper_graph import paper_graph_command
 from gaia.cli.commands.search.lkm.reasoning import reasoning_command
 from gaia.cli.commands.search.lkm.reasoning_search import reasoning_search_command
@@ -18,7 +22,7 @@ from gaia.cli.commands.search.lkm.variables import variables_command
 
 _LKM_EPILOG = (
     "Endpoints (all under https://open.bohrium.com/openapi/v1/lkm):\n\n"
-    "  claims           POST /search             — recall claim / question nodes\n"
+    "  knowledge        POST /search             — recall knowledge nodes\n"
     "  reasoning        GET  /claims/{id}/reasoning — chains backing one claim\n"
     "  reasoning-search POST /reasoning/search   — recall whole reasoning chains\n"
     "  variables        POST /variables/batch    — hydrate variable detail by id\n"
@@ -27,7 +31,7 @@ _LKM_EPILOG = (
     "`gaia search lkm auth login` to set one up (or set "
     "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
     "Exit codes: 0 ok / 1 business error / 2 transport / 3 no key / 4 bad args.\n\n"
-    "Note: the `score` field returned by `claims` / `reasoning-search` is a "
+    "Note: the `score` field returned by `knowledge` / `reasoning-search` is a "
     "retrieval ranking signal, not a probability — do not pass it to Gaia priors."
 )
 
@@ -39,7 +43,8 @@ lkm_app = typer.Typer(
 )
 
 lkm_app.add_typer(auth_app, name="auth")
-lkm_app.command(name="claims", epilog=_CLAIMS_EPILOG)(claims_command)
+lkm_app.command(name="knowledge", epilog=_KNOWLEDGE_EPILOG)(knowledge_command)
+lkm_app.command(name="claims", epilog=_KNOWLEDGE_EPILOG, hidden=True)(claims_command)
 lkm_app.command(name="reasoning")(reasoning_command)
 lkm_app.command(name="reasoning-search")(reasoning_search_command)
 lkm_app.command(name="variables")(variables_command)

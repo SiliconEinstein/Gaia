@@ -1,4 +1,4 @@
-"""``gaia search lkm claims`` — POST /search.
+"""``gaia search lkm knowledge`` — POST /search.
 
 Cross-node retrieval over claim / question / setting / action nodes. The
 returned ``score`` is a retrieval ranking signal, not a probability — see
@@ -13,7 +13,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_claims
+from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_knowledge
 from gaia.cli.commands.search.lkm._shared import (
     MAX_KEYWORDS,
     MAX_LIMIT,
@@ -40,7 +40,7 @@ class RetrievalMode(StrEnum):
     HYBRID = "hybrid"
 
 
-_CLAIMS_EPILOG = (
+_KNOWLEDGE_EPILOG = (
     "Retrieval modes:\n\n"
     "  semantic  meaning-similarity recall (different wording, same idea)\n"
     "  lexical   keyword literal recall (must contain a specific term)\n"
@@ -51,7 +51,7 @@ _CLAIMS_EPILOG = (
 )
 
 
-def claims_command(
+def knowledge_command(
     query: Annotated[str, typer.Argument(help="Natural-language search query.")],
     scopes: Annotated[
         list[ScopeChoice] | None,
@@ -108,7 +108,7 @@ def claims_command(
         ),
     ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
-    """Search claim / question nodes (POST /search)."""
+    """Search LKM knowledge nodes (POST /search)."""
     if keywords and len(keywords) > MAX_KEYWORDS:
         typer.echo(
             f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
@@ -147,5 +147,20 @@ def claims_command(
 
     payload = run_request("POST", "/search", json_body=body)
     if output_format == SearchOutputFormat.GAIA_JSON:
-        payload = normalize_lkm_claims(payload, query=query)
+        payload = normalize_lkm_knowledge(payload, query=query, kind=_query_kind(scopes))
     emit(payload, out)
+
+
+def _query_kind(scopes: list[ScopeChoice] | None) -> str:
+    """Return the Gaia query kind represented by the requested LKM scopes."""
+    if scopes is None or len(scopes) != 1:
+        return "knowledge"
+    return {
+        ScopeChoice.CLAIM: "claim",
+        ScopeChoice.QUESTION: "question",
+        ScopeChoice.SETTING: "note",
+        ScopeChoice.ACTION: "derive",
+    }[scopes[0]]
+
+
+claims_command = knowledge_command

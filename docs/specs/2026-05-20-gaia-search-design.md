@@ -42,7 +42,7 @@ local providers.
 ### Phase 0: Current PR
 
 ```text
-gaia search lkm claims ...
+gaia search lkm knowledge ...
 gaia search lkm reasoning ...
 gaia search lkm reasoning-search ...
 gaia search lkm variables ...
@@ -59,7 +59,7 @@ available so agent workflows can debug the upstream service directly.
 Provider commands should return normalized Gaia output by default:
 
 ```text
-gaia search lkm claims "FAPbI3"
+gaia search lkm knowledge "FAPbI3"
 gaia search lkm paper-graph --paper-id 811827932371615744
 ```
 
@@ -95,7 +95,7 @@ Every Gaia-native search command should return:
   "query": {
     "text": "FAPbI3",
     "provider": "lkm",
-    "kind": "claim"
+    "kind": "knowledge"
   },
   "results": [
     {
@@ -306,7 +306,7 @@ from these artifacts and invalidated by `ir_hash`.
 - Add `gaia.cli.commands.search._results` with typed result builders.
 - Add `--format raw-json|gaia-json` to LKM verbs.
 - Make `gaia-json` the default output for search-oriented LKM verbs.
-- Normalize `claims`, `reasoning-search`, and `paper-graph` first.
+- Normalize `knowledge`, `reasoning-search`, and `paper-graph` first.
 - Preserve raw payloads during alpha.
 
 ### Phase 2: Local package provider

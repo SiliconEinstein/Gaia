@@ -3,7 +3,7 @@
 Search retrieval providers for Gaia authoring.
 
 ```text
-gaia search lkm claims <query>              Search LKM claim / question nodes
+gaia search lkm knowledge <query>           Search LKM knowledge nodes
 gaia search lkm reasoning <claim-id>        Fetch reasoning chains for one claim
 gaia search lkm reasoning-search <query>    Search LKM reasoning chains
 gaia search lkm variables <ids...>          Hydrate LKM variables by id
@@ -15,7 +15,7 @@ The current implementation is an LKM provider adapter. Search-oriented LKM
 verbs return Gaia-normalized JSON by default and write pretty JSON to stdout or
 to `--out PATH`.
 
-Use `--format raw-json` on `claims`, `reasoning-search`, or `paper-graph` to
+Use `--format raw-json` on `knowledge`, `reasoning-search`, or `paper-graph` to
 inspect the upstream LKM JSON envelope directly.
 
 ## Design Contract
