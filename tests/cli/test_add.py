@@ -58,6 +58,58 @@ def test_add_not_found(mock_resolve):
     assert "Not found" in result.output
 
 
+def test_add_accepts_lkm_paper_flags_as_source_ref():
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-server", "bohrium", "--lkm-paper", "811827932371615744"],
+    )
+    assert result.exit_code == 1
+    assert "lkm:bohrium:paper:811827932371615744" in result.output
+    assert "materialized Gaia package" in result.output
+    assert "gaia search lkm package --server bohrium --paper-id 811827932371615744" in result.output
+
+
+def test_add_accepts_canonical_lkm_paper_ref_as_source_ref():
+    result = runner.invoke(app, ["pkg", "add", "lkm:bohrium:paper:811827932371615744"])
+    assert result.exit_code == 1
+    assert "lkm:bohrium:paper:811827932371615744" in result.output
+    assert "materialized Gaia package" in result.output
+
+
+def test_add_accepts_short_lkm_paper_ref_as_default_server_alias():
+    result = runner.invoke(app, ["pkg", "add", "lkm:paper:811827932371615744"])
+    assert result.exit_code == 1
+    assert "lkm:bohrium:paper:811827932371615744" in result.output
+
+
+def test_add_accepts_lkm_claim_flags_as_source_ref():
+    result = runner.invoke(app, ["pkg", "add", "--lkm-claim", "gcn_abc123"])
+    assert result.exit_code == 1
+    assert "lkm:bohrium:claim:gcn_abc123" in result.output
+    assert "gaia search lkm reasoning --server bohrium --claim-id gcn_abc123" in result.output
+
+
+def test_add_rejects_conflicting_lkm_inputs_before_registry_lookup():
+    result = runner.invoke(
+        app,
+        [
+            "pkg",
+            "add",
+            "galileo-falling-bodies-gaia",
+            "--lkm-paper",
+            "811827932371615744",
+        ],
+    )
+    assert result.exit_code == 4
+    assert "pass either PACKAGE or LKM flags" in result.output
+
+
+def test_add_rejects_malformed_lkm_ref():
+    result = runner.invoke(app, ["pkg", "add", "lkm:bohrium:dataset:123"])
+    assert result.exit_code == 4
+    assert "expected lkm:<server>:paper:<id>" in result.output
+
+
 # --- Issue 2: Canonicalize package name (add -gaia suffix) ---
 
 

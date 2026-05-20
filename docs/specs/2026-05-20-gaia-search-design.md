@@ -294,15 +294,22 @@ Resolution rules:
 
 1. Registry package names keep the current behavior: resolve registry metadata,
    run `uv add`, and optionally cache `beliefs.json`.
-2. `lkm:<server_id>:paper:<paper_id>` first checks whether the official registry
-   already has a materialized Gaia package for that server-scoped paper.
-3. If a registry package exists, `pkg add` installs that package.
-4. If no registry package exists, `pkg add` should fail with an actionable
-   message by default. A future explicit flag, such as `--materialize-local`,
-   may materialize a local `*-gaia` package from the LKM paper graph, run
-   `gaia build compile`, and add it as an editable/path dependency.
-5. `lkm:<server_id>:claim:<claim_id>` resolves the claim on that LKM server to
-   its backing paper package, then follows the `lkm:<server_id>:paper` path.
+2. `lkm:<server_id>:paper:<paper_id>` is parsed and validated as a
+   server-scoped source identity before registry lookup. The current command
+   fails clearly because no registry source-ref index exists yet; it points the
+   user back to `gaia search lkm package --server ... --paper-id ...` for
+   inspection.
+3. Once the official registry exposes a source-ref index, the same input should
+   resolve to the materialized Gaia package and install it.
+4. If no registry package exists, `pkg add` should continue to fail with an
+   actionable message by default. A future explicit flag, such as
+   `--materialize-local`, may materialize a local `*-gaia` package from the LKM
+   paper graph, run `gaia build compile`, and add it as an editable/path
+   dependency.
+5. `lkm:<server_id>:claim:<claim_id>` is accepted as a source identity, but
+   `pkg add` installs paper-level packages, not standalone claim nodes. Until a
+   registry source-ref index can resolve the claim to its backing paper package,
+   the command points the user to `gaia search lkm reasoning --claim-id ...`.
 
 The important boundary is that search returns:
 
@@ -388,9 +395,11 @@ from these artifacts and invalidated by `ir_hash`.
 
 - Extend `gaia pkg add` to accept `lkm:<server_id>:paper:<id>` and
   `lkm:<server_id>:claim:<id>`, plus short default-server aliases if needed.
+- Validate friendly `--lkm-server ... --lkm-paper ...` / `--lkm-claim ...`
+  forms before registry package lookup.
 - Prefer registry materializations when available.
-- Without an explicit local materialization flag, fail clearly when no registry
-  package exists.
+- Until the registry exposes source-ref lookup, fail clearly with an inspection
+  command instead of treating LKM refs as ordinary package names.
 - Materialize local editable packages only when the user explicitly chooses that
   path.
 

@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import typer
 
 from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_package
+from gaia.cli.commands.search.lkm._servers import (
+    DEFAULT_LKM_SERVER_ID,
+    known_lkm_server_ids,
+    lkm_server_base_url,
+    normalize_lkm_server_id,
+)
 from gaia.engine.packaging import GaiaPackagingError
 
 
@@ -23,9 +30,29 @@ def _run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
 
 
 def add_command(
-    package: str = typer.Argument(help="Package name (e.g., galileo-falling-bodies-gaia)"),
+    package: str | None = typer.Argument(
+        None,
+        help=(
+            "Package name (e.g., galileo-falling-bodies-gaia) or LKM ref (lkm:<server>:paper:<id>)."
+        ),
+    ),
     version: str | None = typer.Option(None, "--version", "-v", help="Specific version"),
     registry: str = typer.Option(DEFAULT_REGISTRY, "--registry", help="Registry GitHub repo"),
+    lkm_server: str = typer.Option(
+        DEFAULT_LKM_SERVER_ID,
+        "--lkm-server",
+        help="Configured LKM server id for --lkm-paper / --lkm-claim.",
+    ),
+    lkm_paper: str | None = typer.Option(
+        None,
+        "--lkm-paper",
+        help="Add the Gaia package materialized from this LKM paper id, when registered.",
+    ),
+    lkm_claim: str | None = typer.Option(
+        None,
+        "--lkm-claim",
+        help="Add the Gaia package backing this LKM claim id, when registered.",
+    ),
 ) -> None:
     """Install a registered Gaia knowledge package.
 
@@ -46,7 +73,26 @@ def add_command(
 
         gaia pkg add galileo-falling-bodies-gaia
         gaia pkg add mendel-v0-5-gaia --version 0.1.0
+        gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744
+        gaia pkg add lkm:bohrium:paper:811827932371615744
     """
+    try:
+        lkm_ref = _resolve_lkm_source_ref(
+            package,
+            lkm_server=lkm_server,
+            lkm_paper=lkm_paper,
+            lkm_claim=lkm_claim,
+        )
+    except GaiaPackagingError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(4) from exc
+    if lkm_ref is not None:
+        _handle_lkm_source_add(lkm_ref)
+        return
+    if package is None:
+        typer.echo("Error: pass PACKAGE or an LKM source flag.", err=True)
+        raise typer.Exit(4)
+
     try:
         resolved = resolve_package(package, version=version, registry=registry)
     except GaiaPackagingError as exc:
@@ -77,6 +123,99 @@ def add_command(
         version=resolved.version,
         registry=registry,
     )
+
+
+@dataclass(frozen=True)
+class LKMSourceRef:
+    """Stable source identity for an LKM-backed package candidate."""
+
+    server_id: str
+    kind: str
+    provider_id: str
+
+    @property
+    def ref(self) -> str:
+        """Return the canonical LKM source ref."""
+        return f"lkm:{self.server_id}:{self.kind}:{self.provider_id}"
+
+
+def _resolve_lkm_source_ref(
+    package: str | None,
+    *,
+    lkm_server: str,
+    lkm_paper: str | None,
+    lkm_claim: str | None,
+) -> LKMSourceRef | None:
+    lkm_flag_count = sum(value is not None for value in (lkm_paper, lkm_claim))
+    package_is_lkm_ref = bool(package and package.startswith("lkm:"))
+    if package_is_lkm_ref and lkm_flag_count:
+        raise GaiaPackagingError("pass either an LKM ref or LKM flags, not both.")
+    if package is not None and not package_is_lkm_ref and lkm_flag_count:
+        raise GaiaPackagingError("pass either PACKAGE or LKM flags, not both.")
+    if lkm_flag_count > 1:
+        raise GaiaPackagingError("pass at most one of --lkm-paper / --lkm-claim.")
+    if package_is_lkm_ref:
+        assert package is not None
+        return _parse_lkm_ref(package)
+    if lkm_paper is not None:
+        return _make_lkm_ref(lkm_server, "paper", lkm_paper)
+    if lkm_claim is not None:
+        return _make_lkm_ref(lkm_server, "claim", lkm_claim)
+    return None
+
+
+def _parse_lkm_ref(raw: str) -> LKMSourceRef:
+    parts = raw.split(":")
+    if len(parts) == 3 and parts[1] in {"paper", "claim"}:
+        return _make_lkm_ref(DEFAULT_LKM_SERVER_ID, parts[1], parts[2])
+    if len(parts) == 4 and parts[2] in {"paper", "claim"}:
+        return _make_lkm_ref(parts[1], parts[2], parts[3])
+    raise GaiaPackagingError(
+        "malformed LKM ref; expected lkm:<server>:paper:<id>, "
+        "lkm:<server>:claim:<id>, lkm:paper:<id>, or lkm:claim:<id>."
+    )
+
+
+def _make_lkm_ref(server_id: str, kind: str, provider_id: str) -> LKMSourceRef:
+    normalized_server = normalize_lkm_server_id(server_id)
+    if not normalized_server:
+        raise GaiaPackagingError("--lkm-server must be non-empty.")
+    if lkm_server_base_url(normalized_server) is None:
+        known = ", ".join(known_lkm_server_ids())
+        raise GaiaPackagingError(f"unknown LKM server {server_id!r}. Configured servers: {known}.")
+    normalized_provider_id = provider_id.strip()
+    if not normalized_provider_id:
+        raise GaiaPackagingError(f"LKM {kind} id must be non-empty.")
+    return LKMSourceRef(
+        server_id=normalized_server,
+        kind=kind,
+        provider_id=normalized_provider_id,
+    )
+
+
+def _handle_lkm_source_add(ref: LKMSourceRef) -> None:
+    if ref.kind == "paper":
+        typer.echo(
+            f"LKM paper source recognized: {ref.ref}\n"
+            "`gaia pkg add` can only install a materialized Gaia package from "
+            "the registry today; this LKM source is not yet mapped to one.\n"
+            "Inspect the candidate package first:\n"
+            f"  gaia search lkm package --server {ref.server_id} --paper-id {ref.provider_id}\n"
+            "Once a registry package is published for this source, add that "
+            "Gaia package by name or re-run this LKM ref command.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    typer.echo(
+        f"LKM claim source recognized: {ref.ref}\n"
+        "`gaia pkg add` installs paper-level Gaia packages, not standalone "
+        "claim nodes. Resolve this claim to its backing paper first:\n"
+        f"  gaia search lkm reasoning --server {ref.server_id} --claim-id {ref.provider_id}\n"
+        "Then add the paper package from the returned action.",
+        err=True,
+    )
+    raise typer.Exit(1)
 
 
 def _find_gaia_package_root() -> Path | None:
