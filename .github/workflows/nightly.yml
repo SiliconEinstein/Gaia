@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      # Single-entry matrix per R1 dispatch lock (Python 3.12 only).
-      # Kept as a matrix so future channel expansion (e.g. 3.13) is a
-      # one-line edit rather than a workflow restructure.
+      # Single-entry matrix (Python 3.12 only). Kept as a matrix so future
+      # version expansion (e.g. 3.13) is a one-line edit rather than a
+      # workflow restructure.
       matrix:
         python-version: ["3.12"]
 
@@ -50,7 +50,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
-      # Spec §3 mandates Nightly version form `0.5.0.dev<YYYYMMDD>` (PEP 440
+      # Nightly artifacts use the version form `0.5.0.dev<YYYYMMDD>` (PEP 440
       # dev tag). Without this bump the daily wheel filename collides at
       # `gaia_lang-0.5.0-*.whl` and nightlies are indistinguishable. The sed
       # is pinned to the literal current dev version ('0.5.0'); the grep
@@ -75,8 +75,8 @@ jobs:
       - name: Type check
         run: uv run mypy
 
-      # Spec §6 mandates `gaia --version` from nightly artifacts must report
-      # channel=nightly and commit=<sha>. gaia/_meta.py reads these via
+      # `gaia --version` from nightly artifacts reports channel=nightly and
+      # commit=<sha>. gaia/_meta.py reads these via
       # `from gaia._build_info import CHANNEL, COMMIT` with 'dev'/'unknown'
       # fallback when the file is absent (dev checkouts). Mirrors the
       # release composite action's build_info pattern.
@@ -99,12 +99,11 @@ jobs:
         run: uv run python scripts/check_suppression_budget.py
 
       # `make test-all` runs `pytest` with no marker filter, covering both
-      # the fast and slow slices in a single invocation. This is spec-faithful
-      # (§4 Nightly CI lists test-all + test-slow, but test-slow is a strict
-      # subset of test-all per Makefile semantics, so running both would
-      # double-run the slow suite). pytest addopts in pyproject.toml already
-      # gather coverage; nightly does not upload to Codecov (PR CI owns the
-      # patch-coverage signal).
+      # the fast and slow slices in a single invocation. (test-slow is a
+      # strict subset of test-all per Makefile semantics, so running both
+      # would double-run the slow suite.) pytest addopts in pyproject.toml
+      # already gather coverage; nightly does not upload to Codecov (PR CI
+      # owns the patch-coverage signal).
       - name: Run all tests
         run: make test-all
 
@@ -112,17 +111,16 @@ jobs:
         run: uv run --extra docs mkdocs build --strict
 
       # Builds the wheel under dist/, installs into a fresh venv, and smokes
-      # `gaia --help` + the seven L2 engine facade imports. Stage 2 composite
-      # action; do not duplicate `uv build` here.
+      # `gaia --help` + the seven L2 engine facade imports. Composite action;
+      # do not duplicate `uv build` here.
       - name: Wheel smoke
         uses: ./.github/actions/wheel-smoke
 
-      # Stage 3 corpus runner. Step id is referenced by the artifact-upload
-      # condition below: a red corpus must block artifact upload per R1
-      # dispatch lock ("package-corpus failures block nightly artifact
-      # upload"). The alpha corpus exercises compile/check/infer/render
-      # workflow compatibility; ReviewManifest acceptance remains a separate
-      # local quality-gate preview, not a release-corpus requirement.
+      # Corpus runner. Step id is referenced by the artifact-upload condition
+      # below: a red corpus blocks artifact upload. The corpus exercises
+      # compile/check/infer/render workflow compatibility; ReviewManifest
+      # acceptance remains a separate local quality-gate preview, not a
+      # corpus requirement.
       - name: Package corpus e2e
         id: corpus
         run: uv run python scripts/run_package_corpus.py
@@ -134,10 +132,10 @@ jobs:
         if: steps.corpus.outcome == 'success'
         run: uv build --sdist
 
-      # Artifact target is GHA artifact only per R2 dispatch lock (PyPI /
-      # GitHub pre-release publishing belongs in Stage 6 release workflows).
-      # Conditioned on corpus success so a compatibility-red build never
-      # produces a downloadable artifact.
+      # Artifact target is the GitHub Actions artifact only (PyPI / GitHub
+      # pre-release publishing belongs in the release workflows). Conditioned
+      # on corpus success so a compatibility-red build never produces a
+      # downloadable artifact.
       - name: Upload nightly artifact
         if: steps.corpus.outcome == 'success'
         uses: actions/upload-artifact@v4
