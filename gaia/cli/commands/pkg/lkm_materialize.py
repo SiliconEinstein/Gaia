@@ -154,8 +154,23 @@ def _select_paper_item(payload: dict[str, Any], *, paper_id: str) -> dict[str, A
         raise GaiaPackagingError("LKM paper graph response did not include any paper candidates.")
     for item in candidates:
         metadata = _paper_metadata(item)
-        if _paper_id(metadata) == paper_id:
+        candidate_id = _paper_id(metadata)
+        if candidate_id == paper_id:
             return item
+    returned_ids: list[str] = []
+    for item in candidates:
+        candidate_id = _paper_id(_paper_metadata(item))
+        if candidate_id and candidate_id not in returned_ids:
+            returned_ids.append(candidate_id)
+    returned_ids.sort()
+    if returned_ids:
+        preview = ", ".join(returned_ids[:5])
+        if len(returned_ids) > 5:
+            preview = f"{preview}, ..."
+        raise GaiaPackagingError(
+            "LKM paper graph response did not include requested paper id "
+            f"{paper_id!r}; returned paper ids: {preview}."
+        )
     return candidates[0]
 
 

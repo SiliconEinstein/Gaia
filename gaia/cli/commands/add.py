@@ -11,7 +11,10 @@ from typing import Any
 import typer
 
 from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_package
-from gaia.cli.commands.pkg.lkm_materialize import materialize_lkm_paper_package
+from gaia.cli.commands.pkg.lkm_materialize import (
+    MaterializedLKMPackage,
+    materialize_lkm_paper_package,
+)
 from gaia.cli.commands.search.lkm._indexes import (
     DEFAULT_LKM_INDEX_ID,
     known_lkm_index_ids,
@@ -250,11 +253,11 @@ def _handle_lkm_paper_add(ref: LKMSourceRef) -> None:
     try:
         result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
     except GaiaPackagingError as exc:
-        typer.echo(str(exc), err=True)
+        _echo_lkm_uv_add_failure(materialized, str(exc))
         raise typer.Exit(1) from exc
     if result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip()
-        typer.echo(f"Error: uv add failed: {stderr}", err=True)
+        _echo_lkm_uv_add_failure(materialized, stderr or "uv exited with a non-zero status")
         raise typer.Exit(1)
 
     typer.echo(f"Materialized {materialized.source_ref}")
@@ -277,6 +280,21 @@ def _handle_lkm_paper_add(ref: LKMSourceRef) -> None:
         typer.echo(
             f"Import hint: from {materialized.import_name} import {materialized.exported_symbol}"
         )
+
+
+def _echo_lkm_uv_add_failure(materialized: MaterializedLKMPackage, details: str) -> None:
+    typer.echo(
+        f"Error: uv add failed after materializing {materialized.source_ref}: {details}",
+        err=True,
+    )
+    typer.echo(
+        f"Generated package left at: {materialized.root}",
+        err=True,
+    )
+    typer.echo(
+        "Fix the uv error and rerun the same `gaia pkg add` command to retry installation.",
+        err=True,
+    )
 
 
 def _find_gaia_package_root() -> Path | None:

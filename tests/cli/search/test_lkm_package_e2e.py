@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 
 from gaia.cli.commands.pkg.lkm_materialize import materialize_lkm_paper_package
 from gaia.cli.main import app
+from gaia.engine.packaging import GaiaPackagingError
 
 pytestmark = pytest.mark.pr_gate
 
@@ -90,8 +91,14 @@ def _write_consumer_package(
     dependency: str,
     import_name: str,
     symbol: str,
+    uv_source_path: Path | None = None,
 ) -> None:
     root.mkdir()
+    uv_sources = ""
+    if uv_source_path is not None:
+        uv_sources = (
+            f'\n[tool.uv.sources]\n"{dependency}" = {{ path = "{uv_source_path.as_posix()}" }}\n'
+        )
     (root / "pyproject.toml").write_text(
         "[project]\n"
         'name = "lkm-consumer-gaia"\n'
@@ -99,7 +106,8 @@ def _write_consumer_package(
         f'dependencies = ["{dependency}"]\n\n'
         "[tool.gaia]\n"
         'namespace = "github"\n'
-        'type = "knowledge-package"\n',
+        'type = "knowledge-package"\n'
+        f"{uv_sources}",
         encoding="utf-8",
     )
     src = root / "lkm_consumer"
@@ -154,6 +162,50 @@ def test_materialized_lkm_package_can_be_imported_and_referenced(tmp_path: Path)
     qids = {item["id"] for item in ir["knowledges"]}
     assert "referenced_lkm_claim" in labels
     assert any(qid.startswith(f"lkm:{materialized.import_name}::") for qid in qids)
+
+
+def test_materialized_lkm_package_can_be_imported_from_uv_sources(
+    tmp_path: Path,
+) -> None:
+    materialized = materialize_lkm_paper_package(
+        _paper_graph_payload(),
+        project_root=tmp_path,
+        index_id="bohrium",
+        paper_id="811827932371615744",
+    )
+    assert materialized.exported_symbol is not None
+
+    consumer = tmp_path / "consumer"
+    _write_consumer_package(
+        consumer,
+        dependency=materialized.dist_name,
+        import_name=materialized.import_name,
+        symbol=materialized.exported_symbol,
+        uv_source_path=Path("..") / ".gaia" / "lkm_packages" / materialized.dist_name,
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(consumer)])
+    assert result.exit_code == 0, result.output
+
+    ir = json.loads((consumer / ".gaia" / "ir.json").read_text())
+    assert any(
+        item["id"].startswith(f"lkm:{materialized.import_name}::") for item in ir["knowledges"]
+    )
+
+
+def test_materialize_lkm_paper_rejects_mismatched_paper_id(tmp_path: Path) -> None:
+    payload = _paper_graph_payload()
+    paper = payload["data"]["papers"][0]["paper"]
+    paper["id"] = "999"
+    paper["package_id"] = "paper:999"
+
+    with pytest.raises(GaiaPackagingError, match="requested paper id"):
+        materialize_lkm_paper_package(
+            payload,
+            project_root=tmp_path,
+            index_id="bohrium",
+            paper_id="811827932371615744",
+        )
 
 
 def test_pkg_add_lkm_paper_materializes_and_adds_editable_dependency(
@@ -225,3 +277,55 @@ def test_pkg_add_lkm_paper_materializes_and_adds_editable_dependency(
     materialized_root = Path(uv_args[3])
     assert materialized_root.exists()
     assert (materialized_root / ".gaia" / "manifests" / "premises.json").exists()
+
+
+def test_pkg_add_lkm_paper_reports_materialized_path_when_uv_add_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    (consumer / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "lkm-consumer-gaia"\n'
+        'version = "0.1.0"\n'
+        "dependencies = []\n\n"
+        "[tool.gaia]\n"
+        'namespace = "github"\n'
+        'type = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        del method, path, json_body, index_id
+        return _paper_graph_payload()
+
+    def fake_run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        return subprocess.CompletedProcess(args, 1, "", "resolver exploded")
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.setattr(add_mod, "_run_uv", fake_run_uv)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-paper", "811827932371615744"],
+    )
+
+    assert result.exit_code == 1
+    assert "uv add failed after materializing lkm:bohrium:paper:811827932371615744" in (
+        result.output
+    )
+    assert "Generated package left at:" in result.output
+    assert "resolver exploded" in result.output
+    assert any((consumer / ".gaia" / "lkm_packages").iterdir())
