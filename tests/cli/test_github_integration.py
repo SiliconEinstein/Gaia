@@ -247,6 +247,130 @@ def test_wiki_inference_page_when_beliefs(tmp_path: Path):
     assert (output_dir / "wiki" / "Inference-Results.md").exists()
 
 
+def test_github_output_streams_graph_json_and_wiki_pages(tmp_path: Path, monkeypatch):
+    """GitHub output should avoid graph.json and all-wiki full materialization."""
+    ir = {
+        "package_name": "stream_pkg",
+        "namespace": "github",
+        "knowledges": [
+            {
+                "id": "github:stream_pkg::a",
+                "label": "a",
+                "type": "claim",
+                "content": "A.",
+                "module": "m",
+            },
+        ],
+        "strategies": [],
+        "operators": [],
+    }
+    pkg_path = tmp_path / "pkg"
+    pkg_path.mkdir()
+
+    import gaia.cli.commands._graph_json as graph_json_mod
+    import gaia.cli.commands._wiki as wiki_mod
+
+    def fail_generate_graph_json(*_args, **_kwargs):
+        raise AssertionError("generate_github_output should stream graph.json to disk")
+
+    def fail_generate_all_wiki(*_args, **_kwargs):
+        raise AssertionError("generate_github_output should write wiki pages one by one")
+
+    monkeypatch.setattr(graph_json_mod, "generate_graph_json", fail_generate_graph_json)
+    monkeypatch.setattr(wiki_mod, "generate_all_wiki", fail_generate_all_wiki)
+
+    output_dir = generate_github_output(
+        ir,
+        pkg_path,
+        beliefs_data=None,
+        param_data=None,
+        exported_ids=set(),
+    )
+
+    graph_path = output_dir / "docs" / "public" / "data" / "graph.json"
+    assert graph_path.exists()
+    assert json.loads(graph_path.read_text())["nodes"][0]["id"] == "github:stream_pkg::a"
+    assert (output_dir / "wiki" / "Home.md").exists()
+    assert (output_dir / "wiki" / "Module-m.md").exists()
+
+
+def test_github_output_skips_mi_for_high_fan_in_coarse_graph(tmp_path: Path, monkeypatch):
+    """Large coarse strategies must not trigger exponential MI tensor contraction."""
+    premise_count = 16
+    premises = [
+        {
+            "id": f"github:wide_pkg::p{i}",
+            "label": f"p{i}",
+            "type": "claim",
+            "content": f"Premise {i}.",
+            "module": "m",
+        }
+        for i in range(premise_count)
+    ]
+    conclusion = {
+        "id": "github:wide_pkg::c",
+        "label": "c",
+        "type": "claim",
+        "content": "Conclusion.",
+        "module": "m",
+        "exported": True,
+    }
+    ir = {
+        "package_name": "wide_pkg",
+        "namespace": "github",
+        "knowledges": [*premises, conclusion],
+        "strategies": [
+            {
+                "type": "deduction",
+                "premises": [premise["id"]],
+                "background": [],
+                "conclusion": conclusion["id"],
+                "reason": "",
+            }
+            for premise in premises
+        ],
+        "operators": [],
+    }
+    beliefs_data = {
+        "beliefs": [
+            *[
+                {"knowledge_id": premise["id"], "belief": 0.6, "label": premise["label"]}
+                for premise in premises
+            ],
+            {"knowledge_id": conclusion["id"], "belief": 0.8, "label": "c"},
+        ],
+        "diagnostics": {"converged": True, "iterations_run": 1},
+    }
+    param_data = {
+        "priors": [
+            *[{"knowledge_id": premise["id"], "value": 0.5} for premise in premises],
+            {"knowledge_id": conclusion["id"], "value": 0.5},
+        ]
+    }
+    pkg_path = tmp_path / "pkg"
+    pkg_path.mkdir()
+
+    calls = {"count": 0}
+
+    def fake_compute_coarse_cpts(*_args, **_kwargs):
+        calls["count"] += 1
+        return {}
+
+    import gaia.engine.ir.coarsen as coarsen_mod
+
+    monkeypatch.setattr(coarsen_mod, "compute_coarse_cpts", fake_compute_coarse_cpts)
+
+    generate_github_output(
+        ir,
+        pkg_path,
+        beliefs_data=beliefs_data,
+        param_data=param_data,
+        exported_ids={conclusion["id"]},
+    )
+
+    assert calls["count"] == 0
+
+
 # ── CLI --github flag integration ──
 
 

@@ -286,6 +286,13 @@ def test_helper_nodes_filtered():
                 "content": "Helper.",
                 "module": "m1",
             },
+            {
+                "id": "github:test_pkg::_anon_001",
+                "label": "_anon_001",
+                "type": "claim",
+                "content": "Anonymous helper.",
+                "module": "m1",
+            },
         ],
         module_order=["m1"],
     )

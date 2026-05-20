@@ -11,11 +11,18 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from gaia.cli.commands._graph_json import generate_graph_json
+from gaia.cli.commands._graph_json import write_graph_json
 from gaia.cli.commands._manifest import generate_manifest
 from gaia.cli.commands._render_priors import format_belief
-from gaia.cli.commands._wiki import generate_all_wiki
+from gaia.cli.commands._wiki import (
+    generate_wiki_home,
+    generate_wiki_inference,
+    generate_wiki_module,
+)
 from gaia.engine.ir.coarsen import coarsen_ir
+
+_MAX_MI_PREMISES = 12
+_MAX_MI_GRAPH_ITEMS = 2500
 
 
 def _write_meta_json(
@@ -52,39 +59,55 @@ def _copy_artifacts(artifacts_dir: Path, assets_dir: Path) -> list[str]:
     return asset_names
 
 
-def _write_section_files(
+def _wiki_module_names(ir: dict[str, Any]) -> list[str]:
+    """Return stable wiki module names, including Root for module-less nodes."""
+    return sorted({k.get("module") or "Root" for k in ir.get("knowledges", [])})
+
+
+def _section_module_names(ir: dict[str, Any]) -> set[str]:
+    """Return modules that should get SPA section files."""
+    return {k["module"] for k in ir.get("knowledges", []) if k.get("module")}
+
+
+def _write_wiki_pages_and_sections(
     *,
     ir: dict[str, Any],
-    wiki_pages: dict[str, str],
+    wiki_dir: Path,
     sections_dir: Path,
-) -> None:
-    """Write one Markdown section file per unique DSL module."""
-    modules = {k.get("module") for k in ir.get("knowledges", []) if k.get("module")}
-    for mod in sorted(modules):
-        section_path = sections_dir / f"{mod}.md"
-        wiki_key = f"Module-{mod.replace('_', '-')}.md"
-        section_content = wiki_pages.get(wiki_key) or _fallback_section_content(ir, mod)
-        section_path.write_text(section_content, encoding="utf-8")
+    beliefs_data: dict[str, Any] | None,
+    param_data: dict[str, Any] | None,
+) -> list[str]:
+    """Write GitHub wiki pages and section markdown without retaining all pages."""
+    wiki_page_names: list[str] = []
 
+    (wiki_dir / "Home.md").write_text(
+        generate_wiki_home(ir, beliefs_data=beliefs_data),
+        encoding="utf-8",
+    )
+    wiki_page_names.append("Home.md")
 
-def _fallback_section_content(ir: dict[str, Any], mod: str) -> str:
-    """Generate simple module section content when no wiki page exists."""
-    module_knowledges = [
-        k
-        for k in ir.get("knowledges", [])
-        if k.get("module") == mod and not k.get("label", "").startswith("__")
-    ]
-    lines = [f"# {mod}", ""]
-    for k in module_knowledges:
-        label = k.get("label", "")
-        content = k.get("content", "")
-        ktype = k.get("type", "")
-        if label and content:
-            lines.append(f"### {label}")
-            lines.append(f"**Type:** {ktype}")
-            lines.append(f"{content}")
-            lines.append("")
-    return "\n".join(lines)
+    section_modules = _section_module_names(ir)
+    for mod in _wiki_module_names(ir):
+        filename = f"Module-{mod.replace('_', '-')}.md"
+        content = generate_wiki_module(
+            ir,
+            mod,
+            beliefs_data=beliefs_data,
+            param_data=param_data,
+        )
+        (wiki_dir / filename).write_text(content, encoding="utf-8")
+        wiki_page_names.append(filename)
+        if mod in section_modules:
+            (sections_dir / f"{mod}.md").write_text(content, encoding="utf-8")
+
+    if beliefs_data is not None:
+        (wiki_dir / "Inference-Results.md").write_text(
+            generate_wiki_inference(ir, beliefs_data, param_data=param_data),
+            encoding="utf-8",
+        )
+        wiki_page_names.append("Inference-Results.md")
+
+    return wiki_page_names
 
 
 def _default_outline_priors(
@@ -112,6 +135,67 @@ def _default_outline_priors(
     return node_priors
 
 
+def _strategy_params_from_param_data(param_data: dict[str, Any] | None) -> dict[str, list[float]]:
+    """Extract strategy conditional parameters from a parameterization payload."""
+    strategy_params: dict[str, list[float]] = {}
+    if not param_data:
+        return strategy_params
+    for item in param_data.get("strategy_params", []):
+        strategy_id = item.get("strategy_id", "")
+        if item.get("conditional_probabilities"):
+            strategy_params[strategy_id] = item["conditional_probabilities"]
+        elif item.get("conditional_probability") is not None:
+            strategy_params[strategy_id] = [item["conditional_probability"]]
+    return strategy_params
+
+
+def _safe_mi_strategy_indices(ir: dict[str, Any], coarse: dict[str, Any]) -> set[int]:
+    """Return coarse strategy indexes whose exact MI computation is bounded."""
+    graph_items = (
+        len(ir.get("knowledges", [])) + len(ir.get("strategies", [])) + len(ir.get("operators", []))
+    )
+    if graph_items > _MAX_MI_GRAPH_ITEMS:
+        return set()
+    return {
+        i
+        for i, strategy in enumerate(coarse.get("strategies", []))
+        if len(strategy.get("premises", [])) <= _MAX_MI_PREMISES
+    }
+
+
+def _coarse_mi_map(
+    *,
+    ir: dict[str, Any],
+    coarse: dict[str, Any],
+    node_priors: dict[str, float],
+    param_data: dict[str, Any] | None,
+) -> dict[int, float]:
+    """Best-effort MI map for bounded-size coarse strategies."""
+    indices = _safe_mi_strategy_indices(ir, coarse)
+    if not indices:
+        return {}
+    try:
+        from gaia.engine.ir.coarsen import compute_coarse_cpts, mutual_information
+
+        cpts = compute_coarse_cpts(
+            ir,
+            coarse,
+            node_priors=node_priors,
+            strategy_params=_strategy_params_from_param_data(param_data),
+            strategy_indices=indices,
+        )
+        return {
+            i: mutual_information(
+                cpt,
+                [node_priors.get(p, 0.5) for p in coarse["strategies"][i]["premises"]],
+            )
+            for i, cpt in cpts.items()
+            if len(cpt) >= 2
+        }
+    except Exception:
+        return {}
+
+
 def _write_narrative_outline(
     *,
     ir: dict[str, Any],
@@ -136,10 +220,11 @@ def _write_narrative_outline(
             coarse_for_outline,
             beliefs=beliefs,
             priors=node_priors,
-            mi_per_strategy=_outline_mi_map(
+            mi_per_strategy=_coarse_mi_map(
                 ir=ir,
-                coarse_for_outline=coarse_for_outline,
+                coarse=coarse_for_outline,
                 node_priors=node_priors,
+                param_data=param_data,
             ),
         )
         (output_dir / "narrative-outline.md").write_text(
@@ -147,32 +232,6 @@ def _write_narrative_outline(
         )
     except Exception:
         pass
-
-
-def _outline_mi_map(
-    *,
-    ir: dict[str, Any],
-    coarse_for_outline: dict[str, Any],
-    node_priors: dict[str, float],
-) -> dict[int, float]:
-    """Best-effort MI map for the narrative outline."""
-    try:
-        from gaia.engine.ir.coarsen import compute_coarse_cpts, mutual_information
-
-        cpts = compute_coarse_cpts(
-            ir,
-            coarse_for_outline,
-            node_priors=node_priors,
-        )
-        return {
-            i: mutual_information(
-                cpts[i],
-                [node_priors.get(p, 0.5) for p in coarse_for_outline["strategies"][i]["premises"]],
-            )
-            for i in cpts
-        }
-    except Exception:
-        return {}
 
 
 def generate_github_output(
@@ -215,26 +274,28 @@ def generate_github_output(
     for d in (wiki_dir, data_dir, assets_dir, sections_dir):
         d.mkdir(parents=True, exist_ok=True)
 
-    # ── 1. Wiki pages ──
-    wiki_pages = generate_all_wiki(ir, beliefs_data=beliefs_data, param_data=param_data)
-    for filename, content in wiki_pages.items():
-        (wiki_dir / filename).write_text(content, encoding="utf-8")
+    # ── 1. Wiki pages + section content ──
+    wiki_page_names = _write_wiki_pages_and_sections(
+        ir=ir,
+        wiki_dir=wiki_dir,
+        sections_dir=sections_dir,
+        beliefs_data=beliefs_data,
+        param_data=param_data,
+    )
 
     # ── 2. graph.json ──
-    graph_json = generate_graph_json(
+    write_graph_json(
+        data_dir / "graph.json",
         ir,
         beliefs_data=beliefs_data,
         param_data=param_data,
         exported_ids=exported,
     )
-    (data_dir / "graph.json").write_text(graph_json, encoding="utf-8")
 
     # ── 3. beliefs.json (if available) ──
     if beliefs_data is not None:
-        (data_dir / "beliefs.json").write_text(
-            json.dumps(beliefs_data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        with (data_dir / "beliefs.json").open("w", encoding="utf-8") as f:
+            json.dump(beliefs_data, f, indent=2, ensure_ascii=False)
 
     # ── 4. meta.json ──
     _write_meta_json(data_dir, ir, metadata)
@@ -242,14 +303,11 @@ def generate_github_output(
     # ── 5. Copy artifacts to assets (recursive) ──
     asset_names = _copy_artifacts(pkg_path / "artifacts", assets_dir)
 
-    # ── 6. Section content (one per unique module) ──
-    _write_section_files(ir=ir, wiki_pages=wiki_pages, sections_dir=sections_dir)
-
     # ── 7. manifest.json ──
     manifest_json = generate_manifest(
         ir,
         exported,
-        list(wiki_pages.keys()),
+        wiki_page_names,
         assets=asset_names,
     )
     (output_dir / "manifest.json").write_text(manifest_json, encoding="utf-8")
@@ -281,6 +339,7 @@ def _render_coarse_mermaid(
     beliefs: dict[str, float],
     priors: dict[str, float],
     exported_ids: set[str],
+    param_data: dict[str, Any] | None = None,
 ) -> tuple[str, float]:
     """Render a coarse-grained Mermaid graph: leaf premises → exported conclusions."""
     coarse = coarsen_ir(ir, exported_ids)
@@ -325,6 +384,7 @@ def _render_coarse_mermaid(
         kid_to_k=kid_to_k,
         beliefs=beliefs,
         priors=priors,
+        param_data=param_data,
     )
     lines.extend(strategy_lines)
     lines.extend(_coarse_operator_lines(coarse, kid_to_k))
@@ -345,6 +405,7 @@ def _coarse_strategy_lines(
     kid_to_k: dict[str, dict[str, Any]],
     beliefs: dict[str, float],
     priors: dict[str, float],
+    param_data: dict[str, Any] | None,
 ) -> tuple[list[str], float]:
     """Render strategy intermediate nodes and return accumulated MI."""
     deterministic = {
@@ -354,17 +415,20 @@ def _coarse_strategy_lines(
         "mathematical_induction",
         "case_analysis",
     }
-    coarse_cpts = _coarse_cpts_for_mermaid(ir, coarse, beliefs, priors)
+    node_priors = _default_outline_priors(ir, param_data)
+    node_priors.update(priors)
+    mi_map = (
+        _coarse_mi_map(ir=ir, coarse=coarse, node_priors=node_priors, param_data=param_data)
+        if beliefs
+        else {}
+    )
     total_mi = 0.0
     lines: list[str] = []
     for i, s in enumerate(coarse["strategies"]):
         stype = s.get("type", "infer")
-        cpt = coarse_cpts.get(i)
+        mi = mi_map.get(i)
         ann = stype
-        if cpt and len(cpt) >= 2:
-            from gaia.engine.ir.coarsen import mutual_information
-
-            mi = mutual_information(cpt, [priors.get(p, 0.5) for p in s["premises"]])
+        if mi is not None:
             total_mi += mi
             ann = f"{stype}\\n{mi:.2f} bits"
         css = "" if stype in deterministic else ":::weak"
@@ -375,29 +439,6 @@ def _coarse_strategy_lines(
         conc = kid_to_k.get(s["conclusion"], {}).get("label", "?").replace("-", "_")
         lines.append(f"    {sid} --> {conc}")
     return lines, total_mi
-
-
-def _coarse_cpts_for_mermaid(
-    ir: dict[str, Any],
-    coarse: dict[str, Any],
-    beliefs: dict[str, float],
-    priors: dict[str, float],
-) -> dict[int, list[float]]:
-    """Compute coarse CPTs for Mermaid MI annotations when beliefs are available."""
-    if not beliefs:
-        return {}
-    try:
-        from gaia.engine.ir.coarsen import compute_coarse_cpts
-
-        node_priors = _default_outline_priors(ir, param_data=None)
-        node_priors.update(priors)
-        return compute_coarse_cpts(
-            ir,
-            coarse,
-            node_priors=node_priors,
-        )
-    except Exception:
-        return {}
 
 
 def _coarse_operator_lines(
@@ -476,6 +517,7 @@ def _generate_readme_skeleton(
             beliefs,
             priors,
             exported,
+            param_data=param_data,
         )
         if total_mi > 0:
             lines.append("> [!TIP]")
