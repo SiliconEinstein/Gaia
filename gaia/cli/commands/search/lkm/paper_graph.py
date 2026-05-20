@@ -1,0 +1,128 @@
+"""``gaia search lkm paper-graph`` — POST /papers/graph.
+
+Fetch the full extracted knowledge graph (variables / factors /
+motivations / ...) for a paper identified by exactly one of four mutually
+exclusive identifier flags.
+"""
+
+from __future__ import annotations
+
+from enum import StrEnum
+from pathlib import Path
+from typing import Annotated, Any
+
+import typer
+
+from gaia.cli.commands.search.lkm._shared import emit, run_request
+
+
+class PaperGraphInclude(StrEnum):
+    """Sub-graphs that may be requested in the response."""
+
+    PAPER = "paper"
+    VARIABLES = "variables"
+    FACTORS = "factors"
+    MOTIVATIONS = "motivations"
+    PRIORS = "priors"
+    FACTOR_PARAMS = "factor_params"
+
+
+_DEFAULT_INCLUDE = [
+    PaperGraphInclude.PAPER,
+    PaperGraphInclude.VARIABLES,
+    PaperGraphInclude.FACTORS,
+    PaperGraphInclude.MOTIVATIONS,
+]
+
+_TITLE_RESOLVE_CAP = 20
+
+
+def paper_graph_command(
+    package_id: Annotated[
+        str | None,
+        typer.Option("--package-id", help="Identify by package id (form `paper:<digits>`)."),
+    ] = None,
+    paper_id: Annotated[
+        str | None,
+        typer.Option("--paper-id", help="Identify by paper id."),
+    ] = None,
+    doi: Annotated[
+        str | None,
+        typer.Option("--doi", help="Identify by DOI."),
+    ] = None,
+    title: Annotated[
+        str | None,
+        typer.Option("--title", help="Identify by title (may resolve multiple papers)."),
+    ] = None,
+    include: Annotated[
+        list[PaperGraphInclude] | None,
+        typer.Option(
+            "--include",
+            help=(
+                "Sub-graph to include (repeatable). Default: "
+                "paper, variables, factors, motivations."
+            ),
+            case_sensitive=False,
+        ),
+    ] = None,
+    no_hydrate_factor_refs: Annotated[
+        bool,
+        typer.Option(
+            "--no-hydrate-factor-refs",
+            help="Return factor premise/conclusion ids only (~60% smaller response).",
+        ),
+    ] = False,
+    title_resolve_limit: Annotated[
+        int,
+        typer.Option(
+            "--title-resolve-limit",
+            help="Candidate papers per title (max 20; only valid with --title).",
+        ),
+    ] = 5,
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
+    ] = None,
+) -> None:
+    """Fetch a paper's knowledge graph (POST /papers/graph)."""
+    identifiers = {
+        "package_id": package_id,
+        "paper_id": paper_id,
+        "doi": doi,
+        "title": title,
+    }
+    supplied = {k: v for k, v in identifiers.items() if v is not None}
+    if len(supplied) != 1:
+        flags = "--package-id / --paper-id / --doi / --title"
+        if not supplied:
+            typer.echo(f"Error: exactly one identifier required ({flags}); none given.", err=True)
+        else:
+            given = ", ".join(f"--{k.replace('_', '-')}" for k in supplied)
+            typer.echo(
+                f"Error: exactly one identifier allowed ({flags}); got {given}.",
+                err=True,
+            )
+        raise typer.Exit(4)
+
+    title_limit_explicit = title_resolve_limit != 5
+    if title is None and title_limit_explicit:
+        typer.echo("Error: --title-resolve-limit is only valid with --title.", err=True)
+        raise typer.Exit(4)
+    if title is not None and (title_resolve_limit < 1 or title_resolve_limit > _TITLE_RESOLVE_CAP):
+        typer.echo(
+            f"Error: --title-resolve-limit must be between 1 and {_TITLE_RESOLVE_CAP}; "
+            f"got {title_resolve_limit}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+
+    body: dict[str, Any] = dict(supplied)
+    chosen_include = include if include else _DEFAULT_INCLUDE
+    body["include"] = [item.value for item in chosen_include]
+    if no_hydrate_factor_refs:
+        body["hydrate_factor_refs"] = False
+    if title is not None:
+        body["title_resolve"] = {"limit": title_resolve_limit}
+
+    payload = run_request("POST", "/papers/graph", json_body=body)
+    emit(payload, out)

@@ -75,6 +75,7 @@ from gaia.cli.commands.inquiry import inquiry_app
 from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
+from gaia.cli.commands.search import search_app
 from gaia.cli.commands.skill import list_command as skill_list_command
 from gaia.cli.commands.skill import register_command as skill_register_command
 from gaia.cli.commands.starmap import starmap_command
@@ -354,6 +355,18 @@ skill_app = typer.Typer(
 skill_app.command(name="register")(skill_register_command)
 skill_app.command(name="list")(skill_list_command)
 app.add_typer(skill_app, name="skill")
+
+
+# --------------------------------------------------------------------------- #
+# search — retrieval backends (sub-app: lkm)                                  #
+# --------------------------------------------------------------------------- #
+#
+# `gaia search lkm <verb>` wraps the Bohrium LKM public search API as five
+# atomic verbs (1:1 with the HTTP endpoints) plus an `auth` credential
+# lifecycle. The `search` parent leaves room for future non-LKM retrieval
+# backends; see `gaia.cli.commands.search`.
+
+app.add_typer(search_app, name="search")
 
 
 # --------------------------------------------------------------------------- #
