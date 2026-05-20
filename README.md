@@ -114,6 +114,26 @@ gaia run infer .
 
 For a full walkthrough, see [`docs/for-users/quick-start.md`](docs/for-users/quick-start.md).
 
+### Non-invasive mount onto an existing host
+
+For ARM bundles, ARA artifacts, plain Python packages, or any directory
+you do not want to restructure, use the embedded layout (no
+`pyproject.toml` edit, no `src/` reshuffle, no `-gaia` suffix):
+
+```bash
+gaia build init --embedded ./my-host        # or:  gaia pkg mount ./my-host
+gaia build compile ./my-host
+gaia run infer    ./my-host
+```
+
+The mount creates only two folders inside the host (`gaia/` for your
+DSL source, `.gaia/` for generated artifacts) and leaves every other
+file untouched. For ARM (`arm_manifest.json`) and ARA (`PAPER.md` +
+`logic/`) hosts the deterministic projector seeds typed scaffolds for
+each structured source. See
+[`docs/foundations/embedded-layout.md`](docs/foundations/embedded-layout.md)
+for the full design and CLI reference.
+
 ## Minimal DSL Example
 
 ```python
