@@ -1,0 +1,145 @@
+site_name: Gaia
+site_description: Python DSL for knowledge authoring, compilation, and inference
+site_url: https://siliconeinstein.github.io/Gaia/
+repo_url: https://github.com/SiliconEinstein/Gaia
+docs_dir: docs
+site_dir: site
+exclude_docs: |
+  archive/**
+  design/**
+  ideas/**
+  plans/**
+  specs/**
+  superpowers/**
+
+validation:
+  nav:
+    omitted_files: ignore
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - toc.follow
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - .
+          options:
+            docstring_style: google
+            filters:
+              - "!^_"
+            heading_level: 2
+            inherited_members: false
+            members_order: source
+            merge_init_into_class: true
+            separate_signature: true
+            show_root_heading: true
+            show_signature_annotations: true
+            show_source: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+nav:
+  - Home: README.md
+  - Start Here:
+      - What Is Gaia?: for-visitors/what-is-gaia.md
+      - Quick Start: for-users/quick-start.md
+      - Hole And Bridge Tutorial: for-users/hole-bridge-tutorial.md
+  - User Reference:
+      - Language Reference: for-users/language-reference.md
+      - CLI Commands: for-users/cli-commands.md
+  - Release Notes:
+      - v0.5.0a1 Alpha: releases/0.5.0a1.md
+  - Foundational Docs:
+      - Overview: foundations/README.md
+      - Theory:
+          - Plausible Reasoning: foundations/theory/01-plausible-reasoning.md
+          - MaxEnt Grounding: foundations/theory/02-maxent-grounding.md
+          - Propositional Operators: foundations/theory/03-propositional-operators.md
+          - Reasoning Strategies: foundations/theory/04-reasoning-strategies.md
+          - Formalization Methodology: foundations/theory/05-formalization-methodology.md
+          - Factor Graphs: foundations/theory/06-factor-graphs.md
+          - Belief Propagation: foundations/theory/07-belief-propagation.md
+          - Causality And Jaynes: foundations/theory/08-causality-and-jaynes.md
+      - Ecosystem:
+          - Product Scope: foundations/ecosystem/01-product-scope.md
+          - Decentralized Architecture: foundations/ecosystem/02-decentralized-architecture.md
+          - Authoring And Publishing: foundations/ecosystem/03-authoring-and-publishing.md
+          - Registry Operations: foundations/ecosystem/04-registry-operations.md
+          - Review And Curation: foundations/ecosystem/05-review-and-curation.md
+          - Belief Flow And Quality: foundations/ecosystem/06-belief-flow-and-quality.md
+          - Related Systems: foundations/ecosystem/07-related-systems.md
+      - Gaia Lang Design:
+          - Knowledge And Reasoning: foundations/gaia-lang/knowledge-and-reasoning.md
+          - Formula Logic: foundations/gaia-lang/formula-logic.md
+          - Predicate Logic: foundations/gaia-lang/predicate-logic.md
+          - Bayes Semantics: foundations/gaia-lang/bayes.md
+          - Package Model: foundations/gaia-lang/package.md
+      - Gaia IR Design:
+          - Overview: foundations/gaia-ir/01-overview.md
+          - Structure Contract: foundations/gaia-ir/02-gaia-ir.md
+          - Identity And Hashing: foundations/gaia-ir/03-identity-and-hashing.md
+          - Helper Claims: foundations/gaia-ir/04-helper-claims.md
+          - Canonicalization: foundations/gaia-ir/05-canonicalization.md
+          - Parameterization: foundations/gaia-ir/06-parameterization.md
+          - Lowering: foundations/gaia-ir/07-lowering.md
+          - Validation: foundations/gaia-ir/08-validation.md
+      - Belief Propagation:
+          - Belief State: foundations/bp/belief-state.md
+          - Formal Strategy Lowering: foundations/bp/formal-strategy-lowering.md
+          - Inference: foundations/bp/inference.md
+          - Diagnostic Probabilities: foundations/bp/diagnostic-probabilities.md
+          - Choosing An Algorithm: foundations/bp/choosing-algorithm.md
+          - Local Vs Global: foundations/bp/local-vs-global.md
+          - Potentials: foundations/bp/potentials.md
+      - Review:
+          - Review Pipeline: foundations/review/review-pipeline.md
+          - Review Report Contract: foundations/contracts/review-report.md
+          - Rebuttal Report Contract: foundations/contracts/rebuttal-report.md
+      - CLI:
+          - Workflow: foundations/cli/workflow.md
+          - Compilation: foundations/cli/compilation.md
+          - Inference: foundations/cli/inference.md
+          - Registration: foundations/cli/registration.md
+  - API Reference:
+      - Engine:
+          - Overview: reference/engine/index.md
+          - bayes: reference/engine/bayes.md
+          - bp: reference/engine/bp.md
+          - ir: reference/engine/ir.md
+          - lang: reference/engine/lang.md
+          - inquiry: reference/engine/inquiry.md
+          - trace: reference/engine/trace.md
+          - packaging: reference/engine/packaging.md
+          - IR Submodules:
+              - Logic Utilities: reference/engine/ir/logic.md
+          - Lang Submodules:
+              - Authoring DSL: reference/engine/lang/dsl.md
+              - Runtime Models: reference/engine/lang/runtime.md
+              - Formula AST: reference/engine/lang/formula.md
+              - Compiler: reference/engine/lang/compiler.md
+              - References: reference/engine/lang/refs.md
+      - CLI:
+          - Overview: reference/cli/index.md
+          - author: reference/cli/author.md
+          - bayes: reference/cli/bayes.md
+          - build: reference/cli/build.md
+          - run: reference/cli/run.md
+          - inspect: reference/cli/inspect.md
+          - review: reference/cli/review.md
+          - inquiry: reference/cli/inquiry.md
+          - pkg: reference/cli/pkg.md
+          - search: reference/cli/search.md
+          - trace: reference/cli/trace.md
+          - Internals: reference/cli/internals.md
+      - Migration to alpha 0: migration.md
+  - Documentation Policy: documentation-policy.md

@@ -1,0 +1,12 @@
+# No-net-growth budget for `# noqa` / `# type: ignore` lines under
+# tracked `gaia/**/*.py`. Enforced by
+# `scripts/check_suppression_budget.py`, wired into pre-commit.
+#
+# The integer below is the maximum allowed count. The gate fails only on
+# net growth (current > budget); going down is always fine.
+#
+# Bumping the budget is permitted but not casual: any commit that
+# increases this number must justify the new suppression in the commit
+# body (which suppression, which code, why no alternative). The point of
+# the gate is to make adding a suppression a deliberate, reviewable act.
+27

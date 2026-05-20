@@ -1,0 +1,374 @@
+"""Factor graph representation for BP — aligned with theory and Gaia IR.
+
+Theory: docs/foundations/theory/06-factor-graphs.md (operator to potential mapping)
+IR: docs/foundations/gaia-ir/02-gaia-ir.md (Operator variables + conclusion)
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Sequence
+from dataclasses import dataclass
+from enum import Enum, auto
+from math import isfinite
+
+logger = logging.getLogger(__name__)
+
+CROMWELL_EPS: float = 1e-3
+
+
+def _cromwell_clamp(value: float, label: str = "") -> float:
+    clamped = max(CROMWELL_EPS, min(1.0 - CROMWELL_EPS, value))
+    if clamped != value and label:
+        logger.debug("Cromwell clamp: %s %.6g -> %.6g", label, value, clamped)
+    return clamped
+
+
+class FactorType(Enum):
+    """Enumeration of factor types in the factor graph."""
+
+    IMPLICATION = auto()
+    NEGATION = auto()
+    CONJUNCTION = auto()
+    DISJUNCTION = auto()
+    EQUIVALENCE = auto()
+    CONTRADICTION = auto()
+    COMPLEMENT = auto()
+    SOFT_ENTAILMENT = auto()
+    CONDITIONAL = auto()
+    PAIRWISE_POTENTIAL = auto()
+
+
+@dataclass(frozen=True)
+class Factor:
+    """Factor in a factor graph with variables and potential function."""
+
+    factor_id: str
+    factor_type: FactorType
+    variables: list[str]
+    conclusion: str
+    p1: float | None = None
+    p2: float | None = None
+    cpt: tuple[float, ...] | None = None
+
+    @property
+    def all_vars(self) -> list[str]:
+        """Return all variables involved in this factor."""
+        seen: set[str] = set()
+        out: list[str] = []
+        for v in (*self.variables, self.conclusion):
+            if v not in seen:
+                seen.add(v)
+                out.append(v)
+        return out
+
+
+class FactorGraph:
+    """Factor graph for probabilistic inference."""
+
+    def __init__(self) -> None:
+        """Initialize an empty factor graph."""
+        self.variables: dict[str, float] = {}
+        self.unary_factors: dict[str, float] = {}
+        self.hard_evidence: dict[str, int] = {}
+        self.factors: list[Factor] = []
+        # V8 audit trail: every class-II likelihood update appends a record
+        # {"prior_before", "likelihood_ratio", "prior_after"} so the
+        # full II→IV chain is recoverable from the graph alone (Gaia
+        # auditability requirement; does not affect inference).
+        self.posterior_evidence: dict[str, list[dict[str, float]]] = {}
+        # V9 audit trail: D2 structural deduplications performed during
+        # lowering. Each entry: {"op", "args", "conclusion", "dropped_count"}.
+        # Populated by lowering, untouched by inference.
+        self.dedup_audit: list[dict[str, object]] = []
+
+    def add_variable(self, var_id: str, prior: float | None = None) -> None:
+        r"""Register a binary variable, optionally with an explicit unary factor.
+
+        ``variables`` records the neutral display/initial measure for every
+        variable. Only ``unary_factors`` is a Jaynes-style class IV soft prior
+        (Cromwell ε permitted). Class I logical assertions belong in
+        ``hard_evidence`` via :meth:`add_evidence` — those install a Cromwell-
+        clamped {ε, 1-ε} strong prior (Gaia\'s adjusted Jaynes semantics), not
+        a strict δ; downstream BP treats hard-evidence variables as pinned but
+        still Bayes-updatable.
+        """
+        if prior is None:
+            self.variables.setdefault(var_id, 0.5)
+            return
+        clamped = _cromwell_clamp(prior, label=f"variable '{var_id}' unary")
+        if var_id in self.hard_evidence:
+            target = float(self.hard_evidence[var_id])
+            if abs(clamped - target) > 0.5:
+                raise ValueError(
+                    f"Variable '{var_id}': soft prior {clamped:g} contradicts "
+                    f"hard evidence={self.hard_evidence[var_id]} (D5)."
+                )
+            return
+        if var_id in self.unary_factors:
+            existing = self.unary_factors[var_id]
+            if abs(existing - clamped) > CROMWELL_EPS:
+                raise ValueError(
+                    f"Variable '{var_id}': conflicting unary priors "
+                    f"existing={existing:g}, new={clamped:g} (D1 violation)."
+                )
+        self.variables[var_id] = clamped
+        self.unary_factors[var_id] = clamped
+
+    def add_evidence(self, var_id: str, value: int) -> None:
+        """Class I hard observation with Cromwell clamp.
+
+        Gaia adjusts Jaynes: hard evidence is stored as a very strong soft
+        prior {ε, 1-ε} (ε = CROMWELL_EPS = 1e-3), not as strict δ {0, 1}.
+        This preserves Bayesian updatability (Cromwell's rule) and prevents
+        log(0) pathologies in BP message passing, at the cost of a small
+        O(ε) systematic bias vs. strict Jaynes Class I semantics.
+        """
+        if var_id not in self.variables:
+            raise KeyError(f"Variable '{var_id}' not registered.")
+        if value not in (0, 1):
+            raise ValueError(f"add_evidence() value must be 0 or 1, got {value}.")
+        if var_id in self.hard_evidence and self.hard_evidence[var_id] != value:
+            raise ValueError(
+                f"Variable '{var_id}': conflicting hard evidence "
+                f"{self.hard_evidence[var_id]} vs {value} (D5 violation)."
+            )
+        if var_id in self.unary_factors:
+            existing = self.unary_factors[var_id]
+            if (value == 1 and existing < 0.5) or (value == 0 and existing > 0.5):
+                raise ValueError(
+                    f"Variable '{var_id}': hard evidence={value} contradicts "
+                    f"existing soft prior {existing:g} (D5 violation)."
+                )
+            self.unary_factors.pop(var_id, None)
+        self.hard_evidence[var_id] = value
+        self.variables[var_id] = (1.0 - CROMWELL_EPS) if value == 1 else CROMWELL_EPS
+
+    def observe(self, var_id: str, value: int) -> None:
+        """Hard evidence alias — delegates to :meth:`add_evidence`."""
+        self.add_evidence(var_id, value)
+
+    def add_likelihood(
+        self,
+        var_id: str,
+        likelihood_ratio: float,
+    ) -> None:
+        """Soft evidence (class II): fold likelihood ratio into the class-IV unary.
+
+        P_new(x=1) = normalize(π · lr, (1−π) · 1) where lr = P(E|x=1)/P(E|x=0).
+        Records the update in posterior_evidence[var_id] for audit.
+        """
+        if var_id not in self.variables:
+            raise KeyError(f"Variable '{var_id}' not registered.")
+        if likelihood_ratio <= 0:
+            raise ValueError(f"likelihood_ratio must be > 0, got {likelihood_ratio}.")
+        if var_id in self.hard_evidence:
+            raise ValueError(
+                f"Variable '{var_id}': cannot apply soft likelihood — variable is "
+                f"already pinned by hard_evidence={self.hard_evidence[var_id]} (D5)."
+            )
+        pi = self.unary_factors.get(var_id, self.variables.get(var_id, 0.5))
+        odds = pi / (1.0 - pi) * likelihood_ratio
+        new_pi = odds / (1.0 + odds)
+        clamped = _cromwell_clamp(new_pi, label=f"variable {var_id!r} likelihood-updated unary")
+        self.variables[var_id] = clamped
+        self.unary_factors[var_id] = clamped
+        self.posterior_evidence.setdefault(var_id, []).append(
+            {
+                "prior_before": float(pi),
+                "likelihood_ratio": float(likelihood_ratio),
+                "prior_after": float(clamped),
+            }
+        )
+
+    def add_factor(  # noqa: C901
+        self,
+        factor_id: str,
+        factor_type: FactorType,
+        variables: Sequence[str],
+        conclusion: str,
+        *,
+        p1: float | None = None,
+        p2: float | None = None,
+        cpt: Sequence[float] | None = None,
+    ) -> None:
+        """Add a factor to the graph with specified type and variables."""
+        v_list = list(variables)
+        if conclusion in v_list:
+            raise ValueError(
+                f"Factor '{factor_id}': conclusion '{conclusion}' must not appear in variables."
+            )
+
+        ft = factor_type
+        fp1: float | None = None
+        fp2: float | None = None
+        fcpt: tuple[float, ...] | None = None
+
+        if ft in (
+            FactorType.IMPLICATION,
+            FactorType.NEGATION,
+            FactorType.CONJUNCTION,
+            FactorType.DISJUNCTION,
+            FactorType.EQUIVALENCE,
+            FactorType.CONTRADICTION,
+            FactorType.COMPLEMENT,
+        ):
+            if p1 is not None or p2 is not None or cpt is not None:
+                raise ValueError(f"Deterministic factor '{factor_id}' must not set p1/p2/cpt.")
+            self._validate_deterministic(factor_id, ft, v_list)
+
+        elif ft == FactorType.SOFT_ENTAILMENT:
+            if cpt is not None:
+                raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' must not set cpt.")
+            if len(v_list) != 1:
+                raise ValueError(
+                    f"SOFT_ENTAILMENT '{factor_id}' requires exactly 1 premise variable, "
+                    f"got {len(v_list)}."
+                )
+            if p1 is None or p2 is None:
+                raise ValueError(f"SOFT_ENTAILMENT '{factor_id}' requires p1 and p2.")
+            p1c = _cromwell_clamp(p1, label=f"factor '{factor_id}' p1")
+            p2c = _cromwell_clamp(p2, label=f"factor '{factor_id}' p2")
+            if p1c + p2c <= 1.0:
+                raise ValueError(
+                    f"SOFT_ENTAILMENT '{factor_id}' requires p1 + p2 > 1 "
+                    f"(after Cromwell clamp got {p1c + p2c})."
+                )
+            fp1, fp2 = p1c, p2c
+
+        elif ft == FactorType.CONDITIONAL:
+            if p1 is not None or p2 is not None:
+                raise ValueError(f"CONDITIONAL '{factor_id}' must not set p1/p2.")
+            if not v_list:
+                raise ValueError(
+                    f"CONDITIONAL '{factor_id}' requires at least one premise variable."
+                )
+            if cpt is None:
+                raise ValueError(f"CONDITIONAL '{factor_id}' requires cpt.")
+            expected = 1 << len(v_list)
+            fcpt = tuple(_cromwell_clamp(float(x), label=f"cpt[{i}]") for i, x in enumerate(cpt))
+            if len(fcpt) != expected:
+                raise ValueError(
+                    f"CONDITIONAL '{factor_id}': cpt length must be 2^k = {expected}, "
+                    f"got {len(fcpt)}."
+                )
+
+        elif ft == FactorType.PAIRWISE_POTENTIAL:
+            if p1 is not None or p2 is not None:
+                raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' must not set p1/p2.")
+            if len(v_list) != 1:
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}' requires exactly 1 variable plus "
+                    f"the paired conclusion variable, got {len(v_list)} variables."
+                )
+            if cpt is None:
+                raise ValueError(f"PAIRWISE_POTENTIAL '{factor_id}' requires cpt.")
+            fcpt = tuple(float(x) for x in cpt)
+            if len(fcpt) != 4:
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}': cpt length must be 4, got {len(fcpt)}."
+                )
+            if any((not isfinite(x)) or x < 0.0 for x in fcpt):
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}' requires finite non-negative weights."
+                )
+            if sum(fcpt) <= 0.0:
+                raise ValueError(
+                    f"PAIRWISE_POTENTIAL '{factor_id}' requires at least one positive weight."
+                )
+        else:
+            raise ValueError(f"Unknown FactorType: {ft!r}")
+
+        self.factors.append(
+            Factor(
+                factor_id=factor_id,
+                factor_type=factor_type,
+                variables=v_list,
+                conclusion=conclusion,
+                p1=fp1,
+                p2=fp2,
+                cpt=fcpt,
+            )
+        )
+
+    @staticmethod
+    def _validate_deterministic(factor_id: str, ft: FactorType, v_list: list[str]) -> None:
+        if ft == FactorType.IMPLICATION and len(v_list) != 2:
+            raise ValueError(
+                f"IMPLICATION '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
+            )
+        if ft == FactorType.NEGATION and len(v_list) != 1:
+            raise ValueError(
+                f"NEGATION '{factor_id}' requires exactly 1 variable, got {len(v_list)}."
+            )
+        if ft == FactorType.CONJUNCTION and len(v_list) < 2:
+            raise ValueError(
+                f"CONJUNCTION '{factor_id}' requires at least 2 variables, got {len(v_list)}."
+            )
+        if ft == FactorType.DISJUNCTION and len(v_list) < 2:
+            raise ValueError(
+                f"DISJUNCTION '{factor_id}' requires at least 2 variables, got {len(v_list)}."
+            )
+        if (
+            ft in (FactorType.EQUIVALENCE, FactorType.CONTRADICTION, FactorType.COMPLEMENT)
+            and len(v_list) != 2
+        ):
+            raise ValueError(
+                f"{ft.name} '{factor_id}' requires exactly 2 variables, got {len(v_list)}."
+            )
+
+    def get_var_to_factors(self) -> dict[str, list[int]]:
+        """Return mapping from variable names to factor indices."""
+        index: dict[str, list[int]] = {vid: [] for vid in self.variables}
+        for fi, factor in enumerate(self.factors):
+            for vid in factor.all_vars:
+                if vid in index:
+                    index[vid].append(fi)
+                else:
+                    logger.warning(
+                        "Factor '%s' references undeclared variable '%s'.",
+                        factor.factor_id,
+                        vid,
+                    )
+        return index
+
+    def validate(self) -> list[str]:
+        """Validate the factor graph and return list of errors."""
+        errors: list[str] = []
+        for fi, factor in enumerate(self.factors):
+            seen: set[str] = set()
+            for vid in factor.all_vars:
+                if vid not in self.variables:
+                    errors.append(
+                        f"Factor[{fi}] '{factor.factor_id}': variable '{vid}' not registered."
+                    )
+                if vid in seen:
+                    errors.append(
+                        f"Factor[{fi}] '{factor.factor_id}': "
+                        f"variable '{vid}' appears more than once in all_vars."
+                    )
+                seen.add(vid)
+        return errors
+
+    def summary(self) -> str:
+        """Generate summary string of the factor graph."""
+        lines = [f"FactorGraph: {len(self.variables)} variables, {len(self.factors)} factors"]
+        lines.append("Variables:")
+        for vid, measure in sorted(self.variables.items()):
+            unary = self.unary_factors.get(vid)
+            if unary is None:
+                lines.append(f"  {vid:30s}  latent_measure={measure:.4f}")
+            else:
+                lines.append(f"  {vid:30s}  unary={unary:.4f}")
+        lines.append("Factors:")
+        for factor in self.factors:
+            extra = ""
+            if factor.p1 is not None and factor.p2 is not None:
+                extra = f"  p1={factor.p1:.4f}  p2={factor.p2:.4f}"
+            if factor.cpt is not None:
+                extra += f"  cpt_len={len(factor.cpt)}"
+            lines.append(
+                f"  [{factor.factor_type.name:18s}] {factor.factor_id}"
+                f"  variables={factor.variables}  conclusion={factor.conclusion}{extra}"
+            )
+        return "\n".join(lines)

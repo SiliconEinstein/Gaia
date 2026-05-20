@@ -1,0 +1,84 @@
+exclude: ^tmp/
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+        stages: [pre-commit]
+      - id: check-yaml
+        stages: [pre-commit]
+      - id: end-of-file-fixer
+        files: ^(\.pre-commit-config\.yaml|\.github/|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|SECURITY\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+        stages: [pre-commit]
+      - id: trailing-whitespace
+        files: ^(\.pre-commit-config\.yaml|\.github/|pyproject\.toml|uv\.lock|README\.md|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|SECURITY\.md|gaia/|tests/(?!fixtures/storage/)|examples/)
+        stages: [pre-commit]
+      - id: detect-private-key
+        stages: [pre-commit]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff-check
+        args: [--fix, --select=E4,E7,E9,F]
+        stages: [pre-commit]
+      - id: ruff-format
+        stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: claude-md-symlink
+        name: CLAUDE.md must be a symlink to AGENTS.md
+        entry: "bash -c 'test -L CLAUDE.md && [ \"$(readlink CLAUDE.md)\" = \"AGENTS.md\" ] || { echo \"CLAUDE.md must be a symlink to AGENTS.md (run: ln -sf AGENTS.md CLAUDE.md)\"; exit 1; }'"
+        language: system
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
+      - id: mypy
+        name: mypy --strict
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: suppression-budget
+        name: no-net-growth suppression budget (gaia/)
+        entry: uv run python scripts/check_suppression_budget.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
+      - id: ruff-check-full
+        name: ruff check . (full 15-cat select, CI byte-aligned)
+        entry: uv run ruff check .
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: ruff-format-check
+        name: ruff format --check . (CI byte-aligned)
+        entry: uv run ruff format --check .
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: ir-schema-bump
+        name: ir_schema bump check (IR_SCHEMA_SNAPSHOT_HASH must match computed hash)
+        entry: uv run python scripts/check_ir_schema_bump.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: pytest
+        name: pytest pr_gate slice (CI byte-aligned)
+        entry: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_REFLOG_ACTION uv run pytest -n auto -v -m "pr_gate and not slow"
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.16.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

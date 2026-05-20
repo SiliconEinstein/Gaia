@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import Any
 
-from gaia.cli.commands._classify import classify_ir, node_role
+from gaia.cli.commands._render_priors import format_belief
+from gaia.engine.inquiry._classify import classify_ir, is_note_type, node_role
 
 
-def topo_layers(ir: dict) -> dict[str, int]:
+def topo_layers(ir: dict[str, Any]) -> dict[str, int]:
     """Assign each knowledge ID a topological layer (0 = no incoming edges)."""
     all_ids = {k["id"] for k in ir["knowledges"]}
     incoming: dict[str, set[str]] = defaultdict(set)
@@ -48,13 +50,17 @@ def _anchor_id(label: str) -> str:
     return label
 
 
-def _module_key(k: dict) -> str:
+def _module_key(k: dict[str, Any]) -> str:
     module = k.get("module")
     return module if module else "Root"
 
 
-def _module_segments(nodes: list[dict]) -> list[tuple[str, list[dict]]]:
-    segments: list[tuple[str, list[dict]]] = []
+def _display_knowledge_type(ktype: str) -> str:
+    return "note" if is_note_type(ktype) else ktype
+
+
+def _module_segments(nodes: list[dict[str, Any]]) -> list[tuple[str, list[dict[str, Any]]]]:
+    segments: list[tuple[str, list[dict[str, Any]]]] = []
     for node in nodes:
         module_key = _module_key(node)
         if segments and segments[-1][0] == module_key:
@@ -67,7 +73,7 @@ def _module_segments(nodes: list[dict]) -> list[tuple[str, list[dict]]]:
 # ── Mermaid rendering ──
 
 _MERMAID_STYLES = """\
-    classDef setting fill:#f0f0f0,stroke:#999,color:#333
+    classDef note fill:#f0f0f0,stroke:#999,color:#333
     classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
     classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
     classDef question fill:#fff3dd,stroke:#cc9944,color:#333
@@ -79,7 +85,7 @@ _MERMAID_STYLES = """\
 
 # Map node_role() output to Mermaid CSS class names
 _ROLE_TO_CSS = {
-    "setting": "setting",
+    "note": "note",
     "question": "question",
     "derived": "derived",
     "structural": "derived",  # operator conclusions display like derived
@@ -104,6 +110,7 @@ _OPERATOR_SYMBOLS = {
     "contradiction": "\u2297",
     "equivalence": "\u2261",
     "complement": "\u2295",
+    "negation": "\u00ac",
     "disjunction": "\u2228",
     "conjunction": "\u2227",
     "implication": "\u2192",
@@ -113,18 +120,91 @@ _OPERATOR_SYMBOLS = {
 _UNDIRECTED_OPERATORS = frozenset({"equivalence", "contradiction", "complement", "implication"})
 
 
+def _visible_mermaid_ids(
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    node_ids: set[str] | None,
+) -> tuple[set[str], set[str]]:
+    """Return all visible node ids plus external ids for a scoped diagram."""
+    if node_ids is None:
+        return set(knowledge_by_id.keys()), set()
+
+    external_ids: set[str] = set()
+    _add_strategy_external_ids(external_ids, ir, knowledge_by_id, node_ids)
+    _add_operator_external_ids(external_ids, ir, knowledge_by_id, node_ids)
+    return node_ids | external_ids, external_ids
+
+
+def _add_strategy_external_ids(
+    external_ids: set[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    node_ids: set[str],
+) -> None:
+    """Add scoped-diagram external ids from strategy premises/background."""
+    for strategy in ir.get("strategies", []):
+        conclusion = strategy.get("conclusion")
+        if not (conclusion and conclusion in node_ids):
+            continue
+        for ref in [*strategy.get("premises", []), *(strategy.get("background") or [])]:
+            label = knowledge_by_id.get(ref, {}).get("label", "")
+            if ref not in node_ids and not _is_helper(label):
+                external_ids.add(ref)
+
+
+def _add_operator_external_ids(
+    external_ids: set[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    node_ids: set[str],
+) -> None:
+    """Add scoped-diagram external ids from operator variables/conclusions."""
+    for operator in ir.get("operators", []):
+        variables = operator.get("variables", [])
+        conclusion = operator.get("conclusion")
+        if not ((conclusion and conclusion in node_ids) or any(v in node_ids for v in variables)):
+            continue
+        for variable in variables:
+            label = knowledge_by_id.get(variable, {}).get("label", "")
+            if variable not in node_ids and not _is_helper(label):
+                external_ids.add(variable)
+        conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
+        if conclusion and conclusion not in node_ids and not _is_helper(conc_label):
+            external_ids.add(conclusion)
+
+
+def _visible_labeled_refs(
+    refs: list[str],
+    all_visible: set[str],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> list[str]:
+    """Return visible, non-helper labels for a list of knowledge ids."""
+    labels: list[str] = []
+    for ref in refs:
+        if ref not in all_visible:
+            continue
+        label = knowledge_by_id.get(ref, {}).get("label", "")
+        if label and not _is_helper(label):
+            labels.append(label)
+    return labels
+
+
 def _mermaid_node_line(
     label: str,
     kid: str,
     ktype: str,
-    classification,
+    classification: Any,
     beliefs: dict[str, float] | None,
     *,
     title: str | None = None,
     css_class_override: str | None = None,
 ) -> str:
     display_name = title or label
-    display = f"{display_name} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else display_name
+    display = (
+        f"{display_name} ({format_belief(beliefs[kid])})"
+        if beliefs and kid in beliefs
+        else display_name
+    )
     display = display.replace('"', "#quot;").replace("*", "#ast;")
     if css_class_override:
         css = css_class_override
@@ -134,58 +214,15 @@ def _mermaid_node_line(
     return f'    {label}["{display}"]:::{css}'
 
 
-def render_mermaid(
-    ir: dict,
-    beliefs: dict[str, float] | None = None,
-    *,
-    node_ids: set[str] | None = None,
-) -> str:
-    """Render a Mermaid graph TD diagram with strategy and operator intermediate nodes.
-
-    Strategies render as stadium-shaped nodes; operators as hexagons.
-    If node_ids is given, only show those nodes + edges between them.
-    External premises (not in node_ids but connected) shown as dashed.
-    """
-    lines = ["```mermaid", "graph TD"]
-    knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
-    c = classify_ir(ir)
-
-    # Determine which nodes to render
-    if node_ids is not None:
-        external_ids: set[str] = set()
-        for s in ir.get("strategies", []):
-            conc = s.get("conclusion")
-            if conc and conc in node_ids:
-                for p in s.get("premises", []):
-                    if p not in node_ids:
-                        p_label = knowledge_by_id.get(p, {}).get("label", "")
-                        if not _is_helper(p_label):
-                            external_ids.add(p)
-                for b in s.get("background") or []:
-                    if b not in node_ids:
-                        b_label = knowledge_by_id.get(b, {}).get("label", "")
-                        if not _is_helper(b_label):
-                            external_ids.add(b)
-        for o in ir.get("operators", []):
-            vars_list = o.get("variables", [])
-            conc = o.get("conclusion")
-            conc_label = knowledge_by_id.get(conc, {}).get("label", "") if conc else ""
-            conc_in_module = conc and conc in node_ids
-            any_var_in_module = any(v in node_ids for v in vars_list)
-            if conc_in_module or any_var_in_module:
-                for v in vars_list:
-                    if v not in node_ids:
-                        v_label = knowledge_by_id.get(v, {}).get("label", "")
-                        if not _is_helper(v_label):
-                            external_ids.add(v)
-                if conc and conc not in node_ids and not _is_helper(conc_label):
-                    external_ids.add(conc)
-        all_visible = node_ids | external_ids
-    else:
-        external_ids = set()
-        all_visible = set(knowledge_by_id.keys())
-
-    # Render knowledge nodes
+def _append_mermaid_knowledge_nodes(
+    lines: list[str],
+    ir: dict[str, Any],
+    classification: Any,
+    beliefs: dict[str, float] | None,
+    all_visible: set[str],
+    external_ids: set[str],
+) -> None:
+    """Append visible knowledge nodes."""
     for k in ir["knowledges"]:
         kid = k["id"]
         if kid not in all_visible:
@@ -199,14 +236,21 @@ def render_mermaid(
                 label,
                 kid,
                 k["type"],
-                c,
+                classification,
                 beliefs,
                 title=k.get("title"),
                 css_class_override=css_override,
             )
         )
 
-    # Render strategy intermediate nodes and edges
+
+def _append_mermaid_strategy_edges(
+    lines: list[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    all_visible: set[str],
+) -> None:
+    """Append strategy intermediate nodes and edges."""
     for i, s in enumerate(ir.get("strategies", [])):
         conclusion = s.get("conclusion")
         if not conclusion or conclusion not in all_visible:
@@ -215,81 +259,96 @@ def render_mermaid(
         if _is_helper(conc_label):
             continue
 
-        stype = s.get("type", "")
-        sid = f"strat_{i}"
-
-        # Collect visible premises and background
-        premises: list[str] = []
-        for p in s.get("premises", []):
-            if p not in all_visible:
-                continue
-            p_label = knowledge_by_id.get(p, {}).get("label", "")
-            if p_label and not _is_helper(p_label):
-                premises.append(p_label)
-        backgrounds: list[str] = []
-        for b in s.get("background") or []:
-            if b not in all_visible:
-                continue
-            b_label = knowledge_by_id.get(b, {}).get("label", "")
-            if b_label and not _is_helper(b_label):
-                backgrounds.append(b_label)
-
+        premises = _visible_labeled_refs(s.get("premises", []), all_visible, knowledge_by_id)
+        backgrounds = _visible_labeled_refs(s.get("background") or [], all_visible, knowledge_by_id)
         if not premises and not backgrounds:
             continue
 
-        # Strategy node (stadium shape): deterministic or weakpoint
+        stype = s.get("type", "")
+        sid = f"strat_{i}"
         css = "" if stype in _DETERMINISTIC_STRATEGIES else ":::weak"
         lines.append(f'    {sid}(["{stype}"]){css}')
-
         for p_label in premises:
             lines.append(f"    {p_label} --> {sid}")
         for b_label in backgrounds:
             lines.append(f"    {b_label} -.-> {sid}")
         lines.append(f"    {sid} --> {conc_label}")
 
-    # Render operator intermediate nodes and edges
+
+def _append_mermaid_operator_edges(
+    lines: list[str],
+    ir: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+    all_visible: set[str],
+) -> None:
+    """Append operator intermediate nodes and edges."""
     for i, o in enumerate(ir.get("operators", [])):
         conclusion = o.get("conclusion")
         conc_label = knowledge_by_id.get(conclusion, {}).get("label", "") if conclusion else ""
-        conc_is_helper = _is_helper(conc_label)
-        conc_visible = conclusion and conclusion in all_visible and not conc_is_helper
+        conc_visible = bool(conclusion and conclusion in all_visible and not _is_helper(conc_label))
 
         otype = o.get("operator", "")
-        symbol = _OPERATOR_SYMBOLS.get(otype, otype)
-        oid = f"oper_{i}"
-        is_undirected = otype in _UNDIRECTED_OPERATORS
-
-        visible_vars: list[str] = []
-        for v in o.get("variables", []):
-            if v not in all_visible:
-                continue
-            v_label = knowledge_by_id.get(v, {}).get("label", "")
-            if v_label and not _is_helper(v_label):
-                visible_vars.append(v_label)
-
+        visible_vars = _visible_labeled_refs(o.get("variables", []), all_visible, knowledge_by_id)
         if not visible_vars and not conc_visible:
             continue
 
-        # Operator node (hexagon shape)
+        oid = f"oper_{i}"
+        symbol = _OPERATOR_SYMBOLS.get(otype, otype)
         css = ":::contra" if otype == "contradiction" else ""
         lines.append(f'    {oid}{{{{"{symbol}"}}}}{css}')
 
-        edge = " --- " if is_undirected else " --> "
+        edge = " --- " if otype in _UNDIRECTED_OPERATORS else " --> "
         for v_label in visible_vars:
             lines.append(f"    {v_label}{edge}{oid}")
         if conc_visible:
             lines.append(f"    {oid}{edge}{conc_label}")
 
+
+_MERMAID_LEGEND = (
+    "**Diagram legend:**\n"
+    "nodes: rectangle = claim/note/question (★ = exported conclusion);"
+    " oval = derivation strategy; hexagon = structural operator.\n"
+    "edges: solid arrow (`-->`) = premise; dotted arrow (`-.->`) = background note.\n"
+    "operators: ⊕ exclusive partition; ⊗ contradiction; ≡ equivalence.\n"
+    "colours: blue = premise/independent; green = derived; amber = question;"
+    " grey/dashed = background or note; red = contradiction;"
+    " dashed-yellow = non-deterministic strategy."
+)
+
+
+def render_mermaid(
+    ir: dict[str, Any],
+    beliefs: dict[str, float] | None = None,
+    *,
+    node_ids: set[str] | None = None,
+) -> str:
+    """Render a Mermaid graph TD diagram with strategy and operator intermediate nodes.
+
+    Strategies render as stadium-shaped nodes; operators as hexagons.
+    If node_ids is given, only show those nodes + edges between them.
+    External premises (not in node_ids but connected) shown as dashed.
+    """
+    lines = ["```mermaid", "graph TD"]
+    knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
+    classification = classify_ir(ir)
+    all_visible, external_ids = _visible_mermaid_ids(ir, knowledge_by_id, node_ids)
+
+    _append_mermaid_knowledge_nodes(lines, ir, classification, beliefs, all_visible, external_ids)
+    _append_mermaid_strategy_edges(lines, ir, knowledge_by_id, all_visible)
+    _append_mermaid_operator_edges(lines, ir, knowledge_by_id, all_visible)
+
     lines.append("")
     lines.append(_MERMAID_STYLES)
     lines.append("```")
+    lines.append("")
+    lines.append(_MERMAID_LEGEND)
     return "\n".join(lines)
 
 
 # ── Narrative ordering ──
 
 
-def _narrative_order(ir: dict) -> list[dict]:
+def _narrative_order(ir: dict[str, Any]) -> list[dict[str, Any]]:
     """Return knowledge nodes in narrative reading order."""
     nodes = [k for k in ir["knowledges"] if not _is_helper(k.get("label", ""))]
     module_order = ir.get("module_order")
@@ -297,40 +356,90 @@ def _narrative_order(ir: dict) -> list[dict]:
     if module_order and any(k.get("module") for k in nodes):
         module_rank = {m: i for i, m in enumerate(module_order)}
 
-        def sort_key(k):
+        def module_sort_key(k: dict[str, Any]) -> tuple[int, Any]:
             mod = k.get("module")
             idx = k.get("declaration_index", 0)
             mod_rank = module_rank.get(mod, 999) if mod else -1
             return (mod_rank, idx)
 
-        return sorted(nodes, key=sort_key)
+        return sorted(nodes, key=module_sort_key)
 
     # Fallback: topo sort (single-file or legacy packages)
     layers = topo_layers(ir)
 
-    def sort_key(k):
+    def fallback_sort_key(k: dict[str, Any]) -> tuple[int, int, Any]:
         kid = k["id"]
         ktype = k["type"]
         if ktype == "question":
             return (999, 0, k.get("label", ""))
-        if ktype == "setting":
+        if is_note_type(ktype):
             return (-1, 0, k.get("label", ""))
         return (layers.get(kid, 0), 1, k.get("label", ""))
 
-    return sorted(nodes, key=sort_key)
+    return sorted(nodes, key=fallback_sort_key)
 
 
 # ── Knowledge node rendering ──
 
 
+def _render_reasoning_details(lines: list[str], reason: str) -> None:
+    """Append a collapsible Reasoning block to *lines* if *reason* is non-empty."""
+    if reason:
+        lines.append("<details><summary>Reasoning</summary>")
+        lines.append("")
+        lines.append(reason)
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+
+def _render_strategy_link(
+    lines: list[str],
+    s: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> None:
+    """Append a strategy derivation line (+ optional reasoning block) to *lines*."""
+    stype = s.get("type", "")
+    premise_links = []
+    for p in s.get("premises", []):
+        pk = knowledge_by_id.get(p, {})
+        p_label = pk.get("label", p.split("::")[-1])
+        p_title = pk.get("title") or p_label
+        if not _is_helper(p_label):
+            premise_links.append(f"[{p_title}](#{_anchor_id(p_label)})")
+    lines.append(f"\U0001f517 **{stype}**({', '.join(premise_links)})")
+    lines.append("")
+    _render_reasoning_details(lines, (s.get("metadata") or {}).get("reason", ""))
+
+
+def _render_operator_link(
+    lines: list[str],
+    o: dict[str, Any],
+    knowledge_by_id: dict[str, dict[str, Any]],
+) -> None:
+    """Append an operator structural-link line (+ optional reasoning block) to *lines*."""
+    otype = o.get("operator", "")
+    var_links = []
+    for v in o.get("variables", []):
+        vk = knowledge_by_id.get(v, {})
+        v_label = vk.get("label", v.split("::")[-1])
+        v_title = vk.get("title") or v_label
+        if not _is_helper(v_label):
+            var_links.append(f"[{v_title}](#{_anchor_id(v_label)})")
+    lines.append(f"\U0001f517 **{otype}**({', '.join(var_links)})")
+    lines.append("")
+    _render_reasoning_details(lines, (o.get("metadata") or {}).get("reason", ""))
+
+
 def _render_node(
-    k: dict,
-    strategy_for: dict[str, dict],
-    knowledge_by_id: dict[str, dict],
+    k: dict[str, Any],
+    strategy_for: dict[str, dict[str, Any]],
+    knowledge_by_id: dict[str, dict[str, Any]],
     beliefs: dict[str, float],
     priors: dict[str, float],
     *,
     emit_anchor: bool = True,
+    operator_for: dict[str, dict[str, Any]] | None = None,
 ) -> list[str]:
     """Render a single knowledge node as markdown lines."""
     label = k.get("label", "")
@@ -343,7 +452,6 @@ def _render_node(
     marker = " \u2605" if exported else ""
     ktype = k.get("type", "claim")
 
-    # Keep a stable label-based anchor even when the visible heading uses title.
     if emit_anchor and label:
         lines.append(f'<a id="{_anchor_id(label)}"></a>')
         lines.append("")
@@ -351,52 +459,86 @@ def _render_node(
     lines.append(f"#### {title}{marker}")
     lines.append("")
 
-    # Type + label badge line
-    type_emoji = {"setting": "\U0001f4cb", "claim": "\U0001f4cc", "question": "\u2753"}.get(
-        ktype, ""
-    )
+    type_emoji = {
+        "note": "\U0001f4cb",
+        "setting": "\U0001f4cb",
+        "context": "\U0001f4cb",
+        "claim": "\U0001f4cc",
+        "question": "\u2753",
+    }.get(ktype, "")
     badge_parts = [f"{type_emoji} `{label}`"]
     if kid in priors:
-        badge_parts.append(f"Prior: {priors[kid]:.2f}")
+        badge_parts.append(f"Prior: {format_belief(priors[kid])}")
     if kid in beliefs:
-        badge_parts.append(f"Belief: **{beliefs[kid]:.2f}**")
+        badge_parts.append(f"Belief: **{format_belief(beliefs[kid])}**")
     lines.append(" \u00a0\u00a0|\u00a0\u00a0 ".join(badge_parts))
     lines.append("")
 
-    # Content in blockquote
     if content:
         for content_line in content.split("\n"):
             lines.append(f"> {content_line}")
         lines.append("")
 
-    # Derivation
     if kid in strategy_for:
-        s = strategy_for[kid]
-        stype = s.get("type", "")
-        premise_links = []
-        for p in s.get("premises", []):
-            pk = knowledge_by_id.get(p, {})
-            p_label = pk.get("label", p.split("::")[-1])
-            p_title = pk.get("title") or p_label
-            if not _is_helper(p_label):
-                premise_links.append(f"[{p_title}](#{_anchor_id(p_label)})")
-        lines.append(f"\U0001f517 **{stype}**({', '.join(premise_links)})")
-        lines.append("")
-        reason = (s.get("metadata") or {}).get("reason", "")
-        if reason:
-            lines.append("<details><summary>Reasoning</summary>")
-            lines.append("")
-            lines.append(reason)
-            lines.append("")
-            lines.append("</details>")
-            lines.append("")
+        _render_strategy_link(lines, strategy_for[kid], knowledge_by_id)
+
+    if operator_for and kid in operator_for:
+        _render_operator_link(lines, operator_for[kid], knowledge_by_id)
 
     lines.append("")
     return lines
 
 
+def _overview_dependencies(ir: dict[str, Any]) -> dict[str, set[str]]:
+    """Build a conclusion-to-premise dependency map for overview rendering."""
+    deps: dict[str, set[str]] = defaultdict(set)
+    for s in ir.get("strategies", []):
+        conc = s.get("conclusion")
+        if conc:
+            for p in s.get("premises", []):
+                deps[conc].add(p)
+    for o in ir.get("operators", []):
+        conc = o.get("conclusion")
+        if conc:
+            for v in o.get("variables", []):
+                deps[conc].add(v)
+    return deps
+
+
+def _nearest_exported_deps(
+    start: str,
+    *,
+    deps: dict[str, set[str]],
+    exported_ids: set[str],
+) -> set[str]:
+    """Find nearest exported dependencies reachable from one exported node."""
+    visited: set[str] = set()
+    stack = list(deps.get(start, set()))
+    result: set[str] = set()
+    while stack:
+        node = stack.pop()
+        if node in visited:
+            continue
+        visited.add(node)
+        if node in exported_ids:
+            result.add(node)
+        else:
+            stack.extend(deps.get(node, set()))
+    return result
+
+
+def _overview_edges(ir: dict[str, Any], exported_ids: set[str]) -> set[tuple[str, str]]:
+    """Return non-transitive exported dependency edges for the overview graph."""
+    deps = _overview_dependencies(ir)
+    edges: set[tuple[str, str]] = set()
+    for eid in exported_ids:
+        for dep_id in _nearest_exported_deps(eid, deps=deps, exported_ids=exported_ids):
+            edges.add((dep_id, eid))
+    return edges
+
+
 def _render_overview_graph(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
 ) -> list[str]:
     """Render a summary Mermaid graph showing dependencies between exported conclusions."""
@@ -409,41 +551,7 @@ def _render_overview_graph(
     if len(exported) < 2:
         return []
 
-    # Build dependency graph: conclusion → set of premise IDs
-    deps: dict[str, set[str]] = defaultdict(set)
-    for s in ir.get("strategies", []):
-        conc = s.get("conclusion")
-        if conc:
-            for p in s.get("premises", []):
-                deps[conc].add(p)
-    for o in ir.get("operators", []):
-        conc = o.get("conclusion")
-        if conc:
-            for v in o.get("variables", []):
-                deps[conc].add(v)
-
-    # For each exported node, find nearest exported dependencies via BFS
-    # (stop at exported nodes — no redundant transitive edges)
-    def find_exported_deps(start: str) -> set[str]:
-        visited: set[str] = set()
-        stack = list(deps.get(start, set()))
-        result: set[str] = set()
-        while stack:
-            node = stack.pop()
-            if node in visited:
-                continue
-            visited.add(node)
-            if node in exported_ids:
-                result.add(node)
-            else:
-                stack.extend(deps.get(node, set()))
-        return result
-
-    edges: set[tuple[str, str]] = set()
-    for eid in exported_ids:
-        for dep_id in find_exported_deps(eid):
-            edges.add((dep_id, eid))
-
+    edges = _overview_edges(ir, exported_ids)
     if not edges:
         return []
 
@@ -454,7 +562,9 @@ def _render_overview_graph(
         label = k.get("label", "")
         kid = k["id"]
         title = k.get("title") or label
-        display = f"{title} ({beliefs[kid]:.2f})" if beliefs and kid in beliefs else title
+        display = (
+            f"{title} ({format_belief(beliefs[kid])})" if beliefs and kid in beliefs else title
+        )
         display = display.replace('"', "#quot;").replace("*", "#ast;")
         role = node_role(kid, k["type"], c)
         css = _ROLE_TO_CSS.get(role, "orphan")
@@ -469,12 +579,13 @@ def _render_overview_graph(
     lines.append(_MERMAID_STYLES)
     lines.append("```")
     lines.append("")
+    lines.append(_MERMAID_LEGEND)
 
     return lines
 
 
 def _render_introduction(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float],
     priors: dict[str, float],
 ) -> list[str]:
@@ -490,10 +601,14 @@ def _render_introduction(
         return []
 
     knowledge_by_id = {k["id"]: k for k in ir["knowledges"]}
-    strategy_for: dict[str, dict] = {}
+    strategy_for: dict[str, dict[str, Any]] = {}
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
             strategy_for[s["conclusion"]] = s
+    operator_for: dict[str, dict[str, Any]] = {}
+    for o in ir.get("operators", []):
+        if o.get("conclusion"):
+            operator_for[o["conclusion"]] = o
 
     exported = [
         k for k in ir["knowledges"] if k.get("exported") and not _is_helper(k.get("label", ""))
@@ -511,13 +626,14 @@ def _render_introduction(
                 beliefs,
                 priors,
                 emit_anchor=False,
+                operator_for=operator_for,
             )
         )
     return lines
 
 
 def render_knowledge_nodes(
-    ir: dict,
+    ir: dict[str, Any],
     beliefs: dict[str, float] | None = None,
     priors: dict[str, float] | None = None,
 ) -> str:
@@ -526,10 +642,14 @@ def render_knowledge_nodes(
     beliefs = beliefs or {}
     priors = priors or {}
 
-    strategy_for: dict[str, dict] = {}
+    strategy_for: dict[str, dict[str, Any]] = {}
     for s in ir.get("strategies", []):
         if s.get("conclusion"):
             strategy_for[s["conclusion"]] = s
+    operator_for: dict[str, dict[str, Any]] = {}
+    for o in ir.get("operators", []):
+        if o.get("conclusion"):
+            operator_for[o["conclusion"]] = o
 
     module_order = ir.get("module_order")
     has_modules = module_order and any(k.get("module") for k in knowledge_by_id.values())
@@ -544,10 +664,7 @@ def render_knowledge_nodes(
 
         for mod, nodes in segments:
             count = segment_counts[mod]
-            if mod == "Root":
-                heading = "Root"
-            else:
-                heading = module_titles.get(mod, mod)
+            heading = "Root" if mod == "Root" else module_titles.get(mod, mod)
             if count:
                 heading = f"{heading} (continued)"
             segment_counts[mod] += 1
@@ -564,7 +681,16 @@ def render_knowledge_nodes(
                 sections.append("")
 
             for k in nodes:
-                sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
+                sections.extend(
+                    _render_node(
+                        k,
+                        strategy_for,
+                        knowledge_by_id,
+                        beliefs,
+                        priors,
+                        operator_for=operator_for,
+                    )
+                )
     else:
         # Single-file/legacy: one global diagram + type-based grouping
         ordered = _narrative_order(ir)
@@ -577,12 +703,21 @@ def render_knowledge_nodes(
         sections.append("")
         current_type = None
         for k in ordered:
-            ktype = k["type"]
+            ktype = _display_knowledge_type(k["type"])
             if ktype != current_type:
                 current_type = ktype
                 sections.append(f"### {ktype.title()}s")
                 sections.append("")
-            sections.extend(_render_node(k, strategy_for, knowledge_by_id, beliefs, priors))
+            sections.extend(
+                _render_node(
+                    k,
+                    strategy_for,
+                    knowledge_by_id,
+                    beliefs,
+                    priors,
+                    operator_for=operator_for,
+                )
+            )
 
     return "\n".join(sections)
 
@@ -591,9 +726,9 @@ def render_knowledge_nodes(
 
 
 def render_inference_results(
-    ir: dict,
-    beliefs_data: dict,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    beliefs_data: dict[str, Any],
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Render inference results summary table."""
     lines = ["## Inference Results", ""]
@@ -618,8 +753,15 @@ def render_inference_results(
         label = b.get("label", kid.split("::")[-1])
         if _is_helper(label):
             continue
-        belief = f"{b['belief']:.4f}"
-        prior = f"{priors[kid]:.2f}" if kid in priors else "\u2014"
+        # Belief column keeps 4-decimal precision for "normal" values;
+        # tiny posteriors switch to scientific notation so they aren't
+        # silently rounded to 0.0000 (theme 002).
+        belief_value = b["belief"]
+        if abs(belief_value) < 0.0005 and belief_value != 0.0:
+            belief = f"{belief_value:.1e}"
+        else:
+            belief = f"{belief_value:.4f}"
+        prior = format_belief(priors[kid]) if kid in priors else "\u2014"
         k = knowledge_by_id.get(kid, {})
         ktype = k.get("type", "")
         role = node_role(kid, ktype, c)
@@ -633,10 +775,10 @@ def render_inference_results(
 
 
 def generate_detailed_reasoning(
-    ir: dict,
-    pkg_metadata: dict,
-    beliefs_data: dict | None = None,
-    param_data: dict | None = None,
+    ir: dict[str, Any],
+    pkg_metadata: dict[str, Any],
+    beliefs_data: dict[str, Any] | None = None,
+    param_data: dict[str, Any] | None = None,
 ) -> str:
     """Generate detailed-reasoning.md content from compiled IR and optional inference results."""
     beliefs: dict[str, float] | None = None

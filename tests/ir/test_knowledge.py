@@ -1,8 +1,11 @@
 """Tests for Knowledge data model."""
 
+import hashlib
+
 import pytest
-from gaia.ir import Knowledge, KnowledgeType, Parameter, PackageRef
-from gaia.ir.knowledge import make_qid, is_qid
+
+from gaia.engine.ir import Knowledge, KnowledgeType, PackageRef, Parameter
+from gaia.engine.ir.knowledge import is_qid, make_qid
 
 
 class TestMakeQid:
@@ -46,8 +49,15 @@ class TestIsQid:
 
 
 class TestKnowledgeType:
-    def test_three_types(self):
-        assert set(KnowledgeType) == {"claim", "setting", "question"}
+    def test_knowledge_types(self):
+        assert set(KnowledgeType) == {
+            "claim",
+            "note",
+            "setting",
+            "question",
+            "context",
+            "composition",
+        }
 
     def test_no_template(self):
         with pytest.raises(ValueError):
@@ -67,13 +77,14 @@ class TestKnowledgeCreation:
         assert k.label == "x"
 
     def test_no_id_no_label_raises(self):
-        with pytest.raises(ValueError, match="id.*label"):
+        with pytest.raises(ValueError, match=r"id.*label"):
             Knowledge(type=KnowledgeType.CLAIM, content="test")
 
     def test_content_hash_auto_computed_with_id(self):
         k = Knowledge(id="github:pkg::x", type="claim", content="test", label="x")
         assert k.content_hash is not None
         assert len(k.content_hash) == 64
+        assert k.format == "markdown"
 
     def test_content_hash_auto_computed_with_label_only(self):
         k = Knowledge(label="x", type="claim", content="test")
@@ -105,6 +116,42 @@ class TestKnowledgeCreation:
         k1 = Knowledge(id="github:pkg::a", type="claim", content="X", label="a")
         k2 = Knowledge(id="github:pkg::b", type="setting", content="X", label="b")
         assert k1.content_hash != k2.content_hash
+
+    def test_different_format_different_hash(self):
+        k1 = Knowledge(id="github:pkg::a", type="note", content="a|b\n1|2", label="a")
+        k2 = Knowledge(
+            id="github:pkg::b",
+            type="note",
+            content="a|b\n1|2",
+            label="b",
+            format="csv",
+        )
+        assert k1.content_hash != k2.content_hash
+
+    def test_legacy_content_hash_without_format_is_accepted_and_normalized(self):
+        old_hash = hashlib.sha256(b"claim|test|[]").hexdigest()
+        expected = Knowledge(id="github:pkg::expected", type="claim", content="test").content_hash
+
+        k = Knowledge(
+            id="github:pkg::x",
+            type="claim",
+            content="test",
+            label="x",
+            content_hash=old_hash,
+        )
+
+        assert k.format == "markdown"
+        assert k.content_hash == expected
+        assert k.content_hash != old_hash
+
+    def test_note_metadata_prior_rejected(self):
+        with pytest.raises(ValueError, match="prior"):
+            Knowledge(
+                id="github:pkg::ctx",
+                type="note",
+                content="Context only.",
+                metadata={"prior": 0.5},
+            )
 
 
 class TestKnowledgeParameters:

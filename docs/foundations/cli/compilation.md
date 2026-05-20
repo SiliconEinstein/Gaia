@@ -1,14 +1,14 @@
 ---
 status: current-canonical
 layer: cli
-since: v5-phase-1
+since: v0.5
 ---
 
 # Compilation and Validation
 
-This document describes the internals of `gaia compile` and `gaia check` -- the deterministic pipeline that transforms Python DSL source into Gaia IR.
+This document describes the internals of `gaia build compile` and `gaia build check` -- the deterministic pipeline that transforms Python DSL source into Gaia IR.
 
-## gaia compile
+## gaia build compile
 
 ### Pipeline Overview
 
@@ -29,7 +29,7 @@ Source: `gaia/cli/commands/compile.py`
 
 ### Step 1: Load Package Metadata
 
-`load_gaia_package()` in `gaia/cli/_packages.py` reads `pyproject.toml` and extracts:
+`load_gaia_package()` in `gaia/engine/packaging.py` reads `pyproject.toml` and extracts:
 
 - `[project].name` -- required, used to derive the Python import name
 - `[project].version` -- required, becomes `CollectedPackage.version`
@@ -53,26 +53,36 @@ The first root where the directory exists wins. If neither exists, the command a
 
 ### Step 2: Execute DSL Module
 
-The loader performs a fresh dynamic import of the package module (`gaia/cli/_packages.py:_import_fresh`):
+The loader performs a fresh dynamic import of the package module (`gaia/engine/packaging.py:_import_fresh`):
 
 1. **Evict stale modules** -- removes any previously cached modules matching the import name from `sys.modules`
 2. **Invalidate bytecode** -- calls `importlib.invalidate_caches()` and sets `sys.dont_write_bytecode = True` during import
 3. **Import** -- calls `importlib.import_module(import_name)`
 
-Before import, the loader calls `reset_inferred_package()` to prime the callstack-based package registry (`gaia/lang/runtime/package.py`). This ensures DSL objects created during module execution register to the correct `CollectedPackage`.
+Before import, `gaia build compile` first runs a best-effort `uv sync --quiet` when
+`uv` is available. That step is dependency-environment maintenance, not part of
+IR construction. After that, the loader calls `reset_inferred_package()` to
+prime the callstack-based package registry (`gaia/engine/lang/runtime/package.py`).
+This ensures DSL objects created during module execution register to the
+correct `CollectedPackage`.
 
-**Auto-registration via contextvars:** each DSL dataclass (`Knowledge`, `Strategy`, `Operator` in `gaia/lang/runtime/nodes.py`) has a `__post_init__` that looks up the current `CollectedPackage` from the `_current_package` context variable. If set, the object registers itself immediately. If not set, it falls back to `infer_package_from_callstack()`, which walks the call stack to find the nearest non-`gaia.lang` module, locates its `pyproject.toml`, and loads (or retrieves) the corresponding `CollectedPackage`.
+**Auto-registration via contextvars:** each DSL dataclass (`Knowledge`, `Strategy`, `Operator` in `gaia/engine/lang/runtime/nodes.py`) has a `__post_init__` that looks up the current `CollectedPackage` from the `_current_package` context variable. If set, the object registers itself immediately. If not set, it falls back to `infer_package_from_callstack()`, which walks the call stack to find the nearest non-`gaia.engine.lang` module, locates its `pyproject.toml`, and loads (or retrieves) the corresponding `CollectedPackage`.
 
-**Label inference** (`_assign_labels` in `gaia/cli/_packages.py`): after import completes, the loader scans module attributes to assign labels to unlabeled DSL objects:
+**Label inference** (`_assign_labels` in `gaia/engine/packaging.py`): after import completes, the loader imports the package root and all non-helper source modules, then scans loaded module attributes to assign labels to unlabeled DSL objects:
 
-- If `__all__` is defined and is a list of strings, only those names are scanned for `Knowledge` objects
-- Otherwise, all non-underscore-prefixed attributes are scanned
-- For `Strategy` objects, all non-underscore-prefixed attributes are always scanned (regardless of `__all__`)
-- Only objects that belong to the current package (by identity) and have `label is None` receive a label from the variable name
+- `__all__` controls which labels become exported cross-package interface
+  labels; it does **not** limit which declarations are discovered or compiled.
+- Any assignable module variable name can receive a label; `__dunder__` names
+  are skipped. A single leading underscore is a Python convention but does not
+  by itself prevent labeling or compilation. Unbound/generated helpers enter
+  the IR with generated or anonymous identity.
+- For `Strategy` objects, all assignable loaded-module attributes are scanned.
+- Only objects that belong to the current package (by identity) and have
+  `label is None` receive a label from the variable name.
 
 ### Step 3: Compile to IR
 
-`compile_package_artifact()` in `gaia/lang/compiler/compile.py` transforms the `CollectedPackage` into a `LocalCanonicalGraph`.
+`compile_package_artifact()` in `gaia/engine/lang/compiler/compile.py` transforms the `CollectedPackage` into a `LocalCanonicalGraph`.
 
 #### Knowledge Closure
 
@@ -88,7 +98,7 @@ De-duplication is by Python object identity (`id()`). Foreign knowledge nodes (i
 
 #### QID Assignment
 
-Each knowledge node receives a stable Qualified Node ID. The assignment logic (`_knowledge_id` in `gaia/lang/compiler/compile.py`) considers three cases:
+Each knowledge node receives a stable Qualified Node ID. The assignment logic (`_knowledge_id` in `gaia/engine/lang/compiler/compile.py`) considers three cases:
 
 | Case | QID Format | Example |
 |------|-----------|---------|
@@ -104,11 +114,11 @@ For foreign nodes, the compiler checks in order:
 
 Anonymous counter is sequential per compilation, producing deterministic IDs for unlabeled local nodes.
 
-QID format is defined in [Identity and Hashing](../gaia-ir/03-identity-and-hashing.md).
+QID semantics are defined in [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md); generated helper signatures are available in [Gaia IR API](../../reference/engine/ir.md).
 
 #### Named Strategy Formalization
 
-When a strategy's `type` is one of the compile-time formal families (`deduction`, `elimination`, `mathematical_induction`, `case_analysis`, `abduction`, `analogy`, `extrapolation`), the compiler delegates to `formalize_named_strategy()` in `gaia/ir/formalize.py`.
+When a strategy's `type` is one of the compile-time formal families (`deduction`, `elimination`, `mathematical_induction`, `case_analysis`, `abduction`, `analogy`, `extrapolation`), the compiler delegates to `formalize_named_strategy()` in `gaia/engine/ir/formalize.py`.
 
 This function:
 
@@ -143,7 +153,7 @@ Operators that appear inside a strategy's `formal_expr` are compiled without `op
 
 ### Step 4: Compute IR Hash
 
-The `LocalCanonicalGraph` model validator (`gaia/ir/graphs.py`) automatically computes `ir_hash` when it is `None`:
+The `LocalCanonicalGraph` model validator (`gaia/engine/ir/graphs.py`) automatically computes `ir_hash` when it is `None`:
 
 1. **Canonical JSON serialization** (`_canonical_json`): produces a deterministic JSON string independent of insertion order by:
    - Sorting knowledge nodes, operators, and strategies by their JSON representation
@@ -155,11 +165,11 @@ The `LocalCanonicalGraph` model validator (`gaia/ir/graphs.py`) automatically co
 
 The hash covers knowledges, operators, and strategies -- the full graph closure including foreign references.
 
-Reference: [Identity and Hashing](../gaia-ir/03-identity-and-hashing.md) and [Canonicalization](../gaia-ir/05-canonicalization.md).
+Reference: [Identity And Hashing](../gaia-ir/03-identity-and-hashing.md) and [Validation](../gaia-ir/08-validation.md).
 
 ### Step 5: Validate and Write
 
-The compile command runs `validate_local_graph()` (`gaia/ir/validator.py`) on the constructed `LocalCanonicalGraph`. The validator checks (see [Validation](../gaia-ir/08-validation.md) for the full contract):
+The compile command runs `validate_local_graph()` (`gaia/engine/ir/validator.py`) on the constructed `LocalCanonicalGraph`. The validator checks:
 
 **Knowledge checks:**
 - All IDs are valid QID format
@@ -187,7 +197,7 @@ The compile command runs `validate_local_graph()` (`gaia/ir/validator.py`) on th
 
 If validation produces errors, the command aborts with exit code 1. Warnings are printed but do not block compilation.
 
-On success, `write_compiled_artifacts()` (`gaia/cli/_packages.py`) writes:
+On success, `write_compiled_artifacts()` (`gaia/engine/packaging.py`) writes:
 
 - `.gaia/ir.json` -- the full `LocalCanonicalGraph` serialized as indented, sorted-keys JSON
 - `.gaia/ir_hash` -- the bare hash string
@@ -200,9 +210,9 @@ On success, `write_compiled_artifacts()` (`gaia/cli/_packages.py`) writes:
 
 Source: `gaia/cli/commands/compile.py`
 
-## gaia check
+## gaia build check
 
-`gaia check` validates that a package is well-formed and its compiled artifacts are current. It runs the full compilation pipeline in memory and compares against stored artifacts.
+`gaia build check` validates that a package is well-formed and its compiled artifacts are current. It runs the full compilation pipeline in memory and compares against stored artifacts.
 
 Source: `gaia/cli/commands/check.py`
 
@@ -217,17 +227,18 @@ Source: `gaia/cli/commands/check.py`
 | 5 | Stored ir.json consistency | `.gaia/ir.json` exists, is valid JSON, and its embedded `ir_hash` matches recompiled hash | Error if mismatched |
 | 6 | Artifact presence | `.gaia/ir_hash` exists | Warning if missing |
 
-If `.gaia/ir_hash` does not exist, check reports a warning (artifacts missing, run `gaia compile`). If it exists but does not match the recompiled value, check reports an error (artifacts stale, run `gaia compile` again).
+If `.gaia/ir_hash` does not exist, check reports a warning (artifacts missing, run `gaia build compile`). If it exists but does not match the recompiled value, check reports an error (artifacts stale, run `gaia build compile` again).
 
 ## Determinism Guarantee
 
 The same source code always produces the same `ir_hash`, provided the package's DSL declarations are side-effect-free (no network calls, no randomness, no environment-dependent logic). The compiler itself introduces no non-determinism:
 
 - **No LLM calls** -- compilation is purely mechanical
-- **No network access** -- all inputs are local files
+- **No network access during IR construction** -- all compiler inputs are local
+  files after the command's optional `uv sync --quiet` environment refresh
 - **No randomness** -- no random number generation anywhere in the pipeline
 - **Deterministic IDs** -- QIDs are derived from (namespace, package_name, label); anonymous IDs use sequential counters in stable iteration order; strategy and operator IDs are content-addressed hashes
 - **Canonical serialization** -- JSON output is sorted at every level, making `ir_hash` independent of Python dict ordering or object creation order
 - **Bytecode suppression** -- `sys.dont_write_bytecode = True` during import prevents stale `.pyc` interference
 
-This determinism is what makes `gaia check` possible: recompiling from source must reproduce the exact same IR hash as a previous `gaia compile` run, as long as the source has not changed.
+This determinism is what makes `gaia build check` possible: recompiling from source must reproduce the exact same IR hash as a previous `gaia build compile` run, as long as the source has not changed.

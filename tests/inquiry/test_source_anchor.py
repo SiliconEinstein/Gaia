@@ -5,19 +5,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
-from gaia.inquiry.anchor import SourceAnchor, find_anchors
-from gaia.inquiry.diagnostics import (
+from gaia.engine.inquiry.anchor import SourceAnchor, find_anchors
+from gaia.engine.inquiry.diagnostics import (
     Diagnostic,
     NextEdit,
     format_diagnostics_as_next_edits,
     format_diagnostics_as_structured_edits,
 )
-from gaia.inquiry.review import run_review
+from gaia.engine.inquiry.review import run_review
 
 runner = CliRunner()
+LEGACY_DSL = pytest.mark.legacy_dsl
 
 
 def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
@@ -30,7 +32,8 @@ def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
     src = pkg_dir / name
     src.mkdir(exist_ok=True)
     body = (
-        "from gaia.lang import claim, support\n"
+        "from gaia.engine.lang import claim\n"
+        "from gaia.engine.lang.compat import support\n"
         "\n"
         "# a prior hole (no prior set) — should be anchored\n"
         'hypothesis = claim("unverified hypothesis")\n'
@@ -50,6 +53,7 @@ def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_find_anchors_locates_claims(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -61,18 +65,20 @@ def test_find_anchors_locates_claims(tmp_path):
     ha = anchors["hypothesis"]
     assert isinstance(ha, SourceAnchor)
     assert ha.file.endswith("__init__.py")
-    # hypothesis 赋值在第 4 行 (from; 空行; 注释; hypothesis=...)
-    assert ha.line == 4
+    # hypothesis 赋值在第 5 行 (imports; 空行; 注释; hypothesis=...)
+    assert ha.line == 5
 
 
+@LEGACY_DSL
 def test_find_anchors_multiline_call(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
     anchors = find_anchors(pkg)
     # conclusion = claim("conclusion from above") 跨两行, ast 取起始行
-    assert anchors["conclusion"].line == 7
+    assert anchors["conclusion"].line == 8
 
 
+@LEGACY_DSL
 def test_find_anchors_handles_syntax_error(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -82,13 +88,14 @@ def test_find_anchors_handles_syntax_error(tmp_path):
     assert "hypothesis" in anchors
 
 
+@LEGACY_DSL
 def test_find_anchors_ignores_hidden_dirs(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
     hidden = pkg / ".gaia" / "cache"
     hidden.mkdir(parents=True)
     (hidden / "leak.py").write_text(
-        'from gaia.lang import claim\nleak = claim("x")\n', encoding="utf-8"
+        'from gaia.engine.lang import claim\nleak = claim("x")\n', encoding="utf-8"
     )
     anchors = find_anchors(pkg)
     assert "leak" not in anchors
@@ -98,11 +105,51 @@ def test_find_anchors_returns_empty_for_nonexistent(tmp_path):
     assert find_anchors(tmp_path / "does_not_exist") == {}
 
 
+@LEGACY_DSL
+def test_find_anchors_locates_v05_dsl_constructors(tmp_path):
+    pkg = tmp_path / "p"
+    pkg.mkdir()
+    (pkg / "pyproject.toml").write_text(
+        '[project]\nname = "anchor-v05-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+    src = pkg / "anchor_v05"
+    src.mkdir()
+    (src / "__init__.py").write_text(
+        "from gaia.engine.lang import associate, claim, depends_on, derive\n"
+        "from gaia.engine.lang.compat import contradiction, deduction\n"
+        'a = claim("A.")\n'
+        'b = claim("B.")\n'
+        'c = claim("C.")\n'
+        'derived = derive("Derived.", given=a, rationale="A implies it.", label="derive_c")\n'
+        "proof = deduction(premises=[a], conclusion=c)\n"
+        "assoc = associate(a, b, p_a_given_b=0.7, p_b_given_a=0.6, label='assoc_ab')\n"
+        "conflict = contradiction(a, b)\n"
+        "depends_on(c, given=(a,), rationale='scaffold', label='c_depends_on_a')\n"
+        '__all__ = ["a", "b", "c", "derived", "proof", "assoc", "conflict"]\n',
+        encoding="utf-8",
+    )
+
+    anchors = find_anchors(pkg)
+
+    for label in (
+        "derive_c",
+        "proof",
+        "assoc_ab",
+        "assoc",
+        "conflict",
+        "c_depends_on_a",
+    ):
+        assert label in anchors
+
+
 # --------------------------------------------------------------------------- #
 # Diagnostic now carries source_anchor                                        #
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_review_diagnostics_carry_anchor(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -146,6 +193,7 @@ def test_diagnostic_to_dict_includes_anchor():
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_text_next_edit_contains_file_line(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -153,6 +201,7 @@ def test_text_next_edit_contains_file_line(tmp_path):
     assert any("__init__.py:" in edit for edit in report.next_edits), report.next_edits
 
 
+@LEGACY_DSL
 def test_structured_next_edits_have_anchor(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)
@@ -208,6 +257,7 @@ def test_structured_next_edits_dedup_matches_text():
 # --------------------------------------------------------------------------- #
 
 
+@LEGACY_DSL
 def test_cli_json_contains_next_edits_structured(tmp_path):
     pkg = tmp_path / "p"
     _write_pkg(pkg)

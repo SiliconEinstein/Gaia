@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "inquiry",
+    "focus",
+    "--pop",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 1,
+  "stderr": "Error: focus stack is empty.\n",
+  "stdout": ""
+}

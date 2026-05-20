@@ -1,9 +1,11 @@
 # Module Subgraph External Module Grouping Design
 
-**Status:** Target design
+**Status:** Superseded
 **Date:** 2026-04-12
 **Type of change:** Clarification + targeted visual behavior replacement
-**Scope:** `gaia/cli/templates/pages/src/components/ModuleSubgraph.tsx` and supporting template-page hooks/tests only
+**Former scope:** React/Vite GitHub Pages template component layout.
+
+> **Superseded by v0.5 cleanup (2026-05-16):** the React/Vite GitHub Pages template was removed with its component tests.
 
 ## Problem
 

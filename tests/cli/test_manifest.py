@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from gaia.cli.commands._manifest import generate_manifest
+
+pytestmark = pytest.mark.pr_gate
 
 
 def test_manifest_has_required_fields():

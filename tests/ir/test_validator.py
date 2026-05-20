@@ -1,20 +1,26 @@
 """Tests for Gaia IR validator."""
 
-from gaia.ir import (
+from typing import Any
+
+from gaia.engine.ir import (
+    Compose,
+    CompositeStrategy,
+    FormalExpr,
+    FormalStrategy,
+    FormulaEdge,
+    FormulaGraph,
+    FormulaNode,
     Knowledge,
     KnowledgeType,
+    LocalCanonicalGraph,
     Operator,
     Strategy,
-    CompositeStrategy,
-    FormalStrategy,
-    FormalExpr,
-    LocalCanonicalGraph,
+    formula_node_id,
 )
-from gaia.ir.validator import (
+from gaia.engine.ir.validator import (
     validate_local_graph,
     validate_parameterization,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -30,7 +36,7 @@ def _setting(id: str) -> Knowledge:
 
 
 def _local_graph(**kwargs) -> LocalCanonicalGraph:
-    defaults = {
+    defaults: dict[str, Any] = {
         "namespace": "github",
         "package_name": "test",
         "knowledges": [],
@@ -39,6 +45,273 @@ def _local_graph(**kwargs) -> LocalCanonicalGraph:
     }
     defaults.update(kwargs)
     return LocalCanonicalGraph(**defaults)
+
+
+def _local_graph_unchecked(**kwargs) -> LocalCanonicalGraph:
+    defaults: dict[str, Any] = {
+        "namespace": "github",
+        "package_name": "test",
+        "scope": "local",
+        "ir_hash": None,
+        "knowledges": [],
+        "operators": [],
+        "strategies": [],
+        "composes": [],
+        "formula_graphs": [],
+    }
+    defaults.update(kwargs)
+    return LocalCanonicalGraph.model_construct(**defaults)
+
+
+def _formula_node(descriptor: dict, kind: str = "atom") -> FormulaNode:
+    return FormulaNode(id=formula_node_id(descriptor), kind=kind, descriptor=descriptor)
+
+
+class TestComposeValidation:
+    def test_compose_rejects_self_reference(self):
+        g = _local_graph(
+            knowledges=[_claim("github:test::c")],
+            composes=[
+                Compose(
+                    compose_id="lcm_self",
+                    name="self",
+                    version="1.0",
+                    actions=["lcm_self"],
+                    conclusion="github:test::c",
+                )
+            ],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("cannot reference itself" in e for e in r.errors)
+
+    def test_compose_rejects_mutual_cycle(self):
+        g = _local_graph(
+            knowledges=[_claim("github:test::c")],
+            composes=[
+                Compose(
+                    compose_id="lcm_a",
+                    name="a",
+                    version="1.0",
+                    actions=["lcm_b"],
+                    conclusion="github:test::c",
+                ),
+                Compose(
+                    compose_id="lcm_b",
+                    name="b",
+                    version="1.0",
+                    actions=["lcm_a"],
+                    conclusion="github:test::c",
+                ),
+            ],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("cycle" in e for e in r.errors)
+
+
+class TestFormulaGraphValidation:
+    def test_formula_graph_source_claim_must_exist(self):
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph(
+            source_claim="github:test::missing",
+            root=root.id,
+            nodes=[root],
+        )
+        g = _local_graph(formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any(
+            "FormulaGraph 'github:test::missing'" in e and "source_claim" in e and "not found" in e
+            for e in r.errors
+        )
+
+    def test_formula_graph_source_claim_must_be_claim(self):
+        source = Knowledge(
+            id="github:test::setting",
+            type=KnowledgeType.SETTING,
+            content="setting",
+        )
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph(
+            source_claim=source.id,
+            root=root.id,
+            nodes=[root],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("source_claim" in e and "must be claim" in e for e in r.errors)
+
+    def test_formula_graph_root_must_exist_in_nodes(self):
+        source = _claim("github:test::claim")
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root="fg:missing",
+            nodes=[root],
+            edges=[],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("root 'fg:missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_edges_must_reference_nodes(self):
+        source = _claim("github:test::claim")
+        root = _formula_node({"symbol": "P"})
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root=root.id,
+            nodes=[root],
+            edges=[FormulaEdge(source=root.id, target="fg:missing", role="operand")],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("edge target 'fg:missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_node_ids_must_match_canonical_descriptor_hash(self):
+        source = _claim("github:test::claim")
+        bad_node = FormulaNode.model_construct(
+            id="fg:0000000000000000",
+            kind="atom",
+            descriptor={"symbol": "P"},
+        )
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root=bad_node.id,
+            nodes=[bad_node],
+            edges=[],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("does not match canonical descriptor hash" in e for e in r.errors)
+
+    def test_formula_graph_duplicate_node_id_cannot_change_signature(self):
+        source = _claim("github:test::claim")
+        node_id = formula_node_id({"symbol": "P"})
+        left = FormulaNode(id=node_id, kind="atom", descriptor={"symbol": "P"})
+        right = FormulaNode.model_construct(
+            id=node_id,
+            kind="term",
+            descriptor={"symbol": "P"},
+        )
+        formula_graph = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root=node_id,
+            nodes=[left, right],
+            edges=[],
+        )
+        g = _local_graph_unchecked(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("appears with different kind or descriptor" in e for e in r.errors)
+
+    def test_formula_graph_descriptor_claim_qid_must_exist(self):
+        source = _claim("github:test::claim")
+        root = _formula_node({"kind": "claim", "qid": "github:test::missing"})
+        formula_graph = FormulaGraph(source_claim=source.id, root=root.id, nodes=[root])
+        g = _local_graph(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("descriptor qid 'github:test::missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_descriptor_claim_qid_must_reference_claim(self):
+        source = _claim("github:test::claim")
+        setting = _setting("github:test::setting")
+        root = _formula_node({"kind": "claim", "qid": setting.id})
+        formula_graph = FormulaGraph(source_claim=source.id, root=root.id, nodes=[root])
+        g = _local_graph_unchecked(knowledges=[source, setting], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any(
+            "descriptor qid 'github:test::setting'" in e and "must reference a claim" in e
+            for e in r.errors
+        )
+
+    def test_formula_graph_descriptor_knowledge_qid_scan_is_recursive(self):
+        source = _claim("github:test::claim")
+        descriptor = {
+            "kind": "predicate",
+            "args": [
+                {
+                    "kind": "function",
+                    "args": [
+                        {
+                            "kind": "arith",
+                            "left": {"kind": "knowledge", "qid": "github:test::missing"},
+                            "right": {"kind": "constant", "value": 1},
+                        }
+                    ],
+                }
+            ],
+        }
+        root = _formula_node(descriptor)
+        formula_graph = FormulaGraph(source_claim=source.id, root=root.id, nodes=[root])
+        g = _local_graph(knowledges=[source], formula_graphs=[formula_graph])
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("descriptor qid 'github:test::missing' not found" in e for e in r.errors)
+
+    def test_formula_graph_validation_reports_malformed_constructed_shapes(self):
+        source = _claim("github:test::claim")
+        malformed = FormulaGraph.model_construct(
+            source_claim=[],
+            root="fg:missing",
+            nodes=[
+                FormulaNode.model_construct(id="fg:missing_descriptor", kind="atom"),
+                FormulaNode.model_construct(
+                    id="fg:bad_descriptor",
+                    kind="atom",
+                    descriptor={"kind": "claim", "payload": object()},
+                ),
+            ],
+            edges=[FormulaEdge.model_construct(source="fg:bad_descriptor")],
+        )
+        no_nodes = FormulaGraph.model_construct(
+            source_claim=source.id,
+            root="fg:missing",
+            nodes=None,
+            edges=None,
+        )
+        g = _local_graph_unchecked(
+            knowledges=[source],
+            formula_graphs=[malformed, no_nodes],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("source_claim must be a string" in e for e in r.errors)
+        assert any("descriptor must be a dict" in e for e in r.errors)
+        assert any("descriptor is not canonical JSON serializable" in e for e in r.errors)
+        assert any("edge target is missing" in e for e in r.errors)
+        assert any("nodes must be a list" in e for e in r.errors)
+        assert any("edges must be a list" in e for e in r.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +363,39 @@ class TestKnowledgeValidation:
         r = validate_local_graph(g)
         assert not r.valid
         assert any("metadata prior" in e and "Cromwell bounds" in e for e in r.errors)
+
+    def test_structural_helper_metadata_prior_is_prohibited(self):
+        g = _local_graph(
+            knowledges=[
+                _claim("github:test::a"),
+                _claim("github:test::b"),
+                Knowledge(
+                    id="github:test::both",
+                    type=KnowledgeType.CLAIM,
+                    content="A and B",
+                    metadata={
+                        "generated": True,
+                        "helper_kind": "conjunction_result",
+                        "review": False,
+                        "prior": 0.9,
+                    },
+                ),
+            ],
+            operators=[
+                Operator(
+                    operator_id="lco_both",
+                    scope="local",
+                    operator="conjunction",
+                    variables=["github:test::a", "github:test::b"],
+                    conclusion="github:test::both",
+                ),
+            ],
+        )
+
+        r = validate_local_graph(g)
+
+        assert not r.valid
+        assert any("github:test::both" in e and "structural helper claim" in e for e in r.errors)
 
     def test_duplicate_label_rejected(self):
         g = _local_graph(
@@ -1090,63 +1396,43 @@ class TestParameterizationValidation:
         )
 
     def test_complete_parameterization(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
-        sid = g.strategies[0].strategy_id
         r = validate_parameterization(
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
             ],
         )
         assert r.valid
 
     def test_strategy_conclusion_does_not_require_prior(self):
         """Strategy conclusions are exempt from PriorRecord requirement."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
-        sid = g.strategies[0].strategy_id
         # b is the conclusion of a noisy_and — no prior needed
         r = validate_parameterization(
             g,
             priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
-            ],
         )
         assert r.valid, r.errors
 
     def test_missing_prior_for_independent_premise(self):
         """Independent premises (not strategy conclusions) still require priors."""
-        from gaia.ir import StrategyParamRecord
-
         g = self._graph()
-        sid = g.strategies[0].strategy_id
         # a is an independent premise — missing prior should be an error
         r = validate_parameterization(
             g,
             priors=[],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
-            ],
         )
         assert not r.valid
         assert any("github:test::a" in e and "missing PriorRecord" in e for e in r.errors)
 
-    def test_missing_strategy_param_for_parameterized(self):
-        from gaia.ir import PriorRecord
+    def test_parameterized_strategy_uses_inline_params_not_param_records(self):
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
         r = validate_parameterization(
@@ -1155,14 +1441,12 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
             ],
-            strategy_params=[],
         )
-        assert not r.valid
-        assert any("missing StrategyParamRecord" in e for e in r.errors)
+        assert r.valid
 
     def test_formal_strategy_without_params_passes(self):
-        """FormalStrategy types do not need StrategyParamRecord."""
-        from gaia.ir import PriorRecord
+        """FormalStrategy types do not need any separate strategy parameter record."""
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1197,13 +1481,12 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::m", value=0.5, source_id="s"),
             ],
-            strategy_params=[],  # no params needed for deduction
         )
         assert r.valid
 
     def test_private_helper_claim_no_prior_needed(self):
         """Private helper claims (FormalExpr internal) don't need PriorRecord."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1246,13 +1529,12 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 # no prior for reg:test::m
             ],
-            strategy_params=[],
         )
         assert r.valid
 
     def test_private_helper_claim_prior_prohibited(self):
         """Providing PriorRecord for a private helper claim is an error."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1293,14 +1575,13 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::m", value=0.5, source_id="s"),  # prohibited!
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any("private or structural helper claim" in e for e in r.errors)
 
     def test_implication_private_node_prior_prohibited(self):
         """Any FormalExpr private node (not just structural helpers) must not have PriorRecord."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         # github:test::h1 and h2 are implication helper conclusions inside FormalExpr, NOT in
         # the strategy's interface (premises/conclusion). They are private nodes.
@@ -1347,14 +1628,13 @@ class TestParameterizationValidation:
                     knowledge_id="github:test::h1", value=0.5, source_id="s"
                 ),  # prohibited!
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any("github:test::h1" in e and "private or structural helper" in e for e in r.errors)
 
     def test_implication_private_node_no_prior_needed(self):
         """FormalExpr private implication helper nodes don't need PriorRecord."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1395,13 +1675,12 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::mid", value=0.5, source_id="s"),
                 # github:test::h1 and h2 are private -- no prior needed
             ],
-            strategy_params=[],
         )
         assert r.valid
 
     def test_abduction_generated_interface_claim_requires_prior(self):
         """Auto-generated alternative explanations are public interface claims with priors."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1429,14 +1708,13 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::obs", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::h", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any(alternative_explanation.id in e and "missing PriorRecord" in e for e in r.errors)
 
     def test_abduction_generated_interface_claim_prior_allowed(self):
         """The generated alternative explanation can be parameterized like any public claim."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1465,13 +1743,12 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::h", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id=alternative_explanation.id, value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid
 
     def test_elimination_only_requires_interface_priors(self):
         """Strict elimination should not introduce hidden prior-bearing internal claims."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         formalized = Strategy(
             scope="local",
@@ -1508,13 +1785,12 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::e2", value=0.9, source_id="s"),
                 PriorRecord(knowledge_id="github:test::h3", value=0.2, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid
 
     def test_top_level_helper_claim_no_prior_needed(self):
         """Top-level structural helper claims should also be excluded from prior coverage."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1538,13 +1814,12 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid
 
     def test_top_level_helper_claim_prior_prohibited(self):
         """Top-level structural helper claims must not accept independent priors."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[
@@ -1569,80 +1844,29 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::eq", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert not r.valid
         assert any(
             "github:test::eq" in e and "private or structural helper claim" in e for e in r.errors
         )
 
-    def test_param_for_non_parameterized_type_warns(self):
-        """StrategyParamRecord for a FormalStrategy type should warn."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(
-            knowledges=[
-                _claim("github:test::a"),
-                _claim("github:test::b"),
-                _claim("github:test::h"),
-            ],
-            strategies=[
-                FormalStrategy(
-                    scope="local",
-                    type="deduction",
-                    premises=["github:test::a"],
-                    conclusion="github:test::b",
-                    formal_expr=FormalExpr(
-                        operators=[
-                            Operator(
-                                operator="implication",
-                                variables=["github:test::a", "github:test::b"],
-                                conclusion="github:test::h",
-                            ),
-                        ]
-                    ),
-                ),
-            ],
-        )
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.5], source_id="s"
-                ),
-            ],
-        )
-        assert r.valid  # warning, not error
-        assert any("not parameterized" in w for w in r.warnings)
-
     def test_setting_does_not_need_prior(self):
         """Settings don't carry probability -- no PriorRecord needed."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
+        from gaia.engine.ir import PriorRecord
 
         g = self._graph()
-        sid = g.strategies[0].strategy_id
         r = validate_parameterization(
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
             ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid, conditional_probabilities=[0.85], source_id="s"
-                ),
-            ],
         )
         assert r.valid  # reg:test::s (setting) doesn't need a prior
 
     def test_cromwell_bounds_on_priors(self):
         """PriorRecord auto-clamps, so raw values within bounds should pass."""
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(
             knowledges=[_claim("github:test::a")],
@@ -1651,12 +1875,11 @@ class TestParameterizationValidation:
         r = validate_parameterization(
             g,
             priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
-            strategy_params=[],
         )
         assert r.valid
 
     def test_dangling_prior_warning(self):
-        from gaia.ir import PriorRecord
+        from gaia.engine.ir import PriorRecord
 
         g = _local_graph(knowledges=[_claim("github:test::a")])
         r = validate_parameterization(
@@ -1665,129 +1888,17 @@ class TestParameterizationValidation:
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
                 PriorRecord(knowledge_id="github:test::nonexistent", value=0.5, source_id="s"),
             ],
-            strategy_params=[],
         )
         assert r.valid  # warning, not error
         assert any("non-existent" in w for w in r.warnings)
 
-    def test_dangling_strategy_param_warning(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(knowledges=[_claim("github:test::a")])
-        r = validate_parameterization(
-            g,
-            priors=[PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s")],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id="lcs_ghost", conditional_probabilities=[0.5], source_id="s"
-                ),
-            ],
-        )
-        assert r.valid
-        assert any("non-existent" in w for w in r.warnings)
-
     def test_empty_graph_no_requirements(self):
-        r = validate_parameterization(_local_graph(), [], [])
+        r = validate_parameterization(_local_graph(), [])
         assert r.valid
 
-    def test_noisy_and_wrong_arity_rejected(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = self._graph()
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.7, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid,
-                    conditional_probabilities=[0.2, 0.3, 0.4, 0.5],
-                    source_id="s",
-                ),
-            ],
-        )
-        assert not r.valid
-        assert any("noisy_and" in e and "requires 1" in e for e in r.errors)
-
-    def test_infer_wrong_arity_rejected(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(
-            knowledges=[
-                _claim("github:test::a"),
-                _claim("github:test::b"),
-                _claim("github:test::c"),
-            ],
-            strategies=[
-                Strategy(
-                    scope="local",
-                    type="infer",
-                    premises=["github:test::a", "github:test::b"],
-                    conclusion="github:test::c",
-                ),
-            ],
-        )
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid,
-                    conditional_probabilities=[0.8, 0.9],  # needs 2^2=4
-                    source_id="s",
-                ),
-            ],
-        )
-        assert not r.valid
-        assert any("2^2=4" in e for e in r.errors)
-
-    def test_infer_correct_arity_passes(self):
-        from gaia.ir import PriorRecord, StrategyParamRecord
-
-        g = _local_graph(
-            knowledges=[
-                _claim("github:test::a"),
-                _claim("github:test::b"),
-                _claim("github:test::c"),
-            ],
-            strategies=[
-                Strategy(
-                    scope="local",
-                    type="infer",
-                    premises=["github:test::a", "github:test::b"],
-                    conclusion="github:test::c",
-                ),
-            ],
-        )
-        sid = g.strategies[0].strategy_id
-        r = validate_parameterization(
-            g,
-            priors=[
-                PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::b", value=0.5, source_id="s"),
-                PriorRecord(knowledge_id="github:test::c", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sid,
-                    conditional_probabilities=[0.8, 0.7, 0.6, 0.9],
-                    source_id="s",
-                ),
-            ],
-        )
-        assert r.valid
-
-    def test_composite_strategy_does_not_require_strategy_param(self):
-        """CompositeStrategy delegates to sub-strategies; no own params needed."""
-        from gaia.ir import PriorRecord, StrategyParamRecord
+    def test_composite_strategy_does_not_require_param_record(self):
+        """CompositeStrategy delegates to sub-strategies; no separate params needed."""
+        from gaia.engine.ir import PriorRecord
 
         sub = Strategy(
             scope="local",
@@ -1809,18 +1920,10 @@ class TestParameterizationValidation:
             ],
             strategies=[sub, comp],
         )
-        # Only provide param for the leaf sub-strategy, not the composite
         r = validate_parameterization(
             g,
             priors=[
                 PriorRecord(knowledge_id="github:test::a", value=0.5, source_id="s"),
-            ],
-            strategy_params=[
-                StrategyParamRecord(
-                    strategy_id=sub.strategy_id,
-                    conditional_probabilities=[0.9],
-                    source_id="s",
-                ),
             ],
         )
         assert r.valid, r.errors

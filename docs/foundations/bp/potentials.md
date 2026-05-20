@@ -1,8 +1,8 @@
 # Factor Potential 函数
 
-> **Status:** Current canonical（与 `gaia/bp/` v2 实现及 theory 对齐）
+> **Status:** Current canonical（与 `gaia/engine/bp/` v2 实现及 theory 对齐）
 
-本文档定义 `gaia.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 契约：[../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)、[../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)。
+本文档定义 `gaia.engine.bp` 中每种 **FactorType** 的势函数语义。理论依据：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)。IR 算子与 lowering 设计：[Gaia IR lowering](../gaia-ir/07-lowering.md)。
 
 势函数对因子所连变量的联合赋值返回非负权重；无需归一化，仅比值有意义。所有经验概率遵守 Cromwell 规则（`CROMWELL_EPS = 1e-3`）。
 
@@ -14,20 +14,25 @@
 - `conclusion`：输出变量 ID（与 `variables` 不交）。
 - 参数化因子额外携带：`SOFT_ENTAILMENT` 使用 `p1`, `p2`；`CONDITIONAL` 使用 `cpt`（长度 `2^k`）。
 
-## 确定性算子（Cromwell 软化）
+## 确定性算子（strict delta）
 
-真值表一致时 ψ = `1 - CROMWELL_EPS`，否则 ψ = `CROMWELL_EPS`（代替硬 0/1）。
+真值表一致时 ψ = `1.0`，否则 ψ = `0.0`。Cromwell clamp 用于 unary
+evidence / priors 和 soft 概率参数；确定性 operator potential 本身保持硬
+0/1。
 
 | FactorType | 语义 | 理论参照 |
 |------------|------|---------|
 | **IMPLICATION** | `variables=[A, B]`, `conclusion=H`：H=1 当 A→B 成立（禁止 A=1 且 B=0）；H=0 当违反 | 06-factor-graphs §3.3 |
+| **NEGATION** | `variables=[A]`, `conclusion=N`：N = ¬A | §3.1 |
 | **CONJUNCTION** | `variables=[A₁,…,Aₖ]`, `conclusion=M`：M = ∧ Aᵢ | §3.2 |
 | **DISJUNCTION** | `variables=[A₁,…,Aₖ]`, `conclusion=D`：D = ∨ Aᵢ | §3.6 补充 |
 | **EQUIVALENCE** | `variables=[A,B]`, `conclusion=H`：H = 1 当且仅当 A=B | §3.4 |
 | **CONTRADICTION** | `variables=[A,B]`, `conclusion=H`：H = 0 当且仅当 A=B=1；否则 H=1 | §3.5 |
 | **COMPLEMENT** | `variables=[A,B]`, `conclusion=H`：H = XOR(A,B) | §3.1 / §3.6 |
 
-所有确定性算子在因子图中统一为 **CONDITIONAL 三元因子**，上表中的真值语义对应各自的 CPT 模板。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT / IMPLICATION）的 conclusion 是断言（$\pi = 1-\varepsilon$，激活约束）；**computation operator**（CONJUNCTION / DISJUNCTION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
+所有确定性算子在因子图中保留专门的 `FactorType`。Conclusion 的先验决定其角色：**relation operator**（EQUIVALENCE / CONTRADICTION / COMPLEMENT / IMPLICATION）的 conclusion 是断言（通过 `add_evidence(1)` 激活约束）；**expression operator**（NEGATION / CONJUNCTION / DISJUNCTION）的 conclusion 是计算输出（$\pi = 0.5$，belief 由 variables 决定）。详见 [formal-strategy-lowering.md §2](formal-strategy-lowering.md)。
+
+> **Note — IMPLICATION 在 connective formula 下的特例：** 默认情况下 `lower_local_graph` 把顶层 `Operator(implication, ...)` 视作 relation 断言，按 §2 的 `add_evidence(1)` 路径激活；但当 implication 是某个 claim formula 内部连接词的下沉产物（compiler 写入 `metadata["formula_lowering"] == "connective"`）时，IMPLICATION 保留为表达式形式不再 pin conclusion——这避免了 formula 内部连接词与外部 relation assertion 双重激活同一个 helper claim。源码：`gaia/engine/bp/lowering.py::_operator_asserts_relation` 与 `_lower_operators`。
 
 ## SOFT_ENTAILMENT（软蕴含 ↝）
 
@@ -82,5 +87,5 @@ IR 参照：02-gaia-ir §3.4 `infer` 类型。
 
 - 消息传递与弱三段论：[../theory/07-belief-propagation.md](../theory/07-belief-propagation.md)
 - 算子到势函数映射：[../theory/06-factor-graphs.md](../theory/06-factor-graphs.md)
-- Lowering 契约：[../gaia-ir/07-lowering.md](../gaia-ir/07-lowering.md)
+- Lowering design：[Gaia IR lowering](../gaia-ir/07-lowering.md)
 - 推理入口：[inference.md](inference.md)

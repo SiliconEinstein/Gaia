@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "trace",
+    "review",
+    "<TMP>",
+    "--json",
+    "--markdown"
+  ],
+  "exit_code": 2,
+  "stderr": "Error: --json and --markdown are mutually exclusive.\n",
+  "stdout": ""
+}

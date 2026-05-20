@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands._github import generate_github_output
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 
@@ -245,7 +248,7 @@ def test_wiki_inference_page_when_beliefs(tmp_path: Path):
 
 
 def test_github_output_streams_graph_json_and_wiki_pages(tmp_path: Path, monkeypatch):
-    """GitHub output should not materialize graph.json or all wiki pages in memory."""
+    """GitHub output should avoid graph.json and all-wiki full materialization."""
     ir = {
         "package_name": "stream_pkg",
         "namespace": "github",
@@ -264,16 +267,17 @@ def test_github_output_streams_graph_json_and_wiki_pages(tmp_path: Path, monkeyp
     pkg_path = tmp_path / "pkg"
     pkg_path.mkdir()
 
-    import gaia.cli.commands._github as github_mod
+    import gaia.cli.commands._graph_json as graph_json_mod
+    import gaia.cli.commands._wiki as wiki_mod
 
-    def fail_generate_graph_json(*args, **kwargs):  # noqa: ANN002, ANN003
+    def fail_generate_graph_json(*_args, **_kwargs):
         raise AssertionError("generate_github_output should stream graph.json to disk")
 
-    def fail_generate_all_wiki(*args, **kwargs):  # noqa: ANN002, ANN003
-        raise AssertionError("generate_github_output should stream wiki pages one by one")
+    def fail_generate_all_wiki(*_args, **_kwargs):
+        raise AssertionError("generate_github_output should write wiki pages one by one")
 
-    monkeypatch.setattr(github_mod, "generate_graph_json", fail_generate_graph_json, raising=False)
-    monkeypatch.setattr(github_mod, "generate_all_wiki", fail_generate_all_wiki, raising=False)
+    monkeypatch.setattr(graph_json_mod, "generate_graph_json", fail_generate_graph_json)
+    monkeypatch.setattr(wiki_mod, "generate_all_wiki", fail_generate_all_wiki)
 
     output_dir = generate_github_output(
         ir,
@@ -318,25 +322,28 @@ def test_github_output_skips_mi_for_high_fan_in_coarse_graph(tmp_path: Path, mon
         "strategies": [
             {
                 "type": "deduction",
-                "premises": [p["id"]],
+                "premises": [premise["id"]],
                 "background": [],
                 "conclusion": conclusion["id"],
                 "reason": "",
             }
-            for p in premises
+            for premise in premises
         ],
         "operators": [],
     }
     beliefs_data = {
         "beliefs": [
-            *[{"knowledge_id": p["id"], "belief": 0.6, "label": p["label"]} for p in premises],
+            *[
+                {"knowledge_id": premise["id"], "belief": 0.6, "label": premise["label"]}
+                for premise in premises
+            ],
             {"knowledge_id": conclusion["id"], "belief": 0.8, "label": "c"},
         ],
         "diagnostics": {"converged": True, "iterations_run": 1},
     }
     param_data = {
         "priors": [
-            *[{"knowledge_id": p["id"], "value": 0.5} for p in premises],
+            *[{"knowledge_id": premise["id"], "value": 0.5} for premise in premises],
             {"knowledge_id": conclusion["id"], "value": 0.5},
         ]
     }
@@ -345,11 +352,11 @@ def test_github_output_skips_mi_for_high_fan_in_coarse_graph(tmp_path: Path, mon
 
     calls = {"count": 0}
 
-    def fake_compute_coarse_cpts(*args, **kwargs):  # noqa: ANN002, ANN003
+    def fake_compute_coarse_cpts(*_args, **_kwargs):
         calls["count"] += 1
         return {}
 
-    import gaia.ir.coarsen as coarsen_mod
+    import gaia.engine.ir.coarsen as coarsen_mod
 
     monkeypatch.setattr(coarsen_mod, "compute_coarse_cpts", fake_compute_coarse_cpts)
 
@@ -368,7 +375,7 @@ def test_github_output_skips_mi_for_high_fan_in_coarse_graph(tmp_path: Path, mon
 
 
 def test_render_github_flag(tmp_path):
-    """gaia render --target github generates .github-output/ with expected structure."""
+    """Gaia run render --target github generates .github-output/ with expected structure."""
     pkg_dir = tmp_path / "github_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -379,26 +386,25 @@ def test_render_github_flag(tmp_path):
     pkg_src = pkg_dir / "github_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        "s = deduction([a, b], c)\n"
-        '__all__ = ["a", "b", "c", "s"]\n'
+        "derive(c, given=[a, b], rationale='Premises entail conclusion.', label='s')\n"
+        '__all__ = ["a", "b", "c"]\n'
     )
     (pkg_src / "priors.py").write_text(
         "from . import a, b, c\n\n"
-        "PRIORS: dict = {\n"
-        '    a: (0.8, "ok"),\n'
-        '    b: (0.8, "ok"),\n'
-        '    c: (0.4, "ok"),\n'
-        "}\n"
+        "from gaia.engine.lang import register_prior\n\n"
+        'register_prior(a, value=0.8, justification="ok")\n'
+        'register_prior(b, value=0.8, justification="ok")\n'
+        'register_prior(c, value=0.4, justification="ok")\n'
     )
 
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
+    result = runner.invoke(app, ["run", "render", str(pkg_dir), "--target", "github"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     assert "GitHub:" in result.output
 
@@ -427,23 +433,23 @@ def test_render_github_with_real_package(tmp_path):
     pkg_src = pkg_dir / "galileo_pkg"
     pkg_src.mkdir()
 
-    # Module: motivation
+    # Write the motivation module.
     (pkg_src / "motivation.py").write_text(
         '"""Motivation and Background"""\n'
-        "from gaia.lang import setting, claim\n\n"
-        'context = setting("Galileo observed objects falling near Earth surface.")\n'
+        "from gaia.engine.lang import note, claim\n\n"
+        'context = note("Galileo observed objects falling near Earth surface.")\n'
         'obs_equal_time = claim("Heavy and light objects fall in approximately equal time.")\n'
     )
 
-    # Module: analysis
+    # Write the analysis module.
     (pkg_src / "analysis.py").write_text(
         '"""Analysis of Falling Bodies"""\n'
-        "from gaia.lang import claim, deduction, contradiction\n"
+        "from gaia.engine.lang import claim, derive, contradict\n"
         "from galileo_pkg.motivation import obs_equal_time\n\n"
         'aristotle_hyp = claim("Heavier objects fall faster (Aristotle).")\n'
         'galileo_hyp = claim("All objects fall at the same rate in vacuum.")\n'
-        "deduction([obs_equal_time], galileo_hyp)\n"
-        "contradiction(aristotle_hyp, galileo_hyp)\n"
+        "derive(galileo_hyp, given=obs_equal_time, rationale='Observation supports Galileo.')\n"
+        "contradict(aristotle_hyp, galileo_hyp, rationale='The two hypotheses cannot both hold.')\n"
     )
 
     # __init__.py: re-export with module order
@@ -455,16 +461,14 @@ def test_render_github_with_real_package(tmp_path):
         '__all__ = ["obs_equal_time", "galileo_hyp"]\n'
     )
 
-    # Priors — required for render
+    # Priors — required for render; notes/settings are non-probabilistic.
     (pkg_src / "priors.py").write_text(
-        "from .motivation import context, obs_equal_time\n"
+        "from .motivation import obs_equal_time\n"
         "from .analysis import aristotle_hyp, galileo_hyp\n\n"
-        "PRIORS: dict = {\n"
-        '    context: (0.95, "ok"),\n'
-        '    obs_equal_time: (0.9, "ok"),\n'
-        '    aristotle_hyp: (0.2, "ok"),\n'
-        '    galileo_hyp: (0.6, "ok"),\n'
-        "}\n"
+        "from gaia.engine.lang import register_prior\n\n"
+        'register_prior(obs_equal_time, value=0.9, justification="ok")\n'
+        'register_prior(aristotle_hyp, value=0.2, justification="ok")\n'
+        'register_prior(galileo_hyp, value=0.6, justification="ok")\n'
     )
 
     # Create an artifact file to test asset copying
@@ -472,9 +476,9 @@ def test_render_github_with_real_package(tmp_path):
     artifacts_dir.mkdir()
     (artifacts_dir / "diagram.svg").write_text("<svg>test</svg>")
 
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "github"])
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
+    result = runner.invoke(app, ["run", "render", str(pkg_dir), "--target", "github"])
     assert result.exit_code == 0, f"Failed: {result.output}"
     assert "GitHub:" in result.output
 

@@ -1,309 +1,351 @@
 # Gaia Lang
 
-[![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/SiliconEinstein/Gaia/graph/badge.svg)](https://codecov.io/gh/SiliconEinstein/Gaia)
-[![PyPI](https://img.shields.io/pypi/v/gaia-lang.svg)](https://pypi.org/project/gaia-lang/)
+[![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
+[![Nightly](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml/badge.svg?branch=main)](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml)
+[![Docs](https://github.com/SiliconEinstein/Gaia/actions/workflows/docs.yml/badge.svg?branch=main)](https://siliconeinstein.github.io/Gaia/)
+[![PyPI alpha](https://img.shields.io/badge/pypi-0.5.0a1-orange)](https://pypi.org/project/gaia-lang/0.5.0a1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Gaia is a formal language for scientific reasoning. It helps you uncover and organize the logical relationships between scientific propositions — deduction, abduction, induction, contradiction — and then computes the probability of each proposition being true. Following the Jaynesian program — built on Cox's theorem that consistent reasoning is uniquely isomorphic to probability theory — these probabilities are objective: once the reasoning structure is defined, they are mathematically determined.
+> **Contributing?** Read [`AGENTS.md`](AGENTS.md).
 
-## Quick Example
+Gaia is a Python DSL and CLI for plausible reasoning. It helps you, or your
+agent, turn scientific arguments into explicit claims, reviewable reasoning
+steps, and probabilistic belief updates.
 
-Galileo's thought experiment: tie a heavy stone to a light stone. Does the composite fall faster or slower?
+The goal is practical: constrain an LLM agent with scientific logic until it can
+act more like **Jaynes' Robot**. The agent must say what it assumes, expose how
+claims depend on each other, and let probability theory compute what follows
+from the declared information set.
 
-```mermaid
-graph TD
-    obs_daily["📋 Daily observation (0.90 → 1.00 📈)"]:::premise
-    aristotle["🏛️ Aristotle: heavier = faster (0.90 → 0.07 📉)"]:::premise
-    air_resistance["🌬️ Air resistance (0.50 → 0.94 📈)"]:::derived
-    composite_slower["🪨🪶 < 🪨 Composite slower (0.60 → 0.40 📉)"]:::derived
-    composite_faster["🪨🪶 > 🪨 Composite faster (0.60 → 0.40 📉)"]:::derived
-    paradox["⚔️ paradox (0.98)"]:::derived
-    vacuum_law["💡 Vacuum law (0.30 → 0.96 📈)"]:::derived
-    strat_0(["🔍 abduction"])
-    obs_daily --> strat_0
-    aristotle --> strat_0
-    strat_0 --> air_resistance
-    strat_1(["🧠 deduction"])
-    aristotle --> strat_1
-    strat_1 --> composite_slower
-    strat_2(["🧠 deduction"])
-    aristotle --> strat_2
-    strat_2 --> composite_faster
-    strat_3(["🧠 deduction"])
-    air_resistance --> strat_3
-    strat_3 --> vacuum_law
-    oper_0{{"⊗ contradiction"}}:::contra
-    composite_slower --- oper_0
-    composite_faster --- oper_0
-    oper_0 --- paradox
+## Version Status
 
-    classDef setting fill:#f0f0f0,stroke:#999,color:#333
-    classDef premise fill:#ddeeff,stroke:#4488bb,color:#333
-    classDef derived fill:#ddffdd,stroke:#44bb44,color:#333
-    classDef contra fill:#ffebee,stroke:#c62828,color:#333
+`main` is the active v0.5 development trunk. The published v0.5 artifact is
+currently the alpha preview `gaia-lang==0.5.0a1`; the source tree is tracking
+the upcoming `0.5.0` line until the stable v0.5 release is cut.
+
+- Use `gaia-lang==0.5.0a1` or `pip install --pre gaia-lang` if you want the
+  current v0.5 alpha CLI, DSL, Bayes, and package workflow.
+- The exact alpha source is the
+  [`v0.5.0a1`](https://github.com/SiliconEinstein/Gaia/releases/tag/v0.5.0a1)
+  tag at `803c0918`.
+- Use `gaia-lang==0.4.4` and the [`release/0.4`](https://github.com/SiliconEinstein/Gaia/tree/release/0.4)
+  branch if you need the stable v0.4.x line.
+- v0.5 is breaking relative to v0.4; see the
+  [v0.5.0a1 release notes](docs/releases/0.5.0a1.md) and
+  [migration guide](docs/migration.md).
+- New PRs should target `main`; exact prerelease sources are immutable tags
+  such as `v0.5.0a1`.
+
+| Channel | Install | Source |
+|---------|---------|--------|
+| v0.5 alpha | `pip install gaia-lang==0.5.0a1` | [`v0.5.0a1`](https://github.com/SiliconEinstein/Gaia/releases/tag/v0.5.0a1) |
+| v0.5 nightly | install from `main` or use the nightly artifact | [`main`](https://github.com/SiliconEinstein/Gaia/tree/main) |
+| v0.4 stable | `pip install gaia-lang==0.4.4` | [`release/0.4`](https://github.com/SiliconEinstein/Gaia/tree/release/0.4) |
+
+## What Gaia Does
+
+```text
+Python DSL / CLI authoring
+  -> gaia build compile
+  -> Gaia IR + factor graph
+  -> gaia run infer
+  -> posterior beliefs and review artifacts
 ```
 
-The contradiction and abduction are independent subgraphs, yet belief propagation automatically combines both lines of evidence: the contradiction refutes Aristotle (0.90 → 0.07) while the abduction elevates air resistance (0.50 → 0.94), and together they lift the vacuum law from a speculative 0.30 to a near-certain **0.96** — no new experimental data needed, just the structure of the reasoning itself.
+In v0.5, the recommended authoring style is deliberately small:
 
-The code that produces this:
+- write uncertain scientific statements as `claim(...)`;
+- keep definitions, setups, and context as non-probabilistic `note(...)`;
+- connect claims with `derive(...)`, `observe(...)`, `compute(...)`, and
+  `infer(...)`;
+- declare reviewable relations with `equal(...)`, `contradict(...)`,
+  `exclusive(...)`, and `associate(...)`;
+- assign external probabilities with `register_prior(...)` only when there is a
+  real independent probabilistic input;
+- leave unsupported independent inputs unset, so Gaia applies MaxEnt instead of
+  pretending that a neutral `0.5` was a sourced prior.
 
-```python
-from gaia.lang import claim, contradiction, deduction, abduction
-
-# 📋 The observation everyone agrees on
-obs_daily = claim("Heavy objects fall faster than light ones in air.")
-
-# 🏛️ Two competing explanations
-aristotle = claim("🏛️ Speed is proportional to weight — heavier = faster.")
-air_resistance = claim("🌬️ The speed difference is caused by air resistance, not weight.")
-
-# 🔍 Abduction: which explanation better accounts for the observation?
-abduction(observation=obs_daily, hypothesis=air_resistance, alternative=aristotle,
-    reason="Both explain why heavy objects fall faster in air.")
-
-# 🤔 Meanwhile, Aristotle's doctrine implies contradictory predictions
-composite_slower = claim("🪨🪶 The composite falls SLOWER than the heavy stone alone.")
-composite_faster = claim("🪨🪶 The composite falls FASTER than either stone alone.")
-deduction(premises=[aristotle], conclusion=composite_slower,
-    reason="If heavier = faster, the light stone drags the heavy one back.")
-deduction(premises=[aristotle], conclusion=composite_faster,
-    reason="If heavier = faster, the heavier composite must fall faster.")
-
-# ⚔️ Same premise, opposite conclusions — that's a contradiction!
-paradox = contradiction(composite_slower, composite_faster,
-    reason="Aristotle's own logic predicts both faster AND slower")
-
-# 💡 Remove the air, remove the difference
-vacuum_law = claim("💡 In vacuum, all bodies fall at the same rate.")
-deduction(premises=[air_resistance], conclusion=vacuum_law,
-    reason="If air resistance is the sole cause, removing it means all fall equally.")
-```
-
-## How it Works
-
-```
-Python DSL  →  gaia compile  →  Gaia IR (factor graph)  →  gaia infer  →  beliefs
-```
-
-1. **Declare** propositions and their logical relationships using the Python DSL
-2. **Compile** to Gaia IR — a canonical intermediate representation encoding the reasoning structure as a factor graph
-3. **Infer** — belief propagation computes the posterior probability of every proposition, automatically selecting the best algorithm (exact junction tree for small graphs, loopy BP for larger ones)
-
-The system implements Jaynes' Robot architecture: you (or an AI agent) provide the reasoning structure (content layer); the engine strictly computes consistent beliefs (structural layer). Construction can be wrong — the engine will expose inconsistencies through counter-intuitive belief values.
-
-## Use with AI Agent
-
-Gaia is agent-ready. A [Claude Code](https://claude.ai/code) plugin provides skills that guide the full workflow — from reading a paper to publishing a knowledge package.
-
-```bash
-# Add the Gaia marketplace (one-time setup)
-/plugin marketplace add SiliconEinstein/Gaia
-
-# Install the gaia plugin
-/plugin install gaia
-```
-
-### Codex CLI
-
-Gaia skills also work with [OpenAI Codex CLI](https://developers.openai.com/codex/cli). The same `SKILL.md` files are recognized by both agents.
-
-```bash
-# Add the Gaia marketplace
-codex marketplace add https://github.com/SiliconEinstein/Gaia
-
-# Or manually clone and copy skills
-git clone https://github.com/SiliconEinstein/Gaia.git
-cp -r Gaia/skills/* ~/.codex/skills/
-```
-
-After installation, invoke skills with the `$` prefix:
-- `$gaia formalization` — Formalize a paper into a Gaia package
-- `$gaia review` — Refine priors after inspecting BP results
-- `$gaia publish` — Generate GitHub presentation and push
-
-### Formalize a Paper End-to-End
-
-1. **`/gaia:formalization`** — Point Claude at your paper (PDF or text in `artifacts/`). The skill guides a six-pass process: extract knowledge nodes, connect reasoning strategies, check completeness, refine strategy types, verify structural integrity, and polish for readability. Output: a compilable Gaia package with `priors.py`.
-
-2. **`/gaia:review`** — Refine priors after inspecting BP results. Use this when you want to iterate on `priors.py` values, re-run `gaia compile && gaia infer`, and watch how beliefs change.
-
-3. **`/gaia:publish`** — After `gaia render --target github` generates the skeleton, this skill fills in the narrative README, writes section summaries, and pushes to GitHub. Your repo gets a human-readable presentation of the formalized knowledge with interactive graphs.
-
-4. **`gaia register`** — Submit the package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) so others can `gaia add` it as a dependency.
-
-### All Skills
-
-| Skill | Purpose |
-|-------|---------|
-| `/gaia` | Entry point — routes to the right skill based on your request |
-| `/gaia:formalization` | Six-pass paper formalization: extract nodes → connect strategies → check completeness → refine types → verify structure → polish |
-| `/gaia:gaia-cli` | CLI reference — `gaia init`, `compile`, `infer`, `check`, `register`, `add` |
-| `/gaia:gaia-lang` | DSL reference — knowledge types, operators, strategies, metadata, package structure |
-| `/gaia:review` | Refine priors — adjust `priors.py`, re-run inference, iterate on beliefs |
-| `/gaia:publish` | Generate GitHub presentation (`render --target github` skeleton → narrative README → push) |
+Review status and probability are separate. Local inference shows what the
+compiled graph currently implies numerically. Review and gate commands decide
+whether the reasoning is publishable, auditable, or ready to register.
 
 ## Install
 
+For the current v0.5 alpha:
+
 ```bash
-pip install gaia-lang
+pip install gaia-lang==0.5.0a1
+```
+
+Or, if you intentionally allow prereleases:
+
+```bash
+pip install --pre gaia-lang
+```
+
+For the stable v0.4.x line:
+
+```bash
+pip install gaia-lang==0.4.4
 ```
 
 For development:
 
 ```bash
 git clone https://github.com/SiliconEinstein/Gaia.git
-cd Gaia && uv sync
+cd Gaia
+uv sync --extra dev
 ```
-
-## Gallery
-
-Published Gaia knowledge packages:
-
-| Package | Source | Knowledge nodes |
-|---------|--------|-----------------|
-| [SuperconductivityElectronLiquids.gaia](https://github.com/kunyuan/SuperconductivityElectronLiquids.gaia) | arXiv:2512.19382 — Superconductivity in Electron Liquids | 78 |
-| [watson-rfdiffusion-2023-gaia](https://github.com/kunyuan/watson-rfdiffusion-2023-gaia) | Watson et al. 2023 — De novo design of protein structure and function with RFdiffusion | 128 |
-| [GalileoFallingBodies.gaia](https://github.com/kunyuan/GalileoFallingBodies.gaia) | Galileo's falling bodies thought experiment | 7 |
-
-## CLI Workflow
-
-```
-gaia init → gaia add → /gaia:formalization → gaia compile → gaia infer → gaia render → /gaia:publish → gaia register
-(scaffold)  (add deps)  (author DSL + priors)  (DSL → IR)   (BP beliefs)  (present)    (fill narrative) (registry PR)
-```
-
-`gaia ...` steps are CLI commands; `/gaia:...` steps are [Claude Code](https://claude.ai/code) skills provided by this repo's plugin (see "All Skills" above) — invoke them by typing the slash command in a Claude Code session.
-
-| Command | Purpose |
-|---------|---------|
-| `gaia init <name>` | Scaffold a new Gaia knowledge package |
-| `gaia add <package>` | Install a registered Gaia package from the [official registry](https://github.com/SiliconEinstein/gaia-registry) |
-| `gaia compile [path]` | Compile Python DSL to Gaia IR (`.gaia/ir.json`) |
-| `gaia check [path]` | Validate package structure and IR consistency (used by registry CI) |
-| `gaia check --brief [path]` | Show per-module warrant structure overview (claims, strategies, priors) |
-| `gaia check --show <name> [path]` | Expand a module or claim label with full warrant trees |
-| `gaia check --hole [path]` | Detailed prior review report for all independent claims (holes + covered) |
-| `gaia infer [path]` | Run belief propagation with metadata priors (from `priors.py` + DSL `reason`/`prior`) |
-| `gaia infer --depth 1 [path]` | Joint cross-package inference merging dependency factor graphs |
-| `gaia render --target github [path]` | Generate GitHub presentation skeleton (`.github-output/`): wiki, README, React Pages, graph.json |
-| `gaia render --target docs [path]` | Generate per-module detailed reasoning to `docs/detailed-reasoning.md` |
-| `gaia render [path]` | Default: render both docs and github targets (`--target all`) |
-| `gaia starmap [path]` | Emit a starmap of a Gaia knowledge package in three formats. Default `--format html` (`.gaia/starmap.html`): single-file interactive WebGL viewer (~10k nodes), double-click to open, no server required. `--format dot` (`.gaia/starmap.dot`): paper-ready Graphviz source. `--format svg` (`.gaia/starmap.svg`): rendered via Graphviz with embedded glow filters when `--theme stellaris`. `--theme {light,stellaris,dark}` (default `light`): `stellaris`/`dark` is a deep-space palette with sfdp force-directed layout, multi-layer SVG glows on contradictions, gold-edge support strategies, and root-claim highlight |
-| `gaia starmap-replay [path]` | **Experimental** (scaffold v4, frozen — not actively iterated). Time-line replay of inquiry / BP iterations against a starmap fixture. Default output: `.gaia/starmap-replay.html`. See scaffold for current capability; future iterations live on a separate branch |
-| `gaia inquiry review [path]` | Semantic review loop. Runs BP and surfaces diagnostic findings on the package (low-belief leaves, contradictions, hypothesis equipoise, etc.). Subcommands: `focus`, `reject`, `obligation`, `hypothesis`, `tactics` for managing the inquiry state |
-| `gaia trace verify <trace>` | ARM execution-trace tooling. `verify`: schema + hash-chain check. `review`: full eight-section review. `show`: print event stream in `tactic_log` style |
-| `gaia register [path]` | Submit package to the [Gaia Official Registry](https://github.com/SiliconEinstein/gaia-registry) |
 
 ## Quick Start
 
-This walkthrough uses the Galileo example from above.
-
-**1. Initialize and write code**
-
 ```bash
-gaia init galileo-falling-bodies-gaia
-cd galileo-falling-bodies-gaia
+gaia build init my-paper-gaia
+cd my-paper-gaia
+
+# Add claims and reasoning steps either by editing Python or through the CLI.
+gaia author claim "The intervention changes the observable." \
+  --dsl-binding-name intervention_changes_observable
+
+gaia build compile .
+gaia build check --hole .
+gaia run infer .
 ```
 
-Place the DSL code from the Quick Example into `src/galileo_falling_bodies/__init__.py`.
+For a full walkthrough, see [`docs/for-users/quick-start.md`](docs/for-users/quick-start.md).
 
-**2. Compile and validate**
-
-```bash
-gaia compile .
-gaia check .
-```
-
-**3. Assign priors** for leaf claims via `priors.py`:
-
-`src/galileo_falling_bodies/priors.py`:
+## Minimal DSL Example
 
 ```python
-from . import aristotle, obs_daily
+from gaia.engine.lang import claim, contradict, derive, equal, note, register_prior
 
-PRIORS = {
-    aristotle: (0.9, "Widely accepted for 2000 years, matches everyday experience."),
-    obs_daily: (0.9, "Well-documented observation in air."),
-}
+setup = note("A heavy body and a light body are tied together.")
+
+daily_observation = claim("In air, heavy bodies often fall faster than light bodies.")
+aristotle_model = claim("Weight itself causes greater natural falling speed.")
+medium_model = claim("In-air speed differences are caused by medium resistance.")
+
+register_prior(
+    daily_observation,
+    0.9,
+    justification="Everyday in-air observations make this background likely.",
+)
+
+aristotle_daily = derive(
+    "Under the weight-speed model, heavy bodies should fall faster in air.",
+    given=[aristotle_model],
+)
+equal(aristotle_daily, daily_observation)
+
+medium_daily = derive(
+    "Under the medium-resistance model, heavy bodies can fall faster in air.",
+    given=[medium_model],
+)
+equal(medium_daily, daily_observation)
+
+composite_faster = derive(
+    "The tied composite should fall faster than the heavy body alone.",
+    given=[aristotle_model],
+    background=[setup],
+)
+composite_slower = derive(
+    "The tied composite should fall slower than the heavy body alone.",
+    given=[aristotle_model],
+    background=[setup],
+)
+contradict(composite_faster, composite_slower)
+
+vacuum_equal_fall_prediction = derive(
+    "In vacuum, bodies of different weights fall at the same rate.",
+    given=[medium_model],
+)
 ```
 
-**4. Infer and publish**
+The runnable package lives in
+[`examples/galileo-v0-5-gaia`](examples/galileo-v0-5-gaia).
+
+## Where the Probabilities Come From
+
+Run the Galileo example:
 
 ```bash
-gaia compile .                    # re-compile to inject priors into metadata
-gaia infer .                      # compute beliefs via belief propagation
-gaia render . --target github     # generate GitHub presentation skeleton
+gaia build compile examples/galileo-v0-5-gaia
+gaia run infer examples/galileo-v0-5-gaia
 ```
 
-Then use `/gaia:publish` to fill in the narrative, and `gaia register` to submit to the official registry.
+The compiled reasoning graph has three paths: both candidate models can explain
+the daily in-air observation, but only the Aristotelian weight-speed model also
+creates the tied-body contradiction.
 
-For the full tutorial, see [CLI Workflow](docs/foundations/cli/workflow.md).
+```mermaid
+flowchart TD
+    subgraph inputs["Starting claims"]
+        direction LR
+        daily["Heavy faster in air<br/>0.900 -> 0.964"]:::premise
+        aristotle["Weight-speed model<br/>0.500 -> 0.010"]:::premise
+        medium["Medium-resistance model<br/>0.500 -> 0.642"]:::premise
+    end
 
-## DSL Surface
+    subgraph daily_paths["1. Daily check"]
+        direction LR
+        derive_a_daily(["derive"]):::strategy
+        a_pred["weight-speed predicts:<br/>heavy faster in air<br/>0.963"]:::derived
+        equal_a{{"equal<br/>0.999"}}:::relation_op
 
-### Knowledge
+        derive_m_daily(["derive"]):::strategy
+        m_pred["medium-resistance predicts:<br/>heavy faster in air<br/>0.964"]:::derived
+        equal_m{{"equal<br/>1.000"}}:::relation_op
+    end
 
-| Function | Description |
-|----------|-------------|
-| `claim(content, *, title, background, parameters, provenance)` | Scientific assertion — the only type carrying probability |
-| `setting(content)` | Background context — no probability, no BP participation |
-| `question(content)` | Open research inquiry |
+    subgraph contradiction_path["2. Tied-body contradiction"]
+        direction LR
+        derive_fast(["derive"]):::strategy
+        faster["tied composite faster<br/>than heavy body<br/>0.338"]:::derived
+        derive_slow(["derive"]):::strategy
+        slower["tied composite slower<br/>than heavy body<br/>0.338"]:::derived
+        contra{{"contradict<br/>0.997"}}:::contra
+    end
 
-### Operators (deterministic constraints)
+    subgraph vacuum_path["3. Vacuum prediction"]
+        direction LR
+        derive_vacuum(["derive"]):::strategy
+        vacuum["equal fall in vacuum<br/>0.821"]:::derived
+    end
 
-| Function | Semantics |
-|----------|-----------|
-| `contradiction(a, b)` | A and B cannot both be true |
-| `equivalence(a, b)` | A and B share the same truth value |
-| `complement(a, b)` | A and B have opposite truth values |
-| `disjunction(*claims)` | At least one must be true |
+    aristotle --> derive_a_daily --> a_pred
+    a_pred --- equal_a
+    daily --- equal_a
 
-### Strategies (reasoning declarations)
+    medium --> derive_m_daily --> m_pred
+    m_pred --- equal_m
+    daily --- equal_m
 
-| Function | Description |
-|----------|-------------|
-| `noisy_and(premises, conclusion)` | All premises jointly support conclusion |
-| `infer(premises, conclusion)` | General conditional probability table |
-| `deduction(premises, conclusion)` | Deductive reasoning (conjunction → implication) |
-| `abduction(observation, hypothesis)` | Inference to best explanation |
-| `analogy(source, target, bridge)` | Analogical transfer |
-| `extrapolation(source, target, continuity)` | Continuity-based prediction |
-| `elimination(exhaustiveness, excluded, survivor)` | Process of elimination |
-| `case_analysis(exhaustiveness, cases, conclusion)` | Case-by-case reasoning |
-| `mathematical_induction(base, step, conclusion)` | Inductive proof |
-| `induction(observations, law)` | Multiple observations supporting a general law |
-| `composite(premises, conclusion, sub_strategies)` | Hierarchical composition |
+    aristotle --> derive_fast --> faster
+    aristotle --> derive_slow --> slower
+    faster --- contra
+    slower --- contra
 
-## Architecture
+    medium --> derive_vacuum --> vacuum
 
+    classDef premise fill:#ddeeff,stroke:#4488bb,color:#222
+    classDef strategy fill:#f3e5f5,stroke:#7b1fa2,color:#222
+    classDef derived fill:#ddffdd,stroke:#44aa44,color:#222
+    classDef relation_op fill:#fff3cd,stroke:#b58900,color:#222
+    classDef contra fill:#ffebee,stroke:#c62828,color:#222
 ```
-gaia/
-├── lang/       DSL runtime, declarations, and compiler
-├── ir/         Gaia IR schema, validation, formalization
-├── bp/         Belief propagation engine (loopy BP, junction tree, generalized BP)
-├── cli/        CLI commands (init, compile, check, add, infer, render, starmap, inquiry, trace, register)
-├── inquiry/    Semantic review loop — diagnostic kinds, focus/reject/obligation/hypothesis state
-├── trace/      ARM execution-trace verifier and reviewer (schema + hash chain)
-└── review/     Review sidecar model (deprecated — use priors.py)
-```
+
+Current local inference on `main` / the v0.5 line gives:
+
+| Claim | Starting information | Local posterior belief |
+|-------|----------------------|-----------------------:|
+| `daily_observation` | `register_prior(..., 0.9)` from `priors.py` | 0.964 |
+| `aristotle_model` | independent input with no external prior, so MaxEnt starts it at 0.5 | 0.010 |
+| `medium_model` | independent input with no external prior, so MaxEnt starts it at 0.5 | 0.642 |
+| `vacuum_equal_fall_prediction` | derived claim, no independent prior | 0.821 |
+
+Those posteriors are not hand-written. Gaia lowers the compiled package into a
+factor graph:
+
+- `register_prior(...)` writes auditable prior records. The resolver chooses the
+  winning record and stores it in claim metadata before inference.
+- An independent claim with no prior record gets the MaxEnt neutral baseline
+  rather than a fake author prior.
+- `derive(...)` lowers to a Jaynes-style conditional implication. If the premise
+  is true, the conclusion is true up to the Cromwell bound; if the premise is
+  false, the derivation contributes no information and falls back to the
+  conclusion's base rate, usually MaxEnt.
+- `equal(...)` and `contradict(...)` assert deterministic relation factors. In
+  the Galileo graph, both models explain the daily observation, but the
+  Aristotelian model also implies two tied-body predictions that cannot both be
+  true. Inference therefore strongly suppresses that model.
+- The final numbers are posterior marginals computed by `gaia run infer`; for
+  this small graph Gaia uses exact Junction Tree inference.
+
+## v0.5 Authoring Surface
+
+| Layer | Python DSL | CLI |
+|-------|------------|-----|
+| Knowledge | `claim`, `note`, `question` | `gaia author claim/note/question` |
+| Reasoning actions | `derive`, `observe`, `compute`, `infer` | `gaia author derive/observe/compute/infer` |
+| Relations | `equal`, `contradict`, `exclusive`, `associate`, `decompose` | `gaia author equal/contradict/exclusive/associate/decompose` |
+| Scaffolds | `depends_on`, `candidate_relation`, `materialize` | `gaia author depends-on/candidate-relation/materialize` |
+| Composition | `compose`, `composition` | `gaia author compose/composition` |
+| Priors | `register_prior` | `gaia author register-prior` |
+| Typed terms | `Variable`, `Nat`, `Real`, `Probability`, `Bool` | `gaia author variable` |
+| Continuous quantities | `Normal`, `LogNormal`, `Beta`, `Gamma`, `StudentT`, `Cauchy`, `ChiSquared`, `Binomial`, `Poisson` | `gaia bayes <distribution>` for CLI-authored Bayes snippets |
+| Bayesian model comparisons | `gaia.engine.bayes.model`, `data`, `compare` | `gaia bayes model/compare` |
+
+Old v5 names remain available only through the compatibility layer. New packages
+should use the v0.5 surface above.
+
+## CLI Map
+
+The CLI is self-documenting. Use `gaia --help`, `gaia <group> --help`, and
+`gaia <group> <verb> --help` as the command-surface authority.
+
+| Group | Verbs | Purpose |
+|-------|-------|---------|
+| `gaia build` | `init`, `compile`, `check` | Create packages, compile Python DSL to Gaia IR, and validate structure/prior holes/gates. |
+| `gaia author` | `claim`, `note`, `question`, `derive`, `observe`, `compute`, `infer`, `equal`, `contradict`, `exclusive`, `associate`, `decompose`, `parameter`, `register-prior`, `variable`, `depends-on`, `candidate-relation`, `materialize`, `compose`, `composition` | Agent-first authoring commands that append checked DSL statements to package source files. |
+| `gaia bayes` | `model`, `compare`, `binomial`, `beta-binomial`, `poisson`, `normal`, `log-normal`, `beta`, `exponential`, `gamma`, `student-t`, `cauchy`, `chi-squared` | CLI helpers for Bayesian model comparison declarations and distribution literals. |
+| `gaia pkg` | `add`, `add-import`, `add-module`, `register`, `scaffold` | Manage package dependencies, sibling modules, scaffolds, and registry publication. |
+| `gaia run` | `infer`, `render` | Compute local posterior beliefs and render package outputs. |
+| `gaia inspect` | `starmap`, `starmap-replay` | Inspect compiled graph visualizations and replay artifacts. |
+| `gaia inquiry` | `focus`, `review`, `obligation`, `hypothesis`, `tactics`, `reject` | Run the semantic inquiry and review loop over a compiled package. |
+| `gaia trace` | `verify`, `review`, `show` | Verify and review ARM execution traces. |
+| `gaia review` | skeleton only | Reserved top-level home for future reviewer tooling; do not confuse it with `gaia inquiry review` or `gaia trace review`. |
+| `gaia search` | `lkm auth`, `lkm knowledge`, `lkm reasoning`, `lkm nodes`, `lkm package` | Query an external retrieval backend; the `lkm` backend wraps the Bohrium LKM knowledge-graph search API. |
+
+The Bohrium LKM knowledge-graph search backend is available under `gaia search lkm`; run `gaia search lkm auth login` to set up your access key (or set `GAIA_LKM_ACCESS_KEY` / `LKM_ACCESS_KEY`), then `gaia search lkm --help` for the full verb surface.
+
+The authoring CLI is intentionally conservative: target files must already
+exist, sibling files should be created with `gaia pkg add-module`, and literal
+`__all__` blocks are updated only when the verb is meant to export the new
+binding.
+
+## Examples
+
+| Example | Demonstrates | Try it |
+|---------|--------------|--------|
+| [`examples/galileo-v0-5-gaia`](examples/galileo-v0-5-gaia) | Competing model hypotheses, daily evidence, contradiction, derived counterfactual prediction | `gaia build compile examples/galileo-v0-5-gaia && gaia run infer examples/galileo-v0-5-gaia` |
+| [`examples/mendel-v0-5-gaia`](examples/mendel-v0-5-gaia) | CLI-authored probability example with priors, relations, and generated source files | `gaia build compile examples/mendel-v0-5-gaia` |
 
 ## Documentation
 
-- [Plausible Reasoning Theory](docs/foundations/theory/01-plausible-reasoning.md) — Polya, Cox, Jaynes: why probability is the unique formalism
-- [DSL Reference](docs/foundations/gaia-lang/dsl.md)
-- [Package Model](docs/foundations/gaia-lang/package.md)
-- [Knowledge & Reasoning Semantics](docs/foundations/gaia-lang/knowledge-and-reasoning.md)
-- [CLI Workflow](docs/foundations/cli/workflow.md)
-- [Gaia IR Specification](docs/foundations/gaia-ir/02-gaia-ir.md)
-- [Registry Design](docs/specs/2026-04-02-gaia-registry-design.md)
+Start with [`docs/README.md`](docs/README.md). Common entry points:
 
-## Testing
+- [`docs/for-visitors/what-is-gaia.md`](docs/for-visitors/what-is-gaia.md) - conceptual overview.
+- [`docs/for-users/quick-start.md`](docs/for-users/quick-start.md) - first package walkthrough.
+- [`docs/for-users/language-reference.md`](docs/for-users/language-reference.md) - practical v0.5 DSL cheat sheet and language reference.
+- [`docs/for-users/cli-commands.md`](docs/for-users/cli-commands.md) - workflow-oriented CLI guide and command map.
+- [`docs/reference/cli/index.md`](docs/reference/cli/index.md) - generated CLI reference.
+- [`docs/reference/engine/lang/dsl.md`](docs/reference/engine/lang/dsl.md) - generated DSL API reference.
+- [`docs/reference/engine/bayes.md`](docs/reference/engine/bayes.md) - generated Bayes API reference.
+- [`docs/foundations/gaia-ir/02-gaia-ir.md`](docs/foundations/gaia-ir/02-gaia-ir.md) - IR contract.
+- [`docs/specs/2026-04-02-gaia-registry-design.md`](docs/specs/2026-04-02-gaia-registry-design.md) - registry design.
+
+## Architecture
+
+```text
+gaia/
+  engine/
+    lang/       Python DSL runtime, compiler, formulas, roles, review manifest
+    bayes/      Bayesian model comparison helpers
+    packaging   Package loading, compile/register interfaces
+    bp/         Factor graph lowering and inference
+    inquiry/    Semantic review loop
+    trace/      ARM trace verification and review
+    ir/         Persistent Gaia IR schemas and validation
+  cli/          Typer command groups for authoring, build, run, review, and registry workflows
+```
+
+## Development
 
 ```bash
-pytest
-ruff check .
-ruff format --check .
+make test       # fast local slice; excludes slow tests
+make test-slow  # slow regression slice
+make test-all   # full pytest suite
+make docs-build # strict MkDocs build
 ```
 
 ## License

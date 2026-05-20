@@ -1,6 +1,8 @@
 # 反驳报告契约
 
-> **Status:** Target design
+> **Status:** Target design — **not implemented in v0.5 CLI**.
+>
+> v0.5 没有任何代码生成 `RebuttalReport` / `RebuttalEntry` 或读写 `.gaia/review/rebuttal.json`；这是为未来 ReviewService（多 agent 同行评审 + 反驳周期）准备的合约草案。本文档保留作为下游设计输入，但不应被解读为 `gaia inquiry review` / `gaia run infer` 当前会执行的流程。当前本地 review 路径见 [../review/review-pipeline.md](../review/review-pipeline.md)。
 
 本文档定义反驳报告（RebuttalReport）的数据契约。当审查发现阻塞性问题时，作者或 agent 提交反驳，ReviewService 据此重新评估。
 

@@ -1,5 +1,6 @@
 """Tests for docs/detailed-reasoning.md generator (legacy gaia compile --readme/--module-graphs)."""
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands._detailed_reasoning import (
@@ -10,6 +11,8 @@ from gaia.cli.commands._detailed_reasoning import (
     topo_layers,
 )
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 
@@ -98,7 +101,7 @@ def test_mermaid_basic():
     assert "obs --> strat_0" in md
     assert "strat_0 --> hyp" in md
     assert ":::weak" in md  # noisy_and is a weakpoint
-    assert ":::setting" in md
+    assert ":::note" in md
 
 
 def test_mermaid_hides_helper_claims():
@@ -246,7 +249,7 @@ def test_generate_detailed_reasoning_with_beliefs():
 
 
 def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
-    """gaia render --target docs writes docs/detailed-reasoning.md."""
+    """Gaia render --target docs writes docs/detailed-reasoning.md."""
     pkg_dir = tmp_path / "docs_pkg"
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(
@@ -257,26 +260,25 @@ def test_render_docs_flag_generates_detailed_reasoning(tmp_path):
     pkg_src = pkg_dir / "docs_pkg"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'a = claim("Premise A.")\n'
         'b = claim("Premise B.")\n'
         'c = claim("Conclusion.")\n'
-        "s = deduction([a, b], c)\n"
-        '__all__ = ["a", "b", "c", "s"]\n'
+        "derive(c, given=[a, b], rationale='Premises entail conclusion.', label='s')\n"
+        '__all__ = ["a", "b", "c"]\n'
     )
     (pkg_src / "priors.py").write_text(
         "from . import a, b, c\n\n"
-        "PRIORS: dict = {\n"
-        '    a: (0.8, "ok"),\n'
-        '    b: (0.8, "ok"),\n'
-        '    c: (0.4, "ok"),\n'
-        "}\n"
+        "from gaia.engine.lang import register_prior\n\n"
+        'register_prior(a, value=0.8, justification="ok")\n'
+        'register_prior(b, value=0.8, justification="ok")\n'
+        'register_prior(c, value=0.4, justification="ok")\n'
     )
 
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["render", str(pkg_dir), "--target", "docs"])
+    result = runner.invoke(app, ["run", "render", str(pkg_dir), "--target", "docs"])
     assert result.exit_code == 0, f"Failed: {result.output}"
 
     content = (pkg_dir / "docs" / "detailed-reasoning.md").read_text()
@@ -637,7 +639,7 @@ def test_single_file_fallback_has_global_graph():
     md = render_knowledge_nodes(ir)
     assert "## Knowledge Graph" in md
     assert "```mermaid" in md
-    assert "### Settings" in md
+    assert "### Notes" in md
     assert "### Claims" in md
 
 
@@ -657,7 +659,7 @@ def test_mermaid_deduction_deterministic():
     md = render_mermaid(ir)
     assert '(["deduction"])' in md
     # deduction is deterministic — no :::weak on the strategy node
-    strat_line = [line for line in md.split("\n") if "strat_0" in line and '(["' in line][0]
+    strat_line = next(line for line in md.split("\n") if "strat_0" in line and '(["' in line)
     assert ":::weak" not in strat_line
     assert "a --> strat_0" in md
     assert "b --> strat_0" in md

@@ -1,10 +1,10 @@
 """Tests for LocalCanonicalGraph."""
 
-from gaia.ir import (
+from gaia.engine.ir import (
     Knowledge,
+    LocalCanonicalGraph,
     Operator,
     Strategy,
-    LocalCanonicalGraph,
 )
 
 NS = "github"

@@ -1,11 +1,15 @@
 """Tests for gaia wiki page generation."""
 
+import pytest
+
 from gaia.cli.commands._wiki import (
     generate_all_wiki,
     generate_wiki_home,
     generate_wiki_inference,
     generate_wiki_module,
 )
+
+pytestmark = pytest.mark.pr_gate
 
 
 def test_wiki_home_has_title_and_index():

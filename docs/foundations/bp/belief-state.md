@@ -1,12 +1,12 @@
 # BeliefState — 信念定义
 
-> **Status:** Target design
+> **Status:** Current canonical (v0.5)
 >
-> **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。详见 [documentation-policy.md](../../documentation-policy.md#12-变更控制)。
+> 本文档定义 BeliefState schema，用于 LKM 全局推理。本地 CLI 推理产生的 `.gaia/beliefs.json` 使用不同的 schema（见 §Local CLI Beliefs Format）。
 
 BeliefState 是 BP 在 GlobalCanonicalGraph 上的纯输出——后验信念值。它记录产生它的条件（resolution policy），使结果可重现。
 
-Gaia IR 结构定义见 [../gaia-ir/02-gaia-ir.md](../gaia-ir/02-gaia-ir.md)。概率参数见 [../gaia-ir/06-parameterization.md](../gaia-ir/06-parameterization.md)。三者的关系见 [../gaia-ir/01-overview.md](../gaia-ir/01-overview.md)。
+Gaia IR 结构定义见 [Gaia IR Structure](../gaia-ir/02-gaia-ir.md)，参数模型见 [Parameterization](../gaia-ir/06-parameterization.md)。
 
 ## Schema
 
@@ -28,9 +28,48 @@ BeliefState:
 
     # ── 诊断 ──
     converged:            bool
-    iterations:           int
-    max_residual:         float
+    iterations_run:       int
+    max_change_at_stop:   float
 ```
+
+## Local CLI Beliefs Format
+
+本地 CLI `gaia run infer` 写入的 `.gaia/beliefs.json` 使用不同的 schema，针对本地包优化。
+载体形状由 `gaia/cli/commands/infer.py::_beliefs_payload` 直接构造，`diagnostics`
+字段是 `result.diagnostics` 的 `dataclasses.asdict()` 结果，所以字段名与
+`gaia/engine/bp/{bp,trw_bp,mean_field,junction_tree}.py` 中各 `*Diagnostics` 的
+dataclass 字段一一对应：
+
+```json
+{
+  "ir_hash": "sha256:...",
+  "gaia_lang_version": "0.5.0",
+  "beliefs": [
+    {"knowledge_id": "github:pkg::label", "label": "label", "belief": 0.73}
+  ],
+  "diagnostics": {
+    "converged": true,
+    "iterations_run": 42,
+    "max_change_at_stop": 0.0001
+  }
+}
+```
+
+不同后端会附加各自的诊断字段（例如 JT 的 `treewidth`、loopy BP 的
+`belief_history` / `direction_changes`）；权威示例见
+[`cli/inference.md` §Output Format](../cli/inference.md#beliefsjson)。
+
+**与 BeliefState 的区别**：
+- `beliefs` 是 list of records，不是 `dict[str, float]`
+- 使用本地 QID（`github:pkg::label`），不是全局 `gcn_*` ID
+- 缺少 `bp_run_id`, `created_at`, `resolution_policy`, `prior_cutoff`, `compilation_summary`
+- 包含 `ir_hash` 和 `gaia_lang_version` 用于本地一致性检查
+
+**转换到 BeliefState**：上传到 LKM 时需要：
+1. 将本地 QID 映射到全局 `gcn_*` ID
+2. 将 `beliefs` list 转换为 `dict[gcn_id, float]`
+3. 添加 `bp_run_id`, `created_at`, `resolution_policy`, `prior_cutoff`
+4. 可选：添加 `compilation_summary` 用于诊断
 
 ## 关键规则
 
@@ -38,20 +77,28 @@ BeliefState:
 - **可重现**：`resolution_policy` + `prior_cutoff` 完整定义了参数组装条件。`prior_cutoff` 记录 BP 运行时的时间点，确保用 `latest` policy 重跑时只取该时间之前的记录，结果可重现。
 - **可多次运行**：同一 resolution policy + prior_cutoff 可以有多次 BP 运行（不同调度策略、阻尼系数等），每次产出不同的 BeliefState。
 - **belief 是后验**：belief 是 BP 计算后的后验信念值，不是 prior。
-- **组装完整性**：组装时每个参数化 Strategy 都必须有 conditional_probabilities 值；直接 FormalStrategy 则必须带有对应的 FormalExpr，且其相关显式 claim 必须有可用 prior。否则 BP 拒绝运行。
+- **组装完整性**：本地 `gaia run infer` 是 preview 路径，允许缺失外部 prior
+  的独立 claim 以 MaxEnt 0.5 进入推理；缺失 `infer(...)` CPT 时也会走保守
+  默认。发布 / LKM 摄入路径可以施加更严格的 completeness gate，例如
+  `gaia build check --gate` 阻断 holes、unformalized dependencies、unaccepted
+  review warrants 或低 posterior。
 - **compilation_summary**：记录每个 Strategy 的编译路径——direct（折叠为 ↝ 因子）、composite（递归展开子策略）或 formal_expr（通过 FormalExpr 在 Operator 层运行），用于诊断和可重现性。
 
 ## 诊断字段
 
 - `converged`：BP 是否在容差内收敛
-- `iterations`：实际运行的迭代数
-- `max_residual`：停止时的最大消息变化量
+- `iterations_run`：实际运行的迭代数（exact JT 固定为 2，对应 collect + distribute 两次扫描）
+- `max_change_at_stop`：停止时的最大消息变化量
 - `compilation_summary`：每个 Strategy 的 BP 编译路径（direct / composite / formal_expr），便于诊断推理链路
 
 这些字段用于判断 belief 的可靠性。未收敛的 BeliefState 仍然有效，但应标记为近似值。
+不同后端会另外携带各自的诊断字段（例如 JT 的 `treewidth`、TRW-BP / Mean Field
+特有的内部统计），都按 `dataclasses.asdict()` 序列化，对照各自模块的
+`*Diagnostics` 定义即可。
 
 ## 源代码
 
-- `libs/inference/bp.py` -- `BeliefPropagation.run()` 产出 beliefs
-- `libs/storage/models.py` -- `BeliefSnapshot`
-- `libs/graph_ir/models.py` -- `Strategy`（三种实体之一，BP 编译的输入）
+- `gaia/engine/bp/engine.py` — `InferenceEngine.run()` 产出 beliefs
+- `gaia/engine/bp/bp.py` — `BeliefPropagation.run()`（loopy BP 路径）
+- `gaia/engine/bp/lowering.py` — `lower_local_graph()`：Gaia IR → FactorGraph
+- `gaia/engine/ir/strategy.py` — `Strategy / CompositeStrategy / FormalStrategy`

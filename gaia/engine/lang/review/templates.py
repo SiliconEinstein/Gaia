@@ -1,0 +1,34 @@
+"""Audit-question templates for Gaia Lang v6 review targets."""
+
+from __future__ import annotations
+
+
+class _MissingLabelDict(dict[str, object]):
+    def __missing__(self, key: str) -> str:
+        return "?"
+
+
+_TEMPLATES = {
+    "derive": "Do the listed premises suffice to establish [@{conclusion_label}]?",
+    "observe": "Is the observation of [@{conclusion_label}] reliable under the stated conditions?",
+    "compute": "Is the computation of [@{conclusion_label}] correctly implemented?",
+    "model": "Does [@{conclusion_label}] specify a checkable predictive model?",
+    "infer": (
+        "Does [@{hypothesis_label}] predict [@{evidence_label}]{given_clause} at the stated "
+        "conditional probabilities?"
+    ),
+    "equal": "Are [@{a_label}] and [@{b_label}] truly equivalent?",
+    "contradict": "Do [@{a_label}] and [@{b_label}] truly contradict?",
+    "exclusive": (
+        "Do [@{a_label}] and [@{b_label}] form a closed case split where exactly one is true?"
+    ),
+    "decompose": "Does [@{whole_label}] faithfully decompose into [@{formula_label}]?",
+    "compose": "Does this action DAG correctly establish [@{conclusion_label}]?",
+}
+
+
+def generate_audit_question(action_type: str, **labels: object) -> str:
+    """Render the review audit question for an action type."""
+    labels.setdefault("given_clause", "")
+    template = _TEMPLATES.get(action_type, "Is this reasoning step valid?")
+    return template.format_map(_MissingLabelDict(labels))

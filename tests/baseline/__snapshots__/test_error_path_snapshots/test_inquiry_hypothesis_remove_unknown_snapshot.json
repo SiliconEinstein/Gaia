@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "inquiry",
+    "hypothesis",
+    "remove",
+    "nope_00000000",
+    "--path",
+    "<TMP>"
+  ],
+  "exit_code": 1,
+  "stderr": "Error: no hypothesis with qid 'nope_00000000'.\n",
+  "stdout": ""
+}

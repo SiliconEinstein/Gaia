@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "build",
+    "check",
+    "<TMP>"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "Check passed: 24 knowledge, 5 strategies, 3 operators\n\n  Notes:     3\n  Questions: 0\n  Claims:    21\n    Independent DOF:           3\n      MaxEnt (no external prior): 2\n      Effective MaxEnt state space: 4/4 assignments (2.00 bits)\n      Induced MaxEnt entropy: 2.00 bits (4.00 effective states)\n    Derived (BP propagates):   5\n    Structural (deterministic): 8\n\n  Independent boundary premises:\n    - aristotle_model  no external prior (MaxEnt)\n    - daily_observation  prior=0.9\n    - medium_model  no external prior (MaxEnt)\n\n  Derived conclusions (belief from BP, prior optional):\n    - aristotle_daily_prediction\n    - composite_faster\n    - composite_slower\n    - medium_daily_prediction\n    - vacuum_equal_fall_prediction\n"
+}
