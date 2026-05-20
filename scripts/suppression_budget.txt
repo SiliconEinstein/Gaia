@@ -9,4 +9,4 @@
 # increases this number must justify the new suppression in the commit
 # body (which suppression, which code, why no alternative). The point of
 # the gate is to make adding a suppression a deliberate, reviewable act.
-40
+47

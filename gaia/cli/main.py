@@ -72,7 +72,15 @@ from gaia.cli.commands.example import example_app
 from gaia.cli.commands.infer import infer_command
 from gaia.cli.commands.init import init_command
 from gaia.cli.commands.inquiry import inquiry_app
-from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
+from gaia.cli.commands.pkg import (
+    add_import_command,
+    add_module_command,
+    formalize_command,
+    lock_check_command,
+    migrate_command,
+    mount_command,
+    scaffold_command,
+)
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
 from gaia.cli.commands.search import search_app
@@ -224,12 +232,19 @@ app.add_typer(inquiry_app, name="inquery", hidden=True)  # typo alias
 
 pkg_app = typer.Typer(
     name="pkg",
-    help="Package operations (add / add-import / add-module / register / scaffold).",
+    help=(
+        "Package operations (add / add-import / add-module / formalize / "
+        "lock-check / migrate / mount / register / scaffold)."
+    ),
     no_args_is_help=True,
 )
 pkg_app.command(name="add")(add_command)
 pkg_app.command(name="add-import")(add_import_command)
 pkg_app.command(name="add-module")(add_module_command)
+pkg_app.command(name="formalize")(formalize_command)
+pkg_app.command(name="lock-check")(lock_check_command)
+pkg_app.command(name="migrate")(migrate_command)
+pkg_app.command(name="mount")(mount_command)
 pkg_app.command(name="register")(register_command)
 pkg_app.command(name="scaffold")(scaffold_command)
 app.add_typer(pkg_app, name="pkg")

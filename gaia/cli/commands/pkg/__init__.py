@@ -16,6 +16,18 @@ from __future__ import annotations
 
 from gaia.cli.commands.pkg.add_import import add_import_command
 from gaia.cli.commands.pkg.add_module import add_module_command
+from gaia.cli.commands.pkg.formalize import formalize_command
+from gaia.cli.commands.pkg.lock_check import lock_check_command
+from gaia.cli.commands.pkg.migrate import migrate_command
+from gaia.cli.commands.pkg.mount import mount_command
 from gaia.cli.commands.pkg.scaffold import scaffold_command
 
-__all__ = ["add_import_command", "add_module_command", "scaffold_command"]
+__all__ = [
+    "add_import_command",
+    "add_module_command",
+    "formalize_command",
+    "lock_check_command",
+    "migrate_command",
+    "mount_command",
+    "scaffold_command",
+]

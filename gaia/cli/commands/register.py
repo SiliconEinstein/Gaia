@@ -276,21 +276,41 @@ def _validate_registration_ir(ir: dict[str, Any]) -> None:
 
 
 def _validated_gaia_uuid(loaded: Any) -> str:
-    """Return a valid package UUID or exit with a CLI error."""
-    gaia_uuid = loaded.gaia_config.get("uuid")
+    """Return a valid package UUID or exit with a CLI error.
+
+    Looks first under the embedded layout's ``[package].uuid`` (set
+    by ``gaia pkg mount`` / ``gaia pkg migrate`` automatically) and
+    falls back to the legacy ``[tool.gaia].uuid`` for byte-stable
+    compatibility with the historical scaffold.
+    """
+    project_uuid = loaded.project_config.get("uuid")
+    legacy_uuid = loaded.gaia_config.get("uuid")
+    gaia_uuid = project_uuid if isinstance(project_uuid, str) and project_uuid else legacy_uuid
     if not isinstance(gaia_uuid, str) or not gaia_uuid:
-        typer.echo("Error: [tool.gaia].uuid is required for registration.", err=True)
+        typer.echo(
+            "Error: package uuid is required for registration. "
+            "Set [package].uuid in gaia.toml (embedded) or [tool.gaia].uuid in "
+            "pyproject.toml (legacy). `gaia pkg mount` / `gaia pkg migrate` "
+            "auto-generate one.",
+            err=True,
+        )
         raise typer.Exit(1)
     try:
         UUID(gaia_uuid)
     except ValueError as exc:
-        typer.echo(f"Error: invalid [tool.gaia].uuid: {exc}", err=True)
+        typer.echo(f"Error: invalid package uuid: {exc}", err=True)
         raise typer.Exit(1) from exc
     return gaia_uuid
 
 
 def _validate_registration_package_config(loaded: Any, ir: dict[str, Any]) -> tuple[str, list[str]]:
-    """Validate project metadata and return UUID plus dependency specs."""
+    """Validate project metadata and return UUID plus dependency specs.
+
+    Embedded layouts no longer require the ``-gaia`` suffix — the
+    user-facing name from ``gaia.toml [package].name`` is taken
+    verbatim. Legacy layouts keep the historical check for
+    byte-stable behaviour.
+    """
     ir_hash_path = loaded.pkg_path / ".gaia" / "ir_hash"
     if not ir_hash_path.exists():
         typer.echo("Error: missing .gaia/ir_hash; run `gaia build compile` first.", err=True)
@@ -301,7 +321,15 @@ def _validate_registration_package_config(loaded: Any, ir: dict[str, Any]) -> tu
         raise typer.Exit(1)
 
     gaia_uuid = _validated_gaia_uuid(loaded)
-    if not loaded.project_name.endswith("-gaia"):
+    # Legacy layouts still expect the ``-gaia`` suffix because the
+    # registry's package-name convention historically encoded it.
+    # Embedded layouts (recognisable by the manifest path ending in
+    # ``gaia.toml``) skip the check — the registry record uses
+    # ``[package].name`` verbatim.
+    from gaia.engine.layout import LayoutKind  # local import to avoid cycle
+
+    is_legacy = loaded.layout.kind is LayoutKind.LEGACY
+    if is_legacy and not loaded.project_name.endswith("-gaia"):
         typer.echo("Error: [project].name must end with '-gaia'.", err=True)
         raise typer.Exit(1)
     dependencies = loaded.project_config.get("dependencies", [])
@@ -663,6 +691,16 @@ def register_command(
         "SiliconEinstein/gaia-registry", help="Registry GitHub repo slug for PR creation."
     ),
     create_pr: bool = typer.Option(False, help="Push the registry branch and open a GitHub PR."),
+    locked: bool = typer.Option(
+        False,
+        "--locked/--no-locked",
+        help=(
+            "Run the spec §5.3 publish gate (`gaia pkg lock-check`) before "
+            "registering. Refuses to register when source hashes drifted, the "
+            "queue has open blocking items, manifests are stale, or any generated "
+            "file is missing. Embedded layouts only."
+        ),
+    ),
 ) -> None:
     """Prepare or submit a registration for a tagged GitHub-backed Gaia package.
 
@@ -689,6 +727,18 @@ def register_command(
         # Write a registry branch into a local checkout and open a PR:
         gaia pkg register . --registry-dir ~/dev/gaia-registry --create-pr
     """
+    if locked:
+        # Run the publish gate before touching the registry. The lock
+        # check itself prints diagnostics on failure; we just bail out
+        # with the same exit code so CI workflows see a clear stop.
+        from gaia.cli.commands.pkg.lock_check import run_lock_check
+
+        report = run_lock_check(Path(path).resolve())
+        if not report.ok:
+            for diag in report.failures:
+                typer.echo(f"locked: {diag.message}", err=True)
+            raise typer.Exit(1)
+
     loaded, compiled, ir, manifests = _load_registration_artifacts(path)
     _validate_registration_ir(ir)
     gaia_uuid, _dependencies = _validate_registration_package_config(loaded, ir)

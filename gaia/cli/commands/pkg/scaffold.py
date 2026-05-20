@@ -152,25 +152,31 @@ def _validate_inputs(
     diagnostics: list[Diagnostic] = []
 
     pkg_name = name or target.name
+    # The historical ``-gaia`` suffix is preserved (and still derives the
+    # import name as before when present), but it is no longer required.
+    # v0.5+ supports the non-invasive embedded layout (``gaia pkg mount``)
+    # where the host's user-visible name is what the user wrote in
+    # ``gaia.toml`` and no naming convention is needed to mark a host as
+    # "a Gaia package". Keep this verb tolerant for parity.
     if not pkg_name.endswith("-gaia"):
-        suggested = f"{pkg_name}-gaia"
         diagnostics.append(
             Diagnostic(
-                kind="prewrite.target_not_gaia_package",
-                level="error",
+                kind="prewrite.naming_suggestion",
+                level="warning",
                 message=(
-                    f"package name must end with '-gaia' (got {pkg_name!r}; "
-                    f"did you mean {suggested!r}?)"
+                    f"package name {pkg_name!r} does not end with '-gaia'. "
+                    "The suffix is no longer required; consider `gaia pkg mount` "
+                    "for the non-invasive embedded layout if you do not want to "
+                    "touch the host's pyproject.toml at all."
                 ),
                 source="prewrite",
                 where={"pkg_name": pkg_name},
             )
         )
-        return None, diagnostics
 
     # import_name is derived from [project].name per the engine
-    # convention (``foo-gaia`` → ``foo``); no override flag, since an
-    # override could lay down a package the engine couldn't load.
+    # convention (``foo-gaia`` → ``foo``); when the suffix is absent the
+    # raw name is used after hyphen→underscore normalisation.
     import_name = _derive_import_name(pkg_name)
     if not _IDENTIFIER_RE.match(import_name) or import_name.startswith("__"):
         diagnostics.append(
@@ -246,7 +252,7 @@ def _validate_inputs(
             pkg_uuid=pkg_uuid,
             docstring=docstring,
         ),
-        [],
+        diagnostics,
     )
 
 
@@ -438,6 +444,7 @@ def scaffold_command(
         with_uuid=with_uuid,
         docstring=docstring,
     )
+    pre_warnings = [d for d in pre_diagnostics if d.level == "warning"]
     if plan is None:
         # Pick semantic exit code from the first diagnostic kind.
         first = pre_diagnostics[0]
@@ -478,7 +485,7 @@ def scaffold_command(
         return
 
     post_diagnostics: list[Diagnostic] = []
-    post_warnings: list[Diagnostic] = []
+    post_warnings: list[Diagnostic] = list(pre_warnings)
     counts: dict[str, int] | None = None
     if check:
         post = postwrite_check(target_root)
