@@ -3,7 +3,7 @@
 Search retrieval providers for Gaia authoring.
 
 ```text
-gaia search lkm knowledge <query>           Search LKM knowledge nodes
+gaia search lkm knowledge <query>           Search LKM claim/question nodes
 gaia search lkm reasoning <claim-id>        Fetch reasoning chains for one claim
 gaia search lkm reasoning-search <query>    Search LKM reasoning chains
 gaia search lkm variables <ids...>          Hydrate LKM variables by id

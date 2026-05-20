@@ -117,8 +117,6 @@ class TestKnowledge:
                 "q",
                 "--scopes",
                 "claim",
-                "--scopes",
-                "question",
                 "--retrieval-mode",
                 "lexical",
                 "--keywords",
@@ -136,12 +134,60 @@ class TestKnowledge:
         )
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
-        assert body["scopes"] == ["claim", "question"]
+        assert body["scopes"] == ["claim"]
         assert body["retrieval_mode"] == "lexical"
         assert body["keywords"] == ["a", "b"]
         assert body["reasoning_only"] is True
         assert body["filters"]["role"] == "conclusion"
         assert body["offset"] == 5 and body["limit"] == 3
+
+    def test_allows_claim_and_question_scopes_without_reasoning_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "q",
+                "--scopes",
+                "claim",
+                "--scopes",
+                "question",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["json_body"]["scopes"] == ["claim", "question"]
+
+    def test_rejects_reasoning_only_with_question_scope(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "q",
+                "--scopes",
+                "question",
+                "--reasoning-only",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "reasoning-only" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_retired_action_scope_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q", "--scopes", "action"])
+        assert result.exit_code != 0, result.output
+        assert _FakeClient.last_call == {}
 
     def test_business_error_exits_1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 290002, "msg": "bad params"})
@@ -314,7 +360,7 @@ class TestKnowledge:
         item = json.loads(result.output)["results"][0]
         assert item["actions"] == []
 
-    def test_gaia_json_maps_action_variables_to_derive(
+    def test_gaia_json_maps_question_variables_to_question(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -324,13 +370,13 @@ class TestKnowledge:
                 "data": {
                     "variables": [
                         {
-                            "content": "Derive phase conversion from XRD ratios.",
-                            "id": "gact_123",
+                            "content": "Which phase conversion pathway dominates?",
+                            "id": "gq_123",
                             "provenance": {
                                 "source_packages": ["paper:811827932371615744"],
                             },
-                            "title": "Phase conversion derivation",
-                            "type": "action",
+                            "title": "Phase conversion question",
+                            "type": "question",
                         }
                     ],
                 },
@@ -345,7 +391,7 @@ class TestKnowledge:
                 "knowledge",
                 "phase conversion",
                 "--scopes",
-                "action",
+                "question",
                 "--format",
                 "gaia-json",
             ],
@@ -353,9 +399,9 @@ class TestKnowledge:
 
         assert result.exit_code == 0, result.output
         item = json.loads(result.output)["results"][0]
-        assert json.loads(result.output)["query"]["kind"] == "derive"
-        assert item["kind"] == "derive"
-        assert item["gaia"]["object_kind"] == "derive"
+        assert json.loads(result.output)["query"]["kind"] == "question"
+        assert item["kind"] == "question"
+        assert item["gaia"]["object_kind"] == "question"
 
     def test_single_question_scope_dispatches_query_kind_to_question(
         self, monkeypatch: pytest.MonkeyPatch

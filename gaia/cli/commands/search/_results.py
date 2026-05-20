@@ -232,8 +232,6 @@ def _lkm_variable_kind(raw_type: str | None) -> str:
     return {
         "claim": "claim",
         "question": "question",
-        "setting": "note",
-        "action": "derive",
     }.get(raw_type, "note")
 
 

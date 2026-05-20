@@ -64,6 +64,9 @@ gaia search lkm paper-graph --paper-id 811827932371615744
 ```
 
 `--format raw-json` remains available for direct LKM API inspection.
+For `knowledge`, the current Apifox-backed LKM `/search` response surface is
+claim/question nodes only; Gaia should not expose reserved or stale
+action/setting scopes from older drafts.
 
 ### Phase 2: Local provider
 
@@ -217,10 +220,12 @@ normalized boundary:
 |---|---|---|
 | `variable.type == "claim"` | `claim` | Candidate Gaia `claim(...)` |
 | `variable.type == "question"` | `question` | Candidate Gaia `question(...)` |
-| `variable.type == "setting"` | `note` | Gaia `setting()` is deprecated; normalize to non-probabilistic context |
-| `variable.type == "action"` | `derive` | LKM action nodes represent derivation steps in Gaia authoring |
 | `factor` / reasoning chain | `derive` | Candidate Gaia `derive(...)`; preserve raw factors for inspection |
 | `paper.package_id` | `package` candidate | Addable only after materialization or registry resolution |
+
+The public `/search` endpoint should be treated as claim/question retrieval.
+Reasoning factors are exposed through `reasoning` / `reasoning-search` /
+`paper-graph`, not as public search-result variables.
 
 LKM `paper-graph` output should preserve `paper`, `variables`, `factors`, and
 `motivations` metadata, but Gaia-native output should also expose:

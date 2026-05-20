@@ -1,6 +1,6 @@
 """``gaia search lkm knowledge`` — POST /search.
 
-Cross-node retrieval over claim / question / setting / action nodes. The
+Cross-node retrieval over claim / question nodes. The
 returned ``score`` is a retrieval ranking signal, not a probability — see
 the verb help epilog.
 """
@@ -28,8 +28,6 @@ class ScopeChoice(StrEnum):
 
     CLAIM = "claim"
     QUESTION = "question"
-    SETTING = "setting"
-    ACTION = "action"
 
 
 class RetrievalMode(StrEnum):
@@ -57,7 +55,7 @@ def knowledge_command(
         list[ScopeChoice] | None,
         typer.Option(
             "--scopes",
-            help="Restrict recall to these node types (repeatable). Empty = all four.",
+            help="Restrict recall to claim/question nodes (repeatable). Empty = both.",
             case_sensitive=False,
         ),
     ] = None,
@@ -127,6 +125,13 @@ def knowledge_command(
             err=True,
         )
         raise typer.Exit(4)
+    if reasoning_only and scopes and scopes != [ScopeChoice.CLAIM]:
+        typer.echo(
+            "Error: --reasoning-only requires --scopes to be omitted or exactly "
+            "`claim`; question nodes do not have reasoning chains.",
+            err=True,
+        )
+        raise typer.Exit(4)
 
     body: dict[str, Any] = {
         "query": query,
@@ -158,8 +163,6 @@ def _query_kind(scopes: list[ScopeChoice] | None) -> str:
     return {
         ScopeChoice.CLAIM: "claim",
         ScopeChoice.QUESTION: "question",
-        ScopeChoice.SETTING: "note",
-        ScopeChoice.ACTION: "derive",
     }[scopes[0]]
 
 
