@@ -50,21 +50,20 @@ gaia search lkm paper-graph ...
 gaia search lkm auth ...
 ```
 
-This phase is intentionally a raw provider adapter. It should preserve the LKM
-API response under `raw` or in the legacy top-level output so existing agent
-workflows can debug the upstream service directly.
+This phase is a provider adapter with Gaia-native output by default. It should
+preserve the LKM API response under `raw`, and keep `--format raw-json`
+available so agent workflows can debug the upstream service directly.
 
 ### Phase 1: Gaia-native output mode
 
-Add a normalized output option to provider commands:
+Provider commands should return normalized Gaia output by default:
 
 ```text
-gaia search lkm claims "FAPbI3" --format gaia-json
-gaia search lkm paper-graph --paper-id 811827932371615744 --format gaia-json
+gaia search lkm claims "FAPbI3"
+gaia search lkm paper-graph --paper-id 811827932371615744
 ```
 
-`--format raw-json` remains available for direct LKM API inspection. The
-default may remain raw during alpha releases to avoid breaking PR 683 users.
+`--format raw-json` remains available for direct LKM API inspection.
 
 ### Phase 2: Local provider
 
@@ -149,7 +148,7 @@ Field rules:
 |---|---|
 | `id` | Stable search-result id in the provider namespace |
 | `provider` | `lkm`, `pkg`, or another future provider |
-| `kind` | Gaia-facing kind: `package`, `claim`, `question`, `note`, `derive`, `paper`, `relation` |
+| `kind` | Gaia-facing kind: `package`, `claim`, `question`, `note`, `derive`, `relation` |
 | `rank.score` | Retrieval ranking only, never a prior |
 | `gaia` | Populated when the result already has a Gaia package identity |
 | `source` | Provider provenance needed for citations and follow-up calls |
@@ -221,7 +220,7 @@ normalized boundary:
 | `variable.type == "setting"` | `note` | Gaia `setting()` is deprecated; normalize to non-probabilistic context |
 | `variable.type == "action"` | `derive` | LKM action nodes represent derivation steps in Gaia authoring |
 | `factor` / reasoning chain | `derive` | Candidate Gaia `derive(...)`; preserve raw factors for inspection |
-| `paper.package_id` | `paper` / `package` candidate | Addable only after materialization or registry resolution |
+| `paper.package_id` | `package` candidate | Addable only after materialization or registry resolution |
 
 LKM `paper-graph` output should preserve `paper`, `variables`, `factors`, and
 `motivations` metadata, but Gaia-native output should also expose:

@@ -106,7 +106,7 @@ def claims_command(
             help="Output format: raw upstream JSON or normalized Gaia search JSON.",
             case_sensitive=False,
         ),
-    ] = SearchOutputFormat.RAW_JSON,
+    ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
     """Search claim / question nodes (POST /search)."""
     if keywords and len(keywords) > MAX_KEYWORDS:

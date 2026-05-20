@@ -91,7 +91,7 @@ def paper_graph_command(
             help="Output format: raw upstream JSON or normalized Gaia search JSON.",
             case_sensitive=False,
         ),
-    ] = SearchOutputFormat.RAW_JSON,
+    ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
     """Fetch a paper's knowledge graph (POST /papers/graph)."""
     identifiers = {

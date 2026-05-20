@@ -204,11 +204,14 @@ class TestClaims:
     def test_out_writes_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "n": 1})
         dest = tmp_path / "nested" / "out.json"
-        result = runner.invoke(app, ["search", "lkm", "claims", "q", "--out", str(dest)])
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "claims", "q", "--format", "raw-json", "--out", str(dest)],
+        )
         assert result.exit_code == 0, result.output
         assert json.loads(dest.read_text())["code"] == 0
 
-    def test_gaia_json_normalizes_claim_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_default_normalizes_claim_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(
             monkeypatch,
             response={
@@ -247,7 +250,7 @@ class TestClaims:
 
         result = runner.invoke(
             app,
-            ["search", "lkm", "claims", "FAPbI3", "--format", "gaia-json"],
+            ["search", "lkm", "claims", "FAPbI3"],
         )
 
         assert result.exit_code == 0, result.output
@@ -459,7 +462,7 @@ class TestReasoningSearch:
         result = runner.invoke(app, ["search", "lkm", "reasoning-search", "q"])
         assert result.exit_code == 2, result.output
 
-    def test_gaia_json_normalizes_reasoning_chain_results(
+    def test_default_normalizes_reasoning_chain_results(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -495,7 +498,7 @@ class TestReasoningSearch:
 
         result = runner.invoke(
             app,
-            ["search", "lkm", "reasoning-search", "FAPbI3", "--format", "gaia-json"],
+            ["search", "lkm", "reasoning-search", "FAPbI3"],
         )
 
         assert result.exit_code == 0, result.output
@@ -640,7 +643,7 @@ class TestPaperGraph:
         result = runner.invoke(app, ["search", "lkm", "paper-graph", "--doi", "d"])
         assert result.exit_code == 1, result.output
 
-    def test_gaia_json_normalizes_paper_graph_results(
+    def test_default_normalizes_paper_graph_as_package(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -676,8 +679,6 @@ class TestPaperGraph:
                 "paper-graph",
                 "--paper-id",
                 "811827932371615744",
-                "--format",
-                "gaia-json",
             ],
         )
 
@@ -686,11 +687,12 @@ class TestPaperGraph:
         assert out["query"] == {
             "text": "811827932371615744",
             "provider": "lkm",
-            "kind": "paper",
+            "kind": "package",
         }
         item = out["results"][0]
         assert item["id"] == "lkm:paper:811827932371615744"
-        assert item["kind"] == "paper"
+        assert item["kind"] == "package"
+        assert item["gaia"]["object_kind"] == "package"
         assert item["title"] == "Controlling phase and morphology"
         assert item["source"]["source_package"] == "paper:811827932371615744"
         assert item["source"]["stats"]["variables_total"] == 25

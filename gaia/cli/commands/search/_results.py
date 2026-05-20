@@ -51,12 +51,12 @@ def normalize_lkm_reasoning_search(payload: dict[str, Any], *, query: str) -> di
 
 
 def normalize_lkm_paper_graph(payload: dict[str, Any], *, query: str) -> dict[str, Any]:
-    """Normalize LKM paper graph responses into paper/package candidates."""
+    """Normalize LKM paper graph responses into Gaia package candidates."""
     results = [
         _normalize_lkm_paper_graph_item(item, index=index)
         for index, item in enumerate(_paper_graph_items(payload))
     ]
-    return _envelope(query=query, provider="lkm", kind="paper", results=results)
+    return _envelope(query=query, provider="lkm", kind="package", results=results)
 
 
 def _envelope(
@@ -174,14 +174,14 @@ def _normalize_lkm_paper_graph_item(item: dict[str, Any], *, index: int) -> dict
     return {
         "id": f"lkm:paper:{paper_id}",
         "provider": "lkm",
-        "kind": "paper",
+        "kind": "package",
         "title": title,
         "content": content,
         "rank": {
             "score": _number(item.get("score"), item.get("rerank_score")),
             "score_kind": "retrieval",
         },
-        "gaia": _gaia_identity("paper"),
+        "gaia": _gaia_identity("package"),
         "source": {
             "provider_id": paper_id,
             "source_package": source_package,
