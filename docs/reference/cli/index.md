@@ -14,6 +14,7 @@ organized into explicit top-level groups:
 | [review](review.md) | *(skeleton — no commands in alpha 0)* | Reserved for downstream reviewer tooling |
 | [inquiry](inquiry.md) | `focus` / `review` / `obligation [add\|list\|close]` / `hypothesis [add\|list\|remove]` / `tactics log` / `reject` | Local semantic-inquiry loop *(unchanged)* |
 | [pkg](pkg.md) | `add` / `add-import` / `add-module` / `register` / `scaffold` | Install dependencies, manage package modules/imports, publish, and bootstrap packages |
+| [search](search.md) | `lkm [claims\|reasoning\|reasoning-search\|variables\|paper-graph\|auth]` | Retrieve remote knowledge candidates for Gaia authoring; future home for local package search |
 | [bayes](bayes.md) | `model` / `compare` / distribution literals | Bayesian model and distribution authoring helpers |
 | [trace](trace.md) | `verify` / `review` / `show` | ARM Trace tooling *(independent sub-app; unchanged)* |
 

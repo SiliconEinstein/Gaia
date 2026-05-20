@@ -138,6 +138,7 @@ nav:
           - review: reference/cli/review.md
           - inquiry: reference/cli/inquiry.md
           - pkg: reference/cli/pkg.md
+          - search: reference/cli/search.md
           - trace: reference/cli/trace.md
           - Internals: reference/cli/internals.md
       - Migration to alpha 0: migration.md
