@@ -11,12 +11,14 @@ from typing import Any
 import typer
 
 from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_package
+from gaia.cli.commands.pkg.lkm_materialize import materialize_lkm_paper_package
 from gaia.cli.commands.search.lkm._indexes import (
     DEFAULT_LKM_INDEX_ID,
     known_lkm_index_ids,
     lkm_index_base_url,
     normalize_lkm_index_id,
 )
+from gaia.cli.commands.search.lkm._shared import run_request
 from gaia.engine.packaging import GaiaPackagingError
 
 
@@ -47,15 +49,15 @@ def add_command(
     lkm_paper: str | None = typer.Option(
         None,
         "--lkm-paper",
-        help="Add the Gaia package materialized from this LKM paper id, when registered.",
+        help="Materialize this LKM paper id as a local Gaia package and add it.",
     ),
     lkm_claim: str | None = typer.Option(
         None,
         "--lkm-claim",
-        help="Add the Gaia package backing this LKM claim id, when registered.",
+        help="Resolve this LKM claim id to its backing paper package.",
     ),
 ) -> None:
-    """Install a registered Gaia knowledge package.
+    """Install a registered or LKM-backed Gaia knowledge package.
 
     Resolves ``<package>`` against the gaia registry (default:
     ``SiliconEinstein/gaia-registry`` on GitHub), runs ``uv add`` on the
@@ -64,6 +66,10 @@ def add_command(
     so foreign-node priors flow into local inference. Must be run from
     within a Gaia knowledge package (``pyproject.toml`` carrying
     ``[tool.gaia]``).
+
+    LKM paper refs/flags fetch the paper graph, generate a local Gaia package
+    under ``.gaia/lkm_packages/``, compile it, and add it as an editable
+    dependency with ``uv add --editable``.
 
     ``--version`` pins a specific release; omit to take the latest
     registered version.
@@ -196,17 +202,8 @@ def _make_lkm_ref(index_id: str, kind: str, provider_id: str) -> LKMSourceRef:
 
 def _handle_lkm_source_add(ref: LKMSourceRef) -> None:
     if ref.kind == "paper":
-        typer.echo(
-            f"LKM paper source recognized: {ref.ref}\n"
-            "`gaia pkg add` can only install a materialized Gaia package from "
-            "the registry today; this LKM source is not yet mapped to one.\n"
-            "Inspect the candidate package first:\n"
-            f"  gaia search lkm package --index {ref.index_id} --paper-id {ref.provider_id}\n"
-            "Once a registry package is published for this source, add that "
-            "Gaia package by name or re-run this LKM ref command.",
-            err=True,
-        )
-        raise typer.Exit(1)
+        _handle_lkm_paper_add(ref)
+        return
 
     typer.echo(
         f"LKM claim source recognized: {ref.ref}\n"
@@ -217,6 +214,69 @@ def _handle_lkm_source_add(ref: LKMSourceRef) -> None:
         err=True,
     )
     raise typer.Exit(1)
+
+
+def _handle_lkm_paper_add(ref: LKMSourceRef) -> None:
+    package_root = _find_gaia_package_root()
+    if package_root is None:
+        typer.echo(
+            f"Error: LKM paper source recognized ({ref.ref}), but no current "
+            "Gaia knowledge package was found. Run `gaia pkg add --lkm-paper ...` "
+            "inside the package that should depend on this LKM paper.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        payload = run_request(
+            "POST",
+            "/papers/graph",
+            json_body={
+                "paper_id": ref.provider_id,
+                "include": ["paper", "variables", "factors", "motivations"],
+            },
+            index_id=ref.index_id,
+        )
+        materialized = materialize_lkm_paper_package(
+            payload,
+            project_root=package_root,
+            index_id=ref.index_id,
+            paper_id=ref.provider_id,
+        )
+    except GaiaPackagingError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        typer.echo(f"Error: uv add failed: {stderr}", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"Materialized {materialized.source_ref}")
+    typer.echo(f"Package: {materialized.dist_name}")
+    typer.echo(f"Path: {materialized.root}")
+    typer.echo(
+        "Contents: "
+        f"{materialized.claim_count} claims, "
+        f"{materialized.question_count} questions, "
+        f"{materialized.dependency_count} depends_on scaffold dependencies"
+    )
+    if materialized.dependency_count:
+        typer.echo(
+            "Note: generated `depends_on(...)` records are the unformalized "
+            "counterpart of `derive(...)`; review/materialize them before "
+            "treating them as formal Gaia reasoning."
+        )
+    typer.echo("Added editable dependency with uv.")
+    if materialized.exported_symbol:
+        typer.echo(
+            f"Import hint: from {materialized.import_name} import {materialized.exported_symbol}"
+        )
 
 
 def _find_gaia_package_root() -> Path | None:

@@ -65,8 +65,7 @@ def test_add_accepts_lkm_paper_flags_as_source_ref():
     )
     assert result.exit_code == 1
     assert "lkm:bohrium:paper:811827932371615744" in result.output
-    assert "materialized Gaia package" in result.output
-    assert "gaia search lkm package --index bohrium --paper-id 811827932371615744" in result.output
+    assert "inside the package that should depend on this LKM paper" in result.output
 
 
 def test_add_accepts_lkm_index_paper_flags_as_source_ref():
@@ -76,14 +75,14 @@ def test_add_accepts_lkm_index_paper_flags_as_source_ref():
     )
     assert result.exit_code == 1
     assert "lkm:bohrium:paper:811827932371615744" in result.output
-    assert "gaia search lkm package --index bohrium --paper-id 811827932371615744" in result.output
+    assert "inside the package that should depend on this LKM paper" in result.output
 
 
 def test_add_accepts_canonical_lkm_paper_ref_as_source_ref():
     result = runner.invoke(app, ["pkg", "add", "lkm:bohrium:paper:811827932371615744"])
     assert result.exit_code == 1
     assert "lkm:bohrium:paper:811827932371615744" in result.output
-    assert "materialized Gaia package" in result.output
+    assert "inside the package that should depend on this LKM paper" in result.output
 
 
 def test_add_accepts_short_lkm_paper_ref_as_default_server_alias():

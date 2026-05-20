@@ -307,18 +307,17 @@ Resolution rules:
 1. Registry package names keep the current behavior: resolve registry metadata,
    run `uv add`, and optionally cache `beliefs.json`.
 2. `lkm:<index_id>:paper:<paper_id>` is parsed and validated as an
-   index-scoped source identity before registry lookup. The current command
-   fails clearly because no registry source-ref index exists yet; it points the
-   user back to `gaia search lkm package --index ... --paper-id ...` for
-   inspection.
-3. Once the official registry exposes a source-ref index, the same input should
-   resolve to the materialized Gaia package and install it.
-4. If no registry package exists, `pkg add` should continue to fail with an
-   actionable message by default. A future explicit flag, such as
-   `--materialize-local`, may materialize a local `*-gaia` package from the LKM
-   paper graph, run `gaia build compile`, and add it as an editable/path
-   dependency.
-5. `lkm:<index_id>:claim:<claim_id>` is accepted as a source identity, but
+   index-scoped source identity before registry lookup. The command fetches the
+   LKM `/papers/graph` payload, materializes it as a project-local `*-gaia`
+   package under `.gaia/lkm_packages/`, compiles the generated package, and
+   adds it as an editable `uv` dependency. LKM factors are emitted as
+   `depends_on(...)` scaffold records by default, which are authoring-level
+   placeholders for a later formal `derive(...)`/reasoning edge rather than
+   immediate BP semantics.
+3. A future official registry source-ref index may choose to resolve the same
+   input to a published package instead of a local generated package, but the
+   stable source ref stays the same.
+4. `lkm:<index_id>:claim:<claim_id>` is accepted as a source identity, but
    `pkg add` installs paper-level packages, not standalone claim nodes. Until a
    registry source-ref index can resolve the claim to its backing paper package,
    the command points the user to `gaia search lkm reasoning --claim-id ...`.

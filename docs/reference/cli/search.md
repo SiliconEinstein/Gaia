@@ -39,8 +39,8 @@ The `search` group is provider-shaped by design:
   Gaia-native result envelope.
 
 Search commands should not mutate the current project. They may suggest
-follow-up actions, but package installation and dependency changes belong to
-`gaia pkg add`. In normalized JSON, action `kind` + `ref` are the stable
+follow-up actions, but package materialization, installation, and dependency
+changes belong to `gaia pkg add`. In normalized JSON, action `kind` + `ref` are the stable
 machine-readable contract; `next_steps` is only a human/agent hint, matching
 the broader Gaia CLI convention of printing "Next" guidance after scaffold or
 registration workflows.
@@ -57,6 +57,15 @@ should show the paper title when available (`source.paper_title`,
 `actions[].label`), while `actions[].ref` and `source.paper_id` remain the
 stable identity used by `gaia pkg add`, registry lookup, and local package
 metadata.
+
+`gaia pkg add --lkm-index <id> --lkm-paper <paper-id>` consumes the paper action
+ref by fetching `/papers/graph`, generating a project-local Gaia package under
+`.gaia/lkm_packages/`, compiling that package, and adding it as an editable
+`uv` dependency. The generated package remains a standard Python Gaia package,
+so downstream code imports it with normal Python imports. Generated LKM factors
+use `depends_on(...)` by default: think of this as the scaffold form of
+`derive(...)`, preserving the dependency relation without yet making it a
+formal Gaia reasoning edge in IR/BP.
 
 LKM retrieval scores are ranking signals only. They must not be copied into
 Gaia priors, beliefs, or warrant strengths.
