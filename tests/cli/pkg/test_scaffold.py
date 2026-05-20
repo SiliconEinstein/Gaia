@@ -75,15 +75,23 @@ def test_scaffold_refuses_non_empty_dir(tmp_path: Path) -> None:
     assert diagnostics[0]["kind"] == "prewrite.collision"
 
 
-def test_scaffold_rejects_invalid_name(tmp_path: Path) -> None:
-    """Name not ending with -gaia is rejected (exit 4)."""
+def test_scaffold_warns_when_name_missing_gaia_suffix(tmp_path: Path) -> None:
+    """Name without ``-gaia`` is advisory, not fatal (envelope warning).
+
+    The ``-gaia`` suffix used to be a hard prerequisite for ``gaia pkg
+    scaffold``; v0.5+ keeps the suffix as a recommendation but allows
+    any valid Python identifier as the package name so the non-invasive
+    embedded mount can flow through the same scaffold envelope.
+    """
     target = tmp_path / "bad-name"
     result = runner.invoke(app, ["pkg", "scaffold", "--target", str(target), "--no-check"])
-    assert result.exit_code == 4
+    assert result.exit_code == 0, result.output
     envelope = _parse(result.output)
-    diagnostics = envelope["diagnostics"]
-    assert isinstance(diagnostics, list)
-    assert diagnostics[0]["kind"] == "prewrite.target_not_gaia_package"
+    warnings = envelope.get("warnings", [])
+    assert any("does not end with '-gaia'" in w for w in warnings)
+    diagnostic_kinds = [d.get("kind") for d in envelope.get("diagnostics", [])]
+    assert "prewrite.naming_suggestion" in diagnostic_kinds
+    assert (target / "pyproject.toml").exists()
 
 
 def test_scaffold_rejects_stdlib_import_name_collision(tmp_path: Path) -> None:

@@ -77,12 +77,24 @@ def _fake_subprocess_run_uv_add_fails(args, *, cwd, text, capture_output):
     return subprocess.CompletedProcess(args, 1, stdout="", stderr="unexpected command")
 
 
-def test_init_rejects_name_without_gaia_suffix():
-    """Package name must end with '-gaia'."""
-    result = runner.invoke(app, ["build", "init", "my-package"])
-    assert result.exit_code != 0
-    assert "must end with '-gaia'" in result.output
+def test_init_warns_when_name_missing_gaia_suffix(tmp_path, monkeypatch):
+    """Package name without ``-gaia`` is now advisory, not fatal.
+
+    The ``-gaia`` naming convention is preserved for backward
+    compatibility and registry discoverability, but v0.5+ supports the
+    non-invasive embedded layout via ``gaia pkg mount`` where the
+    user-visible name is whatever the user wrote in ``gaia.toml``.
+    ``gaia build init`` therefore warns about the missing suffix and
+    suggests ``gaia pkg mount`` rather than rejecting the input.
+    """
+    monkeypatch.chdir(tmp_path)
+    with patch("gaia.cli.commands.init.subprocess.run", side_effect=_fake_subprocess_run):
+        result = runner.invoke(app, ["build", "init", "my-package"])
+    assert result.exit_code == 0, f"Failed: {result.output}"
+    assert "Warning" in result.output
     assert "my-package-gaia" in result.output
+    assert "gaia pkg mount" in result.output
+    assert (tmp_path / "my-package").exists()
 
 
 def test_init_creates_package(tmp_path, monkeypatch):
