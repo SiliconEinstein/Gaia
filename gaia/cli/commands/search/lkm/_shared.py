@@ -28,6 +28,12 @@ from gaia.cli.commands.search.lkm._client import (
     LKMTransportError,
     NoAccessKeyError,
 )
+from gaia.cli.commands.search.lkm._servers import (
+    DEFAULT_LKM_SERVER_ID,
+    known_lkm_server_ids,
+    lkm_server_base_url,
+    normalize_lkm_server_id,
+)
 
 # Lexical-channel keyword cap, shared by knowledge / reasoning.
 MAX_KEYWORDS = 10
@@ -38,12 +44,29 @@ MAX_PAPER_IDS = 100
 MAX_VARIABLE_IDS = 100
 
 
+def validate_lkm_server(server_id: str) -> str:
+    """Validate and normalize the requested LKM server id."""
+    normalized = normalize_lkm_server_id(server_id)
+    if not normalized:
+        typer.echo("Error: --server must be non-empty.", err=True)
+        raise typer.Exit(4)
+    if lkm_server_base_url(normalized) is None:
+        known = ", ".join(known_lkm_server_ids())
+        typer.echo(
+            f"Error: unknown LKM server {server_id!r}. Configured servers: {known}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    return normalized
+
+
 def run_request(
     method: str,
     path: str,
     *,
     json_body: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
+    server_id: str = DEFAULT_LKM_SERVER_ID,
 ) -> dict[str, Any]:
     """Call the LKM API and return the envelope, translating errors to exits.
 
@@ -53,8 +76,11 @@ def run_request(
     into ``typer.Exit`` codes; see :func:`run_request`'s docstring for the
     table — callers should not catch these themselves.
     """
+    normalized_server_id = validate_lkm_server(server_id)
+    base_url = lkm_server_base_url(normalized_server_id)
+    assert base_url is not None
     try:
-        with LKMClient() as client:
+        with LKMClient(base_url=base_url) as client:
             payload = client.request(method, path, json_body=json_body, params=params)
     except NoAccessKeyError as exc:
         typer.echo(f"Error: {exc}", err=True)
@@ -117,6 +143,7 @@ def _atomic_write(path: Path, text: str) -> None:
 
 
 __all__ = [
+    "DEFAULT_LKM_SERVER_ID",
     "MAX_KEYWORDS",
     "MAX_LIMIT",
     "MAX_OFFSET",
@@ -124,4 +151,5 @@ __all__ = [
     "MAX_VARIABLE_IDS",
     "emit",
     "run_request",
+    "validate_lkm_server",
 ]

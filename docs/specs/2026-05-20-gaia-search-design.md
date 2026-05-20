@@ -65,12 +65,18 @@ gaia search lkm knowledge "FAPbI3"
 gaia search lkm reasoning "thermal stability"
 gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd
 gaia search lkm package --paper-id 811827932371615744
+gaia search lkm knowledge "FAPbI3" --server bohrium
 ```
 
 `--format raw-json` remains available for direct LKM API inspection.
 For `knowledge`, the current Apifox-backed LKM `/search` response surface is
 claim/question nodes only; Gaia should not expose reserved or stale
 action/setting scopes from older drafts.
+
+All LKM verbs accept `--server <id>`. The initial implementation configures
+`bohrium`; adding another server should extend the LKM server registry and
+credential layer without changing normalized result ids, refs, or
+`gaia pkg add` inputs.
 
 ### Phase 2: Local provider
 
@@ -102,11 +108,12 @@ Every Gaia-native search command should return:
   "query": {
     "text": "FAPbI3",
     "provider": "lkm",
-    "kind": "knowledge"
+    "kind": "knowledge",
+    "server_id": "bohrium"
   },
   "results": [
     {
-      "id": "lkm:gcn_579430355a0e4bbd",
+      "id": "lkm:bohrium:gcn_579430355a0e4bbd",
       "provider": "lkm",
       "kind": "claim",
       "title": "Annealing temperature controls alpha-phase growth",
@@ -125,6 +132,7 @@ Every Gaia-native search command should return:
       },
       "source": {
         "provider_id": "gcn_579430355a0e4bbd",
+        "server_id": "bohrium",
         "source_package": "paper:811827932371615744",
         "paper_id": "811827932371615744",
         "doi": "10.1016/j.jpcs.2021.110374",
@@ -133,13 +141,13 @@ Every Gaia-native search command should return:
       "actions": [
         {
           "kind": "inspect",
-          "ref": "lkm:claim:gcn_579430355a0e4bbd",
-          "next_steps": "gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd"
+          "ref": "lkm:bohrium:claim:gcn_579430355a0e4bbd",
+          "next_steps": "gaia search lkm reasoning --server bohrium --claim-id gcn_579430355a0e4bbd"
         },
         {
           "kind": "add",
-          "ref": "lkm:paper:811827932371615744",
-          "next_steps": "gaia pkg add lkm:paper:811827932371615744"
+          "ref": "lkm:bohrium:paper:811827932371615744",
+          "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"
         }
       ],
       "raw": {
@@ -241,33 +249,43 @@ LKM `package` output should preserve `paper`, `variables`, `factors`, and
 `motivations` metadata, but Gaia-native output should also expose:
 
 - `source.source_package`, e.g. `paper:811827932371615744`
+- `source.server_id`, e.g. `bohrium`; LKM-local ids are scoped to this server
 - `source.paper_id`
-- candidate package ref `lkm:paper:<paper_id>`
+- candidate package ref `lkm:<server_id>:paper:<paper_id>`
 - whether the graph is already materialized as a Gaia package
 
 ## 7. Search To `gaia pkg add`
 
-`gaia pkg add` should accept search result refs, not raw result JSON by default:
+`gaia pkg add` should accept friendly LKM flags and canonical search refs, not
+raw result JSON by default:
 
 ```text
 gaia pkg add galileo-falling-bodies-gaia
-gaia pkg add lkm:paper:811827932371615744
-gaia pkg add lkm:claim:gcn_579430355a0e4bbd
+gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744
+gaia pkg add --lkm-server bohrium --lkm-claim gcn_579430355a0e4bbd
+gaia pkg add lkm:bohrium:paper:811827932371615744
+gaia pkg add lkm:bohrium:claim:gcn_579430355a0e4bbd
 ```
+
+The default short refs `lkm:paper:<paper_id>` and `lkm:claim:<claim_id>` may be
+accepted as compatibility aliases for the default `bohrium` server, but Gaia
+should emit canonical refs with an explicit server id. This keeps ids stable
+when a user configures multiple LKM servers whose paper or claim ids may
+overlap.
 
 Resolution rules:
 
 1. Registry package names keep the current behavior: resolve registry metadata,
    run `uv add`, and optionally cache `beliefs.json`.
-2. `lkm:paper:<paper_id>` first checks whether the official registry already
-   has a materialized Gaia package for that paper.
+2. `lkm:<server_id>:paper:<paper_id>` first checks whether the official registry
+   already has a materialized Gaia package for that server-scoped paper.
 3. If a registry package exists, `pkg add` installs that package.
 4. If no registry package exists, `pkg add` should fail with an actionable
    message by default. A future explicit flag, such as `--materialize-local`,
    may materialize a local `*-gaia` package from the LKM paper graph, run
    `gaia build compile`, and add it as an editable/path dependency.
-5. `lkm:claim:<claim_id>` resolves the claim to its backing paper package, then
-   follows the `lkm:paper` path.
+5. `lkm:<server_id>:claim:<claim_id>` resolves the claim on that LKM server to
+   its backing paper package, then follows the `lkm:<server_id>:paper` path.
 
 The important boundary is that search returns:
 
@@ -276,8 +294,8 @@ The important boundary is that search returns:
   "actions": [
     {
       "kind": "add",
-      "ref": "lkm:paper:811827932371615744",
-      "next_steps": "gaia pkg add lkm:paper:811827932371615744"
+      "ref": "lkm:bohrium:paper:811827932371615744",
+      "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"
     }
   ]
 }
@@ -314,6 +332,8 @@ from these artifacts and invalidated by `ir_hash`.
 ### Phase 0: PR 683
 
 - Keep `gaia search lkm` as the initial provider adapter.
+- Add `--server` to LKM verbs and scope normalized ids/refs by
+  `lkm:<server_id>:...`; only `bohrium` is configured in this build.
 - Keep `LKM_ACCESS_KEY` compatibility and clean error handling.
 - Document that scores are retrieval scores only.
 
@@ -334,7 +354,8 @@ from these artifacts and invalidated by `ir_hash`.
 
 ### Phase 3: Add refs
 
-- Extend `gaia pkg add` to accept `lkm:paper:<id>` and `lkm:claim:<id>`.
+- Extend `gaia pkg add` to accept `lkm:<server_id>:paper:<id>` and
+  `lkm:<server_id>:claim:<id>`, plus short default-server aliases if needed.
 - Prefer registry materializations when available.
 - Without an explicit local materialization flag, fail clearly when no registry
   package exists.

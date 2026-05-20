@@ -18,18 +18,24 @@ from gaia.cli.commands.search._results import (
     normalize_lkm_reasoning_search,
 )
 from gaia.cli.commands.search.lkm._shared import (
+    DEFAULT_LKM_SERVER_ID,
     MAX_KEYWORDS,
     MAX_LIMIT,
     MAX_OFFSET,
     MAX_PAPER_IDS,
     emit,
     run_request,
+    validate_lkm_server,
 )
 from gaia.cli.commands.search.lkm.knowledge import RetrievalMode
 
 
 def reasoning_search_command(
     query: Annotated[str, typer.Argument(help="Natural-language search query.")],
+    server: Annotated[
+        str,
+        typer.Option("--server", help="Configured LKM server id."),
+    ] = DEFAULT_LKM_SERVER_ID,
     retrieval_mode: Annotated[
         RetrievalMode,
         typer.Option("--retrieval-mode", help="Retrieval channel.", case_sensitive=False),
@@ -73,6 +79,7 @@ def reasoning_search_command(
     ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
     """Search reasoning chains (POST /reasoning/search)."""
+    server_id = validate_lkm_server(server)
     if keywords and len(keywords) > MAX_KEYWORDS:
         typer.echo(
             f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
@@ -118,7 +125,7 @@ def reasoning_search_command(
     if paper_ids:
         body["filters"] = {"paper_ids": list(paper_ids)}
 
-    payload = run_request("POST", "/reasoning/search", json_body=body)
+    payload = run_request("POST", "/reasoning/search", json_body=body, server_id=server_id)
     if output_format == SearchOutputFormat.GAIA_JSON:
-        payload = normalize_lkm_reasoning_search(payload, query=query)
+        payload = normalize_lkm_reasoning_search(payload, query=query, server_id=server_id)
     emit(payload, out)

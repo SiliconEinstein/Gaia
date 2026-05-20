@@ -15,11 +15,13 @@ import typer
 
 from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_knowledge
 from gaia.cli.commands.search.lkm._shared import (
+    DEFAULT_LKM_SERVER_ID,
     MAX_KEYWORDS,
     MAX_LIMIT,
     MAX_OFFSET,
     emit,
     run_request,
+    validate_lkm_server,
 )
 
 
@@ -51,6 +53,10 @@ _KNOWLEDGE_EPILOG = (
 
 def knowledge_command(
     query: Annotated[str, typer.Argument(help="Natural-language search query.")],
+    server: Annotated[
+        str,
+        typer.Option("--server", help="Configured LKM server id."),
+    ] = DEFAULT_LKM_SERVER_ID,
     scopes: Annotated[
         list[ScopeChoice] | None,
         typer.Option(
@@ -107,6 +113,7 @@ def knowledge_command(
     ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
     """Search LKM knowledge nodes (POST /search)."""
+    server_id = validate_lkm_server(server)
     if keywords and len(keywords) > MAX_KEYWORDS:
         typer.echo(
             f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
@@ -150,9 +157,14 @@ def knowledge_command(
         filters["role"] = role
     body["filters"] = filters
 
-    payload = run_request("POST", "/search", json_body=body)
+    payload = run_request("POST", "/search", json_body=body, server_id=server_id)
     if output_format == SearchOutputFormat.GAIA_JSON:
-        payload = normalize_lkm_knowledge(payload, query=query, kind=_query_kind(scopes))
+        payload = normalize_lkm_knowledge(
+            payload,
+            query=query,
+            kind=_query_kind(scopes),
+            server_id=server_id,
+        )
     emit(payload, out)
 
 

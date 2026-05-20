@@ -21,7 +21,8 @@ from gaia.cli.commands.search.lkm.reasoning_search import reasoning_search_comma
 from gaia.cli.commands.search.lkm.variables import nodes_command, variables_command
 
 _LKM_EPILOG = (
-    "Endpoints (all under https://open.bohrium.com/openapi/v1/lkm):\n\n"
+    "Configured servers: bohrium (default). Endpoints under "
+    "https://open.bohrium.com/openapi/v1/lkm:\n\n"
     "  knowledge  POST /search + filters        — recall claim/question nodes\n"
     "  reasoning  POST /reasoning/search        — search reasoning chains by query\n"
     "             GET  /claims/{id}/reasoning   — fetch chains for one claim\n"
@@ -37,7 +38,7 @@ _LKM_EPILOG = (
 
 lkm_app = typer.Typer(
     name="lkm",
-    help="Search the Bohrium LKM knowledge graph (4 verbs + auth).",
+    help="Search configured LKM knowledge-graph servers (4 verbs + auth).",
     epilog=_LKM_EPILOG,
     no_args_is_help=True,
 )
