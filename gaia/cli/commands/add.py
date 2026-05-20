@@ -269,6 +269,17 @@ def _handle_lkm_paper_add(ref: LKMSourceRef) -> None:
         f"{materialized.question_count} questions, "
         f"{materialized.dependency_count} depends_on scaffold dependencies"
     )
+    if materialized.paper_id_inferred:
+        typer.echo(
+            "Warning: LKM response did not include a paper id; "
+            f"using requested paper id {materialized.paper_id!r} for the generated package.",
+            err=True,
+        )
+    if materialized.skipped_factor_count:
+        typer.echo(
+            f"Note: skipped {materialized.skipped_factor_count} LKM factor(s) whose "
+            "conclusion or premises were not extractable claim nodes."
+        )
     if materialized.dependency_count:
         typer.echo(
             "Note: generated `depends_on(...)` records are the unformalized "

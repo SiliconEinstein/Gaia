@@ -38,6 +38,14 @@ class MaterializedLKMPackage:
     claim_count: int
     question_count: int
     dependency_count: int
+    skipped_factor_count: int
+    paper_id_inferred: bool
+
+
+@dataclass(frozen=True)
+class _DependencyStatements:
+    statements: list[str]
+    skipped_factor_count: int
 
 
 @dataclass(frozen=True)
@@ -62,7 +70,8 @@ def materialize_lkm_paper_package(
     """Write, compile, and return a local Gaia package for an LKM paper graph."""
     item = _select_paper_item(payload, paper_id=paper_id)
     paper = _paper_metadata(item)
-    resolved_paper_id = _paper_id(paper) or paper_id
+    paper_provider_id = _paper_id(paper)
+    resolved_paper_id = paper_provider_id or paper_id
     source_ref = f"lkm:{index_id}:paper:{resolved_paper_id}"
     title = _text(paper.get("en_title")) or _text(paper.get("zh_title"))
     doi = _text(paper.get("doi"))
@@ -76,7 +85,7 @@ def materialize_lkm_paper_package(
     (root / ".gaia").mkdir(exist_ok=True)
 
     nodes = _collect_nodes(item, paper=paper, paper_id=resolved_paper_id)
-    dependencies = _dependency_statements(
+    dependency_result = _dependency_statements(
         item,
         nodes=nodes,
         index_id=index_id,
@@ -84,6 +93,7 @@ def materialize_lkm_paper_package(
         paper_title=title,
         doi=doi,
     )
+    dependencies = dependency_result.statements
     exported = [node.symbol for node in nodes if node.type in {"claim", "question"}]
     exported_symbol = next((node.symbol for node in nodes if node.type == "claim"), None)
 
@@ -136,6 +146,8 @@ def materialize_lkm_paper_package(
         claim_count=sum(1 for node in nodes if node.type == "claim"),
         question_count=sum(1 for node in nodes if node.type == "question"),
         dependency_count=len(dependencies),
+        skipped_factor_count=dependency_result.skipped_factor_count,
+        paper_id_inferred=paper_provider_id is None,
     )
 
 
@@ -282,21 +294,24 @@ def _dependency_statements(
     paper_id: str,
     paper_title: str | None,
     doi: str | None,
-) -> list[str]:
+) -> _DependencyStatements:
     symbol_by_provider_id = {
         node.provider_id: node.symbol for node in nodes if node.type == "claim"
     }
     statements: list[str] = []
+    skipped_factor_count = 0
     used_labels: set[str] = set()
     for index, factor in enumerate(_list(item.get("factors"))):
         if not isinstance(factor, dict):
             continue
         conclusion = factor.get("conclusion")
         if not isinstance(conclusion, dict):
+            skipped_factor_count += 1
             continue
         conclusion_id = _provider_id(conclusion)
         conclusion_symbol = symbol_by_provider_id.get(conclusion_id or "")
         if conclusion_symbol is None:
+            skipped_factor_count += 1
             continue
         given: list[str] = []
         for premise in _list(factor.get("premises")):
@@ -306,6 +321,7 @@ def _dependency_statements(
             if premise_symbol is not None:
                 given.append(premise_symbol)
         if not given:
+            skipped_factor_count += 1
             continue
         label = _unique_symbol(
             _symbol_from_text(_text(factor.get("local_id")) or f"lkm_factor_{index}"),
@@ -331,7 +347,10 @@ def _dependency_statements(
             f"    metadata={_clean_dict(metadata)!r},\n"
             ")\n"
         )
-    return statements
+    return _DependencyStatements(
+        statements=statements,
+        skipped_factor_count=skipped_factor_count,
+    )
 
 
 def _provider_id(raw: dict[str, Any]) -> str | None:

@@ -126,6 +126,62 @@ def _write_consumer_package(
     )
 
 
+def _write_empty_gaia_package(root: Path) -> None:
+    root.mkdir()
+    (root / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "lkm-consumer-gaia"\n'
+        'version = "0.1.0"\n'
+        "dependencies = []\n\n"
+        "[tool.gaia]\n"
+        'namespace = "github"\n'
+        'type = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+
+
+def _paper_graph_payload_with_skipped_factors() -> dict[str, Any]:
+    payload = _paper_graph_payload()
+    paper_item = payload["data"]["papers"][0]
+    paper_item["factors"].extend(
+        [
+            {
+                "conclusion": {
+                    "content": "Which phase conversion pathway dominates?",
+                    "global_id": "gq_phase",
+                    "type": "question",
+                },
+                "global_id": "gfac_question_conclusion",
+                "local_id": "lfac_question_conclusion",
+                "premises": [
+                    {
+                        "content": "The 120 C condition increases alpha-FAPbI3 fraction.",
+                        "global_id": "gcn_premise",
+                        "type": "claim",
+                    }
+                ],
+            },
+            {
+                "conclusion": {
+                    "content": "Annealing at 120 C improves alpha-phase purity.",
+                    "global_id": "gcn_conclusion",
+                    "type": "claim",
+                },
+                "global_id": "gfac_question_premise",
+                "local_id": "lfac_question_premise",
+                "premises": [
+                    {
+                        "content": "Which phase conversion pathway dominates?",
+                        "global_id": "gq_phase",
+                        "type": "question",
+                    }
+                ],
+            },
+        ]
+    )
+    return payload
+
+
 def test_materialized_lkm_package_can_be_imported_and_referenced(tmp_path: Path) -> None:
     materialized = materialize_lkm_paper_package(
         _paper_graph_payload(),
@@ -208,6 +264,18 @@ def test_materialize_lkm_paper_rejects_mismatched_paper_id(tmp_path: Path) -> No
         )
 
 
+def test_materialize_lkm_paper_counts_skipped_factors(tmp_path: Path) -> None:
+    materialized = materialize_lkm_paper_package(
+        _paper_graph_payload_with_skipped_factors(),
+        project_root=tmp_path,
+        index_id="bohrium",
+        paper_id="811827932371615744",
+    )
+
+    assert materialized.dependency_count == 1
+    assert materialized.skipped_factor_count == 2
+
+
 def test_pkg_add_lkm_paper_materializes_and_adds_editable_dependency(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -277,6 +345,86 @@ def test_pkg_add_lkm_paper_materializes_and_adds_editable_dependency(
     materialized_root = Path(uv_args[3])
     assert materialized_root.exists()
     assert (materialized_root / ".gaia" / "manifests" / "premises.json").exists()
+
+
+def test_pkg_add_lkm_paper_warns_when_response_has_no_paper_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        del method, path, json_body, index_id
+        payload = _paper_graph_payload()
+        paper = payload["data"]["papers"][0]["paper"]
+        paper.pop("id")
+        paper.pop("package_id")
+        return payload
+
+    def fake_run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.setattr(add_mod, "_run_uv", fake_run_uv)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-paper", "811827932371615744"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Warning: LKM response did not include a paper id" in result.output
+    assert "811827932371615744" in result.output
+
+
+def test_pkg_add_lkm_paper_reports_skipped_factor_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        del method, path, json_body, index_id
+        return _paper_graph_payload_with_skipped_factors()
+
+    def fake_run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.setattr(add_mod, "_run_uv", fake_run_uv)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-paper", "811827932371615744"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "1 depends_on scaffold dependencies" in result.output
+    assert "skipped 2 LKM factor(s)" in result.output
 
 
 def test_pkg_add_lkm_paper_reports_materialized_path_when_uv_add_fails(
