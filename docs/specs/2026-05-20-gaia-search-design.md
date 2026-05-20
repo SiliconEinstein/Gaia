@@ -149,7 +149,7 @@ Field rules:
 |---|---|
 | `id` | Stable search-result id in the provider namespace |
 | `provider` | `lkm`, `pkg`, or another future provider |
-| `kind` | Gaia-facing kind: `package`, `claim`, `question`, `note`, `strategy`, `paper`, `relation` |
+| `kind` | Gaia-facing kind: `package`, `claim`, `question`, `note`, `derive`, `paper`, `relation` |
 | `rank.score` | Retrieval ranking only, never a prior |
 | `gaia` | Populated when the result already has a Gaia package identity |
 | `source` | Provider provenance needed for citations and follow-up calls |
@@ -219,8 +219,8 @@ normalized boundary:
 | `variable.type == "claim"` | `claim` | Candidate Gaia `claim(...)` |
 | `variable.type == "question"` | `question` | Candidate Gaia `question(...)` |
 | `variable.type == "setting"` | `note` | Gaia `setting()` is deprecated; normalize to non-probabilistic context |
-| `variable.type == "action"` | `strategy` or `paper` context | Do not map to a Gaia action unless the DSL action semantics are known |
-| `factor` / reasoning chain | `strategy` | Candidate `derive`, `infer`, `deduction`, or `depends_on`; mapping requires inspection |
+| `variable.type == "action"` | `derive` | LKM action nodes represent derivation steps in Gaia authoring |
+| `factor` / reasoning chain | `derive` | Candidate Gaia `derive(...)`; preserve raw factors for inspection |
 | `paper.package_id` | `paper` / `package` candidate | Addable only after materialization or registry resolution |
 
 LKM `paper-graph` output should preserve `paper`, `variables`, `factors`, and

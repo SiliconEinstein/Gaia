@@ -208,6 +208,143 @@ class TestClaims:
         assert result.exit_code == 0, result.output
         assert json.loads(dest.read_text())["code"] == 0
 
+    def test_gaia_json_normalizes_claim_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "papers": {
+                        "paper:811827932371615744": {
+                            "doi": "10.1016/j.jpcs.2021.110374",
+                            "en_title": "FAPbI3 processing paper",
+                            "id": "811827932371615744",
+                        }
+                    },
+                    "variables": [
+                        {
+                            "content": "Annealing at 120 C maximizes alpha phase.",
+                            "has_evidence": True,
+                            "has_reasoning": True,
+                            "id": "gcn_579430355a0e4bbd",
+                            "provenance": {
+                                "representative_lcn": {
+                                    "local_id": "paper:811827932371615744::conclusion_4",
+                                    "package_id": "paper:811827932371615744",
+                                    "version": "2.0.0",
+                                },
+                                "source_packages": ["paper:811827932371615744"],
+                            },
+                            "role": "conclusion",
+                            "score": 0.97,
+                            "title": "Annealing temperature controls alpha-phase growth",
+                            "type": "claim",
+                        }
+                    ],
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "claims", "FAPbI3", "--format", "gaia-json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["schema_version"] == 1
+        assert out["query"] == {"text": "FAPbI3", "provider": "lkm", "kind": "claim"}
+        item = out["results"][0]
+        assert item["id"] == "lkm:gcn_579430355a0e4bbd"
+        assert item["kind"] == "claim"
+        assert item["rank"] == {"score": 0.97, "score_kind": "retrieval"}
+        assert item["gaia"]["object_kind"] == "claim"
+        assert item["source"]["paper_id"] == "811827932371615744"
+        assert item["source"]["doi"] == "10.1016/j.jpcs.2021.110374"
+        assert item["actions"] == [
+            {
+                "kind": "inspect",
+                "command": "gaia search lkm reasoning gcn_579430355a0e4bbd",
+            },
+            {
+                "kind": "add",
+                "ref": "lkm:paper:811827932371615744",
+                "command": "gaia pkg add lkm:paper:811827932371615744",
+            },
+        ]
+
+    def test_gaia_json_maps_action_variables_to_derive(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "variables": [
+                        {
+                            "content": "Derive phase conversion from XRD ratios.",
+                            "id": "gact_123",
+                            "provenance": {
+                                "source_packages": ["paper:811827932371615744"],
+                            },
+                            "title": "Phase conversion derivation",
+                            "type": "action",
+                        }
+                    ],
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "claims",
+                "phase conversion",
+                "--scopes",
+                "action",
+                "--format",
+                "gaia-json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["kind"] == "derive"
+        assert item["gaia"]["object_kind"] == "derive"
+
+    def test_gaia_json_maps_unknown_variable_types_to_note(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "variables": [
+                        {
+                            "content": "Provider-specific context node.",
+                            "id": "gctx_123",
+                            "title": "Provider context",
+                            "type": "provider_context",
+                        }
+                    ],
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "claims", "context", "--format", "gaia-json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["kind"] == "note"
+        assert item["gaia"]["object_kind"] == "note"
+
 
 # --------------------------------------------------------------------------- #
 # reasoning                                                                   #
@@ -321,6 +458,63 @@ class TestReasoningSearch:
         _install_client(monkeypatch, raises=LKMTransportError("net"))
         result = runner.invoke(app, ["search", "lkm", "reasoning-search", "q"])
         assert result.exit_code == 2, result.output
+
+    def test_gaia_json_normalizes_reasoning_chain_results(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "papers": {
+                        "paper:811827932371615744": {
+                            "doi": "10.1016/j.jpcs.2021.110374",
+                            "id": "811827932371615744",
+                        }
+                    },
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "source_package": "paper:811827932371615744",
+                            "factors": [
+                                {
+                                    "conclusion": {
+                                        "content": "120 C is the optimal annealing window.",
+                                        "id": "gcn_result",
+                                        "title": "Optimal annealing window",
+                                    },
+                                    "steps": [{"reasoning": "Compare 120 C and 150 C."}],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning-search", "FAPbI3", "--format", "gaia-json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["query"] == {"text": "FAPbI3", "provider": "lkm", "kind": "derive"}
+        item = out["results"][0]
+        assert item["id"] == "lkm:chain_1"
+        assert item["kind"] == "derive"
+        assert item["gaia"]["object_kind"] == "derive"
+        assert item["title"] == "Optimal annealing window"
+        assert item["content"] == "120 C is the optimal annealing window."
+        assert item["source"]["paper_id"] == "811827932371615744"
+        assert item["actions"] == [
+            {
+                "kind": "add",
+                "ref": "lkm:paper:811827932371615744",
+                "command": "gaia pkg add lkm:paper:811827932371615744",
+            }
+        ]
 
 
 # --------------------------------------------------------------------------- #
@@ -445,3 +639,65 @@ class TestPaperGraph:
         _install_client(monkeypatch, response={"code": 290011, "msg": "not found"})
         result = runner.invoke(app, ["search", "lkm", "paper-graph", "--doi", "d"])
         assert result.exit_code == 1, result.output
+
+    def test_gaia_json_normalizes_paper_graph_results(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "papers": [
+                        {
+                            "paper": {
+                                "doi": "10.1016/j.jpcs.2021.110374",
+                                "en_abstract": "A facile all-dip-coating deposition is proposed.",
+                                "en_title": "Controlling phase and morphology",
+                                "id": "811827932371615744",
+                                "package_id": "paper:811827932371615744",
+                            },
+                            "stats": {
+                                "factors_total": 2,
+                                "motivations_total": 1,
+                                "variables_total": 25,
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "paper-graph",
+                "--paper-id",
+                "811827932371615744",
+                "--format",
+                "gaia-json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["query"] == {
+            "text": "811827932371615744",
+            "provider": "lkm",
+            "kind": "paper",
+        }
+        item = out["results"][0]
+        assert item["id"] == "lkm:paper:811827932371615744"
+        assert item["kind"] == "paper"
+        assert item["title"] == "Controlling phase and morphology"
+        assert item["source"]["source_package"] == "paper:811827932371615744"
+        assert item["source"]["stats"]["variables_total"] == 25
+        assert item["actions"] == [
+            {
+                "kind": "add",
+                "ref": "lkm:paper:811827932371615744",
+                "command": "gaia pkg add lkm:paper:811827932371615744",
+            }
+        ]

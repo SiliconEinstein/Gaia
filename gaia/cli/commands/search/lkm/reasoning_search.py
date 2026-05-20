@@ -12,6 +12,10 @@ from typing import Annotated, Any
 
 import typer
 
+from gaia.cli.commands.search._results import (
+    SearchOutputFormat,
+    normalize_lkm_reasoning_search,
+)
 from gaia.cli.commands.search.lkm._shared import (
     MAX_KEYWORDS,
     MAX_LIMIT,
@@ -58,6 +62,14 @@ def reasoning_search_command(
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
+    output_format: Annotated[
+        SearchOutputFormat,
+        typer.Option(
+            "--format",
+            help="Output format: raw upstream JSON or normalized Gaia search JSON.",
+            case_sensitive=False,
+        ),
+    ] = SearchOutputFormat.RAW_JSON,
 ) -> None:
     """Search reasoning chains (POST /reasoning/search)."""
     if keywords and len(keywords) > MAX_KEYWORDS:
@@ -106,4 +118,6 @@ def reasoning_search_command(
         body["filters"] = {"paper_ids": list(paper_ids)}
 
     payload = run_request("POST", "/reasoning/search", json_body=body)
+    if output_format == SearchOutputFormat.GAIA_JSON:
+        payload = normalize_lkm_reasoning_search(payload, query=query)
     emit(payload, out)

@@ -13,6 +13,7 @@ from typing import Annotated, Any
 
 import typer
 
+from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_paper_graph
 from gaia.cli.commands.search.lkm._shared import emit, run_request
 
 
@@ -83,6 +84,14 @@ def paper_graph_command(
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
+    output_format: Annotated[
+        SearchOutputFormat,
+        typer.Option(
+            "--format",
+            help="Output format: raw upstream JSON or normalized Gaia search JSON.",
+            case_sensitive=False,
+        ),
+    ] = SearchOutputFormat.RAW_JSON,
 ) -> None:
     """Fetch a paper's knowledge graph (POST /papers/graph)."""
     identifiers = {
@@ -125,4 +134,7 @@ def paper_graph_command(
         body["title_resolve"] = {"limit": title_resolve_limit}
 
     payload = run_request("POST", "/papers/graph", json_body=body)
+    if output_format == SearchOutputFormat.GAIA_JSON:
+        query_text = next(iter(supplied.values()))
+        payload = normalize_lkm_paper_graph(payload, query=str(query_text))
     emit(payload, out)
