@@ -17,6 +17,7 @@ from typing import Any, ClassVar
 import pytest
 from typer.testing import CliRunner
 
+from gaia.cli._credentials import CredentialPermissionError
 from gaia.cli.commands.search.lkm import _shared
 from gaia.cli.commands.search.lkm._client import (
     LKMTransportError,
@@ -75,6 +76,16 @@ def _install_client(
         if raises is not None and isinstance(raises, NoAccessKeyError):
             raise raises
         return _FakeClient(response=response, raises=raises)
+
+    monkeypatch.setattr(_shared, "LKMClient", factory)
+    _FakeClient.last_call = {}
+
+
+def _install_constructor_error(monkeypatch: pytest.MonkeyPatch, raises: Exception) -> None:
+    """Patch ``_shared.LKMClient`` to fail during construction."""
+
+    def factory(*_args: object, **_kwargs: object) -> _FakeClient:
+        raise raises
 
     monkeypatch.setattr(_shared, "LKMClient", factory)
     _FakeClient.last_call = {}
@@ -148,6 +159,15 @@ class TestClaims:
         result = runner.invoke(app, ["search", "lkm", "claims", "q"])
         assert result.exit_code == 3, result.output
 
+    def test_credential_permission_error_exits_2_without_traceback(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_constructor_error(monkeypatch, CredentialPermissionError("bad mode"))
+        result = runner.invoke(app, ["search", "lkm", "claims", "q"])
+        assert result.exit_code == 2, result.output
+        assert "bad mode" in result.output
+        assert "Traceback" not in result.output
+
     def test_too_many_keywords_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         args = ["search", "lkm", "claims", "q"]
@@ -155,6 +175,31 @@ class TestClaims:
             args += ["--keywords", f"k{i}"]
         result = runner.invoke(app, args)
         assert result.exit_code == 4, result.output
+
+    def test_limit_out_of_range_exits_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "claims", "q", "--limit", "101"])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_offset_out_of_range_exits_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "claims", "q", "--offset", "-1"])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_nested_error_message_is_rendered(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(
+            monkeypatch,
+            response={"code": 290001, "error": {"msg": "context deadline exceeded"}},
+        )
+        result = runner.invoke(app, ["search", "lkm", "claims", "q"])
+        assert result.exit_code == 1, result.output
+        assert "context deadline exceeded" in result.output
 
     def test_out_writes_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "n": 1})
@@ -255,6 +300,22 @@ class TestReasoningSearch:
             args += ["--keywords", f"k{i}"]
         result = runner.invoke(app, args)
         assert result.exit_code == 4, result.output
+
+    def test_limit_out_of_range_exits_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "reasoning-search", "q", "--limit", "101"])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_offset_out_of_range_exits_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "reasoning-search", "q", "--offset", "-1"])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
 
     def test_transport_error_exits_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, raises=LKMTransportError("net"))

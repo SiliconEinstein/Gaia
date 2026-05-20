@@ -9,8 +9,9 @@ to ``~/.config/gaia/credentials.toml``). The directory is created with
 mode 0700 and the file is written with mode 0600 on every write. Reads
 refuse a file whose mode is not 0600 and tell the user how to fix.
 
-Environment override: when ``GAIA_LKM_ACCESS_KEY`` is set, the env var
-shadows the file completely — no file read, no file write.
+Environment override: when ``GAIA_LKM_ACCESS_KEY`` or the legacy
+``LKM_ACCESS_KEY`` is set, the env var shadows the file completely — no
+file read, no file write. ``GAIA_LKM_ACCESS_KEY`` wins when both are set.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ from pathlib import Path
 import tomli_w
 
 _ENV_VAR = "GAIA_LKM_ACCESS_KEY"
+_COMPAT_ENV_VAR = "LKM_ACCESS_KEY"
+_ENV_VARS = (_ENV_VAR, _COMPAT_ENV_VAR)
 
 
 class CredentialPermissionError(Exception):
@@ -45,6 +48,21 @@ def mask_key(key: str | None) -> str:
     if len(key) <= 4:
         return "****"
     return f"****{key[-4:]}"
+
+
+def active_lkm_env_var() -> str | None:
+    """Return the first configured LKM env var name, if any."""
+    for name in _ENV_VARS:
+        if os.environ.get(name):
+            return name
+    return None
+
+
+def _env_key_source() -> tuple[str, str] | None:
+    name = active_lkm_env_var()
+    if name is None:
+        return None
+    return name, str(os.environ[name])
 
 
 def _ensure_parent(path: Path) -> None:
@@ -83,12 +101,13 @@ def _atomic_write(path: Path, payload: dict[str, object]) -> None:
 def read_lkm_key() -> str | None:
     """Return the LKM access key from env, then file. ``None`` if unset.
 
-    Env var ``GAIA_LKM_ACCESS_KEY`` shadows the file entirely. If the file
-    exists with unsafe permissions, raises ``CredentialPermissionError``.
+    Env vars ``GAIA_LKM_ACCESS_KEY`` / ``LKM_ACCESS_KEY`` shadow the file
+    entirely. If the file exists with unsafe permissions, raises
+    ``CredentialPermissionError``.
     """
-    env = os.environ.get(_ENV_VAR)
+    env = _env_key_source()
     if env:
-        return env
+        return env[1]
     path = credentials_path()
     doc = _load_document(path)
     lkm = doc.get("lkm")
@@ -101,11 +120,12 @@ def read_lkm_key() -> str | None:
 def write_lkm_key(key: str, validated_at: datetime) -> None:
     """Persist ``key`` and the validation timestamp to the credentials file.
 
-    Refuses to write when ``GAIA_LKM_ACCESS_KEY`` is set in the environment.
+    Refuses to write when an LKM access-key env var is set in the environment.
     """
-    if os.environ.get(_ENV_VAR):
+    env_var = active_lkm_env_var()
+    if env_var:
         raise RuntimeError(
-            f"{_ENV_VAR} is set; refusing to write file-backed credentials. "
+            f"{env_var} is set; refusing to write file-backed credentials. "
             f"Unset the env var to manage credentials via file storage."
         )
     path = credentials_path()
@@ -143,13 +163,15 @@ def lkm_key_status() -> dict[str, object]:
     ``"none"``), ``present`` (bool), ``masked_tail`` (str), ``path`` (str
     when source is file, else empty), ``last_validated_at`` (str or None).
     """
-    env = os.environ.get(_ENV_VAR)
+    env = _env_key_source()
     if env:
+        name, key = env
         return {
             "source": "environment",
             "present": True,
-            "masked_tail": mask_key(env),
+            "masked_tail": mask_key(key),
             "path": "",
+            "env_var": name,
             "last_validated_at": None,
         }
     path = credentials_path()
@@ -182,6 +204,7 @@ def lkm_key_status() -> dict[str, object]:
 
 __all__ = [
     "CredentialPermissionError",
+    "active_lkm_env_var",
     "credentials_path",
     "lkm_key_status",
     "mask_key",

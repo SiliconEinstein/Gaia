@@ -69,6 +69,12 @@ class TestLogin:
         assert result.exit_code == 4, result.output
         assert "GAIA_LKM_ACCESS_KEY" in result.output
 
+    def test_login_lkm_env_set_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key")
+        result = runner.invoke(app, [*_AUTH, "login"], input="x\n")
+        assert result.exit_code == 4, result.output
+        assert "LKM_ACCESS_KEY" in result.output
+
     def test_login_already_valid_exits_0(self, monkeypatch: pytest.MonkeyPatch) -> None:
         cred.write_lkm_key("existing-key", datetime.now(UTC))
         _patch_validate(monkeypatch, (True, "ok"))
@@ -114,6 +120,14 @@ class TestStatus:
         assert "****5678" in result.output
         assert "env-supplied" in result.output
 
+    def test_status_lkm_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key-2468")
+        result = runner.invoke(app, [*_AUTH, "status"])
+        assert result.exit_code == 0, result.output
+        assert "environment LKM_ACCESS_KEY" in result.output
+        assert "****2468" in result.output
+        assert "env-supplied" in result.output
+
 
 # --------------------------------------------------------------------------- #
 # logout                                                                      #
@@ -139,6 +153,12 @@ class TestLogout:
         assert result.exit_code == 4, result.output
         assert "GAIA_LKM_ACCESS_KEY" in result.output
 
+    def test_logout_lkm_env_set_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key")
+        result = runner.invoke(app, [*_AUTH, "logout"])
+        assert result.exit_code == 4, result.output
+        assert "LKM_ACCESS_KEY" in result.output
+
 
 # --------------------------------------------------------------------------- #
 # rotate                                                                      #
@@ -163,3 +183,9 @@ class TestRotate:
         monkeypatch.setenv("GAIA_LKM_ACCESS_KEY", "env-key")
         result = runner.invoke(app, [*_AUTH, "rotate"], input="x\n")
         assert result.exit_code == 4, result.output
+
+    def test_rotate_lkm_env_set_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key")
+        result = runner.invoke(app, [*_AUTH, "rotate"], input="x\n")
+        assert result.exit_code == 4, result.output
+        assert "LKM_ACCESS_KEY" in result.output

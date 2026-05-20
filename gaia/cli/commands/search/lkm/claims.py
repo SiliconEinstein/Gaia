@@ -15,6 +15,8 @@ import typer
 
 from gaia.cli.commands.search.lkm._shared import (
     MAX_KEYWORDS,
+    MAX_LIMIT,
+    MAX_OFFSET,
     emit,
     run_request,
 )
@@ -101,6 +103,18 @@ def claims_command(
     if keywords and len(keywords) > MAX_KEYWORDS:
         typer.echo(
             f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    if offset < 0 or offset > MAX_OFFSET:
+        typer.echo(
+            f"Error: --offset must be between 0 and {MAX_OFFSET}; got {offset}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    if limit < 1 or limit > MAX_LIMIT:
+        typer.echo(
+            f"Error: --limit must be between 1 and {MAX_LIMIT}; got {limit}.",
             err=True,
         )
         raise typer.Exit(4)

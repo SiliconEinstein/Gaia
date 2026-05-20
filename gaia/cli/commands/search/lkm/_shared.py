@@ -21,6 +21,7 @@ from typing import Any
 
 import typer
 
+from gaia.cli._credentials import CredentialPermissionError
 from gaia.cli.commands.search.lkm._client import (
     LKMClient,
     LKMError,
@@ -31,6 +32,8 @@ from gaia.cli.commands.search.lkm._client import (
 # Lexical-channel keyword cap, shared by claims / reasoning-search.
 MAX_KEYWORDS = 10
 # Per-call id caps.
+MAX_OFFSET = 10000
+MAX_LIMIT = 100
 MAX_PAPER_IDS = 100
 MAX_VARIABLE_IDS = 100
 
@@ -59,15 +62,34 @@ def run_request(
     except LKMTransportError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(2) from exc
+    except CredentialPermissionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
 
     code = payload.get("code")
     if code != 0:
-        msg = payload.get("msg", "")
+        msg = _business_message(payload)
         data = payload.get("data")
         err = LKMError(int(code) if isinstance(code, int) else -1, str(msg), data)
         typer.echo(f"Error: {err}", err=True)
         raise typer.Exit(1)
     return payload
+
+
+def _business_message(payload: dict[str, Any]) -> str:
+    """Extract human-readable business errors from live LKM envelopes."""
+    for key in ("msg", "message"):
+        value = payload.get(key)
+        if value:
+            return str(value)
+    error = payload.get("error")
+    if isinstance(error, dict):
+        for key in ("msg", "message", "title"):
+            value = error.get(key)
+            if value:
+                return str(value)
+        return json.dumps(error, ensure_ascii=False)
+    return ""
 
 
 def emit(payload: dict[str, Any], out: Path | None) -> None:
@@ -96,6 +118,8 @@ def _atomic_write(path: Path, text: str) -> None:
 
 __all__ = [
     "MAX_KEYWORDS",
+    "MAX_LIMIT",
+    "MAX_OFFSET",
     "MAX_PAPER_IDS",
     "MAX_VARIABLE_IDS",
     "emit",

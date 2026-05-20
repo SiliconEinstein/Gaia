@@ -25,7 +25,7 @@ _LKM_EPILOG = (
     "  paper-graph      POST /papers/graph       — a paper's knowledge graph\n\n"
     "Auth: every call needs a Bohrium access key. Run "
     "`gaia search lkm auth login` to set one up (or set "
-    "GAIA_LKM_ACCESS_KEY).\n\n"
+    "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
     "Exit codes: 0 ok / 1 business error / 2 transport / 3 no key / 4 bad args.\n\n"
     "Note: the `score` field returned by `claims` / `reasoning-search` is a "
     "retrieval ranking signal, not a probability — do not pass it to Gaia priors."

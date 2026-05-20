@@ -96,16 +96,42 @@ class TestEnvOverride:
         monkeypatch.setenv("GAIA_LKM_ACCESS_KEY", "env-key-9999")
         assert cred.read_lkm_key() == "env-key-9999"
 
+    def test_lkm_env_is_accepted_for_existing_tooling(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key-2468")
+        assert cred.read_lkm_key() == "legacy-env-key-2468"
+
+    def test_gaia_env_takes_precedence_over_lkm_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key")
+        monkeypatch.setenv("GAIA_LKM_ACCESS_KEY", "gaia-env-key")
+        assert cred.read_lkm_key() == "gaia-env-key"
+
     def test_env_status_source(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("GAIA_LKM_ACCESS_KEY", "env-key-9999")
         status = cred.lkm_key_status()
         assert status["source"] == "environment"
         assert status["present"] is True
         assert status["masked_tail"] == "****9999"
+        assert status["env_var"] == "GAIA_LKM_ACCESS_KEY"
+        assert status["last_validated_at"] is None
+
+    def test_lkm_env_status_source(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key-2468")
+        status = cred.lkm_key_status()
+        assert status["source"] == "environment"
+        assert status["present"] is True
+        assert status["masked_tail"] == "****2468"
+        assert status["env_var"] == "LKM_ACCESS_KEY"
         assert status["last_validated_at"] is None
 
     def test_write_refused_when_env_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("GAIA_LKM_ACCESS_KEY", "env-key")
+        with pytest.raises(RuntimeError):
+            cred.write_lkm_key("file-key", datetime.now(UTC))
+
+    def test_write_refused_when_lkm_env_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LKM_ACCESS_KEY", "legacy-env-key")
         with pytest.raises(RuntimeError):
             cred.write_lkm_key("file-key", datetime.now(UTC))
 

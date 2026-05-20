@@ -51,7 +51,7 @@ class LKMClient:
         if not access_key:
             raise NoAccessKeyError(
                 "No LKM access key configured. Run `gaia search lkm auth login` "
-                "or set GAIA_LKM_ACCESS_KEY."
+                "or set GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY."
             )
         self._access_key = access_key
         self._client: httpx.Client | None = None

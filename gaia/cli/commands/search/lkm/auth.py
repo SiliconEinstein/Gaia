@@ -8,13 +8,13 @@ Four verbs:
 * ``rotate``  logout (silently) then login.
 
 The access key lives in ``$XDG_CONFIG_HOME/gaia/credentials.toml`` (mode
-0600). When ``GAIA_LKM_ACCESS_KEY`` is set it shadows the file entirely,
-and the file-mutating verbs refuse rather than fight the env var.
+0600). When ``GAIA_LKM_ACCESS_KEY`` or legacy ``LKM_ACCESS_KEY`` is set it
+shadows the file entirely, and the file-mutating verbs refuse rather than
+fight the env var.
 """
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -22,6 +22,7 @@ import typer
 
 from gaia.cli._credentials import (
     CredentialPermissionError,
+    active_lkm_env_var,
     lkm_key_status,
     purge_lkm_key,
     read_lkm_key,
@@ -33,6 +34,7 @@ from gaia.cli.commands.search.lkm._client import (
 )
 
 _ENV_VAR = "GAIA_LKM_ACCESS_KEY"
+_COMPAT_ENV_VAR = "LKM_ACCESS_KEY"
 
 # Business codes that still imply the access key itself authenticated:
 #   0       request succeeded
@@ -78,9 +80,10 @@ def login_command(
     ] = False,
 ) -> None:
     """Prompt for an access key, validate it, and persist to the credentials file."""
-    if os.environ.get(_ENV_VAR):
+    env_var = active_lkm_env_var()
+    if env_var:
         typer.echo(
-            f"Error: {_ENV_VAR} is set; it shadows file-backed credentials. "
+            f"Error: {env_var} is set; it shadows file-backed credentials. "
             f"Unset it to manage the key via `gaia search lkm auth login`.",
             err=True,
         )
@@ -122,7 +125,7 @@ def status_command() -> None:
 
     source = status["source"]
     if source == "environment":
-        source_line = f"environment {_ENV_VAR}"
+        source_line = f"environment {status.get('env_var', _ENV_VAR)}"
         validated = "(env-supplied, no validation timestamp)"
     elif source == "file":
         source_line = f"file {status['path']}"
@@ -137,17 +140,19 @@ def status_command() -> None:
     typer.echo(f"last validated:    {validated}")
     if not status["present"]:
         typer.echo(
-            f"\nNo access key configured. Run `gaia search lkm auth login` or set {_ENV_VAR}."
+            "\nNo access key configured. Run `gaia search lkm auth login` or set "
+            f"{_ENV_VAR} / {_COMPAT_ENV_VAR}."
         )
 
 
 @auth_app.command(name="logout")
 def logout_command() -> None:
     """Purge the stored access key (idempotent)."""
-    if os.environ.get(_ENV_VAR):
+    env_var = active_lkm_env_var()
+    if env_var:
         typer.echo(
-            f"Error: the active key comes from {_ENV_VAR}, not the file store. "
-            f"Unset {_ENV_VAR} to remove it.",
+            f"Error: the active key comes from {env_var}, not the file store. "
+            f"Unset {env_var} to remove it.",
             err=True,
         )
         raise typer.Exit(4)
@@ -171,9 +176,10 @@ def rotate_command(
     ] = True,
 ) -> None:
     """Replace the stored access key: silent logout, then login."""
-    if os.environ.get(_ENV_VAR):
+    env_var = active_lkm_env_var()
+    if env_var:
         typer.echo(
-            f"Error: {_ENV_VAR} is set; it shadows file-backed credentials. "
+            f"Error: {env_var} is set; it shadows file-backed credentials. "
             f"Unset it to rotate the file-stored key.",
             err=True,
         )
