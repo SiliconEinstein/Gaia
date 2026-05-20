@@ -18,16 +18,11 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
+import tomllib
 from datetime import datetime
 from pathlib import Path
 
 import tomli_w
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
-
 
 _ENV_VAR = "GAIA_LKM_ACCESS_KEY"
 

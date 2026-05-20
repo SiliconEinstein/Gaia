@@ -28,7 +28,6 @@ from gaia.cli._credentials import (
     write_lkm_key,
 )
 from gaia.cli.commands.search.lkm._client import (
-    BASE_URL,  # noqa: F401  (re-exported for tests / discoverability)
     LKMClient,
     LKMTransportError,
 )
