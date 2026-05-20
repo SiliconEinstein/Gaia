@@ -109,21 +109,60 @@ class CollectedPackage:
 _inferred_packages: dict[Path, CollectedPackage] = {}
 _module_pyproject_cache: dict[str, Path | None] = {}
 
+# Embedded layout manifest filename, kept here as a literal so this
+# module stays import-cheap (it is hit on every DSL call). Keep in sync
+# with gaia.engine.layout.EMBEDDED_GAIA_MANIFEST.
+_EMBEDDED_GAIA_DIR = "gaia"
+_EMBEDDED_MANIFEST = "gaia.toml"
+
 
 def _project_to_import_name(project_name: str) -> str:
     return project_name.removesuffix("-gaia").replace("-", "_")
 
 
-def _find_pyproject(start: Path) -> Path | None:
+def _find_package_manifest(start: Path) -> Path | None:
+    """Walk up from *start* and return the nearest Gaia package manifest.
+
+    Two manifest kinds are recognised, in priority order:
+
+    1. ``<dir>/gaia/gaia.toml`` — the non-invasive embedded layout. We
+       check this *first* so a host that has both an embedded ``gaia/``
+       and a legacy ``[tool.gaia]`` block compiles against the
+       embedded manifest. This matches :func:`detect_layout` and keeps
+       the in-process inference path consistent with the on-disk
+       loader.
+    2. ``<dir>/pyproject.toml`` with ``[tool.gaia].type ==
+       "knowledge-package"`` — the historical layout.
+
+    Plain ``pyproject.toml`` files without ``[tool.gaia]`` are skipped
+    (a Gaia user package sitting next to an ARM/ARA host pyproject is
+    fully supported).
+    """
     for candidate in (start, *start.parents):
+        embedded = candidate / _EMBEDDED_GAIA_DIR / _EMBEDDED_MANIFEST
+        if embedded.exists():
+            return embedded
         pyproject = candidate / "pyproject.toml"
         if pyproject.exists():
-            return pyproject
+            try:
+                with open(pyproject, "rb") as f:
+                    config = tomllib.load(f)
+            except tomllib.TOMLDecodeError:
+                continue
+            gaia = config.get("tool", {}).get("gaia", {})
+            if gaia.get("type") == "knowledge-package":
+                return pyproject
     return None
 
 
 def pyproject_for_module(module_name: str) -> Path | None:
-    """Return the nearest pyproject.toml for a loaded module."""
+    """Return the nearest Gaia package manifest for a loaded module.
+
+    Despite the historical name, this returns either a
+    ``pyproject.toml`` (legacy layout) or a ``gaia/gaia.toml``
+    (embedded layout). Callers should treat the return value as an
+    opaque "Gaia package identity anchor".
+    """
     if module_name in _module_pyproject_cache:
         return _module_pyproject_cache[module_name]
 
@@ -133,31 +172,36 @@ def pyproject_for_module(module_name: str) -> Path | None:
         _module_pyproject_cache[module_name] = None
         return None
 
-    pyproject = _find_pyproject(Path(module_file).resolve().parent)
-    _module_pyproject_cache[module_name] = pyproject
-    return pyproject
+    manifest = _find_package_manifest(Path(module_file).resolve().parent)
+    _module_pyproject_cache[module_name] = manifest
+    return manifest
 
 
-def _load_inferred_package(pyproject: Path) -> CollectedPackage | None:
-    if pyproject in _inferred_packages:
-        return _inferred_packages[pyproject]
+def _load_inferred_package(manifest: Path) -> CollectedPackage | None:
+    if manifest in _inferred_packages:
+        return _inferred_packages[manifest]
 
-    with open(pyproject, "rb") as f:
+    with open(manifest, "rb") as f:
         config = tomllib.load(f)
 
-    project = config.get("project", {})
-    gaia = config.get("tool", {}).get("gaia", {})
-    if gaia.get("type") != "knowledge-package":
-        return None
+    if manifest.name == _EMBEDDED_MANIFEST:
+        package_block = config.get("package") or {}
+        project_name = package_block.get("name") or manifest.parent.parent.name
+        version = package_block.get("version") or "0.0.0"
+        namespace = package_block.get("namespace", "github")
+    else:
+        project = config.get("project", {})
+        gaia = config.get("tool", {}).get("gaia", {})
+        if gaia.get("type") != "knowledge-package":
+            return None
+        project_name = project.get("name")
+        version = project.get("version")
+        namespace = gaia.get("namespace", "github")
 
-    project_name = project.get("name")
-    version = project.get("version")
     if not isinstance(project_name, str) or not project_name:
         return None
     if not isinstance(version, str) or not version:
         return None
-
-    namespace = gaia.get("namespace", "github")
     if not isinstance(namespace, str) or not namespace:
         namespace = "github"
 
@@ -166,7 +210,7 @@ def _load_inferred_package(pyproject: Path) -> CollectedPackage | None:
         namespace=namespace,
         version=version,
     )
-    _inferred_packages[pyproject] = pkg
+    _inferred_packages[manifest] = pkg
     return pkg
 
 
@@ -194,25 +238,40 @@ def infer_package_from_callstack() -> CollectedPackage | None:
 
 
 def infer_package_and_module() -> tuple[CollectedPackage | None, str | None]:
-    """Infer package and relative module name from the call stack."""
+    """Infer package and relative module name from the call stack.
+
+    The relative module name is what shows up on
+    :attr:`Knowledge._source_module` and drives the multi-file layout
+    used by ``gaia author <verb> --file``. We compute it by stripping
+    the *actual* runtime module-name prefix of the caller, which works
+    uniformly for:
+
+    - legacy layout: ``my_package.s3_downfolding`` ⇒
+      ``s3_downfolding`` (the runtime prefix matches ``pkg.name``);
+    - embedded layout: ``_gaia_pkg_<slug>_<sha>.main`` ⇒ ``main``
+      (the runtime prefix is the synthetic name, which does **not**
+      match ``pkg.name`` because we deliberately project the
+      user-visible name onto ``pkg.name`` rather than the synthetic
+      module name).
+    """
     module_name = _caller_module_name()
     if not module_name:
         return None, None
 
-    pyproject = pyproject_for_module(module_name)
-    if pyproject is None:
+    manifest = pyproject_for_module(module_name)
+    if manifest is None:
         return None, None
 
-    pkg = _load_inferred_package(pyproject)
+    pkg = _load_inferred_package(manifest)
     if pkg is None:
         return None, None
 
-    # Compute relative module name: strip package prefix
-    # e.g. "my_package.s3_downfolding" → "s3_downfolding"
-    # "my_package" or "my_package.__init__" → None (root module)
-    if module_name == pkg.name or module_name.endswith(".__init__"):
+    if module_name.endswith(".__init__"):
         return pkg, None
-    relative = module_name.removeprefix(f"{pkg.name}.")
+    runtime_prefix = module_name.split(".", 1)[0]
+    if module_name == runtime_prefix:
+        return pkg, None
+    relative = module_name.removeprefix(f"{runtime_prefix}.")
     return pkg, relative
 
 
