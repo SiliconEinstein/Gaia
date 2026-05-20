@@ -4,9 +4,9 @@ Install, publish, and bootstrap packages.
 
 ```text
 gaia pkg add <package>            Install a registered package from the registry
-gaia pkg add --lkm-server <id> --lkm-paper <paper-id>
+gaia pkg add --lkm-index <id> --lkm-paper <paper-id>
                                   Recognize an LKM paper source for package add
-gaia pkg add lkm:<server>:paper:<paper-id>
+gaia pkg add lkm:<index>:paper:<paper-id>
                                   Recognize a canonical LKM paper source ref
 gaia pkg add-import --from <m>    Insert a sibling/module import into a package file
 gaia pkg add-module --name <m>    Scaffold a sibling Python module
@@ -32,17 +32,24 @@ For LKM search results, `gaia pkg add` accepts both the friendly action form
 and canonical source refs:
 
 ```text
-gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744
+gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
 gaia pkg add lkm:bohrium:paper:811827932371615744
 gaia pkg add lkm:paper:811827932371615744
 ```
 
-The short `lkm:paper:<id>` form is a default-server compatibility alias; Gaia
-emits canonical refs with the explicit server id. Today this path validates the
+The short `lkm:paper:<id>` form is a default-index compatibility alias; Gaia
+emits canonical refs with the explicit index id. Today this path validates the
 LKM source identity and prevents it from being mistaken for a registry package
 name. It does not implicitly materialize a local package. If the source has not
 been published or indexed as a registry Gaia package, the command exits with a
 search command that lets the user inspect the paper package candidate first.
+
+LKM index URLs are resolver configuration, not package names. `bohrium` is the
+built-in index id for `https://open.bohrium.com/openapi/v1/lkm`; custom indexes
+can be supplied by environment, for example
+`GAIA_LKM_INDEX_PRIVATE_URL=https://example.test/lkm` and
+`gaia pkg add --lkm-index private --lkm-paper <paper-id>`. Access keys still
+come from the LKM credential flow or `GAIA_LKM_ACCESS_KEY` / `LKM_ACCESS_KEY`.
 
 The engine-side helpers (loading, compilation, prior application) live at
 [`gaia.engine.packaging`](../engine/packaging.md).

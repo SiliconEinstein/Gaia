@@ -1,4 +1,4 @@
-"""HTTP client for the Bohrium LKM public search API.
+"""HTTP client for LKM search API indexes.
 
 Thin wrapper around ``httpx.Client`` that handles:
 
@@ -20,9 +20,9 @@ from typing import Any
 import httpx
 
 from gaia.cli._credentials import read_lkm_key
-from gaia.cli.commands.search.lkm._servers import lkm_server_base_url
+from gaia.cli.commands.search.lkm._indexes import lkm_index_base_url
 
-BASE_URL = lkm_server_base_url("bohrium") or "https://open.bohrium.com/openapi/v1/lkm"
+BASE_URL = lkm_index_base_url("bohrium") or "https://open.bohrium.com/openapi/v1/lkm"
 
 
 class NoAccessKeyError(Exception):
@@ -84,7 +84,7 @@ class LKMClient:
     ) -> dict[str, Any]:
         """Perform the call and return the parsed JSON response.
 
-        ``path`` is appended to the configured server base URL. Network /
+        ``path`` is appended to the configured index base URL. Network /
         decoding errors raise :class:`LKMTransportError`.
         """
         if self._client is None:

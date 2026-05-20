@@ -65,7 +65,7 @@ gaia search lkm knowledge "FAPbI3"
 gaia search lkm reasoning "thermal stability"
 gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd
 gaia search lkm package --paper-id 811827932371615744
-gaia search lkm knowledge "FAPbI3" --server bohrium
+gaia search lkm knowledge "FAPbI3" --index bohrium
 ```
 
 `--format raw-json` remains available for direct LKM API inspection.
@@ -73,10 +73,22 @@ For `knowledge`, the current Apifox-backed LKM `/search` response surface is
 claim/question nodes only; Gaia should not expose reserved or stale
 action/setting scopes from older drafts.
 
-All LKM verbs accept `--server <id>`. The initial implementation configures
-`bohrium`; adding another server should extend the LKM server registry and
-credential layer without changing normalized result ids, refs, or
-`gaia pkg add` inputs.
+All LKM verbs accept `--index <id>`, with `--server` retained as a
+compatibility alias. The initial implementation configures `bohrium` and allows
+custom index URLs through `GAIA_LKM_INDEX_<NAME>_URL`. This mirrors
+`pip` / `uv`: the index/source configuration resolves URLs and credentials,
+while dependency/source refs stay stable.
+
+Examples:
+
+```bash
+gaia search lkm knowledge "FAPbI3" --index bohrium
+GAIA_LKM_INDEX_PRIVATE_URL=https://example.test/lkm \
+  gaia search lkm knowledge "FAPbI3" --index private
+```
+
+The access key remains credential configuration (`gaia search lkm auth login`,
+`GAIA_LKM_ACCESS_KEY`, or `LKM_ACCESS_KEY`), not part of the source ref.
 
 ### Phase 2: Local provider
 
@@ -109,7 +121,7 @@ Every Gaia-native search command should return:
     "text": "FAPbI3",
     "provider": "lkm",
     "kind": "knowledge",
-    "server_id": "bohrium"
+    "index_id": "bohrium"
   },
   "results": [
     {
@@ -132,7 +144,7 @@ Every Gaia-native search command should return:
       },
       "source": {
         "provider_id": "gcn_579430355a0e4bbd",
-        "server_id": "bohrium",
+        "index_id": "bohrium",
         "source_package": "paper:811827932371615744",
         "paper_id": "811827932371615744",
         "paper_title": "Controlling phase and morphology of FAPbI3 films",
@@ -144,7 +156,7 @@ Every Gaia-native search command should return:
           "kind": "inspect",
           "ref": "lkm:bohrium:claim:gcn_579430355a0e4bbd",
           "label": "Inspect claim \"Annealing temperature controls alpha-phase growth\"",
-          "next_steps": "gaia search lkm reasoning --server bohrium --claim-id gcn_579430355a0e4bbd"
+          "next_steps": "gaia search lkm reasoning --index bohrium --claim-id gcn_579430355a0e4bbd"
         },
         {
           "kind": "add",
@@ -154,10 +166,10 @@ Every Gaia-native search command should return:
             "kind": "paper",
             "title": "Controlling phase and morphology of FAPbI3 films",
             "doi": "10.1016/j.jpcs.2021.110374",
-            "server_id": "bohrium",
+            "index_id": "bohrium",
             "paper_id": "811827932371615744"
           },
-          "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"
+          "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"
         }
       ],
       "raw": {
@@ -265,10 +277,10 @@ LKM `package` output should preserve `paper`, `variables`, `factors`, and
 `motivations` metadata, but Gaia-native output should also expose:
 
 - `source.source_package`, e.g. `paper:811827932371615744`
-- `source.server_id`, e.g. `bohrium`; LKM-local ids are scoped to this server
+- `source.index_id`, e.g. `bohrium`; LKM-local ids are scoped to this index
 - `source.paper_title`, e.g. `Controlling phase and morphology of FAPbI3 films`
 - `source.paper_id`
-- candidate package ref `lkm:<server_id>:paper:<paper_id>`
+- candidate package ref `lkm:<index_id>:paper:<paper_id>`
 - whether the graph is already materialized as a Gaia package
 
 ## 7. Search To `gaia pkg add`
@@ -278,26 +290,26 @@ raw result JSON by default:
 
 ```text
 gaia pkg add galileo-falling-bodies-gaia
-gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744
-gaia pkg add --lkm-server bohrium --lkm-claim gcn_579430355a0e4bbd
+gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
+gaia pkg add --lkm-index bohrium --lkm-claim gcn_579430355a0e4bbd
 gaia pkg add lkm:bohrium:paper:811827932371615744
 gaia pkg add lkm:bohrium:claim:gcn_579430355a0e4bbd
 ```
 
 The default short refs `lkm:paper:<paper_id>` and `lkm:claim:<claim_id>` may be
-accepted as compatibility aliases for the default `bohrium` server, but Gaia
-should emit canonical refs with an explicit server id. This keeps ids stable
-when a user configures multiple LKM servers whose paper or claim ids may
+accepted as compatibility aliases for the default `bohrium` index, but Gaia
+should emit canonical refs with an explicit index id. This keeps ids stable
+when a user configures multiple LKM indexes whose paper or claim ids may
 overlap.
 
 Resolution rules:
 
 1. Registry package names keep the current behavior: resolve registry metadata,
    run `uv add`, and optionally cache `beliefs.json`.
-2. `lkm:<server_id>:paper:<paper_id>` is parsed and validated as a
-   server-scoped source identity before registry lookup. The current command
+2. `lkm:<index_id>:paper:<paper_id>` is parsed and validated as an
+   index-scoped source identity before registry lookup. The current command
    fails clearly because no registry source-ref index exists yet; it points the
-   user back to `gaia search lkm package --server ... --paper-id ...` for
+   user back to `gaia search lkm package --index ... --paper-id ...` for
    inspection.
 3. Once the official registry exposes a source-ref index, the same input should
    resolve to the materialized Gaia package and install it.
@@ -306,7 +318,7 @@ Resolution rules:
    `--materialize-local`, may materialize a local `*-gaia` package from the LKM
    paper graph, run `gaia build compile`, and add it as an editable/path
    dependency.
-5. `lkm:<server_id>:claim:<claim_id>` is accepted as a source identity, but
+5. `lkm:<index_id>:claim:<claim_id>` is accepted as a source identity, but
    `pkg add` installs paper-level packages, not standalone claim nodes. Until a
    registry source-ref index can resolve the claim to its backing paper package,
    the command points the user to `gaia search lkm reasoning --claim-id ...`.
@@ -324,10 +336,10 @@ The important boundary is that search returns:
         "kind": "paper",
         "title": "Controlling phase and morphology of FAPbI3 films",
         "doi": "10.1016/j.jpcs.2021.110374",
-        "server_id": "bohrium",
+        "index_id": "bohrium",
         "paper_id": "811827932371615744"
       },
-      "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"
+      "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"
     }
   ]
 }
@@ -371,8 +383,9 @@ from these artifacts and invalidated by `ir_hash`.
 ### Phase 0: PR 683
 
 - Keep `gaia search lkm` as the initial provider adapter.
-- Add `--server` to LKM verbs and scope normalized ids/refs by
-  `lkm:<server_id>:...`; only `bohrium` is configured in this build.
+- Add `--index` to LKM verbs and scope normalized ids/refs by
+  `lkm:<index_id>:...`; only `bohrium` is built in, with env-configured custom
+  indexes supported in this build.
 - Keep `LKM_ACCESS_KEY` compatibility and clean error handling.
 - Document that scores are retrieval scores only.
 
@@ -393,9 +406,9 @@ from these artifacts and invalidated by `ir_hash`.
 
 ### Phase 3: Add refs
 
-- Extend `gaia pkg add` to accept `lkm:<server_id>:paper:<id>` and
-  `lkm:<server_id>:claim:<id>`, plus short default-server aliases if needed.
-- Validate friendly `--lkm-server ... --lkm-paper ...` / `--lkm-claim ...`
+- Extend `gaia pkg add` to accept `lkm:<index_id>:paper:<id>` and
+  `lkm:<index_id>:claim:<id>`, plus short default-index aliases if needed.
+- Validate friendly `--lkm-index ... --lkm-paper ...` / `--lkm-claim ...`
   forms before registry package lookup.
 - Prefer registry materializations when available.
 - Until the registry exposes source-ref lookup, fail clearly with an inspection

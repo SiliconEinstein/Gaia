@@ -34,6 +34,7 @@ class _FakeClient:
     """Stand-in for ``LKMClient`` capturing the last request."""
 
     last_call: ClassVar[dict[str, Any]] = {}
+    last_init_kwargs: ClassVar[dict[str, Any]] = {}
 
     def __init__(self, response: dict[str, Any] | None = None, raises: Exception | None = None):
         self._response = response if response is not None else {"code": 0, "msg": "ok"}
@@ -75,10 +76,12 @@ def _install_client(
     def factory(*_args: object, **_kwargs: object) -> _FakeClient:
         if raises is not None and isinstance(raises, NoAccessKeyError):
             raise raises
+        _FakeClient.last_init_kwargs = dict(_kwargs)
         return _FakeClient(response=response, raises=raises)
 
     monkeypatch.setattr(_shared, "LKMClient", factory)
     _FakeClient.last_call = {}
+    _FakeClient.last_init_kwargs = {}
 
 
 def _install_constructor_error(monkeypatch: pytest.MonkeyPatch, raises: Exception) -> None:
@@ -113,7 +116,27 @@ class TestKnowledge:
             ["search", "lkm", "knowledge", "perovskite", "--server", "BOHRIUM"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["server_id"] == "bohrium"
+        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+
+    def test_accepts_index_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "knowledge", "perovskite", "--index", "BOHRIUM"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+
+    def test_index_url_can_come_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("GAIA_LKM_INDEX_PRIVATE_URL", "https://example.test/lkm")
+        _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "knowledge", "perovskite", "--index", "private"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["query"]["index_id"] == "private"
+        assert _FakeClient.last_init_kwargs == {"base_url": "https://example.test/lkm"}
 
     def test_rejects_unknown_server_before_request(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -122,7 +145,7 @@ class TestKnowledge:
             ["search", "lkm", "knowledge", "q", "--server", "private-lkm"],
         )
         assert result.exit_code == 4, result.output
-        assert "unknown LKM server" in result.output
+        assert "unknown LKM index" in result.output
         assert _FakeClient.last_call == {}
 
     def test_options_build_body(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -333,7 +356,7 @@ class TestKnowledge:
             "text": "FAPbI3",
             "provider": "lkm",
             "kind": "knowledge",
-            "server_id": "bohrium",
+            "index_id": "bohrium",
         }
         item = out["results"][0]
         assert item["id"] == "lkm:bohrium:gcn_579430355a0e4bbd"
@@ -341,7 +364,7 @@ class TestKnowledge:
         assert item["rank"] == {"score": 0.97, "score_kind": "retrieval"}
         assert item["gaia"]["object_kind"] == "claim"
         assert item["source"]["paper_id"] == "811827932371615744"
-        assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] == "FAPbI3 processing paper"
         assert item["source"]["doi"] == "10.1016/j.jpcs.2021.110374"
         assert item["source"]["role"] == "conclusion"
@@ -351,7 +374,7 @@ class TestKnowledge:
                 "ref": "lkm:bohrium:claim:gcn_579430355a0e4bbd",
                 "label": 'Inspect claim "Annealing temperature controls alpha-phase growth"',
                 "next_steps": (
-                    "gaia search lkm reasoning --server bohrium --claim-id gcn_579430355a0e4bbd"
+                    "gaia search lkm reasoning --index bohrium --claim-id gcn_579430355a0e4bbd"
                 ),
             },
             {
@@ -362,10 +385,10 @@ class TestKnowledge:
                     "kind": "paper",
                     "title": "FAPbI3 processing paper",
                     "doi": "10.1016/j.jpcs.2021.110374",
-                    "server_id": "bohrium",
+                    "index_id": "bohrium",
                     "paper_id": "811827932371615744",
                 },
-                "next_steps": ("gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"),
+                "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             },
         ]
 
@@ -464,7 +487,7 @@ class TestKnowledge:
             "text": "open problem",
             "provider": "lkm",
             "kind": "question",
-            "server_id": "bohrium",
+            "index_id": "bohrium",
         }
 
     def test_gaia_json_maps_unknown_variable_types_to_note(
@@ -539,7 +562,7 @@ class TestReasoning:
             ],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["server_id"] == "bohrium"
+        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
         assert _FakeClient.last_call["path"] == "/claims/gcn_abc123/reasoning"
 
     def test_legacy_positional_claim_id_fetches_claim_reasoning(
@@ -679,14 +702,14 @@ class TestReasoning:
             "text": "thermal stability",
             "provider": "lkm",
             "kind": "reasoning",
-            "server_id": "bohrium",
+            "index_id": "bohrium",
         }
         item = out["results"][0]
         assert item["id"] == "lkm:bohrium:paper_7"
         assert item["kind"] == "reasoning_chain"
         assert item["gaia"]["object_kind"] is None
         assert item["source"]["paper_id"] == "811"
-        assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] is None
         assert item["source"]["conclusion_id"] == "7"
         assert item["source"]["has_factors"] is False
@@ -696,7 +719,7 @@ class TestReasoning:
                 "kind": "inspect",
                 "ref": "lkm:bohrium:paper:811",
                 "label": "Inspect paper",
-                "next_steps": "gaia search lkm package --server bohrium --paper-id 811",
+                "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
             },
             {
                 "kind": "add",
@@ -706,10 +729,10 @@ class TestReasoning:
                     "kind": "paper",
                     "title": None,
                     "doi": None,
-                    "server_id": "bohrium",
+                    "index_id": "bohrium",
                     "paper_id": "811",
                 },
-                "next_steps": "gaia pkg add --lkm-server bohrium --lkm-paper 811",
+                "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811",
             },
         ]
 
@@ -774,7 +797,7 @@ class TestReasoning:
         item = json.loads(result.output)["results"][0]
         assert item["id"] == "lkm:bohrium:gfac_2d9b044b8de74fe4"
         assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
-        assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["index_id"] == "bohrium"
 
 
 # --------------------------------------------------------------------------- #
@@ -893,7 +916,7 @@ class TestReasoningSearch:
             "text": "FAPbI3",
             "provider": "lkm",
             "kind": "reasoning",
-            "server_id": "bohrium",
+            "index_id": "bohrium",
         }
         item = out["results"][0]
         assert item["id"] == "lkm:bohrium:chain_1"
@@ -902,7 +925,7 @@ class TestReasoningSearch:
         assert item["title"] == "Optimal annealing window"
         assert item["content"] == "120 C is the optimal annealing window."
         assert item["source"]["paper_id"] == "811827932371615744"
-        assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] == "FAPbI3 processing paper"
         assert item["source"]["has_factors"] is True
         assert item["source"]["can_compile"] is True
@@ -915,10 +938,10 @@ class TestReasoningSearch:
                     "kind": "paper",
                     "title": "FAPbI3 processing paper",
                     "doi": "10.1016/j.jpcs.2021.110374",
-                    "server_id": "bohrium",
+                    "index_id": "bohrium",
                     "paper_id": "811827932371615744",
                 },
-                "next_steps": ("gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"),
+                "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             }
         ]
 
@@ -938,6 +961,12 @@ class TestNodes:
     def test_accepts_server_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(app, ["search", "lkm", "nodes", "a", "--server", "bohrium"])
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["json_body"] == {"ids": ["a"]}
+
+    def test_accepts_index_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "nodes", "a", "--index", "bohrium"])
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["json_body"] == {"ids": ["a"]}
 
@@ -996,7 +1025,16 @@ class TestPackage:
             ["search", "lkm", "package", "--server", "bohrium", "--paper-id", "p1"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["server_id"] == "bohrium"
+        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+
+    def test_accepts_index_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "package", "--index", "bohrium", "--paper-id", "p1"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
 
     def test_paper_graph_alias_remains_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1116,7 +1154,7 @@ class TestPackage:
             "text": "811827932371615744",
             "provider": "lkm",
             "kind": "package",
-            "server_id": "bohrium",
+            "index_id": "bohrium",
         }
         item = out["results"][0]
         assert item["id"] == "lkm:bohrium:paper:811827932371615744"
@@ -1124,7 +1162,7 @@ class TestPackage:
         assert item["gaia"]["object_kind"] == "package"
         assert item["title"] == "Controlling phase and morphology"
         assert item["source"]["source_package"] == "paper:811827932371615744"
-        assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] == "Controlling phase and morphology"
         assert item["source"]["stats"]["variables_total"] == 25
         assert item["actions"] == [
@@ -1136,10 +1174,10 @@ class TestPackage:
                     "kind": "paper",
                     "title": "Controlling phase and morphology",
                     "doi": "10.1016/j.jpcs.2021.110374",
-                    "server_id": "bohrium",
+                    "index_id": "bohrium",
                     "paper_id": "811827932371615744",
                 },
-                "next_steps": ("gaia pkg add --lkm-server bohrium --lkm-paper 811827932371615744"),
+                "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             }
         ]
 
@@ -1174,5 +1212,5 @@ class TestPackage:
         assert item["source"]["paper_id"] is None
         assert item["source"]["source_package"] is None
         assert item["source"]["paper_title"] == "Unresolved paper candidate"
-        assert item["source"]["server_id"] == "bohrium"
+        assert item["source"]["index_id"] == "bohrium"
         assert item["actions"] == []

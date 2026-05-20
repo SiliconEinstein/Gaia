@@ -15,11 +15,11 @@ from typing import Annotated
 import typer
 
 from gaia.cli.commands.search.lkm._shared import (
-    DEFAULT_LKM_SERVER_ID,
+    DEFAULT_LKM_INDEX_ID,
     MAX_VARIABLE_IDS,
     emit,
     run_request,
-    validate_lkm_server,
+    validate_lkm_index,
 )
 
 
@@ -28,10 +28,10 @@ def nodes_command(
         list[str] | None,
         typer.Argument(help="LKM graph node ids to fetch (positional, variadic)."),
     ] = None,
-    server: Annotated[
+    index: Annotated[
         str,
-        typer.Option("--server", help="Configured LKM server id."),
-    ] = DEFAULT_LKM_SERVER_ID,
+        typer.Option("--index", "--server", help="Configured LKM index id."),
+    ] = DEFAULT_LKM_INDEX_ID,
     ids_file: Annotated[
         Path | None,
         typer.Option(
@@ -45,7 +45,7 @@ def nodes_command(
     ] = None,
 ) -> None:
     """Batch-fetch LKM graph node detail (POST /variables/batch)."""
-    server_id = validate_lkm_server(server)
+    index_id = validate_lkm_index(index)
     merged: list[str] = list(ids or [])
 
     if ids_file is not None:
@@ -86,7 +86,7 @@ def nodes_command(
         "POST",
         "/variables/batch",
         json_body={"ids": deduped},
-        server_id=server_id,
+        index_id=index_id,
     )
     emit(payload, out)
 

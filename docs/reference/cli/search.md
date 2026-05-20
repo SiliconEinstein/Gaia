@@ -18,10 +18,12 @@ to `--out PATH`.
 Use `--format raw-json` on `knowledge`, `reasoning`, or `package` to
 inspect the upstream LKM JSON envelope directly.
 
-Use `--server <id>` on LKM verbs to select a configured LKM server. This build
-ships `bohrium` as the default configured server; result ids and refs already
-include the server id so additional LKM servers can be added without changing
-the result schema.
+Use `--index <id>` on LKM verbs to select a configured LKM index. This follows
+the same split as `pip` / `uv`: the dependency or source ref stays stable,
+while the index name resolves to the real URL and credential configuration.
+This build ships `bohrium` as the default configured index; `--server` remains
+a compatibility alias. Additional indexes can be added by setting
+`GAIA_LKM_INDEX_<NAME>_URL`.
 
 Hidden compatibility aliases remain available for older PR builds:
 `claims` for `knowledge`, `reasoning-search` for query-mode `reasoning`,
@@ -31,7 +33,7 @@ Hidden compatibility aliases remain available for older PR builds:
 
 The `search` group is provider-shaped by design:
 
-- `lkm` searches a configured LKM graph server, defaulting to `bohrium`.
+- `lkm` searches a configured LKM graph index, defaulting to `bohrium`.
 - Future `pkg` search should search installed Gaia Python packages.
 - Future cross-provider search should wait until both providers share a stable
   Gaia-native result envelope.
@@ -43,12 +45,12 @@ machine-readable contract; `next_steps` is only a human/agent hint, matching
 the broader Gaia CLI convention of printing "Next" guidance after scaffold or
 registration workflows.
 
-LKM refs include the LKM server id so multiple servers can coexist without id
+LKM refs include the LKM index id so multiple backends can coexist without id
 collisions. Gaia emits canonical refs such as `lkm:bohrium:paper:<paper_id>`
 and `lkm:bohrium:claim:<claim_id>`; short refs like `lkm:paper:<paper_id>` are
-only compatibility aliases for the default server. Human-facing next steps
+only compatibility aliases for the default index. Human-facing next steps
 should prefer explicit flags, for example
-`gaia pkg add --lkm-server bohrium --lkm-paper <paper_id>`.
+`gaia pkg add --lkm-index bohrium --lkm-paper <paper_id>`.
 
 LKM paper results are name-first and id-backed. Search results and action labels
 should show the paper title when available (`source.paper_title`,

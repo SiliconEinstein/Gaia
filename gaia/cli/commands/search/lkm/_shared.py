@@ -28,11 +28,11 @@ from gaia.cli.commands.search.lkm._client import (
     LKMTransportError,
     NoAccessKeyError,
 )
-from gaia.cli.commands.search.lkm._servers import (
-    DEFAULT_LKM_SERVER_ID,
-    known_lkm_server_ids,
-    lkm_server_base_url,
-    normalize_lkm_server_id,
+from gaia.cli.commands.search.lkm._indexes import (
+    DEFAULT_LKM_INDEX_ID,
+    known_lkm_index_ids,
+    lkm_index_base_url,
+    normalize_lkm_index_id,
 )
 
 # Lexical-channel keyword cap, shared by knowledge / reasoning.
@@ -44,20 +44,26 @@ MAX_PAPER_IDS = 100
 MAX_VARIABLE_IDS = 100
 
 
-def validate_lkm_server(server_id: str) -> str:
-    """Validate and normalize the requested LKM server id."""
-    normalized = normalize_lkm_server_id(server_id)
+def validate_lkm_index(index_id: str, *, option_name: str = "--index") -> str:
+    """Validate and normalize the requested LKM index id."""
+    normalized = normalize_lkm_index_id(index_id)
     if not normalized:
-        typer.echo("Error: --server must be non-empty.", err=True)
+        typer.echo(f"Error: {option_name} must be non-empty.", err=True)
         raise typer.Exit(4)
-    if lkm_server_base_url(normalized) is None:
-        known = ", ".join(known_lkm_server_ids())
+    if lkm_index_base_url(normalized) is None:
+        known = ", ".join(known_lkm_index_ids())
         typer.echo(
-            f"Error: unknown LKM server {server_id!r}. Configured servers: {known}.",
+            f"Error: unknown LKM index {index_id!r}. Configured indexes: {known}. "
+            f"Set GAIA_LKM_INDEX_<NAME>_URL to add an index URL.",
             err=True,
         )
         raise typer.Exit(4)
     return normalized
+
+
+def validate_lkm_server(server_id: str) -> str:
+    """Compatibility wrapper for the older LKM server option."""
+    return validate_lkm_index(server_id, option_name="--server")
 
 
 def run_request(
@@ -66,7 +72,8 @@ def run_request(
     *,
     json_body: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
-    server_id: str = DEFAULT_LKM_SERVER_ID,
+    index_id: str = DEFAULT_LKM_INDEX_ID,
+    server_id: str | None = None,
 ) -> dict[str, Any]:
     """Call the LKM API and return the envelope, translating errors to exits.
 
@@ -76,8 +83,9 @@ def run_request(
     into ``typer.Exit`` codes; see :func:`run_request`'s docstring for the
     table — callers should not catch these themselves.
     """
-    normalized_server_id = validate_lkm_server(server_id)
-    base_url = lkm_server_base_url(normalized_server_id)
+    requested_index = server_id if server_id is not None else index_id
+    normalized_index_id = validate_lkm_index(requested_index)
+    base_url = lkm_index_base_url(normalized_index_id)
     assert base_url is not None
     try:
         with LKMClient(base_url=base_url) as client:
@@ -143,7 +151,7 @@ def _atomic_write(path: Path, text: str) -> None:
 
 
 __all__ = [
-    "DEFAULT_LKM_SERVER_ID",
+    "DEFAULT_LKM_INDEX_ID",
     "MAX_KEYWORDS",
     "MAX_LIMIT",
     "MAX_OFFSET",
@@ -151,5 +159,6 @@ __all__ = [
     "MAX_VARIABLE_IDS",
     "emit",
     "run_request",
+    "validate_lkm_index",
     "validate_lkm_server",
 ]

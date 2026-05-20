@@ -1,4 +1,4 @@
-"""``gaia search lkm`` — Bohrium LKM knowledge-graph search backend.
+"""``gaia search lkm`` — LKM knowledge-graph search indexes.
 
 Gaia-facing verbs wrap the public LKM HTTP endpoints while keeping the
 upstream endpoint names as hidden compatibility aliases where useful. Every
@@ -21,7 +21,8 @@ from gaia.cli.commands.search.lkm.reasoning_search import reasoning_search_comma
 from gaia.cli.commands.search.lkm.variables import nodes_command, variables_command
 
 _LKM_EPILOG = (
-    "Configured servers: bohrium (default). Endpoints under "
+    "Configured indexes: bohrium (default). Set GAIA_LKM_INDEX_<NAME>_URL "
+    "to add a named LKM index. Endpoints under "
     "https://open.bohrium.com/openapi/v1/lkm:\n\n"
     "  knowledge  POST /search + filters        — recall claim/question nodes\n"
     "  reasoning  POST /reasoning/search        — search reasoning chains by query\n"
@@ -38,7 +39,7 @@ _LKM_EPILOG = (
 
 lkm_app = typer.Typer(
     name="lkm",
-    help="Search configured LKM knowledge-graph servers (4 verbs + auth).",
+    help="Search configured LKM knowledge-graph indexes (4 verbs + auth).",
     epilog=_LKM_EPILOG,
     no_args_is_help=True,
 )
