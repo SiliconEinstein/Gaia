@@ -11,8 +11,12 @@ gaia search lkm paper-graph [identifier]    Fetch one paper's LKM graph
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
-The current implementation is an LKM provider adapter. It returns the upstream
-LKM JSON envelope and writes pretty JSON to stdout or to `--out PATH`.
+The current implementation is an LKM provider adapter. Search-oriented LKM
+verbs return Gaia-normalized JSON by default and write pretty JSON to stdout or
+to `--out PATH`.
+
+Use `--format raw-json` on `claims`, `reasoning-search`, or `paper-graph` to
+inspect the upstream LKM JSON envelope directly.
 
 ## Design Contract
 

@@ -297,7 +297,7 @@ from these artifacts and invalidated by `ir_hash`.
 
 ### Phase 0: PR 683
 
-- Keep `gaia search lkm` as a raw provider adapter.
+- Keep `gaia search lkm` as the initial provider adapter.
 - Keep `LKM_ACCESS_KEY` compatibility and clean error handling.
 - Document that scores are retrieval scores only.
 
@@ -305,6 +305,7 @@ from these artifacts and invalidated by `ir_hash`.
 
 - Add `gaia.cli.commands.search._results` with typed result builders.
 - Add `--format raw-json|gaia-json` to LKM verbs.
+- Make `gaia-json` the default output for search-oriented LKM verbs.
 - Normalize `claims`, `reasoning-search`, and `paper-graph` first.
 - Preserve raw payloads during alpha.
 

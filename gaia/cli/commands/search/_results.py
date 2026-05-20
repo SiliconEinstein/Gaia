@@ -91,7 +91,7 @@ def _normalize_lkm_variable(
     paper = _paper_metadata(papers, source_package=source_package, paper_id=paper_id)
     object_kind = _lkm_variable_kind(_string(variable.get("type")))
     actions: list[dict[str, str]] = []
-    if object_kind == "claim" and provider_id:
+    if object_kind == "claim" and provider_id and variable.get("has_reasoning") is not False:
         actions.append(
             {
                 "kind": "inspect",
@@ -167,15 +167,18 @@ def _normalize_lkm_chain(
 
 def _normalize_lkm_paper_graph_item(item: dict[str, Any], *, index: int) -> dict[str, Any]:
     paper = _dict(item.get("paper")) or item
-    paper_id = _string(paper.get("id")) or _paper_id(_string(paper.get("package_id"))) or str(index)
-    source_package = _string(paper.get("package_id")) or f"paper:{paper_id}"
+    paper_id = _string(paper.get("id")) or _paper_id(_string(paper.get("package_id")))
+    provider_id = f"paper:{paper_id}" if paper_id is not None else f"paper-graph:{index}"
+    source_package = _string(paper.get("package_id"))
+    if source_package is None and paper_id is not None:
+        source_package = f"paper:{paper_id}"
     title = _string(paper.get("en_title")) or _string(paper.get("zh_title")) or source_package
     content = _string(paper.get("en_abstract")) or _string(paper.get("zh_abstract"))
     return {
-        "id": f"lkm:paper:{paper_id}",
+        "id": f"lkm:{provider_id}",
         "provider": "lkm",
         "kind": "package",
-        "title": title,
+        "title": title or provider_id,
         "content": content,
         "rank": {
             "score": _number(item.get("score"), item.get("rerank_score")),

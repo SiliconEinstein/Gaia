@@ -276,6 +276,36 @@ class TestClaims:
             },
         ]
 
+    def test_gaia_json_omits_inspect_when_claim_has_no_reasoning(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "variables": [
+                        {
+                            "content": "A standalone extracted claim.",
+                            "has_reasoning": False,
+                            "id": "gcn_no_reasoning",
+                            "title": "Standalone claim",
+                            "type": "claim",
+                        }
+                    ],
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "claims", "standalone"],
+        )
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["actions"] == []
+
     def test_gaia_json_maps_action_variables_to_derive(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -703,3 +733,35 @@ class TestPaperGraph:
                 "command": "gaia pkg add lkm:paper:811827932371615744",
             }
         ]
+
+    def test_gaia_json_does_not_invent_add_ref_without_paper_id(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "papers": [
+                        {
+                            "paper": {
+                                "en_title": "Unresolved paper candidate",
+                            },
+                            "stats": {"variables_total": 1},
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "paper-graph", "--title", "ambiguous candidate"],
+        )
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["id"] == "lkm:paper-graph:0"
+        assert item["source"]["paper_id"] is None
+        assert item["source"]["source_package"] is None
+        assert item["actions"] == []
