@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -276,6 +277,24 @@ def test_materialize_lkm_paper_counts_skipped_factors(tmp_path: Path) -> None:
     assert materialized.skipped_factor_count == 2
 
 
+def test_materialize_lkm_paper_writes_toml_basic_strings_for_unicode_metadata(
+    tmp_path: Path,
+) -> None:
+    payload = _paper_graph_payload()
+    payload["data"]["papers"][0]["paper"]["en_title"] = 'Unicode "quoted" title 🔬'
+
+    materialized = materialize_lkm_paper_package(
+        payload,
+        project_root=tmp_path,
+        index_id="bohrium",
+        paper_id="811827932371615744",
+    )
+
+    pyproject = tomllib.loads((materialized.root / "pyproject.toml").read_text())
+    assert pyproject["project"]["description"] == 'LKM paper package: Unicode "quoted" title 🔬'
+    assert pyproject["tool"]["gaia"]["source"]["title"] == 'Unicode "quoted" title 🔬'
+
+
 def test_pkg_add_lkm_paper_materializes_and_adds_editable_dependency(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -387,6 +406,49 @@ def test_pkg_add_lkm_paper_warns_when_response_has_no_paper_id(
     assert result.exit_code == 0, result.output
     assert "Warning: LKM response did not include a paper id" in result.output
     assert "811827932371615744" in result.output
+
+
+def test_pkg_add_lkm_paper_warns_when_regenerating_existing_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+    materialize_lkm_paper_package(
+        _paper_graph_payload(),
+        project_root=consumer,
+        index_id="bohrium",
+        paper_id="811827932371615744",
+    )
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        del method, path, json_body, index_id
+        return _paper_graph_payload()
+
+    def fake_run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.setattr(add_mod, "_run_uv", fake_run_uv)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-paper", "811827932371615744"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "regenerated an existing LKM package" in result.output
 
 
 def test_pkg_add_lkm_paper_reports_skipped_factor_count(

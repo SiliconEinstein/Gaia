@@ -19,7 +19,7 @@ _BUILTIN_LKM_INDEX_BASE_URLS = {
 
 def normalize_lkm_index_id(index_id: str) -> str:
     """Return the canonical CLI spelling for an LKM index id."""
-    return index_id.strip().lower()
+    return index_id.strip().lower().replace("_", "-")
 
 
 def lkm_index_base_url(index_id: str) -> str | None:

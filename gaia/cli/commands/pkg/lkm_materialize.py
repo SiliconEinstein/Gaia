@@ -40,6 +40,7 @@ class MaterializedLKMPackage:
     dependency_count: int
     skipped_factor_count: int
     paper_id_inferred: bool
+    regenerated_existing: bool
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,7 @@ def materialize_lkm_paper_package(
     import_name = dist_name.removesuffix("-gaia").replace("-", "_")
     root = (storage_root or (project_root / ".gaia" / "lkm_packages")) / dist_name
     src = root / "src" / import_name
+    regenerated_existing = root.exists()
 
     root.mkdir(parents=True, exist_ok=True)
     src.mkdir(parents=True, exist_ok=True)
@@ -148,6 +150,7 @@ def materialize_lkm_paper_package(
         dependency_count=len(dependencies),
         skipped_factor_count=dependency_result.skipped_factor_count,
         paper_id_inferred=paper_provider_id is None,
+        regenerated_existing=regenerated_existing,
     )
 
 
@@ -577,7 +580,30 @@ def _text(value: Any) -> str | None:
 
 
 def _toml_string(value: str) -> str:
-    return json.dumps(value, ensure_ascii=True)
+    """Return a TOML basic string literal for metadata values."""
+    parts = ['"']
+    for char in value:
+        codepoint = ord(char)
+        if char == '"':
+            parts.append('\\"')
+        elif char == "\\":
+            parts.append("\\\\")
+        elif char == "\b":
+            parts.append("\\b")
+        elif char == "\t":
+            parts.append("\\t")
+        elif char == "\n":
+            parts.append("\\n")
+        elif char == "\f":
+            parts.append("\\f")
+        elif char == "\r":
+            parts.append("\\r")
+        elif codepoint < 0x20 or codepoint == 0x7F:
+            parts.append(f"\\u{codepoint:04X}")
+        else:
+            parts.append(char)
+    parts.append('"')
+    return "".join(parts)
 
 
 def _clean_dict(value: dict[str, Any]) -> dict[str, Any]:

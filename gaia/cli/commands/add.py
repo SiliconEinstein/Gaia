@@ -102,6 +102,7 @@ def add_command(
     if package is None:
         typer.echo("Error: pass PACKAGE or an LKM source flag.", err=True)
         raise typer.Exit(4)
+    _warn_unused_lkm_index(lkm_index)
 
     try:
         resolved = resolve_package(package, version=version, registry=registry)
@@ -275,6 +276,12 @@ def _handle_lkm_paper_add(ref: LKMSourceRef) -> None:
             f"using requested paper id {materialized.paper_id!r} for the generated package.",
             err=True,
         )
+    if materialized.regenerated_existing:
+        typer.echo(
+            "Warning: regenerated an existing LKM package; review downstream imports "
+            "if generated symbols changed.",
+            err=True,
+        )
     if materialized.skipped_factor_count:
         typer.echo(
             f"Note: skipped {materialized.skipped_factor_count} LKM factor(s) whose "
@@ -290,6 +297,17 @@ def _handle_lkm_paper_add(ref: LKMSourceRef) -> None:
     if materialized.exported_symbol:
         typer.echo(
             f"Import hint: from {materialized.import_name} import {materialized.exported_symbol}"
+        )
+
+
+def _warn_unused_lkm_index(lkm_index: str) -> None:
+    normalized_index = normalize_lkm_index_id(lkm_index)
+    if normalized_index and normalized_index != DEFAULT_LKM_INDEX_ID:
+        typer.echo(
+            f"Warning: ignoring --lkm-index {normalized_index!r}; "
+            "`gaia pkg add PACKAGE` resolves registry packages. "
+            "Use --lkm-paper, --lkm-claim, or an lkm:<index>:... ref for LKM sources.",
+            err=True,
         )
 
 

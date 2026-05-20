@@ -138,6 +138,20 @@ class TestKnowledge:
         assert json.loads(result.output)["query"]["index_id"] == "private"
         assert _FakeClient.last_init_kwargs == {"base_url": "https://example.test/lkm"}
 
+    def test_index_id_normalizes_underscore_to_dash(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("GAIA_LKM_INDEX_PRIVATE_INDEX_URL", "https://example.test/lkm")
+        _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "knowledge", "perovskite", "--index", "private_index"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["query"]["index_id"] == "private-index"
+        assert _FakeClient.last_init_kwargs == {"base_url": "https://example.test/lkm"}
+
     def test_rejects_unknown_server_before_request(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(

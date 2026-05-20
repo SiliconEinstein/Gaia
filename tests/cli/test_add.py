@@ -48,6 +48,20 @@ def test_add_with_version(mock_uv, mock_resolve):
     )
 
 
+@patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
+@patch("gaia.cli.commands.add._run_uv")
+def test_add_warns_when_lkm_index_is_unused_for_registry_package(mock_uv, mock_resolve):
+    del mock_resolve
+    mock_uv.return_value = MagicMock(returncode=0)
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "galileo-falling-bodies-gaia", "--lkm-index", "private_index"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "ignoring --lkm-index 'private-index'" in result.output
+    assert "resolves registry packages" in result.output
+
+
 @patch("gaia.cli.commands.add.resolve_package")
 def test_add_not_found(mock_resolve):
     mock_resolve.side_effect = GaiaPackagingError(

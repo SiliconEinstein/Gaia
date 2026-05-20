@@ -1,4 +1,8 @@
-"""Compatibility aliases for the older LKM server terminology."""
+"""Compatibility aliases for the older LKM server terminology.
+
+Kept as a public import alias for downstream code that adopted the pre-index
+module names.
+"""
 
 from __future__ import annotations
 
