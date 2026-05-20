@@ -1,4 +1,4 @@
-"""Tests for the five ``gaia search lkm`` verbs.
+"""Tests for the public ``gaia search lkm`` verbs and compatibility aliases.
 
 Every HTTP call is mocked by replacing ``_shared.LKMClient`` with a fake
 context manager whose ``.request`` returns a canned envelope (or raises a
@@ -318,10 +318,11 @@ class TestKnowledge:
         assert item["gaia"]["object_kind"] == "claim"
         assert item["source"]["paper_id"] == "811827932371615744"
         assert item["source"]["doi"] == "10.1016/j.jpcs.2021.110374"
+        assert item["source"]["role"] == "conclusion"
         assert item["actions"] == [
             {
                 "kind": "inspect",
-                "command": "gaia search lkm reasoning gcn_579430355a0e4bbd",
+                "command": "gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd",
             },
             {
                 "kind": "add",
@@ -464,21 +465,41 @@ class TestKnowledge:
 
 
 class TestReasoning:
-    def test_happy_top_level_shape(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_fetches_claim_reasoning_by_claim_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(
             monkeypatch,
             response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
         )
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "gcn_abc123"])
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "--claim-id", "gcn_abc123", "--format", "raw-json"],
+        )
         assert result.exit_code == 0, result.output
         call = _FakeClient.last_call
         assert call["method"] == "GET"
         assert call["path"] == "/claims/gcn_abc123/reasoning"
         assert call["params"] == {"max_chains": 10, "sort_by": "comprehensive"}
 
+    def test_query_search_calls_reasoning_search_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "thermal stability", "--format", "raw-json"],
+        )
+        assert result.exit_code == 0, result.output
+        call = _FakeClient.last_call
+        assert call["method"] == "POST"
+        assert call["path"] == "/reasoning/search"
+        assert call["json_body"]["query"] == "thermal stability"
+
     def test_url_encodes_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok"})
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "a/b c"])
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "--claim-id", "a/b c", "--format", "raw-json"],
+        )
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["path"] == "/claims/a%2Fb%20c/reasoning"
 
@@ -491,7 +512,10 @@ class TestReasoning:
                 "data": {"reasoning_chains": [{"id": 1}], "total_chains": 1},
             },
         )
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "x"])
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "--claim-id", "x", "--format", "raw-json"],
+        )
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
         assert out["reasoning_chains"] == [{"id": 1}]
@@ -499,17 +523,121 @@ class TestReasoning:
 
     def test_max_chains_out_of_range_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "x", "--max-chains", "101"])
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "--claim-id", "x", "--max-chains", "101"],
+        )
         assert result.exit_code == 4, result.output
 
     def test_business_error_exits_1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 290004, "msg": "claim not found"})
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "x"])
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "x"])
         assert result.exit_code == 1, result.output
+
+    def test_rejects_query_and_claim_id_together(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "q", "--claim-id", "gcn_abc123"],
+        )
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_claim_options_in_query_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "q", "--max-chains", "5"])
+        assert result.exit_code == 4, result.output
+        assert "--max-chains" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_query_options_in_claim_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "--claim-id", "gcn_abc123", "--limit", "5"],
+        )
+        assert result.exit_code == 4, result.output
+        assert "--limit" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_default_normalizes_reasoning_hit_without_factors(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "chain_id": "paper_7",
+                            "conclusion_id": "7",
+                            "conclusion_title": "Thermal stability",
+                            "conclusion_text": "The device is thermally stable.",
+                            "paper_id": "811",
+                            "score": 0.42,
+                            "factors": [],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["query"] == {
+            "text": "thermal stability",
+            "provider": "lkm",
+            "kind": "reasoning",
+        }
+        item = out["results"][0]
+        assert item["id"] == "lkm:paper_7"
+        assert item["kind"] == "reasoning_chain"
+        assert item["gaia"]["object_kind"] is None
+        assert item["source"]["paper_id"] == "811"
+        assert item["source"]["conclusion_id"] == "7"
+        assert item["source"]["has_factors"] is False
+        assert item["source"]["can_compile"] is False
+
+    def test_default_marks_complete_chain_as_derive_object(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "source_package": "paper:811",
+                            "factors": [
+                                {
+                                    "conclusion": {"id": "gcn_result", "title": "Result"},
+                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                                    "steps": [{"reasoning": "Compare results."}],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["kind"] == "reasoning_chain"
+        assert item["gaia"]["object_kind"] == "derive"
+        assert item["source"]["has_factors"] is True
+        assert item["source"]["can_compile"] is True
 
 
 # --------------------------------------------------------------------------- #
-# reasoning-search                                                            #
+# reasoning-search alias                                                      #
 # --------------------------------------------------------------------------- #
 
 
@@ -596,6 +724,13 @@ class TestReasoningSearch:
                                         "id": "gcn_result",
                                         "title": "Optimal annealing window",
                                     },
+                                    "premises": [
+                                        {
+                                            "content": "120 C produces stronger alpha-phase peaks.",
+                                            "id": "gcn_premise",
+                                            "title": "120 C alpha-phase evidence",
+                                        }
+                                    ],
                                     "steps": [{"reasoning": "Compare 120 C and 150 C."}],
                                 }
                             ],
@@ -612,14 +747,16 @@ class TestReasoningSearch:
 
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
-        assert out["query"] == {"text": "FAPbI3", "provider": "lkm", "kind": "derive"}
+        assert out["query"] == {"text": "FAPbI3", "provider": "lkm", "kind": "reasoning"}
         item = out["results"][0]
         assert item["id"] == "lkm:chain_1"
-        assert item["kind"] == "derive"
+        assert item["kind"] == "reasoning_chain"
         assert item["gaia"]["object_kind"] == "derive"
         assert item["title"] == "Optimal annealing window"
         assert item["content"] == "120 C is the optimal annealing window."
         assert item["source"]["paper_id"] == "811827932371615744"
+        assert item["source"]["has_factors"] is True
+        assert item["source"]["can_compile"] is True
         assert item["actions"] == [
             {
                 "kind": "add",
@@ -630,86 +767,96 @@ class TestReasoningSearch:
 
 
 # --------------------------------------------------------------------------- #
-# variables                                                                   #
+# nodes                                                                       #
 # --------------------------------------------------------------------------- #
 
 
-class TestVariables:
+class TestNodes:
     def test_happy_dedupe(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "variables", "a", "b", "a"])
+        result = runner.invoke(app, ["search", "lkm", "nodes", "a", "b", "a"])
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["json_body"] == {"ids": ["a", "b"]}
+
+    def test_variables_alias_remains_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "variables", "a"])
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["path"] == "/variables/batch"
 
     def test_merge_with_ids_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         _install_client(monkeypatch)
         ids_file = tmp_path / "ids.txt"
         ids_file.write_text("b\nc\n\n", encoding="utf-8")
         result = runner.invoke(
-            app, ["search", "lkm", "variables", "a", "b", "--ids-file", str(ids_file)]
+            app, ["search", "lkm", "nodes", "a", "b", "--ids-file", str(ids_file)]
         )
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["json_body"] == {"ids": ["a", "b", "c"]}
 
     def test_empty_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "variables"])
+        result = runner.invoke(app, ["search", "lkm", "nodes"])
         assert result.exit_code == 4, result.output
 
     def test_missing_ids_file_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
-            app, ["search", "lkm", "variables", "a", "--ids-file", "/nonexistent/x.txt"]
+            app, ["search", "lkm", "nodes", "a", "--ids-file", "/nonexistent/x.txt"]
         )
         assert result.exit_code == 4, result.output
 
     def test_no_key_exits_3(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, raises=NoAccessKeyError("no key"))
-        result = runner.invoke(app, ["search", "lkm", "variables", "a"])
+        result = runner.invoke(app, ["search", "lkm", "nodes", "a"])
         assert result.exit_code == 3, result.output
 
 
 # --------------------------------------------------------------------------- #
-# paper-graph                                                                 #
+# package                                                                     #
 # --------------------------------------------------------------------------- #
 
 
-class TestPaperGraph:
+class TestPackage:
     def test_happy_default_include(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "paper-graph", "--paper-id", "p1"])
+        result = runner.invoke(app, ["search", "lkm", "package", "--paper-id", "p1"])
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
         assert body["paper_id"] == "p1"
         assert body["include"] == ["paper", "variables", "factors", "motivations"]
 
+    def test_paper_graph_alias_remains_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "paper-graph", "--paper-id", "p1"])
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["path"] == "/papers/graph"
+
     def test_no_identifier_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "paper-graph"])
+        result = runner.invoke(app, ["search", "lkm", "package"])
         assert result.exit_code == 4, result.output
 
     def test_two_identifiers_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(
-            app, ["search", "lkm", "paper-graph", "--paper-id", "p1", "--doi", "d1"]
-        )
+        result = runner.invoke(app, ["search", "lkm", "package", "--paper-id", "p1", "--doi", "d1"])
         assert result.exit_code == 4, result.output
 
-    def test_include_and_no_hydrate(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_include_and_factor_refs_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
             [
                 "search",
                 "lkm",
-                "paper-graph",
+                "package",
                 "--package-id",
                 "paper:1",
                 "--include",
                 "priors",
                 "--include",
                 "factor_params",
-                "--no-hydrate-factor-refs",
+                "--factor-refs-only",
             ],
         )
         assert result.exit_code == 0, result.output
@@ -722,7 +869,7 @@ class TestPaperGraph:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
-            ["search", "lkm", "paper-graph", "--title", "t", "--title-resolve-limit", "7"],
+            ["search", "lkm", "package", "--title", "t", "--title-resolve-limit", "7"],
         )
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["json_body"]["title_resolve"] == {"limit": 7}
@@ -733,7 +880,7 @@ class TestPaperGraph:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
-            ["search", "lkm", "paper-graph", "--paper-id", "p1", "--title-resolve-limit", "7"],
+            ["search", "lkm", "package", "--paper-id", "p1", "--title-resolve-limit", "7"],
         )
         assert result.exit_code == 4, result.output
 
@@ -743,13 +890,13 @@ class TestPaperGraph:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
-            ["search", "lkm", "paper-graph", "--title", "t", "--title-resolve-limit", "21"],
+            ["search", "lkm", "package", "--title", "t", "--title-resolve-limit", "21"],
         )
         assert result.exit_code == 4, result.output
 
     def test_business_error_exits_1(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 290011, "msg": "not found"})
-        result = runner.invoke(app, ["search", "lkm", "paper-graph", "--doi", "d"])
+        result = runner.invoke(app, ["search", "lkm", "package", "--doi", "d"])
         assert result.exit_code == 1, result.output
 
     def test_default_normalizes_paper_graph_as_package(
@@ -785,7 +932,7 @@ class TestPaperGraph:
             [
                 "search",
                 "lkm",
-                "paper-graph",
+                "package",
                 "--paper-id",
                 "811827932371615744",
             ],
@@ -835,12 +982,12 @@ class TestPaperGraph:
 
         result = runner.invoke(
             app,
-            ["search", "lkm", "paper-graph", "--title", "ambiguous candidate"],
+            ["search", "lkm", "package", "--title", "ambiguous candidate"],
         )
 
         assert result.exit_code == 0, result.output
         item = json.loads(result.output)["results"][0]
-        assert item["id"] == "lkm:paper-graph:0"
+        assert item["id"] == "lkm:package:0"
         assert item["source"]["paper_id"] is None
         assert item["source"]["source_package"] is None
         assert item["actions"] == []

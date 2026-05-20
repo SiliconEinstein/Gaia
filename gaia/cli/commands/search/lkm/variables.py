@@ -1,8 +1,10 @@
-"""``gaia search lkm variables`` — POST /variables/batch.
+"""``gaia search lkm nodes`` — POST /variables/batch.
 
-Hydrate full variable detail for a batch of ids. Ids may be passed
-positionally and/or via a newline-delimited ``--ids-file``; the two
-sources are merged, de-duplicated (order-preserving), and capped at 100.
+Batch-fetch LKM graph node detail by id. The upstream endpoint calls these
+nodes ``variables``; the Gaia-facing CLI uses ``nodes`` to avoid confusion
+with Gaia typed variables. Ids may be passed positionally and/or via a
+newline-delimited ``--ids-file``; the two sources are merged, de-duplicated
+(order-preserving), and capped at 100.
 """
 
 from __future__ import annotations
@@ -19,10 +21,10 @@ from gaia.cli.commands.search.lkm._shared import (
 )
 
 
-def variables_command(
+def nodes_command(
     ids: Annotated[
         list[str] | None,
-        typer.Argument(help="Variable ids to hydrate (positional, variadic)."),
+        typer.Argument(help="LKM graph node ids to fetch (positional, variadic)."),
     ] = None,
     ids_file: Annotated[
         Path | None,
@@ -36,7 +38,7 @@ def variables_command(
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
 ) -> None:
-    """Batch-hydrate variable detail (POST /variables/batch)."""
+    """Batch-fetch LKM graph node detail (POST /variables/batch)."""
     merged: list[str] = list(ids or [])
 
     if ids_file is not None:
@@ -75,3 +77,6 @@ def variables_command(
 
     payload = run_request("POST", "/variables/batch", json_body={"ids": deduped})
     emit(payload, out)
+
+
+variables_command = nodes_command

@@ -294,7 +294,7 @@ The CLI is self-documenting. Use `gaia --help`, `gaia <group> --help`, and
 | `gaia inquiry` | `focus`, `review`, `obligation`, `hypothesis`, `tactics`, `reject` | Run the semantic inquiry and review loop over a compiled package. |
 | `gaia trace` | `verify`, `review`, `show` | Verify and review ARM execution traces. |
 | `gaia review` | skeleton only | Reserved top-level home for future reviewer tooling; do not confuse it with `gaia inquiry review` or `gaia trace review`. |
-| `gaia search` | `lkm auth`, `lkm knowledge`, `lkm reasoning`, `lkm reasoning-search`, `lkm variables`, `lkm paper-graph` | Query an external retrieval backend; the `lkm` backend wraps the Bohrium LKM knowledge-graph search API. |
+| `gaia search` | `lkm auth`, `lkm knowledge`, `lkm reasoning`, `lkm nodes`, `lkm package` | Query an external retrieval backend; the `lkm` backend wraps the Bohrium LKM knowledge-graph search API. |
 
 The Bohrium LKM knowledge-graph search backend is available under `gaia search lkm`; run `gaia search lkm auth login` to set up your access key (or set `GAIA_LKM_ACCESS_KEY` / `LKM_ACCESS_KEY`), then `gaia search lkm --help` for the full verb surface.
 

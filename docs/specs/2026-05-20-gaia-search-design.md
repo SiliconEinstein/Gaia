@@ -44,15 +44,17 @@ local providers.
 ```text
 gaia search lkm knowledge ...
 gaia search lkm reasoning ...
-gaia search lkm reasoning-search ...
-gaia search lkm variables ...
-gaia search lkm paper-graph ...
+gaia search lkm nodes ...
+gaia search lkm package ...
 gaia search lkm auth ...
 ```
 
 This phase is a provider adapter with Gaia-native output by default. It should
 preserve the LKM API response under `raw`, and keep `--format raw-json`
 available so agent workflows can debug the upstream service directly.
+Older LKM endpoint-shaped names (`reasoning-search`, `variables`,
+`paper-graph`) may remain as hidden compatibility aliases, but user-facing
+commands should use Gaia-facing object names.
 
 ### Phase 1: Gaia-native output mode
 
@@ -60,7 +62,9 @@ Provider commands should return normalized Gaia output by default:
 
 ```text
 gaia search lkm knowledge "FAPbI3"
-gaia search lkm paper-graph --paper-id 811827932371615744
+gaia search lkm reasoning "thermal stability"
+gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd
+gaia search lkm package --paper-id 811827932371615744
 ```
 
 `--format raw-json` remains available for direct LKM API inspection.
@@ -123,12 +127,13 @@ Every Gaia-native search command should return:
         "provider_id": "gcn_579430355a0e4bbd",
         "source_package": "paper:811827932371615744",
         "paper_id": "811827932371615744",
-        "doi": "10.1016/j.jpcs.2021.110374"
+        "doi": "10.1016/j.jpcs.2021.110374",
+        "role": "conclusion"
       },
       "actions": [
         {
           "kind": "inspect",
-          "command": "gaia search lkm reasoning gcn_579430355a0e4bbd"
+          "command": "gaia search lkm reasoning --claim-id gcn_579430355a0e4bbd"
         },
         {
           "kind": "add",
@@ -220,14 +225,17 @@ normalized boundary:
 |---|---|---|
 | `variable.type == "claim"` | `claim` | Candidate Gaia `claim(...)` |
 | `variable.type == "question"` | `question` | Candidate Gaia `question(...)` |
-| `factor` / reasoning chain | `derive` | Candidate Gaia `derive(...)`; preserve raw factors for inspection |
+| reasoning chain hit | `reasoning_chain` | Search result for LKM reasoning chains; may or may not include full factors |
+| complete `factor` with `premises` + `conclusion` | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; preserve raw factors for inspection |
 | `paper.package_id` | `package` candidate | Addable only after materialization or registry resolution |
 
 The public `/search` endpoint should be treated as claim/question retrieval.
-Reasoning factors are exposed through `reasoning` / `reasoning-search` /
-`paper-graph`, not as public search-result variables.
+Reasoning factors are exposed through `reasoning` and `package`, not as public
+search-result variables. A `reasoning` result is not a complete Gaia
+`derive(...)` unless it includes a factor with both `premises` and
+`conclusion`.
 
-LKM `paper-graph` output should preserve `paper`, `variables`, `factors`, and
+LKM `package` output should preserve `paper`, `variables`, `factors`, and
 `motivations` metadata, but Gaia-native output should also expose:
 
 - `source.source_package`, e.g. `paper:811827932371615744`
@@ -311,7 +319,7 @@ from these artifacts and invalidated by `ir_hash`.
 - Add `gaia.cli.commands.search._results` with typed result builders.
 - Add `--format raw-json|gaia-json` to LKM verbs.
 - Make `gaia-json` the default output for search-oriented LKM verbs.
-- Normalize `knowledge`, `reasoning-search`, and `paper-graph` first.
+- Normalize `knowledge`, `reasoning`, and `package` first.
 - Preserve raw payloads during alpha.
 
 ### Phase 2: Local package provider
@@ -342,5 +350,5 @@ from these artifacts and invalidated by `ir_hash`.
 - Search does not formalize `equal` or `contradict` relations from textual
   similarity alone.
 - Search does not import arbitrary installed packages during discovery.
-- `paper-graph` does not imply that the graph is already a checked Gaia
+- `package` does not imply that the graph is already a checked Gaia
   package.

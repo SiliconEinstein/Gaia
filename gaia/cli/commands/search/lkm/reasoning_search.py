@@ -1,8 +1,9 @@
-"""``gaia search lkm reasoning-search`` — POST /reasoning/search.
+"""Hidden ``gaia search lkm reasoning-search`` compatibility alias.
 
-Recall at the *reasoning-chain* granularity (vs single-node recall in
-``knowledge``). The body uses the plural ``filters.paper_ids`` array per the
-apifox spec.
+The user-facing command is ``gaia search lkm reasoning <query>``. This module
+keeps the older endpoint-shaped command available for PR/build compatibility.
+It still calls ``POST /reasoning/search`` with the plural
+``filters.paper_ids`` array per the apifox spec.
 """
 
 from __future__ import annotations

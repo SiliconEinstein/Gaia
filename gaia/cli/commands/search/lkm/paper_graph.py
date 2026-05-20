@@ -1,8 +1,9 @@
-"""``gaia search lkm paper-graph`` — POST /papers/graph.
+"""``gaia search lkm package`` — POST /papers/graph.
 
 Fetch the full extracted knowledge graph (variables / factors /
 motivations / ...) for a paper identified by exactly one of four mutually
-exclusive identifier flags.
+exclusive identifier flags. The Gaia-facing command calls this a package
+candidate; the upstream LKM endpoint calls it a paper graph.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ _DEFAULT_INCLUDE = [
 _TITLE_RESOLVE_CAP = 20
 
 
-def paper_graph_command(
+def package_command(
     package_id: Annotated[
         str | None,
         typer.Option("--package-id", help="Identify by package id (form `paper:<digits>`)."),
@@ -66,10 +67,10 @@ def paper_graph_command(
             case_sensitive=False,
         ),
     ] = None,
-    no_hydrate_factor_refs: Annotated[
+    factor_refs_only: Annotated[
         bool,
         typer.Option(
-            "--no-hydrate-factor-refs",
+            "--factor-refs-only",
             help="Return factor premise/conclusion ids only (~60% smaller response).",
         ),
     ] = False,
@@ -93,7 +94,7 @@ def paper_graph_command(
         ),
     ] = SearchOutputFormat.GAIA_JSON,
 ) -> None:
-    """Fetch a paper's knowledge graph (POST /papers/graph)."""
+    """Fetch an LKM paper package candidate (POST /papers/graph)."""
     identifiers = {
         "package_id": package_id,
         "paper_id": paper_id,
@@ -128,7 +129,7 @@ def paper_graph_command(
     body: dict[str, Any] = dict(supplied)
     chosen_include = include if include else _DEFAULT_INCLUDE
     body["include"] = [item.value for item in chosen_include]
-    if no_hydrate_factor_refs:
+    if factor_refs_only:
         body["hydrate_factor_refs"] = False
     if title is not None:
         body["title_resolve"] = {"limit": title_resolve_limit}
@@ -138,3 +139,6 @@ def paper_graph_command(
         query_text = next(iter(supplied.values()))
         payload = normalize_lkm_paper_graph(payload, query=str(query_text))
     emit(payload, out)
+
+
+paper_graph_command = package_command

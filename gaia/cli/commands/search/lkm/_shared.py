@@ -29,7 +29,7 @@ from gaia.cli.commands.search.lkm._client import (
     NoAccessKeyError,
 )
 
-# Lexical-channel keyword cap, shared by claims / reasoning-search.
+# Lexical-channel keyword cap, shared by knowledge / reasoning.
 MAX_KEYWORDS = 10
 # Per-call id caps.
 MAX_OFFSET = 10000
