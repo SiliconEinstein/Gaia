@@ -18,6 +18,10 @@ class InquiryEdge:
     target_id: str | None
     status: str | None
     inputs: list[InquiryNode] = field(default_factory=list)
+    conclusion_id: str | None = None
+    premise_ids: list[str] = field(default_factory=list)
+    background_ids: list[str] = field(default_factory=list)
+    rationale: str | None = None
 
 
 @dataclass
@@ -55,6 +59,18 @@ def _action_label(metadata: dict[str, Any] | None, fallback: str) -> str:
     if "::action::" in label:
         return label.split("::action::", 1)[1]
     return label
+
+
+def _strategy_rationale(strategy: dict[str, Any]) -> str | None:
+    parts: list[str] = []
+    for step in strategy.get("steps", []) or []:
+        if isinstance(step, dict):
+            reasoning = step.get("reasoning")
+            if isinstance(reasoning, str) and reasoning.strip():
+                parts.append(reasoning.strip())
+    if parts:
+        return "\n\n".join(parts)
+    return None
 
 
 def _review_status(manifest: ReviewManifest, target_id: str | None) -> str | None:
@@ -227,6 +243,12 @@ def _append_observation_edges(
                 target_id=target_id,
                 status=_review_status(review_manifest, target_id),
                 inputs=[],
+                conclusion_id=knowledge.get("id") if isinstance(knowledge.get("id"), str) else None,
+                premise_ids=[],
+                background_ids=[],
+                rationale=entry.get("rationale")
+                if isinstance(entry.get("rationale"), str)
+                else None,
             )
         )
 
@@ -241,6 +263,8 @@ def _append_strategy_edges(
     """Append strategy edges that conclude a node."""
     for strategy in indexes.strategies_by_conclusion.get(knowledge_id, []):
         strategy_id = strategy.get("strategy_id")
+        premises = [premise for premise in strategy.get("premises", []) if premise]
+        background = [ref for ref in strategy.get("background", []) if ref]
         node.incoming.append(
             InquiryEdge(
                 kind="strategy",
@@ -249,9 +273,12 @@ def _append_strategy_edges(
                 status=_review_status(review_manifest, strategy_id),
                 inputs=[
                     _build_goal_node(premise, next_seen, indexes, review_manifest)
-                    for premise in strategy.get("premises", [])
-                    if premise
+                    for premise in premises
                 ],
+                conclusion_id=knowledge_id,
+                premise_ids=list(premises),
+                background_ids=list(background),
+                rationale=_strategy_rationale(strategy),
             )
         )
 
@@ -277,6 +304,9 @@ def _append_operator_edges(
                     for variable in operator.get("variables", [])
                     if variable
                 ],
+                conclusion_id=knowledge_id,
+                premise_ids=[variable for variable in operator.get("variables", []) if variable],
+                background_ids=[],
             )
         )
 
@@ -304,6 +334,9 @@ def _append_compose_edges(
                     _build_goal_node(ref, next_seen, indexes, review_manifest)
                     for ref in dict.fromkeys(dependencies)
                 ],
+                conclusion_id=knowledge_id,
+                premise_ids=list(dict.fromkeys(dependencies)),
+                background_ids=[],
             )
         )
 
@@ -330,6 +363,14 @@ def _append_scaffold_edges(
                     _build_goal_node(ref, next_seen, indexes, review_manifest)
                     for ref in dict.fromkeys(inputs)
                 ],
+                conclusion_id=knowledge_id,
+                premise_ids=list(dict.fromkeys(inputs)),
+                background_ids=[
+                    ref for ref in scaffold.get("background", []) if isinstance(ref, str) and ref
+                ],
+                rationale=scaffold.get("rationale")
+                if isinstance(scaffold.get("rationale"), str)
+                else None,
             )
         )
 
@@ -348,6 +389,14 @@ def _append_scaffold_edges(
                     _build_goal_node(ref, next_seen, indexes, review_manifest)
                     for ref in dict.fromkeys(inputs)
                 ],
+                conclusion_id=knowledge_id,
+                premise_ids=list(dict.fromkeys(inputs)),
+                background_ids=[
+                    ref for ref in scaffold.get("background", []) if isinstance(ref, str) and ref
+                ],
+                rationale=scaffold.get("rationale")
+                if isinstance(scaffold.get("rationale"), str)
+                else None,
             )
         )
 
@@ -378,6 +427,9 @@ def _append_warrant_edges(
                     _build_goal_node(ref, next_seen, indexes, review_manifest)
                     for ref in dict.fromkeys(dependencies)
                 ],
+                conclusion_id=knowledge_id,
+                premise_ids=list(dict.fromkeys(dependencies)),
+                background_ids=[],
             )
         )
         if target_id:
