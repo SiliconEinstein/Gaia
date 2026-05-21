@@ -84,6 +84,7 @@ nav:
           - Predicate Logic: foundations/gaia-lang/predicate-logic.md
           - Bayes Semantics: foundations/gaia-lang/bayes.md
           - Package Model: foundations/gaia-lang/package.md
+          - Embedded Layout: foundations/embedded-layout.md
       - Gaia IR Design:
           - Overview: foundations/gaia-ir/01-overview.md
           - Structure Contract: foundations/gaia-ir/02-gaia-ir.md

@@ -290,7 +290,7 @@ source of truth.
 ## Specification
 
 This document implements the design in
-[`docs/specs/2026-05-19-arm-ara-gaia-package-projection-spec.md`](../specs/2026-05-19-arm-ara-gaia-package-projection-spec.md)
+[`docs/specs/2026-05-19-arm-ara-gaia-package-projection-spec.md`](https://github.com/SiliconEinstein/Gaia/blob/codex/arm-ara-gaia-projection-spec/docs/specs/2026-05-19-arm-ara-gaia-package-projection-spec.md)
 (PR [#675](https://github.com/SiliconEinstein/Gaia/pull/675)). The
 sections most directly mapped:
 
