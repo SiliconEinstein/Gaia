@@ -84,13 +84,22 @@ Rules:
 ## Leaf Priors
 
 After source emission, the caller quality gate runs `gaia build check --hole .`.
-Claims reported as leaves get entries in `priors.py`:
+Each claim reported as a leaf gets a `register_prior(...)` record in
+`priors.py`, emitted in Step 5 via `gaia author register-prior --file
+priors.py` (one invocation per leaf):
 
 ```python
-PRIORS = {
-    <label>: (<float>, "<heuristic tag + LKM context + TODO:review>"),
-}
+register_prior(
+    <label>,
+    value=<float>,
+    justification="<heuristic tag + LKM context + TODO:review>",
+)
 ```
+
+Do **not** write a legacy `PRIORS = {...}` dict — `gaia build compile`
+rejects it with a migration error (`gaia/engine/packaging.py`) because the
+dict form carries no per-source provenance. `register_prior(...)` is the
+only v0.5 prior surface.
 
 The float is a direct judgment of correctness, not LKM match score. Cap source
 claim priors at 0.90. Do not lower a prior solely because the claim has
