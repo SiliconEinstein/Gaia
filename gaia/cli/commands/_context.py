@@ -205,3 +205,129 @@ def _build_ir_slice(
         "composes": [],
         "formula_graphs": [],
     }
+
+
+def _knowledge_by_id(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {item["id"]: item for item in ir.get("knowledges", []) if item.get("id")}
+
+
+def _display_label(knowledge: dict[str, Any] | None, qid: str) -> str:
+    if knowledge is not None and knowledge.get("label"):
+        return str(knowledge["label"])
+    tail = qid.rsplit("::", 1)[-1]
+    return tail or qid
+
+
+def _content(knowledge: dict[str, Any] | None) -> str:
+    if knowledge is None:
+        return ""
+    return str(knowledge.get("content") or "")
+
+
+def _preview(text: str, limit: int = 96) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3].rstrip() + "..."
+
+
+def _ordered_steps(packet: ContextPacket) -> list[ContextRouteStep]:
+    if packet.order == "forward":
+        return list(reversed(packet.route))
+    return list(packet.route)
+
+
+def render_context_markdown(packet: ContextPacket) -> str:
+    k_by_id = _knowledge_by_id(packet.ir)
+    focus_id = packet.focus.resolved_id or ""
+    focus_k = k_by_id.get(focus_id)
+    focus_label = packet.focus.resolved_label or _display_label(focus_k, focus_id)
+    lines: list[str] = [
+        "## Focus",
+        "",
+        f"### `{focus_label}`",
+        "",
+        _content(focus_k),
+        "",
+        "## Why This Claim",
+        "",
+    ]
+
+    references: list[str] = []
+    seen_refs: set[str] = set()
+
+    if not packet.route:
+        lines.extend(["No supporting trajectory was found.", ""])
+    else:
+        for step in _ordered_steps(packet):
+            conclusion = k_by_id.get(step.conclusion_id)
+            conclusion_label = _display_label(conclusion, step.conclusion_id)
+            lines.extend(
+                [
+                    f"### Why `{conclusion_label}`?",
+                    "",
+                    "**Claim**",
+                    _content(conclusion),
+                    "",
+                ]
+            )
+            if step.rationale:
+                lines.extend(["**Because**", step.rationale, ""])
+            if step.premise_ids:
+                lines.append("**Given**")
+                for premise_id in step.premise_ids:
+                    premise = k_by_id.get(premise_id)
+                    label = _display_label(premise, premise_id)
+                    lines.append(f"- `{label}`: {_preview(_content(premise))}")
+                    if premise_id not in seen_refs:
+                        references.append(premise_id)
+                        seen_refs.add(premise_id)
+                lines.append("")
+            if step.background_ids:
+                lines.append("**Background**")
+                for background_id in step.background_ids:
+                    background = k_by_id.get(background_id)
+                    label = _display_label(background, background_id)
+                    title = background.get("title") if isinstance(background, dict) else None
+                    suffix = f": {title}" if title else ""
+                    lines.append(f"- `{label}`{suffix}")
+                    if background_id not in seen_refs:
+                        references.append(background_id)
+                        seen_refs.add(background_id)
+                lines.append("")
+
+    if references:
+        lines.extend(["## References", ""])
+        for ref in references:
+            item = k_by_id.get(ref)
+            label = _display_label(item, ref)
+            lines.extend([f"### `{label}`", _content(item), ""])
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def context_to_json_dict(packet: ContextPacket) -> dict[str, Any]:
+    return {
+        "context_schema_version": 1,
+        "focus": {
+            "id": packet.focus.resolved_id,
+            "label": packet.focus.resolved_label,
+        },
+        "selection": {
+            "trajectory": packet.trajectory,
+            "order": packet.order,
+        },
+        "why_route": [
+            {
+                "edge_kind": step.edge_kind,
+                "target_id": step.target_id,
+                "label": step.label,
+                "status": step.status,
+                "conclusion": step.conclusion_id,
+                "premises": list(step.premise_ids),
+                "background": list(step.background_ids),
+            }
+            for step in _ordered_steps(packet)
+        ],
+        "ir": packet.ir,
+    }
