@@ -89,7 +89,7 @@ Shape:
 > See [ANALYSIS.md](ANALYSIS.md) for detailed verification results.
 ```
 
-Replace the `<!-- badges:start --><!-- badges:end -->` pair with links to CI, docs, the wiki output, and GitHub Pages if any of those exist for the repo. Keep the AI-generated-analysis disclaimer verbatim — it sets the right expectation for readers and is the canonical pointer to `ANALYSIS.md` (produced upstream by `gaia-formalization`).
+Replace the `<!-- badges:start --><!-- badges:end -->` pair with links to CI, docs, the wiki output, and GitHub Pages if any of those exist for the repo. Keep the AI-generated-analysis disclaimer verbatim — it sets the right expectation for readers and is the canonical pointer to `ANALYSIS.md` (produced upstream by `gaia-formalize-fine`).
 
 The bibliographic header is also the canonical attribution source for figure captions later in the document. Pin author + year here so every figure embed can refer back to it consistently.
 
@@ -232,7 +232,7 @@ Some gaps cross themes (a missing measurement that motivates a tighter derivatio
 
 ### Link to ANALYSIS.md
 
-If the package has an `ANALYSIS.md` (produced upstream by `gaia-formalization`'s Pass 5/6 + prior-assignment tail), close the README with:
+If the package has an `ANALYSIS.md` (produced upstream by `gaia-formalize-fine`'s Pass 5/6 + prior-assignment tail), close the README with:
 
 ```markdown
 ## Detailed Analysis
@@ -293,5 +293,5 @@ When writing verdict sentences in Reasoning Structure and the root-cause sentenc
 ## Cross-refs
 
 - `../_shared/bp-interpretation.md` — belief-result interpretation reference; consult when phrasing verdicts and root-cause sentences.
-- `../gaia-formalization/SKILL.md` — upstream skill that produces the knowledge package and `ANALYSIS.md`; the README's Detailed Analysis section links into it.
+- `../gaia-formalize-fine/SKILL.md` — upstream skill that produces the knowledge package and `ANALYSIS.md`; the README's Detailed Analysis section links into it.
 - `../gaia-obsidian-wiki/SKILL.md` — alternate output channel; richer browsable vault for the same package, when README polish is not the goal.

@@ -1,12 +1,17 @@
 ---
-name: gaia-formalization
+name: gaia-formalize-fine
 description: |
   Use when formalising a knowledge source (scientific paper, textbook chapter,
-  technical report) into a Gaia knowledge package. Walks a six-pass pipeline —
-  extract → connect → check completeness → refine strategy types → verify
-  structural integrity → polish for standalone readability — with a compile +
-  check loop after every pass and a prior-assignment + inference tail. Emits
-  the package source, `priors.py`, and `ANALYSIS.md`.
+  technical report) into a Gaia knowledge package and you want the thorough,
+  audit-grade treatment. Walks a six-pass pipeline — extract → connect → check
+  completeness → refine strategy types → verify structural integrity → polish
+  for standalone readability — with a compile + check loop after every pass and
+  a prior-assignment + inference tail. Emits the package source, `priors.py`,
+  and `ANALYSIS.md`. This is the **Paper → package** entry point when depth
+  matters: the slow, exhaustive sibling of `gaia-formalize-coarse` (which is a
+  quick four-phase single-pass for one paper). Reach for `gaia-formalize-fine`
+  when the source is load-bearing, multi-section, or destined for publication;
+  reach for `gaia-formalize-coarse` for a fast first cut of a single paper.
 ---
 
 # Knowledge-package formalization

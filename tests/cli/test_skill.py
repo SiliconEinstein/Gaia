@@ -293,9 +293,13 @@ class TestRegisterIntegration:
 
         registry = tmp_path / ".gaia-skills"
         assert registry.is_dir()
-        # All four shipped skills materialised, plus _shared.
+        # All shipped skills materialised, plus _shared.
         for skill in (
-            "gaia-formalization",
+            "gaia-formalize-fine",
+            "gaia-formalize-coarse",
+            "gaia-lkm-explorer",
+            "gaia-evidence-subgraph",
+            "gaia-scholarly-synthesis",
             "gaia-obsidian-wiki",
             "gaia-publish",
             "gaia-review",
@@ -316,7 +320,11 @@ class TestRegisterIntegration:
         assert list_result.exit_code == 0, list_result.output
         # Every shipped skill row should carry an OK status.
         for skill in (
-            "gaia-formalization",
+            "gaia-formalize-fine",
+            "gaia-formalize-coarse",
+            "gaia-lkm-explorer",
+            "gaia-evidence-subgraph",
+            "gaia-scholarly-synthesis",
             "gaia-obsidian-wiki",
             "gaia-publish",
             "gaia-review",
@@ -335,8 +343,8 @@ class TestRegisterIntegration:
         assert result.exit_code == 0, result.output
 
         # Registry created; claude links present; .agent/ not created.
-        assert (tmp_path / ".gaia-skills" / "gaia-formalization").is_dir()
-        assert (tmp_path / ".claude" / "skills" / "gaia-formalization").is_symlink()
+        assert (tmp_path / ".gaia-skills" / "gaia-formalize-fine").is_dir()
+        assert (tmp_path / ".claude" / "skills" / "gaia-formalize-fine").is_symlink()
         assert not (tmp_path / ".agent").exists()
 
     def test_fresh_cwd_neither_surface_present(
@@ -348,7 +356,7 @@ class TestRegisterIntegration:
         result = runner.invoke(app, ["skill", "register"])
         assert result.exit_code == 0, result.output
 
-        assert (tmp_path / ".gaia-skills" / "gaia-formalization" / "SKILL.md").is_file()
+        assert (tmp_path / ".gaia-skills" / "gaia-formalize-fine" / "SKILL.md").is_file()
         # No agent-surface dirs should have been created in auto mode.
         assert not (tmp_path / ".claude").exists()
         assert not (tmp_path / ".agent").exists()
@@ -363,8 +371,8 @@ class TestRegisterIntegration:
         result = runner.invoke(app, ["skill", "register", "--target", "claude"])
         assert result.exit_code == 0, result.output
 
-        assert (tmp_path / ".gaia-skills" / "gaia-formalization").is_dir()
-        link = tmp_path / ".claude" / "skills" / "gaia-formalization"
+        assert (tmp_path / ".gaia-skills" / "gaia-formalize-fine").is_dir()
+        link = tmp_path / ".claude" / "skills" / "gaia-formalize-fine"
         assert link.is_symlink()
         # And .agent/ remains untouched.
         assert not (tmp_path / ".agent").exists()
@@ -395,9 +403,9 @@ class TestRegisterIntegration:
         assert first.exit_code == 0, first.output
 
         registry = tmp_path / ".gaia-skills"
-        link = tmp_path / ".claude" / "skills" / "gaia-formalization"
+        link = tmp_path / ".claude" / "skills" / "gaia-formalize-fine"
         before_link_target = os.readlink(link)
-        before_skill_mtime = (registry / "gaia-formalization" / "SKILL.md").stat().st_mtime_ns
+        before_skill_mtime = (registry / "gaia-formalize-fine" / "SKILL.md").stat().st_mtime_ns
 
         second = runner.invoke(app, ["skill", "register"])
         assert second.exit_code == 0, second.output
@@ -405,7 +413,7 @@ class TestRegisterIntegration:
 
         # Symlink unchanged, registry file unchanged.
         assert os.readlink(link) == before_link_target
-        after_skill_mtime = (registry / "gaia-formalization" / "SKILL.md").stat().st_mtime_ns
+        after_skill_mtime = (registry / "gaia-formalize-fine" / "SKILL.md").stat().st_mtime_ns
         assert after_skill_mtime == before_skill_mtime
 
     def test_stale_entry_removed_from_registry_and_surfaces(
@@ -449,7 +457,7 @@ class TestRegisterIntegration:
         """Real dir at our entry path → COLLISION, exit 1, dir preserved."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".claude").mkdir()
-        colliding = tmp_path / ".claude" / "skills" / "gaia-formalization"
+        colliding = tmp_path / ".claude" / "skills" / "gaia-formalize-fine"
         colliding.mkdir(parents=True)
         sentinel = colliding / "user-content.md"
         sentinel.write_text("user data\n")
@@ -457,7 +465,7 @@ class TestRegisterIntegration:
         result = runner.invoke(app, ["skill", "register"])
         assert result.exit_code == 1, result.output
         assert "COLLISION" in result.output
-        assert "gaia-formalization" in result.output
+        assert "gaia-formalize-fine" in result.output
 
         # The colliding real dir + its contents are preserved.
         assert colliding.is_dir()
@@ -474,7 +482,7 @@ class TestRegisterIntegration:
         """Real file at our entry path → COLLISION, exit 1, file preserved."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".claude" / "skills").mkdir(parents=True)
-        colliding = tmp_path / ".claude" / "skills" / "gaia-formalization"
+        colliding = tmp_path / ".claude" / "skills" / "gaia-formalize-fine"
         colliding.write_text("user notes\n")
 
         result = runner.invoke(app, ["skill", "register"])
@@ -491,10 +499,10 @@ class TestRegisterIntegration:
         """Foreign-target symlink at our entry path → COLLISION, link preserved."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".claude" / "skills").mkdir(parents=True)
-        elsewhere = tmp_path / "elsewhere" / "gaia-formalization"
+        elsewhere = tmp_path / "elsewhere" / "gaia-formalize-fine"
         elsewhere.mkdir(parents=True)
         (elsewhere / "marker.txt").write_text("foreign\n")
-        colliding = tmp_path / ".claude" / "skills" / "gaia-formalization"
+        colliding = tmp_path / ".claude" / "skills" / "gaia-formalize-fine"
         os.symlink(elsewhere, colliding)
 
         result = runner.invoke(app, ["skill", "register"])
@@ -517,7 +525,7 @@ class TestListIntegration:
         monkeypatch.chdir(tmp_path)
         (tmp_path / ".claude" / "skills").mkdir(parents=True)
         # Real dir collision at one of the shipped skill names.
-        (tmp_path / ".claude" / "skills" / "gaia-formalization").mkdir()
+        (tmp_path / ".claude" / "skills" / "gaia-formalize-fine").mkdir()
 
         result = runner.invoke(app, ["skill", "list"])
         assert result.exit_code == 1, result.output

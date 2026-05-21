@@ -327,7 +327,7 @@ observation" is a placeholder, not a discrimination story.
 After `gaia run infer`, the package writes per-claim beliefs and
 per-strategy posteriors to `.gaia/beliefs.json`. Interpretation — what
 counts as normal vs abnormal, which problems map to which fixes — lives
-in `../_shared/bp-interpretation.md` so this skill and `gaia-formalization`
+in `../_shared/bp-interpretation.md` so this skill and `gaia-formalize-fine`
 share one canonical copy. Read it after the first `gaia run infer` of an
 iteration cycle; don't infer-then-tweak without it.
 
@@ -474,6 +474,6 @@ supported pattern.
 - `../_shared/bp-interpretation.md` — interpretation of `gaia run infer`
   results; the iteration loop's step 5 defers to this single canonical
   table.
-- `../gaia-formalization/SKILL.md` — upstream context; this skill is
+- `../gaia-formalize-fine/SKILL.md` — upstream context; this skill is
   invoked from formalization Pass 5/6 once structural integrity is
   settled.

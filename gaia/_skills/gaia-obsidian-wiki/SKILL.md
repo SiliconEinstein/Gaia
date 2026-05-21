@@ -336,7 +336,7 @@ Before declaring the vault done, run a sweep:
 - [`../_shared/bp-interpretation.md`](../_shared/bp-interpretation.md) —
   How to read the Review section's `Prior → Belief` shift on each claim
   page.
-- [`../gaia-formalization/SKILL.md`](../gaia-formalization/SKILL.md) —
+- [`../gaia-formalize-fine/SKILL.md`](../gaia-formalize-fine/SKILL.md) —
   Upstream skill: produces the DSL source, `priors.py`, and the
   `ANALYSIS.md` that this vault visualises.
 - [`../gaia-publish/SKILL.md`](../gaia-publish/SKILL.md) — Alternate

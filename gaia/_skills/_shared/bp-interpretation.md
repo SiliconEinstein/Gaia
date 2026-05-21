@@ -1,6 +1,6 @@
 # Interpreting `.gaia/beliefs.json`
 
-Shared reference for interpreting `.gaia/beliefs.json` output from `gaia run infer`. Pointed at by `gaia-formalization`, `gaia-publish`, `gaia-obsidian-wiki`, and `gaia-review` — those skills invoke `gaia run infer` at the end of their workflow and need a single canonical place to read off "is this belief reasonable, or is something miswired?"
+Shared reference for interpreting `.gaia/beliefs.json` output from `gaia run infer`. Pointed at by `gaia-formalize-fine`, `gaia-formalize-coarse`, `gaia-publish`, `gaia-obsidian-wiki`, and `gaia-review` — those skills invoke `gaia run infer` at the end of their workflow and need a single canonical place to read off "is this belief reasonable, or is something miswired?"
 
 This doc is reference, not procedure. It is not itself a skill; it has no frontmatter.
 
