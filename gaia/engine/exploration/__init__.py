@@ -4,10 +4,15 @@ The durable overlay the exploration machine rides on (SCHEMA.md §2 through §7)
 versioned ``.gaia/exploration/map.json`` index over the IR plus an append-only
 ``rounds.jsonl`` history. A NEW sibling to ``.gaia/inquiry/``; it never mutates
 the IR / priors / ``beliefs.json``. This package is the pure library surface —
-frontier extraction, the policy scorer, the turn loop, and render live in later
-sequenced steps and import from here.
+the policy scorer, the turn loop, and render live in later sequenced steps and
+import from here. Build 2 adds :mod:`gaia.engine.exploration.frontier`, which
+derives the frontier from a package's IR (SCHEMA.md §7a).
 """
 
+from gaia.engine.exploration.frontier import (
+    extract_frontier,
+    reconcile_frontier,
+)
 from gaia.engine.exploration.state import (
     DOCTRINE_PRESETS,
     EXPLORATION_SCHEMA_VERSION,
@@ -44,8 +49,10 @@ __all__ = [
     "append_round",
     "doctrine_policy",
     "exploration_dir",
+    "extract_frontier",
     "load_map",
     "mint_contact_id",
     "read_rounds",
+    "reconcile_frontier",
     "save_map",
 ]
