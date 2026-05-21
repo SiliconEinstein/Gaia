@@ -296,6 +296,135 @@ def test_ara_projector_refutes_seeds_contradict_candidates(tmp_path: Path) -> No
     assert any("C01" in ref for ref in refuter.source_refs)
 
 
+def test_ara_projector_three_segment_chain_via_experiments(tmp_path: Path) -> None:
+    """When experiments.md defines Exx, claim Proof: [Exx] links to the experiment.
+
+    Verifies the Ara paper §2.2 forensic binding chain
+    ``claims.md → experiments.md → /evidence/`` is materialised in
+    the IR rather than collapsing claim → evidence directly.
+    """
+    host = tmp_path / "ara-chain"
+    host.mkdir()
+    (host / "PAPER.md").write_text("# Paper\n")
+    (host / "logic").mkdir()
+    (host / "logic" / "claims.md").write_text(
+        "## C01: Residual nets converge faster.\n"
+        "Status: supported\n"
+        "Proof: [E01]\n\n"
+        "Skip connections accelerate optimisation.\n"
+    )
+    (host / "logic" / "experiments.md").write_text(
+        "## E01: ImageNet ResNet-18 vs Plain-18\n"
+        "Verifies: [C01]\n"
+        "Procedure: train both for 90 epochs\n"
+        "Expected outcome: ResNet beats plain top-1\n"
+        "Evidence: [evidence/tables/conv.md]\n"
+    )
+    (host / "evidence" / "tables").mkdir(parents=True)
+    (host / "evidence" / "tables" / "conv.md").write_text("| a | b |\n| --- | --- |\n| 1 | 2 |\n")
+
+    result = project_host(host)
+    paths = sorted(f.path for f in result.files)
+    assert "gaia/from_ara/experiments.py" in paths
+
+    experiments_body = next(
+        f.body for f in result.files if f.path.endswith("from_ara/experiments.py")
+    )
+    # Three-segment chain proof: experiment node exists, and it carries
+    # a depends_on(experiment, given=[evidence]) for the second hop.
+    assert "ara_experiment_e01" in experiments_body
+    assert "ara_kind" in experiments_body
+    assert "'verification_plan'" in experiments_body
+    assert "depends_on(ara_experiment_e01" in experiments_body
+    assert "ara_evidence_evidence_tables_conv" in experiments_body
+
+    claims_body = next(f.body for f in result.files if f.path.endswith("from_ara/claims.py"))
+    # First hop: claim → experiment (NOT claim → evidence as in two-segment fallback).
+    assert "from .experiments import ara_experiment_e01" in claims_body
+    assert "depends_on(ara_c01, given=[ara_experiment_e01]" in claims_body
+
+    # The source_map records the chain shape and projection_rule.
+    rules = {r.projection_rule for r in result.source_map}
+    assert "ara.experiment_block.v1" in rules
+    assert "ara.claim_proof_experiment_chain.v1" in rules
+    # And the experiment carries its Verifies/Procedure/Expected/Evidence
+    # in the source_map extras for downstream auditing.
+    exp_records = [r for r in result.source_map if r.source_id.startswith("ARA:EXPERIMENT:")]
+    assert exp_records and exp_records[0].extras["ara_verifies"] == ["C01"]
+    assert exp_records[0].extras["ara_kind"] == "verification_plan"
+
+
+def test_ara_projector_two_segment_fallback_without_experiments(tmp_path: Path) -> None:
+    """When experiments.md is absent, the claim still links to an evidence placeholder.
+
+    Backward-compatible behaviour for minimal ARA hosts that have not
+    written experiments.md yet — the projector must not regress to
+    "empty depends_on" or fabricate experiment names.
+    """
+    host = tmp_path / "ara-no-exp"
+    host.mkdir()
+    (host / "PAPER.md").write_text("# Paper\n")
+    (host / "logic").mkdir()
+    (host / "logic" / "claims.md").write_text(
+        "## C01: Claim with proof but no experiments.md.\n"
+        "Status: supported\nProof: [E01]\n\nBody.\n"
+    )
+    result = project_host(host)
+    claims_body = next(f.body for f in result.files if f.path.endswith("from_ara/claims.py"))
+    # Should still produce a two-segment link claim → evidence placeholder.
+    assert "from .evidence import ara_evidence_e01" in claims_body
+    assert "depends_on(ara_c01, given=[ara_evidence_e01]" in claims_body
+    # And NOT pretend an experiment exists.
+    assert "from .experiments import ara_experiment_e01" not in claims_body
+    # The experiments module is still emitted (as a placeholder) so
+    # the loader's import chain stays connected.
+    experiments_body = next(
+        f.body for f in result.files if f.path.endswith("from_ara/experiments.py")
+    )
+    assert "_ara_experiments_placeholder" in experiments_body
+
+
+def test_ara_related_work_typed_edge_candidate_actions(tmp_path: Path) -> None:
+    """Each `Type:` value seeds a tailored queue item per Ara paper §2.2.
+
+    - `imports` / `extends` / `bounds` → `gaia_pkg_add` (dependency)
+    - `baseline` → `baseline_regression_check`
+    - `refutes` → `contradict`
+    - unknown / missing → `gaia_pkg_add` fallback (`source_only` kind)
+    """
+    host = tmp_path / "ara-rw"
+    host.mkdir()
+    (host / "PAPER.md").write_text("# Paper\n")
+    (host / "logic").mkdir()
+    (host / "logic" / "claims.md").write_text("")
+    (host / "logic" / "related_work.md").write_text(
+        "## RW01: Refuter\nType: refutes\nIDs: [arXiv:1]\n\n"
+        "## RW02: Importer\nType: imports\nIDs: [arXiv:2]\n\n"
+        "## RW03: Extender\nType: extends\nIDs: [arXiv:3]\n\n"
+        "## RW04: Constraint provider\nType: bounds\nIDs: [arXiv:4]\n\n"
+        "## RW05: Baseline\nType: baseline\nIDs: [arXiv:5]\n\n"
+        "## RW06: Untyped\nIDs: [arXiv:6]\n"
+    )
+    result = project_host(host)
+    by_id = {q.source_id: q for q in result.queue}
+    assert by_id["ARA:RW01"].candidate_actions[0] == "contradict"
+    assert by_id["ARA:RW02"].candidate_actions[0] == "gaia_pkg_add"
+    assert by_id["ARA:RW03"].candidate_actions[0] == "gaia_pkg_add"
+    assert by_id["ARA:RW04"].candidate_actions[0] == "gaia_pkg_add"
+    assert by_id["ARA:RW05"].candidate_actions[0] == "baseline_regression_check"
+    # Untyped → source_only kind → gaia_pkg_add fallback.
+    assert by_id["ARA:RW06"].candidate_actions[0] == "gaia_pkg_add"
+
+    # The source_map carries the kind classification so downstream
+    # tools can branch without re-parsing the raw Type string.
+    rw_records = {r.source_id: r for r in result.source_map if r.source_id.startswith("ARA:RW")}
+    assert rw_records["ARA:RW01"].extras["related_work_kind"] == "candidate_contradict"
+    assert rw_records["ARA:RW02"].extras["related_work_kind"] == "dependency"
+    assert rw_records["ARA:RW04"].extras["related_work_kind"] == "dependency_with_constraints"
+    assert rw_records["ARA:RW05"].extras["related_work_kind"] == "baseline"
+    assert rw_records["ARA:RW06"].extras["related_work_kind"] == "source_only"
+
+
 def test_arm_projector_handles_minimal_manifest(tmp_path: Path) -> None:
     """ARM projection works on a manifest-only bundle (no knowledge/claims.json)."""
     host = tmp_path / "fake-arm"

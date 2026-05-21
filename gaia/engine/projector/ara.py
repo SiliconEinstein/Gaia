@@ -155,6 +155,45 @@ class _ClaimBlock:
 
 
 @dataclass
+class _ExperimentBlock:
+    """One parsed ARA Exx block from ``logic/experiments.md``.
+
+    Ara paper §2.2 names this layer's purpose: ``experiments.md
+    declares the verification plan``. Each experiment carries a
+    ``Verifies:`` pointer back to one or more claims plus a
+    ``Procedure`` and an ``Expected outcome``; the claim → experiment
+    → evidence chain is what the paper calls the **forensic binding
+    chain** (``every claim's proof chain flows claims.md →
+    experiments.md → /evidence/``, §2.2 Evidence Layer).
+
+    Fields:
+        eid: ARA identifier, e.g. ``"E01"``.
+        heading: Short title from the ``## Exx:`` line.
+        content: Narrative body with the structured ``Verifies:`` /
+            ``Procedure:`` / ``Expected outcome:`` lines stripped.
+        verifies: Claim ids the experiment is the verification plan
+            for, parsed from the ``Verifies: [C01, C02]`` line.
+        procedure: Optional text from the ``Procedure:`` line — short
+            recipe ("compute X on dataset Y").
+        expected_outcome: Optional text from ``Expected outcome:`` —
+            the directional prediction without revealing exact
+            numbers (Ara §2.2 keeps numbers in /evidence only).
+        evidence_refs: Optional file paths from ``Evidence:`` or
+            ``Results:`` lines pointing at ``evidence/`` files; lets
+            the projector build the experiment → evidence segment of
+            the chain when the author was explicit.
+    """
+
+    eid: str
+    heading: str
+    content: str
+    verifies: list[str]
+    procedure: str | None
+    expected_outcome: str | None
+    evidence_refs: list[str]
+
+
+@dataclass
 class _RelatedWorkBlock:
     """One parsed ARA RWxx block from ``logic/related_work.md``."""
 
@@ -173,13 +212,94 @@ _REFUTES_LINE_RE = re.compile(r"^Refutes\s*[:\-]\s*\[([^\]]+)\]\s*$", re.IGNOREC
 # Match any "Key: value" line we recognise so we can strip them from
 # the body before treating what's left as narrative content.
 _STRUCTURED_LINE_RE = re.compile(
-    r"^(?:Status|Proof|Refutes|Reference|References|Tags?)\s*[:\-].*$",
+    r"^(?:Status|Proof|Refutes|Reference|References|Tags?|Verifies|Procedure|Expected\s+outcome|Evidence|Results|Falsification)\s*[:\-].*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+_EXPERIMENT_HEADING_RE = re.compile(
+    r"^#{1,6}\s+(E\d+)\s*[:.\-—]\s*(.+?)\s*$",
+    re.MULTILINE,
+)
+_VERIFIES_LINE_RE = re.compile(
+    r"^Verifies\s*[:\-]\s*\[([^\]]+)\]\s*$", re.IGNORECASE | re.MULTILINE
+)
+_PROCEDURE_LINE_RE = re.compile(r"^Procedure\s*[:\-]\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
+_EXPECTED_OUTCOME_LINE_RE = re.compile(
+    r"^Expected\s+outcome\s*[:\-]\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE
+)
+# Either `Evidence: [a.md, b.md]` (bracket list) or `Results: a.md` (single).
+_EVIDENCE_REF_LINE_RE = re.compile(
+    r"^(?:Evidence|Results)\s*[:\-]\s*(?:\[([^\]]+)\]|(\S.*?))\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
 
 def _parse_id_list(raw: str) -> list[str]:
     return [token.strip() for token in raw.split(",") if token.strip()]
+
+
+def _parse_experiments_md(text: str) -> list[_ExperimentBlock]:
+    """Parse ``logic/experiments.md`` into ordered ``Exx`` blocks.
+
+    Shape per Ara paper §2.2 + Appendix examples:
+
+    .. code-block:: markdown
+
+        ## E01: Verify that residual blocks help deep nets
+        Verifies: [C02]
+        Procedure: train plain-18 vs residual-18 on ImageNet for 90 epochs
+        Expected outcome: residual top-1 >= plain top-1 at every depth
+        Evidence: [evidence/tables/table2.md]
+
+        Optional narrative body explaining the experimental setup.
+
+    Each field is optional — ``Verifies:`` missing just means the
+    experiment is not yet linked to a claim and the resulting
+    ``_ExperimentBlock.verifies`` is empty.
+    """
+    blocks: list[_ExperimentBlock] = []
+    matches = list(_EXPERIMENT_HEADING_RE.finditer(text))
+    for i, match in enumerate(matches):
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        block_text = text[start:end].strip()
+
+        verifies_match = _VERIFIES_LINE_RE.search(block_text)
+        verifies = _parse_id_list(verifies_match.group(1)) if verifies_match else []
+
+        procedure_match = _PROCEDURE_LINE_RE.search(block_text)
+        procedure = procedure_match.group(1).strip() if procedure_match else None
+
+        expected_match = _EXPECTED_OUTCOME_LINE_RE.search(block_text)
+        expected_outcome = expected_match.group(1).strip() if expected_match else None
+
+        evidence_refs: list[str] = []
+        for ev_match in _EVIDENCE_REF_LINE_RE.finditer(block_text):
+            bracket_form = ev_match.group(1)
+            single_form = ev_match.group(2)
+            if bracket_form is not None:
+                evidence_refs.extend(_parse_id_list(bracket_form))
+            elif single_form is not None:
+                token = single_form.strip()
+                if token:
+                    evidence_refs.append(token)
+
+        cleaned = _STRUCTURED_LINE_RE.sub("", block_text).strip()
+        heading = match.group(2).strip()
+        content = cleaned if cleaned else heading
+
+        blocks.append(
+            _ExperimentBlock(
+                eid=match.group(1),
+                heading=heading,
+                content=content,
+                verifies=verifies,
+                procedure=procedure,
+                expected_outcome=expected_outcome,
+                evidence_refs=evidence_refs,
+            )
+        )
+    return blocks
 
 
 def _parse_claims_md(text: str) -> list[_ClaimBlock]:
@@ -259,6 +379,15 @@ def _ara_label(cid: str) -> str:
     return f"ara_{cid.lower()}"
 
 
+def _experiment_label(eid: str) -> str:
+    """Label convention for ``logic/experiments.md`` Exx blocks.
+
+    Distinct namespace from claims (``ara_cXX``) and evidence
+    (``ara_evidence_*``) so cross-module imports never collide.
+    """
+    return f"ara_experiment_{eid.lower()}"
+
+
 def _rw_label(rid: str) -> str:
     return f"ara_rw_{rid.lower()}"
 
@@ -278,6 +407,7 @@ up through `__all__` and stamps them as exported in IR.
 
 from .claims import *  # noqa: F401,F403
 from .evidence import *  # noqa: F401,F403
+from .experiments import *  # noqa: F401,F403
 from .narrative import *  # noqa: F401,F403
 from .paper import *  # noqa: F401,F403
 from .related_work import *  # noqa: F401,F403
@@ -285,6 +415,7 @@ from .trace import *  # noqa: F401,F403
 
 from .claims import __all__ as _claims_all
 from .evidence import __all__ as _evidence_all
+from .experiments import __all__ as _experiments_all
 from .narrative import __all__ as _narrative_all
 from .paper import __all__ as _paper_all
 from .related_work import __all__ as _rw_all
@@ -293,6 +424,7 @@ from .trace import __all__ as _trace_all
 __all__ = [
     *_paper_all,
     *_claims_all,
+    *_experiments_all,
     *_evidence_all,
     *_narrative_all,
     *_rw_all,
@@ -398,6 +530,134 @@ def _render_narrative_module(entries: list[tuple[str, str, str]]) -> str:
     )
 
 
+def _render_experiments_module(
+    experiments_path: Path,
+    blocks: list[_ExperimentBlock],
+    *,
+    resolvable_evidence_refs: set[str] | None = None,
+) -> str:
+    """Render ``gaia/from_ara/experiments.py`` as one note per Exx block.
+
+    Each experiment is a ``note(...)`` so it sits between the claim
+    (Cognitive Layer) and the evidence (Evidence Layer) — i.e. the
+    middle hop of the ``claims.md → experiments.md → /evidence/``
+    forensic binding chain the Ara paper §2.2 defines.
+
+    The ``Verifies:`` list and the optional ``Procedure:`` / ``Expected
+    outcome:`` / ``Evidence:`` fields are written into the note's
+    metadata so an agent or reviewer can iterate without re-parsing
+    the original markdown.
+
+    When ``resolvable_evidence_refs`` is supplied the renderer also
+    emits ``depends_on(experiment, given=[evidence_file])`` edges for
+    each ``Evidence:`` ref that resolves to a real file under
+    ``evidence/`` — this completes the experiment → evidence segment
+    of the forensic chain. Refs that do NOT resolve to a real file
+    are kept in ``metadata['ara_evidence_refs']`` only (no fabricated
+    edges into thin air).
+
+    Empty experiments.md (or absent file) still produces a valid
+    placeholder so the module is importable and the synthetic loader's
+    re-export chain stays connected.
+    """
+    resolvable_evidence_refs = resolvable_evidence_refs or set()
+    statements: list[str] = []
+    labels: list[str] = []
+    referenced_evidence_labels: list[str] = []
+    seen_evidence_labels: set[str] = set()
+    for block in blocks:
+        label = _experiment_label(block.eid)
+        labels.append(label)
+        metadata: dict[str, Any] = {
+            "ara_id": block.eid,
+            "ara_source": f"{experiments_path.as_posix()}#{block.eid}",
+            # Distinguish experiments from falsifiable scientific
+            # claims in the IR. We MUST use claim() here (not note())
+            # because depends_on / infer / derive all require Claim
+            # arguments — that is the only Gaia knowledge type that
+            # participates in dependency edges. A reviewer reading
+            # the IR uses this `ara_kind` flag to tell the two apart.
+            "ara_kind": "verification_plan",
+        }
+        if block.verifies:
+            metadata["ara_verifies"] = list(block.verifies)
+        if block.procedure is not None:
+            metadata["ara_procedure"] = block.procedure
+        if block.expected_outcome is not None:
+            metadata["ara_expected_outcome"] = block.expected_outcome
+        if block.evidence_refs:
+            metadata["ara_evidence_refs"] = list(block.evidence_refs)
+        keywords: dict[str, Any] = {"metadata": metadata}
+        if block.heading and block.heading != block.content:
+            keywords["title"] = block.heading
+        statements.append(
+            render_call_statement(
+                target_label=label,
+                func_name="claim",
+                positional=[block.content],
+                keywords=keywords,
+            )
+        )
+        # experiment -> evidence segment of the forensic chain.
+        for ref in block.evidence_refs:
+            if ref not in resolvable_evidence_refs:
+                continue
+            ev_label = _evidence_label(ref)
+            if ev_label not in seen_evidence_labels:
+                seen_evidence_labels.add(ev_label)
+                referenced_evidence_labels.append(ev_label)
+            link_label = f"{label}_depends_on_{ev_label[len('ara_evidence_') :]}"
+            labels.append(link_label)
+            statements.append(
+                render_call_statement(
+                    target_label=link_label,
+                    func_name="depends_on",
+                    positional=[Ref(label)],
+                    keywords={
+                        "given": [Ref(ev_label)],
+                        "rationale": (
+                            f"ARA experiment {block.eid} cites evidence file `{ref}`; "
+                            "the projector connects experiment -> evidence as the second "
+                            "hop of the forensic chain without classifying the warrant "
+                            "type."
+                        ),
+                        "metadata": {
+                            "projection_confidence": "programmatic",
+                            "ara_evidence_ref": ref,
+                        },
+                    },
+                )
+            )
+    if not blocks:
+        labels.append("_ara_experiments_placeholder")
+        statements.append(
+            render_call_statement(
+                target_label="_ara_experiments_placeholder",
+                func_name="note",
+                positional=["No Exx blocks parsed from logic/experiments.md."],
+            )
+        )
+    extra_imports: tuple[str, ...] = ()
+    if referenced_evidence_labels:
+        extra_imports = (f"from .evidence import {', '.join(sorted(referenced_evidence_labels))}",)
+    engine_imports = (
+        ("claim", "depends_on", "note") if referenced_evidence_labels else ("claim", "note")
+    )
+    return render_module(
+        docstring=(
+            "Deterministic projection of `logic/experiments.md` Exx blocks.\n\n"
+            "Each Exx becomes a `note(...)` carrying the Verifies / "
+            "Procedure / Expected outcome / Evidence fields as metadata. "
+            "This module is the middle hop of the Ara forensic binding "
+            "chain claims.md -> experiments.md -> /evidence/."
+        ),
+        engine_imports=engine_imports,
+        extra_imports=extra_imports,
+        statements=statements,
+        all_labels=labels,
+    )
+
+
 def _render_trace_module(entries: list[dict[str, Any]]) -> str:
     """Render ``gaia/from_ara/trace.py`` from ``trace/exploration_tree.yaml`` dead_ends."""
     statements: list[str] = []
@@ -481,23 +741,51 @@ def _parse_dead_ends(text: str) -> list[dict[str, str]]:
     return nodes
 
 
-def _render_claim_module(claims_path: Path, blocks: list[_ClaimBlock]) -> str:
+def _render_claim_module(  # noqa: C901 — branchy due to three-segment vs two-segment fallback
+    claims_path: Path,
+    blocks: list[_ClaimBlock],
+    *,
+    experiment_eids: set[str] | None = None,
+) -> str:
     """Render the ``gaia/from_ara/claims.py`` module body.
 
-    Cross-module imports: when a claim's ``Proof: [Exx]`` line links
-    to an evidence id, the generated ``depends_on(...)`` call needs
-    the matching ``ara_evidence_<eid>`` label in scope. We collect
-    every referenced evidence label up front and emit an explicit
-    ``from .evidence import ...`` so the module is self-contained.
+    Cross-module wiring is driven by whether the host has an
+    ``experiments.md`` block for the referenced Exx:
+
+    - **Three-segment chain** (``claims.md → experiments.md →
+      evidence/`` per Ara paper §2.2): when the referenced Exx IS
+      defined in experiments.md, this module imports the experiment
+      label from ``.experiments`` and emits
+      ``depends_on(claim, given=[experiment])``. The
+      experiment → evidence segment is emitted by
+      :func:`_render_experiments_module` so the whole chain stays
+      connected.
+
+    - **Two-segment fallback** (``claims.md → evidence/`` direct):
+      when the referenced Exx is NOT defined in experiments.md (or
+      the file is absent), this module imports the placeholder
+      evidence label from ``.evidence`` and emits
+      ``depends_on(claim, given=[evidence_placeholder])`` like the
+      pre-experiments-aware version. This keeps minimal-ARA hosts
+      (no experiments.md) working unchanged.
     """
+    experiment_eids = experiment_eids or set()
     evidence_labels: list[str] = []
+    experiment_labels: list[str] = []
     seen_evidence: set[str] = set()
+    seen_experiments: set[str] = set()
     for block in blocks:
         for eid in block.proof_refs:
-            label = _evidence_label(eid)
-            if label not in seen_evidence:
-                seen_evidence.add(label)
-                evidence_labels.append(label)
+            if eid in experiment_eids:
+                label = _experiment_label(eid)
+                if label not in seen_experiments:
+                    seen_experiments.add(label)
+                    experiment_labels.append(label)
+            else:
+                label = _evidence_label(eid)
+                if label not in seen_evidence:
+                    seen_evidence.add(label)
+                    evidence_labels.append(label)
 
     statements: list[str] = []
     labels: list[str] = []
@@ -529,17 +817,32 @@ def _render_claim_module(claims_path: Path, blocks: list[_ClaimBlock]) -> str:
         for eid in block.proof_refs:
             link_label = f"{label}_depends_on_{eid.lower()}"
             labels.append(link_label)
+            # Pick the target by whether the host has an Exx block for
+            # this id. With experiments.md: three-segment chain via
+            # the experiment label; without: two-segment direct to the
+            # evidence placeholder.
+            if eid in experiment_eids:
+                target_ref = Ref(_experiment_label(eid))
+                rationale = (
+                    f"ARA {block.cid} cites {eid} (defined in logic/experiments.md); "
+                    "the projector connects claim -> experiment as the first hop of "
+                    "the claims.md -> experiments.md -> /evidence/ forensic chain "
+                    "without classifying the warrant type."
+                )
+            else:
+                target_ref = Ref(_evidence_label(eid))
+                rationale = (
+                    f"ARA {block.cid} cites {eid}, but the projector does not "
+                    "classify the warrant type."
+                )
             statements.append(
                 render_call_statement(
                     target_label=link_label,
                     func_name="depends_on",
                     positional=[Ref(label)],
                     keywords={
-                        "given": [Ref(_evidence_label(eid))],
-                        "rationale": (
-                            f"ARA {block.cid} cites {eid}, but the projector does not "
-                            "classify the warrant type."
-                        ),
+                        "given": [target_ref],
+                        "rationale": rationale,
                         "metadata": {"projection_confidence": "programmatic"},
                     },
                 )
@@ -554,13 +857,15 @@ def _render_claim_module(claims_path: Path, blocks: list[_ClaimBlock]) -> str:
         )
         labels.append("_ara_claims_placeholder")
 
-    extra_imports: tuple[str, ...] = ()
+    extra_imports_list: list[str] = []
     if evidence_labels:
-        extra_imports = (f"from .evidence import {', '.join(evidence_labels)}",)
+        extra_imports_list.append(f"from .evidence import {', '.join(evidence_labels)}")
+    if experiment_labels:
+        extra_imports_list.append(f"from .experiments import {', '.join(experiment_labels)}")
     return render_module(
         docstring="Deterministic projection of `logic/claims.md` Cxx blocks.",
         engine_imports=("claim", "depends_on", "note"),
-        extra_imports=extra_imports,
+        extra_imports=tuple(extra_imports_list),
         statements=statements,
         all_labels=labels,
     )
@@ -673,13 +978,38 @@ def _render_evidence_module(
     )
 
 
+# Mapping from related_work `Type:` to richer projection metadata. Per
+# Ara paper §2.2: "imports inject prior definitions, bounds propagate
+# constraints to hyperparameter search, and baseline entries enable
+# automatic regression detection". `extends` is paper-style "builds on";
+# `refutes` is the contradict candidate. Unknown types fall back to the
+# generic source_only scholarly reference.
+_RELATED_WORK_TYPE_KIND: dict[str, str] = {
+    "imports": "dependency",
+    "extends": "dependency",
+    "bounds": "dependency_with_constraints",
+    "baseline": "baseline",
+    "refutes": "candidate_contradict",
+}
+
+
+def _related_work_kind(type_: str | None) -> str:
+    if not isinstance(type_, str):
+        return "source_only"
+    return _RELATED_WORK_TYPE_KIND.get(type_.lower(), "source_only")
+
+
 def _render_related_work_module(rw_path: Path | None, blocks: list[_RelatedWorkBlock]) -> str:
     """Render ``gaia/from_ara/related_work.py``.
 
     Per spec §14.1, ARA related-work entries are **not** automatically
     Gaia package references. We project them as ``note(...)`` records
-    that carry the ``Type``/``IDs`` metadata; an explicit
-    ``gaia pkg add`` is the only path to a real registry binding.
+    carrying the ``Type``/``IDs`` metadata plus a derived
+    ``related_work_kind`` field (see :data:`_RELATED_WORK_TYPE_KIND`)
+    so an agent or reviewer can branch on the typed-edge semantics
+    Ara §2.2 describes without re-parsing the ``Type:`` string. An
+    explicit ``gaia pkg add`` is still the only path to a real
+    registry binding.
     """
     del rw_path  # path only enters as a comment; nothing structural to do
     statements: list[str] = []
@@ -687,9 +1017,11 @@ def _render_related_work_module(rw_path: Path | None, blocks: list[_RelatedWorkB
     for block in blocks:
         label = _rw_label(block.rid)
         labels.append(label)
+        kind = _related_work_kind(block.type_)
         metadata: dict[str, Any] = {
             "ara_rw_id": block.rid,
             "registry_binding_state": "source_only",
+            "related_work_kind": kind,
         }
         if block.type_:
             metadata["related_work_type"] = block.type_
@@ -771,6 +1103,41 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
             )
         )
 
+    # ---- logic/experiments.md (Exx blocks) -------------------------- #
+    # Parsed FIRST so the claim renderer knows which Proof: ids
+    # have an experiment block — when they do, the claim links to
+    # the experiment (three-segment chain); when they don't, it
+    # falls back to linking directly to an evidence placeholder.
+    experiments_path_rel = "logic/experiments.md"
+    experiments_path = host / experiments_path_rel
+    experiment_blocks: list[_ExperimentBlock] = []
+    if experiments_path.is_file():
+        experiment_blocks = _parse_experiments_md(experiments_path.read_text(encoding="utf-8"))
+    experiment_eids = {b.eid for b in experiment_blocks}
+    # Discover which Evidence: refs from experiments actually exist
+    # on disk under evidence/ so we only emit experiment->evidence
+    # depends_on edges for resolvable targets (no fabricated edges).
+    resolvable_evidence_refs: set[str] = set()
+    evidence_dir_for_exp = host / "evidence"
+    if evidence_dir_for_exp.is_dir() and experiment_blocks:
+        on_disk = {
+            p.relative_to(host).as_posix() for p in evidence_dir_for_exp.rglob("*") if p.is_file()
+        }
+        for exp in experiment_blocks:
+            for ref in exp.evidence_refs:
+                if ref in on_disk:
+                    resolvable_evidence_refs.add(ref)
+    files.append(
+        GeneratedFile(
+            path="gaia/from_ara/experiments.py",
+            body=_render_experiments_module(
+                Path(experiments_path_rel),
+                experiment_blocks,
+                resolvable_evidence_refs=resolvable_evidence_refs,
+            ),
+        )
+    )
+
     claims_path_rel = "logic/claims.md"
     claims_path = host / claims_path_rel
     claim_blocks: list[_ClaimBlock] = []
@@ -779,7 +1146,11 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
     files.append(
         GeneratedFile(
             path="gaia/from_ara/claims.py",
-            body=_render_claim_module(Path(claims_path_rel), claim_blocks),
+            body=_render_claim_module(
+                Path(claims_path_rel),
+                claim_blocks,
+                experiment_eids=experiment_eids,
+            ),
         )
     )
     for index, block in enumerate(claim_blocks, start=1):
@@ -832,6 +1203,24 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
         for j, eid in enumerate(block.proof_refs, start=1):
             link_label = f"{label}_depends_on_{eid.lower()}"
             qid = f"FQP{index:03d}{j}"
+            target_is_experiment = eid in experiment_eids
+            if target_is_experiment:
+                projection_rule = "ara.claim_proof_experiment_chain.v1"
+                source_refs = [
+                    f"{claims_path_rel}#{block.cid}",
+                    f"{experiments_path_rel}#{eid}",
+                ]
+                reason = (
+                    "ARA Proof links claim to its verification experiment; reviewer "
+                    "must classify the claim<-experiment warrant type."
+                )
+            else:
+                projection_rule = "ara.claim_proof_scaffold.v1"
+                source_refs = [
+                    f"{claims_path_rel}#{block.cid}",
+                    f"evidence/{eid}",
+                ]
+                reason = "ARA Proof links evidence to claim but does not classify warrant type."
             source_map.append(
                 SourceMapRecord(
                     source_id=f"ARA:{block.cid}->{eid}",
@@ -840,7 +1229,7 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
                     gaia_label=link_label,
                     gaia_record_kind="depends_on",
                     generated_file="gaia/from_ara/claims.py",
-                    projection_rule="ara.claim_proof_scaffold.v1",
+                    projection_rule=projection_rule,
                     requires_review=True,
                     queue_id=qid,
                 )
@@ -849,18 +1238,43 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
                 QueueItem(
                     queue_id=qid,
                     source_id=f"ARA:{block.cid}->{eid}",
-                    source_refs=[
-                        f"{claims_path_rel}#{block.cid}",
-                        f"evidence/{eid}",
-                    ],
+                    source_refs=source_refs,
                     current_gaia_record=link_label,
                     current_action="depends_on",
                     candidate_actions=["infer", "derive"],
-                    reason_review_needed=(
-                        "ARA Proof links evidence to claim but does not classify warrant type."
-                    ),
+                    reason_review_needed=reason,
                 )
             )
+
+    # ---- experiments.md source_map records ------------------------- #
+    # One source_map record per Exx; the experiment->evidence
+    # depends_on edges themselves are emitted by
+    # _render_experiments_module (above). Together they close the
+    # claim -> experiment -> evidence forensic chain in the IR
+    # without committing any warrant type.
+    for exp in experiment_blocks:
+        exp_label = _experiment_label(exp.eid)
+        # gaia_record_kind = "claim" because experiments are projected
+        # as claim() with metadata.ara_kind = "verification_plan" so
+        # they can participate in depends_on / infer / derive edges.
+        # See _render_experiments_module for the rationale.
+        source_map.append(
+            SourceMapRecord(
+                source_id=f"ARA:EXPERIMENT:{exp.eid}",
+                source_path=experiments_path_rel,
+                source_anchor=exp.eid,
+                gaia_label=exp_label,
+                gaia_record_kind="claim",
+                generated_file="gaia/from_ara/experiments.py",
+                projection_rule="ara.experiment_block.v1",
+                requires_review=False,
+                extras={
+                    "ara_kind": "verification_plan",
+                    "ara_verifies": list(exp.verifies),
+                    "ara_evidence_refs": list(exp.evidence_refs),
+                },
+            )
+        )
 
     evidence_dir = host / "evidence"
     evidence_files: list[Path] = []
@@ -870,10 +1284,17 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
             for p in evidence_dir.rglob("*")
             if p.is_file() and p.suffix.lower() in {".md", ".csv", ".tsv", ".json", ".txt"}
         )
+    # Only emit a placeholder evidence stub for Exx that DON'T have
+    # an experiment block — those that do are already wired through
+    # the three-segment chain (claim -> experiment[-> evidence]).
+    # Exx without an experiment block keep the two-segment fallback
+    # (claim -> evidence placeholder).
     referenced_eids: list[str] = []
     seen_eids: set[str] = set()
     for block in claim_blocks:
         for eid in block.proof_refs:
+            if eid in experiment_eids:
+                continue
             if eid not in seen_eids:
                 seen_eids.add(eid)
                 referenced_eids.append(eid)
@@ -927,9 +1348,50 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
             body=_render_related_work_module(Path(rw_path_rel), rw_blocks),
         )
     )
+    # Per Ara paper §2.2 the `Type:` field carries machine-actionable
+    # semantics: `imports`/`extends` inject prior definitions,
+    # `bounds` propagates constraints, `baseline` enables automatic
+    # regression detection, `refutes` proposes a contradict. We map
+    # each kind to a tailored queue item with distinct
+    # ``candidate_actions`` so the formalize step can pick the right
+    # upgrade path. Spec §14.1 still forbids auto-conversion to
+    # `gaia pkg add` without a registry resolver, so all queue items
+    # stay open until a reviewer / agent acts.
+    rw_queue_candidates_by_kind: dict[str, list[str]] = {
+        "dependency": ["gaia_pkg_add", "candidate_relation"],
+        "dependency_with_constraints": ["gaia_pkg_add", "candidate_relation"],
+        "baseline": ["baseline_regression_check", "gaia_pkg_add"],
+        "candidate_contradict": ["contradict", "candidate_relation"],
+        "source_only": ["gaia_pkg_add", "candidate_relation"],
+    }
+    rw_queue_reason_by_kind: dict[str, str] = {
+        "dependency": (
+            "ARA related-work entry typed `imports`/`extends` — proposes a "
+            "registry dependency once an exact Gaia registry match exists "
+            "(spec §14.1)."
+        ),
+        "dependency_with_constraints": (
+            "ARA related-work entry typed `bounds` — proposes a registry "
+            "dependency that should propagate constraints to hyperparameter "
+            "search (Ara paper §2.2; spec §14.1)."
+        ),
+        "baseline": (
+            "ARA related-work entry typed `baseline` — schedule automatic "
+            "regression detection against the cited work (Ara paper §2.2)."
+        ),
+        "candidate_contradict": (
+            "ARA related-work entry typed `refutes` — propose `contradict()` "
+            "between the local conclusion and the cited work once a target "
+            "claim is identified (spec §14.1)."
+        ),
+        "source_only": (
+            "ARA related-work entry — registry binding requires reviewer confirmation (spec §14.1)."
+        ),
+    }
     for index, rw_block in enumerate(rw_blocks, start=1):
         label = _rw_label(rw_block.rid)
         qid = f"FQRW{index:03d}"
+        kind = _related_work_kind(rw_block.type_)
         source_map.append(
             SourceMapRecord(
                 source_id=f"ARA:{rw_block.rid}",
@@ -943,6 +1405,7 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
                 queue_id=qid,
                 extras={
                     "related_work_type": rw_block.type_,
+                    "related_work_kind": kind,
                     "external_ids": rw_block.external_ids,
                     "registry_binding": {"state": "source_only"},
                 },
@@ -955,11 +1418,8 @@ def project_ara(host: Path, *, seeds: list[Path]) -> ProjectionResult:  # noqa: 
                 source_refs=[f"{rw_path_rel}#{rw_block.rid}"],
                 current_gaia_record=label,
                 current_action="note",
-                candidate_actions=["gaia_pkg_add", "candidate_relation"],
-                reason_review_needed=(
-                    "ARA related-work entry — registry binding requires reviewer "
-                    "confirmation (spec §14.1)."
-                ),
+                candidate_actions=rw_queue_candidates_by_kind[kind],
+                reason_review_needed=rw_queue_reason_by_kind[kind],
             )
         )
 
