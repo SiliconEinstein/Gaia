@@ -52,7 +52,7 @@ def build_context_packet(
     order: RenderOrder,
 ) -> ContextPacket:
     pkg_path = Path(path).resolve()
-    state = load_state(pkg_path)
+    state = _load_state_read_only(pkg_path)
     focus_raw = focus_override if focus_override is not None else state.focus
     if focus_raw is None:
         raise ValueError("No inquiry focus set; pass --focus or run gaia inquiry focus <claim>.")
@@ -90,6 +90,13 @@ def build_context_packet(
         source_ir=source_ir,
         state=state,
     )
+
+
+def _load_state_read_only(pkg_path: Path) -> InquiryState:
+    state_path = pkg_path / ".gaia" / "inquiry" / "state.json"
+    if not state_path.exists():
+        return InquiryState()
+    return load_state(pkg_path)
 
 
 def _route_step(edge: InquiryEdge, conclusion_id: str) -> ContextRouteStep:
@@ -154,9 +161,10 @@ def _uncertainty_score(
     rejected_targets = {item.target_strategy for item in state.synthetic_rejections}
     score = 0
     for step in route:
-        if step.target_id in rejected_targets:
+        step_targets = {target for target in (step.target_id, step.label) if target}
+        if step_targets & rejected_targets:
             score += 6
-        if step.target_id in obligation_targets or step.conclusion_id in obligation_targets:
+        if step_targets & obligation_targets or step.conclusion_id in obligation_targets:
             score += 4
         if step.status == "rejected":
             score += 6
@@ -183,17 +191,27 @@ def _build_ir_slice(
 ) -> dict[str, Any]:
     knowledge_ids = {focus_id}
     strategy_ids: set[str] = set()
+    operator_ids: set[str] = set()
+    compose_ids: set[str] = set()
     for step in route:
         knowledge_ids.add(step.conclusion_id)
         knowledge_ids.update(step.premise_ids)
         knowledge_ids.update(step.background_ids)
         if step.edge_kind == "strategy" and step.target_id:
             strategy_ids.add(step.target_id)
+        elif step.edge_kind == "operator" and step.target_id:
+            operator_ids.add(step.target_id)
+        elif step.edge_kind == "compose" and step.target_id:
+            compose_ids.add(step.target_id)
 
     knowledges = [item for item in ir.get("knowledges", []) if item.get("id") in knowledge_ids]
     strategies = [
         item for item in ir.get("strategies", []) if item.get("strategy_id") in strategy_ids
     ]
+    operators = [
+        item for item in ir.get("operators", []) if item.get("operator_id") in operator_ids
+    ]
+    composes = [item for item in ir.get("composes", []) if item.get("compose_id") in compose_ids]
 
     return {
         "namespace": ir.get("namespace"),
@@ -201,8 +219,8 @@ def _build_ir_slice(
         "scope": ir.get("scope", "local"),
         "knowledges": knowledges,
         "strategies": strategies,
-        "operators": [],
-        "composes": [],
+        "operators": operators,
+        "composes": composes,
         "formula_graphs": [],
     }
 

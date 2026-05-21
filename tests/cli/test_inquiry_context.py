@@ -67,6 +67,28 @@ def _write_context_package(pkg_dir) -> None:
     )
 
 
+def _write_operator_context_package(pkg_dir) -> None:
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "operator-context-demo-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "operator_context_demo"\ntype = "knowledge-package"\n',
+        encoding="utf-8",
+    )
+    src = pkg_dir / "operator_context_demo"
+    src.mkdir()
+    (src / "__init__.py").write_text(
+        "from gaia.engine.lang import claim, equal\n\n"
+        'a = claim("Hypothesis A.")\n'
+        'a.label = "a"\n\n'
+        'b = claim("Observation B.")\n'
+        'b.label = "b"\n\n'
+        'same_ab = equal(a, b, rationale="A and B should track the same truth value.", '
+        'label="same_ab")\n\n'
+        '__all__ = ["same_ab"]\n',
+        encoding="utf-8",
+    )
+
+
 def test_context_markdown_uses_focus_why_and_references(tmp_path):
     pkg = tmp_path / "context_demo"
     _write_context_package(pkg)
@@ -143,6 +165,27 @@ def test_context_json_is_envelope_with_ir_slice(tmp_path):
     assert "beliefs" not in json.dumps(data)
 
 
+def test_context_json_ir_slice_includes_operator_route_records(tmp_path):
+    pkg = tmp_path / "operator_context_demo"
+    _write_operator_context_package(pkg)
+
+    result = runner.invoke(
+        app,
+        ["inquiry", "context", str(pkg), "--focus", "same_ab", "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["why_route"][0]["edge_kind"] == "operator"
+    assert data["why_route"][0]["label"] == "same_ab"
+    assert data["ir"]["operators"]
+    operator_labels = {
+        (item.get("metadata") or {}).get("action_label", "").rsplit("::action::", 1)[-1]
+        for item in data["ir"]["operators"]
+    }
+    assert "same_ab" in operator_labels
+
+
 def test_context_uses_current_focus_without_mutating_state(tmp_path):
     pkg = tmp_path / "context_demo"
     _write_context_package(pkg)
@@ -158,6 +201,22 @@ def test_context_uses_current_focus_without_mutating_state(tmp_path):
     assert "### `acceleration_inquiry`" in result.output
     after = state_path.read_text(encoding="utf-8")
     assert after == before
+
+
+def test_context_with_focus_does_not_create_inquiry_state_dir(tmp_path):
+    pkg = tmp_path / "context_demo"
+    _write_context_package(pkg)
+    inquiry_dir = pkg / ".gaia" / "inquiry"
+    assert not inquiry_dir.exists()
+
+    result = runner.invoke(
+        app,
+        ["inquiry", "context", str(pkg), "--focus", "acceleration_inquiry"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "### `acceleration_inquiry`" in result.output
+    assert not inquiry_dir.exists()
 
 
 def test_context_shortest_and_most_uncertain_can_choose_different_routes(tmp_path):
@@ -197,6 +256,42 @@ def test_context_shortest_and_most_uncertain_can_choose_different_routes(tmp_pat
     uncertain_labels = [step["label"] for step in json.loads(uncertain.output)["why_route"]]
     assert shortest_labels == ["acceleration_route"]
     assert uncertain_labels == ["acceleration_route", "observation_route"]
+
+
+def test_context_most_uncertain_honors_label_based_rejections(tmp_path):
+    pkg = tmp_path / "context_demo"
+    _write_context_package(pkg)
+    rejected = runner.invoke(
+        app,
+        [
+            "inquiry",
+            "reject",
+            "reject_prop_speed_route",
+            "--content",
+            "This route needs follow-up.",
+            "--path",
+            str(pkg),
+        ],
+    )
+    assert rejected.exit_code == 0, rejected.output
+
+    result = runner.invoke(
+        app,
+        [
+            "inquiry",
+            "context",
+            str(pkg),
+            "--focus",
+            "acceleration_inquiry",
+            "--trajectory",
+            "most_uncertain",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    labels = [step["label"] for step in json.loads(result.output)["why_route"]]
+    assert labels == ["acceleration_route", "reject_prop_speed_route"]
 
 
 def test_context_missing_focus_exits_2(tmp_path):
