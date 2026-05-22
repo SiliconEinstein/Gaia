@@ -203,6 +203,22 @@ paragraph. Do not invent contributions to fill the gap.
 - [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md)
   — composing Phase 1–3 working notes into Gaia DSL package files.
 
+### Shared formalization methodology (`../_shared/`)
+
+Extraction, atomicity, reasoning-chain, and independence methodology shared
+with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
+
+- [`../_shared/formalize-extract-conclusions.md`](../_shared/formalize-extract-conclusions.md)
+  — what counts as a conclusion, fidelity, self-contained bodies, figures as
+  prose, `refs` whitelist, citation form.
+- [`../_shared/formalize-atomicity.md`](../_shared/formalize-atomicity.md)
+  — one-question-per-claim, under-splitting traps, the two tests.
+- [`../_shared/formalize-reasoning-chains.md`](../_shared/formalize-reasoning-chains.md)
+  — logic graph, topological order, reasoning-trace reconstruction, step
+  rules.
+- [`../_shared/formalize-independence.md`](../_shared/formalize-independence.md)
+  — the no-double-counting check on each conclusion's premise set.
+
 ### Gaia knowledge-package contract (this repo's docs)
 
 - `docs/for-users/quick-start.md` — end-to-end Gaia knowledge-package
