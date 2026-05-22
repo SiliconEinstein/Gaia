@@ -35,9 +35,11 @@ from gaia.engine.exploration.state import (
     doctrine_policy,
     exploration_dir,
     load_map,
+    load_round_beliefs,
     mint_contact_id,
     read_rounds,
     save_map,
+    save_round_beliefs,
 )
 
 __all__ = [
@@ -58,9 +60,11 @@ __all__ = [
     "exploration_dir",
     "extract_frontier",
     "load_map",
+    "load_round_beliefs",
     "mint_contact_id",
     "read_rounds",
     "reconcile_frontier",
     "save_map",
+    "save_round_beliefs",
     "score_frontier",
 ]

@@ -481,3 +481,35 @@ def read_rounds(pkg_path: str | Path) -> list[dict[str, Any]]:
             continue
         out.append(json.loads(line))
     return out
+
+
+def _beliefs_snapshot_path(pkg_path: str | Path, round_index: int) -> Path:
+    return exploration_dir(pkg_path) / f"beliefs-round-{round_index}.json"
+
+
+def save_round_beliefs(
+    pkg_path: str | Path,
+    round_index: int,
+    beliefs: dict[str, float],
+) -> None:
+    """Snapshot the flattened beliefs a round saw (the prev-round diff baseline).
+
+    Written as a compact ``.gaia/exploration/beliefs-round-<n>.json`` sidecar
+    (SCHEMA.md §7c's "compact beliefs snapshot" option, chosen over a
+    ``prev_beliefs`` block in the round record so ``rounds.jsonl`` keeps its §5
+    shape). The next round loads round ``n``'s snapshot as its diff baseline.
+    """
+    p = _beliefs_snapshot_path(pkg_path, round_index)
+    p.write_text(
+        json.dumps({str(k): float(v) for k, v in beliefs.items()}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def load_round_beliefs(pkg_path: str | Path, round_index: int) -> dict[str, float]:
+    """Load a round's beliefs snapshot (the diff baseline), or ``{}`` if absent."""
+    p = _beliefs_snapshot_path(pkg_path, round_index)
+    if not p.exists():
+        return {}
+    raw = json.loads(p.read_text(encoding="utf-8"))
+    return {str(k): float(v) for k, v in raw.items()}
