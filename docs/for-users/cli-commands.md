@@ -342,6 +342,7 @@ the package's `.gaia` state files; these commands do not edit Python source,
 compiled IR, priors, or beliefs.
 
 ```bash
+gaia inquiry context [path] [--focus CLAIM] [--trajectory most_uncertain|shortest] [--order backward|forward] [--json]
 gaia inquiry review [path]
 gaia inquiry review [path] --mode publish --markdown --strict
 gaia inquiry review [path] --focus github:pkg::claim --depth 1
@@ -363,6 +364,12 @@ gaia inquiry tactics log --path .
 `gaia inquiry focus` flags `--clear`, `--push`, `--pop`, and `--stack` are
 mutually exclusive. `--push` and a positional `<target>` together push the
 current frame and set a new focus; `--pop` restores the most recent frame.
+
+`gaia inquiry context` renders a read-only context packet for the current focus
+claim. The default Markdown output prints `## Focus`, `## Why This Claim`, and
+`## References`; `--json` emits a thin envelope whose `ir` field is a Gaia
+IR-shaped slice. The default trajectory is `most_uncertain`; use
+`--trajectory shortest` for the shortest support route.
 
 `gaia inquiry review` options:
 

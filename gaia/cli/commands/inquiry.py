@@ -11,9 +11,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import typer
 
+from gaia.cli.commands._context import (
+    RenderOrder,
+    TrajectorySelector,
+    build_context_packet,
+    context_to_json_dict,
+    render_context_markdown,
+)
 from gaia.engine.inquiry.focus import resolve_focus_target
 from gaia.engine.inquiry.review import (
     publish_blockers,
@@ -477,6 +485,50 @@ def tactics_log(
         ev = rec.get("event", "")
         payload = rec.get("payload", {})
         typer.echo(f"{ts}  {ev}  {json.dumps(payload, ensure_ascii=False)}")
+
+
+# ---------------------------------------------------------------------------
+# context
+# ---------------------------------------------------------------------------
+
+
+@inquiry_app.command("context")
+def context_command(
+    path: str = typer.Argument(".", help="Package path."),
+    focus_: str | None = typer.Option(None, "--focus"),
+    trajectory: str = typer.Option("most_uncertain", "--trajectory"),
+    order: str = typer.Option("backward", "--order"),
+    json_out: bool = typer.Option(False, "--json"),
+) -> None:
+    """Render a focus-centered context packet for the current inquiry claim."""
+    if trajectory not in {"most_uncertain", "shortest"}:
+        typer.echo(
+            "Error: --trajectory must be one of: most_uncertain, shortest.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    if order not in {"backward", "forward"}:
+        typer.echo("Error: --order must be one of: backward, forward.", err=True)
+        raise typer.Exit(2)
+
+    try:
+        packet = build_context_packet(
+            path,
+            focus_override=focus_,
+            trajectory=cast(TrajectorySelector, trajectory),
+            order=cast(RenderOrder, order),
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(context_to_json_dict(packet), ensure_ascii=False, indent=2))
+    else:
+        typer.echo(render_context_markdown(packet), nl=False)
 
 
 # ---------------------------------------------------------------------------
