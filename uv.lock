@@ -441,6 +441,7 @@ dependencies = [
     { name = "scipy" },
     { name = "sympy" },
     { name = "tomli-w" },
+    { name = "tomlkit" },
     { name = "typer" },
 ]
 
@@ -496,6 +497,7 @@ requires-dist = [
     { name = "sympy", specifier = ">=1.13,<2" },
     { name = "syrupy", marker = "extra == 'dev'", specifier = ">=5.1" },
     { name = "tomli-w", specifier = ">=1.2.0" },
+    { name = "tomlkit", specifier = ">=0.13" },
     { name = "typer", extras = ["all"], specifier = ">=0.12" },
 ]
 provides-extras = ["stats", "dev", "docs"]

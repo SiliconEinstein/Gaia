@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import importlib.util
 import json
 import subprocess
 import sys
@@ -36,6 +37,14 @@ from gaia.engine.lang.runtime.package import (
     get_inferred_package,
     pyproject_for_module,
     reset_inferred_package,
+)
+from gaia.engine.layout import (
+    EMBEDDED_GAIA_DIR,
+    EMBEDDED_GAIA_MANIFEST,
+    GaiaLayoutError,
+    LayoutInfo,
+    LayoutKind,
+    detect_layout,
 )
 
 if TYPE_CHECKING:
@@ -72,8 +81,30 @@ _MANIFEST_SCHEMA_VERSION = 1
 class LoadedGaiaPackage:
     """In-memory result of ``load_gaia_package``.
 
-    Bundles pyproject metadata, the imported user module, and the
-    collected runtime DSL objects (Knowledge / Strategy / Operator).
+    Bundles manifest metadata, the imported user module, the collected
+    runtime DSL objects (Knowledge / Strategy / Operator), and the
+    resolved on-disk layout.
+
+    The ``layout`` field is the canonical source of truth for path
+    resolution (manifest location, source root, ``.gaia/`` output dir).
+    The legacy fields (``pkg_path``, ``config``, ``project_config``,
+    ``gaia_config``, ``project_name``, ``import_name``, ``source_root``)
+    are kept verbatim for backward compatibility: a long tail of CLI
+    commands, manifest builders, and tests read them directly.
+
+    For the new ``embedded`` layout:
+
+    - ``pkg_path`` is the host directory (the dir the user passed to
+      ``gaia build compile``), not the inner ``gaia/`` source folder.
+      All ``.gaia/`` artifacts land under ``pkg_path/.gaia/``, matching
+      the legacy layout.
+    - ``import_name`` is the **synthetic** module name actually used to
+      load the user code (``_gaia_pkg_<slug>_<sha>``), not the
+      user-facing package name. Use ``package.name`` (= the
+      user-visible name, e.g. ``galileo``) when emitting QIDs, manifest
+      content, or registry coordinates.
+    - ``project_name`` is the **user-facing** package name without the
+      synthetic prefix — what the user wrote in ``gaia.toml``.
     """
 
     pkg_path: Path
@@ -85,6 +116,7 @@ class LoadedGaiaPackage:
     source_root: Path
     module: ModuleType
     package: CollectedPackage
+    layout: LayoutInfo
 
 
 @dataclass
@@ -113,10 +145,24 @@ def _import_fresh(import_name: str) -> ModuleType:
         sys.dont_write_bytecode = previous
 
 
-def _source_module_for_loaded_module(module_name: str, pkg: CollectedPackage) -> str | None:
-    if module_name == pkg.name or module_name.endswith(".__init__"):
+def _source_module_for_loaded_module(module_name: str) -> str | None:
+    """Return the package-relative module path for a loaded submodule.
+
+    Works uniformly for both layouts because we strip the **runtime**
+    top-level prefix (``module_name.split(".", 1)[0]``) rather than
+    ``pkg.name``. In legacy mode the two are equal, so behaviour is
+    preserved. In embedded mode ``pkg.name`` is the user-facing name
+    (e.g. ``galileo``) while the runtime prefix is the synthetic
+    module (``_gaia_pkg_galileo_abc12345``); stripping the runtime
+    prefix gives the right relative path (``main`` rather than the
+    full synthetic-qualified name).
+    """
+    if module_name.endswith(".__init__"):
         return None
-    return module_name.removeprefix(f"{pkg.name}.")
+    runtime_prefix = module_name.split(".", 1)[0]
+    if module_name == runtime_prefix:
+        return None
+    return module_name.removeprefix(f"{runtime_prefix}.")
 
 
 def _is_assignable_name(name: str) -> bool:
@@ -155,7 +201,7 @@ def _assign_labels_for_loaded_modules() -> None:
         pkg = get_inferred_package(pyproject)
         if pkg is None:
             continue
-        source_module = _source_module_for_loaded_module(module_name, pkg)
+        source_module = _source_module_for_loaded_module(module_name)
         _assign_labels(module, pkg, source_module)
 
 
@@ -198,54 +244,22 @@ def _import_package_source_modules(import_name: str, package_dir: Path) -> None:
         sys.dont_write_bytecode = previous
 
 
-def _load_pyproject_config(pkg_path: Path) -> dict[str, Any]:
-    """Load pyproject.toml for a Gaia package path."""
-    pyproject = pkg_path / "pyproject.toml"
-    if not pyproject.exists():
-        raise GaiaPackagingError("Error: no pyproject.toml found.")
-    with open(pyproject, "rb") as f:
-        return tomllib.load(f)
-
-
-def _package_identity(config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], str, str]:
-    """Validate and return project config, Gaia config, project name, and version."""
-    project_config = config.get("project", {})
-    gaia_config = config.get("tool", {}).get("gaia", {})
-    if gaia_config.get("type") != "knowledge-package":
-        raise GaiaPackagingError(
-            "Error: not a Gaia knowledge package ([tool.gaia].type != 'knowledge-package')."
-        )
-
-    project_name = project_config.get("name")
-    version = project_config.get("version")
-    if not isinstance(project_name, str) or not project_name:
-        raise GaiaPackagingError("Error: [project].name is required.")
-    if not isinstance(version, str) or not version:
-        raise GaiaPackagingError("Error: [project].version is required.")
-    return project_config, gaia_config, project_name, version
-
-
-def _source_root_for_package(pkg_path: Path, import_name: str, project_name: str) -> Path:
-    """Return the source root containing the package import module."""
-    package_roots = [pkg_path, pkg_path / "src"]
-    source_root = next((root for root in package_roots if (root / import_name).exists()), None)
-    if source_root is not None:
-        return source_root
-    expected_paths = ", ".join(
-        f"{candidate.relative_to(pkg_path)}/"
-        for candidate in (root / import_name for root in package_roots)
-    )
-    raise GaiaPackagingError(
-        f"Error: package source directory '{import_name}/' not found.\n"
-        f"  Derived from [project] name {project_name!r}.\n"
-        '  Derivation: strip trailing "-gaia" when present, then convert '
-        "hyphens to underscores.\n"
-        f"  Expected at one of: {expected_paths}"
-    )
-
-
 def _prepend_local_dependency_source_roots(config: dict[str, Any], pkg_path: Path) -> None:
-    """Expose local editable Gaia dependencies before importing the package."""
+    """Expose local editable Gaia dependencies before importing the package.
+
+    Carried over from the pre-embedded-layout loader (PR #688): the
+    legacy loader walked the host's [project].dependencies for
+    ``*-gaia`` entries that resolve to a local file URL or a
+    ``[tool.uv.sources]`` path entry, and put each resolved source
+    root on ``sys.path`` so the consumer's ``from <dep_pkg> import x``
+    finds the working-copy version rather than an installed one.
+
+    This is orthogonal to the embedded layout — embedded consumers
+    declare deps in ``gaia.toml [package].dependencies`` and the
+    legacy ``pyproject.toml`` config dict passed here is the
+    ``LayoutInfo.config`` from :func:`detect_layout`, which carries
+    whichever shape the layout actually uses.
+    """
     project_config = config.get("project", {})
     if not isinstance(project_config, dict):
         return
@@ -317,6 +331,63 @@ def _import_package_module(import_name: str) -> ModuleType:
         raise GaiaPackagingError(f"Error importing package: {exc}") from exc
 
 
+def _import_embedded_root(import_name: str, gaia_dir: Path) -> ModuleType:
+    """Import the embedded ``gaia/`` folder as a synthetic Python package.
+
+    The embedded layout deliberately calls its source folder ``gaia/``
+    so it lines up with ``.gaia/`` visually in the host. We must never
+    let that folder shadow the installed ``gaia`` library on
+    ``sys.path``; users inside it want to write ``from gaia.engine.lang
+    import claim`` and get the real library, not their own folder.
+
+    Strategy: build a synthetic Python package (different name —
+    ``_gaia_pkg_<slug>_<sha>``) rooted at ``<host>/gaia/``, but **do
+    not** put ``<host>/gaia`` on ``sys.path``. Submodules of the
+    embedded source can still import each other via
+    ``from . import priors`` because we register them under the
+    synthetic dotted name; absolute imports through the literal
+    ``gaia`` namespace continue to resolve to the installed library.
+
+    The synthetic module has ``__path__`` set to the embedded source
+    folder, so ``importlib.import_module("<synthetic>.priors")`` finds
+    ``<host>/gaia/priors.py`` through the regular finder chain.
+    """
+    init_path = gaia_dir / "__init__.py"
+    if init_path.exists():
+        spec = importlib.util.spec_from_file_location(
+            import_name,
+            init_path,
+            submodule_search_locations=[str(gaia_dir)],
+        )
+    else:
+        # No __init__.py — synthesise an empty package whose only
+        # purpose is to anchor submodule search at <host>/gaia/.
+        spec = importlib.util.spec_from_loader(
+            import_name,
+            loader=None,
+            is_package=True,
+        )
+    if spec is None:
+        raise GaiaPackagingError(f"Error: could not build a synthetic module spec for {gaia_dir}.")
+    module = importlib.util.module_from_spec(spec)
+    module.__path__ = [str(gaia_dir)]
+    sys.modules[import_name] = module
+    if spec.loader is not None:
+        previous = sys.dont_write_bytecode
+        sys.dont_write_bytecode = True
+        try:
+            try:
+                spec.loader.exec_module(module)
+            except Exception as exc:
+                sys.modules.pop(import_name, None)
+                raise GaiaPackagingError(
+                    f"Error importing embedded gaia/__init__.py: {exc}"
+                ) from exc
+        finally:
+            sys.dont_write_bytecode = previous
+    return module
+
+
 def _module_titles(import_name: str, pkg: CollectedPackage) -> dict[str, str]:
     """Extract first-line docstrings for loaded package submodules."""
     module_titles: dict[str, str] = {}
@@ -356,25 +427,44 @@ def ensure_package_env(pkg_path: Path) -> None:
 
 
 def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
-    """Load a Gaia knowledge package from a local directory."""
-    pkg_path = Path(path).resolve()
-    pyproject = pkg_path / "pyproject.toml"
-    config = _load_pyproject_config(pkg_path)
-    project_config, gaia_config, project_name, version = _package_identity(config)
+    """Load a Gaia knowledge package from a local directory.
 
-    import_name = project_name.removesuffix("-gaia").replace("-", "_")
-    reset_inferred_package(pyproject, module_name=import_name)
-    _prepend_local_dependency_source_roots(config, pkg_path)
-    source_root = _source_root_for_package(pkg_path, import_name, project_name)
+    Dispatches on the on-disk layout detected by
+    :func:`gaia.engine.layout.detect_layout`:
 
-    source_root_str = str(source_root)
-    if source_root_str not in sys.path:
-        sys.path.insert(0, source_root_str)
+    - **legacy** (host ``pyproject.toml`` with ``[tool.gaia]`` +
+      ``src/<import_name>/``): the historical loader. ``import_name``
+      equals the user-facing import name (``project_name`` with
+      ``-gaia`` stripped); the package's source root is added to
+      ``sys.path``; submodules are imported through the normal finder.
 
-    module = _import_package_module(import_name)
-    _import_package_source_modules(import_name, source_root / import_name)
+    - **embedded** (``gaia/gaia.toml`` + ``gaia/*.py`` inside any host):
+      the user-source folder is loaded as a **synthetic** Python
+      package whose name is unique to this host (``_gaia_pkg_<slug>_
+      <sha>``) so it cannot shadow the installed ``gaia`` library.
+      The user-facing package name (from ``gaia.toml [package].name``)
+      is projected onto ``pkg.name`` so all downstream QIDs, manifests,
+      and registry coordinates read the user-facing name and not the
+      synthetic loader name.
 
-    pkg = get_inferred_package(pyproject)
+    In both modes, ``pkg.namespace`` and ``pkg.version`` come from the
+    manifest and the returned :class:`LoadedGaiaPackage` carries the
+    resolved :class:`LayoutInfo` for callers that need to switch on
+    layout further down the pipeline.
+    """
+    try:
+        layout = detect_layout(path)
+    except GaiaLayoutError as exc:
+        raise GaiaPackagingError(str(exc)) from exc
+
+    reset_inferred_package(layout.manifest_path, module_name=layout.import_name)
+
+    if layout.kind is LayoutKind.LEGACY:
+        module = _load_legacy_package_modules(layout)
+    else:
+        module = _load_embedded_package_modules(layout)
+
+    pkg = get_inferred_package(layout.manifest_path)
     if pkg is None:
         raise GaiaPackagingError(
             "Error: no Gaia declarations found. Declare Knowledge/Strategy/Operator objects "
@@ -383,31 +473,74 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
 
     _assign_labels_for_loaded_modules()
 
-    # Record exported labels from __all__ for the compiler
+    # Record exported labels from __all__ for the compiler.
     export_names = getattr(module, "__all__", None)
     if isinstance(export_names, list) and all(isinstance(n, str) for n in export_names):
         pkg._exported_labels = set(export_names)
 
-    module_titles = _module_titles(import_name, pkg)
+    module_titles = _module_titles(layout.import_name, pkg)
     if module_titles:
         pkg._module_titles = module_titles
 
-    pkg.name = import_name
-    pkg.version = version
-    if "namespace" in gaia_config:
-        pkg.namespace = gaia_config["namespace"]
+    # Project the user-facing identity (not the synthetic loader name)
+    # onto the collected package so QIDs, manifests, and registry
+    # coordinates read what the user wrote.
+    user_facing_name = layout.package_name.removesuffix("-gaia").replace("-", "_")
+    pkg.name = user_facing_name
+    pkg.version = layout.version
+    if isinstance(layout.gaia_config.get("namespace"), str):
+        pkg.namespace = layout.gaia_config["namespace"]
 
     return LoadedGaiaPackage(
-        pkg_path=pkg_path,
-        config=config,
-        project_config=project_config,
-        gaia_config=gaia_config,
-        project_name=project_name,
-        import_name=import_name,
-        source_root=source_root,
+        pkg_path=layout.host_path,
+        config=layout.config,
+        project_config=layout.project_config,
+        gaia_config=layout.gaia_config,
+        project_name=layout.package_name,
+        import_name=layout.import_name,
+        source_root=layout.source_root,
         module=module,
         package=pkg,
+        layout=layout,
     )
+
+
+def _load_legacy_package_modules(layout: LayoutInfo) -> ModuleType:
+    """Import a legacy layout: add source root to sys.path and walk submodules.
+
+    Honours [project].dependencies entries that point at local
+    editable Gaia packages via a file URL or a [tool.uv.sources]
+    path entry, putting each one on sys.path before the consumer's
+    own import_name (preserved behaviour from PR #688).
+    """
+    _prepend_local_dependency_source_roots(layout.config, layout.host_path)
+    source_root_str = str(layout.source_root)
+    if source_root_str not in sys.path:
+        sys.path.insert(0, source_root_str)
+
+    module = _import_package_module(layout.import_name)
+    _import_package_source_modules(layout.import_name, layout.source_root / layout.import_name)
+    return module
+
+
+def _load_embedded_package_modules(layout: LayoutInfo) -> ModuleType:
+    """Import the embedded ``gaia/`` folder under a synthetic module name."""
+    gaia_dir = layout.source_root
+    if not gaia_dir.is_dir():
+        raise GaiaPackagingError(f"Error: embedded layout missing source folder at {gaia_dir}.")
+
+    # Drop any stale synthetic module for this host so reload is clean.
+    stale = [
+        name
+        for name in list(sys.modules)
+        if name == layout.import_name or name.startswith(f"{layout.import_name}.")
+    ]
+    for name in stale:
+        sys.modules.pop(name, None)
+
+    module = _import_embedded_root(layout.import_name, gaia_dir)
+    _import_package_source_modules(layout.import_name, gaia_dir)
+    return module
 
 
 def compile_loaded_package(loaded: LoadedGaiaPackage) -> dict[str, Any]:
@@ -444,8 +577,17 @@ def _load_resolution_policy(loaded: LoadedGaiaPackage) -> ResolutionPolicy:
     Rejects the legacy ``PRIORS = {...}`` dict with a migration error pointing
     to ``register_prior``.
     """
+    # Resolve the priors module path differently for legacy vs embedded:
+    # legacy lays priors.py inside the import package (<src>/<name>/priors.py),
+    # while embedded keeps it as a sibling of the user's other DSL modules
+    # (<host>/gaia/priors.py). Both end up importable through the same
+    # dotted name ``<import_name>.priors`` because the embedded loader
+    # anchors the synthetic root's submodule search at <host>/gaia/.
     priors_module_name = f"{loaded.import_name}.priors"
-    priors_path = loaded.source_root / loaded.import_name / "priors.py"
+    if loaded.layout.kind is LayoutKind.EMBEDDED:
+        priors_path = loaded.source_root / "priors.py"
+    else:
+        priors_path = loaded.source_root / loaded.import_name / "priors.py"
     if not priors_path.exists():
         return default_resolution_policy()
 
@@ -613,9 +755,29 @@ def _load_json_file(path: Path, *, description: str) -> dict[str, Any]:
 
 
 def _locate_dependency_manifest_root(import_name: str) -> Path | None:
-    pyproject = pyproject_for_module(import_name)
-    if pyproject is not None:
-        return pyproject.parent
+    """Return the host root of a Gaia dependency package.
+
+    The "host root" is the directory that owns the ``.gaia/manifests/``
+    folder — i.e. the directory the dependency calls ``pkg_path`` in
+    its own :class:`LoadedGaiaPackage`. We resolve it in three passes:
+
+    1. The runtime inferred-package cache: if the dependency was
+       loaded via the Gaia DSL, ``pyproject_for_module`` returns its
+       manifest path (either ``pyproject.toml`` or
+       ``gaia/gaia.toml``). For the legacy layout the host root is
+       the manifest's parent; for the embedded layout it is the
+       manifest's *grand*parent (``<host>/gaia/gaia.toml`` ⇒
+       ``<host>``).
+    2. If the dependency is installed normally (``uv pip install``),
+       walk up from the installed module file looking for either an
+       existing ``.gaia/manifests/premises.json`` (legacy/embedded
+       artifact) or an embedded ``gaia/gaia.toml``.
+    """
+    manifest = pyproject_for_module(import_name)
+    if manifest is not None:
+        if manifest.name == EMBEDDED_GAIA_MANIFEST:
+            return manifest.parent.parent
+        return manifest.parent
 
     module = _import_module(import_name)
     module_file = getattr(module, "__file__", None)
@@ -627,6 +789,14 @@ def _locate_dependency_manifest_root(import_name: str) -> Path | None:
     for candidate in candidates:
         if (candidate / ".gaia" / "manifests" / "premises.json").exists():
             return candidate
+        if (candidate / EMBEDDED_GAIA_DIR / EMBEDDED_GAIA_MANIFEST).exists():
+            return candidate
+        # The module may *be* an embedded ``gaia/`` folder that was
+        # copied or installed under the user-facing name. In that
+        # case the manifest sits next to ``__init__.py`` and the
+        # host root is one level up.
+        if (candidate / EMBEDDED_GAIA_MANIFEST).exists():
+            return candidate.parent
     return None
 
 

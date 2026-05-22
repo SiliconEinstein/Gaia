@@ -27,6 +27,12 @@ dependencies = [
     "httpx>=0.27",
     "faiss-cpu>=1.7",
     "tomli-w>=1.2.0",
+    # tomlkit: style-preserving TOML editor used by `gaia pkg migrate`
+    # to strip [tool.gaia] from a host pyproject.toml without losing
+    # comments, key order, or other [tool.*] sub-tables. Runtime dep
+    # (not dev-only) because the migrate verb is part of the shipped
+    # CLI and the wheel-smoke job exercises it via `gaia --help`.
+    "tomlkit>=0.13",
 ]
 
 [project.urls]

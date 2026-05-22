@@ -1,4 +1,17 @@
-"""gaia init -- scaffold a new Gaia knowledge package."""
+"""gaia init -- scaffold a new Gaia knowledge package.
+
+Two modes:
+
+- **legacy** (default): runs ``uv init --lib``, patches the freshly
+  generated ``pyproject.toml`` with ``[tool.gaia]``, renames the
+  ``src/`` package to the conventional import name, drops a DSL
+  template into ``__init__.py``. This is the historical scaffold.
+
+- **embedded** (``--embedded``): the spec §4 on-ramp — calls into
+  ``gaia pkg mount`` so the host directory gets the non-invasive
+  ``gaia/`` + ``.gaia/`` layout and **nothing else** changes. The
+  host's own ``pyproject.toml`` is untouched.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +22,7 @@ from pathlib import Path
 
 import typer
 
+from gaia.cli.commands.pkg.mount import mount_command
 from gaia.engine.packaging import GaiaPackagingError
 
 # Minimal DSL template: just the canonical ``claim`` import and an empty
@@ -69,28 +83,78 @@ def _strip_authors_from_pyproject(pyproject_text: str) -> str:
 
 
 def init_command(
-    name: str = typer.Argument(help="Package name (must end with '-gaia')."),
+    name: str = typer.Argument(help="Package name (or host directory in --embedded mode)."),
     docstring: str | None = typer.Option(
         None,
         "--docstring",
         help=(
             "Module docstring for the generated src/<import_name>/__init__.py. "
-            "Wrapped in triple quotes at line 1. Default: no docstring."
+            "Wrapped in triple quotes at line 1. Default: no docstring. "
+            "Ignored in --embedded mode."
+        ),
+    ),
+    embedded: bool = typer.Option(
+        False,
+        "--embedded",
+        help=(
+            "Use the non-invasive embedded layout (spec §4): the host's "
+            "pyproject.toml stays a plain Python project and Gaia only writes "
+            "gaia/ and .gaia/. NAME is interpreted as the host directory path. "
+            "This is equivalent to `gaia pkg mount <name>` with the project's "
+            "default name + namespace."
+        ),
+    ),
+    namespace: str | None = typer.Option(
+        None,
+        "--namespace",
+        help="Namespace for the embedded mount. Ignored in legacy mode.",
+    ),
+    seed: list[str] = typer.Option(  # noqa: B008 — typer pattern
+        [],
+        "--from",
+        help=(
+            "Repeatable. Host-relative seed files for the deterministic "
+            "projector. Only used in --embedded mode."
         ),
     ),
 ) -> None:
     """Create a new Gaia knowledge package.
 
-    Example: ``gaia build init mypkg-gaia --docstring "My package."``
+    Legacy: ``gaia build init mypkg-gaia --docstring "My package."``
+
+    Embedded (spec §4 on-ramp): ``gaia build init --embedded ./resnet-ara``
     """
-    # --- validate name suffix ---------------------------------------------------
+    if embedded:
+        # Spec §4: `gaia build init --embedded <path>` is the canonical
+        # on-ramp; delegate to `gaia pkg mount` so the two verbs share
+        # one implementation and one envelope shape.
+        mount_command(
+            host=name,
+            name=None,
+            namespace=namespace,
+            description=None,
+            seed=seed,
+            host_kind=None,
+            reproject=False,
+            human=True,
+            json_=False,
+        )
+        return
+    # --- name suffix -----------------------------------------------------------
+    # The historical ``-gaia`` suffix is now advisory rather than mandatory.
+    # v0.5+ supports the non-invasive embedded layout (``gaia pkg mount``)
+    # where the host's user-visible name is what the user wrote in
+    # ``gaia.toml``; there is no longer any naming convention that marks a
+    # directory as "a Gaia package". The warning still nudges new users
+    # toward the conventional ``-gaia`` suffix when running the legacy
+    # ``gaia build init`` wizard.
     if not name.endswith("-gaia"):
         suggested = f"{name}-gaia"
         typer.echo(
-            f"Error: package name must end with '-gaia'. Did you mean '{suggested}'?",
+            f"Warning: package name does not end with '-gaia'. "
+            f"Consider {suggested!r}, or use `gaia pkg mount` for a non-invasive layout.",
             err=True,
         )
-        raise typer.Exit(1)
 
     cwd = Path.cwd()
     pkg_dir = cwd / name
