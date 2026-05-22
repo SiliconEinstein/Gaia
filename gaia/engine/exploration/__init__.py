@@ -6,12 +6,18 @@ versioned ``.gaia/exploration/map.json`` index over the IR plus an append-only
 the IR / priors / ``beliefs.json``. This package is the pure library surface —
 the policy scorer, the turn loop, and render live in later sequenced steps and
 import from here. Build 2 adds :mod:`gaia.engine.exploration.frontier`, which
-derives the frontier from a package's IR (SCHEMA.md §7a).
+derives the frontier from a package's IR (SCHEMA.md §7a). Build 3 adds
+:mod:`gaia.engine.exploration.scorer`, which scores the frontier per the current
+round's policy dial (SCHEMA.md §7b).
 """
 
 from gaia.engine.exploration.frontier import (
     extract_frontier,
     reconcile_frontier,
+)
+from gaia.engine.exploration.scorer import (
+    binary_entropy,
+    score_frontier,
 )
 from gaia.engine.exploration.state import (
     DOCTRINE_PRESETS,
@@ -47,6 +53,7 @@ __all__ = [
     "Policy",
     "SurveyRecord",
     "append_round",
+    "binary_entropy",
     "doctrine_policy",
     "exploration_dir",
     "extract_frontier",
@@ -55,4 +62,5 @@ __all__ = [
     "read_rounds",
     "reconcile_frontier",
     "save_map",
+    "score_frontier",
 ]
