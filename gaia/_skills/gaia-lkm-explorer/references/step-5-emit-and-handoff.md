@@ -11,26 +11,45 @@
 Load this file only after Step 4 is complete. This step finalizes the source
 artifact and runs the Gaia quality gates.
 
-## Authoring surface — `gaia author` (cli-as-client)
+## Authoring surface — direct SDK authoring (primary), `gaia author` (optional)
 
-Step 5 emits the package through the **agent-first authoring CLI**
-(`docs/reference/cli/author.md`), not by writing raw
-Python DSL by hand. The CLI:
+Gaia has **one** authoring model with two tiers; `docs/for-users/authoring-workflow.md`
+is canonical. Mirror it — do not invent a competing model.
+
+**Start with `gaia sdk`.** Run `gaia sdk --out ./gaia-sdk` once at the top of an
+exploration and read the generated `CHEATSHEET.md` (PR #696's documented first
+move). It introspects the live public API to a self-contained reference + a
+one-page cheat sheet, so you author against the real DSL surface.
+
+**Tier 1 — direct Python SDK authoring (the primary path).** Write the DSL
+statements straight into the package source by hand: `from gaia.engine.lang
+import claim, derive, contradict, equal, exclusive, note, question,
+register_prior, ...` in `src/<import>/__init__.py` (and sibling modules). This is
+the recommended path for both humans and agents.
+
+**Tier 2 — the `gaia author` CLI (optional convenience).** Use it when you want
+machine-checked appends instead of editing Python directly
+(`docs/reference/cli/author.md`). It CRUDs the **same** DSL through structured,
+JSON-enveloped commands. The CLI:
 
 - pre-validates each statement (identifier collision, reference resolution,
   syntactic well-formedness, structural self-loop) before writing,
-- appends the rendered Python to the target source file,
+- appends the rendered Python into the package's `authored/` submodule
+  (`src/<import>/authored/__init__.py` — **not** the package root; the root
+  re-exports it via `from .authored import *`), creating `authored/` and the
+  re-export block on the first write,
 - runs `gaia build check` automatically after each successful write
   (default `--check` on),
 - emits a uniform JSON envelope on stdout — `json.loads(stdout)` once and
   dispatch on `verb` / `status` / `code`.
 
-Per Step 4's mapping outputs, the DSL primitives this skill emits map to
-author verbs as follows (canonical v0.5 names; legacy aliases in
-`gaia.engine.lang.compat` emit `DeprecationWarning` and must not be used in
-fresh packages):
+Because both tiers produce the **same** DSL, the mapping below reads as
+"emission → DSL primitive (→ optional author verb)". Write the DSL primitive
+directly, or use the verb if you prefer the machine-checked append. Canonical
+v0.5 names; legacy aliases in `gaia.engine.lang.compat` emit `DeprecationWarning`
+and must not be used in fresh packages:
 
-| Step 4/5 emission | DSL primitive | Author verb |
+| Step 4/5 emission | DSL primitive (write directly) | Optional author verb |
 |---|---|---|
 | LKM source / no-chain claim | `claim(...)` | `gaia author claim` |
 | Background context | `note(...)` | `gaia author note` |
@@ -92,20 +111,29 @@ namespace you have chosen for this run. `add-module --name
 priors --imports register_prior` creates `src/<import_name>/priors.py`
 with the `register_prior` import pre-seeded.
 
-All DSL emissions for this package — claims, deductions, cross-paper
-operators (`equal` / `contradict` / `exclusive`) — go in `__init__.py`
-(the default `--file` target). Leaf-prior `register_prior(...)` records
-go in `priors.py` via `gaia author register-prior --file priors.py`.
+DSL emissions for this package — claims, deductions, cross-paper operators
+(`equal` / `contradict` / `exclusive`) — are written **directly** into the
+package-root `__init__.py` (Tier 1, the primary path; `from gaia.engine.lang
+import ...`). If you use the optional `gaia author` CLI instead, its writes land
+in the package's `authored/` submodule (`src/<import_name>/authored/__init__.py`),
+which the package root re-exports via `from .authored import *` — so
+hand-authored and CLI-authored statements compose as one package
+(`docs/for-users/authoring-workflow.md`). Leaf-prior `register_prior(...)`
+records go in a sibling `priors.py` (hand-written, or `gaia author
+register-prior --file priors.py` which routes through `authored/priors.py`).
 
-Resulting layout after Step 4 + Step 5 emissions complete:
+Resulting layout after Step 4 + Step 5 emissions complete (the `authored/`
+submodule appears only if you used the Tier-2 CLI):
 
 ```text
 <name>-gaia/
 ├── pyproject.toml
 ├── references.json
 └── src/<import>/
-    ├── __init__.py
-    └── priors.py
+    ├── __init__.py        # hand-authored DSL (+ `from .authored import *` once the CLI is used)
+    ├── priors.py          # leaf-prior records
+    └── authored/          # only if `gaia author` (Tier 2) was used
+        └── __init__.py     #   CLI-authored DSL, re-exported by the package root
 ```
 
 `references.json` is a JSON object keyed by citation key, CSL-JSON entry
@@ -116,6 +144,24 @@ For refreshes, extend `__init__.py` and `priors.py` rather than replacing
 prior emitted statements. Reuse existing labels where possible.
 
 ### Example invocations
+
+The primary path writes these statements directly in Python, e.g. in
+`src/<import>/__init__.py`:
+
+```python
+from gaia.engine.lang import claim, derive, contradict, equal, register_prior
+
+# Source claim with LKM provenance (no-chain) — claim accepts **metadata:
+<key>_<suffix> = claim(
+    "<self-contained claim body>",
+    provenance_source="lkm_no_chain",
+    lkm_id="<lkm_id>",
+)
+```
+
+The optional `gaia author` CLI emits the **same** statements (into the
+package's `authored/` submodule) if you prefer machine-checked appends. The
+equivalent CLI invocations follow.
 
 Source claim with LKM provenance (no-chain) — `--metadata` is valid on
 `claim` because the engine `claim(...)` accepts `**metadata`:
@@ -188,38 +234,46 @@ gaia author register-prior \
     --file priors.py
 ```
 
-The CLI auto-inserts `from <import_name> import <claim>` into `priors.py`
-when the referenced claim is not already imported.
+The CLI routes `--file priors.py` through the package's `authored/` submodule
+(`authored/priors.py`) and auto-inserts `from <import_name> import <claim>` when
+the referenced claim is not already imported. Hand-authored packages may instead
+keep a top-level `priors.py` and write the `register_prior(...)` call directly;
+both are loaded by the engine (`docs/for-users/authoring-workflow.md`).
 
 ## Refresh Output
 
-For an existing standalone package, extend the existing package in place.
-`gaia author` writes are append-only by design (pre-write collision check
-refuses to overwrite a binding):
+For an existing standalone package, extend the existing package in place:
 
-- extend `__init__.py` with new `gaia author` invocations carrying
-  `--target <existing-pkg>` (the default `--file` is `__init__.py`),
-- extend `priors.py` with `gaia author register-prior --file priors.py`
-  invocations,
-- reuse existing labels in `--given` / `--a` / `--b` / `--claim` to weave
-  new statements into the prior graph; the CLI's pre-write reference
-  resolution catches typos at write time,
-- preserve existing labels and priors where possible — `gaia author
-  register-prior` is additive (a Claim can carry multiple prior records
-  from distinct `--source-id`s; Gaia's `ResolutionPolicy` picks the
-  winning value at compile time and keeps the losing records for audit).
+- **Primary path:** add new DSL statements directly to the package source
+  (`src/<import>/__init__.py` and `priors.py`), reusing existing labels in
+  `given=` / `a=` / `b=` / the prior's `claim` to weave new statements into the
+  prior graph; `gaia build check` / `compile` catch typos and unresolved
+  references.
+- **Optional CLI:** `gaia author` writes are append-only by design (pre-write
+  collision check refuses to overwrite a binding) and land in the package's
+  `authored/` submodule (not the root `__init__.py`); the root re-exports them.
+  Carry `--target <existing-pkg>`; the CLI's pre-write reference resolution
+  catches typos at write time.
+- preserve existing labels and priors where possible — `register_prior`
+  (whether hand-written or via `gaia author register-prior`) is additive (a
+  Claim can carry multiple prior records from distinct `--source-id`s; Gaia's
+  `ResolutionPolicy` picks the winning value at compile time and keeps the
+  losing records for audit).
 
 ## Local Source Checks
 
-Pre-write CLI validation handles the syntactic / structural slice — every
-`gaia author <verb>` invocation runs identifier-collision, reference-
-resolution, and `ast.parse`-equivalent checks before writing, and aborts
-with a `prewrite.*` diagnostic on failure (see `docs/reference/cli/author.md`
-"Pre-write invariants"). So legacy items "Python source parses with
-`ast.parse`", "Gaia labels are lowercase identifiers", and "no claim has a
-`prior` kwarg" (the CLI renders `--prior` as a `register_prior(...)` call
-attached to the claim, never as a `prior=` claim kwarg) are enforced at the
-verb boundary.
+The syntactic / structural slice ("Python source parses", "Gaia labels are
+lowercase identifiers", "no claim has a `prior` kwarg") is enforced by `gaia
+build check` / `gaia build compile` on the package source, regardless of how the
+DSL was authored. When you author **directly** (the primary path), run the
+quality gate below — `compile` is what catches a parse error, a bad label, or an
+unresolved reference. When you use the optional `gaia author` CLI, that same
+slice is *also* pre-checked at the verb boundary: every `gaia author <verb>`
+invocation runs identifier-collision, reference-resolution, and
+`ast.parse`-equivalent checks before writing, aborting with a `prewrite.*`
+diagnostic on failure (see `docs/reference/cli/author.md` "Pre-write invariants"),
+and renders `--prior` as a `register_prior(...)` call attached to the claim,
+never as a `prior=` claim kwarg.
 
 The remaining checks before handoff are SOP-owned semantic content:
 
@@ -236,10 +290,10 @@ The remaining checks before handoff are SOP-owned semantic content:
 
 ## Caller Quality Gate
 
-`gaia author --check` (default on) runs `gaia build check` automatically
-after each statement write, so per-statement structural / IR-hash drift is
-already caught at the verb boundary. The end-of-batch quality gates this
-skill runs collapse to three commands:
+Whether you authored directly (the primary path) or via the optional `gaia
+author` CLI (which, with `--check` default on, also runs `gaia build check`
+after each statement write so per-statement structural / IR-hash drift is caught
+at the verb boundary), the end-of-batch quality gate is the same three commands:
 
 ```bash
 gaia build compile .
@@ -261,8 +315,9 @@ according to Step 4 and rerun the gate.
 
 Return:
 
-- files created or changed (aggregated from each `gaia author` envelope's
-  `payload.written_to`),
+- files created or changed (the package source modules you wrote — and, if you
+  used the optional CLI, aggregated from each `gaia author` envelope's
+  `payload.written_to`, which point into `authored/`),
 - high-level counts: claims (chain-backed vs no-chain), deductions, supports
   (emitted as `derive(...)` with `provenance_source="lkm:frontier_support"`),
   equivalences, accepted contradictions, hypothesis-only open problems,
@@ -271,8 +326,9 @@ Return:
 - the three quality-gate commands run and pass/fail status
   (`gaia build compile .`, `gaia run infer .`, `gaia inquiry review
   --strict .`),
-- the final `gaia author` envelope's `check.knowledge_count` /
-  `check.strategy_count` / `check.operator_count` as IR-side sanity counts,
+- IR-side sanity counts from `gaia build check` (knowledge / strategy /
+  operator counts) — or, if you used the CLI, the final `gaia author` envelope's
+  `check.knowledge_count` / `check.strategy_count` / `check.operator_count`,
 - deviations from the mapping contract, if any.
 
 ## What This Skill Is Not

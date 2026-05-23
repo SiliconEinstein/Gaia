@@ -85,8 +85,9 @@ Rules:
 
 After source emission, the caller quality gate runs `gaia build check --hole .`.
 Each claim reported as a leaf gets a `register_prior(...)` record in
-`priors.py`, emitted in Step 5 via `gaia author register-prior --file
-priors.py` (one invocation per leaf):
+`priors.py` — written directly in Step 5 (the primary path), or via the optional
+`gaia author register-prior --file priors.py` (one invocation per leaf, routed
+through `authored/priors.py`):
 
 ```python
 register_prior(

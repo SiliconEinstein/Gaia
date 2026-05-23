@@ -60,8 +60,9 @@ you may keep one running checklist.
    [`step-4-supports-priors-and-review.md`](step-4-supports-priors-and-review.md).
    Add directional `derive(...)` supports, leaf priors, inquiry obligations.
 5. **Emit and hand off** — load
-   [`step-5-emit-and-handoff.md`](step-5-emit-and-handoff.md). Emit through the
-   `gaia author` CLI and run the per-package checks.
+   [`step-5-emit-and-handoff.md`](step-5-emit-and-handoff.md). Write the DSL
+   directly into the package source (Tier 1; `gaia author` is the optional Tier-2
+   convenience) and run the per-package checks.
 
 `mapping-contract.md` is the canonical authority for contradiction/support
 semantics; if a step doc disagrees with it, the mapping contract wins.
@@ -103,12 +104,36 @@ survey's related papers, and pull at least one paper per turn, to keep exploring
 
 ## Authoring surface
 
-Emit through `gaia author` (per `step-5` and `docs/reference/cli/author.md`):
-`claim` / `note` / `question` / `derive` / `contradict` / `equal` / `exclusive`
-/ `depends-on` / `register-prior`. The CLI pre-validates (collision, reference
-resolution, syntax) and runs `gaia build check` after each write. Carry LKM
-provenance (`provenance_source`, `lkm_id`, the originating `query` and node id)
-on `claim --metadata`.
+**Start with `gaia sdk`.** The first time you author in an exploration, run
+`gaia sdk --out ./gaia-sdk` once and read the generated `CHEATSHEET.md` — it is
+the documented first move (PR #696) and gives you the live DSL surface. Then
+author directly.
+
+Gaia has **one** authoring model with two tiers (`docs/for-users/authoring-workflow.md`
+is canonical):
+
+- **Tier 1 — direct Python SDK authoring (the primary path).** Write the DSL
+  statements straight into the package's source — `from gaia.engine.lang import
+  claim, derive, contradict, equal, exclusive, note, question, register_prior,
+  ...` in `src/<import>/__init__.py` (and any sibling modules you write). This is
+  the recommended path for both humans and agents. Carry LKM provenance
+  (`provenance_source`, `lkm_id`, the originating `query` and node id) as
+  `**metadata` kwargs on `claim(...)` (the engine `claim` accepts `**metadata`;
+  `derive`/`equal`/`contradict`/`exclusive` do not — warrant intent goes in
+  their `rationale=` prose).
+- **Tier 2 — the `gaia author` CLI (optional convenience).** `gaia author
+  claim | note | question | derive | contradict | equal | exclusive | depends-on
+  | register-prior` CRUDs the **same** DSL through structured, JSON-enveloped
+  commands — useful when you want machine-checked appends (identifier-collision
+  guards, reference resolution, syntax) and a post-write `gaia build check`. It
+  is **not** a separate or "agent-first" path. CLI writes land in
+  `src/<import>/authored/__init__.py`; the package root re-exports them via
+  `from .authored import *`, so CLI-authored and hand-authored DSL compose as one
+  package. Use it when it helps; write Python directly when you'd rather.
+
+Provenance (`provenance_source`, `lkm_id`, originating `query`/node id) rides on
+`claim` either way — as `**metadata` in direct DSL, or via `--metadata` on `gaia
+author claim`.
 
 ## After surveying all contacts in the shortlist
 

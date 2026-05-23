@@ -117,7 +117,8 @@ turn's six items so the human can see where you are.
             │ 3. survey top-k        gaia search lkm → explore       │  ← fuzzy
             │                        observe (record related papers) │    (you)
             │                        → pkg add --lkm-paper top pick   │
-            │                        + gaia author  (per contact)    │
+            │                        + author DSL directly (per       │
+            │                          contact; gaia author optional) │
             │ 4. recompute belief    gaia build compile + run infer  │
             │ 5. checkpoint          gaia explore round --surveyed   │  ← report
             │ 6. STOP for human review → re-dial doctrine → turn n+1 │
@@ -217,9 +218,14 @@ In brief, per contact:
    `--given`/conclusion by design (`prewrite.reference_unresolved`) — a
    forward-scaffolding author flag is a deferred enhancement, not available today.
 4. **Author the science** — classify each LKM payload through the mapping
-   contract, then emit via `gaia author claim | derive | contradict | equal`.
-   Contradictions you judge adjudicable become `gaia author contradict A B` (the
-   engine will adjudicate their consequence in step 4 of the turn).
+   contract, then **write the DSL directly into the package source** (`from
+   gaia.engine.lang import claim, derive, contradict, equal, ...`) per
+   `docs/for-users/authoring-workflow.md` — Tier 1, the primary path. (Run `gaia
+   sdk` once first to drop the SDK reference + `CHEATSHEET.md`.) The `gaia author
+   claim | derive | contradict | equal` CLI is an **optional Tier-2 convenience**
+   that writes the same DSL into `src/<pkg>/authored/`. Contradictions you judge
+   adjudicable become a `contradict(A, B)` statement (the engine will adjudicate
+   their consequence in step 4 of the turn).
 
 The contact's `ref.value` is the survey target QID (or LKM handle); its
 `sources` tell you which surveyed nodes reach it and how (`depends_on`,
@@ -322,13 +328,19 @@ LKM-explorer mapping contract + layout (this skill):
 
 Gaia knowledge-package contract (this repo's docs):
 
+- `docs/for-users/authoring-workflow.md` — **the canonical authoring model**
+  (read first). One model, two tiers: Tier 1 = direct Python SDK authoring (the
+  primary path — start with `gaia sdk` for the reference + cheatsheet); Tier 2 =
+  the optional `gaia author` CLI, which writes the same DSL into the package's
+  re-exported `authored/` submodule.
 - `docs/for-users/quick-start.md` — end-to-end Gaia knowledge-package workflow
   (directory layout, file templates, package initialization).
 - `docs/for-users/language-reference.md` — DSL primitives (`claim` / `derive` /
   `contradict` / `equal` / `exclusive`), label discipline, module placement.
-- `docs/for-users/cli-commands.md` — full CLI reference (`gaia build compile` /
-  `build check` / `run infer` / `run render` / etc.).
-- `docs/reference/cli/author.md` — the `gaia author` authoring surface.
+- `docs/for-users/cli-commands.md` — full CLI reference (`gaia sdk` /
+  `gaia build compile` / `build check` / `run infer` / `run render` / etc.).
+- `docs/reference/cli/author.md` — the optional Tier-2 `gaia author` authoring
+  surface (writes into `authored/`).
 
 LKM retrieval is the native `gaia search lkm` CLI (`knowledge` /
 `reasoning [--claim-id]` / `nodes` / `package` / `auth`). The exploration engine

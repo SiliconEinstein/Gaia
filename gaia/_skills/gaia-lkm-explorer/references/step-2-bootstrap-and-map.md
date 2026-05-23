@@ -66,9 +66,10 @@ Include the missing scientific scope when available:
 - temperature, pressure, field, sample regime, approximation domain, and
   boundary conditions.
 
-Do not add a `prior` kwarg on `claim(...)`; leaf priors are added via
-`gaia author register-prior --file priors.py` after
-`gaia build check --hole` reports remaining holes.
+Do not add a `prior` kwarg on `claim(...)`; leaf priors are separate
+`register_prior(...)` records in `priors.py` (written directly, the primary
+path — or via the optional `gaia author register-prior --file priors.py`),
+added after `gaia build check --hole` reports remaining holes.
 
 ## Decompose Compound Claims
 
