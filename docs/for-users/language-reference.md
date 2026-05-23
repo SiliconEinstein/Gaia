@@ -59,7 +59,7 @@ constructed `__all__` values.
 
 ```python
 from gaia.engine.lang import (
-    claim, note, question,                                  # Knowledge
+    claim, note, question, artifact, figure,                # Knowledge
     Variable, Nat, Real, Probability, Bool,                 # Formula terms
     parameter,                                              # Structured formula claims
     ClaimAtom, land, lnot, lor, implies, iff, equals,       # Propositional formula helpers
@@ -132,6 +132,65 @@ titled = claim("H = p^2/2m + V(x)", title="Hamiltonian of the system")
 ```
 
 **Content supports markdown:** tables, `$...$` math, bullet points, bold/italic.
+
+## References, Citations, and Artifacts
+
+Use `references.json` for external sources and `[@key]` markers in prose:
+
+```json
+{
+  "Aspect1982": {"type": "article-journal", "title": "Experimental Realization"}
+}
+```
+
+```python
+bell_test = claim("Bell inequalities are violated in experiment [@Aspect1982].")
+```
+
+`[@key]` is strict: if the key is neither a `references.json` citation key nor a
+local Gaia label, compile fails. Bare `@key` is opportunistic and remains literal
+when unresolved. Citation keys and local labels share one namespace, so a package
+must not define both `Aspect1982` in `references.json` and a local
+`Aspect1982 = claim(...)`.
+
+Use local labels for Gaia knowledge references:
+
+```python
+setup = note("The experiment uses spacelike-separated polarization analyzers.")
+result = claim("The conclusion depends on the setup [@setup].", background=[setup])
+```
+
+Use artifact notes for figures, tables, datasets, notebooks, and attachments.
+Artifacts are still `note(...)` nodes; `figure(...)` and `artifact(...)` only
+create structured `metadata["gaia"]["artifact"]` for you:
+
+```python
+liu2015_fig3 = figure(
+    source="Liu2015",
+    locator="Fig. 3",
+    path="artifacts/figures/liu2015_fig3.png",
+    caption="Fibonacci scaling of the order parameter.",
+)
+
+analysis_data = artifact(
+    kind="attachment",
+    source="Liu2015",
+    locator="Supplementary Data 1",
+    path="artifacts/attachments/liu2015_supplement.xlsx",
+    description="Digitized source data used for the pressure-temperature curve.",
+)
+
+claim("The trend follows the source figure [@liu2015_fig3].")
+```
+
+Artifact labels resolve through the same local-label syntax as notes and claims,
+but compiled provenance records them under `artifact_refs`, separate from
+`referenced_claims`.
+
+Do not use `observe(source_refs=...)` for new code; put citation markers in
+`rationale`. Also do not put bibliographic citations in
+`claim(provenance=[...])`; that field is for Gaia package/version provenance,
+not paper citations.
 
 ## Continuous Quantities and Bayes Helpers
 
@@ -208,15 +267,14 @@ measured_Tc = observe(
     T_c,
     value=q(203, "K"),
     error=q(5, "K"),
-    source_refs=["Drozdov 2015"],
-    rationale="Reported superconducting transition temperature.",
+    rationale="Reported superconducting transition temperature [@Drozdov2015].",
 )
 ```
 
 The returned claim is pinned to `1 - CROMWELL_EPS` because the measurement
 event happened. Its metadata links back to the target distribution and records
-the measured value, optional error, unit, and source references. `error=` may
-be omitted, may be a positive scalar or unit-aware quantity, or may be another
+the measured value, optional error, and unit. `error=` may be omitted, may be a
+positive scalar or unit-aware quantity, or may be another
 `Distribution` used as a custom noise model.
 
 Continuous observations are unconditional measurement events. Do not pass

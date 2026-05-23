@@ -741,12 +741,28 @@ Review every relation's `rationale` text:
 
 ### 6d. Figure and table references
 
-Add `metadata={"figure": "...", "caption": "..."}` to every claim whose content comes from a specific figure or table:
+Create artifact notes for every figure or table that materially supports authored content. Use
+`figure(...)` for figures and `artifact(kind="table", ...)` for tables; both create ordinary
+`note(...)` nodes with `metadata["gaia"]["artifact"]`.
 
-1. **Coverage.** Check each module against the source for missing references.
+```python
+source_fig3 = figure(
+    source="SourceKey",
+    locator="Fig. 3",
+    path="artifacts/figures/source_fig3.png",
+    caption="Short caption with the figure number and key content.",
+)
+
+claim_from_figure = claim(
+    "The measured trend increases monotonically across the reported range [@source_fig3].",
+    background=[source_fig3],
+)
+```
+
+1. **Coverage.** Check each module against the source for missing artifact anchors.
 2. **Path validity.** Verify each file path exists in `artifacts/`.
 3. **Caption accuracy.** Copy the figure caption from the source (abbreviated OK, but figure number and key content must be correct).
-4. **Relation metadata.** Relations whose `rationale` references figure data should also carry `metadata`.
+4. **Relation text.** Relations whose `rationale` uses figure data should cite the artifact label with `[@source_fig3]`.
 
 ### 6e. Complete citation metadata
 

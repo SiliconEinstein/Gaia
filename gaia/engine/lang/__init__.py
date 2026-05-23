@@ -5,6 +5,7 @@ from importlib import import_module
 from typing import Any
 
 from gaia.engine.lang.dsl import (
+    artifact,
     associate,
     candidate_relation,
     claim,
@@ -19,6 +20,7 @@ from gaia.engine.lang.dsl import (
     equals,
     exclusive,
     exists,
+    figure,
     forall,
     iff,
     implies,
@@ -225,6 +227,7 @@ __all__ = [
     "Term",
     "UserPredicate",
     "Variable",
+    "artifact",
     "associate",
     "candidate_relation",
     "claim",
@@ -239,6 +242,7 @@ __all__ = [
     "equals",
     "exclusive",
     "exists",
+    "figure",
     "forall",
     "iff",
     "implies",

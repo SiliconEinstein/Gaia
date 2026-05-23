@@ -71,9 +71,10 @@ def test_observe_distribution_rejects_unitless_noise_for_unit_typed_target():
         observe(T_c, value=q(203, "K"), error=noise)
 
 
-def test_observe_distribution_records_source_refs():
+def test_observe_distribution_records_source_refs_with_deprecation_warning():
     T_c = Normal("T_c", mu=200, sigma=50)
-    obs = observe(T_c, value=203, error=5, source_refs=["Drozdov 2015"])
+    with pytest.warns(DeprecationWarning, match="source_refs"):
+        obs = observe(T_c, value=203, error=5, source_refs=["Drozdov 2015"])
     assert obs.metadata.get("source_refs") == ["Drozdov 2015"]
 
 

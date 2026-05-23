@@ -60,6 +60,7 @@ __all__ = [*__all__, *_authored.__all__]
 _AUTHORED_INIT_TEMPLATE = """\
 from gaia.engine.lang import (
     ClaimAtom,
+    artifact,
     associate,
     candidate_relation,
     claim,
@@ -70,6 +71,7 @@ from gaia.engine.lang import (
     derive,
     equal,
     exclusive,
+    figure,
     iff,
     implies,
     infer,

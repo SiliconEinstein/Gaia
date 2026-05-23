@@ -6,8 +6,10 @@ import hashlib
 import inspect
 import json
 import re
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -59,6 +61,7 @@ from gaia.engine.lang.compiler.extensions import (
     lower_registered_actions,
 )
 from gaia.engine.lang.compiler.lower_formula import lower_claim_formula
+from gaia.engine.lang.dsl.artifacts import ARTIFACT_KINDS
 from gaia.engine.lang.refs import (
     ReferenceError,
     check_collisions,
@@ -278,6 +281,7 @@ def _metadata_to_ir(value: Any, knowledge_map: dict[int, str]) -> Any:
 
 def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str, Any] | None:
     metadata = dict(k.metadata)
+    _warn_legacy_reference_metadata(metadata)
     prior = getattr(k, "prior", None)
     if prior is not None and "prior" not in metadata:
         # priors.py writes metadata["prior"] before compilation; that parameterization wins.
@@ -297,6 +301,67 @@ def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str
         ]
     metadata = _metadata_to_ir(metadata, knowledge_map)
     return metadata or None
+
+
+def _warn_legacy_reference_metadata(metadata: dict[str, Any]) -> None:
+    if "refs" in metadata:
+        warnings.warn(
+            "metadata['refs'] is deprecated for Gaia references; use body "
+            "[@CitationKey] markers or metadata['gaia']['artifact'] instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+    if "figure" in metadata:
+        warnings.warn(
+            "top-level figure/caption metadata is deprecated; use "
+            "metadata['gaia']['artifact'] with kind='figure'.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
+
+def _has_artifact_metadata(knowledge: Knowledge) -> bool:
+    metadata = knowledge.metadata or {}
+    gaia_meta = metadata.get("gaia")
+    return isinstance(gaia_meta, dict) and isinstance(gaia_meta.get("artifact"), dict)
+
+
+def _validate_artifact_metadata(
+    knowledge: Knowledge,
+    *,
+    references: dict[str, Any],
+) -> None:
+    gaia_meta = knowledge.metadata.get("gaia")
+    if gaia_meta is None:
+        return
+    if not isinstance(gaia_meta, dict):
+        raise ValueError("metadata['gaia'] must be a dict when present")
+    artifact = gaia_meta.get("artifact")
+    if artifact is None:
+        return
+    if not isinstance(artifact, dict):
+        raise ValueError("metadata['gaia']['artifact'] must be a dict")
+    kind = artifact.get("kind")
+    if kind not in ARTIFACT_KINDS:
+        raise ValueError(f"artifact kind {kind!r} is not supported")
+    source = artifact.get("source")
+    path = artifact.get("path")
+    if not source and not path:
+        raise ValueError("artifact metadata requires at least one of source or path")
+    if source is not None and source not in references:
+        raise ReferenceError(
+            f"artifact source {source!r} on {knowledge.label or knowledge.content!r} "
+            "does not exist in references.json"
+        )
+    locator = artifact.get("locator")
+    if source and kind in {"figure", "table"} and not locator:
+        raise ValueError(f"source-bound artifact kind {kind!r} requires locator")
+    if path is not None:
+        parsed = PurePosixPath(str(path))
+        if parsed.is_absolute() or ".." in parsed.parts:
+            raise ValueError(
+                f"artifact path {path!r} must be package-relative and must not escape root"
+            )
 
 
 def _parameter_to_ir(param: dict[str, Any], knowledge_map: dict[int, str]) -> IrParameter:
@@ -1478,16 +1543,24 @@ class _ReferenceScanner:
     extension_operators: list[IrOperator]
     ir_composes: list[IrCompose]
     refs_by_knowledge: dict[int, tuple[set[str], set[str]]] = field(default_factory=dict)
+    artifact_labels: set[str] = field(default_factory=set)
 
     def scan(self) -> list[IrKnowledge]:
         """Scan package text and return updated extension-generated knowledge nodes."""
         label_to_id, knowledge_label_ids = self._build_knowledge_label_tables()
+        self.artifact_labels = self._build_artifact_labels()
         label_to_id.update(self._build_action_short_labels(knowledge_label_ids))
+        self._validate_artifacts()
         check_collisions(label_to_id, self.references)
         self._scan_strategy_references(label_to_id)
         self._scan_local_knowledge_content(label_to_id)
         action_rationale_refs = self._collect_action_rationale_refs(label_to_id)
         return self._apply_reference_metadata(action_rationale_refs)
+
+    def _validate_artifacts(self) -> None:
+        for knowledge in self.knowledge_nodes:
+            if _is_local(knowledge, self.pkg):
+                _validate_artifact_metadata(knowledge, references=self.references)
 
     def _build_knowledge_label_tables(self) -> tuple[dict[str, str], dict[str, set[str]]]:
         label_to_id: dict[str, str] = {}
@@ -1498,6 +1571,13 @@ class _ReferenceScanner:
                 label_to_id[knowledge.label] = qid
                 knowledge_label_ids.setdefault(knowledge.label, set()).add(qid)
         return label_to_id, knowledge_label_ids
+
+    def _build_artifact_labels(self) -> set[str]:
+        return {
+            knowledge.label
+            for knowledge in self.knowledge_nodes
+            if knowledge.label and _has_artifact_metadata(knowledge)
+        }
 
     def _build_action_short_labels(
         self, knowledge_label_ids: dict[str, set[str]]
@@ -1705,6 +1785,8 @@ class _ReferenceScanner:
         refs: tuple[set[str], set[str]],
     ) -> None:
         knowledge_refs, citation_refs = refs
+        artifact_refs = knowledge_refs.intersection(self.artifact_labels)
+        claim_refs = knowledge_refs.difference(artifact_refs)
         for i, ir_knowledge in enumerate(all_ir_knowledges):
             if ir_knowledge.id != target_qid:
                 continue
@@ -1715,10 +1797,14 @@ class _ReferenceScanner:
                 existing_cites = set(provenance.get("cited_refs", []))
                 existing_cites.update(citation_refs)
                 provenance["cited_refs"] = sorted(existing_cites)
-            if knowledge_refs:
+            if claim_refs:
                 existing_refs = set(provenance.get("referenced_claims", []))
-                existing_refs.update(knowledge_refs)
+                existing_refs.update(claim_refs)
                 provenance["referenced_claims"] = sorted(existing_refs)
+            if artifact_refs:
+                existing_artifact_refs = set(provenance.get("artifact_refs", []))
+                existing_artifact_refs.update(artifact_refs)
+                provenance["artifact_refs"] = sorted(existing_artifact_refs)
             gaia_meta["provenance"] = provenance
             metadata["gaia"] = gaia_meta
             all_ir_knowledges[i] = ir_knowledge.model_copy(update={"metadata": metadata})

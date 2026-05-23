@@ -113,10 +113,9 @@ f2_count_observation = observe(
     f2_dominant_count,
     value=DOMINANT_COUNT,
     background=[monohybrid_cross_setup, f2_has_discrete_classes_observation],
-    source_refs=["Mendel 1866 dominant phenotype count"],
     rationale=(
         f"F2 计数：{DOMINANT_COUNT} 个显性表型，{RECESSIVE_COUNT} 个隐性表型，"
-        f"共 {TOTAL_COUNT} 个个体。这是用于贝叶斯点似然比较的 F2 计数数据。"
+        f"共 {TOTAL_COUNT} 个个体。这是用于贝叶斯点似然比较的 F2 计数数据 [@Mendel1866]。"
     ),
     label="f2_count_observation",
 )

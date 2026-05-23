@@ -11,10 +11,11 @@ The CLI organizes verbs into explicit top-level groups:
   inquiry  (sub-app: focus / review / obligation / hypothesis / tactics / reject)
   pkg      add / add-import / add-module / register / scaffold
   author   OPTIONAL authoring convenience (primary path: `gaia sdk` + write
-           the DSL directly). claim / equal / derive / note / question /
-           contradict / exclusive / decompose / observe / compute / infer /
-           associate / parameter / register-prior / variable / depends-on /
-           candidate-relation / materialize / compose / composition
+           the DSL directly). claim / artifact / figure / equal / derive /
+           note / question / contradict / exclusive / decompose / observe /
+           compute / infer / associate / parameter / register-prior /
+           variable / depends-on / candidate-relation / materialize /
+           compose / composition
   bayes    model / compare / distribution literals
   example  galileo / mendel (print or save the cli walkthrough for a
            shipping v0.5 example package)
@@ -28,6 +29,7 @@ import typer
 from gaia._meta import IR_SCHEMA, get_channel, get_commit, get_library_version
 from gaia.cli.commands.add import add_command
 from gaia.cli.commands.author import (
+    artifact_command,
     associate_command,
     candidate_relation_command,
     claim_command,
@@ -40,6 +42,7 @@ from gaia.cli.commands.author import (
     derive_command,
     equal_command,
     exclusive_command,
+    figure_command,
     list_command,
     materialize_command,
     note_command,
@@ -274,15 +277,17 @@ author_app = typer.Typer(
     help=(
         "Optional authoring convenience (primary path: `gaia sdk` + write the "
         "DSL directly). Writes into the package's authored/ submodule. Verbs: "
-        "claim / equal / derive / note / question / contradict / exclusive / "
-        "decompose / observe / compute / infer / associate / parameter / "
-        "register-prior / variable / depends-on / candidate-relation / "
-        "materialize / compose / composition / list."
+        "claim / artifact / figure / equal / derive / note / question / "
+        "contradict / exclusive / decompose / observe / compute / infer / "
+        "associate / parameter / register-prior / variable / depends-on / "
+        "candidate-relation / materialize / compose / composition / list."
     ),
     no_args_is_help=True,
 )
 # Knowledge tier.
 author_app.command(name="claim")(claim_command)
+author_app.command(name="artifact")(artifact_command)
+author_app.command(name="figure")(figure_command)
 author_app.command(name="note")(note_command)
 author_app.command(name="question")(question_command)
 # Structural relations.

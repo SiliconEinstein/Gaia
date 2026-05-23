@@ -37,7 +37,7 @@ Knowledge:
     content:                str | None       # 知识内容
     content_hash:           str | None       # SHA-256(type | format | content | sorted((name, type)))，不含 package_id；详见 §1.1.2
     parameters:             list[Parameter]  # 全称命题的量化变量（封闭命题为空列表）
-    metadata:               dict | None      # 含 refs: list[str]（相关 Knowledge IDs、来源引用等）
+    metadata:               dict | None      # 含 gaia.provenance / gaia.artifact 等结构化元数据
 
     # ── composition 所需 ──
     template_name:          str | None       # type=composition 时必填
@@ -250,7 +250,7 @@ Operator:
     variables:      list[str]        # 连接的 Knowledge IDs（有序）
     conclusion:     str              # 该 Operator 的标准结果 claim / helper claim
 
-    metadata:       dict | None      # 含 refs: list[str] 等
+    metadata:       dict | None      # 算子级结构化元数据
 ```
 
 **Operator ID 范围规则**：

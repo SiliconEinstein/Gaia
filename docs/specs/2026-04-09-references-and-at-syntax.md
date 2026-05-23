@@ -1,6 +1,6 @@
 # References & `@` Syntax Unification Design
 
-> **Status:** Target design
+> **Status:** Implemented (core scanner/resolver); renderer and artifact integration tracked by [2026-05-23-references-system-consolidation.md](2026-05-23-references-system-consolidation.md)
 > **Date:** 2026-04-09
 > **Scope:** Gaia Lang DSL + Compiler + CLI
 > **Depends on:** [2026-04-02-gaia-lang-v5-python-dsl-design.md](2026-04-02-gaia-lang-v5-python-dsl-design.md), [2026-04-04-compile-readme-design.md](2026-04-04-compile-readme-design.md)

@@ -1,0 +1,19 @@
+{
+  "Mendel1866": {
+    "type": "article-journal",
+    "title": "Experiments on Plant Hybrids",
+    "author": [
+      {
+        "family": "Mendel",
+        "given": "Gregor"
+      }
+    ],
+    "issued": {
+      "date-parts": [
+        [
+          1866
+        ]
+      ]
+    }
+  }
+}

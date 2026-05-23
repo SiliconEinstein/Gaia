@@ -417,7 +417,10 @@ weak_points:
     p2: 0.85
     weakness_reason: <reviewer critique of why the body claim is uncertain>
     failure_mode: <reviewer counterfactual: what breaks in the threatened conclusion if body fails>
-    refs: [{type: figure, id: "Fig. 4"}, {type: equation, id: "Eq. (12)"}]   # only figure/equation/citation; section/appendix forbidden
+    citation_keys: ["SourceKey"]
+    artifact_anchors:
+      - {kind: figure, source: "SourceKey", locator: "Fig. 4"}
+    inline_equations: ["Eq. (12) content must be transcribed into body if load-bearing"]
 
 highlights:
   - id: H1
@@ -426,7 +429,10 @@ highlights:
     body: <self-standing scientific proposition>
     strength_types: [computational, statistical]
     credit: <reviewer integrated argument: failure preempted, layer underwritten, scope of credit>
-    refs: [{type: figure, id: "Fig. 4"}, {type: equation, id: "Eq. (12)"}]   # only figure/equation/citation; section/appendix forbidden
+    citation_keys: ["SourceKey"]
+    artifact_anchors:
+      - {kind: figure, source: "SourceKey", locator: "Fig. 4"}
+    inline_equations: ["Eq. (12) content must be transcribed into body if load-bearing"]
 
 conclusion_synthesis:
   - conclusion_id: 1

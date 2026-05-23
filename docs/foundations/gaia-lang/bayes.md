@@ -390,8 +390,12 @@ T_c = Normal("T_c of H3S at 200 GPa", mu=q(200, "K"), sigma=q(50, "K"))
 # Record the published measurement (Drozdov et al. 2015) with its
 # experimental uncertainty. observe() infers the unit from the target
 # distribution and accepts compatible units (Celsius is auto-converted).
-measurement = observe(T_c, value=q(203, "K"), error=q(5, "K"),
-                      source_refs=["Drozdov 2015"])
+measurement = observe(
+    T_c,
+    value=q(203, "K"),
+    error=q(5, "K"),
+    rationale="Reported superconducting transition temperature [@Drozdov2015].",
+)
 
 # Predicate claim with a Quantity-typed threshold. The compiler checks that
 # the threshold's unit is dimensionally compatible with the distribution's
@@ -459,10 +463,20 @@ from gaia.engine.lang import Normal, observe
 T_c = Normal("T_c of H3S at 200 GPa", mu=200, sigma=50)
 
 # Single measurement
-m1 = observe(T_c, value=203, error=5, source_refs=["Drozdov 2015"])
+m1 = observe(
+    T_c,
+    value=203,
+    error=5,
+    rationale="Reported transition temperature [@Drozdov2015].",
+)
 
 # Replicated measurement (different group / instrument)
-m2 = observe(T_c, value=205, error=4, source_refs=["Eremets 2016"])
+m2 = observe(
+    T_c,
+    value=205,
+    error=4,
+    rationale="Independent replicated transition temperature [@Eremets2016].",
+)
 
 # Custom non-Gaussian noise model (Distribution-typed error)
 custom_noise = Normal("Bayesian-fit measurement noise", mu=0, sigma=4.5)
