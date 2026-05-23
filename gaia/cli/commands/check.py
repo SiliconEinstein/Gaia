@@ -1402,6 +1402,7 @@ def _run_check_quality_gate(
     loaded: Any,
     compiled: Any,
     review_manifest: ReviewManifest,
+    extra_failures: list[str] | None = None,
 ) -> None:
     """Run the quality gate and print its result."""
     from gaia.cli.commands._quality_gate import (
@@ -1420,6 +1421,7 @@ def _run_check_quality_gate(
             config,
             formalization_manifest=compiled.formalization_manifest,
         )
+        failures.extend(extra_failures or [])
     except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -1667,7 +1669,31 @@ def _format_legacy_metadata(values: list[tuple[str, tuple[str, ...]]]) -> str:
     return ", ".join(f"{label} -> {', '.join(keys)}" for label, keys in values)
 
 
-def _emit_refs_check_report(loaded: Any, compiled: Any, ir: dict[str, Any]) -> None:
+def _refs_gate_failures(report: _RefsCheckReport) -> list[str]:
+    failures: list[str] = []
+    if report.unresolved_bare_refs:
+        failures.append(
+            f"Reference check: unresolved bare refs: {_format_ref_set(report.unresolved_bare_refs)}"
+        )
+    if report.missing_artifact_files:
+        failures.append(
+            f"Reference check: missing artifact files: "
+            f"{_format_ref_pairs(report.missing_artifact_files)}"
+        )
+    if report.invalid_artifact_refs:
+        failures.append(
+            f"Reference check: invalid artifact refs: "
+            f"{_format_ref_set(report.invalid_artifact_refs)}"
+        )
+    if report.legacy_metadata:
+        failures.append(
+            f"Reference check: legacy reference metadata: "
+            f"{_format_legacy_metadata(report.legacy_metadata)}"
+        )
+    return failures
+
+
+def _emit_refs_check_report(loaded: Any, compiled: Any, ir: dict[str, Any]) -> _RefsCheckReport:
     report = _collect_refs_check_report(loaded, compiled, ir)
     typer.echo("")
     typer.echo("Reference checks:")
@@ -1681,6 +1707,7 @@ def _emit_refs_check_report(loaded: Any, compiled: Any, ir: dict[str, Any]) -> N
     typer.echo(f"  Missing artifact files: {_format_ref_pairs(report.missing_artifact_files)}")
     typer.echo(f"  Invalid artifact refs: {_format_ref_set(report.invalid_artifact_refs)}")
     typer.echo(f"  Legacy reference metadata: {_format_legacy_metadata(report.legacy_metadata)}")
+    return report
 
 
 def check_command(
@@ -1765,8 +1792,9 @@ def check_command(
         f"{len(ir['strategies'])} strategies, "
         f"{len(ir['operators'])} operators"
     )
+    refs_report = None
     if refs:
-        _emit_refs_check_report(loaded, compiled, ir)
+        refs_report = _emit_refs_check_report(loaded, compiled, ir)
 
     review_manifest = None
     induced_summary = None
@@ -1799,6 +1827,7 @@ def check_command(
             loaded=loaded,
             compiled=compiled,
             review_manifest=review_manifest,
+            extra_failures=_refs_gate_failures(refs_report) if refs_report is not None else None,
         )
 
     if warrants and blind and not (brief or show or hole):

@@ -181,3 +181,42 @@ def test_check_refs_reports_unresolved_bare_refs_for_scaffold_action_labels(tmp_
 
     assert result.exit_code == 0, result.output
     assert "Unresolved bare refs: open_relation" in result.output
+
+
+def test_check_refs_gate_fails_on_hard_reference_findings(tmp_path):
+    pkg_dir = tmp_path / "refs_check_gate"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "refs-check-gate-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n\n'
+        "[tool.gaia.quality]\nallow_holes = true\n"
+    )
+    (pkg_dir / "references.json").write_text(
+        json.dumps({"Bell1964": {"type": "article-journal", "title": "Bell theorem"}})
+    )
+    pkg_src = pkg_dir / "refs_check_gate"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.engine.lang import figure, note\n\n"
+        "fig1 = figure(\n"
+        '    source="Bell1964",\n'
+        '    locator="Fig. 1",\n'
+        '    path="artifacts/figures/missing.png",\n'
+        '    caption="Missing figure.",\n'
+        ")\n"
+        'main = note("A note with @typo and [@fig1].")\n'
+        'legacy = note("Legacy reference metadata.", '
+        'refs=[{"type": "figure", "id": "Fig. 2"}], figure="Fig. 2")\n'
+        '__all__ = ["main"]\n'
+    )
+
+    result = runner.invoke(app, ["build", "check", "--refs", "--gate", str(pkg_dir)])
+
+    assert result.exit_code != 0
+    assert "Quality gate failed:" in result.output
+    assert "Reference check: unresolved bare refs: typo" in result.output
+    assert (
+        "Reference check: missing artifact files: fig1 -> artifacts/figures/missing.png"
+        in result.output
+    )
+    assert "Reference check: legacy reference metadata: legacy -> refs, figure" in result.output

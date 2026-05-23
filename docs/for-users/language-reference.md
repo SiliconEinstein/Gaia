@@ -188,7 +188,9 @@ but compiled provenance records them under `artifact_refs`, separate from
 `referenced_claims`.
 
 Run `gaia build check --refs` to see a focused citation/local-reference/artifact
-diagnostic report for a package.
+diagnostic report for a package. In CI, use `gaia build check --refs --gate`
+to fail on hard reference findings such as unresolved bare refs, missing
+artifact files, invalid artifact refs, or legacy reference metadata.
 
 Do not use `observe(source_refs=...)` for new code; put citation markers in
 `rationale`. Also do not put bibliographic citations in

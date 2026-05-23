@@ -381,7 +381,9 @@ The compiler must never treat these legacy fields as canonical citation data.
 older proposed `gaia lint --refs` shape without adding a new top-level `lint` group. The report
 should summarize `cited_refs`, `referenced_claims`, and `artifact_refs`; list unused
 `references.json` entries; surface unresolved bare `@key` misses; and flag legacy reference
-metadata plus missing package-local artifact files.
+metadata plus missing package-local artifact files. `gaia build check --refs --gate` should fail
+the quality gate on hard reference findings: unresolved bare refs, missing artifact files, invalid
+artifact refs, and legacy reference metadata. Unused bibliography entries remain a diagnostic.
 
 ### 7.2 Renderer
 
