@@ -31,7 +31,10 @@ gaia trace    verify / review / show          ARM Trace tooling (independent)
 > is **different** from `gaia inquiry review` and `gaia trace review`,
 > which are pre-existing inner subcommands and keep their invocation paths.
 
-For the full generated references of the two agent-first surfaces, see
+Authoring the DSL directly is the primary path — run [`gaia sdk`](#) to get
+the SDK reference + cheat sheet (see the
+[authoring workflow](authoring-workflow.md)). For the full generated
+references of the optional authoring-helper surfaces, see
 [`gaia author`](../reference/cli/author.md) and
 [`gaia bayes`](../reference/cli/bayes.md).
 

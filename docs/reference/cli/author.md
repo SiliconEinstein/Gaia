@@ -1,14 +1,20 @@
 # `gaia author` and `gaia pkg scaffold`
 
-> **Status:** Reference for the agent-first authoring CLI (v0.5).
+> **Status:** Reference for the optional Tier-2 authoring CLI (v0.5). The
+> **recommended** authoring path is direct SDK authoring — run `gaia sdk`,
+> read the cheat sheet, write the DSL directly. See
+> [Authoring workflow](../../for-users/authoring-workflow.md).
 
-The `gaia author` subcommand group and the `gaia pkg scaffold` verb together
-form the **cli-as-client** authoring surface: an LLM agent (or human at a
-shell) can scaffold a fresh `-gaia` package and append every supported DSL
-statement through `gaia author <verb>` without touching the Python source by
-hand. The cli owns identifier collision checks, reference resolution, pre-
-write defensive validation, file appending, and (by default) a post-write
-`gaia build check` to confirm the package still compiles.
+The `gaia author` subcommand group and the `gaia pkg scaffold` verb are an
+**optional convenience** over direct SDK authoring: instead of editing the
+Python source, you can scaffold a fresh `-gaia` package and append DSL
+statements through `gaia author <verb>`. Every CLI write is confined to the
+package's re-exported `authored/` submodule (`src/<pkg>/authored/`) — the cli
+never writes the package-root `__init__.py`, which composes the CLI-authored
+statements back in via `from .authored import *`. The cli owns identifier
+collision checks, reference resolution, pre-write defensive validation, file
+appending, and (by default) a post-write `gaia build check` to confirm the
+package still compiles.
 
 Output is **JSON-by-default** through a uniform envelope (see
 [Envelope shape](#envelope-shape)) so an agent consumer can

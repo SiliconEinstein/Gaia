@@ -50,30 +50,18 @@ The scaffold writes:
 - `pyproject.toml` with `[tool.gaia] type = "knowledge-package"` and
   `namespace = "example"` (no `uuid` by default — `--with-uuid` opts in
   to a generated uuid; both shipping example packages omit it).
-- `src/galileo_v0_5/__init__.py` importing the full author-surface DSL
-  (so each `gaia author <verb>` does not trip the postwrite `NameError`
-  from missing imports) and seeding a placeholder
-  `hypothesis = claim("A scientific hypothesis to be evaluated.", title="Hypothesis")`.
+- `src/galileo_v0_5/__init__.py` — the package-root entrypoint, which
+  imports `claim`, declares an empty `__all__`, and re-exports the
+  CLI-authored submodule via `from .authored import *`.
+- `src/galileo_v0_5/authored/__init__.py` — the **canonical write target**
+  for every `gaia author <verb>` call (empty `__all__` to start). The CLI
+  never writes the package-root `__init__.py`.
 - `.gaia/.gitkeep` so the cli postwrite check can find the IR artifact
   directory.
 
-The placeholder `hypothesis` statement is **not part of the Galileo
-example** — strip it before authoring the real statements:
-
-```bash
-python -c "
-import pathlib
-p = pathlib.Path('galileo-cli-mirror-gaia/src/galileo_v0_5/__init__.py')
-src = p.read_text()
-end = src.find('hypothesis = claim(')
-if end > 0:
-    p.write_text(src[:end].rstrip() + '\n')
-"
-```
-
-(The test fixture does the same edit; the resulting file carries
-the scaffold-default import block plus a blank line ready for the first
-`gaia author note`.)
+The scaffold seeds no placeholder statement, so there is nothing to
+strip — the first `gaia author note` appends directly into
+`authored/__init__.py`.
 
 ### 2. Author the three contextual notes
 
@@ -207,11 +195,14 @@ gaia author derive \
 ### 7. Register the empirical-background prior in `priors.py`
 
 `register-prior --file priors.py` routes the prior into a sibling
-module that mirrors the hand-authored layout. First scaffold the
-sibling via `gaia pkg add-module`, then route the `register-prior` call
-into it. The writer auto-inserts
+module that mirrors the hand-authored layout. The sibling is created
+inside the re-exported `authored/` submodule (so the on-disk path is
+`src/galileo_v0_5/authored/priors.py`, which the engine still imports at
+load). First scaffold the sibling via `gaia pkg add-module`, then route
+the `register-prior` call into it. The writer auto-inserts
 `from galileo_v0_5 import daily_observation` because the referenced
-claim is bound in `__init__.py` rather than `priors.py` itself.
+claim is bound in `authored/__init__.py` and re-exported through the
+package root, rather than declared in `priors.py` itself.
 
 ```bash
 gaia pkg add-module \

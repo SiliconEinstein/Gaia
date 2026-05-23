@@ -53,6 +53,7 @@ nav:
   - Start Here:
       - What Is Gaia?: for-visitors/what-is-gaia.md
       - Quick Start: for-users/quick-start.md
+      - Authoring Workflow: for-users/authoring-workflow.md
       - Hole And Bridge Tutorial: for-users/hole-bridge-tutorial.md
   - User Reference:
       - Language Reference: for-users/language-reference.md

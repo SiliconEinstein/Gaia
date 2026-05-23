@@ -64,9 +64,24 @@ my-first-gaia/
   pyproject.toml              # [project], [tool.hatch.build.targets.wheel], [tool.gaia]
   uv.lock                     # pinned dependency tree, present after uv dependency resolution succeeds
   src/my_first/
-    __init__.py               # DSL declarations (template)
+    __init__.py               # DSL declarations (template) + `from .authored import *`
+    authored/
+      __init__.py             # CLI-authored statements land here (gaia author)
   .gitignore                  # ignores .gaia/beliefs.json, .gaia/dep_beliefs/
 ```
+
+## Get the SDK cheat sheet
+
+Authoring the DSL directly is the primary path. Generate the SDK reference
+plus a one-page cheat sheet, then write your statements directly:
+
+```bash
+gaia sdk                      # writes ./gaia-sdk/CHEATSHEET.md + full reference
+```
+
+(The `gaia author` CLI is an optional convenience — see the
+[authoring workflow](authoring-workflow.md). When used, it writes into the
+re-exported `authored/` submodule, never the root `__init__.py`.)
 
 ## Edit Your Package
 

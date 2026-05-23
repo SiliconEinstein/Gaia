@@ -10,9 +10,16 @@ Choose your path:
 Start with [What is Gaia?](for-visitors/what-is-gaia.md).
 
 ### I want to use Gaia to author knowledge packages
-> You're a researcher or research agent using the Gaia CLI.
+> You're a researcher or research agent authoring the Gaia DSL.
 
-Start with the [Quick Start](for-users/quick-start.md), then read the [Hole And Bridge Tutorial](for-users/hole-bridge-tutorial.md), the [Language Reference](for-users/language-reference.md) DSL cheat sheet, and [CLI Commands](for-users/cli-commands.md).
+**Start here: run `gaia sdk`** to generate the SDK reference + a one-page
+`CHEATSHEET.md`, then **author the DSL directly** in Python. Direct SDK
+authoring is the primary path; the `gaia author` CLI is an optional
+convenience. Read the [Authoring workflow](for-users/authoring-workflow.md)
+for the canonical model, the [Quick Start](for-users/quick-start.md), the
+[Hole And Bridge Tutorial](for-users/hole-bridge-tutorial.md), the
+[Language Reference](for-users/language-reference.md) DSL cheat sheet, and
+[CLI Commands](for-users/cli-commands.md).
 
 ### I want to develop Gaia
 > You're a developer working on the codebase.

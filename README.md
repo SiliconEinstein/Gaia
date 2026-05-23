@@ -45,14 +45,20 @@ the upcoming `0.5.0` line until the stable v0.5 release is cut.
 ## What Gaia Does
 
 ```text
-Python DSL / CLI authoring
+Author the Python DSL directly (primary)   [optional: gaia author CLI]
   -> gaia build compile
   -> Gaia IR + factor graph
   -> gaia run infer
   -> posterior beliefs and review artifacts
 ```
 
-In v0.5, the recommended authoring style is deliberately small:
+**Start here:** run `gaia sdk` to generate the SDK reference plus a one-page
+`CHEATSHEET.md`, then write the DSL directly. Direct SDK authoring is the
+primary path; the `gaia author` CLI is an optional convenience (see the
+[authoring workflow](docs/for-users/authoring-workflow.md)).
+
+In v0.5, the recommended authoring style is deliberately small — write these
+statements directly in Python:
 
 - write uncertain scientific statements as `claim(...)`;
 - keep definitions, setups, and context as non-probabilistic `note(...)`;
@@ -101,11 +107,18 @@ uv sync --extra dev
 
 ```bash
 gaia build init my-paper-gaia
-cd my-paper-gaia
 
-# Add claims and reasoning steps either by editing Python or through the CLI.
+# Generate the SDK reference + one-page cheat sheet, then author directly.
+gaia sdk                       # writes ./gaia-sdk/CHEATSHEET.md + full reference
+
+# Primary path: edit src/my_paper/__init__.py and write the DSL directly, e.g.
+#   intervention_changes_observable = claim("The intervention changes the observable.")
+
+# Optional convenience: the same statement via the CLI (writes into authored/).
 gaia author claim "The intervention changes the observable." \
-  --dsl-binding-name intervention_changes_observable
+  --dsl-binding-name intervention_changes_observable --target ./my-paper-gaia
+
+cd my-paper-gaia
 
 gaia build compile .
 gaia build check --hole .
@@ -263,8 +276,12 @@ factor graph:
 
 ## v0.5 Authoring Surface
 
-| Layer | Python DSL | CLI |
-|-------|------------|-----|
+Run `gaia sdk` for the full per-symbol reference + cheat sheet. The
+**primary** column is what you write directly in Python; the **optional CLI
+helper** column is the convenience equivalent (writes into `authored/`).
+
+| Layer | Primary — write directly (Python DSL) | Optional CLI helper |
+|-------|---------------------------------------|---------------------|
 | Knowledge | `claim`, `note`, `question` | `gaia author claim/note/question` |
 | Reasoning actions | `derive`, `observe`, `compute`, `infer` | `gaia author derive/observe/compute/infer` |
 | Relations | `equal`, `contradict`, `exclusive`, `associate`, `decompose` | `gaia author equal/contradict/exclusive/associate/decompose` |
@@ -286,7 +303,8 @@ The CLI is self-documenting. Use `gaia --help`, `gaia <group> --help`, and
 | Group | Verbs | Purpose |
 |-------|-------|---------|
 | `gaia build` | `init`, `compile`, `check` | Create packages, compile Python DSL to Gaia IR, and validate structure/prior holes/gates. |
-| `gaia author` | `claim`, `note`, `question`, `derive`, `observe`, `compute`, `infer`, `equal`, `contradict`, `exclusive`, `associate`, `decompose`, `parameter`, `register-prior`, `variable`, `depends-on`, `candidate-relation`, `materialize`, `compose`, `composition` | Agent-first authoring commands that append checked DSL statements to package source files. |
+| `gaia sdk` | _(no subcommand)_ | **Start here.** Generate the SDK reference + one-page `CHEATSHEET.md`, then author the DSL directly. |
+| `gaia author` | `claim`, `note`, `question`, `derive`, `observe`, `compute`, `infer`, `equal`, `contradict`, `exclusive`, `associate`, `decompose`, `parameter`, `register-prior`, `variable`, `depends-on`, `candidate-relation`, `materialize`, `compose`, `composition` | Optional convenience over direct authoring: append checked DSL statements into the package's `authored/` submodule. |
 | `gaia bayes` | `model`, `compare`, `binomial`, `beta-binomial`, `poisson`, `normal`, `log-normal`, `beta`, `exponential`, `gamma`, `student-t`, `cauchy`, `chi-squared` | CLI helpers for Bayesian model comparison declarations and distribution literals. |
 | `gaia pkg` | `add`, `add-import`, `add-module`, `register`, `scaffold` | Manage package dependencies, sibling modules, scaffolds, and registry publication. |
 | `gaia run` | `infer`, `render` | Compute local posterior beliefs and render package outputs. |

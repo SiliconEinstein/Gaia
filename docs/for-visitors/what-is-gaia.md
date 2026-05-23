@@ -16,10 +16,10 @@ When authors run inference after adding new evidence — a package update, a new
 
 ## How It Works
 
-Authors (or AI agents) write **knowledge packages** — small structured descriptions of a paper's claims, settings, and reasoning chains. They use a Python authoring DSL (`gaia.engine.lang`) and the `gaia` command-line toolchain:
+Authors (or AI agents) write **knowledge packages** — small structured descriptions of a paper's claims, settings, and reasoning chains. The primary path is **authoring the Python DSL (`gaia.engine.lang`) directly**; the `gaia` command-line toolchain compiles, infers, and (optionally) helps author:
 
 1. `gaia build init <name>-gaia` scaffolds a package.
-2. The author writes `claim(...)`, `note(...)`, `derive(...)`, `infer(...)`, relation verbs (`contradict`, `equal`, `exclusive`), and propositional formulas in Python.
+2. `gaia sdk` writes the SDK reference + a one-page `CHEATSHEET.md`; the author then **writes `claim(...)`, `note(...)`, `derive(...)`, `infer(...)`, relation verbs (`contradict`, `equal`, `exclusive`), and propositional formulas directly in Python**. (The `gaia author` CLI is an optional convenience that does the same writes for you.)
 3. `gaia build compile` lowers the DSL into Gaia IR (`Knowledge / Operator / Strategy / Compose` records).
 4. `gaia run infer` lowers the IR into a factor graph and runs belief propagation locally.
 5. `gaia pkg register` checks the release artifacts and prepares or writes git-backed registry metadata, where downstream packages can depend on exported claims.

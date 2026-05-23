@@ -54,23 +54,11 @@ not accept a separate `--import-name` override.
 The scaffold writes:
 
 - `pyproject.toml` with `[tool.gaia] type = "knowledge-package"` and `namespace = "example"` (no `uuid` by default; `--with-uuid` opts in).
-- `src/mendel_v0_5/__init__.py` importing the full author-surface DSL (`bayes`, `Variable`, `Constant`, `Nat`, `equals`, `land`, ...) plus a placeholder `hypothesis = claim(...)` so the file is loadable immediately.
+- `src/mendel_v0_5/__init__.py` — the package-root entrypoint (imports `claim`, declares an empty `__all__`, and re-exports the CLI-authored submodule via `from .authored import *`).
+- `src/mendel_v0_5/authored/__init__.py` — the **canonical write target** for every `gaia author` / `gaia bayes` call (empty `__all__` to start). The CLI never writes the package-root `__init__.py`.
 - `.gaia/.gitkeep`.
 
-The placeholder `hypothesis` statement is not part of the Mendel example — strip it before authoring the real statements:
-
-```bash
-python -c "
-import pathlib
-p = pathlib.Path('mendel-cli-mirror-gaia/src/mendel_v0_5/__init__.py')
-src = p.read_text()
-end = src.find('hypothesis = claim(')
-if end > 0:
-    p.write_text(src[:end].rstrip() + '\n')
-"
-```
-
-(The test fixture does the same edit.)
+The scaffold seeds no placeholder statement, so there is nothing to strip — the first `gaia author` call appends directly into `authored/__init__.py`. (The author/bayes verbs each carry the imports they need into `authored/`, so the file stays loadable.)
 
 ### 2. Declare the two `Variable(...)` typed terms
 

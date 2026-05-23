@@ -168,6 +168,6 @@ gaia bayes compare --data f2_count_observation \
 
 ## See also
 
-- [`docs/reference/cli/author.md`](author.md) — the full agent-first authoring CLI.
+- [`docs/reference/cli/author.md`](author.md) — the optional authoring-helper CLI (primary path: direct SDK authoring).
 - [`docs/reference/cli/pkg.md`](pkg.md) — `gaia pkg scaffold` + `add-module`.
 - Engine reference: [`gaia.engine.bayes`](https://github.com/SiliconEinstein/gaia/tree/main/gaia/engine/bayes).
