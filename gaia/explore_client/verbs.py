@@ -49,7 +49,11 @@ from gaia.engine.exploration.observe import (
     promote_materialized_lkm_contacts,
 )
 from gaia.engine.exploration.render import render_map_html
-from gaia.engine.exploration.scorer import sanitize_score_features, score_frontier
+from gaia.engine.exploration.scorer import (
+    load_open_obligations,
+    sanitize_score_features,
+    score_frontier,
+)
 from gaia.engine.exploration.state import (
     DOCTRINE_PRESETS,
     Contact,
@@ -490,7 +494,12 @@ def frontier_command(
 
     extracted = view.extract(exploration_map)
     reconcile_frontier(exploration_map, extracted, discovered_round=exploration_map.round)
-    score_frontier(exploration_map, beliefs=beliefs, edges=view.edges)
+    # (build 12, CLIENT.md steer 3) Load the package's open synthetic obligations
+    # and pass them to the scorer so this standalone verb scores
+    # ``obligation_pressure`` exactly as ``gaia-lkm-explore turn`` does — the two
+    # surfaces must agree (a contact discharging an open obligation scores 1.0).
+    obligations = load_open_obligations(pkg)
+    score_frontier(exploration_map, beliefs=beliefs, edges=view.edges, obligations=obligations)
     _refresh_stats(exploration_map)
     save_map(pkg, exploration_map)
 

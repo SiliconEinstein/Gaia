@@ -176,6 +176,59 @@ def test_explore_frontier_json_output(galileo_pkg: Path):
         assert "belief_entropy" not in row["score_features"]
 
 
+def test_explore_frontier_applies_obligations_like_turn(galileo_pkg: Path):
+    """Build 12 (CLIENT.md steer 3): the `frontier` verb agrees with `turn`.
+
+    Mirrors ``test_idle_turn_loads_obligations_and_boosts_matching_contact`` in
+    test_orchestrator.py but for the standalone verb: a contact whose ref QID
+    matches an open synthetic obligation's ``target_qid`` must score
+    ``obligation_pressure == 1.0`` (not ``0.0``), so the verb does not mislead.
+    """
+    from gaia.engine.inquiry.state import (
+        InquiryState,
+        SyntheticObligation,
+        save_state,
+    )
+
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    contact_qid = _inject_depends_on_manifest(
+        galileo_pkg, "unmaterialized_factor", "aristotle_model"
+    )
+
+    # An open obligation about the contact's QID — persisted via the real inquiry
+    # state writer (no hand-parsed JSON), exactly as the orchestrator test does.
+    save_state(
+        galileo_pkg,
+        InquiryState(
+            synthetic_obligations=[
+                SyntheticObligation(
+                    qid="oblig_frontier",
+                    target_qid=contact_qid,
+                    content="show the keystone holds",
+                )
+            ]
+        ),
+    )
+
+    # Non-JSON path: the contact is scored with obligation_pressure folded in.
+    result = runner.invoke(app, ["frontier", str(galileo_pkg)])
+    assert result.exit_code == 0, result.output
+    m = load_map(galileo_pkg)
+    contact = next(c for c in m.frontier if c.ref["value"] == contact_qid)
+    assert contact.score_features["obligation_pressure"] == 1.0
+
+    # --json path: obligation_pressure stays in the agent-facing score_features
+    # (it is NOT a belief key — it must survive sanitization).
+    json_result = runner.invoke(app, ["frontier", str(galileo_pkg), "--json"])
+    assert json_result.exit_code == 0, json_result.output
+    rows = json.loads(json_result.output)
+    row = next(r for r in rows if r["ref"]["value"] == contact_qid)
+    assert row["score_features"]["obligation_pressure"] == 1.0
+
+
 def test_explore_round_appends_and_detects_keystone(galileo_pkg: Path):
     runner.invoke(
         app,

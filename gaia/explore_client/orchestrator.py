@@ -132,15 +132,15 @@ def _load_beliefs(pkg: str | Path) -> dict[str, float]:
 def _load_open_obligations(pkg: str | Path) -> list[Any]:
     """Load the package's OPEN synthetic obligations (build 12, CLIENT.md steer 3).
 
-    Reuses the inquiry state loader (``gaia.engine.inquiry.state.load_state``) — no
-    hand-parsing of ``.gaia/inquiry/state.json``. ``synthetic_obligations`` holds
-    *only* open obligations (``gaia inquiry obligation close`` deletes the row), so
-    the list is already the open set. Missing state ⇒ empty list ⇒ the scorer's
+    Thin alias over the shared SDK seam
+    :func:`gaia.engine.exploration.scorer.load_open_obligations` so the turn loop
+    and the standalone ``frontier`` verb load obligations the same way (no
+    duplicated state parsing). Missing state ⇒ empty list ⇒ the scorer's
     ``obligation_pressure`` is ``0.0`` everywhere (graceful).
     """
-    from gaia.engine.inquiry.state import load_state
+    from gaia.engine.exploration.scorer import load_open_obligations
 
-    return list(load_state(str(pkg)).synthetic_obligations)
+    return list(load_open_obligations(pkg))
 
 
 def _resolve_graph(pkg: str | Path) -> Any | None:

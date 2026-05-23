@@ -71,6 +71,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from gaia.engine.exploration.frontier import _edges_from_ir
@@ -283,6 +284,30 @@ def _obligation_targets(
     if not obligations:
         return set()
     return {o.target_qid for o in obligations if getattr(o, "target_qid", None)}
+
+
+def load_open_obligations(pkg: str | Path) -> list[SyntheticObligation]:
+    """Load a package's OPEN synthetic obligations (CLIENT.md build 12 steer 3).
+
+    Reuses the inquiry state loader (``gaia.engine.inquiry.state.load_state``) — no
+    hand-parsing of ``.gaia/inquiry/state.json``. ``synthetic_obligations`` holds
+    *only* open obligations (``gaia inquiry obligation close`` deletes the row), so
+    the returned list is already the open set. Missing state ⇒ empty list ⇒ the
+    scorer's ``obligation_pressure`` is ``0.0`` everywhere (graceful).
+
+    This is the single SDK seam both ``gaia-lkm-explore turn`` (the orchestrator)
+    and the standalone ``frontier`` verb feed into :func:`score_frontier`'s
+    ``obligations=`` so the two agree on ``obligation_pressure``.
+
+    Args:
+        pkg: The knowledge-package directory.
+
+    Returns:
+        The open synthetic obligations (possibly empty).
+    """
+    from gaia.engine.inquiry.state import load_state
+
+    return list(load_state(str(pkg)).synthetic_obligations)
 
 
 def _obligation_pressure(
