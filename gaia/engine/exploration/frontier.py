@@ -375,7 +375,7 @@ def build_joint_view(
     project_config: dict[str, Any],
     depth: int = -1,
 ) -> JointView:
-    """Build the joint root+dependency frontier view (SCHEMA.md §7e #1).
+    """Build the joint root+dependency frontier view (SCHEMA.md §7e #1, §7f A).
 
     Loads the root graph's transitive ``-gaia`` dependency graphs via
     :func:`gaia.engine.packaging.load_dependency_compiled_graphs` (``depth=-1`` by
@@ -385,13 +385,24 @@ def build_joint_view(
     * folds its graph edges (``_edges_from_ir``) and the ``depends_on`` records
       from its ``.gaia/formalization_manifest.json`` into the joint edge list.
 
-    Robustness (SCHEMA.md §7e): with no deps it degrades to the root-only view
-    (current behaviour); if a dep is not compiled yet (raising
-    ``GaiaPackagingError``), it is skipped with a warning rather than crashing.
+    Robustness (SCHEMA.md §7e / §7f-A): the import-based loader resolves a dep
+    root via ``importlib.import_module``, which raises ``ModuleNotFoundError`` /
+    ``ImportError`` (NOT ``GaiaPackagingError``) for a real ``pkg add --lkm-paper``
+    editable dep that is present on disk but not importable from the run
+    interpreter — that crashed ``explore frontier`` in the 4c re-verify. So we
+    **first** resolve deps **by path** from the root ``pyproject.toml``
+    (``[tool.uv.sources]`` editable paths + ``[tool.uv.workspace]`` members),
+    reading each dep's ``.gaia/ir.json`` directly without importing anything; a
+    present-on-disk dep is folded in regardless of importability. The
+    import-based loader is then used only to catch any additional deps the
+    by-path scan missed, and **all** of ``GaiaPackagingError`` /
+    ``ModuleNotFoundError`` / ``ImportError`` degrade that step to
+    skipped-with-warning rather than crashing.
 
     Args:
         root_path: The root package directory (its manifest is read for
-            ``depends_on`` edges).
+            ``depends_on`` edges; its ``pyproject.toml`` drives by-path dep
+            resolution).
         root_graph: The already-compiled root ``LocalCanonicalGraph``.
         project_config: The root package's ``[project]`` pyproject section (the
             seam ``load_dependency_compiled_graphs`` expects).
@@ -403,22 +414,35 @@ def build_joint_view(
     from gaia.engine.packaging import GaiaPackagingError, load_dependency_compiled_graphs
 
     view = JointView()
+    folded_roots: set[Path] = set()
 
     def _fold(graph: LocalCanonicalGraph, root: Path) -> None:
+        resolved = root.resolve()
+        if resolved in folded_roots:
+            return
+        folded_roots.add(resolved)
         view.materialized |= _materialized_qids(graph)
-        view.edges.extend(_edges_from_ir(graph, _load_manifest_dict(root)))
-        view.package_roots.append(root)
+        view.edges.extend(_edges_from_ir(graph, _load_manifest_dict(resolved)))
+        view.package_roots.append(resolved)
 
-    _fold(root_graph, Path(root_path).resolve())
+    root_resolved = Path(root_path).resolve()
+    _fold(root_graph, root_resolved)
 
+    # (§7f-A) Resolve present-on-disk deps BY PATH first — no import_module — so a
+    # real `pkg add --lkm-paper` editable dep is folded in even when it is not
+    # importable from this interpreter.
+    for dep_root, dep_graph in _load_deps_by_path(root_resolved):
+        _fold(dep_graph, dep_root)
+
+    # The import-based loader catches anything the by-path scan missed; ANY of
+    # GaiaPackagingError / ModuleNotFoundError / ImportError degrades to a warning
+    # rather than crashing (§7f-A: ModuleNotFoundError is the 4c crash).
     try:
         deps = load_dependency_compiled_graphs(project_config, depth=depth)
-    except GaiaPackagingError as exc:
-        # A declared dep isn't compiled (or located) yet — degrade to the root
-        # view rather than crash. The skill's `gaia build compile <dep>` fixes it.
+    except (GaiaPackagingError, ImportError) as exc:
         view.warnings.append(
-            f"skipped dependency graphs (not compiled yet?): {exc}; "
-            "frontier is root-only this round"
+            f"skipped some dependency graphs ({type(exc).__name__}: {exc}); "
+            "frontier uses the root + any disk-resolved deps this round"
         )
         return view
 
@@ -426,3 +450,167 @@ def build_joint_view(
         _fold(dep.graph, Path(dep.root).resolve())
 
     return view
+
+
+def _load_deps_by_path(root: Path) -> list[tuple[Path, LocalCanonicalGraph]]:
+    """Resolve ``-gaia`` dep roots on disk from the root ``pyproject.toml`` (§7f-A).
+
+    Reads the root package's own ``pyproject.toml`` and resolves every
+    ``…-gaia`` ``[project].dependency`` to a directory **by path** — preferring a
+    ``[tool.uv.sources]`` editable ``{path = …}`` entry, then a
+    ``[tool.uv.workspace].members`` glob match — without ever importing the dep.
+    Each located dep with a compiled ``.gaia/ir.json`` is loaded and returned.
+
+    This deliberately avoids ``importlib.import_module`` (the source of the 4c
+    ``ModuleNotFoundError`` crash for a present-but-uninstalled editable dep). A
+    dep that can't be located on disk, has no ``.gaia/ir.json``, or whose IR
+    won't parse is simply omitted — the import-based loader (and its warning
+    path) is the backstop.
+
+    Args:
+        root: The resolved root package directory.
+
+    Returns:
+        ``(dep_root, dep_graph)`` pairs for every disk-resolvable, compiled dep.
+    """
+    parsed = _read_root_pyproject(root)
+    if parsed is None:
+        return []
+    dependencies, uv_sources, member_globs = parsed
+
+    out: list[tuple[Path, LocalCanonicalGraph]] = []
+    seen_roots: set[Path] = set()
+    for raw in dependencies:
+        if not isinstance(raw, str):
+            continue
+        dist_name = _dep_dist_name(raw)
+        if dist_name is None or not dist_name.endswith("-gaia"):
+            continue
+        dep_root = _resolve_dep_root_by_path(root, dist_name, uv_sources, member_globs)
+        if dep_root is None or dep_root.resolve() in seen_roots:
+            continue
+        dep_root = dep_root.resolve()
+        seen_roots.add(dep_root)
+        loaded = _load_dep_graph(dep_root)
+        if loaded is not None:
+            out.append((dep_root, loaded))
+    return out
+
+
+def _read_root_pyproject(
+    root: Path,
+) -> tuple[list[Any], dict[str, Any], list[Any]] | None:
+    """Parse the root ``pyproject.toml`` into ``(dependencies, uv_sources, members)``.
+
+    Returns ``None`` when the file is absent or unparseable, so the caller treats
+    the package as having no by-path-resolvable deps.
+    """
+    import tomllib
+
+    pyproject = root / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    try:
+        config = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+
+    project = config.get("project", {})
+    dependencies = project.get("dependencies", []) if isinstance(project, dict) else []
+    if not isinstance(dependencies, list):
+        dependencies = []
+
+    tool = config.get("tool")
+    uv = tool.get("uv", {}) if isinstance(tool, dict) else {}
+    uv_sources = uv.get("sources", {}) if isinstance(uv, dict) else {}
+    if not isinstance(uv_sources, dict):
+        uv_sources = {}
+    workspace = uv.get("workspace", {}) if isinstance(uv, dict) else {}
+    member_globs = workspace.get("members", []) if isinstance(workspace, dict) else []
+    if not isinstance(member_globs, list):
+        member_globs = []
+    return dependencies, uv_sources, member_globs
+
+
+def _load_dep_graph(dep_root: Path) -> LocalCanonicalGraph | None:
+    """Load a dep's compiled ``.gaia/ir.json`` graph by path, or ``None``."""
+    from gaia.engine.ir.graphs import LocalCanonicalGraph
+
+    ir_path = dep_root / ".gaia" / "ir.json"
+    if not ir_path.exists():
+        return None
+    try:
+        ir_data = json.loads(ir_path.read_text(encoding="utf-8"))
+        return LocalCanonicalGraph.model_validate(ir_data)
+    except (OSError, json.JSONDecodeError, ValueError):
+        return None
+
+
+def _dep_dist_name(requirement: str) -> str | None:
+    """Extract the distribution name from a ``[project].dependencies`` entry.
+
+    Tolerant of the full PEP 508 grammar (extras / specifiers / markers); returns
+    the bare distribution name (e.g. ``"foo-813135-gaia"``) or ``None`` when the
+    requirement is unparseable.
+    """
+    from packaging.requirements import InvalidRequirement, Requirement
+
+    try:
+        return Requirement(requirement).name
+    except InvalidRequirement:
+        return None
+
+
+def _resolve_dep_root_by_path(
+    root: Path,
+    dist_name: str,
+    uv_sources: dict[str, Any],
+    member_globs: list[Any],
+) -> Path | None:
+    """Locate a dep's package root on disk (no import) — sources, then workspace.
+
+    Resolution order (SCHEMA.md §7f-A):
+
+    1. ``[tool.uv.sources][<dist_name>]`` editable ``{path = …}`` (relative to the
+       root package dir) — the form ``gaia pkg add --lkm-paper`` writes;
+    2. a ``[tool.uv.workspace].members`` glob whose matched directory's
+       ``pyproject.toml`` declares ``[project].name == dist_name``.
+
+    Args:
+        root: The resolved root package directory (paths resolve against it).
+        dist_name: The dependency distribution name to locate.
+        uv_sources: The root's ``[tool.uv.sources]`` table.
+        member_globs: The root's ``[tool.uv.workspace].members`` globs.
+
+    Returns:
+        The dep package directory, or ``None`` if not resolvable on disk.
+    """
+    source = uv_sources.get(dist_name)
+    if isinstance(source, dict):
+        raw_path = source.get("path")
+        if isinstance(raw_path, str) and raw_path:
+            candidate = Path(raw_path)
+            if not candidate.is_absolute():
+                candidate = root / candidate
+            if candidate.exists():
+                return candidate
+
+    import tomllib
+
+    for glob in member_globs:
+        if not isinstance(glob, str):
+            continue
+        for member_dir in sorted(root.glob(glob)):
+            if not member_dir.is_dir():
+                continue
+            member_pyproject = member_dir / "pyproject.toml"
+            if not member_pyproject.exists():
+                continue
+            try:
+                member_cfg = tomllib.loads(member_pyproject.read_text(encoding="utf-8"))
+            except (OSError, tomllib.TOMLDecodeError):
+                continue
+            member_project = member_cfg.get("project", {})
+            if isinstance(member_project, dict) and member_project.get("name") == dist_name:
+                return member_dir
+    return None

@@ -8,12 +8,20 @@ the policy scorer, the turn loop, and render live in later sequenced steps and
 import from here. Build 2 adds :mod:`gaia.engine.exploration.frontier`, which
 derives the frontier from a package's IR (SCHEMA.md §7a). Build 3 adds
 :mod:`gaia.engine.exploration.scorer`, which scores the frontier per the current
-round's policy dial (SCHEMA.md §7b).
+round's policy dial (SCHEMA.md §7b). Build 4d adds
+:mod:`gaia.engine.exploration.observe`, which turns ``gaia search lkm`` results
+into ``lkm_related`` paper-contacts — the primary frontier source (SCHEMA.md §7f).
 """
 
 from gaia.engine.exploration.frontier import (
+    build_joint_view,
     extract_frontier,
     reconcile_frontier,
+)
+from gaia.engine.exploration.observe import (
+    ObserveResult,
+    observe_lkm_results,
+    promote_materialized_lkm_contacts,
 )
 from gaia.engine.exploration.scorer import (
     binary_entropy,
@@ -52,16 +60,20 @@ __all__ = [
     "VALID_SEED_KINDS",
     "Contact",
     "ExplorationMap",
+    "ObserveResult",
     "Policy",
     "SurveyRecord",
     "append_round",
     "binary_entropy",
+    "build_joint_view",
     "doctrine_policy",
     "exploration_dir",
     "extract_frontier",
     "load_map",
     "load_round_beliefs",
     "mint_contact_id",
+    "observe_lkm_results",
+    "promote_materialized_lkm_contacts",
     "read_rounds",
     "reconcile_frontier",
     "save_map",

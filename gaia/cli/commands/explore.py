@@ -6,13 +6,18 @@ adjudicates" split (DESIGN §2): a Typer sub-app over
 skill, build 4b) drives. It is pure and deterministic — **no LKM call, no
 ``gaia author`` orchestration, no render** live here; those are 4b.
 
-Commands (SCHEMA.md §7c):
+Commands (SCHEMA.md §7c / §7f):
 
 * ``explore init <pkg> --seed … [--doctrine …]`` — create
   ``.gaia/exploration/map.json`` with seeds + a policy from the named doctrine.
-* ``explore frontier <pkg>`` — load map + IR + manifest + beliefs, run
+* ``explore observe <pkg> --source <qid> [--search-json <file>] [--query …]`` —
+  read ``gaia search lkm`` JSON (file/stdin) and record each unpulled related
+  paper as an ``lkm_related`` paper-contact (SCHEMA.md §7f — the primary frontier
+  source). This is the step the skill calls after each LKM survey.
+* ``explore frontier <pkg>`` — load map + IR + manifest + beliefs, build the
+  joint view, promote any now-materialized ``lkm`` contacts, run
   ``extract_frontier`` → ``reconcile_frontier`` → ``score_frontier``, save, and
-  print the ranked top-k open contacts for the skill to survey.
+  print the ranked top-k open contacts (qid + ``lkm_related``) to survey.
 * ``explore round <pkg> [--surveyed …]`` — compute discoveries vs. the previous
   round's beliefs, append a round record, bump ``map.round``, refresh ``stats``.
 * ``explore status <pkg>`` — a human-readable map summary.
@@ -34,6 +39,11 @@ import typer
 
 from gaia.engine.exploration.discoveries import compute_discoveries
 from gaia.engine.exploration.frontier import JointView, build_joint_view, reconcile_frontier
+from gaia.engine.exploration.observe import (
+    materialized_paper_ids_from_roots,
+    observe_lkm_results,
+    promote_materialized_lkm_contacts,
+)
 from gaia.engine.exploration.scorer import score_frontier
 from gaia.engine.exploration.state import (
     DOCTRINE_PRESETS,
@@ -77,6 +87,21 @@ _SURVEYED_OPT = typer.Option(
     None,
     "--surveyed",
     help="QID promoted/surveyed this round (repeatable).",
+)
+_SEARCH_JSON_OPT = typer.Option(
+    None,
+    "--search-json",
+    help="Path to a `gaia search lkm` result JSON file (omit to read from stdin).",
+)
+_OBSERVE_SOURCE_OPT = typer.Option(
+    None,
+    "--source",
+    help="The surveyed node QID whose LKM survey surfaced these results.",
+)
+_OBSERVE_QUERY_OPT = typer.Option(
+    None,
+    "--query",
+    help="The LKM query text that surfaced these results (stored on contact meta).",
 )
 
 
@@ -163,6 +188,30 @@ def _require_joint_view(pkg: str, graph: Any) -> JointView:
     for warning in view.warnings:
         typer.echo(f"Warning: {warning}", err=True)
     return view
+
+
+def _promote_lkm_from_view(
+    exploration_map: ExplorationMap,
+    view: JointView,
+    *,
+    survey_round: int,
+) -> list[str]:
+    """Promote ``lkm`` contacts whose paper is now materialized in the joint view.
+
+    A paper pulled via ``gaia pkg add --lkm-paper <id>`` lands as a dependency
+    sub-package whose dist dir name encodes the paper id (SCHEMA.md §7f); the
+    joint view's ``package_roots`` therefore reveal which papers are pulled
+    without importing anything. Each matching open ``lkm`` contact flips to
+    ``surveyed`` with a SurveyRecord.
+    """
+    paper_ids = materialized_paper_ids_from_roots(view.package_roots)
+    if not paper_ids:
+        return []
+    return promote_materialized_lkm_contacts(
+        exploration_map,
+        materialized_paper_ids=paper_ids,
+        survey_round=survey_round,
+    )
 
 
 def _refresh_stats(exploration_map: ExplorationMap) -> None:
@@ -285,6 +334,109 @@ def init_command(
 
 
 # --------------------------------------------------------------------------- #
+# observe                                                                     #
+# --------------------------------------------------------------------------- #
+
+
+@explore_app.command("observe")
+def observe_command(
+    pkg: str = _PKG_ARG,
+    search_json: str | None = _SEARCH_JSON_OPT,
+    source: str | None = _OBSERVE_SOURCE_OPT,
+    query: str | None = _OBSERVE_QUERY_OPT,
+) -> None:
+    r"""Record unpulled related papers from an LKM search as frontier contacts.
+
+    Reads ``gaia search lkm`` result JSON (from ``--search-json <file>`` or, if
+    omitted, stdin) and, for every result whose **paper** is not materialized in
+    the joint view, adds or merges an ``lkm_related`` paper-contact (SCHEMA.md
+    §7f — the primary frontier source). De-dup is by ``paper_id`` (a paper
+    surfaced several times is one contact; sources + LKM node ids union, the max
+    rank wins). A result whose ``gaia.qid`` is already set (materialized in the
+    IR) is skipped. ``--source`` is the surveyed node whose survey prompted the
+    search and becomes the contact's ``lkm_related`` source.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia search lkm knowledge "free fall" --limit 5 > leads.json
+        gaia explore observe ./pkg --source example:pkg::seed --search-json leads.json
+        gaia search lkm knowledge "drag" | gaia explore observe ./pkg --source example:pkg::seed
+    """
+    if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    # Read the LKM search JSON from the file or stdin.
+    if search_json is not None:
+        path = Path(search_json)
+        if not path.exists():
+            typer.echo(f"Error: --search-json file not found: {search_json}", err=True)
+            raise typer.Exit(1)
+        raw_text = path.read_text(encoding="utf-8")
+    else:
+        raw_text = typer.get_text_stream("stdin").read()
+    if not raw_text.strip():
+        typer.echo("Error: no LKM search JSON provided (empty file/stdin).", err=True)
+        raise typer.Exit(1)
+    try:
+        search_results = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: LKM search input is not valid JSON: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if not isinstance(search_results, dict):
+        typer.echo("Error: LKM search JSON must be an object with a `results` array.", err=True)
+        raise typer.Exit(1)
+
+    exploration_map = load_map(pkg)
+
+    # Build the joint materialized set so an already-pulled paper's nodes are not
+    # re-added as fresh contacts (best-effort: degrade to root-only if uncompiled).
+    materialized: set[str] = set()
+    materialized_papers: set[str] = set()
+    graph = resolve_graph(pkg)
+    if graph is not None:
+        view = _require_joint_view(pkg, graph)
+        materialized = set(view.materialized)
+        materialized_papers = materialized_paper_ids_from_roots(view.package_roots)
+    else:
+        typer.echo(
+            "(no compiled IR yet — observing against an empty materialized set; "
+            "run `gaia build compile` for paper-already-pulled de-dup)",
+            err=True,
+        )
+
+    result = observe_lkm_results(
+        exploration_map,
+        search_results,
+        materialized=materialized,
+        materialized_paper_ids=materialized_papers,
+        source_qid=source,
+        query=query,
+        discovered_round=exploration_map.round,
+    )
+    _refresh_stats(exploration_map)
+    save_map(pkg, exploration_map)
+
+    typer.echo(
+        f"Observed LKM results for {pkg}: "
+        f"{len(result.new_contacts)} new, {len(result.updated_contacts)} updated "
+        f"lkm_related paper-contact(s)" + (f" (source {source})" if source else "") + "."
+    )
+    if result.new_contacts:
+        typer.echo(f"  new papers: {', '.join(result.new_contacts)}")
+    if result.updated_contacts:
+        typer.echo(f"  merged papers: {', '.join(result.updated_contacts)}")
+    typer.echo(
+        "Next: `gaia explore frontier` to rank them; pull the top via `pkg add --lkm-paper`."
+    )
+
+
+# --------------------------------------------------------------------------- #
 # frontier                                                                    #
 # --------------------------------------------------------------------------- #
 
@@ -331,6 +483,13 @@ def frontier_command(
     # closeness_to_seed bites this round.
     _resolve_seeds(exploration_map, graph, view)
 
+    # (§7f) Promote any lkm_related contact whose paper is now materialized in
+    # the joint view (pulled via `pkg add --lkm-paper`) so it leaves the open
+    # frontier and is recorded as surveyed.
+    promoted_papers = _promote_lkm_from_view(
+        exploration_map, view, survey_round=exploration_map.round
+    )
+
     extracted = view.extract(exploration_map)
     reconcile_frontier(exploration_map, extracted, discovered_round=exploration_map.round)
     score_frontier(exploration_map, beliefs=beliefs, edges=view.edges)
@@ -356,8 +515,15 @@ def frontier_command(
 
     if not beliefs:
         typer.echo("(no beliefs.json — scores use 0.0 belief_entropy; run `gaia run infer`)")
+    if promoted_papers:
+        typer.echo(
+            f"Promoted {len(promoted_papers)} lkm_related contact(s) "
+            f"(paper(s) now materialized): {', '.join(promoted_papers)}"
+        )
+    # ``ranked`` is already open-only; count the lkm_related share for legibility.
+    n_lkm = sum(1 for c in ranked if c.ref.get("kind") == "lkm")
     typer.echo(
-        f"Frontier: {len(ranked)} open contact(s); "
+        f"Frontier: {len(ranked)} open contact(s) ({n_lkm} lkm_related); "
         f"top {len(top_k)} (budget_k={exploration_map.policy.budget_k}, "
         f"doctrine {exploration_map.policy.doctrine}):"
     )
@@ -368,7 +534,17 @@ def frontier_command(
         score = "n/a" if c.score is None else f"{c.score:+.3f}"
         ref = str(c.ref.get("value"))
         srcs = ", ".join(f"{s['qid']}[{s['edge']}]" for s in c.sources) or "(no sources)"
-        typer.echo(f"  {rank}. {score}  {ref}")
+        if c.ref.get("kind") == "lkm":
+            title = c.meta.get("title")
+            label = f"paper:{ref}"
+            if isinstance(title, str) and title:
+                label = f'{label}  "{title}"'
+            index_id = c.meta.get("index_id")
+            idx_arg = f" --lkm-index {index_id}" if isinstance(index_id, str) else ""
+            typer.echo(f"  {rank}. {score}  [lkm] {label}")
+            typer.echo(f"       pull: gaia pkg add{idx_arg} --lkm-paper {ref}")
+        else:
+            typer.echo(f"  {rank}. {score}  {ref}")
         typer.echo(f"       via: {srcs}")
 
 
@@ -415,6 +591,12 @@ def round_command(
 
     current_round = exploration_map.round
     prev_beliefs = load_round_beliefs(pkg, current_round - 1) if current_round > 0 else {}
+
+    # (§7f) Promote any lkm_related contact whose paper is now materialized in
+    # the joint view (pulled via `pkg add --lkm-paper`), so `status` / the round
+    # log agree with the frontier.
+    view = _require_joint_view(pkg, graph)
+    _promote_lkm_from_view(exploration_map, view, survey_round=current_round)
 
     # Record the surveyed QIDs into map.surveyed (SCHEMA.md §7e #4): promote a
     # matching open contact via the state bookkeeping, else add a bare
@@ -534,7 +716,8 @@ def status_command(
     typer.echo(f"  doctrine:       {exploration_map.policy.doctrine}")
     typer.echo(f"  seeds:          {len(exploration_map.seeds)}")
     typer.echo(f"  surveyed:       {len(exploration_map.surveyed)}")
-    typer.echo(f"  open frontier:  {len(ranked)}")
+    n_lkm = sum(1 for c in ranked if c.ref.get("kind") == "lkm")
+    typer.echo(f"  open frontier:  {len(ranked)} ({n_lkm} lkm_related)")
 
     typer.echo("  top open contacts:")
     if not ranked:
@@ -542,7 +725,8 @@ def status_command(
     else:
         for c in ranked[:5]:
             score = "n/a" if c.score is None else f"{c.score:+.3f}"
-            typer.echo(f"    - {score}  {c.ref.get('value')}")
+            tag = "[lkm] paper:" if c.ref.get("kind") == "lkm" else ""
+            typer.echo(f"    - {score}  {tag}{c.ref.get('value')}")
 
     typer.echo("  recent rounds:")
     if not rounds:

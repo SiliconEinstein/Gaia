@@ -186,10 +186,98 @@ def test_joint_view_degrades_when_dep_not_compiled(tmp_path, monkeypatch):
     view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
     # Degrades to root-only: warning emitted, root edges still present.
     assert view.warnings
-    assert "not compiled" in view.warnings[0]
+    assert "GaiaPackagingError" in view.warnings[0]
     assert view.materialized == {root_qid("a")}
     contact_values = {c.ref["value"] for c in view.extract()}
     assert root_qid("b") in contact_values  # root operator conclusion still a contact
+
+
+def test_joint_view_degrades_on_module_not_found(tmp_path, monkeypatch):
+    # (§7f-A) The 4c crash: load_dependency_compiled_graphs -> import_module
+    # raises ModuleNotFoundError (NOT GaiaPackagingError) for a real
+    # `pkg add --lkm-paper` editable dep not importable from the run interpreter.
+    # build_joint_view must catch it and degrade gracefully, not crash.
+    root_path = tmp_path / "root"
+    (root_path / ".gaia").mkdir(parents=True)
+    root_graph = _graph(
+        ROOT_NS,
+        ROOT_PKG,
+        [_claim(root_qid("a"))],
+        operators=[
+            Operator(operator="negation", variables=[root_qid("a")], conclusion=root_qid("b"))
+        ],
+    )
+
+    def _raise(*_a, **_k):
+        raise ModuleNotFoundError("No module named 'free_fall_813135_gaia'")
+
+    monkeypatch.setattr(packaging_mod, "load_dependency_compiled_graphs", _raise)
+
+    # Must not raise — the crash fix.
+    view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
+    assert view.warnings
+    assert "ModuleNotFoundError" in view.warnings[0]
+    assert view.materialized == {root_qid("a")}
+    assert root_qid("b") in {c.ref["value"] for c in view.extract()}
+
+
+def test_joint_view_resolves_dep_by_path_without_import(tmp_path, monkeypatch):
+    # (§7f-A) A present-on-disk editable dep declared via [tool.uv.sources] is
+    # folded in BY PATH (reading its .gaia/ir.json) even though the import-based
+    # loader can't import it (raises ModuleNotFoundError). The dep's materialized
+    # QID suppresses what would otherwise be a root contact.
+    root_path = tmp_path / "root"
+    dep_path = tmp_path / "deps" / "deppkg"
+    (root_path / ".gaia").mkdir(parents=True)
+    (dep_path / ".gaia").mkdir(parents=True)
+
+    # Root operator references a dep-owned QID -> would be a contact root-only.
+    root_graph = _graph(
+        ROOT_NS,
+        ROOT_PKG,
+        [_claim(root_qid("a"))],
+        operators=[
+            Operator(
+                operator="implication",
+                variables=[root_qid("a"), dep_qid("shared")],
+                conclusion=root_qid("c"),
+            )
+        ],
+    )
+    # The dep materializes `shared`; write its compiled ir.json to disk.
+    dep_graph = _graph(DEP_NS, DEP_PKG, [_claim(dep_qid("shared"))])
+    (dep_path / ".gaia" / "ir.json").write_text(dep_graph.model_dump_json(), encoding="utf-8")
+
+    # Root pyproject points at the dep editable BY PATH via [tool.uv.sources].
+    (root_path / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[project]",
+                'name = "rootpkg-gaia"',
+                'version = "0.0.0"',
+                'dependencies = ["deppkg-gaia"]',
+                "[tool.uv.sources]",
+                'deppkg-gaia = { path = "../deps/deppkg", editable = true }',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    # The import-based loader CANNOT import the dep — simulate the crash path.
+    def _raise(*_a, **_k):
+        raise ModuleNotFoundError("No module named 'deppkg'")
+
+    monkeypatch.setattr(packaging_mod, "load_dependency_compiled_graphs", _raise)
+
+    view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
+    # The dep was folded BY PATH despite the import failure.
+    assert dep_qid("shared") in view.materialized
+    assert dep_path.resolve() in view.package_roots
+    # `shared` is materialized in the dep -> NOT a contact.
+    contact_values = {c.ref["value"] for c in view.extract()}
+    assert dep_qid("shared") not in contact_values
+    # `c` (root conclusion, unmaterialized everywhere) still surfaces.
+    assert root_qid("c") in contact_values
 
 
 def test_joint_view_root_only_when_no_deps(tmp_path, monkeypatch):

@@ -15,14 +15,18 @@ wrapper that the turn loop invokes once per contact in the shortlist.
 From `gaia explore frontier <pkg> --json`, each contact is
 `{id, ref, score, score_features, sources}`:
 
-- `ref.value` — the survey **target**: a Gaia QID (`kind=qid`, a
-  referenced-but-unmaterialized node — e.g. an `lkm_materialize` `depends_on`
-  scaffold, a `sub_knowledge` entry, an operator/strategy target) or an LKM
-  handle (`kind=lkm`).
+- `ref.value` — the survey **target**. For `kind=qid`: a
+  referenced-but-unmaterialized Gaia node (an `lkm_materialize` `depends_on`
+  scaffold, a `sub_knowledge` entry, an operator/strategy target) — survey it,
+  materialize the node. For `kind=lkm`: a **paper id** (an unpulled related paper
+  recorded by `gaia explore observe`); its `meta` carries `title`/`doi`/`rank`/
+  `query`, and the `frontier` output prints the exact `gaia pkg add --lkm-paper
+  <id>` to pull it. Surveying an `lkm` contact = pulling that paper, then
+  surveying *its* content.
 - `sources[]` — the surveyed nodes that reach this contact and *how*
-  (`edge ∈ {depends_on, sub_knowledge, operator_target, strategy_given}`). This
-  is the materialized territory the contact is reachable from; it grounds your
-  LKM queries.
+  (`edge ∈ {depends_on, sub_knowledge, operator_target, strategy_given,
+  lkm_related}`; `lkm_related` for a paper-contact). This is the materialized
+  territory the contact is reachable from; it grounds your LKM queries.
 - `score` / `score_features` — the engine's ranking and its breakdown (see
   `turn-loop.md`). Use it to understand why this contact was chosen, not to
   decide whether to survey it (the engine already chose the top-k).
@@ -62,38 +66,40 @@ you may keep one running checklist.
 `mapping-contract.md` is the canonical authority for contradiction/support
 semantics; if a step doc disagrees with it, the mapping contract wins.
 
-## Materialization — REQUIRED so the frontier is non-empty next round
+## Growing the frontier — `observe` related papers, then pull (REQUIRED)
 
-The frontier is derived from references the IR + manifests carry. A contact only
-appears next round if *something you survey this round records a reference to a
-node that is unmaterialized across the whole joint graph.* The canonical surface
-that does this:
+The frontier grows from two signals; the **primary** one is `lkm_related`:
 
-- **`gaia pkg add --lkm-paper <id>`** (`gaia/cli/commands/pkg/lkm_materialize.py`)
-  — pulls one LKM paper into the package as an editable `-gaia` **dependency
-  sub-package** (`<root>/.gaia/lkm_packages/<dist>/`) **and writes that
-  sub-package's `formalization_manifest` `depends_on` scaffolds.** Those
-  scaffolds are the `depends_on` contacts the next `gaia explore frontier`
-  surfaces — it reads the **joint** root+dependency view (SCHEMA §7e), so
-  cross-package scaffolds count. Resolve a paper id from an LKM claim/knowledge
-  result's `actions[].next_steps` (they carry the
-  `gaia pkg add --lkm-index <idx> --lkm-paper <id>` invocation) or via
-  `--lkm-claim <id>`.
+1. **`gaia explore observe` — the primary frontier source (SCHEMA §7f).** Every
+   `gaia search lkm` you run for this contact returns related papers you *haven't
+   pulled*. Pipe that JSON to `gaia explore observe <pkg> --source <this
+   contact's QID> --query "<query>"` (or `--search-json <file>`). Each unpulled
+   paper becomes an `lkm_related` paper-contact (`ref={kind:lkm,value:<paper_id>}`),
+   de-duped by `paper_id`, ranked next round by `frontier`. This is the
+   Stellaris-style expansion: surveying one node *reveals* the related papers as
+   new frontier you can choose to pull. Do this for **every** survey query.
+2. **`gaia pkg add --lkm-paper <id>` — pull a ranked related paper (secondary,
+   intra-survey depends_on).** (`gaia/cli/commands/pkg/lkm_materialize.py`) Pulls
+   one LKM paper into the package as an editable `-gaia` **dependency sub-package**
+   (`<root>/.gaia/lkm_packages/<dist>/`) **and writes that sub-package's
+   `formalization_manifest` `depends_on` scaffolds.** Pulling a paper (a) promotes
+   its `lkm_related` contact to `surveyed`, and (b) adds intra-survey `depends_on`
+   contacts the next `gaia explore frontier` surfaces via the **joint**
+   root+dependency view (SCHEMA §7e). Resolve a paper id from a ranked
+   `lkm_related` contact (the `frontier` output prints the exact `pkg add` line),
+   from an LKM result's `actions[].next_steps`, or via `--lkm-claim <id>`.
 
 `gaia author depends-on` does **not** grow the frontier with new territory: it
 rejects an unresolved `--given`/conclusion by design
 (`prewrite.reference_unresolved` — author validation refuses references to
 nodes that don't exist yet, and that core validation must not be weakened). It
 records a scaffold edge only between already-materialized nodes. A real
-forward-scaffolding author flag (author a `depends_on` whose target is *not* yet
-materialized) is a **deferred enhancement** — until it lands, `--lkm-paper` is
-the only frontier-growth path.
+forward-scaffolding author flag is a **deferred enhancement**.
 
-If a survey adds only `claim`/`derive`/`contradict` with no `--lkm-paper` pull,
-it enriches the *surveyed* region but introduces **no new contacts** — the
-frontier can shrink to empty. Pull at least one paper per turn to keep exploring.
-(SCHEMA §7e: the joint view spans the root graph + every dependency graph + every
-package's `depends_on` manifest, so cross-package `depends_on` contacts appear.)
+If a survey adds only `claim`/`derive`/`contradict` and you neither `observe`
+related papers nor pull one, it enriches the *surveyed* region but introduces
+**no new contacts** — the frontier can shrink to empty. Always `observe` each
+survey's related papers, and pull at least one paper per turn, to keep exploring.
 
 ## Authoring surface
 

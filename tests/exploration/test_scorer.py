@@ -422,3 +422,98 @@ def test_score_frontier_requires_edges_or_ir():
     m = ExplorationMap()
     with pytest.raises(ValueError, match="exactly one of"):
         score_frontier(m, beliefs={})
+
+
+# --------------------------------------------------------------------------- #
+# lkm_related paper-contact scoring (SCHEMA.md §7f, build 4d)                  #
+# --------------------------------------------------------------------------- #
+
+
+def test_lkm_contact_populates_all_six_features_and_new_territory():
+    # An lkm paper-contact proxies belief_entropy/closeness from its source qid,
+    # gets a live new_territory from its stored rank, and a heavier survey_cost.
+    from gaia.engine.exploration.scorer import LKM_SURVEY_COST
+
+    graph = make_graph(knowledges=[claim("seed")])
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Cartographer"),
+    )
+    m.frontier.append(
+        Contact(
+            id="ct_lkm1",
+            ref={"kind": "lkm", "value": "813135"},
+            sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+            meta={"paper_id": "813135", "rank": 0.3},
+        )
+    )
+    score_frontier(m, beliefs={qid("seed"): 0.5}, ir=graph)
+    c = m.frontier[0]
+    assert set(c.score_features) == ALL_FEATURE_KEYS
+    # belief_entropy proxied from the source (0.5 -> H=1.0).
+    assert math.isclose(c.score_features["belief_entropy"], 1.0)
+    # closeness: the source IS a seed -> distance 0 -> 1.0.
+    assert math.isclose(c.score_features["closeness_to_seed"], 1.0)
+    # new_territory is live and in [0.5, 1.0).
+    nt = c.score_features["new_territory"]
+    assert 0.5 <= nt < 1.0
+    # survey_cost is the heavier lkm constant.
+    assert c.score_features["survey_cost"] == LKM_SURVEY_COST
+    assert c.score is not None
+
+
+def test_lkm_new_territory_floors_without_rank():
+    graph = make_graph(knowledges=[claim("seed")])
+    m = ExplorationMap(policy=doctrine_policy("Cartographer"))
+    m.frontier.append(
+        Contact(
+            id="ct_lkm2",
+            ref={"kind": "lkm", "value": "p"},
+            sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+            meta={"paper_id": "p"},  # no rank
+        )
+    )
+    score_frontier(m, beliefs={}, ir=graph)
+    assert m.frontier[0].score_features["new_territory"] == 0.5
+
+
+def test_lkm_higher_rank_scores_higher_new_territory():
+    graph = make_graph(knowledges=[claim("seed")])
+    m = ExplorationMap(policy=doctrine_policy("Cartographer"))
+    m.frontier.extend(
+        [
+            Contact(
+                id="ct_lo",
+                ref={"kind": "lkm", "value": "lo"},
+                sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+                meta={"paper_id": "lo", "rank": 0.01},
+            ),
+            Contact(
+                id="ct_hi",
+                ref={"kind": "lkm", "value": "hi"},
+                sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+                meta={"paper_id": "hi", "rank": 0.9},
+            ),
+        ]
+    )
+    score_frontier(m, beliefs={}, ir=graph)
+    lo = _contact_by_value(m, "lo")
+    hi = _contact_by_value(m, "hi")
+    assert hi.score_features["new_territory"] > lo.score_features["new_territory"]
+
+
+def test_qid_contact_scoring_unchanged_with_coverage_term():
+    # Adding the w_coverage*new_territory term must not regress qid contacts:
+    # their new_territory is 0.0, so the score equals the build-3 formula.
+    graph = _chain_graph()
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Surveyor"),
+        round=4,
+    )
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={qid("seed"): 0.5}, ir=graph)
+    c1 = _contact_by_value(m, qid("c1"))
+    assert c1.score_features["new_territory"] == 0.0
+    expected = 1.0 * 1.0 + 0.4 * 1.0 - 0.2 * 1.0  # build-3 formula, coverage drops out
+    assert math.isclose(c1.score, expected)

@@ -42,12 +42,23 @@ Weights come from ``exploration_map.policy.weights``. ``beliefs`` is a
 ``dict[qid -> float]`` (P(x=1) per node — the on-disk shape of
 ``.gaia/beliefs.json``'s ``beliefs[]``, flattened by the caller); the function
 takes the dict so it is trivially testable. No CLI, no loop, no render.
+
+**LKM paper-contacts (SCHEMA.md §7f, build 4d).** A contact whose ``ref.kind`` is
+``"lkm"`` has no graph position, so it proxies ``belief_entropy`` /
+``closeness_to_seed`` from its **source** node(s) (the surveyed nodes whose LKM
+survey surfaced it) exactly as a qid contact does. Two things differ: its stored
+LKM ``rank`` maps into the ``new_territory`` feature (an unpulled related paper
+*is* fresh territory — so this previously-deferred slot is **live for lkm
+contacts only**, scaled by ``w_coverage``), and its ``survey_cost`` is
+:data:`LKM_SURVEY_COST` (a full paper pull, heavier than a qid's flat ``1.0``).
+qid-contact scoring is unchanged from build 3/4c (``new_territory`` stays ``0.0``,
+so the new ``w_coverage`` term drops out for them).
 """
 
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from gaia.engine.exploration.frontier import _edges_from_ir
 
@@ -57,8 +68,15 @@ if TYPE_CHECKING:
 
 # SCHEMA.md §4 — the six score_features keys. belief_entropy is [free];
 # closeness_to_seed / survey_cost are [wire-up]; the remaining three are
-# deferred 0.0 slots (DESIGN §8).
+# deferred 0.0 slots (DESIGN §8) for a qid contact.
 _DEFERRED_FEATURES = ("tension_potential", "bridge_potential", "new_territory")
+
+# SCHEMA.md §7f — survey cost of an LKM paper-contact. A qid contact is
+# materialize-only (flat 1.0); pulling a whole paper via `gaia pkg add
+# --lkm-paper` is strictly heavier, so an lkm contact costs more. 2.0 keeps the
+# ordering qid < lkm without overwhelming the live w_uncertainty/w_relevance
+# terms at the default doctrine weights (w_cost ~ 0.2 ⇒ a 0.2 cost penalty).
+LKM_SURVEY_COST = 2.0
 
 
 def binary_entropy(p: float) -> float:
@@ -198,6 +216,25 @@ def _closeness_to_seed(
     return 1.0 / (1.0 + d)
 
 
+def _lkm_new_territory(contact_meta: dict[str, Any]) -> float:
+    """Map an LKM paper-contact's stored rank into a ``new_territory`` signal.
+
+    An unpulled related paper *is* fresh territory (SCHEMA.md §7f), so its
+    ``new_territory`` is high by construction. The stored LKM ``rank`` (a
+    retrieval score, typically small and positive) breaks ties toward the
+    better-retrieved paper without dominating: territory floors at ``0.5`` and the
+    rank (squashed into ``[0, 0.5]`` by ``r/(1+r)``) adds on top, so a
+    paper-contact's ``new_territory`` lands in ``[0.5, 1.0)``. A missing rank ⇒
+    the ``0.5`` floor.
+    """
+    rank = contact_meta.get("rank")
+    bonus = 0.0
+    if isinstance(rank, (int, float)) and rank > 0:
+        r = float(rank)
+        bonus = r / (1.0 + r)  # squashed into [0, 1); small ranks stay small
+    return 0.5 + 0.5 * bonus
+
+
 def score_frontier(
     exploration_map: ExplorationMap,
     *,
@@ -245,6 +282,7 @@ def score_frontier(
     weights = exploration_map.policy.weights
     w_uncertainty = float(weights.get("w_uncertainty", 0.0))
     w_relevance = float(weights.get("w_relevance", 0.0))
+    w_coverage = float(weights.get("w_coverage", 0.0))
     w_cost = float(weights.get("w_cost", 0.0))
 
     seeds = _resolved_seed_qids(exploration_map)
@@ -260,23 +298,45 @@ def score_frontier(
             continue
 
         source_qids = [str(s["qid"]) for s in contact.sources if s.get("qid")]
+        is_lkm = contact.ref.get("kind") == "lkm"
 
+        # Both flavours proxy belief_entropy / closeness from the SOURCE node(s)
+        # — an lkm paper-contact has no graph position of its own, so it borrows
+        # its surveyed source's standing (SCHEMA.md §7f).
         belief_entropy = _belief_entropy(source_qids, beliefs)
         closeness_to_seed = _closeness_to_seed(source_qids, seeds, adjacency)
-        # qid contacts are materialize-only ⇒ flat placeholder cost; refine when
-        # an LKM-pull cost model exists. w_cost has little bite until then.
-        survey_cost = 1.0
 
-        features = {
-            "belief_entropy": belief_entropy,
-            "closeness_to_seed": closeness_to_seed,
-            "survey_cost": survey_cost,
-        }
-        for key in _DEFERRED_FEATURES:
-            features[key] = 0.0
+        if is_lkm:
+            # An unpulled related paper *is* fresh territory; the stored LKM rank
+            # breaks ties. Survey cost is a full paper pull ⇒ heavier than a qid.
+            new_territory = _lkm_new_territory(contact.meta)
+            survey_cost = LKM_SURVEY_COST
+            features = {
+                "belief_entropy": belief_entropy,
+                "closeness_to_seed": closeness_to_seed,
+                "survey_cost": survey_cost,
+                "tension_potential": 0.0,
+                "bridge_potential": 0.0,
+                "new_territory": new_territory,
+            }
+        else:
+            # qid contacts are materialize-only ⇒ flat placeholder cost; the
+            # three deferred features stay 0.0 (build 3/4c behaviour, unchanged).
+            new_territory = 0.0
+            survey_cost = 1.0
+            features = {
+                "belief_entropy": belief_entropy,
+                "closeness_to_seed": closeness_to_seed,
+                "survey_cost": survey_cost,
+            }
+            for key in _DEFERRED_FEATURES:
+                features[key] = 0.0
 
         contact.score_features = features
         contact.score = (
-            w_uncertainty * belief_entropy + w_relevance * closeness_to_seed - w_cost * survey_cost
+            w_uncertainty * belief_entropy
+            + w_relevance * closeness_to_seed
+            + w_coverage * new_territory
+            - w_cost * survey_cost
         )
         contact.last_scored_round = current_round

@@ -159,6 +159,12 @@ class Contact:
     which has no materialized ``Knowledge`` body yet — either a QID not authored
     yet or an LKM handle co-retrieved but not pulled into the IR. The frontier
     *is* the fog boundary; fog itself is not stored.
+
+    ``meta`` carries reference-kind-specific extra data the IR does not hold.
+    For an ``lkm`` paper-contact (SCHEMA.md §7f) it holds the LKM metadata needed
+    to rank and pull the paper: ``paper_id``, ``title``, ``doi``, ``index_id``,
+    the max LKM ``rank`` seen, the surfacing ``query``, and the related
+    ``lkm_node_ids``. For a ``qid`` contact it is normally empty.
     """
 
     id: str
@@ -169,6 +175,7 @@ class Contact:
     discovered_round: int = 0
     last_scored_round: int | None = None
     status: str = "open"
+    meta: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate the ref kind, source edges, and lifecycle status."""
@@ -199,6 +206,7 @@ class Contact:
             "discovered_round": self.discovered_round,
             "last_scored_round": self.last_scored_round,
             "status": self.status,
+            "meta": dict(self.meta),
         }
 
     @classmethod
@@ -214,6 +222,7 @@ class Contact:
             discovered_round=int(raw.get("discovered_round", 0)),
             last_scored_round=raw.get("last_scored_round"),
             status=raw.get("status", "open"),
+            meta=dict(raw.get("meta", {})),
         )
 
 

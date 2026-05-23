@@ -324,5 +324,158 @@ def test_explore_frontier_without_init_fails_gracefully(galileo_pkg: Path):
 def test_explore_help_registers_subapp():
     result = runner.invoke(app, ["explore", "--help"])
     assert result.exit_code == 0
-    for verb in ("init", "frontier", "round", "status"):
+    for verb in ("init", "observe", "frontier", "round", "status"):
         assert verb in result.output
+
+
+# --------------------------------------------------------------------------- #
+# observe — lkm_related ingestion (SCHEMA.md §7f, build 4d)                    #
+# --------------------------------------------------------------------------- #
+
+_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "lkm_search_free_fall.json"
+
+
+def test_explore_observe_records_lkm_contacts_from_fixture(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    result = runner.invoke(
+        app,
+        [
+            "explore",
+            "observe",
+            str(galileo_pkg),
+            "--source",
+            _galileo_qid("aristotle_model"),
+            "--query",
+            "free fall",
+            "--search-json",
+            str(_FIXTURE),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "5 new" in result.output
+
+    m = load_map(galileo_pkg)
+    lkm = [c for c in m.frontier if c.ref["kind"] == "lkm"]
+    assert len(lkm) == 5
+    for c in lkm:
+        assert c.meta["paper_id"] == c.ref["value"]
+        assert {"qid": _galileo_qid("aristotle_model"), "edge": "lkm_related"} in c.sources
+        assert c.meta["query"] == "free fall"
+
+
+def test_explore_observe_reads_stdin(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    payload = _FIXTURE.read_text(encoding="utf-8")
+    result = runner.invoke(
+        app,
+        ["explore", "observe", str(galileo_pkg), "--source", _galileo_qid("aristotle_model")],
+        input=payload,
+    )
+    assert result.exit_code == 0, result.output
+    m = load_map(galileo_pkg)
+    assert len([c for c in m.frontier if c.ref["kind"] == "lkm"]) == 5
+
+
+def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    # Two rows share paper 'P1'; one row has a resolved gaia.qid (skip); one fresh.
+    leads = {
+        "results": [
+            {
+                "id": "lkm:bohrium:gcn_1",
+                "gaia": {"qid": None},
+                "source": {"paper_id": "P1", "index_id": "bohrium"},
+                "rank": {"score": 0.1},
+            },
+            {
+                "id": "lkm:bohrium:gcn_2",
+                "gaia": {"qid": None},
+                "source": {"paper_id": "P1", "index_id": "bohrium"},
+                "rank": {"score": 0.8},
+            },
+            {
+                "id": "lkm:bohrium:gcn_3",
+                "gaia": {"qid": _galileo_qid("aristotle_model")},
+                "source": {"paper_id": "P2", "index_id": "bohrium"},
+                "rank": {"score": 0.5},
+            },
+        ]
+    }
+    leads_file = galileo_pkg / "leads.json"
+    leads_file.write_text(json.dumps(leads))
+    result = runner.invoke(
+        app,
+        [
+            "explore",
+            "observe",
+            str(galileo_pkg),
+            "--source",
+            _galileo_qid("aristotle_model"),
+            "--search-json",
+            str(leads_file),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    m = load_map(galileo_pkg)
+    lkm = [c for c in m.frontier if c.ref["kind"] == "lkm"]
+    # P1 once (deduped, max rank 0.8); P2 skipped (resolved qid).
+    assert {c.ref["value"] for c in lkm} == {"P1"}
+    assert lkm[0].meta["rank"] == 0.8
+
+
+def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(
+        app,
+        [
+            "explore",
+            "observe",
+            str(galileo_pkg),
+            "--source",
+            _galileo_qid("aristotle_model"),
+            "--query",
+            "free fall",
+            "--search-json",
+            str(_FIXTURE),
+        ],
+    )
+    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg), "--json"])
+    assert result.exit_code == 0, result.output
+    rows = json.loads(result.output)
+    lkm_rows = [r for r in rows if r["ref"]["kind"] == "lkm"]
+    assert lkm_rows, "expected lkm_related contacts ranked in the frontier"
+    for r in lkm_rows:
+        assert r["score"] is not None
+        feats = r["score_features"]
+        assert set(feats) == {
+            "belief_entropy",
+            "closeness_to_seed",
+            "survey_cost",
+            "tension_potential",
+            "bridge_potential",
+            "new_territory",
+        }
+        # An lkm contact's new_territory is live (>= 0.5) and survey_cost heavier.
+        assert feats["new_territory"] >= 0.5
+        assert feats["survey_cost"] == 2.0
+
+
+def test_explore_observe_without_init_fails(galileo_pkg: Path):
+    result = runner.invoke(
+        app,
+        ["explore", "observe", str(galileo_pkg), "--source", "x", "--search-json", str(_FIXTURE)],
+    )
+    assert result.exit_code == 1
+    assert "no exploration map" in result.output

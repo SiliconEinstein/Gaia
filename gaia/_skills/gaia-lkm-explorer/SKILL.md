@@ -5,9 +5,12 @@ description: |
   resumable turn loop over a Gaia knowledge package: start from one or more
   seed claims/questions, let the `gaia explore` engine rank the frontier
   (referenced-but-unexpanded *contacts*) for the round's doctrine, survey the
-  top-k by pulling LKM evidence (`gaia search lkm`), materialize what you find
-  into the Gaia engine (`gaia pkg add --lkm-paper` for the depends_on scaffold,
-  + `gaia author claim|derive|contradict|depends-on`), recompute belief
+  top-k by pulling LKM evidence (`gaia search lkm`), recording the unpulled
+  related papers a survey surfaces as `lkm_related` frontier contacts (`gaia
+  explore observe` — the primary way the map grows new territory), materialize
+  what you find into the Gaia engine (`gaia pkg add --lkm-paper` pulls a ranked
+  related paper, + `gaia author claim|derive|contradict|depends-on`), recompute
+  belief
   (`gaia build compile` + `gaia run infer`), then checkpoint with `gaia explore
   round` — which emits a discovery report (contradiction / keystone /
   settled_core) and stops for human review before the next turn re-dials the
@@ -77,15 +80,24 @@ Read these before running — they shape what the loop can and cannot show:
   Use **`Surveyor`** (uncertainty, live), **`Cartographer`** / **`Diplomat`**
   (relevance/cost live; their bridge/coverage terms are 0.0) for now. You can
   still *author* contradictions — they just aren't what steers the frontier.
-- **`bridge_potential` / `new_territory` (coverage) are `0.0` slots.** The
-  topology model that would make them live is deferred. The live scorer
-  features are `belief_entropy` (uncertainty), `closeness_to_seed` (relevance),
-  and `survey_cost` (a flat 1.0 placeholder — `w_cost` has little bite yet).
-- **The frontier is empty until a formalization manifest exists.** Contacts of
-  edge kind `depends_on` come from `.gaia/formalization_manifest.json`, which
-  `gaia pkg add --lkm-paper` writes. Until you materialize at least one paper
-  (or author `depends_on` scaffolds), `gaia explore frontier` reports an empty
-  frontier — that is expected, not a bug. **This is why step 3 must materialize.**
+- **`bridge_potential` is still a `0.0` slot; `new_territory` is now live for
+  `lkm_related` contacts only.** The topology model behind `bridge_potential` is
+  still deferred. But an unpulled related paper *is* fresh territory, so an
+  `lkm_related` paper-contact gets a live `new_territory` signal (derived from its
+  LKM rank), scaled by `w_coverage` — so `Cartographer` now has real coverage bite
+  on the LKM frontier. For `qid` contacts `new_territory` stays `0.0`. The live
+  scorer features are `belief_entropy` (uncertainty), `closeness_to_seed`
+  (relevance), `new_territory` (coverage, lkm contacts), and `survey_cost`
+  (`1.0` for qid contacts, `2.0` for an lkm paper pull).
+- **The frontier grows primarily from `lkm_related` contacts.** Each survey's
+  `gaia search lkm` returns related papers you *haven't pulled*. Feeding that JSON
+  to `gaia explore observe` records them as `lkm_related` paper-contacts — this is
+  the **primary frontier source** (SCHEMA §7f) and the Stellaris-style expansion
+  signal. `depends_on` contacts (from `.gaia/formalization_manifest.json`, which
+  `gaia pkg add --lkm-paper` writes) remain a **secondary, intra-survey** signal:
+  they fill in *within* a pulled paper but rarely open new territory. If you
+  neither `observe` related papers nor pull a paper, the frontier can go empty —
+  that is expected, not a bug. **This is why step 3 must `observe` and/or pull.**
 - **The galileo fixture's namespace is `example`** (`gaia example galileo`,
   `--namespace example`), matching the Mendel/Galileo walkthroughs. Use it for
   a dry structural run; set your own namespace for a real exploration.
@@ -102,8 +114,10 @@ turn's six items so the human can see where you are.
             ┌──────────────────────────────────────────────────────┐
             │ 1. load/resume map     gaia explore init | status     │
             │ 2. rank frontier       gaia explore frontier --json   │
-            │ 3. survey top-k        gaia search lkm + pkg add       │  ← fuzzy
-            │                        + gaia author  (per contact)    │    (you)
+            │ 3. survey top-k        gaia search lkm → explore       │  ← fuzzy
+            │                        observe (record related papers) │    (you)
+            │                        → pkg add --lkm-paper top pick   │
+            │                        + gaia author  (per contact)    │
             │ 4. recompute belief    gaia build compile + run infer  │
             │ 5. checkpoint          gaia explore round --surveyed   │  ← report
             │ 6. STOP for human review → re-dial doctrine → turn n+1 │
@@ -154,11 +168,15 @@ the current doctrine's weight vector, saves the map, and prints the ranked
 **top-k** (`policy.budget_k`). `--json` emits a list of
 `{id, ref, score, score_features, sources}` — the survey shortlist.
 
-- **Round 0:** the frontier is empty (nothing materialized yet). Skip the
-  ranked list and **survey the seed(s) themselves** in step 3.
-- **Empty frontier in a later round** usually means no manifest exists yet —
-  see the limits note. Materializing a paper in step 3 fixes it for the next
-  round.
+- **Round 0:** the frontier is empty (nothing materialized/observed yet). Skip
+  the ranked list and **survey the seed(s) themselves** in step 3 — that survey's
+  `gaia explore observe` is what seeds the frontier with `lkm_related` paper-
+  contacts for round 1.
+- **Empty frontier in a later round** means the previous survey neither observed
+  related papers nor pulled one — see the limits note. `observe`-ing a survey's
+  related papers (and/or pulling a paper) in step 3 fixes it for the next round.
+- Ranked output now marks `lkm_related` paper-contacts with `[lkm] paper:<id>`
+  and prints the exact `gaia pkg add --lkm-paper <id>` to pull each.
 - Read `score_features` to understand *why* a contact ranks where it does
   (`belief_entropy` high ⇒ next to undecided territory; `closeness_to_seed`
   high ⇒ on-topic). Remember the three deferred features are `0.0`.
@@ -171,24 +189,37 @@ In brief, per contact:
 
 1. Pull LKM evidence — `gaia search lkm knowledge "<query>"` for recall and
    `gaia search lkm reasoning "<query>"` / `gaia search lkm reasoning --claim-id
-   <id>` for chains. Use `--format raw-json` when you need the verbatim envelope
-   (`data.papers`, factor/premise ids).
-2. **Materialize so the frontier grows next round (REQUIRED).** For a paper
-   contact, `gaia pkg add --lkm-paper <id>` scaffolds the paper into the package
-   (as an editable `-gaia` dependency sub-package) **and writes that
-   sub-package's `formalization_manifest` `depends_on` scaffolds** — this is the
-   canonical, and currently the *only*, way to grow the frontier with new
-   `depends_on` contacts. `gaia explore frontier` reads the **joint** root+deps
-   view (SCHEMA §7e), so those cross-package scaffolds surface next round. If you
-   materialize nothing via `--lkm-paper`, the frontier stays empty. **Do not** try
-   `gaia author depends-on` to introduce an *unmaterialized* target: it rejects an
-   unresolved `--given`/conclusion by design (`prewrite.reference_unresolved`) —
-   a forward-scaffolding author flag is a deferred enhancement, not available
-   today.
-3. **Author the science** — classify each LKM payload through the mapping
+   <id>` for chains. Save the default JSON; do **not** rely on `--format
+   raw-json` for the parser (`observe` reads the default envelope).
+2. **Record the unpulled related papers as frontier contacts (the primary
+   frontier-growth path — REQUIRED).** Feed the `gaia search lkm` JSON to:
+
+   ```bash
+   gaia search lkm knowledge "<query>" --limit 8 > /tmp/leads.json
+   gaia explore observe <pkg> --source <surveyed-qid> \
+       --query "<query>" --search-json /tmp/leads.json   # or pipe via stdin
+   ```
+
+   For every result whose **paper** isn't materialized yet, this adds/merges an
+   `lkm_related` paper-contact (de-duped by `paper_id`, max LKM rank, unioned
+   sources + node ids). These become rankable contacts in next round's `frontier`
+   — the Stellaris-style expansion. `--source` is the surveyed node whose survey
+   surfaced them (round 0: the seed QID).
+3. **Pull the top related paper(s) to materialize new territory.** From the
+   round's ranked frontier (or this survey's leads), `gaia pkg add --lkm-paper
+   <id>` scaffolds the chosen paper into the package as an editable `-gaia`
+   dependency sub-package **and writes that sub-package's
+   `formalization_manifest` `depends_on` scaffolds**. Pulling a paper (a) promotes
+   its `lkm_related` contact to surveyed and (b) adds *secondary* intra-survey
+   `depends_on` contacts that `gaia explore frontier` reads via the **joint**
+   root+deps view (SCHEMA §7e). **Do not** try `gaia author depends-on` to
+   introduce an *unmaterialized* target: it rejects an unresolved
+   `--given`/conclusion by design (`prewrite.reference_unresolved`) — a
+   forward-scaffolding author flag is a deferred enhancement, not available today.
+4. **Author the science** — classify each LKM payload through the mapping
    contract, then emit via `gaia author claim | derive | contradict | equal`.
    Contradictions you judge adjudicable become `gaia author contradict A B` (the
-   engine will adjudicate their consequence in step 4).
+   engine will adjudicate their consequence in step 4 of the turn).
 
 The contact's `ref.value` is the survey target QID (or LKM handle); its
 `sources` tell you which surveyed nodes reach it and how (`depends_on`,
@@ -247,14 +278,16 @@ A doctrine is a named preset of the frontier-scoring weight vector
 (`gaia/engine/exploration/state.py::DOCTRINE_PRESETS`). The live score is:
 
 ```
-score(c) = w_uncertainty·belief_entropy + w_relevance·closeness_to_seed − w_cost·survey_cost
-           (+ w_tension·0 + w_bridge·0 + w_coverage·0  — the three deferred terms drop out)
+score(c) = w_uncertainty·belief_entropy + w_relevance·closeness_to_seed
+         + w_coverage·new_territory − w_cost·survey_cost
+           (+ w_tension·0 + w_bridge·0  — those two deferred terms drop out;
+            new_territory is live for lkm_related contacts, 0 for qid contacts)
 ```
 
 | Doctrine | Intent | v1 reality |
 |---|---|---|
-| **Surveyor** | reduce uncertainty in the undecided | **live** — `w_uncertainty=1.0` drives it; the most useful dial today |
-| **Cartographer** | open fresh territory + connect clusters | partial — coverage/bridge terms 0.0; effectively relevance+uncertainty |
+| **Surveyor** | reduce uncertainty in the undecided | **live** — `w_uncertainty=1.0` drives it; the most useful dial for fault-finding |
+| **Cartographer** | open fresh territory + connect clusters | **live for the LKM frontier** — `w_coverage·new_territory` now bites on `lkm_related` contacts (bridge term still 0.0); the dial that favours pulling new related papers |
 | **Diplomat** | bridge disjoint clusters | partial — bridge term 0.0; effectively relevance-weighted |
 | **Inquisitor** | hunt fault lines / contradictions | **inert** — `tension_potential` is a 0.0 slot until tension-wiring lands |
 
@@ -299,5 +332,5 @@ Gaia knowledge-package contract (this repo's docs):
 
 LKM retrieval is the native `gaia search lkm` CLI (`knowledge` /
 `reasoning [--claim-id]` / `nodes` / `package` / `auth`). The exploration engine
-is the `gaia explore` CLI (`init` / `frontier` / `round` / `status`). For
-runtime help, prefer `gaia <group> <cmd> --help`.
+is the `gaia explore` CLI (`init` / `observe` / `frontier` / `round` /
+`status`). For runtime help, prefer `gaia <group> <cmd> --help`.
