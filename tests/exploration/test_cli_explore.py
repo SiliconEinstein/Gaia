@@ -231,6 +231,74 @@ def test_explore_round_detects_contradiction_on_belief_drop(galileo_pkg: Path):
     assert dropped_label in contradiction_ids
 
 
+def test_explore_round_records_surveyed_and_promotes_contact(galileo_pkg: Path):
+    # #4 (SCHEMA §7e): `round --surveyed <qid>` must record the QID into
+    # map.surveyed and, when it matches an open contact, promote it. After that,
+    # `status` surveyed count and the round log agree.
+    runner.invoke(
+        app,
+        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    contact_qid = _inject_depends_on_manifest(
+        galileo_pkg, "unmaterialized_factor", "aristotle_model"
+    )
+    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+
+    # Survey the contact QID.
+    result = runner.invoke(app, ["explore", "round", str(galileo_pkg), "--surveyed", contact_qid])
+    assert result.exit_code == 0, result.output
+    assert "1 surveyed" in result.output
+
+    m = load_map(galileo_pkg)
+    # Recorded into map.surveyed.
+    assert contact_qid in m.surveyed
+    assert m.surveyed[contact_qid].survey_round == 0
+    # The matching open contact was promoted (status flipped, kept for legibility).
+    promoted = [c for c in m.frontier if c.ref["value"] == contact_qid]
+    assert len(promoted) == 1
+    assert promoted[0].status == "surveyed"
+    assert m.surveyed[contact_qid].promoted_from_contact == promoted[0].id
+
+    # The round log and the surveyed count agree.
+    rounds = read_rounds(galileo_pkg)
+    assert rounds[0]["surveyed"] == [contact_qid]
+    assert len(m.surveyed) == 1
+
+
+def test_explore_round_records_surveyed_without_contact(galileo_pkg: Path):
+    # A surveyed QID with no matching open contact still gets a bare SurveyRecord.
+    runner.invoke(
+        app,
+        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    bare_qid = _galileo_qid("some_freshly_authored_claim")
+    result = runner.invoke(app, ["explore", "round", str(galileo_pkg), "--surveyed", bare_qid])
+    assert result.exit_code == 0, result.output
+    m = load_map(galileo_pkg)
+    assert bare_qid in m.surveyed
+    assert m.surveyed[bare_qid].promoted_from_contact is None
+
+
+def test_explore_frontier_resolves_freetext_seed(galileo_pkg: Path):
+    # #3 (SCHEMA §7e): a free-text seed (no `::`) is recorded with qid: null at
+    # init; `explore frontier` resolves it against the joint graph (by label) and
+    # persists the QID so closeness_to_seed can bite.
+    runner.invoke(
+        app,
+        ["explore", "init", str(galileo_pkg), "--seed", "aristotle_model"],
+    )
+    m0 = load_map(galileo_pkg)
+    assert m0.seeds[0]["qid"] is None
+    assert m0.seeds[0]["kind"] == "question"
+
+    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    assert result.exit_code == 0, result.output
+
+    m1 = load_map(galileo_pkg)
+    assert m1.seeds[0]["qid"] == _galileo_qid("aristotle_model")
+
+
 def test_explore_status_summarizes(galileo_pkg: Path):
     runner.invoke(
         app,

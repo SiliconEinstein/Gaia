@@ -49,6 +49,9 @@ schema defaults (``None`` / ``{}``) until build 3, the scorer.
 
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from gaia.engine.exploration.state import Contact, mint_contact_id
@@ -182,7 +185,34 @@ def extract_frontier(
     """
     materialized = _materialized_qids(ir)
     edges = _edges_from_ir(ir, formalization_manifest)
+    return _frontier_from_edges(materialized, edges, exploration_map=exploration_map)
 
+
+def _frontier_from_edges(
+    materialized: set[str],
+    edges: list[tuple[str, list[str]]],
+    *,
+    exploration_map: ExplorationMap | None = None,
+) -> list[Contact]:
+    """Derive the frontier from a ``(materialized_qids, edges)`` pair.
+
+    The shared core of frontier extraction (SCHEMA.md §7a). Both the single-graph
+    :func:`extract_frontier` and the joint :func:`build_joint_view` reduce their
+    inputs to a materialized-QID set + a list of ``(edge_kind, [referenced_qids])``
+    edges and call this. Any referenced QID not in ``materialized`` is a contact;
+    its ``sources`` are the materialized co-references in that same edge, tagged
+    with the edge kind. Multiple edges to one contact merge their sources.
+
+    Args:
+        materialized: The materialized-QID set (the surveyed territory).
+        edges: ``(edge_kind, [referenced_qids])`` reference edges to walk.
+        exploration_map: Optional existing map; a contact already on its frontier
+            for a QID-ref reuses that contact's ``id`` + ``discovered_round`` so
+            re-extraction is stable. The map is not mutated.
+
+    Returns:
+        A fresh sorted list of :class:`Contact`, one per unmaterialized QID.
+    """
     # Pre-index existing QID-ref contacts so re-extraction reuses their ids.
     existing_by_qid: dict[str, Contact] = {}
     if exploration_map is not None:
@@ -275,3 +305,124 @@ def reconcile_frontier(
         existing.sources = [dict(s) for s in fresh.sources]
 
     return exploration_map
+
+
+# --------------------------------------------------------------------------- #
+# Joint dependency view (build 4c — SCHEMA.md §7e)                            #
+# --------------------------------------------------------------------------- #
+#
+# ``gaia pkg add --lkm-paper`` materializes a paper into a *dependency
+# sub-package* (``<root>/.gaia/lkm_packages/<dist>/``, added as an editable
+# ``-gaia`` dep) whose ``depends_on`` scaffolds live in the *sub-package*
+# manifest, not the root's. So a frontier derived from the root graph alone can
+# never regrow from a real survey. The **joint view** loads the root graph + its
+# transitive ``-gaia`` deps, unions their materialized QID sets, and folds every
+# package's edges (graph edges + ``depends_on`` manifest records) into one edge
+# list. Contacts are then derived against the *joint* materialized set — a QID
+# referenced anywhere is a contact iff it is materialized *nowhere*.
+
+
+def _load_manifest_dict(root: Path) -> dict[str, Any] | None:
+    """Read a package's ``.gaia/formalization_manifest.json`` if present.
+
+    Returns ``None`` when the manifest is absent or unreadable (a package with no
+    ``depends_on`` scaffolds simply contributes no ``depends_on`` edges).
+    """
+    p = root / ".gaia" / "formalization_manifest.json"
+    if not p.exists():
+        return None
+    try:
+        loaded = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return dict(loaded) if isinstance(loaded, dict) else None
+
+
+@dataclass
+class JointView:
+    """The joint root+dependency exploration view (SCHEMA.md §7e).
+
+    Aggregates the materialized-QID set and the reference edges across the root
+    package and every transitive ``-gaia`` dependency, so frontier extraction and
+    scorer adjacency span the whole cross-package graph rather than the root
+    alone. ``warnings`` collects non-fatal degradations (e.g. a dep that is not
+    compiled yet and was skipped).
+
+    Attributes:
+        materialized: Union of every package's materialized QIDs.
+        edges: Union of every package's ``(edge_kind, [referenced_qids])`` edges
+            (graph edges + ``depends_on`` manifest records), used by both the
+            frontier core and the scorer adjacency.
+        package_roots: The on-disk roots that contributed (root + deps), in load
+            order, for legibility/debugging.
+        warnings: Human-readable notes about anything skipped or degraded.
+    """
+
+    materialized: set[str] = field(default_factory=set)
+    edges: list[tuple[str, list[str]]] = field(default_factory=list)
+    package_roots: list[Path] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def extract(self, exploration_map: ExplorationMap | None = None) -> list[Contact]:
+        """Derive the frontier from this joint view (shares the §7a core)."""
+        return _frontier_from_edges(self.materialized, self.edges, exploration_map=exploration_map)
+
+
+def build_joint_view(
+    root_path: str | Path,
+    root_graph: LocalCanonicalGraph,
+    *,
+    project_config: dict[str, Any],
+    depth: int = -1,
+) -> JointView:
+    """Build the joint root+dependency frontier view (SCHEMA.md §7e #1).
+
+    Loads the root graph's transitive ``-gaia`` dependency graphs via
+    :func:`gaia.engine.packaging.load_dependency_compiled_graphs` (``depth=-1`` by
+    default), then for the root **and** every dep:
+
+    * adds its materialized QIDs to the joint materialized set;
+    * folds its graph edges (``_edges_from_ir``) and the ``depends_on`` records
+      from its ``.gaia/formalization_manifest.json`` into the joint edge list.
+
+    Robustness (SCHEMA.md §7e): with no deps it degrades to the root-only view
+    (current behaviour); if a dep is not compiled yet (raising
+    ``GaiaPackagingError``), it is skipped with a warning rather than crashing.
+
+    Args:
+        root_path: The root package directory (its manifest is read for
+            ``depends_on`` edges).
+        root_graph: The already-compiled root ``LocalCanonicalGraph``.
+        project_config: The root package's ``[project]`` pyproject section (the
+            seam ``load_dependency_compiled_graphs`` expects).
+        depth: Transitive depth passed through to the loader (``-1`` = unlimited).
+
+    Returns:
+        A :class:`JointView` spanning the root + all loadable deps.
+    """
+    from gaia.engine.packaging import GaiaPackagingError, load_dependency_compiled_graphs
+
+    view = JointView()
+
+    def _fold(graph: LocalCanonicalGraph, root: Path) -> None:
+        view.materialized |= _materialized_qids(graph)
+        view.edges.extend(_edges_from_ir(graph, _load_manifest_dict(root)))
+        view.package_roots.append(root)
+
+    _fold(root_graph, Path(root_path).resolve())
+
+    try:
+        deps = load_dependency_compiled_graphs(project_config, depth=depth)
+    except GaiaPackagingError as exc:
+        # A declared dep isn't compiled (or located) yet — degrade to the root
+        # view rather than crash. The skill's `gaia build compile <dep>` fixes it.
+        view.warnings.append(
+            f"skipped dependency graphs (not compiled yet?): {exc}; "
+            "frontier is root-only this round"
+        )
+        return view
+
+    for dep in deps:
+        _fold(dep.graph, Path(dep.root).resolve())
+
+    return view

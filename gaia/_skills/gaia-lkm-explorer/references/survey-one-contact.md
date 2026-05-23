@@ -64,26 +64,36 @@ semantics; if a step doc disagrees with it, the mapping contract wins.
 
 ## Materialization — REQUIRED so the frontier is non-empty next round
 
-The frontier is derived from references the IR + manifest carry. A contact only
-appears next round if *something you survey this round records a reference to an
-unmaterialized node.* The two surfaces that do this:
+The frontier is derived from references the IR + manifests carry. A contact only
+appears next round if *something you survey this round records a reference to a
+node that is unmaterialized across the whole joint graph.* The canonical surface
+that does this:
 
 - **`gaia pkg add --lkm-paper <id>`** (`gaia/cli/commands/pkg/lkm_materialize.py`)
-  — pulls one LKM paper into the package **and writes the
-  `formalization_manifest` `depends_on` scaffolds.** Those scaffolds are the
-  `depends_on` contacts the next `gaia explore frontier` surfaces. Resolve a
-  paper id from an LKM claim/knowledge result's `actions[].next_steps` (they
-  carry the `gaia pkg add --lkm-index <idx> --lkm-paper <id>` invocation) or via
+  — pulls one LKM paper into the package as an editable `-gaia` **dependency
+  sub-package** (`<root>/.gaia/lkm_packages/<dist>/`) **and writes that
+  sub-package's `formalization_manifest` `depends_on` scaffolds.** Those
+  scaffolds are the `depends_on` contacts the next `gaia explore frontier`
+  surfaces — it reads the **joint** root+dependency view (SCHEMA §7e), so
+  cross-package scaffolds count. Resolve a paper id from an LKM claim/knowledge
+  result's `actions[].next_steps` (they carry the
+  `gaia pkg add --lkm-index <idx> --lkm-paper <id>` invocation) or via
   `--lkm-claim <id>`.
-- **`gaia author depends-on`** — records a `depends_on(...)` scaffold edge by
-  hand when you want to expand a referenced QID without a full paper pull.
 
-If a survey adds only `claim`/`derive`/`contradict` with no `depends_on`
-scaffold, it enriches the *surveyed* region but introduces **no new contacts** —
-the frontier can shrink to empty. Materialize at least one `depends_on`-bearing
-artifact per turn to keep exploring. (This is the SCHEMA §7a/§7c finding: the
-turn loop passes the manifest alongside the graph, so `depends_on` contacts
-appear.)
+`gaia author depends-on` does **not** grow the frontier with new territory: it
+rejects an unresolved `--given`/conclusion by design
+(`prewrite.reference_unresolved` — author validation refuses references to
+nodes that don't exist yet, and that core validation must not be weakened). It
+records a scaffold edge only between already-materialized nodes. A real
+forward-scaffolding author flag (author a `depends_on` whose target is *not* yet
+materialized) is a **deferred enhancement** — until it lands, `--lkm-paper` is
+the only frontier-growth path.
+
+If a survey adds only `claim`/`derive`/`contradict` with no `--lkm-paper` pull,
+it enriches the *surveyed* region but introduces **no new contacts** — the
+frontier can shrink to empty. Pull at least one paper per turn to keep exploring.
+(SCHEMA §7e: the joint view spans the root graph + every dependency graph + every
+package's `depends_on` manifest, so cross-package `depends_on` contacts appear.)
 
 ## Authoring surface
 

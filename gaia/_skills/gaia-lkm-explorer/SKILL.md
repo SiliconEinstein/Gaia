@@ -121,10 +121,13 @@ gaia explore init <pkg> \
     --budget-k 5
 ```
 
-- A seed containing `::` (e.g. `example:galileo::aristotle_model`) is recorded
-  **resolved** (`kind=claim`, qid set) — use this when the seed is already a
-  materialized node. Free-text seeds are recorded as `question` with `qid:
-  null` until you materialize them in round 0.
+- **Best practice: seed with a resolved `::` QID** (e.g.
+  `example:galileo::aristotle_model`). A `::` seed is recorded **resolved**
+  (`kind=claim`, qid set) so the scorer's `closeness_to_seed` bites immediately.
+  A free-text seed is recorded as a `question` with `qid: null`; `gaia explore
+  frontier` then tries to resolve it against the **joint** graph (by QID or
+  label) and persists the QID once it matches a materialized node — but until it
+  resolves, `closeness_to_seed` is 0.0, so prefer the explicit QID.
 - Repeat `--seed` for multiple origins.
 - `<pkg>` must already be a Gaia knowledge package directory (scaffold one per
   `references/survey-one-contact.md` if starting from nothing; or point at an
@@ -172,10 +175,16 @@ In brief, per contact:
    (`data.papers`, factor/premise ids).
 2. **Materialize so the frontier grows next round (REQUIRED).** For a paper
    contact, `gaia pkg add --lkm-paper <id>` scaffolds the paper into the package
-   **and writes the `formalization_manifest` `depends_on` scaffolds** — this is
-   what makes the frontier non-empty next round. For a referenced QID you want
-   to expand by hand, `gaia author depends-on` records the scaffold edge. If you
-   materialize nothing that adds a `depends_on`, the frontier stays empty.
+   (as an editable `-gaia` dependency sub-package) **and writes that
+   sub-package's `formalization_manifest` `depends_on` scaffolds** — this is the
+   canonical, and currently the *only*, way to grow the frontier with new
+   `depends_on` contacts. `gaia explore frontier` reads the **joint** root+deps
+   view (SCHEMA §7e), so those cross-package scaffolds surface next round. If you
+   materialize nothing via `--lkm-paper`, the frontier stays empty. **Do not** try
+   `gaia author depends-on` to introduce an *unmaterialized* target: it rejects an
+   unresolved `--given`/conclusion by design (`prewrite.reference_unresolved`) —
+   a forward-scaffolding author flag is a deferred enhancement, not available
+   today.
 3. **Author the science** — classify each LKM payload through the mapping
    contract, then emit via `gaia author claim | derive | contradict | equal`.
    Contradictions you judge adjudicable become `gaia author contradict A B` (the

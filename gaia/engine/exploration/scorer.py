@@ -79,6 +79,31 @@ def binary_entropy(p: float) -> float:
     return -p * math.log2(p) - (1.0 - p) * math.log2(1.0 - p)
 
 
+def _adjacency_from_edges(edges: list[tuple[str, list[str]]]) -> dict[str, set[str]]:
+    """Build undirected adjacency from a ``(edge_kind, [qids])`` edge list.
+
+    Two QIDs are adjacent iff they co-appear in the same edge. This is the shared
+    core: a single-graph scorer passes ``_edges_from_ir(ir, None)``; the joint
+    scorer (SCHEMA.md §7e) passes the cross-package joint edge set so
+    ``closeness_to_seed`` spans the whole dependency graph.
+
+    Args:
+        edges: ``(edge_kind, [referenced_qids])`` reference edges.
+
+    Returns:
+        A symmetric ``qid -> set[neighbour qid]`` map. Self-loops are dropped.
+    """
+    adjacency: dict[str, set[str]] = {}
+    for _edge_kind, refs in edges:
+        nodes = [r for r in refs if r]
+        for a in nodes:
+            for b in nodes:
+                if a == b:
+                    continue
+                adjacency.setdefault(a, set()).add(b)
+    return adjacency
+
+
 def _undirected_adjacency(ir: LocalCanonicalGraph) -> dict[str, set[str]]:
     """Build the undirected IR adjacency (SCHEMA.md §7b ``closeness_to_seed``).
 
@@ -94,15 +119,7 @@ def _undirected_adjacency(ir: LocalCanonicalGraph) -> dict[str, set[str]]:
     Returns:
         A symmetric ``qid -> set[neighbour qid]`` map. Self-loops are dropped.
     """
-    adjacency: dict[str, set[str]] = {}
-    for _edge_kind, refs in _edges_from_ir(ir, None):
-        nodes = [r for r in refs if r]
-        for a in nodes:
-            for b in nodes:
-                if a == b:
-                    continue
-                adjacency.setdefault(a, set()).add(b)
-    return adjacency
+    return _adjacency_from_edges(_edges_from_ir(ir, None))
 
 
 def _resolved_seed_qids(exploration_map: ExplorationMap) -> set[str]:
@@ -185,9 +202,10 @@ def score_frontier(
     exploration_map: ExplorationMap,
     *,
     beliefs: dict[str, float],
-    ir: LocalCanonicalGraph,
+    ir: LocalCanonicalGraph | None = None,
+    edges: list[tuple[str, list[str]]] | None = None,
 ) -> None:
-    """Score every open frontier contact in place (SCHEMA.md §7b).
+    """Score every open frontier contact in place (SCHEMA.md §7b / §7e).
 
     For each ``status == "open"`` contact, computes the full six-key
     ``score_features`` dict (``belief_entropy`` [free], ``closeness_to_seed`` /
@@ -202,6 +220,13 @@ def score_frontier(
     with the map's current ``round``. Promoted / closed contacts (``status`` not
     ``"open"``) are left untouched, and the IR is never mutated.
 
+    The ``closeness_to_seed`` adjacency can span the **joint** dependency graph:
+    pass ``edges`` (the joint edge set from
+    :class:`~gaia.engine.exploration.frontier.JointView`) and adjacency is built
+    from those cross-package edges; otherwise pass ``ir`` and adjacency is built
+    from the single root graph (build-3 behaviour). Exactly one of ``edges`` /
+    ``ir`` must be supplied.
+
     Args:
         exploration_map: The map whose open contacts are scored, in place.
         beliefs: ``qid -> P(x=1)`` for materialized nodes (the flattened
@@ -209,15 +234,25 @@ def score_frontier(
             skipped by the belief_entropy proxy.
         ir: The package IR — a
             :class:`~gaia.engine.ir.graphs.LocalCanonicalGraph` — used only to
-            build the undirected adjacency for ``closeness_to_seed``. Read-only.
+            build the single-graph undirected adjacency. Read-only. Ignored when
+            ``edges`` is given.
+        edges: The joint cross-package edge set; when given, adjacency spans the
+            whole dependency graph (SCHEMA.md §7e).
     """
+    if edges is None and ir is None:
+        raise ValueError("score_frontier requires exactly one of `edges` or `ir`")
+
     weights = exploration_map.policy.weights
     w_uncertainty = float(weights.get("w_uncertainty", 0.0))
     w_relevance = float(weights.get("w_relevance", 0.0))
     w_cost = float(weights.get("w_cost", 0.0))
 
     seeds = _resolved_seed_qids(exploration_map)
-    adjacency = _undirected_adjacency(ir)
+    if edges is not None:
+        adjacency = _adjacency_from_edges(edges)
+    else:
+        assert ir is not None  # narrowed by the guard above
+        adjacency = _undirected_adjacency(ir)
     current_round = exploration_map.round
 
     for contact in exploration_map.frontier:

@@ -380,3 +380,45 @@ def test_score_frontier_does_not_mutate_ir():
     score_frontier(m, beliefs={qid("a"): 0.5}, ir=graph)
     assert sorted(k.id for k in graph.knowledges) == before_knowledge_ids
     assert len(graph.operators) == before_operator_count
+
+
+# --------------------------------------------------------------------------- #
+# Joint edge-set scoring (SCHEMA.md §7e): closeness_to_seed spans the joint    #
+# cross-package adjacency, not just the root graph.                            #
+# --------------------------------------------------------------------------- #
+
+
+def test_score_frontier_closeness_spans_joint_edge_set():
+    # Seed is a dep-owned QID; the contact's source is a root-owned QID. There is
+    # NO root-graph edge linking them, so a root-only adjacency cannot reach the
+    # seed (closeness 0.0). The JOINT edge set carries a depends_on edge tying
+    # root_src <-> dep_seed, so closeness becomes 1/(1+1) = 0.5.
+    seed = "lkm:dep::dep_seed"
+    root_src = "github:scorertest::root_src"
+    contact_qid = "lkm:dep::dep_unmaterialized"
+
+    m = ExplorationMap(policy=doctrine_policy("Surveyor"), seeds=[{"kind": "claim", "qid": seed}])
+    m.frontier.append(
+        Contact(
+            id="ct_joint01",
+            ref={"kind": "qid", "value": contact_qid},
+            sources=[{"qid": root_src, "edge": "depends_on"}],
+        )
+    )
+
+    # Joint edges: a depends_on edge co-referencing the seed, the root source,
+    # and the unmaterialized contact (the manifest record shape).
+    joint_edges = [("depends_on", [seed, root_src, contact_qid])]
+
+    score_frontier(m, beliefs={}, edges=joint_edges)
+    contact = m.frontier[0]
+    assert contact.score_features["closeness_to_seed"] == 0.5
+    assert set(contact.score_features) == ALL_FEATURE_KEYS
+
+
+def test_score_frontier_requires_edges_or_ir():
+    import pytest
+
+    m = ExplorationMap()
+    with pytest.raises(ValueError, match="exactly one of"):
+        score_frontier(m, beliefs={})
