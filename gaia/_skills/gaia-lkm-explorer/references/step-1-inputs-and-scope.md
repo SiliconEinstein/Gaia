@@ -1,7 +1,11 @@
 # Step 1 — Inputs, Scope, And Checklist
 
-Load this file first when `gaia-lkm-explorer` starts a batch or refresh mapping
-task. Do not load later step files until this step is complete.
+> **Context:** this is sub-step 1 of the **survey-one-contact** inner procedure
+> (`survey-one-contact.md`), which the turn loop (`SKILL.md` §3) invokes once
+> per frontier contact (or per seed in round 0). The "mode / target" below is
+> *this contact's* survey scope, not a whole one-shot run. Load this file first
+> when you begin surveying; do not load later step files until this step is
+> complete.
 
 ## Goal
 

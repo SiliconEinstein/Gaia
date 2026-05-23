@@ -1,5 +1,13 @@
 # Step 5 — Emit And Hand Off
 
+> **Context:** this is sub-step 5 of the **survey-one-contact** inner procedure
+> (`survey-one-contact.md`). In the turn loop the per-package quality gates here
+> (`gaia build compile` / `gaia run infer`) are run **once per turn after all
+> contacts in the round are surveyed** — they are turn-step 4. The "Hand-Off
+> Report" below is the *content* you summarize to the human at turn-step 6; the
+> per-turn checkpoint itself is `gaia explore round` (which emits the discovery
+> report). Do not treat this as a standalone one-shot exit.
+
 Load this file only after Step 4 is complete. This step finalizes the source
 artifact and runs the Gaia quality gates.
 
