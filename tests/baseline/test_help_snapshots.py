@@ -46,6 +46,7 @@ HELP_PATHS: list[tuple[str, ...]] = [
     ("inquiry", "--help"),
     ("inquiry", "focus", "--help"),
     ("inquiry", "reject", "--help"),
+    ("inquiry", "context", "--help"),
     ("inquiry", "review", "--help"),
     ("inquiry", "obligation", "--help"),
     ("inquiry", "obligation", "add", "--help"),

@@ -241,15 +241,20 @@ conclusions:
   - id: 1
     title: <≤ 25-word descriptor>
     body: <self-contained scientific proposition>
-    refs:
-      - {type: figure, id: "Fig. 2"}
-      - {type: figure, id: "Table I"}
-      - {type: equation, id: "Eq. (5)"}
-      - {type: citation, key: "Smith2020"}
+    citation_keys: ["Smith2020"]
+    artifact_anchors:
+      - kind: figure
+        source: Smith2020
+        locator: "Fig. 2"
+      - kind: table
+        source: Smith2020
+        locator: "Table I"
+    inline_equations: ["Eq. (5) content must be transcribed into body if load-bearing"]
   - id: 2
     title: ...
     body: ...
-    refs: ...
+    citation_keys: ...
+    artifact_anchors: ...
 
 logic_graph:
   - from: 1

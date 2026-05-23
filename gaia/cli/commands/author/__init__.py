@@ -1,11 +1,13 @@
 """``gaia author`` subcommand group — agent-first authoring CLI.
 
 This module exposes the ``gaia author <verb>`` namespace, where ``<verb>``
-matches one of the DSL surface verbs (``claim`` / ``equal`` / ``derive``
-/ ``note`` / ``question`` / ``contradict`` / ``exclusive`` / ``decompose``
-/ ``observe`` / ``compute`` / ``infer`` / ``associate`` / ``parameter`` /
+matches one of the DSL surface verbs (``claim`` / ``artifact`` /
+``figure`` / ``equal`` / ``derive`` / ``note`` / ``question`` /
+``contradict`` / ``exclusive`` / ``decompose`` / ``observe`` /
+``compute`` / ``infer`` / ``associate`` / ``parameter`` /
 ``register_prior`` / ``depends_on`` / ``candidate_relation`` /
-``materialize``). The CLI is the primary consumer surface for an LLM
+``materialize`` / ``variable`` / ``compose`` / ``composition``). The CLI
+is the primary consumer surface for an LLM
 agent doing end-to-end authoring on a Gaia knowledge package: it owns
 identifier collision checks, reference resolution, pre-write defensive
 validation, file appending, and (by default) a post-write
@@ -13,13 +15,14 @@ validation, file appending, and (by default) a post-write
 JSON-by-default through a uniform envelope (see :mod:`._envelope`);
 ``--human`` opts into a human-readable rendering of the same payload.
 
-The author surface ships 19 verbs end-to-end against a uniform pre-write
-+ envelope skeleton: 17 statement-emitting verbs (``claim`` / ``equal`` /
-``derive`` / ``note`` / ``question`` / ``contradict`` / ``exclusive`` /
-``decompose`` / ``observe`` / ``compute`` / ``infer`` / ``associate`` /
-``parameter`` / ``register_prior`` / ``depends_on`` /
-``candidate_relation`` / ``materialize``) plus the typed-term ``variable``
-verb and the two file-based ``compose`` / ``composition``
+The author surface ships 22 verbs end-to-end against a uniform pre-write
+envelope skeleton: 20 statement-emitting verbs (``claim`` /
+``artifact`` / ``figure`` / ``equal`` / ``derive`` / ``note`` /
+``question`` / ``contradict`` / ``exclusive`` / ``decompose`` /
+``observe`` / ``compute`` / ``infer`` / ``associate`` / ``parameter`` /
+``register_prior`` / ``depends_on`` / ``candidate_relation`` /
+``materialize`` / ``variable``) plus the two file-based ``compose`` /
+``composition``
 validate-and-register verbs (see :mod:`.compose`). Prose-mode
 ``--<arg>-content`` flags, two pre-write warning kinds, and a
 restricted-globals formula sandbox round out the authoring surface; the
@@ -31,6 +34,7 @@ See ``docs/reference/cli/author.md`` for the per-verb contract.
 
 from __future__ import annotations
 
+from gaia.cli.commands.author.artifact import artifact_command, figure_command
 from gaia.cli.commands.author.associate import associate_command
 from gaia.cli.commands.author.candidate_relation import candidate_relation_command
 from gaia.cli.commands.author.claim import claim_command
@@ -53,6 +57,7 @@ from gaia.cli.commands.author.register_prior import register_prior_command
 from gaia.cli.commands.author.variable import variable_command
 
 __all__ = [
+    "artifact_command",
     "associate_command",
     "candidate_relation_command",
     "claim_command",
@@ -65,6 +70,7 @@ __all__ = [
     "derive_command",
     "equal_command",
     "exclusive_command",
+    "figure_command",
     "infer_command",
     "list_command",
     "materialize_command",

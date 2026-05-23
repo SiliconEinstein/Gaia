@@ -97,6 +97,30 @@ def test_observe_with_given_conditional(gaia_package: FixturePackage) -> None:
     assert "given=[observation]" in written
 
 
+def test_observe_source_refs_still_renders_for_transition(
+    gaia_package: FixturePackage,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "observe",
+            "--conclusion",
+            "hypothesis",
+            "--source-refs",
+            "Drozdov2015",
+            "--dsl-binding-name",
+            "obs_with_legacy_source",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = gaia_package.source_init.read_text()
+    assert "source_refs=['Drozdov2015']" in written
+
+
 def test_observe_value_and_given_mutually_exclusive(gaia_package: FixturePackage) -> None:
     """Setting --value + --given is rejected as a syntax error."""
     result = runner.invoke(

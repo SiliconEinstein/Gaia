@@ -44,6 +44,7 @@ uuid = "{uuid}"
 _INIT_TEMPLATE = """\
 from gaia.engine.lang import (
     ClaimAtom,
+    artifact,
     associate,
     candidate_relation,
     claim,
@@ -54,6 +55,7 @@ from gaia.engine.lang import (
     derive,
     equal,
     exclusive,
+    figure,
     iff,
     implies,
     infer,

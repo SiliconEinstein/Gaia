@@ -8,8 +8,8 @@ The CLI organizes verbs into explicit top-level groups:
   review   (empty skeleton — held for downstream reviewer tooling)
   inquiry  (sub-app: focus / review / obligation / hypothesis / tactics / reject)
   pkg      add / add-import / add-module / register / scaffold
-  author   claim / equal / derive / note / question / contradict / exclusive /
-           decompose / observe / compute / infer / associate / parameter /
+  author   claim / artifact / figure / equal / derive / note / question /
+           contradict / exclusive / decompose / observe / compute / infer / associate / parameter /
            register-prior / variable / depends-on / candidate-relation /
            materialize / compose / composition
   bayes    model / compare / distribution literals
@@ -25,6 +25,7 @@ import typer
 from gaia._meta import IR_SCHEMA, get_channel, get_commit, get_library_version
 from gaia.cli.commands.add import add_command
 from gaia.cli.commands.author import (
+    artifact_command,
     associate_command,
     candidate_relation_command,
     claim_command,
@@ -37,6 +38,7 @@ from gaia.cli.commands.author import (
     derive_command,
     equal_command,
     exclusive_command,
+    figure_command,
     list_command,
     materialize_command,
     note_command,
@@ -250,8 +252,8 @@ app.add_typer(pkg_app, name="pkg")
 author_app = typer.Typer(
     name="author",
     help=(
-        "Author DSL statements (claim / equal / derive / note / question / "
-        "contradict / exclusive / decompose / observe / compute / infer / "
+        "Author DSL statements (claim / artifact / figure / equal / derive / "
+        "note / question / contradict / exclusive / decompose / observe / compute / infer / "
         "associate / parameter / register-prior / variable / depends-on / "
         "candidate-relation / materialize / compose / composition / list)."
     ),
@@ -259,6 +261,8 @@ author_app = typer.Typer(
 )
 # Knowledge tier.
 author_app.command(name="claim")(claim_command)
+author_app.command(name="artifact")(artifact_command)
+author_app.command(name="figure")(figure_command)
 author_app.command(name="note")(note_command)
 author_app.command(name="question")(question_command)
 # Structural relations.

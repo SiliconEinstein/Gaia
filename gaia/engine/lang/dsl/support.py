@@ -11,6 +11,7 @@ the ambiguous-symbol rule for those scientific docstrings.
 from __future__ import annotations
 
 import inspect
+import warnings
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, cast
@@ -103,6 +104,16 @@ def derive(
 _OBSERVE_VALUE_SENTINEL: Any = object()
 
 
+def _warn_source_refs_deprecated(source_refs: list[str] | None) -> None:
+    if source_refs:
+        warnings.warn(
+            "observe(source_refs=...) is deprecated; put citations in rationale "
+            "with [@CitationKey] so the reference scanner can resolve them.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
+
 def observe(
     conclusion: Claim | Distribution | Variable | str,
     *,
@@ -146,6 +157,8 @@ def observe(
        an anonymous ``Normal(mu=0, sigma=error)`` so noise is always either
        ``None`` or a :class:`Distribution` Knowledge node.
     """
+    _warn_source_refs_deprecated(source_refs)
+
     if isinstance(conclusion, Distribution):
         if value is _OBSERVE_VALUE_SENTINEL:
             raise TypeError(

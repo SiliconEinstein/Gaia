@@ -1,6 +1,7 @@
 """Public Gaia Lang DSL helper functions."""
 
 from gaia.engine.lang.dsl.associate_verb import associate
+from gaia.engine.lang.dsl.artifacts import artifact, figure
 from gaia.engine.lang.dsl.decompose import decompose
 from gaia.engine.lang.dsl.formula import (
     equals,
@@ -52,6 +53,7 @@ __all__ = [
     "abduction",
     "analogy",
     "and_",
+    "artifact",
     "associate",
     "candidate_relation",
     "case_analysis",
@@ -77,6 +79,7 @@ __all__ = [
     "exclusive",
     "exists",
     "extrapolation",
+    "figure",
     "fills",
     "forall",
     "iff",

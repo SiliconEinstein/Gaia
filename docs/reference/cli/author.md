@@ -38,10 +38,10 @@ all 5 of the DSL verbs the canonical Galileo example exercises, see
 - **`gaia bayes <verb>`** group — predictive-model authoring surface.
   Covered in [`bayes.md`](bayes.md).
 
-## Verb inventory — 20 author verbs + 1 pkg verb
+## Verb inventory — 22 author verbs + 1 pkg verb
 
-The `gaia author` group exposes **20 verbs** partitioned by DSL layer.
-**18** are *statement-emitting* (the cli appends a Python statement to
+The `gaia author` group exposes **22 verbs** partitioned by DSL layer.
+**20** are *statement-emitting* (the cli appends a Python statement to
 `src/<import_name>/__init__.py`); **2** are *file-based validate-and-
 register* (the cli reads a file containing a decorated function and
 records its metadata in `pyproject.toml`).
@@ -51,6 +51,8 @@ records its metadata in `pyproject.toml`).
 | Knowledge | `note` | `note(content, *, title=None, **metadata)` | yes |
 | Knowledge | `claim` | `claim(content, proposition=None, *, title=None, prior=None, background=None, formula=None, ...)` | yes |
 | Knowledge | `question` | `question(content, *, title=None, targets=None, **metadata)` | yes |
+| Knowledge | `artifact` | `artifact(kind=..., source=None, locator=None, path=None, caption=None, description=None, ...)` | yes |
+| Knowledge | `figure` | `figure(source=None, locator=None, path=None, caption=None, description=None, ...)` | yes |
 | Structural | `equal` | `equal(a, b, *, rationale="", label=None)` | yes |
 | Structural | `contradict` | `contradict(a, b, *, rationale="", label=None)` | yes |
 | Structural | `exclusive` | `exclusive(a, b, *, rationale="", label=None)` | yes |
@@ -117,6 +119,37 @@ gaia author note <content> --label <ident> [--target <path>]
 |---|---|---|
 | `<content>` | yes | Positional natural-language background. |
 | `--title <text>` | no | Optional short title (`title=` kwarg). |
+
+### `artifact`
+
+```
+gaia author artifact --dsl-binding-name <ident> --kind <kind> [--target <path>]
+    [--source <citation-key>] [--locator <text>] [--path <package-relative>]
+    [--caption <text>] [--description <text>] [--media-type <mime>]
+```
+
+Creates a normal `note(...)` through the `artifact(...)` helper. The resulting
+note carries `metadata["gaia"]["artifact"]` and can be referenced with
+`[@<dsl-binding-name>]`.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--dsl-binding-name <ident>` | yes | Python module-scope binding for the artifact note. |
+| `--kind <kind>` | yes | One of `figure`, `table`, `dataset`, `notebook`, `attachment`. |
+| `--source <citation-key>` | no | Citation key from `references.json`; validated during compile/check. |
+| `--locator <text>` | no | Source-local locator such as `Fig. 3` or `Supplementary Data 1`. |
+| `--path <package-relative>` | no | Package-relative artifact path. Absolute paths and `..` escapes are rejected. |
+
+### `figure`
+
+```
+gaia author figure --dsl-binding-name <ident> [--target <path>]
+    [--source <citation-key>] [--locator <text>] [--path <package-relative>]
+    [--caption <text>] [--description <text>] [--media-type <mime>]
+```
+
+Sugar for `gaia author artifact --kind figure`. A source-bound figure requires
+`--locator` so that the source-local figure number is unambiguous.
 
 ### `claim`
 
@@ -219,7 +252,7 @@ gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
 | `--value <expr>` | no | Numeric / Quantity expression for the continuous observation (`value=` kwarg). |
 | `--error <expr>` | no | Observation error sigma or Distribution (`error=` kwarg); requires `--value`. |
 | `--given <csv>` | no | Premise identifiers (discrete conditional form). |
-| `--source-refs <csv>` | no | Source reference strings attached to the observation. |
+| `--source-refs <csv>` | no | Deprecated transition flag. Prefer `--rationale "... [@CitationKey]"` so citations resolve through `references.json`. |
 
 ### `compute`
 

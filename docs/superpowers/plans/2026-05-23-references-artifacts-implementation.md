@@ -1039,7 +1039,7 @@ claim referencing it, then compile:
 tmpdir="$(mktemp -d)"
 python -m gaia.cli.main build init "$tmpdir/artifact-probe-gaia"
 cd "$tmpdir/artifact-probe-gaia"
-printf '[{"id":"Liu2015","type":"article-journal","title":"Probe"}]\n' > references.json
+printf '{"Liu2015":{"type":"article-journal","title":"Probe"}}\n' > references.json
 python -m gaia.cli.main author figure --dsl-binding-name liu2015_fig3 --source Liu2015 --locator "Fig. 3" --caption "Probe figure." --no-check
 python -m gaia.cli.main author claim "See [@liu2015_fig3] and [@Liu2015]." --dsl-binding-name probe_claim --no-check
 python -m gaia.cli.main build compile .
