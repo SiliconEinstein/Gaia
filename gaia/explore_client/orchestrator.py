@@ -42,7 +42,7 @@ from gaia.engine.exploration.handoff import (
     result_path,
     task_path,
 )
-from gaia.engine.exploration.scorer import score_frontier
+from gaia.engine.exploration.scorer import sanitize_score_features, score_frontier
 from gaia.engine.exploration.state import (
     TURN_PHASE_AWAITING_CHECKPOINT,
     TURN_PHASE_AWAITING_SURVEY,
@@ -250,10 +250,13 @@ def _refresh_stats(exploration_map: ExplorationMap) -> None:
 def _score_feature_hint(score_features: dict[str, Any]) -> str:
     """Translate a contact's live ``score_features`` into a short NL hint.
 
-    Picks the 1-2 dominant *live* signals (CLIENT.md build 8) and renders them as
-    a natural-language nudge appended to the brief; returns ``""`` when no signal
-    is strong enough to be worth citing. ``tension_potential`` / ``bridge_potential``
-    are 0.0 v1 slots and are never cited (the ``Inquisitor`` doctrine is inert).
+    Picks the 1-2 dominant *live, non-belief* signals (CLIENT.md build 8, narrowed
+    by build 11 steer 4) and renders them as a natural-language nudge appended to
+    the brief; returns ``""`` when no signal is strong enough to be worth citing.
+    The belief-derived ``belief_entropy`` ("undecided territory") hint is NOT
+    cited — belief stays internal to the engine (Jaynes' robot). ``tension_potential``
+    / ``bridge_potential`` are 0.0 v1 slots and are never cited (the ``Inquisitor``
+    doctrine is inert).
     """
 
     def _f(key: str) -> float:
@@ -262,11 +265,9 @@ def _score_feature_hint(score_features: dict[str, Any]) -> str:
         except (TypeError, ValueError):
             return 0.0
 
-    entropy_hint = "sits next to undecided territory — surveying here can settle a live question"
-    # (score, hint phrase) — order = tie-break priority.
+    # (score, hint phrase) — order = tie-break priority. No belief_entropy hint:
+    # belief is not surfaced to the agent (build 11 steer 4).
     candidates: list[tuple[float, str]] = []
-    if (v := _f("belief_entropy")) >= 0.6:
-        candidates.append((v, entropy_hint))
     if (v := _f("closeness_to_seed")) >= 0.6:
         candidates.append((v, "on-topic / close to your seed"))
     if (v := _f("new_territory")) >= 0.6:
@@ -384,12 +385,17 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
                 "papers during the survey to grow the frontier for next round."
             )
         else:
+            # Build 11 steer 4: rank on the FULL features (done above by
+            # score_frontier + _rank_open_contacts), then sanitize for the
+            # agent-facing envelope — drop belief_entropy and the raw
+            # belief-weighted score so the agent never sees the belief math
+            # (Jaynes' robot). Ordering is already fixed by top_k.
             contacts = [
                 TaskContact(
                     id=c.id,
                     ref=c.ref,
-                    score=c.score,
-                    score_features=c.score_features,
+                    score=None,
+                    score_features=sanitize_score_features(c.score_features),
                     sources=c.sources,
                     survey_brief=_contact_survey_brief(c),
                 )

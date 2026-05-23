@@ -49,7 +49,7 @@ from gaia.engine.exploration.observe import (
     promote_materialized_lkm_contacts,
 )
 from gaia.engine.exploration.render import render_map_html
-from gaia.engine.exploration.scorer import score_frontier
+from gaia.engine.exploration.scorer import sanitize_score_features, score_frontier
 from gaia.engine.exploration.state import (
     DOCTRINE_PRESETS,
     Contact,
@@ -498,12 +498,16 @@ def frontier_command(
     top_k = ranked[: exploration_map.policy.budget_k]
 
     if json_out:
+        # Build 11 steer 4 (Jaynes' robot): the engine ranks by belief
+        # (score_frontier, above) but the agent-facing frontier output never
+        # surfaces the belief math. ``top_k`` is already belief-ordered; here we
+        # drop the belief-derived ``belief_entropy`` feature and the raw
+        # belief-weighted ``score`` from each emitted row. Ordering is preserved.
         rows = [
             {
                 "id": c.id,
                 "ref": c.ref,
-                "score": c.score,
-                "score_features": c.score_features,
+                "score_features": sanitize_score_features(c.score_features),
                 "sources": c.sources,
             }
             for c in top_k
@@ -512,7 +516,7 @@ def frontier_command(
         return
 
     if not beliefs:
-        typer.echo("(no beliefs.json — scores use 0.0 belief_entropy; run `gaia run infer`)")
+        typer.echo("(no beliefs.json yet — run `gaia run infer` to rank the frontier)")
     if promoted_papers:
         typer.echo(
             f"Promoted {len(promoted_papers)} lkm_related contact(s) "
@@ -528,8 +532,9 @@ def frontier_command(
     if not top_k:
         typer.echo("  (frontier empty — every referenced node is materialized)")
         return
+    # Rank order conveys priority; the numeric belief-weighted score is NOT
+    # printed (build 11 steer 4 — belief stays internal to the engine).
     for rank, c in enumerate(top_k, start=1):
-        score = "n/a" if c.score is None else f"{c.score:+.3f}"
         ref = str(c.ref.get("value"))
         srcs = ", ".join(f"{s['qid']}[{s['edge']}]" for s in c.sources) or "(no sources)"
         if c.ref.get("kind") == "lkm":
@@ -539,10 +544,10 @@ def frontier_command(
                 label = f'{label}  "{title}"'
             index_id = c.meta.get("index_id")
             idx_arg = f" --lkm-index {index_id}" if isinstance(index_id, str) else ""
-            typer.echo(f"  {rank}. {score}  [lkm] {label}")
+            typer.echo(f"  {rank}. [lkm] {label}")
             typer.echo(f"       pull: gaia pkg add{idx_arg} --lkm-paper {ref}")
         else:
-            typer.echo(f"  {rank}. {score}  {ref}")
+            typer.echo(f"  {rank}. {ref}")
         typer.echo(f"       via: {srcs}")
 
 
@@ -719,10 +724,11 @@ def status_command(
     if not ranked:
         typer.echo("    (none)")
     else:
-        for c in ranked[:5]:
-            score = "n/a" if c.score is None else f"{c.score:+.3f}"
+        # Ranked order (not the numeric belief-weighted score) is shown —
+        # belief stays internal to the engine (build 11 steer 4).
+        for rank, c in enumerate(ranked[:5], start=1):
             tag = "[lkm] paper:" if c.ref.get("kind") == "lkm" else ""
-            typer.echo(f"    - {score}  {tag}{c.ref.get('value')}")
+            typer.echo(f"    {rank}. {tag}{c.ref.get('value')}")
 
     typer.echo("  recent rounds:")
     if not rounds:

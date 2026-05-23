@@ -126,8 +126,66 @@ def test_idle_with_frontier_emits_ranked_task(tmp_path: Path, monkeypatch):
     assert task.contacts[0].survey_brief  # a per-contact brief was composed
 
 
-def test_contact_brief_reflects_high_belief_entropy():
-    """A high-belief_entropy contact's brief names the undecided-territory signal."""
+def test_emitted_task_hides_belief_but_ranks_by_it(tmp_path: Path, monkeypatch):
+    """Build 11 steer 4: the agent-facing task drops belief; ranking keeps it.
+
+    The engine ranks the frontier by a belief-weighted ``score`` (high
+    ``belief_entropy`` first), but every emitted ``TaskContact`` must have NO
+    ``belief_entropy`` in ``score_features`` and NO raw ``score`` — while the
+    contact ORDER still reflects the internal belief ranking.
+    """
+    m = ExplorationMap(round=1, policy=Policy(doctrine="Surveyor", budget_k=2))
+    # ct_hi has the higher belief_entropy AND the higher score; ct_lo lower both.
+    m.frontier = [
+        Contact(
+            id="ct_lo",
+            ref={"kind": "qid", "value": "example:pkg::Lo"},
+            sources=[{"qid": "example:pkg::seed", "edge": "depends_on"}],
+            score=0.10,
+            score_features={"belief_entropy": 0.10, "closeness_to_seed": 0.2},
+            status="open",
+        ),
+        Contact(
+            id="ct_hi",
+            ref={"kind": "qid", "value": "example:pkg::Hi"},
+            sources=[{"qid": "example:pkg::seed", "edge": "depends_on"}],
+            score=0.90,
+            score_features={"belief_entropy": 0.90, "closeness_to_seed": 0.2},
+            status="open",
+        ),
+    ]
+    save_map(tmp_path, m)
+
+    from gaia.engine.exploration.frontier import JointView
+
+    monkeypatch.setattr(orchestrator, "_resolve_graph", lambda _pkg: object())
+    monkeypatch.setattr(orchestrator, "_joint_view", lambda _pkg, _g: JointView())
+    monkeypatch.setattr(orchestrator, "_load_beliefs", lambda _pkg: {})
+    # No-op the scorer so the pre-set belief-weighted scores/features survive
+    # (the real scorer would recompute them; here we assert on known values).
+    monkeypatch.setattr(orchestrator, "score_frontier", lambda *_a, **_k: None)
+
+    outcome = run_turn(tmp_path)
+
+    # Ranking still reflects belief: the higher belief-weighted score comes first.
+    assert outcome.contacts == ["ct_hi", "ct_lo"]
+    task = SurveyTask.read(handoff.task_path(exploration_dir(tmp_path), 1))
+    assert [c.id for c in task.contacts] == ["ct_hi", "ct_lo"]
+    for tc in task.contacts:
+        # No belief surfaced: belief_entropy stripped, raw score hidden.
+        assert "belief_entropy" not in tc.score_features
+        assert tc.score is None
+        # Non-belief signals survive.
+        assert "closeness_to_seed" in tc.score_features
+
+
+def test_contact_brief_does_not_surface_belief_entropy():
+    """Build 11 steer 4: a high-belief_entropy contact's brief hides belief.
+
+    Belief stays internal to the engine (Jaynes' robot) — even a dominant
+    ``belief_entropy`` signal must NOT produce an "undecided territory" hint, and
+    with no other strong signal the brief carries no signal sentence at all.
+    """
     contact = Contact(
         id="ct_a",
         ref={"kind": "qid", "value": "example:pkg::Foo"},
@@ -141,12 +199,14 @@ def test_contact_brief_reflects_high_belief_entropy():
         status="open",
     )
     brief = orchestrator._contact_survey_brief(contact)
-    # The dominant signal is surfaced as a natural-language hint.
-    assert "undecided" in brief
-    # Query anchoring is present.
+    # The belief-derived "undecided territory" hint is gone.
+    assert "undecided" not in brief
+    # No belief surfaced and no other strong signal → no signal sentence.
+    assert "Signal:" not in brief
+    # Query anchoring is still present.
     assert "example:pkg::Foo" in brief
     assert "Anchor" in brief
-    # The weak signals are not dumped.
+    # The weak non-belief signals are not dumped either.
     assert "on-topic" not in brief
     assert "fresh unexplored" not in brief
 

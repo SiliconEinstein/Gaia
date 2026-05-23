@@ -168,7 +168,12 @@ def test_explore_frontier_json_output(galileo_pkg: Path):
     assert isinstance(rows, list)
     assert rows, "expected at least one ranked contact in JSON output"
     for row in rows:
-        assert {"id", "ref", "score", "score_features", "sources"} <= set(row)
+        # Build 11 steer 4: the agent-facing frontier JSON keeps the non-belief
+        # surface but hides the belief math — no raw ``score`` row key, and no
+        # ``belief_entropy`` inside ``score_features``.
+        assert {"id", "ref", "score_features", "sources"} <= set(row)
+        assert "score" not in row
+        assert "belief_entropy" not in row["score_features"]
 
 
 def test_explore_round_appends_and_detects_keystone(galileo_pkg: Path):
@@ -469,16 +474,19 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
     lkm_rows = [r for r in rows if r["ref"]["kind"] == "lkm"]
     assert lkm_rows, "expected lkm_related contacts ranked in the frontier"
     for r in lkm_rows:
-        assert r["score"] is not None
+        # Build 11 steer 4: the raw belief-weighted score is hidden, and
+        # belief_entropy is stripped from the agent-facing score_features; the
+        # non-belief signals survive.
+        assert "score" not in r
         feats = r["score_features"]
         assert set(feats) == {
-            "belief_entropy",
             "closeness_to_seed",
             "survey_cost",
             "tension_potential",
             "bridge_potential",
             "new_territory",
         }
+        assert "belief_entropy" not in feats
         # An lkm contact's new_territory is live (>= 0.5) and survey_cost heavier.
         assert feats["new_territory"] >= 0.5
         assert feats["survey_cost"] == 2.0

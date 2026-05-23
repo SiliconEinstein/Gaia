@@ -71,6 +71,26 @@ if TYPE_CHECKING:
 # deferred 0.0 slots (DESIGN §8) for a qid contact.
 _DEFERRED_FEATURES = ("tension_potential", "bridge_potential", "new_territory")
 
+# CLIENT.md build 11 steer 4 (Jaynes' robot) — the belief-derived score_features
+# keys stripped from every AGENT-FACING surface. The engine still RANKS by
+# belief (``score_frontier`` below sets ``contact.score`` from a belief-weighted
+# sum, untouched); this tuple drives only what the agent is shown, never the
+# math. ``belief_entropy`` is the sole belief-derived feature.
+BELIEF_FEATURE_KEYS = ("belief_entropy",)
+
+
+def sanitize_score_features(score_features: dict[str, Any]) -> dict[str, Any]:
+    """Return ``score_features`` with belief-derived keys removed (steer 4).
+
+    Drops every key in :data:`BELIEF_FEATURE_KEYS` (currently ``belief_entropy``)
+    so the agent never sees the belief math, while keeping the non-belief signals
+    (``closeness_to_seed``, ``new_territory``, ``survey_cost``, and the 0.0
+    ``tension_potential`` / ``bridge_potential`` slots). Ranking is unaffected: it
+    runs on the full feature vector before this is ever called.
+    """
+    return {k: v for k, v in score_features.items() if k not in BELIEF_FEATURE_KEYS}
+
+
 # SCHEMA.md §7f — survey cost of an LKM paper-contact. A qid contact is
 # materialize-only (flat 1.0); pulling a whole paper via `gaia pkg add
 # --lkm-paper` is strictly heavier, so an lkm contact costs more. 2.0 keeps the

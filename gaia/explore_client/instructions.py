@@ -9,7 +9,8 @@ correctly and re-invoke the client.
 The text is intentionally complete prose (not a pointer to a registered skill):
 it carries the "LLM proposes / engine adjudicates" integrity contract, the v1
 limits, the per-contact survey procedure, the LKM-specific mapping rules
-(evidence-status vocabulary, support discipline, open-question-first
+(evidence-status vocabulary, support discipline, composite-proposition
+decomposition, candidate-relation pre-marking + adjudicable-conflict
 contradiction handling), the authoring surface (Tier 1 direct SDK / Tier 2 ``gaia
 author``), and the re-invocation handshake.
 
@@ -19,11 +20,21 @@ available/encouraged), the hard ">=2 distinct support-channel queries per target
 mandate, the ``support_not_found`` recording clause, and the scratch-note
 recording requirements are gone. The scientific-integrity *mapping* rules are
 untouched: the evidence-status taxonomy, the self-contained-claim rule, "don't
-invent premises/support", open-question-first contradiction handling, the
-LLM-proposes/engine-adjudicates contract + v1 limits, and the API-correctness
-notes (``register_prior(...)`` not ``prior=``; no ``metadata=`` kwarg on
-contradict/derive/equal; ``gaia author depends-on`` rejecting unmaterialized
-targets) all survive.
+invent premises/support", the LLM-proposes/engine-adjudicates contract + v1
+limits, and the API-correctness notes (``register_prior(...)`` not ``prior=``;
+no ``metadata=`` kwarg on contradict/derive/equal; ``gaia author depends-on``
+rejecting unmaterialized targets) all survive.
+
+Build 11 (CLIENT.md steers 1/2/5/6): the authoring section gains a ``decompose``
+delegation for composite propositions (steer 1) and a ``candidate_relation``
+pre-mark → ``materialize`` scaffold path for tensions (steer 2); contradiction
+promotion is re-gated on being an *adjudicable scientific conflict* rather than
+forced through an ``open_problem:`` framing — open-problem language and the
+``gaia inquiry hypothesis add`` route are reserved for genuinely unresolved
+tensions (steer 5); and the ``pkg add --lkm-paper`` step now states it pulls the
+paper's whole subgraph (steer 6). Build 11 also strips belief from the
+agent-facing surface (steer 4): the live-features list no longer advertises
+``belief_entropy`` and the engine's belief ranking stays internal.
 """
 
 from __future__ import annotations
@@ -60,10 +71,12 @@ materialize them into the Gaia package. The engine then adjudicates the
   formalization manifest) are a secondary, intra-survey signal. If you neither
   observe related papers nor pull a paper, the frontier can go empty — expected,
   not a bug. So observe every search, and pull at least one paper per turn.
-- Live scorer features: `belief_entropy` (uncertainty), `closeness_to_seed`
-  (relevance), `new_territory` (coverage; live for lkm contacts only), and
-  `survey_cost`. `tension_potential` / `bridge_potential` are 0.0 slots, so the
-  `Inquisitor` doctrine is currently inert; prefer `Surveyor` / `Cartographer`.
+- Survey-facing contact signals: `closeness_to_seed` (relevance),
+  `new_territory` (coverage; live for lkm contacts only), and `survey_cost`. The
+  engine ranks the frontier for you and hands you the shortlist already ordered —
+  survey in the order given. `tension_potential` / `bridge_potential` are 0.0
+  slots, so the `Inquisitor` doctrine is currently inert; prefer `Surveyor` /
+  `Cartographer`.
 """
 
 # The per-contact survey procedure (absorbed from survey-one-contact.md + the
@@ -96,9 +109,14 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
 
 3. PULL the top related paper(s) to open new territory:
        gaia pkg add --lkm-paper <paper_id>
-   This scaffolds the paper as an editable `-gaia` dependency sub-package and
-   writes its `depends_on` scaffolds; it (a) promotes that paper's `lkm_related`
-   contact to surveyed and (b) adds intra-survey `depends_on` contacts.
+   A paper's claims are strongly inter-related, so this is NOT a single-claim
+   pull: it materializes the paper's ENTIRE subgraph — all its claims/questions
+   plus their `depends_on` edges — scaffolding the paper as an editable `-gaia`
+   dependency sub-package. It (a) promotes that paper's `lkm_related` contact to
+   surveyed and (b) adds intra-survey `depends_on` contacts.
+   (Optional: preview the subgraph extent first with
+   `gaia search lkm package --paper-id <paper_id>` — retrieve-only, counts via
+   `source.stats`; it CANNOT materialize, so still run `pkg add --lkm-paper` to pull.)
    Do NOT use `gaia author depends-on` for an unmaterialized target — it rejects
    an unresolved `--given` by design (that core validation must not be weakened).
 
@@ -125,16 +143,31 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
      content/provenance: do not emit.
    - Make every claim self-contained (system/material, method, quantity, value,
      conditions) so it is judgeable true/false without the LKM payload.
+   - Composite propositions: when an LKM payload is a composite claim (an AND/OR
+     of several sub-assertions), decompose it into atomic part-claims with
+     `decompose(whole, parts=[a, b, ...], formula=...)` (Tier 1, from
+     `gaia.engine.lang`) / `gaia author decompose --whole <composite_claim_id>
+     --parts a,b[,c] (--formula-template atom|and|or | --formula-expr "<expr>")`
+     (Tier 2) rather than hand-splitting it into unrelated claims.
    - Supports: `derive(target, given=[U], rationale="...", label="...")` is
      directional (U supports target). Do not fabricate support.
        If two supports share a common factor, extract it as a shared-factor claim
        and route both through it (avoids double-counting in BP).
-   - Contradictions (open-question-first): for a tension, first name the
-     field-facing open problem. Promote to `contradict(A, B)` only when it is an
-     adjudicable scientific conflict; label it `<side_a>_vs_<side_b>` and put the
-     `open_problem:` clause + warrant intent in `rationale=` (no `metadata=`
-     kwarg on `contradict`/`derive`/`equal`). Otherwise keep it as an inquiry
-     hypothesis: `gaia inquiry hypothesis add "<open problem>" --scope <ns>::<label>`.
+   - Contradictions: when you spot a candidate tension between two claims A and
+     B, FIRST pre-mark it with `candidate_relation(claims=[A, B],
+     pattern="contradict")` (Tier 1) / `gaia author candidate-relation --claims
+     A,B --pattern contradict` (Tier 2). That records an INERT, unadjudicated
+     marker (kind="scaffold", no belief effect) — the pattern token is
+     `contradict` (NOT "contradiction") and `pattern="contradict"` requires
+     exactly two claims. PROMOTE it to a live contradiction only once the tension
+     is an *adjudicable scientific conflict*: materialize the scaffold with
+     `materialize(scaffold, by=[contradict(A, B)])` / `gaia author materialize`
+     (or author `contradict(A, B)` directly). Label it `<side_a>_vs_<side_b>` and
+     let `rationale=` carry your warrant intent / the resolution you already have
+     (no `metadata=` kwarg on `contradict`/`derive`/`equal`). Reserve
+     open-problem framing — and the `gaia inquiry hypothesis add "<open problem>"
+     --scope <ns>::<label>` route — for tensions that are GENUINELY unresolved,
+     not for every promotion.
    - Priors: never pass a `prior=` kwarg on `claim(...)`; leaf priors are
      `register_prior(...)` records in `priors.py`.
 
