@@ -80,9 +80,28 @@ def test_compile_resolves_artifact_label_as_local_reference() -> None:
         references={"Liu2015": {"id": "Liu2015", "type": "article-journal", "title": "T"}},
     )
     by_id = {k.id: k for k in compiled.graph.knowledges}
-    assert by_id["github:artifact_reference::claim1"].metadata["gaia"]["provenance"][
-        "referenced_claims"
-    ] == ["fig3"]
+    provenance = by_id["github:artifact_reference::claim1"].metadata["gaia"]["provenance"]
+    assert provenance["artifact_refs"] == ["fig3"]
+    assert "referenced_claims" not in provenance
+
+
+def test_compile_splits_artifact_refs_from_claim_refs() -> None:
+    with CollectedPackage("artifact_and_claim_reference") as pkg:
+        fig = figure(source="Liu2015", locator="Fig. 3", caption="A figure.")
+        lemma = claim("A local lemma.")
+        c = claim("See [@fig3] and [@lemma].")
+        fig.label = "fig3"
+        lemma.label = "lemma"
+        c.label = "claim1"
+
+    compiled = compile_package_artifact(
+        pkg,
+        references={"Liu2015": {"id": "Liu2015", "type": "article-journal", "title": "T"}},
+    )
+    by_id = {k.id: k for k in compiled.graph.knowledges}
+    provenance = by_id["github:artifact_and_claim_reference::claim1"].metadata["gaia"]["provenance"]
+    assert provenance["artifact_refs"] == ["fig3"]
+    assert provenance["referenced_claims"] == ["lemma"]
 
 
 def test_compile_warns_on_legacy_refs_metadata() -> None:
@@ -94,13 +113,16 @@ def test_compile_warns_on_legacy_refs_metadata() -> None:
         compile_package_artifact(pkg)
 
 
-def test_compile_warns_on_source_paper_metadata() -> None:
+def test_compile_allows_source_paper_as_audit_metadata_without_legacy_warning() -> None:
     with CollectedPackage("legacy_source_paper") as pkg:
         c = claim("Legacy source paper.", source_paper="Liu2015")
         c.label = "legacy"
 
-    with pytest.warns(DeprecationWarning, match="source_paper"):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DeprecationWarning)
         compile_package_artifact(pkg)
+
+    assert not [warning for warning in caught if issubclass(warning.category, DeprecationWarning)]
 
 
 def test_compile_allows_unrelated_caption_metadata_without_legacy_warning() -> None:

@@ -183,6 +183,10 @@ analysis_data = artifact(
 claim("The trend follows the source figure [@liu2015_fig3].")
 ```
 
+Artifact labels resolve through the same local-label syntax as notes and claims,
+but compiled provenance records them under `artifact_refs`, separate from
+`referenced_claims`.
+
 Do not use `observe(source_refs=...)` for new code; put citation markers in
 `rationale`. Also do not put bibliographic citations in
 `claim(provenance=[...])`; that field is for Gaia package/version provenance,

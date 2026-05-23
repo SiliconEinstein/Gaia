@@ -98,7 +98,7 @@ backward compatibility。当前没有必要。
 |---|---|---|---|
 | External citation | body 内 `[@CitationKey]`，key 来自 `references.json` | 已实现：extract / resolve / strict miss / collision / group validation | `metadata["gaia"]["provenance"].cited_refs`、rendered References |
 | Local knowledge reference | body 内 `[@local_label]`，label 来自 package closure 中的 knowledge label | 已实现：label table resolve、collision、strict miss | `metadata["gaia"]["provenance"].referenced_claims`、rendered anchor link |
-| Artifact / attachment reference | `artifact_label = note(..., metadata={"gaia": {"artifact": ...}})`，再用 `[@artifact_label]` 引用 | 新增：artifact schema、source/path/locator 校验 | rendered figure/table/link、artifact provenance |
+| Artifact / attachment reference | `artifact_label = note(..., metadata={"gaia": {"artifact": ...}})`，再用 `[@artifact_label]` 引用 | 新增：artifact schema、source/path/locator 校验 | `metadata["gaia"]["provenance"].artifact_refs`、rendered figure/table/link |
 
 关键不变量：
 
@@ -107,6 +107,8 @@ backward compatibility。当前没有必要。
 - 论文内编号使用 `locator`，例如 `"Fig. 3"`、`"Table 2"`、
   `"Supplementary Data 1"`。`locator` 不是 Gaia label。
 - Claim 引用 artifact 时引用的是包内 note anchor：`See [@liu2015_fig3].`
+- Artifact label 仍通过现有 local-label resolver 解析；compiler writeback 再按目标
+  metadata 拆成 `artifact_refs`，不塞进 `referenced_claims`。
 - Claim 是否直接引用外部文献，只由 claim 文本里的 `[@Liu2015]` 决定；artifact 的
   `source` 是 artifact 自己的 provenance，不隐式伪装成 claim 的 direct citation。
 
@@ -190,7 +192,8 @@ Artifact provenance is deliberately not flattened into every claim that referenc
 
 - The artifact note validates and owns its `source`.
 - A claim that says `See [@liu2015_fig3]` records `liu2015_fig3` under
-  `referenced_claims` / local knowledge refs.
+  `artifact_refs`; ordinary non-artifact local labels still record under
+  `referenced_claims`.
 - The same claim records `Liu2015` under `cited_refs` only if the claim text also says
   `[@Liu2015]`.
 - Renderers may include bibliography entries for artifact sources when the artifact block is rendered,
@@ -368,8 +371,8 @@ Deprecated legacy fields should be handled explicitly:
 
 - `refs`: warn in the transition release, then error in the next major release.
 - `source_refs`: deprecate `observe(source_refs=...)`; use rationale `[@key]`.
-- `source_paper`: warn that it is audit-only and ignored by compiler provenance. If users need to
-  keep it, move it under an explicit audit namespace such as `metadata["gaia"]["audit"]`.
+- `source_paper`: allow as audit-only metadata for existing LKM / audit-log workflows, but ignore it
+  for compiler provenance and rendered citations.
 - `metadata.figure` / top-level `caption`: warn and point to artifact note schema.
 
 The compiler must never treat these legacy fields as canonical citation data.
@@ -380,6 +383,7 @@ Renderer behavior should follow the same three-layer split:
 
 - `cited_refs` renders bibliographic citations and a References section.
 - `referenced_claims` renders links to local knowledge anchors.
+- `artifact_refs` renders links or backrefs to artifact note anchors without treating them as claims.
 - Artifact notes render as figure/table blocks or attachment links based on `kind` and `path`.
 
 For artifact notes:
@@ -399,13 +403,20 @@ For artifact notes:
 | `refs=({"type": "figure", "id": "Fig. 3"},)` | `figure(source=..., locator="Fig. 3", ...)` plus `[@artifact_label]` | Warn in transition release, then error |
 | `refs=({"type": "equation", ...},)` | Inline the equation or result in claim content | Warn in transition release, then error |
 | `observe(source_refs=[...])` | `observe(..., rationale="... [@CitationKey]")` | Deprecate parameter |
-| `source_paper="Liu2015"` | Body `[@Liu2015]` or artifact `source="Liu2015"` | Audit-only; ignored by compiler provenance |
+| `source_paper="Liu2015"` | Body `[@Liu2015]` or artifact `source="Liu2015"` when canonical citation behavior is needed | Allowed audit-only metadata; ignored by compiler provenance |
 | `metadata={"figure": ..., "caption": ...}` | Artifact note with `kind="figure"` | Warn and migrate |
 
 Skill and docs migration must update repo-bundled sources, not only local user mirrors:
 
-- `gaia/_skills/gaia-formalize-coarse/...` examples that emit `refs`.
-- `gaia/_skills/gaia-formalize-fine/...` examples that emit `metadata={"figure": ...}`.
+- `gaia/_skills/gaia-formalize-coarse/references/phase-1-extract-conclusions.md` sections that
+  previously allowed `refs` or top-level figure metadata.
+- `gaia/_skills/gaia-formalize-coarse/references/phase-3-review-weak-points.md` weak-point templates
+  that previously named `refs`.
+- `gaia/_skills/gaia-formalize-fine/SKILL.md` Pass 6d examples that previously emitted
+  `metadata={"figure": ...}`.
+- If a shared `formalize-extract-conclusions.md` is introduced into `gaia/_skills/_shared/`, it must
+  follow the same artifact-note contract before being bundled. This file is not present in the repo
+  at the time of this PR.
 - `docs/for-users/language-reference.md` examples that still recommend `source_refs`.
 - Any `docs/foundations/gaia-lang/...` examples that use old `source_refs`.
 
@@ -418,17 +429,18 @@ Skill and docs migration must update repo-bundled sources, not only local user m
 - [x] Export the helpers through the same public DSL surface as `note(...)`.
 - [x] Validate artifact metadata during package compile/check.
 - [x] Deprecate `observe(source_refs=...)` and document rationale-based citations.
-- [x] Warn on legacy `refs`, `source_paper`, and `metadata.figure` forms.
+- [x] Warn on legacy `refs` and `metadata.figure` forms; keep `source_paper` audit-only and
+      non-canonical.
 - [x] Add `gaia author artifact`.
 - [x] Add `gaia author figure` as sugar for `--kind figure`.
 - [x] Update repo-bundled Gaia skills and user docs.
 - [x] Add tests for helper output, schema validation, source resolution, unsafe paths, CLI emission,
-      and local `[@artifact_label]` resolution.
+      provenance bucket splitting, and local `[@artifact_label]` resolution.
 
 ### PR 2: Renderer consumption
 
 - [ ] Render `cited_refs` into citations and References sections.
-- [ ] Render `referenced_claims` as local anchor links.
+- [ ] Render `referenced_claims` and `artifact_refs` as local anchor links with artifact-aware labels.
 - [ ] Render artifact notes as image/table/link blocks according to `kind`.
 - [ ] Include artifact source/locator in rendered artifact blocks.
 - [ ] Add renderer tests with one source-bound figure and one package-local attachment.

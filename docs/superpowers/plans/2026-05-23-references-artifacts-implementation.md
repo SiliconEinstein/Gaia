@@ -25,7 +25,8 @@
 - Create `tests/cli/author/test_artifact.py`: CLI tests for artifact and figure authoring.
 - Modify `tests/gaia/lang/test_observe_continuous.py`: assert `source_refs` emits `DeprecationWarning`.
 - Modify `tests/cli/author/test_observe.py`: assert CLI output still writes `source_refs` and surfaces the deprecation only during check-capable flows if applicable.
-- Modify repo-bundled skills/docs after code is green: remove examples that emit `refs`, `source_paper` as canonical data, or `metadata={"figure": ...}`.
+- Modify repo-bundled skills/docs after code is green: remove examples that emit `refs`,
+  treat `source_paper` as canonical citation data, or emit `metadata={"figure": ...}`.
 
 ## Task 1: Artifact DSL Helpers
 
@@ -303,15 +304,18 @@ def test_compile_warns_on_legacy_refs_metadata() -> None:
         compile_package_artifact(pkg)
 
 
-def test_compile_warns_on_source_paper_metadata() -> None:
+def test_compile_allows_source_paper_as_audit_metadata_without_legacy_warning() -> None:
     c = claim("Legacy source paper.", source_paper="Liu2015")
 
     with package("legacy_source_paper") as pkg:
         c.label = "legacy"
         pkg.add(c)
 
-    with pytest.warns(DeprecationWarning, match="source_paper"):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DeprecationWarning)
         compile_package_artifact(pkg)
+
+    assert not [warning for warning in caught if issubclass(warning.category, DeprecationWarning)]
 ```
 
 - [ ] **Step 2: Run validation tests and verify they fail**
@@ -336,14 +340,13 @@ Add helper functions near `_knowledge_metadata`:
 
 ```python
 def _warn_legacy_reference_metadata(metadata: dict[str, Any]) -> None:
-    for key in ("refs", "source_paper"):
-        if key in metadata:
-            warnings.warn(
-                f"metadata[{key!r}] is deprecated for Gaia references; use body "
-                "[@CitationKey] markers or metadata['gaia']['artifact'] instead.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
+    if "refs" in metadata:
+        warnings.warn(
+            "metadata['refs'] is deprecated for Gaia references; use body "
+            "[@CitationKey] markers or metadata['gaia']['artifact'] instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
     if "figure" in metadata or "caption" in metadata:
         warnings.warn(
             "top-level figure/caption metadata is deprecated; use "

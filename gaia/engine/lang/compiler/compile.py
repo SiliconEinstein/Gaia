@@ -304,14 +304,13 @@ def _knowledge_metadata(k: Knowledge, knowledge_map: dict[int, str]) -> dict[str
 
 
 def _warn_legacy_reference_metadata(metadata: dict[str, Any]) -> None:
-    for key in ("refs", "source_paper"):
-        if key in metadata:
-            warnings.warn(
-                f"metadata[{key!r}] is deprecated for Gaia references; use body "
-                "[@CitationKey] markers or metadata['gaia']['artifact'] instead.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
+    if "refs" in metadata:
+        warnings.warn(
+            "metadata['refs'] is deprecated for Gaia references; use body "
+            "[@CitationKey] markers or metadata['gaia']['artifact'] instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
     if "figure" in metadata:
         warnings.warn(
             "top-level figure/caption metadata is deprecated; use "
@@ -319,6 +318,12 @@ def _warn_legacy_reference_metadata(metadata: dict[str, Any]) -> None:
             DeprecationWarning,
             stacklevel=3,
         )
+
+
+def _has_artifact_metadata(knowledge: Knowledge) -> bool:
+    metadata = knowledge.metadata or {}
+    gaia_meta = metadata.get("gaia")
+    return isinstance(gaia_meta, dict) and isinstance(gaia_meta.get("artifact"), dict)
 
 
 def _validate_artifact_metadata(
@@ -1538,10 +1543,12 @@ class _ReferenceScanner:
     extension_operators: list[IrOperator]
     ir_composes: list[IrCompose]
     refs_by_knowledge: dict[int, tuple[set[str], set[str]]] = field(default_factory=dict)
+    artifact_labels: set[str] = field(default_factory=set)
 
     def scan(self) -> list[IrKnowledge]:
         """Scan package text and return updated extension-generated knowledge nodes."""
         label_to_id, knowledge_label_ids = self._build_knowledge_label_tables()
+        self.artifact_labels = self._build_artifact_labels()
         label_to_id.update(self._build_action_short_labels(knowledge_label_ids))
         self._validate_artifacts()
         check_collisions(label_to_id, self.references)
@@ -1564,6 +1571,13 @@ class _ReferenceScanner:
                 label_to_id[knowledge.label] = qid
                 knowledge_label_ids.setdefault(knowledge.label, set()).add(qid)
         return label_to_id, knowledge_label_ids
+
+    def _build_artifact_labels(self) -> set[str]:
+        return {
+            knowledge.label
+            for knowledge in self.knowledge_nodes
+            if knowledge.label and _has_artifact_metadata(knowledge)
+        }
 
     def _build_action_short_labels(
         self, knowledge_label_ids: dict[str, set[str]]
@@ -1771,6 +1785,8 @@ class _ReferenceScanner:
         refs: tuple[set[str], set[str]],
     ) -> None:
         knowledge_refs, citation_refs = refs
+        artifact_refs = knowledge_refs.intersection(self.artifact_labels)
+        claim_refs = knowledge_refs.difference(artifact_refs)
         for i, ir_knowledge in enumerate(all_ir_knowledges):
             if ir_knowledge.id != target_qid:
                 continue
@@ -1781,10 +1797,14 @@ class _ReferenceScanner:
                 existing_cites = set(provenance.get("cited_refs", []))
                 existing_cites.update(citation_refs)
                 provenance["cited_refs"] = sorted(existing_cites)
-            if knowledge_refs:
+            if claim_refs:
                 existing_refs = set(provenance.get("referenced_claims", []))
-                existing_refs.update(knowledge_refs)
+                existing_refs.update(claim_refs)
                 provenance["referenced_claims"] = sorted(existing_refs)
+            if artifact_refs:
+                existing_artifact_refs = set(provenance.get("artifact_refs", []))
+                existing_artifact_refs.update(artifact_refs)
+                provenance["artifact_refs"] = sorted(existing_artifact_refs)
             gaia_meta["provenance"] = provenance
             metadata["gaia"] = gaia_meta
             all_ir_knowledges[i] = ir_knowledge.model_copy(update={"metadata": metadata})
