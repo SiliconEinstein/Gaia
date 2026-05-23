@@ -413,16 +413,16 @@ Skill and docs migration must update repo-bundled sources, not only local user m
 
 ### PR 1: Spec, DSL helper, validation, CLI authoring
 
-- [ ] Add artifact metadata schema helper or validator near the existing DSL/compiler boundary.
-- [ ] Add `artifact(...)` and `figure(...)` helpers that return `KnowledgeType.NOTE`.
-- [ ] Export the helpers through the same public DSL surface as `note(...)`.
-- [ ] Validate artifact metadata during package compile/check.
-- [ ] Deprecate `observe(source_refs=...)` and document rationale-based citations.
-- [ ] Warn on legacy `refs`, `source_paper`, and `metadata.figure` forms.
-- [ ] Add `gaia author artifact`.
-- [ ] Add `gaia author figure` as sugar for `--kind figure`.
-- [ ] Update repo-bundled Gaia skills and user docs.
-- [ ] Add tests for helper output, schema validation, source resolution, unsafe paths, CLI emission,
+- [x] Add artifact metadata schema helper or validator near the existing DSL/compiler boundary.
+- [x] Add `artifact(...)` and `figure(...)` helpers that return `KnowledgeType.NOTE`.
+- [x] Export the helpers through the same public DSL surface as `note(...)`.
+- [x] Validate artifact metadata during package compile/check.
+- [x] Deprecate `observe(source_refs=...)` and document rationale-based citations.
+- [x] Warn on legacy `refs`, `source_paper`, and `metadata.figure` forms.
+- [x] Add `gaia author artifact`.
+- [x] Add `gaia author figure` as sugar for `--kind figure`.
+- [x] Update repo-bundled Gaia skills and user docs.
+- [x] Add tests for helper output, schema validation, source resolution, unsafe paths, CLI emission,
       and local `[@artifact_label]` resolution.
 
 ### PR 2: Renderer consumption
