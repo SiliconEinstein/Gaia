@@ -620,21 +620,29 @@ def test_w_obligation_in_presets_and_matching_contact_outranks():
         assert "w_obligation" in preset
         assert preset["w_obligation"] > 0.0
 
-    # Two sibling contacts off the same seed/source: 'match' is the obligation
-    # target, 'plain' is not. Everything else (closeness, belief) is identical.
+    # Two contacts on DISJOINT (unconnected) seed subgraphs with identical
+    # structure, so closeness/belief are identical: 'match' is the obligation
+    # target; 'plain' lives on the other subgraph, NOT adjacent to the target (so
+    # the theme-006 one-hop rule does not press it either). Only the obligation
+    # term differs.
     graph = make_graph(
-        knowledges=[claim("seed")],
+        knowledges=[claim("seed_m"), claim("seed_p")],
         operators=[
-            Operator(operator="negation", variables=[qid("seed")], conclusion=qid("match")),
-            Operator(operator="negation", variables=[qid("seed")], conclusion=qid("plain")),
+            Operator(operator="negation", variables=[qid("seed_m")], conclusion=qid("match")),
+            Operator(operator="negation", variables=[qid("seed_p")], conclusion=qid("plain")),
         ],
     )
     m = ExplorationMap(
-        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        seeds=[{"kind": "claim", "qid": qid("seed_m")}, {"kind": "claim", "qid": qid("seed_p")}],
         policy=doctrine_policy("Surveyor"),
     )
     reconcile_frontier(m, extract_frontier(graph, m))
-    score_frontier(m, beliefs={qid("seed"): 0.5}, ir=graph, obligations=[_oblig(qid("match"))])
+    score_frontier(
+        m,
+        beliefs={qid("seed_m"): 0.5, qid("seed_p"): 0.5},
+        ir=graph,
+        obligations=[_oblig(qid("match"))],
+    )
     match = _contact_by_value(m, qid("match"))
     plain = _contact_by_value(m, qid("plain"))
     assert match.score_features["obligation_pressure"] == 1.0
@@ -643,6 +651,71 @@ def test_w_obligation_in_presets_and_matching_contact_outranks():
     # exactly w_obligation (Surveyor default 1.0).
     assert match.score > plain.score
     assert math.isclose(match.score - plain.score, 1.0)
+
+
+def test_obligation_pressure_one_hop_from_claim_qid_target():
+    # (theme 006) An obligation keyed on an authored CLAIM QID that is NOT a
+    # contact's ref or source still presses it when the contact is ONE HOP from
+    # the claim in the IR adjacency. Setup:
+    #   op1: variables=[claim_x, source_s] conclusion=tied   (claim_x ADJACENT source_s)
+    #   op2: variables=[source_s]          conclusion=cc      (cc's only source is source_s)
+    # claim_x / source_s / tied are materialized; cc is the contact. claim_x is
+    # adjacent to source_s (one hop) but is NOT cc's ref or source -> direct match
+    # would be 0.0; one-hop must press it to 1.0.
+    graph = make_graph(
+        knowledges=[claim("claim_x"), claim("source_s"), claim("tied")],
+        operators=[
+            Operator(
+                operator="conjunction",
+                variables=[qid("claim_x"), qid("source_s")],
+                conclusion=qid("tied"),
+            ),
+            Operator(operator="negation", variables=[qid("source_s")], conclusion=qid("cc")),
+        ],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    contact = _contact_by_value(m, qid("cc"))
+    # The contact's source is source_s only; claim_x is NOT a source.
+    assert {s["qid"] for s in contact.sources} == {qid("source_s")}
+    assert qid("claim_x") not in {s["qid"] for s in contact.sources}
+
+    # Obligation on the claim QID: one hop from cc (via source_s) -> pressure 1.0.
+    score_frontier(m, beliefs={}, ir=graph, obligations=[_oblig(qid("claim_x"))])
+    assert _contact_by_value(m, qid("cc")).score_features["obligation_pressure"] == 1.0
+
+    # Closing the obligation (empty list) reverts it to 0.0 (dynamic, like build 12).
+    score_frontier(m, beliefs={}, ir=graph, obligations=[])
+    assert _contact_by_value(m, qid("cc")).score_features["obligation_pressure"] == 0.0
+
+
+def test_obligation_pressure_only_one_hop_not_transitive():
+    # (theme 006) Strictly ONE hop: a contact TWO hops from the obligation target
+    # is NOT pressed. Chain: target -- mid -- cc_source, cc off cc_source.
+    #   op1: variables=[target, mid]        conclusion=t1
+    #   op2: variables=[mid, cc_source]     conclusion=t2
+    #   op3: variables=[cc_source]          conclusion=cc
+    # target is adjacent to mid (1 hop), mid adjacent to cc_source (1 hop), so
+    # cc_source is TWO hops from target -> cc must NOT be pressed.
+    graph = make_graph(
+        knowledges=[claim("target"), claim("mid"), claim("cc_source"), claim("t1"), claim("t2")],
+        operators=[
+            Operator(
+                operator="conjunction", variables=[qid("target"), qid("mid")], conclusion=qid("t1")
+            ),
+            Operator(
+                operator="conjunction",
+                variables=[qid("mid"), qid("cc_source")],
+                conclusion=qid("t2"),
+            ),
+            Operator(operator="negation", variables=[qid("cc_source")], conclusion=qid("cc")),
+        ],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={}, ir=graph, obligations=[_oblig(qid("target"))])
+    # cc's source (cc_source) is two hops from target -> no pressure.
+    assert _contact_by_value(m, qid("cc")).score_features["obligation_pressure"] == 0.0
 
 
 def test_obligation_pressure_survives_sanitize_but_belief_stripped():

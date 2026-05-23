@@ -189,10 +189,13 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
    Close it once discharged: `gaia inquiry obligation close <qid>` (the qid is
    printed by `gaia inquiry obligation add` / `list`). Marking obligations STEERS
    exploration: next turn the engine BOOSTS any frontier contact whose `ref` or
-   `sources` match an open obligation's `target_qid` (its `obligation_pressure`
-   feature → 1.0, a strong weighted term), so the gaps you flag pull the survey
-   toward themselves. It is a strong nudge, not a hard gate — relevance/coverage
-   still count, and nothing is starved when no obligation matches.
+   `sources` match an open obligation's `target_qid` — OR that is one hop from it
+   in the graph adjacency (so an obligation keyed on an authored CLAIM QID reaches
+   the adjacent frontier contacts that feed that claim, not just a contact that
+   names the claim directly). The pressed contact's `obligation_pressure` feature
+   → 1.0 (a strong weighted term) and its `survey_brief` names the obligation it
+   discharges. It is a strong nudge, not a hard gate — relevance/coverage still
+   count, and nothing is starved when no obligation matches.
 
 ## Authoring surface (one model, two tiers)
 

@@ -32,7 +32,10 @@ feature           tag        computation
 ``new_territory``
 ``obligation_pressure`` build 12 ``1.0`` iff the contact's ``ref`` QID or any of its
                              ``sources[].qid`` matches an OPEN synthetic obligation's
-                             ``target_qid`` (CLIENT.md steer 3), else ``0.0``. Obligations
+                             ``target_qid`` — **or is one hop from it** in the IR
+                             adjacency (theme 006, so a claim-QID obligation reaches
+                             the adjacent frontier contacts that feed it) — else ``0.0``.
+                             Obligations
                              are an inquiry-side concept loaded from
                              ``.gaia/inquiry/state.json``; ``synthetic_obligations`` holds
                              only OPEN ones (``obligation close`` deletes the row). Agent-
@@ -314,19 +317,39 @@ def _obligation_pressure(
     ref_value: str | None,
     source_qids: list[str],
     obligation_targets: set[str],
+    adjacency: dict[str, set[str]],
 ) -> float:
-    """``1.0`` iff the contact's ref QID or any source QID is an obligation target.
+    """``1.0`` iff the contact discharges (or is one hop from) an open obligation.
 
     Binary by design (CLIENT.md steer 3): a contact either discharges an open
     obligation or it does not. ``obligation_targets`` is precomputed once per
     ``score_frontier`` call from the open obligations.
+
+    Match rule (theme 006 — option (c), both parts):
+
+    * **direct** — the contact's ref QID or any source QID *is* an obligation
+      ``target_qid`` (the build-12 behaviour); OR
+    * **one hop** — the contact's ref QID or any source QID is a direct neighbour
+      (one hop) of a ``target_qid`` in the IR adjacency the scorer already builds.
+      This reaches obligations keyed on an authored **claim QID**: a frontier
+      contact adjacent to that claim (e.g. a paper feeding it) is pressed even
+      though the claim is not itself the contact's ref/source. ONE hop only — no
+      transitive propagation.
     """
     if not obligation_targets:
         return 0.0
-    if ref_value is not None and ref_value in obligation_targets:
+    # The contact's graph anchors: its own ref QID (qid contacts) + its sources.
+    anchors = set(source_qids)
+    if ref_value is not None:
+        anchors.add(ref_value)
+    # Direct: an anchor IS an obligation target.
+    if anchors & obligation_targets:
         return 1.0
-    if obligation_targets.intersection(source_qids):
-        return 1.0
+    # One hop: an anchor is a direct neighbour of an obligation target. The
+    # adjacency is symmetric, so it suffices to check each target's neighbourhood.
+    for target in obligation_targets:
+        if anchors & adjacency.get(target, set()):
+            return 1.0
     return 0.0
 
 
@@ -417,6 +440,7 @@ def score_frontier(
             str(ref_value) if ref_value is not None else None,
             source_qids,
             obligation_targets,
+            adjacency,
         )
 
         if is_lkm:

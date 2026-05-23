@@ -319,6 +319,39 @@ def test_contact_brief_no_strong_signal_omits_hint():
     assert "Signal:" not in brief
 
 
+def test_contact_brief_names_discharged_obligation():
+    """(theme 006 part a) A pressed contact's brief names the obligation it discharges."""
+    from gaia.engine.inquiry.state import SyntheticObligation
+
+    contact = Contact(
+        id="ct_ob",
+        ref={"kind": "qid", "value": "example:pkg::Foo"},
+        sources=[{"qid": "example:pkg::seed", "edge": "depends_on"}],
+        score=0.9,
+        score_features={
+            "belief_entropy": 0.1,
+            "closeness_to_seed": 0.3,
+            "new_territory": 0.0,
+            "obligation_pressure": 1.0,
+        },
+        status="open",
+    )
+    obligations = [
+        SyntheticObligation(
+            qid="oblig_1",
+            target_qid="example:pkg::Foo",
+            content="show the prior for Foo",
+        )
+    ]
+    brief = orchestrator._contact_survey_brief(contact, obligations)
+    assert "discharges open obligation: show the prior for Foo" in brief
+
+    # A non-pressed contact (obligation_pressure 0.0) gets no obligation line.
+    contact.score_features["obligation_pressure"] = 0.0
+    brief_unpressed = orchestrator._contact_survey_brief(contact, obligations)
+    assert "discharges open obligation" not in brief_unpressed
+
+
 def test_awaiting_survey_without_result_is_noop(tmp_path: Path):
     """AWAITING_SURVEY with no result manifest → report the outstanding task."""
     m = ExplorationMap(round=1, turn_phase=TURN_PHASE_AWAITING_SURVEY)

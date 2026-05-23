@@ -288,6 +288,23 @@ def _ranked_open_contacts(exploration_map: ExplorationMap) -> list[Contact]:
     )
 
 
+def _obligation_contents(obligations: list[Any]) -> list[str]:
+    """The non-empty ``content`` strings of the open obligations (theme 006)."""
+    return [
+        str(getattr(o, "content", "")).strip()
+        for o in obligations
+        if str(getattr(o, "content", "")).strip()
+    ]
+
+
+def _is_obligation_pressed(contact: Contact) -> bool:
+    """True iff the scorer set this contact's ``obligation_pressure`` > 0 (theme 006)."""
+    try:
+        return float(contact.score_features.get("obligation_pressure", 0.0)) > 0.0
+    except (TypeError, ValueError):
+        return False
+
+
 # --------------------------------------------------------------------------- #
 # init                                                                        #
 # --------------------------------------------------------------------------- #
@@ -553,6 +570,7 @@ def frontier_command(
         return
     # Rank order conveys priority; the numeric belief-weighted score is NOT
     # printed (build 11 steer 4 — belief stays internal to the engine).
+    obligation_contents = _obligation_contents(obligations)
     for rank, c in enumerate(top_k, start=1):
         ref = str(c.ref.get("value"))
         srcs = ", ".join(f"{s['qid']}[{s['edge']}]" for s in c.sources) or "(no sources)"
@@ -568,6 +586,10 @@ def frontier_command(
         else:
             typer.echo(f"  {rank}. {ref}")
         typer.echo(f"       via: {srcs}")
+        # (theme 006) Surface that this contact discharges an open obligation —
+        # set by the scorer's ref/source OR one-hop-adjacency match.
+        if _is_obligation_pressed(c) and obligation_contents:
+            typer.echo(f"       discharges open obligation: {'; '.join(obligation_contents[:2])}")
 
 
 # --------------------------------------------------------------------------- #
@@ -730,6 +752,7 @@ def status_command(
     exploration_map = load_map(pkg)
     rounds = read_rounds(pkg)
     ranked = _ranked_open_contacts(exploration_map)
+    obligations = load_open_obligations(pkg)
 
     typer.echo(f"Exploration status for {pkg}")
     typer.echo(f"  round:          {exploration_map.round}")
@@ -739,6 +762,15 @@ def status_command(
     n_lkm = sum(1 for c in ranked if c.ref.get("kind") == "lkm")
     typer.echo(f"  open frontier:  {len(ranked)} ({n_lkm} lkm_related)")
 
+    # (theme 006) Surface open obligations and how many open contacts are pressed
+    # by one — the agent-visible obligation_pressure steer (ref/source OR one-hop).
+    n_pressed = sum(1 for c in ranked if _is_obligation_pressed(c))
+    typer.echo(f"  open obligations: {len(obligations)} ({n_pressed} pressed contact(s))")
+    if obligations:
+        for o in obligations[:5]:
+            content = str(getattr(o, "content", "")).strip() or "(no content)"
+            typer.echo(f"    - {getattr(o, 'target_qid', '?')}: {content}")
+
     typer.echo("  top open contacts:")
     if not ranked:
         typer.echo("    (none)")
@@ -747,7 +779,8 @@ def status_command(
         # belief stays internal to the engine (build 11 steer 4).
         for rank, c in enumerate(ranked[:5], start=1):
             tag = "[lkm] paper:" if c.ref.get("kind") == "lkm" else ""
-            typer.echo(f"    {rank}. {tag}{c.ref.get('value')}")
+            pressed = "  [discharges open obligation]" if _is_obligation_pressed(c) else ""
+            typer.echo(f"    {rank}. {tag}{c.ref.get('value')}{pressed}")
 
     typer.echo("  recent rounds:")
     if not rounds:

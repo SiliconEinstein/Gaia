@@ -326,18 +326,48 @@ def _score_feature_hint(score_features: dict[str, Any]) -> str:
     return "Signal: " + "; ".join(phrases) + "."
 
 
-def _contact_survey_brief(contact: Contact) -> str:
+def _obligation_brief_line(contact: Contact, obligations: list[Any]) -> str:
+    """Name the open obligation a pressed contact discharges (theme 006, part a).
+
+    Returns ``"discharges open obligation: <content>"`` when the contact's
+    ``obligation_pressure`` feature is ``> 0`` (set by the scorer's ref/source OR
+    one-hop-adjacency match), naming the obligation(s) it is pressed by so the
+    agent sees *why* the contact is steered. Returns ``""`` when the contact is not
+    pressed or no obligations are loaded — discoverability surface only; the
+    ranking is unaffected.
+    """
+    try:
+        pressure = float(contact.score_features.get("obligation_pressure", 0.0))
+    except (TypeError, ValueError):
+        pressure = 0.0
+    if pressure <= 0.0 or not obligations:
+        return ""
+    # Name the obligation content(s); cite at most two so the brief stays short.
+    contents = [
+        str(getattr(o, "content", "")).strip()
+        for o in obligations
+        if str(getattr(o, "content", "")).strip()
+    ]
+    if not contents:
+        return ""
+    return "discharges open obligation: " + "; ".join(contents[:2])
+
+
+def _contact_survey_brief(contact: Contact, obligations: list[Any] | None = None) -> str:
     """Compose a survey brief for a contact (CLIENT.md task contact, build 8).
 
     The brief adapts to the contact: it keeps the type/sources/pull-line content,
-    anchors the agent's first LKM query on the contact's ref + sources, and folds
-    in a short ``score_features``-derived hint naming the 1-2 dominant live signals.
-    May span 2-3 lines.
+    anchors the agent's first LKM query on the contact's ref + sources, folds in a
+    short ``score_features``-derived hint naming the 1-2 dominant live signals, and
+    — when the contact is pressed by an open obligation (theme 006) — names the
+    obligation it discharges. May span 2-4 lines.
     """
     srcs = ", ".join(f"{s['qid']}[{s['edge']}]" for s in contact.sources) or "(no sources)"
     ref_value = str(contact.ref.get("value"))
     hint = _score_feature_hint(contact.score_features)
     hint_part = f" {hint}" if hint else ""
+    obl = _obligation_brief_line(contact, obligations or [])
+    obl_part = f" {obl}." if obl else ""
     if contact.ref.get("kind") == "lkm":
         title = contact.meta.get("title")
         index_id = contact.meta.get("index_id")
@@ -348,13 +378,13 @@ def _contact_survey_brief(contact: Contact) -> str:
             f"Pull it: gaia pkg add{idx} --lkm-paper {ref_value}, then survey its content. "
             f"Anchor your first LKM query on {ref_value}"
             f"{' (' + title + ')' if isinstance(title, str) and title else ''} "
-            f"plus the context of its sources ({srcs}).{hint_part}"
+            f"plus the context of its sources ({srcs}).{hint_part}{obl_part}"
         )
     return (
         f"referenced-but-unmaterialized node {ref_value}; reached via {srcs}. "
         f"Survey it: search LKM for evidence, observe related papers, author the node. "
         f"Anchor your first LKM query on {ref_value} plus the context of its "
-        f"sources ({srcs}).{hint_part}"
+        f"sources ({srcs}).{hint_part}{obl_part}"
     )
 
 
@@ -456,7 +486,7 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
                     score=None,
                     score_features=sanitize_score_features(c.score_features),
                     sources=c.sources,
-                    survey_brief=_contact_survey_brief(c),
+                    survey_brief=_contact_survey_brief(c, obligations),
                 )
                 for c in top_k
             ]
