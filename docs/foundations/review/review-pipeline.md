@@ -45,7 +45,7 @@ class ReviewStatus(StrEnum):
 class Review(BaseModel):
     review_id: str                              # deterministic per (target_kind, target_id)
     action_label: str                           # e.g. "github:foo::derive_x"
-    target_kind: Literal["strategy", "operator", "knowledge", "compose"]
+    target_kind: Literal["action", "strategy", "operator", "knowledge", "compose"]
     target_id: str                              # IR QID of the lowered target
     status: ReviewStatus
     audit_question: str
@@ -105,11 +105,15 @@ from gaia.engine.inquiry.review import (
 )
 ```
 
-Companion sub-commands persist focus / obligation / hypothesis state in `.gaia/inquiry/state.json` and tactics in `.gaia/inquiry/tactics.jsonl` so that subsequent reviews stay aligned with where the author last left off:
+Companion sub-commands persist focus / obligation / hypothesis state in
+`.gaia/inquiry/state.json`, render context packets, and record tactics in
+`.gaia/inquiry/tactics.jsonl` so that subsequent reviews stay aligned with
+where the author last left off:
 
 | Sub-command | Purpose |
 |---|---|
 | `gaia inquiry focus [target]` | set / clear / push / pop / inspect the current focus claim |
+| `gaia inquiry context [path]` | render a read-only focus-centered context packet |
 | `gaia inquiry obligation add / list / close` | track synthetic proof obligations attached to claims |
 | `gaia inquiry hypothesis add / list / remove` | working-hypothesis ledger (does not enter IR) |
 | `gaia inquiry reject` | mark a focus path as rejected |

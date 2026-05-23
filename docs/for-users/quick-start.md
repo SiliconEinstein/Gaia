@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-Create, build, and publish your first Gaia knowledge package in 10 minutes.
+Create, build, and preview your first Gaia knowledge package in 10 minutes.
 
 ## Prerequisites
 
@@ -267,6 +267,7 @@ This is read-only — it never mutates IR, priors, or beliefs.
 ## Next Steps
 
 - [Language Reference](language-reference.md) — full cheat sheet for all knowledge types, operators, and strategies
-- [CLI Commands](cli-commands.md) — workflow-oriented guide to the `gaia` command groups
+- [CLI Workflow Command Guide](cli-commands.md) — workflow-oriented guide to the `gaia` command groups
 - [Hole And Bridge Tutorial](hole-bridge-tutorial.md) — cross-package dependency resolution with `fills()`
-- [Migration to alpha 0](../migration.md) — if you have a pre-alpha-0 package, the import-path and CLI-verb migration table
+- [CLI Overview](cli-overview.md) — how the grouped CLI is organized
+- [Migration to alpha 0](../releases/migration-alpha-0.md) — if you have a pre-alpha-0 package, the import-path and CLI-verb migration table

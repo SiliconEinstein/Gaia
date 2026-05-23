@@ -1729,7 +1729,7 @@ def check_command(
     warrants: bool = typer.Option(
         False,
         "--warrants",
-        help="Show v6 ReviewManifest warrants with audit questions",
+        help="Show ReviewManifest warrants with audit questions",
     ),
     blind: bool = typer.Option(
         False,
@@ -1767,10 +1767,10 @@ def check_command(
     * ``--brief`` / ``--show <label>`` — per-module warrant brief or
       expand a single claim/strategy
     * ``--hole`` — list independent claims with no external prior
-    * ``--warrants`` / ``--blind`` — show v6 ReviewManifest warrants
+    * ``--warrants`` / ``--blind`` — show ReviewManifest warrants
       (use ``--blind`` to hide statuses for self-review)
     * ``--inquiry`` — render goal-oriented inquiry trees
-    * ``--gate`` — apply ``[tool.gaia.quality]`` thresholds, exit
+    * ``--gate`` — apply configured quality thresholds, exit
       non-zero on failure (CI-friendly)
     * ``--refs`` — show citation/local-reference/artifact diagnostics
 

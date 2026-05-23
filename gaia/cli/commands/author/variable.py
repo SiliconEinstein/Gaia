@@ -114,7 +114,7 @@ def variable_command(
     file: str | None = typer.Option(
         None,
         "--file",
-        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
+        help=("Path under src/<import_name>/authored/. Default: authored/__init__.py."),
     ),
     value: str | None = typer.Option(
         None,

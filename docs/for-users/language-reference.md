@@ -12,7 +12,9 @@ Every Gaia package is a Python project with this layout:
 my-package-gaia/
   pyproject.toml              # [tool.gaia] metadata
   src/my_package/
-    __init__.py               # package entrypoint and export surface
+    __init__.py               # package entrypoint, hand-authored exports, authored/ re-export
+    authored/
+      __init__.py             # CLI-authored statements land here when gaia author is used
     motivation.py             # module: settings + questions
     s2_methods.py             # module: methods and setup
     s3_results.py             # module: claims + strategies
@@ -45,15 +47,23 @@ build-backend = "hatchling.build"
 from .motivation import *
 from .s2_methods import *
 from .s3_results import *
+
+__all__ = [
+    # hand-authored public bindings here
+]
+
+from .authored import *        # CLI-authored statements, if any
+from . import authored as _authored
+__all__ = [*__all__, *_authored.__all__]
 ```
 
 The package root `__all__` is the cross-package interface: names listed there
 are exported into the compiled package manifests. Sibling modules may also carry
 their own literal `__all__` blocks when they are CLI authoring targets:
-`gaia pkg add-module` creates `__all__: list[str] = []`, and `gaia author
---file <module.py>` can insert new bindings into that module's list. Keep these
-lists literal and static; the CLI intentionally does not edit dynamically
-constructed `__all__` values.
+`gaia pkg add-module` creates modules under `authored/` with
+`__all__: list[str] = []`, and `gaia author --file <module.py>` can insert new
+bindings into that module's list. Keep these lists literal and static; the CLI
+intentionally does not edit dynamically constructed `__all__` values.
 
 ## Imports
 
@@ -597,10 +607,16 @@ hypothesis and neither is naturally the evidence, but the two are statistically
 linked.
 
 ```python
-from gaia.engine.lang import associate, claim
+from gaia.engine.lang import associate, claim, register_prior
 
 high_pressure = claim("The sample was synthesized above 150 GPa.")
 high_tc = claim("The sample has a transition temperature above 200 K.")
+
+register_prior(
+    high_pressure,
+    0.25,
+    justification="High-pressure synthesis is uncommon in the surveyed family.",
+)
 
 associate(
     high_pressure,
@@ -610,6 +626,11 @@ associate(
     rationale="In this family, high-Tc reports mostly come from high-pressure samples.",
 )
 ```
+
+At least one endpoint in an `associate(...)` relation needs a marginal prior
+before inference, either through `register_prior(...)` or an equivalent
+package prior record. The association helper itself is derived from the pairwise
+contract and should not receive its own prior.
 
 Before using either function, try to extract hidden assumptions into separate
 claims. If you are tempted to write "this seems likely because many things line
@@ -627,43 +648,8 @@ Use the `bayes` module when the probability comes from a statistical model
 rather than from a hand-written judgment. This is the right tool for questions
 like "which hypothesis makes this count, measurement, or dataset more likely?"
 
-```python
-import gaia.engine.bayes as bayes
-from gaia.engine.lang import Nat, Probability, Variable, parameter
-
-theta = Variable(symbol="theta", domain=Probability)
-k = Variable(symbol="k", domain=Nat)
-n = 395
-
-h_3_1 = parameter(theta, 0.75, describe="Mendelian 3:1 segregation.")
-h_null = parameter(theta, 0.5, describe="Null 1:1 segregation.")
-
-data = observe(
-    k,
-    value=295,
-    rationale="F2 count table reports 295 dominant phenotypes.",
-)
-
-model_3_1 = bayes.model(
-    h_3_1,
-    observable=k,
-    distribution=Binomial("k under Mendel 3:1", n=n, p=theta),
-    rationale="If h_3_1 holds, k follows Binomial(n=395, p=0.75).",
-)
-model_null = bayes.model(
-    h_null,
-    observable=k,
-    distribution=Binomial("k under null 1:1", n=n, p=theta),
-    rationale="If h_null holds, k follows Binomial(n=395, p=0.5).",
-)
-
-bayes.compare(
-    data,
-    models=[model_3_1, model_null],
-    exclusivity="exhaustive_pairwise_complement",
-    rationale="Compare the observed count under both hypotheses.",
-)
-```
+For a complete worked example, see
+[Bayes hypothesis comparison](#bayes-hypothesis-comparison).
 
 Prefer `bayes.model(...)` + `bayes.compare(...)` over hand-written
 `infer(...)` when you have a real likelihood function. It makes the model, the
@@ -866,7 +852,7 @@ explicit `gaia.engine.lang.compat.<name>` import is what migrating packages
 should use until they finish moving off them.
 
 For the full migration table (every legacy verb mapped to its v0.5 replacement),
-see [Migration to alpha 0 §Layer 3](../migration.md#layer-3-legacy-dsl-verb-migration).
+see [Migration to alpha 0 §Layer 3](../releases/migration-alpha-0.md#layer-3-legacy-dsl-verb-migration).
 For per-symbol signatures of the canonical replacements, use the auto-generated
 [`gaia.engine.lang` reference](../reference/engine/lang.md) and focused
 [`gaia.engine.lang.dsl` reference](../reference/engine/lang/dsl.md). The compat
@@ -1001,5 +987,5 @@ Do not assign manual priors to derived claims, structural expression helpers, re
 ## Next Steps
 
 - [Quick Start](quick-start.md) — create your first package end-to-end
-- [CLI Commands](cli-commands.md) — workflow-oriented guide to the `gaia` command groups
+- [CLI Workflow Command Guide](cli-commands.md) — workflow-oriented guide to the `gaia` command groups
 - [Hole And Bridge Tutorial](hole-bridge-tutorial.md) — cross-package dependency resolution

@@ -213,7 +213,7 @@ The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's regist
 | Action subclass | IR target | Helper claim emitted | Primary target for label resolution |
 |---|---|---|---|
 | `Derive / Compute`, and `Observe` with premises | `FormalStrategy` (conjunction + directed implication) | `implication_warrant` (review=true) | Strategy ID → warrant helper Claim QID (via `metadata['warrants']`) |
-| `Observe` with no premises | no Strategy | none | action QID → observed Claim QID |
+| `Observe` with no premises | no Strategy; the observed Claim receives a `supported_by` observation entry | `implication_warrant` (review=true), referenced from that `supported_by` entry | action QID → observed Claim QID |
 | `Infer` | `Strategy(type=infer)` with CPT | warrant helper Claim (review=true) | Strategy ID → warrant helper Claim QID |
 | `Associate` | `Strategy(type=associate)` with pairwise CPT | association helper Claim (review=true) | Strategy ID → association helper Claim QID |
 | `Equal` | `Operator(operator=equivalence)` | `equivalence_result` helper (review=true) | Operator ID → helper Claim QID |
@@ -224,7 +224,7 @@ The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's regist
 | `DependsOn` | (not lowered) | (none) | not addressable |
 | `CandidateRelation` | (not lowered) | (none) | not addressable |
 
-**Note:** `action_label_map` stores Strategy/Operator IDs (e.g., `lcs_*`, `lco_*`), not Knowledge QIDs directly. When resolving action label references in text, the compiler looks up the Strategy/Operator's `metadata['warrants']` to find the warrant helper Knowledge node(s) for provenance attribution. Exception: `Observe` actions with no premises (`given=()`) map directly to the conclusion Claim QID because they represent grounding observations with no inferential warrant.
+**Note:** `action_label_map` stores Strategy/Operator IDs (e.g., `lcs_*`, `lco_*`), not Knowledge QIDs directly. When resolving action label references in text, the compiler looks up the Strategy/Operator's `metadata['warrants']` to find the warrant helper Knowledge node(s) for provenance attribution. Exception: `Observe` actions with no premises (`given=()`) map directly to the conclusion Claim QID because there is no Strategy node; their observation warrant is attached through the observed claim's `metadata["supported_by"]` entry.
 
 ### 4.2 Helper Claim Visibility
 
@@ -364,10 +364,10 @@ The `conclusion` never appears in `variables` — inputs and output are strictly
 
 ### 8.2 Truth Tables
 
-Deterministic operator potentials use strict truth-table values: logical
-"true" maps to `1.0` and logical "false" maps to `0.0`. Cromwell softening
-is reserved for unary evidence/priors and soft probabilistic parameters, not
-for deterministic logical factors.
+Deterministic operator truth tables are written with strict logical values:
+logical "true" maps to `1.0` and logical "false" maps to `0.0`. Current
+runtime evaluation softens deterministic factors to `1-ε` / `ε` in exact,
+junction-tree, and contraction paths so no assignment is numerically forbidden.
 
 **Implication** — `implication_potential(A, B, H)`, where `H` is the helper
 claim asserting `A -> B`: when `H=1`, forbid A=1, B=0.

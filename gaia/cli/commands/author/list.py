@@ -4,11 +4,11 @@ Walks every non-auxiliary ``.py`` file under ``src/<import_name>/`` as
 Python AST (no engine import, no compile pipeline) and reports each
 top-level author-verb statement: kind, binding name, content preview,
 file/line, whether the binding is exported via ``__all__``. Reads
-``[[tool.gaia.compositions]]`` entries from ``pyproject.toml`` for the
+composition metadata entries from ``pyproject.toml`` for the
 trailing compositions section.
 
 The verb is read-only — it never writes to disk and does not share the
-write/postwrite pipeline with the other 19 author verbs. The envelope
+write/postwrite pipeline with statement-writing author verbs. The envelope
 shape, ``--target`` / ``--file`` flag spellings, and exit-code semantics
 match the rest of the author surface so an agent consumer can route
 ``gaia author list`` through the same dispatch table.
@@ -60,8 +60,8 @@ from gaia.cli.commands.author._envelope import (
 # ---------------------------------------------------------------------------- #
 
 # Statement-emitting author verbs (callables that produce DSL objects bound at
-# module scope). The list mirrors the 17 statement-emitting verbs plus the
-# typed-term factories ``Variable`` / ``Constant``. Hyphenated cli verbs map
+# module scope). The list mirrors statement-emitting verbs plus the typed-term
+# factories ``Variable`` / ``Constant``. Hyphenated cli verbs map
 # to underscored callables in source (``depends-on`` → ``depends_on``); the
 # output ``kind`` always uses the underscored callable form. ``compose`` /
 # ``composition`` are NOT in this set — they live in pyproject.toml and are
@@ -69,6 +69,8 @@ from gaia.cli.commands.author._envelope import (
 _AUTHOR_CALLABLES: frozenset[str] = frozenset(
     {
         "claim",
+        "artifact",
+        "figure",
         "note",
         "question",
         "equal",
@@ -928,11 +930,11 @@ def list_command(
     (no engine import, no compile pipeline) and reports every top-level
     author-verb statement: kind, binding name, content preview, file,
     line, and whether the binding is exported via ``__all__``. Reads
-    ``[[tool.gaia.compositions]]`` entries from ``pyproject.toml`` for
+    composition metadata entries from ``pyproject.toml`` for
     the trailing compositions section.
 
     The verb is read-only; it never writes to disk and does not share
-    the write/postwrite pipeline used by the other 19 author verbs.
+    the write/postwrite pipeline used by statement-writing author verbs.
 
     Example:
         gaia author list --target ./my-pkg-gaia --human

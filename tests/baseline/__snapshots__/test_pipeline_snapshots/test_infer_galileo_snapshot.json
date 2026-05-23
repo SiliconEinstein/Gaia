@@ -6,5 +6,5 @@
   ],
   "exit_code": 0,
   "stderr": "",
-  "stdout": "Inferred 16 beliefs\nMethod: JT (exact), treewidth=2, <MS>\nConverged: True after 2 iterations\nOutput: <TMP>\nNote: belief = posterior probability of the claim under the auto-compiled Bayesian network; uniform priors are used by default (override via priors.py or `gaia author register-prior`).\n"
+  "stdout": "Inferred 16 beliefs\nMethod: JT (exact), treewidth=2, <MS>\nConverged: True after 2 iterations\nOutput: <TMP>\nNote: belief = posterior probability of the claim under the auto-compiled Bayesian network; unassigned variables are MaxEnt/free under the base counting measure; no synthetic 0.5 unary prior factor is inserted.\n"
 }

@@ -32,7 +32,7 @@ the upcoming `0.5.0` line until the stable v0.5 release is cut.
   branch if you need the stable v0.4.x line.
 - v0.5 is breaking relative to v0.4; see the
   [v0.5.0a1 release notes](docs/releases/0.5.0a1.md) and
-  [migration guide](docs/migration.md).
+  [migration guide](docs/releases/migration-alpha-0.md).
 - New PRs should target `main`; exact prerelease sources are immutable tags
   such as `v0.5.0a1`.
 
@@ -290,7 +290,7 @@ helper** column is the convenience equivalent (writes into `authored/`).
 | Priors | `register_prior` | `gaia author register-prior` |
 | Typed terms | `Variable`, `Nat`, `Real`, `Probability`, `Bool` | `gaia author variable` |
 | Continuous quantities | `Normal`, `LogNormal`, `Beta`, `Gamma`, `StudentT`, `Cauchy`, `ChiSquared`, `Binomial`, `Poisson` | `gaia bayes <distribution>` for CLI-authored Bayes snippets |
-| Bayesian model comparisons | `gaia.engine.bayes.model`, `data`, `compare` | `gaia bayes model/compare` |
+| Bayesian model comparisons | `gaia.engine.bayes.model`, `observe`, `compare` | `gaia bayes model/compare` |
 
 Old v5 names remain available only through the compatibility layer. New packages
 should use the v0.5 surface above.
@@ -304,12 +304,12 @@ The CLI is self-documenting. Use `gaia --help`, `gaia <group> --help`, and
 |-------|-------|---------|
 | `gaia build` | `init`, `compile`, `check` | Create packages, compile Python DSL to Gaia IR, and validate structure/prior holes/gates. |
 | `gaia sdk` | _(no subcommand)_ | **Start here.** Generate the SDK reference + one-page `CHEATSHEET.md`, then author the DSL directly. |
-| `gaia author` | `claim`, `note`, `question`, `derive`, `observe`, `compute`, `infer`, `equal`, `contradict`, `exclusive`, `associate`, `decompose`, `parameter`, `register-prior`, `variable`, `depends-on`, `candidate-relation`, `materialize`, `compose`, `composition` | Optional convenience over direct authoring: append checked DSL statements into the package's `authored/` submodule. |
+| `gaia author` | `claim`, `artifact`, `figure`, `note`, `question`, `derive`, `observe`, `compute`, `infer`, `equal`, `contradict`, `exclusive`, `associate`, `decompose`, `parameter`, `register-prior`, `variable`, `depends-on`, `candidate-relation`, `materialize`, `compose`, `composition`, `list` | Optional convenience over direct authoring: append checked DSL snippets into `authored/`, register compositions, or inspect authored bindings. |
 | `gaia bayes` | `model`, `compare`, `binomial`, `beta-binomial`, `poisson`, `normal`, `log-normal`, `beta`, `exponential`, `gamma`, `student-t`, `cauchy`, `chi-squared` | CLI helpers for Bayesian model comparison declarations and distribution literals. |
 | `gaia pkg` | `add`, `add-import`, `add-module`, `register`, `scaffold` | Manage package dependencies, sibling modules, scaffolds, and registry publication. |
 | `gaia run` | `infer`, `render` | Compute local posterior beliefs and render package outputs. |
 | `gaia inspect` | `starmap`, `starmap-replay` | Inspect compiled graph visualizations and replay artifacts. |
-| `gaia inquiry` | `focus`, `review`, `obligation`, `hypothesis`, `tactics`, `reject` | Run the semantic inquiry and review loop over a compiled package. |
+| `gaia inquiry` | `focus`, `context`, `review`, `obligation`, `hypothesis`, `tactics`, `reject` | Run the semantic inquiry and review loop over a compiled package. |
 | `gaia trace` | `verify`, `review`, `show` | Verify and review ARM execution traces. |
 | `gaia review` | skeleton only | Reserved top-level home for future reviewer tooling; do not confuse it with `gaia inquiry review` or `gaia trace review`. |
 | `gaia search` | `lkm auth`, `lkm knowledge`, `lkm reasoning`, `lkm nodes`, `lkm package` | Query an external retrieval backend; the `lkm` backend wraps the Bohrium LKM knowledge-graph search API. |

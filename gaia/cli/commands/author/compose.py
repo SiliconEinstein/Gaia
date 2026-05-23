@@ -4,15 +4,15 @@ The composition primitive is a Python-decorator-level concept (its body
 is an arbitrary Python function capturing nested ``Action`` invocations
 through a ContextVar; see :mod:`gaia.engine.lang.runtime.composition`).
 The cli surface therefore does not emit a statement to ``__init__.py``
-like the other 17 author verbs — instead, it takes a **file path**
+like statement-writing author verbs — instead, it takes a **file path**
 containing a ``@compose`` / ``@composition``-decorated function,
 validates the shape, and registers ``(file, composition_name, version)``
 into the package's pyproject ``[tool.gaia]`` metadata so downstream
 tooling can discover compositions without importing the package.
 
-The author inventory totals 19 verbs: 17 statement-emitting plus the
-two file-based ``compose`` / ``composition`` validate-and-register
-verbs documented here.
+The author inventory includes statement-emitting verbs plus the two
+file-based ``compose`` / ``composition`` validate-and-register verbs
+documented here.
 
 CLI surface::
 
@@ -31,8 +31,8 @@ Validation contract (each failure exits 2 with a structured diagnostic):
 * The decorated function's return annotation must read ``Claim`` (or
   ``"Claim"`` as a forward-ref string). Missing annotation, or anything
   else, fails.
-* Registration target: ``[tool.gaia.compositions]`` as a TOML
-  array-of-tables in ``pyproject.toml``. Each entry carries
+* Registration target: Gaia composition metadata in ``pyproject.toml``.
+  Each entry carries
   ``name`` / ``version`` / ``file`` / ``function`` / ``registered_at``.
   We **insert-or-update by name**: re-running ``compose`` for the same
   ``name`` overwrites the entry (idempotent).
@@ -100,10 +100,10 @@ Example pattern file (`pattern.py`):
 
     @compose(name="my-pkg:my-pattern", version="1.0")
     def my_pattern(input_claim: Claim) -> Claim:
-        result = derive(input_claim, given=[input_claim], label="warranted")
+        result = derive(input_claim, given=(input_claim,), label="warranted")
         return result
 
-Registration target: ``[tool.gaia.compositions]`` array-of-tables in
+Registration target: Gaia composition metadata in
 the target package's pyproject.toml. Re-running with the same composition
 name updates the existing entry in place (idempotent).
 """
@@ -571,7 +571,7 @@ def _run_compose(
     """Shared compose / composition implementation.
 
     Read file → AST-validate compose decorator shape → if exactly one
-    match, write into pyproject ``[tool.gaia.compositions]``.
+    match, write into pyproject Gaia composition metadata.
 
     When ``check`` is True (default), run :func:`postwrite_check`
     against the target package after a successful registration.

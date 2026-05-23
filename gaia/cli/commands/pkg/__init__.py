@@ -2,7 +2,7 @@
 
 The pkg group hosts package-level verbs that are not author-statement
 authoring (those live in ``gaia.cli.commands.author``). ``gaia pkg
-scaffold`` is the agent-facing package initialisation verb that
+scaffold`` is the structured package initialisation verb that
 complements the existing legacy ``gaia init`` / ``gaia pkg add`` /
 ``gaia pkg register`` flow with structured JSON output, pre-validation,
 and idempotent-by-default semantics. ``gaia pkg add-module`` scaffolds

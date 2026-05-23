@@ -1,6 +1,6 @@
 # Lowering — Backend 消费契约
 
-> **Status:** Target design
+> **Status:** Backend-facing v0.5 contract, with future backend work noted explicitly
 >
 > **⚠️ Protected Contract Layer** — 本文档定义 Gaia IR 被后端消费时的 lowering 边界。它不规定某个具体后端算法的内部实现，但规定 backend-facing 的结构语义。
 
@@ -105,7 +105,8 @@ Strategy 是不确定性承载层。lowering 时，需要决定：
 
 - `infer`（`Strategy.conditional_probabilities` 完整 CPT）
 - `associate`（`Strategy.p_a_given_b` / `Strategy.p_b_given_a`）
-- `noisy_and`（deprecated；编译时自动转 `support`，仍接受为叶子输入）
+- `noisy_and`（deprecated；Python DSL 兼容包装器会返回 `support`，raw IR
+  `StrategyType.NOISY_AND` 仍接受为叶子输入并可 lowering）
 - 其它命名策略尚未升级为 FormalStrategy 的临时叶子形态（最终应升级为 FormalStrategy）
 
 它们的外部行为由：

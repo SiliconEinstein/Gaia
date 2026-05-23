@@ -11,7 +11,7 @@
 
 ### 1.1 Operator 保留专门的 deterministic FactorType
 
-IR 中每个 Operator 有 `variables` 和 `conclusion`（见 [Gaia IR structure](../gaia-ir/02-gaia-ir.md)）。Lowering 时，Operator 映射到对应的 deterministic `FactorType`：`IMPLICATION`、`NEGATION`、`CONJUNCTION`、`DISJUNCTION`、`EQUIVALENCE`、`CONTRADICTION`、或 `COMPLEMENT`。这些 FactorType 使用 strict 0/1 truth-table potential，而不是统一折叠成 `CONDITIONAL` CPT。
+IR 中每个 Operator 有 `variables` 和 `conclusion`（见 [Gaia IR structure](../gaia-ir/02-gaia-ir.md)）。Lowering 时，Operator 映射到对应的 deterministic `FactorType`：`IMPLICATION`、`NEGATION`、`CONJUNCTION`、`DISJUNCTION`、`EQUIVALENCE`、`CONTRADICTION`、或 `COMPLEMENT`。这些 FactorType 保留 hard truth-table 逻辑，而不是统一折叠成 `CONDITIONAL` CPT；进入当前数值推理路径时会 Cromwell-soften 为 `1-ε` / `ε`。
 
 概念上，每个确定性 factor 仍表达一个 truth-table constraint：
 
@@ -28,9 +28,9 @@ $$\psi = \text{cpt}[idx] \text{ 当 } H=1, \quad \psi = 1 - \text{cpt}[idx] \tex
 | disjunction | 0 | 1 | 1 | 1 | $A \vee B$ |
 | implication | 1 | 1 | 0 | 1 | $H = (A \to B)$（A/B 在 `variables`，H 是 helper `conclusion`） |
 
-实际 potential 使用 strict delta（$0$ / $1$）。Cromwell clamp 用于 unary
-evidence / priors 和 soft probability 参数，不用于 deterministic truth
-table 本身。IR arity 上，`implication` 与其他二元关系一样使用
+逻辑 truth table 使用 strict delta（$0$ / $1$）。当前 exact、junction-tree
+和 contraction 推理路径会把 deterministic factor 数值软化为 Cromwell-clamped
+$ε$ / $1-ε$；文档表格仍按逻辑语义展示。IR arity 上，`implication` 与其他二元关系一样使用
 `variables=[antecedent, consequent]` 和独立 helper `conclusion`；deduction
 / support 的 FormalStrategy skeleton 在 BP lowering 中会特殊消费该 helper
 并降成 `CONDITIONAL` 或 `SOFT_ENTAILMENT`。
@@ -158,7 +158,7 @@ equivalence([D, Obs]) → Eq         # Eq: π=1-ε，断言型
 
 #### 4.1.1 完整 CPT：$P(H\!=\!1 \mid \text{Obs}, \text{Alt})$
 
-单因子 $f(H, \text{Alt}, \text{Obs})$ 编码 $\text{Obs} = H \vee \text{Alt}$。当前实现使用 strict deterministic potential；下表把不一致行按 $\varepsilon \to 0$ 的极限直觉解释，实际完全不一致的硬赋值是零权重状态。
+单因子 $f(H, \text{Alt}, \text{Obs})$ 编码 $\text{Obs} = H \vee \text{Alt}$。当前实现保留 hard truth-table 逻辑，但运行时张量使用 Cromwell-softened deterministic potential；下表把不一致行按 $\varepsilon \to 0$ 的极限直觉解释，实际数值权重为 $\varepsilon$。
 
 $$
 P(H\!=\!1 \mid \text{Obs}, \text{Alt}) = \frac{\pi(H\!=\!1) \cdot f(1, \text{Alt}, \text{Obs})}{\sum_{h} \pi(H\!=\!h) \cdot f(h, \text{Alt}, \text{Obs})}
@@ -356,7 +356,7 @@ $1-\varepsilon$（断言型）。
 
 ### 7.3 与势函数和推理文档的关系
 
-- 势函数细节见 [`potentials.md`](potentials.md)：每种 deterministic FactorType 的势函数是 strict 0/1；Cromwell clamp 仅作用于 unary evidence/prior 和 soft probability 参数（例如 ↝ 的 `p₁ / p₂`），不出现在 deterministic potential 中。
+- 势函数细节见 [`potentials.md`](potentials.md)：每种 deterministic FactorType 保留 strict 0/1 逻辑真值表；当前 exact、junction-tree 和 contraction 数值路径会把 deterministic tensor Cromwell-soften 为 `1-ε` / `ε`。
 - Relation operator 的 conclusion 通过 §7.2 的 $\pi = 1-\varepsilon$ 先验自然激活约束，没有单独的门控变量；推理流程见 [`inference.md`](inference.md)。
 
 ## 参考

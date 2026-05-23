@@ -186,7 +186,7 @@ def derive_command(
     file: str | None = typer.Option(
         None,
         "--file",
-        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
+        help=("Path under src/<import_name>/authored/. Default: authored/__init__.py."),
     ),
     rationale: str | None = typer.Option(
         None, "--rationale", help="Optional natural-language justification of the derivation."

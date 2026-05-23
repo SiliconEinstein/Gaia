@@ -53,9 +53,10 @@ class RebuttalEntry:
 3. ReviewService 重新评估被争议的步骤
 4. 重复直到通过或达到最大轮次
 
-## 文件格式
+## 目标文件格式
 
-CLI 端反驳报告保存为 `.gaia/review/rebuttal.json`。
+未来服务端或 CLI 反驳流程可以把报告保存为
+`.gaia/review/rebuttal.json`。当前 v0.5 CLI 不会生成、读取或消费这个文件。
 
 ## 跨层引用
 

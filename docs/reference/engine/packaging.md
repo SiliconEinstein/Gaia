@@ -9,7 +9,7 @@ contract is self-contained.
 
 The error type `GaiaPackagingError` replaces the old `GaiaCliError` name —
 catch sites that imported the old name need both the module path *and* the
-class name updated. See [Migration to alpha 0](../../migration.md#layer-2-import-path-migration)
+class name updated. See [Migration to alpha 0](../../releases/migration-alpha-0.md#layer-2-import-path-migration)
 for the full symbol-level mapping.
 
 ::: gaia.engine.packaging

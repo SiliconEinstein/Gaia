@@ -1,19 +1,19 @@
 """``gaia pkg scaffold`` — initialise a fresh Gaia knowledge package.
 
-Maps the agent-first authoring story to package initialisation: given a
-target directory and a package name, lay down the minimal layout that
-the rest of the ``gaia author`` cycle needs (``pyproject.toml`` with
+Maps structured package setup to the native Gaia DSL authoring model:
+given a target directory and a package name, lay down the minimal layout that
+the ``gaia author`` helper subset can extend (``pyproject.toml`` with
 ``[tool.gaia]`` block, ``src/<import_name>/__init__.py`` template,
 ``.gaia/`` artifact directory).
 
 Why a new verb instead of reusing the legacy ``gaia init`` /
 ``gaia build init``? Two reasons:
 
-1. **Agent-first envelope.** ``gaia init`` writes human-oriented text
+1. **Structured envelope.** ``gaia init`` writes human-oriented text
    to stdout and shells out to ``uv``; ``gaia pkg scaffold`` emits the
    same uniform ``{status, code, verb, payload, warnings, diagnostics}``
-   shape the ``gaia author <verb>`` family does, so an LLM agent can
-   parse one envelope schema across the whole package lifecycle.
+   shape the ``gaia author <verb>`` family does, so tools can parse one
+   envelope schema across the whole package lifecycle.
 2. **Independent pre-validation surface.** ``scaffold`` knows about
    ``-gaia`` naming, namespace defaults, and ``--check`` integration
    that runs ``gaia build check`` against the freshly created package.

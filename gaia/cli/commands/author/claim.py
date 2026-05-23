@@ -143,8 +143,8 @@ def claim_command(
         None,
         "--file",
         help=(
-            "Relative path under src/<import_name>/ to write into (e.g. "
-            "`priors.py`). Default: `__init__.py`. The file must already "
+            "Relative path under src/<import_name>/authored/ to write into (e.g. "
+            "`priors.py`). Default: authored/__init__.py. The file must already "
             "exist; use `gaia pkg add-module` to scaffold a fresh sibling."
         ),
     ),

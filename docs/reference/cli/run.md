@@ -14,7 +14,7 @@ gaia run render [path]    Generate docs / GitHub / Obsidian outputs
 
 The historical flat run verbs moved under this group
 (`gaia infer --depth 1 <path>` → `gaia run infer --depth 1 <path>`). See
-[CLI Commands](../../for-users/cli-commands.md) for workflow examples and
+[CLI Workflow Command Guide](../../for-users/cli-commands.md) for workflow examples and
 use `gaia run <verb> --help` for the executable option surface.
 
 ## Implementation

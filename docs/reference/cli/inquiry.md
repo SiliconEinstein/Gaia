@@ -31,7 +31,7 @@ gaia inquiry reject <label> ...            Reject a strategy path with a reason
 Option flags on `gaia inquiry review` (`--mode`, `--focus`, `--depth`,
 `--since`, `--json`, `--markdown`, `--strict`, `--no-infer`) match the
 pre-alpha-0 surface exactly. See
-[CLI Commands](../../for-users/cli-commands.md) for examples.
+[CLI Workflow Command Guide](../../for-users/cli-commands.md) for examples.
 
 The engine-side data model lives at [`gaia.engine.inquiry`](../engine/inquiry.md).
 

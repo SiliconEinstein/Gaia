@@ -49,7 +49,8 @@ standard action lowering pipeline (see
 [knowledge-and-reasoning.md](knowledge-and-reasoning.md)), share the
 package-wide `action_label_map`, and emit helper Claims that are
 addressable via `[@label]` references. The design record is at
-[`docs/specs/2026-05-17-bayes-unified-design.md`](../../specs/2026-05-17-bayes-unified-design.md).
+[`docs/specs/2026-05-17-bayes-unified-design.md`](https://github.com/SiliconEinstein/Gaia/blob/main/docs/specs/2026-05-17-bayes-unified-design.md)
+in the repository; `specs/` is excluded from the published MkDocs site.
 
 ## Import Surface
 
@@ -94,13 +95,13 @@ contract** below.
 
 `exclusivity` accepts:
 
-- `"pairwise_contradiction"` (default) — listed hypotheses are *at most
-  one true*; emits a reviewable `Contradict` action for each pair that
-  does not already have one.
-- `"exhaustive_pairwise_complement"` — listed hypotheses are *exactly
-  one true*; emits a reviewable `Exclusive` action when there are two
-  hypotheses, or pairwise `Contradict` actions plus a clamped
-  disjunction helper when there are three or more.
+- `"exhaustive_pairwise_complement"` (default, two hypotheses only) —
+  listed hypotheses are *exactly one true*; emits a reviewable
+  `Exclusive` action when there are two hypotheses.
+- `"pairwise_contradiction"` — listed hypotheses are *at most one true*;
+  emits a reviewable `Contradict` action for each pair that does not
+  already have one. Use this explicitly for three or more models until
+  the N-ary `Exclusive` operator lands.
 
 `"none"` is rejected. The earlier escape hatch for suppressing
 auto-emitted relations was removed; write the structural relation
@@ -218,8 +219,9 @@ Exclusivity is structural:
 - `"pairwise_contradiction"` creates reviewable pairwise `Contradict`
   actions when they do not already exist.
 - `"exhaustive_pairwise_complement"` creates a reviewable `Exclusive`
-  action for two hypotheses, or pairwise `Contradict` actions plus a
-  clamped disjunction helper for three or more.
+  action for two hypotheses. With three or more hypotheses it raises
+  `NotImplementedError` rather than silently weakening exact-one
+  semantics to at-most-one semantics.
 
 The previous `"none"` escape hatch is rejected; explicit structural
 relations are deduplicated instead.

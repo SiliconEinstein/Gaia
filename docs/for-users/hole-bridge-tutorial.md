@@ -2,7 +2,7 @@
 
 > **Status:** Current canonical
 
-This is the smallest end-to-end workflow for Gaia's public-premise and bridge model:
+This is the smallest current end-to-end workflow for Gaia's public-premise and bridge model:
 
 1. Package A exports a conclusion.
 2. Gaia automatically derives a `local_hole` from A's unresolved premise.
@@ -52,26 +52,19 @@ uuid = "11111111-1111-1111-1111-111111111111"
 `src/paper_a/__init__.py`:
 
 ```python
-from gaia.engine.lang import claim
-from gaia.engine.lang.compat import deduction
+from gaia.engine.lang import claim, derive
 
 missing_lemma = claim("A missing lemma.")
 main_theorem = claim("A theorem that depends on the missing lemma.")
 
-deduction(
-    premises=[missing_lemma],
-    conclusion=main_theorem,
+derive(
+    main_theorem,
+    given=[missing_lemma],
+    rationale="The missing lemma is required for the theorem.",
 )
 
 __all__ = ["main_theorem"]
 ```
-
-> **Why `compat.deduction`?** `deduction` is the v5 named-strategy verb; in v0.5
-> the canonical replacement is `derive(main_theorem, given=[missing_lemma])`,
-> which is functionally equivalent. We use `compat.deduction` here only because
-> the tutorial deliberately walks you through the *legacy authoring shape* that
-> exposes a missing premise as a `local_hole`. New v0.5 packages should prefer
-> `derive(...)`; see [Migration to alpha 0 §Layer 3](../migration.md#layer-3-legacy-dsl-verb-migration).
 
 Compile and inspect:
 
@@ -121,8 +114,7 @@ uuid = "22222222-2222-2222-2222-222222222222"
 `src/paper_b/__init__.py`:
 
 ```python
-from gaia.engine.lang import claim
-from gaia.engine.lang.compat import fills
+from gaia.engine.lang import claim, fills
 from paper_a import missing_lemma
 
 bridge_result = claim("A result that establishes the missing lemma.")

@@ -43,7 +43,7 @@ Alpha 0 makes `gaia.engine.*` the canonical Python contract. The historical
 top-level `gaia.lang`, `gaia.bp`, `gaia.ir`, `gaia.logic`, `gaia.inquiry`,
 and `gaia.trace` namespaces no longer exist; importing them raises
 `ModuleNotFoundError`. A handful of CLI-internal helpers also moved into
-the engine. See [Migration to alpha 0](../../migration.md) for the full
+the engine. See [Migration to alpha 0](../../releases/migration-alpha-0.md) for the full
 import-path migration table.
 
 ## Building these docs

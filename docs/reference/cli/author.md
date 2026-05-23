@@ -8,10 +8,11 @@
 The `gaia author` subcommand group and the `gaia pkg scaffold` verb are an
 **optional convenience** over direct SDK authoring: instead of editing the
 Python source, you can scaffold a fresh `-gaia` package and append DSL
-statements through `gaia author <verb>`. Every CLI write is confined to the
-package's re-exported `authored/` submodule (`src/<pkg>/authored/`) — the cli
-never writes the package-root `__init__.py`, which composes the CLI-authored
-statements back in via `from .authored import *`. The cli owns identifier
+statements through `gaia author <verb>`. Every `gaia author` statement write is
+confined to the package's re-exported `authored/` submodule
+(`src/<import_name>/authored/`) — the author helper does not interleave
+generated statements with hand-authored package-root source. The package root
+composes CLI-authored statements back in via `from .authored import *`. The cli owns identifier
 collision checks, reference resolution, pre-write defensive validation, file
 appending, and (by default) a post-write `gaia build check` to confirm the
 package still compiles.
@@ -23,7 +24,7 @@ Output is **JSON-by-default** through a uniform envelope (see
 the JSON form is the contract; the text form is a courtesy.
 
 This reference is scannable, not tutorial. For a worked walkthrough using
-all 5 of the DSL verbs the canonical Galileo example exercises, see
+the five DSL verbs exercised by the canonical Galileo example, see
 [Galileo as a worked example](#galileo-as-a-worked-example) at the end.
 
 **Capabilities at a glance** (see also [`bayes.md`](bayes.md)):
@@ -44,13 +45,14 @@ all 5 of the DSL verbs the canonical Galileo example exercises, see
 - **`gaia bayes <verb>`** group — predictive-model authoring surface.
   Covered in [`bayes.md`](bayes.md).
 
-## Verb inventory — 22 author verbs + 1 pkg verb
+## Verb inventory — 23 author commands + 1 pkg verb
 
-The `gaia author` group exposes **22 verbs** partitioned by DSL layer.
-**20** are *statement-emitting* (the cli appends a Python statement to
-`src/<import_name>/__init__.py`); **2** are *file-based validate-and-
+The `gaia author` group exposes **23 public commands** partitioned by DSL
+layer. **20** are *statement-emitting* (the cli appends a Python statement to
+`src/<import_name>/authored/__init__.py` or an `authored/` sibling module);
+**2** are *file-based validate-and-
 register* (the cli reads a file containing a decorated function and
-records its metadata in `pyproject.toml`).
+records its metadata in `pyproject.toml`); and **1** is read-only inspection.
 
 | Layer | Verb | DSL signature | Statement-emitting? |
 |---|---|---|---|
@@ -76,8 +78,9 @@ records its metadata in `pyproject.toml`).
 | Composition | `compose` | `@compose(name=…, version=…)` decorating `def fn(...) -> Claim` | **no — file-based** |
 | Composition | `composition` | alias of `compose` | **no — file-based** |
 | Typed terms | `variable` | `Variable(symbol=…, domain=…, value=…)` or `Constant(value, primitive)` | yes |
+| Inspection | `list` | AST scan of source bindings and composition metadata | **no — read-only** |
 
-The 21st verb in this reference, `gaia pkg scaffold`, lives in the `pkg`
+The additional package bootstrap verb, `gaia pkg scaffold`, lives in the `pkg`
 group alongside `add`, `add-import`, `add-module`, and `register`. It
 bootstraps a fresh `-gaia` package directory layout. See
 [`gaia pkg scaffold`](#gaia-pkg-scaffold) below.
@@ -90,22 +93,21 @@ cutting flags. Per-verb flags layer on top of these.
 | Flag | Type | Default | Purpose |
 |---|---|---|---|
 | `--target <path>` | string | `.` | Path to the target Gaia package root (the directory containing `pyproject.toml`). |
-| `--file <relative>` | string | `__init__.py` | Relative path under `src/<import_name>/` to append the statement to. Default routes to the package entrypoint. Sibling files (e.g. `priors.py`) must exist first; use `gaia pkg add-module --name <name>` to scaffold them. |
-| `--label <ident>` | string | required (most verbs) | Python identifier the produced binding takes. Must not collide with module or DSL names. |
+| `--file <relative>` | string | `__init__.py` | Relative path under `src/<import_name>/authored/` to append the statement to. Default routes to `authored/__init__.py`. Sibling files (e.g. `priors.py`) must exist first; use `gaia pkg add-module --name <name>` to scaffold them. |
+| `--dsl-binding-name <ident>` | string | none | Python identifier for the rendered left-hand side (`<name> = ...`). Use this when later verbs need to reference the produced statement. |
+| `--label <ident>` | string | none | Engine `label=` kwarg on relation/support/probabilistic verbs. It is distinct from `--dsl-binding-name`. `claim` accepts `--label` only with `--dsl-binding-name` and emits a follow-up `<binding>.label = ...`; `note`, `question`, and `variable` expose no engine label. |
 | `--rationale <text>` | string | none | Natural-language justification carried through to the DSL kwarg. |
 | `--metadata <json>` | JSON object | none | Optional metadata dict; rendered as the DSL `metadata=` kwarg. |
-| `--references <csv>` | csv idents | none | Comma-separated background reference identifiers (only the verbs that accept background context). |
+| `--background <csv>` / `--references <csv>` | csv idents | none | Context/reference identifiers on verbs that expose them. `--references` is used by formula sandboxes; `--background` is rendered into the DSL call when that verb supports background context. |
 | `--check / --no-check` | bool | `--check` on | Run post-write `gaia build check` after a successful write. Short-circuited when pre-write fails. |
 | `--human` | bool flag | `False` | Render the envelope as human-readable text instead of JSON. |
 | `--interactive` | bool flag | `False` | Surface pre-write warnings as a numbered prompt (human mode only — JSON mode auto-suppresses). |
 | `--json / --no-json` | bool | `--json` on | Courtesy alias; redundant with the default. `--human` is the actual switch. |
 
-`--label` is **required** for every statement-emitting verb except
-`register-prior` (which writes a bare `register_prior(...)` expression with
-no LHS binding) and `note` / `claim` / `question` (where the positional
-content arg is also required). Verbs that emit a relation (`equal` /
-`contradict` / `exclusive` / `decompose`) bind the relation's helper Claim
-to `--label`.
+Prefer `--dsl-binding-name` whenever the generated object will be referenced
+later. Without it, the cli emits a bare expression statement for verbs that can
+do so. `register-prior` always writes a bare `register_prior(...)` expression
+because the engine call returns `None`.
 
 ## Per-verb flag surface (statement-emitting verbs)
 
@@ -116,7 +118,7 @@ gets rendered into the package.
 ### `note`
 
 ```
-gaia author note <content> --label <ident> [--target <path>]
+gaia author note <content> [--dsl-binding-name <ident>] [--target <path>]
     [--title <text>] [--metadata <json>]
     [--check/--no-check] [--human] [--interactive]
 ```
@@ -160,9 +162,10 @@ Sugar for `gaia author artifact --kind figure`. A source-bound figure requires
 ### `claim`
 
 ```
-gaia author claim <content> --label <ident> [--target <path>]
-    [--title <text>] [--prior <float>] [--predicate "<expr>"]
-    [--references <csv>] [--metadata <json>]
+gaia author claim <content> [--dsl-binding-name <ident>] [--target <path>]
+    [--label <ident>] [--title <text>] [--prior <float>]
+    [--formula "<expr>" | --predicate "<expr>"]
+    [--references <csv>] [--background <csv>] [--metadata <json>]
     [--check/--no-check] [--human] [--interactive]
 ```
 
@@ -171,13 +174,15 @@ gaia author claim <content> --label <ident> [--target <path>]
 | `<content>` | yes | Positional claim content. |
 | `--title <text>` | no | Optional short title. |
 | `--prior <float>` | no | Optional inline prior in (0, 1); routed via `register_prior` with source `claim_inline`. |
-| `--predicate "<expr>"` | no | Predicate-claim mode — sandbox-validated formula expression rendered as the `formula=` kwarg. See [Restricted-globals sandbox](#restricted-globals-sandbox). |
-| `--references <csv>` | no | Comma-separated background claims (rendered as `background=` kwarg). |
+| `--label <ident>` | no | Optional Claim label. Requires `--dsl-binding-name`; the cli emits `<binding>.label = "<ident>"` after the `claim(...)` call. |
+| `--formula "<expr>"` / `--predicate "<expr>"` | no | Predicate-claim mode — sandbox-validated formula expression rendered as the `formula=` kwarg. `--predicate` is the backwards-compatible spelling. See [Restricted-globals sandbox](#restricted-globals-sandbox). |
+| `--references <csv>` | no | Formula-sandbox references; these are not rendered into `background=`. |
+| `--background <csv>` | no | Comma-separated Knowledge identifiers rendered as `background=[...]`. |
 
 ### `question`
 
 ```
-gaia author question <content> --label <ident> [--target <path>]
+gaia author question <content> [--dsl-binding-name <ident>] [--target <path>]
     [--title <text>] [--targets <csv>] [--metadata <json>] ...
 ```
 
@@ -190,7 +195,7 @@ gaia author question <content> --label <ident> [--target <path>]
 
 ```
 gaia author <equal|contradict|exclusive> --a <ident> --b <ident> \
-    --label <ident> [--target <path>]
+    [--dsl-binding-name <ident>] [--label <ident>] [--target <path>]
     [--rationale <text>] [--metadata <json>] ...
 ```
 
@@ -205,7 +210,8 @@ Claim references — they do **not** mint fresh claims, by design.
 ### `decompose`
 
 ```
-gaia author decompose --whole <ident> --parts <csv> --label <ident> \
+gaia author decompose --whole <ident> --parts <csv> \
+    [--dsl-binding-name <ident>] [--label <ident>] \
     [--target <path>]
     [--formula-template <atom|and|or>] [--formula-expr "<expr>"]
     [--rationale <text>] [--metadata <json>] ...
@@ -222,7 +228,7 @@ gaia author decompose --whole <ident> --parts <csv> --label <ident> \
 
 ```
 gaia author derive (--conclusion <ident> | --conclusion-content "<prose>" | --conclusion-prose "<prose>") \
-    --given <csv> --label <ident> [--target <path>]
+    --given <csv> [--dsl-binding-name <ident>] [--label <ident>] [--target <path>]
     [--conclusion-label <ident>] [--rationale <text>]
     [--background <csv>] [--metadata <json>] ...
 ```
@@ -244,8 +250,8 @@ into an anonymous Claim at runtime).
 ### `observe`
 
 ```
-gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
-    --label <ident> [--target <path>]
+gaia author observe (--conclusion <ident> | --observation-content "<prose>" | --observation-prose "<prose>") \
+    [--dsl-binding-name <ident>] [--label <ident>] [--target <path>]
     [--observation-label <ident>] [--value <expr>] [--error <expr>]
     [--given <csv>] [--source-refs <csv>] [--rationale <text>] [--metadata <json>] ...
 ```
@@ -254,6 +260,7 @@ gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
 |---|---|---|
 | `--conclusion <ident>` | one-of | Identifier of the observed Claim, Variable, or Distribution. |
 | `--observation-content "<prose>"` | one-of | **Prose mode** for discrete observations only. Mutex with `--value` / `--error` (those target a Variable or Distribution). |
+| `--observation-prose "<prose>"` | one-of | Inline prose passed directly to `observe(...)`; no named observation Claim is minted. |
 | `--observation-label <ident>` | no | Explicit label for the auto-minted Claim. |
 | `--value <expr>` | no | Numeric / Quantity expression for the continuous observation (`value=` kwarg). |
 | `--error <expr>` | no | Observation error sigma or Distribution (`error=` kwarg); requires `--value`. |
@@ -263,7 +270,8 @@ gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
 ### `compute`
 
 ```
-gaia author compute --conclusion-type <ident> --label <ident> [--target <path>]
+gaia author compute --conclusion-type <ident> \
+    [--dsl-binding-name <ident>] [--label <ident>] [--target <path>]
     [--fn <ident>] [--given <csv>] [--rationale <text>] [--metadata <json>] ...
 ```
 
@@ -280,8 +288,8 @@ The decorator form `@compute` stays at Python-source level (same logic as
 
 ```
 gaia author infer --evidence <ident> \
-    (--hypothesis <ident> | --hypothesis-content "<prose>") \
-    --p-e-given-h <float> --label <ident> [--target <path>]
+    (--hypothesis <ident> | --hypothesis-content "<prose>" | --hypothesis-prose "<prose>") \
+    --p-e-given-h <float> [--dsl-binding-name <ident>] [--label <ident>] [--target <path>]
     [--hypothesis-label <ident>] [--p-e-given-not-h <float>]
     [--given <csv>] [--rationale <text>] [--metadata <json>] ...
 ```
@@ -291,6 +299,7 @@ gaia author infer --evidence <ident> \
 | `--evidence <ident>` | yes | Identifier of the evidence Claim. |
 | `--hypothesis <ident>` | one-of | Reference an already-declared hypothesis Claim. |
 | `--hypothesis-content "<prose>"` | one-of | **Prose mode** — mint a fresh hypothesis Claim. |
+| `--hypothesis-prose "<prose>"` | one-of | Inline prose passed directly to `infer(...)`; no named hypothesis Claim is minted. |
 | `--hypothesis-label <ident>` | no | Explicit label override for prose mode. |
 | `--p-e-given-h <float>` | yes | P(evidence \| hypothesis). |
 | `--p-e-given-not-h <float>` | no | P(evidence \| NOT hypothesis); DSL default 0.5. |
@@ -300,7 +309,8 @@ gaia author infer --evidence <ident> \
 
 ```
 gaia author associate --a <ident> --b <ident> \
-    --p-a-given-b <float> --p-b-given-a <float> --label <ident> [--target <path>]
+    --p-a-given-b <float> --p-b-given-a <float> \
+    [--dsl-binding-name <ident>] [--label <ident>] [--target <path>]
     [--pattern <name>] [--rationale <text>] [--metadata <json>] ...
 ```
 
@@ -315,7 +325,8 @@ gaia author associate --a <ident> --b <ident> \
 ### `parameter`
 
 ```
-gaia author parameter --variable <ident> --value <expr> --label <ident> \
+gaia author parameter --variable <ident> --value <expr> \
+    [--dsl-binding-name <ident>] [--label <ident>] \
     [--target <path>] [--content <text>] [--title <text>] [--prior <float>]
     [--rationale <text>] [--metadata <json>] ...
 ```
@@ -343,7 +354,7 @@ gaia author register-prior --claim <ident> --value <float> \
 | `--claim <ident>` | yes | Claim the prior attaches to. |
 | `--value <float>` | yes | Prior value in (0, 1). |
 | `--justification <text>` | yes | Free-text justification. |
-| `--source-id <text>` | no | Source identifier; defaults derived from claim. |
+| `--source-id <text>` | no | Source identifier. When omitted, the rendered call omits `source_id=` and the engine default applies. |
 | `--statement-label <ident>` | no | Optional trailing-comment label; no semantic effect. |
 
 The verb writes a bare expression statement (`register_prior(...)`) — no
@@ -352,7 +363,8 @@ LHS binding, since `register_prior()` returns `None`.
 ### `depends-on`
 
 ```
-gaia author depends-on --conclusion <ident> --given <csv> --label <ident> \
+gaia author depends-on --conclusion <ident> --given <csv> \
+    [--dsl-binding-name <ident>] [--label <ident>] \
     [--target <path>] [--rationale <text>] [--background <csv>] [--metadata <json>] ...
 ```
 
@@ -365,7 +377,8 @@ gaia author depends-on --conclusion <ident> --given <csv> --label <ident> \
 ### `candidate-relation`
 
 ```
-gaia author candidate-relation --claims <csv> --pattern <name> --label <ident> \
+gaia author candidate-relation --claims <csv> --pattern <name> \
+    [--dsl-binding-name <ident>] [--label <ident>] \
     [--target <path>] [--rationale <text>] [--background <csv>] [--metadata <json>] ...
 ```
 
@@ -377,7 +390,8 @@ gaia author candidate-relation --claims <csv> --pattern <name> --label <ident> \
 ### `materialize`
 
 ```
-gaia author materialize --scaffold <ident> --by <csv> --label <ident> \
+gaia author materialize --scaffold <ident> --by <csv> \
+    [--dsl-binding-name <ident>] [--label <ident>] \
     [--target <path>] [--rationale <text>] [--metadata <json>] ...
 ```
 
@@ -428,6 +442,29 @@ diagnostic, payload still carries registration details with
 `check="failed"`. On success: payload gains `check.knowledge_count` /
 `check.strategy_count` / `check.operator_count`.
 
+## Read-only inspection — `list`
+
+```bash
+gaia author list --target ./my-pkg-gaia --human
+gaia author list --target ./my-pkg-gaia --kind claim --json
+gaia author list --target ./my-pkg-gaia --file observations.py --unbound
+```
+
+`gaia author list` scans Gaia package source with Python AST. It does not import
+the package, run compile/check, or write files. The JSON payload reports each
+top-level author-verb statement's kind, binding, content preview, file, line,
+and export state. It also reads `[[tool.gaia.compositions]]` entries from
+`pyproject.toml`.
+
+| Flag | Purpose |
+|---|---|
+| `--target <path>` | Package root to inspect |
+| `--file <relative>` | Restrict the scan to one source file under `src/<import_name>/` |
+| `--kind <kind>` | Filter to one binding kind such as `claim`, `derive`, or `variable` |
+| `--unbound` | Include bare expression calls without an LHS binding |
+| `--human` | Render a readable table instead of the JSON envelope |
+| `--json / --no-json` | Courtesy alias; JSON is the default unless `--human` is used |
+
 ## `gaia pkg scaffold`
 
 Bootstrap a fresh `-gaia` package directory layout.
@@ -459,10 +496,12 @@ The verb writes:
 
 * `pyproject.toml` with `[tool.gaia] type / namespace`; `uuid` is written only
   when `--with-uuid` is passed.
-* `src/<import_name>/__init__.py` importing the minimal DSL seed
-  `from gaia.engine.lang import claim` plus `__all__: list[str] = []`. It does
-  not seed a placeholder claim; subsequent `gaia author <verb>` calls populate
-  the file and update `__all__`.
+* `src/<import_name>/__init__.py` with the direct-authoring package root and a
+  re-export block for `.authored`.
+* `src/<import_name>/authored/__init__.py` importing the minimal DSL seed
+  plus `__all__: list[str] = []`. It does not seed a placeholder claim;
+  subsequent `gaia author <verb>` calls populate this file and update
+  `authored.__all__`.
 * `.gaia/.gitkeep` so the cli postwrite check can find the IR artifact
   directory.
 
@@ -516,7 +555,7 @@ single JSON object to stdout matching this schema:
 |---|---|---|
 | `target` | always | Resolved absolute path of the target package. |
 | `written_to` | statement-emitting success | Path of the file the cli appended to (`src/<import_name>/__init__.py`). |
-| `label` | statement-emitting success | The `--label` value (None for `register-prior`). |
+| `label` | statement-emitting success | The Python binding name when one was supplied with `--dsl-binding-name`; `None` for bare expression statements and `register-prior`. |
 | `verb` | always | Echo of the verb name (alongside the top-level `verb`). |
 | `snippet` | statement-emitting success | The exact Python source string appended to the file. |
 | `auto_generated` | prose-mode success | List of `{label, snippet}` for each auto-minted Claim. |
@@ -558,10 +597,11 @@ matters because the *first* failure determines `kind` and exit code.
    for `--predicate` / `--formula-expr` distinguish via
    `prewrite.expr_unsafe` (also exit 2).
 3. **(d) Structural self-loop check** — the proposed op's `references`
-   set must not contain the proposed `--label`. Failure kind:
+   set must not contain the proposed Python binding name or auto-minted
+   prose-mode label. Failure kind:
    `prewrite.self_loop` (exit 1).
-4. **(c) Collision and reference resolution** — the proposed `--label`
-   must not collide with an existing module binding or DSL surface name;
+4. **(c) Collision and reference resolution** — the proposed Python binding
+   name must not collide with an existing module binding or DSL surface name;
    all `references` must resolve to module bindings (or one of the
    prepended-statement labels in the same invocation). Failure kinds:
    `prewrite.collision` / `prewrite.reference_unresolved` (both exit 3).
@@ -575,7 +615,7 @@ unresolved-ref machinery (exit 3). Documented in
 
 | Kind | Fires when | Behavior |
 |---|---|---|
-| `prewrite.label_shadow` | The proposed `--label` collides with a Python builtin or DSL surface name (defensive — most shadow cases are intercepted by the (c) hard error). | Run proceeds; warning flows to envelope. |
+| `prewrite.label_shadow` | The proposed Python binding name collides with a Python builtin or DSL surface name (defensive — most shadow cases are intercepted by the (c) hard error). | Run proceeds; warning flows to envelope. |
 | `prewrite.deprecated_ref` | A call site in the generated code or one of `references` names a DSL symbol carrying a `DeprecationWarning` in the engine (sourced via AST scan of `gaia/engine/lang/dsl/**.py` at cli import; merged with a small hand-curated fallback for safety). Scan is narrowed to call positions, so a binding name that happens to match a deprecated factory does not trip the warning. | Run proceeds; `replacement` hint in `where`. |
 
 Both flow through `--interactive`: in human mode + `--interactive` + at
@@ -587,21 +627,22 @@ diagnostic.
 
 ## Prose mode — "introducing new statement" verbs
 
-Four verbs accept a `--<arg>-content` flag that introduces a fresh Claim
-inline rather than referencing an existing identifier:
+Three verbs accept a `--<arg>-content` flag that introduces a fresh Claim
+inline rather than referencing an existing identifier. Two of them also expose
+an inline-prose variant that writes the prose directly at the call site without
+minting a named Claim binding.
 
 | Verb | Flag | Mutex with | Label override |
 |---|---|---|---|
 | `derive` | `--conclusion-content "<prose>"` | `--conclusion`, `--conclusion-prose` | `--conclusion-label` |
-| `claim` | `--predicate "<formula-expr>"` | — (predicate-mode is additive, not replacement) | — |
-| `infer` | `--hypothesis-content "<prose>"` | `--hypothesis` | `--hypothesis-label` |
-| `observe` | `--observation-content "<prose>"` | `--conclusion`, also `--value`/`--error` | `--observation-label` |
+| `infer` | `--hypothesis-content "<prose>"` | `--hypothesis`, `--hypothesis-prose` | `--hypothesis-label` |
+| `observe` | `--observation-content "<prose>"` | `--conclusion`, `--observation-prose`, also `--value`/`--error` | `--observation-label` |
 
 These verbs share the rationale that the named Claim-ref arg is
 *introducing* a new statement that the verb itself is bringing into
 existence (the derivation's conclusion, the hypothesis under test, the
 observation's proposition). Auto-generating `slug = claim(prose)` and
-using the slug downstream is semantically honest. The remaining 13
+using the slug downstream is semantically honest. The remaining author
 author verbs are either *linking existing claims* (Structural /
 Scaffold) or *quantitative* (compute / parameter / register-prior),
 where prose-mode auto-mint would awkwardly bundle ops.
@@ -612,12 +653,13 @@ get a `c_` prefix; collisions against caller-supplied identifiers get
 `_2` / `_3` suffixes. Module-symbol collisions still surface as the
 standard `prewrite.collision` hard error.
 
-`--predicate` for `claim` is **not** a prose-mode flag; it is a
-formula-expression flag rendered as the `formula=` kwarg. The expression
-goes through the same restricted-globals sandbox as `decompose
+`--formula` / `--predicate` for `claim` are **not** prose-mode flags; they
+are formula-expression flags rendered as the `formula=` kwarg. `--formula` is
+the canonical spelling; `--predicate` remains a compatibility alias. The
+expression goes through the same restricted-globals sandbox as `decompose
 --formula-expr`.
 
-### Inline-prose mode — `derive --conclusion-prose`
+### Inline-prose mode — `derive`, `infer`, and `observe`
 
 `derive` carries a third shape, `--conclusion-prose "<prose>"`, that
 **does not** mint a named binding. The prose is emitted at the call
@@ -645,10 +687,13 @@ Pick `--conclusion-content` (auto-mint, default) when downstream author
 calls might need to reference the conclusion. Pick `--conclusion-prose`
 when byte-text fidelity to a target source layout matters more.
 
+`infer --hypothesis-prose` and `observe --observation-prose` follow the same
+tradeoff for their respective hypothesis/observation arguments.
+
 ## Restricted-globals sandbox
 
-`gaia author decompose --formula-expr` and `gaia author claim --predicate`
-both accept Python expressions, evaluated by the engine at package
+`gaia author decompose --formula-expr` and `gaia author claim --formula`
+/ `--predicate` both accept Python expressions, evaluated by the engine at package
 import time. To prevent `os.system(...)`-shaped attacks at pre-write
 time, the cli sandbox-validates the expression against a whitelist:
 
@@ -769,7 +814,7 @@ demonstration that the cli surface covers the v0.5 engine end-to-end.
 * [`gaia pkg`](pkg.md) — install dependencies, manage module/import plumbing, publish, and scaffold packages.
 * [`gaia build`](build.md) — compile / check the package the cli wrote.
 * [Foundational CLI workflow](../../foundations/cli/workflow.md) — narrative tour of the cli day-to-day.
-* [CLI Commands](../../for-users/cli-commands.md) — workflow-oriented guide for the broader cli surface.
+* [CLI Workflow Command Guide](../../for-users/cli-commands.md) — workflow-oriented guide for the broader cli surface.
 
 ## Implementation
 

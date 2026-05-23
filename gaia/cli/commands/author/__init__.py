@@ -6,7 +6,8 @@ matches one of the DSL surface verbs (``claim`` / ``artifact`` /
 ``contradict`` / ``exclusive`` / ``decompose`` / ``observe`` /
 ``compute`` / ``infer`` / ``associate`` / ``parameter`` /
 ``register_prior`` / ``depends_on`` / ``candidate_relation`` /
-``materialize`` / ``variable`` / ``compose`` / ``composition``). Direct
+``materialize`` / ``variable`` / ``compose`` / ``composition`` /
+``list``). Direct
 SDK authoring (``gaia sdk`` + writing the DSL in Python) is the primary
 path; this CLI is an OPTIONAL convenience for humans and agents alike.
 When used, it owns identifier collision checks, reference resolution,
@@ -17,19 +18,13 @@ make sure the package still compiles. Output is JSON-by-default through a
 uniform envelope (see :mod:`._envelope`); ``--human`` opts into a
 human-readable rendering of the same payload.
 
-The author surface ships 22 verbs end-to-end against a uniform pre-write
-envelope skeleton: 20 statement-emitting verbs (``claim`` /
-``artifact`` / ``figure`` / ``equal`` / ``derive`` / ``note`` /
-``question`` / ``contradict`` / ``exclusive`` / ``decompose`` /
-``observe`` / ``compute`` / ``infer`` / ``associate`` / ``parameter`` /
-``register_prior`` / ``depends_on`` / ``candidate_relation`` /
-``materialize`` / ``variable``) plus the two file-based ``compose`` /
-``composition``
-validate-and-register verbs (see :mod:`.compose`). Prose-mode
-``--<arg>-content`` flags, two pre-write warning kinds, and a
-restricted-globals formula sandbox round out the authoring surface; the
-engine's deprecation catalog is discovered via an AST scan over the DSL
-source (see :mod:`._deprecation_scan`).
+The author surface includes statement-emitting verbs, the two file-based
+``compose`` / ``composition`` validate-and-register verbs (see
+:mod:`.compose`), and the read-only ``list`` inspector. Prose-mode
+``--<arg>-content`` flags, pre-write warning kinds, and a restricted-globals
+formula sandbox round out the authoring surface; the engine's deprecation
+catalog is discovered via an AST scan over the DSL source (see
+:mod:`._deprecation_scan`).
 
 See ``docs/reference/cli/author.md`` for the per-verb contract.
 """

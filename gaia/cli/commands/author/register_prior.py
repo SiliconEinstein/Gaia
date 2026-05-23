@@ -122,9 +122,9 @@ def register_prior_command(
         None,
         "--file",
         help=(
-            "Relative path under src/<import_name>/ to write into (e.g. "
+            "Relative path under src/<import_name>/authored/ to write into (e.g. "
             "`priors.py` to match the hand-authored pattern). Default: "
-            "`__init__.py`. When writing to a sibling file, the cli will "
+            "authored/__init__.py. When writing to a sibling file, the cli will "
             "auto-insert `from <import_name> import <claim>` if missing."
         ),
     ),

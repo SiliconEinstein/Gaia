@@ -17,24 +17,30 @@ gaia build init galileo-falling-bodies-gaia
 cd galileo-falling-bodies-gaia
 ```
 
-This wraps `uv init --lib` to scaffold a standard Python library, then patches `pyproject.toml` to add `[tool.hatch.build.targets.wheel]` (so the renamed `src/<import_name>/` is picked up) and `[tool.gaia]` with a generated UUID. It also writes a v0.5 DSL template to `__init__.py`, appends Gaia ignore patterns to `.gitignore`, and runs `uv add gaia-lang`. Package name must end with `-gaia`.
+This wraps `uv init --lib` to scaffold a standard Python library, then patches
+`pyproject.toml` to add `[tool.hatch.build.targets.wheel]` (so the renamed
+`src/<import_name>/` is picked up) and `[tool.gaia]` with a generated UUID. It
+also writes a v0.5 DSL template to the package root `__init__.py`, creates the
+CLI-managed `authored/__init__.py` submodule, appends Gaia ignore patterns to
+`.gitignore`, and runs `uv add gaia-lang`. Package name must end with `-gaia`.
 
-The generated `__init__.py` template uses the v0.5 action surface:
+The generated package-root `__init__.py` template is intentionally empty apart
+from the canonical import, export list, and `authored/` re-export block:
 
 ```python
-from gaia.engine.lang import claim, derive, note
+from gaia.engine.lang import claim
 
-context = note("Background context for this package.")
-hypothesis = claim("A scientific hypothesis.")
-prediction = derive(
-    "A testable prediction follows from the hypothesis.",
-    given=hypothesis,
-    background=[context],
-    rationale="Explain why the hypothesis entails this prediction.",
-)
+__all__: list[str] = []
 
-__all__ = ["hypothesis", "prediction"]
+from .authored import *  # noqa: F403  (CLI-authored statements)
+from . import authored as _authored
+
+__all__ = [*__all__, *_authored.__all__]
 ```
+
+No placeholder claim is created. Add real package content by editing the Python
+module directly or by appending statements through `gaia author ...`, which
+writes under `authored/`.
 
 ## pyproject.toml Structure
 
@@ -102,7 +108,9 @@ galileo-falling-bodies-gaia/
 ├── pyproject.toml
 ├── src/
 │   └── galileo_falling_bodies/
-│       ├── __init__.py          # Package entry: exports + DSL declarations
+│       ├── __init__.py          # Package entry: hand-authored DSL + authored/ re-export
+│       ├── authored/
+│       │   └── __init__.py      # CLI-authored statements land here
 │       ├── premises.py          # Background knowledge and observations
 │       ├── reasoning.py         # Reasoning actions (derive / observe / infer / relations / ...)
 │       └── priors.py            # Prior records via register_prior(...)

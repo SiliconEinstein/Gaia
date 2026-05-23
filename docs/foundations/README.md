@@ -36,6 +36,7 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 - [Registry 运作](ecosystem/04-registry-operations.md) — 注册、去重、推理链激活
 - [审核与策展](ecosystem/05-review-and-curation.md) — Review Server + LKM curation
 - [多级推理与质量涌现](ecosystem/06-belief-flow-and-quality.md) — 三级推理、错误修正
+- [相关系统](ecosystem/07-related-systems.md) — 与相邻知识系统、包生态和推理系统的比较边界
 - [文档维护策略](../documentation-policy.md) — 文档维护规则
 
 ## Gaia Lang — 编著语言设计
@@ -61,11 +62,13 @@ Gaia 的概念性基础文档，按理论、生态系统、Gaia Lang 设计、Ga
 
 ## BP — 基于 Gaia IR 的计算
 
-- [因子势函数](bp/potentials.md) — 各因子类型的势函数
+- [BeliefState](bp/belief-state.md) — BP 输出、可重现性
+- [Formal Strategy Lowering](bp/formal-strategy-lowering.md) — named/formal strategies 到因子图的 lowering 边界
 - [推理](bp/inference.md) — BP 算法应用于 Gaia IR
 - [Diagnostic Probabilities](bp/diagnostic-probabilities.md) — 用 joint query 为 logic warning 计算 reviewer-facing 概率
+- [Choosing An Algorithm](bp/choosing-algorithm.md) — 精确和近似推理算法选择
 - [局部与全局](bp/local-vs-global.md) — CLI 局部推理 vs LKM 全局推理
-- [BeliefState](bp/belief-state.md) — BP 输出、可重现性
+- [因子势函数](bp/potentials.md) — 各因子类型的势函数
 
 ## Review — 审查管线
 

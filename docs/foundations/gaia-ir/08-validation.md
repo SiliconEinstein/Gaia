@@ -88,7 +88,7 @@ helper claim 的命名纪律见 [04-helper-claims.md](04-helper-claims.md)。
 2. `premises` 中的 Knowledge 必须全部是 `claim`
 3. `conclusion` 若非空，必须引用 `claim`
 4. `background` 可引用任意允许类型
-5. `type` 必须属于允许集合（与 `gaia/engine/ir/strategy.py::StrategyType` 同步，共 14 个）：`infer` | `associate` | `noisy_and`（deprecated → 编译时自动转 `support`，发 `DeprecationWarning`，仍接受） | `deduction` | `reductio`（deferred） | `elimination` | `mathematical_induction` | `case_analysis` | `abduction` | `analogy` | `extrapolation` | `support` | `compare` | `induction`
+5. `type` 必须属于允许集合（与 `gaia/engine/ir/strategy.py::StrategyType` 同步，共 14 个）：`infer` | `associate` | `noisy_and`（deprecated；Python DSL 兼容包装器会返回 `support`，raw IR 仍接受并可 lowering） | `deduction` | `reductio`（deferred） | `elimination` | `mathematical_induction` | `case_analysis` | `abduction` | `analogy` | `extrapolation` | `support` | `compare` | `induction`
 6. 三种形态互斥：
    - 基本 Strategy：无 `sub_strategies`，无 `formal_expr`
    - `CompositeStrategy`：必须有非空 `sub_strategies`

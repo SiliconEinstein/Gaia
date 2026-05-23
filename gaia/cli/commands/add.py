@@ -38,7 +38,8 @@ def add_command(
     package: str | None = typer.Argument(
         None,
         help=(
-            "Package name (e.g., galileo-falling-bodies-gaia) or LKM ref (lkm:<index>:paper:<id>)."
+            "Package name (e.g., galileo-falling-bodies-gaia) or LKM ref "
+            "(lkm:<index>:paper:<id> / lkm:<index>:claim:<id>)."
         ),
     ),
     version: str | None = typer.Option(None, "--version", "-v", help="Specific version"),
@@ -57,7 +58,7 @@ def add_command(
     lkm_claim: str | None = typer.Option(
         None,
         "--lkm-claim",
-        help="Resolve this LKM claim id to its backing paper package.",
+        help="Recognize this LKM claim id and print the backing-paper resolution step.",
     ),
 ) -> None:
     """Install a registered or LKM-backed Gaia knowledge package.
@@ -72,7 +73,10 @@ def add_command(
 
     LKM paper refs/flags fetch the paper graph, generate a local Gaia package
     under ``.gaia/lkm_packages/``, compile it, and add it as an editable
-    dependency with ``uv add --editable``.
+    dependency with ``uv add --editable``. LKM claim refs/flags are accepted
+    as source refs, but Gaia installs paper-level packages rather than
+    standalone claim nodes; the command prints the ``gaia search lkm
+    reasoning --claim-id`` step needed to resolve the claim to a backing paper.
 
     ``--version`` pins a specific release; omit to take the latest
     registered version.
@@ -85,6 +89,8 @@ def add_command(
         gaia pkg add mendel-v0-5-gaia --version 0.1.0
         gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
         gaia pkg add lkm:bohrium:paper:811827932371615744
+        gaia pkg add --lkm-index bohrium --lkm-claim <claim-id>
+        gaia pkg add lkm:bohrium:claim:<claim-id>
     """
     try:
         lkm_ref = _resolve_lkm_source_ref(
