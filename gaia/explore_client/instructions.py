@@ -76,10 +76,16 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
 
 1. Pull LKM evidence for the contact's target.
    - `gaia search lkm knowledge "<query>" --limit 8` for recall, and
-     `gaia search lkm reasoning "<query>"` / `--claim-id <id>` for chains.
+     `gaia search lkm reasoning "<query>"` / `gaia search lkm reasoning
+     --claim-id <id>` for chains.
    - Anchor queries on the contact's `ref.value` and its `sources` (the
-     surveyed nodes that reach it). Save the default-envelope JSON (the parser
-     reads the default envelope; do not rely on `--format raw-json`).
+     surveyed nodes that reach it). Save the DEFAULT-format JSON (`--format
+     gaia-json`, the default) — `observe` reads that normalized envelope, not
+     `--format raw-json`. Its shape is `{schema_version, query, results: [...]}`;
+     each result carries `id`, `kind`, `rank.score`, `gaia.{qid,object_kind}`,
+     `source.{paper_id,paper_title,doi,role,has_reasoning,has_evidence,
+     conclusion_id,has_factors,can_compile}`, `actions[]`, and `raw.payload`
+     (the verbatim upstream node/chain, the only place factor detail survives).
 
 2. RECORD unpulled related papers as frontier contacts — REQUIRED, the primary
    growth path. Pipe each search's JSON to:
@@ -96,16 +102,27 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
    Do NOT use `gaia author depends-on` for an unmaterialized target — it rejects
    an unresolved `--given` by design (that core validation must not be weakened).
 
-4. AUTHOR the science onto Gaia DSL primitives, classifying each LKM payload by
-   evidence status (mapping contract):
-   - Chain-backed claim (`total_chains > 0`): emit `claim(...)` for the
-     conclusion + each usable premise, and one factor-derived
-     `derive(conclusion, given=[premises], rationale="<numbered LKM steps>",
-     label="<gfac_id>")` per `gfac_*` factor.
-   - LKM source claim (`total_chains = 0`): emit a leaf/source `claim(...)` with
-     `provenance_source="lkm_no_chain"` and the preserved `lkm_id`; do not invent
-     premises, factors, or derives.
-   - Search lead: insufficient content/provenance — do not emit.
+4. AUTHOR the science onto Gaia DSL primitives, classifying each LKM result by
+   evidence status (mapping contract). Read the status straight off the default
+   envelope — there is no `total_chains` field; a result is chain-backed iff the
+   normalizer says so:
+   - Chain-backed claim — a `reasoning` result (`kind == "reasoning_chain"`) with
+     `source.can_compile == true` / `source.has_factors == true` (equivalently
+     `gaia.object_kind == "derive"`), or a `knowledge` claim with
+     `source.has_reasoning == true` (its `inspect` action gives the
+     `gaia search lkm reasoning --claim-id <id>` to fetch the chain). Emit
+     `claim(...)` for the conclusion + each usable premise, and one
+     factor-derived `derive(conclusion, given=[premises],
+     rationale="<numbered LKM steps>", label="<factor_id>")` per factor in
+     `raw.payload.factors[]` (LKM factor ids are `lfac_*`; use that id as the
+     label).
+   - LKM source claim — no compilable chain (a `knowledge` claim with
+     `source.has_reasoning == false`, or a `reasoning_chain` with
+     `source.can_compile == false`): emit a leaf/source `claim(...)` with
+     `provenance_source="lkm_no_chain"` and the preserved `lkm_id` (the result's
+     `id`); do not invent premises, factors, or derives.
+   - Search lead — a `question` result, or any result with insufficient
+     content/provenance: do not emit.
    - Make every claim self-contained (system/material, method, quantity, value,
      conditions) so it is judgeable true/false without the LKM payload.
    - Supports: `derive(target, given=[U], rationale="...", label="...")` is
