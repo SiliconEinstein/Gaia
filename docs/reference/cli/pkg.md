@@ -6,8 +6,12 @@ Install, publish, and bootstrap packages.
 gaia pkg add <package>            Install a registered package from the registry
 gaia pkg add --lkm-index <id> --lkm-paper <paper-id>
                                   Materialize an LKM paper as a local package
+gaia pkg add --lkm-index <id> --lkm-claim <claim-id>
+                                  Print the backing-paper resolution step for an LKM claim
 gaia pkg add lkm:<index>:paper:<paper-id>
                                   Materialize a canonical LKM paper source ref
+gaia pkg add lkm:<index>:claim:<claim-id>
+                                  Recognize a canonical LKM claim source ref
 gaia pkg add-import --from <m>    Insert a sibling/module import into a package file
 gaia pkg add-module --name <m>    Scaffold a sibling Python module
 gaia pkg register [path]          Submit a package to the official registry
@@ -16,16 +20,16 @@ gaia pkg scaffold --target <p>    Bootstrap a fresh -gaia package directory layo
 
 | Verb | Purpose |
 |---|---|
-| `add` | Resolve a registry entry to a SHA-pinned git URL, add as dependency, optionally cache `dep_beliefs/<name>.json`; also accepts LKM paper source refs/flags, materializes the paper graph as a project-local Gaia package, compiles it, and adds it as an editable dependency |
+| `add` | Resolve a registry entry to a SHA-pinned git URL, add as dependency, optionally cache `dep_beliefs/<name>.json`; also accepts LKM paper source refs/flags, materializes the paper graph as a project-local Gaia package, compiles it, and adds it as an editable dependency. LKM claim refs/flags are recognized, but currently print the backing-paper resolution step instead of installing standalone claim nodes |
 | `add-import` | Insert an idempotent `from <module> import <names>` line into `__init__.py` or another package source file |
-| `add-module` | Create `src/<import_name>/<module>.py` with an optional docstring, optional seeded DSL imports, and a literal empty `__all__` |
+| `add-module` | Create `src/<import_name>/authored/<module>.py` with an optional docstring, optional seeded DSL imports, and a literal empty `__all__` |
 | `register` | Submit a package to the registry: emit Package/Versions/Deps TOML, exports/premises/holes/bridges/beliefs JSON, and (optionally) push + open a registry PR |
-| `scaffold` | Write the minimal `-gaia` package skeleton (`pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` importing `claim`, `.gaia/.gitkeep`). Counterpart to `gaia author <verb>` — bootstraps the package an agent then authors into. See [`gaia author`](author.md#gaia-pkg-scaffold). |
+| `scaffold` | Write the minimal `-gaia` package skeleton (`pyproject.toml` with `[tool.gaia]`, direct-authoring package root, `authored/` helper submodule, `.gaia/.gitkeep`). See [`gaia author`](author.md#gaia-pkg-scaffold). |
 
 The historical flat verbs map to grouped paths where applicable
 (`gaia register --create-pr` → `gaia pkg register --create-pr`). The
 `add-import`, `add-module`, and `scaffold` verbs are v0.5 additions. See
-[CLI Commands](../../for-users/cli-commands.md) for workflow examples and
+[CLI Workflow Command Guide](../../for-users/cli-commands.md) for workflow examples and
 use `gaia pkg <verb> --help` for the executable option surface.
 
 For LKM search results, `gaia pkg add` accepts both the friendly action form
@@ -33,15 +37,22 @@ and canonical source refs:
 
 ```text
 gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
+gaia pkg add --lkm-index bohrium --lkm-claim <claim-id>
 gaia pkg add lkm:bohrium:paper:811827932371615744
+gaia pkg add lkm:bohrium:claim:<claim-id>
 gaia pkg add lkm:paper:811827932371615744
+gaia pkg add lkm:claim:<claim-id>
 ```
 
-The short `lkm:paper:<id>` form is a default-index compatibility alias; Gaia
-emits canonical refs with the explicit index id. The paper form fetches
-`/papers/graph`, writes a generated Gaia package under
+The short `lkm:paper:<id>` and `lkm:claim:<id>` forms are default-index
+compatibility aliases; Gaia emits canonical refs with the explicit index id.
+The paper form fetches `/papers/graph`, writes a generated Gaia package under
 `.gaia/lkm_packages/<package-name>/`, compiles it so dependency manifests exist,
-and runs `uv add --editable <generated-package>`.
+and runs `uv add --editable <generated-package>`. The claim form is recognized
+as a source ref, but `gaia pkg add` still installs paper-level packages rather
+than standalone claim nodes; it prints the `gaia search lkm reasoning
+--claim-id <claim-id>` resolution command and exits without mutating the
+project.
 
 Generated packages are normal Python Gaia packages. Their distribution name is
 title-first and id-backed, for example
@@ -59,9 +70,9 @@ Downstream source can import generated claims directly, for example:
 from lkm_bohrium_controlling_phase_and_morphology_811827932371615744 import conclusion_1
 ```
 
-`gaia pkg add` still does not install standalone LKM claim nodes. Use
-`gaia search lkm reasoning --claim-id <claim-id>` to resolve a claim to its
-backing paper, then add the paper package.
+`gaia pkg add` still does not install standalone LKM claim nodes. Use the
+printed `gaia search lkm reasoning --claim-id <claim-id>` step to resolve a
+claim to its backing paper, then add the returned paper package.
 
 LKM index URLs are resolver configuration, not package names. `bohrium` is the
 built-in index id for `https://open.bohrium.com/openapi/v1/lkm`; custom indexes

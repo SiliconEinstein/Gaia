@@ -1,8 +1,8 @@
 """CLI E2E tests for ``gaia author list``.
 
 Pure-AST verb that walks a Gaia package's source files and reports
-every top-level author-verb statement. The tests cover all 19
-recognised callable shapes, the two-statement ``claim`` + ``.label = ``
+every top-level author-verb statement. The tests cover the recognised
+callable shapes, the two-statement ``claim`` + ``.label = ``
 folding, reassignment shadow detection, ``__all__`` permutations,
 syntax-error graceful failure, auxiliary-file skipping, ``--file``
 scoping (including the auxiliary-file warning), ``--kind`` filtering,
@@ -84,7 +84,7 @@ def test_list_human_renders_table(gaia_package: FixturePackage) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 19 callable shapes — coverage                                               #
+# Callable shapes — coverage                                                  #
 # --------------------------------------------------------------------------- #
 
 
@@ -92,6 +92,8 @@ def test_list_human_renders_table(gaia_package: FixturePackage) -> None:
     "snippet,expected_kind",
     [
         ('x = claim("c")', "claim"),
+        ('x = artifact(kind="figure", path="artifacts/f.png")', "artifact"),
+        ('x = figure(path="artifacts/f.png", caption="f")', "figure"),
         ('x = note("n")', "note"),
         ('x = question("q")', "question"),
         ("x = equal(a, b)", "equal"),
@@ -120,7 +122,7 @@ def test_each_callable_shape_maps_to_kind(
     # imports don't have to actually resolve — we're parsing AST only.
     body = (
         "from gaia.engine.lang import (\n"
-        "    claim, note, question, equal, contradict, exclusive,\n"
+        "    claim, artifact, figure, note, question, equal, contradict, exclusive,\n"
         "    decompose, derive, observe, compute, infer, associate,\n"
         "    parameter, register_prior, Variable, Constant,\n"
         "    depends_on, candidate_relation, materialize,\n"

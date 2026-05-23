@@ -212,7 +212,13 @@ Source: `gaia/cli/commands/compile.py`
 
 ## gaia build check
 
-`gaia build check` validates that a package is well-formed and its compiled artifacts are current. It runs the full compilation pipeline in memory and compares against stored artifacts.
+`gaia build check` validates that a package is well-formed and its compiled
+artifacts are current. It runs the full compilation pipeline in memory,
+compares against stored artifacts, reports Bayes coherence diagnostics and
+claim role buckets, and exposes optional review views (`--hole`, `--warrants`,
+`--inquiry`, `--refs`, `--gate`). This section covers the internals-oriented
+validation core; the complete user-facing option surface is documented in
+[CLI Workflow Command Guide § `gaia build check`](../../for-users/cli-commands.md#gaia-build-check).
 
 Source: `gaia/cli/commands/check.py`
 
@@ -226,6 +232,8 @@ Source: `gaia/cli/commands/check.py`
 | 4 | Stored ir_hash freshness | `.gaia/ir_hash` exists and matches recompiled hash | Error if stale |
 | 5 | Stored ir.json consistency | `.gaia/ir.json` exists, is valid JSON, and its embedded `ir_hash` matches recompiled hash | Error if mismatched |
 | 6 | Artifact presence | `.gaia/ir_hash` exists | Warning if missing |
+| 7 | Bayes coherence diagnostics | no dangling predictions, unobserved targets, or inconsistent Bayes priors | Error or warning by diagnostic |
+| 8 | Optional review/reference gates | `--hole`, `--warrants`, `--inquiry`, `--refs`, and `--gate` views pass their configured criteria | View-specific; `--gate` can fail |
 
 If `.gaia/ir_hash` does not exist, check reports a warning (artifacts missing, run `gaia build compile`). If it exists but does not match the recompiled value, check reports an error (artifacts stale, run `gaia build compile` again).
 

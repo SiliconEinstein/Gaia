@@ -234,6 +234,7 @@ def infer_command(
     typer.echo(f"Output: {gaia_dir / 'beliefs.json'}")
     typer.echo(
         "Note: belief = posterior probability of the claim under the "
-        "auto-compiled Bayesian network; uniform priors are used by default "
-        "(override via priors.py or `gaia author register-prior`)."
+        "auto-compiled Bayesian network; unassigned variables are MaxEnt/free "
+        "under the base counting measure; no synthetic 0.5 unary prior factor "
+        "is inserted."
     )

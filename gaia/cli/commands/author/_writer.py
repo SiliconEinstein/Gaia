@@ -1,7 +1,7 @@
 """File-append helper for ``gaia author`` verbs.
 
-Multi-file target — the writer routes each authored statement to an
-arbitrary ``src/<import_name>/<file>.py`` (or ``__init__.py`` by
+Multi-file target — the writer routes each authored statement to
+``src/<import_name>/authored/<file>.py`` (or ``authored/__init__.py`` by
 default). The caller chooses the target file via
 :attr:`ProposedAuthorOp.target_file`; the runner resolves the absolute
 path and hands it here. Cross-file references are handled by inserting

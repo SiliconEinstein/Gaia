@@ -9,24 +9,32 @@ since: v0.5
 ## Overview
 
 The Gaia CLI is a knowledge package authoring toolkit. The main authoring
-pipeline takes a Python DSL package from scaffolding to registry registration;
-authors may either edit Python files directly or use the agent-facing
-`gaia author` / `gaia bayes` commands to append DSL statements:
+pipeline takes a Python DSL package from scaffolding to registry registration.
+The primary authoring path is direct Python DSL: run `gaia sdk` for the SDK
+reference and cheat sheet, then edit package source directly. `gaia author` /
+`gaia bayes` are optional structured helpers for checked snippets:
 
 ```
-gaia build init/pkg scaffold --> gaia pkg add --> write package or gaia author/bayes --> gaia build compile --> gaia build check --> gaia run infer --> gaia run render --> git tag --> gaia pkg register
-(scaffold)                  (add deps)    (DSL code / cli-as-client)       (DSL -> IR)     (validate)    (BP)            (present)              (registry PR)
+gaia build init/pkg scaffold --> gaia sdk --> write package source [optional: author/bayes] --> gaia build compile --> gaia build check --> gaia run infer --> gaia run render --> git tag --> gaia pkg register
+(scaffold)                  (SDK docs)   (native DSL / helper snippets)             (DSL -> IR)     (validate)    (BP)            (present)              (registry PR)
 ```
 
-Supporting command groups cover review, trace audit, and visualization. They
-are not interchangeable: `inquiry` maintains review-state ledgers, `trace`
-audits externally recorded ARM trace files and can write review snapshots, and
-`inspect` writes graph visualization artifacts.
+Supporting command groups cover review, trace audit, visualization, retrieval,
+examples, and Gaia skill materialization. They are not interchangeable:
+`inquiry` maintains review-state ledgers, `trace` audits externally recorded ARM
+trace files and can write review snapshots, `inspect` writes graph
+visualization artifacts, `search` retrieves candidate knowledge, `example`
+prints runnable walkthrough scripts, and `skill` installs bundled Gaia skill
+files into the current project.
 
 ```
-gaia inquiry  — local review loop (focus / obligation / hypothesis / review)
+gaia sdk      — SDK reference + CHEATSHEET.md for direct DSL authoring
+gaia inquiry  — local review loop (focus / context / obligation / hypothesis / review)
 gaia trace    — inference-trace verification and audit (verify / review / show)
 gaia inspect starmap  — package-graph visualization (html / dot / svg)
+gaia search lkm  — retrieval provider adapter for LKM knowledge candidates
+gaia example  — print/save walkthrough scripts for shipping examples
+gaia skill  — register/list bundled Gaia skills in cwd
 ```
 
 `gaia run infer` is required before `gaia run render --target github`; `--target docs` works without it (beliefs enrich the output when available but are not required).
@@ -108,6 +116,7 @@ gaia build check --hole [PATH]
 gaia build check --warrants [PATH]
 gaia build check --warrants --blind [PATH]
 gaia build check --inquiry [PATH]
+gaia build check --refs [PATH]
 gaia build check --gate [PATH]
 ```
 
@@ -120,9 +129,10 @@ gaia build check --gate [PATH]
 | `--brief`, `-b` | Show per-module warrant structure overview |
 | `--show`, `-s` | Expand a specific module or claim/strategy label |
 | `--hole` | Show detailed prior contract report for independent degrees of freedom |
-| `--warrants` | Show v6 `ReviewManifest` warrants and audit questions for reviewable actions |
+| `--warrants` | Show `ReviewManifest` warrants and audit questions for reviewable actions |
 | `--blind` | With `--warrants`, hide status values and prior diagnostics to reduce reviewer anchoring |
 | `--inquiry` | Show goal-oriented reasoning progress and review status |
+| `--refs` | Show citation, local-reference, and artifact diagnostics |
 | `--gate` | Run quality-gate checks and exit non-zero when the package is not publishable |
 
 **What it does:**
@@ -141,7 +151,7 @@ printed but do not fail the check.
 
 **`--hole` output:** Detailed report splitting all load-bearing boundary claims into MaxEnt degrees of freedom (no external prior, with content and QID) and covered claims (with prior value and justification). Use during prior review to identify which independent claims intentionally rely on MaxEnt, which are constrained by deterministic logic, what their induced entropy is under the current graph, and which still need `priors.py` entries.
 
-**`--warrants` / `--blind` / `--inquiry` / `--gate`:** Per-action review and gating views, layered on top of the merged `ReviewManifest`. See [CLI Commands § `gaia build check`](../../for-users/cli-commands.md#gaia-build-check) for the full review-loop semantics, and [`review-pipeline.md`](../review/review-pipeline.md) for the manifest contract and gate criteria.
+**`--warrants` / `--blind` / `--inquiry` / `--refs` / `--gate`:** Per-action review, reference diagnostics, and gating views. Review views are layered on top of the merged `ReviewManifest`; reference diagnostics report citation/local-reference/artifact state from compiled provenance. See [CLI Workflow Command Guide § `gaia build check`](../../for-users/cli-commands.md#gaia-build-check) for the full review-loop semantics, and [`review-pipeline.md`](../review/review-pipeline.md) for the manifest contract and gate criteria.
 
 **Prior contract:** External priors belong only on independent probabilistic inputs to exported goals that are not already pinned by a zero-premise `observe(...)`. A zero-premise `observe(...)` sets its conclusion to `1 - CROMWELL_EPS`; claims concluded by `derive(...)`, `compute(...)`, or `observe(..., given=...)` get their belief from the graph and should not receive manual priors. Structural/helper claims from propositional expressions, `infer(...)`, `associate(...)`, relation verbs (`equal`, `contradict`, `exclusive`), and generated formalization internals also carry no independent prior. If an independent input is intentionally left without an external prior, Gaia uses the Jaynes maximum-entropy distribution over the remaining independent degrees of freedom subject to declared hard constraints.
 
@@ -213,7 +223,8 @@ gaia run infer [PATH] [--depth N]
 7. Runs `InferenceEngine()` (from `gaia/engine/bp/engine.py`), which auto-selects the
    algorithm: Mean Field VI for graphs with more than 2000 variables, exact JT
    for graphs with treewidth <= 20, and TRW-BP for the remaining wider graphs.
-   Defaults: `bp_max_iter=200, bp_threshold=1e-8`.
+   Defaults: `trw_damping=0.5, trw_max_iter=200, trw_threshold=1e-8,
+   mf_max_iter=500, exact_max_vars=26`.
 8. Writes results to `.gaia/beliefs.json` — per-knowledge beliefs and
    convergence diagnostics.
 
@@ -347,6 +358,7 @@ Local review loop and proof-state ledger. Reads the compiled IR, the merged revi
 
 ```
 gaia inquiry focus [TARGET]            # set / clear / push / pop / inspect focus
+gaia inquiry context [PATH]            # render a read-only focus context packet
 gaia inquiry obligation add|list|close
 gaia inquiry hypothesis add|list|remove
 gaia inquiry reject [TARGET]
@@ -403,9 +415,9 @@ playback of an LKM discovery run. It expects
 | Stage    | Command          | Key Artifacts |
 |----------|------------------|---------------|
 | Init     | `gaia build init`      | `pyproject.toml` with `[tool.gaia]`, `src/<import_name>/__init__.py` with DSL template |
-| Scaffold | `gaia pkg scaffold` | Minimal agent-facing package skeleton with `pyproject.toml`, `src/<import_name>/__init__.py`, `.gaia/.gitkeep` |
-| Author   | `gaia author` / `gaia bayes` | Appended Python DSL statements in package source files |
-| Module plumbing | `gaia pkg add-module` / `gaia pkg add-import` | Sibling Python modules and idempotent import lines |
+| Scaffold | `gaia pkg scaffold` | Minimal package skeleton with `pyproject.toml`, a direct-authoring package root, `src/<import_name>/authored/__init__.py`, and `.gaia/.gitkeep` |
+| Author   | `gaia author` / `gaia bayes` | Optional helper-appended Python DSL snippets under `src/<import_name>/authored/` |
+| Module plumbing | `gaia pkg add-module` / `gaia pkg add-import` | Sibling modules under `authored/` and idempotent import lines |
 | Compile  | `gaia build compile`   | `.gaia/ir.json`, `.gaia/ir_hash`, `.gaia/compile_metadata.json`, `.gaia/formalization_manifest.json`, `.gaia/manifests/{exports,premises,holes,bridges}.json` |
 | Check    | `gaia build check`     | (validation only) |
 | Add      | `gaia pkg add`       | Updated `pyproject.toml` dependencies, `uv.lock` |

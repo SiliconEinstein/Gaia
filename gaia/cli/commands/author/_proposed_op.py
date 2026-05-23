@@ -4,8 +4,7 @@ The :class:`ProposedAuthorOp` value is the bridge between the CLI flag
 surface (verb-specific argparse-shaped inputs) and the verb-agnostic
 pre-write check pipeline (:mod:`._prewrite`). Each verb constructs one of
 these from its parsed arguments, hands it to ``prewrite_check``, and on
-pass appends ``generated_code`` to ``target_path / source_root /
-__init__.py``.
+pass appends ``generated_code`` to the resolved ``authored/`` target file.
 
 The dataclass intentionally mirrors the v0.5 runtime taxonomy from
 ``gaia.engine.lang.runtime.action`` — ``Reasoning`` vs ``GaiaGraph`` —
@@ -82,7 +81,7 @@ class ProposedAuthorOp:
     # owned payload fields (``target``, ``written_to``, ``label``,
     # ``verb``, ``snippet``, ``auto_generated``, ``check``).
     extra_payload: dict[str, Any] = field(default_factory=dict)
-    # Multi-file target: the relative path under ``src/<import_name>/``
+    # Multi-file target: the relative path under ``src/<import_name>/authored/``
     # the verb writes to. ``None`` selects ``__init__.py`` (the default).
     # Path is resolved by the runner against the source root discovered
     # in pre-write invariant (a).

@@ -1,8 +1,10 @@
 # `gaia bayes`
 
-> **Status:** Reference for the Bayesian-modelling cli surface (v0.5).
+> **Status:** Reference for the optional Bayesian-modelling CLI helper
+> surface (v0.5). The full native authoring surface is direct Python DSL via
+> `gaia.engine.bayes`; run `gaia sdk` for the SDK reference.
 
-The `gaia bayes` subcommand group exposes the engine's
+The `gaia bayes` subcommand group exposes a structured CLI subset of the engine's
 [`gaia.engine.bayes`](https://github.com/SiliconEinstein/gaia/tree/main/gaia/engine/bayes)
 authoring surface through structured cli verbs. It mirrors the engine's
 organisation: `model` + `compare` + one verb per shipping
@@ -31,7 +33,9 @@ for the contract.
 | Continuous dist | `chi-squared` | `ChiSquared(content, df=…)` |
 
 Every verb shares the statement-writing flags `--target`, `--file`, `--label`,
-`--check / --no-check`, `--human`, `--interactive`, and `--metadata`.
+`--check / --no-check`, `--human`, `--interactive`, and `--metadata`. Like
+`gaia author`, writes are routed into the package's re-exported `authored/`
+submodule.
 `model` and `compare` also expose the explicit `--json / --no-json`
 courtesy switch used by `gaia author`; the distribution-literal verbs keep
 JSON output as their default contract without surfacing that alias. Distribution
@@ -138,9 +142,9 @@ gaia pkg scaffold --target ./mendel-cli-mirror-gaia \
 
 # Declare typed variables for observables
 gaia author variable --symbol n_f2 --domain Nat --value 395 \
-    --label f2_total_count --target ./mendel-cli-mirror-gaia
+    --dsl-binding-name f2_total_count --target ./mendel-cli-mirror-gaia
 gaia author variable --symbol k_dominant --domain Nat --value 295 \
-    --label f2_dominant_count --target ./mendel-cli-mirror-gaia
+    --dsl-binding-name f2_dominant_count --target ./mendel-cli-mirror-gaia
 
 # ... (claims + observations) ...
 

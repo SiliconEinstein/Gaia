@@ -8,7 +8,7 @@ Maps to ``gaia.engine.lang.dsl.relate.equal``:
 
 The CLI requires ``--label`` so the helper Claim returned by ``equal``
 is referenceable in subsequent author commands (the underlying DSL
-function makes ``label`` optional, but the agent-facing CLI promotes it
+function makes ``label`` optional, but the structured CLI helper promotes it
 to required for binding hygiene).
 """
 
@@ -101,7 +101,7 @@ def equal_command(
     file: str | None = typer.Option(
         None,
         "--file",
-        help=("Relative path under src/<import_name>/ to write into. Default: `__init__.py`."),
+        help=("Path under src/<import_name>/authored/. Default: authored/__init__.py."),
     ),
     rationale: str | None = typer.Option(
         None, "--rationale", help="Optional natural-language justification."

@@ -17,9 +17,12 @@ Start with [What is Gaia?](for-visitors/what-is-gaia.md).
 authoring is the primary path; the `gaia author` CLI is an optional
 convenience. Read the [Authoring workflow](for-users/authoring-workflow.md)
 for the canonical model, the [Quick Start](for-users/quick-start.md), the
-[Hole And Bridge Tutorial](for-users/hole-bridge-tutorial.md), the
-[Language Reference](for-users/language-reference.md) DSL cheat sheet, and
-[CLI Commands](for-users/cli-commands.md).
+[Language Reference](for-users/language-reference.md) DSL cheat sheet, the
+[CLI Overview](for-users/cli-overview.md), and the
+[CLI task guides](for-users/cli-task-guides/create-package.md) for the grouped
+command surface. The
+[Hole And Bridge Tutorial](for-users/hole-bridge-tutorial.md) is an advanced
+cross-package workflow, not the next step for a first package.
 
 ### I want to develop Gaia
 > You're a developer working on the codebase.
@@ -43,11 +46,15 @@ The [Foundations](foundations/README.md) directory contains Gaia's conceptual re
 | [Gaia Lang Design](foundations/gaia-lang/knowledge-and-reasoning.md) | What is the authoring language model? | Sometimes |
 | [Gaia IR Design](foundations/gaia-ir/01-overview.md) | What is the persistent reasoning contract? | Sometimes |
 | [BP](foundations/bp/inference.md) | How does inference work? | Sometimes |
-| [CLI](foundations/cli/workflow.md) | How does local authoring work? | Often |
+| [CLI task guides](for-users/cli-overview.md) | How do I use the grouped CLI? | Often |
+| [CLI internals](foundations/cli/workflow.md) | How do CLI artifacts and pipelines work internally? | Often |
 | [Python API](reference/engine/index.md) | What do current Gaia Lang, Gaia IR, BP, CLI, and logic modules expose? | Often |
 | LKM | How does the server work? | [gaia-lkm repo](https://github.com/SiliconEinstein/gaia-lkm) |
 
 ## Other Resources
+
+These repository directories are intentionally outside the published MkDocs
+site unless linked through a current public page.
 
 | Directory | Contents |
 |-----------|----------|

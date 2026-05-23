@@ -160,7 +160,7 @@ def render_index_markdown(docs: tuple[ModuleDoc, ...]) -> str:
         lines.append(f"- [`{doc.module}`]({page}) — {len(doc.symbols)} public symbols")
     lines.append("")
     lines.append(
-        "Author your DSL directly in `src/<pkg>/__init__.py` (and your own "
+        "Author your DSL directly in `src/<import_name>/__init__.py` (and your own "
         "modules); the `gaia author` CLI is an optional convenience that writes "
         "into the re-exported `authored/` submodule. See "
         "`docs/for-users/authoring-workflow.md` for the full model."

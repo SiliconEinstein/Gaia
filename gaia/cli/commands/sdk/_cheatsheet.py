@@ -13,7 +13,7 @@ CHEATSHEET_MD = """\
 
 One page, every verb/term/distribution with a copy-pasteable example.
 **Author your DSL directly** — write these statements in
-`src/<pkg>/__init__.py` (or your own modules). The `gaia author` CLI is an
+`src/<import_name>/__init__.py` (or your own modules). The `gaia author` CLI is an
 optional convenience; it writes the same statements into the re-exported
 `authored/` submodule.
 

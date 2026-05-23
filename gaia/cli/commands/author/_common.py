@@ -259,8 +259,8 @@ def emit_syntax_error(
 def normalize_file_option(file: str | None) -> str | None:
     """Normalize ``--file`` input for ``ProposedAuthorOp.target_file``.
 
-    The runner treats ``None`` as "use the source-root ``__init__.py``" so
-    the existing behaviour for the default case stays unchanged. A bare
+    The runner treats ``None`` as "use ``authored/__init__.py``" so the
+    existing behaviour for the default case stays unchanged. A bare
     string is passed through; whitespace + leading-dot prefixes (``./``)
     are trimmed because users intuitively type them but `pathlib.Path`
     sees them as separate path components.

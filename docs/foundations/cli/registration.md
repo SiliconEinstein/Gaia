@@ -13,7 +13,11 @@ Registry -- a Julia General Registry-style GitHub repository. Source code stays
 in the author's GitHub repo; the registry stores package metadata plus release
 interface manifests that consumers can resolve without importing author code.
 
-Registration produces a pull request against the registry repo. Registry CI validates the submission (recompiles, verifies IR hash, checks deps), then auto-merges after a waiting period.
+Registration can either print a dry-run JSON plan, write metadata into a local
+registry checkout, or push that registry branch and open a pull request when
+`--registry-dir --create-pr` are supplied. Any CI validation, waiting period, or
+auto-merge behavior belongs to the registry repository policy, not to the local
+CLI command itself.
 
 ## Prerequisites
 
@@ -21,7 +25,7 @@ Before running `gaia pkg register`, the following conditions must hold:
 
 1. **`[tool.gaia].uuid`** is set in `pyproject.toml` and is a valid UUID.
 2. **`[project].name`** ends with `-gaia` (the naming convention for Gaia packages).
-3. **Package compiled and validated** -- `gaia build compile` and `gaia build check` must have been run. The command verifies `.gaia/ir_hash` exists and matches the current compilation output.
+3. **Fresh compiled artifacts exist** -- `gaia build compile` should have been run. The command recompiles and verifies `.gaia/ir_hash` and `.gaia/ir.json` match the current output. Running `gaia build check` first is recommended but not a hidden prerequisite.
 4. **IR validation passes** -- the compiled IR is loaded as a `LocalCanonicalGraph` and validated; any validation errors abort registration.
 5. **Git worktree is clean** -- `git status --short` must produce no output.
 6. **Git tag exists and points to HEAD** -- by default, the tag is `v<version>` (override with `--tag`). The tag's resolved SHA must equal `HEAD`.
@@ -198,7 +202,9 @@ Without `--create-pr`, the command prints a "next step" message instructing the 
 
 ## Registry CI Overview
 
-After the PR is created, registry CI (`register.yml`) takes over:
+After the PR is created, the registry repository may run a CI policy such as
+`register.yml`. The local `gaia pkg register` command does not wait for, gate
+on, or guarantee these jobs:
 
 - **Untrusted sandbox job**: Clones the package repo by pinned SHA, installs the Gaia runtime, runs `gaia build compile` and `gaia build check`, and verifies the resulting `ir_hash` matches the declared value. Also verifies all Gaia dependencies are already registered. **Validates that `namespace` matches the registry** — the GitHub Official Registry requires `namespace == "github"`. Author code is executed here, but the job has no registry write permissions.
 - **Trusted gate job**: Does not execute author code. Verifies UUID uniqueness for new packages, checks ownership policy, labels the PR, and applies the waiting-period policy.
@@ -250,5 +256,5 @@ gaia pkg register . --registry-dir ~/gaia-registry
 # 4. Push and open PR in one step
 gaia pkg register . --registry-dir ~/gaia-registry --create-pr
 
-# 5. Registry CI validates, waits, and auto-merges
+# 5. Registry-side CI/policy validates and merges according to that repo's rules
 ```

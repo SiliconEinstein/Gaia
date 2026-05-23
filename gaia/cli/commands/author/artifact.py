@@ -115,7 +115,7 @@ def artifact_command(
     title: str | None = typer.Option(None, "--title", help="Optional note title."),
     target: str = typer.Option(".", "--target", help="Path to the target Gaia package."),
     file: str | None = typer.Option(
-        None, "--file", help="Relative module file under src/<import_name>."
+        None, "--file", help="Relative module file under src/<import_name>/authored/."
     ),
     export: bool = typer.Option(False, "--export/--no-export", help="Export the artifact binding."),
     check: bool = typer.Option(True, "--check/--no-check", help="Run post-write build check."),
@@ -176,7 +176,7 @@ def figure_command(
     title: str | None = typer.Option(None, "--title", help="Optional note title."),
     target: str = typer.Option(".", "--target", help="Path to the target Gaia package."),
     file: str | None = typer.Option(
-        None, "--file", help="Relative module file under src/<import_name>."
+        None, "--file", help="Relative module file under src/<import_name>/authored/."
     ),
     export: bool = typer.Option(False, "--export/--no-export", help="Export the figure binding."),
     check: bool = typer.Option(True, "--check/--no-check", help="Run post-write build check."),

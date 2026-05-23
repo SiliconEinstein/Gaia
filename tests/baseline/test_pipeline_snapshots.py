@@ -71,7 +71,7 @@ def test_check_brief_galileo_snapshot(compiled_galileo: Path, run_gaia, snapshot
 
 
 def test_check_warrants_galileo_snapshot(compiled_galileo: Path, run_gaia, snapshot) -> None:
-    """Gaia build check --warrants examples/galileo-v0-5-gaia → v6 warrant manifest dump."""
+    """Gaia build check --warrants examples/galileo-v0-5-gaia → warrant manifest dump."""
     result = run_gaia("build", "check", str(compiled_galileo), "--warrants")
     assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot

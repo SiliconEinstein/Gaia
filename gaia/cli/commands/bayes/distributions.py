@@ -135,7 +135,9 @@ def binomial_command(
         ..., "--p", help="Success probability: numeric literal or bare identifier."
     ),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -178,7 +180,9 @@ def betabinomial_command(
     alpha: str = typer.Option(..., "--alpha", help="Beta prior alpha (>0): literal or identifier."),
     beta: str = typer.Option(..., "--beta", help="Beta prior beta (>0): literal or identifier."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -220,7 +224,9 @@ def poisson_command(
     label: str = typer.Option(..., "--label", help="Identifier the Poisson binding takes."),
     rate: str = typer.Option(..., "--rate", help="Poisson rate (>0): literal or identifier."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -265,7 +271,9 @@ def normal_command(
     mu: str = typer.Option(..., "--mu", help="Location parameter: literal or identifier."),
     sigma: str = typer.Option(..., "--sigma", help="Scale parameter (>0): literal or identifier."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -305,7 +313,9 @@ def lognormal_command(
     mu: str = typer.Option(..., "--mu", help="Location parameter of the underlying Normal."),
     sigma: str = typer.Option(..., "--sigma", help="Scale of the underlying Normal (>0)."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -346,7 +356,9 @@ def beta_command(
     alpha: str = typer.Option(..., "--alpha", help="Shape alpha (>0): literal or identifier."),
     beta: str = typer.Option(..., "--beta", help="Shape beta (>0): literal or identifier."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -386,7 +398,9 @@ def exponential_command(
     label: str = typer.Option(..., "--label", help="Identifier the Exponential binding takes."),
     rate: str = typer.Option(..., "--rate", help="Rate (>0): literal or identifier."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -426,7 +440,9 @@ def gamma_command(
     alpha: str = typer.Option(..., "--alpha", help="Shape parameter (>0)."),
     rate: str = typer.Option(..., "--rate", help="Rate parameter (>0)."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -467,7 +483,9 @@ def studentt_command(
     mu: str = typer.Option("0.0", "--mu", help="Location parameter (default 0.0)."),
     sigma: str = typer.Option("1.0", "--sigma", help="Scale parameter (default 1.0, >0)."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -508,7 +526,9 @@ def cauchy_command(
     mu: str = typer.Option(..., "--mu", help="Location parameter."),
     gamma: str = typer.Option(..., "--gamma", help="Scale parameter (>0)."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),
@@ -547,7 +567,9 @@ def chisquared_command(
     label: str = typer.Option(..., "--label", help="Identifier the ChiSquared binding takes."),
     df: str = typer.Option(..., "--df", help="Degrees of freedom (>0)."),
     target: str = typer.Option(".", "--target", help="Target package path."),
-    file: str | None = typer.Option(None, "--file", help="Relative file under src/<pkg>/."),
+    file: str | None = typer.Option(
+        None, "--file", help="Relative file under src/<import_name>/authored/."
+    ),
     metadata: str | None = typer.Option(None, "--metadata", help="JSON metadata."),
     check: bool = typer.Option(True, "--check/--no-check"),
     human: bool = typer.Option(False, "--human"),

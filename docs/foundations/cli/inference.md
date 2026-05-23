@@ -290,17 +290,20 @@ expensive.
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| `bp_damping` | 0.5 | Blending coefficient alpha. 1.0 = full replacement, 0.5 = half-step. |
-| `bp_max_iter` | 200 | Upper bound on sweep iterations |
-| `bp_threshold` | 1e-8 | Convergence threshold |
 | `jt_max_treewidth` | 20 | JT selected when treewidth <= this |
 | `mf_node_limit` | 2000 | Mean Field VI selected when variable count exceeds this |
+| `trw_damping` | 0.5 | TRW-BP blending coefficient. 1.0 = full replacement, 0.5 = half-step. |
+| `trw_max_iter` | 200 | Upper bound on TRW-BP sweep iterations |
+| `trw_threshold` | 1e-8 | TRW-BP convergence threshold |
+| `mf_max_iter` | 500 | Mean Field VI iteration limit |
+| `exact_max_vars` | 26 | Maximum variable count for forced brute-force exact enumeration |
 
 ### Convergence
 
-BP stops early when the maximum belief change across all variables falls below
-`bp_threshold`. If `bp_max_iter` is exhausted without convergence, the result
-is returned with `diagnostics.converged = False`.
+TRW-BP stops early when the maximum belief change across all variables falls
+below `trw_threshold`. If `trw_max_iter` is exhausted without convergence, the
+result is returned with `diagnostics.converged = False`. JT is exact and records
+its own diagnostic pass count.
 
 ### Diagnostics
 
@@ -321,9 +324,15 @@ After inference completes, `gaia run infer` prints:
 
 ```
 Inferred 42 beliefs
-Method: JT (exact), 3ms
+Method: JT (exact), treewidth=6, 3ms
+Converged: True after 2 iterations
 Output: /path/to/package/.gaia/beliefs.json
+Note: belief = posterior probability of the claim under the auto-compiled Bayesian network; unassigned variables are MaxEnt/free under the base counting measure; no synthetic 0.5 unary prior factor is inserted.
 ```
+
+An explicit `0.5` prior is still a real unary factor and is distinguishable from
+an unassigned free variable in the factor graph. Add priors through `priors.py`
+or `gaia author register-prior` when you want a sourced probabilistic input.
 
 ## Lowering to Factor Graph
 

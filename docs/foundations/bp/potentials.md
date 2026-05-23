@@ -14,11 +14,14 @@
 - `conclusion`：输出变量 ID（与 `variables` 不交）。
 - 参数化因子额外携带：`SOFT_ENTAILMENT` 使用 `p1`, `p2`；`CONDITIONAL` 使用 `cpt`（长度 `2^k`）。
 
-## 确定性算子（strict delta）
+## 确定性算子（logical truth table + Cromwell-soft runtime）
 
-真值表一致时 ψ = `1.0`，否则 ψ = `0.0`。Cromwell clamp 用于 unary
-evidence / priors 和 soft 概率参数；确定性 operator potential 本身保持硬
-0/1。
+逻辑真值表层面，算子一致时 ψ = `1.0`，否则 ψ = `0.0`。这是
+`evaluate_potential(...)` 和下表表达的离散逻辑。当前 exact /
+junction-tree / contraction 推理路径会把确定性张量 Cromwell-soften 为
+`1-ε` / `ε`，避免 hard zero 让整条链出现不可更新的零概率。换句话说：
+逻辑语义仍是 hard truth table；数值推理张量使用 softened deterministic
+potentials。
 
 | FactorType | 语义 | 理论参照 |
 |------------|------|---------|

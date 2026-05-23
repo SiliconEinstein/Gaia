@@ -1,10 +1,13 @@
 # Gaia IR — 结构定义
 
-> **Status:** Target design — 基于 [theory](../theory/01-plausible-reasoning.md) 层设计，整合 Issue #231（template → claim with parameters）
+> **Status:** Current v0.5 structure contract, with target/future notes called out — 基于 [theory](../theory/01-plausible-reasoning.md) 层设计，整合 Issue #231（template → claim with parameters）
 >
 > **⚠️ Protected Contract Layer** — 本目录定义 CLI↔LKM 结构契约。变更需要独立 PR 并经负责人审查批准。
 
-Gaia IR 编码推理超图的拓扑结构——**什么连接什么**。它不包含任何概率值。
+Gaia IR 编码推理超图的拓扑结构——**什么连接什么**。Claim prior
+和 posterior belief 不写进 IR graph；但 v0.5 的 leaf Strategy 字段会携带
+局部条件概率参数（例如 `infer.conditional_probabilities`、
+`associate.p_a_given_b` / `p_b_given_a`）。
 
 概率参数见 [06-parameterization.md](06-parameterization.md)。推理输出见 [../bp/belief-state.md](../bp/belief-state.md)。三者的关系见 [01-overview.md](01-overview.md)。backend-facing lowering 语义见 [07-lowering.md](07-lowering.md)。具体的概率推理算法见 [BP inference](../bp/inference.md)。
 
@@ -500,7 +503,11 @@ FormalStrategy(type=support, premises=[A₁,...,Aₖ], conclusion=C):
 
 #### `noisy_and`（deprecated）
 
-**已废弃，使用 `support` 替代。** `noisy_and` 在代码中仍可使用但会发出 `DeprecationWarning`，编译时自动转换为 `support`。
+**已废弃，使用 `support` 替代。** Python DSL 兼容函数
+`gaia.engine.lang.dsl.strategies.noisy_and(...)` 会发出
+`DeprecationWarning` 并在 authoring 时返回 `support`。Raw IR 中的
+`StrategyType.NOISY_AND` 仍是可验证、可 lowering 的兼容输入；它不会在
+IR validator 中被重写。
 
 #### `compare`（预测比较）
 

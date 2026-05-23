@@ -105,8 +105,10 @@ for this common reviewer path.
 
 ## 5. Python DSL example
 
-The following example is intentionally self-contained: each interpretation claim
-explains the physics jargon it uses.
+Use the CMB B-mode package from
+[Formula Logic § Worked Physics Example](../gaia-lang/formula-logic.md#6-worked-physics-example)
+as the source graph. That page owns the full claim/formula setup; this page
+starts from the compiled artifact and focuses on scoring the emitted diagnostic:
 
 ```python
 from gaia.engine.ir.logic import (
@@ -114,63 +116,7 @@ from gaia.engine.ir.logic import (
     inspect_formula_graphs,
     score_diagnostic_conditions,
 )
-from gaia.engine.lang import ClaimAtom, associate, claim, land, lnot
 from gaia.engine.lang.compiler import compile_package_artifact
-from gaia.engine.lang.runtime.package import CollectedPackage
-
-with CollectedPackage("cmb_bmode_logic_e2e", namespace="physics", version="0.1.0") as pkg:
-    bmode_excess = claim(
-        "BICEP2 reports a degree-scale CMB B-mode excess, meaning an unexpectedly "
-        "strong curl-like polarization pattern in the cosmic microwave background "
-        "on degree angular scales.",
-        prior=0.9,
-    )
-    bmode_excess.label = "bmode_excess"
-
-    primordial_tensor = claim(
-        "The B-mode excess is dominated by primordial tensor modes, meaning "
-        "gravitational-wave fluctuations from early-universe inflation rather than "
-        "later astrophysical foregrounds.",
-        prior=0.4,
-    )
-    primordial_tensor.label = "primordial_tensor"
-
-    tensor_interpretation = claim(
-        "BICEP2 interpretation: BICEP2 reports a degree-scale CMB B-mode excess, "
-        "meaning an unexpectedly strong curl-like polarization pattern in the "
-        "cosmic microwave background; this claim says the excess is mainly a "
-        "primordial tensor signal, meaning gravitational-wave fluctuations from "
-        "early-universe inflation rather than later astrophysical foregrounds.",
-        formula=land(ClaimAtom(bmode_excess), ClaimAtom(primordial_tensor)),
-        prior=0.4,
-    )
-    tensor_interpretation.label = "bicep2_tensor_interpretation"
-
-    dust_interpretation = claim(
-        "Planck foreground interpretation: BICEP2 reports a degree-scale CMB "
-        "B-mode excess, meaning an unexpectedly strong curl-like polarization "
-        "pattern in the cosmic microwave background; this claim says the excess "
-        "is mainly Galactic dust foreground, meaning polarized emission from "
-        "dust in the Milky Way, not primordial tensor modes from inflationary "
-        "gravitational waves.",
-        formula=land(ClaimAtom(bmode_excess), lnot(ClaimAtom(primordial_tensor))),
-        prior=0.6,
-    )
-    dust_interpretation.label = "planck_dust_interpretation"
-
-    tension = associate(
-        tensor_interpretation,
-        dust_interpretation,
-        p_a_given_b=0.5,
-        p_b_given_a=0.75,
-        pattern=None,
-        rationale=(
-            "Corpus/reviewer state still gives nontrivial belief to both historical "
-            "interpretations, so the logic warning should be probability-scored."
-        ),
-        label="bmode_interpretation_tension",
-    )
-    tension.label = "bmode_tension_helper"
 
 artifact = compile_package_artifact(pkg)
 report = inspect_formula_graphs(artifact.graph)

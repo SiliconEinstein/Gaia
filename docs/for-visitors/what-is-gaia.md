@@ -28,7 +28,9 @@ Knowledge extraction itself is **author-side or agent-side work**, not an automa
 
 ## What Gaia Is NOT
 
-- **Not a search engine.** It does not find papers -- it reasons about what they say.
+- **Not a general-purpose search engine.** Retrieval adapters such as `gaia search lkm`
+  can bring candidate papers or packages into the workflow, but Gaia's core job is
+  reasoning about structured claims, not ranking arbitrary literature results.
 - **Not a chatbot.** It does not generate text or answer questions in natural language.
 - **Not a citation manager.** It does not track who cited whom -- it tracks which claims depend on which evidence and how much each claim should be trusted.
 

@@ -11,7 +11,7 @@ closes the gaps that earlier docs left ambiguous.
 **Tier 1 — direct SDK authoring (recommended).** Write the DSL directly in
 Python. Run `gaia sdk` once to drop a self-contained reference plus a
 one-page `CHEATSHEET.md` next to your work, read the cheat sheet, then
-author your statements in `src/<pkg>/__init__.py` (and your own modules).
+author your statements in `src/<import_name>/__init__.py` (and your own modules).
 This is the primary path for everyone — humans and agents alike.
 
 ```bash
@@ -23,7 +23,8 @@ gaia run infer ./my-package-gaia
 ```
 
 **Tier 2 — the `gaia author` CLI (optional convenience).** `gaia author
-<verb>` CRUDs DSL statements through structured, JSON-enveloped commands.
+<verb>` appends or inspects DSL statements through structured,
+JSON-enveloped commands.
 It is a convenience layer over Tier 1 — useful when you want machine-checked
 appends, identifier-collision guards, and a post-write compile check — not a
 separate or "agent-first" authoring path. Use it when it helps; skip it when

@@ -1,9 +1,10 @@
-# CLI Commands
+# CLI Workflow Command Guide
 
 > **Status:** Current canonical (alpha 0)
 
-Workflow-oriented reference for the Gaia Lang v0.5 CLI. The installed entrypoint
-is `gaia`; the installed `gaia --help` output and generated
+Workflow-oriented command guide for the Gaia Lang v0.5 CLI. Start with
+[CLI Overview](cli-overview.md) for the grouped-command model and task-guide
+map. The installed entrypoint is `gaia`; the installed `gaia --help` output and
 [`docs/reference/cli`](../reference/cli/index.md) pages are the command-surface
 authority when this guide and the executable diverge.
 
@@ -11,19 +12,30 @@ v0.5 organizes authoring, compilation, inference, review, and registry workflows
 into explicit command groups:
 
 ```text
+gaia sdk      (no subcommands)                  Generate SDK reference + cheat sheet
 gaia build    init / compile / check          Create and validate a package
 gaia run      infer / render                  Execute inference + render
 gaia inspect  starmap / starmap-replay        Visualize the compiled graph
 gaia review   (skeleton — no commands yet)    Reserved for reviewer tooling
-gaia inquiry  focus / review / obligation /   Local semantic-inquiry loop
-              hypothesis / tactics / reject
+gaia inquiry  focus / context / review /      Local semantic-inquiry loop
+              obligation / hypothesis /
+              tactics / reject
 gaia pkg      add / add-import / add-module / Package dependencies, modules,
               register / scaffold             scaffolds, and registry publish
-gaia author   claim / note / question /       Agent-first DSL authoring
-              derive / observe / compute /
-              infer / relations / scaffolds
+gaia author   claim / artifact / figure /     Optional structured DSL subset
+              note / question /
+              equal / contradict / exclusive /
+              decompose / derive / observe /
+              compute / infer / associate /
+              parameter / register-prior /
+              variable / depends-on /
+              candidate-relation / materialize /
+              compose / composition / list
 gaia bayes    model / compare /               Bayesian model and distribution
               distribution literals           authoring helpers
+gaia example  galileo / mendel                Print runnable example scripts
+gaia skill    register / list                 Materialize bundled agent skills
+gaia search   lkm ...                         Search retrieval providers
 gaia trace    verify / review / show          ARM Trace tooling (independent)
 ```
 
@@ -31,15 +43,16 @@ gaia trace    verify / review / show          ARM Trace tooling (independent)
 > is **different** from `gaia inquiry review` and `gaia trace review`,
 > which are pre-existing inner subcommands and keep their invocation paths.
 
-Authoring the DSL directly is the primary path — run [`gaia sdk`](authoring-workflow.md) to get
-the SDK reference + cheat sheet (see the
-[authoring workflow](authoring-workflow.md)). For the full generated
+Authoring the DSL directly is the primary path — run
+[`gaia sdk`](../reference/cli/sdk.md) to get the SDK reference + cheat sheet
+(see the [authoring workflow](authoring-workflow.md)). For the full generated
 references of the optional authoring-helper surfaces, see
 [`gaia author`](../reference/cli/author.md) and
-[`gaia bayes`](../reference/cli/bayes.md).
+[`gaia bayes`](../reference/cli/bayes.md). For the full generated references
+of all command groups, see [`docs/reference/cli`](../reference/cli/index.md).
 
 For the old-to-new verb mapping (and the related Python import-path
-changes), see [Migration to alpha 0](../migration.md).
+changes), see [Migration to alpha 0](../releases/migration-alpha-0.md).
 
 ## Top-level options
 
@@ -69,6 +82,21 @@ Use `--version` in CI logs and bug reports so the IR schema and channel
 are unambiguous when debugging registry / dependency mismatches.
 `.gaia/compile_metadata.json` records the compiled `ir_hash` and
 `gaia_lang_version`; use `gaia --version` for the schema string.
+
+## `gaia sdk`
+
+Generate the SDK reference and top-level cheat sheet. This is the first stop for
+authoring because direct Python DSL is the full native surface.
+
+```bash
+gaia sdk
+gaia sdk --out ./gaia-sdk
+```
+
+The command writes `CHEATSHEET.md` and the full Markdown reference into `--out`.
+After reading the cheat sheet, author statements directly in package source.
+`gaia author` and `gaia bayes` are optional structured helpers for checked
+snippets, not replacements for the full SDK surface.
 
 ## `gaia build`
 
@@ -128,6 +156,7 @@ gaia build check --hole [path]
 gaia build check --warrants [path]
 gaia build check --warrants --blind [path]
 gaia build check --inquiry [path]
+gaia build check --refs [path]
 gaia build check --gate [path]
 ```
 
@@ -136,9 +165,10 @@ gaia build check --gate [path]
 | `--brief`, `-b` | Per-module overview: claims (with roles), strategies, operators |
 | `--show`, `-s` | Expand a specific module or claim/strategy label with full warrant trees |
 | `--hole` | Detailed prior contract report: MaxEnt independent DOF + covered inputs |
-| `--warrants` | Show v6 `ReviewManifest` warrants and audit questions for reviewable actions |
+| `--warrants` | Show `ReviewManifest` warrants and audit questions for reviewable actions |
 | `--blind` | With `--warrants`, hide status values and prior diagnostics to reduce anchoring |
 | `--inquiry` | Show goal-oriented reasoning progress and review status |
+| `--refs` | Show citation, local-reference, and artifact diagnostics |
 | `--gate` | Run quality-gate checks and exit non-zero when the package is not publishable |
 
 What it checks:
@@ -176,6 +206,9 @@ Use the variants for different review loops:
   warrants without seeing author status or prior diagnostics first.
 - `gaia build check --inquiry .` when you want a goal-oriented progress view:
   exported claims, review status, open gaps, and blocked reasoning steps.
+- `gaia build check --refs .` when you need citation, local-reference, and
+  artifact diagnostics. Combine with `--gate` in CI when reference failures
+  should block publication.
 - `gaia build check --gate .` in CI or before publication. Treat a non-zero
   exit as a package-quality failure, not as an inference failure.
 
@@ -447,7 +480,7 @@ create DSL records by itself.
 
 ### `gaia pkg add-module`
 
-Create a sibling Python module under `src/<import_name>/`.
+Create a sibling Python module under `src/<import_name>/authored/`.
 
 ```bash
 gaia pkg add-module --name priors --imports register_prior
@@ -587,5 +620,5 @@ current canonical replacements.
 
 Invoking one of the removed flat verbs now fails with typer's standard
 `No such command` usage error and exits with code 2 — no side effects, no
-partial work. See [Migration to alpha 0](../migration.md) for the full
+partial work. See [Migration to alpha 0](../releases/migration-alpha-0.md) for the full
 old-to-new mapping.

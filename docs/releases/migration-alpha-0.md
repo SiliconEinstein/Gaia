@@ -2,7 +2,7 @@
 
 Alpha 0 introduces the `gaia.engine.*` Python contract and moves the old flat
 CLI verbs under grouped paths. The current v0.5 CLI also includes net-new
-agent-facing groups such as `author` and `bayes`. This guide covers the three
+structured helper groups such as `author` and `bayes`. This guide covers the three
 migration layers you may need to update:
 
 1. **CLI verb migration** — how to update `gaia <verb>` invocations.
@@ -54,7 +54,7 @@ and `pkg add-module` are current v0.5 additions, not old flat-verb mappings.
 | `review` | *(skeleton — no commands yet)* | Reserved for downstream reviewer tooling |
 | `inquiry` | `focus` / `review` / `obligation [add\|list\|close]` / `hypothesis [add\|list\|remove]` / `tactics log` / `reject` | Local semantic inquiry loop *(unchanged)* |
 | `pkg` | `add` / `add-import` / `add-module` / `register` / `scaffold` | Install dependencies, manage package modules/imports, publish, and bootstrap packages |
-| `author` | `claim` / `note` / `question` / `derive` / `observe` / `compute` / `infer` / relation and scaffold verbs / `compose` | Agent-first DSL authoring helpers |
+| `author` | `claim` / `note` / `question` / `derive` / `observe` / `compute` / `infer` / relation and scaffold verbs / `compose` | Structured helper subset for common Gaia DSL authoring |
 | `bayes` | `model` / `compare` / distribution literals | Bayesian model and distribution authoring helpers |
 | `trace` | `verify` / `review` / `show` | ARM Trace tooling *(unchanged, independent)* |
 
