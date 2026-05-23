@@ -44,6 +44,7 @@ from gaia.engine.exploration.observe import (
     observe_lkm_results,
     promote_materialized_lkm_contacts,
 )
+from gaia.engine.exploration.render import render_map_html
 from gaia.engine.exploration.scorer import score_frontier
 from gaia.engine.exploration.state import (
     DOCTRINE_PRESETS,
@@ -102,6 +103,11 @@ _OBSERVE_QUERY_OPT = typer.Option(
     None,
     "--query",
     help="The LKM query text that surfaced these results (stored on contact meta).",
+)
+_RENDER_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output HTML path (default <pkg>/.gaia/exploration/map.html).",
 )
 
 
@@ -747,3 +753,109 @@ def status_command(
     else:
         for kind in sorted(tally):
             typer.echo(f"    - {kind}: {tally[kind]}")
+
+
+# --------------------------------------------------------------------------- #
+# render                                                                      #
+# --------------------------------------------------------------------------- #
+
+
+def _node_roles(graph: Any) -> tuple[set[str], set[str], dict[str, str]]:
+    """Derive contradiction/support QIDs + a label map from the IR graph (§7g).
+
+    * ``contradiction_qids`` — every QID an authored CONTRADICTION operator ties
+      together (its ``variables`` + ``conclusion``), so a node involved in a
+      contradiction lights up red.
+    * ``support_qids`` — every QID a Strategy (``derive``/support) ties together
+      (``premises`` + ``conclusion`` + ``background``), lighting amber.
+    * ``labels`` — ``qid -> short label`` from each Knowledge node's own ``label``,
+      so the render need not parse QIDs to display a name.
+
+    Best-effort and defensive: a graph missing an attribute simply contributes
+    nothing to that set (the render degrades to QID-suffix labels / no glow).
+    """
+    contradiction: set[str] = set()
+    support: set[str] = set()
+    labels: dict[str, str] = {}
+
+    for knowledge in getattr(graph, "knowledges", []):
+        kid = getattr(knowledge, "id", None)
+        label = getattr(knowledge, "label", None)
+        if isinstance(kid, str) and isinstance(label, str) and label:
+            labels[kid] = label
+
+    for operator in getattr(graph, "operators", []):
+        op_type = getattr(operator, "operator", None)
+        if str(op_type) == "OperatorType.CONTRADICTION" or str(op_type) == "contradiction":
+            refs = [*getattr(operator, "variables", []), getattr(operator, "conclusion", None)]
+            contradiction.update(r for r in refs if isinstance(r, str))
+
+    for strategy in getattr(graph, "strategies", []):
+        refs = list(getattr(strategy, "premises", []) or [])
+        conclusion = getattr(strategy, "conclusion", None)
+        if isinstance(conclusion, str):
+            refs.append(conclusion)
+        refs.extend(getattr(strategy, "background", []) or [])
+        support.update(r for r in refs if isinstance(r, str))
+
+    return contradiction, support, labels
+
+
+@explore_app.command("render")
+def render_command(
+    pkg: str = _PKG_ARG,
+    out: str | None = _RENDER_OUT_OPT,
+) -> None:
+    r"""Render the exploration map to a self-contained static HTML file (SCHEMA §7g).
+
+    Loads the map + the joint root+dependency view + beliefs + the round history,
+    derives each surveyed node's role (seed / contradiction / support) from the
+    IR graph, and writes a single self-contained ``.html`` (inline SVG + CSS, no
+    external assets, no JS) with our own deterministic radial layout: the seed at
+    centre, surveyed nodes ringed by graph distance, frontier contacts on the
+    outer rim. Prints the output path.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia explore render ./pkg
+        gaia explore render ./pkg --out /tmp/galileo-map.html
+    """
+    if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia explore init`/`frontier` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    exploration_map = load_map(pkg)
+    graph = _require_graph(pkg)
+    beliefs = _load_beliefs(pkg)
+    view = _require_joint_view(pkg, graph)
+    rounds = read_rounds(pkg)
+    contradiction_qids, support_qids, labels = _node_roles(graph)
+
+    html_doc = render_map_html(
+        exploration_map,
+        view,
+        beliefs=beliefs,
+        rounds=rounds,
+        contradiction_qids=contradiction_qids,
+        support_qids=support_qids,
+        labels=labels,
+    )
+
+    out_path = (
+        Path(out).resolve() if out is not None else _gaia_dir(pkg) / "exploration" / "map.html"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(html_doc, encoding="utf-8")
+
+    typer.echo(
+        f"Rendered exploration map for {pkg} "
+        f"({len(exploration_map.surveyed)} surveyed, "
+        f"{sum(1 for c in exploration_map.frontier if c.status == 'open')} open contact(s), "
+        f"{len(html_doc)} bytes)."
+    )
+    typer.echo(f"Output: {out_path}")

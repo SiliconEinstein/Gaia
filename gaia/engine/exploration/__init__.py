@@ -23,6 +23,7 @@ from gaia.engine.exploration.observe import (
     observe_lkm_results,
     promote_materialized_lkm_contacts,
 )
+from gaia.engine.exploration.render import render_map_html
 from gaia.engine.exploration.scorer import (
     binary_entropy,
     score_frontier,
@@ -76,6 +77,7 @@ __all__ = [
     "promote_materialized_lkm_contacts",
     "read_rounds",
     "reconcile_frontier",
+    "render_map_html",
     "save_map",
     "save_round_beliefs",
     "score_frontier",
