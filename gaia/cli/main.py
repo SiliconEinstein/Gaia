@@ -2,16 +2,19 @@
 
 The CLI organizes verbs into explicit top-level groups:
 
+  sdk      generate the SDK reference + cheat sheet (start here, then
+           author the DSL directly — the primary path)
   build    init / compile / check
   run      infer / render
   inspect  starmap / starmap-replay
   review   (empty skeleton — held for downstream reviewer tooling)
   inquiry  (sub-app: focus / review / obligation / hypothesis / tactics / reject)
   pkg      add / add-import / add-module / register / scaffold
-  author   claim / equal / derive / note / question / contradict / exclusive /
-           decompose / observe / compute / infer / associate / parameter /
-           register-prior / variable / depends-on / candidate-relation /
-           materialize / compose / composition
+  author   OPTIONAL authoring convenience (primary path: `gaia sdk` + write
+           the DSL directly). claim / equal / derive / note / question /
+           contradict / exclusive / decompose / observe / compute / infer /
+           associate / parameter / register-prior / variable / depends-on /
+           candidate-relation / materialize / compose / composition
   bayes    model / compare / distribution literals
   example  galileo / mendel (print or save the cli walkthrough for a
            shipping v0.5 example package)
@@ -75,6 +78,7 @@ from gaia.cli.commands.inquiry import inquiry_app
 from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
+from gaia.cli.commands.sdk import sdk_command
 from gaia.cli.commands.search import search_app
 from gaia.cli.commands.skill import list_command as skill_list_command
 from gaia.cli.commands.skill import register_command as skill_register_command
@@ -85,10 +89,12 @@ from gaia.cli.commands.trace import trace_app
 _ROOT_EPILOG = (
     "What gaia does:\n\n"
     "  Gaia turns a structured argument — claims, observations, "
-    "derivations — into a compiled Bayesian network. Author packages "
-    "incrementally with `gaia author …`, compile with "
-    "`gaia build compile`, run inference with `gaia run infer`, "
-    "and render a slide-deck-ready artifact with `gaia run render`. "
+    "derivations — into a compiled Bayesian network. Start with "
+    "`gaia sdk` to get the SDK reference + cheat sheet, then author the "
+    "DSL directly in Python (the primary path; `gaia author …` is an "
+    "optional convenience). Compile with `gaia build compile`, run "
+    "inference with `gaia run infer`, and render a slide-deck-ready "
+    "artifact with `gaia run render`. "
     "See `gaia example galileo` for an end-to-end walkthrough.\n\n"
     "What is a knowledge package?\n\n"
     "  A knowledge package is a small Python project that captures a "
@@ -98,7 +104,7 @@ _ROOT_EPILOG = (
     "building one end-to-end.\n\n"
     "Typical authoring flow:\n\n"
     "  $ gaia build init my-pkg-gaia\n\n"
-    '  $ gaia author claim "..." --target ./my-pkg-gaia\n\n'
+    "  $ gaia sdk            # SDK reference + CHEATSHEET.md; author directly\n\n"
     "  $ gaia build compile ./my-pkg-gaia\n\n"
     "  $ gaia run infer ./my-pkg-gaia\n\n"
     "Run `gaia <group> --help` for per-group verb references.\n\n"
@@ -133,6 +139,19 @@ def _callback(
     ),
 ) -> None:
     """Gaia — knowledge package authoring toolkit."""
+
+
+# --------------------------------------------------------------------------- #
+# sdk — the first/primary entry: generate the SDK reference + cheat sheet      #
+# --------------------------------------------------------------------------- #
+#
+# Authoring the Gaia DSL directly via the Python SDK is the recommended
+# first move. `gaia sdk` writes a self-contained Markdown reference plus a
+# one-page CHEATSHEET.md into --out (default ./gaia-sdk/) so an author —
+# human or agent — can read the surface and write DSL statements directly.
+# The `gaia author` CLI is an optional convenience, not a peer first-entry.
+
+app.command(name="sdk")(sdk_command)
 
 
 # --------------------------------------------------------------------------- #
@@ -236,13 +255,16 @@ app.add_typer(pkg_app, name="pkg")
 
 
 # --------------------------------------------------------------------------- #
-# author — agent-first authoring CLI (21 verbs: 18 statement-emitting +     #
+# author — OPTIONAL authoring CLI (21 verbs: 18 statement-emitting +          #
 #          2 file-based validate-and-register + 1 read-only list)             #
 # --------------------------------------------------------------------------- #
 #
-# The author group is the cli-as-client surface that lets an LLM agent
-# (or a human) CRUD Gaia DSL statements through structured commands
-# instead of editing `.gaia.py` source by hand. 18 statement-emitting
+# Direct SDK authoring (run `gaia sdk`, write the DSL directly) is the
+# primary path. The author group is an OPTIONAL convenience that CRUDs the
+# same DSL statements through structured commands — useful for machine-
+# checked appends, but not the recommended first move. Every write is
+# confined to the package's re-exported ``authored/`` submodule; the CLI
+# never writes the package-root ``__init__.py``. 18 statement-emitting
 # verbs share the same pre-write + envelope skeleton; ``compose`` /
 # ``composition`` use a file-based validate-and-register surface (see
 # gaia.cli.commands.author.compose).
@@ -250,10 +272,12 @@ app.add_typer(pkg_app, name="pkg")
 author_app = typer.Typer(
     name="author",
     help=(
-        "Author DSL statements (claim / equal / derive / note / question / "
-        "contradict / exclusive / decompose / observe / compute / infer / "
-        "associate / parameter / register-prior / variable / depends-on / "
-        "candidate-relation / materialize / compose / composition / list)."
+        "Optional authoring convenience (primary path: `gaia sdk` + write the "
+        "DSL directly). Writes into the package's authored/ submodule. Verbs: "
+        "claim / equal / derive / note / question / contradict / exclusive / "
+        "decompose / observe / compute / infer / associate / parameter / "
+        "register-prior / variable / depends-on / candidate-relation / "
+        "materialize / compose / composition / list."
     ),
     no_args_is_help=True,
 )

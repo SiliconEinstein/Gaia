@@ -200,6 +200,7 @@ ignore = [
 "gaia/engine/bp/*.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/engine/inquiry/**/*.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/cli/commands/_dot.py" = ["RUF001", "RUF002", "RUF003"]
+"gaia/cli/commands/sdk/_cheatsheet.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/cli/commands/_stellaris_svg.py" = ["RUF001", "RUF002", "RUF003"]
 "gaia/cli/commands/trace.py" = ["RUF001", "RUF002", "RUF003"]
 "examples/mendel-v0-5-gaia/src/mendel_v0_5/*.py" = ["RUF001", "RUF002", "RUF003"]
