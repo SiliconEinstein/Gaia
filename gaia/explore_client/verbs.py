@@ -36,11 +36,20 @@ gracefully with an actionable message.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import typer
 
+# The explore client is the layer allowed to reuse gaia's own starmap render
+# pipeline (engine-layer modules must not import the cli). The exploration map
+# renders through the SAME pipeline as `gaia inspect starmap --theme stellaris`.
+from gaia.cli.commands._dot import to_dot
+from gaia.cli.commands._graph_json import generate_graph_json
+from gaia.cli.commands._render_priors import param_data_from_ir_metadata
+from gaia.cli.commands._stellaris_svg import post_process_stellaris_svg
 from gaia.engine.exploration.discoveries import compute_discoveries
 from gaia.engine.exploration.frontier import (
     JointView,
@@ -53,7 +62,12 @@ from gaia.engine.exploration.observe import (
     observe_lkm_results,
     promote_materialized_lkm_contacts,
 )
-from gaia.engine.exploration.render import render_map_html
+from gaia.engine.exploration.render import (
+    exploration_header_fields,
+    frontier_graph_elements,
+    inject_exploration_header,
+    wrap_self_contained_html,
+)
 from gaia.engine.exploration.scorer import (
     load_open_obligations,
     sanitize_score_features,
@@ -826,59 +840,61 @@ def status_command(
 # --------------------------------------------------------------------------- #
 
 
-def _node_roles(graph: Any) -> tuple[set[str], set[str], dict[str, str]]:
-    """Derive contradiction/support QIDs + a label map from the IR graph (§7g).
+def _render_stellaris_svg(dot_source: str) -> str:
+    """Render *dot_source* to SVG via ``sfdp`` + the stellaris post-process.
 
-    * ``contradiction_qids`` — every QID an authored CONTRADICTION operator ties
-      together (its ``variables`` + ``conclusion``), so a node involved in a
-      contradiction lights up red.
-    * ``support_qids`` — every QID a Strategy (``derive``/support) ties together
-      (``premises`` + ``conclusion`` + ``background``), lighting amber.
-    * ``labels`` — ``qid -> short label`` from each Knowledge node's own ``label``,
-      so the render need not parse QIDs to display a name.
-
-    Best-effort and defensive: a graph missing an attribute simply contributes
-    nothing to that set (the render degrades to QID-suffix labels / no glow).
+    Mirrors :func:`gaia.cli.commands.starmap._render_svg` for the stellaris theme
+    (sfdp is the layout binary; the dot already carries ``layout=sfdp``), then
+    injects the stellaris ``<defs>`` glow block, recolours the canvas, and adds
+    the node-role legend via :func:`post_process_stellaris_svg`.
     """
-    contradiction: set[str] = set()
-    support: set[str] = set()
-    labels: dict[str, str] = {}
-
-    for knowledge in getattr(graph, "knowledges", []):
-        kid = getattr(knowledge, "id", None)
-        label = getattr(knowledge, "label", None)
-        if isinstance(kid, str) and isinstance(label, str) and label:
-            labels[kid] = label
-
-    for operator in getattr(graph, "operators", []):
-        op_type = getattr(operator, "operator", None)
-        if str(op_type) == "OperatorType.CONTRADICTION" or str(op_type) == "contradiction":
-            refs = [*getattr(operator, "variables", []), getattr(operator, "conclusion", None)]
-            contradiction.update(r for r in refs if isinstance(r, str))
-
-    for strategy in getattr(graph, "strategies", []):
-        refs = list(getattr(strategy, "premises", []) or [])
-        conclusion = getattr(strategy, "conclusion", None)
-        if isinstance(conclusion, str):
-            refs.append(conclusion)
-        refs.extend(getattr(strategy, "background", []) or [])
-        support.update(r for r in refs if isinstance(r, str))
-
-    return contradiction, support, labels
+    binary_path = shutil.which("sfdp")
+    if binary_path is None:
+        typer.echo(
+            "Error: Graphviz `sfdp` binary not found on PATH. Install Graphviz "
+            "(`apt install graphviz` / `brew install graphviz`) and retry.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    try:
+        proc = subprocess.run(
+            [binary_path, "-Tsvg"],
+            input=dot_source,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        typer.echo(f"Error: failed to invoke Graphviz `sfdp`: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if proc.returncode != 0:
+        stderr = (proc.stderr or "").strip()
+        typer.echo(
+            f"Error: Graphviz `sfdp` exited with code {proc.returncode}."
+            + (f"\n  stderr: {stderr}" if stderr else ""),
+            err=True,
+        )
+        raise typer.Exit(1)
+    return post_process_stellaris_svg(proc.stdout)
 
 
 def render_command(
     pkg: str = _PKG_ARG,
     out: str | None = _RENDER_OUT_OPT,
 ) -> None:
-    r"""Render the exploration map to a self-contained static HTML file (SCHEMA §7g).
+    r"""Render the exploration map as a self-contained stellaris starmap (SCHEMA §7g).
 
-    Loads the map + the joint root+dependency view + beliefs + the round history,
-    derives each surveyed node's role (seed / contradiction / support) from the
-    IR graph, and writes a single self-contained ``.html`` (inline SVG + CSS, no
-    external assets, no JS) with our own deterministic radial layout: the seed at
-    centre, surveyed nodes ringed by graph distance, frontier contacts on the
-    outer rim. Prints the output path.
+    Renders the explored knowledge graph through gaia's **own** starmap pipeline
+    (``generate_graph_json`` → ``to_dot(theme="stellaris")`` → ``sfdp`` →
+    ``post_process_stellaris_svg``), so the figure is visually identical to
+    ``gaia inspect starmap --theme stellaris``: rounded-box claims (premise blue /
+    derived green / root★ gold), hexagon operators (red ⊗ contradiction with the
+    red+cyan glow), diamond support, laid out by ``sfdp``, with the node-role
+    legend + glow filters baked in. The open frontier is overlaid as dashed
+    "unpulled paper" question-nodes (the fog) laid out in the same pass, and an
+    exploration-state header (seed / doctrine / round / surveyed / frontier-open)
+    is pinned top-right. Writes a single self-contained ``.html`` (inline SVG +
+    CSS, no external assets, no JS). Requires Graphviz on PATH.
 
     Example:
 
@@ -887,40 +903,57 @@ def render_command(
         gaia-lkm-explore render ./pkg
         gaia-lkm-explore render ./pkg --out /tmp/galileo-map.html
     """
-    if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
+    gaia_dir = _gaia_dir(pkg)
+    if not (gaia_dir / "exploration" / "map.json").exists():
         typer.echo(
             f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init`/`frontier` first.",
             err=True,
         )
         raise typer.Exit(1)
+    ir_path = gaia_dir / "ir.json"
+    if not ir_path.exists():
+        typer.echo(
+            f"Error: no compiled IR at {pkg}; run a turn or `gaia build compile` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
 
     exploration_map = load_map(pkg)
-    graph = _require_graph(pkg)
-    beliefs = _load_beliefs(pkg)
-    view = _require_joint_view(pkg, graph)
-    rounds = read_rounds(pkg)
-    contradiction_qids, support_qids, labels = _node_roles(graph)
-
-    html_doc = render_map_html(
-        exploration_map,
-        view,
-        beliefs=beliefs,
-        rounds=rounds,
-        contradiction_qids=contradiction_qids,
-        support_qids=support_qids,
-        labels=labels,
+    ir = json.loads(ir_path.read_text(encoding="utf-8"))
+    beliefs_path = gaia_dir / "beliefs.json"
+    beliefs_data = (
+        json.loads(beliefs_path.read_text(encoding="utf-8")) if beliefs_path.exists() else None
     )
+    exported_ids = {k["id"] for k in ir.get("knowledges", []) if k.get("exported") and k.get("id")}
 
-    out_path = (
-        Path(out).resolve() if out is not None else _gaia_dir(pkg) / "exploration" / "map.html"
+    # Same graph JSON the starmap builds, then merge the open frontier in as
+    # dashed question-nodes so sfdp lays the fog out in the one native pass.
+    graph_payload = json.loads(
+        generate_graph_json(
+            ir,
+            beliefs_data=beliefs_data,
+            param_data=param_data_from_ir_metadata(ir),
+            exported_ids=exported_ids,
+        )
     )
+    existing_ids = {n["id"] for n in graph_payload.get("nodes", [])}
+    frontier_nodes, frontier_edges = frontier_graph_elements(exploration_map, existing_ids)
+    graph_payload.setdefault("nodes", []).extend(frontier_nodes)
+    graph_payload.setdefault("edges", []).extend(frontier_edges)
+
+    dot_source = to_dot(json.dumps(graph_payload), theme="stellaris")
+    svg = _render_stellaris_svg(dot_source)
+    svg = inject_exploration_header(svg, exploration_header_fields(exploration_map))
+    html_doc = wrap_self_contained_html(svg)
+
+    out_path = Path(out).resolve() if out is not None else gaia_dir / "exploration" / "map.html"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html_doc, encoding="utf-8")
 
     typer.echo(
         f"Rendered exploration map for {pkg} "
         f"({len(exploration_map.surveyed)} surveyed, "
-        f"{sum(1 for c in exploration_map.frontier if c.status == 'open')} open contact(s), "
+        f"{len(frontier_nodes)} frontier paper(s) in fog, "
         f"{len(html_doc)} bytes)."
     )
     typer.echo(f"Output: {out_path}")

@@ -1,16 +1,19 @@
-"""Tests for the exploration render (SCHEMA.md §7g, build 5).
+"""Tests for the exploration render (SCHEMA.md §7g, build 5 — stellaris starmap).
 
-Two layers, mirroring the other exploration tests:
+The exploration map renders through gaia's own starmap pipeline
+(``generate_graph_json`` → ``to_dot(theme="stellaris")`` → ``sfdp`` →
+``post_process_stellaris_svg``), so it is visually identical to
+``gaia inspect starmap --theme stellaris``. This module's render layer is the
+pure, engine-safe overlay on top of that SVG:
 
-* **Unit** — build a small in-memory map (a seed + a couple surveyed nodes with
-  beliefs + a contradiction-involved node + an ``lkm_related`` paper-contact + a
-  round with discoveries), render it via :func:`render_map_html`, and assert the
-  output is one self-contained HTML document (``<!DOCTYPE html>`` / ``<html>``,
-  an inline ``<svg>``, no external ``src=``/``href=`` to a CDN), carries the
-  seed / contradiction / support CSS markers, the frontier contact's pull line,
-  and the legend + header fields.
+* **Unit** — the overlay helpers: open frontier → dashed ``question`` graph
+  nodes (+ ``background`` edges to in-graph sources), the exploration-state
+  header fields, the header SVG injection (idempotent), and the self-contained
+  HTML wrap.
 * **CLI** — run ``gaia-lkm-explore render`` against the galileo example flow
-  (compile + infer + init + frontier) and assert it writes a nonempty ``.html``.
+  (compile + infer + init + frontier) and assert it writes a nonempty
+  self-contained ``.html`` carrying the rendered ``<svg>`` (exercises the full
+  starmap pipeline + the frontier/header overlay end-to-end; needs Graphviz).
 """
 
 from __future__ import annotations
@@ -22,13 +25,16 @@ import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app as gaia_app
-from gaia.engine.exploration.frontier import JointView
-from gaia.engine.exploration.render import compute_layout, render_map_html
+from gaia.engine.exploration.render import (
+    exploration_header_fields,
+    frontier_graph_elements,
+    inject_exploration_header,
+    wrap_self_contained_html,
+)
 from gaia.engine.exploration.state import (
     Contact,
     ExplorationMap,
     Policy,
-    SurveyRecord,
 )
 from gaia.explore_client.cli import app
 
@@ -44,183 +50,108 @@ def _qid(label: str) -> str:
     return f"{NS}:{PKG}::{label}"
 
 
-def _demo_map() -> tuple[ExplorationMap, JointView, dict[str, float], list[dict]]:
-    """Build a small in-memory map for the unit render tests.
-
-    A seed + 2 surveyed nodes (one contradiction-involved) + an ``lkm_related``
-    paper-contact + a qid stub contact + a round with discoveries.
-    """
+def _demo_map() -> ExplorationMap:
+    """A small map: a seed + 2 open frontier contacts (one lkm paper, one qid) + a closed one."""
     seed = _qid("seed_claim")
-    claim_a = _qid("claim_a")
-    claim_b = _qid("claim_b")
-
     m = ExplorationMap(
-        round=1,
+        round=2,
         seeds=[{"kind": "claim", "text": "Why do bodies fall?", "qid": seed}],
         policy=Policy(doctrine="Inquisitor", budget_k=3),
     )
-    for qid in (seed, claim_a, claim_b):
-        m.surveyed[qid] = SurveyRecord(qid=qid, survey_round=0)
-
-    # An lkm_related paper-contact on the rim, off the seed.
     m.frontier.append(
         Contact(
             id="ct_paper01",
             ref={"kind": "lkm", "value": "PAPER42"},
             sources=[{"qid": seed, "edge": "lkm_related"}],
             score=0.61,
-            score_features={
-                "belief_entropy": 0.9,
-                "closeness_to_seed": 1.0,
-                "survey_cost": 2.0,
-                "tension_potential": 0.0,
-                "bridge_potential": 0.0,
-                "new_territory": 0.8,
-            },
             status="open",
-            meta={
-                "paper_id": "PAPER42",
-                "title": "On the Acceleration of Falling Bodies",
-                "index_id": "bohrium",
-            },
+            meta={"paper_id": "PAPER42", "title": "On the Acceleration of Falling Bodies"},
         )
     )
-    # A qid stub contact off claim_a.
     m.frontier.append(
         Contact(
             id="ct_qid01",
             ref={"kind": "qid", "value": _qid("unmaterialized_factor")},
-            sources=[{"qid": claim_a, "edge": "depends_on"}],
+            sources=[{"qid": _qid("not_in_graph"), "edge": "depends_on"}],
             score=0.22,
             status="open",
         )
     )
-
-    # Joint view: seed/claim_a tied by a strategy edge, seed/claim_b by an
-    # operator edge (so the contradiction-involved claim_b is adjacent to seed).
-    view = JointView(
-        materialized={seed, claim_a, claim_b},
-        edges=[
-            ("strategy_given", [seed, claim_a]),
-            ("operator_target", [seed, claim_b]),
-        ],
+    m.frontier.append(
+        Contact(
+            id="ct_closed",
+            ref={"kind": "lkm", "value": "PAPER_CLOSED"},
+            sources=[{"qid": seed, "edge": "lkm_related"}],
+            score=0.4,
+            status="surveyed",
+        )
     )
-    beliefs = {seed: 0.9, claim_a: 0.5, claim_b: 0.15}
-    rounds = [
-        {
-            "round": 0,
-            "policy": {"doctrine": "Inquisitor"},
-            "discoveries": [
-                {"kind": "contradiction", "ids": [claim_b], "note": "belief dropped"},
-                {"kind": "keystone", "ids": [seed], "note": "high in-degree"},
-            ],
-        }
-    ]
-    return m, view, beliefs, rounds
+    return m
 
 
-def test_render_is_self_contained_html() -> None:
-    m, view, beliefs, rounds = _demo_map()
-    out = render_map_html(m, view, beliefs=beliefs, rounds=rounds)
+def test_frontier_graph_elements_builds_question_nodes() -> None:
+    m = _demo_map()
+    seed = _qid("seed_claim")
+    nodes, edges = frontier_graph_elements(m, existing_node_ids={seed})
 
-    # One self-contained HTML document.
+    # Only the 2 OPEN contacts become nodes; the surveyed (non-open) one is excluded.
+    ids = {n["id"] for n in nodes}
+    assert ids == {"PAPER42", _qid("unmaterialized_factor")}
+    assert "PAPER_CLOSED" not in ids
+    # They render as dashed "question" (open-inquiry) nodes, unlit.
+    for n in nodes:
+        assert n["type"] == "question"
+        assert n["belief"] is None
+        assert n["exported"] is False
+    # The lkm paper carries its title as label.
+    paper = next(n for n in nodes if n["id"] == "PAPER42")
+    assert paper["title"] == "On the Acceleration of Falling Bodies"
+    # An edge is added only to a source that is actually in the graph.
+    assert {"source": seed, "target": "PAPER42", "role": "background"} in edges
+    # The qid contact's source (_qid("not_in_graph")) is NOT a node → no dangling edge.
+    assert all(e["target"] != _qid("unmaterialized_factor") for e in edges)
+
+
+def test_exploration_header_fields() -> None:
+    fields = dict(exploration_header_fields(_demo_map()))
+    assert fields["doctrine"] == "Inquisitor"
+    assert fields["round"] == "2"
+    assert fields["frontier open"] == "2"
+    assert "surveyed" in fields
+    assert "Why do bodies fall?" in fields["seed"]
+
+
+def test_inject_exploration_header_is_idempotent() -> None:
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" '
+        'width="800pt" height="600pt"><g></g></svg>'
+    )
+    fields = exploration_header_fields(_demo_map())
+    once = inject_exploration_header(svg, fields)
+    assert 'id="exploration-header"' in once
+    assert "Inquisitor" in once
+    assert "exploration" in once
+    assert once.count("</svg>") == 1
+    # Idempotent: a second pass does not double the panel.
+    twice = inject_exploration_header(once, fields)
+    assert twice == once
+
+
+def test_wrap_self_contained_html() -> None:
+    svg = '<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>'
+    out = wrap_self_contained_html(svg)
     assert out.lstrip().startswith("<!DOCTYPE html>")
     assert "<html" in out and "</html>" in out
-    assert "<svg" in out and "</svg>" in out
-
-    # No external assets / CDN references: every src=/href= would be an external
-    # dep. We have none (inline SVG + inline CSS only).
+    assert svg in out
+    # No external assets / CDN references; no required JS.
     assert "src=" not in out
     assert "href=" not in out
-    assert "http://" not in out.replace("http://www.w3.org/2000/svg", "")
+    assert "<script" not in out
     assert "https://" not in out
-    assert "<script" not in out  # no required JS
-
-
-def test_render_carries_color_vocabulary_classes() -> None:
-    m, view, beliefs, rounds = _demo_map()
-    claim_b = _qid("claim_b")
-    claim_a = _qid("claim_a")
-    out = render_map_html(
-        m,
-        view,
-        beliefs=beliefs,
-        rounds=rounds,
-        contradiction_qids={claim_b},
-        support_qids={claim_a},
-    )
-    # The CSS vocabulary (matching the stellaris semantics) is present.
-    assert ".seed" in out
-    assert ".contradiction" in out
-    assert ".support" in out
-    # And the role classes are applied to nodes.
-    assert "seed" in out
-    assert "contradiction" in out
-    assert "support" in out
-    # Space-dark background gradient is defined inline.
-    assert "space-bg" in out
-
-
-def test_render_shows_frontier_pull_line_and_title() -> None:
-    m, view, beliefs, rounds = _demo_map()
-    out = render_map_html(m, view, beliefs=beliefs, rounds=rounds)
-    # The lkm_related contact carries its title + the pull line.
-    assert "On the Acceleration of Falling Bodies" in out
-    assert "gaia pkg add --lkm-index bohrium --lkm-paper PAPER42" in out
-
-
-def test_render_has_legend_and_header_fields() -> None:
-    m, view, beliefs, rounds = _demo_map()
-    out = render_map_html(m, view, beliefs=beliefs, rounds=rounds)
-    # Legend present.
-    assert 'id="legend"' in out
-    assert "Legend" in out
-    # Header fields present.
-    assert 'id="header"' in out
-    assert "doctrine" in out
-    assert "Inquisitor" in out
-    assert "round" in out
-    assert "surveyed" in out
-    assert "frontier open" in out
-    # Per-round discovery summary.
-    assert 'id="discoveries"' in out
-    assert "Round discoveries" in out
-    assert "contradiction" in out
-
-
-def test_render_is_deterministic() -> None:
-    m, view, beliefs, rounds = _demo_map()
-    a = render_map_html(m, view, beliefs=beliefs, rounds=rounds)
-    b = render_map_html(m, view, beliefs=beliefs, rounds=rounds)
-    assert a == b
-
-
-def test_compute_layout_centers_lone_seed() -> None:
-    seed = _qid("seed_claim")
-    layout = compute_layout([seed], [seed], {}, {})
-    placement = layout.surveyed[seed]
-    # The lone seed sits exactly at the canvas centre (ring 0).
-    assert placement.ring == 0
-    from gaia.engine.exploration.render import _CENTER_X, _CENTER_Y
-
-    assert placement.x == pytest.approx(_CENTER_X)
-    assert placement.y == pytest.approx(_CENTER_Y)
-
-
-def test_render_handles_empty_map() -> None:
-    # An empty map (no seeds, no surveyed, no frontier, no rounds) still renders a
-    # valid self-contained doc rather than crashing.
-    m = ExplorationMap()
-    view = JointView()
-    out = render_map_html(m, view, beliefs={}, rounds=[])
-    assert out.lstrip().startswith("<!DOCTYPE html>")
-    assert "<svg" in out
-    assert 'id="legend"' in out
-    assert "(no rounds yet)" in out
 
 
 # --------------------------------------------------------------------------- #
-# CLI — galileo example flow                                                  #
+# CLI — galileo example flow (full stellaris-starmap pipeline + overlay)       #
 # --------------------------------------------------------------------------- #
 
 
@@ -243,6 +174,7 @@ def _galileo_qid(label: str) -> str:
     return f"example:galileo_v0_5::{label}"
 
 
+@pytest.mark.skipif(shutil.which("sfdp") is None, reason="Graphviz sfdp not on PATH")
 def test_cli_render_writes_nonempty_html(galileo_pkg: Path) -> None:
     runner.invoke(
         app,
@@ -257,11 +189,16 @@ def test_cli_render_writes_nonempty_html(galileo_pkg: Path) -> None:
     out_path = galileo_pkg / ".gaia" / "exploration" / "map.html"
     assert out_path.exists()
     content = out_path.read_text(encoding="utf-8")
-    assert len(content) > 0
     assert content.lstrip().startswith("<!DOCTYPE html>")
     assert "<svg" in content
+    # The stellaris pipeline baked its node-role legend + space background in,
+    # and our overlay added the exploration-state header.
+    assert 'id="legend"' in content
+    assert 'id="exploration-header"' in content
+    assert "space-bg" in content
 
 
+@pytest.mark.skipif(shutil.which("sfdp") is None, reason="Graphviz sfdp not on PATH")
 def test_cli_render_custom_out_path(galileo_pkg: Path, tmp_path: Path) -> None:
     runner.invoke(
         app,

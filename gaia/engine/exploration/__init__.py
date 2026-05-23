@@ -30,7 +30,12 @@ from gaia.engine.exploration.observe import (
     observe_lkm_results,
     promote_materialized_lkm_contacts,
 )
-from gaia.engine.exploration.render import render_map_html
+from gaia.engine.exploration.render import (
+    exploration_header_fields,
+    frontier_graph_elements,
+    inject_exploration_header,
+    wrap_self_contained_html,
+)
 from gaia.engine.exploration.scorer import (
     binary_entropy,
     score_frontier,
@@ -87,7 +92,10 @@ __all__ = [
     "build_joint_view",
     "doctrine_policy",
     "exploration_dir",
+    "exploration_header_fields",
     "extract_frontier",
+    "frontier_graph_elements",
+    "inject_exploration_header",
     "load_map",
     "load_round_beliefs",
     "mint_contact_id",
@@ -95,10 +103,10 @@ __all__ = [
     "promote_materialized_lkm_contacts",
     "read_rounds",
     "reconcile_frontier",
-    "render_map_html",
     "result_path",
     "save_map",
     "save_round_beliefs",
     "score_frontier",
     "task_path",
+    "wrap_self_contained_html",
 ]
