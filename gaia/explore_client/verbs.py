@@ -297,6 +297,9 @@ def init_command(
 ) -> None:
     r"""Create the exploration map (``.gaia/exploration/map.json``).
 
+    ``<pkg>`` must be an EXISTING Gaia package; scaffold one first with
+    ``gaia pkg scaffold --target <pkg> --name <name>-gaia`` if you have none.
+
     Seeds are the inquiry origins. A seed that looks like a QID (contains
     ``::``) is recorded resolved (``kind="claim"``, ``qid`` set) so the scorer's
     ``closeness_to_seed`` can use it immediately; a free-text seed is recorded as
@@ -306,6 +309,7 @@ def init_command(
 
     .. code-block:: bash
 
+        gaia pkg scaffold --target ./pkg --name galileo-gaia    # first-timer: make the package
         gaia-lkm-explore init ./pkg --seed "Why do bodies fall?" --doctrine Surveyor
         gaia-lkm-explore init ./pkg --seed github:pkg::aristotle_model --seed other::q
     """

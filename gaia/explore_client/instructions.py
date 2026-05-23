@@ -260,7 +260,10 @@ def build_survey_instructions(*, seed_survey: bool) -> str:
             "its `survey_brief`). Surveying a seed = running the per-contact "
             "procedure below with the seed text as your initial LKM query; "
             "`gaia-lkm-explore observe` on that survey is what seeds round 1's frontier "
-            "with `lkm_related` paper-contacts.\n"
+            "with `lkm_related` paper-contacts.\n\n"
+            "(First time? `gaia-lkm-explore init <pkg>` needs an EXISTING Gaia "
+            "package — scaffold one first with `gaia pkg scaffold --target <pkg> "
+            "--name <name>-gaia`.)\n"
         )
     else:
         round_note = (
