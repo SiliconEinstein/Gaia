@@ -54,6 +54,24 @@ VALID_REF_KINDS = {"qid", "lkm"}
 # §2 — seed origin kinds.
 VALID_SEED_KINDS = {"claim", "question"}
 
+# CLIENT.md "Turn state machine" — the orchestrator phase recorded on the map.
+# IDLE              : the loop is between turns; the next `gaia-explore turn` ranks
+#                     the frontier, emits a survey task, and sets AWAITING_SURVEY.
+# AWAITING_SURVEY   : a task envelope has been emitted; an external agent is
+#                     surveying. The map stays here until a result manifest lands.
+# AWAITING_CHECKPOINT: a result manifest is present (the orchestrator INFERS this
+#                     phase from the manifest's presence — the agent never sets it
+#                     by hand); the next `turn` compiles + infers + rounds and
+#                     returns to IDLE.
+TURN_PHASE_IDLE = "IDLE"
+TURN_PHASE_AWAITING_SURVEY = "AWAITING_SURVEY"
+TURN_PHASE_AWAITING_CHECKPOINT = "AWAITING_CHECKPOINT"
+VALID_TURN_PHASES = {
+    TURN_PHASE_IDLE,
+    TURN_PHASE_AWAITING_SURVEY,
+    TURN_PHASE_AWAITING_CHECKPOINT,
+}
+
 # §4 — the DESIGN §4 scoring weight vector keys. A Policy carries exactly these.
 POLICY_WEIGHT_KEYS = (
     "w_tension",
@@ -307,13 +325,18 @@ class ExplorationMap:
     surveyed: dict[str, SurveyRecord] = field(default_factory=dict)
     frontier: list[Contact] = field(default_factory=list)
     stats: dict[str, Any] = field(default_factory=dict)
+    turn_phase: str = TURN_PHASE_IDLE
 
     def __post_init__(self) -> None:
-        """Fill creation/update timestamps when the map is first created."""
+        """Fill creation/update timestamps; validate the turn phase."""
         if self.created_at is None:
             self.created_at = _utcnow()
         if self.updated_at is None:
             self.updated_at = self.created_at
+        if self.turn_phase not in VALID_TURN_PHASES:
+            raise ValueError(
+                f"invalid turn_phase {self.turn_phase!r}; allowed: {sorted(VALID_TURN_PHASES)}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """Return the persisted map payload as a JSON-compatible dictionary."""
@@ -327,6 +350,7 @@ class ExplorationMap:
             "surveyed": {qid: rec.to_dict() for qid, rec in self.surveyed.items()},
             "frontier": [c.to_dict() for c in self.frontier],
             "stats": dict(self.stats),
+            "turn_phase": self.turn_phase,
         }
 
     @classmethod
@@ -344,6 +368,9 @@ class ExplorationMap:
             },
             frontier=[Contact.from_dict(c) for c in raw.get("frontier", [])],
             stats=dict(raw.get("stats", {})),
+            # Back-compat: a map.json written before turn_phase existed has no
+            # such key — default to IDLE so old saves load unchanged.
+            turn_phase=raw.get("turn_phase", TURN_PHASE_IDLE),
         )
 
     def find_contact(self, contact_id: str) -> Contact | None:

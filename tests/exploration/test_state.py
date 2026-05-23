@@ -11,6 +11,9 @@ from gaia.engine.exploration.state import (
     DOCTRINE_PRESETS,
     EXPLORATION_SCHEMA_VERSION,
     POLICY_WEIGHT_KEYS,
+    TURN_PHASE_AWAITING_CHECKPOINT,
+    TURN_PHASE_AWAITING_SURVEY,
+    TURN_PHASE_IDLE,
     Contact,
     ExplorationMap,
     Policy,
@@ -224,3 +227,61 @@ def test_promote_lkm_ref_contact_rejected():
     m.frontier.append(Contact(id=cid, ref={"kind": "lkm", "value": "lkm_node_42"}))
     with pytest.raises(ValueError):
         m.promote_contact(cid, survey_round=1)
+
+
+# --------------------------------------------------------------------------- #
+# turn_phase (CLIENT.md "Turn state machine")                                 #
+# --------------------------------------------------------------------------- #
+
+
+def test_turn_phase_defaults_to_idle():
+    assert ExplorationMap().turn_phase == TURN_PHASE_IDLE
+
+
+def test_turn_phase_roundtrips(tmp_path: Path):
+    m = ExplorationMap(round=1, turn_phase=TURN_PHASE_AWAITING_SURVEY)
+    save_map(tmp_path, m)
+    raw = json.loads((exploration_dir(tmp_path) / "map.json").read_text("utf-8"))
+    assert raw["turn_phase"] == TURN_PHASE_AWAITING_SURVEY
+    reloaded = load_map(tmp_path)
+    assert reloaded.turn_phase == TURN_PHASE_AWAITING_SURVEY
+
+
+@pytest.mark.parametrize(
+    "phase",
+    [TURN_PHASE_IDLE, TURN_PHASE_AWAITING_SURVEY, TURN_PHASE_AWAITING_CHECKPOINT],
+)
+def test_all_turn_phases_persist(tmp_path: Path, phase: str):
+    save_map(tmp_path, ExplorationMap(turn_phase=phase))
+    assert load_map(tmp_path).turn_phase == phase
+
+
+def test_invalid_turn_phase_rejected():
+    with pytest.raises(ValueError):
+        ExplorationMap(turn_phase="RUNNING")
+
+
+def test_old_map_without_turn_phase_loads_as_idle(tmp_path: Path):
+    # A map.json written before turn_phase existed has no such key — it must
+    # load unchanged and default to IDLE (additive, back-compatible schema).
+    legacy = {
+        "version": EXPLORATION_SCHEMA_VERSION,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "round": 4,
+        "seeds": [{"kind": "claim", "text": "s", "qid": "lkm:pkg::Seed1"}],
+        "policy": {
+            "doctrine": "Surveyor",
+            "weights": dict(DOCTRINE_PRESETS["Surveyor"]),
+            "budget_k": 5,
+        },
+        "surveyed": {},
+        "frontier": [],
+        "stats": {},
+        # NB: no "turn_phase" key.
+    }
+    exploration_dir(tmp_path).joinpath("map.json").write_text(json.dumps(legacy), encoding="utf-8")
+    m = load_map(tmp_path)
+    assert m.turn_phase == TURN_PHASE_IDLE
+    assert m.round == 4
+    assert m.policy.doctrine == "Surveyor"

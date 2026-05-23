@@ -67,6 +67,7 @@ include = [
     "gaia.bp*",
     "gaia.cli*",
     "gaia.engine*",
+    "gaia.explore_client*",
     "gaia.inquiry*",
     "gaia.ir*",
     "gaia.lang*",
@@ -95,6 +96,7 @@ markers = [
 
 [project.scripts]
 gaia = "gaia.cli.main:app"
+gaia-explore = "gaia.explore_client.cli:app"
 
 [tool.coverage.report]
 exclude_lines = [

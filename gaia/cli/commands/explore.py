@@ -2,9 +2,10 @@
 
 This is the *engine* half of the exploration turn loop's "LLM proposes / engine
 adjudicates" split (DESIGN §2): a Typer sub-app over
-:mod:`gaia.engine.exploration` that an agent (the evolved ``gaia-lkm-explorer``
-skill, build 4b) drives. It is pure and deterministic — **no LKM call, no
-``gaia author`` orchestration, no render** live here; those are 4b.
+:mod:`gaia.engine.exploration` that the **``gaia-explore`` orchestrator client**
+(``gaia.explore_client`` — a sibling of ``gaia``) drives via the SDK, handing the
+fuzzy survey to a thin agent. It is pure and deterministic — **no LKM call, no
+``gaia author`` orchestration** live here; those are the agent's survey step.
 
 Commands (SCHEMA.md §7c / §7f):
 
@@ -13,7 +14,7 @@ Commands (SCHEMA.md §7c / §7f):
 * ``explore observe <pkg> --source <qid> [--search-json <file>] [--query …]`` —
   read ``gaia search lkm`` JSON (file/stdin) and record each unpulled related
   paper as an ``lkm_related`` paper-contact (SCHEMA.md §7f — the primary frontier
-  source). This is the step the skill calls after each LKM survey.
+  source). This is the step the agent calls after each LKM survey.
 * ``explore frontier <pkg>`` — load map + IR + manifest + beliefs, build the
   joint view, promote any now-materialized ``lkm`` contacts, run
   ``extract_frontier`` → ``reconcile_frontier`` → ``score_frontier``, save, and
@@ -460,7 +461,7 @@ def frontier_command(
     resolves any null-qid seeds against it, then runs ``JointView.extract`` →
     ``reconcile_frontier`` → ``score_frontier`` (scorer adjacency spans the joint
     edge set) and saves. Prints the ranked top-k open contacts (k =
-    ``policy.budget_k``) — the survey shortlist the skill consumes.
+    ``policy.budget_k``) — the survey shortlist the orchestrator client consumes.
 
     Example:
 

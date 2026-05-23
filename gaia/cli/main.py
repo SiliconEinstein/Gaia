@@ -246,9 +246,10 @@ app.add_typer(inquiry_app, name="inquery", hidden=True)  # typo alias
 # --------------------------------------------------------------------------- #
 #
 # `gaia explore <verb>` is the deterministic engine half of the exploration
-# turn loop (SCHEMA.md §7c, build 4a): a Typer sub-app wrapping
-# `gaia/engine/exploration/`, mirroring the `inquiry` CLI→engine pattern. No
-# LKM, no `gaia author` orchestration, no render — those belong to the 4b skill.
+# turn loop (SCHEMA.md §7c): a Typer sub-app wrapping `gaia/engine/exploration/`,
+# mirroring the `inquiry` CLI→engine pattern. No LKM, no `gaia author`
+# orchestration — those belong to the agent survey driven by the `gaia-explore`
+# orchestrator client (`gaia.explore_client`, a sibling of `gaia`).
 
 app.add_typer(explore_app, name="explore")
 
