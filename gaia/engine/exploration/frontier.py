@@ -388,7 +388,7 @@ def resolve_freetext_seed_qid(
         if not text:
             continue
         overlap = len(seed_tokens & _tokenize(text))
-        if overlap > best_score or (overlap == best_score and overlap > 0 and best_qid is None):
+        if overlap > best_score:
             best_score = overlap
             best_qid = qid
     if best_qid is not None and best_score >= min_overlap:
