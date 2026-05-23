@@ -175,3 +175,68 @@ def test_prewrite_failfast_orders_first_error() -> None:
     assert not result.ok
     assert len(result.diagnostics) == 1
     assert result.diagnostics[0].kind == "prewrite.target_missing"
+
+
+def test_prewrite_is_side_effect_free_on_a_fresh_package(tmp_path: Path) -> None:
+    """Prewrite must not materialize ``authored/`` or touch the root __init__.
+
+    Regression for the side-effecting ``ensure_authored_submodule`` call
+    that used to run during the read-only prewrite check. A package with
+    no ``authored/`` submodule should come out byte-identical after a
+    prewrite — materialization is the writer's job, not prewrite's.
+    """
+    project_name = "fresh-gaia"
+    import_name = "fresh"
+    root = tmp_path / project_name
+    src = root / "src" / import_name
+    src.mkdir(parents=True)
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "fresh-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\ntype = "knowledge-package"\n'
+    )
+    root_init = src / "__init__.py"
+    root_init.write_text("from gaia.engine.lang import claim\n\n__all__: list[str] = []\n")
+    before = root_init.read_text()
+
+    result = prewrite_check(root, _claim_op())
+    assert result.ok, [d.message for d in result.diagnostics]
+
+    # No authored/ created, root __init__ untouched.
+    assert not (src / "authored").exists()
+    assert root_init.read_text() == before
+
+
+def test_prewrite_root_only_symbols_excludes_imports(tmp_path: Path) -> None:
+    """Import-bound root names are NOT cross-module-injected.
+
+    A root ``from gaia.engine.lang import register_prior`` binds
+    ``register_prior`` at module scope, but it is an imported name (engine
+    names are handled by the writer's required_imports). It must not land
+    in ``root_only_symbols``, otherwise the runner would emit a spurious
+    ``from <pkg> import register_prior`` re-import. A *DSL* binding
+    (assignment) in the root still counts.
+    """
+    project_name = "imp-gaia"
+    import_name = "imp"
+    root = tmp_path / project_name
+    src = root / "src" / import_name
+    src.mkdir(parents=True)
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "imp-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\ntype = "knowledge-package"\n'
+    )
+    root_init = src / "__init__.py"
+    # An imported engine name + a hand-authored DSL binding at root scope.
+    root_init.write_text(
+        "from gaia.engine.lang import claim, register_prior\n\n"
+        "root_claim = claim('Hand-authored root claim.')\n\n"
+        '__all__ = ["root_claim"]\n'
+    )
+
+    result = prewrite_check(root, _claim_op())
+    assert result.ok, [d.message for d in result.diagnostics]
+    # The imported name must NOT be a cross-module-injection candidate.
+    assert "register_prior" not in result.root_only_symbols
+    assert "claim" not in result.root_only_symbols
+    # The hand-authored DSL binding still is.
+    assert "root_claim" in result.root_only_symbols

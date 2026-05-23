@@ -39,14 +39,42 @@ AUTHORED_REEXPORT_LINE = "from .authored import *"
 #: the writer extends as statements are appended.
 AUTHORED_INIT_BODY = "__all__: list[str] = []\n"
 
-#: Tail block appended to a freshly-scaffolded package root ``__init__.py``
-#: so it re-exports the ``authored/`` submodule and merges its ``__all__``.
-ROOT_REEXPORT_BLOCK = (
+#: The two import lines a re-exporting root ``__init__.py`` carries: a
+#: star-import of ``authored`` plus a bound alias used by the ``__all__``
+#: merge line. Shared by :data:`ROOT_REEXPORT_BLOCK` (the scaffolder seed)
+#: and :func:`ensure_root_reexport` (the on-the-fly merge into an existing
+#: root), so both stay byte-identical on the import portion.
+AUTHORED_REEXPORT_IMPORTS = (
     "from .authored import *  # noqa: F403  (CLI-authored statements)\n"
     "from . import authored as _authored\n"
-    "\n"
-    "__all__ = [*__all__, *_authored.__all__]\n"
 )
+
+
+def _reexport_merge_line(container: str) -> str:
+    """Return the ``__all__`` merge line preserving the container kind.
+
+    The merge composes ``authored.__all__`` into the root ``__all__``. We
+    emit a tuple-form merge (``(*__all__, *_authored.__all__)``) when the
+    existing root ``__all__`` is a tuple so we don't silently rebind a
+    ``tuple[str, ...]``-annotated name to a list; otherwise the list form.
+
+    Args:
+        container: ``"tuple"`` to emit the tuple form; any other value
+            (``"list"`` / ``"none"``) emits the list form.
+
+    Returns:
+        The single merge line, newline-terminated.
+    """
+    if container == "tuple":
+        return "__all__ = (*__all__, *_authored.__all__)\n"
+    return "__all__ = [*__all__, *_authored.__all__]\n"
+
+
+#: Tail block appended to a freshly-scaffolded package root ``__init__.py``
+#: so it re-exports the ``authored/`` submodule and merges its ``__all__``.
+#: Fresh packages always seed a list ``__all__``, so this is the list-form
+#: block (byte-identical to the pre-refactor literal).
+ROOT_REEXPORT_BLOCK = AUTHORED_REEXPORT_IMPORTS + "\n" + _reexport_merge_line("list")
 
 
 def authored_dir(source_root: Path) -> Path:
@@ -121,10 +149,62 @@ def ensure_root_reexport(root_init: Path) -> None:
         block += "\n"
     if existing.strip():
         block += "\n"
-    if not has_all:
+    if has_all:
+        # Preserve the existing container kind for the merge so a
+        # ``tuple[str, ...]``-declared ``__all__`` stays a tuple.
+        block += (
+            AUTHORED_REEXPORT_IMPORTS + "\n" + _reexport_merge_line(_all_container_kind(existing))
+        )
+    else:
+        # No existing ``__all__`` — seed a list and append the list-form
+        # block (== ROOT_REEXPORT_BLOCK).
         block += "__all__: list[str] = []\n\n"
-    block += ROOT_REEXPORT_BLOCK
+        block += ROOT_REEXPORT_BLOCK
     root_init.write_text(existing + block)
+
+
+def _all_container_kind(source: str) -> str:
+    """Classify the container of a module-level ``__all__`` in ``source``.
+
+    Returns ``"tuple"`` when ``__all__`` is annotated ``tuple[...]`` or its
+    value is an ``ast.Tuple``; ``"list"`` when its value is an ``ast.List``
+    or it is annotated ``list[...]``; ``"none"`` when there is no top-level
+    ``__all__`` (or the source does not parse).
+    """
+    try:
+        tree = ast.parse(source) if source.strip() else ast.parse("")
+    except SyntaxError:
+        return "none"
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets
+        ):
+            if isinstance(node.value, ast.Tuple):
+                return "tuple"
+            if isinstance(node.value, ast.List):
+                return "list"
+            return "none"
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "__all__"
+        ):
+            if _annotation_base(node.annotation) == "tuple" or isinstance(node.value, ast.Tuple):
+                return "tuple"
+            if _annotation_base(node.annotation) == "list" or isinstance(node.value, ast.List):
+                return "list"
+            return "none"
+    return "none"
+
+
+def _annotation_base(annotation: ast.expr | None) -> str | None:
+    """Return the base name of an annotation like ``tuple[...]`` / ``list[...]``."""
+    if annotation is None:
+        return None
+    target = annotation.value if isinstance(annotation, ast.Subscript) else annotation
+    if isinstance(target, ast.Name):
+        return target.id
+    return None
 
 
 def _has_module_all(source: str) -> bool:
@@ -150,6 +230,7 @@ def _has_module_all(source: str) -> bool:
 __all__ = [
     "AUTHORED_INIT_BODY",
     "AUTHORED_PACKAGE",
+    "AUTHORED_REEXPORT_IMPORTS",
     "AUTHORED_REEXPORT_LINE",
     "ROOT_REEXPORT_BLOCK",
     "authored_dir",

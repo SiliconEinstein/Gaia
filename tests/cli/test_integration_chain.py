@@ -258,6 +258,16 @@ def test_chain_priors_policy_rejects_claim(tmp_path: Path) -> None:
         app,
         ["pkg", "add-module", "--name", "priors", "--target", str(target)],
     )
+
+    # Capture the package shape BEFORE the rejected command. Prewrite is
+    # side-effect-free: a rejected author command must leave every file
+    # byte-identical (no authored/ materialization, no root re-export
+    # mutation, no append to priors.py).
+    src = target / "src" / "chain"
+    init_path = src / "__init__.py"
+    priors_path = src / "authored" / "priors.py"
+    before = {path: path.read_text() for path in sorted(src.rglob("*.py"))}
+
     result = runner.invoke(
         app,
         [
@@ -278,5 +288,10 @@ def test_chain_priors_policy_rejects_claim(tmp_path: Path) -> None:
     assert isinstance(diagnostics, list)
     assert diagnostics[0]["kind"] == "prewrite.target_role_forbidden"
     # The rejected claim must NOT have been appended to priors.py.
-    priors_path = target / "src" / "chain" / "authored" / "priors.py"
     assert "forbidden_claim" not in priors_path.read_text()
+    # The whole package shape is unchanged after the rejection: same set of
+    # files, each byte-identical (covers the root __init__.py re-export and
+    # any authored/ contents — prewrite mutates nothing on rejection).
+    after = {path: path.read_text() for path in sorted(src.rglob("*.py"))}
+    assert after == before
+    assert "forbidden_claim" not in init_path.read_text()

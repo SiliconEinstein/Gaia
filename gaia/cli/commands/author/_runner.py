@@ -31,12 +31,17 @@ as residual ordering hazards in the PR body.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import typer
 
+from gaia.cli.commands.author._authored import (
+    AUTHORED_PACKAGE,
+    ensure_authored_submodule,
+)
 from gaia.cli.commands.author._envelope import (
     EXIT_OK,
     EXIT_PREWRITE_STRUCTURAL,
@@ -305,6 +310,30 @@ def run_author_op(
             )
             return
 
+    # ---- materialize the authored/ submodule + root re-export ---------- #
+    #
+    # Prewrite is read-only (FIX: a rejected command must not mutate the
+    # package), so the submodule + the root ``from .authored import *``
+    # re-export are created here — after the snapshot above captured
+    # ``{source_init_path, write_target}`` in their PRE-materialization
+    # shape, and only now that prewrite passed and any warning prompt was
+    # accepted. Doing it after the snapshot means a postwrite-failure
+    # rollback restores the root __init__.py to its pre-re-export content
+    # and unlinks a freshly-created authored/__init__.py.
+    assert pre.source_root is not None  # invariant after a successful prewrite
+    try:
+        ensure_authored_submodule(pre.source_root, pre.source_init_path)
+    except (OSError, PermissionError) as exc:
+        emit(
+            system_error(
+                proposed_op.verb,
+                f"failed to create authored/ submodule under {pre.source_root}: {exc}",
+                kind="prewrite.target_invalid",
+            ),
+            human=human,
+        )
+        return
+
     # ---- step 3: write -------------------------------------------------- #
 
     # Cross-module imports: references that resolve to a hand-authored
@@ -417,6 +446,14 @@ def _rollback_snapshot(snapshot: dict[Path, str | None]) -> list[Diagnostic]:
                 # File did not exist before write — remove it.
                 if path.exists():
                     path.unlink()
+                # If this was a freshly-created authored/__init__.py, the
+                # now-empty authored/ dir would linger after rollback —
+                # prune it. Narrow: only a dir literally named ``authored``
+                # and only when empty; best-effort (ignore OSError).
+                parent = path.parent
+                if parent.name == AUTHORED_PACKAGE and parent.is_dir():
+                    with contextlib.suppress(OSError):
+                        parent.rmdir()
             else:
                 path.write_text(previous)
             restored.append(str(path))

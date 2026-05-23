@@ -31,7 +31,7 @@ gaia trace    verify / review / show          ARM Trace tooling (independent)
 > is **different** from `gaia inquiry review` and `gaia trace review`,
 > which are pre-existing inner subcommands and keep their invocation paths.
 
-Authoring the DSL directly is the primary path — run [`gaia sdk`](#) to get
+Authoring the DSL directly is the primary path — run [`gaia sdk`](authoring-workflow.md) to get
 the SDK reference + cheat sheet (see the
 [authoring workflow](authoring-workflow.md)). For the full generated
 references of the optional authoring-helper surfaces, see

@@ -84,14 +84,24 @@ __all__ = [*__all__, *_authored.__all__]
 goes into `authored/`. This keeps hand-authored and CLI-authored statements
 in separate files that compose cleanly.
 
-> **Pre-canon alpha packages must be moved by hand.** There is no migration
-> tooling: CLI-authored and hand-authored `.py` are byte-identical, so a
-> detector would false-positive. If you have an alpha-era package whose
-> CLI-authored statements live in the root `__init__.py`, move them into
-> `authored/` yourself and add the re-export block above.
+> **Pre-canon alpha packages.** You do **not** add the re-export block by
+> hand. On the **first** `gaia author <verb>` write, the CLI automatically
+> creates `authored/` and appends the re-export block (the
+> `from .authored import *` import plus the `__all__` merge) to your
+> package-root `__init__.py`. The only manual step for an alpha-era package
+> is relocating any pre-existing CLI-style statements that currently live in
+> the root `__init__.py` into `authored/` if you want them CLI-managed there.
+> There is no migration tooling: CLI-authored and hand-authored `.py` are
+> byte-identical, so a detector would false-positive — hence the move is
+> manual and the appended block is byte-identical to the scaffolded one. If
+> your root `__all__` is a tuple, the merge preserves it as a tuple.
 
 ## See also
 
-- [`gaia sdk` reference + cheat sheet](language-reference.md) — the DSL surface.
+- **`gaia sdk`** — generates a self-contained SDK reference plus a top-tier
+  `CHEATSHEET.md` into its `--out` directory at runtime (see [the
+  model](#the-model)).
+- [Language reference](language-reference.md) — the static DSL surface
+  reference.
 - [`gaia author` / `gaia pkg scaffold`](../reference/cli/author.md) — the
   optional Tier-2 CLI.
