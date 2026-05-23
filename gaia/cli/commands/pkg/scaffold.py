@@ -35,6 +35,10 @@ from typing import Any
 
 import typer
 
+from gaia.cli.commands.author._authored import (
+    AUTHORED_INIT_BODY,
+    ROOT_REEXPORT_BLOCK,
+)
 from gaia.cli.commands.author._envelope import (
     EXIT_INPUT_SYNTAX,
     EXIT_OK,
@@ -97,29 +101,25 @@ allow_holes = true
 """
 
 
-# Minimal DSL template: just the canonical ``claim`` import and an
-# empty ``__all__``. Subsequent ``gaia author <verb>`` commands populate
-# ``__all__`` as statements are added. No placeholder demo statement —
-# the package starts empty.
+# Minimal DSL template: the canonical ``claim`` import, an empty
+# ``__all__``, and the ``authored/`` re-export block. Hand-authored DSL
+# goes directly in this root ``__init__.py``; ``gaia author <verb>``
+# commands write into the re-exported ``authored/`` submodule, which
+# composes back via ``from .authored import *``. No placeholder demo
+# statement — the package starts empty.
 #
-# The import line stays narrow (``claim`` only) for the default. Wave 2
-# will make this dynamic — added imports follow added author verbs. For
-# now the freshly scaffolded package is loadable by ``gaia build check``
-# because the import is satisfied and ``__all__`` is well-formed.
-_INIT_BODY_NO_DOCSTRING = """\
-from gaia.engine.lang import claim
-
-__all__: list[str] = []
-"""
+# The import line stays narrow (``claim`` only) for the default. The
+# freshly scaffolded package is loadable by ``gaia build check`` because
+# the import is satisfied and ``__all__`` is well-formed.
+_INIT_BODY_NO_DOCSTRING = (
+    "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n\n" + ROOT_REEXPORT_BLOCK
+)
 
 
-_INIT_BODY_WITH_DOCSTRING = '''\
-"""{docstring}"""
-
-from gaia.engine.lang import claim
-
-__all__: list[str] = []
-'''
+_INIT_BODY_WITH_DOCSTRING = (
+    '"""{docstring}"""\n\nfrom gaia.engine.lang import claim\n\n__all__: list[str] = []\n\n'
+    + ROOT_REEXPORT_BLOCK
+)
 
 
 @dataclass
@@ -283,6 +283,15 @@ def _scaffold_layout(plan: _ScaffoldPlan) -> list[Path]:
         init_text = _INIT_BODY_NO_DOCSTRING
     init_py.write_text(init_text)
     created.append(init_py)
+
+    # ``authored/`` re-exported submodule — the canonical home for every
+    # ``gaia author <verb>`` write. The root ``__init__.py`` re-exports it
+    # via ``from .authored import *`` (see ROOT_REEXPORT_BLOCK above).
+    authored_dir = src_pkg / "authored"
+    authored_dir.mkdir()
+    authored_init = authored_dir / "__init__.py"
+    authored_init.write_text(AUTHORED_INIT_BODY)
+    created.append(authored_init)
 
     gaia_dir = plan.target_root / ".gaia"
     gaia_dir.mkdir()

@@ -53,6 +53,10 @@
       "size": "<NONZERO>"
     },
     {
+      "path": "galileo/src/galileo_v0_5/authored/__init__.py",
+      "size": "<NONZERO>"
+    },
+    {
       "path": "galileo/src/galileo_v0_5/priors.py",
       "size": "<NONZERO>"
     },

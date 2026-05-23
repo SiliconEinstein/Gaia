@@ -898,10 +898,12 @@ def test_mendel_register_prior_in_sibling_module(tmp_path: Path) -> None:
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
 
-    init_path = mirror / "src" / "mendel_v0_5" / "__init__.py"
-    priors_path = mirror / "src" / "mendel_v0_5" / "priors.py"
+    # CLI-authored statements + priors land in the re-exported authored/
+    # submodule (canon), not the package-root __init__.py.
+    init_path = mirror / "src" / "mendel_v0_5" / "authored" / "__init__.py"
+    priors_path = mirror / "src" / "mendel_v0_5" / "authored" / "priors.py"
 
-    assert priors_path.exists(), "priors.py must be scaffolded via pkg add-module"
+    assert priors_path.exists(), "authored/priors.py must be scaffolded via pkg add-module"
     init_text = init_path.read_text()
     priors_text = priors_path.read_text()
 
@@ -931,7 +933,7 @@ def test_mendel_register_prior_omits_default_source_id(tmp_path: Path) -> None:
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
 
-    cli_priors = (mirror / "src" / "mendel_v0_5" / "priors.py").read_text()
+    cli_priors = (mirror / "src" / "mendel_v0_5" / "authored" / "priors.py").read_text()
     hand_priors = (_GROUND_TRUTH_PKG / "src" / "mendel_v0_5" / "priors.py").read_text()
 
     report = compare_authored(
@@ -953,7 +955,7 @@ def test_mendel_count_observation_uses_variable_value(tmp_path: Path) -> None:
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
 
-    cli_init = (mirror / "src" / "mendel_v0_5" / "__init__.py").read_text()
+    cli_init = (mirror / "src" / "mendel_v0_5" / "authored" / "__init__.py").read_text()
     observation_lines = [
         line for line in cli_init.splitlines() if line.startswith("f2_count_observation = observe(")
     ]
@@ -975,7 +977,7 @@ def test_mendel_bayes_model_inline_distribution(tmp_path: Path) -> None:
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
 
-    cli_init = (mirror / "src" / "mendel_v0_5" / "__init__.py").read_text()
+    cli_init = (mirror / "src" / "mendel_v0_5" / "authored" / "__init__.py").read_text()
     # The mendel_count_model line should embed the inline Distribution
     # expression directly.
     assert (

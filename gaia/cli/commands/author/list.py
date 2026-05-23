@@ -695,7 +695,17 @@ def _select_scanned_files(
     if target_file_rel is None:
         return _enumerate_source_files(resolved.source_root)
 
-    candidate = resolved.source_root / target_file_rel
+    # ``--file <relative>`` resolves against the ``authored/`` submodule
+    # first (the canonical home for CLI-authored statements), falling back
+    # to the package root for hand-authored modules. This mirrors the
+    # author write surface, where ``--file priors.py`` routes to
+    # ``authored/priors.py``.
+    authored_candidate = resolved.source_root / "authored" / target_file_rel
+    candidate = (
+        authored_candidate
+        if authored_candidate.exists()
+        else resolved.source_root / target_file_rel
+    )
     if not candidate.exists():
         diag = Diagnostic(
             kind="prewrite.target_missing",
@@ -710,13 +720,19 @@ def _select_scanned_files(
         _emit_target_error(diag, target_root=target_root, human=human)
         return None
 
-    # Auxiliary-file warning: the engine never imports these as DSL
-    # modules so they're never going to carry author bindings; warn
-    # but still scan (some agents may still want the empty result).
+    # Auxiliary-file warning: the engine reserves ``priors.py`` /
+    # ``review.py`` / ``reviews/`` as Knowledge-free zones; warn but still
+    # scan (some agents may still want the empty result). The role applies
+    # by basename regardless of the ``authored/`` prefix, so evaluate the
+    # path relative to the authored root when the candidate lives there.
+    authored_root = resolved.source_root / "authored"
     try:
-        rel = candidate.resolve().relative_to(resolved.source_root.resolve())
+        rel = candidate.resolve().relative_to(authored_root.resolve())
     except ValueError:
-        rel = Path(target_file_rel)
+        try:
+            rel = candidate.resolve().relative_to(resolved.source_root.resolve())
+        except ValueError:
+            rel = Path(target_file_rel)
     if rel.name == "__init__.py":
         parts: tuple[str, ...] = rel.parent.parts
     else:

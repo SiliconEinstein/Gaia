@@ -9,26 +9,23 @@ from pathlib import Path
 
 import typer
 
+from gaia.cli.commands.author._authored import AUTHORED_INIT_BODY, ROOT_REEXPORT_BLOCK
 from gaia.engine.packaging import GaiaPackagingError
 
-# Minimal DSL template: just the canonical ``claim`` import and an empty
-# ``__all__``. Subsequent ``gaia author <verb>`` commands populate
-# ``__all__`` as statements are added. No placeholder demo statement —
-# the package starts empty.
-_DSL_BODY_NO_DOCSTRING = """\
-from gaia.engine.lang import claim
+# Minimal DSL template: the canonical ``claim`` import, an empty
+# ``__all__``, and the ``authored/`` re-export block. Hand-authored DSL
+# goes directly in this root ``__init__.py``; ``gaia author <verb>``
+# commands write into the re-exported ``authored/`` submodule. No
+# placeholder demo statement — the package starts empty.
+_DSL_BODY_NO_DOCSTRING = (
+    "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n\n" + ROOT_REEXPORT_BLOCK
+)
 
-__all__: list[str] = []
-"""
 
-
-_DSL_BODY_WITH_DOCSTRING = '''\
-"""{docstring}"""
-
-from gaia.engine.lang import claim
-
-__all__: list[str] = []
-'''
+_DSL_BODY_WITH_DOCSTRING = (
+    '"""{docstring}"""\n\nfrom gaia.engine.lang import claim\n\n__all__: list[str] = []\n\n'
+    + ROOT_REEXPORT_BLOCK
+)
 
 
 def _run_uv(
@@ -144,6 +141,13 @@ def init_command(
         init_py.write_text(_DSL_BODY_WITH_DOCSTRING.format(docstring=docstring))
     else:
         init_py.write_text(_DSL_BODY_NO_DOCSTRING)
+
+    # --- create the re-exported authored/ submodule ----------------------------
+    # Every `gaia author <verb>` write lands in authored/; the root
+    # __init__.py re-exports it (ROOT_REEXPORT_BLOCK above).
+    authored_dir = target_pkg_dir / "authored"
+    authored_dir.mkdir(parents=True, exist_ok=True)
+    (authored_dir / "__init__.py").write_text(AUTHORED_INIT_BODY)
 
     # --- append Gaia ignore patterns to .gitignore --------------------------------
     # .gaia/ir.json and .gaia/ir_hash should be tracked (registry needs them).

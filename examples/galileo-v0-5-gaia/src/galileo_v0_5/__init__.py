@@ -126,3 +126,11 @@ __all__ = [
     "medium_model",
     "vacuum_equal_fall_prediction",
 ]
+
+# Re-export the CLI-authored ``authored/`` submodule so statements added
+# via ``gaia author`` compose into this hand-authored package. Empty by
+# default — the hand-authored DSL above is the package's Tier-1 canon.
+from . import authored as _authored  # noqa: E402
+from .authored import *  # noqa: E402, F403
+
+__all__ = [*__all__, *_authored.__all__]

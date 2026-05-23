@@ -38,6 +38,7 @@ from typing import Any
 
 import typer
 
+from gaia.cli.commands.author._authored import ensure_authored_submodule
 from gaia.cli.commands.author._envelope import (
     EXIT_INPUT_SYNTAX,
     EXIT_OK,
@@ -164,7 +165,11 @@ def add_module_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Scaffold a sibling Python module under ``src/<import_name>/``.
+    r"""Scaffold a sibling Python module under ``src/<import_name>/authored/``.
+
+    The module is created inside the re-exported ``authored/`` submodule so
+    a later ``gaia author <verb> --file <name>.py`` (which routes into
+    ``authored/``) can write into it.
 
     Example:
 
@@ -218,10 +223,16 @@ def add_module_command(
         return
 
     assert pre.source_root is not None
+    assert pre.source_init_path is not None
     source_root = pre.source_root
     import_name = pre.import_name or ""
 
-    module_path = source_root / f"{module_name}.py"
+    # Sibling modules for CLI-authored statements live inside the
+    # re-exported ``authored/`` submodule (canon), so ``gaia author <verb>
+    # --file <name>.py`` (which routes to ``authored/<name>.py``) finds the
+    # module this verb created. Ensure the submodule exists first.
+    authored_init = ensure_authored_submodule(source_root, pre.source_init_path)
+    module_path = authored_init.parent / f"{module_name}.py"
     if module_path.exists():
         result = AuthorResult(
             verb="add_module",

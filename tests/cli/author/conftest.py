@@ -38,10 +38,26 @@ type = "knowledge-package"
 uuid = "{uuid}"
 """
 
-# Import the full agent-author DSL surface — every name ``gaia author
-# <verb>`` knows about — so the post-write ``--check`` integration can
-# load freshly-authored statements without name-resolution errors.
-_INIT_TEMPLATE = """\
+# Package-root ``__init__.py`` — a thin re-export shell. Hand-authored
+# DSL would live here directly; the fixture keeps its seed statements in
+# the ``authored/`` submodule (where ``gaia author`` writes), so the
+# package's effective authoring surface is the canonical CLI target. The
+# root re-exports ``authored/`` so the composed package loads as one DSL.
+_ROOT_INIT_TEMPLATE = """\
+__all__: list[str] = []
+
+from .authored import *  # noqa: E402, F403  (CLI-authored statements)
+from . import authored as _authored  # noqa: E402
+
+__all__ = [*__all__, *_authored.__all__]
+"""
+
+# The re-exported ``authored/`` submodule — the canonical home for every
+# ``gaia author <verb>`` write. Imports the full agent-author DSL surface
+# so the post-write ``--check`` integration can load freshly-authored
+# statements without name-resolution errors, and seeds two claims so the
+# reference-resolution / collision invariants have something to bind.
+_AUTHORED_INIT_TEMPLATE = """\
 from gaia.engine.lang import (
     ClaimAtom,
     associate,
@@ -80,7 +96,15 @@ class FixturePackage:
     """Handles for a freshly scaffolded test package."""
 
     root: Path
+    # ``source_init`` points at the ``authored/__init__.py`` — the canonical
+    # target every ``gaia author`` write lands in. Tests read it to assert
+    # the appended statement and seed bindings into it for collision /
+    # reference checks. The package-root ``__init__.py`` (a thin re-export
+    # shell) is exposed separately as ``root_init`` for the handful of tests
+    # that assert the root re-export composition.
     source_init: Path
+    authored_init: Path
+    root_init: Path
     project_name: str
     import_name: str
     seed_labels: tuple[str, ...]
@@ -101,11 +125,19 @@ def gaia_package(tmp_path: Path) -> FixturePackage:
             uuid=str(uuid4()),
         )
     )
-    source_init = src / "__init__.py"
-    source_init.write_text(_INIT_TEMPLATE)
+    root_init = src / "__init__.py"
+    root_init.write_text(_ROOT_INIT_TEMPLATE)
+    authored = src / "authored"
+    authored.mkdir()
+    authored_init = authored / "__init__.py"
+    authored_init.write_text(_AUTHORED_INIT_TEMPLATE)
     return FixturePackage(
         root=root,
-        source_init=source_init,
+        # ``source_init`` aliases the authored init — the canonical write
+        # target — so existing read/seed assertions keep working.
+        source_init=authored_init,
+        authored_init=authored_init,
+        root_init=root_init,
         project_name=project_name,
         import_name=import_name,
         seed_labels=("hypothesis", "observation"),

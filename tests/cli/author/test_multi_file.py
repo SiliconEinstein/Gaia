@@ -35,6 +35,11 @@ def _parse(output: str) -> dict[str, object]:
     raise AssertionError(f"no JSON envelope in output: {output!r}")
 
 
+def _authored(pkg: FixturePackage, name: str) -> Path:
+    """Path to a module inside the canonical ``authored/`` submodule."""
+    return Path(pkg.root) / "src" / pkg.import_name / "authored" / name
+
+
 def test_add_module_creates_sibling_file(gaia_package: FixturePackage) -> None:
     """`gaia pkg add-module` lays down `src/<pkg>/<name>.py` with __all__."""
     result = runner.invoke(
@@ -51,7 +56,7 @@ def test_add_module_creates_sibling_file(gaia_package: FixturePackage) -> None:
     assert result.exit_code == 0, result.output
     envelope = _parse(result.output)
     assert envelope["status"] == "ok"
-    sibling = Path(gaia_package.root) / "src" / gaia_package.import_name / "priors.py"
+    sibling = _authored(gaia_package, "priors.py")
     assert sibling.exists()
     text = sibling.read_text()
     assert "__all__" in text
@@ -73,7 +78,7 @@ def test_add_module_with_imports_seeds_dsl(gaia_package: FixturePackage) -> None
         ],
     )
     assert result.exit_code == 0, result.output
-    sibling = Path(gaia_package.root) / "src" / gaia_package.import_name / "priors.py"
+    sibling = _authored(gaia_package, "priors.py")
     text = sibling.read_text()
     assert "from gaia.engine.lang import register_prior" in text
 
@@ -143,10 +148,10 @@ def test_author_file_routes_to_sibling(gaia_package: FixturePackage) -> None:
     written_to = payload["written_to"]
     assert isinstance(written_to, str)
     assert written_to.endswith("extras.py")
-    sibling = Path(gaia_package.root) / "src" / gaia_package.import_name / "extras.py"
+    sibling = _authored(gaia_package, "extras.py")
     assert "extras_test_claim = claim(" in sibling.read_text()
-    # __init__.py should NOT have the binding.
-    assert "extras_test_claim" not in gaia_package.source_init.read_text()
+    # authored/__init__.py should NOT have the binding (it landed in extras.py).
+    assert "extras_test_claim" not in gaia_package.authored_init.read_text()
 
 
 def test_author_claim_into_priors_py_refused(gaia_package: FixturePackage) -> None:
@@ -184,7 +189,7 @@ def test_author_claim_into_priors_py_refused(gaia_package: FixturePackage) -> No
     assert isinstance(where, dict)
     assert where.get("role") == "priors"
     # The forbidden claim must NOT have been appended to priors.py.
-    priors_path = Path(gaia_package.root) / "src" / gaia_package.import_name / "priors.py"
+    priors_path = _authored(gaia_package, "priors.py")
     assert "forbidden = claim(" not in priors_path.read_text()
 
 
@@ -195,9 +200,10 @@ def test_author_claim_into_reviews_subdir_refused(gaia_package: FixturePackage) 
     reviews/ and silently drops its declarations from the IR walk; the
     cli refuses upfront so authors don't accumulate ghost Knowledge.
     """
-    # Manually drop a file under reviews/ since `pkg add-module` does
-    # not support directory-shaped names.
-    reviews_dir = Path(gaia_package.root) / "src" / gaia_package.import_name / "reviews"
+    # Manually drop a file under authored/reviews/ since `pkg add-module`
+    # does not support directory-shaped names. ``--file reviews/r1.py``
+    # routes into the authored/ submodule, so seed the reviews/ dir there.
+    reviews_dir = _authored(gaia_package, "reviews")
     reviews_dir.mkdir()
     (reviews_dir / "__init__.py").write_text("")
     (reviews_dir / "r1.py").write_text(
@@ -323,7 +329,7 @@ def test_register_prior_to_priors_py_adds_sibling_import(
         ],
     )
     assert result.exit_code == 0, result.output
-    sibling = Path(gaia_package.root) / "src" / gaia_package.import_name / "priors.py"
+    sibling = _authored(gaia_package, "priors.py")
     text = sibling.read_text()
     assert f"from {gaia_package.import_name} import hypothesis" in text
     assert "register_prior(hypothesis, value=0.9" in text

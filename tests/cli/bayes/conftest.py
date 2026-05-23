@@ -27,7 +27,19 @@ type = "knowledge-package"
 uuid = "{uuid}"
 """
 
-_INIT_TEMPLATE = """\
+# Package-root entrypoint: a thin re-export shell over the authored/
+# submodule (the canonical CLI write target).
+_ROOT_INIT_TEMPLATE = """\
+__all__: list[str] = []
+
+from .authored import *  # noqa: E402, F403  (CLI-authored statements)
+from . import authored as _authored  # noqa: E402
+
+__all__ = [*__all__, *_authored.__all__]
+"""
+
+# authored/__init__.py — where ``gaia bayes`` / ``gaia author`` writes land.
+_AUTHORED_INIT_TEMPLATE = """\
 from gaia.engine import bayes
 from gaia.engine.lang import (
     Beta,
@@ -73,7 +85,11 @@ class BayesPackage:
     """Handles for a freshly scaffolded bayes-test package."""
 
     root: Path
+    # ``source_init`` aliases authored/__init__.py — the canonical CLI write
+    # target — so existing read/seed assertions keep working unchanged.
     source_init: Path
+    authored_init: Path
+    root_init: Path
     project_name: str
     import_name: str
 
@@ -93,11 +109,17 @@ def bayes_package(tmp_path: Path) -> BayesPackage:
             uuid=str(uuid4()),
         )
     )
-    source_init = src / "__init__.py"
-    source_init.write_text(_INIT_TEMPLATE)
+    root_init = src / "__init__.py"
+    root_init.write_text(_ROOT_INIT_TEMPLATE)
+    authored = src / "authored"
+    authored.mkdir()
+    authored_init = authored / "__init__.py"
+    authored_init.write_text(_AUTHORED_INIT_TEMPLATE)
     return BayesPackage(
         root=root,
-        source_init=source_init,
+        source_init=authored_init,
+        authored_init=authored_init,
+        root_init=root_init,
         project_name=project_name,
         import_name=import_name,
     )

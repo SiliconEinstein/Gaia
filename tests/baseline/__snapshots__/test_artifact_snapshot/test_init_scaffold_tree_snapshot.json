@@ -21,9 +21,14 @@
       "path": "pyproject.toml"
     },
     {
-      "content": "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n",
+      "content": "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n\nfrom .authored import *  # noqa: F403  (CLI-authored statements)\nfrom . import authored as _authored\n\n__all__ = [*__all__, *_authored.__all__]\n",
       "kind": "text",
       "path": "src/demo/__init__.py"
+    },
+    {
+      "content": "__all__: list[str] = []\n",
+      "kind": "text",
+      "path": "src/demo/authored/__init__.py"
     },
     {
       "content": "",

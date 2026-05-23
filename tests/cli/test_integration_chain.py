@@ -105,8 +105,9 @@ def test_chain_scaffold_add_module_author_check_clean(tmp_path: Path) -> None:
     check = payload.get("check")
     assert isinstance(check, dict), check
     assert check["knowledge_count"] == 1
-    # Sibling file should have the binding; __init__.py should not.
-    extras_path = target / "src" / "chain" / "extra.py"
+    # Sibling file (in authored/) should have the binding; the package-root
+    # __init__.py never receives CLI-authored writes.
+    extras_path = target / "src" / "chain" / "authored" / "extra.py"
     init_path = target / "src" / "chain" / "__init__.py"
     assert "sibling_claim = claim(" in extras_path.read_text()
     assert "sibling_claim" not in init_path.read_text()
@@ -180,7 +181,8 @@ def test_chain_bayes_binomial_clean_inputs_round_trip(tmp_path: Path) -> None:
     assert isinstance(payload, dict)
     check = payload.get("check")
     assert isinstance(check, dict), check
-    init_path = target / "src" / "chain" / "__init__.py"
+    # CLI-authored statements land in the authored/ submodule.
+    init_path = target / "src" / "chain" / "authored" / "__init__.py"
     assert "fair_coin = Binomial('fair_coin', n=100, p=0.5)" in init_path.read_text()
 
 
@@ -237,7 +239,10 @@ def test_chain_cross_module_reference_with_check(tmp_path: Path) -> None:
     )
     assert derive_result.exit_code == 0, derive_result.output
 
-    evidence_path = target / "src" / "chain" / "evidence.py"
+    # Both the base claim and the sibling live in the authored/ submodule;
+    # base_obs is re-exported through the package root, so the auto-inserted
+    # ``from chain import base_obs`` resolves at load time.
+    evidence_path = target / "src" / "chain" / "authored" / "evidence.py"
     text = evidence_path.read_text()
     assert "from chain import base_obs" in text
     assert "follow_warrant = derive(" in text
@@ -273,5 +278,5 @@ def test_chain_priors_policy_rejects_claim(tmp_path: Path) -> None:
     assert isinstance(diagnostics, list)
     assert diagnostics[0]["kind"] == "prewrite.target_role_forbidden"
     # The rejected claim must NOT have been appended to priors.py.
-    priors_path = target / "src" / "chain" / "priors.py"
+    priors_path = target / "src" / "chain" / "authored" / "priors.py"
     assert "forbidden_claim" not in priors_path.read_text()

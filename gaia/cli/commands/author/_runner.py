@@ -128,6 +128,7 @@ def _execute_writes(
     pre_source_init: Path,
     write_target: Path,
     pre_import_name: str | None,
+    cross_module_imports: tuple[tuple[str, str], ...] = (),
 ) -> _WriteOutcome:
     """Run the prepended + main writes. Raises OSError/PermissionError on IO fail.
 
@@ -137,6 +138,13 @@ def _execute_writes(
     passed, the auto-mint claim lands next to its consumer in the
     sibling instead of leaving the sibling with an unresolved reference
     and ``__init__.py`` with an orphan binding.
+
+    ``cross_module_imports`` carries ``(symbol, "")`` pairs for any
+    reference that resolves to a hand-authored package-root binding —
+    the writer inserts ``from <import_name> import <symbol>`` so the
+    statement (now living in ``authored/``) resolves the root binding at
+    engine-load time. They are merged with the verb's own
+    ``sibling_imports``.
     """
     del pre_source_init  # retained as a kwarg for API symmetry / future use
     written_segments: list[str] = []
@@ -158,11 +166,12 @@ def _execute_writes(
         written_segments.append(prep_write.appended)
         if prep_write.all_warning:
             all_warning_messages.append(prep_write.all_warning)
+    merged_sibling_imports = (*proposed_op.sibling_imports, *cross_module_imports)
     write_result = append_statement(
         write_target,
         proposed_op.generated_code,
         new_label=proposed_op.label,
-        sibling_imports=proposed_op.sibling_imports,
+        sibling_imports=merged_sibling_imports,
         import_package_name=pre_import_name,
         required_imports=proposed_op.required_imports,
         export=proposed_op.export,
@@ -298,12 +307,21 @@ def run_author_op(
 
     # ---- step 3: write -------------------------------------------------- #
 
+    # Cross-module imports: references that resolve to a hand-authored
+    # package-root binding (not present in authored/) need an explicit
+    # ``from <import_name> import <symbol>`` so the statement — now living
+    # in the authored/ submodule — resolves them at engine-load time.
+    cross_module_imports = tuple(
+        (ref, "") for ref in dict.fromkeys(proposed_op.references) if ref in pre.root_only_symbols
+    )
+
     try:
         outcome = _execute_writes(
             proposed_op,
             pre_source_init=pre.source_init_path,
             write_target=write_target,
             pre_import_name=pre.import_name,
+            cross_module_imports=cross_module_imports,
         )
     except (OSError, PermissionError) as exc:
         emit(

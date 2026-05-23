@@ -58,9 +58,10 @@ from __future__ import annotations
 
 import ast
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
+from gaia.cli.commands.author._authored import authored_init, ensure_authored_submodule
 from gaia.cli.commands.author._deprecation_scan import get_deprecated_names
 from gaia.cli.commands.author._envelope import Diagnostic, exit_code_for_diagnostic
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
@@ -125,11 +126,16 @@ class AuthorPrewriteResult:
     diagnostics: list[Diagnostic]
     warnings: list[Diagnostic]
     # Multi-file target: the absolute path the writer should append to.
-    # Defaults to ``source_init_path`` when the verb did not request a
+    # Defaults to ``authored/__init__.py`` when the verb did not request a
     # different file via ``ProposedAuthorOp.target_file``; otherwise
-    # points at ``src/<import_name>/<relative>``.
+    # points at ``authored/<relative>``.
     write_target_path: Path | None = None
     source_root: Path | None = None
+    # Names bound in the package-root source (hand-authored DSL) but NOT
+    # in the ``authored/`` submodule. A CLI statement that references one
+    # of these needs a ``from <import_name> import <name>`` line so the
+    # reference resolves at engine-load time from inside ``authored/``.
+    root_only_symbols: frozenset[str] = field(default_factory=frozenset)
 
 
 def prewrite_check(
@@ -366,6 +372,14 @@ def prewrite_check(
     )
     warnings.extend(_detect_deprecated_refs(proposed_op))
 
+    # Root-only symbols: bindings in the package-root source (hand-authored
+    # DSL) that are not also in the ``authored/`` submodule. A CLI statement
+    # written into ``authored/`` that references one of these needs a
+    # ``from <import_name> import <name>`` line to resolve at load time.
+    root_symbols = _collect_root_symbols(source_root)
+    authored_symbols = _collect_module_symbols(authored_init(source_root).parent, import_name)
+    root_only = frozenset(root_symbols - authored_symbols)
+
     return AuthorPrewriteResult(
         ok=True,
         target_path=target_root,
@@ -378,6 +392,7 @@ def prewrite_check(
         warnings=warnings,
         write_target_path=write_target_path,
         source_root=source_root,
+        root_only_symbols=root_only,
     )
 
 
@@ -475,19 +490,33 @@ def _resolve_target_file_or_default(
     source_root: Path,
     source_init_path: Path | None,
 ) -> tuple[list[Diagnostic], Path | None]:
-    """Resolve ``proposed_op.target_file`` against source root + role policy.
+    """Resolve ``proposed_op.target_file`` against the ``authored/`` submodule.
 
     Lifted out of :func:`prewrite_check` to keep its complexity below
     the ruff C901 budget. Returns ``(errors, write_target_path)``;
     errors is non-empty when the file path is invalid or the role
-    policy refuses the verb. When ``target_file`` is unset, the path
-    defaults to ``source_init_path`` and no errors are returned.
+    policy refuses the verb.
+
+    Canon: every CLI-authored statement lands inside the package's
+    re-exported ``authored/`` submodule — never the package-root
+    ``__init__.py``. When ``target_file`` is unset, the path defaults to
+    ``authored/__init__.py``; when ``--file <relative>`` is supplied, it
+    routes to ``authored/<relative>``. The ``authored/`` submodule is
+    created on demand (and the root ``__init__.py`` gains the
+    ``from .authored import *`` re-export) before the write happens.
     """
+    # Ensure the authored submodule + root re-export exist so the default
+    # target (and any sibling under authored/) is a real file the writer
+    # can append to. ``source_init_path`` is the package-root __init__.py.
+    assert source_init_path is not None  # invariant after target-structure validation
+    authored_init_path = ensure_authored_submodule(source_root, source_init_path)
+    authored_root = authored_init_path.parent
+
     if not proposed_op.target_file:
-        return [], source_init_path
+        return [], authored_init_path
     relative = proposed_op.target_file
     write_target_path, target_file_errors = _resolve_write_target(
-        source_root=source_root,
+        source_root=authored_root,
         relative=relative,
     )
     if target_file_errors:
@@ -777,7 +806,16 @@ def _collect_module_symbols(source_root: Path, import_name: str | None) -> set[s
     symbols: set[str] = set()
     if not source_root.exists() or not source_root.is_dir():
         return symbols
-    for py_path in sorted(source_root.glob("*.py")):
+    # Scan the package-root ``.py`` files (hand-authored DSL) plus the
+    # ``authored/`` submodule (CLI-authored DSL). A CLI statement may
+    # reference a hand-authored binding (in the root) and vice-versa;
+    # both compose into one package via the ``from .authored import *``
+    # re-export, so collision + reference resolution must see both.
+    scan_paths = sorted(source_root.glob("*.py"))
+    authored_subdir = authored_init(source_root).parent
+    if authored_subdir.exists() and authored_subdir.is_dir():
+        scan_paths.extend(sorted(authored_subdir.glob("*.py")))
+    for py_path in scan_paths:
         try:
             tree = ast.parse(py_path.read_text())
         except (OSError, SyntaxError):
@@ -791,6 +829,26 @@ def _collect_module_symbols(source_root: Path, import_name: str | None) -> set[s
     # package (rare but legal).
     if import_name:
         symbols.discard(import_name)
+    return symbols
+
+
+def _collect_root_symbols(source_root: Path) -> set[str]:
+    """Collect top-level binding names from package-root ``.py`` files only.
+
+    Excludes the ``authored/`` submodule. Used to tell whether a
+    reference resolves to a hand-authored root binding (which a
+    CLI-authored statement in ``authored/`` must import) versus a
+    binding already in ``authored/`` (no import needed).
+    """
+    symbols: set[str] = set()
+    if not source_root.exists() or not source_root.is_dir():
+        return symbols
+    for py_path in sorted(source_root.glob("*.py")):
+        try:
+            tree = ast.parse(py_path.read_text())
+        except (OSError, SyntaxError):
+            continue
+        symbols.update(_top_level_bindings(tree))
     return symbols
 
 
