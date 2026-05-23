@@ -6,8 +6,13 @@ import math
 from typing import Any
 
 from gaia.engine.exploration.frontier import extract_frontier, reconcile_frontier
-from gaia.engine.exploration.scorer import binary_entropy, score_frontier
+from gaia.engine.exploration.scorer import (
+    binary_entropy,
+    sanitize_score_features,
+    score_frontier,
+)
 from gaia.engine.exploration.state import Contact, ExplorationMap, doctrine_policy
+from gaia.engine.inquiry.state import SyntheticObligation
 from gaia.engine.ir.graphs import LocalCanonicalGraph
 from gaia.engine.ir.knowledge import Knowledge
 from gaia.engine.ir.operator import Operator
@@ -15,7 +20,8 @@ from gaia.engine.ir.operator import Operator
 NS = "github"
 PKG = "scorertest"
 
-# The six score_features keys SCHEMA.md §7b requires populated.
+# The score_features keys SCHEMA.md §7b requires populated (+ build-12
+# obligation_pressure, CLIENT.md steer 3).
 ALL_FEATURE_KEYS = {
     "belief_entropy",
     "closeness_to_seed",
@@ -23,6 +29,7 @@ ALL_FEATURE_KEYS = {
     "tension_potential",
     "bridge_potential",
     "new_territory",
+    "obligation_pressure",
 }
 
 
@@ -517,3 +524,160 @@ def test_qid_contact_scoring_unchanged_with_coverage_term():
     assert c1.score_features["new_territory"] == 0.0
     expected = 1.0 * 1.0 + 0.4 * 1.0 - 0.2 * 1.0  # build-3 formula, coverage drops out
     assert math.isclose(c1.score, expected)
+
+
+# --------------------------------------------------------------------------- #
+# obligation_pressure (CLIENT.md build 12, steer 3)                           #
+# --------------------------------------------------------------------------- #
+
+
+def _oblig(target: str) -> SyntheticObligation:
+    """An open synthetic obligation about ``target`` (open == present in list)."""
+    return SyntheticObligation(qid=mint(target), target_qid=target, content="show it")
+
+
+def mint(label: str) -> str:
+    return f"oblig_{label}"
+
+
+def test_obligation_pressure_one_when_ref_matches():
+    # The contact's ref QID is the obligation's target_qid -> pressure 1.0.
+    graph = make_graph(
+        knowledges=[claim("a")],
+        operators=[Operator(operator="negation", variables=[qid("a")], conclusion=qid("b"))],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={}, ir=graph, obligations=[_oblig(qid("b"))])
+    contact = _contact_by_value(m, qid("b"))
+    assert contact.score_features["obligation_pressure"] == 1.0
+
+
+def test_obligation_pressure_one_when_source_matches():
+    # The contact's source QID matches the obligation target -> pressure 1.0.
+    graph = make_graph(
+        knowledges=[claim("a"), claim("b")],
+        operators=[
+            Operator(operator="conjunction", variables=[qid("a"), qid("b")], conclusion=qid("c"))
+        ],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    # 'c' is sourced by {a, b}; an obligation on source 'a' boosts it.
+    score_frontier(m, beliefs={}, ir=graph, obligations=[_oblig(qid("a"))])
+    contact = _contact_by_value(m, qid("c"))
+    assert contact.score_features["obligation_pressure"] == 1.0
+
+
+def test_obligation_pressure_zero_when_no_match():
+    graph = make_graph(
+        knowledges=[claim("a")],
+        operators=[Operator(operator="negation", variables=[qid("a")], conclusion=qid("b"))],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={}, ir=graph, obligations=[_oblig(qid("unrelated"))])
+    contact = _contact_by_value(m, qid("b"))
+    assert contact.score_features["obligation_pressure"] == 0.0
+
+
+def test_obligation_pressure_zero_when_none_supplied():
+    # Graceful default: obligations=None -> 0.0 everywhere.
+    graph = make_graph(
+        knowledges=[claim("a")],
+        operators=[Operator(operator="negation", variables=[qid("a")], conclusion=qid("b"))],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={}, ir=graph)
+    contact = _contact_by_value(m, qid("b"))
+    assert contact.score_features["obligation_pressure"] == 0.0
+
+
+def test_closed_obligation_does_not_boost():
+    # "Closed" == removed from the synthetic_obligations list (gaia inquiry
+    # obligation close deletes the row). An empty/absent list is the closed state,
+    # so a contact that WOULD have matched gets no boost.
+    graph = make_graph(
+        knowledges=[claim("a")],
+        operators=[Operator(operator="negation", variables=[qid("a")], conclusion=qid("b"))],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    # The obligation on qid('b') was closed -> not in the list passed in.
+    score_frontier(m, beliefs={}, ir=graph, obligations=[])
+    contact = _contact_by_value(m, qid("b"))
+    assert contact.score_features["obligation_pressure"] == 0.0
+
+
+def test_w_obligation_in_presets_and_matching_contact_outranks():
+    # w_obligation present in every preset; a matching contact outranks a
+    # non-matching one all else equal (same sources/structure, only the
+    # obligation differs).
+    from gaia.engine.exploration.state import DOCTRINE_PRESETS
+
+    for preset in DOCTRINE_PRESETS.values():
+        assert "w_obligation" in preset
+        assert preset["w_obligation"] > 0.0
+
+    # Two sibling contacts off the same seed/source: 'match' is the obligation
+    # target, 'plain' is not. Everything else (closeness, belief) is identical.
+    graph = make_graph(
+        knowledges=[claim("seed")],
+        operators=[
+            Operator(operator="negation", variables=[qid("seed")], conclusion=qid("match")),
+            Operator(operator="negation", variables=[qid("seed")], conclusion=qid("plain")),
+        ],
+    )
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Surveyor"),
+    )
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={qid("seed"): 0.5}, ir=graph, obligations=[_oblig(qid("match"))])
+    match = _contact_by_value(m, qid("match"))
+    plain = _contact_by_value(m, qid("plain"))
+    assert match.score_features["obligation_pressure"] == 1.0
+    assert plain.score_features["obligation_pressure"] == 0.0
+    # The only difference is the obligation term, so match must outrank plain by
+    # exactly w_obligation (Surveyor default 1.0).
+    assert match.score > plain.score
+    assert math.isclose(match.score - plain.score, 1.0)
+
+
+def test_obligation_pressure_survives_sanitize_but_belief_stripped():
+    # Agent-visibility contract (CLIENT.md steers 3 & 4): obligation_pressure is
+    # NOT a belief key, so sanitize keeps it; belief_entropy is stripped.
+    graph = make_graph(
+        knowledges=[claim("a")],
+        operators=[Operator(operator="negation", variables=[qid("a")], conclusion=qid("b"))],
+    )
+    m = ExplorationMap()
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={qid("a"): 0.5}, ir=graph, obligations=[_oblig(qid("b"))])
+    contact = _contact_by_value(m, qid("b"))
+    sanitized = sanitize_score_features(contact.score_features)
+    assert "obligation_pressure" in sanitized
+    assert sanitized["obligation_pressure"] == 1.0
+    assert "belief_entropy" not in sanitized
+
+
+def test_lkm_contact_gets_obligation_pressure():
+    # An lkm paper-contact's obligation_pressure matches on its source qid too.
+    graph = make_graph(knowledges=[claim("seed")])
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Cartographer"),
+    )
+    m.frontier.append(
+        Contact(
+            id="ct_lkm_ob",
+            ref={"kind": "lkm", "value": "p1"},
+            sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+            meta={"paper_id": "p1", "rank": 0.3},
+        )
+    )
+    score_frontier(m, beliefs={}, ir=graph, obligations=[_oblig(qid("seed"))])
+    c = m.frontier[0]
+    assert set(c.score_features) == ALL_FEATURE_KEYS
+    assert c.score_features["obligation_pressure"] == 1.0

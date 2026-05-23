@@ -179,6 +179,83 @@ def test_emitted_task_hides_belief_but_ranks_by_it(tmp_path: Path, monkeypatch):
         assert "closeness_to_seed" in tc.score_features
 
 
+def test_idle_turn_loads_obligations_and_boosts_matching_contact(tmp_path: Path, monkeypatch):
+    """Build 12 (CLIENT.md steer 3): a live turn boosts the obligation-matching contact.
+
+    The turn loads open obligations from .gaia/inquiry/state.json, scores
+    obligation_pressure, and the contact that discharges an open obligation
+    outranks the one that does not — while obligation_pressure is agent-visible
+    and belief stays stripped.
+    """
+    from gaia.engine.exploration.frontier import JointView
+    from gaia.engine.inquiry.state import (
+        InquiryState,
+        SyntheticObligation,
+        save_state,
+    )
+
+    match_qid = "example:pkg::Match"
+    plain_qid = "example:pkg::Plain"
+    seed_qid = "example:pkg::seed"
+
+    # Two sibling contacts off the same source: identical save-game state, only
+    # the obligation differs. The REAL scorer runs (not stubbed) so the boost is
+    # genuine. No obligation -> equal scores -> id tie-break would order them.
+    m = ExplorationMap(round=1, policy=doctrine_policy("Surveyor"))
+    m.frontier = [
+        Contact(
+            id="ct_plain",
+            ref={"kind": "qid", "value": plain_qid},
+            sources=[{"qid": seed_qid, "edge": "depends_on"}],
+            status="open",
+        ),
+        Contact(
+            id="ct_match",
+            ref={"kind": "qid", "value": match_qid},
+            sources=[{"qid": seed_qid, "edge": "depends_on"}],
+            status="open",
+        ),
+    ]
+    save_map(tmp_path, m)
+
+    # An open synthetic obligation about the Match contact, persisted via the
+    # real inquiry state loader's writer (no hand-parsed JSON).
+    save_state(
+        tmp_path,
+        InquiryState(
+            synthetic_obligations=[
+                SyntheticObligation(
+                    qid="oblig_x", target_qid=match_qid, content="show the keystone holds"
+                )
+            ]
+        ),
+    )
+
+    monkeypatch.setattr(orchestrator, "_resolve_graph", lambda _pkg: object())
+    monkeypatch.setattr(orchestrator, "_joint_view", lambda _pkg, _g: JointView())
+    monkeypatch.setattr(orchestrator, "_load_beliefs", lambda _pkg: {})
+
+    outcome = run_turn(tmp_path)
+
+    # The obligation-matching contact ranks FIRST despite the lexical tie-break
+    # that would otherwise put ct_match after ct_plain.
+    assert outcome.contacts == ["ct_match", "ct_plain"]
+    task = SurveyTask.read(handoff.task_path(exploration_dir(tmp_path), 1))
+    assert [c.id for c in task.contacts] == ["ct_match", "ct_plain"]
+    top = task.contacts[0]
+    # obligation_pressure IS in the agent-facing features (steer 3), belief is NOT
+    # (steer 4).
+    assert top.score_features["obligation_pressure"] == 1.0
+    assert "belief_entropy" not in top.score_features
+    # The non-matching sibling carries pressure 0.0.
+    assert task.contacts[1].score_features["obligation_pressure"] == 0.0
+
+
+def test_load_open_obligations_empty_without_state(tmp_path: Path):
+    """No inquiry state -> empty obligation list (graceful)."""
+    assert orchestrator._load_open_obligations(tmp_path) == []
+
+
 def test_contact_brief_does_not_surface_belief_entropy():
     """Build 11 steer 4: a high-belief_entropy contact's brief hides belief.
 

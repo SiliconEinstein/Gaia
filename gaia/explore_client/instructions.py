@@ -35,6 +35,14 @@ tensions (steer 5); and the ``pkg add --lkm-paper`` step now states it pulls the
 paper's whole subgraph (steer 6). Build 11 also strips belief from the
 agent-facing surface (steer 4): the live-features list no longer advertises
 ``belief_entropy`` and the engine's belief ranking stays internal.
+
+Build 12 (CLIENT.md steer 3): the survey procedure gains a "mark obligations"
+step — when the survey exposes a gap that must be discharged (missing prior, weak
+support, structural hole, focus weakness), the agent records it with ``gaia
+inquiry obligation add <target_qid> …`` and closes it with ``gaia inquiry
+obligation close <qid>``. Open obligations BOOST matching frontier contacts next
+turn (the agent-visible ``obligation_pressure`` scorer term), so marking
+obligations steers where exploration goes next.
 """
 
 from __future__ import annotations
@@ -72,11 +80,12 @@ materialize them into the Gaia package. The engine then adjudicates the
   observe related papers nor pull a paper, the frontier can go empty — expected,
   not a bug. So observe every search, and pull at least one paper per turn.
 - Survey-facing contact signals: `closeness_to_seed` (relevance),
-  `new_territory` (coverage; live for lkm contacts only), and `survey_cost`. The
-  engine ranks the frontier for you and hands you the shortlist already ordered —
-  survey in the order given. `tension_potential` / `bridge_potential` are 0.0
-  slots, so the `Inquisitor` doctrine is currently inert; prefer `Surveyor` /
-  `Cartographer`.
+  `new_territory` (coverage; live for lkm contacts only), `obligation_pressure`
+  (1.0 iff the contact discharges an open obligation you marked — see "Mark
+  obligations" below), and `survey_cost`. The engine ranks the frontier for you
+  and hands you the shortlist already ordered — survey in the order given.
+  `tension_potential` / `bridge_potential` are 0.0 slots, so the `Inquisitor`
+  doctrine is currently inert; prefer `Surveyor` / `Cartographer`.
 """
 
 # The per-contact survey procedure (absorbed from survey-one-contact.md + the
@@ -170,6 +179,20 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
      not for every promotion.
    - Priors: never pass a `prior=` kwarg on `claim(...)`; leaf priors are
      `register_prior(...)` records in `priors.py`.
+
+5. MARK obligations for gaps you must discharge. When the survey exposes a gap
+   that has to be closed — a missing prior, a weak/absent support, a structural
+   hole, a focus weakness — record it as a synthetic obligation keyed by the QID
+   it is about:
+       gaia inquiry obligation add <target_qid> -c "<what must be shown>" \\
+           [--kind prior_hole|structural_hole|support_weak|focus_weakness|other]
+   Close it once discharged: `gaia inquiry obligation close <qid>` (the qid is
+   printed by `gaia inquiry obligation add` / `list`). Marking obligations STEERS
+   exploration: next turn the engine BOOSTS any frontier contact whose `ref` or
+   `sources` match an open obligation's `target_qid` (its `obligation_pressure`
+   feature → 1.0, a strong weighted term), so the gaps you flag pull the survey
+   toward themselves. It is a strong nudge, not a hard gate — relevance/coverage
+   still count, and nothing is starved when no obligation matches.
 
 ## Authoring surface (one model, two tiers)
 

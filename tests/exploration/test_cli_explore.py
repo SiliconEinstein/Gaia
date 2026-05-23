@@ -476,7 +476,8 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
     for r in lkm_rows:
         # Build 11 steer 4: the raw belief-weighted score is hidden, and
         # belief_entropy is stripped from the agent-facing score_features; the
-        # non-belief signals survive.
+        # non-belief signals survive — including build-12 obligation_pressure,
+        # which is intentionally agent-visible (CLIENT.md steer 3).
         assert "score" not in r
         feats = r["score_features"]
         assert set(feats) == {
@@ -485,6 +486,7 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
             "tension_potential",
             "bridge_potential",
             "new_territory",
+            "obligation_pressure",
         }
         assert "belief_entropy" not in feats
         # An lkm contact's new_territory is live (>= 0.5) and survey_cost heavier.

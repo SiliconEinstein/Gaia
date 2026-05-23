@@ -73,6 +73,7 @@ VALID_TURN_PHASES = {
 }
 
 # §4 — the DESIGN §4 scoring weight vector keys. A Policy carries exactly these.
+# ``w_obligation`` is the build-12 obligation-pressure weight (CLIENT.md steer 3).
 POLICY_WEIGHT_KEYS = (
     "w_tension",
     "w_uncertainty",
@@ -80,7 +81,18 @@ POLICY_WEIGHT_KEYS = (
     "w_coverage",
     "w_relevance",
     "w_cost",
+    "w_obligation",
 )
+
+# Build 12 (CLIENT.md steer 3): the STRONG default obligation-pressure weight.
+# obligation_pressure is binary (0.0 / 1.0), so w_obligation IS the score bump a
+# matching contact gets. 1.0 puts it on par with the strongest single live term in
+# any preset (w_uncertainty/w_bridge/w_coverage/w_tension all peak at 1.0), so a
+# contact discharging an open obligation reliably outranks a non-matching peer all
+# else equal — yet it stays a WEIGHTED term, not a hard gate: relevance/coverage/
+# uncertainty still count and nothing starves when no obligation matches. Doctrines
+# can dial it (all default to the same strong value here).
+DEFAULT_W_OBLIGATION = 1.0
 
 # §4 — named doctrine presets (DESIGN §4): a small registry of weight vectors.
 # "custom" is NOT in this registry — it carries an explicit weights vector.
@@ -93,6 +105,7 @@ DOCTRINE_PRESETS: dict[str, dict[str, float]] = {
         "w_coverage": 1.0,
         "w_relevance": 0.3,
         "w_cost": 0.2,
+        "w_obligation": DEFAULT_W_OBLIGATION,
     },
     # Inquisitor — hunt fault lines / contradictions.
     "Inquisitor": {
@@ -102,6 +115,7 @@ DOCTRINE_PRESETS: dict[str, dict[str, float]] = {
         "w_coverage": 0.1,
         "w_relevance": 0.4,
         "w_cost": 0.2,
+        "w_obligation": DEFAULT_W_OBLIGATION,
     },
     # Surveyor — reduce uncertainty in the undecided.
     "Surveyor": {
@@ -111,6 +125,7 @@ DOCTRINE_PRESETS: dict[str, dict[str, float]] = {
         "w_coverage": 0.3,
         "w_relevance": 0.4,
         "w_cost": 0.2,
+        "w_obligation": DEFAULT_W_OBLIGATION,
     },
     # Diplomat — bridge previously-disjoint clusters.
     "Diplomat": {
@@ -120,6 +135,7 @@ DOCTRINE_PRESETS: dict[str, dict[str, float]] = {
         "w_coverage": 0.3,
         "w_relevance": 0.5,
         "w_cost": 0.2,
+        "w_obligation": DEFAULT_W_OBLIGATION,
     },
 }
 
@@ -268,6 +284,10 @@ class Policy:
                     f"{[*sorted(DOCTRINE_PRESETS), 'custom']}"
                 )
             self.weights = dict(preset)
+        # Back-compat (build 12): maps saved before w_obligation existed (and
+        # custom dials that omit it) load with the strong default rather than
+        # failing the strict missing-keys check below. New term, additive.
+        self.weights.setdefault("w_obligation", DEFAULT_W_OBLIGATION)
         missing = [k for k in POLICY_WEIGHT_KEYS if k not in self.weights]
         if missing:
             raise ValueError(f"policy weights missing keys: {missing}")

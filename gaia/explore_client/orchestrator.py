@@ -129,6 +129,20 @@ def _load_beliefs(pkg: str | Path) -> dict[str, float]:
     return flat
 
 
+def _load_open_obligations(pkg: str | Path) -> list[Any]:
+    """Load the package's OPEN synthetic obligations (build 12, CLIENT.md steer 3).
+
+    Reuses the inquiry state loader (``gaia.engine.inquiry.state.load_state``) — no
+    hand-parsing of ``.gaia/inquiry/state.json``. ``synthetic_obligations`` holds
+    *only* open obligations (``gaia inquiry obligation close`` deletes the row), so
+    the list is already the open set. Missing state ⇒ empty list ⇒ the scorer's
+    ``obligation_pressure`` is ``0.0`` everywhere (graceful).
+    """
+    from gaia.engine.inquiry.state import load_state
+
+    return list(load_state(str(pkg)).synthetic_obligations)
+
+
 def _resolve_graph(pkg: str | Path) -> Any | None:
     """Resolve the package IR graph via the inquiry graph loader (SDK)."""
     from gaia.engine.inquiry.review import resolve_graph
@@ -370,7 +384,11 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
         messages.extend(f"warning: {w}" for w in view.warnings)
         extracted = view.extract(exploration_map)
         reconcile_frontier(exploration_map, extracted, discovered_round=round_index)
-        score_frontier(exploration_map, beliefs=beliefs, edges=view.edges)
+        # Build 12 (CLIENT.md steer 3): load the package's open synthetic
+        # obligations so this live turn scores obligation_pressure — contacts
+        # discharging an open obligation get boosted in the ranking below.
+        obligations = _load_open_obligations(pkg)
+        score_frontier(exploration_map, beliefs=beliefs, edges=view.edges, obligations=obligations)
         _refresh_stats(exploration_map)
 
         ranked = _rank_open_contacts(exploration_map)

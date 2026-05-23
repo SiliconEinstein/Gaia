@@ -30,12 +30,24 @@ feature           tag        computation
 ``tension_potential``, deferred ``0.0`` (schema slots only — DESIGN §8 defers
 ``bridge_potential``,           bridge/coverage; tension-wiring is a later build 3b).
 ``new_territory``
+``obligation_pressure`` build 12 ``1.0`` iff the contact's ``ref`` QID or any of its
+                             ``sources[].qid`` matches an OPEN synthetic obligation's
+                             ``target_qid`` (CLIENT.md steer 3), else ``0.0``. Obligations
+                             are an inquiry-side concept loaded from
+                             ``.gaia/inquiry/state.json``; ``synthetic_obligations`` holds
+                             only OPEN ones (``obligation close`` deletes the row). Agent-
+                             visible (NOT in :data:`BELIEF_FEATURE_KEYS`) — it is the
+                             steering signal the agent is meant to act on. When no
+                             obligations are supplied the feature is ``0.0`` for every
+                             contact (graceful default).
 ================  =========  ===========================================================
 
-The score is the SCHEMA.md §4 weighted sum (the three ``0.0`` terms drop out)::
+The score is the SCHEMA.md §4 weighted sum (the ``0.0`` terms drop out)::
 
     score(c) = w_uncertainty*belief_entropy
              + w_relevance*closeness_to_seed
+             + w_coverage*new_territory
+             + w_obligation*obligation_pressure
              - w_cost*survey_cost
 
 Weights come from ``exploration_map.policy.weights``. ``beliefs`` is a
@@ -58,12 +70,14 @@ so the new ``w_coverage`` term drops out for them).
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from gaia.engine.exploration.frontier import _edges_from_ir
 
 if TYPE_CHECKING:
     from gaia.engine.exploration.state import ExplorationMap
+    from gaia.engine.inquiry.state import SyntheticObligation
     from gaia.engine.ir.graphs import LocalCanonicalGraph
 
 # SCHEMA.md §4 — the six score_features keys. belief_entropy is [free];
@@ -255,22 +269,61 @@ def _lkm_new_territory(contact_meta: dict[str, Any]) -> float:
     return 0.5 + 0.5 * bonus
 
 
+def _obligation_targets(
+    obligations: Iterable[SyntheticObligation] | None,
+) -> set[str]:
+    """Collect the ``target_qid`` set of the open synthetic obligations.
+
+    ``obligations`` is the inquiry state's ``synthetic_obligations`` list, which
+    holds *only* open obligations (``gaia inquiry obligation close`` deletes the
+    row — see ``gaia/cli/commands/inquiry.py``). ``None`` (no inquiry state /
+    nothing loaded) yields the empty set, so ``obligation_pressure`` is ``0.0``
+    everywhere (graceful default).
+    """
+    if not obligations:
+        return set()
+    return {o.target_qid for o in obligations if getattr(o, "target_qid", None)}
+
+
+def _obligation_pressure(
+    ref_value: str | None,
+    source_qids: list[str],
+    obligation_targets: set[str],
+) -> float:
+    """``1.0`` iff the contact's ref QID or any source QID is an obligation target.
+
+    Binary by design (CLIENT.md steer 3): a contact either discharges an open
+    obligation or it does not. ``obligation_targets`` is precomputed once per
+    ``score_frontier`` call from the open obligations.
+    """
+    if not obligation_targets:
+        return 0.0
+    if ref_value is not None and ref_value in obligation_targets:
+        return 1.0
+    if obligation_targets.intersection(source_qids):
+        return 1.0
+    return 0.0
+
+
 def score_frontier(
     exploration_map: ExplorationMap,
     *,
     beliefs: dict[str, float],
     ir: LocalCanonicalGraph | None = None,
     edges: list[tuple[str, list[str]]] | None = None,
+    obligations: Iterable[SyntheticObligation] | None = None,
 ) -> None:
     """Score every open frontier contact in place (SCHEMA.md §7b / §7e).
 
-    For each ``status == "open"`` contact, computes the full six-key
-    ``score_features`` dict (``belief_entropy`` [free], ``closeness_to_seed`` /
-    ``survey_cost`` [wire-up], and the three deferred ``0.0`` slots), the
-    weighted ``score``::
+    For each ``status == "open"`` contact, computes the full ``score_features``
+    dict (``belief_entropy`` [free], ``closeness_to_seed`` / ``survey_cost``
+    [wire-up], the deferred ``0.0`` slots, and ``obligation_pressure`` [build 12]),
+    the weighted ``score``::
 
         score = w_uncertainty*belief_entropy
               + w_relevance*closeness_to_seed
+              + w_coverage*new_territory
+              + w_obligation*obligation_pressure
               - w_cost*survey_cost
 
     using ``exploration_map.policy.weights``, and stamps ``last_scored_round``
@@ -295,6 +348,11 @@ def score_frontier(
             ``edges`` is given.
         edges: The joint cross-package edge set; when given, adjacency spans the
             whole dependency graph (SCHEMA.md §7e).
+        obligations: The package's OPEN synthetic obligations (the inquiry state's
+            ``synthetic_obligations`` list — already open-only). A contact whose
+            ``ref`` QID or any ``sources[].qid`` matches an obligation's
+            ``target_qid`` gets ``obligation_pressure = 1.0``. ``None`` ⇒ the
+            feature is ``0.0`` everywhere (CLIENT.md steer 3, graceful default).
     """
     if edges is None and ir is None:
         raise ValueError("score_frontier requires exactly one of `edges` or `ir`")
@@ -304,7 +362,9 @@ def score_frontier(
     w_relevance = float(weights.get("w_relevance", 0.0))
     w_coverage = float(weights.get("w_coverage", 0.0))
     w_cost = float(weights.get("w_cost", 0.0))
+    w_obligation = float(weights.get("w_obligation", 0.0))
 
+    obligation_targets = _obligation_targets(obligations)
     seeds = _resolved_seed_qids(exploration_map)
     if edges is not None:
         adjacency = _adjacency_from_edges(edges)
@@ -319,12 +379,20 @@ def score_frontier(
 
         source_qids = [str(s["qid"]) for s in contact.sources if s.get("qid")]
         is_lkm = contact.ref.get("kind") == "lkm"
+        ref_value = contact.ref.get("value")
 
         # Both flavours proxy belief_entropy / closeness from the SOURCE node(s)
         # — an lkm paper-contact has no graph position of its own, so it borrows
         # its surveyed source's standing (SCHEMA.md §7f).
         belief_entropy = _belief_entropy(source_qids, beliefs)
         closeness_to_seed = _closeness_to_seed(source_qids, seeds, adjacency)
+        # Build 12 (CLIENT.md steer 3): does this contact discharge an open
+        # obligation? Agent-visible steering term, identical for qid & lkm.
+        obligation_pressure = _obligation_pressure(
+            str(ref_value) if ref_value is not None else None,
+            source_qids,
+            obligation_targets,
+        )
 
         if is_lkm:
             # An unpulled related paper *is* fresh territory; the stored LKM rank
@@ -338,6 +406,7 @@ def score_frontier(
                 "tension_potential": 0.0,
                 "bridge_potential": 0.0,
                 "new_territory": new_territory,
+                "obligation_pressure": obligation_pressure,
             }
         else:
             # qid contacts are materialize-only ⇒ flat placeholder cost; the
@@ -351,12 +420,14 @@ def score_frontier(
             }
             for key in _DEFERRED_FEATURES:
                 features[key] = 0.0
+            features["obligation_pressure"] = obligation_pressure
 
         contact.score_features = features
         contact.score = (
             w_uncertainty * belief_entropy
             + w_relevance * closeness_to_seed
             + w_coverage * new_territory
+            + w_obligation * obligation_pressure
             - w_cost * survey_cost
         )
         contact.last_scored_round = current_round
