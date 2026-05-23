@@ -377,6 +377,12 @@ Deprecated legacy fields should be handled explicitly:
 
 The compiler must never treat these legacy fields as canonical citation data.
 
+`gaia build check --refs` is the grouped-CLI home for active refs linting. It supersedes the
+older proposed `gaia lint --refs` shape without adding a new top-level `lint` group. The report
+should summarize `cited_refs`, `referenced_claims`, and `artifact_refs`; list unused
+`references.json` entries; surface unresolved bare `@key` misses; and flag legacy reference
+metadata plus missing package-local artifact files.
+
 ### 7.2 Renderer
 
 Renderer behavior should follow the same three-layer split:
@@ -436,6 +442,7 @@ Skill and docs migration must update repo-bundled sources, not only local user m
 - [x] Update repo-bundled Gaia skills and user docs.
 - [x] Add tests for helper output, schema validation, source resolution, unsafe paths, CLI emission,
       provenance bucket splitting, and local `[@artifact_label]` resolution.
+- [x] Add `gaia build check --refs` as the refs-lint surface for grouped CLI users.
 
 ### PR 2: Renderer consumption
 

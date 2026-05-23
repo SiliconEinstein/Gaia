@@ -90,13 +90,13 @@ them using the mapping above.
 > stubs were removed in v0.5.x; the typer-default `No such command`
 > response shown above is the current behavior.
 
-### `check` option flags are unchanged
+### `check` option flags
 
 `gaia build check` keeps the full historical option surface from
-`gaia check`:
+`gaia check` and adds the current refs diagnostic surface:
 
 ```
---brief / --show / --hole / --warrants / --blind / --inquiry / --gate
+--brief / --show / --hole / --warrants / --blind / --inquiry / --gate / --refs
 ```
 
 All flags accept the same values, in the same order, with the same defaults.
