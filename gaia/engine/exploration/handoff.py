@@ -13,10 +13,12 @@ Two pydantic models live here, plus a small contact row the task carries:
   ``survey_brief``), the full survey procedure baked into ``instructions`` (so an
   agent reading **only** the task can survey correctly — there is no skill), and
   the ``result_path`` the agent must write back to.
-* :class:`SurveyResult` — ``turn-<n>.result.json`` (agent → client). Minimal:
-  the heavy state already landed in the package + save-game via the agent's
-  ``observe`` / ``author`` calls, so the result only reports *what* was surveyed
-  so the checkpoint can record it honestly.
+* :class:`SurveyResult` — ``turn-<n>.result.json`` (agent → client). The
+  single irreducible handoff signal: the QIDs the agent materialized this round.
+  The heavy state already landed in the package + save-game via the agent's
+  ``observe`` / ``author`` calls, and the durable timeline is the client's
+  (``rounds.jsonl``) — so the agent has no logging duty; it reports only *what*
+  it surveyed so the checkpoint can record it honestly.
 
 The orchestrator **infers** the ``AWAITING_CHECKPOINT`` phase from the presence
 of the result manifest (CLIENT.md "Resolved") — the agent never sets
@@ -111,15 +113,18 @@ class SurveyTask(BaseModel):
 class SurveyResult(BaseModel):
     """The result envelope (agent → client): ``turn-<n>.result.json``.
 
-    Minimal by design (CLIENT.md "Envelopes"): the heavy state already landed in
-    the package + save-game via the agent's ``observe`` / ``author`` calls. The
-    client only needs *what* was surveyed to record the checkpoint honestly, so
-    ``surveyed_qids`` feeds ``explore round --surveyed``.
+    The single irreducible handoff signal (CLIENT.md "Build 9" / Occam): the QIDs
+    the agent materialized this round. The heavy state already landed in the
+    package + save-game via the agent's ``observe`` / ``author`` calls, and the
+    durable timeline is the client's (``rounds.jsonl``) — so the agent has no
+    logging duty. ``surveyed_qids`` feeds ``explore round --surveyed``.
+
+    Pydantic's default ``extra="ignore"`` means legacy result files carrying the
+    retired ``observed`` / ``notes`` keys still read without error — the extra
+    keys are tolerated and dropped.
     """
 
     surveyed_qids: list[str] = Field(default_factory=list)
-    observed: bool = False
-    notes: str = ""
 
     def write(self, path: str | Path) -> Path:
         """Atomically write this result to ``path`` and return it."""

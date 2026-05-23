@@ -96,24 +96,32 @@ def test_round_zero_seed_survey_task(tmp_path: Path):
 
 
 def test_result_roundtrips_minimal(tmp_path: Path):
-    res = SurveyResult(
-        surveyed_qids=["lkm:pkg::Claim7", "lkm:pkg::Claim8"],
-        observed=True,
-        notes="surfaced two related papers",
-    )
+    res = SurveyResult(surveyed_qids=["lkm:pkg::Claim7", "lkm:pkg::Claim8"])
     p = res.write(result_path(tmp_path, 2))
     assert p.exists()
     loaded = SurveyResult.read(p)
     assert loaded == res
     assert loaded.surveyed_qids == ["lkm:pkg::Claim7", "lkm:pkg::Claim8"]
-    assert loaded.observed is True
 
 
 def test_result_defaults_are_minimal():
     res = SurveyResult()
     assert res.surveyed_qids == []
-    assert res.observed is False
-    assert res.notes == ""
+
+
+def test_result_tolerates_legacy_fields(tmp_path: Path):
+    """A legacy 3-field result (build <=8) still reads — extras are ignored."""
+    p = result_path(tmp_path, 3)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        '{"surveyed_qids": ["lkm:pkg::Claim9"], "observed": true, "notes": "y"}',
+        encoding="utf-8",
+    )
+    loaded = SurveyResult.read(p)
+    assert loaded.surveyed_qids == ["lkm:pkg::Claim9"]
+    # The retired keys are tolerated and dropped (pydantic default extra="ignore").
+    assert not hasattr(loaded, "observed")
+    assert not hasattr(loaded, "notes")
 
 
 def test_task_rejects_missing_required_fields():

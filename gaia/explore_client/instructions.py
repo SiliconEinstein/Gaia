@@ -145,10 +145,11 @@ _HANDOFF = """\
 
 1. Write the result manifest to the `result_path` named in this task, a minimal
    JSON envelope:
-       {"surveyed_qids": ["<qid you materialized>", ...],
-        "observed": true, "notes": "<short summary for the human>"}
-   List the QIDs you actually authored/materialized this turn under
-   `surveyed_qids` — the checkpoint records them honestly.
+       {"surveyed_qids": ["<qid you materialized>", ...]}
+   List the QIDs you actually authored/materialized this turn — that is the only
+   thing the client needs. The discovery report (from the checkpoint) is the
+   human-facing output, and the client owns the durable record, so you keep no
+   log.
 
 2. Re-invoke the orchestrator to checkpoint:
        gaia-lkm-explore turn <pkg>

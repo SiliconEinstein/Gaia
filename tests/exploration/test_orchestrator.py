@@ -214,7 +214,7 @@ def test_checkpoint_inferred_from_result_manifest(tmp_path: Path, monkeypatch):
     save_map(tmp_path, m)
 
     # The agent's result manifest for this round.
-    res = SurveyResult(surveyed_qids=["example:pkg::Foo"], observed=True, notes="surveyed Foo")
+    res = SurveyResult(surveyed_qids=["example:pkg::Foo"])
     res.write(handoff.result_path(exploration_dir(tmp_path), 1))
 
     monkeypatch.setattr(orchestrator, "_compile_and_infer", lambda _pkg: None)
@@ -279,11 +279,7 @@ def test_full_turn_cycle_against_galileo(galileo_pkg: Path):
 
     # The "agent" writes a result manifest (heavy state already in the package —
     # the galileo fixture is fully authored, so no real survey is needed).
-    SurveyResult(
-        surveyed_qids=[_galileo_qid("aristotle_model")],
-        observed=True,
-        notes="seed surveyed",
-    ).write(out1.result_path)
+    SurveyResult(surveyed_qids=[_galileo_qid("aristotle_model")]).write(out1.result_path)
 
     # Turn 2 (checkpoint): real compile + infer + round via the SDK.
     out2 = run_turn(galileo_pkg)

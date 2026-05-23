@@ -506,9 +506,6 @@ def _checkpoint(
     _refresh_stats(exploration_map)
     save_map(pkg, exploration_map)
 
-    if survey_result.notes:
-        messages.append(f"agent notes: {survey_result.notes}")
-
     return TurnOutcome(
         phase_before=TURN_PHASE_AWAITING_CHECKPOINT,
         phase_after=TURN_PHASE_IDLE,
