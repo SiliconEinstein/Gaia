@@ -5,8 +5,8 @@ from importlib import import_module
 from typing import Any
 
 from gaia.engine.lang.dsl import (
-    associate,
     artifact,
+    associate,
     candidate_relation,
     claim,
     compose,
@@ -165,7 +165,6 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     "ArithOp",
-    "artifact",
     "Associate",
     "Beta",
     "BetaBinomial",
@@ -194,7 +193,6 @@ __all__ = [
     "Exclusive",
     "Exists",
     "Exponential",
-    "figure",
     "Forall",
     "Formula",
     "FunctionApp",
@@ -229,6 +227,7 @@ __all__ = [
     "Term",
     "UserPredicate",
     "Variable",
+    "artifact",
     "associate",
     "candidate_relation",
     "claim",
@@ -243,6 +242,7 @@ __all__ = [
     "equals",
     "exclusive",
     "exists",
+    "figure",
     "forall",
     "iff",
     "implies",

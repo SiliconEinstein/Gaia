@@ -1,7 +1,7 @@
 """Public Gaia Lang DSL helper functions."""
 
-from gaia.engine.lang.dsl.associate_verb import associate
 from gaia.engine.lang.dsl.artifacts import artifact, figure
+from gaia.engine.lang.dsl.associate_verb import associate
 from gaia.engine.lang.dsl.decompose import decompose
 from gaia.engine.lang.dsl.formula import (
     equals,
