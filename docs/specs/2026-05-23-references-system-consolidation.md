@@ -1,303 +1,209 @@
-# References / Citation / Provenance 系统收敛设计
+# References / Citations / Artifacts 收敛设计
 
 > **Status:** Target design
 > **Date:** 2026-05-23
-> **Scope:** Gaia Lang DSL + Compiler + CLI + 用户文档 + Skill 契约
+> **Scope:** Gaia Lang DSL + compiler/checker + renderer + CLI authoring + user docs + skill contracts
 > **Depends on:** [2026-04-09-references-and-at-syntax.md](2026-04-09-references-and-at-syntax.md), [2026-04-02-gaia-lang-v5-python-dsl-design.md](2026-04-02-gaia-lang-v5-python-dsl-design.md), [2026-04-04-compile-readme-design.md](2026-04-04-compile-readme-design.md)
 
-## 0. 摘要与定位
+## 0. 摘要
 
-一句话：**核心语法不动；把围绕它的那一圈 `refs` / `provenance` / `source_refs` /
-`source_paper` / `metadata.figure` 收敛成一个连贯、有单一真源、编译器可校验的模型,
-并补上用户文档。**
+一句话：**不改 `@` / `[@key]` 核心语法；把 citation、knowledge reference、
+figure、table、dataset、attachment 收敛成三层模型，并把 artifact 表达为
+`NOTE + metadata`，而不是新的 `KnowledgeType`。**
 
-本 spec 不重新设计 `@` / `[@key]` 统一语法。那套设计
-（[2026-04-09 spec](2026-04-09-references-and-at-syntax.md)）经过深思熟虑，
-**且已经实现**（见 §1）。本 spec 处理的是它周围的「边缘」——同一件「引用 / 来源」
-被表达在五六个互不相通的地方，其中只有一个被编译器真正校验。
+PR 694 之前的设计已经正确指出：Gaia 现有引用表达散在 `refs`、`source_refs`、
+`source_paper`、`metadata.figure`、body marker 和 compiler-generated provenance
+之间，其中只有 body marker 会被编译器可靠解析和校验。但旧设计仍把 figure 往
+独立 DSL / IR 类型方向推，容易把一个本质上是“包内可引用附件锚点”的东西过度建模。
 
-本 spec 与 2026-04-09 spec 的关系：2026-04-09 定义 body 内引用标记的语法与解析；
-本 spec 把所有**非 body-marker** 的引用 / 来源 / provenance 机制收敛进同一个模型，
-并把 2026-04-09 spec 实现清单里一直没落实的两项（用户文档、渲染管线）补齐。
+本 spec 的收敛目标是：
 
-## 1. 现状核查：核心语法已实现，渲染管线未实现
+1. **外部来源**只由 `references.json` 和 body 内 `[@CitationKey]` 表达。
+2. **包内知识引用**只由 Gaia label / module binding 和 body 内 `[@local_label]` 表达。
+3. **图表与附件引用**只由 `note(...)` 加 `metadata["gaia"]["artifact"]` 表达，并用
+   `[@artifact_label]` 或 `background=[artifact_note]` 引用。
 
-2026-04-09 spec 头部标注 **Status: Target design**。核查源码后必须更正这个印象：
-**核心解析 / 校验链路已经实现并接入编译器**，只有渲染管线（§5.4）和用户文档仍是
-target。
+`figure()` 和 `artifact()` 可以存在，但它们是 authoring sugar：它们创建的仍然是
+`KnowledgeType.NOTE`，不会新增 `KnowledgeType.ARTIFACT`，也不会新增 `Artifact`
+subclass。
 
-实现位于 `gaia/engine/lang/refs/`（不是 spec 实现清单写的 `gaia/lang/refs/`——
-代码树已重组到 `gaia/engine/` facade 之下；`gaia/lang/refs/` 现在只剩一个空的
-`__pycache__`）：
+## 1. 现状核查
 
-| 模块 | 文件 | 状态 |
+### 1.1 核心 `@` / `[@key]` 语法已经实现
+
+2026-04-09 spec 头部仍标注为 target design，但源码核查显示核心链路已经落地：
+
+| 能力 | 位置 | 状态 |
 |---|---|---|
-| Marker 提取器 | `gaia/engine/lang/refs/extractor.py` | 已实现：`_BARE_AT_RE` / `_BRACKET_GROUP_RE` / `_INNER_KEY_RE`，`extract()` 返回 `ExtractionResult`（`extractor.py:34-149`） |
-| 三态 resolver | `gaia/engine/lang/refs/resolver.py` | 已实现：`resolve()` 三态、`check_collisions()` fail-fast、`validate_groups()` 同质组校验（`resolver.py:22-100`） |
-| `references.json` loader | `gaia/engine/lang/refs/loader.py` | 已实现：CSL-JSON schema 校验、key grammar、`_CSL_TYPES` 白名单（`loader.py:73-194`） |
-| 编译器接入 | `gaia/engine/lang/compiler/compile.py` | 已实现：`_collect_refs_from_text()`（`compile.py:572-614`）、`_ReferenceScanner`（`compile.py:1458-1724`） |
+| Marker 提取 | `gaia/engine/lang/refs/extractor.py` | 已实现：裸 `@key`、strict `[@key]`、bracket group |
+| 三态 resolve | `gaia/engine/lang/refs/resolver.py` | 已实现：citation / local knowledge / unresolved |
+| `references.json` loader | `gaia/engine/lang/refs/loader.py` | 已实现：CSL-JSON schema、key grammar、CSL type 白名单 |
+| 编译器接入 | `gaia/engine/lang/compiler/compile.py` | 已实现：扫描 content / reason / rationale，并写入 `metadata["gaia"]["provenance"]` |
 
-编译器确实做了 2026-04-09 spec 承诺的事：
+因此本 spec 不重写核心语法。`@` / `[@key]`、strict miss 报错、opportunistic miss
+保持字面量、label/citation key collision fail-fast、homogeneous bracket group 校验，
+这些行为全部保留。
 
-- `references.json` 经 `load_references()` 加载并接入 `compile_package_artifact(references=...)`
-  （`packaging.py:423-427`，`compile.py:2032-2051`）。
-- 编译入口跑一次全局 `check_collisions(label_to_id, self.references)`
-  （`compile.py:1486`）——label / citation key 冲突 → 硬错误。
-- 每个 bracket group 过 `validate_groups()`——混合类型组 → 硬错误（`compile.py:589`）。
-- strict 形式 `[@key]` 未命中 → `ReferenceError`，opportunistic `@key` 未命中 →
-  静默字面量（`compile.py:599-608`）。
-- 命中的 marker 写入 `metadata["gaia"]["provenance"]` 的 `cited_refs` /
-  `referenced_claims`（`compile.py:1701-1724`）。
-- 扫描范围覆盖 strategy reason、本地 knowledge content、action rationale
-  （`compile.py:1553-1620`）；foreign 节点不被重扫，bridge reason 只 validate
-  不 accumulate——与 2026-04-09 spec §3.1 的 scanning scope 一致。
+### 1.2 真正的问题在核心语法外围
 
-测试覆盖：`tests/gaia/lang/refs/test_extractor.py`、`test_resolver.py`、
-`test_loader.py`，以及 end-to-end `tests/gaia/lang/compiler/test_refs_integration.py`。
+现有“引用 / 来源 / provenance”机制至少有六条平行路径：
 
-**但渲染管线（2026-04-09 spec §5.4）未实现**：
+| 机制 | 写入位置 | 当前问题 |
+|---|---|---|
+| body 内 `[@key]` / `@key` | claim / note / strategy reason / action rationale 文本 | 已校验，是应保留的 canonical 路径 |
+| `metadata["gaia"]["provenance"]` | 编译器派生 | 应继续作为派生产物，作者不应手写 |
+| `refs` typed metadata | skill 契约和自由 `**metadata` | 编译器不读、不校验；非法 type 或缺字段会静默通过 |
+| `observe(source_refs=[...])` | action metadata | 自由字符串，不 resolve `references.json` |
+| `source_paper` | 自由 `**metadata` | 无消费者、无校验，容易被误当 canonical source |
+| `metadata={"figure": ..., "caption": ...}` | 自由 metadata | 与 `refs.figure` 重叠，renderer 目前也没有统一消费 |
 
-- 全仓库 `gaia/` 下无任何 `citeproc` 引用；`pyproject.toml` 不含 `citeproc-py`
-  或 `bibtexparser` 依赖。
-- 任何渲染路径（`gaia/cli/commands/render.py`、`_github.py`、`_detailed_reasoning.py`、
-  `_obsidian.py`）都不读 `cited_refs` / `referenced_claims` / `source_refs` /
-  `figure` / `caption`。
-- 例包 `examples/mendel-v0-5-gaia` / `examples/galileo-v0-5-gaia` 均无
-  `references.json`，也不用 `[@key]` 引文。
-- 没有 `gaia cite import` 子命令（`gaia/cli/commands/` 下无 `cite.py`）。
-- `gaia lint --refs` 不存在。
+结果是同一件事会被表达三遍。例如一个 claim 可能同时写
+`source_paper="Liu2015"`、`refs=({"type": "citation", "key": "Liu2015"},)`，
+又在正文里写 `[@Liu2015]`。三者没有一致性检查，也没有单一真源。
 
-**结论：核心扎实、且已落地——`@` / `[@key]` 解析与校验是真模型，不用动。**
-真正未完成的是 (a) 渲染消费端，(b) 用户文档，(c) 围绕核心的那一圈平行机制。
-本 spec 处理 (b)(c)，并把 (a) 的实现交接给本 spec 的实现清单（§7）。
+### 1.3 `figure` 不是一个需要升格为 Knowledge 类型的概念
 
-## 2. 三个真问题 + 一个次要问题（逐条以源码定位）
+figure/table/dataset/attachment 的共性不是“新的科学知识类型”，而是：
 
-### 2.1 问题一：引用机制碎片化
+- 它们需要一个 Gaia 本地 anchor，供 claim / note / rendered document 引用；
+- 它们可能绑定一个外部 source 和 source-local locator，例如 `Liu2015` 的 `Fig. 3`；
+- 它们可能绑定一个 package-local file path，例如 `artifacts/figures/liu2015_fig3.png`；
+- 它们需要 caption / description 供 renderer 展示。
 
-「引用 / 来源 / provenance」散在至少六处，语义重叠、互不相通，作者要在多个地方
-重复表达同一个引用：
+这些属性完全可以由 `note(...)` 的内容和 metadata 表达。新增 `KnowledgeType.ARTIFACT`
+或 `ArtifactNote` subclass 会把 renderer/authoring 需要的结构推到 IR taxonomy 层，
+牵动 package loading、label collection、export、compiler lowering、rendering 和
+backward compatibility。当前没有必要。
 
-| 机制 | 定义位置 | 谁写 | 谁读 | 编译器校验？ |
-|---|---|---|---|---|
-| `[@key]` / `@key`（body marker） | `gaia/engine/lang/refs/extractor.py` | 作者在 content / reason / rationale 里写 | 编译器（解析+校验+写 provenance），渲染端**目前无人读** | **是**——extract → validate_groups → resolve → strict-miss error |
-| `metadata["gaia"]["provenance"]`（`cited_refs` / `referenced_claims`） | 编译器写入，`compile.py:1701-1724` | 编译器（从 body marker 派生） | LKM / 跨包查询**目前无消费者**（`gaia/engine/inquiry/`、`search/` 均不读） | 派生产物，本身不被独立校验 |
-| `refs` typed metadata（figure / equation / citation） | **仅** skill 契约 `~/.claude/skills/gaia-package/references/emit-mapping.md` §1a | 作者手写 `claim(refs=(...))` | 渲染端**无人读**；编译器**完全不看** | **否**——见 §2.2 |
-| `observe(source_refs=[...])` | DSL `gaia/engine/lang/dsl/support.py:106-223` | 作者写在 `observe()` 上 | 编译器原样拷进 IR（`compile.py:1036-1038`），渲染端无人读 | **否**——纯字符串 list，不 resolve、不查 `references.json` |
-| `source_paper` kwarg | **仅** skill 契约 emit-mapping §0 | 作者手写 `claim(source_paper="Liu2015")` | 无消费者 | **否**——只是普通 `**metadata` 条目 |
-| `claim(provenance=[...])` kwarg | DSL `gaia/engine/lang/dsl/knowledge.py:110-124`，IR `PackageRef`（`gaia/engine/ir/knowledge.py:68-72`） | 作者 | 编译器 → IR `Knowledge.provenance` | 部分——`PackageRef` 是 pydantic 模型，但语义是**包版本依赖**，不是文献引用 |
-| `metadata={"figure":..., "caption":...}` | skill 契约提及的渲染元数据 | 作者 | 渲染端（设想中），目前无人读 | **否** |
+## 2. 设计原则
 
-**碎片化的直接后果**：光是「citation 一件事」就可能写在三处——
-body 里的 `[@Liu2015]`、`refs` 里的 `{"type":"citation","key":"Liu2015"}`、
-`source_paper="Liu2015"`。三处指向同一篇论文，三种拼写形态，无任何一处保证三者一致。
-作者要重复表达，工具要在三处之间猜测真源。
+1. **核心语法冻结。** 不改 `@` / `[@key]`、`references.json`、strict/opportunistic
+   语义和 collision 规则。
+2. **三层分离。** External source、local knowledge ref、package artifact anchor
+   是三种不同对象，不能互相冒充。
+3. **Artifact-as-note。** 图表和附件是 `KnowledgeType.NOTE`，由保留的
+   `metadata["gaia"]["artifact"]` 标记；不新增 `KnowledgeType` 或 subclass。
+4. **作者只写一次。** Citation 写在正文 marker；artifact source 写在 artifact note；
+   compiler provenance 和 renderer output 都从这些 canonical 表达派生。
+5. **可校验才叫契约。** 旧 `refs` 的问题是“像契约但无人执行”。新的 artifact schema
+   必须由 compiler/checker 执行。
+6. **最小 CLI。** CLI v1 负责生成和校验 artifact note，不负责复制文件、算 hash、
+   建 asset registry 或做内容寻址。
 
-**额外的命名陷阱**：`claim(provenance=...)` 的 `provenance` 与
-`metadata["gaia"]["provenance"]` 同名但语义完全不同——前者是**包版本依赖**
-（`PackageRef = {package_id, version}`，`gaia/engine/ir/knowledge.py:68-72`），
-后者是**引文 / 知识引用记录**。这个 collision 本身就是碎片化的症状。
+## 3. 目标模型
 
-### 2.2 问题二：`refs` 处于「半成品」状态
+收敛后只有三种 canonical 引用表达：
 
-`refs`（figure / equation / citation 三型 typed pointer）**只定义在 skill 契约**
-`~/.claude/skills/gaia-package/references/emit-mapping.md` §1a。该契约自己写明：
+| 引用种类 | Canonical source | 编译器 / checker 责任 | 派生产物 |
+|---|---|---|---|
+| External citation | body 内 `[@CitationKey]`，key 来自 `references.json` | 已实现：extract / resolve / strict miss / collision / group validation | `metadata["gaia"]["provenance"].cited_refs`、rendered References |
+| Local knowledge reference | body 内 `[@local_label]`，label 来自 package closure 中的 knowledge label | 已实现：label table resolve、collision、strict miss | `metadata["gaia"]["provenance"].referenced_claims`、rendered anchor link |
+| Artifact / attachment reference | `artifact_label = note(..., metadata={"gaia": {"artifact": ...}})`，再用 `[@artifact_label]` 引用 | 新增：artifact schema、source/path/locator 校验 | rendered figure/table/link、artifact provenance |
 
-> Gaia's `claim(...)` primitive accepts arbitrary `**metadata` kwargs and stores
-> them in the `Knowledge.metadata` dict — it does **not** validate kwarg names.
+关键不变量：
 
-也就是说 `refs` 是无人执行的自由 `**metadata`。核查编译器：`gaia/` 全仓库无任何
-代码读 `refs`、检查它的三型白名单、或拒绝 `{"type":"section",...}`。`claim()` 的
-签名（`gaia/engine/lang/dsl/knowledge.py:110-124`）把所有未识别 kwarg 收进
-`**metadata` 后经 `_flatten_metadata` 原样存进 `Knowledge.metadata`。
+- Artifact 的 Gaia label 来自 module binding / existing label mechanism，例如
+  `liu2015_fig3 = note(...)`。不要在 artifact metadata 里再放一个 `label` 字段。
+- 论文内编号使用 `locator`，例如 `"Fig. 3"`、`"Table 2"`、
+  `"Supplementary Data 1"`。`locator` 不是 Gaia label。
+- Claim 引用 artifact 时引用的是包内 note anchor：`See [@liu2015_fig3].`
+- Claim 是否直接引用外部文献，只由 claim 文本里的 `[@Liu2015]` 决定；artifact 的
+  `source` 是 artifact 自己的 provenance，不隐式伪装成 claim 的 direct citation。
 
-后果：写错 `type`、写 `{type:"section",...}`、写 `{type:"figure"}` 漏 `id`——
-全部静默通过。skill 契约里那张「Only three type values are allowed」的表是
-**无人强制的建议**。
+## 4. Artifact Note Schema
 
-这是最糟的中间态：**既不是真模型（编译器不认），又被当契约用（skill 写得像规范）。**
-
-### 2.3 问题三：文档漂移
-
-整套引用系统的文档**不在用户会看的地方**：
-
-- 完整设计在 spec `docs/specs/2026-04-09-references-and-at-syntax.md`，且标注
-  仍是「Target design」（实际核心已实现，标注本身已过时）。
-- `refs` typed pointer 在 skill 契约 `emit-mapping.md` 里。
-- 用户文档 `docs/for-users/language-reference.md`（942 行）**没有任何**
-  `@` / `[@key]` / `references.json` / citation / `refs` 章节。全文唯一与「来源」
-  相关的出现是 `observe()` 示例里的 `source_refs=["Drozdov 2015"]`
-  （`language-reference.md:211`）——而且那是个自由字符串，连 citation key 都不是。
-
-2026-04-09 spec §10 实现清单最后一项「更新文档」写的是
-`docs/foundations/gaia-lang/`，但该目录也未补；而且作者实际查的是
-`docs/for-users/language-reference.md`。**作者要用的东西，在作者会看的地方查不到。**
-
-### 2.4 次要问题：figure / equation ref 脱离来源就有歧义
-
-`refs` 里的 `{"type":"figure","id":"Fig. 4"}` 单独看是无主的——「哪篇论文的
-Fig. 4」？claim 一旦进了跨包知识图（LKM 层、registry），编号就悬空了：同一个图
-编号在不同 source paper 里指向完全不同的图。本质上 figure / equation 引用必须和
-来源论文绑成一个 `(source, figure-id)` 对才有意义。
-
-## 3. 设计原则与不变量
-
-1. **核心语法冻结。** `@` / `[@key]` 统一语法、CSL-JSON `references.json`、
-   citeproc-py 委托、strict / opportunistic 不对称、collision fail-fast——
-   全部保留，本 spec 不改一个字符。
-2. **单一 canonical 真源。** 每一类引用恰有一个权威表达位置。其余位置要么
-   被淘汰，要么从 canonical 派生（编译器自动生成，作者不手写）。
-3. **编译器可校验。** 凡是被称作「契约」「whitelist」的东西，编译器必须执行它；
-   否则不准叫契约。
-4. **来源绑定。** figure / equation 这类「论文内定位」必须和 source 绑定，
-   不允许出现无主编号。
-5. **作者只写一遍。** 同一个引用，作者在源码里只表达一次。结构化列表、provenance
-   metadata、渲染产物全部从那一次表达派生。
-
-## 4. 改进 A–E：逐条决议
-
-### 4.1 A — citation 收敛到单一 canonical：body 内 `[@key]`
-
-**决议：以 body 内 `[@key]`（指向 `references.json`）为 citation 的唯一真源。**
-
-- citation 的权威表达 = claim / note / question 的 `content`、strategy 的 `reason`、
-  action 的 `rationale` 里写的 `[@key]` / `@key` marker。这是编译器**已经**校验、
-  且渲染管线**将要**消费的形态。
-- 需要结构化 citation 列表时（例如渲染 References 段、LKM provenance 查询），
-  从 body marker **派生**——即编译器写入的 `metadata["gaia"]["provenance"].cited_refs`。
-  这条链路已经实现（`compile.py:1701-1724`），本 spec 不新增。
-- **淘汰 `source_refs`。** `observe(source_refs=[...])` 的自由字符串列表是一条
-  平行机制：不 resolve、不查 `references.json`、无校验。作者要表达「这个观测来自
-  Drozdov 2015」，应在 `observe(..., rationale="测得 Tc ... [@Drozdov2015]")`
-  的 rationale 里用 `[@key]`——rationale 已经被 `_collect_action_rationale_refs`
-  扫描并写入 provenance（`compile.py:1599-1620`）。`source_refs` 参数进入
-  deprecation：保留一个发布周期、发 `DeprecationWarning`、文档标注，下个 major 删除。
-- **`source_paper` 降格为派生 / 可选。** 见 §4.2 与 §5。
-
-### 4.2 B — figure / equation ref 的身份决议（关键分叉）
-
-maintainer 给了两条路：**升级**（做成编译器校验的一等公民、和 `source_paper`
-绑定）vs **降级**（丢掉 equation 型、figure-id 只进 audit log）。
-
-**决议：降级。丢弃 `equation` ref 型；`figure` ref 不升级为一等 DSL 构造，
-figure 定位信息归并进 §4.3 的 figure 对象（绑定 source），其余纯定位信息进
-audit log。**
-
-理由：
-
-1. **equation 指针近乎无用。** skill 契约 §1a 自己写明 claim body 必须自包含——
-   「`refs` is metadata; it does not absolve the body of self-containment.
-   The body must still inline what the equation states」。equation 的内容
-   本来就要 inline 进 body（用 `$...$` math，`language-reference.md:134`
-   已说明 content 支持 markdown math）。一个内容已经 inline、又指向一个悬空
-   编号的指针，没有承载。直接丢掉。
-2. **升级为一等公民的成本不匹配收益。** 升级意味着：新 DSL 构造 / 新 IR 字段 /
-   编译器校验 type 白名单 / 与 `source_paper` 做引用完整性检查 / 渲染端嵌图。
-   但核查显示**渲染端目前根本不消费 figure**，也没有「provenance 查询按 figure
-   过滤」的真实需求。为一个无下游消费者的构造引入一等公民级机制，是过度工程。
-3. **figure 仍有合法承载——但承载在「图」上，不在「指针」上。** 真正有意义的
-   figure 用例是渲染嵌图（贴 artifact 路径 + caption）。那属于 §4.3 的 figure
-   对象——一个绑定了 source、带 artifact 路径和 caption 的结构，编译器校验。
-   单纯的「Fig. 4 编号」不构成嵌图，它只是 audit 痕迹：claim 的内容根植于哪张图。
-   audit 痕迹归 `mapping_audit.md`（skill 已有此文件），不进可执行 DSL。
-4. **消除次要问题（§2.4）。** 降级后不再有无主的 `{"type":"figure","id":"Fig. 4"}`
-   进入 IR / 跨包图。需要嵌图的，走 §4.3 的 source-bound figure 对象；只是定位
-   的，进 audit log。两条路都不产生悬空编号。
-
-**净效果**：`refs` 的三型 typed pointer 全部退场——`citation` 型被 §4.1 的
-`[@key]` 取代，`equation` 型丢弃，`figure` 型并入 §4.3 的 figure 对象或降为
-audit log。`refs` 这个 metadata 字段本身被淘汰（见 §4.5）。
-
-### 4.3 C — 合并 figure 的表示：单一 source-bound figure 对象
-
-现状 figure 信息散在三处：`refs` 里的 figure 编号、`metadata.figure` 的 artifact
-路径、`metadata.caption`。**决议：收成一个 figure 对象，绑定到 source。**
-
-定义一个新的 DSL 构造 `figure(...)`（一等 Knowledge 的轻量伴生，或直接是一种
-Note 子型——实现时择优），字段：
+Canonical 存储形式是 `note(...) + metadata["gaia"]["artifact"]`：
 
 ```python
-fig_3 = figure(
-    source="Liu2015",          # 必填:绑定到 references.json 的 citation key
-    label="Fig. 3",            # 必填:论文内编号(消除歧义,(source, label) 唯一)
-    path="figures/liu2015_fig3.png",  # 可选:渲染嵌图用的 artifact 相对路径
-    caption="Fibonacci scaling of ...",  # 可选:渲染用 caption
+liu2015_fig3 = note(
+    "Fibonacci scaling of the order parameter in the source paper.",
+    metadata={
+        "gaia": {
+            "artifact": {
+                "kind": "figure",
+                "source": "Liu2015",
+                "locator": "Fig. 3",
+                "path": "artifacts/figures/liu2015_fig3.png",
+                "caption": "Fibonacci scaling of the order parameter.",
+            }
+        }
+    },
 )
 ```
 
-- `(source, label)` 对消除了 §2.4 的悬空编号歧义。
-- `source` 必须 resolve 到 `references.json` 的某个 key——编译器校验，未命中
-  → 硬错误（与 `[@key]` strict-miss 同款）。
-- claim 引用 figure：在 body 里写 `[@fig_3]`（`fig_3` 进 label 表，走现有
-  knowledge-ref 通道），或在 `background=[fig_3]` 里挂。无需新语法。
-- 渲染端读 `path` / `caption` 嵌图。无 `path` 时 figure 对象退化为一个纯
-  audit 锚点，仍合法。
+### 4.1 Required and optional fields
 
-这样三个字段收成一个对象，且不再脱离 source。
+| Field | Required | Meaning | Validation |
+|---|---:|---|---|
+| `kind` | yes | Controlled artifact kind | Must be one of `figure`, `table`, `dataset`, `notebook`, `attachment` |
+| `source` | no | Citation key in `references.json` for source-bound artifact | If present, must resolve to `references.json` |
+| `locator` | no | Source-local locator, not Gaia label | Recommended when `source` is present; required for source-bound `figure` and `table` |
+| `path` | no | Package-local file path | If present, must be relative, must not escape package root, and should exist during check |
+| `caption` | no | Human caption for figure/table rendering | String |
+| `description` | no | Human description for non-visual attachments | String |
+| `media_type` | no | Optional MIME hint when extension is insufficient | String |
 
-### 4.4 D — 把引用章节写进 `docs/for-users/language-reference.md`
+At least one of `source` or `path` must be present. This allows two important cases:
 
-**决议：在 `language-reference.md` 新增「References and Citations」一节**，
-覆盖：
+- Source-bound figure without local image: `source="Liu2015", locator="Fig. 3"`.
+- Generated/local attachment without bibliographic source:
+  `path="artifacts/data/simulation-results.parquet"`.
 
-- `[@key]`（strict）vs `@key`（opportunistic）的语义与不对称；
-- `references.json` 的位置、CSL-JSON 格式、最小字段要求；
-- knowledge ref（`[@local_label]`）vs citation（`[@Bell1964]`）的区分与统一查表；
-- collision fail-fast、homogeneous-group 规则各一个简短示例；
-- `figure(...)` 对象（§4.3）；
-- 一个「don't」小节：不要用 `source_refs`（已 deprecated）、不要把 citation
-  写进 `claim(provenance=...)`（那是包依赖）。
+The schema intentionally does not include arbitrary URL fields. If an artifact points to an external
+web resource, that resource should be a `references.json` entry and the artifact should use
+`source=<key>`. If the package includes a local copy, use `path`.
 
-2026-04-09 spec §10 把文档任务指到 `docs/foundations/gaia-lang/`——本 spec
-更正：主战场是 `docs/for-users/language-reference.md`，因为那才是作者查阅的入口。
-`docs/foundations/` 可保留一个深入链接。
+### 4.2 `figure()` and `artifact()` helpers
 
-同时把 2026-04-09 spec 的 Status 从「Target design」更新为「Implemented (core);
-rendering pipeline tracked by 2026-05-23-references-system-consolidation.md」。
+The helper functions are authoring sugar only:
 
-### 4.5 E — `refs` 的归宿：淘汰，不保留
+```python
+liu2015_fig3 = figure(
+    source="Liu2015",
+    locator="Fig. 3",
+    path="artifacts/figures/liu2015_fig3.png",
+    caption="Fibonacci scaling of the order parameter.",
+)
+```
 
-maintainer 给的条件是「`refs` 若保留 → 编译器必须校验它」。
+is equivalent to:
 
-**决议：不保留 `refs` metadata 字段。** 经 §4.1（citation → `[@key]`）、
-§4.2（equation 丢弃、figure 降级）、§4.3（figure → `figure()` 对象）之后，
-`refs` 的三型已无一幸存。继续保留一个空壳 `refs` 字段没有意义。
+```python
+liu2015_fig3 = artifact(
+    kind="figure",
+    source="Liu2015",
+    locator="Fig. 3",
+    path="artifacts/figures/liu2015_fig3.png",
+    caption="Fibonacci scaling of the order parameter.",
+)
+```
 
-因此：
+and both lower to a normal `note(...)` with artifact metadata. The helper must return a `Knowledge`
+whose `type` is `KnowledgeType.NOTE`; it must not create a new IR class.
 
-- skill 契约 `emit-mapping.md` §1a「The `refs` metadata field」整节删除。
-- skill 契约 §0「Shared metadata kwargs」表里 `refs` 行删除。
-- `claim(...)` 不新增 `refs` 校验——因为不再有 `refs`。
-- 编译器对 `claim()` 的 `**metadata` 增加一条**保留键拒绝**：如果 metadata 里
-  出现 `refs`、`source_refs`、`source_paper` 这些已淘汰 / 已迁移的键，编译器
-  发 `DeprecationWarning`（一个发布周期后升级为错误），并在消息里指向
-  `[@key]` / `figure()` / `rationale` 的替代写法。这就是把「whitelist」从
-  无人执行的建议变成编译器执行的契约——只不过执行的方式是**拒绝旧形态**，
-  而不是校验一个保留下来的半成品。
+The direct `note(..., metadata=...)` form remains valid and is the storage-level canonical form.
+Helpers exist to reduce boilerplate and to let the CLI emit readable source.
 
-## 5. 目标收敛模型
+### 4.3 Provenance behavior
 
-收敛后，引用 / 来源 / provenance 只有**三种 canonical 表达**，各有单一真源，
-全部编译器可校验：
+Artifact provenance is deliberately not flattened into every claim that references the artifact.
 
-| 引用种类 | 单一 canonical 真源 | 编译器校验 | 派生产物 |
-|---|---|---|---|
-| **文献引用（citation）** | body 内 `[@key]` / `@key`，key 指向 `references.json` | extract → validate_groups → resolve → strict-miss error（已实现） | `metadata["gaia"]["provenance"].cited_refs`；渲染 References 段 |
-| **本包 / 跨包知识引用（knowledge ref）** | body 内 `[@label]` / `@label`，label 指向 compile-closure label 表 | 同上 | `metadata["gaia"]["provenance"].referenced_claims`；渲染锚点链接 |
-| **论文图表（figure）** | `figure(source=, label=, path=, caption=)` 对象；body 内 `[@fig_label]` 引用它 | `source` resolve 到 `references.json`；`(source, label)` 唯一；type 字段不存在所以无非法 type | 渲染嵌图；audit 锚点 |
+- The artifact note validates and owns its `source`.
+- A claim that says `See [@liu2015_fig3]` records `liu2015_fig3` under
+  `referenced_claims` / local knowledge refs.
+- The same claim records `Liu2015` under `cited_refs` only if the claim text also says
+  `[@Liu2015]`.
+- Renderers may include bibliography entries for artifact sources when the artifact block is rendered,
+  but they should not pretend the parent claim directly cited a source it only reached transitively
+  through an artifact.
 
-**退场机制**：`refs` metadata（淘汰）、`source_refs`（deprecated → 删除）、
-`equation` ref（丢弃）、`metadata={"figure":...,"caption":...}`（并入 `figure()`）。
-`source_paper`：不再是独立的权威字段——一个 claim 引用了哪篇论文，由它 body 里
-的 `[@key]` 决定；skill 若仍需一个「主来源」标签用于审计，可保留为纯 audit
-metadata，但不进 canonical 模型，也不被工具当真源。
+This avoids double counting and keeps direct textual citation separate from artifact provenance.
 
-**保留但澄清**：`claim(provenance=[PackageRef])`——这是包版本依赖，**不是**
-文献引用，与本收敛模型正交。文档（§4.4）必须明确二者区别，消除 §2.1 的命名陷阱。
+## 5. Before / After
 
-### 5.1 Before / After：一个 citation
+### 5.1 Citation
 
-**Before**（碎片化，同一篇论文写三处）：
+Before:
 
 ```python
 liu2015_c1 = claim(
@@ -311,183 +217,243 @@ liu2015_c1 = claim(
 )
 ```
 
-`source_paper` 无人校验；`refs` 无人校验；`Fig. 3` 编号悬空；`Eq. (5)` 指针
-无承载；citation 写了两遍（`source_paper` + `refs`）。
+Problems: citation duplicated, figure locator has no source binding, equation pointer does not carry
+content, and `refs` is not compiler-validated.
 
-**After**（单一真源，编译器校验）：
+After:
 
 ```python
-# references.json 里有 "Liu2015" 条目(CSL-JSON)
-fig_3 = figure(source="Liu2015", label="Fig. 3",
-               path="figures/liu2015_fig3.png",
-               caption="Fibonacci scaling of the order parameter.")
+liu2015_fig3 = figure(
+    source="Liu2015",
+    locator="Fig. 3",
+    path="artifacts/figures/liu2015_fig3.png",
+    caption="Fibonacci scaling of the order parameter.",
+)
 
 liu2015_c1 = claim(
-    r"The system exhibits Fibonacci-scaling emergence, where the order "
-    r"parameter follows $\phi^n$ for mode index $n$ [@Liu2015]. "
-    r"See [@fig_3].",
-    background=[fig_3],
+    r"The system exhibits Fibonacci-scaling emergence [@Liu2015]. "
+    r"See [@liu2015_fig3].",
+    background=[liu2015_fig3],
 )
 ```
 
-citation 只在 body `[@Liu2015]` 表达一次（编译器校验、会渲染、写 provenance）；
-equation 内容 inline 进 body（`$\phi^n$`）；figure 是 source-bound 对象，
-`[@fig_3]` 走 knowledge-ref 通道。无悬空编号、无平行机制。
+The citation is written once, the figure is a source-bound artifact note, and the local reference uses
+the existing label mechanism.
 
-### 5.2 Before / After：一个 figure
+### 5.2 Attachment
 
-**Before**（三个字段，无主）：
+Before, there was no first-class place for package attachments other than ad hoc metadata:
 
 ```python
-weak_pt = claim(
-    r"Static screening assumption may fail at high density.",
-    claim_kind="weak_point",
-    refs=({"type": "figure", "id": "Fig. 4"},),
-    metadata={"figure": "fig4.png", "caption": "Screening length vs density"},
+analysis_note = note(
+    "The raw digitized points are in the supplemental spreadsheet.",
+    metadata={"file": "supplement.xlsx", "source_paper": "Liu2015"},
 )
 ```
 
-`Fig. 4` 不知是哪篇论文的；`refs.figure` 和 `metadata.figure` 两个字段都叫
-figure 却一个存编号一个存路径；全部无校验。
-
-**After**（一个 source-bound 对象）：
+After:
 
 ```python
-fig_4 = figure(source="Liu2015", label="Fig. 4",
-               path="figures/liu2015_fig4.png",
-               caption="Screening length vs density.")
+liu2015_supplement = artifact(
+    kind="attachment",
+    source="Liu2015",
+    locator="Supplementary Data 1",
+    path="artifacts/attachments/liu2015_supplement.xlsx",
+    description="Digitized source data used for the pressure-temperature curve.",
+)
 
-weak_pt = claim(
-    r"Static screening assumption may fail at high density, where the "
-    r"screening length drops below the inter-particle spacing [@fig_4].",
-    claim_kind="weak_point",
-    background=[fig_4],
+analysis_note = note(
+    "The digitized source data are available as [@liu2015_supplement]."
 )
 ```
 
-### 5.3 Observe 的 source：Before / After
+This handles the “附件引用” case without adding an `Attachment` knowledge type.
 
-**Before**：`observe(T_c, value=..., source_refs=["Drozdov 2015"])`——
-自由字符串，不校验、不 resolve、渲染端无人读。
+### 5.3 Observation source
 
-**After**：
+Before:
 
 ```python
 measured_tc = observe(
-    T_c, value=q(203, "K"), error=q(5, "K"),
+    T_c,
+    value=q(203, "K"),
+    error=q(5, "K"),
+    source_refs=["Drozdov 2015"],
+)
+```
+
+After:
+
+```python
+measured_tc = observe(
+    T_c,
+    value=q(203, "K"),
+    error=q(5, "K"),
     rationale="Reported superconducting transition temperature [@Drozdov2015].",
 )
 ```
 
-`[@Drozdov2015]` 在 rationale 里被 `_collect_action_rationale_refs` 扫描
-（`compile.py:1599-1620`），resolve 到 `references.json`，写入目标 claim 的
-`provenance.cited_refs`。单一真源、编译器校验。
+`rationale` is already scanned by the reference scanner, so the citation is resolved and recorded
+through the same path as other citations.
 
-## 6. 迁移与向后兼容
+## 6. CLI Design
 
-收敛模型对现有 `@label`、`[@key]`、`references.json` 用法**完全不破坏**——这些
-是 §3 原则 1 冻结的核心。破坏面只在被淘汰的边缘机制，且全部走一个发布周期的
-deprecation：
+The CLI should expose the artifact model directly because users should not have to hand-author nested
+metadata for common cases.
 
-| 旧机制 | 迁移路径 | 时间表 |
+### 6.1 `gaia author artifact`
+
+General command:
+
+```bash
+gaia author artifact \
+  --dsl-binding-name liu2015_supplement \
+  --kind attachment \
+  --source Liu2015 \
+  --locator "Supplementary Data 1" \
+  --path artifacts/attachments/liu2015_supplement.xlsx \
+  --description "Digitized source data used for the pressure-temperature curve." \
+  --target .
+```
+
+Behavior:
+
+- Creates or updates a package module with a module-level binding named by `--dsl-binding-name`.
+- Emits `artifact(...)` if the helper is available; otherwise emits equivalent `note(..., metadata=...)`.
+- Does not copy files in v1. The user supplies a package-relative path to an existing or planned file.
+- Defaults to not exporting the artifact. Export remains opt-in via the existing package export
+  mechanism because most artifacts are support anchors, not public claims.
+- Performs local validation for obvious issues: invalid kind, absolute path, `..` path escape, missing
+  `source` key when `--source` is provided and `references.json` is available.
+
+### 6.2 `gaia author figure`
+
+Figure-specific sugar:
+
+```bash
+gaia author figure \
+  --dsl-binding-name liu2015_fig3 \
+  --source Liu2015 \
+  --locator "Fig. 3" \
+  --path artifacts/figures/liu2015_fig3.png \
+  --caption "Fibonacci scaling of the order parameter." \
+  --target .
+```
+
+This is exactly `gaia author artifact --kind figure` with better option names and help text.
+
+### 6.3 What the CLI should not do in v1
+
+Do not add a file registry, content hash store, asset copy command, DOI lookup, remote download, or
+artifact import pipeline in this PR. Those can be added later if real workflows need them. The first
+complete contract is: generate the anchor, validate the metadata, and let renderers consume it.
+
+## 7. Compiler / Checker / Renderer Responsibilities
+
+### 7.1 Compiler and checker
+
+The compiler/check path should validate artifact notes wherever it already has enough context:
+
+- `kind` is in the controlled set.
+- At least one of `source` or `path` is present.
+- If `source` is present, it resolves to `references.json`.
+- If `source` and a source-bound visual kind are present, `locator` is required for `figure` and
+  `table`.
+- If `path` is present, it is package-relative and cannot escape the package root.
+- Package check should warn or fail when `path` does not exist, depending on the command's strictness.
+- Artifact notes are valid local knowledge targets, so `[@artifact_label]` should resolve through the
+  existing label table.
+
+Deprecated legacy fields should be handled explicitly:
+
+- `refs`: warn in the transition release, then error in the next major release.
+- `source_refs`: deprecate `observe(source_refs=...)`; use rationale `[@key]`.
+- `source_paper`: warn that it is audit-only and ignored by compiler provenance. If users need to
+  keep it, move it under an explicit audit namespace such as `metadata["gaia"]["audit"]`.
+- `metadata.figure` / top-level `caption`: warn and point to artifact note schema.
+
+The compiler must never treat these legacy fields as canonical citation data.
+
+### 7.2 Renderer
+
+Renderer behavior should follow the same three-layer split:
+
+- `cited_refs` renders bibliographic citations and a References section.
+- `referenced_claims` renders links to local knowledge anchors.
+- Artifact notes render as figure/table blocks or attachment links based on `kind` and `path`.
+
+For artifact notes:
+
+- `figure` with an image path renders an image block plus caption/source/locator.
+- `table` with a renderable path may render inline later; v1 may link the file if no table renderer
+  exists.
+- `dataset`, `notebook`, and `attachment` render as file links with description/source/locator.
+- If an artifact has `source`, the rendered artifact block should expose source and locator, and the
+  page-level bibliography may include that source.
+
+## 8. Migration
+
+| Old form | New form | Compatibility policy |
 |---|---|---|
-| `observe(source_refs=[...])` | 改写为 rationale 里的 `[@key]` | v0.6.x 发 `DeprecationWarning`；v0.7 删除参数 |
-| `claim(refs=(...))` | citation → body `[@key]`；equation → inline；figure → `figure()` 对象 | v0.6.x：编译器对 metadata 里出现 `refs` 发 `DeprecationWarning`；v0.7 升级为错误 |
-| `claim(source_paper=...)` | body `[@key]`（权威）；若需 audit 标签，留作纯 audit metadata | v0.6.x 文档标注「非 canonical」；不强制删除（无害的 audit metadata） |
-| `metadata={"figure":..., "caption":...}` | `figure(source=, label=, path=, caption=)` 对象 | 随 `refs` 一起 deprecate |
+| `refs=({"type": "citation", ...},)` | Body `[@CitationKey]` | Warn in transition release, then error |
+| `refs=({"type": "figure", "id": "Fig. 3"},)` | `figure(source=..., locator="Fig. 3", ...)` plus `[@artifact_label]` | Warn in transition release, then error |
+| `refs=({"type": "equation", ...},)` | Inline the equation or result in claim content | Warn in transition release, then error |
+| `observe(source_refs=[...])` | `observe(..., rationale="... [@CitationKey]")` | Deprecate parameter |
+| `source_paper="Liu2015"` | Body `[@Liu2015]` or artifact `source="Liu2015"` | Audit-only; ignored by compiler provenance |
+| `metadata={"figure": ..., "caption": ...}` | Artifact note with `kind="figure"` | Warn and migrate |
 
-**现有 `@label` 用法**：2026-04-09 spec §8 的迁移保证继续有效——现有 strategy
-reason 里的 `@label`（含 cross-package import 的 foreign label）继续 resolve，
-本 spec 不动这条链路（`compile.py` 的 `label_to_id` 行为不变）。
+Skill and docs migration must update repo-bundled sources, not only local user mirrors:
 
-**现有已发布 package**：例包（mendel / galileo）均无 `references.json`、无
-`[@key]`、无 `refs`——收敛对它们零影响。唯一接触点是 mendel 的
-`observe(source_refs=[...])`（`examples/mendel-v0-5-gaia/.../__init__.py:116`），
-随 `source_refs` deprecation 一并迁移，作为迁移示例。
+- `gaia/_skills/gaia-formalize-coarse/...` examples that emit `refs`.
+- `gaia/_skills/gaia-formalize-fine/...` examples that emit `metadata={"figure": ...}`.
+- `docs/for-users/language-reference.md` examples that still recommend `source_refs`.
+- Any `docs/foundations/gaia-lang/...` examples that use old `source_refs`.
 
-**`gaia author claim --metadata` 的现存缺陷**：核查发现
-`gaia/cli/commands/author/claim.py:117` 把 `--metadata '{...}'` 渲染为
-`claim(metadata={...})`（**嵌套**，不 spread 成 kwargs）。这意味着 author CLI
-本就无法正确 emit `claim(refs=(...))` 这种直接 kwarg；它只能靠
-`_flatten_metadata`（`knowledge.py:103-107`）单键解包的偶然行为把
-`metadata={"refs":...}` 还原。收敛后 `refs` 退场，这个偶然依赖也随之消失——
-author CLI 不需要为 `refs` 做任何特殊处理，反而是个简化。`figure()` 作为新
-DSL 构造，若需 author CLI 支持，应有独立的 `gaia author figure` 子命令
-（本 spec 列入清单 §7，不强制 PR 1 完成）。
+## 9. Implementation Checklist
 
-## 7. 实现清单
+### PR 1: Spec, DSL helper, validation, CLI authoring
 
-按 PR 切分，PR 1 是收敛 + 文档（不依赖渲染管线），PR 2 是渲染管线落地。
+- [ ] Add artifact metadata schema helper or validator near the existing DSL/compiler boundary.
+- [ ] Add `artifact(...)` and `figure(...)` helpers that return `KnowledgeType.NOTE`.
+- [ ] Export the helpers through the same public DSL surface as `note(...)`.
+- [ ] Validate artifact metadata during package compile/check.
+- [ ] Deprecate `observe(source_refs=...)` and document rationale-based citations.
+- [ ] Warn on legacy `refs`, `source_paper`, and `metadata.figure` forms.
+- [ ] Add `gaia author artifact`.
+- [ ] Add `gaia author figure` as sugar for `--kind figure`.
+- [ ] Update repo-bundled Gaia skills and user docs.
+- [ ] Add tests for helper output, schema validation, source resolution, unsafe paths, CLI emission,
+      and local `[@artifact_label]` resolution.
 
-### PR 1 — 收敛与文档（无网络副作用、无新依赖）
+### PR 2: Renderer consumption
 
-引擎 / 编译器：
+- [ ] Render `cited_refs` into citations and References sections.
+- [ ] Render `referenced_claims` as local anchor links.
+- [ ] Render artifact notes as image/table/link blocks according to `kind`.
+- [ ] Include artifact source/locator in rendered artifact blocks.
+- [ ] Add renderer tests with one source-bound figure and one package-local attachment.
 
-- [ ] `gaia/engine/lang/dsl/` 新增 `figure(...)` DSL 构造（§4.3）：
-      `source` / `label` / `path` / `caption` 字段；导出到 `gaia.engine.lang`。
-- [ ] `gaia/engine/ir/knowledge.py` —— 为 figure 增加 IR 表示（轻量 Knowledge
-      子型或 Note 变体），含 `source` / `label` / `path` / `caption`。
-- [ ] `gaia/engine/lang/compiler/compile.py` —— figure 校验：`source` 必须
-      resolve 到 `references.json`（未命中 → `ReferenceError`）；
-      `(source, label)` 在包内唯一（重复 → 错误）。
-- [ ] `gaia/engine/lang/compiler/compile.py` —— `**metadata` 保留键拒绝：
-      metadata 出现 `refs` / `source_refs` / `source_paper`（在非 audit 语境）
-      时发 `DeprecationWarning`，消息指向替代写法。
-- [ ] `gaia/engine/lang/dsl/support.py` —— `observe(source_refs=...)` 标注
-      deprecated，发 `DeprecationWarning`，文档引导改用 rationale `[@key]`。
+PR 2 may require citeproc/style dependencies; PR 1 does not.
 
-CLI：
+## 10. Non-Goals
 
-- [ ] `gaia/cli/commands/author/` —— 新增 `gaia author figure` 子命令（可选，
-      可延后至 PR 2）。
-- [ ] `gaia/cli/commands/author/observe.py` —— `--source-refs` flag 标注
-      deprecated。
+- Do not redesign `@` / `[@key]`.
+- Do not add `KnowledgeType.ARTIFACT`.
+- Do not add an `Artifact` or `ArtifactNote` subclass.
+- Do not create separate `FigureKnowledge`, `DatasetKnowledge`, or attachment subtypes.
+- Do not build file copying, hashing, DOI lookup, or remote import in v1.
+- Do not make `source_paper` a canonical citation source.
+- Do not change `claim(provenance=[PackageRef])`; it remains package/version provenance, not
+  bibliographic citation.
 
-Skill 契约：
+## 11. Open Extension Points
 
-- [ ] `~/.claude/skills/gaia-package/references/emit-mapping.md` —— 删除 §1a
-      「The `refs` metadata field」整节；§0「Shared metadata kwargs」表删除
-      `refs` 行；`source_paper` 行改注「audit-only，非 canonical；citation
-      走 body `[@key]`」；§1 / §2 代码示例移除 `refs=(...)`。
-- [ ] skill 契约新增一节说明 `figure()` 对象与 body `[@key]` citation。
+The design leaves room for future work without committing to it now:
 
-用户文档（本 spec 的核心交付之一）：
-
-- [ ] `docs/for-users/language-reference.md` —— 新增「References and Citations」
-      节（§4.4 列出的全部要点）。
-- [ ] `docs/for-users/language-reference.md:211` —— `observe()` 示例去掉
-      `source_refs=`，改用 rationale `[@key]`。
-- [ ] `docs/specs/2026-04-09-references-and-at-syntax.md` —— Status 从「Target
-      design」更新为「Implemented (core)」并交叉链接本 spec。
-
-测试：
-
-- [ ] `tests/gaia/lang/` —— `figure()` 构造单测：source 未命中报错、
-      `(source,label)` 重复报错。
-- [ ] `tests/gaia/lang/compiler/test_refs_integration.py` —— 扩展：`refs` /
-      `source_refs` metadata 触发 `DeprecationWarning`；figure 引用经
-      `[@fig_label]` 写入 `referenced_claims`。
-
-### PR 2 — 渲染管线落地（2026-04-09 spec §5.4 的欠账）
-
-- [ ] `pyproject.toml` —— 加 `citeproc-py`（runtime）、`bibtexparser >= 2.0`
-      （optional，仅 `gaia cite import`）。
-- [ ] `gaia/cli/commands/render.py` 及 `_github.py` / `_obsidian.py` ——
-      消费 `metadata["gaia"]["provenance"].cited_refs`，经 citeproc-py 渲染
-      citation 文本 + `## References` 段（2026-04-09 spec §5.4 的 4 步管线）。
-- [ ] 渲染端消费 `referenced_claims` → 锚点链接；消费 `figure` 对象 → 嵌图。
-- [ ] `gaia/cli/commands/cite.py` —— 新增 `gaia cite import`（BibTeX / CSL-JSON
-      → `references.json`，2026-04-09 spec §7）。
-- [ ] `gaia/engine/lang/refs/styles/*.csl` —— 内置 apa / ieee / nature /
-      chicago 样式。
-- [ ] `gaia/cli/commands/lint.py` —— `gaia lint --refs`（2026-04-09 spec §8.2）。
-
-## 8. Non-Goals
-
-- 不重新设计 `@` / `[@key]` 语法、CSL-JSON 格式、citeproc-py 委托、collision
-  fail-fast——§3 原则 1 冻结。
-- 不引入 DOI 自动补全（2026-04-09 spec §6 已论证）。
-- 不引入 cross-package reference 语法 `[@pkg::label]`（2026-04-09 spec §9）。
-- 不为 figure 设计独立的 bibliography / figure-index 静态页。
-- 不改 `claim(provenance=[PackageRef])` 的包依赖语义——只在文档里澄清它与
-  citation 的区别。
+- Artifact hashes can be added under `metadata["gaia"]["artifact"]["digest"]` once packages need
+  reproducible binary attachment verification.
+- Additional `kind` values can be added when renderer behavior differs materially.
+- A future `gaia artifact add` command can copy files into package-managed directories if repeated
+  user workflows justify it.
+- Cross-package artifact references should reuse the future cross-package knowledge-ref design rather
+  than inventing a special artifact namespace.
