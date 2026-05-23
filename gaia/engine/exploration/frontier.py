@@ -338,6 +338,36 @@ def _load_manifest_dict(root: Path) -> dict[str, Any] | None:
     return dict(loaded) if isinstance(loaded, dict) else None
 
 
+def _dep_paper_id(root: Path) -> str | None:
+    """Return a package's authoritative LKM ``paper_id`` from its pyproject (§7f).
+
+    ``pkg add --lkm-paper`` writes the pulled paper's id into the generated
+    dependency sub-package's ``[tool.gaia.source]`` table as ``paper_id`` (see
+    ``cli/commands/pkg/lkm_materialize.py``). Reading it here gives the
+    ground-truth materialized-paper-id set — robust to the dist-dir name slugging
+    that truncates the id (theme 004). Returns ``None`` for a non-paper package
+    (the root, a non-LKM dep) or an unreadable manifest.
+    """
+    import tomllib
+
+    pyproject = root / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    try:
+        config = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    tool = config.get("tool")
+    gaia = tool.get("gaia", {}) if isinstance(tool, dict) else {}
+    source = gaia.get("source", {}) if isinstance(gaia, dict) else {}
+    if not isinstance(source, dict):
+        return None
+    paper_id = source.get("paper_id")
+    if isinstance(paper_id, str) and paper_id:
+        return paper_id
+    return None
+
+
 @dataclass
 class JointView:
     """The joint root+dependency exploration view (SCHEMA.md §7e).
@@ -355,12 +385,20 @@ class JointView:
             frontier core and the scorer adjacency.
         package_roots: The on-disk roots that contributed (root + deps), in load
             order, for legibility/debugging.
+        materialized_paper_ids: The authoritative set of pulled-paper ids — each
+            ``-gaia`` dependency sub-package carries its own ``paper_id`` in its
+            ``[tool.gaia.source]`` pyproject table (written by
+            ``pkg add --lkm-paper`` via ``lkm_materialize``). Collected here by
+            reading each folded dep's manifest directly (theme 004), so an
+            ``lkm_related`` contact whose ``paper_id`` is in this set can be
+            retired from the open frontier rather than lingering as "unpulled".
         warnings: Human-readable notes about anything skipped or degraded.
     """
 
     materialized: set[str] = field(default_factory=set)
     edges: list[tuple[str, list[str]]] = field(default_factory=list)
     package_roots: list[Path] = field(default_factory=list)
+    materialized_paper_ids: set[str] = field(default_factory=set)
     warnings: list[str] = field(default_factory=list)
 
     def extract(self, exploration_map: ExplorationMap | None = None) -> list[Contact]:
@@ -431,6 +469,12 @@ def build_joint_view(
         view.materialized |= _materialized_qids(graph)
         view.edges.extend(_edges_from_ir(graph, _load_manifest_dict(resolved)))
         view.package_roots.append(resolved)
+        # (theme 004) An LKM paper dep records its authoritative paper_id in its
+        # own `[tool.gaia.source].paper_id` — collect it so a pulled paper's
+        # `lkm_related` contact can be retired from the open frontier.
+        paper_id = _dep_paper_id(resolved)
+        if paper_id is not None:
+            view.materialized_paper_ids.add(paper_id)
 
     root_resolved = Path(root_path).resolve()
     _fold(root_graph, root_resolved)

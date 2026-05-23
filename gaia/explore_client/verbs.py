@@ -204,12 +204,16 @@ def _promote_lkm_from_view(
     """Promote ``lkm`` contacts whose paper is now materialized in the joint view.
 
     A paper pulled via ``gaia pkg add --lkm-paper <id>`` lands as a dependency
-    sub-package whose dist dir name encodes the paper id (SCHEMA.md §7f); the
-    joint view's ``package_roots`` therefore reveal which papers are pulled
-    without importing anything. Each matching open ``lkm`` contact flips to
-    ``surveyed`` with a SurveyRecord.
+    sub-package carrying its authoritative ``paper_id`` in its
+    ``[tool.gaia.source]`` table (theme 004); the joint view collects those into
+    ``view.materialized_paper_ids``. We union that ground-truth set with the
+    dist-dir-name heuristic (a defensive backstop for any dep whose manifest could
+    not be read) so a pulled paper's ``lkm_related`` contact is reliably retired.
+    Each matching open ``lkm`` contact flips to ``surveyed`` with a SurveyRecord.
     """
-    paper_ids = materialized_paper_ids_from_roots(view.package_roots)
+    paper_ids = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+        view.package_roots
+    )
     if not paper_ids:
         return []
     return promote_materialized_lkm_contacts(
@@ -409,7 +413,9 @@ def observe_command(
     if graph is not None:
         view = _require_joint_view(pkg, graph)
         materialized = set(view.materialized)
-        materialized_papers = materialized_paper_ids_from_roots(view.package_roots)
+        materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+            view.package_roots
+        )
     else:
         typer.echo(
             "(no compiled IR yet — observing against an empty materialized set; "

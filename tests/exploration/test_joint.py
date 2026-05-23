@@ -325,6 +325,98 @@ def test_joint_view_resolves_dep_by_path_without_import(tmp_path, monkeypatch):
     assert root_qid("c") in contact_values
 
 
+def test_joint_view_collects_authoritative_paper_id_and_retires_contact(tmp_path, monkeypatch):
+    # (theme 004) A pulled LKM paper dep records its authoritative `paper_id` in
+    # its `[tool.gaia.source]` pyproject table. build_joint_view must collect it
+    # into `materialized_paper_ids`, and an lkm_related contact keyed by that
+    # paper_id must then be RETIRED (status surveyed), while an unrelated unpulled
+    # contact stays open.
+    from gaia.engine.exploration.observe import promote_materialized_lkm_contacts
+    from gaia.engine.exploration.state import Contact, ExplorationMap
+
+    root_path = tmp_path / "root"
+    dep_path = tmp_path / "deps" / "deppkg"
+    (root_path / ".gaia").mkdir(parents=True)
+    (dep_path / ".gaia").mkdir(parents=True)
+
+    root_graph = _graph(ROOT_NS, ROOT_PKG, [_claim(root_qid("a"))])
+    dep_graph = _graph(DEP_NS, DEP_PKG, [_claim(dep_qid("dep_fact"))])
+    (dep_path / ".gaia" / "ir.json").write_text(dep_graph.model_dump_json(), encoding="utf-8")
+
+    # The dep is an LKM paper package whose paper_id is LONG (so the dist-dir-name
+    # slug, truncated to 18 chars, would NOT round-trip it) — proving the
+    # authoritative pyproject read is what matches.
+    pulled_paper_id = "9988776655443322110099"
+    (dep_path / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[project]",
+                'name = "deppkg-gaia"',
+                'version = "0.0.0"',
+                "[tool.gaia.source]",
+                'provider = "lkm"',
+                'kind = "paper"',
+                f'paper_id = "{pulled_paper_id}"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    # Root pyproject declares the dep editable BY PATH.
+    (root_path / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[project]",
+                'name = "rootpkg-gaia"',
+                'version = "0.0.0"',
+                'dependencies = ["deppkg-gaia"]',
+                "[tool.uv.sources]",
+                'deppkg-gaia = { path = "../deps/deppkg", editable = true }',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _no_import_loader(monkeypatch)
+
+    view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
+    assert pulled_paper_id in view.materialized_paper_ids
+
+    # A map with two lkm_related contacts: one for the pulled paper, one unpulled.
+    other_paper_id = "1234567654321000"
+    exploration_map = ExplorationMap(
+        frontier=[
+            Contact(
+                id="ct_pulled",
+                ref={"kind": "lkm", "value": pulled_paper_id},
+                sources=[{"qid": root_qid("a"), "edge": "lkm_related"}],
+                meta={"paper_id": pulled_paper_id},
+            ),
+            Contact(
+                id="ct_open",
+                ref={"kind": "lkm", "value": other_paper_id},
+                sources=[{"qid": root_qid("a"), "edge": "lkm_related"}],
+                meta={"paper_id": other_paper_id},
+            ),
+        ]
+    )
+
+    promoted = promote_materialized_lkm_contacts(
+        exploration_map,
+        materialized_paper_ids=set(view.materialized_paper_ids),
+        survey_round=1,
+    )
+    assert promoted == [pulled_paper_id]
+
+    by_id = {c.id: c for c in exploration_map.frontier}
+    # The pulled paper's contact is retired (surveyed); the other stays open.
+    assert by_id["ct_pulled"].status == "surveyed"
+    assert by_id["ct_open"].status == "open"
+    # And it is no longer in the OPEN frontier.
+    open_papers = {c.ref["value"] for c in exploration_map.frontier if c.status == "open"}
+    assert pulled_paper_id not in open_papers
+    assert other_paper_id in open_papers
+
+
 def test_joint_view_root_only_when_no_deps(tmp_path, monkeypatch):
     root_path = tmp_path / "root"
     (root_path / ".gaia").mkdir(parents=True)

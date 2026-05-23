@@ -166,6 +166,37 @@ def _joint_view(pkg: str | Path, graph: Any) -> JointView:
     return build_joint_view(str(pkg), graph, project_config=_project_config(pkg), depth=-1)
 
 
+def _promote_lkm_from_view(
+    exploration_map: ExplorationMap, view: JointView, *, survey_round: int
+) -> list[str]:
+    """Retire ``lkm_related`` contacts whose paper is now materialized (theme 004).
+
+    A paper pulled via ``gaia pkg add --lkm-paper <id>`` lands as a dependency
+    sub-package carrying its authoritative ``paper_id`` (``[tool.gaia.source]``),
+    collected into ``view.materialized_paper_ids``; we union it with the
+    dist-dir-name heuristic as a defensive backstop. Each matching open ``lkm``
+    contact flips to ``surveyed`` (kept, not deleted, so ``reconcile`` won't
+    resurrect it). The standalone ``frontier``/``round`` verbs already do this; the
+    turn loop's IDLE step did not, so a pulled paper lingered as an open contact —
+    this closes that gap so ``turn`` and the ``frontier`` verb agree.
+    """
+    from gaia.engine.exploration.observe import (
+        materialized_paper_ids_from_roots,
+        promote_materialized_lkm_contacts,
+    )
+
+    paper_ids = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+        view.package_roots
+    )
+    if not paper_ids:
+        return []
+    return promote_materialized_lkm_contacts(
+        exploration_map,
+        materialized_paper_ids=paper_ids,
+        survey_round=survey_round,
+    )
+
+
 def _compile_and_infer(pkg: str | Path) -> None:
     """Compile the package then run BP inference, writing artifacts (SDK).
 
@@ -382,6 +413,16 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
         beliefs = _load_beliefs(pkg)
         view = _joint_view(pkg, graph)
         messages.extend(f"warning: {w}" for w in view.warnings)
+        # (theme 004) Retire any lkm_related contact whose paper is now
+        # materialized in the joint view (pulled via `pkg add --lkm-paper`) BEFORE
+        # ranking, so a pulled paper never resurfaces as an open "unpulled"
+        # contact in the shortlist — the frontier verb already does this.
+        promoted_papers = _promote_lkm_from_view(exploration_map, view, survey_round=round_index)
+        if promoted_papers:
+            messages.append(
+                f"retired {len(promoted_papers)} lkm_related contact(s) "
+                f"(paper(s) now materialized): {', '.join(promoted_papers)}"
+            )
         extracted = view.extract(exploration_map)
         reconcile_frontier(exploration_map, extracted, discovered_round=round_index)
         # Build 12 (CLIENT.md steer 3): load the package's open synthetic
