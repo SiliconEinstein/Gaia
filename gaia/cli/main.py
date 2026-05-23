@@ -75,7 +75,6 @@ from gaia.cli.commands.bayes import (
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
 from gaia.cli.commands.example import example_app
-from gaia.cli.commands.explore import explore_app
 from gaia.cli.commands.infer import infer_command
 from gaia.cli.commands.init import init_command
 from gaia.cli.commands.inquiry import inquiry_app
@@ -239,19 +238,6 @@ app.add_typer(review_app, name="review")
 
 app.add_typer(inquiry_app, name="inquiry")
 app.add_typer(inquiry_app, name="inquery", hidden=True)  # typo alias
-
-
-# --------------------------------------------------------------------------- #
-# explore — exploration-engine sub-app (init / frontier / round / status)     #
-# --------------------------------------------------------------------------- #
-#
-# `gaia explore <verb>` is the deterministic engine half of the exploration
-# turn loop (SCHEMA.md §7c): a Typer sub-app wrapping `gaia/engine/exploration/`,
-# mirroring the `inquiry` CLI→engine pattern. No LKM, no `gaia author`
-# orchestration — those belong to the agent survey driven by the `gaia-explore`
-# orchestrator client (`gaia.explore_client`, a sibling of `gaia`).
-
-app.add_typer(explore_app, name="explore")
 
 
 # --------------------------------------------------------------------------- #

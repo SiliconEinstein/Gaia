@@ -22,7 +22,7 @@ description: |
   strictly chain-bounded — only LKM-returned premises and their explicit
   content are admitted as nodes; no synthetic bridging from external sources.
   Reach for this skill when the user explicitly asks for a closure-chain /
-  evidence graph (not Gaia formalization — that is the `gaia-explore` client); it
+  evidence graph (not Gaia formalization — that is the `gaia-lkm-explore` client); it
   pairs with `gaia-scholarly-synthesis`, which consumes the audited graph it
   produces.
 ---

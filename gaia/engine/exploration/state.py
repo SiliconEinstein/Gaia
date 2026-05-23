@@ -55,7 +55,7 @@ VALID_REF_KINDS = {"qid", "lkm"}
 VALID_SEED_KINDS = {"claim", "question"}
 
 # CLIENT.md "Turn state machine" — the orchestrator phase recorded on the map.
-# IDLE              : the loop is between turns; the next `gaia-explore turn` ranks
+# IDLE              : the loop is between turns; the next `gaia-lkm-explore turn` ranks
 #                     the frontier, emits a survey task, and sets AWAITING_SURVEY.
 # AWAITING_SURVEY   : a task envelope has been emitted; an external agent is
 #                     surveying. The map stays here until a result manifest lands.

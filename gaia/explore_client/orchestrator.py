@@ -1,13 +1,13 @@
 """The phase-aware turn state machine (CLIENT.md "Turn state machine").
 
-This is the heart of the ``gaia-explore`` orchestrator. It is stateless between
+This is the heart of the ``gaia-lkm-explore`` orchestrator. It is stateless between
 runs and save-game driven: each invocation reads ``map.turn_phase`` (and infers
 ``AWAITING_CHECKPOINT`` from the presence of a result manifest), runs the
 deterministic engine step for that phase via the **gaia SDK** (never by shelling
 out to ``gaia``), advances the phase, and returns.
 
 ```
-gaia-explore turn <pkg>
+gaia-lkm-explore turn <pkg>
   IDLE                → rank the frontier (extract → reconcile → score), build a
                         self-contained survey task → turn-<n>.task.json,
                         set AWAITING_SURVEY, return the task path, EXIT.
@@ -66,7 +66,7 @@ class OrchestratorError(Exception):
 
 @dataclass
 class TurnOutcome:
-    """The structured result of one ``gaia-explore turn`` invocation.
+    """The structured result of one ``gaia-lkm-explore turn`` invocation.
 
     The CLI renders this for the human; tests assert on it directly.
 
@@ -315,7 +315,7 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
         contacts = _seed_contacts(exploration_map)
         messages.append(
             "no compiled IR yet — emitting a round-0 seed-survey task "
-            "(run the survey, then re-invoke `gaia-explore turn`)."
+            "(run the survey, then re-invoke `gaia-lkm-explore turn`)."
         )
     else:
         beliefs = _load_beliefs(pkg)
@@ -498,7 +498,7 @@ def run_turn(pkg: str | Path) -> TurnOutcome:
             compile / infer the package.
     """
     if not _map_exists(pkg):
-        raise OrchestratorError(f"no exploration map at {pkg}; run `gaia explore init` first.")
+        raise OrchestratorError(f"no exploration map at {pkg}; run `gaia-lkm-explore init` first.")
 
     exploration_map = load_map(pkg)
     edir = exploration_dir(pkg)
@@ -522,7 +522,7 @@ def run_turn(pkg: str | Path) -> TurnOutcome:
             result_path=str(res_path),
             messages=[
                 "a survey task is outstanding; survey it and write the result "
-                "manifest, then re-invoke `gaia-explore turn`."
+                "manifest, then re-invoke `gaia-lkm-explore turn`."
             ],
         )
 

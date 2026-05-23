@@ -1,6 +1,6 @@
 """Exploration turn-handoff envelopes (CLIENT.md "Envelopes").
 
-The orchestrator client (``gaia-explore``) is stateless between runs and
+The orchestrator client (``gaia-lkm-explore``) is stateless between runs and
 save-game driven: it sequences the deterministic engine steps, then **hands the
 fuzzy survey to an external agent** via a structured task envelope written to
 disk, and consumes the agent's result envelope on the next invocation.

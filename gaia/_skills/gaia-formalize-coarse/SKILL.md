@@ -21,7 +21,7 @@ description: |
   of one paper; reach for `gaia-formalize-fine` when the source is
   load-bearing, multi-section, or destined for publication. For the
   LKM-driven (not paper-driven) route that grows a multi-paper graph, use
-  the `gaia-explore` orchestrator client instead. Use whenever the user asks to "formalize a
+  the `gaia-lkm-explore` orchestrator client instead. Use whenever the user asks to "formalize a
   paper into Gaia", "produce a Gaia package from this paper", "turn this
   paper into a knowledge package", or any variant where the upstream is a
   single paper text and the requested output is Gaia DSL — even if the user
@@ -56,12 +56,12 @@ gaia-formalize-coarse
 `gaia-formalize-coarse` is the **quick paper-driven** sibling of
 [`../gaia-formalize-fine/SKILL.md`](../gaia-formalize-fine/SKILL.md) (the
 thorough six-pass treatment of the same paper-driven route) and of the
-**`gaia-explore`** orchestrator client — the **LKM-driven** turn loop that grows
+**`gaia-lkm-explore`** orchestrator client — the **LKM-driven** turn loop that grows
 a Gaia package from LKM evidence chains (a sibling of `gaia`, run as
-`gaia-explore turn <pkg>`; not a registered skill). All three produce package
+`gaia-lkm-explore turn <pkg>`; not a registered skill). All three produce package
 outputs of identical shape, but enter the graph from different directions: the
 two `gaia-formalize-*` skills start from one paper and audit its derivations
-(coarse = fast single-pass, fine = exhaustive six-pass); `gaia-explore` starts
+(coarse = fast single-pass, fine = exhaustive six-pass); `gaia-lkm-explore` starts
 from LKM search and grows a frontier across many papers.
 
 ## Output Mode
@@ -223,7 +223,7 @@ Sibling skills (this registry):
   `reasoning [--claim-id]` / `nodes` / `package` / `auth`), used by the
   Phase 1b reverse-provenance trace. Verify flags with
   `gaia search lkm <verb> --help`.
-- The **`gaia-explore`** orchestrator client (run `gaia-explore turn <pkg>`; a
+- The **`gaia-lkm-explore`** orchestrator client (run `gaia-lkm-explore turn <pkg>`; a
   sibling of `gaia`, not a registered skill) — the LKM-driven exploration turn
   loop producing the same Gaia knowledge-package output shape from a different
   upstream.

@@ -1,27 +1,30 @@
-"""gaia explore — the deterministic exploration-engine CLI (SCHEMA.md §7c, build 4a).
+"""The deterministic exploration-engine verbs (SCHEMA.md §7c).
 
-This is the *engine* half of the exploration turn loop's "LLM proposes / engine
-adjudicates" split (DESIGN §2): a Typer sub-app over
-:mod:`gaia.engine.exploration` that the **``gaia-explore`` orchestrator client**
-(``gaia.explore_client`` — a sibling of ``gaia``) drives via the SDK, handing the
-fuzzy survey to a thin agent. It is pure and deterministic — **no LKM call, no
-``gaia author`` orchestration** live here; those are the agent's survey step.
+These are the engine half of the exploration turn loop's "LLM proposes / engine
+adjudicates" split (DESIGN §2): thin Typer commands over
+:mod:`gaia.engine.exploration`. As of build 7 (CLIENT.md "Unified surface") they
+live under the **``gaia-lkm-explore``** client (``gaia.explore_client``) — the
+single user-facing exploration surface — alongside the orchestrator's ``turn``
+verb, rather than as a ``gaia explore`` sub-app on the gaia CLI. They are pure
+and deterministic — **no LKM call, no ``gaia author`` orchestration** live here;
+those are the agent's survey step.
 
 Commands (SCHEMA.md §7c / §7f):
 
-* ``explore init <pkg> --seed … [--doctrine …]`` — create
+* ``init <pkg> --seed … [--doctrine …]`` — create
   ``.gaia/exploration/map.json`` with seeds + a policy from the named doctrine.
-* ``explore observe <pkg> --source <qid> [--search-json <file>] [--query …]`` —
+* ``observe <pkg> --source <qid> [--search-json <file>] [--query …]`` —
   read ``gaia search lkm`` JSON (file/stdin) and record each unpulled related
   paper as an ``lkm_related`` paper-contact (SCHEMA.md §7f — the primary frontier
   source). This is the step the agent calls after each LKM survey.
-* ``explore frontier <pkg>`` — load map + IR + manifest + beliefs, build the
-  joint view, promote any now-materialized ``lkm`` contacts, run
-  ``extract_frontier`` → ``reconcile_frontier`` → ``score_frontier``, save, and
-  print the ranked top-k open contacts (qid + ``lkm_related``) to survey.
-* ``explore round <pkg> [--surveyed …]`` — compute discoveries vs. the previous
-  round's beliefs, append a round record, bump ``map.round``, refresh ``stats``.
-* ``explore status <pkg>`` — a human-readable map summary.
+* ``frontier <pkg>`` — load map + IR + manifest + beliefs, build the joint view,
+  promote any now-materialized ``lkm`` contacts, run ``extract_frontier`` →
+  ``reconcile_frontier`` → ``score_frontier``, save, and print the ranked top-k
+  open contacts (qid + ``lkm_related``) to survey.
+* ``round <pkg> [--surveyed …]`` — compute discoveries vs. the previous round's
+  beliefs, append a round record, bump ``map.round``, refresh ``stats``.
+* ``status <pkg>`` — a human-readable map summary.
+* ``render <pkg> [--out …]`` — render the map to a self-contained static HTML.
 
 Mirrors ``gaia inquiry`` (``commands/inquiry.py`` → ``engine/inquiry/``): the
 same ``typer.echo`` envelope style, ``typer.Exit`` error handling, and the IR
@@ -62,15 +65,6 @@ from gaia.engine.exploration.state import (
 )
 from gaia.engine.inquiry.focus import resolve_focus_target
 from gaia.engine.inquiry.review import resolve_graph
-
-explore_app = typer.Typer(
-    name="explore",
-    help=(
-        "Gaia Explore — fog-of-war exploration of a knowledge package "
-        "(init / frontier / round / status)."
-    ),
-    no_args_is_help=True,
-)
 
 # Module-level option singletons — Typer needs ``typer.Option`` objects as the
 # parameter defaults, but ruff B008 forbids the call literally in the signature,
@@ -291,7 +285,6 @@ def _ranked_open_contacts(exploration_map: ExplorationMap) -> list[Contact]:
 # --------------------------------------------------------------------------- #
 
 
-@explore_app.command("init")
 def init_command(
     pkg: str = _PKG_ARG,
     seed: list[str] = _SEED_OPT,
@@ -309,8 +302,8 @@ def init_command(
 
     .. code-block:: bash
 
-        gaia explore init ./pkg --seed "Why do bodies fall?" --doctrine Surveyor
-        gaia explore init ./pkg --seed github:pkg::aristotle_model --seed other::q
+        gaia-lkm-explore init ./pkg --seed "Why do bodies fall?" --doctrine Surveyor
+        gaia-lkm-explore init ./pkg --seed github:pkg::aristotle_model --seed other::q
     """
     if doctrine not in DOCTRINE_PRESETS:
         typer.echo(
@@ -345,7 +338,6 @@ def init_command(
 # --------------------------------------------------------------------------- #
 
 
-@explore_app.command("observe")
 def observe_command(
     pkg: str = _PKG_ARG,
     search_json: str | None = _SEARCH_JSON_OPT,
@@ -368,12 +360,12 @@ def observe_command(
     .. code-block:: bash
 
         gaia search lkm knowledge "free fall" --limit 5 > leads.json
-        gaia explore observe ./pkg --source example:pkg::seed --search-json leads.json
-        gaia search lkm knowledge "drag" | gaia explore observe ./pkg --source example:pkg::seed
+        gaia-lkm-explore observe ./pkg --source example:pkg::seed --search-json leads.json
+        gaia search lkm knowledge "drag" | gaia-lkm-explore observe ./pkg --source example:pkg::seed
     """
     if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
         typer.echo(
-            f"Error: no exploration map at {pkg}; run `gaia explore init` first.",
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
             err=True,
         )
         raise typer.Exit(1)
@@ -439,7 +431,7 @@ def observe_command(
     if result.updated_contacts:
         typer.echo(f"  merged papers: {', '.join(result.updated_contacts)}")
     typer.echo(
-        "Next: `gaia explore frontier` to rank them; pull the top via `pkg add --lkm-paper`."
+        "Next: `gaia-lkm-explore frontier` to rank them; pull the top via `pkg add --lkm-paper`."
     )
 
 
@@ -448,7 +440,6 @@ def observe_command(
 # --------------------------------------------------------------------------- #
 
 
-@explore_app.command("frontier")
 def frontier_command(
     pkg: str = _PKG_ARG,
     json_out: bool = _FRONTIER_JSON_OPT,
@@ -467,12 +458,12 @@ def frontier_command(
 
     .. code-block:: bash
 
-        gaia explore frontier ./pkg
-        gaia explore frontier ./pkg --json
+        gaia-lkm-explore frontier ./pkg
+        gaia-lkm-explore frontier ./pkg --json
     """
     if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
         typer.echo(
-            f"Error: no exploration map at {pkg}; run `gaia explore init` first.",
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
             err=True,
         )
         raise typer.Exit(1)
@@ -560,7 +551,6 @@ def frontier_command(
 # --------------------------------------------------------------------------- #
 
 
-@explore_app.command("round")
 def round_command(
     pkg: str = _PKG_ARG,
     surveyed: list[str] = _SURVEYED_OPT,
@@ -581,12 +571,12 @@ def round_command(
 
     .. code-block:: bash
 
-        gaia explore round ./pkg
-        gaia explore round ./pkg --surveyed github:pkg::claim7 --surveyed github:pkg::claim8
+        gaia-lkm-explore round ./pkg
+        gaia-lkm-explore round ./pkg --surveyed github:pkg::claim7 --surveyed github:pkg::claim8
     """
     if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
         typer.echo(
-            f"Error: no exploration map at {pkg}; run `gaia explore init` first.",
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
             err=True,
         )
         raise typer.Exit(1)
@@ -692,7 +682,6 @@ def _apply_discovery_tally(pkg: str, exploration_map: ExplorationMap) -> None:
 # --------------------------------------------------------------------------- #
 
 
-@explore_app.command("status")
 def status_command(
     pkg: str = _PKG_ARG,
 ) -> None:
@@ -705,11 +694,11 @@ def status_command(
 
     .. code-block:: bash
 
-        gaia explore status ./pkg
+        gaia-lkm-explore status ./pkg
     """
     if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
         typer.echo(
-            f"Error: no exploration map at {pkg}; run `gaia explore init` first.",
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
             err=True,
         )
         raise typer.Exit(1)
@@ -802,7 +791,6 @@ def _node_roles(graph: Any) -> tuple[set[str], set[str], dict[str, str]]:
     return contradiction, support, labels
 
 
-@explore_app.command("render")
 def render_command(
     pkg: str = _PKG_ARG,
     out: str | None = _RENDER_OUT_OPT,
@@ -820,12 +808,12 @@ def render_command(
 
     .. code-block:: bash
 
-        gaia explore render ./pkg
-        gaia explore render ./pkg --out /tmp/galileo-map.html
+        gaia-lkm-explore render ./pkg
+        gaia-lkm-explore render ./pkg --out /tmp/galileo-map.html
     """
     if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
         typer.echo(
-            f"Error: no exploration map at {pkg}; run `gaia explore init`/`frontier` first.",
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init`/`frontier` first.",
             err=True,
         )
         raise typer.Exit(1)
@@ -860,3 +848,13 @@ def render_command(
         f"{len(html_doc)} bytes)."
     )
     typer.echo(f"Output: {out_path}")
+
+
+__all__ = [
+    "frontier_command",
+    "init_command",
+    "observe_command",
+    "render_command",
+    "round_command",
+    "status_command",
+]

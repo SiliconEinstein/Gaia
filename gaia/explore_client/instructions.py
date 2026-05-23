@@ -22,7 +22,7 @@ _CONTRACT = """\
 # Exploration survey task — self-contained
 
 You are the *thin agent* in a fog-of-war exploration of human scientific
-knowledge. The `gaia-explore` orchestrator has already run the deterministic
+knowledge. The `gaia-lkm-explore` orchestrator has already run the deterministic
 engine for this turn and emitted this task. Your job is the **fuzzy survey
 only**: read messy LKM evidence, propose claims + priors + relations, and
 materialize them into the Gaia package. The engine then adjudicates the
@@ -33,7 +33,7 @@ materialize them into the Gaia package. The engine then adjudicates the
 >   map them onto Gaia primitives.
 > - The Gaia engine does the rigorous work: propagate belief, surface which
 >   contradictions fire and whose belief falls — as a consequence of the math,
->   not your opinion. That happens when you re-invoke `gaia-explore turn` (it
+>   not your opinion. That happens when you re-invoke `gaia-lkm-explore turn` (it
 >   compiles + infers + rounds).
 
 ## Honest v1 limits (read before surveying)
@@ -43,7 +43,7 @@ materialize them into the Gaia package. The engine then adjudicates the
   consequence (whose belief dropped).
 - The frontier grows primarily from `lkm_related` contacts. Each survey's
   `gaia search lkm` returns related papers you haven't pulled; feeding that JSON
-  to `gaia explore observe` records them as `lkm_related` paper-contacts — the
+  to `gaia-lkm-explore observe` records them as `lkm_related` paper-contacts — the
   primary expansion signal. `depends_on` contacts (from a pulled paper's
   formalization manifest) are a secondary, intra-survey signal. If you neither
   observe related papers nor pull a paper, the frontier can go empty — expected,
@@ -71,7 +71,7 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
 
 2. RECORD unpulled related papers as frontier contacts — REQUIRED, the primary
    growth path. Pipe each search's JSON to:
-       gaia explore observe <pkg> --source <this-contact-or-seed-qid> \\
+       gaia-lkm-explore observe <pkg> --source <this-contact-or-seed-qid> \\
            --query "<query>" --search-json /tmp/leads.json
    Every result whose paper is not materialized becomes an `lkm_related`
    paper-contact, ranked next round. Do this for EVERY survey query.
@@ -140,14 +140,14 @@ _HANDOFF = """\
    `surveyed_qids` — the checkpoint records them honestly.
 
 2. Re-invoke the orchestrator to checkpoint:
-       gaia-explore turn <pkg>
+       gaia-lkm-explore turn <pkg>
    It detects the result manifest, then (via the SDK) compiles + infers + runs
    `explore round` — recomputing belief and emitting the discovery report
    (contradiction / keystone / settled_core) — and returns to IDLE. You do NOT
    run compile/infer/round yourself, and you do NOT edit `turn_phase` by hand.
 
 3. The orchestrator stops for human review. The human re-dials the doctrine (if
-   desired) and the next `gaia-explore turn <pkg>` opens turn n+1.
+   desired) and the next `gaia-lkm-explore turn <pkg>` opens turn n+1.
 
 Do not run a standalone end-of-run report — the checkpoint's discovery report is
 the per-turn hand-off.
@@ -174,7 +174,7 @@ def build_survey_instructions(*, seed_survey: bool) -> str:
             "SEED(S) named in this task's `contacts` (each carries the seed text in "
             "its `survey_brief`). Surveying a seed = running the per-contact "
             "procedure below with the seed text as your initial LKM query; "
-            "`gaia explore observe` on that survey is what seeds round 1's frontier "
+            "`gaia-lkm-explore observe` on that survey is what seeds round 1's frontier "
             "with `lkm_related` paper-contacts.\n"
         )
     else:

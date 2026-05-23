@@ -1,4 +1,4 @@
-"""Tests for the gaia-explore orchestrator turn state machine (CLIENT.md).
+"""Tests for the gaia-lkm-explore orchestrator turn state machine (CLIENT.md).
 
 Two layers:
 
@@ -81,8 +81,8 @@ def test_idle_round0_no_ir_emits_seed_survey_task(tmp_path: Path, monkeypatch):
     # The instructions are baked in (no skill) — they carry the survey procedure
     # and the re-invocation handshake.
     assert "Integrity contract" in task.instructions
-    assert "gaia explore observe" in task.instructions
-    assert "gaia-explore turn" in task.instructions
+    assert "gaia-lkm-explore observe" in task.instructions
+    assert "gaia-lkm-explore turn" in task.instructions
 
 
 def test_idle_with_frontier_emits_ranked_task(tmp_path: Path, monkeypatch):

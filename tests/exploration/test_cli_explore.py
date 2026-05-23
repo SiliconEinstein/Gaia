@@ -1,8 +1,11 @@
-"""Integration tests for the `gaia explore` CLI (SCHEMA.md §7c, build 4a).
+"""Integration tests for the `gaia-lkm-explore` engine verbs (SCHEMA.md §7c).
 
-These run the real CLI (via Typer's ``CliRunner``) against the hand-authored
-``examples/galileo-v0-5-gaia`` fixture — claims + derives + a ``contradict``, no
-LKM needed — copied into a tmp dir, compiled and inferred, then explored.
+These run the real client CLI (via Typer's ``CliRunner``) against the
+hand-authored ``examples/galileo-v0-5-gaia`` fixture — claims + derives + a
+``contradict``, no LKM needed — copied into a tmp dir, compiled and inferred
+(via the ``gaia`` CLI), then explored. As of build 7 (CLIENT.md "Unified
+surface") the engine verbs live on the ``gaia-lkm-explore`` client, not the
+removed ``gaia explore`` sub-app.
 """
 
 from __future__ import annotations
@@ -14,8 +17,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from gaia.cli.main import app
+from gaia.cli.main import app as gaia_app
 from gaia.engine.exploration.state import load_map, read_rounds
+from gaia.explore_client.cli import app
 
 pytestmark = pytest.mark.pr_gate
 
@@ -44,10 +48,10 @@ def galileo_pkg(tmp_path: Path) -> Path:
     pkg = tmp_path / "galileo-v0-5-gaia"
     shutil.copytree(src, pkg)
 
-    compile_result = runner.invoke(app, ["build", "compile", str(pkg)])
+    compile_result = runner.invoke(gaia_app, ["build", "compile", str(pkg)])
     assert compile_result.exit_code == 0, compile_result.output
 
-    infer_result = runner.invoke(app, ["run", "infer", str(pkg)])
+    infer_result = runner.invoke(gaia_app, ["run", "infer", str(pkg)])
     assert infer_result.exit_code == 0, infer_result.output
 
     assert (pkg / ".gaia" / "ir.json").exists()
@@ -59,7 +63,6 @@ def test_explore_init_creates_map(galileo_pkg: Path):
     result = runner.invoke(
         app,
         [
-            "explore",
             "init",
             str(galileo_pkg),
             "--seed",
@@ -81,7 +84,7 @@ def test_explore_init_creates_map(galileo_pkg: Path):
 def test_explore_init_rejects_unknown_doctrine(galileo_pkg: Path):
     result = runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", "x", "--doctrine", "Nonsense"],
+        ["init", str(galileo_pkg), "--seed", "x", "--doctrine", "Nonsense"],
     )
     assert result.exit_code == 2
     assert "unknown doctrine" in result.output
@@ -121,9 +124,9 @@ def test_galileo_frontier_is_empty_when_fully_materialized(galileo_pkg: Path):
     # unmaterialized references, so the IR-derived frontier is empty.
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    result = runner.invoke(app, ["frontier", str(galileo_pkg)])
     assert result.exit_code == 0, result.output
     assert "frontier empty" in result.output
     assert load_map(galileo_pkg).frontier == []
@@ -132,13 +135,13 @@ def test_galileo_frontier_is_empty_when_fully_materialized(galileo_pkg: Path):
 def test_explore_frontier_ranks_contacts(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
     contact_qid = _inject_depends_on_manifest(
         galileo_pkg, "unmaterialized_factor", "aristotle_model"
     )
 
-    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    result = runner.invoke(app, ["frontier", str(galileo_pkg)])
     assert result.exit_code == 0, result.output
     assert "Frontier:" in result.output
     assert contact_qid in result.output
@@ -156,10 +159,10 @@ def test_explore_frontier_ranks_contacts(galileo_pkg: Path):
 def test_explore_frontier_json_output(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
     _inject_depends_on_manifest(galileo_pkg, "unmaterialized_factor", "aristotle_model")
-    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg), "--json"])
+    result = runner.invoke(app, ["frontier", str(galileo_pkg), "--json"])
     assert result.exit_code == 0, result.output
     rows = json.loads(result.output)
     assert isinstance(rows, list)
@@ -171,11 +174,11 @@ def test_explore_frontier_json_output(galileo_pkg: Path):
 def test_explore_round_appends_and_detects_keystone(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
 
-    result = runner.invoke(app, ["explore", "round", str(galileo_pkg)])
+    result = runner.invoke(app, ["round", str(galileo_pkg)])
     assert result.exit_code == 0, result.output
     assert "Round 0 complete" in result.output
 
@@ -196,12 +199,12 @@ def test_explore_round_appends_and_detects_keystone(galileo_pkg: Path):
 def test_explore_round_detects_contradiction_on_belief_drop(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
 
     # Round 0 snapshots the real beliefs as the baseline for round 1.
-    runner.invoke(app, ["explore", "round", str(galileo_pkg)])
+    runner.invoke(app, ["round", str(galileo_pkg)])
 
     # Hand-perturb beliefs.json downward to simulate a survey that pushed a
     # claim's belief down (galileo's authored contradict + new evidence would do
@@ -218,7 +221,7 @@ def test_explore_round_detects_contradiction_on_belief_drop(galileo_pkg: Path):
     assert dropped_label is not None
     beliefs_path.write_text(json.dumps(payload))
 
-    result = runner.invoke(app, ["explore", "round", str(galileo_pkg)])
+    result = runner.invoke(app, ["round", str(galileo_pkg)])
     assert result.exit_code == 0, result.output
 
     rounds = read_rounds(galileo_pkg)
@@ -237,15 +240,15 @@ def test_explore_round_records_surveyed_and_promotes_contact(galileo_pkg: Path):
     # `status` surveyed count and the round log agree.
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
     contact_qid = _inject_depends_on_manifest(
         galileo_pkg, "unmaterialized_factor", "aristotle_model"
     )
-    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
 
     # Survey the contact QID.
-    result = runner.invoke(app, ["explore", "round", str(galileo_pkg), "--surveyed", contact_qid])
+    result = runner.invoke(app, ["round", str(galileo_pkg), "--surveyed", contact_qid])
     assert result.exit_code == 0, result.output
     assert "1 surveyed" in result.output
 
@@ -269,11 +272,11 @@ def test_explore_round_records_surveyed_without_contact(galileo_pkg: Path):
     # A surveyed QID with no matching open contact still gets a bare SurveyRecord.
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
     bare_qid = _galileo_qid("some_freshly_authored_claim")
-    result = runner.invoke(app, ["explore", "round", str(galileo_pkg), "--surveyed", bare_qid])
+    result = runner.invoke(app, ["round", str(galileo_pkg), "--surveyed", bare_qid])
     assert result.exit_code == 0, result.output
     m = load_map(galileo_pkg)
     assert bare_qid in m.surveyed
@@ -286,13 +289,13 @@ def test_explore_frontier_resolves_freetext_seed(galileo_pkg: Path):
     # persists the QID so closeness_to_seed can bite.
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", "aristotle_model"],
+        ["init", str(galileo_pkg), "--seed", "aristotle_model"],
     )
     m0 = load_map(galileo_pkg)
     assert m0.seeds[0]["qid"] is None
     assert m0.seeds[0]["kind"] == "question"
 
-    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    result = runner.invoke(app, ["frontier", str(galileo_pkg)])
     assert result.exit_code == 0, result.output
 
     m1 = load_map(galileo_pkg)
@@ -302,12 +305,12 @@ def test_explore_frontier_resolves_freetext_seed(galileo_pkg: Path):
 def test_explore_status_summarizes(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
-    runner.invoke(app, ["explore", "round", str(galileo_pkg)])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
+    runner.invoke(app, ["round", str(galileo_pkg)])
 
-    result = runner.invoke(app, ["explore", "status", str(galileo_pkg)])
+    result = runner.invoke(app, ["status", str(galileo_pkg)])
     assert result.exit_code == 0, result.output
     assert "Exploration status" in result.output
     assert "open frontier:" in result.output
@@ -316,16 +319,28 @@ def test_explore_status_summarizes(galileo_pkg: Path):
 
 
 def test_explore_frontier_without_init_fails_gracefully(galileo_pkg: Path):
-    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    result = runner.invoke(app, ["frontier", str(galileo_pkg)])
     assert result.exit_code == 1
     assert "no exploration map" in result.output
 
 
-def test_explore_help_registers_subapp():
-    result = runner.invoke(app, ["explore", "--help"])
+def test_explore_help_lists_all_verbs():
+    # The unified `gaia-lkm-explore` client lists the migrated engine verbs
+    # alongside the orchestrator `turn` (CLIENT.md "Unified surface", build 7).
+    result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for verb in ("init", "observe", "frontier", "round", "status"):
+    for verb in ("init", "observe", "frontier", "round", "status", "render", "turn"):
         assert verb in result.output
+
+
+def test_gaia_cli_no_longer_lists_explore():
+    # `gaia explore` is removed from the gaia CLI (build 7): `gaia --help` must
+    # not list it, and `gaia explore` must error as an unknown command.
+    help_result = runner.invoke(gaia_app, ["--help"])
+    assert help_result.exit_code == 0
+    assert "explore" not in help_result.output
+    unknown = runner.invoke(gaia_app, ["explore", "status", "."])
+    assert unknown.exit_code != 0
 
 
 # --------------------------------------------------------------------------- #
@@ -338,12 +353,11 @@ _FIXTURE = Path(__file__).resolve().parent / "fixtures" / "lkm_search_free_fall.
 def test_explore_observe_records_lkm_contacts_from_fixture(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
     result = runner.invoke(
         app,
         [
-            "explore",
             "observe",
             str(galileo_pkg),
             "--source",
@@ -369,12 +383,12 @@ def test_explore_observe_records_lkm_contacts_from_fixture(galileo_pkg: Path):
 def test_explore_observe_reads_stdin(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
     payload = _FIXTURE.read_text(encoding="utf-8")
     result = runner.invoke(
         app,
-        ["explore", "observe", str(galileo_pkg), "--source", _galileo_qid("aristotle_model")],
+        ["observe", str(galileo_pkg), "--source", _galileo_qid("aristotle_model")],
         input=payload,
     )
     assert result.exit_code == 0, result.output
@@ -385,7 +399,7 @@ def test_explore_observe_reads_stdin(galileo_pkg: Path):
 def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
     # Two rows share paper 'P1'; one row has a resolved gaia.qid (skip); one fresh.
     leads = {
@@ -415,7 +429,6 @@ def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
     result = runner.invoke(
         app,
         [
-            "explore",
             "observe",
             str(galileo_pkg),
             "--source",
@@ -435,12 +448,11 @@ def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
 def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
     runner.invoke(
         app,
         [
-            "explore",
             "observe",
             str(galileo_pkg),
             "--source",
@@ -451,7 +463,7 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
             str(_FIXTURE),
         ],
     )
-    result = runner.invoke(app, ["explore", "frontier", str(galileo_pkg), "--json"])
+    result = runner.invoke(app, ["frontier", str(galileo_pkg), "--json"])
     assert result.exit_code == 0, result.output
     rows = json.loads(result.output)
     lkm_rows = [r for r in rows if r["ref"]["kind"] == "lkm"]
@@ -475,7 +487,7 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
 def test_explore_observe_without_init_fails(galileo_pkg: Path):
     result = runner.invoke(
         app,
-        ["explore", "observe", str(galileo_pkg), "--source", "x", "--search-json", str(_FIXTURE)],
+        ["observe", str(galileo_pkg), "--source", "x", "--search-json", str(_FIXTURE)],
     )
     assert result.exit_code == 1
     assert "no exploration map" in result.output

@@ -107,7 +107,7 @@ If two weak points on the same conclusion share an underlying factor — same
 approximation, same dataset, same lemma, same external assumption — extract
 the shared factor as a separate weak-point claim and let both supports
 threaten that one factor. This is the same shared-factor extraction logic the
-`gaia-explore` orchestrator client bakes into its survey instructions (route
+`gaia-lkm-explore` orchestrator client bakes into its survey instructions (route
 two supports converging on one target through an extracted shared-factor claim
 so BP does not double-count them) on the `derive(...)` warrant surface (legacy
 `support()`); see `docs/for-users/language-reference.md` (`derive` semantics)

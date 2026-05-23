@@ -9,7 +9,7 @@ Two layers, mirroring the other exploration tests:
   an inline ``<svg>``, no external ``src=``/``href=`` to a CDN), carries the
   seed / contradiction / support CSS markers, the frontier contact's pull line,
   and the legend + header fields.
-* **CLI** — run ``gaia explore render`` against the galileo example flow
+* **CLI** — run ``gaia-lkm-explore render`` against the galileo example flow
   (compile + infer + init + frontier) and assert it writes a nonempty ``.html``.
 """
 
@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from gaia.cli.main import app
+from gaia.cli.main import app as gaia_app
 from gaia.engine.exploration.frontier import JointView
 from gaia.engine.exploration.render import compute_layout, render_map_html
 from gaia.engine.exploration.state import (
@@ -30,6 +30,7 @@ from gaia.engine.exploration.state import (
     Policy,
     SurveyRecord,
 )
+from gaia.explore_client.cli import app
 
 pytestmark = pytest.mark.pr_gate
 
@@ -233,8 +234,8 @@ def galileo_pkg(tmp_path: Path) -> Path:
     assert src.is_dir(), f"galileo fixture not found at {src}"
     pkg = tmp_path / "galileo-v0-5-gaia"
     shutil.copytree(src, pkg)
-    assert runner.invoke(app, ["build", "compile", str(pkg)]).exit_code == 0
-    assert runner.invoke(app, ["run", "infer", str(pkg)]).exit_code == 0
+    assert runner.invoke(gaia_app, ["build", "compile", str(pkg)]).exit_code == 0
+    assert runner.invoke(gaia_app, ["run", "infer", str(pkg)]).exit_code == 0
     return pkg
 
 
@@ -245,11 +246,11 @@ def _galileo_qid(label: str) -> str:
 def test_cli_render_writes_nonempty_html(galileo_pkg: Path) -> None:
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
 
-    result = runner.invoke(app, ["explore", "render", str(galileo_pkg)])
+    result = runner.invoke(app, ["render", str(galileo_pkg)])
     assert result.exit_code == 0, result.output
     assert "Rendered exploration map" in result.output
 
@@ -264,17 +265,17 @@ def test_cli_render_writes_nonempty_html(galileo_pkg: Path) -> None:
 def test_cli_render_custom_out_path(galileo_pkg: Path, tmp_path: Path) -> None:
     runner.invoke(
         app,
-        ["explore", "init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    runner.invoke(app, ["explore", "frontier", str(galileo_pkg)])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
     custom = tmp_path / "out" / "galileo-map.html"
-    result = runner.invoke(app, ["explore", "render", str(galileo_pkg), "--out", str(custom)])
+    result = runner.invoke(app, ["render", str(galileo_pkg), "--out", str(custom)])
     assert result.exit_code == 0, result.output
     assert custom.exists()
     assert custom.read_text(encoding="utf-8").lstrip().startswith("<!DOCTYPE html>")
 
 
 def test_cli_render_without_init_fails_gracefully(galileo_pkg: Path) -> None:
-    result = runner.invoke(app, ["explore", "render", str(galileo_pkg)])
+    result = runner.invoke(app, ["render", str(galileo_pkg)])
     assert result.exit_code == 1
     assert "no exploration map" in result.output
