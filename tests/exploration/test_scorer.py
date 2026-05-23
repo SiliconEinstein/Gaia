@@ -509,6 +509,66 @@ def test_lkm_higher_rank_scores_higher_new_territory():
     assert hi.score_features["new_territory"] > lo.score_features["new_territory"]
 
 
+def test_lkm_rank_relevance_differentiates_closeness_at_cold_start():
+    # (theme 010) With a FREE-TEXT cold-start seed (qid: null), graph
+    # closeness_to_seed is 0.0 for every contact. The rank-derived RELEVANCE facet
+    # must give an on-topic high-rank lkm contact a non-zero closeness that beats a
+    # tangential low-rank one — so relevance differentiates, not novelty alone.
+    graph = make_graph(knowledges=[claim("seed")])
+    m = ExplorationMap(
+        # Free-text seed, unresolved (qid None) -> graph closeness 0.0 everywhere.
+        seeds=[{"kind": "question", "text": "why is X", "qid": None}],
+        policy=doctrine_policy("Surveyor"),
+    )
+    m.frontier.extend(
+        [
+            Contact(
+                id="ct_tangential",
+                ref={"kind": "lkm", "value": "tang"},
+                sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+                meta={"paper_id": "tang", "rank": 0.02},
+            ),
+            Contact(
+                id="ct_ontopic",
+                ref={"kind": "lkm", "value": "ontopic"},
+                sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+                meta={"paper_id": "ontopic", "rank": 0.9},
+            ),
+        ]
+    )
+    score_frontier(m, beliefs={}, ir=graph)
+    tang = _contact_by_value(m, "tang")
+    on = _contact_by_value(m, "ontopic")
+    # Relevance (closeness) is non-zero and rank-differentiated despite no resolved
+    # seed — and distinct from new_territory (still its own coverage feature).
+    assert on.score_features["closeness_to_seed"] > tang.score_features["closeness_to_seed"]
+    assert on.score_features["closeness_to_seed"] > 0.0
+    assert "new_territory" in on.score_features
+    # The on-topic paper outranks the tangential one (Surveyor has w_relevance>0).
+    assert on.score > tang.score
+
+
+def test_resolved_graph_closeness_still_wins_over_rank_relevance():
+    # (theme 010) Once the seed RESOLVES, a stronger graph closeness wins the max:
+    # an lkm contact whose source IS the resolved seed gets closeness 1.0, above
+    # any rank-derived relevance.
+    graph = make_graph(knowledges=[claim("seed")])
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],  # resolved
+        policy=doctrine_policy("Surveyor"),
+    )
+    m.frontier.append(
+        Contact(
+            id="ct_lkm",
+            ref={"kind": "lkm", "value": "p"},
+            sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+            meta={"paper_id": "p", "rank": 0.3},  # rank_rel ~0.23 < graph 1.0
+        )
+    )
+    score_frontier(m, beliefs={}, ir=graph)
+    assert math.isclose(m.frontier[0].score_features["closeness_to_seed"], 1.0)
+
+
 def test_qid_contact_scoring_unchanged_with_coverage_term():
     # Adding the w_coverage*new_territory term must not regress qid contacts:
     # their new_territory is 0.0, so the score equals the build-3 formula.

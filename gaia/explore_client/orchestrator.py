@@ -197,6 +197,43 @@ def _promote_lkm_from_view(
     )
 
 
+def _resolve_seeds(exploration_map: ExplorationMap, graph: Any, view: JointView) -> bool:
+    """Resolve null-qid seeds against the joint graph (theme 010 / SCHEMA.md §7e #3).
+
+    Mirrors the ``frontier`` verb's resolution so the turn loop and the standalone
+    verb agree: a ``::``/exact-id-or-label seed resolves to its materialized QID,
+    and a FREE-TEXT cold-start seed resolves by content-token overlap against the
+    materialized set once round 0 has materialized something to match — giving the
+    scorer's ``closeness_to_seed`` a non-zero signal from round 1 on. Returns
+    ``True`` if any seed was newly resolved (caller persists the map).
+    """
+    from gaia.engine.exploration.frontier import resolve_freetext_seed_qid
+    from gaia.engine.inquiry.focus import resolve_focus_target
+
+    changed = False
+    node_texts = view.node_texts()
+    for seed in exploration_map.seeds:
+        if seed.get("qid"):
+            continue
+        text = str(seed.get("text", "")).strip()
+        if not text:
+            continue
+        if "::" in text and text in view.materialized:
+            seed["qid"] = text
+            changed = True
+            continue
+        binding = resolve_focus_target(text, graph)
+        if binding.resolved_id and binding.resolved_id in view.materialized:
+            seed["qid"] = binding.resolved_id
+            changed = True
+            continue
+        matched = resolve_freetext_seed_qid(text, view.materialized, node_texts)
+        if matched is not None:
+            seed["qid"] = matched
+            changed = True
+    return changed
+
+
 def _compile_and_infer(pkg: str | Path) -> None:
     """Compile the package then run BP inference, writing artifacts (SDK).
 
@@ -443,6 +480,10 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
         beliefs = _load_beliefs(pkg)
         view = _joint_view(pkg, graph)
         messages.extend(f"warning: {w}" for w in view.warnings)
+        # (theme 010) Resolve any null-qid (free-text cold-start) seed against the
+        # joint materialized set BEFORE scoring, so closeness_to_seed bites this
+        # round — matching the frontier verb.
+        _resolve_seeds(exploration_map, graph, view)
         # (theme 004) Retire any lkm_related contact whose paper is now
         # materialized in the joint view (pulled via `pkg add --lkm-paper`) BEFORE
         # ranking, so a pulled paper never resurfaces as an open "unpulled"

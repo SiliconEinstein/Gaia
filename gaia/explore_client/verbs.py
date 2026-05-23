@@ -42,7 +42,12 @@ from typing import Any
 import typer
 
 from gaia.engine.exploration.discoveries import compute_discoveries
-from gaia.engine.exploration.frontier import JointView, build_joint_view, reconcile_frontier
+from gaia.engine.exploration.frontier import (
+    JointView,
+    build_joint_view,
+    reconcile_frontier,
+    resolve_freetext_seed_qid,
+)
 from gaia.engine.exploration.observe import (
     materialized_paper_ids_from_roots,
     observe_lkm_results,
@@ -257,11 +262,17 @@ def _resolve_seeds(exploration_map: ExplorationMap, graph: Any, view: JointView)
 
     1. text already a QID materialized somewhere in the joint set → accept it;
     2. otherwise resolve text (id or label) against the root ``graph`` via
-       ``inquiry/focus.resolve_focus_target``.
+       ``inquiry/focus.resolve_focus_target`` (exact id/label hit);
+    3. (theme 010) otherwise, for a FREE-TEXT seed, match the seed text against the
+       materialized nodes' label+content by token overlap and accept the best
+       materialized QID — so a cold-start question seed resolves once round 0 has
+       materialized something to match, and ``closeness_to_seed`` bites from then
+       on. Resolution is persisted to the map by the caller.
 
     Returns ``True`` if any seed was newly resolved (so the caller can persist).
     """
     changed = False
+    node_texts = view.node_texts()
     for seed in exploration_map.seeds:
         if seed.get("qid"):
             continue
@@ -275,6 +286,13 @@ def _resolve_seeds(exploration_map: ExplorationMap, graph: Any, view: JointView)
         binding = resolve_focus_target(text, graph)
         if binding.resolved_id and binding.resolved_id in view.materialized:
             seed["qid"] = binding.resolved_id
+            changed = True
+            continue
+        # (theme 010) Free-text seed: resolve by content-token overlap against the
+        # materialized set (post round-0 materialization gives something to match).
+        matched = resolve_freetext_seed_qid(text, view.materialized, node_texts)
+        if matched is not None:
+            seed["qid"] = matched
             changed = True
     return changed
 

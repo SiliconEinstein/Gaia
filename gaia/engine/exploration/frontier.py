@@ -338,6 +338,84 @@ def _load_manifest_dict(root: Path) -> dict[str, Any] | None:
     return dict(loaded) if isinstance(loaded, dict) else None
 
 
+def _tokenize(text: str) -> set[str]:
+    """Lower-case alphanumeric word tokens of length >= 3 (a cheap content key).
+
+    Used by free-text seed resolution (theme 010): the seed text and a candidate
+    node's label/content are reduced to token sets and compared by overlap. Short
+    stop-ish tokens (< 3 chars) are dropped so noise words ("of", "is", "the")
+    don't dominate the overlap.
+    """
+    import re
+
+    return {tok for tok in re.findall(r"[a-z0-9]+", text.lower()) if len(tok) >= 3}
+
+
+def resolve_freetext_seed_qid(
+    seed_text: str,
+    materialized: set[str],
+    node_texts: dict[str, str],
+    *,
+    min_overlap: int = 2,
+) -> str | None:
+    """Resolve a free-text seed to the best-matching MATERIALIZED QID (theme 010).
+
+    A free-text / ``question`` cold-start seed has ``qid: null``, so the scorer's
+    ``closeness_to_seed`` is ``0.0`` for every contact until the seed resolves
+    (build 4c only resolved ``::``/exact-label seeds). After round 0 materializes
+    nodes, this matches the seed text against each materialized node's label +
+    content by token overlap (no embeddings — option (c) is deferred) and returns
+    the QID with the strongest overlap, ties broken by QID for determinism.
+
+    Args:
+        seed_text: The free-text seed (a question or claim phrase).
+        materialized: The joint-view materialized QID set (only these can win).
+        node_texts: ``qid -> "label content"`` for the candidate nodes.
+        min_overlap: Minimum shared content tokens to accept a match (guards
+            against a spurious one-stopword hit).
+
+    Returns:
+        The best-matching materialized QID, or ``None`` when nothing clears
+        ``min_overlap``.
+    """
+    seed_tokens = _tokenize(seed_text)
+    if not seed_tokens:
+        return None
+    best_qid: str | None = None
+    best_score = 0
+    for qid in sorted(materialized):
+        text = node_texts.get(qid)
+        if not text:
+            continue
+        overlap = len(seed_tokens & _tokenize(text))
+        if overlap > best_score or (overlap == best_score and overlap > 0 and best_qid is None):
+            best_score = overlap
+            best_qid = qid
+    if best_qid is not None and best_score >= min_overlap:
+        return best_qid
+    return None
+
+
+def node_texts_from_graphs(graphs: list[LocalCanonicalGraph]) -> dict[str, str]:
+    """Build a ``qid -> "label content"`` index from compiled graphs (theme 010).
+
+    Feeds :func:`resolve_freetext_seed_qid`. Only nodes carrying a QID contribute;
+    label and content are concatenated so the seed text can match either.
+    """
+    texts: dict[str, str] = {}
+    for graph in graphs:
+        for k in getattr(graph, "knowledges", []):
+            kid = getattr(k, "id", None)
+            if not isinstance(kid, str) or not kid:
+                continue
+            parts = [
+                str(getattr(k, "label", "") or ""),
+                str(getattr(k, "content", "") or ""),
+            ]
+            texts[kid] = " ".join(p for p in parts if p)
+    return texts
+
+
 def _dep_paper_id(root: Path) -> str | None:
     """Return a package's authoritative LKM ``paper_id`` from its pyproject (§7f).
 
@@ -399,11 +477,16 @@ class JointView:
     edges: list[tuple[str, list[str]]] = field(default_factory=list)
     package_roots: list[Path] = field(default_factory=list)
     materialized_paper_ids: set[str] = field(default_factory=set)
+    graphs: list[LocalCanonicalGraph] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def extract(self, exploration_map: ExplorationMap | None = None) -> list[Contact]:
         """Derive the frontier from this joint view (shares the §7a core)."""
         return _frontier_from_edges(self.materialized, self.edges, exploration_map=exploration_map)
+
+    def node_texts(self) -> dict[str, str]:
+        """``qid -> "label content"`` across the root + dep graphs (theme 010)."""
+        return node_texts_from_graphs(self.graphs)
 
 
 def build_joint_view(
@@ -469,6 +552,7 @@ def build_joint_view(
         view.materialized |= _materialized_qids(graph)
         view.edges.extend(_edges_from_ir(graph, _load_manifest_dict(resolved)))
         view.package_roots.append(resolved)
+        view.graphs.append(graph)
         # (theme 004) An LKM paper dep records its authoritative paper_id in its
         # own `[tool.gaia.source].paper_id` — collect it so a pulled paper's
         # `lkm_related` contact can be retired from the open frontier.

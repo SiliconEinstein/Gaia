@@ -388,3 +388,43 @@ def test_reconcile_preserves_promoted_and_closed_contacts():
     assert skipped is not None  # not deleted
     assert skipped.status == "skipped"
     assert _source_pairs(skipped) == {(qid("a"), "operator_target")}
+
+
+# --------------------------------------------------------------------------- #
+# Free-text seed resolution (theme 010a)                                      #
+# --------------------------------------------------------------------------- #
+
+
+def test_resolve_freetext_seed_matches_best_materialized_node_by_overlap():
+    from gaia.engine.exploration.frontier import resolve_freetext_seed_qid
+
+    materialized = {qid("hubble"), qid("sterile")}
+    node_texts = {
+        qid("hubble"): "hubble_tension Resolving the Hubble constant tension with SH0ES",
+        qid("sterile"): "sterile_neutrino Sterile neutrino dark matter constraints",
+    }
+    # The seed text overlaps the on-topic node strongly, the tangential one not.
+    matched = resolve_freetext_seed_qid(
+        "Why is the Hubble constant tension unresolved?", materialized, node_texts
+    )
+    assert matched == qid("hubble")
+
+
+def test_resolve_freetext_seed_requires_min_overlap():
+    from gaia.engine.exploration.frontier import resolve_freetext_seed_qid
+
+    materialized = {qid("x")}
+    node_texts = {qid("x"): "completely unrelated quantum chromodynamics lattice"}
+    # No meaningful overlap -> no resolution (stays cold).
+    result = resolve_freetext_seed_qid("dark energy expansion history", materialized, node_texts)
+    assert result is None
+
+
+def test_resolve_freetext_seed_only_returns_materialized():
+    from gaia.engine.exploration.frontier import resolve_freetext_seed_qid
+
+    # A perfect-overlap node that is NOT in the materialized set must not win.
+    materialized: set[str] = set()
+    node_texts = {qid("unmat"): "dark energy expansion history supernovae"}
+    result = resolve_freetext_seed_qid("dark energy expansion history", materialized, node_texts)
+    assert result is None

@@ -68,6 +68,16 @@ contacts only**, scaled by ``w_coverage``), and its ``survey_cost`` is
 :data:`LKM_SURVEY_COST` (a full paper pull, heavier than a qid's flat ``1.0``).
 qid-contact scoring is unchanged from build 3/4c (``new_territory`` stays ``0.0``,
 so the new ``w_coverage`` term drops out for them).
+
+**Cold-start relevance (theme 010).** The stored LKM ``rank`` ALSO feeds a
+*relevance* facet for lkm contacts, **distinct from** ``new_territory``
+(coverage): it is folded into ``closeness_to_seed`` via ``max(graph_closeness,
+r/(1+r))``. With a free-text cold-start seed (``qid: null``) the graph
+``closeness_to_seed`` is ``0.0`` everywhere, so ranking would otherwise be
+novelty-only; this rank-derived relevance gives on-topic high-rank seed-query
+papers a non-zero, rank-differentiated relevance so they outrank tangential
+ones — and once the seed RESOLVES (build 4c free-text resolution, theme 010a) a
+stronger graph closeness simply wins the ``max``. qid contacts are untouched.
 """
 
 from __future__ import annotations
@@ -252,6 +262,25 @@ def _closeness_to_seed(
     if d is None:
         return 0.0
     return 1.0 / (1.0 + d)
+
+
+def _lkm_rank_relevance(contact_meta: dict[str, Any]) -> float:
+    """Map an LKM paper-contact's stored rank into a RELEVANCE signal (theme 010).
+
+    The stored LKM ``rank`` is the originating seed query's retrieval score for
+    this paper — a direct "how on-topic to what we asked" signal, **distinct from**
+    ``new_territory`` (coverage / how unexplored). A free-text cold-start seed has
+    no resolved QID, so graph ``closeness_to_seed`` is ``0.0`` for every contact
+    and ranking degenerates to novelty-only; this rank-derived relevance gives
+    on-topic high-rank papers a non-zero relevance even before the seed resolves,
+    so they outrank tangential low-rank ones. Squashed by ``r/(1+r)`` into
+    ``[0, 1)`` (a missing/zero rank ⇒ ``0.0``).
+    """
+    rank = contact_meta.get("rank")
+    if isinstance(rank, (int, float)) and rank > 0:
+        r = float(rank)
+        return r / (1.0 + r)
+    return 0.0
 
 
 def _lkm_new_territory(contact_meta: dict[str, Any]) -> float:
@@ -448,6 +477,13 @@ def score_frontier(
             # breaks ties. Survey cost is a full paper pull ⇒ heavier than a qid.
             new_territory = _lkm_new_territory(contact.meta)
             survey_cost = LKM_SURVEY_COST
+            # (theme 010) Relevance facet from the originating query's LKM rank —
+            # distinct from new_territory (coverage). Folded into closeness_to_seed
+            # via max() so an on-topic high-rank paper has non-zero relevance even
+            # when the seed is unresolved (graph closeness 0.0) or the contact is
+            # off the resolved subgraph; a resolved-seed graph closeness still wins
+            # when it is the stronger signal.
+            closeness_to_seed = max(closeness_to_seed, _lkm_rank_relevance(contact.meta))
             features = {
                 "belief_entropy": belief_entropy,
                 "closeness_to_seed": closeness_to_seed,
