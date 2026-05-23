@@ -389,15 +389,24 @@ def build_joint_view(
     root via ``importlib.import_module``, which raises ``ModuleNotFoundError`` /
     ``ImportError`` (NOT ``GaiaPackagingError``) for a real ``pkg add --lkm-paper``
     editable dep that is present on disk but not importable from the run
-    interpreter — that crashed ``explore frontier`` in the 4c re-verify. So we
-    **first** resolve deps **by path** from the root ``pyproject.toml``
-    (``[tool.uv.sources]`` editable paths + ``[tool.uv.workspace]`` members),
-    reading each dep's ``.gaia/ir.json`` directly without importing anything; a
-    present-on-disk dep is folded in regardless of importability. The
-    import-based loader is then used only to catch any additional deps the
-    by-path scan missed, and **all** of ``GaiaPackagingError`` /
-    ``ModuleNotFoundError`` / ``ImportError`` degrade that step to
-    skipped-with-warning rather than crashing.
+    interpreter (its venv lacks gaia's runtime deps). So the by-path scan is the
+    **primary** resolver: every ``-gaia`` dependency the root ``pyproject.toml``
+    declares is resolved to a directory from ``[tool.uv.sources]`` editable
+    ``{path = …}`` / ``{workspace = true}`` + ``[tool.uv.workspace].members``, and
+    its already-compiled ``.gaia/ir.json`` is read directly — no
+    ``importlib.import_module`` anywhere, no dependence on the dep being
+    importable.
+
+    The import-based ``load_dependency_compiled_graphs`` is consulted **only** for
+    deps the by-path scan could not account for (none, in the normal
+    ``pkg add --lkm-paper`` case — so it is not called at all, and no spurious
+    ``ModuleNotFoundError`` warning prints). When every declared dep was resolved
+    by path, the import loader is skipped entirely. A dep that is declared but
+    truly absent or uncompiled on disk degrades to an **actionable** warning
+    (``run gaia build compile <dep>``); only a genuinely unaccounted-for dep falls
+    through to the import loader, whose own ``GaiaPackagingError`` /
+    ``ImportError`` (incl. ``ModuleNotFoundError``) degrade to a warning rather
+    than crashing.
 
     Args:
         root_path: The root package directory (its manifest is read for
@@ -411,8 +420,6 @@ def build_joint_view(
     Returns:
         A :class:`JointView` spanning the root + all loadable deps.
     """
-    from gaia.engine.packaging import GaiaPackagingError, load_dependency_compiled_graphs
-
     view = JointView()
     folded_roots: set[Path] = set()
 
@@ -428,21 +435,38 @@ def build_joint_view(
     root_resolved = Path(root_path).resolve()
     _fold(root_graph, root_resolved)
 
-    # (§7f-A) Resolve present-on-disk deps BY PATH first — no import_module — so a
-    # real `pkg add --lkm-paper` editable dep is folded in even when it is not
-    # importable from this interpreter.
-    for dep_root, dep_graph in _load_deps_by_path(root_resolved):
+    # (§7f-A) Resolve every declared `-gaia` dep BY PATH from the root pyproject
+    # and read its compiled `.gaia/ir.json` directly — no import_module — so a
+    # real `pkg add --lkm-paper` editable dep is folded in regardless of whether
+    # it is importable from this interpreter. `accounted` tracks which dep dist
+    # names the by-path scan handled (loaded OR found-but-uncompiled) so we know
+    # whether the import-based fallback is needed at all.
+    resolution = _load_deps_by_path(root_resolved)
+    for dep_root, dep_graph in resolution.loaded:
         _fold(dep_graph, dep_root)
+    for dist_name in resolution.uncompiled:
+        view.warnings.append(
+            f"dependency {dist_name!r} is present on disk but not compiled "
+            f"(no .gaia/ir.json); run `gaia build compile` on it to join the "
+            "joint view"
+        )
 
-    # The import-based loader catches anything the by-path scan missed; ANY of
-    # GaiaPackagingError / ModuleNotFoundError / ImportError degrades to a warning
-    # rather than crashing (§7f-A: ModuleNotFoundError is the 4c crash).
+    # Only consult the import-based loader for deps the by-path scan could not
+    # account for. In the normal `pkg add --lkm-paper` case every dep is resolved
+    # by path → this is skipped entirely (no spurious ModuleNotFoundError warning).
+    if not resolution.unresolved:
+        return view
+
+    from gaia.engine.packaging import GaiaPackagingError, load_dependency_compiled_graphs
+
     try:
         deps = load_dependency_compiled_graphs(project_config, depth=depth)
     except (GaiaPackagingError, ImportError) as exc:
+        unresolved = ", ".join(sorted(resolution.unresolved))
         view.warnings.append(
-            f"skipped some dependency graphs ({type(exc).__name__}: {exc}); "
-            "frontier uses the root + any disk-resolved deps this round"
+            f"could not load dependency graph(s) {unresolved} "
+            f"({type(exc).__name__}: {exc}); run `gaia build compile` on the "
+            "dependency, or check it is declared in the root pyproject"
         )
         return view
 
@@ -452,33 +476,54 @@ def build_joint_view(
     return view
 
 
-def _load_deps_by_path(root: Path) -> list[tuple[Path, LocalCanonicalGraph]]:
+@dataclass
+class _ByPathResolution:
+    """Outcome of resolving the root's ``-gaia`` deps by path (§7f-A).
+
+    Attributes:
+        loaded: ``(dep_root, dep_graph)`` for every dep located on disk **and**
+            carrying a parseable compiled ``.gaia/ir.json`` — folded into the
+            joint view directly, no import.
+        uncompiled: Dist names located on disk but missing/unparseable
+            ``.gaia/ir.json`` — surfaced as an actionable
+            ``run gaia build compile`` warning, not crashed on.
+        unresolved: Dist names declared in the root pyproject that could **not**
+            be located on disk at all — the only case the import-based loader is
+            consulted for as a backstop.
+    """
+
+    loaded: list[tuple[Path, LocalCanonicalGraph]] = field(default_factory=list)
+    uncompiled: list[str] = field(default_factory=list)
+    unresolved: list[str] = field(default_factory=list)
+
+
+def _load_deps_by_path(root: Path) -> _ByPathResolution:
     """Resolve ``-gaia`` dep roots on disk from the root ``pyproject.toml`` (§7f-A).
 
     Reads the root package's own ``pyproject.toml`` and resolves every
     ``…-gaia`` ``[project].dependency`` to a directory **by path** — preferring a
-    ``[tool.uv.sources]`` editable ``{path = …}`` entry, then a
-    ``[tool.uv.workspace].members`` glob match — without ever importing the dep.
-    Each located dep with a compiled ``.gaia/ir.json`` is loaded and returned.
+    ``[tool.uv.sources]`` editable ``{path = …}`` / ``{workspace = true}`` entry,
+    then a ``[tool.uv.workspace].members`` glob match — without ever importing the
+    dep. Each located dep with a compiled ``.gaia/ir.json`` is loaded.
 
-    This deliberately avoids ``importlib.import_module`` (the source of the 4c
-    ``ModuleNotFoundError`` crash for a present-but-uninstalled editable dep). A
-    dep that can't be located on disk, has no ``.gaia/ir.json``, or whose IR
-    won't parse is simply omitted — the import-based loader (and its warning
-    path) is the backstop.
+    This deliberately avoids ``importlib.import_module`` (the source of the 4c/4d
+    ``ModuleNotFoundError`` for a present-but-uninstalled editable dep). The
+    returned :class:`_ByPathResolution` classifies each declared dep as loaded,
+    located-but-uncompiled, or unresolvable-on-disk, so the caller can warn
+    actionably and consult the import loader **only** for the last bucket.
 
     Args:
         root: The resolved root package directory.
 
     Returns:
-        ``(dep_root, dep_graph)`` pairs for every disk-resolvable, compiled dep.
+        A :class:`_ByPathResolution` partitioning the declared ``-gaia`` deps.
     """
+    result = _ByPathResolution()
     parsed = _read_root_pyproject(root)
     if parsed is None:
-        return []
+        return result
     dependencies, uv_sources, member_globs = parsed
 
-    out: list[tuple[Path, LocalCanonicalGraph]] = []
     seen_roots: set[Path] = set()
     for raw in dependencies:
         if not isinstance(raw, str):
@@ -487,14 +532,19 @@ def _load_deps_by_path(root: Path) -> list[tuple[Path, LocalCanonicalGraph]]:
         if dist_name is None or not dist_name.endswith("-gaia"):
             continue
         dep_root = _resolve_dep_root_by_path(root, dist_name, uv_sources, member_globs)
-        if dep_root is None or dep_root.resolve() in seen_roots:
+        if dep_root is None:
+            result.unresolved.append(dist_name)
             continue
         dep_root = dep_root.resolve()
+        if dep_root in seen_roots:
+            continue
         seen_roots.add(dep_root)
         loaded = _load_dep_graph(dep_root)
         if loaded is not None:
-            out.append((dep_root, loaded))
-    return out
+            result.loaded.append((dep_root, loaded))
+        else:
+            result.uncompiled.append(dist_name)
+    return result
 
 
 def _read_root_pyproject(

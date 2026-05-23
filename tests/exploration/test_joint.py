@@ -64,14 +64,39 @@ def _write_manifest(root: Path, dependencies: list[dict]) -> None:
     )
 
 
-class _FakeDep:
-    """Stand-in for packaging.DependencyGraph (only the fields the joint reads)."""
+def _write_root_pyproject_with_dep(root: Path, dist_name: str, dep_rel_path: str) -> None:
+    """Write a root pyproject declaring an editable `-gaia` dep BY PATH (§7f-A).
 
-    def __init__(self, import_name: str, dist_name: str, root: Path, graph: LocalCanonicalGraph):
-        self.import_name = import_name
-        self.dist_name = dist_name
-        self.root = root
-        self.graph = graph
+    Mirrors the `[tool.uv.sources] {path, editable}` shape `gaia pkg add` writes,
+    so `build_joint_view`'s by-path resolver folds the dep without importing it.
+    """
+    (root / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[project]",
+                'name = "rootpkg-gaia"',
+                'version = "0.0.0"',
+                f'dependencies = ["{dist_name}"]',
+                "[tool.uv.sources]",
+                f'{dist_name} = {{ path = "{dep_rel_path}", editable = true }}',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _no_import_loader(monkeypatch) -> None:
+    """Make the import-based loader explode if reached.
+
+    The by-path route must fold every declared dep so this fallback is never
+    consulted (no spurious ModuleNotFoundError warning), matching the real
+    `gaia pkg add --lkm-paper` case.
+    """
+
+    def _boom(*_a, **_k):  # pragma: no cover - asserts it is never called
+        raise AssertionError("import-based loader must not be consulted when deps resolve by path")
+
+    monkeypatch.setattr(packaging_mod, "load_dependency_compiled_graphs", _boom)
 
 
 def test_joint_view_surfaces_cross_package_unmaterialized_contact(tmp_path, monkeypatch):
@@ -86,6 +111,8 @@ def test_joint_view_surfaces_cross_package_unmaterialized_contact(tmp_path, monk
 
     root_graph = _graph(ROOT_NS, ROOT_PKG, [_claim(root_qid("root_seed"))])
     dep_graph = _graph(DEP_NS, DEP_PKG, [_claim(dep_qid("dep_fact"))])
+    # Write the dep's compiled ir.json on disk so the by-path resolver loads it.
+    (dep_path / ".gaia" / "ir.json").write_text(dep_graph.model_dump_json(), encoding="utf-8")
 
     # Dep manifest: conclusion + a materialized given (dep_fact) + an
     # unmaterialized given (dep_unmaterialized).
@@ -101,11 +128,10 @@ def test_joint_view_surfaces_cross_package_unmaterialized_contact(tmp_path, monk
         ],
     )
 
-    monkeypatch.setattr(
-        packaging_mod,
-        "load_dependency_compiled_graphs",
-        lambda *_a, **_k: [_FakeDep("deppkg", "deppkg-gaia", dep_path, dep_graph)],
-    )
+    # Declare the dep editable BY PATH in the root pyproject; the import loader
+    # must NOT be consulted (deps resolve by path, as with `pkg add --lkm-paper`).
+    _write_root_pyproject_with_dep(root_path, "deppkg-gaia", "../dep")
+    _no_import_loader(monkeypatch)
 
     view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
 
@@ -149,24 +175,54 @@ def test_joint_materialization_in_dep_suppresses_contact(tmp_path, monkeypatch):
             )
         ],
     )
-    # The dep materializes `shared`.
+    # The dep materializes `shared`; write its compiled ir.json on disk.
     dep_graph = _graph(DEP_NS, DEP_PKG, [_claim(dep_qid("shared"))])
+    (dep_path / ".gaia" / "ir.json").write_text(dep_graph.model_dump_json(), encoding="utf-8")
 
-    monkeypatch.setattr(
-        packaging_mod,
-        "load_dependency_compiled_graphs",
-        lambda *_a, **_k: [_FakeDep("deppkg", "deppkg-gaia", dep_path, dep_graph)],
-    )
+    _write_root_pyproject_with_dep(root_path, "deppkg-gaia", "../dep")
+    _no_import_loader(monkeypatch)
 
     view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
     contact_values = {c.ref["value"] for c in view.extract()}
     assert dep_qid("shared") not in contact_values, "dep-materialized QID must not be a contact"
     assert contact_values == set()
+    assert not view.warnings
 
 
-def test_joint_view_degrades_when_dep_not_compiled(tmp_path, monkeypatch):
-    from gaia.engine.packaging import GaiaPackagingError
+def test_joint_view_warns_actionably_when_dep_present_but_uncompiled(tmp_path, monkeypatch):
+    # A dep declared + located on disk BY PATH but with no compiled .gaia/ir.json
+    # must NOT crash and must NOT reach the import loader; it degrades to an
+    # actionable `gaia build compile` warning, root-only.
+    root_path = tmp_path / "root"
+    dep_path = tmp_path / "dep"
+    (root_path / ".gaia").mkdir(parents=True)
+    dep_path.mkdir(parents=True)  # present on disk, but NO .gaia/ir.json
 
+    root_graph = _graph(
+        ROOT_NS,
+        ROOT_PKG,
+        [_claim(root_qid("a"))],
+        operators=[
+            Operator(operator="negation", variables=[root_qid("a")], conclusion=root_qid("b"))
+        ],
+    )
+    _write_root_pyproject_with_dep(root_path, "deppkg-gaia", "../dep")
+    _no_import_loader(monkeypatch)  # import loader must not be consulted
+
+    view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
+    assert view.warnings
+    assert "deppkg-gaia" in view.warnings[0]
+    assert "gaia build compile" in view.warnings[0]
+    assert view.materialized == {root_qid("a")}
+    contact_values = {c.ref["value"] for c in view.extract()}
+    assert root_qid("b") in contact_values  # root operator conclusion still a contact
+
+
+def test_joint_view_falls_back_to_import_loader_only_for_unresolvable_dep(tmp_path, monkeypatch):
+    # (§7f-A) A `-gaia` dep declared in pyproject but NOT locatable on disk falls
+    # through to the import-based loader as the backstop. When that loader raises
+    # ModuleNotFoundError (the original 4c/4d crash), build_joint_view must catch
+    # it and degrade gracefully with an actionable warning, not crash.
     root_path = tmp_path / "root"
     (root_path / ".gaia").mkdir(parents=True)
     root_graph = _graph(
@@ -177,35 +233,17 @@ def test_joint_view_degrades_when_dep_not_compiled(tmp_path, monkeypatch):
             Operator(operator="negation", variables=[root_qid("a")], conclusion=root_qid("b"))
         ],
     )
-
-    def _raise(*_a, **_k):
-        raise GaiaPackagingError("dep missing .gaia/ir.json; run gaia build compile")
-
-    monkeypatch.setattr(packaging_mod, "load_dependency_compiled_graphs", _raise)
-
-    view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
-    # Degrades to root-only: warning emitted, root edges still present.
-    assert view.warnings
-    assert "GaiaPackagingError" in view.warnings[0]
-    assert view.materialized == {root_qid("a")}
-    contact_values = {c.ref["value"] for c in view.extract()}
-    assert root_qid("b") in contact_values  # root operator conclusion still a contact
-
-
-def test_joint_view_degrades_on_module_not_found(tmp_path, monkeypatch):
-    # (§7f-A) The 4c crash: load_dependency_compiled_graphs -> import_module
-    # raises ModuleNotFoundError (NOT GaiaPackagingError) for a real
-    # `pkg add --lkm-paper` editable dep not importable from the run interpreter.
-    # build_joint_view must catch it and degrade gracefully, not crash.
-    root_path = tmp_path / "root"
-    (root_path / ".gaia").mkdir(parents=True)
-    root_graph = _graph(
-        ROOT_NS,
-        ROOT_PKG,
-        [_claim(root_qid("a"))],
-        operators=[
-            Operator(operator="negation", variables=[root_qid("a")], conclusion=root_qid("b"))
-        ],
+    # Declare a dep whose path/workspace cannot be resolved on disk -> unresolved.
+    (root_path / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[project]",
+                'name = "rootpkg-gaia"',
+                'version = "0.0.0"',
+                'dependencies = ["free-fall-813135-gaia"]',
+            ]
+        ),
+        encoding="utf-8",
     )
 
     def _raise(*_a, **_k):
@@ -217,6 +255,7 @@ def test_joint_view_degrades_on_module_not_found(tmp_path, monkeypatch):
     view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
     assert view.warnings
     assert "ModuleNotFoundError" in view.warnings[0]
+    assert "free-fall-813135-gaia" in view.warnings[0]
     assert view.materialized == {root_qid("a")}
     assert root_qid("b") in {c.ref["value"] for c in view.extract()}
 
@@ -263,14 +302,20 @@ def test_joint_view_resolves_dep_by_path_without_import(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    # The import-based loader CANNOT import the dep — simulate the crash path.
-    def _raise(*_a, **_k):
-        raise ModuleNotFoundError("No module named 'deppkg'")
+    # No import side-effect: the import-based loader must not be called AT ALL
+    # when the dep resolves by path. Tripwire raises if it is reached.
+    called = {"n": 0}
 
-    monkeypatch.setattr(packaging_mod, "load_dependency_compiled_graphs", _raise)
+    def _tripwire(*_a, **_k):
+        called["n"] += 1
+        raise AssertionError("import-based loader must not be consulted")
+
+    monkeypatch.setattr(packaging_mod, "load_dependency_compiled_graphs", _tripwire)
 
     view = build_joint_view(root_path, root_graph, project_config={}, depth=-1)
-    # The dep was folded BY PATH despite the import failure.
+    # The dep was folded BY PATH; the import loader was never touched.
+    assert called["n"] == 0
+    assert not view.warnings
     assert dep_qid("shared") in view.materialized
     assert dep_path.resolve() in view.package_roots
     # `shared` is materialized in the dep -> NOT a contact.
