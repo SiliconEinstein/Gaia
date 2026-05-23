@@ -247,10 +247,51 @@ def _refresh_stats(exploration_map: ExplorationMap) -> None:
     }
 
 
+def _score_feature_hint(score_features: dict[str, Any]) -> str:
+    """Translate a contact's live ``score_features`` into a short NL hint.
+
+    Picks the 1-2 dominant *live* signals (CLIENT.md build 8) and renders them as
+    a natural-language nudge appended to the brief; returns ``""`` when no signal
+    is strong enough to be worth citing. ``tension_potential`` / ``bridge_potential``
+    are 0.0 v1 slots and are never cited (the ``Inquisitor`` doctrine is inert).
+    """
+
+    def _f(key: str) -> float:
+        try:
+            return float(score_features.get(key, 0.0))
+        except (TypeError, ValueError):
+            return 0.0
+
+    entropy_hint = "sits next to undecided territory — surveying here can settle a live question"
+    # (score, hint phrase) — order = tie-break priority.
+    candidates: list[tuple[float, str]] = []
+    if (v := _f("belief_entropy")) >= 0.6:
+        candidates.append((v, entropy_hint))
+    if (v := _f("closeness_to_seed")) >= 0.6:
+        candidates.append((v, "on-topic / close to your seed"))
+    if (v := _f("new_territory")) >= 0.6:
+        candidates.append((v, "fresh unexplored territory"))
+
+    if not candidates:
+        return ""
+    # Lead with the strongest signal; cite at most two.
+    candidates.sort(key=lambda c: -c[0])
+    phrases = [phrase for _, phrase in candidates[:2]]
+    return "Signal: " + "; ".join(phrases) + "."
+
+
 def _contact_survey_brief(contact: Contact) -> str:
-    """Compose a one-line survey brief for a contact (CLIENT.md task contact)."""
+    """Compose a survey brief for a contact (CLIENT.md task contact, build 8).
+
+    The brief adapts to the contact: it keeps the type/sources/pull-line content,
+    anchors the agent's first LKM query on the contact's ref + sources, and folds
+    in a short ``score_features``-derived hint naming the 1-2 dominant live signals.
+    May span 2-3 lines.
+    """
     srcs = ", ".join(f"{s['qid']}[{s['edge']}]" for s in contact.sources) or "(no sources)"
     ref_value = str(contact.ref.get("value"))
+    hint = _score_feature_hint(contact.score_features)
+    hint_part = f" {hint}" if hint else ""
     if contact.ref.get("kind") == "lkm":
         title = contact.meta.get("title")
         index_id = contact.meta.get("index_id")
@@ -258,11 +299,16 @@ def _contact_survey_brief(contact: Contact) -> str:
         title_part = f' "{title}"' if isinstance(title, str) and title else ""
         return (
             f"unpulled related paper {ref_value}{title_part}; surfaced via {srcs}. "
-            f"Pull it: gaia pkg add{idx} --lkm-paper {ref_value}, then survey its content."
+            f"Pull it: gaia pkg add{idx} --lkm-paper {ref_value}, then survey its content. "
+            f"Anchor your first LKM query on {ref_value}"
+            f"{' (' + title + ')' if isinstance(title, str) and title else ''} "
+            f"plus the context of its sources ({srcs}).{hint_part}"
         )
     return (
         f"referenced-but-unmaterialized node {ref_value}; reached via {srcs}. "
-        f"Survey it: search LKM for evidence, observe related papers, author the node."
+        f"Survey it: search LKM for evidence, observe related papers, author the node. "
+        f"Anchor your first LKM query on {ref_value} plus the context of its "
+        f"sources ({srcs}).{hint_part}"
     )
 
 

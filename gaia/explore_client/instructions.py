@@ -12,6 +12,18 @@ limits, the per-contact survey procedure, the LKM-specific mapping rules
 (evidence-status vocabulary, support discipline, open-question-first
 contradiction handling), the authoring surface (Tier 1 direct SDK / Tier 2 ``gaia
 author``), and the re-invocation handshake.
+
+Build 8 (CLIENT.md): the logging/bookkeeping *ceremony* was trimmed — the
+forced-provenance ``**metadata`` mandate (provenance kwargs are now merely
+available/encouraged), the hard ">=2 distinct support-channel queries per target"
+mandate, the ``support_not_found`` recording clause, and the scratch-note
+recording requirements are gone. The scientific-integrity *mapping* rules are
+untouched: the evidence-status taxonomy, the self-contained-claim rule, "don't
+invent premises/support", open-question-first contradiction handling, the
+LLM-proposes/engine-adjudicates contract + v1 limits, and the API-correctness
+notes (``register_prior(...)`` not ``prior=``; no ``metadata=`` kwarg on
+contradict/derive/equal; ``gaia author depends-on`` rejecting unmaterialized
+targets) all survive.
 """
 
 from __future__ import annotations
@@ -93,14 +105,12 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
    - LKM source claim (`total_chains = 0`): emit a leaf/source `claim(...)` with
      `provenance_source="lkm_no_chain"` and the preserved `lkm_id`; do not invent
      premises, factors, or derives.
-   - Search lead: insufficient content/provenance — keep in scratch notes only;
-     do not emit.
+   - Search lead: insufficient content/provenance — do not emit.
    - Make every claim self-contained (system/material, method, quantity, value,
      conditions) so it is judgeable true/false without the LKM payload.
    - Supports: `derive(target, given=[U], rationale="...", label="...")` is
-     directional (U supports target). Run >=2 distinct support-channel queries
-     per target; record `support_not_found` rather than inventing support.
-       If >=2 supports share a common factor, extract it as a shared-factor claim
+     directional (U supports target). Do not fabricate support.
+       If two supports share a common factor, extract it as a shared-factor claim
        and route both through it (avoids double-counting in BP).
    - Contradictions (open-question-first): for a tension, first name the
      field-facing open problem. Promote to `contradict(A, B)` only when it is an
@@ -118,9 +128,10 @@ first move and the live DSL surface.
 - Tier 1 (primary): write DSL directly into the package source —
   `from gaia.engine.lang import claim, derive, contradict, equal, exclusive,
   note, question, register_prior, ...` in `src/<import>/__init__.py` (+ siblings).
-  Carry LKM provenance (`provenance_source`, `lkm_id`, originating `query`/node id)
-  as `**metadata` kwargs on `claim(...)` (only `claim` accepts `**metadata`;
-  warrant intent for `derive`/`contradict`/`equal` goes in their `rationale=`).
+  Provenance kwargs (`provenance_source`, `lkm_id`, originating `query`/node id)
+  are available and encouraged as `**metadata` on `claim(...)` (only `claim`
+  accepts `**metadata`; warrant intent for `derive`/`contradict`/`equal` goes in
+  their `rationale=`).
 - Tier 2 (optional convenience): `gaia author claim|note|question|derive|
   contradict|equal|exclusive|register-prior` writes the SAME DSL into
   `src/<import>/authored/` (re-exported from the package root), with machine

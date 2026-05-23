@@ -126,6 +126,62 @@ def test_idle_with_frontier_emits_ranked_task(tmp_path: Path, monkeypatch):
     assert task.contacts[0].survey_brief  # a per-contact brief was composed
 
 
+def test_contact_brief_reflects_high_belief_entropy():
+    """A high-belief_entropy contact's brief names the undecided-territory signal."""
+    contact = Contact(
+        id="ct_a",
+        ref={"kind": "qid", "value": "example:pkg::Foo"},
+        sources=[{"qid": "example:pkg::seed", "edge": "depends_on"}],
+        score=0.8,
+        score_features={
+            "belief_entropy": 0.9,
+            "closeness_to_seed": 0.1,
+            "new_territory": 0.0,
+        },
+        status="open",
+    )
+    brief = orchestrator._contact_survey_brief(contact)
+    # The dominant signal is surfaced as a natural-language hint.
+    assert "undecided" in brief
+    # Query anchoring is present.
+    assert "example:pkg::Foo" in brief
+    assert "Anchor" in brief
+    # The weak signals are not dumped.
+    assert "on-topic" not in brief
+    assert "fresh unexplored" not in brief
+
+
+def test_contact_brief_lkm_leads_with_pull_line_and_hint():
+    """An lkm contact's brief keeps the pull line and folds in a strong signal."""
+    contact = Contact(
+        id="ct_p",
+        ref={"kind": "lkm", "value": "paper-42"},
+        sources=[{"qid": "example:pkg::seed", "edge": "lkm_related"}],
+        score=0.7,
+        score_features={"new_territory": 0.95, "belief_entropy": 0.1},
+        meta={"title": "On Falling Bodies"},
+        status="open",
+    )
+    brief = orchestrator._contact_survey_brief(contact)
+    assert "gaia pkg add --lkm-paper paper-42" in brief
+    assert "fresh unexplored territory" in brief
+    assert "Anchor" in brief
+
+
+def test_contact_brief_no_strong_signal_omits_hint():
+    """All-weak score_features → no signal sentence appended."""
+    contact = Contact(
+        id="ct_w",
+        ref={"kind": "qid", "value": "example:pkg::Bar"},
+        sources=[{"qid": "example:pkg::seed", "edge": "depends_on"}],
+        score=0.2,
+        score_features={"belief_entropy": 0.2, "closeness_to_seed": 0.3, "new_territory": 0.1},
+        status="open",
+    )
+    brief = orchestrator._contact_survey_brief(contact)
+    assert "Signal:" not in brief
+
+
 def test_awaiting_survey_without_result_is_noop(tmp_path: Path):
     """AWAITING_SURVEY with no result manifest → report the outstanding task."""
     m = ExplorationMap(round=1, turn_phase=TURN_PHASE_AWAITING_SURVEY)
