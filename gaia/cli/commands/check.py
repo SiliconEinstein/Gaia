@@ -32,6 +32,8 @@ from gaia.engine.ir.coarsen import ANON_HELPER_PREFIX
 from gaia.engine.ir.logic.propositional import to_sympy_proposition
 from gaia.engine.ir.operator import OperatorType
 from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.lang.refs import extract, load_references, resolve
+from gaia.engine.lang.runtime.nodes import Step
 from gaia.engine.packaging import (
     GaiaPackagingError,
     apply_package_priors,
@@ -95,6 +97,26 @@ class _InducedMaxEntSummary:
 class _BayesCheckDiagnostics:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class _RefsCheckReport:
+    cited_refs: set[str] = field(default_factory=set)
+    knowledge_refs: set[str] = field(default_factory=set)
+    artifact_refs: set[str] = field(default_factory=set)
+    artifact_source_refs: set[str] = field(default_factory=set)
+    legacy_source_refs: set[str] = field(default_factory=set)
+    unused_citations: set[str] = field(default_factory=set)
+    unresolved_bare_refs: set[str] = field(default_factory=set)
+    missing_artifact_files: list[tuple[str, str]] = field(default_factory=list)
+    invalid_artifact_refs: set[str] = field(default_factory=set)
+    legacy_metadata: list[tuple[str, tuple[str, ...]]] = field(default_factory=list)
+
+
+@dataclass
+class _TextRefsScan:
+    citation_refs: set[str] = field(default_factory=set)
+    unresolved_bare_refs: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -1380,6 +1402,7 @@ def _run_check_quality_gate(
     loaded: Any,
     compiled: Any,
     review_manifest: ReviewManifest,
+    extra_failures: list[str] | None = None,
 ) -> None:
     """Run the quality gate and print its result."""
     from gaia.cli.commands._quality_gate import (
@@ -1398,6 +1421,7 @@ def _run_check_quality_gate(
             config,
             formalization_manifest=compiled.formalization_manifest,
         )
+        failures.extend(extra_failures or [])
     except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -1453,6 +1477,239 @@ def _emit_prior_diagnostic_sections(
             typer.echo(line)
 
 
+def _metadata_gaia(metadata: dict[str, Any] | None) -> dict[str, Any]:
+    gaia_meta = (metadata or {}).get("gaia")
+    return gaia_meta if isinstance(gaia_meta, dict) else {}
+
+
+def _provenance(metadata: dict[str, Any] | None) -> dict[str, Any]:
+    provenance = _metadata_gaia(metadata).get("provenance")
+    return provenance if isinstance(provenance, dict) else {}
+
+
+def _artifact_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    artifact = _metadata_gaia(metadata).get("artifact")
+    return artifact if isinstance(artifact, dict) else None
+
+
+def _knowledge_label(knowledge: dict[str, Any]) -> str:
+    return str(knowledge.get("label") or knowledge.get("id") or "<unlabeled>")
+
+
+def _action_label_display(action_label: str) -> str:
+    return action_label.rsplit("::action::", maxsplit=1)[-1]
+
+
+def _compiled_label_table(ir: dict[str, Any], compiled: Any) -> dict[str, bool]:
+    labels: dict[str, bool] = {}
+    for knowledge in ir.get("knowledges", []):
+        label = knowledge.get("label")
+        if label:
+            labels[str(label)] = True
+    for action_label in getattr(compiled, "action_label_map", {}):
+        labels[_action_label_display(str(action_label))] = True
+    return labels
+
+
+def _strategy_reason_texts(strategy: Any) -> Iterator[str]:
+    reason = getattr(strategy, "reason", "")
+    if isinstance(reason, str):
+        if reason:
+            yield reason
+    elif isinstance(reason, list):
+        for entry in reason:
+            if isinstance(entry, str) and entry:
+                yield entry
+            elif isinstance(entry, Step) and entry.reason:
+                yield entry.reason
+    for child in getattr(strategy, "sub_strategies", []):
+        yield from _strategy_reason_texts(child)
+
+
+def _reference_bearing_texts(loaded: Any) -> Iterator[str]:
+    for knowledge in loaded.package.knowledge:
+        if knowledge.content:
+            yield knowledge.content
+    for strategy in loaded.package.strategies:
+        yield from _strategy_reason_texts(strategy)
+    for operator in loaded.package.operators:
+        reason = getattr(operator, "reason", "")
+        if reason:
+            yield reason
+    for action in getattr(loaded.package, "actions", []):
+        rationale = getattr(action, "rationale", "")
+        if rationale:
+            yield rationale
+
+
+def _collect_text_refs(
+    loaded: Any,
+    *,
+    label_table: dict[str, bool],
+    references: dict[str, Any],
+) -> _TextRefsScan:
+    scan = _TextRefsScan()
+    for text in _reference_bearing_texts(loaded):
+        extracted = extract(text)
+        for marker in extracted.markers:
+            kind = resolve(marker.key, label_table, references)
+            if kind == "citation":
+                scan.citation_refs.add(marker.key)
+            elif kind == "unknown" and not marker.strict:
+                scan.unresolved_bare_refs.add(marker.key)
+    return scan
+
+
+def _source_refs(value: Any) -> set[str]:
+    if isinstance(value, str):
+        return {value} if value else set()
+    if isinstance(value, list | tuple | set):
+        return {str(ref) for ref in value if ref}
+    return set()
+
+
+def _add_legacy_source_refs(
+    report: _RefsCheckReport,
+    legacy_keys: list[str],
+    key: str,
+    value: Any,
+) -> None:
+    source_refs = _source_refs(value)
+    if not source_refs:
+        return
+    report.legacy_source_refs.update(source_refs)
+    if key not in legacy_keys:
+        legacy_keys.append(key)
+
+
+def _collect_legacy_reference_metadata(
+    report: _RefsCheckReport,
+    *,
+    label: str,
+    metadata: dict[str, Any],
+) -> None:
+    legacy_keys = [key for key in ("refs", "figure") if key in metadata]
+    _add_legacy_source_refs(report, legacy_keys, "source_refs", metadata.get("source_refs"))
+    observation = metadata.get("observation")
+    if isinstance(observation, dict):
+        _add_legacy_source_refs(
+            report,
+            legacy_keys,
+            "observation.source_refs",
+            observation.get("source_refs"),
+        )
+    supported_by = metadata.get("supported_by")
+    if isinstance(supported_by, list):
+        for entry in supported_by:
+            if isinstance(entry, dict):
+                _add_legacy_source_refs(
+                    report,
+                    legacy_keys,
+                    "observe.source_refs",
+                    entry.get("source_refs"),
+                )
+    if legacy_keys:
+        report.legacy_metadata.append((label, tuple(legacy_keys)))
+
+
+def _collect_refs_check_report(loaded: Any, compiled: Any, ir: dict[str, Any]) -> _RefsCheckReport:
+    references = load_references(loaded.pkg_path / "references.json")
+    text_refs = _collect_text_refs(
+        loaded,
+        label_table=_compiled_label_table(ir, compiled),
+        references=references,
+    )
+    report = _RefsCheckReport()
+    artifact_labels: set[str] = set()
+    report.cited_refs.update(text_refs.citation_refs)
+
+    for knowledge in ir.get("knowledges", []):
+        metadata = knowledge.get("metadata") or {}
+        label = _knowledge_label(knowledge)
+        provenance = _provenance(metadata)
+        report.cited_refs.update(str(ref) for ref in provenance.get("cited_refs", []) if ref)
+        report.knowledge_refs.update(
+            str(ref) for ref in provenance.get("referenced_claims", []) if ref
+        )
+        report.artifact_refs.update(str(ref) for ref in provenance.get("artifact_refs", []) if ref)
+
+        artifact = _artifact_metadata(metadata)
+        if artifact is not None:
+            artifact_labels.add(label)
+            source = artifact.get("source")
+            if source:
+                report.artifact_source_refs.add(str(source))
+            path = artifact.get("path")
+            if path and not (loaded.pkg_path / str(path)).exists():
+                report.missing_artifact_files.append((label, str(path)))
+
+        _collect_legacy_reference_metadata(report, label=label, metadata=metadata)
+
+    report.invalid_artifact_refs = report.artifact_refs.difference(artifact_labels)
+    report.unused_citations = set(references).difference(
+        report.cited_refs | report.artifact_source_refs | report.legacy_source_refs
+    )
+    report.unresolved_bare_refs = text_refs.unresolved_bare_refs
+    report.missing_artifact_files.sort()
+    report.legacy_metadata.sort()
+    return report
+
+
+def _format_ref_set(values: set[str]) -> str:
+    return ", ".join(sorted(values)) if values else "none"
+
+
+def _format_ref_pairs(values: list[tuple[str, str]]) -> str:
+    return ", ".join(f"{label} -> {value}" for label, value in values) if values else "none"
+
+
+def _format_legacy_metadata(values: list[tuple[str, tuple[str, ...]]]) -> str:
+    if not values:
+        return "none"
+    return ", ".join(f"{label} -> {', '.join(keys)}" for label, keys in values)
+
+
+def _refs_gate_failures(report: _RefsCheckReport) -> list[str]:
+    failures: list[str] = []
+    if report.unresolved_bare_refs:
+        failures.append(
+            f"Reference check: unresolved bare refs: {_format_ref_set(report.unresolved_bare_refs)}"
+        )
+    if report.missing_artifact_files:
+        failures.append(
+            f"Reference check: missing artifact files: "
+            f"{_format_ref_pairs(report.missing_artifact_files)}"
+        )
+    if report.invalid_artifact_refs:
+        failures.append(
+            f"Reference check: invalid artifact refs: "
+            f"{_format_ref_set(report.invalid_artifact_refs)}"
+        )
+    if report.legacy_metadata:
+        failures.append(
+            f"Reference check: legacy reference metadata: "
+            f"{_format_legacy_metadata(report.legacy_metadata)}"
+        )
+    return failures
+
+
+def _emit_refs_check_report(loaded: Any, compiled: Any, ir: dict[str, Any]) -> _RefsCheckReport:
+    report = _collect_refs_check_report(loaded, compiled, ir)
+    typer.echo("")
+    typer.echo("Reference checks:")
+    typer.echo(f"  Cited refs: {_format_ref_set(report.cited_refs)}")
+    typer.echo(f"  Artifact source refs: {_format_ref_set(report.artifact_source_refs)}")
+    typer.echo(f"  Legacy source refs: {_format_ref_set(report.legacy_source_refs)}")
+    typer.echo(f"  Knowledge refs: {_format_ref_set(report.knowledge_refs)}")
+    typer.echo(f"  Artifact refs: {_format_ref_set(report.artifact_refs)}")
+    typer.echo(f"  Unused citations: {_format_ref_set(report.unused_citations)}")
+    typer.echo(f"  Unresolved bare refs: {_format_ref_set(report.unresolved_bare_refs)}")
+    typer.echo(f"  Missing artifact files: {_format_ref_pairs(report.missing_artifact_files)}")
+    typer.echo(f"  Invalid artifact refs: {_format_ref_set(report.invalid_artifact_refs)}")
+    typer.echo(f"  Legacy reference metadata: {_format_legacy_metadata(report.legacy_metadata)}")
+    return report
+
+
 def check_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
     brief: bool = typer.Option(
@@ -1489,6 +1746,11 @@ def check_command(
         "--gate",
         help="Run quality gate checks and exit non-zero on failure",
     ),
+    refs: bool = typer.Option(
+        False,
+        "--refs",
+        help="Show reference/citation/artifact diagnostics for this package.",
+    ),
 ) -> None:
     """Validate structure and artifact consistency for a Gaia knowledge package.
 
@@ -1510,6 +1772,7 @@ def check_command(
     * ``--inquiry`` — render goal-oriented inquiry trees
     * ``--gate`` — apply ``[tool.gaia.quality]`` thresholds, exit
       non-zero on failure (CI-friendly)
+    * ``--refs`` — show citation/local-reference/artifact diagnostics
 
     Example:
 
@@ -1517,6 +1780,7 @@ def check_command(
 
         gaia build check .
         gaia build check . --hole
+        gaia build check . --refs
         gaia build check . --gate
     """
     loaded, compiled, ir = _load_check_artifacts(path)
@@ -1528,6 +1792,9 @@ def check_command(
         f"{len(ir['strategies'])} strategies, "
         f"{len(ir['operators'])} operators"
     )
+    refs_report = None
+    if refs:
+        refs_report = _emit_refs_check_report(loaded, compiled, ir)
 
     review_manifest = None
     induced_summary = None
@@ -1560,6 +1827,7 @@ def check_command(
             loaded=loaded,
             compiled=compiled,
             review_manifest=review_manifest,
+            extra_failures=_refs_gate_failures(refs_report) if refs_report is not None else None,
         )
 
     if warrants and blind and not (brief or show or hole):
