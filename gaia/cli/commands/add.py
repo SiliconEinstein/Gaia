@@ -59,6 +59,16 @@ def add_command(
         "--lkm-claim",
         help="Resolve this LKM claim id to its backing paper package.",
     ),
+    target: str = typer.Option(
+        ".",
+        "--target",
+        help=(
+            "Path to the Gaia knowledge package to add the dependency to "
+            "(default: cwd). Matches the --target convention used by "
+            "`gaia author` verbs so the whole package lifecycle runs from "
+            "one place."
+        ),
+    ),
 ) -> None:
     """Install a registered or LKM-backed Gaia knowledge package.
 
@@ -96,8 +106,14 @@ def add_command(
     except GaiaPackagingError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(4) from exc
+    # Resolve the consumer package once, honoring --target (default cwd). The
+    # same --target convention used by `gaia author` verbs / `gaia init` /
+    # `gaia pkg scaffold` works here; --target . preserves the historical
+    # "run from inside the package" behavior by walking up to the nearest root.
+    package_root = _resolve_package_root(target)
+
     if lkm_ref is not None:
-        _handle_lkm_source_add(lkm_ref)
+        _handle_lkm_source_add(lkm_ref, package_root=package_root)
         return
     if package is None:
         typer.echo("Error: pass PACKAGE or an LKM source flag.", err=True)
@@ -115,8 +131,12 @@ def add_command(
     dep_spec = f"{canonical_name} @ git+{resolved.repo}@{resolved.git_sha}"
     typer.echo(f"Resolved {package} v{resolved.version} → {resolved.git_sha[:8]}")
 
+    # `uv add` runs in the resolved package root when one was found; otherwise
+    # it falls back to the process cwd (matching the prior behavior for the
+    # registry path, which uv resolves against the nearest project).
+    uv_cwd = package_root if package_root is not None else None
     try:
-        result = _run_uv(["uv", "add", dep_spec])
+        result = _run_uv(["uv", "add", dep_spec], cwd=uv_cwd)
     except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -129,11 +149,15 @@ def add_command(
 
     # Download upstream beliefs manifest for foreign-node prior injection.
     # This is best-effort: older registry entries may not have beliefs.json.
-    _fetch_dep_beliefs(
-        package_name=canonical_name.removesuffix("-gaia"),
-        version=resolved.version,
-        registry=registry,
-    )
+    if package_root is None:
+        typer.echo("Note: not inside a Gaia package; skipping dep_beliefs download")
+    else:
+        _fetch_dep_beliefs(
+            package_name=canonical_name.removesuffix("-gaia"),
+            version=resolved.version,
+            registry=registry,
+            pkg_root=package_root,
+        )
 
 
 @dataclass(frozen=True)
@@ -204,9 +228,9 @@ def _make_lkm_ref(index_id: str, kind: str, provider_id: str) -> LKMSourceRef:
     )
 
 
-def _handle_lkm_source_add(ref: LKMSourceRef) -> None:
+def _handle_lkm_source_add(ref: LKMSourceRef, *, package_root: Path | None) -> None:
     if ref.kind == "paper":
-        _handle_lkm_paper_add(ref)
+        _handle_lkm_paper_add(ref, package_root=package_root)
         return
 
     typer.echo(
@@ -220,13 +244,13 @@ def _handle_lkm_source_add(ref: LKMSourceRef) -> None:
     raise typer.Exit(1)
 
 
-def _handle_lkm_paper_add(ref: LKMSourceRef) -> None:
-    package_root = _find_gaia_package_root()
+def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> None:
     if package_root is None:
         typer.echo(
             f"Error: LKM paper source recognized ({ref.ref}), but no current "
             "Gaia knowledge package was found. Run `gaia pkg add --lkm-paper ...` "
-            "inside the package that should depend on this LKM paper.",
+            "inside the package that should depend on this LKM paper, or point "
+            "--target at it.",
             err=True,
         )
         raise typer.Exit(1)
@@ -326,23 +350,41 @@ def _echo_lkm_uv_add_failure(materialized: MaterializedLKMPackage, details: str)
     )
 
 
-def _find_gaia_package_root() -> Path | None:
-    """Walk up from cwd to find the nearest Gaia package root (pyproject.toml with [tool.gaia])."""
+def _is_gaia_package_dir(directory: Path) -> bool:
+    """Return True if *directory* holds a Gaia knowledge-package pyproject.toml."""
     try:
         import tomllib
     except ImportError:
         import tomli as tomllib  # type: ignore[no-redef]
 
-    current = Path.cwd().resolve()
-    for directory in [current, *current.parents]:
-        pyproject = directory / "pyproject.toml"
-        if pyproject.exists():
-            try:
-                config = tomllib.loads(pyproject.read_text())
-            except Exception:
-                continue
-            if config.get("tool", {}).get("gaia", {}).get("type") == "knowledge-package":
-                return directory
+    pyproject = directory / "pyproject.toml"
+    if not pyproject.exists():
+        return False
+    try:
+        config = tomllib.loads(pyproject.read_text())
+    except Exception:
+        return False
+    gaia_type = config.get("tool", {}).get("gaia", {}).get("type")
+    return bool(gaia_type == "knowledge-package")
+
+
+def _resolve_package_root(target: str) -> Path | None:
+    """Resolve the Gaia package root for ``gaia pkg add`` honoring ``--target``.
+
+    Unifies the cwd contract with the rest of the package lifecycle: the same
+    ``--target <path>`` form used by ``gaia author`` verbs and ``gaia init`` /
+    ``gaia pkg scaffold`` works here too. ``--target .`` (the default) keeps the
+    historical "run from inside the package" behavior by walking up from the
+    target directory to the nearest Gaia package root.
+    """
+    base = Path(target).resolve()
+    if not base.exists():
+        return None
+    if base.is_file():
+        base = base.parent
+    for directory in [base, *base.parents]:
+        if _is_gaia_package_dir(directory):
+            return directory
     return None
 
 
@@ -351,6 +393,7 @@ def _fetch_dep_beliefs(
     package_name: str,
     version: str,
     registry: str,
+    pkg_root: Path,
 ) -> None:
     """Download beliefs.json from the registry into ``.gaia/dep_beliefs/``."""
     registry_path = f"packages/{package_name}/releases/{version}/beliefs.json"
@@ -364,12 +407,6 @@ def _fetch_dep_beliefs(
         json.loads(content)
     except json.JSONDecodeError:
         typer.echo(f"Warning: beliefs manifest for {package_name} is not valid JSON; skipping")
-        return
-
-    # Find the Gaia package root (may differ from cwd if invoked from subdirectory)
-    pkg_root = _find_gaia_package_root()
-    if pkg_root is None:
-        typer.echo("Note: not inside a Gaia package; skipping dep_beliefs download")
         return
 
     dep_beliefs_dir = pkg_root / ".gaia" / "dep_beliefs"

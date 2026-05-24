@@ -1,5 +1,6 @@
 """Tests for gaia add command."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -281,12 +282,24 @@ def test_add_downloads_dep_beliefs(mock_fetch, mock_uv, mock_resolve, tmp_path, 
     assert data["beliefs"][0]["belief"] == 0.8
 
 
+def _write_gaia_package_root(root: Path) -> None:
+    """Write a minimal knowledge-package pyproject.toml at *root*."""
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "test-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\ntype = "knowledge-package"\n'
+    )
+
+
 @patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional", return_value=None)
-def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve):
+def test_add_succeeds_without_beliefs_manifest(
+    mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
+):
     """Gaia add succeeds even when beliefs.json is not available."""
     del mock_fetch, mock_resolve
+    _write_gaia_package_root(tmp_path)
+    monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
     result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
@@ -296,9 +309,11 @@ def test_add_succeeds_without_beliefs_manifest(mock_fetch, mock_uv, mock_resolve
 @patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional", return_value="not valid json {{{")
-def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
+def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch):
     """Gaia add gracefully handles invalid JSON in beliefs manifest."""
     del mock_fetch, mock_resolve
+    _write_gaia_package_root(tmp_path)
+    monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
     result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
@@ -308,18 +323,50 @@ def test_add_handles_invalid_beliefs_json(mock_fetch, mock_uv, mock_resolve):
 @patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
 @patch("gaia.cli.commands.add._run_uv")
 @patch("gaia.cli.commands.add.fetch_file_optional")
-def test_add_skips_dep_beliefs_outside_gaia_package(
+def test_add_registry_skips_dep_beliefs_outside_gaia_package(
     mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
 ):
-    """Gaia add skips dep_beliefs if not inside a Gaia package."""
+    """Registry add outside a Gaia package still succeeds, skipping dep_beliefs."""
     del mock_resolve
-    # tmp_path has no pyproject.toml — _find_gaia_package_root returns None
+    # tmp_path has no knowledge-package pyproject — no consumer root resolves.
     monkeypatch.chdir(tmp_path)
     mock_uv.return_value = MagicMock(returncode=0)
     mock_fetch.return_value = '{"beliefs": []}'
     result = runner.invoke(app, ["pkg", "add", "galileo-falling-bodies-gaia"])
     assert result.exit_code == 0
     assert "not inside a gaia package" in result.output.lower()
+
+
+@patch("gaia.cli.commands.add._run_uv")
+def test_add_lkm_paper_errors_outside_gaia_package(mock_uv, tmp_path, monkeypatch):
+    """LKM paper add outside a Gaia package errors (it must mutate a package)."""
+    mock_uv.return_value = MagicMock(returncode=0)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["pkg", "add", "--lkm-paper", "811827932371615744"])
+    assert result.exit_code == 1
+    assert "inside the package that should depend on this lkm paper" in result.output.lower()
+
+
+@patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
+@patch("gaia.cli.commands.add._run_uv")
+@patch("gaia.cli.commands.add.fetch_file_optional")
+def test_add_target_points_at_package_from_parent(
+    mock_fetch, mock_uv, mock_resolve, tmp_path, monkeypatch
+):
+    """Gaia add --target ./pkg resolves the package from the parent directory."""
+    del mock_resolve
+    pkg_root = tmp_path / "consumer-gaia"
+    pkg_root.mkdir()
+    _write_gaia_package_root(pkg_root)
+    monkeypatch.chdir(tmp_path)
+    mock_uv.return_value = MagicMock(returncode=0)
+    mock_fetch.return_value = '{"beliefs": [{"knowledge_id": "a", "belief": 0.6}]}'
+    result = runner.invoke(
+        app, ["pkg", "add", "galileo-falling-bodies-gaia", "--target", "./consumer-gaia"]
+    )
+    assert result.exit_code == 0, result.output
+    dep_file = pkg_root / ".gaia" / "dep_beliefs" / "galileo_falling_bodies.json"
+    assert dep_file.exists()
 
 
 @patch("gaia.cli.commands.add.resolve_package", return_value=MOCK_VERSION)
