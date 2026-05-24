@@ -8,8 +8,8 @@ tweaks that Graphviz can't emit on its own:
 * the canvas background polygon recoloured from Graphviz's ``bgcolor`` value
   to ``url(#space-bg)`` so the gradient actually paints,
 * a hand-built legend pinned top-left of the canvas, documenting the
-  knowledge / strategy / operator palette so the shape-only intermediate
-  nodes (strategies blank, operators symbol-only) remain readable.
+  knowledge / strategy / operator palette so the glyph-coded intermediate
+  nodes (strategies ∴/⊕, operators symbol-only) remain readable.
 
 This module is purely string surgery on Graphviz SVG output. It does not parse
 or render SVG. The corresponding dot emission lives in :mod:`._dot`; the
@@ -186,12 +186,12 @@ def _build_legend_svg() -> str:
     Graphviz's outer ``<g transform=...>``.
 
     Mirrors :mod:`._dot`'s stellaris palette exactly: 3 knowledge boxes
-    (premise / derived / root) + 2 strategies (deduction ellipse / support
+    (premise / derived / root) + 2 strategies (∴ deduction ellipse / ⊕ support
     diamond with gold-glow) + 6 operators (contradiction with red glow,
     plus the 5 neutral hex types differentiated by unicode symbol).
     """
     # (kind, fill, line, label) — kind drives the icon shape; label includes
-    # leading symbol for hex-* and root rows.
+    # leading symbol for ellipse / diamond / hex-* / root rows.
     rows: list[tuple[str, str, str, str]] = [
         (
             "box-premise",
@@ -206,8 +206,8 @@ def _build_legend_svg() -> str:
             "derived · ≥1 上游 strategy/operator",
         ),
         ("box-root", _LEGEND_ROOT_FILL, _LEGEND_ROOT_LINE, "★ root claim · 本轮 BP 起点"),
-        ("ellipse", _LEGEND_STRAT_FILL, _LEGEND_STRAT_LINE, "deduction (推演)"),
-        ("diamond", _LEGEND_SUPPORT_FILL, _LEGEND_SUPPORT_LINE, "support (独立证据支撑)"),
+        ("ellipse", _LEGEND_STRAT_FILL, _LEGEND_STRAT_LINE, "∴ deduction (推演)"),
+        ("diamond", _LEGEND_SUPPORT_FILL, _LEGEND_SUPPORT_LINE, "⊕ support (独立证据支撑)"),
         ("hex-contra", _LEGEND_CONTRA_FILL, _LEGEND_CONTRA_LINE, "⊗ contradiction"),
         ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊙ equivalence"),
         ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊃ implication"),
@@ -258,10 +258,22 @@ def _build_legend_svg() -> str:
                 f'<ellipse cx="{cx}" cy="{cy}" rx="14" ry="7" '
                 f'fill="{fill}" stroke="{line}" stroke-width="1.4"/>'
             )
+            symbol = label.split()[0]
+            parts.append(
+                f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" '
+                f'fill="{_LEGEND_TEXT}" font-family="Helvetica" font-size="12" '
+                f'font-weight="bold">{symbol}</text>'
+            )
         elif kind == "diamond":
             parts.append(
                 f'<polygon points="{cx},{cy - 9} {cx + 10},{cy} {cx},{cy + 9} {cx - 10},{cy}" '
                 f'fill="{fill}" stroke="{line}" stroke-width="1.4" class="support"/>'
+            )
+            symbol = label.split()[0]
+            parts.append(
+                f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" '
+                f'fill="{_LEGEND_TEXT}" font-family="Helvetica" font-size="12" '
+                f'font-weight="bold">{symbol}</text>'
             )
         elif kind == "hex-contra":
             r = 10.0

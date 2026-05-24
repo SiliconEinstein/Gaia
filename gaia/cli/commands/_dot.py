@@ -214,6 +214,24 @@ _OPERATOR_SYMBOLS = {
     "conjunction": "∧",
 }
 
+# Strategy glyphs, mirrored in the stellaris legend (see ``_stellaris_svg``).
+# Strategies used to render shape-only (blank label) in the stellaris theme;
+# they now carry a glyph just like operators do, so the figure stays readable.
+_STRATEGY_SYMBOLS = {
+    "deduction": "∴",
+    "support": "⊕",
+}
+
+# Max characters of a knowledge node's ``content`` to show when it has no
+# authored title/label (e.g. compiler-minted ``_anon_*`` claims), past which
+# the label gets truncated with an ellipsis so boxes don't blow up.
+_CONTENT_LABEL_MAX = 76
+
+# Auto-minted content is prefixed with a strategy verb (e.g. "derive warrants
+# …", "support warrants …"); stripping the "<verb> warrants " lead reads
+# cleaner in the box without losing the substantive text.
+_CONTENT_PREFIX = re.compile(r"^\s*\w+\s+warrants\s+")
+
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -238,6 +256,21 @@ def _escape_label(text: str) -> str:
     if not text:
         return ""
     return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ")
+
+
+def _content_label(content: str) -> str:
+    """Derive a readable fallback label from a knowledge node's ``content``.
+
+    Strips the auto-minted ``"<verb> warrants "`` lead and truncates to
+    :data:`_CONTENT_LABEL_MAX` chars (+ ellipsis) so the box stays compact.
+    Returns ``""`` for empty / whitespace-only content.
+    """
+    text = _CONTENT_PREFIX.sub("", content.strip()).strip()
+    if not text:
+        return ""
+    if len(text) > _CONTENT_LABEL_MAX:
+        return text[:_CONTENT_LABEL_MAX].rstrip() + "…"
+    return text
 
 
 def _belief_annotation(prior: float | None, belief: float | None) -> str:
@@ -350,7 +383,10 @@ def _emit_dot_knowledge_node(
 ) -> None:
     """Append one knowledge node."""
     nid = node["id"]
-    base = node.get("title") or node.get("label") or ""
+    # Fall back to (truncated) content when title/label are both absent — e.g.
+    # compiler-minted ``_anon_*`` claims whose internal label is dropped by
+    # ``_graph_json`` but which carry a meaningful ``content``.
+    base = node.get("title") or node.get("label") or _content_label(node.get("content") or "") or ""
     prefix = "★ " if bool(node.get("exported")) else ""
     annotation = _belief_annotation(node.get("prior"), node.get("belief"))
     label = _escape_label(prefix + str(base)) + annotation
@@ -363,7 +399,12 @@ def _emit_dot_strategy_node(
 ) -> None:
     """Append one strategy node."""
     stype = node.get("strategy_type", "") or ""
-    label = "" if theme.name == "stellaris" else _escape_label(stype)
+    if theme.name == "stellaris":
+        # Glyph-coded (mirrored in the legend); fall back to the type text when
+        # the strategy type is unknown so it never renders blank.
+        label = _escape_label(_STRATEGY_SYMBOLS.get(stype) or stype)
+    else:
+        label = _escape_label(stype)
     attrs = theme.strategy.support if stype == "support" else theme.strategy.ellipse
     out.append(f'{indent}{_quote_id(node["id"])} [label="{label}", {attrs}];')
 
