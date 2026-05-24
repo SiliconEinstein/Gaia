@@ -81,6 +81,7 @@ from gaia.engine.exploration.state import (
     SurveyRecord,
     append_round,
     doctrine_policy,
+    lkm_pulls_this_round,
     load_map,
     load_round_beliefs,
     read_rounds,
@@ -721,6 +722,16 @@ def round_command(
     view = _require_joint_view(pkg, graph)
     _promote_lkm_from_view(exploration_map, view, survey_round=current_round)
 
+    # Credit the round with the papers actually materialized for it.
+    # Pulls happen via `pkg add --lkm-paper` during the survey, outside this step,
+    # so the durable record used to show `lkm_pulls: 0`. Count the paper QIDs
+    # materialized in the joint view and credit the net-new ones since the prior
+    # round (see `lkm_pulls_this_round`).
+    materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+        view.package_roots
+    )
+    lkm_pulls = lkm_pulls_this_round(pkg, len(materialized_papers))
+
     # Record the surveyed QIDs into map.surveyed (SCHEMA.md §7e #4): promote a
     # matching open contact via the state bookkeeping, else add a bare
     # SurveyRecord so `status` surveyed-count and the round log agree.
@@ -745,6 +756,7 @@ def round_command(
         surveyed=surveyed_qids,
         discoveries=discoveries,
         frontier_summary=frontier_summary,
+        lkm_pulls=lkm_pulls,
     )
     # Snapshot the beliefs THIS round saw, keyed by the round just completed, so
     # the next round (current_round + 1) can diff against it.

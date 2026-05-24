@@ -525,6 +525,29 @@ def append_round(
     return rec
 
 
+def lkm_pulls_this_round(pkg_path: str | Path, materialized_paper_count: int) -> int:
+    """Net-new LKM papers materialized this round (the round's ``lkm_pulls``).
+
+    Pulls happen via ``gaia pkg add --lkm-paper`` *during* the survey, outside the
+    round step, so a round previously recorded ``lkm_pulls: 0`` even when papers
+    were materialized. We credit the round with the papers materialized *since the
+    prior round* = the current count of materialized paper QIDs in the joint view
+    minus the running total already credited in earlier rounds (the sum of prior
+    ``lkm_pulls`` in ``rounds.jsonl``). Floored at ``0`` so a re-run or a
+    bookkeeping skew never produces a negative credit.
+
+    Args:
+        pkg_path: The knowledge-package directory.
+        materialized_paper_count: The count of paper QIDs materialized in the joint
+            view at round time (``len(view.materialized_paper_ids | …)``).
+
+    Returns:
+        The number of papers to credit this round.
+    """
+    prior_total = sum(int(rec.get("lkm_pulls", 0) or 0) for rec in read_rounds(pkg_path))
+    return max(0, materialized_paper_count - prior_total)
+
+
 def read_rounds(pkg_path: str | Path) -> list[dict[str, Any]]:
     """Read the append-only round history as JSON records (§5)."""
     p = _rounds_path(pkg_path)

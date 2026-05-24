@@ -21,6 +21,7 @@ from gaia.engine.exploration.state import (
     append_round,
     doctrine_policy,
     exploration_dir,
+    lkm_pulls_this_round,
     load_map,
     mint_contact_id,
     read_rounds,
@@ -128,6 +129,21 @@ def test_rounds_append_only_and_read(tmp_path: Path):
 
 def test_read_rounds_empty(tmp_path: Path):
     assert read_rounds(tmp_path) == []
+
+
+def test_lkm_pulls_this_round_credits_net_new_papers(tmp_path: Path):
+    # The round's lkm_pulls = materialized paper count now minus the
+    # running total credited in prior rounds, floored at 0.
+    p = Policy(doctrine="Surveyor")
+    # Round 0: no prior credit, 2 papers materialized -> credit 2.
+    assert lkm_pulls_this_round(tmp_path, 2) == 2
+    append_round(tmp_path, round_index=0, policy=p, lkm_pulls=2)
+    # Round 1: 5 materialized total, 2 already credited -> credit 3.
+    assert lkm_pulls_this_round(tmp_path, 5) == 3
+    append_round(tmp_path, round_index=1, policy=p, lkm_pulls=3)
+    # Round 2: nothing new (still 5 total) -> credit 0, never negative.
+    assert lkm_pulls_this_round(tmp_path, 5) == 0
+    assert lkm_pulls_this_round(tmp_path, 4) == 0  # skew floors at 0
 
 
 @pytest.mark.parametrize("doctrine", sorted(DOCTRINE_PRESETS))
