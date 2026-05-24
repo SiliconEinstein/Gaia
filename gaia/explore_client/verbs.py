@@ -70,6 +70,7 @@ from gaia.engine.exploration.render import (
 )
 from gaia.engine.exploration.scorer import (
     load_open_obligations,
+    recompute_obligation_pressure,
     sanitize_score_features,
     score_frontier,
 )
@@ -339,6 +340,29 @@ def _is_obligation_pressed(contact: Contact) -> bool:
         return float(contact.score_features.get("obligation_pressure", 0.0)) > 0.0
     except (TypeError, ValueError):
         return False
+
+
+def _refresh_obligation_pressure(
+    pkg: str,
+    exploration_map: ExplorationMap,
+    obligations: list[Any],
+) -> None:
+    """Recompute each open contact's ``obligation_pressure`` in memory.
+
+    Mutates only the in-memory ``score_features`` of open contacts — the caller
+    (``status``) does NOT save, so this is a read-only refresh. It mirrors the
+    scorer's match rule (ref/source direct OR one-hop adjacency) against the
+    freshly-loaded OPEN obligations, so a just-closed obligation no longer shows
+    its formerly-pressed contact as pressing. When the package has no compiled
+    graph yet, adjacency degrades to empty (direct ref/source match only) rather
+    than failing.
+    """
+    edges: list[tuple[str, list[str]]] = []
+    if obligations:
+        graph = resolve_graph(pkg)
+        if graph is not None:
+            edges = _require_joint_view(pkg, graph).edges
+    recompute_obligation_pressure(exploration_map, obligations=obligations, edges=edges)
 
 
 # --------------------------------------------------------------------------- #
@@ -809,6 +833,14 @@ def status_command(
     rounds = read_rounds(pkg)
     ranked = _ranked_open_contacts(exploration_map)
     obligations = load_open_obligations(pkg)
+
+    # Recompute obligation_pressure against the freshly-loaded open
+    # obligations BEFORE displaying, in memory only (status stays read-only — the
+    # map is not saved). The stored score_features come from the last `frontier`
+    # re-rank, so a just-`obligation close`d obligation would otherwise still show
+    # its formerly-pressed contact tagged "[discharges open obligation]" until the
+    # next re-rank. Recomputing here keeps `status` consistent with current state.
+    _refresh_obligation_pressure(pkg, exploration_map, obligations)
 
     typer.echo(f"Exploration status for {pkg}")
     typer.echo(f"  round:          {exploration_map.round}")

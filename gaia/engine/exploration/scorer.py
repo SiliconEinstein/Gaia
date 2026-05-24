@@ -382,6 +382,47 @@ def _obligation_pressure(
     return 0.0
 
 
+def recompute_obligation_pressure(
+    exploration_map: ExplorationMap,
+    *,
+    obligations: Iterable[SyntheticObligation] | None,
+    edges: list[tuple[str, list[str]]] | None = None,
+) -> None:
+    """Recompute only ``obligation_pressure`` for every OPEN contact, in place.
+
+    A lighter, belief-free refresh of just the agent-visible obligation term —
+    used by surfaces that must reflect *current* obligation state without a full
+    re-score (e.g. ``gaia-lkm-explore status`` after an ``obligation close``, so a
+    just-closed obligation stops showing its formerly-pressed contact as pressing).
+    The match rule is identical to :func:`score_frontier` (ref/source direct OR
+    one-hop adjacency); the overall ``score`` is left untouched.
+
+    Args:
+        exploration_map: The map whose open contacts' ``obligation_pressure`` is
+            recomputed in place. Other features and ``score`` are not modified.
+        obligations: The package's OPEN synthetic obligations (already open-only).
+            ``None`` / empty ⇒ ``0.0`` everywhere.
+        edges: The joint cross-package edge set for the one-hop adjacency. When
+            omitted/empty, only the direct ref/source match can fire.
+    """
+    obligation_targets = _obligation_targets(obligations)
+    adjacency = _adjacency_from_edges(edges or [])
+    for contact in exploration_map.frontier:
+        if contact.status != "open":
+            continue
+        source_qids = [str(s["qid"]) for s in contact.sources if s.get("qid")]
+        ref_value = contact.ref.get("value")
+        pressure = _obligation_pressure(
+            str(ref_value) if ref_value is not None else None,
+            source_qids,
+            obligation_targets,
+            adjacency,
+        )
+        features = dict(contact.score_features)
+        features["obligation_pressure"] = pressure
+        contact.score_features = features
+
+
 def score_frontier(
     exploration_map: ExplorationMap,
     *,
