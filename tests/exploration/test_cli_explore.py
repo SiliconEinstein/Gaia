@@ -423,6 +423,23 @@ def test_explore_status_summarizes(galileo_pkg: Path):
     assert "discovery tallies:" in result.output
 
 
+def test_status_and_render_agree_on_frontier_vocabulary(galileo_pkg: Path):
+    # `status` and `render` must label the open frontier with the same
+    # paper/claim split so the two surfaces never appear to disagree.
+    runner.invoke(app, ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
+
+    status_out = runner.invoke(app, ["status", str(galileo_pkg)]).output
+    assert "open frontier:" in status_out
+    assert "paper" in status_out and "claim" in status_out
+
+    render_out = runner.invoke(app, ["render", str(galileo_pkg)]).output
+    assert "open frontier contact(s) drawn in fog" in render_out
+    assert "paper" in render_out and "claim" in render_out
+    # `render` no longer mislabels the fog as "frontier paper(s)".
+    assert "frontier paper(s) in fog" not in render_out
+
+
 def test_explore_frontier_without_init_fails_gracefully(galileo_pkg: Path):
     result = runner.invoke(app, ["frontier", str(galileo_pkg)])
     assert result.exit_code == 1

@@ -326,6 +326,25 @@ def _ranked_open_contacts(exploration_map: ExplorationMap) -> list[Contact]:
     )
 
 
+def _is_paper_contact(contact: Contact) -> bool:
+    """True iff the contact is an unpulled-paper (``lkm_related``) contact.
+
+    The frontier mixes two contact flavours: **paper** contacts (``ref.kind ==
+    "lkm"`` — an unpulled related paper) and **claim** contacts (``ref.kind ==
+    "qid"`` — a referenced-but-unmaterialized claim, including the ``depends_on``
+    pulled-but-unformalized worklist). ``status`` and ``render`` count "frontier"
+    differently unless they label these two flavours the same way, so both surfaces
+    route their counts through this split.
+    """
+    return contact.ref.get("kind") == "lkm"
+
+
+def _open_frontier_split(contacts: list[Contact]) -> tuple[int, int]:
+    """Count open contacts as ``(paper, claim)`` — the consistent frontier split."""
+    papers = sum(1 for c in contacts if _is_paper_contact(c))
+    return papers, len(contacts) - papers
+
+
 def _obligation_contents(obligations: list[Any]) -> list[str]:
     """The non-empty ``content`` strings of the open obligations (theme 006)."""
     return [
@@ -859,8 +878,14 @@ def status_command(
     typer.echo(f"  doctrine:       {exploration_map.policy.doctrine}")
     typer.echo(f"  seeds:          {len(exploration_map.seeds)}")
     typer.echo(f"  surveyed:       {len(exploration_map.surveyed)}")
-    n_lkm = sum(1 for c in ranked if c.ref.get("kind") == "lkm")
-    typer.echo(f"  open frontier:  {len(ranked)} ({n_lkm} lkm_related)")
+    # Split the open frontier into paper vs claim contacts with the
+    # same vocabulary `render` uses, so the two surfaces never appear to disagree.
+    n_papers, n_claims = _open_frontier_split(ranked)
+    typer.echo(
+        f"  open frontier:  {len(ranked)} ({n_papers} paper, {n_claims} claim) "
+        f"[paper = unpulled lkm_related; claim = referenced-but-unmaterialized, "
+        f"incl. depends_on]"
+    )
 
     # (theme 006) Surface open obligations and how many open contacts are pressed
     # by one — the agent-visible obligation_pressure steer (ref/source OR one-hop).
@@ -1024,10 +1049,23 @@ def render_command(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html_doc, encoding="utf-8")
 
+    # The fog overlays open contacts of BOTH flavours (unpulled papers
+    # AND referenced-but-unmaterialized claims), capped for legibility — so report
+    # the drawn fog split paper/claim with the SAME vocabulary `status` uses, and
+    # name it the drawn subset of the open frontier rather than "frontier papers".
+    drawn_ids = {n["id"] for n in frontier_nodes}
+    drawn_contacts = [
+        c
+        for c in exploration_map.frontier
+        if c.status == "open" and str(c.ref.get("value")) in drawn_ids
+    ]
+    fog_papers, fog_claims = _open_frontier_split(drawn_contacts)
+    open_total = sum(1 for c in exploration_map.frontier if c.status == "open")
     typer.echo(
         f"Rendered exploration map for {pkg} "
         f"({len(exploration_map.surveyed)} surveyed, "
-        f"{len(frontier_nodes)} frontier paper(s) in fog, "
+        f"{len(frontier_nodes)} of {open_total} open frontier contact(s) drawn in fog "
+        f"[{fog_papers} paper, {fog_claims} claim], "
         f"{len(html_doc)} bytes)."
     )
     typer.echo(f"Output: {out_path}")
