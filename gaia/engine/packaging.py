@@ -309,6 +309,37 @@ def _local_dependency_source_root(root: Path, import_name: str) -> Path | None:
     return None
 
 
+def _prepend_pulled_package_source_roots(pkg_path: Path) -> None:
+    """Expose pulled LKM packages on ``sys.path`` for this operation.
+
+    ``gaia pkg add --lkm-paper <id>`` materializes a paper as an editable
+    sub-package under ``<pkg>/.gaia/lkm_packages/<dist>-gaia/src/`` and registers
+    it with ``uv add --editable``. That install lands in the *package's own* uv
+    environment, which has no ``gaia-lang``, while ``gaia`` itself runs from a
+    different environment that lacks the pulled package — so compiling, rendering,
+    or post-write-checking a package that pulled a paper fails to import the
+    generated module unless the caller hand-builds a ``PYTHONPATH``.
+
+    Pulled packages are pure gaia-DSL claim modules depending only on the
+    already-present ``gaia-lang``, so adding each pulled package's ``src/`` dir to
+    module resolution is sufficient to import them in-process. This mutates only
+    ``sys.path`` for the current process (no environment install), which keeps the
+    augmentation scoped to the compile/render/check operation that needs it.
+    """
+    lkm_root = pkg_path / ".gaia" / "lkm_packages"
+    if not lkm_root.is_dir():
+        return
+    for dist_dir in sorted(lkm_root.iterdir()):
+        if not dist_dir.is_dir():
+            continue
+        src_root = dist_dir / "src"
+        if not src_root.is_dir():
+            continue
+        src_root_str = str(src_root)
+        if src_root_str not in sys.path:
+            sys.path.insert(0, src_root_str)
+
+
 def _import_package_module(import_name: str) -> ModuleType:
     """Import a Gaia package module with CLI error wrapping."""
     try:
@@ -365,6 +396,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
     import_name = project_name.removesuffix("-gaia").replace("-", "_")
     reset_inferred_package(pyproject, module_name=import_name)
     _prepend_local_dependency_source_roots(config, pkg_path)
+    _prepend_pulled_package_source_roots(pkg_path)
     source_root = _source_root_for_package(pkg_path, import_name, project_name)
 
     source_root_str = str(source_root)

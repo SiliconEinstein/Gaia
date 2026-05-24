@@ -1356,3 +1356,55 @@ def test_compile_register_prior_missing_justification_raises(tmp_path):
     result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code != 0
     assert "justification" in result.output.lower()
+
+
+def _write_pulled_lkm_package(pkg_root, *, import_name, labels):
+    """Lay down a pulled lkm package under <pkg>/.gaia/lkm_packages/<dist>/.
+
+    Mirrors ``gaia pkg add --lkm-paper``: a ``-gaia`` dist whose
+    ``[tool.gaia].namespace`` is ``lkm`` with one exported claim per label. Only
+    ``gaia-lang`` is required, so the package is importable once its ``src/`` is
+    on the path — which ``load_gaia_package`` now arranges automatically.
+    """
+    dist = f"{import_name.replace('_', '-')}-gaia"
+    root = pkg_root / ".gaia" / "lkm_packages" / dist
+    src = root / "src" / import_name
+    src.mkdir(parents=True)
+    (root / "pyproject.toml").write_text(
+        f'[project]\nname = "{dist}"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\ntype = "knowledge-package"\nnamespace = "lkm"\n'
+    )
+    body = ["from gaia.engine.lang import claim", ""]
+    for label in labels:
+        body.append(f'{label} = claim("Pulled {import_name} {label}.")')
+    body.append("__all__ = [" + ", ".join(repr(label) for label in labels) + "]")
+    (src / "__init__.py").write_text("\n".join(body) + "\n")
+
+
+def test_compile_resolves_pulled_dependency_without_external_pythonpath(tmp_path):
+    """A package that pulled a paper compiles without a hand-built PYTHONPATH."""
+    pkg_dir = tmp_path / "consumer-gaia"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "consumer-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    _write_pulled_lkm_package(pkg_dir, import_name="paper_a", labels=["conclusion_1"])
+
+    pkg_src = pkg_dir / "consumer"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.engine.lang import claim, derive\n"
+        "from paper_a import conclusion_1\n\n"
+        'main = claim("Consumer conclusion.")\n'
+        "derive(main, given=[conclusion_1])\n"
+        '__all__ = ["main"]\n'
+    )
+
+    # No monkeypatch.syspath_prepend — load_gaia_package must add the pulled
+    # package's src/ from .gaia/lkm_packages on its own.
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
+    qids = {k["id"] for k in ir["knowledges"]}
+    assert "lkm:paper_a::conclusion_1" in qids
