@@ -43,6 +43,15 @@ inquiry obligation add <target_qid> …`` and closes it with ``gaia inquiry
 obligation close <qid>``. Open obligations BOOST matching frontier contacts next
 turn (the agent-visible ``obligation_pressure`` scorer term), so marking
 obligations steers where exploration goes next.
+
+Build 16 (formalize-after-pull): the inner procedure now makes **formalizing the
+pulled paper the primary authoring path** (new step 3b) — bring a pulled paper's
+load-bearing claims into the reasoning graph by *referencing them by QID* via
+``derive`` / ``depends-on`` / ``materialize`` (a pulled claim is a materialized
+target), rather than restating them locally. ``lkm_no_chain`` source claims are
+demoted to the explicit fallback for evidence you could not pull or that is
+genuinely chain-less. Pairs with the frontier now surfacing a pulled paper's
+not-yet-formalized claims as ``depends_on`` contacts (the formalize worklist).
 """
 
 from __future__ import annotations
@@ -126,11 +135,32 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
    (Optional: preview the subgraph extent first with
    `gaia search lkm package --paper-id <paper_id>` — retrieve-only, counts via
    `source.stats`; it CANNOT materialize, so still run `pkg add --lkm-paper` to pull.)
-   Do NOT use `gaia author depends-on` for an unmaterialized target — it rejects
-   an unresolved `--given` by design (that core validation must not be weakened).
 
-4. AUTHOR the science onto Gaia DSL primitives, classifying each LKM result by
-   evidence status (mapping contract). Read the status straight off the default
+3b. FORMALIZE what you pulled — the PRIMARY authoring path after a pull. A pulled
+   paper's claims are materialized as QIDs `lkm:<paper-package>::<label>`; the
+   labels (`p1`, `p10`, …) are opaque, so read their content — each pulled claim
+   surfaces as a `depends_on` frontier contact carrying its title (and the joint
+   node texts hold the full text). Bring the claims that bear on your question into
+   YOUR reasoning graph by REFERENCING them by that QID — do NOT restate them
+   locally as fresh leaves:
+   - support: `gaia author derive --conclusion <your_claim> --given <pulled_qid>
+     --rationale "<why it supports>"` (the pulled claim supports yours);
+   - dependency: `gaia author depends-on --conclusion <your_claim>
+     --given <pulled_qid>` — a pulled claim is a *materialized* target, exactly the
+     case `depends-on` is FOR (it only rejects *unmaterialized* targets);
+   - contradiction: pre-mark `candidate_relation(claims=[<your_claim>, <pulled_qid>],
+     pattern="contradict")`, then promote with
+     `materialize(scaffold, by=[contradict(<your_claim>, <pulled_qid>)])`.
+   Formalizing is what folds the pulled paper into what the engine reasons over —
+   and what puts it on the map; an unformalized pull is just literature sitting in
+   a dependency. Formalize the load-bearing claims (not necessarily all of a
+   paper's claims, but the ones that matter to your question) BEFORE moving on to
+   the next contact.
+
+4. AUTHOR remaining evidence from search results — for leads you surfaced via
+   `gaia search lkm` but did not pull (or that have no compilable chain),
+   classifying each LKM result by evidence status (mapping contract). Read the
+   status straight off the default
    envelope — there is no `total_chains` field; a result is chain-backed iff the
    normalizer says so:
    - Chain-backed claim — a `reasoning` result (`kind == "reasoning_chain"`) with
@@ -143,11 +173,14 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
      rationale="<numbered LKM steps>", label="<factor_id>")` per factor in
      `raw.payload.factors[]` (LKM factor ids are `lfac_*`; use that id as the
      label).
-   - LKM source claim — no compilable chain (a `knowledge` claim with
+   - LKM source claim (FALLBACK) — no compilable chain (a `knowledge` claim with
      `source.has_reasoning == false`, or a `reasoning_chain` with
      `source.can_compile == false`): emit a leaf/source `claim(...)` with
      `provenance_source="lkm_no_chain"` and the preserved `lkm_id` (the result's
-     `id`); do not invent premises, factors, or derives.
+     `id`); do not invent premises, factors, or derives. Reach for `lkm_no_chain`
+     only when you could not pull the source or it is genuinely chain-less —
+     prefer pulling the paper and formalizing its claims (3b) over restating them
+     as fresh local leaves.
    - Search lead — a `question` result, or any result with insufficient
      content/provenance: do not emit.
    - Make every claim self-contained (system/material, method, quantity, value,

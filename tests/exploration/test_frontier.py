@@ -428,3 +428,148 @@ def test_resolve_freetext_seed_only_returns_materialized():
     node_texts = {qid("unmat"): "dark energy expansion history supernovae"}
     result = resolve_freetext_seed_qid("dark energy expansion history", materialized, node_texts)
     assert result is None
+
+
+# --------------------------------------------------------------------------- #
+# Pulled-but-unformalized dependency claims (build 16)                         #
+# --------------------------------------------------------------------------- #
+
+from pathlib import Path  # noqa: E402
+
+from gaia.engine.exploration.frontier import (  # noqa: E402
+    JointView,
+    _edges_from_ir,
+    _materialized_qids,
+)
+
+DEP_NS = "lkm"
+DEP_PKG = "lkm_bohrium_demo_paper_42"
+
+
+def dep_qid(label: str) -> str:
+    return f"{DEP_NS}:{DEP_PKG}::{label}"
+
+
+def dep_graph(knowledges: list[Knowledge]) -> LocalCanonicalGraph:
+    return LocalCanonicalGraph(
+        namespace=DEP_NS, package_name=DEP_PKG, knowledges=knowledges, operators=[], strategies=[]
+    )
+
+
+def _joint_view(
+    root: LocalCanonicalGraph,
+    dep: LocalCanonicalGraph,
+    *,
+    root_path: Path,
+    dep_path: Path,
+) -> JointView:
+    view = JointView()
+    view.graphs = [root, dep]
+    view.package_roots = [root_path, dep_path]
+    view.materialized = _materialized_qids(root) | _materialized_qids(dep)
+    view.edges = _edges_from_ir(root, None) + _edges_from_ir(dep, None)
+    return view
+
+
+def test_pulled_dep_claims_surface_as_unformalized_contacts(tmp_path):
+    # A pulled paper's claims are materialized in the dep package but not wired
+    # into the root reasoning graph -> they surface as a "formalize me" worklist.
+    root = make_graph(knowledges=[claim("seed"), claim("my_synthesis")])
+    dep = dep_graph(
+        [
+            Knowledge(id=dep_qid("p1"), type="claim", content="low-ell power deficit confirmed"),
+            Knowledge(id=dep_qid("p2"), type="claim", content="quadrupole alignment at 3 sigma"),
+        ]
+    )
+    view = _joint_view(root, dep, root_path=tmp_path / "root", dep_path=tmp_path / "dep")
+
+    contacts = view.extract()
+    pulled = {c.ref["value"]: c for c in contacts if c.meta.get("pulled_unformalized")}
+    assert set(pulled) == {dep_qid("p1"), dep_qid("p2")}
+    # Each carries the claim's text as a human title (the bare `p1` label is opaque).
+    assert "deficit" in pulled[dep_qid("p1")].meta["title"]
+    assert pulled[dep_qid("p1")].ref["kind"] == "qid"
+    # Root's own claims are never pulled-contacts.
+    assert all(not v.startswith(NS) for v in pulled)
+
+
+def test_formalized_dep_claim_is_not_surfaced(tmp_path):
+    # A root edge referencing a dep claim = it's formalized into the reasoning
+    # graph -> it must NOT appear as a pulled-unformalized contact (p2 still does).
+    root = make_graph(
+        knowledges=[claim("seed"), claim("my_synthesis")],
+        operators=[
+            Operator(
+                operator="conjunction",
+                variables=[qid("my_synthesis"), dep_qid("p1")],
+                conclusion=qid("seed"),
+            )
+        ],
+    )
+    dep = dep_graph(
+        [
+            Knowledge(id=dep_qid("p1"), type="claim", content="formalized via root operator"),
+            Knowledge(id=dep_qid("p2"), type="claim", content="still just pulled"),
+        ]
+    )
+    view = _joint_view(root, dep, root_path=tmp_path / "root", dep_path=tmp_path / "dep")
+
+    pulled = {c.ref["value"] for c in view.extract() if c.meta.get("pulled_unformalized")}
+    assert dep_qid("p1") not in pulled  # formalized
+    assert dep_qid("p2") in pulled  # still pulled-unformalized
+
+
+def test_engine_internal_dep_nodes_are_skipped(tmp_path):
+    root = make_graph(knowledges=[claim("seed")])
+    dep = dep_graph(
+        [
+            Knowledge(id=dep_qid("p1"), type="claim", content="real claim"),
+            Knowledge(id=dep_qid("_anon_000"), type="claim", content="engine internal"),
+        ]
+    )
+    view = _joint_view(root, dep, root_path=tmp_path / "root", dep_path=tmp_path / "dep")
+    pulled = {c.ref["value"] for c in view.extract() if c.meta.get("pulled_unformalized")}
+    assert dep_qid("p1") in pulled
+    assert dep_qid("_anon_000") not in pulled
+
+
+def test_root_only_view_has_no_pulled_contacts(tmp_path):
+    root = make_graph(knowledges=[claim("seed"), claim("a")])
+    view = JointView()
+    view.graphs = [root]
+    view.package_roots = [tmp_path / "root"]
+    view.materialized = _materialized_qids(root)
+    view.edges = _edges_from_ir(root, None)
+    assert all(not c.meta.get("pulled_unformalized") for c in view.extract())
+
+
+def test_reconcile_retires_formalized_pulled_contact():
+    # An open pulled-unformalized contact that is absent from the fresh extraction
+    # (it got formalized) is retired to `surveyed`; an ordinary open contact that
+    # is merely absent is left untouched.
+    m = ExplorationMap()
+    m.frontier.append(
+        Contact(
+            id="ct_pulled1",
+            ref={"kind": "qid", "value": dep_qid("p1")},
+            status="open",
+            meta={"pulled_unformalized": True, "title": "low-ell deficit"},
+        )
+    )
+    m.frontier.append(
+        Contact(id="ct_ordinary", ref={"kind": "qid", "value": qid("ordinary")}, status="open")
+    )
+    # Fresh extraction still has p2 (pulled) but NOT p1 (now formalized) and NOT
+    # the ordinary contact.
+    fresh = [
+        Contact(
+            id="ct_pulled2",
+            ref={"kind": "qid", "value": dep_qid("p2")},
+            status="open",
+            meta={"pulled_unformalized": True, "title": "quadrupole alignment"},
+        )
+    ]
+    reconcile_frontier(m, fresh)
+    by_qid = {str(c.ref["value"]): c for c in m.frontier}
+    assert by_qid[dep_qid("p1")].status == "surveyed"  # formalized -> retired
+    assert by_qid[qid("ordinary")].status == "open"  # untouched (not a pulled contact)

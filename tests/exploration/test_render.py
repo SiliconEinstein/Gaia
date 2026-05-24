@@ -112,6 +112,32 @@ def test_frontier_graph_elements_builds_question_nodes() -> None:
     assert all(e["target"] != _qid("unmaterialized_factor") for e in edges)
 
 
+def test_frontier_graph_elements_caps_fog_by_score() -> None:
+    # A pulled paper can surface 100+ not-yet-formalized claims; the figure caps
+    # the dashed fog at the top `limit` by score (survey is budget-bounded
+    # elsewhere). The header still reports the true total separately.
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "text": "q", "qid": _qid("seed")}],
+        policy=Policy(doctrine="Surveyor", budget_k=3),
+    )
+    for i in range(40):
+        m.frontier.append(
+            Contact(
+                id=f"ct_{i:02d}",
+                ref={"kind": "qid", "value": _qid(f"pulled_{i:02d}")},
+                score=float(i),  # higher i = higher score
+                status="open",
+                meta={"pulled_unformalized": True, "title": f"claim {i}"},
+            )
+        )
+    nodes, _edges = frontier_graph_elements(m, existing_node_ids=set(), limit=10)
+    assert len(nodes) == 10
+    # The 10 highest-scored (i = 39..30) are the ones drawn.
+    drawn = {n["id"] for n in nodes}
+    assert _qid("pulled_39") in drawn
+    assert _qid("pulled_00") not in drawn
+
+
 def test_exploration_header_fields() -> None:
     fields = dict(exploration_header_fields(_demo_map()))
     assert fields["doctrine"] == "Inquisitor"

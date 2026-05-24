@@ -39,6 +39,10 @@ _PANEL_STROKE = "#2a3550"
 _TEXT = "#e8eef7"
 _TEXT_DIM = "#cfd6e6"
 _HEADER_W = 360
+# Cap on dashed frontier "fog" boxes drawn — a pulled paper can surface 100+
+# not-yet-formalized claims; the figure shows the top-scored worklist, the header
+# reports the true total.
+_FRONTIER_FOG_LIMIT = 28
 
 
 def _esc(text: Any) -> str:
@@ -49,23 +53,37 @@ def _esc(text: Any) -> str:
 def frontier_graph_elements(
     exploration_map: ExplorationMap,
     existing_node_ids: set[str],
+    *,
+    limit: int = _FRONTIER_FOG_LIMIT,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Open frontier contacts → dashed ``question`` nodes + ``background`` edges.
 
     Returns ``(nodes, edges)`` in the starmap ``graph_json`` schema, ready to be
-    merged into the graph before ``to_dot``. A frontier paper renders as a dashed
-    "open inquiry" box (the unmaterialized / in-the-fog look); an edge is added
-    only to a source that is already a node in the graph (so no dangling
-    Graphviz-implicit nodes appear). Deterministic (frontier order preserved).
+    merged into the graph before ``to_dot``. A frontier paper / pulled-unformalized
+    claim renders as a dashed "open inquiry" box (the in-the-fog look); an edge is
+    added only to a source already in the graph (so no dangling Graphviz-implicit
+    nodes appear).
+
+    The fog is capped at the top ``limit`` open contacts **by score** (a pulled
+    paper can surface 100+ not-yet-formalized claims; drawing them all would swamp
+    the map). Survey is already budget-bounded elsewhere; this only bounds the
+    figure. Deterministic: sorted by ``(-score, id)`` so the same map always draws
+    the same fog. The header's ``frontier open`` still reports the true total.
     """
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for c in exploration_map.frontier:
-        if c.status != "open":
-            continue
+    open_contacts = [
+        c
+        for c in exploration_map.frontier
+        if c.status == "open" and str(c.ref.get("value")) not in existing_node_ids
+    ]
+    open_contacts.sort(
+        key=lambda c: (-(c.score if c.score is not None else -1e9), str(c.ref.get("value")))
+    )
+    for c in open_contacts[: max(limit, 0)]:
         pid = str(c.ref.get("value"))
-        if pid in existing_node_ids or pid in seen:
+        if pid in seen:
             continue
         seen.add(pid)
         title = c.meta.get("title")

@@ -78,6 +78,17 @@ def _materialized_qids(ir: LocalCanonicalGraph) -> set[str]:
     return {k.id for k in ir.knowledges if k.id is not None}
 
 
+def _pulled_claim_title(text: str, *, limit: int = 90) -> str:
+    """A short human title for a pulled dependency claim from its joint node text.
+
+    ``node_texts`` yields ``"label content"``; collapse whitespace and trim so a
+    pulled-contact's ``meta.title`` reads as the claim's content (the bare ``p7``
+    label is opaque), bounded for legend/label use.
+    """
+    collapsed = " ".join(text.split())
+    return collapsed[: limit - 1] + "…" if len(collapsed) > limit else collapsed
+
+
 def _iter_operators(ir: LocalCanonicalGraph) -> list[Any]:
     """Yield every Operator the IR carries: standalone + inside FormalStrategy.
 
@@ -304,6 +315,21 @@ def reconcile_frontier(
         # Refresh the open contact's reachability from the authoritative IR.
         existing.sources = [dict(s) for s in fresh.sources]
 
+    # Retire pulled-but-unformalized contacts that have since been formalized: a
+    # root reference moved the QID into the reasoning graph, so the joint extract
+    # no longer emits it. Mark the stale OPEN contact surveyed (keyed on the meta
+    # flag, so ordinary contacts are untouched). `extracted` already includes the
+    # still-unformalized pulled contacts, so any flagged-open contact absent from
+    # it has been formalized.
+    fresh_qids = {str(c.ref.get("value")) for c in extracted}
+    for contact in exploration_map.frontier:
+        if (
+            contact.status == "open"
+            and contact.meta.get("pulled_unformalized")
+            and str(contact.ref.get("value")) not in fresh_qids
+        ):
+            contact.status = "surveyed"
+
     return exploration_map
 
 
@@ -481,12 +507,82 @@ class JointView:
     warnings: list[str] = field(default_factory=list)
 
     def extract(self, exploration_map: ExplorationMap | None = None) -> list[Contact]:
-        """Derive the frontier from this joint view (shares the §7a core)."""
-        return _frontier_from_edges(self.materialized, self.edges, exploration_map=exploration_map)
+        """Derive the frontier from this joint view (shares the §7a core).
+
+        On top of the standard contacts (referenced-but-unmaterialized QIDs), the
+        joint view also surfaces **pulled-but-not-yet-formalized** dependency
+        claims — papers you've pulled whose claims aren't wired into the root
+        reasoning graph yet — as a "formalize me" worklist (see
+        :meth:`_pulled_unformalized_contacts`).
+        """
+        contacts = _frontier_from_edges(
+            self.materialized, self.edges, exploration_map=exploration_map
+        )
+        contacts.extend(self._pulled_unformalized_contacts(exploration_map))
+        return contacts
 
     def node_texts(self) -> dict[str, str]:
         """``qid -> "label content"`` across the root + dep graphs (theme 010)."""
         return node_texts_from_graphs(self.graphs)
+
+    def _pulled_unformalized_contacts(
+        self, exploration_map: ExplorationMap | None = None
+    ) -> list[Contact]:
+        """Materialized dependency claims not yet referenced by any ROOT edge.
+
+        A pulled paper's claims are materialized (they have ``Knowledge`` bodies in
+        the dependency package) but inert until the agent **formalizes** them —
+        wires them into the root reasoning graph via a root ``derive`` /
+        ``depends_on`` / ``contradict`` reference. Until then they are
+        *pulled-but-unformalized*: present, but not part of what the engine reasons
+        over. The standard frontier core never surfaces them (a contact is an
+        *un*-materialized ref), so we surface them here as ``qid`` contacts tagged
+        ``meta.pulled_unformalized`` and carrying the claim's text as ``meta.title``
+        (the bare ``::p7`` labels are opaque). They rank/survey through the normal
+        machinery and **retire automatically** once formalized — a root reference
+        moves the QID into ``root_referenced`` so it stops being emitted, and
+        :func:`reconcile_frontier` marks the stale open contact surveyed.
+
+        No-op when the view is root-only (no dependencies).
+        """
+        if len(self.graphs) < 2 or not self.package_roots:
+            return []
+        root_graph = self.graphs[0]
+        root_qids = _materialized_qids(root_graph)
+        dep_qids = self.materialized - root_qids
+        if not dep_qids:
+            return []
+        root_manifest = _load_manifest_dict(self.package_roots[0])
+        root_referenced: set[str] = set()
+        for _kind, refs in _edges_from_ir(root_graph, root_manifest):
+            root_referenced.update(refs)
+        texts = self.node_texts()
+        existing_by_qid: dict[str, Contact] = {}
+        if exploration_map is not None:
+            for contact in exploration_map.frontier:
+                if contact.ref.get("kind") == "qid":
+                    existing_by_qid[str(contact.ref["value"])] = contact
+
+        contacts: list[Contact] = []
+        for qid in sorted(dep_qids - root_referenced):
+            label = qid.rsplit("::", 1)[1] if "::" in qid else qid
+            if label.startswith("_"):  # engine-internal dep node — not a worklist item
+                continue
+            prior = existing_by_qid.get(qid)
+            meta = dict(prior.meta) if prior is not None else {}
+            meta["pulled_unformalized"] = True
+            meta["title"] = _pulled_claim_title(texts.get(qid, "")) or label
+            contacts.append(
+                Contact(
+                    id=prior.id if prior is not None else mint_contact_id(),
+                    ref={"kind": "qid", "value": qid},
+                    sources=list(prior.sources) if prior is not None else [],
+                    discovered_round=prior.discovered_round if prior is not None else 0,
+                    status=prior.status if prior is not None else "open",
+                    meta=meta,
+                )
+            )
+        return contacts
 
 
 def build_joint_view(
