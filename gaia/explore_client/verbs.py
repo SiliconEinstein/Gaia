@@ -98,7 +98,11 @@ _SEED_OPT = typer.Option(..., "--seed", help="Seed claim text or QID (repeatable
 _DOCTRINE_OPT = typer.Option(
     "Cartographer",
     "--doctrine",
-    help=f"Named doctrine preset: {sorted(DOCTRINE_PRESETS)}.",
+    help=(
+        f"Named doctrine preset: {sorted(DOCTRINE_PRESETS)}. "
+        "Note: tension/bridge scoring is not yet wired (DESIGN §8), so "
+        "tension/bridge-led presets (e.g. 'Inquisitor') are currently inert."
+    ),
 )
 _BUDGET_K_OPT = typer.Option(5, "--budget-k", help="Top-k contacts to survey per round.")
 _FRONTIER_JSON_OPT = typer.Option(False, "--json", help="Emit the ranked contacts as JSON.")
@@ -372,6 +376,26 @@ def init_command(
             err=True,
         )
         raise typer.Exit(2)
+
+    # Warn when the chosen doctrine leads on the currently-inert tension/bridge
+    # potential slots (DESIGN §8 defers tension/bridge wiring), so its headline
+    # lever does nothing yet — surfaced here at init rather than only later in the
+    # survey task envelope. Mirrors that note.
+    _weights = DOCTRINE_PRESETS[doctrine]
+    _inert = _weights.get("w_tension", 0.0) + _weights.get("w_bridge", 0.0)
+    _live = (
+        _weights.get("w_uncertainty", 0.0)
+        + _weights.get("w_coverage", 0.0)
+        + _weights.get("w_relevance", 0.0)
+    )
+    if _inert > _live:
+        typer.echo(
+            f"Warning: doctrine {doctrine!r} leads on tension/bridge potential, "
+            "which are currently inert (0.0 scoring slots; DESIGN §8 defers "
+            "tension/bridge wiring), so its ranking is dominated by the remaining "
+            "terms. Prefer 'Surveyor' or 'Cartographer' for now.",
+            err=True,
+        )
 
     seeds: list[dict[str, Any]] = []
     for raw in seed:
