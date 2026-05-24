@@ -556,6 +556,85 @@ class TestReasoning:
         assert call["path"] == "/claims/gcn_abc123/reasoning"
         assert call["params"] == {"max_chains": 10, "sort_by": "comprehensive"}
 
+    def test_prefixed_claim_id_strips_prefix_and_infers_index(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The prefixed `lkm:<index>:gcn_…` form (as printed) is accepted."""
+        _install_client(
+            monkeypatch,
+            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+        )
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "reasoning",
+                "--claim-id",
+                "lkm:bohrium:gcn_abc123",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        call = _FakeClient.last_call
+        assert call["path"] == "/claims/gcn_abc123/reasoning"
+        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+
+    def test_prefixed_positional_claim_id_routes_to_claim_mode(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A bare positional in the prefixed form also routes to --claim-id mode."""
+        _install_client(
+            monkeypatch,
+            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+        )
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "lkm:bohrium:gcn_abc123", "--format", "raw-json"],
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["path"] == "/claims/gcn_abc123/reasoning"
+
+    def test_prefixed_claim_id_with_matching_index_ok(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+        )
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "reasoning",
+                "--index",
+                "bohrium",
+                "--claim-id",
+                "lkm:bohrium:gcn_abc123",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["path"] == "/claims/gcn_abc123/reasoning"
+
+    def test_prefixed_claim_id_index_disagreement_exits_4(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "reasoning",
+                "--index",
+                "bohrium",
+                "--claim-id",
+                "lkm:other:gcn_abc123",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "disagrees" in result.output
+
     def test_fetches_claim_reasoning_with_server_hint(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
