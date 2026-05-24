@@ -96,3 +96,12 @@ class ProposedAuthorOp:
     # pair — typically ``source`` is the bare package import name and the
     # statement becomes ``from <pkg> import <label>``.
     sibling_imports: tuple[tuple[str, str], ...] = ()
+    # Foreign-claim imports: ``(module, symbol, alias)`` triples for references
+    # that name a pulled claim by QID (``lkm:<package>::<label>``). The writer
+    # renders each as ``from <module> import <symbol> as <alias>`` so two pulled
+    # papers sharing a bare label stay distinct in the consumer's module scope.
+    # The aliases are spliced into ``generated_code`` as the reference spelling
+    # but are intentionally NOT added to ``references`` — they resolve via the
+    # injected import at engine-load time (post-write), not against the local
+    # module symbols pre-write scans.
+    foreign_imports: tuple[tuple[str, str, str], ...] = ()

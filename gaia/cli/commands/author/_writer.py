@@ -41,6 +41,7 @@ def append_statement(
     *,
     new_label: str | None = None,
     sibling_imports: tuple[tuple[str, str], ...] = (),
+    foreign_imports: tuple[tuple[str, str, str], ...] = (),
     import_package_name: str | None = None,
     required_imports: tuple[str, ...] = (),
     export: bool = True,
@@ -68,6 +69,11 @@ def append_statement(
             ``from <package_name> import <symbol>`` next to existing
             same-package imports (or below the leading docstring / future
             import block).
+        foreign_imports: A tuple of ``(module, symbol, alias)`` triples for
+            pulled-claim references named by QID. Each missing triple is
+            inserted as ``from <module> import <symbol> as <alias>`` so two
+            pulled papers sharing a bare label stay distinct in the consumer's
+            module scope. Idempotent.
         import_package_name: The Python package import name for the
             target package (e.g. ``galileo_v0_5``). Used for the
             self-import shape ``from galileo_v0_5 import daily_observation``
@@ -110,6 +116,10 @@ def append_statement(
             default_package=import_package_name,
         )
         sibling_added = sibling_added_list
+
+    # ---- foreign (aliased) import insertion ---------------------------- #
+    if foreign_imports:
+        existing = _ensure_foreign_imports(existing, foreign_imports)
 
     if existing and not existing.endswith("\n"):
         existing += "\n"
@@ -248,6 +258,60 @@ def _ensure_sibling_imports(
     if not grouped_new:
         return source, []
     return _splice_imports(source, tree, grouped_new), added_symbols
+
+
+def _existing_aliased_imports(tree: ast.Module) -> set[tuple[str, str, str]]:
+    """Collect ``(module, symbol, alias)`` triples already imported in the module."""
+    present: set[tuple[str, str, str]] = set()
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                present.add((node.module, alias.name, alias.asname or alias.name))
+    return present
+
+
+def _ensure_foreign_imports(
+    source: str,
+    needed: tuple[tuple[str, str, str], ...],
+) -> str:
+    """Insert ``from <module> import <symbol> as <alias>`` for missing foreign refs.
+
+    Each entry is a ``(module, symbol, alias)`` triple naming a pulled claim
+    imported under a package-qualified alias. Idempotent: a triple already
+    present (same module + symbol + alias) is skipped. The lines are spliced at
+    the standard import-insertion offset, one per missing triple, deduplicated
+    and ordered for a stable diff.
+    """
+    if not needed:
+        return source
+    try:
+        tree = ast.parse(source) if source.strip() else ast.parse("")
+    except SyntaxError:
+        return source
+
+    present = _existing_aliased_imports(tree)
+    fresh: list[tuple[str, str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for triple in needed:
+        if triple in present or triple in seen:
+            continue
+        seen.add(triple)
+        fresh.append(triple)
+    if not fresh:
+        return source
+
+    lines = [f"from {module} import {symbol} as {alias}" for module, symbol, alias in sorted(fresh)]
+    insert_block = "\n".join(lines) + "\n"
+    insertion_offset = _find_import_insertion_offset(source, tree)
+    head = source[:insertion_offset]
+    tail = source[insertion_offset:]
+    if head and not head.endswith("\n"):
+        head += "\n"
+    if head and not head.endswith("\n\n"):
+        head += "\n"
+    if tail and not tail.startswith("\n"):
+        insert_block += "\n"
+    return head + insert_block + tail
 
 
 def _find_import_insertion_offset(source: str, tree: ast.Module) -> int:
