@@ -1083,7 +1083,9 @@ def test_inject_legend_adds_block_before_svg_close():
     minimal = '<svg xmlns="http://www.w3.org/2000/svg"><polygon/></svg>'
     out = inject_legend(minimal)
     assert '<g id="legend"' in out
-    assert "节点角色" in out
+    assert "Stellaris starmap" in out
+    # Legend text is English-only — no CJK leaks into the figure.
+    assert not re.search(r"[一-鿿]", out)
     # Legend appears before </svg>.
     assert out.index('id="legend"') < out.index("</svg>")
 
@@ -1093,10 +1095,12 @@ def test_inject_legend_includes_all_node_role_rows():
     from gaia.cli.commands._stellaris_svg import inject_legend
 
     out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
-    # Knowledge boxes
-    assert "premise" in out
-    assert "derived" in out
-    assert "root claim" in out
+    # Knowledge boxes — English-only labels.
+    assert "premise · no upstream strategy/operator" in out
+    assert "derived · ≥1 upstream strategy/operator" in out
+    assert "★ root claim · belief-prop seed" in out
+    assert "⊕ support (independent evidence)" in out
+    assert "box numbers:" in out
     # Strategies — now glyph-coded (mirrors the dot node labels).
     assert "∴ deduction" in out
     assert "⊕ support" in out
@@ -1151,7 +1155,9 @@ def test_starmap_svg_stellaris_includes_legend(tmp_path):
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / out).read_text(encoding="utf-8")
     assert '<g id="legend"' in svg
-    assert "节点角色" in svg
+    assert "Stellaris starmap" in svg
+    # No CJK leaks into the rendered stellaris figure.
+    assert not re.search(r"[一-鿿]", svg)
 
 
 @pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")

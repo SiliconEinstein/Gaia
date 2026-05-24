@@ -197,17 +197,17 @@ def _build_legend_svg() -> str:
             "box-premise",
             _LEGEND_PREMISE_FILL,
             _LEGEND_PREMISE_LINE,
-            "premise · 无上游 strategy/operator",
+            "premise · no upstream strategy/operator",
         ),
         (
             "box-derived",
             _LEGEND_DERIVED_FILL,
             _LEGEND_DERIVED_LINE,
-            "derived · ≥1 上游 strategy/operator",
+            "derived · ≥1 upstream strategy/operator",
         ),
-        ("box-root", _LEGEND_ROOT_FILL, _LEGEND_ROOT_LINE, "★ root claim · 本轮 BP 起点"),
-        ("ellipse", _LEGEND_STRAT_FILL, _LEGEND_STRAT_LINE, "∴ deduction (推演)"),
-        ("diamond", _LEGEND_SUPPORT_FILL, _LEGEND_SUPPORT_LINE, "⊕ support (独立证据支撑)"),
+        ("box-root", _LEGEND_ROOT_FILL, _LEGEND_ROOT_LINE, "★ root claim · belief-prop seed"),
+        ("ellipse", _LEGEND_STRAT_FILL, _LEGEND_STRAT_LINE, "∴ deduction"),
+        ("diamond", _LEGEND_SUPPORT_FILL, _LEGEND_SUPPORT_LINE, "⊕ support (independent evidence)"),
         ("hex-contra", _LEGEND_CONTRA_FILL, _LEGEND_CONTRA_LINE, "⊗ contradiction"),
         ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊙ equivalence"),
         ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊃ implication"),
@@ -232,7 +232,7 @@ def _build_legend_svg() -> str:
     parts.append(
         f'<text x="{pad_x}" y="{pad_y + 14}" fill="{_LEGEND_TEXT}" '
         f'font-family="Helvetica" font-size="13" font-weight="bold">'
-        f"Stellaris starmap · 节点角色</text>"
+        f"Stellaris starmap · legend</text>"
     )
     y = pad_y + 14 + 14
 
@@ -311,7 +311,7 @@ def _build_legend_svg() -> str:
     parts.append(
         f'<text x="{pad_x}" y="{y + 12}" fill="{_LEGEND_TEXT_DIM}" '
         f'font-family="Helvetica" font-size="11" font-style="italic">'
-        f"方框内数字: a → b (prior + BP 后验) | b (仅后验)</text>"
+        f"box numbers: a → b (prior + BP posterior) | b (posterior only)</text>"
     )
     parts.append("</g>")
     return "\n" + "".join(parts) + "\n"

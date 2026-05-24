@@ -50,6 +50,20 @@ def _esc(text: Any) -> str:
     return html.escape(str(text), quote=True)
 
 
+def _two_word_label(label: str) -> str:
+    """Truncate a fog-node label to its first two whitespace-separated words.
+
+    Appends a trailing ``…`` when the original had more than two words. A label
+    of two or fewer words is returned unchanged. The caller guarantees a
+    non-empty ``label`` (a ``paper <id>`` / id fallback for title-less contacts),
+    so the result is always non-empty.
+    """
+    words = label.split()
+    if len(words) <= 2:
+        return " ".join(words) if words else label
+    return " ".join(words[:2]) + "…"
+
+
 def frontier_graph_elements(
     exploration_map: ExplorationMap,
     existing_node_ids: set[str],
@@ -89,7 +103,8 @@ def frontier_graph_elements(
         title = c.meta.get("title")
         title = title if isinstance(title, str) and title else None
         is_lkm = c.ref.get("kind") == "lkm"
-        label = title or (f"paper {pid}" if is_lkm else pid)
+        label = title or (f"paper {pid}" if is_lkm else pid) or "open contact"
+        label = _two_word_label(label)
         nodes.append(
             {
                 "id": pid,
@@ -162,7 +177,7 @@ def inject_exploration_header(svg_text: str, fields: list[tuple[str, str]]) -> s
     )
     parts.append(
         f'<text x="{pad}" y="{pad + 14}" fill="{_TEXT}" font-family="Helvetica" '
-        'font-size="13" font-weight="bold">exploration · 探索状态</text>'
+        'font-size="13" font-weight="bold">exploration</text>'
     )
     y = pad + 14 + 20
     for key, value in fields:
