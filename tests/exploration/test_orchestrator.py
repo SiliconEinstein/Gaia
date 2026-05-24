@@ -52,6 +52,20 @@ def test_turn_without_map_raises(tmp_path: Path):
         run_turn(tmp_path)
 
 
+def test_seed_survey_instructions_warn_about_spawn_trap():
+    """The round-0 guidance steers verbs to the workspace root.
+
+    Running a `gaia-lkm-explore` verb from inside the package dir (or with `.`)
+    yields a cryptic `Failed to spawn` from `uv`; the first-time guidance must say
+    to run from the workspace root with a package path so the trap is avoided.
+    """
+    from gaia.explore_client.instructions import build_survey_instructions
+
+    text = build_survey_instructions(seed_survey=True)
+    assert "WORKSPACE ROOT" in text
+    assert "Failed to spawn" in text
+
+
 def test_idle_round0_no_ir_emits_seed_survey_task(tmp_path: Path, monkeypatch):
     """IDLE on a fresh init with no compiled IR → a round-0 seed-survey task."""
     _init_map(tmp_path, seed_qid="example:pkg::seed")
