@@ -31,7 +31,7 @@ from gaia.cli.commands.author._common import (
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv_idents,
+    split_csv_refs,
     validate_identifier_flag,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
@@ -88,7 +88,10 @@ def depends_on_command(
     given: str = typer.Option(
         ...,
         "--given",
-        help="Comma-separated identifiers of dependency Claim(s).",
+        help=(
+            "Comma-separated dependency references: local Claim identifiers "
+            "and/or pulled-claim QIDs (lkm:<package>::<label>)."
+        ),
     ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
@@ -151,7 +154,7 @@ def depends_on_command(
         conclusion, verb="depends_on", flag="--conclusion", target=str(target), human=human
     ):
         return
-    given_list, given_error = split_csv_idents(given)
+    given_refs, given_error = split_csv_refs(given)
     if given_error:
         emit_syntax_error(
             "depends_on",
@@ -161,7 +164,8 @@ def depends_on_command(
             kind="prewrite.expr_unsafe",
         )
         return
-    background_list, background_error = split_csv_idents(background)
+    given_list = given_refs.rendered
+    background_refs, background_error = split_csv_refs(background)
     if background_error:
         emit_syntax_error(
             "depends_on",
@@ -171,6 +175,7 @@ def depends_on_command(
             kind="prewrite.expr_unsafe",
         )
         return
+    background_list = background_refs.rendered
     if not given_list:
         emit_syntax_error(
             "depends_on",
@@ -189,8 +194,12 @@ def depends_on_command(
         metadata=metadata_dict,
         background=background_list,
     )
-    references = [conclusion, *given_list, *background_list]
+    references = [conclusion, *given_refs.local, *background_refs.local]
     target_file = normalize_file_option(file)
+    foreign_imports = tuple(
+        (fi.module, fi.symbol, fi.alias)
+        for fi in (*given_refs.foreign_imports, *background_refs.foreign_imports)
+    )
     proposed_op = ProposedAuthorOp(
         verb="depends_on",
         kind="scaffold",
@@ -200,6 +209,7 @@ def depends_on_command(
         required_imports=("depends_on",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        foreign_imports=foreign_imports,
         export=export,
     )
     run_author_op(

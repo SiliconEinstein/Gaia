@@ -177,6 +177,7 @@ def _execute_writes(
         proposed_op.generated_code,
         new_label=proposed_op.label,
         sibling_imports=merged_sibling_imports,
+        foreign_imports=proposed_op.foreign_imports,
         import_package_name=pre_import_name,
         required_imports=proposed_op.required_imports,
         export=proposed_op.export,

@@ -101,7 +101,7 @@ def _render_svg(dot_source: str, *, theme: str) -> str:
         )
     svg = proc.stdout
     if theme in ("stellaris", "dark"):
-        svg = post_process_stellaris_svg(svg)
+        svg = post_process_stellaris_svg(svg, dot_source=dot_source)
     return svg
 
 

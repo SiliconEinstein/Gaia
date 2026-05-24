@@ -317,6 +317,89 @@ def inject_legend(svg_text: str) -> str:
     return re.sub(r"(</svg>)", legend + r"\1", svg_text, count=1)
 
 
-def post_process_stellaris_svg(svg_text: str) -> str:
-    """Apply all stellaris SVG transforms: defs + bg recolour + legend."""
-    return inject_legend(recolor_background(inject_defs(svg_text)))
+def _contradiction_node_ids_from_dot(dot_source: str) -> set[str]:
+    """Extract the DOT node ids styled ``class="contradiction"``.
+
+    The dot emitter tags every contradiction operator node with
+    ``class="contradiction"`` (see :mod:`._dot`). Older Graphviz (2.43) drops
+    the ``class`` attribute on SVG emission entirely, and newer Graphviz emits
+    it merged with the built-in node class (``class="node contradiction"``), so
+    the per-node marker is unreliable downstream. Reading the authoritative set
+    of contradiction node ids straight from the dot source lets the post-process
+    re-stamp every one of them, independent of the Graphviz version.
+    """
+    node_re = re.compile(
+        r'^\s*("(?:[^"\\]|\\.)*"|[A-Za-z_]\w*)\s*\[([^\]]*)\]',
+        re.MULTILINE,
+    )
+    ids: set[str] = set()
+    for match in node_re.finditer(dot_source):
+        raw_id, attrs = match.group(1), match.group(2)
+        if 'class="contradiction"' not in attrs:
+            continue
+        node_id = raw_id
+        if node_id.startswith('"') and node_id.endswith('"'):
+            node_id = node_id[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+        ids.add(node_id)
+    return ids
+
+
+def _svg_title_to_text(raw_title: str) -> str:
+    """Decode an SVG ``<title>`` body back to the dot node id it came from.
+
+    Graphviz XML-escapes the node id in the ``<title>`` element (``&amp;`` /
+    ``&lt;`` / ``&gt;`` / ``&quot;`` / ``&#45;`` for ``-``), so reverse those to
+    match against the dot-derived contradiction id set.
+    """
+    return (
+        raw_title.replace("&#45;", "-")
+        .replace("&quot;", '"')
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+    )
+
+
+def ensure_contradiction_classes(svg_text: str, contradiction_ids: set[str]) -> str:
+    """Stamp ``class="contradiction"`` on every contradiction node ``<g>``.
+
+    Graphviz preserves a node group as ``<g id="nodeN" class="node"><title>…``.
+    For each group whose ``<title>`` decodes to a known contradiction operator id,
+    rewrite the group's ``class`` to include the literal ``contradiction`` token
+    so all N contradiction operators carry the marker the glow ``<style>`` selects
+    — regardless of whether Graphviz emitted, merged, or dropped the original
+    ``class`` attribute. Idempotent: a group already carrying the token is left
+    unchanged.
+    """
+    if not contradiction_ids:
+        return svg_text
+
+    group_re = re.compile(r'(<g\s+id="[^"]*"\s+class=")([^"]*)("[^>]*>\s*<title>)([^<]*)(</title>)')
+
+    def _rewrite(m: re.Match[str]) -> str:
+        head, cls, mid, title, tail = m.groups()
+        if _svg_title_to_text(title) not in contradiction_ids:
+            return m.group(0)
+        tokens = cls.split()
+        if "contradiction" not in tokens:
+            tokens.append("contradiction")
+        return f"{head}{' '.join(tokens)}{mid}{title}{tail}"
+
+    return group_re.sub(_rewrite, svg_text)
+
+
+def post_process_stellaris_svg(svg_text: str, dot_source: str | None = None) -> str:
+    """Apply all stellaris SVG transforms: defs + bg recolour + legend.
+
+    When ``dot_source`` is supplied, every contradiction operator node it styled
+    is re-stamped with ``class="contradiction"`` on its SVG group so all N
+    contradiction operators carry the glow marker — fixing the case where
+    Graphviz dropped or merged the per-node ``class`` attribute during SVG
+    emission (only 1 marker survived for an N-operator graph otherwise).
+    """
+    processed = inject_legend(recolor_background(inject_defs(svg_text)))
+    if dot_source is not None:
+        processed = ensure_contradiction_classes(
+            processed, _contradiction_node_ids_from_dot(dot_source)
+        )
+    return processed

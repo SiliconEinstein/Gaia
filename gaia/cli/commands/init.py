@@ -196,10 +196,11 @@ def init_command(
         f"  cd <parent of {name}>\n"
         f'  gaia author claim "..." --target ./{name}\n'
         "\n"
-        "Run gaia from the parent directory: author verbs with --target\n"
-        f"pointing at ./{name}, and build/run with ./{name} as the path\n"
-        "argument (shown below). Running any of them from inside the package\n"
-        "will not find gaia-lang.\n"
-        f"\n  gaia build compile ./{name}\n"
+        f"Point every verb at the package with --target ./{name} (author verbs\n"
+        f"and `gaia pkg add`) or the path argument (`gaia build compile` / "
+        "`gaia run infer`).\n"
+        "The same target works from the parent directory or from inside the package.\n"
+        f"\n  gaia pkg add --lkm-paper <id> --target ./{name}\n"
+        f"  gaia build compile ./{name}\n"
         f"  gaia run infer ./{name}"
     )

@@ -293,11 +293,12 @@ class TestRegisterIntegration:
 
         registry = tmp_path / ".gaia-skills"
         assert registry.is_dir()
-        # All shipped skills materialised, plus _shared.
+        # All shipped skills materialised, plus _shared. (The retired
+        # `gaia-lkm-explorer` skill is now the `gaia-lkm-explore` orchestrator
+        # client — CLIENT.md — so it is intentionally absent here.)
         for skill in (
             "gaia-formalize-fine",
             "gaia-formalize-coarse",
-            "gaia-lkm-explorer",
             "gaia-evidence-subgraph",
             "gaia-scholarly-synthesis",
             "gaia-obsidian-wiki",
@@ -322,7 +323,6 @@ class TestRegisterIntegration:
         for skill in (
             "gaia-formalize-fine",
             "gaia-formalize-coarse",
-            "gaia-lkm-explorer",
             "gaia-evidence-subgraph",
             "gaia-scholarly-synthesis",
             "gaia-obsidian-wiki",

@@ -17,6 +17,7 @@ import ast
 import json
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from gaia.cli.commands.author._envelope import (
@@ -25,6 +26,7 @@ from gaia.cli.commands.author._envelope import (
     emit,
     exit_code_for_diagnostic,
 )
+from gaia.engine.ir.knowledge import is_qid
 
 
 def parse_metadata(metadata_json: str | None) -> tuple[dict[str, Any] | None, str | None]:
@@ -193,6 +195,94 @@ def split_csv_idents(value: str | None) -> tuple[list[str], str | None]:
     return tokens, None
 
 
+@dataclass(frozen=True)
+class ForeignImport:
+    """A ``from <module> import <symbol> as <alias>`` line for a pulled claim.
+
+    Produced when a reference flag carries a foreign claim QID
+    (``lkm:<paper-package>::<label>``). ``alias`` namespaces the imported
+    binding by package so two pulled papers that share a bare label
+    (``conclusion_1``) can both be referenced from the same statement without
+    colliding in the consumer module scope.
+    """
+
+    module: str
+    symbol: str
+    alias: str
+
+
+@dataclass(frozen=True)
+class RefTokens:
+    """Resolved reference-flag tokens.
+
+    Attributes:
+        rendered: The Python source spelling for each token in original order
+            — a bare identifier for a local reference, or the import alias for
+            a foreign-QID reference. Spliced verbatim into the generated DSL.
+        local: The subset of ``rendered`` that are local bare identifiers; these
+            must resolve in the package's module scope at pre-write.
+        foreign_imports: One :class:`ForeignImport` per foreign-QID token. The
+            writer renders these as aliased imports; their aliases resolve at
+            engine-load time (post-write) once the pulled package is on the path,
+            so they are deliberately excluded from the pre-write reference set.
+    """
+
+    rendered: list[str]
+    local: list[str]
+    foreign_imports: tuple[ForeignImport, ...]
+
+
+def _foreign_import_for_qid(qid: str) -> ForeignImport:
+    """Resolve a foreign claim QID to an aliased import.
+
+    The QID ``{namespace}:{package}::{label}`` is materialized by a pulled Gaia
+    package whose import name equals its package segment (``pkg.name`` is set to
+    the import name at load), so ``from <package> import <label>`` resolves it.
+    The alias ``<package>__<label>`` keeps two pulled papers that share ``label``
+    distinct in the consumer's module scope.
+    """
+    prefix, label = qid.split("::", 1)
+    package = prefix.split(":", 1)[1]
+    alias = f"{package}__{label}"
+    return ForeignImport(module=package, symbol=label, alias=alias)
+
+
+def split_csv_refs(value: str | None) -> tuple[RefTokens, str | None]:
+    """Split a reference CSV flag, accepting bare identifiers and foreign QIDs.
+
+    Each token is either a bare Python identifier (a local reference, kept
+    verbatim — exactly as :func:`split_csv_idents` handled it) or a foreign
+    claim QID of the form ``lkm:<paper-package>::<label>`` (resolved to an
+    aliased import + alias reference). Any other shape is rejected with the same
+    message :func:`split_csv_idents` produced, so malformed input still fails at
+    the flag boundary instead of leaking into generated source.
+
+    Returns ``(RefTokens, error_message)``; ``error_message`` is ``None`` on
+    success or a human-readable string on the first malformed token.
+    """
+    tokens = split_csv(value)
+    rendered: list[str] = []
+    local: list[str] = []
+    foreign: list[ForeignImport] = []
+    for token in tokens:
+        if _is_bare_identifier(token):
+            rendered.append(token)
+            local.append(token)
+            continue
+        if is_qid(token):
+            fi = _foreign_import_for_qid(token)
+            rendered.append(fi.alias)
+            foreign.append(fi)
+            continue
+        return (
+            RefTokens(rendered=[], local=[], foreign_imports=()),
+            f"identifier {token!r} is not a valid Python identifier "
+            "(reference flags must be comma-separated bare identifiers "
+            "or pulled-claim QIDs of the form 'lkm:<package>::<label>')",
+        )
+    return RefTokens(rendered=rendered, local=local, foreign_imports=tuple(foreign)), None
+
+
 def validate_identifier_flag(
     value: str,
     *,
@@ -316,7 +406,9 @@ def build_sibling_imports(
 
 
 __all__ = [
+    "ForeignImport",
     "PrewriteUnsafeError",
+    "RefTokens",
     "build_sibling_imports",
     "emit_syntax_error",
     "normalize_file_option",
@@ -324,5 +416,6 @@ __all__ = [
     "parse_metadata",
     "split_csv",
     "split_csv_idents",
+    "split_csv_refs",
     "validate_identifier_flag",
 ]

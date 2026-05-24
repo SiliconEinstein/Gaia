@@ -57,7 +57,7 @@ from gaia.cli.commands.author._common import (
     build_sibling_imports,
     emit_syntax_error,
     normalize_file_option,
-    split_csv_idents,
+    split_csv_refs,
 )
 from gaia.cli.commands.author._envelope import (
     AuthorResult,
@@ -159,7 +159,11 @@ def derive_command(
     given: str = typer.Option(
         ...,
         "--given",
-        help="Comma-separated identifiers of the premise Claim(s) the conclusion is derived from.",
+        help=(
+            "Comma-separated premise references the conclusion is derived from: "
+            "local Claim identifiers and/or pulled-claim QIDs "
+            "(lkm:<package>::<label>)."
+        ),
     ),
     label: str | None = typer.Option(
         None,
@@ -289,7 +293,7 @@ def derive_command(
         emit(result, human=human)
         return
 
-    given_list, given_error = split_csv_idents(given)
+    given_refs, given_error = split_csv_refs(given)
     if given_error:
         emit_syntax_error(
             "derive",
@@ -299,7 +303,8 @@ def derive_command(
             kind="prewrite.expr_unsafe",
         )
         return
-    background_list, background_error = split_csv_idents(background)
+    given_list = given_refs.rendered
+    background_refs, background_error = split_csv_refs(background)
     if background_error:
         emit_syntax_error(
             "derive",
@@ -309,6 +314,7 @@ def derive_command(
             kind="prewrite.expr_unsafe",
         )
         return
+    background_list = background_refs.rendered
     if not given_list:
         diag = Diagnostic(
             kind="prewrite.syntax",
@@ -351,7 +357,7 @@ def derive_command(
             auto_label = slugify_label(conclusion_content, existing=reserved)
         prepended = ((auto_label, build_auto_claim_statement(auto_label, conclusion_content)),)
         conclusion_expr = auto_label
-        references = [auto_label, *given_list, *background_list]
+        references = [auto_label, *given_refs.local, *background_refs.local]
         conclusion_kind = "auto_mint"
     elif conclusion_prose is not None:
         # Inline-prose: pass the prose through as a bare string
@@ -360,12 +366,12 @@ def derive_command(
         # auto-claim binding is prepended. References list omits the
         # prose entirely.
         conclusion_expr = repr(conclusion_prose)
-        references = [*given_list, *background_list]
+        references = [*given_refs.local, *background_refs.local]
         conclusion_kind = "inline_prose"
     else:
         assert conclusion is not None  # mutex check above
         conclusion_expr = conclusion
-        references = [conclusion, *given_list, *background_list]
+        references = [conclusion, *given_refs.local, *background_refs.local]
         conclusion_kind = "qid"
 
     generated_code = _render_derive_statement(
@@ -378,6 +384,10 @@ def derive_command(
         background=background_list,
     )
     target_file = normalize_file_option(file)
+    foreign_imports = tuple(
+        (fi.module, fi.symbol, fi.alias)
+        for fi in (*given_refs.foreign_imports, *background_refs.foreign_imports)
+    )
     proposed_op = ProposedAuthorOp(
         verb="derive",
         kind="reasoning",
@@ -387,6 +397,7 @@ def derive_command(
         required_imports=("derive",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        foreign_imports=foreign_imports,
         prepended_statements=prepended,
         extra_payload={"conclusion_kind": conclusion_kind},
         export=export,

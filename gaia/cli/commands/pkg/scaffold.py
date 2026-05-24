@@ -311,11 +311,12 @@ def _next_steps_text(plan: _ScaffoldPlan) -> str:
         f"  cd {parent}\n"
         f'  gaia author claim "..." --target ./{pkg_rel}\n'
         f"\n"
-        f"Run gaia from the parent directory: author verbs with --target\n"
-        f"pointing at ./{pkg_rel}, and build/run with ./{pkg_rel} as the path\n"
-        f"argument (shown below). Running any of them from inside the package\n"
-        f"will not find gaia-lang.\n"
+        f"Point every verb at the package with --target ./{pkg_rel} (author\n"
+        f"verbs and `gaia pkg add`) or the path argument (`gaia build compile`\n"
+        f"/ `gaia run infer`). The same target works from the parent directory\n"
+        f"or from inside the package.\n"
         f"\n"
+        f"  gaia pkg add --lkm-paper <id> --target ./{pkg_rel}\n"
         f"  gaia build compile ./{pkg_rel}\n"
         f"  gaia run infer ./{pkg_rel}"
     )
