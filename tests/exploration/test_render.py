@@ -104,10 +104,11 @@ def test_frontier_graph_elements_builds_question_nodes() -> None:
         assert n["type"] == "question"
         assert n["belief"] is None
         assert n["exported"] is False
-    # The lkm paper keeps its full title in `title`, but the drawn label is
-    # truncated to its first two words (+ … since the title has more).
+    # The drawn label is truncated to its first two words (+ … since the title
+    # has more). `title` is left None so it can't override the truncated label
+    # at render time (the dot emitter renders `title or label`).
     paper = next(n for n in nodes if n["id"] == "PAPER42")
-    assert paper["title"] == "On the Acceleration of Falling Bodies"
+    assert paper["title"] is None
     assert paper["label"] == "On the…"
     # An edge is added only to a source that is actually in the graph.
     assert {"source": seed, "target": "PAPER42", "role": "background"} in edges
@@ -155,9 +156,11 @@ def test_frontier_graph_elements_truncates_and_always_labels() -> None:
     assert by_id["PAPER_MULTI"]["label"] == "Evidence for…"
     # Title-less contact still labeled: "paper PAPER_BARE" is ≤2 words → kept whole.
     assert by_id["PAPER_BARE"]["label"] == "paper PAPER_BARE"
-    # No drawn fog node is ever blank.
+    # No drawn fog node is ever blank, and `title` never carries the full text
+    # (which the dot emitter would prefer over the truncated `label`).
     for n in nodes:
         assert n["label"].strip() != ""
+        assert n["title"] is None
 
 
 def test_frontier_graph_elements_caps_fog_by_score() -> None:

@@ -109,7 +109,10 @@ def frontier_graph_elements(
             {
                 "id": pid,
                 "label": label,
-                "title": title,
+                # The dot emitter renders ``title or label``, so a full ``title``
+                # here would defeat the two-word truncation above; keep it None so
+                # the truncated ``label`` is what shows on the fog box.
+                "title": None,
                 "type": "question",
                 "module": None,
                 "content": None,
