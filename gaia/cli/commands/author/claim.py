@@ -153,8 +153,12 @@ def claim_command(
         None,
         "--prior",
         help=(
-            "Optional inline prior in (0, 1); routed through register_prior "
-            "with source 'claim_inline'."
+            "Optional direct prior in (0, 1), rendered as a prior= kwarg on the "
+            "claim() call. Usually omit it: leaf-claim priors are normally "
+            "recorded separately via `gaia author register-prior`, which keeps "
+            "the belief value out of the claim definition and carries a source "
+            "tag. Pass --prior only when a prior belongs inline on the claim "
+            "itself."
         ),
     ),
     metadata: str | None = typer.Option(
