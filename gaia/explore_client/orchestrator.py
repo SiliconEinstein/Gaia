@@ -83,6 +83,10 @@ class TurnOutcome:
         seed_survey: whether the emitted task is a round-0 seed survey.
         surveyed: QIDs recorded as surveyed this turn (checkpoint).
         discoveries: the round's discovery records (checkpoint).
+        discovery_labels: ``qid -> author label`` for the discovered nodes, so the
+            report can name a labeled node (e.g. a ``contradict`` the user named
+            ``spinfluc_vs_phonon``) by its label rather than its ``_anon``-bearing
+            QID. The QID stays the durable ``discoveries[].ids`` key.
         messages: extra human-readable notes (warnings / hints).
     """
 
@@ -96,6 +100,7 @@ class TurnOutcome:
     seed_survey: bool = False
     surveyed: list[str] = field(default_factory=list)
     discoveries: list[dict[str, Any]] = field(default_factory=list)
+    discovery_labels: dict[str, str] = field(default_factory=dict)
     messages: list[str] = field(default_factory=list)
 
 
@@ -621,11 +626,40 @@ def _checkpoint(
 
     discoveries = compute_discoveries(graph, beliefs, prev_beliefs, ir_dict=ir_dict)
 
+    # Author labels for the discovered nodes, so the report names a labeled node
+    # (e.g. a `contradict` the user named `spinfluc_vs_phonon`) by its label rather
+    # than its `_anon`-bearing QID. The QID stays the durable `ids` key.
+    label_by_qid = {
+        k.id: str(k.label)
+        for k in getattr(graph, "knowledges", [])
+        if k.id is not None and getattr(k, "label", None)
+    }
+    discovered_ids = {qid for disc in discoveries for qid in disc.get("ids", [])}
+    discovery_labels = {qid: label_by_qid[qid] for qid in discovered_ids if qid in label_by_qid}
+
     open_after = sum(1 for c in exploration_map.frontier if c.status == "open")
     scored = [
         c.score for c in exploration_map.frontier if c.status == "open" and c.score is not None
     ]
     frontier_summary = {"open_after": open_after, "top_score": max(scored) if scored else None}
+
+    # Credit the round with the papers materialized during this turn's
+    # survey (pulled via `pkg add --lkm-paper`, outside the round step) so the
+    # durable record no longer shows `lkm_pulls: 0`. Count the joint view's
+    # materialized paper QIDs and credit the net-new ones since the prior round.
+    from gaia.engine.exploration.observe import materialized_paper_ids_from_roots
+    from gaia.engine.exploration.state import lkm_pulls_this_round
+
+    try:
+        view = _joint_view(pkg, graph)
+        materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+            view.package_roots
+        )
+        lkm_pulls = lkm_pulls_this_round(pkg, len(materialized_papers))
+    except Exception:
+        # A degraded joint view (e.g. uncompiled deps) must not break the
+        # checkpoint; default to no credit rather than crashing the round.
+        lkm_pulls = 0
 
     append_round(
         pkg,
@@ -634,6 +668,7 @@ def _checkpoint(
         surveyed=surveyed_qids,
         discoveries=discoveries,
         frontier_summary=frontier_summary,
+        lkm_pulls=lkm_pulls,
     )
     save_round_beliefs(pkg, current_round, beliefs)
 
@@ -649,6 +684,7 @@ def _checkpoint(
         round=current_round,
         surveyed=surveyed_qids,
         discoveries=discoveries,
+        discovery_labels=discovery_labels,
         messages=messages,
     )
 

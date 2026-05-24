@@ -79,6 +79,9 @@ def focus_command(
     push: bool = typer.Option(False, "--push", help="Push current focus and set new."),
     pop: bool = typer.Option(False, "--pop", help="Pop saved focus off the stack."),
     show_stack: bool = typer.Option(False, "--stack", help="Print focus stack."),
+    # NB: no ``--target`` alias here — this command already takes a positional
+    # ``target`` (the focus subject), so ``--target`` would clash with that
+    # established meaning. Package selection stays ``--path`` only.
     path: str = typer.Option(".", "--path", help="Package path."),
 ) -> None:
     """Inspect or update the current inquiry focus.
@@ -199,7 +202,9 @@ def obligation_add(
     target_qid: str = typer.Argument(..., help="QID the obligation is about."),
     content: str = typer.Option(..., "-c", "--content", help="What must be shown."),
     kind: str = typer.Option("other", "--kind", help="Diagnostic kind."),
-    path: str = typer.Option(".", "--path", help="Package path."),
+    path: str = typer.Option(
+        ".", "--path", "--target", help="Package path (--target accepted as an alias)."
+    ),
 ) -> None:
     r"""Add a synthetic obligation for an inquiry target.
 
@@ -244,7 +249,7 @@ def obligation_add(
 @obligation_app.command("list")
 def obligation_list(
     json_out: bool = typer.Option(False, "--json"),
-    path: str = typer.Option(".", "--path"),
+    path: str = typer.Option(".", "--path", "--target"),
 ) -> None:
     """List open synthetic obligations.
 
@@ -283,7 +288,7 @@ def obligation_list(
 @obligation_app.command("close")
 def obligation_close(
     qid: str = typer.Argument(...),
-    path: str = typer.Option(".", "--path"),
+    path: str = typer.Option(".", "--path", "--target"),
 ) -> None:
     """Close a synthetic obligation by QID.
 
@@ -318,7 +323,7 @@ def obligation_close(
 def hypothesis_add(
     content: str = typer.Argument(..., help="Hypothesis content."),
     scope: str | None = typer.Option(None, "--scope", help="Scope QID."),
-    path: str = typer.Option(".", "--path"),
+    path: str = typer.Option(".", "--path", "--target"),
 ) -> None:
     r"""Add a working hypothesis to inquiry state.
 
@@ -349,7 +354,7 @@ def hypothesis_add(
 @hypothesis_app.command("list")
 def hypothesis_list(
     json_out: bool = typer.Option(False, "--json"),
-    path: str = typer.Option(".", "--path"),
+    path: str = typer.Option(".", "--path", "--target"),
 ) -> None:
     """List working hypotheses from inquiry state.
 
@@ -387,7 +392,7 @@ def hypothesis_list(
 @hypothesis_app.command("remove")
 def hypothesis_remove(
     qid: str = typer.Argument(...),
-    path: str = typer.Option(".", "--path"),
+    path: str = typer.Option(".", "--path", "--target"),
 ) -> None:
     """Remove a working hypothesis by QID.
 
@@ -420,7 +425,7 @@ def hypothesis_remove(
 def reject_command(
     strategy: str = typer.Argument(..., help="Target strategy label/id."),
     content: str = typer.Option(..., "-c", "--content", help="Reason."),
-    path: str = typer.Option(".", "--path"),
+    path: str = typer.Option(".", "--path", "--target"),
 ) -> None:
     r"""Record a synthetic rejection for a strategy.
 
@@ -455,7 +460,7 @@ def reject_command(
 @tactics_app.command("log")
 def tactics_log(
     json_out: bool = typer.Option(False, "--json"),
-    path: str = typer.Option(".", "--path"),
+    path: str = typer.Option(".", "--path", "--target"),
 ) -> None:
     """Print the inquiry tactic event log.
 

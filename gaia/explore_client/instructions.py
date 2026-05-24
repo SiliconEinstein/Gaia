@@ -299,7 +299,12 @@ def build_survey_instructions(*, seed_survey: bool) -> str:
             "with `lkm_related` paper-contacts.\n\n"
             "(First time? `gaia-lkm-explore init <pkg>` needs an EXISTING Gaia "
             "package — scaffold one first with `gaia pkg scaffold --target <pkg> "
-            "--name <name>-gaia`.)\n"
+            "--name <name>-gaia`. Run every `gaia-lkm-explore` verb from the "
+            "WORKSPACE ROOT with the package PATH as the argument — never from "
+            "inside the package dir or with `.` as the path. From inside the "
+            "package, `uv run` builds a fresh venv without gaia and you get a "
+            "cryptic `Failed to spawn: gaia-lkm-explore / No such file or "
+            "directory`.)\n"
         )
     else:
         round_note = (

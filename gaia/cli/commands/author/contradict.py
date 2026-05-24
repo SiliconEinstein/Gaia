@@ -21,8 +21,7 @@ from gaia.cli.commands.author._common import (
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv_idents,
-    validate_identifier_flag,
+    split_csv_refs,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -73,8 +72,22 @@ def contradict_command(
             "contradict(...)``). Omit to emit a bare expression."
         ),
     ),
-    a: str = typer.Option(..., "--a", help="Identifier of the first Claim."),
-    b: str = typer.Option(..., "--b", help="Identifier of the second Claim."),
+    a: str = typer.Option(
+        ...,
+        "--a",
+        help=(
+            "First Claim reference: a local Claim identifier or a pulled-claim "
+            "QID (lkm:<package>::<label>)."
+        ),
+    ),
+    b: str = typer.Option(
+        ...,
+        "--b",
+        help=(
+            "Second Claim reference: a local Claim identifier or a pulled-claim "
+            "QID (lkm:<package>::<label>)."
+        ),
+    ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
     ),
@@ -129,16 +142,32 @@ def contradict_command(
         emit_syntax_error("contradict", metadata_error, target=str(target), human=human)
         return
 
-    if not validate_identifier_flag(
-        a, verb="contradict", flag="--a", target=str(target), human=human
-    ):
+    # ``--a`` / ``--b`` each accept a single reference token — a local Claim
+    # identifier or a pulled-claim QID. Routing each through ``split_csv_refs``
+    # resolves a QID to an aliased import + alias reference exactly the way
+    # ``derive --given`` does, while a bare identifier passes through unchanged.
+    a_refs, a_error = split_csv_refs(a)
+    if a_error or len(a_refs.rendered) != 1:
+        emit_syntax_error(
+            "contradict",
+            f"--a rejected: {a_error or 'must be a single Claim reference'}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
         return
-    if not validate_identifier_flag(
-        b, verb="contradict", flag="--b", target=str(target), human=human
-    ):
+    b_refs, b_error = split_csv_refs(b)
+    if b_error or len(b_refs.rendered) != 1:
+        emit_syntax_error(
+            "contradict",
+            f"--b rejected: {b_error or 'must be a single Claim reference'}",
+            target=str(target),
+            human=human,
+            kind="prewrite.expr_unsafe",
+        )
         return
 
-    background_list, background_error = split_csv_idents(background)
+    background_refs, background_error = split_csv_refs(background)
     if background_error:
         emit_syntax_error(
             "contradict",
@@ -148,17 +177,26 @@ def contradict_command(
             kind="prewrite.expr_unsafe",
         )
         return
+    background_list = background_refs.rendered
     generated_code = _render_contradict_statement(
         binding_name=dsl_binding_name,
         engine_label=label,
-        a=a,
-        b=b,
+        a=a_refs.rendered[0],
+        b=b_refs.rendered[0],
         rationale=rationale,
         metadata=metadata_dict,
         background=background_list,
     )
     target_file = normalize_file_option(file)
-    references = [a, b, *background_list]
+    references = [*a_refs.local, *b_refs.local, *background_refs.local]
+    foreign_imports = tuple(
+        (fi.module, fi.symbol, fi.alias)
+        for fi in (
+            *a_refs.foreign_imports,
+            *b_refs.foreign_imports,
+            *background_refs.foreign_imports,
+        )
+    )
     proposed_op = ProposedAuthorOp(
         verb="contradict",
         kind="reasoning",
@@ -168,6 +206,7 @@ def contradict_command(
         required_imports=("contradict",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        foreign_imports=foreign_imports,
         export=export,
     )
     run_author_op(

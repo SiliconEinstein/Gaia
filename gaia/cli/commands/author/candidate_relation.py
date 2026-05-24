@@ -33,7 +33,7 @@ from gaia.cli.commands.author._common import (
     emit_syntax_error,
     normalize_file_option,
     parse_metadata,
-    split_csv_idents,
+    split_csv_refs,
 )
 from gaia.cli.commands.author._proposed_op import ProposedAuthorOp
 from gaia.cli.commands.author._runner import run_author_op
@@ -90,7 +90,10 @@ def candidate_relation_command(
     claims: str = typer.Option(
         ...,
         "--claims",
-        help="Comma-separated identifiers of at least two Claim(s).",
+        help=(
+            "Comma-separated references to at least two Claim(s): local Claim "
+            "identifiers and/or pulled-claim QIDs (lkm:<package>::<label>)."
+        ),
     ),
     target: str = typer.Option(
         ".", "--target", help="Path to the target Gaia package (default: cwd)."
@@ -162,7 +165,7 @@ def candidate_relation_command(
         emit_syntax_error("candidate_relation", metadata_error, target=str(target), human=human)
         return
 
-    claim_list, claim_error = split_csv_idents(claims)
+    claim_refs, claim_error = split_csv_refs(claims)
     if claim_error:
         emit_syntax_error(
             "candidate_relation",
@@ -172,7 +175,8 @@ def candidate_relation_command(
             kind="prewrite.expr_unsafe",
         )
         return
-    background_list, background_error = split_csv_idents(background)
+    claim_list = claim_refs.rendered
+    background_refs, background_error = split_csv_refs(background)
     if background_error:
         emit_syntax_error(
             "candidate_relation",
@@ -182,6 +186,7 @@ def candidate_relation_command(
             kind="prewrite.expr_unsafe",
         )
         return
+    background_list = background_refs.rendered
     if len(claim_list) < 2:
         emit_syntax_error(
             "candidate_relation",
@@ -208,8 +213,12 @@ def candidate_relation_command(
         background=background_list,
         metadata=metadata_dict,
     )
-    references = [*claim_list, *background_list]
+    references = [*claim_refs.local, *background_refs.local]
     target_file = normalize_file_option(file)
+    foreign_imports = tuple(
+        (fi.module, fi.symbol, fi.alias)
+        for fi in (*claim_refs.foreign_imports, *background_refs.foreign_imports)
+    )
     proposed_op = ProposedAuthorOp(
         verb="candidate_relation",
         kind="scaffold",
@@ -219,6 +228,7 @@ def candidate_relation_command(
         required_imports=("candidate_relation",),
         target_file=target_file,
         sibling_imports=build_sibling_imports(references, target_file=target_file),
+        foreign_imports=foreign_imports,
         export=export,
     )
     run_author_op(

@@ -186,3 +186,41 @@ def test_compute_discoveries_concatenates_all_kinds():
     assert KIND_CONTRADICTION in kinds
     assert KIND_KEYSTONE in kinds
     assert KIND_SETTLED_CORE in kinds
+
+
+# --------------------------------------------------------------------------- #
+# discovery report names the author label, not an anonymous QID
+# --------------------------------------------------------------------------- #
+
+
+def test_report_notes_use_author_label_not_anon_qid():
+    # A node whose QID carries an `_anon` segment but which the author *labeled*
+    # `spinfluc_vs_phonon`: the human-facing note must read the label, while the
+    # durable `ids` key stays the QID.
+    anon_qid = qid("_anon_000")
+    labels = {anon_qid: "spinfluc_vs_phonon"}
+
+    settled = detect_settled_core({anon_qid: 0.99}, epsilon=0.2, labels=labels)
+    assert settled and settled[0]["ids"] == [anon_qid]  # QID stays the key
+    assert "spinfluc_vs_phonon" in settled[0]["note"]
+    assert "_anon_000" not in settled[0]["note"]
+
+
+def test_compute_discoveries_threads_labels_into_notes():
+    # End-to-end through compute_discoveries: a labeled keystone is named by label.
+    knowledges = [Knowledge(id=qid("_anon_h"), label="grand_hub", type="claim", content="h")]
+    knowledges += [claim(f"p{i}") for i in range(6)]
+    operators = [
+        Operator(
+            operator="conjunction",
+            variables=[qid(f"p{2 * i}"), qid(f"p{2 * i + 1}")],
+            conclusion=qid("_anon_h"),
+        )
+        for i in range(3)
+    ]
+    graph = make_graph(knowledges=knowledges, operators=operators)
+
+    discoveries = compute_discoveries(graph, {}, {})
+    keystone = next(d for d in discoveries if d["kind"] == KIND_KEYSTONE)
+    assert keystone["ids"] == [qid("_anon_h")]  # durable key unchanged
+    assert "grand_hub" in keystone["note"]

@@ -95,7 +95,10 @@ def _render_outcome(outcome: TurnOutcome) -> None:
             f"{len(outcome.discoveries)} discovery(ies) [{kinds}]."
         )
         for disc in outcome.discoveries:
-            ids = ", ".join(disc.get("ids", []))
+            # Name a labeled node by the author's label, not its `_anon`-bearing
+            # QID (the QID stays the durable record key); fall back to the QID when
+            # the node has no label.
+            ids = ", ".join(outcome.discovery_labels.get(qid, qid) for qid in disc.get("ids", []))
             typer.echo(f"  - {disc.get('kind')}: {ids}  {disc.get('note', '')}".rstrip())
         typer.echo(
             "Re-dial the doctrine if desired, then `gaia-lkm-explore turn` for the next turn."

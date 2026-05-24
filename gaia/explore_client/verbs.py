@@ -70,6 +70,7 @@ from gaia.engine.exploration.render import (
 )
 from gaia.engine.exploration.scorer import (
     load_open_obligations,
+    recompute_obligation_pressure,
     sanitize_score_features,
     score_frontier,
 )
@@ -80,6 +81,7 @@ from gaia.engine.exploration.state import (
     SurveyRecord,
     append_round,
     doctrine_policy,
+    lkm_pulls_this_round,
     load_map,
     load_round_beliefs,
     read_rounds,
@@ -324,6 +326,25 @@ def _ranked_open_contacts(exploration_map: ExplorationMap) -> list[Contact]:
     )
 
 
+def _is_paper_contact(contact: Contact) -> bool:
+    """True iff the contact is an unpulled-paper (``lkm_related``) contact.
+
+    The frontier mixes two contact flavours: **paper** contacts (``ref.kind ==
+    "lkm"`` — an unpulled related paper) and **claim** contacts (``ref.kind ==
+    "qid"`` — a referenced-but-unmaterialized claim, including the ``depends_on``
+    pulled-but-unformalized worklist). ``status`` and ``render`` count "frontier"
+    differently unless they label these two flavours the same way, so both surfaces
+    route their counts through this split.
+    """
+    return contact.ref.get("kind") == "lkm"
+
+
+def _open_frontier_split(contacts: list[Contact]) -> tuple[int, int]:
+    """Count open contacts as ``(paper, claim)`` — the consistent frontier split."""
+    papers = sum(1 for c in contacts if _is_paper_contact(c))
+    return papers, len(contacts) - papers
+
+
 def _obligation_contents(obligations: list[Any]) -> list[str]:
     """The non-empty ``content`` strings of the open obligations (theme 006)."""
     return [
@@ -339,6 +360,29 @@ def _is_obligation_pressed(contact: Contact) -> bool:
         return float(contact.score_features.get("obligation_pressure", 0.0)) > 0.0
     except (TypeError, ValueError):
         return False
+
+
+def _refresh_obligation_pressure(
+    pkg: str,
+    exploration_map: ExplorationMap,
+    obligations: list[Any],
+) -> None:
+    """Recompute each open contact's ``obligation_pressure`` in memory.
+
+    Mutates only the in-memory ``score_features`` of open contacts — the caller
+    (``status``) does NOT save, so this is a read-only refresh. It mirrors the
+    scorer's match rule (ref/source direct OR one-hop adjacency) against the
+    freshly-loaded OPEN obligations, so a just-closed obligation no longer shows
+    its formerly-pressed contact as pressing. When the package has no compiled
+    graph yet, adjacency degrades to empty (direct ref/source match only) rather
+    than failing.
+    """
+    edges: list[tuple[str, list[str]]] = []
+    if obligations:
+        graph = resolve_graph(pkg)
+        if graph is not None:
+            edges = _require_joint_view(pkg, graph).edges
+    recompute_obligation_pressure(exploration_map, obligations=obligations, edges=edges)
 
 
 # --------------------------------------------------------------------------- #
@@ -697,6 +741,16 @@ def round_command(
     view = _require_joint_view(pkg, graph)
     _promote_lkm_from_view(exploration_map, view, survey_round=current_round)
 
+    # Credit the round with the papers actually materialized for it.
+    # Pulls happen via `pkg add --lkm-paper` during the survey, outside this step,
+    # so the durable record used to show `lkm_pulls: 0`. Count the paper QIDs
+    # materialized in the joint view and credit the net-new ones since the prior
+    # round (see `lkm_pulls_this_round`).
+    materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+        view.package_roots
+    )
+    lkm_pulls = lkm_pulls_this_round(pkg, len(materialized_papers))
+
     # Record the surveyed QIDs into map.surveyed (SCHEMA.md §7e #4): promote a
     # matching open contact via the state bookkeeping, else add a bare
     # SurveyRecord so `status` surveyed-count and the round log agree.
@@ -721,6 +775,7 @@ def round_command(
         surveyed=surveyed_qids,
         discoveries=discoveries,
         frontier_summary=frontier_summary,
+        lkm_pulls=lkm_pulls,
     )
     # Snapshot the beliefs THIS round saw, keyed by the round just completed, so
     # the next round (current_round + 1) can diff against it.
@@ -810,13 +865,27 @@ def status_command(
     ranked = _ranked_open_contacts(exploration_map)
     obligations = load_open_obligations(pkg)
 
+    # Recompute obligation_pressure against the freshly-loaded open
+    # obligations BEFORE displaying, in memory only (status stays read-only — the
+    # map is not saved). The stored score_features come from the last `frontier`
+    # re-rank, so a just-`obligation close`d obligation would otherwise still show
+    # its formerly-pressed contact tagged "[discharges open obligation]" until the
+    # next re-rank. Recomputing here keeps `status` consistent with current state.
+    _refresh_obligation_pressure(pkg, exploration_map, obligations)
+
     typer.echo(f"Exploration status for {pkg}")
     typer.echo(f"  round:          {exploration_map.round}")
     typer.echo(f"  doctrine:       {exploration_map.policy.doctrine}")
     typer.echo(f"  seeds:          {len(exploration_map.seeds)}")
     typer.echo(f"  surveyed:       {len(exploration_map.surveyed)}")
-    n_lkm = sum(1 for c in ranked if c.ref.get("kind") == "lkm")
-    typer.echo(f"  open frontier:  {len(ranked)} ({n_lkm} lkm_related)")
+    # Split the open frontier into paper vs claim contacts with the
+    # same vocabulary `render` uses, so the two surfaces never appear to disagree.
+    n_papers, n_claims = _open_frontier_split(ranked)
+    typer.echo(
+        f"  open frontier:  {len(ranked)} ({n_papers} paper, {n_claims} claim) "
+        f"[paper = unpulled lkm_related; claim = referenced-but-unmaterialized, "
+        f"incl. depends_on]"
+    )
 
     # (theme 006) Surface open obligations and how many open contacts are pressed
     # by one — the agent-visible obligation_pressure steer (ref/source OR one-hop).
@@ -980,10 +1049,23 @@ def render_command(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html_doc, encoding="utf-8")
 
+    # The fog overlays open contacts of BOTH flavours (unpulled papers
+    # AND referenced-but-unmaterialized claims), capped for legibility — so report
+    # the drawn fog split paper/claim with the SAME vocabulary `status` uses, and
+    # name it the drawn subset of the open frontier rather than "frontier papers".
+    drawn_ids = {n["id"] for n in frontier_nodes}
+    drawn_contacts = [
+        c
+        for c in exploration_map.frontier
+        if c.status == "open" and str(c.ref.get("value")) in drawn_ids
+    ]
+    fog_papers, fog_claims = _open_frontier_split(drawn_contacts)
+    open_total = sum(1 for c in exploration_map.frontier if c.status == "open")
     typer.echo(
         f"Rendered exploration map for {pkg} "
         f"({len(exploration_map.surveyed)} surveyed, "
-        f"{len(frontier_nodes)} frontier paper(s) in fog, "
+        f"{len(frontier_nodes)} of {open_total} open frontier contact(s) drawn in fog "
+        f"[{fog_papers} paper, {fog_claims} claim], "
         f"{len(html_doc)} bytes)."
     )
     typer.echo(f"Output: {out_path}")

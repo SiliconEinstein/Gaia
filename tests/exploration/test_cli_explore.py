@@ -229,6 +229,53 @@ def test_explore_frontier_applies_obligations_like_turn(galileo_pkg: Path):
     assert row["score_features"]["obligation_pressure"] == 1.0
 
 
+def test_status_reflects_closed_obligation_without_re_rank(galileo_pkg: Path):
+    """`status` must not show a just-closed obligation as still pressing.
+
+    After `frontier` scored a contact's obligation_pressure to 1.0, closing the
+    obligation (removing it from inquiry state) and running `status` — WITHOUT a
+    re-run of `frontier` — must report 0 pressed contacts and drop the
+    "[discharges open obligation]" tag, because `status` recomputes pressure
+    against the current open obligations on display.
+    """
+    from gaia.engine.inquiry.state import (
+        InquiryState,
+        SyntheticObligation,
+        save_state,
+    )
+
+    runner.invoke(app, ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")])
+    contact_qid = _inject_depends_on_manifest(
+        galileo_pkg, "unmaterialized_factor", "aristotle_model"
+    )
+    save_state(
+        galileo_pkg,
+        InquiryState(
+            synthetic_obligations=[
+                SyntheticObligation(qid="oblig_x", target_qid=contact_qid, content="show it holds")
+            ]
+        ),
+    )
+
+    # Frontier scores the contact pressed; status reflects it.
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
+    pressed_status = runner.invoke(app, ["status", str(galileo_pkg)]).output
+    assert "1 pressed contact(s)" in pressed_status
+    assert "[discharges open obligation]" in pressed_status
+
+    # Close the obligation (delete the row, as `inquiry obligation close` does) —
+    # do NOT re-run frontier; the stored score_features still say pressed.
+    save_state(galileo_pkg, InquiryState(synthetic_obligations=[]))
+    m = load_map(galileo_pkg)
+    stale = next(c for c in m.frontier if c.ref["value"] == contact_qid)
+    assert stale.score_features["obligation_pressure"] == 1.0  # stale on disk
+
+    # status recomputes pressure on display → no longer pressed.
+    closed_status = runner.invoke(app, ["status", str(galileo_pkg)]).output
+    assert "0 pressed contact(s)" in closed_status
+    assert "[discharges open obligation]" not in closed_status
+
+
 def test_explore_round_appends_and_detects_keystone(galileo_pkg: Path):
     runner.invoke(
         app,
@@ -374,6 +421,23 @@ def test_explore_status_summarizes(galileo_pkg: Path):
     assert "open frontier:" in result.output
     assert "recent rounds:" in result.output
     assert "discovery tallies:" in result.output
+
+
+def test_status_and_render_agree_on_frontier_vocabulary(galileo_pkg: Path):
+    # `status` and `render` must label the open frontier with the same
+    # paper/claim split so the two surfaces never appear to disagree.
+    runner.invoke(app, ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")])
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
+
+    status_out = runner.invoke(app, ["status", str(galileo_pkg)]).output
+    assert "open frontier:" in status_out
+    assert "paper" in status_out and "claim" in status_out
+
+    render_out = runner.invoke(app, ["render", str(galileo_pkg)]).output
+    assert "open frontier contact(s) drawn in fog" in render_out
+    assert "paper" in render_out and "claim" in render_out
+    # `render` no longer mislabels the fog as "frontier paper(s)".
+    assert "frontier paper(s) in fog" not in render_out
 
 
 def test_explore_frontier_without_init_fails_gracefully(galileo_pkg: Path):
