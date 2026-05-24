@@ -67,8 +67,8 @@ decompose(whole, parts=[part_a, part_b], rationale="Whole = sum of parts.")
 ## Scaffold annotations
 
 ```python
-depends_on(downstream, on=[upstream])
-candidate_relation(claim_a, claim_b, kind="equal")
+depends_on(downstream, given=[upstream])
+candidate_relation(claims=[claim_a, claim_b], pattern="equal")
 materialize(candidate)
 ```
 
