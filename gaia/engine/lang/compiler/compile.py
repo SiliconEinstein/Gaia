@@ -1839,6 +1839,26 @@ def _assign_knowledge_ids(
     return knowledge_map
 
 
+def _ir_knowledge_label(knowledge: Knowledge, pkg: CollectedPackage) -> str | None:
+    """Return the IR display label for a knowledge node, namespaced by package.
+
+    Local nodes keep their bare runtime label. Foreign nodes — claims imported
+    from another ``-gaia`` package (e.g. two LKM papers pulled into the same
+    consumer) — are qualified with their owner package's name (``<owner>__<label>``)
+    so two papers that each define a bare label such as ``conclusion_1`` no longer
+    collide in the consumer's local graph. The node's QID remains the unambiguous
+    identity used by every reference; only the human-facing label is qualified.
+    """
+    if knowledge.label is None:
+        return None
+    if _is_local(knowledge, pkg):
+        return knowledge.label
+    owner = knowledge._package
+    if owner is None or owner.name == pkg.name:
+        return knowledge.label
+    return f"{owner.name}__{knowledge.label}"
+
+
 def _build_ir_knowledges(
     pkg: CollectedPackage,
     knowledge_nodes: list[Knowledge],
@@ -1848,7 +1868,7 @@ def _build_ir_knowledges(
     return [
         IrKnowledge(
             id=knowledge_map[id(knowledge)],
-            label=knowledge.label,
+            label=_ir_knowledge_label(knowledge, pkg),
             title=getattr(knowledge, "title", None),
             type=KnowledgeType(knowledge.type),
             format=getattr(knowledge, "format", "markdown"),

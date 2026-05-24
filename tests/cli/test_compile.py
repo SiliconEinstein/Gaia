@@ -1408,3 +1408,40 @@ def test_compile_resolves_pulled_dependency_without_external_pythonpath(tmp_path
     ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
     qids = {k["id"] for k in ir["knowledges"]}
     assert "lkm:paper_a::conclusion_1" in qids
+
+
+def test_compile_namespaces_same_label_pulled_packages(tmp_path):
+    """Two pulled papers sharing a bare label both compile without collision."""
+    pkg_dir = tmp_path / "consumer2-gaia"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "consumer2-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    _write_pulled_lkm_package(pkg_dir, import_name="paper_a", labels=["conclusion_1"])
+    _write_pulled_lkm_package(pkg_dir, import_name="paper_b", labels=["conclusion_1"])
+
+    pkg_src = pkg_dir / "consumer2"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.engine.lang import claim, derive\n"
+        "from paper_a import conclusion_1 as paper_a__conclusion_1\n"
+        "from paper_b import conclusion_1 as paper_b__conclusion_1\n\n"
+        'main = claim("Consumer references both pulled papers.")\n'
+        "derive(main, given=[paper_a__conclusion_1, paper_b__conclusion_1])\n"
+        '__all__ = ["main"]\n'
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    ir = json.loads((pkg_dir / ".gaia" / "ir.json").read_text())
+    by_id = {k["id"]: k for k in ir["knowledges"]}
+    # Both pulled claims present under their package-qualified QIDs.
+    assert "lkm:paper_a::conclusion_1" in by_id
+    assert "lkm:paper_b::conclusion_1" in by_id
+    # Foreign IR labels are namespaced by package so they no longer collide.
+    foreign_labels = {
+        by_id["lkm:paper_a::conclusion_1"]["label"],
+        by_id["lkm:paper_b::conclusion_1"]["label"],
+    }
+    assert foreign_labels == {"paper_a__conclusion_1", "paper_b__conclusion_1"}
