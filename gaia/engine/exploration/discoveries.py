@@ -73,6 +73,30 @@ SETTLED_ENTROPY_EPSILON = 0.2
 KEYSTONE_MIN_INDEGREE = 3
 
 
+def _labels_from_graph(ir: LocalCanonicalGraph) -> dict[str, str]:
+    """Map each materialized QID to its author-given ``label`` (for the report).
+
+    A node the author labeled (e.g. a ``contradict`` the user named
+    ``spinfluc_vs_phonon``) is minted with a QID that can carry an anonymous
+    ``_anon_NNN`` segment, so a discovery report keyed on the bare QID reads as an
+    opaque internal id. The author's ``label`` lives on the ``Knowledge`` node;
+    collecting it here lets the report surface the label the user actually wrote,
+    falling back to the QID for nodes with no label.
+    """
+    labels: dict[str, str] = {}
+    for k in ir.knowledges:
+        if k.id is not None and getattr(k, "label", None):
+            labels[k.id] = str(k.label)
+    return labels
+
+
+def _display(qid: str, labels: dict[str, str] | None) -> str:
+    """The author label for ``qid`` if known, else the QID itself."""
+    if labels:
+        return labels.get(qid, qid)
+    return qid
+
+
 def _largest_decreases(
     beliefs: dict[str, float],
     prev_beliefs: dict[str, float],
@@ -108,6 +132,7 @@ def detect_contradictions(
     *,
     ir_dict: dict[str, Any] | None = None,
     drop_threshold: float = BELIEF_DROP_THRESHOLD,
+    labels: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Find ``contradiction`` discoveries (SCHEMA.md §6).
 
@@ -125,6 +150,9 @@ def detect_contradictions(
             for the ``detect_prior_dissent`` reuse. When omitted, dissent is
             skipped (the graph object alone cannot drive the dict-shaped detector).
         drop_threshold: Belief-drop magnitude that counts as a contradiction.
+        labels: Optional ``qid -> author label`` map; when given, the human-facing
+            ``note`` names the author's label instead of the bare QID (the QID is
+            still the durable ``ids`` key).
 
     Returns:
         A list of ``{kind, ids, note}`` records, one per fired signal.
@@ -138,7 +166,8 @@ def detect_contradictions(
             before = diag.data.get("before")
             after = diag.data.get("after")
             delta = diag.data.get("delta")
-            note = f"belief of {diag.label} dropped {delta:+.3f}"
+            name = _display(diag.label, labels)
+            note = f"belief of {name} dropped {delta:+.3f}"
             if before is not None and after is not None:
                 note = f"{note} (from {before:.3f} to {after:.3f})"
             out.append({"kind": KIND_CONTRADICTION, "ids": [diag.label], "note": note})
@@ -146,7 +175,7 @@ def detect_contradictions(
     if ir_dict is not None:
         for diag in detect_prior_dissent(ir_dict):
             spread = diag.data.get("spread")
-            note = f"prior dissent on {diag.label}"
+            note = f"prior dissent on {_display(diag.target, labels)}"
             if spread is not None:
                 note = f"{note} (spread {spread:.3f})"
             out.append({"kind": KIND_CONTRADICTION, "ids": [diag.target], "note": note})
@@ -178,6 +207,7 @@ def detect_keystones(
     ir: LocalCanonicalGraph,
     *,
     min_indegree: int = KEYSTONE_MIN_INDEGREE,
+    labels: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Find ``keystone`` discoveries: high in-degree nodes (SCHEMA.md §6).
 
@@ -188,11 +218,15 @@ def detect_keystones(
     Args:
         ir: The package IR graph.
         min_indegree: The in-degree threshold for keystone status.
+        labels: Optional ``qid -> author label`` map for the human-facing ``note``
+            (defaults to the graph's own labels). The QID stays the ``ids`` key.
 
     Returns:
         A list of ``{kind, ids, note}`` records, one per keystone, sorted by
         descending in-degree then QID for determinism.
     """
+    if labels is None:
+        labels = _labels_from_graph(ir)
     degrees = _in_degree(ir)
     keystones = sorted(
         ((qid, deg) for qid, deg in degrees.items() if deg >= min_indegree),
@@ -202,7 +236,7 @@ def detect_keystones(
         {
             "kind": KIND_KEYSTONE,
             "ids": [qid],
-            "note": f"{qid} is referenced by {deg} other nodes",
+            "note": f"{_display(qid, labels)} is referenced by {deg} other nodes",
         }
         for qid, deg in keystones
     ]
@@ -212,6 +246,7 @@ def detect_settled_core(
     beliefs: dict[str, float],
     *,
     epsilon: float = SETTLED_ENTROPY_EPSILON,
+    labels: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Find ``settled_core`` discoveries: low-entropy stable nodes (SCHEMA.md §6).
 
@@ -222,6 +257,8 @@ def detect_settled_core(
     Args:
         beliefs: ``qid -> P(x=1)`` for the materialized nodes.
         epsilon: The entropy ceiling below which a node counts as settled.
+        labels: Optional ``qid -> author label`` map for the human-facing ``note``
+            (the QID stays the durable ``ids`` key).
 
     Returns:
         A list of ``{kind, ids, note}`` records, one per settled node, sorted by
@@ -236,7 +273,10 @@ def detect_settled_core(
                 {
                     "kind": KIND_SETTLED_CORE,
                     "ids": [qid],
-                    "note": f"{qid} settled at belief {belief:.3f} (entropy {entropy:.3f})",
+                    "note": (
+                        f"{_display(qid, labels)} settled at belief {belief:.3f} "
+                        f"(entropy {entropy:.3f})"
+                    ),
                 }
             )
     return out
@@ -270,6 +310,10 @@ def compute_discoveries(
     Returns:
         The concatenated list of discovery records for the round.
     """
+    # Author labels for the human-facing notes — a node the user named (e.g. a
+    # `contradict` labeled `spinfluc_vs_phonon`) reads as its label, not the bare
+    # `_anon`-bearing QID. The QID stays the durable `ids` key.
+    labels = _labels_from_graph(ir)
     discoveries: list[dict[str, Any]] = []
     discoveries.extend(
         detect_contradictions(
@@ -278,8 +322,9 @@ def compute_discoveries(
             prev_beliefs,
             ir_dict=ir_dict,
             drop_threshold=drop_threshold,
+            labels=labels,
         )
     )
-    discoveries.extend(detect_keystones(ir, min_indegree=keystone_min_indegree))
-    discoveries.extend(detect_settled_core(beliefs, epsilon=settled_epsilon))
+    discoveries.extend(detect_keystones(ir, min_indegree=keystone_min_indegree, labels=labels))
+    discoveries.extend(detect_settled_core(beliefs, epsilon=settled_epsilon, labels=labels))
     return discoveries

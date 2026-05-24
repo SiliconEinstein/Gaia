@@ -83,6 +83,10 @@ class TurnOutcome:
         seed_survey: whether the emitted task is a round-0 seed survey.
         surveyed: QIDs recorded as surveyed this turn (checkpoint).
         discoveries: the round's discovery records (checkpoint).
+        discovery_labels: ``qid -> author label`` for the discovered nodes, so the
+            report can name a labeled node (e.g. a ``contradict`` the user named
+            ``spinfluc_vs_phonon``) by its label rather than its ``_anon``-bearing
+            QID. The QID stays the durable ``discoveries[].ids`` key.
         messages: extra human-readable notes (warnings / hints).
     """
 
@@ -96,6 +100,7 @@ class TurnOutcome:
     seed_survey: bool = False
     surveyed: list[str] = field(default_factory=list)
     discoveries: list[dict[str, Any]] = field(default_factory=list)
+    discovery_labels: dict[str, str] = field(default_factory=dict)
     messages: list[str] = field(default_factory=list)
 
 
@@ -621,6 +626,17 @@ def _checkpoint(
 
     discoveries = compute_discoveries(graph, beliefs, prev_beliefs, ir_dict=ir_dict)
 
+    # Author labels for the discovered nodes, so the report names a labeled node
+    # (e.g. a `contradict` the user named `spinfluc_vs_phonon`) by its label rather
+    # than its `_anon`-bearing QID. The QID stays the durable `ids` key.
+    label_by_qid = {
+        k.id: str(k.label)
+        for k in getattr(graph, "knowledges", [])
+        if k.id is not None and getattr(k, "label", None)
+    }
+    discovered_ids = {qid for disc in discoveries for qid in disc.get("ids", [])}
+    discovery_labels = {qid: label_by_qid[qid] for qid in discovered_ids if qid in label_by_qid}
+
     open_after = sum(1 for c in exploration_map.frontier if c.status == "open")
     scored = [
         c.score for c in exploration_map.frontier if c.status == "open" and c.score is not None
@@ -668,6 +684,7 @@ def _checkpoint(
         round=current_round,
         surveyed=surveyed_qids,
         discoveries=discoveries,
+        discovery_labels=discovery_labels,
         messages=messages,
     )
 
