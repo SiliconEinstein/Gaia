@@ -289,6 +289,30 @@ def test_cli_render_custom_out_path(galileo_pkg: Path, tmp_path: Path) -> None:
     assert custom.read_text(encoding="utf-8").lstrip().startswith("<!DOCTYPE html>")
 
 
+@pytest.mark.skipif(shutil.which("sfdp") is None, reason="Graphviz sfdp not on PATH")
+def test_render_stellaris_svg_fog_legend_gated_by_frontier_flag() -> None:
+    """The fog legend row is drawn iff `include_frontier` is set.
+
+    `render_command` passes `include_frontier=bool(frontier_nodes)`, so the fog
+    row appears only when frontier (fog) boxes were actually overlaid — never on
+    the plain `gaia inspect starmap` stellaris path (which renders the shared
+    legend with the flag left False).
+    """
+    from gaia.explore_client.verbs import _render_stellaris_svg
+
+    dot = 'digraph G { bgcolor="#05060f"; a [label="a"]; }'
+
+    without = _render_stellaris_svg(dot, include_frontier=False)
+    assert "frontier · unexplored (fog)" not in without
+    assert 'stroke-dasharray="4,2"' not in without
+
+    with_fog = _render_stellaris_svg(dot, include_frontier=True)
+    assert "frontier · unexplored (fog)" in with_fog
+    assert 'stroke-dasharray="4,2"' in with_fog
+    # Default (no flag) matches the starmap path — no fog row.
+    assert _render_stellaris_svg(dot) == without
+
+
 def test_cli_render_without_init_fails_gracefully(galileo_pkg: Path) -> None:
     result = runner.invoke(app, ["render", str(galileo_pkg)])
     assert result.exit_code == 1

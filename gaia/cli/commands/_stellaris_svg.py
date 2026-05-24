@@ -161,6 +161,10 @@ _LEGEND_CONTRA_FILL = "#3a0a14"
 _LEGEND_CONTRA_LINE = "#ff4060"
 _LEGEND_NEUTRAL_FILL = "#1a1a24"
 _LEGEND_NEUTRAL_LINE = "#7d7d8e"
+# Frontier "fog" box — mirrors :mod:`._dot`'s stellaris ``question`` palette
+# (the dashed open-inquiry box the explorer overlays for unpulled papers).
+_LEGEND_FOG_FILL = "#332416"
+_LEGEND_FOG_LINE = "#caa84a"
 _LEGEND_PANEL_FILL = "#0c1124"
 _LEGEND_PANEL_STROKE = "#2a3550"
 _LEGEND_TEXT = "#e8eef7"
@@ -178,7 +182,7 @@ def _hex_points(cx: float, cy: float, r: float) -> str:
     return " ".join(pts)
 
 
-def _build_legend_svg() -> str:
+def _build_legend_svg(include_frontier: bool = False) -> str:
     """Build a self-contained legend ``<g>`` block, pinned top-left.
 
     Inserted as a sibling of Graphviz's main render group right before
@@ -189,6 +193,12 @@ def _build_legend_svg() -> str:
     (premise / derived / root) + 2 strategies (∴ deduction ellipse / ⊕ support
     diamond with gold-glow) + 6 operators (contradiction with red glow,
     plus the 5 neutral hex types differentiated by unicode symbol).
+
+    When ``include_frontier`` is True, one extra row documenting the dashed
+    "fog" box is appended — the explorer render overlays open-frontier
+    (unpulled) papers as dashed question-boxes, and only that render draws
+    them. The shared ``gaia inspect starmap`` path has no fog nodes, so it
+    leaves this False and the row is omitted.
     """
     # (kind, fill, line, label) — kind drives the icon shape; label includes
     # leading symbol for ellipse / diamond / hex-* / root rows.
@@ -215,6 +225,8 @@ def _build_legend_svg() -> str:
         ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "∨ disjunction"),
         ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "∧ conjunction"),
     ]
+    if include_frontier:
+        rows.append(("box-fog", _LEGEND_FOG_FILL, _LEGEND_FOG_LINE, "frontier · unexplored (fog)"))
     pad_x, pad_y = 16, 14
     row_h = 26
     icon_w = 32
@@ -243,6 +255,11 @@ def _build_legend_svg() -> str:
             parts.append(
                 f'<rect x="{pad_x}" y="{y + 4}" width="{icon_w}" height="{row_h - 8}" rx="3" '
                 f'fill="{fill}" stroke="{line}" stroke-width="1.4"/>'
+            )
+        elif kind == "box-fog":
+            parts.append(
+                f'<rect x="{pad_x}" y="{y + 4}" width="{icon_w}" height="{row_h - 8}" rx="3" '
+                f'fill="{fill}" stroke="{line}" stroke-width="1.4" stroke-dasharray="4,2"/>'
             )
         elif kind == "box-root":
             parts.append(
@@ -317,15 +334,19 @@ def _build_legend_svg() -> str:
     return "\n" + "".join(parts) + "\n"
 
 
-def inject_legend(svg_text: str) -> str:
+def inject_legend(svg_text: str, *, include_frontier: bool = False) -> str:
     """Inject the stellaris legend ``<g>`` before the closing ``</svg>``.
+
+    When ``include_frontier`` is True the legend gains a dashed "fog" row for
+    the explorer's open-frontier overlay; default False keeps the plain starmap
+    legend unchanged.
 
     Idempotent: if a ``<g id="legend">`` is already present, returns the
     input unchanged.
     """
     if 'id="legend"' in svg_text:
         return svg_text
-    legend = _build_legend_svg()
+    legend = _build_legend_svg(include_frontier=include_frontier)
     return re.sub(r"(</svg>)", legend + r"\1", svg_text, count=1)
 
 
@@ -400,7 +421,9 @@ def ensure_contradiction_classes(svg_text: str, contradiction_ids: set[str]) -> 
     return group_re.sub(_rewrite, svg_text)
 
 
-def post_process_stellaris_svg(svg_text: str, dot_source: str | None = None) -> str:
+def post_process_stellaris_svg(
+    svg_text: str, dot_source: str | None = None, *, include_frontier: bool = False
+) -> str:
     """Apply all stellaris SVG transforms: defs + bg recolour + legend.
 
     When ``dot_source`` is supplied, every contradiction operator node it styled
@@ -408,8 +431,14 @@ def post_process_stellaris_svg(svg_text: str, dot_source: str | None = None) -> 
     contradiction operators carry the glow marker — fixing the case where
     Graphviz dropped or merged the per-node ``class`` attribute during SVG
     emission (only 1 marker survived for an N-operator graph otherwise).
+
+    ``include_frontier`` (keyword-only, default False) adds the dashed "fog"
+    legend row for the explorer render's open-frontier overlay. The shared
+    ``gaia inspect starmap`` caller leaves it False so its legend is unchanged.
     """
-    processed = inject_legend(recolor_background(inject_defs(svg_text)))
+    processed = inject_legend(
+        recolor_background(inject_defs(svg_text)), include_frontier=include_frontier
+    )
     if dot_source is not None:
         processed = ensure_contradiction_classes(
             processed, _contradiction_node_ids_from_dot(dot_source)

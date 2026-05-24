@@ -864,13 +864,17 @@ def status_command(
 # --------------------------------------------------------------------------- #
 
 
-def _render_stellaris_svg(dot_source: str) -> str:
+def _render_stellaris_svg(dot_source: str, *, include_frontier: bool = False) -> str:
     """Render *dot_source* to SVG via ``sfdp`` + the stellaris post-process.
 
     Mirrors :func:`gaia.cli.commands.starmap._render_svg` for the stellaris theme
     (sfdp is the layout binary; the dot already carries ``layout=sfdp``), then
     injects the stellaris ``<defs>`` glow block, recolours the canvas, and adds
     the node-role legend via :func:`post_process_stellaris_svg`.
+
+    ``include_frontier`` adds the dashed "fog" legend row documenting the
+    open-frontier overlay; pass it True only when the dot actually carries
+    frontier (unpulled-paper) nodes.
     """
     binary_path = shutil.which("sfdp")
     if binary_path is None:
@@ -899,7 +903,9 @@ def _render_stellaris_svg(dot_source: str) -> str:
             err=True,
         )
         raise typer.Exit(1)
-    return post_process_stellaris_svg(proc.stdout, dot_source=dot_source)
+    return post_process_stellaris_svg(
+        proc.stdout, dot_source=dot_source, include_frontier=include_frontier
+    )
 
 
 def render_command(
@@ -966,7 +972,7 @@ def render_command(
     graph_payload.setdefault("edges", []).extend(frontier_edges)
 
     dot_source = to_dot(json.dumps(graph_payload), theme="stellaris")
-    svg = _render_stellaris_svg(dot_source)
+    svg = _render_stellaris_svg(dot_source, include_frontier=bool(frontier_nodes))
     svg = inject_exploration_header(svg, exploration_header_fields(exploration_map))
     html_doc = wrap_self_contained_html(svg)
 

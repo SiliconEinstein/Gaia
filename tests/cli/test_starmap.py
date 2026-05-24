@@ -1122,6 +1122,48 @@ def test_inject_legend_includes_all_node_role_rows():
         assert tname in out
 
 
+def test_inject_legend_frontier_row_off_by_default():
+    """Without `include_frontier`, the legend has no fog row (starmap unchanged)."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+    assert "frontier · unexplored (fog)" not in out
+    assert "stroke-dasharray" not in out
+
+
+def test_inject_legend_frontier_row_added_when_requested():
+    """With `include_frontier=True`, a dashed fog row + label appear."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>', include_frontier=True)
+    assert "frontier · unexplored (fog)" in out
+    # The fog icon is a dashed rounded rect in the question palette.
+    assert 'stroke-dasharray="4,2"' in out
+    assert "#332416" in out
+    assert "#caa84a" in out
+    # The other node-role rows still render.
+    assert "premise · no upstream strategy/operator" in out
+
+
+def test_build_legend_svg_frontier_flag_controls_fog_row():
+    """`_build_legend_svg` gates the fog row on its flag."""
+    from gaia.cli.commands._stellaris_svg import _build_legend_svg
+
+    assert "frontier · unexplored (fog)" not in _build_legend_svg()
+    assert "frontier · unexplored (fog)" in _build_legend_svg(include_frontier=True)
+
+
+def test_post_process_stellaris_svg_frontier_flag_gates_fog_row():
+    """`post_process_stellaris_svg` only emits the fog row when `include_frontier`."""
+    from gaia.cli.commands._stellaris_svg import post_process_stellaris_svg
+
+    svg = '<svg xmlns="http://www.w3.org/2000/svg"><polygon fill="#05060f"/></svg>'
+    # Default (starmap path) — no fog row.
+    assert "frontier · unexplored (fog)" not in post_process_stellaris_svg(svg)
+    # Explorer path — fog row present.
+    assert "frontier · unexplored (fog)" in post_process_stellaris_svg(svg, include_frontier=True)
+
+
 def test_inject_legend_idempotent():
     """A second `inject_legend` call is a no-op."""
     from gaia.cli.commands._stellaris_svg import inject_legend
@@ -1158,6 +1200,8 @@ def test_starmap_svg_stellaris_includes_legend(tmp_path):
     assert "Stellaris starmap" in svg
     # No CJK leaks into the rendered stellaris figure.
     assert not re.search(r"[一-鿿]", svg)
+    # Plain starmap has no fog nodes, so the frontier legend row must be absent.
+    assert "frontier · unexplored (fog)" not in svg
 
 
 @pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
