@@ -724,6 +724,61 @@ def test_post_process_stellaris_svg_combines_both_steps():
     assert 'fill="url(#space-bg)"' in out
 
 
+def _multi_contradiction_graph_json(n: int) -> str:
+    """Graph JSON with *n* contradiction operators, each on its own conclusion."""
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    for i in range(n):
+        kid = f"p:m::c{i}"
+        nodes.append({"id": kid, "type": "claim", "label": f"c{i}", "module": "m"})
+        nodes.append(
+            {"id": f"oper_{i}", "type": "operator", "operator_type": "contradiction", "module": "m"}
+        )
+        edges.append({"source": f"oper_{i}", "target": kid, "role": "conclusion"})
+    return json.dumps({"nodes": nodes, "edges": edges})
+
+
+def _count_contradiction_node_groups(svg: str) -> int:
+    """Count SVG node ``<g>`` groups whose class carries the contradiction token."""
+    count = 0
+    for m in re.finditer(r'<g\s+id="[^"]*"\s+class="([^"]*)"[^>]*>\s*<title>([^<]*)</title>', svg):
+        cls, title = m.groups()
+        if "contradiction" in cls.split() and title.startswith("oper_"):
+            count += 1
+    return count
+
+
+def test_ensure_contradiction_classes_restamps_dropped_marker():
+    """When Graphviz drops the per-node class, all N markers are re-injected.
+
+    Simulates Graphviz 2.43, which emits operator groups as ``class="node"`` with
+    the dot ``class="contradiction"`` dropped. The post-process keyed off the dot
+    source must restore the token on every contradiction node group.
+    """
+    from gaia.cli.commands._stellaris_svg import (
+        _contradiction_node_ids_from_dot,
+        ensure_contradiction_classes,
+    )
+
+    dot = to_dot(_multi_contradiction_graph_json(3), theme="stellaris")
+    contra_ids = _contradiction_node_ids_from_dot(dot)
+    assert contra_ids == {"oper_0", "oper_1", "oper_2"}
+
+    # Graphviz-2.43-style SVG: contradiction class dropped to a bare node class.
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<g id="node1" class="node"><title>oper_0</title></g>'
+        '<g id="node2" class="node"><title>oper_1</title></g>'
+        '<g id="node3" class="node"><title>oper_2</title></g>'
+        "</svg>"
+    )
+    assert _count_contradiction_node_groups(svg) == 0
+    out = ensure_contradiction_classes(svg, contra_ids)
+    assert _count_contradiction_node_groups(out) == 3
+    # Idempotent.
+    assert _count_contradiction_node_groups(ensure_contradiction_classes(out, contra_ids)) == 3
+
+
 # ── CLI --format svg integration tests ───────────────────────────────────────
 
 
@@ -740,6 +795,25 @@ def test_starmap_svg_invalid_format_rejected(tmp_path):
     result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "garbage"])
     assert result.exit_code != 0
     assert "format" in result.output.lower()
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_post_process_styles_all_contradiction_nodes_end_to_end():
+    """All N contradiction operators are styled, not just 1, through sfdp + post.
+
+    Regression: a 3-operator graph previously surfaced a single contradiction
+    marker downstream because Graphviz emission dropped/merged the per-node
+    class. Driving the real pipeline (to_dot → sfdp → post_process with the dot
+    source) must leave all 3 contradiction node groups carrying the token.
+    """
+    import subprocess
+
+    dot = to_dot(_multi_contradiction_graph_json(3), theme="stellaris")
+    svg = subprocess.run(
+        ["sfdp", "-Tsvg"], input=dot, capture_output=True, text=True, check=True
+    ).stdout
+    out = post_process_stellaris_svg(svg, dot_source=dot)
+    assert _count_contradiction_node_groups(out) == 3
 
 
 @pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")

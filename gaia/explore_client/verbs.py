@@ -899,7 +899,7 @@ def _render_stellaris_svg(dot_source: str) -> str:
             err=True,
         )
         raise typer.Exit(1)
-    return post_process_stellaris_svg(proc.stdout)
+    return post_process_stellaris_svg(proc.stdout, dot_source=dot_source)
 
 
 def render_command(
