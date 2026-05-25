@@ -51,6 +51,25 @@ from gaia.engine.lang.runtime.variable import Variable
 _BindingMap = dict[int, dict[str, Any]]
 
 
+# Mirror of ``gaia.engine.lang.compiler.compile._SYMMETRIC_OPS`` / ``_operator_id_from_values``,
+# inlined here to avoid a circular import from ``compile``. Formula lowering emits
+# top-level operators (they land in ``LocalCanonicalGraph.operators``) so they must
+# carry an ``operator_id`` with the ``lco_`` prefix the validator demands.
+_SYMMETRIC_OPS = frozenset(
+    {"equivalence", "contradiction", "complement", "disjunction", "conjunction"}
+)
+
+
+def _formula_operator_id(operator: OperatorType, variables: list[str], conclusion: str) -> str:
+    """Compute a deterministic ``lco_`` operator id for a formula-emitted IR operator."""
+    op_str = operator.value
+    var_ids = list(variables)
+    if op_str in _SYMMETRIC_OPS:
+        var_ids = sorted(var_ids)
+    raw = f"{op_str}|{'|'.join(var_ids)}|{conclusion}"
+    return f"lco_{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
+
+
 @dataclass(frozen=True)
 class FormulaLoweringResult:
     """IR records and source-claim updates emitted by formula lowering."""
@@ -549,6 +568,9 @@ def _lower_exists(
         )
 
     exists_operator = IrOperator(
+        operator_id=_formula_operator_id(
+            OperatorType.DISJUNCTION, instance_ids, claim_id
+        ),
         scope="local",
         operator=OperatorType.DISJUNCTION,
         variables=instance_ids,
@@ -672,6 +694,7 @@ class _FormulaState:
         conclusion = target_id or self._helper_claim(operator_name, child_ids)
         self.operators.append(
             IrOperator(
+                operator_id=_formula_operator_id(operator_name, child_ids, conclusion),
                 scope="local",
                 operator=operator_name,
                 variables=child_ids,
@@ -1188,6 +1211,9 @@ def _equivalence_result(
         ],
         operators=[
             IrOperator(
+                operator_id=_formula_operator_id(
+                    OperatorType.EQUIVALENCE, [left_id, right_id], helper_id
+                ),
                 scope="local",
                 operator=OperatorType.EQUIVALENCE,
                 variables=[left_id, right_id],

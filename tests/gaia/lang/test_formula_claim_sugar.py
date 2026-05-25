@@ -212,6 +212,47 @@ def test_claim_with_coerced_land_formula_compiles_to_conjunction_operator():
     assert op.operator == "conjunction"
     assert op.variables == ["t:sugar_a_compile_pkg::a", "t:sugar_a_compile_pkg::b"]
     assert op.conclusion == "t:sugar_a_compile_pkg::both"
+    # Formula-emitted operators are top-level in graph.operators (not embedded
+    # inside a FormalExpr), so they must carry an lco_ operator_id per the
+    # validator contract (validator.py:199-203). Regression for issue #702.
+    assert op.operator_id is not None
+    assert op.operator_id.startswith("lco_")
+    assert op.scope == "local"
+
+
+def test_formula_claim_package_passes_local_graph_validation():
+    """Regression for issue #702.
+
+    `gaia build compile` calls `validate_local_graph` on the artifact.graph;
+    `compile_package_artifact` alone does not. Before the fix, formula
+    lowering emitted top-level operators without `operator_id`, so the
+    validator rejected any package that used `claim(formula=...)`. This
+    test exercises the exact validate-after-compile path the CLI uses.
+    """
+    from gaia.engine.ir.validator import validate_local_graph
+
+    pkg = CollectedPackage(name="validator_regression_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        a.label = "a"
+        b = claim("B.")
+        b.label = "b"
+        # The exact shape that triggered the bug — implicit Sugar B path
+        # (`a & b` returns Land via Claim.__and__) plus explicit Sugar A
+        # path (claim(formula=land(...))) — both must validate.
+        both_implicit = claim("A and B (implicit).", formula=a & b)
+        both_implicit.label = "both_implicit"
+        both_explicit = claim("A and B (explicit).", formula=land(a, b))
+        both_explicit.label = "both_explicit"
+    finally:
+        _current_package.reset(token)
+
+    artifact = compile_package_artifact(pkg)
+    result = validate_local_graph(artifact.graph)
+    assert not result.errors, (
+        f"Expected validation to pass, got errors: {result.errors}"
+    )
 
 
 # ---------------------------------------------------------------------------
