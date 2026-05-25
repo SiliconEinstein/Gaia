@@ -606,9 +606,14 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
             "obligation_pressure",
         }
         assert "belief_entropy" not in feats
-        # An lkm contact's new_territory is live (>= 0.5) and survey_cost heavier.
+        # An lkm contact's new_territory is live (>= 0.5) and survey_cost heavier
+        # than a qid's flat 1.0 (the bounded LKM_SURVEY_COST — the cost asymmetry
+        # was capped so it can't defeat the expansion goal; EXPANSION.md §1).
+        from gaia.engine.exploration.scorer import LKM_SURVEY_COST
+
         assert feats["new_territory"] >= 0.5
-        assert feats["survey_cost"] == 2.0
+        assert feats["survey_cost"] == LKM_SURVEY_COST
+        assert LKM_SURVEY_COST > 1.0
 
 
 def test_explore_observe_without_init_fails(galileo_pkg: Path):

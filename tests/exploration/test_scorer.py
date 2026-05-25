@@ -1034,6 +1034,154 @@ def test_diplomat_ranks_bridge_contact_top():
     assert bridge.score > plain.score
 
 
+# --------------------------------------------------------------------------- #
+# 0327 acceptance test: empty-source pulled-unformalized qid (materialized ref) #
+# is DRILLING, not fog — and ranks BELOW external lkm_related (EXPANSION.md §1) #
+# --------------------------------------------------------------------------- #
+
+
+def _pulled_repro(doctrine: str, *, lkm_rank: float):
+    """Build the 0327 repro: empty-source intra-paper qid vs. external lkm.
+
+    A freshly-pulled paper's empty-source intra-paper contact vs. an external
+    lkm_related paper off the seed subgraph.
+
+    Joint state: core {seed, a}; a pulled-paper island {p1, p2} that is
+    *materialized* (its claims have bodies in a dep package) but not yet wired to
+    the root. The pulled-unformalized worklist surfaces ``p1`` as a qid contact
+    with EMPTY sources (no co-reference into the core yet) — exactly the live
+    shape. ``materialized`` carries the joint materialized set so the scorer can
+    tell this is drilling (its ref QID is materialized), not a fog-reach.
+    """
+    from gaia.engine.exploration.health import compute_map_health
+
+    surveyed = [qid(x) for x in ("seed", "a", "p1", "p2")]
+    edges = [
+        ("operator_target", [qid("seed"), qid("a")]),
+        ("operator_target", [qid("p1"), qid("p2")]),
+    ]
+    health = compute_map_health(surveyed, [qid("seed")], edges)
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy(doctrine),
+    )
+    # Empty-source pulled-unformalized qid contact referencing a materialized
+    # dep claim (p1). This used to hit the new_territory=1.0 fog-reach branch.
+    m.frontier.append(
+        Contact(
+            id="ct_pulled",
+            ref={"kind": "qid", "value": qid("p1")},
+            sources=[],
+            meta={"pulled_unformalized": True, "title": "internal claim"},
+        )
+    )
+    # External lkm_related paper, off the resolved seed subgraph (source in the
+    # orphan island), so its only relevance is its (small) LKM rank.
+    m.frontier.append(
+        Contact(
+            id="ct_lkm",
+            ref={"kind": "lkm", "value": "extpaper"},
+            sources=[{"qid": qid("p2"), "edge": "lkm_related"}],
+            meta={"paper_id": "extpaper", "rank": lkm_rank},
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health, materialized=set(surveyed))
+    pulled = next(c for c in m.frontier if c.id == "ct_pulled")
+    lkm = next(c for c in m.frontier if c.id == "ct_lkm")
+    return pulled, lkm
+
+
+def test_pulled_unformalized_empty_source_is_drilling_not_fog():
+    # The fix proper: an empty-source qid contact whose ref QID is materialized
+    # (a pulled-but-unformalized claim) is DRILLING (0.2), NOT the fog-reach 1.0.
+    pulled, _lkm = _pulled_repro("Surveyor", lkm_rank=0.034)
+    assert pulled.score_features["new_territory"] == 0.2
+
+
+def test_pulled_unformalized_empty_source_without_materialized_is_fog():
+    # Provenance is the signal: WITHOUT the materialized set, an empty-source qid
+    # contact is indistinguishable from a fog-reach and keeps the 1.0 branch.
+    from gaia.engine.exploration.health import compute_map_health
+
+    surveyed = [qid(x) for x in ("seed", "a", "p1", "p2")]
+    edges = [
+        ("operator_target", [qid("seed"), qid("a")]),
+        ("operator_target", [qid("p1"), qid("p2")]),
+    ]
+    health = compute_map_health(surveyed, [qid("seed")], edges)
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(Contact(id="ct", ref={"kind": "qid", "value": qid("p1")}, sources=[]))
+    score_frontier(m, beliefs={}, edges=edges, health=health)  # no materialized=
+    assert m.frontier[0].score_features["new_territory"] == 1.0
+
+
+def test_acceptance_pulled_qid_ranks_below_external_lkm_surveyor():
+    # 0327 ACCEPTANCE TEST (Surveyor, faithful low-rank repro): the empty-source
+    # pulled intra-paper qid must rank BELOW the external lkm_related paper.
+    # Both the drilling reclassification AND the bounded cost are needed here:
+    # with the drilling fix alone the 0.2 cost gap would still leave qid ahead.
+    pulled, lkm = _pulled_repro("Surveyor", lkm_rank=0.034)
+    assert pulled.score_features["new_territory"] == 0.2
+    assert lkm.score_features["new_territory"] >= 0.5
+    assert lkm.score > pulled.score
+
+
+def test_acceptance_pulled_qid_ranks_below_external_lkm_cartographer():
+    # 0327 ACCEPTANCE TEST (Cartographer, the default/expand doctrine): same
+    # ordering must hold — the drilling reclassification removes the bogus
+    # w_coverage=1.0 * 1.0 fog bonus, AND a drilling contact never claims
+    # bridge_potential (a pulled-paper internal claim is not a core bridge —
+    # otherwise w_bridge=1.0 would re-flood the frontier with all its claims).
+    pulled, lkm = _pulled_repro("Cartographer", lkm_rank=0.034)
+    assert pulled.score_features["new_territory"] == 0.2
+    assert pulled.score_features["bridge_potential"] == 0.0  # drilling != bridge
+    assert lkm.score > pulled.score
+
+
+def test_drilling_contact_does_not_claim_bridge_potential():
+    # A pulled-unformalized contact whose ref QID is a surveyed ORPHAN member
+    # would naively look like a bridge ("touches an orphan"), but formalizing one
+    # internal claim does not connect the island to the core — so a drilling
+    # contact gets bridge_potential 0.0 (live-surfaced under Cartographer).
+    health, edges = _health_two_components()  # core {seed,a}; orphan {b,c}
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Cartographer"),
+    )
+    # ref is orphan member `b`, sources empty (the pulled-unformalized shape).
+    m.frontier.append(
+        Contact(
+            id="ct_drill_orphan",
+            ref={"kind": "qid", "value": qid("b")},
+            sources=[],
+            meta={"pulled_unformalized": True},
+        )
+    )
+    # Same contact but NOT materialized (a genuine unmaterialized ref adjacent to
+    # the orphan) DOES bridge — the suppression is provenance-gated, not blanket.
+    m.frontier.append(
+        Contact(
+            id="ct_real_bridge",
+            ref={"kind": "qid", "value": qid("unmat")},
+            sources=[{"qid": qid("b"), "edge": "depends_on"}],  # orphan source
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health, materialized={qid("b")})
+    drill = next(c for c in m.frontier if c.id == "ct_drill_orphan")
+    real = next(c for c in m.frontier if c.id == "ct_real_bridge")
+    assert drill.score_features["bridge_potential"] == 0.0  # drilling suppressed
+    assert real.score_features["bridge_potential"] == 1.0  # genuine bridge kept
+
+
+def test_lkm_survey_cost_bounded_below_fragmentation_flip():
+    # The cost fix: LKM_SURVEY_COST stays strictly heavier than a qid (the effort
+    # signal) but is bounded so the cost gap can't exceed the coverage benefit an
+    # external pull buys under the tightest (coverage-light) doctrine.
+    from gaia.engine.exploration.scorer import LKM_SURVEY_COST
+
+    assert 1.0 < LKM_SURVEY_COST < 1.45
+
+
 def test_lkm_contact_bridge_potential_activates():
     # An lkm contact sourced from an orphan member is also a bridge candidate.
     health, edges = _health_two_components()

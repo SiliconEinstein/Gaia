@@ -104,8 +104,10 @@ _DOCTRINE_OPT = typer.Option(
     "--doctrine",
     help=(
         f"Named doctrine preset: {sorted(DOCTRINE_PRESETS)}. "
-        "Note: tension/bridge scoring is not yet wired (DESIGN §8), so "
-        "tension/bridge-led presets (e.g. 'Inquisitor') are currently inert."
+        "Note: bridge scoring is now wired (EXPANSION.md §3.B), so bridge-led "
+        "presets (Cartographer / Diplomat) are live; tension scoring is still "
+        "deferred (EXPANSION.md §3.B), so the tension-led 'Inquisitor' preset "
+        "remains inert."
     ),
 )
 _BUDGET_K_OPT = typer.Option(5, "--budget-k", help="Top-k contacts to survey per round.")
@@ -474,22 +476,24 @@ def init_command(
         )
         raise typer.Exit(2)
 
-    # Warn when the chosen doctrine leads on the currently-inert tension/bridge
-    # potential slots (DESIGN §8 defers tension/bridge wiring), so its headline
-    # lever does nothing yet — surfaced here at init rather than only later in the
-    # survey task envelope. Mirrors that note.
+    # Warn when the chosen doctrine leads on the still-inert TENSION potential
+    # slot (EXPANSION.md §3.B defers tension wiring this iteration), so its
+    # headline lever does nothing yet — surfaced here at init rather than only
+    # later in the survey task envelope. Bridge is now WIRED (EXPANSION.md §3.B),
+    # so w_bridge counts as live, not inert.
     _weights = DOCTRINE_PRESETS[doctrine]
-    _inert = _weights.get("w_tension", 0.0) + _weights.get("w_bridge", 0.0)
+    _inert = _weights.get("w_tension", 0.0)
     _live = (
         _weights.get("w_uncertainty", 0.0)
         + _weights.get("w_coverage", 0.0)
         + _weights.get("w_relevance", 0.0)
+        + _weights.get("w_bridge", 0.0)
     )
     if _inert > _live:
         typer.echo(
-            f"Warning: doctrine {doctrine!r} leads on tension/bridge potential, "
-            "which are currently inert (0.0 scoring slots; DESIGN §8 defers "
-            "tension/bridge wiring), so its ranking is dominated by the remaining "
+            f"Warning: doctrine {doctrine!r} leads on tension potential, "
+            "which is still inert (a 0.0 scoring slot; EXPANSION.md §3.B defers "
+            "tension wiring), so its ranking is dominated by the remaining "
             "terms. Prefer 'Surveyor' or 'Cartographer' for now.",
             err=True,
         )
@@ -688,6 +692,7 @@ def frontier_command(
         edges=view.edges,
         obligations=obligations,
         health=health,
+        materialized=view.materialized,
     )
     _refresh_stats(exploration_map)
     save_map(pkg, exploration_map)

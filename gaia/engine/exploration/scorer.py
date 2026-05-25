@@ -132,10 +132,27 @@ def sanitize_score_features(score_features: dict[str, Any]) -> dict[str, Any]:
 
 # SCHEMA.md §7f — survey cost of an LKM paper-contact. A qid contact is
 # materialize-only (flat 1.0); pulling a whole paper via `gaia pkg add
-# --lkm-paper` is strictly heavier, so an lkm contact costs more. 2.0 keeps the
-# ordering qid < lkm without overwhelming the live w_uncertainty/w_relevance
-# terms at the default doctrine weights (w_cost ~ 0.2 ⇒ a 0.2 cost penalty).
-LKM_SURVEY_COST = 2.0
+# --lkm-paper` is genuinely heavier *effort*, so an lkm contact still costs more.
+#
+# The constant is bounded, though, so the cost asymmetry cannot defeat the
+# expansion goal (EXPANSION.md §1, the 0327 acceptance test). The pathology: an
+# external pull is *rewarded* with `new_territory` AND *penalised* with the
+# heavier cost - and at the old ``2.0`` the cost penalty (``w_cost*(2.0-1.0)``)
+# out-weighed the coverage benefit (``w_coverage*(nt_lkm-nt_drill)``) under the
+# coverage-light doctrines (Surveyor/Diplomat, ``w_coverage=0.3``), so a pulled
+# paper's own intra-paper drilling contacts still out-ranked external papers even
+# after the coverage slot was activated. That double-counts the same act (open
+# territory) once as benefit and once as cost.
+#
+# Fix: keep the effort signal (lkm > qid) but cap the cost so the cost *gap*
+# never exceeds the coverage *benefit* an external pull buys, in any doctrine.
+# Tightest doctrine: Surveyor/Diplomat ``w_coverage=0.3``, ``w_cost=0.2``;
+# minimum coverage benefit is ``0.3*(0.5-0.2)=0.09`` (external floor 0.5 vs.
+# intra-paper drilling 0.2), so we need ``0.2*(C-1) < 0.09`` -> ``C < 1.45``.
+# ``1.25`` keeps a clear margin (cost gap ``0.2*0.25=0.05 < 0.09``) while leaving
+# lkm strictly heavier than a qid. (There is still no real LKM-pull cost model;
+# this stays a principled placeholder, just one that no longer fights the design.)
+LKM_SURVEY_COST = 1.25
 
 
 def binary_entropy(p: float) -> float:
@@ -359,6 +376,8 @@ def _bridge_potential(
     ref_value: str | None,
     index: _ComponentIndex | None,
     adjacency: dict[str, set[str]],
+    *,
+    is_drilling: bool = False,
 ) -> float:
     """``1.0`` iff surveying/wiring this contact would connect an orphan to the core.
 
@@ -376,8 +395,21 @@ def _bridge_potential(
     ``w_bridge`` *is* the bump a bridging contact gets, so Diplomat / Cartographer
     reliably surface it. ``0.0`` when no MapHealth is available (the pre-expansion
     behaviour) or there are no orphans to bridge.
+
+    ``is_drilling`` (0327 acceptance fix, live-surfaced): a *pulled-but-
+    unformalized* contact references a single materialized internal claim of a
+    pulled paper's orphan island. Its ref QID **is** an orphan member, so the
+    "touches an orphan" branch below would mark it a bridge — but formalizing one
+    more internal claim of an island does NOT connect that island to the core
+    (the island stays orphan relative to root; the true bridge is a root→island
+    ``derive`` the agent authors in a consolidate turn, not a frontier
+    drilling-contact). Under Cartographer/Diplomat (``w_bridge=1.0``) this bogus
+    bridge bonus floods the frontier with all N internal claims of every pulled
+    paper, defeating the expansion goal exactly as the territory bug did. So a
+    drilling contact never claims bridge potential — it is intra-island drilling,
+    not a core bridge.
     """
-    if index is None or not index.orphan_members:
+    if index is None or not index.orphan_members or is_drilling:
         return 0.0
     anchors = set(source_qids)
     if ref_value is not None:
@@ -399,6 +431,8 @@ def _bridge_potential(
 def _qid_new_territory(
     source_qids: list[str],
     index: _ComponentIndex | None,
+    *,
+    is_drilling: bool = False,
 ) -> float:
     """Coverage for a qid contact: external expansion vs. intra-paper drilling.
 
@@ -415,9 +449,24 @@ def _qid_new_territory(
 
     Scale:
 
+    * **``is_drilling``** ⇒ ``0.2`` (intra-paper drilling, regardless of sources) —
+      see below;
     * no surveyed source ⇒ ``1.0`` (a pure reach into the fog — maximal novelty);
     * sources span ≥2 components ⇒ ``0.7`` (cross-region — opening new territory);
     * sources all in one component ⇒ ``0.2`` (intra-paper drilling — low).
+
+    ``is_drilling`` (0327 acceptance fix): the *pulled-but-unformalized* worklist
+    contacts (``JointView._pulled_unformalized_contacts``) reference a claim that
+    is **already materialized** in a pulled dependency package — its body is on
+    disk, it just is not wired into the root graph yet. Formalizing it drills into
+    a paper you have already pulled; it opens NO new territory. But those contacts
+    carry **empty ``sources``** (a freshly-pulled paper has no co-reference into
+    the surveyed core yet), so the ``not in_set`` branch below would otherwise
+    score them ``1.0`` — the "fog-reach" branch — and they would out-rank external
+    ``lkm_related`` papers (EXPANSION.md §1 / project INDEX open thread). The
+    *materialized-set* provenance (carried by the caller as ``is_drilling``, since
+    ``sources`` are empty) is the right signal: a materialized ref is drilling,
+    not fog. So drilling pins to the low ``0.2`` and never reaches the fog branch.
 
     ``0.0`` when no MapHealth is available (pre-expansion behaviour). Distinct
     from ``closeness_to_seed`` (relevance): a far-flung dangling ref is high
@@ -425,6 +474,8 @@ def _qid_new_territory(
     """
     if index is None:
         return 0.0
+    if is_drilling:
+        return 0.2
     in_set = [q for q in source_qids if q in index.component_of]
     if not in_set:
         return 1.0
@@ -563,6 +614,7 @@ def score_frontier(
     edges: list[tuple[str, list[str]]] | None = None,
     obligations: Iterable[SyntheticObligation] | None = None,
     health: MapHealth | None = None,
+    materialized: Iterable[str] | None = None,
 ) -> None:
     """Score every open frontier contact in place (SCHEMA.md §7b / §7e).
 
@@ -615,6 +667,15 @@ def score_frontier(
             contacts (the pre-expansion behaviour); lkm ``new_territory`` is still
             its rank-derived signal. ``tension_potential`` stays ``0.0`` regardless
             (Inquisitor deferred — EXPANSION.md §3.B).
+        materialized: The JOINT materialized-QID set (``JointView.materialized``).
+            Used only as the *provenance* signal that classifies a qid contact as
+            intra-paper **drilling** rather than fog-reach (0327 acceptance fix): a
+            qid contact whose ``ref`` QID is in this set references a claim already
+            materialized in a pulled dependency — formalizing it drills into a
+            paper you already have (``new_territory = 0.2``), even though its
+            ``sources`` are empty (which would otherwise hit the ``1.0`` fog-reach
+            branch). ``None`` ⇒ no contact is treated as drilling (the
+            pre-expansion behaviour); harmless when ``health`` is also absent.
     """
     if edges is None and ir is None:
         raise ValueError("score_frontier requires exactly one of `edges` or `ir`")
@@ -629,6 +690,7 @@ def score_frontier(
 
     obligation_targets = _obligation_targets(obligations)
     component_index = _component_index(health)
+    materialized_set = set(materialized) if materialized is not None else set()
     seeds = _resolved_seed_qids(exploration_map)
     if edges is not None:
         adjacency = _adjacency_from_edges(edges)
@@ -644,6 +706,12 @@ def score_frontier(
         source_qids = [str(s["qid"]) for s in contact.sources if s.get("qid")]
         is_lkm = contact.ref.get("kind") == "lkm"
         ref_value = contact.ref.get("value")
+        # 0327 acceptance fix (provenance signal): a qid contact whose ref QID is
+        # already in the joint materialized set is a *pulled-but-unformalized*
+        # claim — drilling into a paper you have, not a fog-reach into new
+        # territory and not a core bridge. An lkm contact's ref is a paper id, so
+        # it is never in the materialized claim-QID set ⇒ never drilling.
+        is_drilling = not is_lkm and ref_value is not None and str(ref_value) in materialized_set
 
         # Both flavours proxy belief_entropy / closeness from the SOURCE node(s)
         # — an lkm paper-contact has no graph position of its own, so it borrows
@@ -660,12 +728,15 @@ def score_frontier(
         )
         # Activated bridge slot (EXPANSION.md §3.B) — identical for qid & lkm:
         # high iff surveying/wiring this contact would connect an orphan to the
-        # core. 0.0 when no MapHealth was supplied (pre-expansion behaviour).
+        # core. 0.0 when no MapHealth was supplied (pre-expansion behaviour) or
+        # the contact is intra-island drilling (a pulled-unformalized internal
+        # claim is not a core bridge — see _bridge_potential).
         bridge_potential = _bridge_potential(
             source_qids,
             str(ref_value) if ref_value is not None else None,
             component_index,
             adjacency,
+            is_drilling=is_drilling,
         )
 
         if is_lkm:
@@ -694,7 +765,12 @@ def score_frontier(
             # ``new_territory`` is now ACTIVATED via MapHealth (external expansion
             # vs. intra-paper drilling — EXPANSION.md §3.B); ``tension_potential``
             # stays a 0.0 deferred slot (Inquisitor deferred this iteration).
-            new_territory = _qid_new_territory(source_qids, component_index)
+            # ``is_drilling`` (computed above from the materialized-set provenance)
+            # pins a pulled-but-unformalized claim to the low drilling territory
+            # even though its sources are empty (which would otherwise score 1.0).
+            new_territory = _qid_new_territory(
+                source_qids, component_index, is_drilling=is_drilling
+            )
             survey_cost = 1.0
             features = {
                 "belief_entropy": belief_entropy,

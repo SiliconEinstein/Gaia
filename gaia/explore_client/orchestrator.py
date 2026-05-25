@@ -473,9 +473,10 @@ def _score_feature_hint(score_features: dict[str, Any]) -> str:
     by build 11 steer 4) and renders them as a natural-language nudge appended to
     the brief; returns ``""`` when no signal is strong enough to be worth citing.
     The belief-derived ``belief_entropy`` ("undecided territory") hint is NOT
-    cited — belief stays internal to the engine (Jaynes' robot). ``tension_potential``
-    / ``bridge_potential`` are 0.0 v1 slots and are never cited (the ``Inquisitor``
-    doctrine is inert).
+    cited — belief stays internal to the engine (Jaynes' robot). ``bridge_potential``
+    is now a live slot (EXPANSION.md §3.B) and IS cited when high (a bridging
+    contact heals fragmentation). ``tension_potential`` stays a 0.0 deferred slot
+    and is never cited (the ``Inquisitor`` doctrine remains inert).
     """
 
     def _f(key: str) -> float:
@@ -491,6 +492,10 @@ def _score_feature_hint(score_features: dict[str, Any]) -> str:
         candidates.append((v, "on-topic / close to your seed"))
     if (v := _f("new_territory")) >= 0.6:
         candidates.append((v, "fresh unexplored territory"))
+    # bridge_potential is binary (0.0/1.0); when high, surveying/wiring this
+    # contact would connect an orphan island to the core (EXPANSION.md §3.B).
+    if (v := _f("bridge_potential")) >= 1.0:
+        candidates.append((v, "bridges a disconnected island to your core"))
 
     if not candidates:
         return ""
@@ -701,6 +706,7 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
             edges=view.edges,
             obligations=obligations,
             health=health,
+            materialized=view.materialized,
         )
         _refresh_stats(exploration_map)
 

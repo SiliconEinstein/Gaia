@@ -8,8 +8,12 @@ view:
 
 * a `depends_on` given that is unmaterialized in BOTH packages surfaces as a
   contact against the joint materialized set;
-* a `depends_on` given that IS materialized in the dep does NOT surface (it is
-  a joint-materialized source, not a contact);
+* a `depends_on` given that IS materialized in the dep but is NOT referenced by
+  any ROOT edge surfaces as a *pulled-but-unformalized* contact (build-16
+  `_pulled_unformalized_contacts` worklist; contract change reconciled
+  2026-05-25 — see the test below). A dep-materialized QID that a ROOT edge DOES
+  reference is a joint-materialized source, not a contact
+  (`test_joint_materialization_in_dep_suppresses_contact`);
 * the dep's graph edges + manifest fold into the joint edge set;
 * `build_joint_view` degrades gracefully (root-only) when a dep can't be loaded.
 """
@@ -143,10 +147,31 @@ def test_joint_view_surfaces_cross_package_unmaterialized_contact(tmp_path, monk
     contact_values = {c.ref["value"] for c in contacts}
 
     # `dep_concl` (manifest conclusion, unmaterialized) AND `dep_unmaterialized`
-    # are contacts; `dep_fact` is materialized in the dep -> NOT a contact.
+    # are contacts via the standard frontier core (referenced-but-unmaterialized).
     assert dep_qid("dep_unmaterialized") in contact_values
     assert dep_qid("dep_concl") in contact_values
-    assert dep_qid("dep_fact") not in contact_values
+
+    # CONTRACT CHANGE (build 16 + expand-consolidate, reconciled 2026-05-25).
+    # Pre-build-16 this asserted `dep_fact` (materialized in the dep) is NOT a
+    # contact — "a joint-materialized source is never a contact". Build 16's
+    # `JointView._pulled_unformalized_contacts` (the "formalize me" worklist)
+    # changed that contract on purpose: a dep claim that IS materialized but is
+    # NOT referenced by any ROOT edge is *pulled-but-unformalized* (inert until
+    # the agent wires it into the root graph), and the joint view now surfaces it
+    # as a `qid` contact tagged `meta.pulled_unformalized` so it ranks/surveys
+    # through the normal machinery and retires once formalized. `dep_fact` is
+    # exactly that case here (the root references nothing in the dep), so under
+    # the current contract it DOES surface — as a pulled-unformalized contact,
+    # distinct from the two ordinary unmaterialized contacts above. (Verified
+    # legitimate, not a regression: see project INDEX open-thread reconciliation.)
+    assert dep_qid("dep_fact") in contact_values
+    fact = next(c for c in contacts if c.ref["value"] == dep_qid("dep_fact"))
+    assert fact.meta.get("pulled_unformalized") is True
+    # The two ordinary contacts are NOT pulled-unformalized (they are
+    # genuinely unmaterialized refs, surfaced by the standard frontier core).
+    for label in ("dep_unmaterialized", "dep_concl"):
+        ordinary = next(c for c in contacts if c.ref["value"] == dep_qid(label))
+        assert not ordinary.meta.get("pulled_unformalized")
 
     # The unmaterialized contact is sourced by the materialized co-reference
     # (dep_fact) under the depends_on edge.
