@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from gaia.cli.main import app
 from gaia.engine.ir import LocalCanonicalGraph
 from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import write_text_atomic
 
 pytestmark = pytest.mark.pr_gate
 
@@ -71,6 +72,16 @@ def test_compile_creates_ir_json(tmp_path):
     assert premises_manifest["premises"] == []
     assert holes_manifest["holes"] == []
     assert bridges_manifest["bridges"] == []
+
+
+def test_atomic_text_writer_replaces_without_temp_leftovers(tmp_path):
+    path = tmp_path / "artifact.json"
+
+    write_text_atomic(path, '{"version": 1}')
+    write_text_atomic(path, '{"version": 2}')
+
+    assert path.read_text(encoding="utf-8") == '{"version": 2}'
+    assert list(tmp_path.glob("artifact.json.*.tmp")) == []
 
 
 def test_compile_no_pyproject(tmp_path):

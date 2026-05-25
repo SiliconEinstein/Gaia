@@ -12,6 +12,7 @@ import importlib
 import json
 import subprocess
 import sys
+import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -58,6 +59,7 @@ __all__ = [
     "ensure_package_env",
     "load_dependency_compiled_graphs",
     "load_gaia_package",
+    "write_text_atomic",
 ]
 
 
@@ -1506,6 +1508,18 @@ def _render_compile_metadata(ir_hash: str) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def write_text_atomic(path: Path, text: str, *, encoding: str = "utf-8") -> None:
+    """Write text via a unique temp file and atomic replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        tmp.write_text(text, encoding=encoding)
+        tmp.replace(path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
 def write_compiled_artifacts(
     pkg_path: Path,
     ir: dict[str, Any],
@@ -1517,16 +1531,17 @@ def write_compiled_artifacts(
     gaia_dir = pkg_path / ".gaia"
     gaia_dir.mkdir(exist_ok=True)
     ir_json = json.dumps(ir, ensure_ascii=False, indent=2, sort_keys=True)
-    (gaia_dir / "ir.json").write_text(ir_json)
-    (gaia_dir / "ir_hash").write_text(ir["ir_hash"])
-    (gaia_dir / "compile_metadata.json").write_text(_render_compile_metadata(ir["ir_hash"]))
+    write_text_atomic(gaia_dir / "ir.json", ir_json)
+    write_text_atomic(gaia_dir / "ir_hash", ir["ir_hash"])
+    write_text_atomic(gaia_dir / "compile_metadata.json", _render_compile_metadata(ir["ir_hash"]))
     if formalization_manifest is not None:
-        (gaia_dir / "formalization_manifest.json").write_text(
-            render_manifest_json(formalization_manifest)
+        write_text_atomic(
+            gaia_dir / "formalization_manifest.json",
+            render_manifest_json(formalization_manifest),
         )
     if manifests:
         manifests_dir = gaia_dir / "manifests"
         manifests_dir.mkdir(exist_ok=True)
         for filename, payload in manifests.items():
-            (manifests_dir / filename).write_text(render_manifest_json(payload))
+            write_text_atomic(manifests_dir / filename, render_manifest_json(payload))
     return gaia_dir

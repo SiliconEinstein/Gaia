@@ -22,11 +22,12 @@ from gaia.engine.packaging import (
     gaia_lang_version,
     load_dependency_compiled_graphs,
     load_gaia_package,
+    write_text_atomic,
 )
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    write_text_atomic(path, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
 
 
 def _load_inference_inputs(path: str) -> tuple[Any, Any]:
