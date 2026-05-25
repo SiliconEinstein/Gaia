@@ -19,6 +19,8 @@ from gaia.engine.exploration.frontier import (
     reconcile_frontier,
 )
 from gaia.engine.exploration.handoff import (
+    IslandBrief,
+    RatifiedSeparationResult,
     SurveyResult,
     SurveyTask,
     TaskContact,
@@ -88,10 +90,12 @@ __all__ = [
     "Component",
     "Contact",
     "ExplorationMap",
+    "IslandBrief",
     "MapHealth",
     "ObserveResult",
     "Policy",
     "RatifiedSeparation",
+    "RatifiedSeparationResult",
     "SurveyRecord",
     "SurveyResult",
     "SurveyTask",

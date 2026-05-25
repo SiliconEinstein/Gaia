@@ -57,6 +57,7 @@ from gaia.engine.exploration.frontier import (
     reconcile_frontier,
     resolve_freetext_seed_qid,
 )
+from gaia.engine.exploration.health import MapHealth, compute_map_health
 from gaia.engine.exploration.observe import (
     materialized_paper_ids_from_roots,
     observe_lkm_results,
@@ -142,6 +143,24 @@ _RENDER_OUT_OPT = typer.Option(
 
 def _gaia_dir(pkg: str) -> Path:
     return Path(pkg).resolve() / ".gaia"
+
+
+def _map_health(exploration_map: ExplorationMap, view: JointView) -> MapHealth:
+    """Compute the joint-graph MapHealth for the map (EXPANSION.md §3.A).
+
+    The surveyed set is ``map.surveyed`` keys, the seeds the resolved seed QIDs,
+    the edges the joint view's edge set, and the ratified separations the map's
+    recorded islands — the same inputs the orchestrator uses, so the standalone
+    verbs and ``turn`` agree on connectivity.
+    """
+    surveyed = list(exploration_map.surveyed.keys())
+    seeds = [str(s["qid"]) for s in exploration_map.seeds if s.get("qid")]
+    return compute_map_health(
+        surveyed,
+        seeds,
+        view.edges,
+        ratified=exploration_map.ratified_as_health_objects(),
+    )
 
 
 def _load_beliefs(pkg: str) -> dict[str, float]:
@@ -626,7 +645,16 @@ def frontier_command(
     # ``obligation_pressure`` exactly as ``gaia-lkm-explore turn`` does — the two
     # surfaces must agree (a contact discharging an open obligation scores 1.0).
     obligations = load_open_obligations(pkg)
-    score_frontier(exploration_map, beliefs=beliefs, edges=view.edges, obligations=obligations)
+    # (EXPANSION.md §3.B) MapHealth activates bridge_potential + qid new_territory
+    # in the score, so this standalone verb ranks identically to the orchestrator.
+    health = _map_health(exploration_map, view)
+    score_frontier(
+        exploration_map,
+        beliefs=beliefs,
+        edges=view.edges,
+        obligations=obligations,
+        health=health,
+    )
     _refresh_stats(exploration_map)
     save_map(pkg, exploration_map)
 

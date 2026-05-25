@@ -84,6 +84,27 @@ POLICY_WEIGHT_KEYS = (
     "w_obligation",
 )
 
+# EXPANSION.md §3.C — the policy mode dial. The doctrine IS the expand↔consolidate
+# mode; ``mode_select`` only decides WHEN to consolidate:
+# - "auto"        : at IDLE the orchestrator computes MapHealth and consolidates
+#                   iff the map is unhealthy past the fragmentation threshold,
+#                   else expands (the default — fragment a little, heal in sweeps);
+# - "expand"      : always run an expand turn (today's behaviour), pinned;
+# - "consolidate" : always run a consolidate (bridging) turn, pinned.
+MODE_SELECT_AUTO = "auto"
+MODE_SELECT_EXPAND = "expand"
+MODE_SELECT_CONSOLIDATE = "consolidate"
+VALID_MODE_SELECTS = {MODE_SELECT_AUTO, MODE_SELECT_EXPAND, MODE_SELECT_CONSOLIDATE}
+
+# EXPANSION.md §4 — the dialable fragmentation threshold (defaults mirror
+# health.DEFAULT_MIN_ORPHAN_COMPONENTS / DEFAULT_ORPHAN_FRACTION). The map is
+# "unhealthy past the threshold" iff there are at least this many un-ratified
+# orphan components OR the orphan node fraction exceeds the fraction. Threshold
+# over hair-trigger (user, 2026-05-25). Kept on the Policy so the dial travels
+# with the per-round state and a back-compat map loads the defaults.
+DEFAULT_FRAGMENT_MIN_ORPHANS = 2
+DEFAULT_FRAGMENT_ORPHAN_FRACTION = 0.34
+
 # Build 12 (CLIENT.md steer 3): the STRONG default obligation-pressure weight.
 # obligation_pressure is binary (0.0 / 1.0), so w_obligation IS the score bump a
 # matching contact gets. 1.0 puts it on par with the strongest single live term in
@@ -273,9 +294,15 @@ class Policy:
     doctrine: str = "Cartographer"
     weights: dict[str, float] = field(default_factory=dict)
     budget_k: int = 5
+    # EXPANSION.md §3.C / §4 — the expand↔consolidate dial + fragmentation
+    # threshold. All additive + back-compat (a map saved before these existed
+    # loads the defaults via from_dict).
+    mode_select: str = MODE_SELECT_AUTO
+    fragment_min_orphans: int = DEFAULT_FRAGMENT_MIN_ORPHANS
+    fragment_orphan_fraction: float = DEFAULT_FRAGMENT_ORPHAN_FRACTION
 
     def __post_init__(self) -> None:
-        """Resolve a named doctrine to its preset; validate the weight vector."""
+        """Resolve a named doctrine to its preset; validate weights + mode."""
         if self.doctrine != "custom" and not self.weights:
             preset = DOCTRINE_PRESETS.get(self.doctrine)
             if preset is None:
@@ -291,6 +318,10 @@ class Policy:
         missing = [k for k in POLICY_WEIGHT_KEYS if k not in self.weights]
         if missing:
             raise ValueError(f"policy weights missing keys: {missing}")
+        if self.mode_select not in VALID_MODE_SELECTS:
+            raise ValueError(
+                f"invalid mode_select {self.mode_select!r}; allowed: {sorted(VALID_MODE_SELECTS)}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """Return the JSON-compatible payload for this policy."""
@@ -298,15 +329,26 @@ class Policy:
             "doctrine": self.doctrine,
             "weights": dict(self.weights),
             "budget_k": self.budget_k,
+            "mode_select": self.mode_select,
+            "fragment_min_orphans": self.fragment_min_orphans,
+            "fragment_orphan_fraction": self.fragment_orphan_fraction,
         }
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> Policy:
-        """Rehydrate a policy from its persisted payload."""
+        """Rehydrate a policy from its persisted payload (defaults for new fields)."""
         return cls(
             doctrine=raw.get("doctrine", "Cartographer"),
             weights=dict(raw.get("weights", {})),
             budget_k=int(raw.get("budget_k", 5)),
+            # Back-compat: a policy saved before the expand↔consolidate dial
+            # existed has none of these keys — default to auto + the standard
+            # threshold so old maps load unchanged.
+            mode_select=raw.get("mode_select", MODE_SELECT_AUTO),
+            fragment_min_orphans=int(raw.get("fragment_min_orphans", DEFAULT_FRAGMENT_MIN_ORPHANS)),
+            fragment_orphan_fraction=float(
+                raw.get("fragment_orphan_fraction", DEFAULT_FRAGMENT_ORPHAN_FRACTION)
+            ),
         )
 
 
@@ -346,6 +388,12 @@ class ExplorationMap:
     frontier: list[Contact] = field(default_factory=list)
     stats: dict[str, Any] = field(default_factory=dict)
     turn_phase: str = TURN_PHASE_IDLE
+    # EXPANSION.md §3.E — islands the agent has ratified as legitimately separate
+    # regions (per COMPONENT). Each row is
+    # ``{member_qids: [...], rationale: str, round: int, evidence_fingerprint: {}}``.
+    # MapHealth excludes a still-valid ratified island from the unhealthy count;
+    # new bridging evidence reopens it (provisional). Additive + back-compat.
+    ratified_separations: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Fill creation/update timestamps; validate the turn phase."""
@@ -371,6 +419,7 @@ class ExplorationMap:
             "frontier": [c.to_dict() for c in self.frontier],
             "stats": dict(self.stats),
             "turn_phase": self.turn_phase,
+            "ratified_separations": [dict(r) for r in self.ratified_separations],
         }
 
     @classmethod
@@ -391,6 +440,9 @@ class ExplorationMap:
             # Back-compat: a map.json written before turn_phase existed has no
             # such key — default to IDLE so old saves load unchanged.
             turn_phase=raw.get("turn_phase", TURN_PHASE_IDLE),
+            # Back-compat: a map written before ratified_separations existed has
+            # no such key — default to none (EXPANSION.md §3.E).
+            ratified_separations=[dict(r) for r in raw.get("ratified_separations", [])],
         )
 
     def find_contact(self, contact_id: str) -> Contact | None:
@@ -399,6 +451,60 @@ class ExplorationMap:
             if contact.id == contact_id:
                 return contact
         return None
+
+    def ratified_as_health_objects(self) -> list[Any]:
+        """Return ``ratified_separations`` as ``health.RatifiedSeparation`` objects.
+
+        The persisted rows are plain dicts (EXPANSION.md §3.E); ``MapHealth``
+        consumes the typed dataclass. This is the single seam both the
+        orchestrator and ``status`` use to feed health. Local import avoids an
+        import cycle (``health`` imports ``scorer`` which imports ``frontier``,
+        all of which import this module).
+        """
+        from gaia.engine.exploration.health import RatifiedSeparation
+
+        return [RatifiedSeparation.from_dict(r) for r in self.ratified_separations]
+
+    def add_ratified_separation(
+        self,
+        member_qids: list[str],
+        *,
+        rationale: str,
+        round_index: int,
+        evidence_fingerprint: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Record (or refresh) a per-component ratified separation (EXPANSION.md §3.E).
+
+        Ratification is per *component* (user, 2026-05-25). If a row already
+        exists for the same member set it is replaced (a re-ratification with an
+        updated rationale after a reopen), so the list never accumulates stale
+        duplicates for one island.
+
+        Args:
+            member_qids: the surveyed-node set of the island at ratification time.
+            rationale: the agent's one-line scientific reason it is disjoint.
+            round_index: the round the ratification was made.
+            evidence_fingerprint: cheap snapshot of the joint-graph state it was
+                judged under (e.g. the island's adjacency neighbourhood).
+
+        Returns:
+            The recorded row.
+        """
+        members = sorted(set(member_qids))
+        row = {
+            "member_qids": members,
+            "rationale": rationale,
+            "round": round_index,
+            "evidence_fingerprint": dict(evidence_fingerprint or {}),
+        }
+        member_set = set(members)
+        self.ratified_separations = [
+            r
+            for r in self.ratified_separations
+            if {str(q) for q in r.get("member_qids", [])} != member_set
+        ]
+        self.ratified_separations.append(row)
+        return row
 
     def promote_contact(
         self,

@@ -36,14 +36,18 @@ from gaia.engine.exploration.frontier import (
     reconcile_frontier,
 )
 from gaia.engine.exploration.handoff import (
+    IslandBrief,
     SurveyResult,
     SurveyTask,
     TaskContact,
     result_path,
     task_path,
 )
+from gaia.engine.exploration.health import MapHealth, compute_map_health
 from gaia.engine.exploration.scorer import sanitize_score_features, score_frontier
 from gaia.engine.exploration.state import (
+    MODE_SELECT_CONSOLIDATE,
+    MODE_SELECT_EXPAND,
     TURN_PHASE_AWAITING_CHECKPOINT,
     TURN_PHASE_AWAITING_SURVEY,
     TURN_PHASE_IDLE,
@@ -57,7 +61,10 @@ from gaia.engine.exploration.state import (
     save_map,
     save_round_beliefs,
 )
-from gaia.explore_client.instructions import build_survey_instructions
+from gaia.explore_client.instructions import (
+    build_consolidate_instructions,
+    build_survey_instructions,
+)
 
 
 class OrchestratorError(Exception):
@@ -102,6 +109,15 @@ class TurnOutcome:
     discoveries: list[dict[str, Any]] = field(default_factory=list)
     discovery_labels: dict[str, str] = field(default_factory=dict)
     messages: list[str] = field(default_factory=list)
+    # EXPANSION.md §3 — the expand↔consolidate turn dimension.
+    task_kind: str = "expand"
+    islands: int = 0
+    # Connectivity readout (component / orphan / ratified / reopened counts) so the
+    # CLI and tests can surface MapHealth without re-deriving it.
+    health: dict[str, Any] = field(default_factory=dict)
+    connectivity_delta: dict[str, Any] = field(default_factory=dict)
+    ratified: list[list[str]] = field(default_factory=list)
+    reopened: list[list[str]] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
@@ -169,6 +185,63 @@ def _project_config(pkg: str | Path) -> dict[str, Any]:
 def _joint_view(pkg: str | Path, graph: Any) -> JointView:
     """Build the joint root+dependency view (SDK; SCHEMA.md §7e)."""
     return build_joint_view(str(pkg), graph, project_config=_project_config(pkg), depth=-1)
+
+
+def _compute_health(exploration_map: ExplorationMap, view: JointView) -> MapHealth:
+    """Compute the joint-graph MapHealth for the map (EXPANSION.md §3.A).
+
+    The surveyed set is ``map.surveyed`` keys; the seeds are the resolved seed
+    QIDs; the edges are the joint view's edge set (the same one the scorer
+    adjacency spans); the ratified separations are the map's recorded islands.
+    Pure (no I/O) — the view was already built by the caller.
+    """
+    surveyed = list(exploration_map.surveyed.keys())
+    seeds = [str(s["qid"]) for s in exploration_map.seeds if s.get("qid")]
+    return compute_map_health(
+        surveyed,
+        seeds,
+        view.edges,
+        ratified=exploration_map.ratified_as_health_objects(),
+    )
+
+
+def _health_summary(exploration_map: ExplorationMap, health: MapHealth) -> dict[str, Any]:
+    """A small JSON-able connectivity readout for the outcome / status."""
+    policy = exploration_map.policy
+    return {
+        "components": health.component_count,
+        "orphans": len(health.orphans),
+        "unratified_orphans": health.unratified_orphan_count,
+        "ratified": health.ratified_count,
+        "reopened": len(health.reopened),
+        "largest_fraction": round(health.largest_fraction, 4),
+        "orphan_fraction": round(health.orphan_node_fraction, 4),
+        "unhealthy": health.is_unhealthy(
+            min_orphan_components=policy.fragment_min_orphans,
+            orphan_fraction=policy.fragment_orphan_fraction,
+        ),
+    }
+
+
+def _select_mode(exploration_map: ExplorationMap, health: MapHealth) -> str:
+    """Pick expand vs. consolidate for this IDLE turn (EXPANSION.md §3.C / §4).
+
+    ``mode_select`` pins the mode when set to ``expand`` / ``consolidate``; under
+    ``auto`` the orchestrator consolidates iff the map is unhealthy past the
+    policy's fragmentation threshold (a reopened ratification counts as
+    un-ratified, handled inside MapHealth), else expands.
+    """
+    mode = exploration_map.policy.mode_select
+    if mode == MODE_SELECT_EXPAND:
+        return MODE_SELECT_EXPAND
+    if mode == MODE_SELECT_CONSOLIDATE:
+        return MODE_SELECT_CONSOLIDATE
+    # auto
+    unhealthy = health.is_unhealthy(
+        min_orphan_components=exploration_map.policy.fragment_min_orphans,
+        orphan_fraction=exploration_map.policy.fragment_orphan_fraction,
+    )
+    return MODE_SELECT_CONSOLIDATE if unhealthy else MODE_SELECT_EXPAND
 
 
 def _promote_lkm_from_view(
@@ -489,6 +562,53 @@ def _contact_survey_brief(contact: Contact, obligations: list[Any] | None = None
     )
 
 
+def _island_brief_text(member_qids: list[str], node_texts: dict[str, str]) -> str:
+    """A short NL description of an orphan island for the consolidate worklist."""
+    parts: list[str] = []
+    for qid in member_qids[:6]:
+        label = qid.rsplit("::", 1)[1] if "::" in qid else qid
+        text = node_texts.get(qid, "").strip()
+        # node_texts() yields "label content"; keep it short.
+        snippet = text[:120] + ("…" if len(text) > 120 else "") if text else label
+        parts.append(f"{label}: {snippet}" if text else label)
+    more = f" (+{len(member_qids) - 6} more nodes)" if len(member_qids) > 6 else ""
+    return "; ".join(parts) + more
+
+
+def _island_briefs(
+    exploration_map: ExplorationMap, health: MapHealth, view: JointView
+) -> list[IslandBrief]:
+    """Build the consolidate bridge worklist from the orphan islands (EXPANSION.md §3.D).
+
+    One :class:`IslandBrief` per un-ratified-or-reopened orphan component (a
+    still-valid ratified island is NOT re-nagged — EXPANSION.md §3.E). A reopened
+    island carries its ``bridge_hint`` (the QID whose new presence may now connect
+    it) and the ``reopened`` flag so the brief can say "reconsider".
+    """
+    node_texts = view.node_texts()
+    ratified_members = {
+        frozenset(str(q) for q in r.get("member_qids", []))
+        for r in exploration_map.ratified_separations
+    }
+    briefs: list[IslandBrief] = []
+    for comp in health.orphans:
+        members = list(comp.members)
+        is_ratified = frozenset(members) in ratified_members
+        # Skip still-valid ratified islands (honored, not re-nagged); a reopened
+        # one (ratified but stale premise) DOES return to the worklist.
+        if is_ratified and not comp.reopened:
+            continue
+        briefs.append(
+            IslandBrief(
+                member_qids=members,
+                brief=_island_brief_text(members, node_texts),
+                reopened=comp.reopened,
+                bridge_hint=comp.bridge_qid,
+            )
+        )
+    return briefs
+
+
 def _seed_contacts(exploration_map: ExplorationMap) -> list[TaskContact]:
     """Build round-0 seed-survey contact rows from the map's seeds."""
     rows: list[TaskContact] = []
@@ -530,7 +650,10 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
     graph = _resolve_graph(pkg)
 
     contacts: list[TaskContact] = []
+    bridge_worklist: list[IslandBrief] = []
     seed_survey = False
+    task_kind = MODE_SELECT_EXPAND
+    health_summary: dict[str, Any] = {}
 
     if graph is None:
         # Round 0 before any compile/materialize: survey the seed(s).
@@ -560,52 +683,93 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
             )
         extracted = view.extract(exploration_map)
         reconcile_frontier(exploration_map, extracted, discovered_round=round_index)
+
+        # EXPANSION.md §3.A/§3.C — compute MapHealth and pick the turn mode
+        # (auto → consolidate iff unhealthy past the threshold; pinned values
+        # override). The doctrine IS the mode; mode_select only decides WHEN.
+        health = _compute_health(exploration_map, view)
+        health_summary = _health_summary(exploration_map, health)
+        mode = _select_mode(exploration_map, health)
+
         # Build 12 (CLIENT.md steer 3): load the package's open synthetic
-        # obligations so this live turn scores obligation_pressure — contacts
-        # discharging an open obligation get boosted in the ranking below.
+        # obligations so this live turn scores obligation_pressure. The MapHealth
+        # now also activates bridge_potential + qid new_territory (EXPANSION §3.B).
         obligations = _load_open_obligations(pkg)
-        score_frontier(exploration_map, beliefs=beliefs, edges=view.edges, obligations=obligations)
+        score_frontier(
+            exploration_map,
+            beliefs=beliefs,
+            edges=view.edges,
+            obligations=obligations,
+            health=health,
+        )
         _refresh_stats(exploration_map)
 
-        ranked = _rank_open_contacts(exploration_map)
-        top_k = ranked[: exploration_map.policy.budget_k]
-        if not top_k:
-            # No frontier yet (round 0, or a survey that grew nothing): fall back
-            # to a seed survey so the loop can still make progress.
-            seed_survey = True
-            contacts = _seed_contacts(exploration_map)
-            messages.append(
-                "frontier empty — emitting a seed-survey task; observe related "
-                "papers during the survey to grow the frontier for next round."
-            )
-        else:
-            # Build 11 steer 4: rank on the FULL features (done above by
-            # score_frontier + _rank_open_contacts), then sanitize for the
-            # agent-facing envelope — drop belief_entropy and the raw
-            # belief-weighted score so the agent never sees the belief math
-            # (Jaynes' robot). Ordering is already fixed by top_k.
-            contacts = [
-                TaskContact(
-                    id=c.id,
-                    ref=c.ref,
-                    score=None,
-                    score_features=sanitize_score_features(c.score_features),
-                    sources=c.sources,
-                    survey_brief=_contact_survey_brief(c, obligations),
+        if mode == MODE_SELECT_CONSOLIDATE:
+            bridge_worklist = _island_briefs(exploration_map, health, view)
+            if bridge_worklist:
+                task_kind = MODE_SELECT_CONSOLIDATE
+                n_reopened = sum(1 for b in bridge_worklist if b.reopened)
+                messages.append(
+                    f"consolidate turn: {len(bridge_worklist)} island(s) to bridge or "
+                    f"ratify (over already-surveyed nodes; no new pulls)"
+                    + (f", {n_reopened} reopened by new evidence" if n_reopened else "")
+                    + "."
                 )
-                for c in top_k
-            ]
+            else:
+                # Pinned/auto consolidate but nothing left to bridge (all islands
+                # are validly ratified, or the map is connected) — fall back to an
+                # expand turn so the loop still makes progress.
+                messages.append(
+                    "consolidate requested but no un-ratified islands remain — "
+                    "running an expand turn instead."
+                )
+
+        if task_kind == MODE_SELECT_EXPAND:
+            ranked = _rank_open_contacts(exploration_map)
+            top_k = ranked[: exploration_map.policy.budget_k]
+            if not top_k:
+                # No frontier yet (round 0, or a survey that grew nothing): fall
+                # back to a seed survey so the loop can still make progress.
+                seed_survey = True
+                contacts = _seed_contacts(exploration_map)
+                messages.append(
+                    "frontier empty — emitting a seed-survey task; observe related "
+                    "papers during the survey to grow the frontier for next round."
+                )
+            else:
+                # Build 11 steer 4: rank on the FULL features (done above by
+                # score_frontier + _rank_open_contacts), then sanitize for the
+                # agent-facing envelope — drop belief_entropy and the raw
+                # belief-weighted score so the agent never sees the belief math
+                # (Jaynes' robot). Ordering is already fixed by top_k.
+                contacts = [
+                    TaskContact(
+                        id=c.id,
+                        ref=c.ref,
+                        score=None,
+                        score_features=sanitize_score_features(c.score_features),
+                        sources=c.sources,
+                        survey_brief=_contact_survey_brief(c, obligations),
+                    )
+                    for c in top_k
+                ]
 
     edir = exploration_dir(pkg)
     res_path = result_path(edir, round_index)
+    if task_kind == MODE_SELECT_CONSOLIDATE:
+        instructions = build_consolidate_instructions()
+    else:
+        instructions = build_survey_instructions(seed_survey=seed_survey)
     task = SurveyTask(
         pkg=str(pkg),
         round=round_index,
         doctrine=exploration_map.policy.doctrine,
         budget_k=exploration_map.policy.budget_k,
+        kind=task_kind,
         contacts=contacts,
+        bridge_worklist=bridge_worklist,
         seed_survey=seed_survey,
-        instructions=build_survey_instructions(seed_survey=seed_survey),
+        instructions=instructions,
         result_path=str(res_path),
     )
     written = task.write(task_path(edir, round_index))
@@ -622,8 +786,28 @@ def _emit_survey_task(pkg: str | Path, exploration_map: ExplorationMap) -> TurnO
         result_path=str(res_path),
         contacts=[c.id for c in contacts],
         seed_survey=seed_survey,
+        task_kind=task_kind,
+        islands=len(bridge_worklist),
+        health=health_summary,
         messages=messages,
     )
+
+
+def _prior_round_health(pkg: str | Path, current_round: int) -> dict[str, Any]:
+    """The health summary recorded by the most recent prior round, or ``{}``.
+
+    Reads ``rounds.jsonl`` and returns the latest record's
+    ``frontier_summary.health`` (written by a previous checkpoint), so the
+    connectivity delta is measured against the last completed round.
+    """
+    from gaia.engine.exploration.state import read_rounds
+
+    rounds = [r for r in read_rounds(pkg) if int(r.get("round", -1)) < current_round]
+    if not rounds:
+        return {}
+    last = rounds[-1]
+    health = last.get("frontier_summary", {}).get("health", {})
+    return dict(health) if isinstance(health, dict) else {}
 
 
 def _record_surveyed(
@@ -685,6 +869,26 @@ def _checkpoint(
     surveyed_qids = list(survey_result.surveyed_qids)
     _record_surveyed(exploration_map, surveyed_qids, survey_round=current_round)
 
+    # EXPANSION.md §3.E — record any islands the agent ratified-as-separate this
+    # turn (the one consolidate signal that has no graph footprint). Stamp the
+    # round + a cheap evidence fingerprint (the ratifying round) so the
+    # provisional-reopen test can tell whether later evidence has changed the
+    # premise. Recorded per component; a re-ratification replaces the prior row.
+    ratified_now: list[list[str]] = []
+    for r in survey_result.ratified:
+        members = [str(q) for q in r.member_qids if q]
+        if not members:
+            continue
+        exploration_map.add_ratified_separation(
+            members,
+            rationale=r.rationale,
+            round_index=current_round,
+            evidence_fingerprint={"ratified_round": current_round},
+        )
+        ratified_now.append(sorted(members))
+    if ratified_now:
+        messages.append(f"recorded {len(ratified_now)} ratified separation(s) this turn.")
+
     discoveries = compute_discoveries(graph, beliefs, prev_beliefs, ir_dict=ir_dict)
 
     # Author labels for the discovered nodes, so the report names a labeled node
@@ -702,24 +906,56 @@ def _checkpoint(
     scored = [
         c.score for c in exploration_map.frontier if c.status == "open" and c.score is not None
     ]
-    frontier_summary = {"open_after": open_after, "top_score": max(scored) if scored else None}
+    frontier_summary: dict[str, Any] = {
+        "open_after": open_after,
+        "top_score": max(scored) if scored else None,
+    }
 
     # Credit the round with the papers materialized during this turn's
     # survey (pulled via `pkg add --lkm-paper`, outside the round step) so the
     # durable record no longer shows `lkm_pulls: 0`. Count the joint view's
     # materialized paper QIDs and credit the net-new ones since the prior round.
+    # The same joint view also drives the post-checkpoint MapHealth.
     from gaia.engine.exploration.observe import materialized_paper_ids_from_roots
     from gaia.engine.exploration.state import lkm_pulls_this_round
 
+    lkm_pulls = 0
+    health_summary: dict[str, Any] = {}
+    connectivity_delta: dict[str, Any] = {}
+    reopened_now: list[list[str]] = []
     try:
         view = _joint_view(pkg, graph)
         materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
             view.package_roots
         )
         lkm_pulls = lkm_pulls_this_round(pkg, len(materialized_papers))
+
+        # EXPANSION.md §3.D/§3.E — recompute MapHealth on the post-checkpoint
+        # joint graph and report the connectivity delta vs. the prior round. The
+        # reopen test (a ratified island whose premise is now stale because new
+        # bridging evidence exists) falls straight out of MapHealth.
+        health = _compute_health(exploration_map, view)
+        health_summary = _health_summary(exploration_map, health)
+        reopened_now = [list(c.members) for c in health.reopened]
+        if reopened_now:
+            messages.append(
+                f"REOPENED {len(reopened_now)} ratified separation(s): new evidence "
+                "may now connect a previously-ratified island — reconsider next "
+                "consolidate turn."
+            )
+        frontier_summary["health"] = health_summary
+        prior_health = _prior_round_health(pkg, current_round)
+        if prior_health:
+            connectivity_delta = {
+                "components": health_summary.get("components", 0)
+                - prior_health.get("components", 0),
+                "unratified_orphans": health_summary.get("unratified_orphans", 0)
+                - prior_health.get("unratified_orphans", 0),
+                "ratified": health_summary.get("ratified", 0) - prior_health.get("ratified", 0),
+            }
     except Exception:
         # A degraded joint view (e.g. uncompiled deps) must not break the
-        # checkpoint; default to no credit rather than crashing the round.
+        # checkpoint; default to no credit / no health rather than crashing.
         lkm_pulls = 0
 
     append_round(
@@ -746,6 +982,10 @@ def _checkpoint(
         surveyed=surveyed_qids,
         discoveries=discoveries,
         discovery_labels=discovery_labels,
+        health=health_summary,
+        connectivity_delta=connectivity_delta,
+        ratified=ratified_now,
+        reopened=reopened_now,
         messages=messages,
     )
 

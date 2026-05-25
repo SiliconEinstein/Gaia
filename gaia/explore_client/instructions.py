@@ -290,6 +290,89 @@ the per-turn hand-off.
 """
 
 
+# EXPANSION.md §3.D/§3.E — the consolidate-task instructions. A consolidate turn
+# emits a bridge worklist over ALREADY-surveyed nodes (no new pulls); the agent
+# either authors a connecting edge OR ratifies the island as legitimately
+# separate. The "ratify as separate" option is EQUAL-STATUS, never a failure path,
+# and consolidation must NEVER pressure fabricating an unsound edge.
+_CONSOLIDATE = """\
+# Consolidation task — bridge or ratify the disconnected islands
+
+Your map has fragmented: some surveyed regions are **disconnected islands**, not
+wired to the seed core. This is a CONSOLIDATE turn (no new paper pulls): you work
+entirely over the nodes you have ALREADY surveyed. The task's `bridge_worklist`
+lists each island with a short brief of its member nodes.
+
+> Integrity contract — LLM proposes, engine adjudicates (unchanged).
+> You propose a connecting relation OR a ratification; the engine adjudicates the
+> belief consequence of a bridge. You never decide what is true, and you NEVER
+> fabricate a connection that is not scientifically sound.
+
+## For EACH island in `bridge_worklist`, do ONE of:
+
+(a) **Bridge it** — author the connecting relation that wires the island to your
+    core reasoning, REFERENCING the already-materialized QIDs (do not restate
+    them). Choose the relation the science actually warrants:
+    - support: `gaia author derive --conclusion <core_qid> --given <island_qid>
+      --rationale "<why it supports>"` (or the reverse direction);
+    - dependency: `gaia author depends-on --conclusion <core_qid>
+      --given <island_qid>` (a surveyed island node is a materialized target);
+    - tension: pre-mark `candidate_relation(claims=[<core_qid>, <island_qid>],
+      pattern="contradict")`, then promote with
+      `materialize(scaffold, by=[contradict(<core_qid>, <island_qid>)])` only when
+      it is an adjudicable scientific conflict (label `<a>_vs_<b>`, warrant in
+      `rationale=`).
+    The engine reports the belief consequence at the checkpoint.
+
+(b) **Ratify it as separate** — an EQUAL-STATUS option, not a failure. If no
+    scientifically sound connection exists (the island is a genuinely different
+    domain), record it as a legitimately-separate region. Add it to your result
+    manifest's `ratified` list with a ONE-LINE scientific rationale:
+        {"member_qids": ["<island qid>", ...],
+         "rationale": "<why these are legitimately disjoint from the core>"}
+    The engine then EXCLUDES this island from the fragmentation count — a map of
+    several ratified domains reads HEALTHY, not degraded. Ratification is
+    PROVISIONAL: if a later turn surfaces evidence that could connect the island,
+    the engine REOPENS it and it returns here with a "reconsider" note — at which
+    point you either author the now-possible bridge or re-ratify with an updated
+    rationale.
+
+A worklist entry flagged `reopened` (with a `bridge_hint` QID) was previously
+ratified; new evidence `<bridge_hint>` may now connect it — re-decide it against
+the new evidence (bridge it, or re-ratify saying why the new node still doesn't
+soundly connect).
+
+**Never invent an unsound edge to make the map look connected.** A legitimate
+ratification is a first-class, honest outcome. Bridge only what the science
+warrants; ratify the rest.
+
+## When you are done
+
+1. Write the result manifest to the `result_path` named in this task:
+       {"surveyed_qids": [<any nodes you authored/referenced>],
+        "ratified": [{"member_qids": [...], "rationale": "..."}, ...]}
+   `surveyed_qids` records nodes you authored/wired; `ratified` records the
+   islands you judged legitimately separate. Either list may be empty.
+2. Re-invoke the orchestrator to checkpoint:
+       gaia-lkm-explore turn <pkg>
+   It recompiles + infers, recomputes connectivity, reports the delta (components
+   closed, orphans wired, ratifications recorded, any island REOPENED by new
+   evidence), and returns to IDLE. You do NOT run compile/infer/round yourself.
+"""
+
+
+def build_consolidate_instructions() -> str:
+    """Return the self-contained consolidate-task procedure (EXPANSION.md §3.D/§3.E).
+
+    A consolidate turn's bridge worklist + the equal-status "ratify as separate"
+    option (with a one-line scientific rationale), keeping every scientific-
+    integrity rule. The LLM proposes a bridge OR a ratification; the engine
+    adjudicates the bridge's belief consequence — and new evidence can always
+    reopen a ratification, so a verdict is never silently frozen.
+    """
+    return _CONSOLIDATE
+
+
 def build_survey_instructions(*, seed_survey: bool) -> str:
     """Return the full self-contained survey procedure for a task envelope.
 
@@ -332,4 +415,4 @@ def build_survey_instructions(*, seed_survey: bool) -> str:
     return "\n".join([_CONTRACT, round_note, _SURVEY_PROCEDURE, _HANDOFF])
 
 
-__all__ = ["build_survey_instructions"]
+__all__ = ["build_consolidate_instructions", "build_survey_instructions"]
