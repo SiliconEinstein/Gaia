@@ -14,11 +14,14 @@ kind              meaning                                                    sou
 ``contradiction``  an authored ``contradict`` fired / a belief conflict       v1
 ``keystone``       a high in-degree node many others depend on                v1
 ``settled_core``   a high-belief, low-entropy stable region                   v1
+``bridge``         an edge that merged two previously-disjoint components      Phase 3
+``fault_line``     a surveyed region disconnected from the seed core           Phase 3
 ================  =========================================================  ======
 
-``bridge`` / ``fault_line`` are deferred (DESIGN §8 topology / §2a half-b). The
-``discoveries[].kind`` field is an open string, so deferred kinds slot in later
-without a schema migration.
+``bridge`` / ``fault_line`` land now that MapHealth (EXPANSION.md §3) supplies the
+component partition; they are computed from the MapHealth-derived partitions the
+caller passes, not from the graph alone. The ``discoveries[].kind`` field is an
+open string, so these slotted in without a schema migration.
 
 Contradiction wiring (documented decision)
 ------------------------------------------
@@ -59,6 +62,12 @@ if TYPE_CHECKING:
 KIND_CONTRADICTION = "contradiction"
 KIND_KEYSTONE = "keystone"
 KIND_SETTLED_CORE = "settled_core"
+# EXPANSION.md §3 / Phase 3 — connectivity discovery kinds, now that MapHealth
+# exists. ``bridge`` = an edge that connected two previously-disjoint components
+# this round (fragmentation healed); ``fault_line`` = a surveyed region that
+# became (or remains) a disconnected orphan island (fragmentation surfaced).
+KIND_BRIDGE = "bridge"
+KIND_FAULT_LINE = "fault_line"
 
 # A belief that moved down by more than this between rounds is a contradiction
 # signal (mirrors inquiry diagnostics' conservative default).
@@ -282,6 +291,109 @@ def detect_settled_core(
     return out
 
 
+def _component_of(components: list[frozenset[str]]) -> dict[str, int]:
+    """Map each node to its component index in a partition."""
+    out: dict[str, int] = {}
+    for i, comp in enumerate(components):
+        for q in comp:
+            out[q] = i
+    return out
+
+
+def detect_bridges(
+    prev_components: list[frozenset[str]],
+    curr_components: list[frozenset[str]],
+    *,
+    labels: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Find ``bridge`` discoveries: components merged since the prior round.
+
+    A bridge fired when two nodes that sat in **different** components last round
+    are in the **same** component now — the connecting edge authored/pulled this
+    round healed that fragmentation (EXPANSION.md §3). We report one ``bridge``
+    discovery per pair of previously-separate prior components now unified, naming
+    a representative node from each side. No prior partition (round 0) ⇒ no
+    bridges. Pure.
+
+    Args:
+        prev_components: the surveyed-node partition at the prior round.
+        curr_components: the surveyed-node partition now.
+        labels: optional ``qid -> author label`` for the human-facing note.
+
+    Returns:
+        ``{kind, ids, note}`` records, one per newly-merged prior-component pair.
+    """
+    if not prev_components:
+        return []
+    prev_of = _component_of(prev_components)
+    out: list[dict[str, Any]] = []
+    seen_pairs: set[tuple[int, int]] = set()
+    for comp in curr_components:
+        # Which prior components do this current component's nodes come from?
+        prior_ids = sorted({prev_of[q] for q in comp if q in prev_of})
+        if len(prior_ids) < 2:
+            continue
+        # Each pair of distinct prior components now unified = one bridge.
+        for i in range(len(prior_ids)):
+            for j in range(i + 1, len(prior_ids)):
+                pair = (prior_ids[i], prior_ids[j])
+                if pair in seen_pairs:
+                    continue
+                seen_pairs.add(pair)
+                left = sorted(prev_components[prior_ids[i]])
+                right = sorted(prev_components[prior_ids[j]])
+                a = _display(left[0], labels) if left else "?"
+                b = _display(right[0], labels) if right else "?"
+                out.append(
+                    {
+                        "kind": KIND_BRIDGE,
+                        "ids": [left[0], right[0]] if left and right else [],
+                        "note": (
+                            f"bridged previously-disjoint regions ({a} ↔ {b}); "
+                            "a connecting edge unified them this round"
+                        ),
+                    }
+                )
+    return out
+
+
+def detect_fault_lines(
+    orphan_components: list[frozenset[str]],
+    *,
+    labels: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Find ``fault_line`` discoveries: surveyed regions disconnected from the core.
+
+    A fault line is a surveyed orphan island — a cluster of materialized nodes not
+    wired to the seed core (EXPANSION.md §1/§3). We report one ``fault_line`` per
+    orphan component, naming a representative member. Pure; the caller supplies the
+    orphan partition (from ``MapHealth.orphans``) so this stays I/O-free.
+
+    Args:
+        orphan_components: the orphan (non-core) surveyed components.
+        labels: optional ``qid -> author label`` for the human-facing note.
+
+    Returns:
+        ``{kind, ids, note}`` records, one per orphan island.
+    """
+    out: list[dict[str, Any]] = []
+    for comp in sorted(orphan_components, key=lambda c: (-len(c), sorted(c))):
+        members = sorted(comp)
+        if not members:
+            continue
+        out.append(
+            {
+                "kind": KIND_FAULT_LINE,
+                "ids": members,
+                "note": (
+                    f"disconnected region of {len(members)} surveyed node(s) "
+                    f"(e.g. {_display(members[0], labels)}) not wired to the seed core"
+                ),
+            }
+        )
+    return out
+
+
 def compute_discoveries(
     ir: LocalCanonicalGraph,
     beliefs: dict[str, float],
@@ -291,6 +403,9 @@ def compute_discoveries(
     drop_threshold: float = BELIEF_DROP_THRESHOLD,
     settled_epsilon: float = SETTLED_ENTROPY_EPSILON,
     keystone_min_indegree: int = KEYSTONE_MIN_INDEGREE,
+    prev_components: list[frozenset[str]] | None = None,
+    curr_components: list[frozenset[str]] | None = None,
+    orphan_components: list[frozenset[str]] | None = None,
 ) -> list[dict[str, Any]]:
     """Compute the full v1 discovery set for one round (SCHEMA.md §6 / §7c).
 
@@ -306,6 +421,14 @@ def compute_discoveries(
         drop_threshold: Belief-drop magnitude for a contradiction.
         settled_epsilon: Entropy ceiling for a settled-core node.
         keystone_min_indegree: In-degree threshold for a keystone.
+        prev_components: optional prior-round surveyed-node partition (from the
+            prior round's MapHealth) for ``bridge`` detection. Paired with
+            ``curr_components``.
+        curr_components: optional current surveyed-node partition for ``bridge``
+            detection. When both partitions are given, components merged since the
+            prior round surface as ``bridge`` discoveries.
+        orphan_components: optional current orphan (non-core) partition (from
+            ``MapHealth.orphans``) for ``fault_line`` detection.
 
     Returns:
         The concatenated list of discovery records for the round.
@@ -327,4 +450,11 @@ def compute_discoveries(
     )
     discoveries.extend(detect_keystones(ir, min_indegree=keystone_min_indegree, labels=labels))
     discoveries.extend(detect_settled_core(beliefs, epsilon=settled_epsilon, labels=labels))
+    # Connectivity discoveries (EXPANSION.md §3 / Phase 3) — only when the caller
+    # supplies the MapHealth-derived component partitions (the orchestrator does;
+    # the standalone round verb may not, in which case these are simply absent).
+    if prev_components is not None and curr_components is not None:
+        discoveries.extend(detect_bridges(prev_components, curr_components, labels=labels))
+    if orphan_components is not None:
+        discoveries.extend(detect_fault_lines(orphan_components, labels=labels))
     return discoveries

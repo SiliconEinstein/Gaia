@@ -67,6 +67,7 @@ from gaia.engine.exploration.render import (
     exploration_header_fields,
     frontier_graph_elements,
     inject_exploration_header,
+    ratified_node_classes,
     wrap_self_contained_html,
 )
 from gaia.engine.exploration.scorer import (
@@ -161,6 +162,39 @@ def _map_health(exploration_map: ExplorationMap, view: JointView) -> MapHealth:
         view.edges,
         ratified=exploration_map.ratified_as_health_objects(),
     )
+
+
+def _echo_status_connectivity(pkg: str, exploration_map: ExplorationMap) -> None:
+    """Print the MapHealth connectivity readout for ``status`` (EXPANSION.md §3/§4).
+
+    Best-effort: a degraded joint view (uncompiled deps, no IR) must not break
+    status, so the whole compute is guarded. No output when no graph is resolved.
+    """
+    try:
+        graph = resolve_graph(pkg)
+        if graph is None:
+            return
+        view = _require_joint_view(pkg, graph)
+        health = _map_health(exploration_map, view)
+    except Exception:
+        # status must never crash on a degraded view — skip the readout.
+        return
+    policy = exploration_map.policy
+    unhealthy = health.is_unhealthy(
+        min_orphan_components=policy.fragment_min_orphans,
+        orphan_fraction=policy.fragment_orphan_fraction,
+    )
+    verdict = "FRAGMENTED (consolidate)" if unhealthy else "maintainable"
+    typer.echo(
+        f"  connectivity:   {health.component_count} component(s), "
+        f"{len(health.orphans)} orphan(s) "
+        f"({health.unratified_orphan_count} un-ratified), "
+        f"{health.ratified_count} ratified, {len(health.reopened)} reopened "
+        f"— {verdict}"
+    )
+    for comp in health.reopened:
+        members = ", ".join(comp.members[:3])
+        typer.echo(f"    - REOPENED island: {members} (new bridging evidence)")
 
 
 def _load_beliefs(pkg: str) -> dict[str, float]:
@@ -904,8 +938,13 @@ def status_command(
     typer.echo(f"Exploration status for {pkg}")
     typer.echo(f"  round:          {exploration_map.round}")
     typer.echo(f"  doctrine:       {exploration_map.policy.doctrine}")
+    typer.echo(f"  mode_select:    {exploration_map.policy.mode_select}")
     typer.echo(f"  seeds:          {len(exploration_map.seeds)}")
     typer.echo(f"  surveyed:       {len(exploration_map.surveyed)}")
+
+    # (EXPANSION.md §3/§4) Connectivity readout — components / orphans / ratified /
+    # reopened, and whether the map is unhealthy past the fragmentation threshold.
+    _echo_status_connectivity(pkg, exploration_map)
     # Split the open frontier into paper vs claim contacts with the
     # same vocabulary `render` uses, so the two surfaces never appear to disagree.
     n_papers, n_claims = _open_frontier_split(ranked)
@@ -1068,9 +1107,31 @@ def render_command(
     graph_payload.setdefault("nodes", []).extend(frontier_nodes)
     graph_payload.setdefault("edges", []).extend(frontier_edges)
 
+    # (EXPANSION.md §3.E / Phase 3) Mark surveyed nodes in a ratified (or reopened)
+    # island so the figure can draw a ratified boundary DISTINCTLY from a fog gap —
+    # a deliberate border, not "unexplored" — and FLAG a reopened one. Best-effort
+    # MapHealth (a degraded joint view must not break render); the classifier falls
+    # back to "ratified" for every recorded member when no live health is available.
+    health = None
+    try:
+        graph_for_health = resolve_graph(pkg)
+        if graph_for_health is not None:
+            health = _map_health(exploration_map, _require_joint_view(pkg, graph_for_health))
+    except Exception:
+        # render must not crash on a degraded view — skip the ratified styling.
+        health = None
+    node_classes = ratified_node_classes(exploration_map, health=health)
+    if node_classes:
+        for node in graph_payload.get("nodes", []):
+            cls = node_classes.get(str(node.get("id")))
+            if cls is not None:
+                meta = node.setdefault("metadata", {}) or {}
+                meta["ratified_separation"] = cls  # "ratified" | "reopened"
+                node["metadata"] = meta
+
     dot_source = to_dot(json.dumps(graph_payload), theme="stellaris")
     svg = _render_stellaris_svg(dot_source, include_frontier=bool(frontier_nodes))
-    svg = inject_exploration_header(svg, exploration_header_fields(exploration_map))
+    svg = inject_exploration_header(svg, exploration_header_fields(exploration_map, health=health))
     html_doc = wrap_self_contained_html(svg)
 
     out_path = Path(out).resolve() if out is not None else gaia_dir / "exploration" / "map.html"

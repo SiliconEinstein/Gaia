@@ -42,6 +42,7 @@ from gaia.engine.exploration.render import (
     exploration_header_fields,
     frontier_graph_elements,
     inject_exploration_header,
+    ratified_node_classes,
     wrap_self_contained_html,
 )
 from gaia.engine.exploration.scorer import (
@@ -115,6 +116,7 @@ __all__ = [
     "mint_contact_id",
     "observe_lkm_results",
     "promote_materialized_lkm_contacts",
+    "ratified_node_classes",
     "read_rounds",
     "reconcile_frontier",
     "result_path",

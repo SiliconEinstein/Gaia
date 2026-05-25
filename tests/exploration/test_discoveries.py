@@ -224,3 +224,72 @@ def test_compute_discoveries_threads_labels_into_notes():
     keystone = next(d for d in discoveries if d["kind"] == KIND_KEYSTONE)
     assert keystone["ids"] == [qid("_anon_h")]  # durable key unchanged
     assert "grand_hub" in keystone["note"]
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3 (EXPANSION.md §3): bridge / fault_line discovery kinds                #
+# --------------------------------------------------------------------------- #
+
+
+def test_detect_bridges_fires_on_merged_components():
+    from gaia.engine.exploration.discoveries import KIND_BRIDGE, detect_bridges
+
+    # Prior round: two disjoint components {a} and {b}. Now: merged into {a,b}.
+    prev = [frozenset({qid("a")}), frozenset({qid("b")})]
+    curr = [frozenset({qid("a"), qid("b")})]
+    bridges = detect_bridges(prev, curr)
+    assert len(bridges) == 1
+    assert bridges[0]["kind"] == KIND_BRIDGE
+    assert set(bridges[0]["ids"]) == {qid("a"), qid("b")}
+
+
+def test_detect_bridges_no_prior_partition_is_empty():
+    from gaia.engine.exploration.discoveries import detect_bridges
+
+    curr = [frozenset({qid("a"), qid("b")})]
+    assert detect_bridges([], curr) == []
+
+
+def test_detect_bridges_silent_when_still_disjoint():
+    from gaia.engine.exploration.discoveries import detect_bridges
+
+    prev = [frozenset({qid("a")}), frozenset({qid("b")})]
+    curr = [frozenset({qid("a")}), frozenset({qid("b")})]  # unchanged
+    assert detect_bridges(prev, curr) == []
+
+
+def test_detect_fault_lines_reports_orphans():
+    from gaia.engine.exploration.discoveries import KIND_FAULT_LINE, detect_fault_lines
+
+    orphans = [frozenset({qid("b"), qid("c")})]
+    faults = detect_fault_lines(orphans)
+    assert len(faults) == 1
+    assert faults[0]["kind"] == KIND_FAULT_LINE
+    assert set(faults[0]["ids"]) == {qid("b"), qid("c")}
+
+
+def test_compute_discoveries_includes_bridge_and_fault_line():
+    from gaia.engine.exploration.discoveries import KIND_BRIDGE, KIND_FAULT_LINE
+
+    graph = make_graph(knowledges=[claim("a"), claim("b")])
+    discoveries = compute_discoveries(
+        graph,
+        beliefs={},
+        prev_beliefs={},
+        prev_components=[frozenset({qid("a")}), frozenset({qid("b")})],
+        curr_components=[frozenset({qid("a"), qid("b")})],
+        orphan_components=[frozenset({qid("c")})],
+    )
+    kinds = {d["kind"] for d in discoveries}
+    assert KIND_BRIDGE in kinds
+    assert KIND_FAULT_LINE in kinds
+
+
+def test_compute_discoveries_omits_connectivity_without_partitions():
+    from gaia.engine.exploration.discoveries import KIND_BRIDGE, KIND_FAULT_LINE
+
+    graph = make_graph(knowledges=[claim("a")])
+    discoveries = compute_discoveries(graph, beliefs={}, prev_beliefs={})
+    kinds = {d["kind"] for d in discoveries}
+    assert KIND_BRIDGE not in kinds
+    assert KIND_FAULT_LINE not in kinds

@@ -32,6 +32,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from gaia.engine.exploration.health import MapHealth
     from gaia.engine.exploration.state import ExplorationMap
 
 _PANEL_FILL = "#0c1124"
@@ -129,8 +130,19 @@ def frontier_graph_elements(
     return nodes, edges
 
 
-def exploration_header_fields(exploration_map: ExplorationMap) -> list[tuple[str, str]]:
-    """The exploration state header pairs (seed / doctrine / round / surveyed / frontier)."""
+def exploration_header_fields(
+    exploration_map: ExplorationMap,
+    *,
+    health: MapHealth | None = None,
+) -> list[tuple[str, str]]:
+    """The exploration state header pairs (seed / doctrine / round / surveyed / …).
+
+    When a :class:`~gaia.engine.exploration.health.MapHealth` is supplied
+    (EXPANSION.md §3 / Phase 3), the header also reports connectivity:
+    ``components``, ``orphans`` (un-ratified), ``ratified``, and ``reopened`` — so
+    a reader sees at a glance whether the map is a single connected story, a
+    legitimately multi-domain (ratified) map, or fragmented.
+    """
     seed_texts = [str(s.get("text") or s.get("qid") or "?") for s in exploration_map.seeds]
     seed_display = "; ".join(seed_texts) if seed_texts else "(none)"
     if len(seed_display) > 80:
@@ -141,13 +153,56 @@ def exploration_header_fields(exploration_map: ExplorationMap) -> list[tuple[str
         "frontier_open",
         sum(1 for c in exploration_map.frontier if c.status == "open"),
     )
-    return [
+    fields = [
         ("seed", seed_display),
         ("doctrine", exploration_map.policy.doctrine),
         ("round", str(exploration_map.round)),
         ("surveyed", str(surveyed_count)),
         ("frontier open", str(frontier_open)),
     ]
+    if health is not None:
+        fields.append(("components", str(health.component_count)))
+        fields.append(("orphans", str(health.unratified_orphan_count)))
+        fields.append(("ratified", str(health.ratified_count)))
+        if health.reopened:
+            fields.append(("reopened", str(len(health.reopened))))
+    elif exploration_map.ratified_separations:
+        # No live health, but the map records ratifications — surface the count.
+        fields.append(("ratified", str(len(exploration_map.ratified_separations))))
+    return fields
+
+
+def ratified_node_classes(
+    exploration_map: ExplorationMap,
+    *,
+    health: MapHealth | None = None,
+) -> dict[str, str]:
+    """Classify surveyed nodes by ratified-separation state for distinct styling.
+
+    Returns ``qid -> "ratified" | "reopened"`` for nodes in a ratified (or
+    reopened) island, so the caller can draw a ratified boundary **distinctly from
+    a fog gap** (EXPANSION.md §3.E) — a deliberate border, not "unexplored" — and
+    **flag a REOPENED one**. A node in a still-valid ratified island maps to
+    ``"ratified"``; one in a reopened island maps to ``"reopened"``.
+
+    When a live :class:`~gaia.engine.exploration.health.MapHealth` is given the
+    reopened state is authoritative (its provisional-reopen test ran against the
+    current graph). Without it, every recorded ratified member is ``"ratified"``
+    (no reopen info available) — still a deliberate border, just not flagged.
+    """
+    classes: dict[str, str] = {}
+    reopened_members: set[str] = set()
+    if health is not None:
+        for comp in health.reopened:
+            reopened_members.update(comp.members)
+    for row in exploration_map.ratified_separations:
+        for q in row.get("member_qids", []):
+            qid = str(q)
+            classes[qid] = "reopened" if qid in reopened_members else "ratified"
+    # A reopened member not in any recorded row (defensive) is still flagged.
+    for qid in reopened_members:
+        classes.setdefault(qid, "reopened")
+    return classes
 
 
 def _svg_viewbox_width(svg_text: str) -> float:

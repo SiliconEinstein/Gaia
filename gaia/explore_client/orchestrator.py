@@ -810,6 +810,24 @@ def _prior_round_health(pkg: str | Path, current_round: int) -> dict[str, Any]:
     return dict(health) if isinstance(health, dict) else {}
 
 
+def _prior_round_components(pkg: str | Path, current_round: int) -> list[frozenset[str]]:
+    """The component partition the most recent prior round recorded (or ``[]``).
+
+    Reads ``rounds.jsonl``'s latest ``frontier_summary.component_members`` (a list
+    of member lists, written by a previous checkpoint) so ``bridge`` detection can
+    diff this round's partition against the prior one.
+    """
+    from gaia.engine.exploration.state import read_rounds
+
+    rounds = [r for r in read_rounds(pkg) if int(r.get("round", -1)) < current_round]
+    if not rounds:
+        return []
+    members = rounds[-1].get("frontier_summary", {}).get("component_members", [])
+    if not isinstance(members, list):
+        return []
+    return [frozenset(str(q) for q in comp) for comp in members if isinstance(comp, list)]
+
+
 def _record_surveyed(
     exploration_map: ExplorationMap, surveyed_qids: list[str], *, survey_round: int
 ) -> None:
@@ -889,7 +907,67 @@ def _checkpoint(
     if ratified_now:
         messages.append(f"recorded {len(ratified_now)} ratified separation(s) this turn.")
 
-    discoveries = compute_discoveries(graph, beliefs, prev_beliefs, ir_dict=ir_dict)
+    # Credit the round with the papers materialized during this turn's
+    # survey (pulled via `pkg add --lkm-paper`, outside the round step) so the
+    # durable record no longer shows `lkm_pulls: 0`. The same joint view also
+    # drives the post-checkpoint MapHealth (computed BEFORE discoveries so the
+    # connectivity discovery kinds can use its component partition).
+    from gaia.engine.exploration.observe import materialized_paper_ids_from_roots
+    from gaia.engine.exploration.state import lkm_pulls_this_round
+
+    lkm_pulls = 0
+    health_summary: dict[str, Any] = {}
+    connectivity_delta: dict[str, Any] = {}
+    reopened_now: list[list[str]] = []
+    curr_components: list[frozenset[str]] | None = None
+    orphan_components: list[frozenset[str]] | None = None
+    try:
+        view = _joint_view(pkg, graph)
+        materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+            view.package_roots
+        )
+        lkm_pulls = lkm_pulls_this_round(pkg, len(materialized_papers))
+
+        # EXPANSION.md §3.D/§3.E — recompute MapHealth on the post-checkpoint
+        # joint graph. The reopen test (a ratified island whose premise is now
+        # stale because new bridging evidence exists) falls straight out of it.
+        health = _compute_health(exploration_map, view)
+        health_summary = _health_summary(exploration_map, health)
+        curr_components = [frozenset(c.members) for c in health.components]
+        orphan_components = [frozenset(c.members) for c in health.orphans]
+        reopened_now = [list(c.members) for c in health.reopened]
+        if reopened_now:
+            messages.append(
+                f"REOPENED {len(reopened_now)} ratified separation(s): new evidence "
+                "may now connect a previously-ratified island — reconsider next "
+                "consolidate turn."
+            )
+        prior_health = _prior_round_health(pkg, current_round)
+        if prior_health:
+            connectivity_delta = {
+                "components": health_summary.get("components", 0)
+                - prior_health.get("components", 0),
+                "unratified_orphans": health_summary.get("unratified_orphans", 0)
+                - prior_health.get("unratified_orphans", 0),
+                "ratified": health_summary.get("ratified", 0) - prior_health.get("ratified", 0),
+            }
+    except Exception:
+        # A degraded joint view (e.g. uncompiled deps) must not break the
+        # checkpoint; default to no credit / no health rather than crashing.
+        lkm_pulls = 0
+
+    # EXPANSION.md §3 / Phase 3 — bridge/fault_line discoveries use the current vs.
+    # prior MapHealth component partition (the prior round stored its members).
+    prev_components = _prior_round_components(pkg, current_round)
+    discoveries = compute_discoveries(
+        graph,
+        beliefs,
+        prev_beliefs,
+        ir_dict=ir_dict,
+        prev_components=prev_components if curr_components is not None else None,
+        curr_components=curr_components,
+        orphan_components=orphan_components,
+    )
 
     # Author labels for the discovered nodes, so the report names a labeled node
     # (e.g. a `contradict` the user named `spinfluc_vs_phonon`) by its label rather
@@ -910,53 +988,12 @@ def _checkpoint(
         "open_after": open_after,
         "top_score": max(scored) if scored else None,
     }
-
-    # Credit the round with the papers materialized during this turn's
-    # survey (pulled via `pkg add --lkm-paper`, outside the round step) so the
-    # durable record no longer shows `lkm_pulls: 0`. Count the joint view's
-    # materialized paper QIDs and credit the net-new ones since the prior round.
-    # The same joint view also drives the post-checkpoint MapHealth.
-    from gaia.engine.exploration.observe import materialized_paper_ids_from_roots
-    from gaia.engine.exploration.state import lkm_pulls_this_round
-
-    lkm_pulls = 0
-    health_summary: dict[str, Any] = {}
-    connectivity_delta: dict[str, Any] = {}
-    reopened_now: list[list[str]] = []
-    try:
-        view = _joint_view(pkg, graph)
-        materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
-            view.package_roots
-        )
-        lkm_pulls = lkm_pulls_this_round(pkg, len(materialized_papers))
-
-        # EXPANSION.md §3.D/§3.E — recompute MapHealth on the post-checkpoint
-        # joint graph and report the connectivity delta vs. the prior round. The
-        # reopen test (a ratified island whose premise is now stale because new
-        # bridging evidence exists) falls straight out of MapHealth.
-        health = _compute_health(exploration_map, view)
-        health_summary = _health_summary(exploration_map, health)
-        reopened_now = [list(c.members) for c in health.reopened]
-        if reopened_now:
-            messages.append(
-                f"REOPENED {len(reopened_now)} ratified separation(s): new evidence "
-                "may now connect a previously-ratified island — reconsider next "
-                "consolidate turn."
-            )
+    if health_summary:
         frontier_summary["health"] = health_summary
-        prior_health = _prior_round_health(pkg, current_round)
-        if prior_health:
-            connectivity_delta = {
-                "components": health_summary.get("components", 0)
-                - prior_health.get("components", 0),
-                "unratified_orphans": health_summary.get("unratified_orphans", 0)
-                - prior_health.get("unratified_orphans", 0),
-                "ratified": health_summary.get("ratified", 0) - prior_health.get("ratified", 0),
-            }
-    except Exception:
-        # A degraded joint view (e.g. uncompiled deps) must not break the
-        # checkpoint; default to no credit / no health rather than crashing.
-        lkm_pulls = 0
+    if curr_components is not None:
+        # Persist the component partition so the NEXT round's bridge detection has
+        # a prior partition to diff against (sorted member lists, JSON-able).
+        frontier_summary["component_members"] = [sorted(c) for c in curr_components]
 
     append_round(
         pkg,

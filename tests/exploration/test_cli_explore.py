@@ -618,3 +618,21 @@ def test_explore_observe_without_init_fails(galileo_pkg: Path):
     )
     assert result.exit_code == 1
     assert "no exploration map" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3 (EXPANSION.md §3/§4): status connectivity readout                     #
+# --------------------------------------------------------------------------- #
+
+
+def test_status_surfaces_connectivity_and_mode(galileo_pkg: Path):
+    """`status` shows mode_select and the MapHealth connectivity readout."""
+    runner.invoke(app, ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")])
+    # Build the frontier so there is a joint view + a map to read.
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
+    result = runner.invoke(app, ["status", str(galileo_pkg)])
+    assert result.exit_code == 0, result.output
+    assert "mode_select:" in result.output
+    assert "connectivity:" in result.output
+    # The galileo seed graph is a single connected story → maintainable.
+    assert "maintainable" in result.output or "component(s)" in result.output
