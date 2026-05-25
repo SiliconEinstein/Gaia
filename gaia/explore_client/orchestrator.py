@@ -239,20 +239,34 @@ def _resolve_seeds(exploration_map: ExplorationMap, graph: Any, view: JointView)
     return changed
 
 
-def _compile_and_infer(pkg: str | Path) -> None:
-    """Compile the package then run BP inference, writing artifacts (SDK).
+def _compile_and_infer(pkg: str | Path) -> list[str]:
+    """Compile the package then run JOINT BP inference, writing artifacts (SDK).
 
-    Mirrors what ``gaia build compile`` + ``gaia run infer`` do, but called
-    programmatically through the engine packaging / BP SDK rather than by
+    Mirrors what ``gaia build compile`` + ``gaia run infer --depth -1`` do, but
+    called programmatically through the engine packaging / BP SDK rather than by
     shelling out to the ``gaia`` CLI (CLIENT.md "Resolved: compile/infer via the
     SDK"). Writes ``.gaia/ir.json`` (+ manifests) and ``.gaia/beliefs.json`` — the
     artifacts the subsequent round step diffs.
+
+    **Explorer promotion (this build).** Before inference, every pulled-paper
+    ``-gaia`` dependency is recompiled from source with its inert ``depends_on``
+    scaffolds promoted to live ``derive`` reasoning (see
+    :mod:`gaia.engine.exploration.promote`), and the promoted dependency factor
+    graphs are merged into the root's (``merge_factor_graphs``, exactly like
+    ``infer --depth -1``). This is what makes a pulled paper's internal reasoning
+    enter BP and move belief on the map — root-only / depth-0 inference would
+    leave the paper's factors out of the graph entirely, making promotion a no-op.
+
+    Returns the list of human-readable promotion/joint-view notes (counts of
+    promoted derives, skipped factors, and any degraded dependency) for the
+    checkpoint to surface.
     """
     import json
     from dataclasses import asdict as _asdict
 
-    from gaia.engine.bp import lower_local_graph
+    from gaia.engine.bp import lower_local_graph, merge_factor_graphs
     from gaia.engine.bp.engine import InferenceEngine
+    from gaia.engine.exploration.promote import promote_dependency_graphs
     from gaia.engine.ir import LocalCanonicalGraph
     from gaia.engine.ir.validator import validate_local_graph
     from gaia.engine.packaging import (
@@ -288,14 +302,58 @@ def _compile_and_infer(pkg: str | Path) -> None:
         formalization_manifest=compiled.formalization_manifest,
     )
 
-    # Inference (flat priors — depth 0; the round diffs root beliefs).
-    factor_graph = lower_local_graph(compiled.graph)
+    notes: list[str] = []
+
+    # (explorer promotion) Recompile each pulled-paper dependency from source with
+    # its `depends_on` scaffolds promoted to live `derive`, so the paper's
+    # internal reasoning is in the factor graph. Degrades to warnings; never
+    # crashes the checkpoint.
+    try:
+        promotion = promote_dependency_graphs(pkg_path)
+    except Exception as exc:  # promotion must never break a checkpoint
+        promotion = None
+        notes.append(f"dependency promotion skipped ({type(exc).__name__}: {exc})")
+    dep_factor_graphs: list[tuple[str, Any, str]] = []
+    if promotion is not None:
+        notes.extend(promotion.warnings)
+        for dep in promotion.dependencies:
+            dep_fg = lower_local_graph(dep.graph)
+            dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
+            dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
+        if promotion.dependencies:
+            notes.append(
+                f"promoted {promotion.total_promoted} pulled-paper depends_on edge(s) "
+                f"to live derive across {len(promotion.dependencies)} dependency package(s)"
+                + (
+                    f" (skipped {promotion.total_skipped} unpromotable factor(s))"
+                    if promotion.total_skipped
+                    else ""
+                )
+            )
+
+    # Joint inference: merge the promoted dependency factor graphs into the root's
+    # (like `gaia run infer --depth -1`). With no deps this is the root graph alone
+    # (flat priors — the round diffs root beliefs).
+    local_fg = lower_local_graph(compiled.graph)
+    if dep_factor_graphs:
+        local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
+        factor_graph = merge_factor_graphs(local_fg, dep_factor_graphs, local_prefix=local_prefix)
+    else:
+        factor_graph = local_fg
     fg_errors = factor_graph.validate()
     if fg_errors:
         raise OrchestratorError("inference failed: " + "; ".join(fg_errors))
     result = InferenceEngine().run(factor_graph).result
 
+    # Beliefs span the JOINT graph: root knowledges + every promoted dependency's
+    # knowledges, so a pulled paper's now-live claims surface their belief on the
+    # map (not just the root's). Each QID is globally unique (namespace:pkg::label
+    # prefixed), so the union is collision-free.
     knowledge_by_id = {k.id: k for k in compiled.graph.knowledges}
+    if promotion is not None:
+        for dep in promotion.dependencies:
+            for k in dep.graph.knowledges:
+                knowledge_by_id.setdefault(k.id, k)
     beliefs_payload = {
         "ir_hash": compiled.graph.ir_hash,
         "gaia_lang_version": gaia_lang_version(),
@@ -316,6 +374,7 @@ def _compile_and_infer(pkg: str | Path) -> None:
         json.dumps(beliefs_payload, ensure_ascii=False, indent=2, sort_keys=True),
         encoding="utf-8",
     )
+    return notes
 
 
 def _rank_open_contacts(exploration_map: ExplorationMap) -> list[Contact]:
@@ -604,8 +663,10 @@ def _checkpoint(
     messages: list[str] = []
     current_round = exploration_map.round
 
-    # Recompute belief through the SDK (never shelling out to gaia).
-    _compile_and_infer(pkg)
+    # Recompute belief through the SDK (never shelling out to gaia). This also
+    # promotes each pulled-paper dependency's depends_on scaffolds to live derive
+    # and infers over the joint graph, so the paper's reasoning enters BP.
+    messages.extend(_compile_and_infer(pkg) or [])
 
     graph = _resolve_graph(pkg)
     if graph is None:
