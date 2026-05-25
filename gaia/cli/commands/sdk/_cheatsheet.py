@@ -57,7 +57,7 @@ from gaia.engine.lang import (
     compose, composition,                                   # Action composition
     register_prior,                                         # External prior records
     Normal, LogNormal, Beta, Gamma, StudentT,               # Distribution factories
-    Cauchy, ChiSquared, Binomial, Poisson,
+    Cauchy, ChiSquared, Binomial, BetaBinomial, Poisson,
 )
 import gaia.engine.bayes as bayes                           # Bayes hypothesis comparison
 ```
@@ -194,22 +194,57 @@ StudentT("heavy tails", nu=3.0, mu=0.0, sigma=1.0)
 Cauchy("location", x0=0.0, gamma=1.0)
 ChiSquared("variance", k=2.0)
 Binomial("F2 dominant count", n=395, p=3/4)
+BetaBinomial("diffuse F2 count", n=395, alpha=1, beta=1)
 Poisson("event count", lam=4.0)
 ```
 
 ## Bayes: hypothesis vs data
 
+`bayes.compare` evaluates each model's predictive distribution at the
+observation and combines with the model's prior to give posteriors. The math is
+`posterior ∝ prior × likelihood`; what matters is whether your distribution
+captures what the hypothesis actually predicts.
+
+Two kinds of hypothesis, modelled differently:
+
+| Kind | Theory says | Use |
+|---|---|---|
+| **Point** | parameter equals a specific value | fixed-value distribution |
+| **Composite** | parameter lies in a region | compound distribution |
+
+### Point hypothesis (Mendel's 3:1)
+
 ```python
 import gaia.engine.bayes as bayes
 
-m1 = bayes.model(mendel_model, observable=k_dominant,
-                 distribution=Binomial("Mendel 3:1", n=395, p=3/4),
-                 rationale="...")
-m2 = bayes.model(diffuse_model, observable=k_dominant,
-                 distribution=Binomial("diffuse", n=395, p=0.5),
-                 rationale="...")
-bayes.compare(count_observation, models=[m1, m2], rationale="...")
+m_mendel = bayes.model(mendel_model, observable=k_dominant,
+    distribution=Binomial("Mendel 3:1", n=395, p=3/4),
+    rationale="Segregation predicts dominant count ~ Binomial(N, 3/4).")
+m_diffuse = bayes.model(diffuse_model, observable=k_dominant,
+    distribution=BetaBinomial("diffuse", n=395, alpha=1, beta=1),
+    rationale="No theoretical commitment; any rate equally plausible.")
+bayes.compare(count_observation, models=[m_mendel, m_diffuse], rationale="...")
 ```
+
+### Composite hypothesis (directional, no point value)
+
+```python
+m_elevated = bayes.model(H_elevated, observable=k,
+    distribution=BetaBinomial("elevated", n=N, alpha=10, beta=40),
+    rationale="H entails p>baseline; mean ~20%, spread allows 5–40%.")
+m_baseline = bayes.model(H_no_effect, observable=k,
+    distribution=BetaBinomial("baseline", n=N, alpha=1, beta=20),
+    rationale="Without H, p ~ baseline (~5%, allows lower).")
+bayes.compare(observation, models=[m_elevated, m_baseline], rationale="...")
+```
+
+**Lindley–Jeffreys trap.** A point H against a diffuse alternative produces
+Bayes factors 10²–10⁵ against H even for data only slightly off the point.
+Symptom: a single observation gives posterior > 0.99 or < 0.01. Match the
+level of commitment on both sides — point-vs-point or composite-vs-composite —
+unless the theory genuinely demands a point.
+See the Bayes Hypothesis Types guide in the Gaia docs
+(`docs/for-users/bayes-hypothesis-types.md`) for the full treatment.
 
 ---
 

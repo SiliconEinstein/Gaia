@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from gaia.engine.lang.dsl._lift import _lift_to_claim
 from gaia.engine.lang.runtime.action import (
     Associate as AssociateAction,
 )
@@ -18,8 +21,8 @@ def _claim_ref(claim: Claim) -> str:
 
 
 def associate(
-    a: Claim,
-    b: Claim,
+    a: Any,
+    b: Any,
     *,
     p_a_given_b: float,
     p_b_given_a: float,
@@ -28,11 +31,14 @@ def associate(
     rationale: str = "",
     label: str | None = None,
 ) -> Claim:
-    """Declare a symmetric probabilistic association. Returns an association helper Claim."""
-    if not isinstance(a, Claim):
-        raise TypeError("associate() a must be a Claim")
-    if not isinstance(b, Claim):
-        raise TypeError("associate() b must be a Claim")
+    """Declare a symmetric probabilistic association. Returns an association helper Claim.
+
+    ``a`` and ``b`` may be any Boolean-valued expression (``Claim``,
+    ``ClaimAtom``, Formula node, or ``BoolExpr``); non-``Claim`` inputs are
+    lifted to helper Claims at the verb boundary per RFC #703.
+    """
+    a = _lift_to_claim(a, verb="associate", position="first argument")
+    b = _lift_to_claim(b, verb="associate", position="second argument")
     _validate_pattern(pattern, p_a_given_b=p_a_given_b, p_b_given_a=p_b_given_a)
 
     helper = Claim(
