@@ -104,12 +104,15 @@ materialize them into the Gaia package. The engine then adjudicates the
   manual step. What still needs YOUR hand (step 3b) is connecting the pulled
   paper UP to your root reasoning — the `depends_on` contacts are that worklist.
 - Survey-facing contact signals: `closeness_to_seed` (relevance),
-  `new_territory` (coverage; live for lkm contacts only), `obligation_pressure`
-  (1.0 iff the contact discharges an open obligation you marked — see "Mark
-  obligations" below), and `survey_cost`. The engine ranks the frontier for you
-  and hands you the shortlist already ordered — survey in the order given.
-  `tension_potential` / `bridge_potential` are 0.0 slots, so the `Inquisitor`
-  doctrine is currently inert; prefer `Surveyor` / `Cartographer`.
+  `new_territory` (coverage; live for BOTH lkm and qid contacts — low for
+  intra-paper drilling, higher for opening new territory), `bridge_potential`
+  (1.0 iff surveying/wiring the contact would connect an orphan island to the
+  core — now live, EXPANSION.md §3.B), `obligation_pressure` (1.0 iff the contact
+  discharges an open obligation you marked — see "Mark obligations" below), and
+  `survey_cost`. The engine ranks the frontier for you and hands you the
+  shortlist already ordered — survey in the order given. `tension_potential` is
+  still a 0.0 slot, so the `Inquisitor` doctrine remains inert; prefer
+  `Surveyor` / `Cartographer` (bridge-led `Diplomat` is now live too).
 """
 
 # The per-contact survey procedure (absorbed from survey-one-contact.md + the
