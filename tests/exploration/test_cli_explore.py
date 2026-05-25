@@ -145,6 +145,7 @@ def test_explore_frontier_ranks_contacts(galileo_pkg: Path):
     assert result.exit_code == 0, result.output
     assert "Frontier:" in result.output
     assert contact_qid in result.output
+    assert "why:" in result.output
 
     m = load_map(galileo_pkg)
     contacts = [c for c in m.frontier if c.ref["value"] == contact_qid]
@@ -171,9 +172,10 @@ def test_explore_frontier_json_output(galileo_pkg: Path):
         # Build 11 steer 4: the agent-facing frontier JSON keeps the non-belief
         # surface but hides the belief math — no raw ``score`` row key, and no
         # ``belief_entropy`` inside ``score_features``.
-        assert {"id", "ref", "score_features", "sources"} <= set(row)
+        assert {"id", "ref", "score_features", "sources", "recommendation"} <= set(row)
         assert "score" not in row
         assert "belief_entropy" not in row["score_features"]
+        assert row["recommendation"]
 
 
 def test_explore_frontier_applies_obligations_like_turn(galileo_pkg: Path):
@@ -518,6 +520,48 @@ def test_explore_observe_reads_stdin(galileo_pkg: Path):
     assert len([c for c in m.frontier if c.ref["kind"] == "lkm"]) == 5
 
 
+def test_explore_landscape_writes_neutral_paper_leads(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    out = galileo_pkg / ".gaia" / "exploration" / "custom-landscape.json"
+    result = runner.invoke(
+        app,
+        [
+            "landscape",
+            str(galileo_pkg),
+            "--search-json",
+            str(_FIXTURE),
+            "--search-json",
+            str(_FIXTURE),
+            "--source",
+            _galileo_qid("aristotle_model"),
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "2 query batch(es)" in result.output
+    assert "5 paper lead(s)" in result.output
+
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["kind"] == "exploration_landscape"
+    assert payload["stats"]["query_batches"] == 2
+    assert payload["stats"]["raw_results"] == 10
+    assert payload["stats"]["paper_leads"] == 5
+    assert len(payload["recommended_pull_order"]) == 5
+    assert "Paper leads are topic-neutral" in payload["notes"][0]
+
+    # Landscape is a staging artifact, not observe: it does not mutate the map
+    # frontier or import field-specific paper classifications.
+    assert load_map(galileo_pkg).frontier == []
+    first = payload["paper_leads"][0]
+    assert {"paper_id", "best_rank", "queries", "lkm_node_ids"} <= set(first)
+    assert "pico" not in first
+    assert "evidence_hierarchy" not in first
+
+
 def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
     runner.invoke(
         app,
@@ -606,9 +650,14 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
             "obligation_pressure",
         }
         assert "belief_entropy" not in feats
-        # An lkm contact's new_territory is live (>= 0.5) and survey_cost heavier.
+        # An lkm contact's new_territory is live (>= 0.5) and survey_cost heavier
+        # than a qid's flat 1.0 (the bounded LKM_SURVEY_COST — the cost asymmetry
+        # was capped so it can't defeat the expansion goal; EXPANSION.md §1).
+        from gaia.engine.exploration.scorer import LKM_SURVEY_COST
+
         assert feats["new_territory"] >= 0.5
-        assert feats["survey_cost"] == 2.0
+        assert feats["survey_cost"] == LKM_SURVEY_COST
+        assert LKM_SURVEY_COST > 1.0
 
 
 def test_explore_observe_without_init_fails(galileo_pkg: Path):
@@ -618,3 +667,21 @@ def test_explore_observe_without_init_fails(galileo_pkg: Path):
     )
     assert result.exit_code == 1
     assert "no exploration map" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3 (EXPANSION.md §3/§4): status connectivity readout                     #
+# --------------------------------------------------------------------------- #
+
+
+def test_status_surfaces_connectivity_and_mode(galileo_pkg: Path):
+    """`status` shows mode_select and the MapHealth connectivity readout."""
+    runner.invoke(app, ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")])
+    # Build the frontier so there is a joint view + a map to read.
+    runner.invoke(app, ["frontier", str(galileo_pkg)])
+    result = runner.invoke(app, ["status", str(galileo_pkg)])
+    assert result.exit_code == 0, result.output
+    assert "mode_select:" in result.output
+    assert "connectivity:" in result.output
+    # The galileo seed graph is a single connected story → maintainable.
+    assert "maintainable" in result.output or "component(s)" in result.output

@@ -10,6 +10,7 @@ diagnostics). This module owns the detection; callers own the reporting.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,8 @@ def check_compiled_artifacts(
     *,
     ir_hash: str,
     compiled_payload: dict[str, Any] | None = None,
+    retries: int = 3,
+    retry_delay_s: float = 0.05,
 ) -> ArtifactStaleness:
     """Compare persisted ``.gaia/ir_hash`` / ``.gaia/ir.json`` against a fresh compile.
 
@@ -56,6 +59,25 @@ def check_compiled_artifacts(
     compares the persisted ``ir.json`` byte-payload against it (the
     ``infer`` flow needs this; ``check`` does not).
     """
+    for attempt in range(retries + 1):
+        result = _check_compiled_artifacts_once(
+            pkg_path,
+            ir_hash=ir_hash,
+            compiled_payload=compiled_payload,
+        )
+        if not result.is_stale or attempt == retries:
+            return result
+        time.sleep(retry_delay_s)
+    raise AssertionError("unreachable")
+
+
+def _check_compiled_artifacts_once(
+    pkg_path: Path,
+    *,
+    ir_hash: str,
+    compiled_payload: dict[str, Any] | None = None,
+) -> ArtifactStaleness:
+    """Single-read implementation for :func:`check_compiled_artifacts`."""
     ir_hash_path = pkg_path / ".gaia" / "ir_hash"
     ir_json_path = pkg_path / ".gaia" / "ir.json"
     result = ArtifactStaleness(

@@ -301,3 +301,105 @@ def test_old_map_without_turn_phase_loads_as_idle(tmp_path: Path):
     assert m.turn_phase == TURN_PHASE_IDLE
     assert m.round == 4
     assert m.policy.doctrine == "Surveyor"
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2 (EXPANSION.md §3.C / §3.E): mode_select + ratified_separations        #
+# --------------------------------------------------------------------------- #
+
+
+def test_policy_mode_select_defaults_to_auto():
+    from gaia.engine.exploration.state import MODE_SELECT_AUTO
+
+    p = Policy()
+    assert p.mode_select == MODE_SELECT_AUTO
+    assert p.fragment_min_orphans == 2
+    assert p.fragment_orphan_fraction == 0.34
+
+
+def test_policy_mode_select_validates():
+    with pytest.raises(ValueError, match="invalid mode_select"):
+        Policy(mode_select="bogus")
+
+
+def test_policy_mode_select_roundtrips(tmp_path: Path):
+    m = ExplorationMap(
+        policy=Policy(doctrine="Diplomat", mode_select="consolidate", fragment_min_orphans=3)
+    )
+    save_map(tmp_path, m)
+    again = load_map(tmp_path)
+    assert again.policy.mode_select == "consolidate"
+    assert again.policy.fragment_min_orphans == 3
+
+
+def test_old_policy_without_mode_select_loads_as_auto(tmp_path: Path):
+    from gaia.engine.exploration.state import MODE_SELECT_AUTO
+
+    legacy = {
+        "version": EXPLORATION_SCHEMA_VERSION,
+        "round": 0,
+        "seeds": [],
+        "policy": {
+            "doctrine": "Surveyor",
+            "weights": dict(DOCTRINE_PRESETS["Surveyor"]),
+            "budget_k": 5,
+            # NB: no mode_select / fragment_* keys.
+        },
+        "surveyed": {},
+        "frontier": [],
+        "stats": {},
+    }
+    exploration_dir(tmp_path).joinpath("map.json").write_text(json.dumps(legacy), encoding="utf-8")
+    m = load_map(tmp_path)
+    assert m.policy.mode_select == MODE_SELECT_AUTO
+    assert m.policy.fragment_min_orphans == 2
+
+
+def test_ratified_separations_default_empty_and_roundtrip(tmp_path: Path):
+    m = ExplorationMap()
+    assert m.ratified_separations == []
+    row = m.add_ratified_separation(
+        ["lkm:pkg::b", "lkm:pkg::c"], rationale="different domain", round_index=2
+    )
+    assert row["member_qids"] == ["lkm:pkg::b", "lkm:pkg::c"]
+    save_map(tmp_path, m)
+    again = load_map(tmp_path)
+    assert len(again.ratified_separations) == 1
+    assert again.ratified_separations[0]["rationale"] == "different domain"
+
+
+def test_re_ratification_replaces_same_island():
+    m = ExplorationMap()
+    m.add_ratified_separation(["lkm:pkg::b"], rationale="v1", round_index=1)
+    m.add_ratified_separation(["lkm:pkg::b"], rationale="v2 updated", round_index=3)
+    assert len(m.ratified_separations) == 1
+    assert m.ratified_separations[0]["rationale"] == "v2 updated"
+
+
+def test_old_map_without_ratified_separations_loads_empty(tmp_path: Path):
+    legacy = {
+        "version": EXPLORATION_SCHEMA_VERSION,
+        "round": 0,
+        "seeds": [],
+        "policy": {
+            "doctrine": "Surveyor",
+            "weights": dict(DOCTRINE_PRESETS["Surveyor"]),
+            "budget_k": 5,
+        },
+        "surveyed": {},
+        "frontier": [],
+        "stats": {},
+        # NB: no ratified_separations key.
+    }
+    exploration_dir(tmp_path).joinpath("map.json").write_text(json.dumps(legacy), encoding="utf-8")
+    m = load_map(tmp_path)
+    assert m.ratified_separations == []
+
+
+def test_ratified_as_health_objects():
+    m = ExplorationMap()
+    m.add_ratified_separation(["lkm:pkg::b", "lkm:pkg::c"], rationale="x", round_index=1)
+    objs = m.ratified_as_health_objects()
+    assert len(objs) == 1
+    assert objs[0].member_qids == frozenset({"lkm:pkg::b", "lkm:pkg::c"})
+    assert objs[0].rationale == "x"

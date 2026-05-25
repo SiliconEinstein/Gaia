@@ -19,11 +19,19 @@ from gaia.engine.exploration.frontier import (
     reconcile_frontier,
 )
 from gaia.engine.exploration.handoff import (
+    IslandBrief,
+    RatifiedSeparationResult,
     SurveyResult,
     SurveyTask,
     TaskContact,
     result_path,
     task_path,
+)
+from gaia.engine.exploration.health import (
+    Component,
+    MapHealth,
+    RatifiedSeparation,
+    compute_map_health,
 )
 from gaia.engine.exploration.observe import (
     ObserveResult,
@@ -34,6 +42,7 @@ from gaia.engine.exploration.render import (
     exploration_header_fields,
     frontier_graph_elements,
     inject_exploration_header,
+    ratified_node_classes,
     wrap_self_contained_html,
 )
 from gaia.engine.exploration.scorer import (
@@ -79,10 +88,15 @@ __all__ = [
     "VALID_REF_KINDS",
     "VALID_SEED_KINDS",
     "VALID_TURN_PHASES",
+    "Component",
     "Contact",
     "ExplorationMap",
+    "IslandBrief",
+    "MapHealth",
     "ObserveResult",
     "Policy",
+    "RatifiedSeparation",
+    "RatifiedSeparationResult",
     "SurveyRecord",
     "SurveyResult",
     "SurveyTask",
@@ -90,6 +104,7 @@ __all__ = [
     "append_round",
     "binary_entropy",
     "build_joint_view",
+    "compute_map_health",
     "doctrine_policy",
     "exploration_dir",
     "exploration_header_fields",
@@ -101,6 +116,7 @@ __all__ = [
     "mint_contact_id",
     "observe_lkm_results",
     "promote_materialized_lkm_contacts",
+    "ratified_node_classes",
     "read_rounds",
     "reconcile_frontier",
     "result_path",

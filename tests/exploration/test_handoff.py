@@ -63,7 +63,9 @@ def test_task_roundtrips_full_shape(tmp_path: Path):
         "round",
         "doctrine",
         "budget_k",
+        "kind",
         "contacts",
+        "bridge_worklist",
         "seed_survey",
         "instructions",
         "result_path",
@@ -127,3 +129,87 @@ def test_result_tolerates_legacy_fields(tmp_path: Path):
 def test_task_rejects_missing_required_fields():
     with pytest.raises(ValidationError):
         SurveyTask.model_validate({"round": 1})
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2 (EXPANSION.md §3.D / §3.E): kind discriminator + bridge worklist      #
+# --------------------------------------------------------------------------- #
+
+
+def test_task_kind_defaults_to_expand():
+    task = SurveyTask(pkg="p", round=1, doctrine="Surveyor", budget_k=5)
+    assert task.kind == "expand"
+    assert task.bridge_worklist == []
+
+
+def test_consolidate_task_roundtrips_with_islands(tmp_path: Path):
+    from gaia.engine.exploration.handoff import IslandBrief
+
+    task = SurveyTask(
+        pkg="p",
+        round=2,
+        doctrine="Diplomat",
+        budget_k=5,
+        kind="consolidate",
+        bridge_worklist=[
+            IslandBrief(
+                member_qids=["lkm:pkg::b", "lkm:pkg::c"],
+                brief="b: ...; c: ...",
+                reopened=True,
+                bridge_hint="lkm:pkg::b",
+            )
+        ],
+        instructions="bridge or ratify",
+    )
+    p = task.write(task_path(tmp_path, 2))
+    back = SurveyTask.read(p)
+    assert back.kind == "consolidate"
+    assert len(back.bridge_worklist) == 1
+    assert back.bridge_worklist[0].member_qids == ["lkm:pkg::b", "lkm:pkg::c"]
+    assert back.bridge_worklist[0].reopened is True
+    assert back.bridge_worklist[0].bridge_hint == "lkm:pkg::b"
+
+
+def test_old_task_without_kind_reads_as_expand(tmp_path: Path):
+    legacy = {
+        "pkg": "p",
+        "round": 0,
+        "doctrine": "Surveyor",
+        "budget_k": 5,
+        "contacts": [],
+        "instructions": "x",
+        "result_path": "r",
+        # NB: no kind / bridge_worklist.
+    }
+    p = task_path(tmp_path, 0)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(legacy), encoding="utf-8")
+    task = SurveyTask.read(p)
+    assert task.kind == "expand"
+    assert task.bridge_worklist == []
+
+
+def test_result_carries_ratified_and_back_compat(tmp_path: Path):
+    from gaia.engine.exploration.handoff import RatifiedSeparationResult
+
+    res = SurveyResult(
+        surveyed_qids=["lkm:pkg::x"],
+        ratified=[
+            RatifiedSeparationResult(member_qids=["lkm:pkg::b"], rationale="separate domain")
+        ],
+    )
+    p = res.write(result_path(tmp_path, 1))
+    back = SurveyResult.read(p)
+    assert back.surveyed_qids == ["lkm:pkg::x"]
+    assert len(back.ratified) == 1
+    assert back.ratified[0].member_qids == ["lkm:pkg::b"]
+
+
+def test_old_result_without_ratified_reads_empty(tmp_path: Path):
+    legacy = {"surveyed_qids": ["lkm:pkg::x"], "notes": "ignored", "observed": ["ignored"]}
+    p = result_path(tmp_path, 0)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(legacy), encoding="utf-8")
+    res = SurveyResult.read(p)
+    assert res.surveyed_qids == ["lkm:pkg::x"]
+    assert res.ratified == []

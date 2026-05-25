@@ -4,8 +4,8 @@ A **sibling console_scripts entrypoint** to ``gaia`` and, as of build 7
 (CLIENT.md "Unified surface"), the *single* user-facing surface for exploration.
 It carries both halves of the turn loop:
 
-* the deterministic **engine verbs** (``init`` / ``observe`` / ``frontier`` /
-  ``round`` / ``status`` / ``render``), migrated here from the now-removed
+* the deterministic **engine verbs** (``init`` / ``observe`` / ``landscape`` /
+  ``frontier`` / ``round`` / ``status`` / ``render``), migrated here from the now-removed
   ``gaia explore`` sub-app — thin wrappers over :mod:`gaia.engine.exploration`
   (the library / SDK, which stays in gaia); and
 * the **orchestrator** phase-aware step ``turn`` — the turn state machine that
@@ -37,6 +37,7 @@ from gaia.explore_client.orchestrator import (
 from gaia.explore_client.verbs import (
     frontier_command,
     init_command,
+    landscape_command,
     observe_command,
     render_command,
     round_command,
@@ -47,8 +48,8 @@ app = typer.Typer(
     name="gaia-lkm-explore",
     help=(
         "Gaia LKM Explore — fog-of-war exploration of a knowledge package. "
-        "Deterministic engine verbs (init / observe / frontier / round / status / "
-        "render) plus the orchestrator turn state machine (turn), which hands the "
+        "Deterministic engine verbs (init / observe / landscape / frontier / round / "
+        "status / render) plus the orchestrator turn state machine (turn), which hands the "
         "fuzzy survey to an agent through a self-contained task envelope."
     ),
     no_args_is_help=True,
@@ -59,6 +60,7 @@ app = typer.Typer(
 # — no LKM call, no `gaia author` orchestration; those are the agent's survey.
 app.command(name="init")(init_command)
 app.command(name="observe")(observe_command)
+app.command(name="landscape")(landscape_command)
 app.command(name="frontier")(frontier_command)
 app.command(name="round")(round_command)
 app.command(name="status")(status_command)
@@ -70,17 +72,39 @@ _PKG_ARG = typer.Argument(..., help="Knowledge-package path (holds .gaia/explora
 _JSON_OPT = typer.Option(False, "--json", help="Emit the turn outcome as JSON.")
 
 
+def _echo_health(health: dict[str, object]) -> None:
+    """Print the MapHealth connectivity readout line, if present (EXPANSION.md §3)."""
+    if not health:
+        return
+    verdict = "FRAGMENTED (consolidate)" if health.get("unhealthy") else "maintainable"
+    typer.echo(
+        f"  connectivity:   {health.get('components', 0)} component(s), "
+        f"{health.get('orphans', 0)} orphan(s) "
+        f"({health.get('unratified_orphans', 0)} un-ratified), "
+        f"{health.get('ratified', 0)} ratified, {health.get('reopened', 0)} reopened "
+        f"— {verdict}"
+    )
+
+
 def _render_outcome(outcome: TurnOutcome) -> None:
     """Print a human-readable summary of a turn outcome."""
     for msg in outcome.messages:
         typer.echo(f"  {msg}")
 
     if outcome.action == "emitted_task":
-        kind = "seed-survey" if outcome.seed_survey else "frontier"
-        typer.echo(
-            f"Turn {outcome.round}: emitted a {kind} task "
-            f"({len(outcome.contacts)} contact(s)) → AWAITING_SURVEY."
-        )
+        if outcome.task_kind == "consolidate":
+            # EXPANSION.md §3.D — a consolidate (bridging) turn over surveyed nodes.
+            typer.echo(
+                f"Turn {outcome.round}: emitted a CONSOLIDATE task "
+                f"({outcome.islands} island(s) to bridge or ratify) → AWAITING_SURVEY."
+            )
+        else:
+            kind = "seed-survey" if outcome.seed_survey else "frontier"
+            typer.echo(
+                f"Turn {outcome.round}: emitted a {kind} task "
+                f"({len(outcome.contacts)} contact(s)) → AWAITING_SURVEY."
+            )
+        _echo_health(outcome.health)
         typer.echo(f"  task:   {outcome.task_path}")
         typer.echo(f"  result: {outcome.result_path}")
         typer.echo(
@@ -100,6 +124,22 @@ def _render_outcome(outcome: TurnOutcome) -> None:
             # the node has no label.
             ids = ", ".join(outcome.discovery_labels.get(qid, qid) for qid in disc.get("ids", []))
             typer.echo(f"  - {disc.get('kind')}: {ids}  {disc.get('note', '')}".rstrip())
+        # EXPANSION.md §3.D — connectivity readout + delta + any reopened islands.
+        _echo_health(outcome.health)
+        if outcome.connectivity_delta:
+            d = outcome.connectivity_delta
+            typer.echo(
+                f"  connectivity Δ: components {d.get('components', 0):+d}, "
+                f"un-ratified orphans {d.get('unratified_orphans', 0):+d}, "
+                f"ratified {d.get('ratified', 0):+d}"
+            )
+        if outcome.ratified:
+            typer.echo(f"  ratified {len(outcome.ratified)} island(s) as separate this turn.")
+        for members in outcome.reopened:
+            typer.echo(
+                f"  - REOPENED ratified island: {', '.join(members[:3])} "
+                "(new bridging evidence — reconsider)"
+            )
         typer.echo(
             "Re-dial the doctrine if desired, then `gaia-lkm-explore turn` for the next turn."
         )

@@ -317,3 +317,63 @@ def test_cli_render_without_init_fails_gracefully(galileo_pkg: Path) -> None:
     result = runner.invoke(app, ["render", str(galileo_pkg)])
     assert result.exit_code == 1
     assert "no exploration map" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3 (EXPANSION.md §3.E): ratified boundary / reopened flag in render       #
+# --------------------------------------------------------------------------- #
+
+
+def test_ratified_node_classes_marks_ratified_and_reopened() -> None:
+    from gaia.engine.exploration.health import Component, MapHealth
+    from gaia.engine.exploration.render import ratified_node_classes
+
+    m = ExplorationMap()
+    m.add_ratified_separation(["lkm:pkg::b"], rationale="sep", round_index=1)
+    m.add_ratified_separation(["lkm:pkg::c"], rationale="sep", round_index=1)
+    # A live health whose {c} island reopened (stale premise).
+    health = MapHealth(
+        components=(),
+        largest_fraction=0.0,
+        orphans=(),
+        orphan_node_fraction=0.0,
+        unratified_orphan_count=0,
+        reopened=(Component(members=("lkm:pkg::c",), reopened=True),),
+    )
+    classes = ratified_node_classes(m, health=health)
+    assert classes["lkm:pkg::b"] == "ratified"
+    assert classes["lkm:pkg::c"] == "reopened"
+
+
+def test_ratified_node_classes_without_health_all_ratified() -> None:
+    from gaia.engine.exploration.render import ratified_node_classes
+
+    m = ExplorationMap()
+    m.add_ratified_separation(["lkm:pkg::b", "lkm:pkg::c"], rationale="sep", round_index=1)
+    classes = ratified_node_classes(m)
+    assert classes == {"lkm:pkg::b": "ratified", "lkm:pkg::c": "ratified"}
+
+
+def test_header_fields_surface_connectivity_with_health() -> None:
+    from gaia.engine.exploration.health import Component, MapHealth
+
+    m = _demo_map()
+    health = MapHealth(
+        components=(Component(members=("x",), is_seed=True), Component(members=("y",))),
+        largest_fraction=0.5,
+        orphans=(Component(members=("y",)),),
+        orphan_node_fraction=0.5,
+        unratified_orphan_count=1,
+        reopened=(),
+    )
+    fields = dict(exploration_header_fields(m, health=health))
+    assert fields["components"] == "2"
+    assert fields["orphans"] == "1"
+    assert "ratified" in fields
+
+
+def test_header_fields_surface_ratified_count_without_health() -> None:
+    m = _demo_map()
+    m.add_ratified_separation(["lkm:pkg::b"], rationale="sep", round_index=1)
+    fields = dict(exploration_header_fields(m))
+    assert fields["ratified"] == "1"

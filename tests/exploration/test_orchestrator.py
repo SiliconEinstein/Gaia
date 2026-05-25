@@ -484,3 +484,270 @@ def test_full_turn_cycle_against_galileo(galileo_pkg: Path):
 
     rounds = read_rounds(galileo_pkg)
     assert [r["round"] for r in rounds] == [0]
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2 (EXPANSION.md §3.C/D/E): expand↔consolidate loop                      #
+# --------------------------------------------------------------------------- #
+
+
+def _surveyed_map_with_orphans(*, mode_select: str = "auto", doctrine: str = "Surveyor"):
+    """A map with core {seed,a} + two singleton orphan islands {b},{c}, surveyed."""
+    from gaia.engine.exploration.state import Policy, SurveyRecord
+
+    seed = "example:pkg::seed"
+    m = ExplorationMap(
+        round=3,
+        seeds=[{"kind": "claim", "text": seed, "qid": seed}],
+        policy=Policy(doctrine=doctrine, mode_select=mode_select),
+    )
+    for q in (seed, "example:pkg::a", "example:pkg::b", "example:pkg::c"):
+        m.surveyed[q] = SurveyRecord(qid=q, survey_round=1)
+    return m
+
+
+def _orphan_view():
+    """A JointView whose edges connect seed-a but leave b and c disjoint.
+
+    ``materialized`` includes the surveyed nodes so frontier extraction does not
+    spuriously surface them as contacts.
+    """
+    from gaia.engine.exploration.frontier import JointView
+
+    return JointView(
+        materialized={
+            "example:pkg::seed",
+            "example:pkg::a",
+            "example:pkg::b",
+            "example:pkg::c",
+        },
+        edges=[
+            ("operator_target", ["example:pkg::seed", "example:pkg::a"]),
+        ],
+    )
+
+
+def _stub_view(monkeypatch, view):
+    from gaia.engine.exploration.frontier import JointView
+
+    monkeypatch.setattr(orchestrator, "_resolve_graph", lambda _pkg: object())
+    monkeypatch.setattr(orchestrator, "_joint_view", lambda _pkg, _g: view)
+    monkeypatch.setattr(orchestrator, "_load_beliefs", lambda _pkg: {})
+    _ = JointView
+
+
+def test_auto_mode_consolidates_when_fragmented(tmp_path: Path, monkeypatch):
+    """Auto + 2 un-ratified orphans (past threshold) → a consolidate task."""
+    m = _surveyed_map_with_orphans(mode_select="auto")
+    save_map(tmp_path, m)
+    _stub_view(monkeypatch, _orphan_view())
+
+    outcome = run_turn(tmp_path)
+
+    assert outcome.action == "emitted_task"
+    assert outcome.task_kind == "consolidate"
+    assert outcome.islands == 2  # {b} and {c}
+    task = SurveyTask.read(handoff.task_path(exploration_dir(tmp_path), 3))
+    assert task.kind == "consolidate"
+    assert len(task.bridge_worklist) == 2
+    assert "ratify" in task.instructions.lower()
+
+
+def test_auto_mode_expands_when_healthy(tmp_path: Path, monkeypatch):
+    """Auto + a connected map → an expand task (today's behaviour)."""
+    from gaia.engine.exploration.frontier import JointView
+    from gaia.engine.exploration.state import Policy, SurveyRecord
+
+    seed = "example:pkg::seed"
+    m = ExplorationMap(
+        round=2,
+        seeds=[{"kind": "claim", "text": seed, "qid": seed}],
+        policy=Policy(doctrine="Surveyor", mode_select="auto"),
+    )
+    m.surveyed[seed] = SurveyRecord(qid=seed, survey_round=0)
+    m.surveyed["example:pkg::a"] = SurveyRecord(qid="example:pkg::a", survey_round=1)
+    save_map(tmp_path, m)
+    # Connected view + an open contact to expand into.
+    view = JointView(
+        materialized={seed, "example:pkg::a"},
+        edges=[("operator_target", [seed, "example:pkg::a"])],
+    )
+    _stub_view(monkeypatch, view)
+    # An open frontier contact so the expand path has something to emit.
+    reloaded = load_map(tmp_path)
+    reloaded.frontier = [
+        Contact(
+            id="ct_x",
+            ref={"kind": "qid", "value": "example:pkg::Foo"},
+            sources=[{"qid": seed, "edge": "depends_on"}],
+            status="open",
+        )
+    ]
+    save_map(tmp_path, reloaded)
+
+    outcome = run_turn(tmp_path)
+    assert outcome.task_kind == "expand"
+    assert outcome.contacts == ["ct_x"]
+
+
+def test_pinned_expand_ignores_fragmentation(tmp_path: Path, monkeypatch):
+    """mode_select=expand → expand even when the map is fragmented."""
+    m = _surveyed_map_with_orphans(mode_select="expand")
+    # Give it an open contact so expand has something to emit.
+    m.frontier = [
+        Contact(
+            id="ct_x",
+            ref={"kind": "qid", "value": "example:pkg::Foo"},
+            sources=[{"qid": "example:pkg::seed", "edge": "depends_on"}],
+            status="open",
+        )
+    ]
+    save_map(tmp_path, m)
+    _stub_view(monkeypatch, _orphan_view())
+
+    outcome = run_turn(tmp_path)
+    assert outcome.task_kind == "expand"
+
+
+def test_pinned_consolidate_emits_bridge_task(tmp_path: Path, monkeypatch):
+    """mode_select=consolidate → a bridge task even if below the auto threshold."""
+    from gaia.engine.exploration.frontier import JointView
+    from gaia.engine.exploration.state import Policy, SurveyRecord
+
+    seed = "example:pkg::seed"
+    m = ExplorationMap(
+        round=3,
+        seeds=[{"kind": "claim", "text": seed, "qid": seed}],
+        policy=Policy(doctrine="Diplomat", mode_select="consolidate"),
+    )
+    # Only ONE orphan — below the auto count threshold — but pinned consolidate
+    # still emits a bridge task.
+    for q in (seed, "example:pkg::a", "example:pkg::b"):
+        m.surveyed[q] = SurveyRecord(qid=q, survey_round=1)
+    save_map(tmp_path, m)
+    view = JointView(
+        materialized={seed, "example:pkg::a", "example:pkg::b"},
+        edges=[("operator_target", [seed, "example:pkg::a"])],
+    )
+    _stub_view(monkeypatch, view)
+
+    outcome = run_turn(tmp_path)
+    assert outcome.task_kind == "consolidate"
+    assert outcome.islands == 1
+
+
+def test_ratified_islands_not_in_worklist(tmp_path: Path, monkeypatch):
+    """A still-valid ratified island is excluded from the consolidate worklist."""
+    m = _surveyed_map_with_orphans(mode_select="consolidate", doctrine="Diplomat")
+    # Ratify island {c} — it should drop out of the worklist; {b} stays.
+    m.add_ratified_separation(["example:pkg::c"], rationale="separate", round_index=2)
+    save_map(tmp_path, m)
+    _stub_view(monkeypatch, _orphan_view())
+
+    outcome = run_turn(tmp_path)
+    assert outcome.task_kind == "consolidate"
+    assert outcome.islands == 1  # only {b}
+    task = SurveyTask.read(handoff.task_path(exploration_dir(tmp_path), 3))
+    members = {q for isl in task.bridge_worklist for q in isl.member_qids}
+    assert members == {"example:pkg::b"}
+
+
+def test_all_ratified_falls_back_to_expand(tmp_path: Path, monkeypatch):
+    """If every island is validly ratified, consolidate falls back to expand."""
+    m = _surveyed_map_with_orphans(mode_select="consolidate", doctrine="Diplomat")
+    m.add_ratified_separation(["example:pkg::b"], rationale="sep", round_index=2)
+    m.add_ratified_separation(["example:pkg::c"], rationale="sep", round_index=2)
+    save_map(tmp_path, m)
+    _stub_view(monkeypatch, _orphan_view())
+
+    outcome = run_turn(tmp_path)
+    assert outcome.task_kind == "expand"
+
+
+def test_checkpoint_records_ratification_from_result(tmp_path: Path, monkeypatch):
+    """The checkpoint records the agent's ratified islands into the map."""
+    from gaia.engine.exploration.handoff import RatifiedSeparationResult
+
+    m = _surveyed_map_with_orphans()
+    m.turn_phase = TURN_PHASE_AWAITING_SURVEY
+    save_map(tmp_path, m)
+    res = SurveyResult(
+        surveyed_qids=[],
+        ratified=[
+            RatifiedSeparationResult(member_qids=["example:pkg::c"], rationale="other field")
+        ],
+    )
+    res.write(handoff.result_path(exploration_dir(tmp_path), 3))
+
+    monkeypatch.setattr(orchestrator, "_compile_and_infer", lambda _pkg: None)
+    monkeypatch.setattr(orchestrator, "_resolve_graph", lambda _pkg: object())
+    monkeypatch.setattr(orchestrator, "_load_beliefs", lambda _pkg: {})
+    import gaia.engine.exploration.discoveries as disc_mod
+
+    monkeypatch.setattr(disc_mod, "compute_discoveries", lambda *_a, **_k: [])
+
+    outcome = run_turn(tmp_path)
+    assert outcome.ratified == [["example:pkg::c"]]
+    reloaded = load_map(tmp_path)
+    assert any(set(r["member_qids"]) == {"example:pkg::c"} for r in reloaded.ratified_separations)
+
+
+def test_ratification_excluded_from_health_then_reopens(tmp_path: Path, monkeypatch):
+    """A ratified island reads HEALTHY; new bridging evidence reopens it.
+
+    Drives the health helper end-to-end through the orchestrator's selector:
+    with island {b,c} ratified and no bridge, auto stays expand (healthy); once a
+    candidate bridging contact appears, the island reopens → consolidate.
+    """
+    from gaia.engine.exploration.frontier import JointView
+    from gaia.engine.exploration.state import Policy, SurveyRecord
+
+    seed = "example:pkg::seed"
+    m = ExplorationMap(
+        round=3,
+        seeds=[{"kind": "claim", "text": seed, "qid": seed}],
+        policy=Policy(doctrine="Surveyor", mode_select="auto"),
+    )
+    for q in (seed, "example:pkg::a", "example:pkg::b", "example:pkg::c"):
+        m.surveyed[q] = SurveyRecord(qid=q, survey_round=1)
+    # Ratify the whole island {b,c}.
+    m.add_ratified_separation(
+        ["example:pkg::b", "example:pkg::c"], rationale="separate", round_index=2
+    )
+    save_map(tmp_path, m)
+
+    surveyed_set = {seed, "example:pkg::a", "example:pkg::b", "example:pkg::c"}
+    # Premise holds: b,c disjoint from core, no bridge → healthy → auto expands.
+    view_ok = JointView(
+        materialized=set(surveyed_set),
+        edges=[
+            ("operator_target", [seed, "example:pkg::a"]),
+            ("operator_target", ["example:pkg::b", "example:pkg::c"]),
+        ],
+    )
+    _stub_view(monkeypatch, view_ok)
+    out_ok = run_turn(tmp_path)
+    assert out_ok.task_kind == "expand"  # ratified island excluded → healthy
+
+    # Reset phase to IDLE for the next IDLE turn.
+    reloaded = load_map(tmp_path)
+    reloaded.turn_phase = TURN_PHASE_IDLE
+    save_map(tmp_path, reloaded)
+
+    # New evidence: an unmaterialized node x adjacent to both island (b) and core
+    # (seed) → bridge candidate exists → ratification reopens → auto consolidates.
+    x = "example:pkg::x"  # not surveyed
+    view_bridge = JointView(
+        materialized=set(surveyed_set),
+        edges=[
+            ("operator_target", [seed, "example:pkg::a"]),
+            ("operator_target", ["example:pkg::b", "example:pkg::c"]),
+            ("depends_on", ["example:pkg::b", x]),
+            ("depends_on", [seed, x]),
+        ],
+    )
+    _stub_view(monkeypatch, view_bridge)
+    out_reopen = run_turn(tmp_path)
+    assert out_reopen.task_kind == "consolidate"
+    task = SurveyTask.read(handoff.task_path(exploration_dir(tmp_path), 3))
+    assert any(isl.reopened for isl in task.bridge_worklist)

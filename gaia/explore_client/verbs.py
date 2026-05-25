@@ -17,6 +17,8 @@ Commands (SCHEMA.md §7c / §7f):
   read ``gaia search lkm`` JSON (file/stdin) and record each unpulled related
   paper as an ``lkm_related`` paper-contact (SCHEMA.md §7f — the primary frontier
   source). This is the step the agent calls after each LKM survey.
+* ``landscape <pkg> --search-json <file> ...`` — aggregate saved LKM search JSON
+  into a neutral paper-level landscape artifact before deep pulls.
 * ``frontier <pkg>`` — load map + IR + manifest + beliefs, build the joint view,
   promote any now-materialized ``lkm`` contacts, run ``extract_frontier`` →
   ``reconcile_frontier`` → ``score_frontier``, save, and print the ranked top-k
@@ -57,6 +59,8 @@ from gaia.engine.exploration.frontier import (
     reconcile_frontier,
     resolve_freetext_seed_qid,
 )
+from gaia.engine.exploration.health import MapHealth, compute_map_health
+from gaia.engine.exploration.landscape import LandscapeBatch, build_landscape
 from gaia.engine.exploration.observe import (
     materialized_paper_ids_from_roots,
     observe_lkm_results,
@@ -66,6 +70,7 @@ from gaia.engine.exploration.render import (
     exploration_header_fields,
     frontier_graph_elements,
     inject_exploration_header,
+    ratified_node_classes,
     wrap_self_contained_html,
 )
 from gaia.engine.exploration.scorer import (
@@ -90,6 +95,7 @@ from gaia.engine.exploration.state import (
 )
 from gaia.engine.inquiry.focus import resolve_focus_target
 from gaia.engine.inquiry.review import resolve_graph
+from gaia.engine.packaging import write_text_atomic
 
 # Module-level option singletons — Typer needs ``typer.Option`` objects as the
 # parameter defaults, but ruff B008 forbids the call literally in the signature,
@@ -102,12 +108,22 @@ _DOCTRINE_OPT = typer.Option(
     "--doctrine",
     help=(
         f"Named doctrine preset: {sorted(DOCTRINE_PRESETS)}. "
-        "Note: tension/bridge scoring is not yet wired (DESIGN §8), so "
-        "tension/bridge-led presets (e.g. 'Inquisitor') are currently inert."
+        "Note: bridge scoring is now wired (EXPANSION.md §3.B), so bridge-led "
+        "presets (Cartographer / Diplomat) are live; tension scoring is still "
+        "deferred (EXPANSION.md §3.B), so the tension-led 'Inquisitor' preset "
+        "remains inert."
     ),
 )
 _BUDGET_K_OPT = typer.Option(5, "--budget-k", help="Top-k contacts to survey per round.")
 _FRONTIER_JSON_OPT = typer.Option(False, "--json", help="Emit the ranked contacts as JSON.")
+_FRONTIER_TRIAGE_PULLED_OPT = typer.Option(
+    False,
+    "--triage-pulled",
+    help=(
+        "Show pulled-paper claim contacts first, ordered for paper triage "
+        "(conclusion, load-bearing, then supporting)."
+    ),
+)
 _SURVEYED_OPT = typer.Option(
     None,
     "--surveyed",
@@ -117,6 +133,34 @@ _SEARCH_JSON_OPT = typer.Option(
     None,
     "--search-json",
     help="Path to a `gaia search lkm` result JSON file (omit to read from stdin).",
+)
+_LANDSCAPE_SEARCH_JSON_OPT = typer.Option(
+    None,
+    "--search-json",
+    help="Path to a saved `gaia search lkm` result JSON file (repeatable).",
+)
+_LANDSCAPE_QUERY_OPT = typer.Option(
+    None,
+    "--query",
+    help=(
+        "Query text for the matching --search-json file (repeatable; defaults to "
+        "the normalized search envelope's query text)."
+    ),
+)
+_LANDSCAPE_SOURCE_OPT = typer.Option(
+    None,
+    "--source",
+    help="Survey source QID for the matching --search-json file (repeatable, optional).",
+)
+_LANDSCAPE_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/landscape-<round>.json).",
+)
+_LANDSCAPE_JSON_OPT = typer.Option(
+    False,
+    "--json",
+    help="Print the landscape artifact JSON to stdout after writing it.",
 )
 _OBSERVE_SOURCE_OPT = typer.Option(
     None,
@@ -142,6 +186,57 @@ _RENDER_OUT_OPT = typer.Option(
 
 def _gaia_dir(pkg: str) -> Path:
     return Path(pkg).resolve() / ".gaia"
+
+
+def _map_health(exploration_map: ExplorationMap, view: JointView) -> MapHealth:
+    """Compute the joint-graph MapHealth for the map (EXPANSION.md §3.A).
+
+    The surveyed set is ``map.surveyed`` keys, the seeds the resolved seed QIDs,
+    the edges the joint view's edge set, and the ratified separations the map's
+    recorded islands — the same inputs the orchestrator uses, so the standalone
+    verbs and ``turn`` agree on connectivity.
+    """
+    surveyed = list(exploration_map.surveyed.keys())
+    seeds = [str(s["qid"]) for s in exploration_map.seeds if s.get("qid")]
+    return compute_map_health(
+        surveyed,
+        seeds,
+        view.edges,
+        ratified=exploration_map.ratified_as_health_objects(),
+    )
+
+
+def _echo_status_connectivity(pkg: str, exploration_map: ExplorationMap) -> None:
+    """Print the MapHealth connectivity readout for ``status`` (EXPANSION.md §3/§4).
+
+    Best-effort: a degraded joint view (uncompiled deps, no IR) must not break
+    status, so the whole compute is guarded. No output when no graph is resolved.
+    """
+    try:
+        graph = resolve_graph(pkg)
+        if graph is None:
+            return
+        view = _require_joint_view(pkg, graph)
+        health = _map_health(exploration_map, view)
+    except Exception:
+        # status must never crash on a degraded view — skip the readout.
+        return
+    policy = exploration_map.policy
+    unhealthy = health.is_unhealthy(
+        min_orphan_components=policy.fragment_min_orphans,
+        orphan_fraction=policy.fragment_orphan_fraction,
+    )
+    verdict = "FRAGMENTED (consolidate)" if unhealthy else "maintainable"
+    typer.echo(
+        f"  connectivity:   {health.component_count} component(s), "
+        f"{len(health.orphans)} orphan(s) "
+        f"({health.unratified_orphan_count} un-ratified), "
+        f"{health.ratified_count} ratified, {len(health.reopened)} reopened "
+        f"— {verdict}"
+    )
+    for comp in health.reopened:
+        members = ", ".join(comp.members[:3])
+        typer.echo(f"    - REOPENED island: {members} (new bridging evidence)")
 
 
 def _load_beliefs(pkg: str) -> dict[str, float]:
@@ -176,6 +271,22 @@ def _load_ir_dict(pkg: str) -> dict[str, Any] | None:
         return dict(json.loads(p.read_text(encoding="utf-8")))
     except json.JSONDecodeError:
         return None
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
+    """Read a JSON object from ``path`` or exit with a CLI error."""
+    if not path.exists():
+        typer.echo(f"Error: file not found: {path}", err=True)
+        raise typer.Exit(1)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: {path} is not valid JSON: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if not isinstance(raw, dict):
+        typer.echo(f"Error: {path} must contain a JSON object.", err=True)
+        raise typer.Exit(1)
+    return raw
 
 
 def _require_graph(pkg: str) -> Any:
@@ -326,6 +437,63 @@ def _ranked_open_contacts(exploration_map: ExplorationMap) -> list[Contact]:
     )
 
 
+def _triaged_pulled_contacts(ranked: list[Contact]) -> list[Contact]:
+    """Pulled-paper claim contacts ordered for a human paper-triage pass.
+
+    This is a display/worklist mode, not a scorer change: it filters to the
+    existing pulled-but-unformalized contacts and orders them by metadata emitted
+    by the joint frontier view, with the stored rank as a stable tie-breaker.
+    """
+    pulled = [c for c in ranked if c.meta.get("pulled_unformalized")]
+    return sorted(
+        pulled,
+        key=lambda c: (
+            int(c.meta.get("triage_priority", 99)),
+            -(c.score or 0.0),
+            str(c.ref.get("value")),
+        ),
+    )
+
+
+def _recommendation_reason(contact: Contact) -> str:
+    """Human-readable frontier rationale from agent-visible signals.
+
+    The numeric score and belief-derived terms stay hidden (build 11 steer 4).
+    This explains the rank using non-belief facets plus contact type/triage
+    metadata so the next action is legible without exposing BP internals.
+    """
+    features = sanitize_score_features(contact.score_features)
+    reasons: list[str] = []
+    if contact.ref.get("kind") == "lkm":
+        reasons.append("unpulled related paper")
+        if float(features.get("new_territory", 0.0) or 0.0) >= 0.5:
+            reasons.append("opens fresh paper territory")
+        if float(features.get("closeness_to_seed", 0.0) or 0.0) > 0.0:
+            reasons.append("matches the seed/query context")
+        if float(features.get("survey_cost", 0.0) or 0.0) > 1.0:
+            reasons.append("requires a full paper pull")
+    elif contact.meta.get("pulled_unformalized"):
+        role = str(contact.meta.get("triage_role") or "pulled claim")
+        if role == "conclusion":
+            reasons.append("pulled paper conclusion not wired into the root graph")
+        elif role == "load-bearing":
+            reasons.append("pulled paper load-bearing claim")
+        else:
+            reasons.append("pulled paper supporting claim")
+        degree = int(contact.meta.get("triage_edge_degree", 0) or 0)
+        if degree:
+            reasons.append(f"appears in {degree} dependency edge(s)")
+    else:
+        reasons.append("referenced claim/question not materialized yet")
+        edge_kinds = sorted({str(s.get("edge")) for s in contact.sources if s.get("edge")})
+        if edge_kinds:
+            reasons.append(f"reached via {', '.join(edge_kinds)}")
+
+    if float(features.get("obligation_pressure", 0.0) or 0.0) > 0.0:
+        reasons.append("discharges an open obligation")
+    return "; ".join(reasons)
+
+
 def _is_paper_contact(contact: Contact) -> bool:
     """True iff the contact is an unpulled-paper (``lkm_related``) contact.
 
@@ -385,6 +553,88 @@ def _refresh_obligation_pressure(
     recompute_obligation_pressure(exploration_map, obligations=obligations, edges=edges)
 
 
+def _frontier_json_rows(contacts: list[Contact]) -> list[dict[str, Any]]:
+    """Agent-facing frontier JSON rows, with belief-derived fields hidden."""
+    return [
+        {
+            "id": c.id,
+            "ref": c.ref,
+            "score_features": sanitize_score_features(c.score_features),
+            "sources": c.sources,
+            "recommendation": _recommendation_reason(c),
+        }
+        for c in contacts
+    ]
+
+
+def _echo_frontier_contact(
+    rank: int,
+    contact: Contact,
+    *,
+    obligation_contents: list[str],
+) -> None:
+    """Print one human-readable frontier contact row."""
+    ref = str(contact.ref.get("value"))
+    srcs = ", ".join(f"{s['qid']}[{s['edge']}]" for s in contact.sources) or "(no sources)"
+    if contact.ref.get("kind") == "lkm":
+        title = contact.meta.get("title")
+        label = f"paper:{ref}"
+        if isinstance(title, str) and title:
+            label = f'{label}  "{title}"'
+        index_id = contact.meta.get("index_id")
+        idx_arg = f" --lkm-index {index_id}" if isinstance(index_id, str) else ""
+        typer.echo(f"  {rank}. [lkm] {label}")
+        typer.echo(f"       pull: gaia pkg add{idx_arg} --lkm-paper {ref}")
+    else:
+        typer.echo(f"  {rank}. {ref}")
+    typer.echo(f"       via: {srcs}")
+    typer.echo(f"       why: {_recommendation_reason(contact)}")
+    if contact.meta.get("pulled_unformalized"):
+        role = contact.meta.get("triage_role", "pulled claim")
+        degree = contact.meta.get("triage_edge_degree", 0)
+        typer.echo(f"       triage: {role} (dependency edges: {degree})")
+    # (theme 006) Surface that this contact discharges an open obligation —
+    # set by the scorer's ref/source OR one-hop-adjacency match.
+    if _is_obligation_pressed(contact) and obligation_contents:
+        typer.echo(f"       discharges open obligation: {'; '.join(obligation_contents[:2])}")
+
+
+def _echo_frontier_text(
+    ranked: list[Contact],
+    top_k: list[Contact],
+    exploration_map: ExplorationMap,
+    *,
+    triage_pulled: bool,
+    obligations: list[Any],
+) -> None:
+    """Print the human frontier/triage surface."""
+    if triage_pulled:
+        typer.echo(
+            f"Frontier triage: {len(top_k)} pulled-paper claim contact(s) shown "
+            f"from {len(ranked)} open contact(s); top {len(top_k)} "
+            f"(budget_k={exploration_map.policy.budget_k}, "
+            f"doctrine {exploration_map.policy.doctrine}):"
+        )
+    else:
+        n_lkm = sum(1 for c in ranked if c.ref.get("kind") == "lkm")
+        typer.echo(
+            f"Frontier: {len(ranked)} open contact(s) ({n_lkm} lkm_related); "
+            f"top {len(top_k)} (budget_k={exploration_map.policy.budget_k}, "
+            f"doctrine {exploration_map.policy.doctrine}):"
+        )
+    if not top_k:
+        msg = (
+            "  (no pulled-paper claim contacts to triage)"
+            if triage_pulled
+            else "  (frontier empty — every referenced node is materialized)"
+        )
+        typer.echo(msg)
+        return
+    obligation_contents = _obligation_contents(obligations)
+    for rank, contact in enumerate(top_k, start=1):
+        _echo_frontier_contact(rank, contact, obligation_contents=obligation_contents)
+
+
 # --------------------------------------------------------------------------- #
 # init                                                                        #
 # --------------------------------------------------------------------------- #
@@ -421,22 +671,24 @@ def init_command(
         )
         raise typer.Exit(2)
 
-    # Warn when the chosen doctrine leads on the currently-inert tension/bridge
-    # potential slots (DESIGN §8 defers tension/bridge wiring), so its headline
-    # lever does nothing yet — surfaced here at init rather than only later in the
-    # survey task envelope. Mirrors that note.
+    # Warn when the chosen doctrine leads on the still-inert TENSION potential
+    # slot (EXPANSION.md §3.B defers tension wiring this iteration), so its
+    # headline lever does nothing yet — surfaced here at init rather than only
+    # later in the survey task envelope. Bridge is now WIRED (EXPANSION.md §3.B),
+    # so w_bridge counts as live, not inert.
     _weights = DOCTRINE_PRESETS[doctrine]
-    _inert = _weights.get("w_tension", 0.0) + _weights.get("w_bridge", 0.0)
+    _inert = _weights.get("w_tension", 0.0)
     _live = (
         _weights.get("w_uncertainty", 0.0)
         + _weights.get("w_coverage", 0.0)
         + _weights.get("w_relevance", 0.0)
+        + _weights.get("w_bridge", 0.0)
     )
     if _inert > _live:
         typer.echo(
-            f"Warning: doctrine {doctrine!r} leads on tension/bridge potential, "
-            "which are currently inert (0.0 scoring slots; DESIGN §8 defers "
-            "tension/bridge wiring), so its ranking is dominated by the remaining "
+            f"Warning: doctrine {doctrine!r} leads on tension potential, "
+            "which is still inert (a 0.0 scoring slot; EXPANSION.md §3.B defers "
+            "tension wiring), so its ranking is dominated by the remaining "
             "terms. Prefer 'Surveyor' or 'Cartographer' for now.",
             err=True,
         )
@@ -567,6 +819,113 @@ def observe_command(
 
 
 # --------------------------------------------------------------------------- #
+# landscape                                                                   #
+# --------------------------------------------------------------------------- #
+
+
+def landscape_command(
+    pkg: str = _PKG_ARG,
+    search_json: list[str] | None = _LANDSCAPE_SEARCH_JSON_OPT,
+    query: list[str] | None = _LANDSCAPE_QUERY_OPT,
+    source: list[str] | None = _LANDSCAPE_SOURCE_OPT,
+    out: str | None = _LANDSCAPE_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Aggregate saved LKM searches into a paper-level landscape artifact.
+
+    This is a breadth-first staging pass before deep pulls. It reads one or more
+    normalized ``gaia search lkm`` JSON files, deduplicates their results by
+    paper, skips already materialized papers when the package is compiled, and
+    writes a generic ``exploration_landscape`` JSON artifact. It does **not** call
+    LKM, mutate the map, pull papers, author Gaia source, or encode any
+    field-specific evidence schema.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia search lkm knowledge "free fall" > leads-a.json
+        gaia search lkm knowledge "falling bodies Galileo" > leads-b.json
+        gaia-lkm-explore landscape ./pkg \
+            --search-json leads-a.json --search-json leads-b.json
+    """
+    if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    search_paths = [Path(p) for p in search_json or []]
+    if not search_paths:
+        typer.echo("Error: provide at least one --search-json file.", err=True)
+        raise typer.Exit(2)
+
+    queries = list(query or [])
+    sources = list(source or [])
+    batches = [
+        LandscapeBatch(
+            search_results=_read_json_object(path),
+            query=queries[i] if i < len(queries) else None,
+            source_qid=sources[i] if i < len(sources) else None,
+            path=str(path),
+        )
+        for i, path in enumerate(search_paths)
+    ]
+
+    exploration_map = load_map(pkg)
+    materialized: set[str] = set()
+    materialized_papers: set[str] = set()
+    graph = resolve_graph(pkg)
+    if graph is not None:
+        view = _require_joint_view(pkg, graph)
+        materialized = set(view.materialized)
+        materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+            view.package_roots
+        )
+    else:
+        typer.echo(
+            "(no compiled IR yet — landscape cannot skip already-pulled papers by joint view)",
+            err=True,
+        )
+
+    landscape = build_landscape(
+        batches,
+        materialized=materialized,
+        materialized_paper_ids=materialized_papers,
+        exploration_map=exploration_map,
+    )
+    payload = landscape.to_dict()
+
+    output_path = (
+        Path(out)
+        if out is not None
+        else _gaia_dir(pkg) / "exploration" / f"landscape-{exploration_map.round}.json"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+    stats = payload["stats"]
+    typer.echo(
+        f"Landscape: {stats['query_batches']} query batch(es), "
+        f"{stats['raw_results']} raw result(s), {stats['paper_leads']} paper lead(s)."
+    )
+    typer.echo(f"Output: {output_path}")
+    top = landscape.paper_leads[: exploration_map.policy.budget_k]
+    if top:
+        typer.echo(f"Top paper lead(s) (budget_k={exploration_map.policy.budget_k}):")
+        for rank, lead in enumerate(top, start=1):
+            title = f' "{lead.title}"' if lead.title else ""
+            rank_text = f", rank={lead.best_rank:.4g}" if lead.best_rank is not None else ""
+            typer.echo(f"  {rank}. paper:{lead.paper_id}{title}{rank_text}")
+    else:
+        typer.echo("  (no unpulled paper leads)")
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+# --------------------------------------------------------------------------- #
 # frontier                                                                    #
 # --------------------------------------------------------------------------- #
 
@@ -574,6 +933,7 @@ def observe_command(
 def frontier_command(
     pkg: str = _PKG_ARG,
     json_out: bool = _FRONTIER_JSON_OPT,
+    triage_pulled: bool = _FRONTIER_TRIAGE_PULLED_OPT,
 ) -> None:
     r"""Extract, score, and rank the exploration frontier.
 
@@ -591,6 +951,7 @@ def frontier_command(
 
         gaia-lkm-explore frontier ./pkg
         gaia-lkm-explore frontier ./pkg --json
+        gaia-lkm-explore frontier ./pkg --triage-pulled
     """
     if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
         typer.echo(
@@ -626,12 +987,23 @@ def frontier_command(
     # ``obligation_pressure`` exactly as ``gaia-lkm-explore turn`` does — the two
     # surfaces must agree (a contact discharging an open obligation scores 1.0).
     obligations = load_open_obligations(pkg)
-    score_frontier(exploration_map, beliefs=beliefs, edges=view.edges, obligations=obligations)
+    # (EXPANSION.md §3.B) MapHealth activates bridge_potential + qid new_territory
+    # in the score, so this standalone verb ranks identically to the orchestrator.
+    health = _map_health(exploration_map, view)
+    score_frontier(
+        exploration_map,
+        beliefs=beliefs,
+        edges=view.edges,
+        obligations=obligations,
+        health=health,
+        materialized=view.materialized,
+    )
     _refresh_stats(exploration_map)
     save_map(pkg, exploration_map)
 
     ranked = _ranked_open_contacts(exploration_map)
-    top_k = ranked[: exploration_map.policy.budget_k]
+    display_contacts = _triaged_pulled_contacts(ranked) if triage_pulled else ranked
+    top_k = display_contacts[: exploration_map.policy.budget_k]
 
     if json_out:
         # Build 11 steer 4 (Jaynes' robot): the engine ranks by belief
@@ -639,15 +1011,7 @@ def frontier_command(
         # surfaces the belief math. ``top_k`` is already belief-ordered; here we
         # drop the belief-derived ``belief_entropy`` feature and the raw
         # belief-weighted ``score`` from each emitted row. Ordering is preserved.
-        rows = [
-            {
-                "id": c.id,
-                "ref": c.ref,
-                "score_features": sanitize_score_features(c.score_features),
-                "sources": c.sources,
-            }
-            for c in top_k
-        ]
+        rows = _frontier_json_rows(top_k)
         typer.echo(json.dumps(rows, ensure_ascii=False, indent=2))
         return
 
@@ -658,38 +1022,15 @@ def frontier_command(
             f"Promoted {len(promoted_papers)} lkm_related contact(s) "
             f"(paper(s) now materialized): {', '.join(promoted_papers)}"
         )
-    # ``ranked`` is already open-only; count the lkm_related share for legibility.
-    n_lkm = sum(1 for c in ranked if c.ref.get("kind") == "lkm")
-    typer.echo(
-        f"Frontier: {len(ranked)} open contact(s) ({n_lkm} lkm_related); "
-        f"top {len(top_k)} (budget_k={exploration_map.policy.budget_k}, "
-        f"doctrine {exploration_map.policy.doctrine}):"
-    )
-    if not top_k:
-        typer.echo("  (frontier empty — every referenced node is materialized)")
-        return
     # Rank order conveys priority; the numeric belief-weighted score is NOT
     # printed (build 11 steer 4 — belief stays internal to the engine).
-    obligation_contents = _obligation_contents(obligations)
-    for rank, c in enumerate(top_k, start=1):
-        ref = str(c.ref.get("value"))
-        srcs = ", ".join(f"{s['qid']}[{s['edge']}]" for s in c.sources) or "(no sources)"
-        if c.ref.get("kind") == "lkm":
-            title = c.meta.get("title")
-            label = f"paper:{ref}"
-            if isinstance(title, str) and title:
-                label = f'{label}  "{title}"'
-            index_id = c.meta.get("index_id")
-            idx_arg = f" --lkm-index {index_id}" if isinstance(index_id, str) else ""
-            typer.echo(f"  {rank}. [lkm] {label}")
-            typer.echo(f"       pull: gaia pkg add{idx_arg} --lkm-paper {ref}")
-        else:
-            typer.echo(f"  {rank}. {ref}")
-        typer.echo(f"       via: {srcs}")
-        # (theme 006) Surface that this contact discharges an open obligation —
-        # set by the scorer's ref/source OR one-hop-adjacency match.
-        if _is_obligation_pressed(c) and obligation_contents:
-            typer.echo(f"       discharges open obligation: {'; '.join(obligation_contents[:2])}")
+    _echo_frontier_text(
+        ranked,
+        top_k,
+        exploration_map,
+        triage_pulled=triage_pulled,
+        obligations=obligations,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -876,8 +1217,13 @@ def status_command(
     typer.echo(f"Exploration status for {pkg}")
     typer.echo(f"  round:          {exploration_map.round}")
     typer.echo(f"  doctrine:       {exploration_map.policy.doctrine}")
+    typer.echo(f"  mode_select:    {exploration_map.policy.mode_select}")
     typer.echo(f"  seeds:          {len(exploration_map.seeds)}")
     typer.echo(f"  surveyed:       {len(exploration_map.surveyed)}")
+
+    # (EXPANSION.md §3/§4) Connectivity readout — components / orphans / ratified /
+    # reopened, and whether the map is unhealthy past the fragmentation threshold.
+    _echo_status_connectivity(pkg, exploration_map)
     # Split the open frontier into paper vs claim contacts with the
     # same vocabulary `render` uses, so the two surfaces never appear to disagree.
     n_papers, n_claims = _open_frontier_split(ranked)
@@ -1040,9 +1386,31 @@ def render_command(
     graph_payload.setdefault("nodes", []).extend(frontier_nodes)
     graph_payload.setdefault("edges", []).extend(frontier_edges)
 
+    # (EXPANSION.md §3.E / Phase 3) Mark surveyed nodes in a ratified (or reopened)
+    # island so the figure can draw a ratified boundary DISTINCTLY from a fog gap —
+    # a deliberate border, not "unexplored" — and FLAG a reopened one. Best-effort
+    # MapHealth (a degraded joint view must not break render); the classifier falls
+    # back to "ratified" for every recorded member when no live health is available.
+    health = None
+    try:
+        graph_for_health = resolve_graph(pkg)
+        if graph_for_health is not None:
+            health = _map_health(exploration_map, _require_joint_view(pkg, graph_for_health))
+    except Exception:
+        # render must not crash on a degraded view — skip the ratified styling.
+        health = None
+    node_classes = ratified_node_classes(exploration_map, health=health)
+    if node_classes:
+        for node in graph_payload.get("nodes", []):
+            cls = node_classes.get(str(node.get("id")))
+            if cls is not None:
+                meta = node.setdefault("metadata", {}) or {}
+                meta["ratified_separation"] = cls  # "ratified" | "reopened"
+                node["metadata"] = meta
+
     dot_source = to_dot(json.dumps(graph_payload), theme="stellaris")
     svg = _render_stellaris_svg(dot_source, include_frontier=bool(frontier_nodes))
-    svg = inject_exploration_header(svg, exploration_header_fields(exploration_map))
+    svg = inject_exploration_header(svg, exploration_header_fields(exploration_map, health=health))
     html_doc = wrap_self_contained_html(svg)
 
     out_path = Path(out).resolve() if out is not None else gaia_dir / "exploration" / "map.html"
