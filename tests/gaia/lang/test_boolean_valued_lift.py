@@ -7,9 +7,14 @@ Covers:
 - ``_lift_to_claim`` dispatch per shape (Claim passthrough, ClaimAtom
   unwrap, Formula → ``claim(formula=...)``, BoolExpr → ``claim(content,
   proposition)``).
-- Each Claim-accepting verb in scope (``equal``, ``contradict``,
-  ``exclusive``, ``derive``, ``infer``, ``register_prior``) now accepts a
-  Boolean-valued expression as direct argument.
+- Each Claim-accepting verb in scope now accepts a Boolean-valued
+  expression as direct argument:
+
+    - ``equal``, ``contradict``, ``exclusive``  (RFC #703 / PR #706)
+    - ``derive``, ``infer``, ``register_prior`` (RFC #703 / PR #706)
+    - ``associate``, ``decompose``, ``depends_on``, ``candidate_relation``
+      (lift-coverage extension PR — this file's second half)
+
 - Term-layer values (``Variable``, raw Python types) raise the educational
   ``TypeError`` from the lift's else branch.
 """
@@ -25,12 +30,17 @@ from gaia.engine.lang import (
     Land,
     Nat,
     Variable,
+    associate,
+    candidate_relation,
     claim,
     contradict,
+    decompose,
+    depends_on,
     derive,
     equal,
     exclusive,
     infer,
+    land,
     register_prior,
 )
 from gaia.engine.lang._boolean_valued import is_boolean_valued
@@ -410,3 +420,183 @@ def test_infer_with_plain_string_evidence_still_works():
     finally:
         _current_package.reset(token)
     assert isinstance(result, Claim)
+
+
+# ---------------------------------------------------------------------------
+# Extended verb coverage: associate / decompose / depends_on / candidate_relation
+# (lift-coverage extension PR, second half of RFC §4.5 verb scope)
+# ---------------------------------------------------------------------------
+
+
+def test_associate_accepts_propositional_formula_directly():
+    pkg = CollectedPackage(name="bv_associate_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        c = claim("C.")
+        result = associate(
+            a & b,
+            c,
+            p_a_given_b=0.7,
+            p_b_given_a=0.7,
+            pattern="equal",
+            rationale="",
+            label="assoc",
+        )
+    finally:
+        _current_package.reset(token)
+    assert isinstance(result, Claim)
+
+
+def test_associate_rejects_term_layer_with_educational_message():
+    pkg = CollectedPackage(name="bv_associate_term_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        x = Variable(symbol="x", domain=Nat)
+        with pytest.raises(TypeError, match="associate"):
+            associate(x, a, p_a_given_b=0.7, p_b_given_a=0.7)
+    finally:
+        _current_package.reset(token)
+
+
+def test_decompose_accepts_propositional_formula_as_whole():
+    pkg = CollectedPackage(name="bv_decompose_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        a.label = "a"
+        b = claim("B.")
+        b.label = "b"
+        c = claim("C.")
+        c.label = "c"
+        # The compound `a & b` is the whole; parts are the atomic Claims that
+        # appear in the decomposition formula. Note: parts is intentionally
+        # NOT lifted (see decompose docstring) — atomic Claims required.
+        result = decompose(
+            a & b,
+            parts=[a, b],
+            formula=land(a, b),
+            label="dec",
+        )
+        # Decompose returns the whole Claim (the lifted helper).
+        assert isinstance(result, Claim)
+        # Whole's lifted helper itself carries a Land formula.
+        assert isinstance(result.formula, Land)
+        # The decompose action references a distinct formula (land(a, b)).
+        assert c is not result
+    finally:
+        _current_package.reset(token)
+
+
+def test_decompose_still_rejects_non_claim_parts():
+    pkg = CollectedPackage(name="bv_decompose_parts_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        c = claim("C.")
+        # parts must be atomic Claims — passing a Formula should still error
+        # (RFC #703 deliberately does NOT lift parts; see decompose docstring).
+        with pytest.raises(TypeError, match="parts"):
+            decompose(c, parts=[a & b], formula=land(a, b))
+    finally:
+        _current_package.reset(token)
+
+
+def test_depends_on_accepts_propositional_formula():
+    pkg = CollectedPackage(name="bv_depends_on_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        conclusion = claim("Depends on A and B.")
+        result = depends_on(conclusion, given=[a & b], label="dep")
+    finally:
+        _current_package.reset(token)
+    # depends_on returns the DependsOn action, not a Claim.
+    assert result is not None
+
+
+def test_depends_on_accepts_single_boolean_expression_as_given():
+    pkg = CollectedPackage(name="bv_depends_on_single_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        conclusion = claim("Depends on A and B.")
+        # given=p1 & p2 without [...] wrapping — exercises the
+        # _as_claim_tuple is_boolean_valued branch.
+        result = depends_on(conclusion, given=a & b, label="dep_single")
+    finally:
+        _current_package.reset(token)
+    assert result is not None
+
+
+def test_depends_on_rejects_term_layer():
+    pkg = CollectedPackage(name="bv_depends_on_term_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        conclusion = claim("C.")
+        x = Variable(symbol="x", domain=Nat)
+        with pytest.raises(TypeError, match="depends_on"):
+            depends_on(conclusion, given=[x])
+    finally:
+        _current_package.reset(token)
+
+
+def test_candidate_relation_accepts_propositional_formula_in_claims():
+    pkg = CollectedPackage(name="bv_cand_rel_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        c = claim("C.")
+        # Mix of a Formula (a & b) and a Claim (c) — lift each entry.
+        result = candidate_relation(claims=[a & b, c], pattern="equal", label="cr")
+    finally:
+        _current_package.reset(token)
+    assert result is not None
+
+
+def test_candidate_relation_rejects_term_layer_with_educational_message():
+    pkg = CollectedPackage(name="bv_cand_rel_term_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        x = Variable(symbol="x", domain=Nat)
+        with pytest.raises(TypeError, match="candidate_relation"):
+            candidate_relation(claims=[a, x])
+    finally:
+        _current_package.reset(token)
+
+
+# ---------------------------------------------------------------------------
+# Backwards compatibility for the new verbs (plain Claim args)
+# ---------------------------------------------------------------------------
+
+
+def test_associate_with_plain_claims_still_works():
+    pkg = CollectedPackage(name="bv_assoc_compat_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        result = associate(a, b, p_a_given_b=0.7, p_b_given_a=0.7, pattern="equal")
+    finally:
+        _current_package.reset(token)
+    assert isinstance(result, Claim)
+
+
+def test_depends_on_with_plain_claims_still_works():
+    pkg = CollectedPackage(name="bv_dep_compat_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        c = claim("C.")
+        result = depends_on(c, given=[a, b])
+    finally:
+        _current_package.reset(token)
+    assert result is not None

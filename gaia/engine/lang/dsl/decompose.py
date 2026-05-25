@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from gaia.engine.lang.dsl._lift import _lift_to_claim
 from gaia.engine.lang.formula.connective import Iff, Implies, Land, Lnot, Lor
 from gaia.engine.lang.formula.predicate import ClaimAtom, is_formula
 from gaia.engine.lang.runtime.action import (
@@ -51,7 +52,7 @@ def _decomposition_reaches(start: Claim, target: Claim, seen: set[int]) -> bool:
 
 
 def decompose(
-    whole: Claim,
+    whole: Any,
     *,
     parts: tuple[Claim, ...] | list[Claim],
     formula: Any,
@@ -60,9 +61,20 @@ def decompose(
     label: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Claim:
-    """Declare ``whole`` equivalent to ``formula`` over atomic ``parts``."""
-    if not isinstance(whole, Claim):
-        raise TypeError("decompose whole must be a Claim")
+    """Declare ``whole`` equivalent to ``formula`` over atomic ``parts``.
+
+    ``whole`` may be any Boolean-valued expression (``Claim``,
+    ``ClaimAtom``, Formula node, or ``BoolExpr``); non-``Claim`` inputs are
+    lifted to a helper Claim at the verb boundary per RFC #703.
+
+    ``parts`` is NOT lifted: each entry must be an atomic ``Claim`` that
+    already appears in ``formula``'s :class:`ClaimAtom` leaves, since the
+    verb's structural invariant is a bijection between ``parts`` and the
+    atoms of ``formula``. Lifting a Formula in ``parts`` would create a
+    new helper Claim whose id is not in that bijection.
+    """
+    whole = _lift_to_claim(whole, verb="decompose", position="whole")
+    assert isinstance(whole, Claim)  # narrow Any back to Claim for mypy
     part_tuple = tuple(parts)
     if not part_tuple:
         raise ValueError("decompose requires at least one part Claim")
