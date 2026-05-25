@@ -17,6 +17,7 @@ from functools import wraps
 from typing import Any, cast
 
 from gaia.engine.ir.parameterization import CROMWELL_EPS
+from gaia.engine.lang._boolean_valued import is_boolean_valued
 from gaia.engine.lang.dsl._lift import _lift_to_claim
 from gaia.engine.lang.runtime.action import (
     Compute,
@@ -30,10 +31,10 @@ from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 from gaia.engine.lang.runtime.variable import Variable
 
 
-def _as_given_tuple(given: Claim | tuple[Claim, ...] | list[Claim] | None) -> tuple[Claim, ...]:
+def _as_given_tuple(given: Any) -> tuple[Any, ...]:
     if given is None:
         return ()
-    if isinstance(given, Knowledge):
+    if isinstance(given, Knowledge) or is_boolean_valued(given):
         return (given,)
     return tuple(given)
 

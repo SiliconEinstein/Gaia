@@ -5,6 +5,7 @@ from __future__ import annotations
 import warnings
 from typing import Any, cast
 
+from gaia.engine.lang._boolean_valued import is_boolean_valued
 from gaia.engine.lang.dsl._lift import _lift_to_claim
 from gaia.engine.lang.runtime.action import (
     Infer as InferAction,
@@ -21,10 +22,10 @@ def _claim_ref(claim: Claim) -> str:
     return claim.content
 
 
-def _as_given_tuple(given: Claim | tuple[Claim, ...] | list[Claim] | None) -> tuple[Claim, ...]:
+def _as_given_tuple(given: Any) -> tuple[Any, ...]:
     if given is None:
         return ()
-    if isinstance(given, Knowledge):
+    if isinstance(given, Knowledge) or is_boolean_valued(given):
         return (given,)
     return tuple(given)
 

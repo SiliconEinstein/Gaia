@@ -238,6 +238,23 @@ def test_derive_accepts_propositional_formula_in_given():
     assert isinstance(result, Claim)
 
 
+def test_derive_accepts_single_propositional_formula_in_given():
+    pkg = CollectedPackage(name="bv_derive_single_given_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        conclusion = claim("Conclusion.")
+        result = derive(conclusion, given=a & b, rationale="", label="d_single")
+    finally:
+        _current_package.reset(token)
+    assert isinstance(result, Claim)
+    action = result.from_actions[0]
+    assert len(action.given) == 1
+    assert isinstance(action.given[0], Claim)
+    assert isinstance(action.given[0].formula, Land)
+
+
 def test_infer_accepts_propositional_formula_as_evidence_and_hypothesis():
     pkg = CollectedPackage(name="bv_infer_pkg", namespace="t")
     token = _current_package.set(pkg)
@@ -255,6 +272,31 @@ def test_infer_accepts_propositional_formula_as_evidence_and_hypothesis():
     finally:
         _current_package.reset(token)
     assert isinstance(result, Claim)
+
+
+def test_infer_accepts_single_propositional_formula_in_given():
+    pkg = CollectedPackage(name="bv_infer_single_given_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        h = claim("Hypothesis.")
+        e = claim("Evidence.")
+        result = infer(
+            e,
+            hypothesis=h,
+            given=a & b,
+            p_e_given_h=0.9,
+            p_e_given_not_h=0.5,
+            label="i_single_given",
+        )
+    finally:
+        _current_package.reset(token)
+    assert isinstance(result, Claim)
+    action = result.from_actions[0]
+    assert len(action.given) == 1
+    assert isinstance(action.given[0], Claim)
+    assert isinstance(action.given[0].formula, Land)
 
 
 def test_register_prior_accepts_propositional_formula():
