@@ -250,9 +250,7 @@ def test_formula_claim_package_passes_local_graph_validation():
 
     artifact = compile_package_artifact(pkg)
     result = validate_local_graph(artifact.graph)
-    assert not result.errors, (
-        f"Expected validation to pass, got errors: {result.errors}"
-    )
+    assert not result.errors, f"Expected validation to pass, got errors: {result.errors}"
 
 
 # ---------------------------------------------------------------------------

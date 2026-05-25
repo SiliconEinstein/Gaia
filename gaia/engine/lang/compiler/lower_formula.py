@@ -568,9 +568,7 @@ def _lower_exists(
         )
 
     exists_operator = IrOperator(
-        operator_id=_formula_operator_id(
-            OperatorType.DISJUNCTION, instance_ids, claim_id
-        ),
+        operator_id=_formula_operator_id(OperatorType.DISJUNCTION, instance_ids, claim_id),
         scope="local",
         operator=OperatorType.DISJUNCTION,
         variables=instance_ids,
