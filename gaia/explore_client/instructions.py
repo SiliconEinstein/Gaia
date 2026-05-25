@@ -52,6 +52,14 @@ target), rather than restating them locally. ``lkm_no_chain`` source claims are
 demoted to the explicit fallback for evidence you could not pull or that is
 genuinely chain-less. Pairs with the frontier now surfacing a pulled paper's
 not-yet-formalized claims as ``depends_on`` contacts (the formalize worklist).
+
+Build 17 (checkpoint-formalize): the v1-limits now state that a pulled paper's
+OWN internal reasoning enters BP automatically at the checkpoint — the
+orchestrator promotes each pulled-paper ``depends_on`` factor to live ``derive``
+and infers over the joint (root + pulled-paper) graph
+(:mod:`gaia.engine.exploration.promote`). Step 3b (connecting a pulled paper UP to
+the ROOT reasoning) is unchanged and stays the agent's manual job; the auto-promo
+covers only the paper's intra-paper factors.
 """
 
 from __future__ import annotations
@@ -84,10 +92,17 @@ materialize them into the Gaia package. The engine then adjudicates the
 - The frontier grows primarily from `lkm_related` contacts. Each survey's
   `gaia search lkm` returns related papers you haven't pulled; feeding that JSON
   to `gaia-lkm-explore observe` records them as `lkm_related` paper-contacts — the
-  primary expansion signal. `depends_on` contacts (from a pulled paper's
-  formalization manifest) are a secondary, intra-survey signal. If you neither
-  observe related papers nor pull a paper, the frontier can go empty — expected,
-  not a bug. So observe every search, and pull at least one paper per turn.
+  primary expansion signal. `depends_on` contacts (a pulled paper's claims not yet
+  wired into YOUR root reasoning) are a secondary, intra-survey signal. If you
+  neither observe related papers nor pull a paper, the frontier can go empty —
+  expected, not a bug. So observe every search, and pull at least one paper per turn.
+- A pulled paper's OWN internal reasoning goes live automatically. When you
+  re-invoke `gaia-lkm-explore turn`, the checkpoint promotes each pulled paper's
+  intra-paper `depends_on` factors to live `derive` and infers over the joint
+  (root + pulled-paper) graph — so a pulled paper's internal premise→conclusion
+  structure enters belief propagation and moves belief on the map without any
+  manual step. What still needs YOUR hand (step 3b) is connecting the pulled
+  paper UP to your root reasoning — the `depends_on` contacts are that worklist.
 - Survey-facing contact signals: `closeness_to_seed` (relevance),
   `new_territory` (coverage; live for lkm contacts only), `obligation_pressure`
   (1.0 iff the contact discharges an open obligation you marked — see "Mark
