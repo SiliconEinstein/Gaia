@@ -44,7 +44,7 @@ optional convenience; it writes the same statements into the re-exported
 
 ```python
 from gaia.engine.lang import (
-    claim, note, question,                                  # Knowledge
+    Claim, claim, note, question,                           # Knowledge
     Variable, Nat, Real, Probability, Bool, Constant,       # Formula terms
     parameter,                                              # Structured formula claims
     ClaimAtom, land, lnot, lor, implies, iff, equals,       # Propositional formula helpers
@@ -111,13 +111,17 @@ uncertainty enters the inference. This makes weak points explicit and reviewable
 
 ```python
 derive("Composite should fall faster.",
-       given=[model_a, weak_step_premise],   # premises (extract uncertain steps to their own Claims)
+       given=[model_a, weak_step_premise],   # extract uncertain steps to Claims
        rationale="...")
 
 observe("F1 offspring are uniformly dominant.", rationale="...")
 # Pins the observed claim's prior to ~1 − ε.
 
-compute(result, fn=my_fn, given=[x, y], rationale="...")
+class ResultClaim(Claim):
+    '''Computed result is {value}.'''
+    value: float
+
+compute(ResultClaim, fn=my_fn, given=[x, y], rationale="...")
 # Deterministic functional computation: result = fn(x, y).
 
 decompose(whole, parts=[part_a, part_b], formula=..., rationale="...")
@@ -132,7 +136,7 @@ evidence shift belief in the hypothesis? YOU estimate the two conditionals.
 ```python
 infer(evidence,
       hypothesis=H,
-      given=[scope_assumption_1, scope_assumption_2],   # assumptions under which the likelihoods hold
+      given=[scope_assumption_1, scope_assumption_2],  # likelihood scope
       p_e_given_h=0.90,        # P(observing this evidence | H is true)
       p_e_given_not_h=0.10,    # P(observing this evidence | H is false)
       rationale="...")
