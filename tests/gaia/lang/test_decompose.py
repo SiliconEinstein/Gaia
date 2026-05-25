@@ -138,7 +138,7 @@ def test_decompose_rejects_non_claim_whole():
     # Since RFC #703 lift-coverage extension, decompose(whole=...) goes through
     # _lift_to_claim — a non-Boolean-valued input like a plain str raises the
     # educational lift TypeError instead of the old "whole must be a Claim".
-    with pytest.raises(TypeError, match="decompose.*whole"):
+    with pytest.raises(TypeError, match=r"decompose.*whole"):
         decompose("not a claim", parts=(a,), formula=ClaimAtom(a))
 
 
