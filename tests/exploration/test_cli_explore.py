@@ -520,6 +520,48 @@ def test_explore_observe_reads_stdin(galileo_pkg: Path):
     assert len([c for c in m.frontier if c.ref["kind"] == "lkm"]) == 5
 
 
+def test_explore_landscape_writes_neutral_paper_leads(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    out = galileo_pkg / ".gaia" / "exploration" / "custom-landscape.json"
+    result = runner.invoke(
+        app,
+        [
+            "landscape",
+            str(galileo_pkg),
+            "--search-json",
+            str(_FIXTURE),
+            "--search-json",
+            str(_FIXTURE),
+            "--source",
+            _galileo_qid("aristotle_model"),
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "2 query batch(es)" in result.output
+    assert "5 paper lead(s)" in result.output
+
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["kind"] == "exploration_landscape"
+    assert payload["stats"]["query_batches"] == 2
+    assert payload["stats"]["raw_results"] == 10
+    assert payload["stats"]["paper_leads"] == 5
+    assert len(payload["recommended_pull_order"]) == 5
+    assert "Paper leads are topic-neutral" in payload["notes"][0]
+
+    # Landscape is a staging artifact, not observe: it does not mutate the map
+    # frontier or import field-specific paper classifications.
+    assert load_map(galileo_pkg).frontier == []
+    first = payload["paper_leads"][0]
+    assert {"paper_id", "best_rank", "queries", "lkm_node_ids"} <= set(first)
+    assert "pico" not in first
+    assert "evidence_hierarchy" not in first
+
+
 def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
     runner.invoke(
         app,

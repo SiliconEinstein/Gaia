@@ -17,6 +17,8 @@ Commands (SCHEMA.md §7c / §7f):
   read ``gaia search lkm`` JSON (file/stdin) and record each unpulled related
   paper as an ``lkm_related`` paper-contact (SCHEMA.md §7f — the primary frontier
   source). This is the step the agent calls after each LKM survey.
+* ``landscape <pkg> --search-json <file> ...`` — aggregate saved LKM search JSON
+  into a neutral paper-level landscape artifact before deep pulls.
 * ``frontier <pkg>`` — load map + IR + manifest + beliefs, build the joint view,
   promote any now-materialized ``lkm`` contacts, run ``extract_frontier`` →
   ``reconcile_frontier`` → ``score_frontier``, save, and print the ranked top-k
@@ -58,6 +60,7 @@ from gaia.engine.exploration.frontier import (
     resolve_freetext_seed_qid,
 )
 from gaia.engine.exploration.health import MapHealth, compute_map_health
+from gaia.engine.exploration.landscape import LandscapeBatch, build_landscape
 from gaia.engine.exploration.observe import (
     materialized_paper_ids_from_roots,
     observe_lkm_results,
@@ -92,6 +95,7 @@ from gaia.engine.exploration.state import (
 )
 from gaia.engine.inquiry.focus import resolve_focus_target
 from gaia.engine.inquiry.review import resolve_graph
+from gaia.engine.packaging import write_text_atomic
 
 # Module-level option singletons — Typer needs ``typer.Option`` objects as the
 # parameter defaults, but ruff B008 forbids the call literally in the signature,
@@ -129,6 +133,34 @@ _SEARCH_JSON_OPT = typer.Option(
     None,
     "--search-json",
     help="Path to a `gaia search lkm` result JSON file (omit to read from stdin).",
+)
+_LANDSCAPE_SEARCH_JSON_OPT = typer.Option(
+    None,
+    "--search-json",
+    help="Path to a saved `gaia search lkm` result JSON file (repeatable).",
+)
+_LANDSCAPE_QUERY_OPT = typer.Option(
+    None,
+    "--query",
+    help=(
+        "Query text for the matching --search-json file (repeatable; defaults to "
+        "the normalized search envelope's query text)."
+    ),
+)
+_LANDSCAPE_SOURCE_OPT = typer.Option(
+    None,
+    "--source",
+    help="Survey source QID for the matching --search-json file (repeatable, optional).",
+)
+_LANDSCAPE_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/landscape-<round>.json).",
+)
+_LANDSCAPE_JSON_OPT = typer.Option(
+    False,
+    "--json",
+    help="Print the landscape artifact JSON to stdout after writing it.",
 )
 _OBSERVE_SOURCE_OPT = typer.Option(
     None,
@@ -239,6 +271,22 @@ def _load_ir_dict(pkg: str) -> dict[str, Any] | None:
         return dict(json.loads(p.read_text(encoding="utf-8")))
     except json.JSONDecodeError:
         return None
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
+    """Read a JSON object from ``path`` or exit with a CLI error."""
+    if not path.exists():
+        typer.echo(f"Error: file not found: {path}", err=True)
+        raise typer.Exit(1)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: {path} is not valid JSON: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if not isinstance(raw, dict):
+        typer.echo(f"Error: {path} must contain a JSON object.", err=True)
+        raise typer.Exit(1)
+    return raw
 
 
 def _require_graph(pkg: str) -> Any:
@@ -768,6 +816,113 @@ def observe_command(
     typer.echo(
         "Next: `gaia-lkm-explore frontier` to rank them; pull the top via `pkg add --lkm-paper`."
     )
+
+
+# --------------------------------------------------------------------------- #
+# landscape                                                                   #
+# --------------------------------------------------------------------------- #
+
+
+def landscape_command(
+    pkg: str = _PKG_ARG,
+    search_json: list[str] | None = _LANDSCAPE_SEARCH_JSON_OPT,
+    query: list[str] | None = _LANDSCAPE_QUERY_OPT,
+    source: list[str] | None = _LANDSCAPE_SOURCE_OPT,
+    out: str | None = _LANDSCAPE_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Aggregate saved LKM searches into a paper-level landscape artifact.
+
+    This is a breadth-first staging pass before deep pulls. It reads one or more
+    normalized ``gaia search lkm`` JSON files, deduplicates their results by
+    paper, skips already materialized papers when the package is compiled, and
+    writes a generic ``exploration_landscape`` JSON artifact. It does **not** call
+    LKM, mutate the map, pull papers, author Gaia source, or encode any
+    field-specific evidence schema.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia search lkm knowledge "free fall" > leads-a.json
+        gaia search lkm knowledge "falling bodies Galileo" > leads-b.json
+        gaia-lkm-explore landscape ./pkg \
+            --search-json leads-a.json --search-json leads-b.json
+    """
+    if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    search_paths = [Path(p) for p in search_json or []]
+    if not search_paths:
+        typer.echo("Error: provide at least one --search-json file.", err=True)
+        raise typer.Exit(2)
+
+    queries = list(query or [])
+    sources = list(source or [])
+    batches = [
+        LandscapeBatch(
+            search_results=_read_json_object(path),
+            query=queries[i] if i < len(queries) else None,
+            source_qid=sources[i] if i < len(sources) else None,
+            path=str(path),
+        )
+        for i, path in enumerate(search_paths)
+    ]
+
+    exploration_map = load_map(pkg)
+    materialized: set[str] = set()
+    materialized_papers: set[str] = set()
+    graph = resolve_graph(pkg)
+    if graph is not None:
+        view = _require_joint_view(pkg, graph)
+        materialized = set(view.materialized)
+        materialized_papers = set(view.materialized_paper_ids) | materialized_paper_ids_from_roots(
+            view.package_roots
+        )
+    else:
+        typer.echo(
+            "(no compiled IR yet — landscape cannot skip already-pulled papers by joint view)",
+            err=True,
+        )
+
+    landscape = build_landscape(
+        batches,
+        materialized=materialized,
+        materialized_paper_ids=materialized_papers,
+        exploration_map=exploration_map,
+    )
+    payload = landscape.to_dict()
+
+    output_path = (
+        Path(out)
+        if out is not None
+        else _gaia_dir(pkg) / "exploration" / f"landscape-{exploration_map.round}.json"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+    stats = payload["stats"]
+    typer.echo(
+        f"Landscape: {stats['query_batches']} query batch(es), "
+        f"{stats['raw_results']} raw result(s), {stats['paper_leads']} paper lead(s)."
+    )
+    typer.echo(f"Output: {output_path}")
+    top = landscape.paper_leads[: exploration_map.policy.budget_k]
+    if top:
+        typer.echo(f"Top paper lead(s) (budget_k={exploration_map.policy.budget_k}):")
+        for rank, lead in enumerate(top, start=1):
+            title = f' "{lead.title}"' if lead.title else ""
+            rank_text = f", rank={lead.best_rank:.4g}" if lead.best_rank is not None else ""
+            typer.echo(f"  {rank}. paper:{lead.paper_id}{title}{rank_text}")
+    else:
+        typer.echo("  (no unpulled paper leads)")
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 # --------------------------------------------------------------------------- #
