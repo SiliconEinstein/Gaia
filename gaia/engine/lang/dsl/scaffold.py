@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import fields, is_dataclass
 from typing import TYPE_CHECKING, Any
 
+from gaia.engine.lang._boolean_valued import is_boolean_valued
+from gaia.engine.lang.dsl._lift import _lift_to_claim
 from gaia.engine.lang.runtime.action import (
     Associate,
     CandidateRelation,
@@ -30,29 +32,42 @@ _CANDIDATE_RELATION_KINDS = frozenset(
 )
 
 
-def _as_claim_tuple(given: Claim | tuple[Claim, ...] | list[Claim]) -> tuple[Claim, ...]:
-    if isinstance(given, Knowledge):
+def _as_claim_tuple(given: Any) -> tuple[Any, ...]:
+    """Normalize ``given`` into a tuple of items for downstream verb logic.
+
+    Accepts a single ``Knowledge``/Boolean-valued expression (returned as a
+    1-tuple) or any iterable of such items. The single-expression case is
+    detected via :func:`is_boolean_valued` so that callers can write e.g.
+    ``depends_on(c, given=p1 & p2)`` without wrapping in ``[…]``.
+    """
+    if isinstance(given, Knowledge) or is_boolean_valued(given):
         return (given,)
     return tuple(given)
 
 
 def depends_on(
-    conclusion: Claim,
+    conclusion: Any,
     *,
-    given: Claim | tuple[Claim, ...] | list[Claim],
+    given: Any,
     background: list[Knowledge] | None = None,
     rationale: str = "",
     label: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> DependsOn:
-    """Record unformalized load-bearing dependencies for a Claim."""
-    if not isinstance(conclusion, Claim):
-        raise TypeError("depends_on conclusion must be a Claim")
-    given_tuple = _as_claim_tuple(given)
+    """Record unformalized load-bearing dependencies for a Claim.
+
+    ``conclusion`` and every entry of ``given`` may be any Boolean-valued
+    expression (``Claim``, ``ClaimAtom``, Formula node, or ``BoolExpr``);
+    non-``Claim`` inputs are lifted to helper Claims at the verb boundary
+    per RFC #703.
+    """
+    conclusion = _lift_to_claim(conclusion, verb="depends_on", position="conclusion")
+    given_tuple = tuple(
+        _lift_to_claim(item, verb="depends_on", position=f"given[{i}]")
+        for i, item in enumerate(_as_claim_tuple(given))
+    )
     if not given_tuple:
         raise ValueError("depends_on requires at least one given Claim")
-    if any(not isinstance(item, Claim) for item in given_tuple):
-        raise TypeError("depends_on given entries must be Claims")
     return DependsOn(
         label=label,
         rationale=rationale,
@@ -65,19 +80,26 @@ def depends_on(
 
 def candidate_relation(
     *,
-    claims: list[Claim] | tuple[Claim, ...],
+    claims: list[Any] | tuple[Any, ...],
     pattern: str | None = None,
     background: list[Knowledge] | None = None,
     rationale: str = "",
     label: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> CandidateRelation:
-    """Record a hypothesized relation without triggering formal semantics."""
-    claim_tuple = tuple(claims)
+    """Record a hypothesized relation without triggering formal semantics.
+
+    Every entry of ``claims`` may be any Boolean-valued expression
+    (``Claim``, ``ClaimAtom``, Formula node, or ``BoolExpr``);
+    non-``Claim`` inputs are lifted to helper Claims at the verb boundary
+    per RFC #703.
+    """
+    claim_tuple = tuple(
+        _lift_to_claim(item, verb="candidate_relation", position=f"claims[{i}]")
+        for i, item in enumerate(claims)
+    )
     if len(claim_tuple) < 2:
         raise ValueError("candidate_relation requires at least two Claims")
-    if any(not isinstance(item, Claim) for item in claim_tuple):
-        raise TypeError("candidate_relation claims entries must be Claims")
     if pattern is not None and pattern not in _CANDIDATE_RELATION_KINDS:
         allowed = ", ".join(sorted(_CANDIDATE_RELATION_KINDS))
         raise ValueError(f"candidate_relation pattern must be one of: {allowed}")
