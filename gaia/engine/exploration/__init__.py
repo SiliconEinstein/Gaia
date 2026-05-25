@@ -25,6 +25,12 @@ from gaia.engine.exploration.handoff import (
     result_path,
     task_path,
 )
+from gaia.engine.exploration.health import (
+    Component,
+    MapHealth,
+    RatifiedSeparation,
+    compute_map_health,
+)
 from gaia.engine.exploration.observe import (
     ObserveResult,
     observe_lkm_results,
@@ -79,10 +85,13 @@ __all__ = [
     "VALID_REF_KINDS",
     "VALID_SEED_KINDS",
     "VALID_TURN_PHASES",
+    "Component",
     "Contact",
     "ExplorationMap",
+    "MapHealth",
     "ObserveResult",
     "Policy",
+    "RatifiedSeparation",
     "SurveyRecord",
     "SurveyResult",
     "SurveyTask",
@@ -90,6 +99,7 @@ __all__ = [
     "append_round",
     "binary_entropy",
     "build_joint_view",
+    "compute_map_health",
     "doctrine_policy",
     "exploration_dir",
     "exploration_header_fields",

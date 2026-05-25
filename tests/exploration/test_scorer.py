@@ -814,3 +814,240 @@ def test_lkm_contact_gets_obligation_pressure():
     c = m.frontier[0]
     assert set(c.score_features) == ALL_FEATURE_KEYS
     assert c.score_features["obligation_pressure"] == 1.0
+
+
+# --------------------------------------------------------------------------- #
+# Phase 1 (EXPANSION.md §3.B): activated bridge_potential + qid new_territory   #
+# --------------------------------------------------------------------------- #
+
+
+def _health_two_components():
+    """A MapHealth with core {seed, a} and an orphan island {b, c}."""
+    from gaia.engine.exploration.health import compute_map_health
+
+    surveyed = [qid(x) for x in ("seed", "a", "b", "c")]
+    edges = [
+        ("operator_target", [qid("seed"), qid("a")]),
+        ("operator_target", [qid("b"), qid("c")]),
+    ]
+    return compute_map_health(surveyed, [qid("seed")], edges), edges
+
+
+def test_qid_new_territory_zero_without_health():
+    # Back-compat: no MapHealth -> qid new_territory stays 0.0 (pre-expansion).
+    graph = _chain_graph()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    reconcile_frontier(m, extract_frontier(graph, m))
+    score_frontier(m, beliefs={}, ir=graph)  # no health=
+    for c in m.frontier:
+        assert c.score_features["new_territory"] == 0.0
+        assert c.score_features["bridge_potential"] == 0.0
+
+
+def test_qid_intra_paper_drilling_low_territory():
+    # A contact whose only source is inside the (one) seed component is drilling.
+    health, edges = _health_two_components()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(
+        Contact(
+            id="ct_drill",
+            ref={"kind": "qid", "value": qid("intra")},
+            sources=[{"qid": qid("a"), "edge": "depends_on"}],  # a is in the core
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    assert m.frontier[0].score_features["new_territory"] == 0.2  # drilling
+
+
+def test_qid_cross_region_higher_territory():
+    # Sources spanning two components -> opening new territory.
+    health, edges = _health_two_components()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(
+        Contact(
+            id="ct_cross",
+            ref={"kind": "qid", "value": qid("cross")},
+            sources=[
+                {"qid": qid("a"), "edge": "depends_on"},  # core
+                {"qid": qid("b"), "edge": "depends_on"},  # orphan
+            ],
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    assert m.frontier[0].score_features["new_territory"] == 0.7
+
+
+def test_qid_no_surveyed_source_is_maximal_territory():
+    health, edges = _health_two_components()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(
+        Contact(
+            id="ct_fog",
+            ref={"kind": "qid", "value": qid("fog")},
+            sources=[{"qid": qid("unsurveyed"), "edge": "depends_on"}],
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    assert m.frontier[0].score_features["new_territory"] == 1.0
+
+
+def test_bridge_potential_high_when_spanning_components():
+    health, edges = _health_two_components()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(
+        Contact(
+            id="ct_bridge",
+            ref={"kind": "qid", "value": qid("bridge")},
+            sources=[
+                {"qid": qid("a"), "edge": "depends_on"},  # core
+                {"qid": qid("b"), "edge": "depends_on"},  # orphan
+            ],
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    assert m.frontier[0].score_features["bridge_potential"] == 1.0
+
+
+def test_bridge_potential_high_when_adjacent_to_orphan():
+    # A contact whose source is an orphan member -> wiring it pulls the island in.
+    health, edges = _health_two_components()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(
+        Contact(
+            id="ct_orphan_adj",
+            ref={"kind": "qid", "value": qid("oadj")},
+            sources=[{"qid": qid("b"), "edge": "depends_on"}],  # b is orphan
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    assert m.frontier[0].score_features["bridge_potential"] == 1.0
+
+
+def test_bridge_potential_zero_when_intra_core():
+    health, edges = _health_two_components()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(
+        Contact(
+            id="ct_core_only",
+            ref={"kind": "qid", "value": qid("co")},
+            sources=[{"qid": qid("a"), "edge": "depends_on"}],  # only core
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    assert m.frontier[0].score_features["bridge_potential"] == 0.0
+
+
+def test_bridge_potential_zero_without_health():
+    _health, edges = _health_two_components()
+    m = ExplorationMap(seeds=[{"kind": "claim", "qid": qid("seed")}])
+    m.frontier.append(
+        Contact(
+            id="ct_x",
+            ref={"kind": "qid", "value": qid("x")},
+            sources=[
+                {"qid": qid("a"), "edge": "depends_on"},
+                {"qid": qid("b"), "edge": "depends_on"},
+            ],
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges)  # no health
+    assert m.frontier[0].score_features["bridge_potential"] == 0.0
+
+
+def test_regression_external_lkm_not_dominated_by_intra_paper_qid():
+    """Regression: external lkm not dominated by intra-paper qid (EXPANSION §1).
+
+    The documented pathology (INDEX open thread): a pulled paper's intra-paper
+    depends_on qid contacts must NOT outrank an external lkm_related paper under
+    an uncertainty-weighted (Surveyor) doctrine.
+    """
+    health, edges = _health_two_components()
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Surveyor"),
+    )
+    # An intra-paper qid contact: source inside one component, high belief
+    # entropy (its source sits at 0.5 -> H=1.0) — exactly what used to let it win.
+    m.frontier.append(
+        Contact(
+            id="ct_intra",
+            ref={"kind": "qid", "value": qid("intra")},
+            sources=[{"qid": qid("a"), "edge": "depends_on"}],
+        )
+    )
+    # An external lkm_related paper contact off the seed.
+    m.frontier.append(
+        Contact(
+            id="ct_ext",
+            ref={"kind": "lkm", "value": "extpaper"},
+            sources=[{"qid": qid("seed"), "edge": "lkm_related"}],
+            meta={"paper_id": "extpaper", "rank": 0.6},
+        )
+    )
+    # Both sources at 0.5 belief so belief_entropy is equal (1.0) — isolating the
+    # coverage signal that the fix introduces.
+    score_frontier(
+        m,
+        beliefs={qid("a"): 0.5, qid("seed"): 0.5},
+        edges=edges,
+        health=health,
+    )
+    intra = next(c for c in m.frontier if c.id == "ct_intra")
+    ext = next(c for c in m.frontier if c.id == "ct_ext")
+    # Surveyor has w_coverage=0.3: external paper new_territory (>=0.5) beats the
+    # intra-paper drilling new_territory (0.2), so the external paper outranks.
+    assert ext.score_features["new_territory"] >= 0.5
+    assert intra.score_features["new_territory"] == 0.2
+    assert ext.score > intra.score
+
+
+def test_diplomat_ranks_bridge_contact_top():
+    """Diplomat (w_bridge=1.0) now actually surfaces a bridging contact top."""
+    health, edges = _health_two_components()
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Diplomat"),
+    )
+    # A bridge contact (spans core + orphan) and a plain intra-core contact.
+    m.frontier.append(
+        Contact(
+            id="ct_bridge",
+            ref={"kind": "qid", "value": qid("bridge")},
+            sources=[
+                {"qid": qid("a"), "edge": "depends_on"},
+                {"qid": qid("b"), "edge": "depends_on"},
+            ],
+        )
+    )
+    m.frontier.append(
+        Contact(
+            id="ct_plain",
+            ref={"kind": "qid", "value": qid("plain")},
+            sources=[{"qid": qid("a"), "edge": "depends_on"}],
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    bridge = next(c for c in m.frontier if c.id == "ct_bridge")
+    plain = next(c for c in m.frontier if c.id == "ct_plain")
+    assert bridge.score_features["bridge_potential"] == 1.0
+    assert plain.score_features["bridge_potential"] == 0.0
+    assert bridge.score > plain.score
+
+
+def test_lkm_contact_bridge_potential_activates():
+    # An lkm contact sourced from an orphan member is also a bridge candidate.
+    health, edges = _health_two_components()
+    m = ExplorationMap(
+        seeds=[{"kind": "claim", "qid": qid("seed")}],
+        policy=doctrine_policy("Diplomat"),
+    )
+    m.frontier.append(
+        Contact(
+            id="ct_lkm_bridge",
+            ref={"kind": "lkm", "value": "p"},
+            sources=[{"qid": qid("b"), "edge": "lkm_related"}],  # orphan source
+            meta={"paper_id": "p", "rank": 0.2},
+        )
+    )
+    score_frontier(m, beliefs={}, edges=edges, health=health)
+    assert m.frontier[0].score_features["bridge_potential"] == 1.0

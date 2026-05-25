@@ -27,9 +27,15 @@ feature           tag        computation
 ``survey_cost``     wire-up  flat ``1.0`` for qid contacts (materialize-only placeholder;
                              refine when an LKM-pull cost model exists — ``w_cost`` has
                              little bite until then).
-``tension_potential``, deferred ``0.0`` (schema slots only — DESIGN §8 defers
-``bridge_potential``,           bridge/coverage; tension-wiring is a later build 3b).
-``new_territory``
+``bridge_potential``  activated ``1.0`` iff surveying/wiring the contact connects an orphan
+                             component to the seed core (sources span ≥2 components, or it is
+                             adjacent to an orphan) — needs a ``MapHealth`` (EXPANSION.md §3.B);
+                             ``0.0`` without one. Identical for qid + lkm contacts.
+``new_territory``   activated qid coverage via ``MapHealth`` (EXPANSION.md §3.B): low for
+                             intra-paper drilling (all sources in one surveyed component),
+                             higher for reaching a fresh region; lkm keeps its rank-derived
+                             signal. ``0.0`` for qid without a ``MapHealth``.
+``tension_potential`` deferred ``0.0`` (Inquisitor deferred this iteration — EXPANSION.md §3.B).
 ``obligation_pressure`` build 12 ``1.0`` iff the contact's ``ref`` QID or any of its
                              ``sources[].qid`` matches an OPEN synthetic obligation's
                              ``target_qid`` — **or is one hop from it** in the IR
@@ -84,20 +90,25 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from gaia.engine.exploration.frontier import _edges_from_ir
 
 if TYPE_CHECKING:
+    from gaia.engine.exploration.health import MapHealth
     from gaia.engine.exploration.state import ExplorationMap
     from gaia.engine.inquiry.state import SyntheticObligation
     from gaia.engine.ir.graphs import LocalCanonicalGraph
 
 # SCHEMA.md §4 — the six score_features keys. belief_entropy is [free];
-# closeness_to_seed / survey_cost are [wire-up]; the remaining three are
-# deferred 0.0 slots (DESIGN §8) for a qid contact.
-_DEFERRED_FEATURES = ("tension_potential", "bridge_potential", "new_territory")
+# closeness_to_seed / survey_cost are [wire-up]. ``tension_potential`` stays a
+# deferred 0.0 slot (Inquisitor, EXPANSION.md §3.B — deferred this iteration);
+# ``bridge_potential`` and qid ``new_territory`` are now ACTIVATED via MapHealth
+# (EXPANSION.md §3.B). When no MapHealth is supplied they fall back to 0.0 (the
+# pre-expansion behaviour), so the qid-deferred set is just tension.
+_QID_DEFERRED_FEATURES = ("tension_potential",)
 
 # CLIENT.md build 11 steer 4 (Jaynes' robot) — the belief-derived score_features
 # keys stripped from every AGENT-FACING surface. The engine still RANKS by
@@ -302,6 +313,127 @@ def _lkm_new_territory(contact_meta: dict[str, Any]) -> float:
     return 0.5 + 0.5 * bonus
 
 
+@dataclass(frozen=True)
+class _ComponentIndex:
+    """Precomputed component membership used by the activated coverage/bridge slots.
+
+    Derived once per ``score_frontier`` from a :class:`MapHealth`:
+
+    * ``component_of`` — surveyed QID → its component index;
+    * ``core_members`` — surveyed QIDs in the seed/core component;
+    * ``orphan_members`` — surveyed QIDs in any orphan (non-core) component;
+    * ``surveyed_papers`` — count of distinct surveyed components (a proxy for
+      "how many already-surveyed regions exist", used to scale qid coverage).
+    """
+
+    component_of: dict[str, int]
+    core_members: frozenset[str]
+    orphan_members: frozenset[str]
+    component_count: int
+
+
+def _component_index(health: MapHealth | None) -> _ComponentIndex | None:
+    """Build a :class:`_ComponentIndex` from a MapHealth, or ``None`` if absent."""
+    if health is None:
+        return None
+    component_of: dict[str, int] = {}
+    core: set[str] = set()
+    orphan: set[str] = set()
+    for i, comp in enumerate(health.components):
+        for qid in comp.members:
+            component_of[qid] = i
+        if comp.is_seed:
+            core.update(comp.members)
+        else:
+            orphan.update(comp.members)
+    return _ComponentIndex(
+        component_of=component_of,
+        core_members=frozenset(core),
+        orphan_members=frozenset(orphan),
+        component_count=len(health.components),
+    )
+
+
+def _bridge_potential(
+    source_qids: list[str],
+    ref_value: str | None,
+    index: _ComponentIndex | None,
+    adjacency: dict[str, set[str]],
+) -> float:
+    """``1.0`` iff surveying/wiring this contact would connect an orphan to the core.
+
+    Activated bridge slot (EXPANSION.md §3.B), high iff the contact is the kind of
+    edge that heals fragmentation:
+
+    * **spans ≥2 components** — its sources (the surveyed nodes it is reached
+      from) fall in two or more distinct surveyed components, so authoring the
+      contact ties those components together; OR
+    * **adjacent to an orphan** — a source (or the ref QID itself) is in an orphan
+      component, or is a graph neighbour of an orphan member — so wiring the
+      contact pulls a disconnected island toward the core.
+
+    Binary by design (mirrors ``obligation_pressure``): the doctrine weight
+    ``w_bridge`` *is* the bump a bridging contact gets, so Diplomat / Cartographer
+    reliably surface it. ``0.0`` when no MapHealth is available (the pre-expansion
+    behaviour) or there are no orphans to bridge.
+    """
+    if index is None or not index.orphan_members:
+        return 0.0
+    anchors = set(source_qids)
+    if ref_value is not None:
+        anchors.add(ref_value)
+    # Spans >=2 distinct surveyed components.
+    comps = {index.component_of[a] for a in anchors if a in index.component_of}
+    if len(comps) >= 2:
+        return 1.0
+    # Touches an orphan directly...
+    if anchors & index.orphan_members:
+        return 1.0
+    # ...or is one hop from an orphan member in the joint adjacency.
+    for a in anchors:
+        if adjacency.get(a, set()) & index.orphan_members:
+            return 1.0
+    return 0.0
+
+
+def _qid_new_territory(
+    source_qids: list[str],
+    index: _ComponentIndex | None,
+) -> float:
+    """Coverage for a qid contact: external expansion vs. intra-paper drilling.
+
+    Activated qid coverage slot (EXPANSION.md §3.B) — the *unthrottle*. A qid
+    contact whose sources are all inside ONE already-surveyed component is
+    *drilling* into a paper you already have (low territory); one whose sources
+    reach across components, or that has no surveyed source at all (a dangling
+    reference into the unsurveyed), is opening fresher territory (higher).
+
+    This fixes the documented ranking pathology: a freshly-pulled paper's own
+    intra-paper ``depends_on`` contacts (all sources in that one paper's
+    component) now get a LOW ``new_territory`` and stop out-ranking external
+    ``lkm_related`` papers under an uncertainty/coverage-weighted doctrine.
+
+    Scale:
+
+    * no surveyed source ⇒ ``1.0`` (a pure reach into the fog — maximal novelty);
+    * sources span ≥2 components ⇒ ``0.7`` (cross-region — opening new territory);
+    * sources all in one component ⇒ ``0.2`` (intra-paper drilling — low).
+
+    ``0.0`` when no MapHealth is available (pre-expansion behaviour). Distinct
+    from ``closeness_to_seed`` (relevance): a far-flung dangling ref is high
+    territory but may be low relevance — the doctrine weights trade them off.
+    """
+    if index is None:
+        return 0.0
+    in_set = [q for q in source_qids if q in index.component_of]
+    if not in_set:
+        return 1.0
+    comps = {index.component_of[q] for q in in_set}
+    if len(comps) >= 2:
+        return 0.7
+    return 0.2
+
+
 def _obligation_targets(
     obligations: Iterable[SyntheticObligation] | None,
 ) -> set[str]:
@@ -430,17 +562,20 @@ def score_frontier(
     ir: LocalCanonicalGraph | None = None,
     edges: list[tuple[str, list[str]]] | None = None,
     obligations: Iterable[SyntheticObligation] | None = None,
+    health: MapHealth | None = None,
 ) -> None:
     """Score every open frontier contact in place (SCHEMA.md §7b / §7e).
 
     For each ``status == "open"`` contact, computes the full ``score_features``
     dict (``belief_entropy`` [free], ``closeness_to_seed`` / ``survey_cost``
-    [wire-up], the deferred ``0.0`` slots, and ``obligation_pressure`` [build 12]),
-    the weighted ``score``::
+    [wire-up], ``new_territory`` / ``bridge_potential`` [activated via MapHealth —
+    EXPANSION.md §3.B], the deferred ``tension_potential`` ``0.0`` slot, and
+    ``obligation_pressure`` [build 12]), the weighted ``score``::
 
         score = w_uncertainty*belief_entropy
               + w_relevance*closeness_to_seed
               + w_coverage*new_territory
+              + w_bridge*bridge_potential
               + w_obligation*obligation_pressure
               - w_cost*survey_cost
 
@@ -471,6 +606,15 @@ def score_frontier(
             ``ref`` QID or any ``sources[].qid`` matches an obligation's
             ``target_qid`` gets ``obligation_pressure = 1.0``. ``None`` ⇒ the
             feature is ``0.0`` everywhere (CLIENT.md steer 3, graceful default).
+        health: The :class:`~gaia.engine.exploration.health.MapHealth` for the
+            joint graph (EXPANSION.md §3.B). When supplied, it activates
+            ``bridge_potential`` (qid + lkm: high iff surveying/wiring the contact
+            connects an orphan component to the core) and a real qid
+            ``new_territory`` (low for intra-paper drilling, higher for reaching a
+            sparsely-surveyed region). ``None`` ⇒ both stay ``0.0`` for qid
+            contacts (the pre-expansion behaviour); lkm ``new_territory`` is still
+            its rank-derived signal. ``tension_potential`` stays ``0.0`` regardless
+            (Inquisitor deferred — EXPANSION.md §3.B).
     """
     if edges is None and ir is None:
         raise ValueError("score_frontier requires exactly one of `edges` or `ir`")
@@ -479,10 +623,12 @@ def score_frontier(
     w_uncertainty = float(weights.get("w_uncertainty", 0.0))
     w_relevance = float(weights.get("w_relevance", 0.0))
     w_coverage = float(weights.get("w_coverage", 0.0))
+    w_bridge = float(weights.get("w_bridge", 0.0))
     w_cost = float(weights.get("w_cost", 0.0))
     w_obligation = float(weights.get("w_obligation", 0.0))
 
     obligation_targets = _obligation_targets(obligations)
+    component_index = _component_index(health)
     seeds = _resolved_seed_qids(exploration_map)
     if edges is not None:
         adjacency = _adjacency_from_edges(edges)
@@ -512,6 +658,15 @@ def score_frontier(
             obligation_targets,
             adjacency,
         )
+        # Activated bridge slot (EXPANSION.md §3.B) — identical for qid & lkm:
+        # high iff surveying/wiring this contact would connect an orphan to the
+        # core. 0.0 when no MapHealth was supplied (pre-expansion behaviour).
+        bridge_potential = _bridge_potential(
+            source_qids,
+            str(ref_value) if ref_value is not None else None,
+            component_index,
+            adjacency,
+        )
 
         if is_lkm:
             # An unpulled related paper *is* fresh territory; the stored LKM rank
@@ -530,21 +685,25 @@ def score_frontier(
                 "closeness_to_seed": closeness_to_seed,
                 "survey_cost": survey_cost,
                 "tension_potential": 0.0,
-                "bridge_potential": 0.0,
+                "bridge_potential": bridge_potential,
                 "new_territory": new_territory,
                 "obligation_pressure": obligation_pressure,
             }
         else:
-            # qid contacts are materialize-only ⇒ flat placeholder cost; the
-            # three deferred features stay 0.0 (build 3/4c behaviour, unchanged).
-            new_territory = 0.0
+            # qid contacts are materialize-only ⇒ flat placeholder cost.
+            # ``new_territory`` is now ACTIVATED via MapHealth (external expansion
+            # vs. intra-paper drilling — EXPANSION.md §3.B); ``tension_potential``
+            # stays a 0.0 deferred slot (Inquisitor deferred this iteration).
+            new_territory = _qid_new_territory(source_qids, component_index)
             survey_cost = 1.0
             features = {
                 "belief_entropy": belief_entropy,
                 "closeness_to_seed": closeness_to_seed,
                 "survey_cost": survey_cost,
+                "bridge_potential": bridge_potential,
+                "new_territory": new_territory,
             }
-            for key in _DEFERRED_FEATURES:
+            for key in _QID_DEFERRED_FEATURES:
                 features[key] = 0.0
             features["obligation_pressure"] = obligation_pressure
 
@@ -553,6 +712,7 @@ def score_frontier(
             w_uncertainty * belief_entropy
             + w_relevance * closeness_to_seed
             + w_coverage * new_territory
+            + w_bridge * bridge_potential
             + w_obligation * obligation_pressure
             - w_cost * survey_cost
         )
