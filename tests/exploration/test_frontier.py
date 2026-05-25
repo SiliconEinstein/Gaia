@@ -493,6 +493,28 @@ def test_pulled_dep_claims_surface_as_unformalized_contacts(tmp_path):
     assert all(not v.startswith(NS) for v in pulled)
 
 
+def test_pulled_dep_claims_carry_triage_metadata(tmp_path):
+    root = make_graph(knowledges=[claim("seed")])
+    dep = dep_graph(
+        [
+            Knowledge(id=dep_qid("conclusion_3"), type="claim", content="main result"),
+            Knowledge(id=dep_qid("evidence_1"), type="claim", content="supporting evidence"),
+            Knowledge(id=dep_qid("context_1"), type="claim", content="background context"),
+        ]
+    )
+    view = _joint_view(root, dep, root_path=tmp_path / "root", dep_path=tmp_path / "dep")
+    view.edges.append(("depends_on", [dep_qid("evidence_1"), dep_qid("conclusion_3")]))
+
+    pulled = {c.ref["value"]: c for c in view.extract() if c.meta.get("pulled_unformalized")}
+
+    assert pulled[dep_qid("conclusion_3")].meta["triage_role"] == "conclusion"
+    assert pulled[dep_qid("conclusion_3")].meta["triage_priority"] == 0
+    assert pulled[dep_qid("evidence_1")].meta["triage_role"] == "load-bearing"
+    assert pulled[dep_qid("evidence_1")].meta["triage_priority"] == 1
+    assert pulled[dep_qid("context_1")].meta["triage_role"] == "supporting"
+    assert pulled[dep_qid("context_1")].meta["triage_priority"] == 2
+
+
 def test_formalized_dep_claim_is_not_surfaced(tmp_path):
     # A root edge referencing a dep claim = it's formalized into the reasoning
     # graph -> it must NOT appear as a pulled-unformalized contact (p2 still does).

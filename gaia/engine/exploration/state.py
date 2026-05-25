@@ -586,16 +586,22 @@ def load_map(pkg_path: str | Path) -> ExplorationMap:
 def save_map(pkg_path: str | Path, exploration_map: ExplorationMap) -> None:
     """Persist the exploration map atomically to ``.gaia/exploration/map.json``.
 
-    Refreshes ``updated_at`` and writes via ``map.json.tmp`` then
+    Refreshes ``updated_at`` and writes via a per-save temp file before
     ``tmp.replace(path)`` (the ``snapshot.py`` atomic-write pattern) so a reader
-    never observes a half-written file.
+    never observes a half-written file. The temp name is unique per process/save,
+    so two read-only frontier/status probes do not collide on one shared
+    ``map.json.tmp`` scratch path.
     """
     p = _map_path(pkg_path)
     exploration_map.updated_at = _utcnow()
     payload = exploration_map.to_dict()
-    tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(p)
+    tmp = p.with_name(f"{p.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(p)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
 
 
 def append_round(

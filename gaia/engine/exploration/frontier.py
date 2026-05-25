@@ -89,6 +89,35 @@ def _pulled_claim_title(text: str, *, limit: int = 90) -> str:
     return collapsed[: limit - 1] + "…" if len(collapsed) > limit else collapsed
 
 
+def _pulled_claim_triage_meta(qid: str, edges: list[tuple[str, list[str]]]) -> dict[str, Any]:
+    """Classify a pulled dependency claim for display-level triage.
+
+    LKM materialization labels paper conclusions as ``conclusion_*``. Those are
+    the first items a human usually wants to wire into the root graph. Other
+    pulled claims that participate in dependency edges are still load-bearing;
+    isolated claims are supporting context. This metadata does not affect the
+    scorer. It only lets the CLI list pulled-paper worklists in a human triage
+    order.
+    """
+    label = qid.rsplit("::", 1)[1] if "::" in qid else qid
+    edge_degree = sum(1 for _kind, refs in edges if qid in refs)
+    lowered = label.lower()
+    if lowered.startswith("conclusion"):
+        role = "conclusion"
+        priority = 0
+    elif edge_degree > 0:
+        role = "load-bearing"
+        priority = 1
+    else:
+        role = "supporting"
+        priority = 2
+    return {
+        "triage_role": role,
+        "triage_priority": priority,
+        "triage_edge_degree": edge_degree,
+    }
+
+
 def _iter_operators(ir: LocalCanonicalGraph) -> list[Any]:
     """Yield every Operator the IR carries: standalone + inside FormalStrategy.
 
@@ -572,6 +601,7 @@ class JointView:
             meta = dict(prior.meta) if prior is not None else {}
             meta["pulled_unformalized"] = True
             meta["title"] = _pulled_claim_title(texts.get(qid, "")) or label
+            meta.update(_pulled_claim_triage_meta(qid, self.edges))
             contacts.append(
                 Contact(
                     id=prior.id if prior is not None else mint_contact_id(),

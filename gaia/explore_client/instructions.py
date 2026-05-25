@@ -142,6 +142,10 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
            --query "<query>" --search-json /tmp/leads.json
    Every result whose paper is not materialized becomes an `lkm_related`
    paper-contact, ranked next round. Do this for EVERY survey query.
+   If the original research question is not in English and LKM search metadata
+   hydration times out, KEEP the original seed/question but retry the LKM search
+   with a faithful English equivalent query; record the actual search string in
+   `--query` so the map preserves how the paper frontier was surfaced.
 
 3. PULL the top related paper(s) to open new territory:
        gaia pkg add --lkm-paper <paper_id>
@@ -174,6 +178,15 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
    a dependency. Formalize the load-bearing claims (not necessarily all of a
    paper's claims, but the ones that matter to your question) BEFORE moving on to
    the next contact.
+
+   Multi-endpoint papers and meta-analyses need structure, not one giant gate. If
+   a paper reports several independent endpoint conclusions (for example benefit,
+   null-effect, and harm endpoints), do NOT put every pulled conclusion into one
+   all-of `derive` for a single net claim. Author intermediate claims such as
+   benefit signal / null-effect signal / harm signal, support each with its own
+   relevant pulled conclusions, then connect those intermediate claims to the
+   higher-level net-benefit interpretation. This avoids making belief hinge on an
+   overly strict conjunction of unrelated endpoints.
 
 4. AUTHOR remaining evidence from search results — for leads you surfaced via
    `gaia search lkm` but did not pull (or that have no compilable chain),

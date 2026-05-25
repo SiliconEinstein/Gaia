@@ -351,6 +351,7 @@ def _compile_and_infer(pkg: str | Path) -> list[str]:
         gaia_lang_version,
         load_gaia_package,
         write_compiled_artifacts,
+        write_text_atomic,
     )
 
     pkg_path = Path(pkg).resolve()
@@ -443,9 +444,9 @@ def _compile_and_infer(pkg: str | Path) -> list[str]:
     }
     gaia_dir = loaded.pkg_path / ".gaia"
     gaia_dir.mkdir(exist_ok=True)
-    (gaia_dir / "beliefs.json").write_text(
+    write_text_atomic(
+        gaia_dir / "beliefs.json",
         json.dumps(beliefs_payload, ensure_ascii=False, indent=2, sort_keys=True),
-        encoding="utf-8",
     )
     return notes
 
