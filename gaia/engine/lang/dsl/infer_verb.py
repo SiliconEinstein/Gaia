@@ -5,6 +5,7 @@ from __future__ import annotations
 import warnings
 from typing import Any, cast
 
+from gaia.engine.lang.dsl._lift import _lift_to_claim
 from gaia.engine.lang.runtime.action import (
     Infer as InferAction,
 )
@@ -53,10 +54,10 @@ def _resolve_evidence(evidence: Claim | str | None) -> Claim | str | None:
 
 def _validate_infer_claims(
     *,
-    hypothesis: Claim | None,
-    evidence: Claim | str | None,
+    hypothesis: Any,
+    evidence: Any,
     p_e_given_h: float | Claim | None,
-    given: Claim | tuple[Claim, ...] | list[Claim] | None,
+    given: Any,
 ) -> tuple[Claim, Claim, tuple[Claim, ...]]:
     if hypothesis is None:
         raise TypeError("infer() missing required keyword argument: 'hypothesis'")
@@ -66,13 +67,13 @@ def _validate_infer_claims(
         raise TypeError("infer() missing required keyword argument: 'p_e_given_h'")
     if isinstance(evidence, str):
         evidence = Claim(evidence)
-    if not isinstance(evidence, Claim):
-        raise TypeError("infer() evidence must be a Claim or string")
-    if not isinstance(hypothesis, Claim):
-        raise TypeError("infer() hypothesis must be a Claim")
-    given_tuple = _as_given_tuple(given)
-    if any(not isinstance(item, Claim) for item in given_tuple):
-        raise TypeError("infer() given entries must be Claims")
+    else:
+        evidence = _lift_to_claim(evidence, verb="infer", position="evidence")
+    hypothesis = _lift_to_claim(hypothesis, verb="infer", position="hypothesis")
+    given_tuple = tuple(
+        _lift_to_claim(item, verb="infer", position=f"given[{i}]")
+        for i, item in enumerate(_as_given_tuple(given))
+    )
     return evidence, hypothesis, given_tuple
 
 

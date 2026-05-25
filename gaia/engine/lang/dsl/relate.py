@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from gaia.engine.lang.dsl._lift import _lift_to_claim
 from gaia.engine.lang.runtime.action import (
     Contradict,
     Equal,
@@ -29,14 +32,21 @@ def _claim_ref(claim: Claim) -> str:
 
 
 def equal(
-    a: Claim,
-    b: Claim,
+    a: Any,
+    b: Any,
     *,
     background: list[Knowledge] | None = None,
     rationale: str = "",
     label: str | None = None,
 ) -> Claim:
-    """Declare two Claims equivalent. Returns an equivalence helper Claim."""
+    """Declare two Claims equivalent. Returns an equivalence helper Claim.
+
+    ``a`` and ``b`` may be any Boolean-valued expression (``Claim``,
+    ``ClaimAtom``, Formula node, or ``BoolExpr``); non-``Claim`` inputs are
+    lifted to helper Claims at the verb boundary per RFC #703.
+    """
+    a = _lift_to_claim(a, verb="equal", position="first argument")
+    b = _lift_to_claim(b, verb="equal", position="second argument")
     helper = Claim(
         f"{_claim_ref(a)} and {_claim_ref(b)} are equivalent.",
         metadata={"generated": True, "helper_kind": "equivalence_result", "review": True},
@@ -55,14 +65,21 @@ def equal(
 
 
 def contradict(
-    a: Claim,
-    b: Claim,
+    a: Any,
+    b: Any,
     *,
     background: list[Knowledge] | None = None,
     rationale: str = "",
     label: str | None = None,
 ) -> Claim:
-    """Declare two Claims contradictory. Returns a contradiction helper Claim."""
+    """Declare two Claims contradictory. Returns a contradiction helper Claim.
+
+    ``a`` and ``b`` may be any Boolean-valued expression (``Claim``,
+    ``ClaimAtom``, Formula node, or ``BoolExpr``); non-``Claim`` inputs are
+    lifted to helper Claims at the verb boundary per RFC #703.
+    """
+    a = _lift_to_claim(a, verb="contradict", position="first argument")
+    b = _lift_to_claim(b, verb="contradict", position="second argument")
     helper = Claim(
         f"{_claim_ref(a)} and {_claim_ref(b)} contradict.",
         metadata={"generated": True, "helper_kind": "contradiction_result", "review": True},
@@ -81,14 +98,21 @@ def contradict(
 
 
 def exclusive(
-    a: Claim,
-    b: Claim,
+    a: Any,
+    b: Any,
     *,
     background: list[Knowledge] | None = None,
     rationale: str = "",
     label: str | None = None,
 ) -> Claim:
-    """Declare two Claims as a closed binary partition. Returns an XOR helper Claim."""
+    """Declare two Claims as a closed binary partition. Returns an XOR helper Claim.
+
+    ``a`` and ``b`` may be any Boolean-valued expression (``Claim``,
+    ``ClaimAtom``, Formula node, or ``BoolExpr``); non-``Claim`` inputs are
+    lifted to helper Claims at the verb boundary per RFC #703.
+    """
+    a = _lift_to_claim(a, verb="exclusive", position="first argument")
+    b = _lift_to_claim(b, verb="exclusive", position="second argument")
     helper = Claim(
         f"exactly one of {_claim_ref(a)} and {_claim_ref(b)} is true.",
         metadata={"generated": True, "helper_kind": "complement_result", "review": True},

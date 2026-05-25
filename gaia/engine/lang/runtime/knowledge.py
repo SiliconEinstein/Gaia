@@ -195,6 +195,10 @@ class Claim(Knowledge):
     formula: Any = None
     kind: ClaimKind = ClaimKind.GENERAL
     _param_fields: ClassVar[dict[str, Any]] = {}
+    # Boolean-valued marker — see gaia.engine.lang._boolean_valued.
+    # Claim is a probabilistic Boolean-valued knowledge node (P(claim=T) ∈ [0,1]),
+    # so it is claim-equivalent to any Formula at the verb boundary's lift step.
+    __gaia_boolean_valued__: ClassVar[bool] = True
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Collect subclass-specific parameter fields for templated claims."""

@@ -20,7 +20,7 @@ than as silently always-truthy.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 ComparisonOp = Literal[">", ">=", "<", "<=", "==", "!="]
 ArithmeticOp = Literal["+", "-", "*", "/"]
@@ -135,6 +135,11 @@ class BoolExpr:
     op: ComparisonOp
     left: Any
     right: Any
+    # Boolean-valued marker — see gaia.engine.lang._boolean_valued.
+    # BoolExpr is a Boolean predicate over Distribution / scalar values that the
+    # compiler lowers to claim metadata (predicate / equation priors), so it is
+    # claim-equivalent to any Formula at the verb boundary's lift step.
+    __gaia_boolean_valued__: ClassVar[bool] = True
 
     def __post_init__(self) -> None:
         """Validate the comparison operator."""
