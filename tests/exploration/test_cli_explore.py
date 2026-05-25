@@ -145,6 +145,7 @@ def test_explore_frontier_ranks_contacts(galileo_pkg: Path):
     assert result.exit_code == 0, result.output
     assert "Frontier:" in result.output
     assert contact_qid in result.output
+    assert "why:" in result.output
 
     m = load_map(galileo_pkg)
     contacts = [c for c in m.frontier if c.ref["value"] == contact_qid]
@@ -171,9 +172,10 @@ def test_explore_frontier_json_output(galileo_pkg: Path):
         # Build 11 steer 4: the agent-facing frontier JSON keeps the non-belief
         # surface but hides the belief math — no raw ``score`` row key, and no
         # ``belief_entropy`` inside ``score_features``.
-        assert {"id", "ref", "score_features", "sources"} <= set(row)
+        assert {"id", "ref", "score_features", "sources", "recommendation"} <= set(row)
         assert "score" not in row
         assert "belief_entropy" not in row["score_features"]
+        assert row["recommendation"]
 
 
 def test_explore_frontier_applies_obligations_like_turn(galileo_pkg: Path):
