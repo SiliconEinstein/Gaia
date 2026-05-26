@@ -55,6 +55,10 @@ from gaia.cli.commands._stellaris_svg import post_process_stellaris_svg
 from gaia.engine.inquiry.focus import resolve_focus_target
 from gaia.engine.inquiry.review import resolve_graph
 from gaia.engine.packaging import write_text_atomic
+from gaia.lkm_explorer.engine.artifacts import (
+    build_scope_artifact,
+    parse_dimensions,
+)
 from gaia.lkm_explorer.engine.discoveries import compute_discoveries
 from gaia.lkm_explorer.engine.frontier import (
     JointView,
@@ -161,6 +165,26 @@ _LANDSCAPE_JSON_OPT = typer.Option(
     False,
     "--json",
     help="Print the landscape artifact JSON to stdout after writing it.",
+)
+_SCOPE_SEED_OPT = typer.Option(
+    None,
+    "--seed",
+    help="Scope seed text or QID (repeatable; defaults to map seeds).",
+)
+_SCOPE_PROFILE_OPT = typer.Option(
+    None,
+    "--profile",
+    help="Optional exploration profile name.",
+)
+_SCOPE_DIMENSION_OPT = typer.Option(
+    None,
+    "--dimension",
+    help="Exploration dimension as key=value (repeatable).",
+)
+_SCOPE_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/scope.json).",
 )
 _OBSERVE_SOURCE_OPT = typer.Option(
     None,
@@ -712,6 +736,74 @@ def init_command(
         f"({len(seeds)} seed(s), {resolved} resolved; doctrine {doctrine}, budget_k={budget_k})."
     )
     typer.echo(f"Output: {_gaia_dir(pkg) / 'exploration' / 'map.json'}")
+
+
+# --------------------------------------------------------------------------- #
+# scope                                                                       #
+# --------------------------------------------------------------------------- #
+
+
+def scope_command(
+    pkg: str = _PKG_ARG,
+    seed: list[str] | None = _SCOPE_SEED_OPT,
+    profile: str | None = _SCOPE_PROFILE_OPT,
+    dimension: list[str] | None = _SCOPE_DIMENSION_OPT,
+    out: str | None = _SCOPE_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Write the explicit Explore scope sidecar.
+
+    The scope artifact captures the broad exploration setup — seeds, optional
+    profile, and user-supplied dimensions — so later landscape/focus/gate steps
+    can be audited without guessing the user's intent from the map alone.
+    """
+    map_path = _gaia_dir(pkg) / "exploration" / "map.json"
+    if not map_path.exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        dimensions = parse_dimensions(dimension)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+    exploration_map = load_map(pkg)
+    if seed:
+        seeds = [s.strip() for s in seed if s.strip()]
+        seed_source = "cli"
+    else:
+        seeds = [
+            str(item.get("qid") or item.get("text"))
+            for item in exploration_map.seeds
+            if item.get("qid") or item.get("text")
+        ]
+        seed_source = "map"
+    payload = build_scope_artifact(
+        pkg,
+        seeds=seeds,
+        profile=profile,
+        dimensions=dimensions,
+        seed_source=seed_source,
+        map_round=exploration_map.round,
+    )
+
+    output_path = (
+        Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "scope.json"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+    typer.echo(
+        f"Scope: {len(seeds)} seed(s), {len(dimensions)} dimension group(s)"
+        f" ({seed_source} seeds)."
+    )
+    typer.echo(f"Output: {output_path}")
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 # --------------------------------------------------------------------------- #

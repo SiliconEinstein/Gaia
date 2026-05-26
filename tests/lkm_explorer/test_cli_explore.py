@@ -562,6 +562,79 @@ def test_explore_landscape_writes_neutral_paper_leads(galileo_pkg: Path):
     assert "evidence_hierarchy" not in first
 
 
+def test_explore_scope_writes_scope_artifact(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    result = runner.invoke(
+        app,
+        [
+            "scope",
+            str(galileo_pkg),
+            "--seed",
+            "aspirin primary prevention",
+            "--profile",
+            "clinical",
+            "--dimension",
+            "population=adults",
+            "--dimension",
+            "endpoint=mi",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Scope:" in result.output
+
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "scope.json").read_text(encoding="utf-8")
+    )
+    assert payload["kind"] == "exploration_scope"
+    assert payload["inputs"]["seeds"] == ["aspirin primary prevention"]
+    assert payload["inputs"]["profile"] == "clinical"
+    assert payload["inputs"]["dimensions"] == {
+        "population": ["adults"],
+        "endpoint": ["mi"],
+    }
+    assert payload["provenance"]["seed_source"] == "cli"
+
+
+def test_explore_scope_derives_seeds_from_map(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+
+    result = runner.invoke(app, ["scope", str(galileo_pkg)])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "scope.json").read_text(encoding="utf-8")
+    )
+    assert payload["inputs"]["seeds"] == [_galileo_qid("aristotle_model")]
+    assert payload["provenance"]["seed_source"] == "map"
+
+
+def test_explore_scope_rejects_invalid_dimension(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+
+    result = runner.invoke(app, ["scope", str(galileo_pkg), "--dimension", "population"])
+
+    assert result.exit_code == 2
+    assert "key=value" in result.output
+
+
+def test_explore_scope_help_lists_options():
+    result = runner.invoke(app, ["scope", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--seed" in result.output
+    assert "--profile" in result.output
+    assert "--dimension" in result.output
+
+
 def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
     runner.invoke(
         app,

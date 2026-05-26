@@ -41,6 +41,7 @@ from gaia.lkm_explorer.client.verbs import (
     observe_command,
     render_command,
     round_command,
+    scope_command,
     status_command,
 )
 
@@ -59,6 +60,7 @@ app = typer.Typer(
 # wrap `gaia.lkm_explorer.engine` (the library / SDK) and are pure + deterministic
 # — no LKM call, no `gaia author` orchestration; those are the agent's survey.
 app.command(name="init")(init_command)
+app.command(name="scope")(scope_command)
 app.command(name="observe")(observe_command)
 app.command(name="landscape")(landscape_command)
 app.command(name="frontier")(frontier_command)
