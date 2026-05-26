@@ -59,6 +59,7 @@ nav:
       - Language Reference: for-users/language-reference.md
       - CLI Commands: for-users/cli-commands.md
       - Bayes Hypothesis Types: for-users/bayes-hypothesis-types.md
+      - Evidence-Based Argument Structuring: for-users/evidence-argument-structuring.md
   - Release Notes:
       - v0.5.0a1 Alpha: releases/0.5.0a1.md
   - Foundational Docs:
