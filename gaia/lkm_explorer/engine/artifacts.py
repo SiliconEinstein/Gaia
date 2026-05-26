@@ -118,9 +118,7 @@ def build_focuses_artifact(
     map_round: int,
 ) -> dict[str, Any]:
     """Build deterministic focus suggestions from a paper-level landscape."""
-    paper_leads = [
-        lead for lead in landscape.get("paper_leads", []) if isinstance(lead, dict)
-    ]
+    paper_leads = [lead for lead in landscape.get("paper_leads", []) if isinstance(lead, dict)]
     focuses: list[dict[str, Any]] = []
     if paper_leads:
         evidence_refs: list[dict[str, str]] = []
@@ -207,9 +205,7 @@ def build_exploration_artifact(
         "focuses": "focuses.json",
         "map": "map.json",
     }
-    limitations = [
-        f"missing {name}" for key, name in core_names.items() if artifacts[key] is None
-    ]
+    limitations = [f"missing {name}" for key, name in core_names.items() if artifacts[key] is None]
     return {
         "schema": SOP_SCHEMA,
         "kind": "lkm_exploration",
@@ -266,8 +262,7 @@ def build_gate_report(
         if isinstance(row.get("evidence_refs"), list) and bool(row["evidence_refs"])
     ]
     all_focuses_have_refs = all(
-        isinstance(row.get("evidence_refs"), list) and bool(row["evidence_refs"])
-        for row in rows
+        isinstance(row.get("evidence_refs"), list) and bool(row["evidence_refs"]) for row in rows
     )
     checks = {
         "scope_present": _check(

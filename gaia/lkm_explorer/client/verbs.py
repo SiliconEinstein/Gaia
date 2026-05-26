@@ -816,15 +816,12 @@ def scope_command(
         map_round=exploration_map.round,
     )
 
-    output_path = (
-        Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "scope.json"
-    )
+    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "scope.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
 
     typer.echo(
-        f"Scope: {len(seeds)} seed(s), {len(dimensions)} dimension group(s)"
-        f" ({seed_source} seeds)."
+        f"Scope: {len(seeds)} seed(s), {len(dimensions)} dimension group(s) ({seed_source} seeds)."
     )
     typer.echo(f"Output: {output_path}")
     if json_out:
@@ -1079,9 +1076,7 @@ def focuses_command(
         landscape=_read_json_object(landscape_path),
         map_round=load_map(pkg).round,
     )
-    output_path = (
-        Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "focuses.json"
-    )
+    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "focuses.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
 
@@ -1111,9 +1106,7 @@ def artifact_command(
         raise typer.Exit(1)
 
     exploration_map = load_map(pkg)
-    output_path = (
-        Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "artifact.json"
-    )
+    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "artifact.json"
     payload = build_exploration_artifact(
         pkg,
         map_round=exploration_map.round,

@@ -664,9 +664,7 @@ def test_explore_focuses_writes_focuses_from_landscape(galileo_pkg: Path):
     assert result.exit_code == 0, result.output
     assert "Focuses:" in result.output
     payload = json.loads(
-        (galileo_pkg / ".gaia" / "exploration" / "focuses.json").read_text(
-            encoding="utf-8"
-        )
+        (galileo_pkg / ".gaia" / "exploration" / "focuses.json").read_text(encoding="utf-8")
     )
     assert payload["kind"] == "exploration_focuses"
     assert payload["focuses"]
@@ -703,9 +701,7 @@ def test_explore_artifact_writes_handoff_envelope(galileo_pkg: Path):
     assert "Artifact:" in result.output
     assert "gaia-evidence assess" in result.output
     payload = json.loads(
-        (galileo_pkg / ".gaia" / "exploration" / "artifact.json").read_text(
-            encoding="utf-8"
-        )
+        (galileo_pkg / ".gaia" / "exploration" / "artifact.json").read_text(encoding="utf-8")
     )
     assert payload["kind"] == "lkm_exploration"
     assert payload["artifacts"]["scope"] == ".gaia/exploration/scope.json"
@@ -728,9 +724,7 @@ def test_explore_gate_blocks_without_focuses(galileo_pkg: Path):
     assert result.exit_code == 1
     assert "Gate: block" in result.output
     payload = json.loads(
-        (galileo_pkg / ".gaia" / "exploration" / "gate_report.json").read_text(
-            encoding="utf-8"
-        )
+        (galileo_pkg / ".gaia" / "exploration" / "gate_report.json").read_text(encoding="utf-8")
     )
     assert payload["verdict"] == "block"
     assert payload["checks"]["focuses_present"]["status"] == "fail"
@@ -744,9 +738,7 @@ def test_explore_gate_passes_with_complete_assessable_artifacts(galileo_pkg: Pat
     runner.invoke(app, ["scope", str(galileo_pkg)])
     runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
     runner.invoke(app, ["focuses", str(galileo_pkg)])
-    (galileo_pkg / ".gaia" / "exploration" / "rounds.jsonl").write_text(
-        "{}\n", encoding="utf-8"
-    )
+    (galileo_pkg / ".gaia" / "exploration" / "rounds.jsonl").write_text("{}\n", encoding="utf-8")
     runner.invoke(app, ["artifact", str(galileo_pkg)])
 
     result = runner.invoke(app, ["gate", str(galileo_pkg)])
@@ -754,9 +746,7 @@ def test_explore_gate_passes_with_complete_assessable_artifacts(galileo_pkg: Pat
     assert result.exit_code == 0, result.output
     assert "Gate: pass" in result.output
     payload = json.loads(
-        (galileo_pkg / ".gaia" / "exploration" / "gate_report.json").read_text(
-            encoding="utf-8"
-        )
+        (galileo_pkg / ".gaia" / "exploration" / "gate_report.json").read_text(encoding="utf-8")
     )
     assert payload["verdict"] == "pass"
     assert payload["audit"]["allowed_next_steps"] == ["assess"]
