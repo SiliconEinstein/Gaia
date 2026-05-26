@@ -4,8 +4,9 @@ A **sibling console_scripts entrypoint** to ``gaia`` and, as of build 7
 (CLIENT.md "Unified surface"), the *single* user-facing surface for exploration.
 It carries both halves of the turn loop:
 
-* the deterministic **engine verbs** (``init`` / ``observe`` / ``landscape`` /
-  ``frontier`` / ``round`` / ``status`` / ``render``), migrated here from the now-removed
+* the deterministic **engine verbs** (``init`` / ``scope`` / ``observe`` /
+  ``landscape`` / ``focuses`` / ``artifact`` / ``gate`` / ``frontier`` /
+  ``round`` / ``status`` / ``render``), migrated here from the now-removed
   ``gaia explore`` sub-app — thin wrappers over :mod:`gaia.lkm_explorer.engine`
   (the library / SDK, which stays in gaia); and
 * the **orchestrator** phase-aware step ``turn`` — the turn state machine that
@@ -52,9 +53,10 @@ app = typer.Typer(
     name="gaia-lkm-explore",
     help=(
         "Gaia LKM Explore — fog-of-war exploration of a knowledge package. "
-        "Deterministic engine verbs (init / observe / landscape / frontier / round / "
-        "status / render) plus the orchestrator turn state machine (turn), which hands the "
-        "fuzzy survey to an agent through a self-contained task envelope."
+        "Deterministic engine verbs (init / scope / observe / landscape / focuses / "
+        "artifact / gate / frontier / round / status / render) plus the orchestrator "
+        "turn state machine (turn), which hands the fuzzy survey to an agent through a "
+        "self-contained task envelope."
     ),
     no_args_is_help=True,
 )

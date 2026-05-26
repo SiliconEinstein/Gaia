@@ -453,7 +453,20 @@ def test_explore_help_lists_all_verbs():
     # alongside the orchestrator `turn` (CLIENT.md "Unified surface", build 7).
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for verb in ("init", "observe", "frontier", "round", "status", "render", "turn"):
+    for verb in (
+        "init",
+        "scope",
+        "observe",
+        "landscape",
+        "focuses",
+        "artifact",
+        "gate",
+        "frontier",
+        "round",
+        "status",
+        "render",
+        "turn",
+    ):
         assert verb in result.output
 
 
