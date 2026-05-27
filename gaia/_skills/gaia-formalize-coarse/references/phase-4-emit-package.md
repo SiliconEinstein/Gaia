@@ -186,10 +186,9 @@ upstream Mendel/Galileo walkthroughs.
    Phase 3's per-conclusion synthesis posterior is consumed as the
    conclusion's leaf prior in Step 4b only when the conclusion is isolated
    (no upstream conclusions, no weak points → no `derive(...)`). For
-   derived conclusions, Phase 3's synthesis informs the qualitative
-   warrant-strength prose written into the deduction's `--rationale`
-   (Phase 4 does not emit a numerical warrant prior; see Step 4a step 4
-   below).
+   derived conclusions, Phase 3's synthesis informs the qualitative prose
+   written into the deduction's `--rationale` (Phase 4 does not emit priors
+   for reasoning steps).
 
 3. **Weak-point leaf claims section** — one `gaia author claim` per Phase 3
    weak point, into the same `__init__.py`:
