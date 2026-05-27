@@ -46,12 +46,20 @@ def exploration_dir(pkg: str | Path) -> Path:
 
 
 def latest_landscape_path(pkg: str | Path) -> Path | None:
-    """Return the lexically latest ``landscape-*.json`` sidecar, if any."""
+    """Return the highest-round ``landscape-*.json`` sidecar, if any."""
     exp = exploration_dir(pkg)
     if not exp.exists():
         return None
-    matches = sorted(exp.glob("landscape-*.json"))
+    matches = sorted(exp.glob("landscape-*.json"), key=_landscape_sort_key)
     return matches[-1] if matches else None
+
+
+def _landscape_sort_key(path: Path) -> tuple[int, str]:
+    suffix = path.stem.removeprefix("landscape-")
+    try:
+        return (int(suffix), "")
+    except ValueError:
+        return (-1, suffix)
 
 
 def rel_artifact_path(pkg: str | Path, path: Path | None) -> str | None:
@@ -286,12 +294,14 @@ def build_gate_report(
             "at least one focus recommends assess",
         ),
         "focuses_have_evidence_refs": _check(
-            "pass" if assessable and len(assessable_with_refs) == len(assessable) else "fail",
-            "assessable focuses carry evidence refs",
-        ),
-        "artifact_present": _check(
-            "pass" if _artifact_ref(artifact, "artifact") else "fail",
-            "exploration artifact envelope reference is present",
+            "skip"
+            if not assessable
+            else "pass"
+            if len(assessable_with_refs) == len(assessable)
+            else "fail",
+            "assessable focuses carry evidence refs"
+            if assessable
+            else "no assessable focus to check for evidence refs",
         ),
         "schema_versions_supported": _check(
             "pass"
@@ -324,7 +334,6 @@ def build_gate_report(
         "focuses_present",
         "has_assessable_focus",
         "focuses_have_evidence_refs",
-        "artifact_present",
         "schema_versions_supported",
     ]
     warnings = [

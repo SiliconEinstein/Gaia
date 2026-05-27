@@ -801,11 +801,14 @@ def scope_command(
         seeds = [s.strip() for s in seed if s.strip()]
         seed_source = "cli"
     else:
-        seeds = [
-            str(item.get("qid") or item.get("text"))
-            for item in exploration_map.seeds
-            if item.get("qid") or item.get("text")
-        ]
+        seeds = []
+        for item in exploration_map.seeds:
+            qid = item.get("qid")
+            text = item.get("text")
+            if qid:
+                seeds.append(str(qid))
+            elif text:
+                seeds.append(str(text))
         seed_source = "map"
     payload = build_scope_artifact(
         pkg,

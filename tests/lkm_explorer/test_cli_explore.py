@@ -35,6 +35,18 @@ def _galileo_qid(label: str) -> str:
     return f"{GALILEO_NS}:{GALILEO_PKG}::{label}"
 
 
+def _trailing_json_object(output: str) -> dict[str, object]:
+    start = output.rfind("\n{")
+    if start == -1:
+        start = output.find("{")
+    else:
+        start += 1
+    assert start != -1, output
+    payload = json.loads(output[start:])
+    assert isinstance(payload, dict)
+    return payload
+
+
 def _example_root() -> Path:
     # tests/exploration/ -> repo root -> examples/galileo-v0-5-gaia
     return Path(__file__).resolve().parents[2] / "examples" / "galileo-v0-5-gaia"
@@ -593,6 +605,7 @@ def test_explore_scope_writes_scope_artifact(galileo_pkg: Path):
             "population=adults",
             "--dimension",
             "endpoint=mi",
+            "--json",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -609,6 +622,9 @@ def test_explore_scope_writes_scope_artifact(galileo_pkg: Path):
         "endpoint": ["mi"],
     }
     assert payload["provenance"]["seed_source"] == "cli"
+    stdout_payload = _trailing_json_object(result.output)
+    assert stdout_payload["kind"] == "exploration_scope"
+    assert stdout_payload["inputs"] == payload["inputs"]
 
 
 def test_explore_scope_derives_seeds_from_map(galileo_pkg: Path):

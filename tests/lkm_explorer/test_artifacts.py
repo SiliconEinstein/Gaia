@@ -39,10 +39,16 @@ def test_artifact_id_includes_prefix_and_utc_suffix() -> None:
 def test_latest_landscape_path_returns_highest_sorted(tmp_path: Path) -> None:
     exp = tmp_path / ".gaia" / "exploration"
     exp.mkdir(parents=True)
-    for name in ["landscape-0.json", "landscape-2.json", "landscape-1.json"]:
+    for name in [
+        "landscape-0.json",
+        "landscape-2.json",
+        "landscape-1.json",
+        "landscape-9.json",
+        "landscape-10.json",
+    ]:
         (exp / name).write_text("{}", encoding="utf-8")
 
-    assert latest_landscape_path(tmp_path) == exp / "landscape-2.json"
+    assert latest_landscape_path(tmp_path) == exp / "landscape-10.json"
 
 
 def test_rel_artifact_path_prefers_package_relative_paths(tmp_path: Path) -> None:
@@ -151,6 +157,8 @@ def test_build_gate_report_blocks_without_focuses() -> None:
     assert report["kind"] == "exploration_gate_report"
     assert report["verdict"] == "block"
     assert report["checks"]["focuses_present"]["status"] == "fail"
+    assert report["checks"]["focuses_have_evidence_refs"]["status"] == "skip"
+    assert "artifact_present" not in report["checks"]
     assert report["audit"]["allowed_next_steps"] == []
 
 

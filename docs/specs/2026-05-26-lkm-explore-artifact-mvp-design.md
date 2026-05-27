@@ -381,7 +381,6 @@ Required checks:
 - `focuses_present`
 - `has_assessable_focus`
 - `focuses_have_evidence_refs`
-- `artifact_present`
 - `schema_versions_supported`
 
 Optional warning checks:
@@ -389,6 +388,10 @@ Optional warning checks:
 - `compiled_ir_present`
 - `beliefs_present`
 - `rounds_present`
+
+`gate` loads the existing Explore artifact envelope or generates it before
+building the report, so artifact envelope availability is a command invariant
+rather than a separate report check.
 
 ### 10.4 Verdicts
 

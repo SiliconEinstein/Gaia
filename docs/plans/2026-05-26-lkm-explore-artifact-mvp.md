@@ -315,7 +315,6 @@ Required checks:
 - `focuses_present`
 - `has_assessable_focus`
 - `focuses_have_evidence_refs`
-- `artifact_present`
 - `schema_versions_supported`
 
 Warning checks:
@@ -323,6 +322,10 @@ Warning checks:
 - `compiled_ir_present`
 - `beliefs_present`
 - `rounds_present`
+
+`gate` loads or generates the Explore artifact envelope before report
+construction, so the envelope itself is a command invariant rather than a gate
+check row.
 
 Verdict rules:
 
