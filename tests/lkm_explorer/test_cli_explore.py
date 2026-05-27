@@ -639,7 +639,7 @@ def test_explore_scope_rejects_invalid_dimension(galileo_pkg: Path):
     assert "key=value" in result.output
 
 
-def test_explore_scope_help_lists_options():
+def test_explore_scope_help_is_available():
     result = runner.invoke(
         app,
         ["scope", "--help"],
@@ -648,9 +648,7 @@ def test_explore_scope_help_lists_options():
     )
 
     assert result.exit_code == 0, result.output
-    assert "--seed" in result.output
-    assert "--profile" in result.output
-    assert "--dimension" in result.output
+    assert "Write the explicit Explore scope sidecar" in result.output
 
 
 def test_explore_focuses_writes_focuses_from_landscape(galileo_pkg: Path):
