@@ -82,9 +82,10 @@ def register_prior(
             registering historical priors.
 
     Raises:
-        TypeError: If ``claim`` is not a Claim instance, or ``value`` is not a
-            numeric scalar (booleans are explicitly rejected to catch mistakes
-            like ``register_prior(c, True)``).
+        TypeError: If ``claim`` is not a Claim instance, if a Boolean-valued
+            expression is passed instead of an explicit Claim, or if ``value``
+            is not a numeric scalar (booleans are explicitly rejected to catch
+            mistakes like ``register_prior(c, True)``).
         ValueError: If ``value`` is outside Cromwell bounds, ``source_id`` is
             empty/whitespace, or ``justification`` is empty/whitespace.
 
@@ -107,19 +108,17 @@ def register_prior(
     """
     if not isinstance(claim, Claim):
         if is_boolean_valued(claim):
-            # Boolean-valued expressions (Formula / BoolExpr / ClaimAtom) lift
-            # to a helper Claim at the verb boundary per RFC #703. Deferred
-            # import keeps the boolean-valued lift module out of this module's
-            # import-time fan-in.
-            from gaia.engine.lang.dsl._lift import _lift_to_claim
-
-            claim = _lift_to_claim(claim, verb="register_prior", position="first argument")
-        else:
             raise TypeError(
-                f"register_prior() claim must be a Claim instance, "
-                f"got {type(claim).__name__}. Pass the Claim object returned by "
-                f"claim(), not its label or content string."
+                "register_prior() does not auto-lift Boolean-valued expressions. "
+                "Attach priors only to an explicit claim(..., formula=...) or "
+                "claim(..., proposition=...) helper so the prior has a named, "
+                "auditable target."
             )
+        raise TypeError(
+            f"register_prior() claim must be a Claim instance, "
+            f"got {type(claim).__name__}. Pass the Claim object returned by "
+            f"claim(), not its label or content string."
+        )
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(
             f"register_prior() value must be a numeric scalar in "
