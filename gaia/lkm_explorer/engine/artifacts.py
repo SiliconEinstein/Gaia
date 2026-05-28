@@ -13,6 +13,15 @@ from pathlib import Path
 from typing import Any
 
 SOP_SCHEMA = "gaia.sop.artifact.v1"
+SOP_SCHEMA_V2 = "gaia.sop.artifact.v2"
+
+FOCUS_SYNTHESIS_INSTRUCTIONS = [
+    "Propose only focuses grounded in evidence refs.",
+    "Prefer 2-5 assessment questions.",
+    "Separate paper-level material from claim-level conclusions.",
+    "Do not state a tension as established unless the refs support it.",
+    "For each focus, list missing evidence needed before assessment.",
+]
 
 
 def utcnow() -> str:
@@ -206,6 +215,76 @@ def build_focuses_artifact(
         "provenance": {"map_round": map_round},
         "focuses": focuses,
         "audit": {"allowed_next_steps": ["artifact", "gate", "assess"]},
+    }
+
+
+def build_focus_context_artifact(
+    pkg: str | Path,
+    *,
+    scope_path: Path | None,
+    scope: dict[str, Any] | None,
+    landscape_rounds: Sequence[tuple[Path, dict[str, Any]]],
+    existing_focuses_path: Path | None,
+    existing_focuses: dict[str, Any] | None,
+    map_round: int,
+) -> dict[str, Any]:
+    """Build the grounded packet for LLM/human focus synthesis."""
+    round_refs: list[dict[str, Any]] = []
+    paper_leads: list[dict[str, Any]] = []
+    queries: list[dict[str, Any]] = []
+    for path, payload in landscape_rounds:
+        round_number = _landscape_round_number(path)
+        if round_number is None:
+            continue
+        rel_path = rel_artifact_path(pkg, path)
+        leads = [lead for lead in payload.get("paper_leads", []) if isinstance(lead, dict)]
+        round_refs.append(
+            {
+                "round": round_number,
+                "path": rel_path,
+                "purpose": "broad_initial_survey" if round_number == 0 else "focus_gap_followup",
+                "paper_leads": len(leads),
+            }
+        )
+        for query in payload.get("queries", []) or []:
+            if isinstance(query, dict):
+                queries.append({"round": round_number, "path": rel_path, **query})
+        for lead in leads:
+            paper_leads.append(
+                {
+                    "round": round_number,
+                    "path": rel_path,
+                    "paper_id": lead.get("paper_id"),
+                    "title": lead.get("title"),
+                    "doi": lead.get("doi"),
+                    "index_id": lead.get("index_id"),
+                    "best_rank": lead.get("best_rank"),
+                    "queries": list(lead.get("queries", []) or []),
+                    "lkm_node_ids": list(lead.get("lkm_node_ids", []) or []),
+                }
+            )
+    focus_rows = _focus_list(existing_focuses)
+    return {
+        "schema": SOP_SCHEMA_V2,
+        "kind": "focus_synthesis_context",
+        "id": artifact_id("focus_context"),
+        "created_at": utcnow(),
+        "inputs": {
+            "pkg": str(Path(pkg).resolve()),
+            "scope": rel_artifact_path(pkg, scope_path),
+            "existing_focuses": rel_artifact_path(pkg, existing_focuses_path),
+            "map_round": map_round,
+        },
+        "scope": scope or {},
+        "landscape_rounds": round_refs,
+        "paper_leads": paper_leads,
+        "queries": queries,
+        "existing_focuses": focus_rows,
+        "coverage_gaps": [],
+        "instructions": list(FOCUS_SYNTHESIS_INSTRUCTIONS),
+        "audit": {
+            "allowed_next_steps": ["focuses", "artifact", "gate"],
+        },
     }
 
 
@@ -405,9 +484,12 @@ def build_gate_report(
 
 
 __all__ = [
+    "FOCUS_SYNTHESIS_INSTRUCTIONS",
     "SOP_SCHEMA",
+    "SOP_SCHEMA_V2",
     "artifact_id",
     "build_exploration_artifact",
+    "build_focus_context_artifact",
     "build_focuses_artifact",
     "build_gate_report",
     "build_scope_artifact",

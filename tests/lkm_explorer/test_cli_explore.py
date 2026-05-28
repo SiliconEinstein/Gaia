@@ -470,6 +470,7 @@ def test_explore_help_lists_all_verbs():
         "scope",
         "observe",
         "landscape",
+        "focus-context",
         "focuses",
         "artifact",
         "gate",
@@ -707,6 +708,29 @@ def test_explore_focuses_writes_focuses_from_landscape(galileo_pkg: Path):
     assert focus["kind"] == "paper_lead_cluster"
     assert focus["recommended_next"] == "assess"
     assert focus["evidence_refs"]
+
+
+def test_explore_focus_context_writes_grounded_packet(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["scope", str(galileo_pkg)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+
+    result = runner.invoke(app, ["focus-context", str(galileo_pkg), "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert "Focus context:" in result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "focus_context.json").read_text(encoding="utf-8")
+    )
+    assert payload["kind"] == "focus_synthesis_context"
+    assert payload["scope"]["kind"] == "exploration_scope"
+    assert payload["landscape_rounds"][0]["round"] == 0
+    assert payload["paper_leads"]
+    assert payload["queries"]
+    assert "Propose only focuses grounded in evidence refs." in payload["instructions"]
 
 
 def test_explore_focuses_requires_landscape(galileo_pkg: Path):

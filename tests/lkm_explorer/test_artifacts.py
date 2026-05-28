@@ -7,8 +7,10 @@ import pytest
 
 from gaia.lkm_explorer.engine.artifacts import (
     SOP_SCHEMA,
+    SOP_SCHEMA_V2,
     artifact_id,
     build_exploration_artifact,
+    build_focus_context_artifact,
     build_focuses_artifact,
     build_gate_report,
     build_scope_artifact,
@@ -184,6 +186,71 @@ def test_build_focuses_artifact_aggregates_landscape_rounds(tmp_path: Path) -> N
     ]
     assert focus["provenance"]["paper_ids"] == ["P1", "P2"]
     assert focus["provenance"]["queries"] == ["aspirin benefit", "aspirin bleeding"]
+
+
+def test_build_focus_context_artifact_records_grounded_packet(tmp_path: Path) -> None:
+    landscape_path = tmp_path / ".gaia" / "exploration" / "landscape-0.json"
+    landscape = {
+        "kind": "exploration_landscape",
+        "queries": [
+            {
+                "index": 0,
+                "query": "aspirin primary prevention",
+                "raw_results": 2,
+                "paper_leads": 1,
+            }
+        ],
+        "paper_leads": [
+            {
+                "paper_id": "P1",
+                "title": "Benefit trial",
+                "doi": "10.1/demo",
+                "index_id": "bohrium",
+                "best_rank": 0.1,
+                "queries": ["aspirin primary prevention"],
+                "lkm_node_ids": ["lkm:benefit"],
+            }
+        ],
+    }
+    scope = {"kind": "exploration_scope", "inputs": {"seeds": ["aspirin"]}}
+
+    artifact = build_focus_context_artifact(
+        tmp_path,
+        scope_path=tmp_path / ".gaia" / "exploration" / "scope.json",
+        scope=scope,
+        landscape_rounds=[(landscape_path, landscape)],
+        existing_focuses_path=None,
+        existing_focuses=None,
+        map_round=0,
+    )
+
+    assert artifact["schema"] == SOP_SCHEMA_V2
+    assert artifact["kind"] == "focus_synthesis_context"
+    assert artifact["scope"] == scope
+    assert artifact["landscape_rounds"] == [
+        {
+            "round": 0,
+            "path": ".gaia/exploration/landscape-0.json",
+            "purpose": "broad_initial_survey",
+            "paper_leads": 1,
+        }
+    ]
+    assert artifact["paper_leads"] == [
+        {
+            "round": 0,
+            "path": ".gaia/exploration/landscape-0.json",
+            "paper_id": "P1",
+            "title": "Benefit trial",
+            "doi": "10.1/demo",
+            "index_id": "bohrium",
+            "best_rank": 0.1,
+            "queries": ["aspirin primary prevention"],
+            "lkm_node_ids": ["lkm:benefit"],
+        }
+    ]
+    assert artifact["queries"][0]["query"] == "aspirin primary prevention"
+    assert artifact["existing_focuses"] == []
+    assert "Propose only focuses grounded in evidence refs." in artifact["instructions"]
 
 
 def test_build_exploration_artifact_records_present_and_missing_sidecars(tmp_path: Path) -> None:

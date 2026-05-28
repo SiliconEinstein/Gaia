@@ -57,6 +57,7 @@ from gaia.engine.inquiry.review import resolve_graph
 from gaia.engine.packaging import write_text_atomic
 from gaia.lkm_explorer.engine.artifacts import (
     build_exploration_artifact,
+    build_focus_context_artifact,
     build_focuses_artifact,
     build_gate_report,
     build_scope_artifact,
@@ -201,6 +202,11 @@ _FOCUSES_OUT_OPT = typer.Option(
     None,
     "--out",
     help="Output JSON path (default <pkg>/.gaia/exploration/focuses.json).",
+)
+_FOCUS_CONTEXT_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/focus_context.json).",
 )
 _ARTIFACT_OUT_OPT = typer.Option(
     None,
@@ -1039,6 +1045,60 @@ def landscape_command(
     else:
         typer.echo("  (no unpulled paper leads)")
 
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+# --------------------------------------------------------------------------- #
+# focus-context                                                               #
+# --------------------------------------------------------------------------- #
+
+
+def focus_context_command(
+    pkg: str = _PKG_ARG,
+    out: str | None = _FOCUS_CONTEXT_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Write the grounded packet for LLM/human focus synthesis."""
+    map_path = _gaia_dir(pkg) / "exploration" / "map.json"
+    if not map_path.exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    round_paths = landscape_round_paths(pkg)
+    if not round_paths:
+        typer.echo(
+            "Error: no landscape artifact found; run `gaia-lkm-explore landscape` first.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    scope_path = _gaia_dir(pkg) / "exploration" / "scope.json"
+    focuses_path = _gaia_dir(pkg) / "exploration" / "focuses.json"
+    landscape_rounds = [(path, _read_json_object(path)) for path in round_paths]
+    payload = build_focus_context_artifact(
+        pkg,
+        scope_path=scope_path if scope_path.exists() else None,
+        scope=_read_json_object(scope_path) if scope_path.exists() else None,
+        landscape_rounds=landscape_rounds,
+        existing_focuses_path=focuses_path if focuses_path.exists() else None,
+        existing_focuses=_read_json_object(focuses_path) if focuses_path.exists() else None,
+        map_round=load_map(pkg).round,
+    )
+    output_path = (
+        Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "focus_context.json"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+    typer.echo(
+        f"Focus context: {len(payload['paper_leads'])} paper lead(s) from "
+        f"{len(payload['landscape_rounds'])} landscape round(s)."
+    )
+    typer.echo(f"Output: {output_path}")
     if json_out:
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
 
