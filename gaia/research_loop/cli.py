@@ -6,7 +6,8 @@ import json
 
 import typer
 
-from gaia.research_loop.engine import next_payload, status_payload
+from gaia.research_loop.engine import emit_task, next_payload, status_payload
+from gaia.research_loop.schemas import TaskKind
 
 app = typer.Typer(
     name="gaia-research-loop",
@@ -16,6 +17,8 @@ app = typer.Typer(
 
 _PKG_ARG = typer.Argument(..., help="Knowledge-package path.")
 _JSON_OPT = typer.Option(False, "--json", help="Emit JSON.")
+task_app = typer.Typer(help="Emit one task envelope without running the full loop.")
+app.add_typer(task_app, name="task")
 
 
 @app.callback()
@@ -40,9 +43,27 @@ def status_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
 def next_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
     """Emit the next task envelope."""
     payload = next_payload(pkg)
+    _echo_task_payload(payload, json_out)
+
+
+def _echo_task_payload(payload: dict[str, object], json_out: bool) -> None:
     if json_out:
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
         return
     typer.echo(f"Recommended: {payload['recommended_action']}")
     typer.echo(f"Task: {payload['task_path']}")
     typer.echo(f"Submit: {payload['submit_command']}")
+
+
+@task_app.command("scope")
+def task_scope_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit a scope task envelope without consulting loop state."""
+    payload = emit_task(pkg, kind=TaskKind.SCOPE)
+    _echo_task_payload(payload, json_out)
+
+
+@task_app.command("query-plan")
+def task_query_plan_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit a query planning task envelope from the current scope artifact."""
+    payload = emit_task(pkg, kind=TaskKind.QUERY_PLAN)
+    _echo_task_payload(payload, json_out)
