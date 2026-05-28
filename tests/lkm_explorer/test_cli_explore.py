@@ -701,11 +701,16 @@ def test_explore_focuses_writes_focuses_from_landscape(galileo_pkg: Path):
     payload = json.loads(
         (galileo_pkg / ".gaia" / "exploration" / "focuses.json").read_text(encoding="utf-8")
     )
+    assert payload["schema"] == "gaia.sop.artifact.v2"
     assert payload["kind"] == "exploration_focuses"
     assert [row["round"] for row in payload["inputs"]["landscape_rounds"]] == [0, 1]
     assert payload["focuses"]
     focus = payload["focuses"][0]
     assert focus["kind"] == "paper_lead_cluster"
+    assert focus["level"] == "focus"
+    assert focus["status"] == "ready_for_assess"
+    assert focus["question"]
+    assert focus["coverage"]["status"] == "ready_for_assess"
     assert focus["recommended_next"] == "assess"
     assert focus["evidence_refs"]
 
@@ -766,7 +771,12 @@ def test_explore_artifact_writes_handoff_envelope(galileo_pkg: Path):
     assert payload["artifacts"]["scope"] == ".gaia/exploration/scope.json"
     assert payload["artifacts"]["focuses"] == ".gaia/exploration/focuses.json"
     assert payload["artifacts"]["artifact"] == ".gaia/exploration/artifact.json"
+    assert payload["focus_statuses"][0]["status"] == "ready_for_assess"
     assert payload["interface"]["assess"]["command"].startswith("gaia-evidence assess")
+    assert payload["interface"]["assess"]["focus_commands"]
+    assert payload["interface"]["assess"]["focus_commands"][0].endswith(
+        f"--focus {payload['focus_statuses'][0]['id']}"
+    )
 
 
 def test_explore_gate_blocks_without_focuses(galileo_pkg: Path):
@@ -808,6 +818,7 @@ def test_explore_gate_passes_with_complete_assessable_artifacts(galileo_pkg: Pat
         (galileo_pkg / ".gaia" / "exploration" / "gate_report.json").read_text(encoding="utf-8")
     )
     assert payload["verdict"] == "pass"
+    assert payload["checks"]["ready_focus_refs_grounded"]["status"] == "pass"
     assert payload["audit"]["allowed_next_steps"] == ["assess"]
 
 

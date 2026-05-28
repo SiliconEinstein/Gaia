@@ -61,6 +61,7 @@ from gaia.lkm_explorer.engine.artifacts import (
     build_focuses_artifact,
     build_gate_report,
     build_scope_artifact,
+    collect_landscape_grounding_refs,
     landscape_round_paths,
     latest_landscape_path,
     parse_dimensions,
@@ -1182,10 +1183,13 @@ def artifact_command(
 
     exploration_map = load_map(pkg)
     output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "artifact.json"
+    focuses_path = _gaia_dir(pkg) / "exploration" / "focuses.json"
+    focuses = _read_json_object(focuses_path) if focuses_path.exists() else None
     payload = build_exploration_artifact(
         pkg,
         map_round=exploration_map.round,
         map_version=exploration_map.version,
+        focuses=focuses,
     )
     payload["artifacts"]["artifact"] = rel_artifact_path(pkg, output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1206,10 +1210,13 @@ def artifact_command(
 
 def _build_and_write_exploration_artifact(pkg: str, output_path: Path) -> dict[str, Any]:
     exploration_map = load_map(pkg)
+    focuses_path = _gaia_dir(pkg) / "exploration" / "focuses.json"
+    focuses = _read_json_object(focuses_path) if focuses_path.exists() else None
     payload = build_exploration_artifact(
         pkg,
         map_round=exploration_map.round,
         map_version=exploration_map.version,
+        focuses=focuses,
     )
     payload["artifacts"]["artifact"] = rel_artifact_path(pkg, output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1222,6 +1229,20 @@ def _resolve_pkg_artifact_path(pkg: str, ref: Any) -> Path | None:
         return None
     path = Path(ref)
     return path if path.is_absolute() else Path(pkg).resolve() / path
+
+
+def _landscape_round_payloads_for_gate(pkg: str, artifact: dict[str, Any]) -> list[dict[str, Any]]:
+    rounds = artifact.get("landscape_rounds")
+    paths: list[Path] = []
+    if isinstance(rounds, list):
+        for row in rounds:
+            if isinstance(row, dict):
+                path = _resolve_pkg_artifact_path(pkg, row.get("path"))
+                if path is not None and path.exists():
+                    paths.append(path)
+    if not paths:
+        paths = landscape_round_paths(pkg)
+    return [_read_json_object(path) for path in paths]
 
 
 def gate_command(
@@ -1249,7 +1270,10 @@ def gate_command(
         focuses_path = _gaia_dir(pkg) / "exploration" / "focuses.json"
     focuses = _read_json_object(focuses_path) if focuses_path.exists() else None
 
-    report = build_gate_report(artifact, focuses)
+    grounding_refs = collect_landscape_grounding_refs(
+        _landscape_round_payloads_for_gate(pkg, artifact)
+    )
+    report = build_gate_report(artifact, focuses, grounding_refs=grounding_refs)
     output_path = (
         Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "gate_report.json"
     )

@@ -132,6 +132,18 @@ def _lead_evidence_refs(lead: dict[str, Any]) -> list[dict[str, str]]:
     return refs
 
 
+def collect_landscape_grounding_refs(landscape_rounds: Sequence[dict[str, Any]]) -> set[str]:
+    """Return paper and LKM node ids that are grounded by landscape rounds."""
+    refs: set[str] = set()
+    for payload in landscape_rounds:
+        for lead in payload.get("paper_leads", []) or []:
+            if not isinstance(lead, dict):
+                continue
+            for ref in _lead_evidence_refs(lead):
+                refs.add(ref["id"])
+    return refs
+
+
 def build_focuses_artifact(
     pkg: str | Path,
     *,
@@ -185,13 +197,28 @@ def build_focuses_artifact(
             {
                 "id": artifact_id("focus"),
                 "kind": "paper_lead_cluster",
+                "level": "focus",
                 "text": text,
+                "question": text,
                 "why_it_matters": (
                     "Landscape paper leads are the breadth-first bridge from Explore "
                     "into evidence assessment."
                 ),
                 "evidence_refs": evidence_refs,
                 "recommended_next": "assess",
+                "status": "ready_for_assess",
+                "coverage": {
+                    "status": "ready_for_assess",
+                    "evidence_families": ["paper_lead"],
+                    "support_refs": len(paper_ids),
+                    "oppose_or_harm_refs": 0,
+                    "limitation_refs": 0,
+                    "missing_dimensions": [],
+                    "grounded_ref_count": len(evidence_refs),
+                    "stop_reason": "paper leads are grounded for downstream assessment",
+                },
+                "candidate_claims": [],
+                "next_landscape_queries": [],
                 "confidence": "medium",
                 "provenance": {
                     "paper_ids": paper_ids,
@@ -202,7 +229,7 @@ def build_focuses_artifact(
         )
 
     return {
-        "schema": SOP_SCHEMA,
+        "schema": SOP_SCHEMA_V2,
         "kind": "exploration_focuses",
         "id": artifact_id("focuses"),
         "created_at": utcnow(),
@@ -292,11 +319,91 @@ def _optional_artifact(pkg: str | Path, path: Path) -> str | None:
     return rel_artifact_path(pkg, path) if path.exists() else None
 
 
+def _focus_list(focuses: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(focuses, dict):
+        return []
+    rows = focuses.get("focuses")
+    if not isinstance(rows, list):
+        return []
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _focus_status(row: dict[str, Any]) -> str:
+    status = row.get("status")
+    if isinstance(status, str) and status:
+        return status
+    if row.get("recommended_next") == "assess":
+        return "ready_for_assess"
+    return "needs_more_landscape"
+
+
+def _focus_ref_ids(row: dict[str, Any]) -> set[str]:
+    refs: set[str] = set()
+    for ref in row.get("evidence_refs", []) or []:
+        if isinstance(ref, dict) and isinstance(ref.get("id"), str):
+            refs.add(ref["id"])
+    return refs
+
+
+def _focus_status_summaries(focuses: dict[str, Any] | None) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    for row in _focus_list(focuses):
+        focus_id = row.get("id")
+        if not isinstance(focus_id, str) or not focus_id:
+            continue
+        status = _focus_status(row)
+        summaries.append(
+            {
+                "id": focus_id,
+                "status": status,
+                "recommended_next": "assess" if status == "ready_for_assess" else "landscape",
+                "evidence_refs": len(_focus_ref_ids(row)),
+            }
+        )
+    return summaries
+
+
+def _ready_focus_contract_ok(row: dict[str, Any]) -> bool:
+    has_prompt = isinstance(row.get("question"), str) or isinstance(row.get("text"), str)
+    return (
+        has_prompt
+        and isinstance(row.get("coverage"), dict)
+        and isinstance(row.get("provenance"), dict)
+        and bool(_focus_ref_ids(row))
+    )
+
+
+def _unready_focus_has_next_step(row: dict[str, Any]) -> bool:
+    coverage = row.get("coverage")
+    missing = coverage.get("missing_dimensions") if isinstance(coverage, dict) else None
+    next_queries = row.get("next_landscape_queries")
+    return bool(missing) or bool(next_queries)
+
+
+def _exploration_coverage_summary(artifacts: dict[str, str | None]) -> dict[str, Any]:
+    paper_level_gaps: list[str] = []
+    if artifacts["landscape"] is None:
+        paper_level_gaps.append("landscape missing")
+
+    claim_level_gaps: list[str] = []
+    if artifacts["gaia_ir"] is None:
+        claim_level_gaps.append("compiled IR missing")
+    if artifacts["beliefs"] is None:
+        claim_level_gaps.append("beliefs sidecar missing")
+
+    return {
+        "paper_level_gaps": paper_level_gaps,
+        "claim_level_gaps": claim_level_gaps,
+        "budget_exhaustion": "not_evaluated",
+    }
+
+
 def build_exploration_artifact(
     pkg: str | Path,
     *,
     map_round: int,
     map_version: int,
+    focuses: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the handoff envelope that links Explore sidecars together."""
     exp = exploration_dir(pkg)
@@ -305,6 +412,7 @@ def build_exploration_artifact(
         "scope": _optional_artifact(pkg, exp / "scope.json"),
         "landscape": rel_artifact_path(pkg, latest_landscape_path(pkg)),
         "focuses": _optional_artifact(pkg, exp / "focuses.json"),
+        "focus_context": _optional_artifact(pkg, exp / "focus_context.json"),
         "map": _optional_artifact(pkg, exp / "map.json"),
         "artifact": _optional_artifact(pkg, exp / "artifact.json"),
         "rounds": _optional_artifact(pkg, exp / "rounds.jsonl"),
@@ -327,8 +435,10 @@ def build_exploration_artifact(
         "map": "map.json",
     }
     limitations = [f"missing {name}" for key, name in core_names.items() if artifacts[key] is None]
+    focus_statuses = _focus_status_summaries(focuses)
+    ready_focus_ids = [row["id"] for row in focus_statuses if row["status"] == "ready_for_assess"]
     return {
-        "schema": SOP_SCHEMA,
+        "schema": SOP_SCHEMA_V2,
         "kind": "lkm_exploration",
         "id": artifact_id("exploration"),
         "created_at": utcnow(),
@@ -339,13 +449,20 @@ def build_exploration_artifact(
         },
         "artifacts": artifacts,
         "landscape_rounds": landscape_rounds,
+        "focus_statuses": focus_statuses,
         "audit": {
+            "coverage": _exploration_coverage_summary(artifacts),
             "known_limitations": limitations,
             "allowed_next_steps": ["gate"],
         },
         "interface": {
             "assess": {
-                "command": "gaia-evidence assess --exploration .gaia/exploration/artifact.json"
+                "command": "gaia-evidence assess --exploration .gaia/exploration/artifact.json",
+                "focus_commands": [
+                    "gaia-evidence assess --exploration "
+                    f".gaia/exploration/artifact.json --focus {focus_id}"
+                    for focus_id in ready_focus_ids
+                ],
             }
         },
     }
@@ -370,22 +487,15 @@ def _artifact_ref(artifact: dict[str, Any], name: str) -> Any:
     return artifacts.get(name)
 
 
-def _focus_list(focuses: dict[str, Any] | None) -> list[dict[str, Any]]:
-    if not isinstance(focuses, dict):
-        return []
-    rows = focuses.get("focuses")
-    if not isinstance(rows, list):
-        return []
-    return [row for row in rows if isinstance(row, dict)]
-
-
 def build_gate_report(
     artifact: dict[str, Any],
     focuses: dict[str, Any] | None,
+    *,
+    grounding_refs: set[str] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic pass/revise/block report for Assess handoff."""
     rows = _focus_list(focuses)
-    assessable = [row for row in rows if row.get("recommended_next") == "assess"]
+    assessable = [row for row in rows if _focus_status(row) == "ready_for_assess"]
     assessable_with_refs = [
         row
         for row in assessable
@@ -393,6 +503,24 @@ def build_gate_report(
     ]
     all_focuses_have_refs = all(
         isinstance(row.get("evidence_refs"), list) and bool(row["evidence_refs"]) for row in rows
+    )
+    unsupported_refs: set[str] = set()
+    if grounding_refs is not None:
+        ready_ref_ids = (
+            set().union(*[_focus_ref_ids(row) for row in assessable]) if assessable else set()
+        )
+        unsupported_refs = ready_ref_ids - grounding_refs
+    supported_schemas = {SOP_SCHEMA, SOP_SCHEMA_V2}
+    ready_focuses_have_contract = all(_ready_focus_contract_ok(row) for row in assessable)
+    unready_focuses = [row for row in rows if _focus_status(row) != "ready_for_assess"]
+    unready_have_next_steps = all(_unready_focus_has_next_step(row) for row in unready_focuses)
+    audit = artifact.get("audit")
+    coverage = audit.get("coverage") if isinstance(audit, dict) else None
+    v2_coverage_budget_recorded = (
+        isinstance(coverage, dict)
+        and isinstance(coverage.get("paper_level_gaps"), list)
+        and isinstance(coverage.get("claim_level_gaps"), list)
+        and coverage.get("budget_exhaustion") is not None
     )
     checks = {
         "scope_present": _check(
@@ -413,7 +541,7 @@ def build_gate_report(
         ),
         "has_assessable_focus": _check(
             "pass" if assessable else "fail",
-            "at least one focus recommends assess",
+            "at least one focus is ready for assess",
         ),
         "focuses_have_evidence_refs": _check(
             "skip"
@@ -425,12 +553,36 @@ def build_gate_report(
             if assessable
             else "no assessable focus to check for evidence refs",
         ),
+        "ready_focuses_have_contract": _check(
+            "skip" if not assessable else "pass" if ready_focuses_have_contract else "fail",
+            "ready focuses carry question/text, coverage, provenance, and evidence refs"
+            if assessable
+            else "no ready focus to check",
+        ),
+        "ready_focus_refs_grounded": _check(
+            "skip"
+            if grounding_refs is None or not assessable
+            else "pass"
+            if not unsupported_refs
+            else "fail",
+            "ready focus evidence refs are grounded in landscape rounds"
+            if grounding_refs is not None and assessable
+            else "no grounding refs or ready focuses to check",
+        ),
         "schema_versions_supported": _check(
             "pass"
-            if artifact.get("schema") == SOP_SCHEMA
-            and (focuses is None or focuses.get("schema") == SOP_SCHEMA)
+            if artifact.get("schema") in supported_schemas
+            and (focuses is None or focuses.get("schema") in supported_schemas)
             else "fail",
-            f"supported schema is {SOP_SCHEMA}",
+            f"supported schemas are {', '.join(sorted(supported_schemas))}",
+        ),
+        "coverage_budget_recorded": _check(
+            "skip"
+            if artifact.get("schema") != SOP_SCHEMA_V2
+            else "pass"
+            if v2_coverage_budget_recorded
+            else "fail",
+            "v2 artifact records paper gaps, claim gaps, and budget exhaustion",
         ),
         "compiled_ir_present": _check(
             "pass" if _artifact_ref(artifact, "gaia_ir") else "warn",
@@ -448,6 +600,10 @@ def build_gate_report(
             "pass" if all_focuses_have_refs else "warn",
             "all focus rows carry evidence refs",
         ),
+        "unready_focuses_have_next_steps": _check(
+            "pass" if not unready_focuses or unready_have_next_steps else "warn",
+            "unready focuses explain missing dimensions or next landscape queries",
+        ),
     }
     required = [
         "scope_present",
@@ -456,13 +612,17 @@ def build_gate_report(
         "focuses_present",
         "has_assessable_focus",
         "focuses_have_evidence_refs",
+        "ready_focuses_have_contract",
+        "ready_focus_refs_grounded",
         "schema_versions_supported",
+        "coverage_budget_recorded",
     ]
     warnings = [
         "compiled_ir_present",
         "beliefs_present",
         "rounds_present",
         "all_focuses_have_evidence_refs",
+        "unready_focuses_have_next_steps",
     ]
     if any(checks[name]["status"] == "fail" for name in required):
         verdict = "block"
@@ -477,6 +637,9 @@ def build_gate_report(
         "created_at": utcnow(),
         "verdict": verdict,
         "checks": checks,
+        "validation": {
+            "ungrounded_refs": sorted(unsupported_refs),
+        },
         "audit": {
             "allowed_next_steps": ["assess"] if verdict == "pass" else [],
         },
@@ -493,6 +656,7 @@ __all__ = [
     "build_focuses_artifact",
     "build_gate_report",
     "build_scope_artifact",
+    "collect_landscape_grounding_refs",
     "exploration_dir",
     "landscape_round_paths",
     "latest_landscape_path",

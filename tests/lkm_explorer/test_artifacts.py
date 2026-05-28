@@ -14,6 +14,7 @@ from gaia.lkm_explorer.engine.artifacts import (
     build_focuses_artifact,
     build_gate_report,
     build_scope_artifact,
+    collect_landscape_grounding_refs,
     landscape_round_paths,
     latest_landscape_path,
     parse_dimensions,
@@ -116,11 +117,17 @@ def test_build_focuses_artifact_uses_landscape_paper_leads(tmp_path: Path) -> No
         map_round=0,
     )
 
+    assert artifact["schema"] == SOP_SCHEMA_V2
     assert artifact["kind"] == "exploration_focuses"
     assert artifact["focuses"]
     focus = artifact["focuses"][0]
     assert focus["kind"] == "paper_lead_cluster"
+    assert focus["level"] == "focus"
+    assert focus["status"] == "ready_for_assess"
+    assert focus["question"].startswith("Assess the paper-lead cluster")
     assert focus["recommended_next"] == "assess"
+    assert focus["coverage"]["status"] == "ready_for_assess"
+    assert focus["coverage"]["grounded_ref_count"] == 3
     assert focus["evidence_refs"] == [
         {"kind": "paper", "id": "P1"},
         {"kind": "lkm_node", "id": "lkm:1"},
@@ -279,9 +286,91 @@ def test_build_exploration_artifact_records_present_and_missing_sidecars(tmp_pat
         },
     ]
     assert artifact["artifacts"]["focuses"] is None
+    assert artifact["artifacts"]["focus_context"] is None
+    assert artifact["schema"] == SOP_SCHEMA_V2
+    assert artifact["focus_statuses"] == []
+    assert artifact["audit"]["coverage"]["budget_exhaustion"] == "not_evaluated"
+    assert artifact["audit"]["coverage"]["paper_level_gaps"] == []
+    assert artifact["audit"]["coverage"]["claim_level_gaps"] == [
+        "compiled IR missing",
+        "beliefs sidecar missing",
+    ]
     assert "missing focuses.json" in artifact["audit"]["known_limitations"]
     assert artifact["audit"]["allowed_next_steps"] == ["gate"]
     assert "gaia-evidence assess" in artifact["interface"]["assess"]["command"]
+    assert artifact["interface"]["assess"]["focus_commands"] == []
+
+
+def test_build_exploration_artifact_records_focus_statuses_and_assess_commands(
+    tmp_path: Path,
+) -> None:
+    exp = tmp_path / ".gaia" / "exploration"
+    exp.mkdir(parents=True)
+    (exp / "scope.json").write_text("{}", encoding="utf-8")
+    (exp / "landscape-0.json").write_text("{}", encoding="utf-8")
+    (exp / "map.json").write_text("{}", encoding="utf-8")
+    focuses = {
+        "schema": SOP_SCHEMA_V2,
+        "focuses": [
+            {
+                "id": "focus_1",
+                "status": "ready_for_assess",
+                "question": "What is the net clinical benefit?",
+                "coverage": {"status": "ready_for_assess"},
+                "provenance": {},
+                "evidence_refs": [{"kind": "paper", "id": "P1"}],
+            },
+            {
+                "id": "focus_2",
+                "status": "needs_more_landscape",
+                "question": "What is missing in older adults?",
+                "coverage": {"missing_dimensions": ["older adults"]},
+                "next_landscape_queries": ["aspirin primary prevention older adults"],
+                "evidence_refs": [],
+            },
+        ],
+    }
+
+    artifact = build_exploration_artifact(
+        tmp_path,
+        map_round=2,
+        map_version=1,
+        focuses=focuses,
+    )
+
+    assert artifact["focus_statuses"] == [
+        {
+            "id": "focus_1",
+            "status": "ready_for_assess",
+            "recommended_next": "assess",
+            "evidence_refs": 1,
+        },
+        {
+            "id": "focus_2",
+            "status": "needs_more_landscape",
+            "recommended_next": "landscape",
+            "evidence_refs": 0,
+        },
+    ]
+    assert artifact["interface"]["assess"]["focus_commands"] == [
+        "gaia-evidence assess --exploration .gaia/exploration/artifact.json --focus focus_1"
+    ]
+
+
+def test_collect_landscape_grounding_refs_indexes_all_round_refs() -> None:
+    refs = collect_landscape_grounding_refs(
+        [
+            {
+                "paper_leads": [
+                    {"paper_id": "P1", "lkm_node_ids": ["lkm:1", "lkm:2"]},
+                    {"paper_id": "P2", "lkm_node_ids": []},
+                ]
+            },
+            {"paper_leads": [{"paper_id": "P3", "lkm_node_ids": ["lkm:3"]}]},
+        ]
+    )
+
+    assert refs == {"P1", "P2", "P3", "lkm:1", "lkm:2", "lkm:3"}
 
 
 def test_build_gate_report_blocks_without_focuses() -> None:
@@ -330,16 +419,95 @@ def test_build_gate_report_passes_with_supported_schema_and_backed_focus() -> No
         "focuses": [
             {
                 "id": "focus_1",
+                "status": "ready_for_assess",
+                "question": "Should this paper cluster enter assessment?",
+                "coverage": {"status": "ready_for_assess"},
+                "provenance": {},
                 "recommended_next": "assess",
                 "evidence_refs": [{"kind": "paper", "id": "P1"}],
             }
         ],
     }
 
-    report = build_gate_report(artifact, focuses)
+    report = build_gate_report(artifact, focuses, grounding_refs={"P1"})
 
     assert report["verdict"] == "pass"
+    assert report["checks"]["ready_focuses_have_contract"]["status"] == "pass"
+    assert report["checks"]["ready_focus_refs_grounded"]["status"] == "pass"
+    assert report["checks"]["coverage_budget_recorded"]["status"] == "skip"
     assert report["audit"]["allowed_next_steps"] == ["assess"]
+
+
+def test_build_gate_report_blocks_ungrounded_ready_focus() -> None:
+    artifact = {
+        "schema": SOP_SCHEMA_V2,
+        "kind": "lkm_exploration",
+        "artifacts": {
+            "scope": ".gaia/exploration/scope.json",
+            "landscape": ".gaia/exploration/landscape-0.json",
+            "focuses": ".gaia/exploration/focuses.json",
+            "map": ".gaia/exploration/map.json",
+            "artifact": ".gaia/exploration/artifact.json",
+            "gaia_ir": ".gaia/ir.json",
+            "beliefs": ".gaia/beliefs.json",
+            "rounds": ".gaia/exploration/rounds.jsonl",
+        },
+    }
+    focuses = {
+        "schema": SOP_SCHEMA_V2,
+        "focuses": [
+            {
+                "id": "focus_1",
+                "status": "ready_for_assess",
+                "question": "Should this paper cluster enter assessment?",
+                "coverage": {"status": "ready_for_assess"},
+                "provenance": {},
+                "evidence_refs": [{"kind": "paper", "id": "P2"}],
+            }
+        ],
+    }
+
+    report = build_gate_report(artifact, focuses, grounding_refs={"P1"})
+
+    assert report["verdict"] == "block"
+    assert report["checks"]["ready_focus_refs_grounded"]["status"] == "fail"
+    assert report["validation"]["ungrounded_refs"] == ["P2"]
+
+
+def test_build_gate_report_requires_v2_coverage_budget_record() -> None:
+    artifact = {
+        "schema": SOP_SCHEMA_V2,
+        "kind": "lkm_exploration",
+        "artifacts": {
+            "scope": ".gaia/exploration/scope.json",
+            "landscape": ".gaia/exploration/landscape-0.json",
+            "focuses": ".gaia/exploration/focuses.json",
+            "map": ".gaia/exploration/map.json",
+            "artifact": ".gaia/exploration/artifact.json",
+            "gaia_ir": ".gaia/ir.json",
+            "beliefs": ".gaia/beliefs.json",
+            "rounds": ".gaia/exploration/rounds.jsonl",
+        },
+        "audit": {"coverage": {}},
+    }
+    focuses = {
+        "schema": SOP_SCHEMA_V2,
+        "focuses": [
+            {
+                "id": "focus_1",
+                "status": "ready_for_assess",
+                "question": "Should this paper cluster enter assessment?",
+                "coverage": {"status": "ready_for_assess"},
+                "provenance": {},
+                "evidence_refs": [{"kind": "paper", "id": "P1"}],
+            }
+        ],
+    }
+
+    report = build_gate_report(artifact, focuses, grounding_refs={"P1"})
+
+    assert report["verdict"] == "block"
+    assert report["checks"]["coverage_budget_recorded"]["status"] == "fail"
 
 
 def test_build_gate_report_revises_when_warning_artifacts_are_missing() -> None:
@@ -362,6 +530,10 @@ def test_build_gate_report_revises_when_warning_artifacts_are_missing() -> None:
         "focuses": [
             {
                 "id": "focus_1",
+                "status": "ready_for_assess",
+                "question": "Should this paper cluster enter assessment?",
+                "coverage": {"status": "ready_for_assess"},
+                "provenance": {},
                 "recommended_next": "assess",
                 "evidence_refs": [{"kind": "paper", "id": "P1"}],
             }
