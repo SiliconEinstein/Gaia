@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shlex import quote
 from typing import Any
 
 from gaia.research_loop.schemas import (
@@ -10,6 +11,7 @@ from gaia.research_loop.schemas import (
     QueryPlanCandidatePayload,
     ResearchLoopTask,
     ScopeCandidatePayload,
+    SearchExecutionCandidatePayload,
     TaskKind,
 )
 from gaia.research_loop.storage import ResearchLoopPaths, write_json
@@ -77,6 +79,56 @@ def build_query_plan_task(
                 "queries": [{"query": "example query", "purpose": "cover one evidence family"}],
                 "rationale": "Tiny shape example only.",
             },
+        },
+        submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
+    )
+    return task, _task_path(paths, task_id)
+
+
+def build_search_execution_task(
+    paths: ResearchLoopPaths,
+    query_plan: dict[str, Any],
+) -> tuple[ResearchLoopTask, Path]:
+    """Build a mechanical task for running planned LKM searches."""
+    task_id = "task-search-execution-0001"
+    commands: list[dict[str, str]] = []
+    for index, item in enumerate(query_plan.get("queries", [])):
+        if not isinstance(item, dict):
+            continue
+        query = item.get("query")
+        if not isinstance(query, str) or not query.strip():
+            continue
+        output_path = paths.explore_artifacts / f"raw-search-0001-{index}.json"
+        command = f"gaia search lkm knowledge {quote(query)} --json > {quote(str(output_path))}"
+        commands.append(
+            {
+                "query": query,
+                "command": command,
+                "output_path": str(output_path),
+            }
+        )
+
+    task = ResearchLoopTask(
+        task_id=task_id,
+        stage="explore",
+        kind=TaskKind.SEARCH_EXECUTION,
+        objective="Run the planned LKM searches and submit raw JSON result paths.",
+        inputs={"query_plan": query_plan, "commands": commands},
+        instructions=[
+            "Run each command exactly as written.",
+            "Do not summarize or transform the raw LKM JSON.",
+            "Submit the output paths after all commands finish.",
+        ],
+        allowed_actions=["submit_search_results", "stop"],
+        recommended_action="submit_search_results",
+        output_contract=SearchExecutionCandidatePayload.model_json_schema(),
+        allowed_refs=[EvidenceRef(kind="query_plan", id="query_plan")],
+        minimal_example={
+            "task_id": task_id,
+            "stage": "explore",
+            "kind": "search_execution",
+            "selected_action": "submit_search_results",
+            "payload": {"results": [{"query": "example query", "path": "/tmp/raw-search.json"}]},
         },
         submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
     )

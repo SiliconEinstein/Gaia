@@ -138,3 +138,50 @@ def test_submit_invalid_candidate_records_repair_context(tmp_path: Path) -> None
     )
     assert repair_task["repair_context"]["failed_candidate_path"].endswith("bad.json")
     assert "seed_question" in json.dumps(repair_task["repair_context"]["errors"])
+
+
+def test_next_after_query_plan_emits_search_execution(tmp_path: Path) -> None:
+    runner = CliRunner()
+    runner.invoke(app, ["next", str(tmp_path), "--json"])
+    scope_candidate = tmp_path / "scope.json"
+    scope_candidate.write_text(
+        json.dumps(
+            {
+                "task_id": "task-scope-0001",
+                "stage": "explore",
+                "kind": "scope",
+                "selected_action": "submit_scope",
+                "payload": {"seed_question": "aspirin primary prevention", "search_budget": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
+    runner.invoke(app, ["submit", str(tmp_path), str(scope_candidate), "--json"])
+    runner.invoke(app, ["next", str(tmp_path), "--json"])
+    query_candidate = tmp_path / "query-plan.json"
+    query_candidate.write_text(
+        json.dumps(
+            {
+                "task_id": "task-query-plan-0001",
+                "stage": "explore",
+                "kind": "query_plan",
+                "selected_action": "submit_query_plan",
+                "payload": {
+                    "queries": [
+                        {"query": "aspirin primary prevention bleeding", "purpose": "harms"}
+                    ],
+                    "rationale": "Need harm evidence.",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    runner.invoke(app, ["submit", str(tmp_path), str(query_candidate), "--json"])
+
+    result = runner.invoke(app, ["next", str(tmp_path), "--json"])
+
+    payload = json.loads(result.stdout)
+    task = json.loads(Path(payload["task_path"]).read_text(encoding="utf-8"))
+    assert task["kind"] == "search_execution"
+    assert "gaia search lkm knowledge" in task["inputs"]["commands"][0]["command"]
+    assert task["inputs"]["commands"][0]["output_path"].endswith(".json")

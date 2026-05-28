@@ -139,6 +139,23 @@ class QueryPlanCandidatePayload(BaseModel):
     rationale: str
 
 
+class SearchResultPath(BaseModel):
+    """Raw search result path produced by a mechanical search execution task."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    query: str
+    path: str
+
+
+class SearchExecutionCandidatePayload(BaseModel):
+    """Submitted raw result paths after running planned LKM searches."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    results: list[SearchResultPath]
+
+
 class ResearchLoopEvent(BaseModel):
     """Append-only audit event for research loop activity."""
 

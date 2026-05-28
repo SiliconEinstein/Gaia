@@ -27,7 +27,12 @@ from gaia.research_loop.storage import (
     rebuild_state,
     write_json,
 )
-from gaia.research_loop.tasks import build_query_plan_task, build_scope_task, write_task
+from gaia.research_loop.tasks import (
+    build_query_plan_task,
+    build_scope_task,
+    build_search_execution_task,
+    write_task,
+)
 
 
 def status_payload(pkg: str | Path) -> dict[str, Any]:
@@ -53,9 +58,12 @@ def next_payload(pkg: str | Path) -> dict[str, Any]:
     if state.last_validation_error is not None:
         return _repair_task_payload(paths, state.last_validation_error)
     scope_path = paths.explore_artifacts / "scope.json"
-    if scope_path.exists():
+    query_plan_path = paths.explore_artifacts / "query_plan.json"
+    if not scope_path.exists():
+        return emit_task(pkg, kind=TaskKind.SCOPE)
+    if not query_plan_path.exists():
         return emit_task(pkg, kind=TaskKind.QUERY_PLAN)
-    return emit_task(pkg, kind=TaskKind.SCOPE)
+    return emit_task(pkg, kind=TaskKind.SEARCH_EXECUTION)
 
 
 def emit_task(pkg: str | Path, *, kind: TaskKind) -> dict[str, Any]:
@@ -68,6 +76,11 @@ def emit_task(pkg: str | Path, *, kind: TaskKind) -> dict[str, Any]:
         if not scope_path.exists():
             raise FileNotFoundError("scope.json is required for query-plan task")
         task, task_path = build_query_plan_task(paths, read_json(scope_path))
+    elif kind == TaskKind.SEARCH_EXECUTION:
+        query_plan_path = paths.explore_artifacts / "query_plan.json"
+        if not query_plan_path.exists():
+            raise FileNotFoundError("query_plan.json is required for search-execution task")
+        task, task_path = build_search_execution_task(paths, read_json(query_plan_path))
     else:
         raise ValueError(f"Primitive task {kind.value} is not implemented yet")
     write_task(task, task_path)
