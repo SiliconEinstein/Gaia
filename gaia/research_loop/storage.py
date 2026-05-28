@@ -102,6 +102,28 @@ def load_events(paths: ResearchLoopPaths) -> list[ResearchLoopEvent]:
     ]
 
 
+def load_state(paths: ResearchLoopPaths) -> ResearchLoopState:
+    """Load state if present, otherwise rebuild it."""
+    if not paths.state.exists():
+        return rebuild_state(paths)
+    return ResearchLoopState.model_validate(read_json(paths.state))
+
+
+def find_task(paths: ResearchLoopPaths, task_id: str) -> Path:
+    """Find a task envelope by id across loop stages."""
+    for directory in [paths.explore_tasks, paths.assess_tasks]:
+        candidate = directory / f"{task_id}.json"
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(f"No task envelope found for {task_id}")
+
+
+def candidate_destination(paths: ResearchLoopPaths, stage: Stage, candidate_path: Path) -> Path:
+    """Return the canonical candidate copy path for a stage."""
+    directory = paths.explore_candidates if stage == "explore" else paths.assess_candidates
+    return directory / candidate_path.name
+
+
 def _latest_json_path(directory: Path) -> str | None:
     matches = sorted(directory.glob("*.json"), key=lambda path: path.stat().st_mtime)
     return str(matches[-1]) if matches else None

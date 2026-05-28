@@ -6,7 +6,7 @@ import json
 
 import typer
 
-from gaia.research_loop.engine import emit_task, next_payload, status_payload
+from gaia.research_loop.engine import emit_task, next_payload, status_payload, submit_candidate
 from gaia.research_loop.schemas import TaskKind
 
 app = typer.Typer(
@@ -44,6 +44,27 @@ def next_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
     """Emit the next task envelope."""
     payload = next_payload(pkg)
     _echo_task_payload(payload, json_out)
+
+
+@app.command("submit")
+def submit_command(
+    pkg: str = _PKG_ARG,
+    candidate: str = typer.Argument(..., help="Candidate JSON path."),
+    json_out: bool = _JSON_OPT,
+) -> None:
+    """Validate and submit a candidate JSON file."""
+    try:
+        payload = submit_candidate(pkg, candidate)
+    except Exception as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "rejected", "error": str(exc)}, indent=2))
+        else:
+            typer.echo(f"Rejected: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    typer.echo(f"Accepted: {payload['artifact_path']}")
 
 
 def _echo_task_payload(payload: dict[str, object], json_out: bool) -> None:
