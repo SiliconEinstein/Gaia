@@ -97,6 +97,7 @@ markers = [
 [project.scripts]
 gaia = "gaia.cli.main:app"
 gaia-lkm-explore = "gaia.lkm_explorer.client.cli:app"
+gaia-research-loop = "gaia.research_loop.cli:app"
 
 [tool.coverage.report]
 exclude_lines = [
