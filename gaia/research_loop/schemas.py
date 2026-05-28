@@ -108,6 +108,37 @@ class CandidateEnvelope(BaseModel):
             raise ValueError("override_rationale is required when overriding recommendation")
 
 
+class ScopeCandidatePayload(BaseModel):
+    """Structured scope proposed by an agent or human."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    seed_question: str
+    domain_profile: str | None = None
+    scope_dimensions: dict[str, list[str]] = Field(default_factory=dict)
+    search_budget: int = 5
+
+
+class PlannedQuery(BaseModel):
+    """One planned LKM query."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    query: str
+    purpose: str
+    expected_evidence_family: str | None = None
+    source_ref: EvidenceRef | None = None
+
+
+class QueryPlanCandidatePayload(BaseModel):
+    """Agent-proposed query plan for the next landscape round."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    queries: list[PlannedQuery]
+    rationale: str
+
+
 class ResearchLoopEvent(BaseModel):
     """Append-only audit event for research loop activity."""
 

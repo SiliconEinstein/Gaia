@@ -5,7 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from gaia.research_loop.storage import ensure_loop_dirs, load_events, rebuild_state
+from gaia.research_loop.storage import (
+    append_event,
+    ensure_loop_dirs,
+    load_events,
+    read_json,
+    rebuild_state,
+)
+from gaia.research_loop.tasks import build_query_plan_task, build_scope_task, write_task
 
 
 def status_payload(pkg: str | Path) -> dict[str, Any]:
@@ -21,4 +28,29 @@ def status_payload(pkg: str | Path) -> dict[str, Any]:
         "latest_artifact_by_stage": state.latest_artifact_by_stage,
         "event_count": len(events),
         "recommended_next": "gaia-research-loop next",
+    }
+
+
+def next_payload(pkg: str | Path) -> dict[str, Any]:
+    """Emit the next recommended task envelope."""
+    paths = ensure_loop_dirs(pkg)
+    scope_path = paths.explore_artifacts / "scope.json"
+    if scope_path.exists():
+        task, task_path = build_query_plan_task(paths, read_json(scope_path))
+    else:
+        task, task_path = build_scope_task(paths)
+    write_task(task, task_path)
+    append_event(
+        paths,
+        event_type="task_emitted",
+        stage=task.stage,
+        data={"task_id": task.task_id, "kind": task.kind.value, "task_path": str(task_path)},
+    )
+    rebuild_state(paths)
+    return {
+        "recommended_action": task.recommended_action,
+        "allowed_actions": task.allowed_actions,
+        "task_path": str(task_path),
+        "submit_command": task.submit_command,
+        "rationale": task.objective,
     }

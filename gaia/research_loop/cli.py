@@ -6,7 +6,7 @@ import json
 
 import typer
 
-from gaia.research_loop.engine import status_payload
+from gaia.research_loop.engine import next_payload, status_payload
 
 app = typer.Typer(
     name="gaia-research-loop",
@@ -34,3 +34,15 @@ def status_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
     typer.echo(f"Root: {payload['root']}")
     typer.echo(f"Events: {payload['event_count']}")
     typer.echo(f"Next: {payload['recommended_next']} {pkg}")
+
+
+@app.command("next")
+def next_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit the next task envelope."""
+    payload = next_payload(pkg)
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    typer.echo(f"Recommended: {payload['recommended_action']}")
+    typer.echo(f"Task: {payload['task_path']}")
+    typer.echo(f"Submit: {payload['submit_command']}")
