@@ -510,6 +510,60 @@ def test_build_gate_report_requires_v2_coverage_budget_record() -> None:
     assert report["checks"]["coverage_budget_recorded"]["status"] == "fail"
 
 
+def test_build_gate_report_accepts_v2_landscape_rounds_as_provenance() -> None:
+    artifact = {
+        "schema": SOP_SCHEMA_V2,
+        "kind": "lkm_exploration",
+        "artifacts": {
+            "scope": ".gaia/exploration/scope.json",
+            "landscape": ".gaia/exploration/landscape-1.json",
+            "focuses": ".gaia/exploration/focuses.json",
+            "map": ".gaia/exploration/map.json",
+            "artifact": ".gaia/exploration/artifact.json",
+            "gaia_ir": ".gaia/ir.json",
+            "beliefs": ".gaia/beliefs.json",
+            "rounds": None,
+        },
+        "landscape_rounds": [
+            {
+                "round": 0,
+                "path": ".gaia/exploration/landscape-0.json",
+                "purpose": "broad_initial_survey",
+            },
+            {
+                "round": 1,
+                "path": ".gaia/exploration/landscape-1.json",
+                "purpose": "focus_gap_followup",
+            },
+        ],
+        "audit": {
+            "coverage": {
+                "paper_level_gaps": [],
+                "claim_level_gaps": [],
+                "budget_exhaustion": "not_evaluated",
+            }
+        },
+    }
+    focuses = {
+        "schema": SOP_SCHEMA_V2,
+        "focuses": [
+            {
+                "id": "focus_1",
+                "status": "ready_for_assess",
+                "question": "Should this paper cluster enter assessment?",
+                "coverage": {"status": "ready_for_assess"},
+                "provenance": {},
+                "evidence_refs": [{"kind": "paper", "id": "P1"}],
+            }
+        ],
+    }
+
+    report = build_gate_report(artifact, focuses, grounding_refs={"P1"})
+
+    assert report["verdict"] == "pass"
+    assert report["checks"]["rounds_present"]["status"] == "pass"
+
+
 def test_build_gate_report_revises_when_warning_artifacts_are_missing() -> None:
     artifact = {
         "schema": SOP_SCHEMA,

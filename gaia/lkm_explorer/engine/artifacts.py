@@ -487,6 +487,15 @@ def _artifact_ref(artifact: dict[str, Any], name: str) -> Any:
     return artifacts.get(name)
 
 
+def _has_landscape_round_provenance(artifact: dict[str, Any]) -> bool:
+    if artifact.get("schema") != SOP_SCHEMA_V2:
+        return False
+    rounds = artifact.get("landscape_rounds")
+    if not isinstance(rounds, list) or not rounds:
+        return False
+    return all(isinstance(row, dict) and row.get("path") for row in rounds)
+
+
 def build_gate_report(
     artifact: dict[str, Any],
     focuses: dict[str, Any] | None,
@@ -593,8 +602,10 @@ def build_gate_report(
             "beliefs sidecar is available for downstream assessment context",
         ),
         "rounds_present": _check(
-            "pass" if _artifact_ref(artifact, "rounds") else "warn",
-            "round history is available for provenance",
+            "pass"
+            if _artifact_ref(artifact, "rounds") or _has_landscape_round_provenance(artifact)
+            else "warn",
+            "round history or v2 landscape round index is available for provenance",
         ),
         "all_focuses_have_evidence_refs": _check(
             "pass" if all_focuses_have_refs else "warn",
