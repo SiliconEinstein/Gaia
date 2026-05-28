@@ -7,6 +7,8 @@ from shlex import quote
 from typing import Any
 
 from gaia.research_loop.schemas import (
+    AssessmentContextCandidatePayload,
+    EvidenceDiagnosisCandidatePayload,
     EvidenceRef,
     FocusSynthesisCandidatePayload,
     QueryPlanCandidatePayload,
@@ -20,6 +22,10 @@ from gaia.research_loop.storage import ResearchLoopPaths, write_json
 
 def _task_path(paths: ResearchLoopPaths, task_id: str) -> Path:
     return paths.explore_tasks / f"{task_id}.json"
+
+
+def _assess_task_path(paths: ResearchLoopPaths, task_id: str) -> Path:
+    return paths.assess_tasks / f"{task_id}.json"
 
 
 def build_scope_task(paths: ResearchLoopPaths) -> tuple[ResearchLoopTask, Path]:
@@ -177,6 +183,81 @@ def build_focus_synthesis_task(
     return task, _task_path(paths, task_id)
 
 
+def build_assessment_context_task(
+    paths: ResearchLoopPaths,
+    focuses: dict[str, Any],
+) -> tuple[ResearchLoopTask, Path]:
+    """Build an assessment-context task from selected Explore focuses."""
+    task_id = "task-assessment-context-0001"
+    selected_focus = _selected_focus(focuses)
+    task = ResearchLoopTask(
+        task_id=task_id,
+        stage="assess",
+        kind=TaskKind.ASSESSMENT_CONTEXT,
+        objective="Package the selected focus for evidence diagnosis.",
+        inputs={"focus": selected_focus, "focuses": focuses},
+        instructions=[
+            "Preserve the selected focus id.",
+            "Carry forward only evidence refs grounded by the selected focus.",
+        ],
+        allowed_actions=["submit_assessment_context", "stop"],
+        recommended_action="submit_assessment_context",
+        output_contract=AssessmentContextCandidatePayload.model_json_schema(),
+        allowed_refs=_refs_from_focus(selected_focus),
+        minimal_example={
+            "task_id": task_id,
+            "stage": "assess",
+            "kind": "assessment_context",
+            "selected_action": "submit_assessment_context",
+            "payload": {"focus_id": "focus-example", "evidence_refs": []},
+        },
+        submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
+    )
+    return task, _assess_task_path(paths, task_id)
+
+
+def build_evidence_diagnosis_task(
+    paths: ResearchLoopPaths,
+    assessment_context: dict[str, Any],
+) -> tuple[ResearchLoopTask, Path]:
+    """Build an evidence-diagnosis task from an assessment context."""
+    task_id = "task-evidence-diagnosis-0001"
+    task = ResearchLoopTask(
+        task_id=task_id,
+        stage="assess",
+        kind=TaskKind.EVIDENCE_DIAGNOSIS,
+        objective="Diagnose the evidence, tensions, limitations, gaps, and next tests.",
+        inputs={"assessment_context": assessment_context},
+        instructions=[
+            "Ground every evidence item in allowed refs.",
+            "Tie each next test to a gap id.",
+        ],
+        allowed_actions=["submit_evidence_diagnosis", "stop"],
+        recommended_action="submit_evidence_diagnosis",
+        output_contract=EvidenceDiagnosisCandidatePayload.model_json_schema(),
+        allowed_refs=[
+            EvidenceRef.model_validate(ref)
+            for ref in assessment_context.get("evidence_refs", [])
+            if isinstance(ref, dict)
+        ],
+        minimal_example={
+            "task_id": task_id,
+            "stage": "assess",
+            "kind": "evidence_diagnosis",
+            "selected_action": "submit_evidence_diagnosis",
+            "payload": {
+                "focus_id": "focus-example",
+                "evidence_items": [{"id": "e1", "refs": []}],
+                "limitations": ["Example limitation."],
+                "gap_map": [{"gap_id": "g1", "description": "Example gap."}],
+                "next_tests": [{"gap_id": "g1", "test": "Example test."}],
+            },
+        },
+        submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
+    )
+    return task, _assess_task_path(paths, task_id)
+
+
 def _paper_refs_from_landscape(landscape: dict[str, Any]) -> list[EvidenceRef]:
     refs: list[EvidenceRef] = []
     for lead in landscape.get("paper_leads", []):
@@ -185,6 +266,27 @@ def _paper_refs_from_landscape(landscape: dict[str, Any]) -> list[EvidenceRef]:
         paper_id = lead.get("paper_id")
         if isinstance(paper_id, str) and paper_id:
             refs.append(EvidenceRef(kind="paper", id=paper_id))
+    return refs
+
+
+def _selected_focus(focuses: dict[str, Any]) -> dict[str, Any]:
+    selected_ids: set[str] = set()
+    selection = focuses.get("selection")
+    if isinstance(selection, dict):
+        selected = selection.get("selected_focus_ids")
+        if isinstance(selected, list):
+            selected_ids = {item for item in selected if isinstance(item, str)}
+    for focus in focuses.get("focuses", []):
+        if isinstance(focus, dict) and focus.get("focus_id") in selected_ids:
+            return focus
+    return {}
+
+
+def _refs_from_focus(focus: dict[str, Any]) -> list[EvidenceRef]:
+    refs: list[EvidenceRef] = []
+    for ref in focus.get("evidence_refs", []):
+        if isinstance(ref, dict):
+            refs.append(EvidenceRef.model_validate(ref))
     return refs
 
 

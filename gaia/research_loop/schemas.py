@@ -188,6 +188,55 @@ class FocusSynthesisCandidatePayload(BaseModel):
     selection: FocusSelection | None = None
 
 
+class AssessmentContextCandidatePayload(BaseModel):
+    """Assessment context accepted or refined by an agent."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    focus_id: str
+    evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+
+
+class EvidenceItem(BaseModel):
+    """One evidence row in an assessment diagnosis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    refs: list[EvidenceRef]
+
+
+class GapMapEntry(BaseModel):
+    """One remaining assessment gap."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    gap_id: str
+    description: str
+
+
+class NextTest(BaseModel):
+    """One proposed next test tied to a gap."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    gap_id: str
+    test: str
+
+
+class EvidenceDiagnosisCandidatePayload(BaseModel):
+    """Agent-authored evidence diagnosis for one selected focus."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    focus_id: str
+    evidence_items: list[EvidenceItem]
+    contradictions_or_tensions: list[dict[str, Any]] = Field(default_factory=list)
+    limitations: list[str]
+    gap_map: list[GapMapEntry]
+    next_tests: list[NextTest]
+
+
 class ResearchLoopEvent(BaseModel):
     """Append-only audit event for research loop activity."""
 

@@ -9,7 +9,9 @@ from pydantic import ValidationError
 
 from gaia.research_loop.lkm_adapter import build_landscape_from_raw_results
 from gaia.research_loop.schemas import (
+    AssessmentContextCandidatePayload,
     CandidateEnvelope,
+    EvidenceDiagnosisCandidatePayload,
     FocusSynthesisCandidatePayload,
     QueryPlanCandidatePayload,
     RepairContext,
@@ -31,6 +33,8 @@ from gaia.research_loop.storage import (
     write_json,
 )
 from gaia.research_loop.tasks import (
+    build_assessment_context_task,
+    build_evidence_diagnosis_task,
     build_focus_synthesis_task,
     build_query_plan_task,
     build_scope_task,
@@ -61,6 +65,14 @@ def next_payload(pkg: str | Path) -> dict[str, Any]:
     state = load_state(paths)
     if state.last_validation_error is not None:
         return _repair_task_payload(paths, state.last_validation_error)
+    explore_gate_path = paths.explore_artifacts / "explore_gate.json"
+    if _gate_passed(explore_gate_path):
+        assessment_context_path = paths.assess_artifacts / "assessment_context.json"
+        evidence_diagnosis_path = paths.assess_artifacts / "evidence_diagnosis.json"
+        if not assessment_context_path.exists():
+            return emit_task(pkg, kind=TaskKind.ASSESSMENT_CONTEXT)
+        if not evidence_diagnosis_path.exists():
+            return emit_task(pkg, kind=TaskKind.EVIDENCE_DIAGNOSIS)
     scope_path = paths.explore_artifacts / "scope.json"
     query_plan_path = paths.explore_artifacts / "query_plan.json"
     landscape_path = paths.explore_artifacts / "landscape-0000.json"
@@ -94,6 +106,18 @@ def emit_task(pkg: str | Path, *, kind: TaskKind) -> dict[str, Any]:
         if not landscape_path.exists():
             raise FileNotFoundError("landscape-0000.json is required for focus-synthesis task")
         task, task_path = build_focus_synthesis_task(paths, read_json(landscape_path))
+    elif kind == TaskKind.ASSESSMENT_CONTEXT:
+        focuses_path = paths.explore_artifacts / "focuses.json"
+        if not focuses_path.exists():
+            raise FileNotFoundError("focuses.json is required for assessment-context task")
+        task, task_path = build_assessment_context_task(paths, read_json(focuses_path))
+    elif kind == TaskKind.EVIDENCE_DIAGNOSIS:
+        context_path = paths.assess_artifacts / "assessment_context.json"
+        if not context_path.exists():
+            raise FileNotFoundError(
+                "assessment_context.json is required for evidence-diagnosis task"
+            )
+        task, task_path = build_evidence_diagnosis_task(paths, read_json(context_path))
     else:
         raise ValueError(f"Primitive task {kind.value} is not implemented yet")
     write_task(task, task_path)
@@ -189,12 +213,24 @@ def _write_candidate_artifact(
         artifact_path = paths.explore_artifacts / "focuses.json"
         write_json(artifact_path, focus_payload.model_dump(mode="json"))
         return artifact_path
+    if task.kind == TaskKind.ASSESSMENT_CONTEXT:
+        context_payload = AssessmentContextCandidatePayload.model_validate(candidate.payload)
+        artifact_path = paths.assess_artifacts / "assessment_context.json"
+        write_json(artifact_path, context_payload.model_dump(mode="json"))
+        return artifact_path
+    if task.kind == TaskKind.EVIDENCE_DIAGNOSIS:
+        diagnosis_payload = EvidenceDiagnosisCandidatePayload.model_validate(candidate.payload)
+        artifact_path = paths.assess_artifacts / "evidence_diagnosis.json"
+        write_json(artifact_path, diagnosis_payload.model_dump(mode="json"))
+        return artifact_path
     raise ValueError(f"No payload validator for {task.kind.value}")
 
 
 def gate_payload(pkg: str | Path, *, stage: str) -> dict[str, Any]:
     """Run a structural stage gate."""
     paths = ensure_loop_dirs(pkg)
+    if stage == "assess":
+        return _assess_gate_payload(paths)
     if stage != "explore":
         raise ValueError(f"Unsupported gate stage: {stage}")
     focuses_path = paths.explore_artifacts / "focuses.json"
@@ -206,6 +242,19 @@ def gate_payload(pkg: str | Path, *, stage: str) -> dict[str, Any]:
     status = "pass" if _has_selected_ready_focus(focuses) else "revise"
     payload = {"schema": "gaia.research_loop.gate.v1", "stage": stage, "status": status}
     write_json(paths.explore_artifacts / "explore_gate.json", payload)
+    return payload
+
+
+def _assess_gate_payload(paths: ResearchLoopPaths) -> dict[str, Any]:
+    diagnosis_path = paths.assess_artifacts / "evidence_diagnosis.json"
+    if not diagnosis_path.exists():
+        payload = {"schema": "gaia.research_loop.gate.v1", "stage": "assess", "status": "revise"}
+        write_json(paths.assess_artifacts / "assess_gate.json", payload)
+        return payload
+    diagnosis = read_json(diagnosis_path)
+    status = "pass" if _diagnosis_is_complete(diagnosis) else "revise"
+    payload = {"schema": "gaia.research_loop.gate.v1", "stage": "assess", "status": status}
+    write_json(paths.assess_artifacts / "assess_gate.json", payload)
     return payload
 
 
@@ -225,6 +274,33 @@ def _has_selected_ready_focus(focuses: dict[str, Any]) -> bool:
         if focus.get("ready_for_assess") is True and isinstance(refs, list) and refs:
             return True
     return False
+
+
+def _gate_passed(path: Path) -> bool:
+    return path.exists() and read_json(path).get("status") == "pass"
+
+
+def _diagnosis_is_complete(diagnosis: dict[str, Any]) -> bool:
+    evidence_items = diagnosis.get("evidence_items", [])
+    limitations = diagnosis.get("limitations", [])
+    gaps = diagnosis.get("gap_map", [])
+    next_tests = diagnosis.get("next_tests", [])
+    if not all(isinstance(value, list) and value for value in [evidence_items, limitations, gaps]):
+        return False
+    gap_ids = {
+        gap.get("gap_id")
+        for gap in gaps
+        if isinstance(gap, dict) and isinstance(gap.get("gap_id"), str)
+    }
+    for item in evidence_items:
+        if not isinstance(item, dict):
+            return False
+        refs = item.get("refs")
+        if not isinstance(refs, list) or not refs:
+            return False
+    if not isinstance(next_tests, list) or not next_tests:
+        return False
+    return all(isinstance(test, dict) and test.get("gap_id") in gap_ids for test in next_tests)
 
 
 def _record_validation_failure(
