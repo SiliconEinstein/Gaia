@@ -156,6 +156,38 @@ class SearchExecutionCandidatePayload(BaseModel):
     results: list[SearchResultPath]
 
 
+class FocusRecord(BaseModel):
+    """One assessment focus synthesized from a landscape."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    focus_id: str
+    research_question: str
+    why_it_matters: str = ""
+    evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    coverage_status: str = "provisional"
+    ready_for_assess: bool = False
+    recommended_assess_mode: str | None = None
+
+
+class FocusSelection(BaseModel):
+    """Selected focuses for Explore -> Assess handoff."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    selected_focus_ids: list[str]
+    selection_rationale: str | None = None
+
+
+class FocusSynthesisCandidatePayload(BaseModel):
+    """Agent-synthesized focuses and optional selection."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    focuses: list[FocusRecord]
+    selection: FocusSelection | None = None
+
+
 class ResearchLoopEvent(BaseModel):
     """Append-only audit event for research loop activity."""
 

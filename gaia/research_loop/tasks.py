@@ -8,6 +8,7 @@ from typing import Any
 
 from gaia.research_loop.schemas import (
     EvidenceRef,
+    FocusSynthesisCandidatePayload,
     QueryPlanCandidatePayload,
     ResearchLoopTask,
     ScopeCandidatePayload,
@@ -133,6 +134,58 @@ def build_search_execution_task(
         submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
     )
     return task, _task_path(paths, task_id)
+
+
+def build_focus_synthesis_task(
+    paths: ResearchLoopPaths,
+    landscape: dict[str, Any],
+) -> tuple[ResearchLoopTask, Path]:
+    """Build a semantic task for synthesizing assessment focuses."""
+    task_id = "task-focus-synthesis-0001"
+    task = ResearchLoopTask(
+        task_id=task_id,
+        stage="explore",
+        kind=TaskKind.FOCUS_SYNTHESIS,
+        objective="Synthesize assessment focuses from the current landscape.",
+        inputs={"landscape": landscape},
+        instructions=[
+            "Generate research questions, not paper clusters.",
+            "Ground every evidence ref in the allowed refs.",
+            "Select ready focuses only when they have enough refs for assessment.",
+        ],
+        allowed_actions=["submit_focuses", "needs_more_landscape", "stop"],
+        recommended_action="submit_focuses",
+        output_contract=FocusSynthesisCandidatePayload.model_json_schema(),
+        allowed_refs=_paper_refs_from_landscape(landscape),
+        minimal_example={
+            "task_id": task_id,
+            "stage": "explore",
+            "kind": "focus_synthesis",
+            "selected_action": "submit_focuses",
+            "payload": {
+                "focuses": [
+                    {
+                        "focus_id": "focus-example",
+                        "research_question": "Example question?",
+                        "evidence_refs": [{"kind": "paper", "id": "P1"}],
+                    }
+                ]
+            },
+        },
+        submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
+    )
+    return task, _task_path(paths, task_id)
+
+
+def _paper_refs_from_landscape(landscape: dict[str, Any]) -> list[EvidenceRef]:
+    refs: list[EvidenceRef] = []
+    for lead in landscape.get("paper_leads", []):
+        if not isinstance(lead, dict):
+            continue
+        paper_id = lead.get("paper_id")
+        if isinstance(paper_id, str) and paper_id:
+            refs.append(EvidenceRef(kind="paper", id=paper_id))
+    return refs
 
 
 def write_task(task: ResearchLoopTask, path: Path) -> None:

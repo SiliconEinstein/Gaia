@@ -6,7 +6,13 @@ import json
 
 import typer
 
-from gaia.research_loop.engine import emit_task, next_payload, status_payload, submit_candidate
+from gaia.research_loop.engine import (
+    emit_task,
+    gate_payload,
+    next_payload,
+    status_payload,
+    submit_candidate,
+)
 from gaia.research_loop.schemas import TaskKind
 
 app = typer.Typer(
@@ -17,6 +23,7 @@ app = typer.Typer(
 
 _PKG_ARG = typer.Argument(..., help="Knowledge-package path.")
 _JSON_OPT = typer.Option(False, "--json", help="Emit JSON.")
+_STAGE_OPT = typer.Option("explore", "--stage", help="Loop stage to gate.")
 task_app = typer.Typer(help="Emit one task envelope without running the full loop.")
 app.add_typer(task_app, name="task")
 
@@ -65,6 +72,27 @@ def submit_command(
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
         return
     typer.echo(f"Accepted: {payload['artifact_path']}")
+
+
+@app.command("gate")
+def gate_command(
+    pkg: str = _PKG_ARG,
+    stage: str = _STAGE_OPT,
+    json_out: bool = _JSON_OPT,
+) -> None:
+    """Run a stage gate."""
+    try:
+        payload = gate_payload(pkg, stage=stage)
+    except Exception as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "error", "error": str(exc)}, indent=2))
+        else:
+            typer.echo(f"Gate error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    typer.echo(f"{stage}: {payload['status']}")
 
 
 def _echo_task_payload(payload: dict[str, object], json_out: bool) -> None:
