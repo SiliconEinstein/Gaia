@@ -126,6 +126,66 @@ def test_build_focuses_artifact_uses_landscape_paper_leads(tmp_path: Path) -> No
     ]
 
 
+def test_build_focuses_artifact_aggregates_landscape_rounds(tmp_path: Path) -> None:
+    round_0 = {
+        "kind": "exploration_landscape",
+        "paper_leads": [
+            {
+                "paper_id": "P1",
+                "title": "Benefit trial",
+                "queries": ["aspirin benefit"],
+                "lkm_node_ids": ["lkm:benefit"],
+            }
+        ],
+    }
+    round_1 = {
+        "kind": "exploration_landscape",
+        "paper_leads": [
+            {
+                "paper_id": "P2",
+                "title": "Bleeding trial",
+                "queries": ["aspirin bleeding"],
+                "lkm_node_ids": ["lkm:harm"],
+            }
+        ],
+    }
+
+    artifact = build_focuses_artifact(
+        tmp_path,
+        scope_path=tmp_path / ".gaia" / "exploration" / "scope.json",
+        landscape_path=tmp_path / ".gaia" / "exploration" / "landscape-1.json",
+        landscape=round_1,
+        landscape_rounds=[
+            (tmp_path / ".gaia" / "exploration" / "landscape-0.json", round_0),
+            (tmp_path / ".gaia" / "exploration" / "landscape-1.json", round_1),
+        ],
+        map_round=1,
+    )
+
+    focus = artifact["focuses"][0]
+    assert artifact["inputs"]["landscape"] == ".gaia/exploration/landscape-1.json"
+    assert artifact["inputs"]["landscape_rounds"] == [
+        {
+            "round": 0,
+            "path": ".gaia/exploration/landscape-0.json",
+            "paper_leads": 1,
+        },
+        {
+            "round": 1,
+            "path": ".gaia/exploration/landscape-1.json",
+            "paper_leads": 1,
+        },
+    ]
+    assert focus["evidence_refs"] == [
+        {"kind": "paper", "id": "P1"},
+        {"kind": "lkm_node", "id": "lkm:benefit"},
+        {"kind": "paper", "id": "P2"},
+        {"kind": "lkm_node", "id": "lkm:harm"},
+    ]
+    assert focus["provenance"]["paper_ids"] == ["P1", "P2"]
+    assert focus["provenance"]["queries"] == ["aspirin benefit", "aspirin bleeding"]
+
+
 def test_build_exploration_artifact_records_present_and_missing_sidecars(tmp_path: Path) -> None:
     exp = tmp_path / ".gaia" / "exploration"
     exp.mkdir(parents=True)

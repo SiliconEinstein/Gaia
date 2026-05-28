@@ -677,15 +677,31 @@ def test_explore_focuses_writes_focuses_from_landscape(galileo_pkg: Path):
         ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)],
     )
     assert landscape_result.exit_code == 0, landscape_result.output
+    landscape_round_1 = runner.invoke(
+        app,
+        [
+            "landscape",
+            str(galileo_pkg),
+            "--search-json",
+            str(_FIXTURE),
+            "--query",
+            "falling bodies followup",
+            "--out",
+            str(galileo_pkg / ".gaia" / "exploration" / "landscape-1.json"),
+        ],
+    )
+    assert landscape_round_1.exit_code == 0, landscape_round_1.output
 
     result = runner.invoke(app, ["focuses", str(galileo_pkg)])
 
     assert result.exit_code == 0, result.output
     assert "Focuses:" in result.output
+    assert "2 landscape round(s)" in result.output
     payload = json.loads(
         (galileo_pkg / ".gaia" / "exploration" / "focuses.json").read_text(encoding="utf-8")
     )
     assert payload["kind"] == "exploration_focuses"
+    assert [row["round"] for row in payload["inputs"]["landscape_rounds"]] == [0, 1]
     assert payload["focuses"]
     focus = payload["focuses"][0]
     assert focus["kind"] == "paper_lead_cluster"

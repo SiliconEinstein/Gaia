@@ -60,6 +60,7 @@ from gaia.lkm_explorer.engine.artifacts import (
     build_focuses_artifact,
     build_gate_report,
     build_scope_artifact,
+    landscape_round_paths,
     latest_landscape_path,
     parse_dimensions,
     rel_artifact_path,
@@ -1062,7 +1063,13 @@ def focuses_command(
         )
         raise typer.Exit(1)
 
-    landscape_path = Path(landscape) if landscape is not None else latest_landscape_path(pkg)
+    landscape_path: Path | None
+    if landscape is not None:
+        landscape_path = Path(landscape)
+        round_paths = [landscape_path]
+    else:
+        landscape_path = latest_landscape_path(pkg)
+        round_paths = landscape_round_paths(pkg)
     if landscape_path is None or not landscape_path.exists():
         typer.echo(
             "Error: no landscape artifact found; run `gaia-lkm-explore landscape` first "
@@ -1070,20 +1077,25 @@ def focuses_command(
             err=True,
         )
         raise typer.Exit(2)
+    landscape_rounds = [(path, _read_json_object(path)) for path in round_paths]
 
     scope_path = _gaia_dir(pkg) / "exploration" / "scope.json"
     payload = build_focuses_artifact(
         pkg,
         scope_path=scope_path if scope_path.exists() else None,
         landscape_path=landscape_path,
-        landscape=_read_json_object(landscape_path),
+        landscape=landscape_rounds[-1][1],
+        landscape_rounds=landscape_rounds,
         map_round=load_map(pkg).round,
     )
     output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "focuses.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
 
-    typer.echo(f"Focuses: {len(payload['focuses'])} focus(es) from {landscape_path}.")
+    typer.echo(
+        f"Focuses: {len(payload['focuses'])} focus(es) from "
+        f"{len(landscape_rounds)} landscape round(s)."
+    )
     typer.echo(f"Output: {output_path}")
     if json_out:
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))

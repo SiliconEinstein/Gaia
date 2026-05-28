@@ -7,6 +7,7 @@ files, call LKM, invoke an LLM, or mutate the exploration map.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -128,10 +129,28 @@ def build_focuses_artifact(
     scope_path: Path | None,
     landscape_path: Path | None,
     landscape: dict[str, Any],
+    landscape_rounds: Sequence[tuple[Path | None, dict[str, Any]]] | None = None,
     map_round: int,
 ) -> dict[str, Any]:
-    """Build deterministic focus suggestions from a paper-level landscape."""
-    paper_leads = [lead for lead in landscape.get("paper_leads", []) if isinstance(lead, dict)]
+    """Build deterministic focus suggestions from paper-level landscape rounds."""
+    rounds = landscape_rounds or [(landscape_path, landscape)]
+    paper_leads = [
+        lead
+        for _, round_payload in rounds
+        for lead in round_payload.get("paper_leads", [])
+        if isinstance(lead, dict)
+    ]
+    round_refs = [
+        {
+            "round": round_number,
+            "path": rel_artifact_path(pkg, path),
+            "paper_leads": len(
+                [lead for lead in payload.get("paper_leads", []) if isinstance(lead, dict)]
+            ),
+        }
+        for path, payload in rounds
+        if path is not None and (round_number := _landscape_round_number(path)) is not None
+    ]
     focuses: list[dict[str, Any]] = []
     if paper_leads:
         evidence_refs: list[dict[str, str]] = []
@@ -140,10 +159,10 @@ def build_focuses_artifact(
         queries: list[str] = []
         for lead in paper_leads:
             paper_id = lead.get("paper_id")
-            if isinstance(paper_id, str) and paper_id:
+            if isinstance(paper_id, str) and paper_id and paper_id not in paper_ids:
                 paper_ids.append(paper_id)
             title = lead.get("title")
-            if isinstance(title, str) and title:
+            if isinstance(title, str) and title and title not in titles:
                 titles.append(title)
             for query in lead.get("queries", []) or []:
                 if isinstance(query, str) and query and query not in queries:
@@ -182,6 +201,7 @@ def build_focuses_artifact(
             "pkg": str(Path(pkg).resolve()),
             "scope": rel_artifact_path(pkg, scope_path),
             "landscape": rel_artifact_path(pkg, landscape_path),
+            "landscape_rounds": round_refs,
         },
         "provenance": {"map_round": map_round},
         "focuses": focuses,
