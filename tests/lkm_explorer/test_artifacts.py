@@ -12,6 +12,7 @@ from gaia.lkm_explorer.engine.artifacts import (
     build_exploration_artifact,
     build_focus_context_artifact,
     build_focuses_artifact,
+    build_focuses_artifact_from_candidates,
     build_gate_report,
     build_scope_artifact,
     collect_landscape_grounding_refs,
@@ -257,7 +258,127 @@ def test_build_focus_context_artifact_records_grounded_packet(tmp_path: Path) ->
     ]
     assert artifact["queries"][0]["query"] == "aspirin primary prevention"
     assert artifact["existing_focuses"] == []
+    assert artifact["allowed_evidence_refs"] == [
+        {
+            "kind": "paper",
+            "id": "P1",
+            "round": 0,
+            "path": ".gaia/exploration/landscape-0.json",
+            "title": "Benefit trial",
+        },
+        {
+            "kind": "lkm_node",
+            "id": "lkm:benefit",
+            "round": 0,
+            "path": ".gaia/exploration/landscape-0.json",
+            "paper_id": "P1",
+            "title": "Benefit trial",
+        },
+    ]
+    assert artifact["output_contract"]["format"] == "json"
+    assert "CandidateFocuses" in artifact["output_contract"]["json_schema"]["title"]
+    assert (
+        "Every evidence_refs[].id must appear in allowed_evidence_refs."
+        in artifact["output_contract"]["rules"]
+    )
     assert "Propose only focuses grounded in evidence refs." in artifact["instructions"]
+
+
+def test_build_focuses_artifact_from_candidates_accepts_grounded_llm_focus(
+    tmp_path: Path,
+) -> None:
+    context_path = tmp_path / ".gaia" / "exploration" / "focus_context.json"
+    context = {
+        "kind": "focus_synthesis_context",
+        "inputs": {"scope": ".gaia/exploration/scope.json"},
+        "landscape_rounds": [
+            {
+                "round": 0,
+                "path": ".gaia/exploration/landscape-0.json",
+                "purpose": "broad_initial_survey",
+                "paper_leads": 2,
+            }
+        ],
+        "paper_leads": [
+            {"paper_id": "P1", "lkm_node_ids": ["lkm:1"]},
+            {"paper_id": "P2", "lkm_node_ids": ["lkm:2"]},
+        ],
+    }
+    candidates = {
+        "focuses": [
+            {
+                "id": "focus_net_benefit",
+                "kind": "benefit_harm_tension",
+                "question": "Does aspirin primary prevention have net clinical benefit?",
+                "status": "ready_for_assess",
+                "coverage": {
+                    "status": "ready_for_assess",
+                    "evidence_families": ["randomized_trial", "meta_analysis"],
+                    "missing_dimensions": [],
+                },
+                "evidence_refs": [
+                    {"kind": "paper", "id": "P1", "role": "benefit"},
+                    {"kind": "lkm_node", "id": "lkm:2", "role": "harm"},
+                ],
+                "candidate_claims": [],
+                "next_landscape_queries": [],
+            }
+        ]
+    }
+
+    artifact = build_focuses_artifact_from_candidates(
+        tmp_path,
+        context_path=context_path,
+        context=context,
+        candidates=candidates,
+        map_round=3,
+        generation="llm",
+    )
+
+    focus = artifact["focuses"][0]
+    assert artifact["schema"] == SOP_SCHEMA_V2
+    assert artifact["inputs"]["focus_context"] == ".gaia/exploration/focus_context.json"
+    assert artifact["inputs"]["landscape_rounds"][0]["round"] == 0
+    assert artifact["provenance"]["generation"] == "llm"
+    assert focus["level"] == "focus"
+    assert focus["recommended_next"] == "assess"
+    assert focus["text"] == focus["question"]
+    assert focus["provenance"]["focus_context"] == ".gaia/exploration/focus_context.json"
+    assert focus["provenance"]["grounded_ref_count"] == 2
+    assert focus["evidence_refs"] == candidates["focuses"][0]["evidence_refs"]
+
+
+def test_build_focuses_artifact_from_candidates_rejects_ungrounded_refs(
+    tmp_path: Path,
+) -> None:
+    context = {
+        "paper_leads": [{"paper_id": "P1", "lkm_node_ids": ["lkm:1"]}],
+        "landscape_rounds": [],
+    }
+    candidates = {
+        "focuses": [
+            {
+                "id": "focus_bad",
+                "kind": "unsupported_tension",
+                "question": "Is this grounded?",
+                "status": "ready_for_assess",
+                "coverage": {"status": "ready_for_assess"},
+                "evidence_refs": [{"kind": "paper", "id": "P2"}],
+                "candidate_claims": [],
+                "next_landscape_queries": [],
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError, match="ungrounded evidence refs"):
+        build_focuses_artifact_from_candidates(
+            tmp_path,
+            context_path=tmp_path / ".gaia" / "exploration" / "focus_context.json",
+            context=context,
+            candidates=candidates,
+            map_round=0,
+            generation="llm",
+        )
 
 
 def test_build_exploration_artifact_records_present_and_missing_sidecars(tmp_path: Path) -> None:

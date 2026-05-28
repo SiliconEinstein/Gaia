@@ -10,7 +10,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 SOP_SCHEMA = "gaia.sop.artifact.v1"
 SOP_SCHEMA_V2 = "gaia.sop.artifact.v2"
@@ -22,6 +24,54 @@ FOCUS_SYNTHESIS_INSTRUCTIONS = [
     "Do not state a tension as established unless the refs support it.",
     "For each focus, list missing evidence needed before assessment.",
 ]
+
+FOCUS_STATUSES = {
+    "provisional",
+    "needs_more_landscape",
+    "ready_for_assess",
+    "deferred",
+}
+
+FocusStatus = Literal["provisional", "needs_more_landscape", "ready_for_assess", "deferred"]
+
+
+class FocusEvidenceRef(BaseModel):
+    """One evidence ref an LLM candidate focus is allowed to cite."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str
+    id: str
+    role: str | None = None
+
+
+class CandidateFocus(BaseModel):
+    """Schema for one LLM/human proposed assessment focus."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    kind: str
+    level: Literal["focus"] = "focus"
+    question: str | None = None
+    text: str | None = None
+    why_it_matters: str = ""
+    status: FocusStatus
+    coverage: dict[str, Any]
+    evidence_refs: list[FocusEvidenceRef] = Field(default_factory=list)
+    candidate_claims: list[Any] = Field(default_factory=list)
+    next_landscape_queries: list[str] = Field(default_factory=list)
+    recommended_next: str | None = None
+    confidence: str = "medium"
+    provenance: dict[str, Any] = Field(default_factory=dict)
+
+
+class CandidateFocuses(BaseModel):
+    """Top-level JSON object expected from a focus synthesis agent."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    focuses: list[CandidateFocus]
 
 
 def utcnow() -> str:
@@ -258,6 +308,7 @@ def build_focus_context_artifact(
     """Build the grounded packet for LLM/human focus synthesis."""
     round_refs: list[dict[str, Any]] = []
     paper_leads: list[dict[str, Any]] = []
+    allowed_refs: list[dict[str, Any]] = []
     queries: list[dict[str, Any]] = []
     for path, payload in landscape_rounds:
         round_number = _landscape_round_number(path)
@@ -290,6 +341,32 @@ def build_focus_context_artifact(
                     "lkm_node_ids": list(lead.get("lkm_node_ids", []) or []),
                 }
             )
+            paper_id = lead.get("paper_id")
+            title = lead.get("title")
+            if isinstance(paper_id, str) and paper_id:
+                _append_allowed_ref(
+                    allowed_refs,
+                    {
+                        "kind": "paper",
+                        "id": paper_id,
+                        "round": round_number,
+                        "path": rel_path,
+                        "title": title,
+                    },
+                )
+            for node_id in lead.get("lkm_node_ids", []) or []:
+                if isinstance(node_id, str) and node_id:
+                    _append_allowed_ref(
+                        allowed_refs,
+                        {
+                            "kind": "lkm_node",
+                            "id": node_id,
+                            "round": round_number,
+                            "path": rel_path,
+                            "paper_id": paper_id,
+                            "title": title,
+                        },
+                    )
     focus_rows = _focus_list(existing_focuses)
     return {
         "schema": SOP_SCHEMA_V2,
@@ -307,11 +384,187 @@ def build_focus_context_artifact(
         "paper_leads": paper_leads,
         "queries": queries,
         "existing_focuses": focus_rows,
+        "allowed_evidence_refs": allowed_refs,
+        "output_contract": _focus_output_contract(),
         "coverage_gaps": [],
         "instructions": list(FOCUS_SYNTHESIS_INSTRUCTIONS),
         "audit": {
             "allowed_next_steps": ["focuses", "artifact", "gate"],
         },
+    }
+
+
+def _append_allowed_ref(rows: list[dict[str, Any]], ref: dict[str, Any]) -> None:
+    if any(row.get("kind") == ref.get("kind") and row.get("id") == ref.get("id") for row in rows):
+        return
+    rows.append(ref)
+
+
+def _focus_output_contract() -> dict[str, Any]:
+    return {
+        "format": "json",
+        "json_schema": CandidateFocuses.model_json_schema(),
+        "rules": [
+            "Return only a JSON object with a top-level focuses array.",
+            "Every evidence_refs[].id must appear in allowed_evidence_refs.",
+            "Do not output assessment conclusions; output assessment questions.",
+            "ready_for_assess requires at least one evidence ref.",
+            "needs_more_landscape requires coverage.missing_dimensions or next_landscape_queries.",
+        ],
+    }
+
+
+def _context_grounding_refs(context: dict[str, Any]) -> set[str]:
+    refs: set[str] = set()
+    for ref in context.get("allowed_evidence_refs", []) or []:
+        if isinstance(ref, dict) and isinstance(ref.get("id"), str):
+            refs.add(ref["id"])
+    for lead in context.get("paper_leads", []) or []:
+        if not isinstance(lead, dict):
+            continue
+        paper_id = lead.get("paper_id")
+        if isinstance(paper_id, str) and paper_id:
+            refs.add(paper_id)
+        for node_id in lead.get("lkm_node_ids", []) or []:
+            if isinstance(node_id, str) and node_id:
+                refs.add(node_id)
+    return refs
+
+
+def _context_landscape_rounds(context: dict[str, Any]) -> list[dict[str, Any]]:
+    rounds = context.get("landscape_rounds")
+    if not isinstance(rounds, list):
+        return []
+    return [row for row in rounds if isinstance(row, dict)]
+
+
+def _candidate_focus_rows(candidates: dict[str, Any]) -> list[dict[str, Any]]:
+    try:
+        parsed = CandidateFocuses.model_validate(candidates)
+    except Exception as exc:
+        raise ValueError(f"candidate focuses do not match schema: {exc}") from exc
+    return [row.model_dump(mode="json") for row in parsed.focuses]
+
+
+def _validate_candidate_ref(ref: Any, *, focus_id: str, grounded_refs: set[str]) -> dict[str, Any]:
+    if not isinstance(ref, dict):
+        raise ValueError(f"focus {focus_id} has a non-object evidence ref")
+    ref_id = ref.get("id")
+    ref_kind = ref.get("kind")
+    if not isinstance(ref_id, str) or not ref_id:
+        raise ValueError(f"focus {focus_id} has an evidence ref without id")
+    if not isinstance(ref_kind, str) or not ref_kind:
+        raise ValueError(f"focus {focus_id} has an evidence ref without kind")
+    if ref_id not in grounded_refs:
+        raise ValueError(f"focus {focus_id} has ungrounded evidence refs: {ref_id}")
+    return dict(ref)
+
+
+def _normalize_candidate_focus(
+    row: dict[str, Any],
+    *,
+    context_ref: str | None,
+    grounded_refs: set[str],
+    generation: str,
+) -> dict[str, Any]:
+    focus_id = row.get("id")
+    if not isinstance(focus_id, str) or not focus_id:
+        raise ValueError("candidate focus must include a non-empty id")
+    kind = row.get("kind")
+    if not isinstance(kind, str) or not kind:
+        raise ValueError(f"focus {focus_id} must include a non-empty kind")
+    question = row.get("question") or row.get("text")
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError(f"focus {focus_id} must include question or text")
+    status = row.get("status")
+    if not isinstance(status, str) or status not in FOCUS_STATUSES:
+        raise ValueError(f"focus {focus_id} has invalid status {status!r}")
+    coverage = row.get("coverage")
+    if not isinstance(coverage, dict):
+        raise ValueError(f"focus {focus_id} must include coverage")
+
+    evidence_refs = [
+        _validate_candidate_ref(ref, focus_id=focus_id, grounded_refs=grounded_refs)
+        for ref in row.get("evidence_refs", []) or []
+    ]
+    if status == "ready_for_assess" and not evidence_refs:
+        raise ValueError(f"focus {focus_id} is ready_for_assess but has no evidence refs")
+
+    next_queries = list(row.get("next_landscape_queries", []) or [])
+    missing_dimensions = coverage.get("missing_dimensions")
+    if status == "needs_more_landscape" and not next_queries and not missing_dimensions:
+        raise ValueError(
+            f"focus {focus_id} needs_more_landscape but has no missing dimensions or next queries"
+        )
+
+    provenance_value = row.get("provenance")
+    provenance = dict(provenance_value) if isinstance(provenance_value, dict) else {}
+    provenance.update(
+        {
+            "generation": generation,
+            "focus_context": context_ref,
+            "grounded_ref_count": len({ref["id"] for ref in evidence_refs}),
+        }
+    )
+
+    return {
+        "id": focus_id,
+        "kind": kind,
+        "level": "focus",
+        "text": question.strip(),
+        "question": question.strip(),
+        "why_it_matters": str(row.get("why_it_matters") or "").strip(),
+        "evidence_refs": evidence_refs,
+        "recommended_next": "assess" if status == "ready_for_assess" else "landscape",
+        "status": status,
+        "coverage": dict(coverage),
+        "candidate_claims": list(row.get("candidate_claims", []) or []),
+        "next_landscape_queries": next_queries,
+        "confidence": row.get("confidence") if isinstance(row.get("confidence"), str) else "medium",
+        "provenance": provenance,
+    }
+
+
+def build_focuses_artifact_from_candidates(
+    pkg: str | Path,
+    *,
+    context_path: Path,
+    context: dict[str, Any],
+    candidates: dict[str, Any],
+    map_round: int,
+    generation: str,
+) -> dict[str, Any]:
+    """Build a focuses artifact from LLM/human candidate JSON after validation."""
+    grounded_refs = _context_grounding_refs(context)
+    context_ref = rel_artifact_path(pkg, context_path)
+    focuses = [
+        _normalize_candidate_focus(
+            row,
+            context_ref=context_ref,
+            grounded_refs=grounded_refs,
+            generation=generation,
+        )
+        for row in _candidate_focus_rows(candidates)
+    ]
+    return {
+        "schema": SOP_SCHEMA_V2,
+        "kind": "exploration_focuses",
+        "id": artifact_id("focuses"),
+        "created_at": utcnow(),
+        "inputs": {
+            "pkg": str(Path(pkg).resolve()),
+            "scope": context.get("inputs", {}).get("scope")
+            if isinstance(context.get("inputs"), dict)
+            else None,
+            "focus_context": context_ref,
+            "landscape_rounds": _context_landscape_rounds(context),
+        },
+        "provenance": {
+            "generation": generation,
+            "map_round": map_round,
+        },
+        "focuses": focuses,
+        "audit": {"allowed_next_steps": ["artifact", "gate", "assess"]},
     }
 
 
@@ -665,6 +918,7 @@ __all__ = [
     "build_exploration_artifact",
     "build_focus_context_artifact",
     "build_focuses_artifact",
+    "build_focuses_artifact_from_candidates",
     "build_gate_report",
     "build_scope_artifact",
     "collect_landscape_grounding_refs",

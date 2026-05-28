@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -735,7 +736,146 @@ def test_explore_focus_context_writes_grounded_packet(galileo_pkg: Path):
     assert payload["landscape_rounds"][0]["round"] == 0
     assert payload["paper_leads"]
     assert payload["queries"]
+    assert payload["allowed_evidence_refs"]
+    assert payload["output_contract"]["format"] == "json"
     assert "Propose only focuses grounded in evidence refs." in payload["instructions"]
+
+
+def test_explore_focuses_accepts_candidate_focuses_file(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["scope", str(galileo_pkg)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["focus-context", str(galileo_pkg)])
+    context_path = galileo_pkg / ".gaia" / "exploration" / "focus_context.json"
+    context = json.loads(context_path.read_text(encoding="utf-8"))
+    ref = context["allowed_evidence_refs"][0]
+    candidates_path = galileo_pkg / ".gaia" / "exploration" / "focus_candidates.json"
+    candidates_path.write_text(
+        json.dumps(
+            {
+                "focuses": [
+                    {
+                        "id": "focus_free_fall_core_question",
+                        "kind": "model_family_tension",
+                        "question": "Which falling-body model family should be assessed first?",
+                        "status": "ready_for_assess",
+                        "coverage": {
+                            "status": "ready_for_assess",
+                            "evidence_families": ["paper_lead"],
+                            "missing_dimensions": [],
+                        },
+                        "evidence_refs": [
+                            {"kind": ref["kind"], "id": ref["id"], "role": "seed evidence"}
+                        ],
+                        "candidate_claims": [],
+                        "next_landscape_queries": [],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "focuses",
+            str(galileo_pkg),
+            "--from-context",
+            str(context_path),
+            "--candidate-focuses",
+            str(candidates_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "focuses.json").read_text(encoding="utf-8")
+    )
+    assert payload["provenance"]["generation"] == "candidate_file"
+    assert payload["focuses"][0]["id"] == "focus_free_fall_core_question"
+    assert payload["focuses"][0]["provenance"]["focus_context"] == (
+        ".gaia/exploration/focus_context.json"
+    )
+
+
+def test_explore_focuses_runs_llm_command_against_focus_context(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["scope", str(galileo_pkg)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["focus-context", str(galileo_pkg)])
+    script = galileo_pkg / "fake_focus_llm.py"
+    script.write_text(
+        """
+import json
+import sys
+
+context = json.load(sys.stdin)
+ref = context["allowed_evidence_refs"][0]
+json.dump({
+    "focuses": [{
+        "id": "focus_generated_by_command",
+        "kind": "llm_synthesized_focus",
+        "question": "What focused assessment should be run first?",
+        "status": "ready_for_assess",
+        "coverage": {
+            "status": "ready_for_assess",
+            "evidence_families": ["paper_lead"],
+            "missing_dimensions": []
+        },
+        "evidence_refs": [{"kind": ref["kind"], "id": ref["id"], "role": "grounding"}],
+        "candidate_claims": [],
+        "next_landscape_queries": []
+    }]
+}, sys.stdout)
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "focuses",
+            str(galileo_pkg),
+            "--llm-command",
+            f"{sys.executable} {script}",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "focuses.json").read_text(encoding="utf-8")
+    )
+    assert payload["provenance"]["generation"] == "llm_command"
+    assert payload["focuses"][0]["id"] == "focus_generated_by_command"
+
+
+def test_explore_focuses_rejects_invalid_candidate_schema(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["scope", str(galileo_pkg)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["focus-context", str(galileo_pkg)])
+    candidates_path = galileo_pkg / ".gaia" / "exploration" / "focus_candidates.json"
+    candidates_path.write_text(
+        json.dumps({"focuses": [{"id": "missing_fields"}]}), encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        ["focuses", str(galileo_pkg), "--candidate-focuses", str(candidates_path)],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate focuses do not match schema" in result.output
 
 
 def test_explore_focuses_requires_landscape(galileo_pkg: Path):

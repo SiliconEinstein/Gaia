@@ -38,6 +38,7 @@ gracefully with an actionable message.
 from __future__ import annotations
 
 import json
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -59,6 +60,7 @@ from gaia.lkm_explorer.engine.artifacts import (
     build_exploration_artifact,
     build_focus_context_artifact,
     build_focuses_artifact,
+    build_focuses_artifact_from_candidates,
     build_gate_report,
     build_scope_artifact,
     collect_landscape_grounding_refs,
@@ -203,6 +205,23 @@ _FOCUSES_OUT_OPT = typer.Option(
     None,
     "--out",
     help="Output JSON path (default <pkg>/.gaia/exploration/focuses.json).",
+)
+_FOCUSES_CONTEXT_OPT = typer.Option(
+    None,
+    "--from-context",
+    help="Focus synthesis context JSON path (default <pkg>/.gaia/exploration/focus_context.json).",
+)
+_FOCUSES_CANDIDATES_OPT = typer.Option(
+    None,
+    "--candidate-focuses",
+    help="Candidate focuses JSON produced by an LLM/human agent.",
+)
+_FOCUSES_LLM_COMMAND_OPT = typer.Option(
+    None,
+    "--llm-command",
+    help=(
+        "External command that reads focus_context JSON on stdin and writes candidate focuses JSON."
+    ),
 )
 _FOCUS_CONTEXT_OUT_OPT = typer.Option(
     None,
@@ -1112,10 +1131,13 @@ def focus_context_command(
 def focuses_command(
     pkg: str = _PKG_ARG,
     landscape: str | None = _FOCUSES_LANDSCAPE_OPT,
+    from_context: str | None = _FOCUSES_CONTEXT_OPT,
+    candidate_focuses: str | None = _FOCUSES_CANDIDATES_OPT,
+    llm_command: str | None = _FOCUSES_LLM_COMMAND_OPT,
     out: str | None = _FOCUSES_OUT_OPT,
     json_out: bool = _LANDSCAPE_JSON_OPT,
 ) -> None:
-    r"""Create deterministic Explore focuses from a landscape artifact."""
+    r"""Create Explore focuses from deterministic rules or validated LLM candidates."""
     map_path = _gaia_dir(pkg) / "exploration" / "map.json"
     if not map_path.exists():
         typer.echo(
@@ -1123,6 +1145,27 @@ def focuses_command(
             err=True,
         )
         raise typer.Exit(1)
+
+    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "focuses.json"
+    if from_context is not None or candidate_focuses is not None or llm_command is not None:
+        payload = _build_focuses_from_agent_candidates(
+            pkg,
+            context_path=Path(from_context)
+            if from_context is not None
+            else _gaia_dir(pkg) / "exploration" / "focus_context.json",
+            candidate_focuses=Path(candidate_focuses) if candidate_focuses is not None else None,
+            llm_command=llm_command,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+        typer.echo(
+            f"Focuses: {len(payload['focuses'])} validated candidate focus(es) "
+            f"from {payload['provenance']['generation']}."
+        )
+        typer.echo(f"Output: {output_path}")
+        if json_out:
+            typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        return
 
     landscape_path: Path | None
     if landscape is not None:
@@ -1149,7 +1192,6 @@ def focuses_command(
         landscape_rounds=landscape_rounds,
         map_round=load_map(pkg).round,
     )
-    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "focuses.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
 
@@ -1160,6 +1202,77 @@ def focuses_command(
     typer.echo(f"Output: {output_path}")
     if json_out:
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def _build_focuses_from_agent_candidates(
+    pkg: str,
+    *,
+    context_path: Path,
+    candidate_focuses: Path | None,
+    llm_command: str | None,
+) -> dict[str, Any]:
+    if candidate_focuses is not None and llm_command is not None:
+        typer.echo("Error: pass only one of --candidate-focuses or --llm-command.", err=True)
+        raise typer.Exit(2)
+    if candidate_focuses is None and llm_command is None:
+        typer.echo(
+            "Error: pass --candidate-focuses or --llm-command with --from-context.", err=True
+        )
+        raise typer.Exit(2)
+    if not context_path.exists():
+        typer.echo(
+            "Error: no focus context found; run `gaia-lkm-explore focus-context` first "
+            "or pass --from-context.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    context = _read_json_object(context_path)
+    if candidate_focuses is not None:
+        candidates = _read_json_object(candidate_focuses)
+        generation = "candidate_file"
+    else:
+        candidates = _run_focus_llm_command(str(llm_command), context)
+        generation = "llm_command"
+    try:
+        return build_focuses_artifact_from_candidates(
+            pkg,
+            context_path=context_path,
+            context=context,
+            candidates=candidates,
+            map_round=load_map(pkg).round,
+            generation=generation,
+        )
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
+def _run_focus_llm_command(command: str, context: dict[str, Any]) -> dict[str, Any]:
+    try:
+        proc = subprocess.run(
+            shlex.split(command),
+            input=json.dumps(context, ensure_ascii=False),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        typer.echo(f"Error: failed to run --llm-command: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip() or f"exit code {proc.returncode}"
+        typer.echo(f"Error: --llm-command failed: {detail}", err=True)
+        raise typer.Exit(2)
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: --llm-command did not return valid JSON: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    if not isinstance(payload, dict):
+        typer.echo("Error: --llm-command must return a JSON object.", err=True)
+        raise typer.Exit(2)
+    return payload
 
 
 # --------------------------------------------------------------------------- #
