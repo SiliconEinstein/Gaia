@@ -25,3 +25,13 @@ def test_status_human_output_names_next_command(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Research loop: idle" in result.stdout
     assert "Next: gaia-research-loop next" in result.stdout
+
+
+def test_research_loop_skill_exists_and_is_thin() -> None:
+    path = Path("gaia/_skills/gaia-research-loop/SKILL.md")
+
+    text = path.read_text(encoding="utf-8")
+
+    assert "gaia-research-loop next" in text
+    assert "output_contract" in text
+    assert "Do not hardcode" in text
