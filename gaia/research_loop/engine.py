@@ -7,12 +7,14 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from gaia.research_loop.lkm_adapter import build_landscape_from_raw_results
 from gaia.research_loop.schemas import (
     CandidateEnvelope,
     QueryPlanCandidatePayload,
     RepairContext,
     ResearchLoopTask,
     ScopeCandidatePayload,
+    SearchExecutionCandidatePayload,
     TaskKind,
 )
 from gaia.research_loop.storage import (
@@ -150,6 +152,26 @@ def _write_candidate_artifact(
         query_payload = QueryPlanCandidatePayload.model_validate(candidate.payload)
         artifact_path = paths.explore_artifacts / "query_plan.json"
         write_json(artifact_path, query_payload.model_dump(mode="json"))
+        return artifact_path
+    if task.kind == TaskKind.SEARCH_EXECUTION:
+        search_payload = SearchExecutionCandidatePayload.model_validate(candidate.payload)
+        raw_results: list[tuple[str, Path]] = []
+        manifest_results: list[dict[str, str]] = []
+        for result in search_payload.results:
+            raw_path = Path(result.path)
+            if not raw_path.exists():
+                raise FileNotFoundError(f"Search result path does not exist: {raw_path}")
+            raw_results.append((result.query, raw_path))
+            manifest_results.append({"query": result.query, "path": str(raw_path)})
+        manifest_path = paths.explore_artifacts / "raw_search_manifest.json"
+        write_json(manifest_path, {"results": manifest_results})
+        artifact_path = paths.explore_artifacts / "landscape-0000.json"
+        landscape = build_landscape_from_raw_results(
+            paths.pkg,
+            raw_results=raw_results,
+            round_number=0,
+        )
+        write_json(artifact_path, landscape)
         return artifact_path
     raise ValueError(f"No payload validator for {task.kind.value}")
 

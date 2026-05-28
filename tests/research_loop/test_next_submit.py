@@ -185,3 +185,65 @@ def test_next_after_query_plan_emits_search_execution(tmp_path: Path) -> None:
     assert task["kind"] == "search_execution"
     assert "gaia search lkm knowledge" in task["inputs"]["commands"][0]["command"]
     assert task["inputs"]["commands"][0]["output_path"].endswith(".json")
+
+
+def test_submit_search_execution_writes_manifest_and_landscape(tmp_path: Path) -> None:
+    runner = CliRunner()
+    runner.invoke(app, ["next", str(tmp_path), "--json"])
+    scope_candidate = tmp_path / "scope.json"
+    scope_candidate.write_text(
+        json.dumps(
+            {
+                "task_id": "task-scope-0001",
+                "stage": "explore",
+                "kind": "scope",
+                "selected_action": "submit_scope",
+                "payload": {"seed_question": "free fall", "search_budget": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+    runner.invoke(app, ["submit", str(tmp_path), str(scope_candidate), "--json"])
+    runner.invoke(app, ["next", str(tmp_path), "--json"])
+    query_candidate = tmp_path / "query-plan.json"
+    query_candidate.write_text(
+        json.dumps(
+            {
+                "task_id": "task-query-plan-0001",
+                "stage": "explore",
+                "kind": "query_plan",
+                "selected_action": "submit_query_plan",
+                "payload": {
+                    "queries": [{"query": "free fall", "purpose": "fixture"}],
+                    "rationale": "Use saved fixture.",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    runner.invoke(app, ["submit", str(tmp_path), str(query_candidate), "--json"])
+    next_result = runner.invoke(app, ["next", str(tmp_path), "--json"])
+    task = json.loads(Path(json.loads(next_result.stdout)["task_path"]).read_text(encoding="utf-8"))
+    raw_path = Path("tests/lkm_explorer/fixtures/lkm_search_free_fall.json").resolve()
+    search_candidate = tmp_path / "search-results.json"
+    search_candidate.write_text(
+        json.dumps(
+            {
+                "task_id": task["task_id"],
+                "stage": "explore",
+                "kind": "search_execution",
+                "selected_action": "submit_search_results",
+                "payload": {"results": [{"query": "free fall", "path": str(raw_path)}]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["submit", str(tmp_path), str(search_candidate), "--json"])
+
+    assert result.exit_code == 0
+    artifacts = tmp_path / ".gaia" / "research_loop" / "explore" / "artifacts"
+    assert (artifacts / "raw_search_manifest.json").exists()
+    landscape = json.loads((artifacts / "landscape-0000.json").read_text(encoding="utf-8"))
+    assert landscape["kind"] == "landscape"
+    assert landscape["raw_results"][0]["query"] == "free fall"
