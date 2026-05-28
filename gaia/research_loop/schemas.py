@@ -1,0 +1,100 @@
+"""Schemas for the agent-facing Gaia research loop protocol."""
+
+from __future__ import annotations
+
+from enum import StrEnum
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+TASK_SCHEMA: Literal["gaia.research_loop.task.v1"] = "gaia.research_loop.task.v1"
+CANDIDATE_SCHEMA: Literal["gaia.research_loop.candidate.v1"] = "gaia.research_loop.candidate.v1"
+ARTIFACT_SCHEMA = "gaia.research_loop.artifact.v1"
+GATE_SCHEMA = "gaia.research_loop.gate.v1"
+
+Stage = Literal["explore", "assess"]
+
+
+class TaskKind(StrEnum):
+    """Research loop task kinds."""
+
+    SCOPE = "scope"
+    QUERY_PLAN = "query_plan"
+    SEARCH_EXECUTION = "search_execution"
+    FOCUS_SYNTHESIS = "focus_synthesis"
+    EXPLORE_GATE = "explore_gate"
+    ASSESSMENT_CONTEXT = "assessment_context"
+    EVIDENCE_DIAGNOSIS = "evidence_diagnosis"
+    ASSESS_GATE = "assess_gate"
+
+
+class EvidenceRef(BaseModel):
+    """A grounded source reference that a task or candidate may cite."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str
+    id: str
+    role: str | None = None
+
+
+class RepairContext(BaseModel):
+    """Validation failure context for retrying the same task."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    failed_candidate_path: str
+    errors: list[dict[str, Any]]
+    instruction: str
+    preserved_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchLoopTask(BaseModel):
+    """Self-contained task envelope emitted to an external agent."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["gaia.research_loop.task.v1"] = Field(default=TASK_SCHEMA, alias="schema")
+    task_id: str
+    stage: Stage
+    kind: TaskKind
+    objective: str
+    inputs: dict[str, Any]
+    instructions: list[str]
+    allowed_actions: list[str]
+    recommended_action: str
+    output_contract: dict[str, Any]
+    allowed_refs: list[EvidenceRef] = Field(default_factory=list)
+    minimal_example: dict[str, Any]
+    submit_command: str
+    validation: dict[str, Any] = Field(default_factory=dict)
+    repair_context: RepairContext | None = None
+
+
+class CandidateEnvelope(BaseModel):
+    """Candidate output submitted for a research loop task."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["gaia.research_loop.candidate.v1"] = Field(
+        default=CANDIDATE_SCHEMA,
+        alias="schema",
+    )
+    task_id: str
+    stage: Stage
+    kind: TaskKind
+    selected_action: str
+    override_rationale: str | None = None
+    payload: dict[str, Any]
+
+    def validate_against_actions(
+        self,
+        *,
+        recommended_action: str,
+        allowed_actions: list[str],
+    ) -> None:
+        """Validate action choice against the task recommendation."""
+        if self.selected_action not in allowed_actions:
+            raise ValueError(f"selected_action {self.selected_action!r} is not allowed")
+        if self.selected_action != recommended_action and not self.override_rationale:
+            raise ValueError("override_rationale is required when overriding recommendation")
