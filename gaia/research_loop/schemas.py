@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -11,8 +12,15 @@ TASK_SCHEMA: Literal["gaia.research_loop.task.v1"] = "gaia.research_loop.task.v1
 CANDIDATE_SCHEMA: Literal["gaia.research_loop.candidate.v1"] = "gaia.research_loop.candidate.v1"
 ARTIFACT_SCHEMA = "gaia.research_loop.artifact.v1"
 GATE_SCHEMA = "gaia.research_loop.gate.v1"
+EVENT_SCHEMA: Literal["gaia.research_loop.event.v1"] = "gaia.research_loop.event.v1"
+STATE_SCHEMA: Literal["gaia.research_loop.state.v1"] = "gaia.research_loop.state.v1"
 
 Stage = Literal["explore", "assess"]
+
+
+def utcnow() -> str:
+    """Return a compact UTC timestamp for artifacts and events."""
+    return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 class TaskKind(StrEnum):
@@ -98,3 +106,27 @@ class CandidateEnvelope(BaseModel):
             raise ValueError(f"selected_action {self.selected_action!r} is not allowed")
         if self.selected_action != recommended_action and not self.override_rationale:
             raise ValueError("override_rationale is required when overriding recommendation")
+
+
+class ResearchLoopEvent(BaseModel):
+    """Append-only audit event for research loop activity."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["gaia.research_loop.event.v1"] = Field(default=EVENT_SCHEMA, alias="schema")
+    created_at: str = Field(default_factory=utcnow)
+    event_type: str
+    stage: Stage | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchLoopState(BaseModel):
+    """Rebuildable navigation state for a research loop package."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["gaia.research_loop.state.v1"] = Field(default=STATE_SCHEMA, alias="schema")
+    phase: str = "idle"
+    latest_task_by_stage: dict[str, str] = Field(default_factory=dict)
+    latest_artifact_by_stage: dict[str, str] = Field(default_factory=dict)
+    last_validation_error: dict[str, Any] | None = None
