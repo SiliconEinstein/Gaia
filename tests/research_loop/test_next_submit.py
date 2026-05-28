@@ -247,3 +247,57 @@ def test_submit_search_execution_writes_manifest_and_landscape(tmp_path: Path) -
     landscape = json.loads((artifacts / "landscape-0000.json").read_text(encoding="utf-8"))
     assert landscape["kind"] == "landscape"
     assert landscape["raw_results"][0]["query"] == "free fall"
+
+
+def test_e2e_loop_reaches_search_execution_task(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    status = runner.invoke(app, ["status", str(tmp_path), "--json"])
+    first_next = runner.invoke(app, ["next", str(tmp_path), "--json"])
+    scope_task = json.loads(
+        Path(json.loads(first_next.stdout)["task_path"]).read_text(encoding="utf-8")
+    )
+    scope_candidate = tmp_path / "scope-candidate.json"
+    scope_candidate.write_text(
+        json.dumps(
+            {
+                "task_id": scope_task["task_id"],
+                "stage": "explore",
+                "kind": "scope",
+                "selected_action": "submit_scope",
+                "payload": {"seed_question": "aspirin primary prevention", "search_budget": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+    submit_scope = runner.invoke(app, ["submit", str(tmp_path), str(scope_candidate), "--json"])
+    query_next = runner.invoke(app, ["next", str(tmp_path), "--json"])
+    query_task = json.loads(
+        Path(json.loads(query_next.stdout)["task_path"]).read_text(encoding="utf-8")
+    )
+    query_candidate = tmp_path / "query-candidate.json"
+    query_candidate.write_text(
+        json.dumps(
+            {
+                "task_id": query_task["task_id"],
+                "stage": "explore",
+                "kind": "query_plan",
+                "selected_action": "submit_query_plan",
+                "payload": {
+                    "queries": [{"query": "aspirin primary prevention", "purpose": "broad"}],
+                    "rationale": "Initial broad search.",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    submit_query = runner.invoke(app, ["submit", str(tmp_path), str(query_candidate), "--json"])
+    search_next = runner.invoke(app, ["next", str(tmp_path), "--json"])
+
+    assert status.exit_code == 0
+    assert submit_scope.exit_code == 0
+    assert submit_query.exit_code == 0
+    search_task = json.loads(
+        Path(json.loads(search_next.stdout)["task_path"]).read_text(encoding="utf-8")
+    )
+    assert search_task["kind"] == "search_execution"
