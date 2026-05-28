@@ -32,6 +32,11 @@ gaia-research-loop gate <pkg>
 gaia-research-loop status <pkg>
 ```
 
+This CLI is the orchestrator surface, not the only way to use the underlying
+capabilities. Each loop step should also be exposed as an independently callable
+primitive, either through a CLI subcommand or a Python API, so an agent can use
+only the part of the loop it needs.
+
 The MVP is LKM-backed, but the name deliberately does not include `explore`.
 Explore is one stage inside the loop, not the whole loop.
 
@@ -130,6 +135,34 @@ should be able to rebuild it by scanning artifacts.
 - `state_rebuilt`
 
 ## 5. CLI Semantics
+
+The CLI has two layers:
+
+```text
+orchestration:
+  gaia-research-loop next / submit / status / gate
+
+primitives:
+  gaia-research-loop task scope
+  gaia-research-loop task query-plan
+  gaia-research-loop task search-execution
+  gaia-research-loop task focus-synthesis
+  gaia-research-loop task assessment-context
+  gaia-research-loop task evidence-diagnosis
+```
+
+The orchestration layer chooses the next step from package state. The primitive
+layer creates or validates one specific task or artifact without requiring the
+whole loop to be active. This lets an agent:
+
+- generate a focus synthesis task from an already prepared landscape;
+- build an assessment context from hand-selected focuses;
+- validate an evidence diagnosis without running Explore;
+- embed Gaia task builders inside a separate agent harness;
+- recover or rerun one step without replaying the full loop.
+
+Both layers use the same task envelope and candidate contracts. There should not
+be a second schema for primitive use.
 
 ### 5.1 `next`
 
@@ -507,14 +540,15 @@ Suggested implementation order:
 
 1. Add shared research-loop storage, event log, and schema models.
 2. Add `gaia-research-loop status` and state rebuild.
-3. Add `next` for `scope` and `query_plan`.
-4. Add `submit` validation and repair context.
-5. Add mechanical `search_execution` tasks from accepted query plans.
-6. Reuse or adapt LKM landscape generation under `.gaia/research_loop/explore`.
-7. Add LLM/agent `focus_synthesis` task envelopes and validators.
-8. Add Explore gate and focus selection.
-9. Add Assess context and `evidence_diagnosis` task envelopes.
-10. Add Assess gate and final loop status.
+3. Add pure task-builder primitives and the `gaia-research-loop task` CLI group.
+4. Add `next` for `scope` and `query_plan` on top of those primitives.
+5. Add `submit` validation and repair context.
+6. Add mechanical `search_execution` tasks from accepted query plans.
+7. Reuse or adapt LKM landscape generation under `.gaia/research_loop/explore`.
+8. Add LLM/agent `focus_synthesis` task envelopes and validators.
+9. Add Explore gate and focus selection.
+10. Add Assess context and `evidence_diagnosis` task envelopes.
+11. Add Assess gate and final loop status.
 
 This order preserves the central idea: every intelligent step is mediated by a
 self-contained task envelope, and every transition is validated by Gaia.

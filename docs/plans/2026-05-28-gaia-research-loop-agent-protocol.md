@@ -16,13 +16,14 @@ This plan intentionally builds the protocol in thin, testable layers:
 
 1. Shared schema and storage.
 2. `status` and state rebuild.
-3. `next` task emission.
-4. `submit` validation and repair context.
-5. Query planning and mechanical search execution.
-6. LKM landscape adaptation under the new storage layout.
-7. Focus synthesis and Explore gate.
-8. Assessment context, evidence diagnosis, and Assess gate.
-9. Thin in-repo skill template and final verification.
+3. Pure task-builder primitives and a `task` CLI group.
+4. `next` task emission on top of the primitives.
+5. `submit` validation and repair context.
+6. Query planning and mechanical search execution.
+7. LKM landscape adaptation under the new storage layout.
+8. Focus synthesis and Explore gate.
+9. Assessment context, evidence diagnosis, and Assess gate.
+10. Thin in-repo skill template and final verification.
 
 Every intelligent step is represented as a task envelope. Gaia validates shape,
 grounding, and state transitions; the external agent supplies semantic judgment.
@@ -47,7 +48,8 @@ Create:
 - `gaia/research_loop/lkm_adapter.py`  
   LKM-specific parsing and reuse of `gaia.lkm_explorer` landscape/focus helpers.
 - `gaia/research_loop/cli.py`  
-  Typer app for `gaia-research-loop`.
+  Typer app for `gaia-research-loop`, including orchestration commands and a
+  `task` sub-app for independently callable primitives.
 - `tests/research_loop/__init__.py`
 - `tests/research_loop/test_schemas.py`
 - `tests/research_loop/test_storage.py`
@@ -978,6 +980,157 @@ Expected: `2 passed`.
 ```bash
 git add gaia/research_loop/schemas.py gaia/research_loop/tasks.py gaia/research_loop/engine.py gaia/research_loop/cli.py tests/research_loop/test_next_submit.py
 git commit -m "feat(research-loop): emit scope and query tasks"
+```
+
+---
+
+## Task 4A: Independently Callable Task Primitives
+
+**Files:**
+
+- Modify: `gaia/research_loop/cli.py`
+- Modify: `gaia/research_loop/tasks.py`
+- Test: `tests/research_loop/test_next_submit.py`
+
+- [ ] **Step 1: Add failing primitive CLI tests**
+
+Append to `tests/research_loop/test_next_submit.py`:
+
+```python
+def test_task_scope_primitive_writes_scope_task(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["task", "scope", str(tmp_path), "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["recommended_action"] == "submit_scope"
+    task = json.loads(Path(payload["task_path"]).read_text(encoding="utf-8"))
+    assert task["kind"] == "scope"
+    assert task["submit_command"].startswith("gaia-research-loop submit")
+
+
+def test_task_query_plan_primitive_uses_existing_scope(tmp_path: Path) -> None:
+    runner = CliRunner()
+    scope_dir = tmp_path / ".gaia" / "research_loop" / "explore" / "artifacts"
+    scope_dir.mkdir(parents=True)
+    (scope_dir / "scope.json").write_text(
+        json.dumps({"seed_question": "aspirin primary prevention"}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["task", "query-plan", str(tmp_path), "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    task = json.loads(Path(payload["task_path"]).read_text(encoding="utf-8"))
+    assert task["kind"] == "query_plan"
+    assert task["inputs"]["scope"]["seed_question"] == "aspirin primary prevention"
+```
+
+- [ ] **Step 2: Run tests and verify they fail**
+
+Run:
+
+```bash
+uv run pytest tests/research_loop/test_next_submit.py::test_task_scope_primitive_writes_scope_task tests/research_loop/test_next_submit.py::test_task_query_plan_primitive_uses_existing_scope -q
+```
+
+Expected: fail because the `task` CLI group does not exist.
+
+- [ ] **Step 3: Add primitive engine helper**
+
+Add a helper in `engine.py`:
+
+```python
+def emit_task(pkg: str | Path, *, kind: TaskKind) -> dict[str, Any]:
+    paths = ensure_loop_dirs(pkg)
+    if kind == TaskKind.SCOPE:
+        task, task_path = build_scope_task(paths)
+    elif kind == TaskKind.QUERY_PLAN:
+        scope_path = paths.explore_artifacts / "scope.json"
+        if not scope_path.exists():
+            raise FileNotFoundError("scope.json is required for query-plan task")
+        task, task_path = build_query_plan_task(paths, read_json(scope_path))
+    else:
+        raise ValueError(f"Primitive task {kind.value} is not implemented yet")
+    write_task(task, task_path)
+    append_event(
+        paths,
+        event_type="task_emitted",
+        stage=task.stage,
+        data={"task_id": task.task_id, "kind": task.kind.value, "task_path": str(task_path)},
+    )
+    rebuild_state(paths)
+    return {
+        "recommended_action": task.recommended_action,
+        "allowed_actions": task.allowed_actions,
+        "task_path": str(task_path),
+        "submit_command": task.submit_command,
+        "rationale": task.objective,
+    }
+```
+
+Change `next_payload` to call `emit_task` instead of duplicating task emission
+logic.
+
+- [ ] **Step 4: Add `task` sub-app**
+
+In `cli.py`:
+
+```python
+from gaia.research_loop.schemas import TaskKind
+
+task_app = typer.Typer(help="Emit one task envelope without running the full loop.")
+app.add_typer(task_app, name="task")
+
+
+def _echo_task_payload(payload: dict[str, Any], json_out: bool) -> None:
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    typer.echo(f"Recommended: {payload['recommended_action']}")
+    typer.echo(f"Task: {payload['task_path']}")
+    typer.echo(f"Submit: {payload['submit_command']}")
+
+
+@task_app.command("scope")
+def task_scope_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit a scope task envelope without consulting loop state."""
+    _echo_task_payload(emit_task(pkg, kind=TaskKind.SCOPE), json_out)
+
+
+@task_app.command("query-plan")
+def task_query_plan_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit a query planning task envelope from the current scope artifact."""
+    _echo_task_payload(emit_task(pkg, kind=TaskKind.QUERY_PLAN), json_out)
+```
+
+- [ ] **Step 5: Verify primitive tests pass**
+
+Run:
+
+```bash
+uv run pytest tests/research_loop/test_next_submit.py::test_task_scope_primitive_writes_scope_task tests/research_loop/test_next_submit.py::test_task_query_plan_primitive_uses_existing_scope -q
+```
+
+Expected: both pass.
+
+- [ ] **Step 6: Verify orchestration still works**
+
+Run:
+
+```bash
+uv run pytest tests/research_loop/test_next_submit.py::test_next_emits_scope_task_for_empty_loop tests/research_loop/test_next_submit.py::test_next_emits_query_plan_after_scope_artifact -q
+```
+
+Expected: both pass; `next` and primitive commands share the same task builders.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add gaia/research_loop/cli.py gaia/research_loop/engine.py tests/research_loop/test_next_submit.py
+git commit -m "feat(research-loop): expose task primitives"
 ```
 
 ---
@@ -1929,6 +2082,7 @@ git commit -m "test(research-loop): cover agent protocol smoke"
 | Task envelope has output contract and example | `test_task_embeds_contract_and_minimal_example` |
 | Candidate validates selected action and override rationale | `test_candidate_selected_action_must_be_allowed_or_recommended`, `test_candidate_override_requires_rationale` |
 | `next` emits first task | `test_next_emits_scope_task_for_empty_loop` |
+| Task primitives can be called without full loop orchestration | `test_task_scope_primitive_writes_scope_task`, `test_task_query_plan_primitive_uses_existing_scope` |
 | Scope submission writes artifact | `test_submit_scope_writes_scope_artifact` |
 | Validation failure returns repairable same task | `test_submit_invalid_candidate_records_repair_context` |
 | Query planning is agent task | `test_next_emits_query_plan_after_scope_artifact` |
@@ -1942,10 +2096,11 @@ git commit -m "test(research-loop): cover agent protocol smoke"
 
 ## Self-Review Notes
 
-- Spec coverage: This plan covers the CLI, canonical storage, state/event
-  model, task envelope, repair context, query planning, search execution,
-  landscape, focus synthesis, Explore gate, assessment context, evidence
-  diagnosis, Assess gate, thin skill, and verification.
+- Spec coverage: This plan covers the CLI, independently callable task
+  primitives, canonical storage, state/event model, task envelope, repair
+  context, query planning, search execution, landscape, focus synthesis,
+  Explore gate, assessment context, evidence diagnosis, Assess gate, thin skill,
+  and verification.
 - Scope boundary: The plan stops before `Propose`, `Discover`, `Merge`, live LKM
   networking, built-in LLM providers, and claim merge.
 - Risk: The exact LKM raw search fixture shape may require a small adapter
