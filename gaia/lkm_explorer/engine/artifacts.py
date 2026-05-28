@@ -47,11 +47,16 @@ def exploration_dir(pkg: str | Path) -> Path:
 
 def latest_landscape_path(pkg: str | Path) -> Path | None:
     """Return the highest-round ``landscape-*.json`` sidecar, if any."""
+    matches = landscape_round_paths(pkg)
+    return matches[-1] if matches else None
+
+
+def landscape_round_paths(pkg: str | Path) -> list[Path]:
+    """Return all ``landscape-*.json`` sidecars sorted by numeric round."""
     exp = exploration_dir(pkg)
     if not exp.exists():
-        return None
-    matches = sorted(exp.glob("landscape-*.json"), key=_landscape_sort_key)
-    return matches[-1] if matches else None
+        return []
+    return sorted(exp.glob("landscape-*.json"), key=_landscape_sort_key)
 
 
 def _landscape_sort_key(path: Path) -> tuple[int, str]:
@@ -207,6 +212,15 @@ def build_exploration_artifact(
         "gaia_ir": _optional_artifact(pkg, gaia_dir / "ir.json"),
         "beliefs": _optional_artifact(pkg, gaia_dir / "beliefs.json"),
     }
+    landscape_rounds = [
+        {
+            "round": round_number,
+            "path": rel_artifact_path(pkg, path),
+            "purpose": "broad_initial_survey" if round_number == 0 else "focus_gap_followup",
+        }
+        for path in landscape_round_paths(pkg)
+        if (round_number := _landscape_round_number(path)) is not None
+    ]
     core_names = {
         "scope": "scope.json",
         "landscape": "landscape-*.json",
@@ -225,6 +239,7 @@ def build_exploration_artifact(
             "map_version": map_version,
         },
         "artifacts": artifacts,
+        "landscape_rounds": landscape_rounds,
         "audit": {
             "known_limitations": limitations,
             "allowed_next_steps": ["gate"],
@@ -235,6 +250,14 @@ def build_exploration_artifact(
             }
         },
     }
+
+
+def _landscape_round_number(path: Path) -> int | None:
+    suffix = path.stem.removeprefix("landscape-")
+    try:
+        return int(suffix)
+    except ValueError:
+        return None
 
 
 def _check(status: str, detail: str) -> dict[str, str]:
@@ -369,6 +392,7 @@ __all__ = [
     "build_gate_report",
     "build_scope_artifact",
     "exploration_dir",
+    "landscape_round_paths",
     "latest_landscape_path",
     "parse_dimensions",
     "rel_artifact_path",

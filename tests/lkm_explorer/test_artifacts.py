@@ -12,6 +12,7 @@ from gaia.lkm_explorer.engine.artifacts import (
     build_focuses_artifact,
     build_gate_report,
     build_scope_artifact,
+    landscape_round_paths,
     latest_landscape_path,
     parse_dimensions,
     rel_artifact_path,
@@ -49,6 +50,13 @@ def test_latest_landscape_path_returns_highest_sorted(tmp_path: Path) -> None:
         (exp / name).write_text("{}", encoding="utf-8")
 
     assert latest_landscape_path(tmp_path) == exp / "landscape-10.json"
+    assert landscape_round_paths(tmp_path) == [
+        exp / "landscape-0.json",
+        exp / "landscape-1.json",
+        exp / "landscape-2.json",
+        exp / "landscape-9.json",
+        exp / "landscape-10.json",
+    ]
 
 
 def test_rel_artifact_path_prefers_package_relative_paths(tmp_path: Path) -> None:
@@ -123,13 +131,26 @@ def test_build_exploration_artifact_records_present_and_missing_sidecars(tmp_pat
     exp.mkdir(parents=True)
     (exp / "scope.json").write_text("{}", encoding="utf-8")
     (exp / "landscape-0.json").write_text("{}", encoding="utf-8")
+    (exp / "landscape-1.json").write_text("{}", encoding="utf-8")
     (exp / "map.json").write_text("{}", encoding="utf-8")
 
     artifact = build_exploration_artifact(tmp_path, map_round=0, map_version=1)
 
     assert artifact["kind"] == "lkm_exploration"
     assert artifact["artifacts"]["scope"] == ".gaia/exploration/scope.json"
-    assert artifact["artifacts"]["landscape"] == ".gaia/exploration/landscape-0.json"
+    assert artifact["artifacts"]["landscape"] == ".gaia/exploration/landscape-1.json"
+    assert artifact["landscape_rounds"] == [
+        {
+            "round": 0,
+            "path": ".gaia/exploration/landscape-0.json",
+            "purpose": "broad_initial_survey",
+        },
+        {
+            "round": 1,
+            "path": ".gaia/exploration/landscape-1.json",
+            "purpose": "focus_gap_followup",
+        },
+    ]
     assert artifact["artifacts"]["focuses"] is None
     assert "missing focuses.json" in artifact["audit"]["known_limitations"]
     assert artifact["audit"]["allowed_next_steps"] == ["gate"]
