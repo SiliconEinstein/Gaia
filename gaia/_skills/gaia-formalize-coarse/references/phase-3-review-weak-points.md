@@ -68,18 +68,21 @@ order — first key is the dominant pattern.
 
 Before committing to a weak point, it must pass all five:
 
-- **Which conclusion does it threaten?** — Name **one** conclusion by
-  Phase 1 id. Every weak point is bound to a single conclusion — the one
-  whose derivation it directly undermines. If the underlying scientific
-  uncertainty seems to threaten several conclusions, apply the
-  weak-point ↔ one-conclusion (strict) discipline: pick the conclusion
-  with the most catastrophic failure mode (tie-break by smaller id), and
-  let cross-conclusion influence propagate through the logic graph
-  (`W → C2 → C4` if C2 is upstream of C4) rather than re-binding W to C4.
-  For independent conclusions that share a foundational assumption with no
-  logic-graph link, the BP-invisible effect on the other conclusion(s) is
-  noted in working notes as `also_threatens` (working-notes only — not
-  emitted into the executable DSL).
+- **Which conclusion(s) does it threaten?** — Most weak points undermine
+  exactly one conclusion's derivation; name it by Phase 1 id and bind there.
+  When the uncertainty seems to threaten several conclusions, distinguish two
+  cases:
+  - **Linked by the logic graph** (`W → C2 → C4` with C2 upstream of C4): bind
+    `W` to the upstream conclusion only (C2) and let the influence propagate to
+    C4 through the graph — re-binding `W` to C4 as well would double-count it.
+  - **A genuinely shared foundational cause across conclusions with no
+    logic-graph link** — this is Pattern 3. Extract the shared cause as one
+    weak-point claim and premise it into each conclusion's `derive(...)` it
+    bounds (see "Shared-factor evidence" below). It enters the graph once and is
+    BP-visible to every dependent; directed implication factors mean feeding it
+    to several conclusions carries no fan-out penalty. Do **not** demote the
+    effect on the other conclusions to a working-notes `also_threatens` note —
+    that hides a real dependency from inference.
 - **Which part of that conclusion's derivation depends on it?** — Point to
   the specific argumentative move (a Phase 2 step, an experimental design
   choice, an assumption, a comparison).
@@ -116,41 +119,37 @@ for groups that share a cause. This is Gaia "Pattern 3 — unmodelled shared
 dependency"; see
 [`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md).
 
-Three kinds of sharing:
+Two operations, applied **globally over the whole factor set — independent of
+which conclusion each factor bounds**:
 
-- **Two weak points share a factor** — the doubt is double-counted. Handle by
-  the same-conclusion / cross-conclusion rules below.
-- **Two highlights share a factor** — the credit is double-counted. Highlights
-  are working-notes folded into the `derive(...)` warrant prose, so the fix is
-  prose-level: state the shared strength once, do not let the warrant assert it
-  as two independent reasons to credit the conclusion.
-- **A weak point and a highlight share a factor** — the same cause is being
-  used to both doubt and credit. Reconcile: a single factor cannot
-  independently weaken and strengthen the conclusion. Net it out — decide which
-  direction it genuinely bears on the conclusion (or that it is a
-  strength bounded by a caveat) and write the warrant so the factor is counted
-  once, coherently, rather than once as a highlight and again as a weak point.
+1. **Near-duplicate → merge.** Two factors that assert essentially the same
+   thing are one factor: keep a single claim, drop the rest.
+2. **Distinct factors, one shared cause → extract the cause.** When two or more
+   distinct factors are genuinely driven by one common cause, extract that cause
+   as its own claim and let every dependent reference it once. Do this whether
+   the factors sit under the same conclusion or different ones — there is no
+   per-conclusion special case. A shared-factor claim that is a premise of
+   several conclusions' `derive(...)` calls is correct and carries **no fan-out
+   penalty**: deduction implication factors are directed (the conclusion's
+   belief does not send a spurious backward drag to the shared antecedent), so
+   one cause feeding many conclusions is modelled faithfully. Extract the cause
+   and premise it into every conclusion it genuinely bounds — do not bind it to
+   one conclusion and hide its effect on the others in working notes.
 
-For weak points, two cases, handled differently because of coarse's constraints:
+How each factor type realises this:
 
-- **Same-conclusion shared factor.** If the sharing weak points all bound the
-  *same* conclusion, extract the shared factor as a single weak-point claim and
-  drop the redundant siblings, so the one conclusion's premise set carries the
-  shared uncertainty exactly once. This both fixes the double-count and reduces
-  leaf count.
-- **Cross-conclusion shared factor.** If the sharing weak points bound
-  *different* conclusions (e.g. a small-sample-size limitation that both caps a
-  diversity estimate on C2 and weakens a linkage-disequilibrium test on C4), do
-  **not** extract one shared-factor claim and feed it into both conclusions'
-  `derive(...)` calls: a single premise fanning out to several conclusions
-  triggers the deduction fan-out penalty (modus-tollens drag — a known
-  factor-graph modelling issue) and breaks the weak-point ↔ one-conclusion
-  (strict) discipline. Instead keep each weak point bound to its own conclusion
-  but (a) record the shared cause in the hand-off report's independence note,
-  and (b) calibrate the priors so the shared uncertainty is not counted at full
-  independent strength in every conclusion — the same underlying risk must not
-  read as several independent near-fatal risks. The reviewer raises the shared
-  uncertainty's effective weight once, not once per conclusion.
+- **Weak points** — the extracted shared cause is one weak-point claim with one
+  prior, listed in the `given=[...]` of every conclusion it bounds. The shared
+  uncertainty then enters the graph exactly once and propagates to each
+  conclusion through that single node.
+- **Highlights** — highlights are working-notes folded into `derive(...)`
+  warrant prose, so the realisation is prose-level: state the shared strength
+  once; do not let two warrants (or one warrant twice) assert the same
+  underlying strength as independent reasons to credit.
+- **A weak point and a highlight on the same cause** — the same cause cannot
+  independently both weaken and strengthen. Reconcile: decide the direction it
+  genuinely bears (or that it is a strength bounded by a caveat) and write it
+  once, coherently, not once as a highlight and again as a weak point.
 
 ## What Counts as a Highlight
 
@@ -446,9 +445,12 @@ strengths were identified.
 ```yaml
 weak_points:
   - id: P1                       # ephemeral id local to working notes
-    conclusion_id: 1             # the single conclusion this weak point threatens
-    also_threatens: []           # audit-only: independent conclusions this assumption also affects
-                                 # (BP cannot see this; do NOT add the weak point to those conclusions' deductions)
+    conclusion_ids: [1]          # conclusion(s) this weak point is premised into.
+                                 # Usually one. A shared-factor weak point (Pattern 3)
+                                 # genuinely bounding several unlinked conclusions lists
+                                 # all of them — it is emitted into each one's deduction.
+    shared_cause: null           # set when this weak point was extracted as the common
+                                 # cause of a Pattern 3 group (scan aid → drives conclusion_ids)
     title: <≤ 25-word descriptor>
     body: <self-standing scientific proposition>
     weak_types: [model]
@@ -654,12 +656,11 @@ Before moving to Phase 4:
   paper-description.
 - Each conclusion has a synthesis (`prior_probability` + `narrative`).
 - The full evidence set — weak points AND highlights, across all
-  conclusions — has been scanned for shared-factor groups (Pattern 3):
-  same-conclusion weak-point groups are merged to a single weak point;
-  cross-conclusion shared causes are recorded in the independence note and
-  reflected in prior calibration rather than counted independently per
-  conclusion; shared-factor highlights are stated once; a factor shared by a
-  weak point and a highlight is netted out and counted once, coherently.
+  conclusions — has been scanned for shared-factor groups (Pattern 3) and
+  resolved globally: near-duplicates merged; a shared cause extracted to a
+  single claim premised into every conclusion it bounds (not bound to one and
+  hidden from the others); shared-factor highlights stated once; a factor shared
+  by a weak point and a highlight netted out and counted once, coherently.
 - Phase 1b LKM reverse-trace has either run (results captured in working
   notes; `lkm_id` joins recorded for Phase 4) or been skipped with the
   skip reason noted for the hand-off report.

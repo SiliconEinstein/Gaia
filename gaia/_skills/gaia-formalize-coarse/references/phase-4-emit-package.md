@@ -161,11 +161,16 @@ Emission rules (carried over from the per-statement CLI path):
 2. **Conclusions** — one `claim(...)` per Phase 1 conclusion, in topological
    order, in the module for the section where it first appears. Body = the
    self-contained body from Phase 1 working notes; do not rewrite here.
-3. **Weak-point leaf claims** — one `claim(...)` per Phase 3 weak point.
-   Each weak point is defined exactly once and is a premise in exactly one
-   deduction (its target conclusion's). Do NOT share a weak point across
-   deductions — cross-conclusion uncertainty propagates through the logic graph
-   (weak point ↔ one conclusion, strict).
+3. **Weak-point leaf claims** — one `claim(...)` per Phase 3 weak point, each
+   defined exactly once. A weak point that undermines a single conclusion is a
+   premise in that one conclusion's deduction; when the conclusions are linked
+   by the logic graph, bind it upstream and let it propagate rather than
+   re-listing it downstream. A Phase 3 **shared-factor** weak point (one cause
+   that genuinely bounds several conclusions with no logic-graph link between
+   them) is the exception: list it in the `given=[...]` of each conclusion it
+   bounds, so the shared uncertainty enters once and reaches every dependent.
+   This does not incur a fan-out penalty — deduction implication factors are
+   directed.
 4. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
    per derived conclusion. The `given=` list is the union of upstream conclusion
    bindings and this conclusion's weak-point bindings.
