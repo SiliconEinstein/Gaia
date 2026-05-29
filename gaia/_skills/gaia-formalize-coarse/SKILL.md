@@ -16,9 +16,8 @@ description: |
   four-phase single-pass sibling of `gaia-formalize-fine` (the thorough
   six-pass treatment). Reach for `gaia-formalize-coarse` for a fast first cut
   of one paper; reach for `gaia-formalize-fine` when the source is
-  load-bearing, multi-section, or destined for publication. For the
-  LKM-driven (not paper-driven) route that grows a multi-paper graph, use
-  the `gaia-lkm-explore` orchestrator client instead. Use whenever the user asks to "formalize a
+  load-bearing, multi-section, or destined for publication. Use whenever the
+  user asks to "formalize a
   paper into Gaia", "produce a Gaia package from this paper", "turn this
   paper into a knowledge package", or any variant where the upstream is a
   single paper text and the requested output is Gaia DSL — even if the user
@@ -51,15 +50,10 @@ gaia-formalize-coarse
 ```
 
 `gaia-formalize-coarse` is the **quick paper-driven** sibling of
-[`../gaia-formalize-fine/SKILL.md`](../gaia-formalize-fine/SKILL.md) (the
-thorough six-pass treatment of the same paper-driven route) and of the
-**`gaia-lkm-explore`** orchestrator client — the **LKM-driven** turn loop that grows
-a Gaia package from LKM evidence chains (a sibling of `gaia`, run as
-`gaia-lkm-explore turn <pkg>`; not a registered skill). All three produce package
-outputs of identical shape, but enter the graph from different directions: the
-two `gaia-formalize-*` skills start from one paper and audit its derivations
-(coarse = fast single-pass, fine = exhaustive six-pass); `gaia-lkm-explore` starts
-from LKM search and grows a frontier across many papers.
+[`../gaia-formalize-fine/SKILL.md`](../gaia-formalize-fine/SKILL.md) — the
+thorough six-pass treatment of the same paper-driven route. Both start from one
+paper and audit its derivations into a package of identical shape; coarse is the
+fast single-pass cut, fine the exhaustive six-pass one.
 
 ## Output Mode
 
@@ -185,8 +179,8 @@ paragraph. Do not invent contributions to fill the gap.
   The Python pipeline is a parallel route from paper to XML; this skill
   is the direct route from paper to Gaia.
 - It does not query LKM. Formalization is a paper → package transformation;
-  the LKM-driven route (which consumes the knowledge graph) is the separate
-  `gaia-lkm-explore` client.
+  consuming the knowledge graph is a separate, LKM-driven concern handled
+  elsewhere.
 - Multi-paper merges, cross-paper contradictions, and downstream rendering
   are separate concerns handled by other tools.
 
@@ -233,10 +227,3 @@ with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
 - `docs/for-users/hole-bridge-tutorial.md` — prior calibration tutorial.
 
 For runtime help, prefer `gaia <group> <cmd> --help`.
-
-Sibling skills (this registry):
-
-- The **`gaia-lkm-explore`** orchestrator client (run `gaia-lkm-explore turn <pkg>`; a
-  sibling of `gaia`, not a registered skill) — the LKM-driven exploration turn
-  loop producing the same Gaia knowledge-package output shape from a different
-  upstream.
