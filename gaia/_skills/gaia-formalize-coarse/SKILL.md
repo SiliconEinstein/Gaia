@@ -143,9 +143,9 @@ paragraph. Do not invent contributions to fill the gap.
   conclusion is the conclusion of exactly one
   `derive(conclusion, given=[premises], rationale=..., label=...)`. There is
   no such thing as an isolated conclusion — a conclusion always rests on
-  something. The `given` is the union of the conclusion's upstream conclusions
-  (every conclusion it depends on per the cross-conclusion logic graph must
-  appear) and its leaf premises (weak points and highlights). A root
+  something. The `given` is built in order: first the conclusion's upstream
+  conclusions (every conclusion it depends on per the cross-conclusion logic
+  graph must appear), then its leaf premises (weak points and highlights). A root
   conclusion with no upstream still has ≥1 leaf premise carrying its support.
   The engine `derive(...)` signature accepts only
   `{given, background, rationale, label}` — no `metadata=` kwarg, so

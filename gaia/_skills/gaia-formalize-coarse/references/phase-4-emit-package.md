@@ -198,11 +198,12 @@ Emission rules (carried over from the per-statement CLI path):
    `decompose`; everywhere else it is `derive`.
 5. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
    per **conclusion** (every conclusion, not only "derived" ones — there are no
-   isolated conclusions). The `given=` list is the union of upstream conclusion
-   bindings (every conclusion this one depends on) and this conclusion's
-   leaf-premise bindings — both weak points and highlights (the originals, which
-   Pattern 3 decomposition keeps intact). A root conclusion with no upstream
-   still has its ≥1 supporting leaf premise here.
+   isolated conclusions). Build the `given=` list **in this order**: first the
+   upstream conclusions this one depends on (every one, in logic-graph /
+   topological order — the Phase 2 inputs), then the leaf premises surfaced
+   while reasoning — weak points and highlights (the Phase 3 additions; the
+   originals, which Pattern 3 decomposition keeps intact). A root conclusion
+   with no upstream still has its ≥1 supporting leaf premise here.
    - **Do not pass `metadata=` to `derive(...)`** — the engine signature accepts
      only `{given, background, rationale, label}`. The same applies to
      `contradict` / `equal` / `exclusive` / `observe`. Warrant-strength intent
