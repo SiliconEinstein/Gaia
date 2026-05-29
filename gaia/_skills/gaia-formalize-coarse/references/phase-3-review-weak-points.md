@@ -373,13 +373,14 @@ the reasoning.
 
 ## Probability Calibration
 
-Each leaf premise — weak point **and** highlight alike — carries a
-`prior_probability` plus the working-notes `p1` / `p2`. **Judge each prior on
-its merits; there is no fixed range or cap, and the `weak_point` / `highlight`
-tag does not pin it.** Use the full range; do not default everything to
-0.7–0.8. A weak point typically lands lower because the reviewer is less sure
-of it; a highlight typically lands high (0.90+) because the reviewer is very
-sure of it — but those are consequences of the judged credibility, not rules.
+Each leaf premise — weak point **and** highlight alike — carries a single
+`prior_probability`. That one number is all the package needs: it is emitted by
+`register_prior(...)` and is the only calibration BP consumes. **Judge it on its
+merits; there is no fixed range or cap, and the `weak_point` / `highlight` tag
+does not pin it.** Use the full range; do not default everything to 0.7–0.8. A
+weak point typically lands lower because the reviewer is less sure of it; a
+highlight typically lands high (0.90+) because the reviewer is very sure of it —
+but those are consequences of the judged credibility, not rules.
 
 - **`prior_probability`** — the leaf premise's intrinsic credibility on its own
   merits.
@@ -411,16 +412,13 @@ sure of it — but those are consequences of the judged credibility, not rules.
   - Only hard bounds are BP validity: strictly between 0 and 1, so ~0.001 and
     ~0.999 are the practical extremes (Cromwell). **No 0.9 cap** — a premise the
     reviewer is genuinely near-certain of belongs at 0.95–0.999.
-- **`p1`** — sufficiency: if the premise is true, how strongly does the
-  conclusion follow? `p1 ≈ P(conclusion | premise true)`.
-- **`p2`** — necessity: if the premise is false, how strongly does the
-  conclusion fail? `p2 ≈ P(conclusion false | premise false)`.
 
-`prior_probability` is consumed by Phase 4's `register_prior(...)` emission
-for this weak point. `p1` and `p2` are reviewer working-notes only — they
-inform the qualitative warrant-strength prose Phase 4 writes into the
-`derive(...)` `--rationale` but are not emitted into the package; BP does
-not consume them.
+`prior_probability` is the single number Phase 4 emits via `register_prior(...)`.
+There are no separate `p1` / `p2` (sufficiency / necessity) numbers to record:
+the premise→conclusion link is the deterministic `derive(...)` implication, not
+a soft conditional, so BP has nowhere to consume them. How the premise bears on
+the conclusion — what follows if it holds, what breaks if it fails — is captured
+in prose: the `failure_mode` field and the `derive(...)` `--rationale`.
 
 ## Per-Conclusion Synthesis
 
@@ -442,8 +440,8 @@ synthesis for that conclusion:
   kwarg, so warrant-strength intent does not live as a number on the
   deduction itself; numerical priors live only on leaf claims via
   `register_prior`. Calibration:
-  - A conclusion with several high-`p2` weak points cannot have a high
-    prior, even with highlights.
+  - A conclusion with several low-prior, load-bearing weak points (ones whose
+    failure would break it) cannot have a high prior, even with highlights.
   - A conclusion with no load-bearing weak points and at least one
     substantive highlight should be close to 1.
   - A conclusion with neither weak points nor highlights (a routine
@@ -489,8 +487,6 @@ weak_points:
     body: <self-standing scientific proposition>
     weak_types: [model]
     prior_probability: 0.65
-    p1: 0.7
-    p2: 0.85
     weakness_reason: <reviewer critique of why the body claim is uncertain>
     failure_mode: <reviewer counterfactual: what breaks in the threatened conclusion if body fails>
     citation_keys: ["SourceKey"]
@@ -508,8 +504,6 @@ highlights:                        # same leaf-premise shape as weak_points;
     body: <self-standing scientific proposition>
     strength_types: [computational, statistical]
     prior_probability: 0.96        # highlights land high — the reviewer is very sure of them; no cap
-    p1: 0.95
-    p2: 0.4
     credit: <reviewer integrated argument: failure preempted, layer underwritten, scope of credit>
     citation_keys: ["SourceKey"]
     artifact_anchors:
@@ -653,8 +647,8 @@ with `gaia search lkm <verb> --help`.
   notes; the reviewer may use it to nudge the per-conclusion synthesis
   prior or the deduction warrant downward. Phase 1b does **not**
   automatically lower or raise the weak point's numeric
-  `prior_probability` / `p1` / `p2` — those reflect the paper's own
-  evidence, not LKM downstream consumption.
+  `prior_probability` — it reflects the paper's own evidence, not LKM
+  downstream consumption.
 
 ### When to skip
 
@@ -682,10 +676,9 @@ Before moving to Phase 4:
 - Every retained weak point and highlight passes its five gating questions
   and is not on its do-not-extract list.
 - Every body satisfies the self-standing rule.
-- Each weak point has `prior_probability`, `p1`, `p2`, `weakness_reason`,
-  `failure_mode`.
-- Each highlight has `prior_probability`, `p1`, `p2`, `credit` (same leaf-premise
-  shape as a weak point; the prior just lands higher).
+- Each weak point has `prior_probability`, `weakness_reason`, `failure_mode`.
+- Each highlight has `prior_probability`, `credit` (same leaf-premise shape as a
+  weak point; the prior just lands higher).
 - Every `weakness_reason` passes its judgment test (strip paper-structure
   references; substantive critique remains).
 - Every `failure_mode` carries all four components (counterfactual
