@@ -170,7 +170,9 @@ Emission rules (carried over from the per-statement CLI path):
    them) is the exception: list it in the `given=[...]` of each conclusion it
    bounds, so the shared uncertainty enters once and reaches every dependent.
    This does not incur a fan-out penalty — deduction implication factors are
-   directed.
+   directed. The per-conclusion **residuals** of that group stay as ordinary
+   single-conclusion weak points, each listed only in its own conclusion's
+   `given=[...]`.
 4. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
    per derived conclusion. The `given=` list is the union of upstream conclusion
    bindings and this conclusion's weak-point bindings.

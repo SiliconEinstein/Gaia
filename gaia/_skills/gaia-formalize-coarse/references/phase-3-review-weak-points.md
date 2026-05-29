@@ -119,29 +119,42 @@ for groups that share a cause. This is Gaia "Pattern 3 — unmodelled shared
 dependency"; see
 [`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md).
 
-Two operations, applied **globally over the whole factor set — independent of
-which conclusion each factor bounds**:
+The operation is the same **globally over the whole factor set, independent of
+which conclusion each factor bounds**: separate the shared cause from each
+factor's residual.
 
-1. **Near-duplicate → merge.** Two factors that assert essentially the same
-   thing are one factor: keep a single claim, drop the rest.
-2. **Distinct factors, one shared cause → extract the cause.** When two or more
-   distinct factors are genuinely driven by one common cause, extract that cause
-   as its own claim and let every dependent reference it once. Do this whether
-   the factors sit under the same conclusion or different ones — there is no
-   per-conclusion special case. A shared-factor claim that is a premise of
-   several conclusions' `derive(...)` calls is correct and carries **no fan-out
-   penalty**: deduction implication factors are directed (the conclusion's
-   belief does not send a spurious backward drag to the shared antecedent), so
-   one cause feeding many conclusions is modelled faithfully. Extract the cause
-   and premise it into every conclusion it genuinely bounds — do not bind it to
-   one conclusion and hide its effect on the others in working notes.
+1. **Decompose: shared cause + residuals.** When two or more factors are driven
+   by one common cause, do not collapse them to the bare cause — that throws
+   away what each factor says *beyond* the cause. Split into:
+   - the **shared cause** → one claim `C` with one prior: the single factual
+     limitation both factors rest on (e.g. "each locus was genotyped in only
+     21–42 individuals");
+   - each factor's **residual** → its own claim: what that factor asserts *given*
+     `C` (e.g. for C2 "the diversity statistics Na / H_O are imprecise at this
+     sample size"; for C4 "the linkage-disequilibrium test is underpowered at
+     this sample size"). The residuals are conditionally independent given `C`,
+     so they stay as separate independent factors.
+   Then each conclusion's `derive(...)` lists **both** `C` and that conclusion's
+   own residual. `C` enters the graph once and reaches every dependent; the
+   residual carries only the conclusion-specific consequence. A shared cause
+   premised into several conclusions' derives is correct and carries **no
+   fan-out penalty** — deduction implication factors are directed, so the
+   conclusion does not send a spurious backward drag to the shared antecedent.
+   Do this whether the factors sit under the same conclusion or different ones;
+   never bind the cause to one conclusion and hide its effect on the others in
+   working notes.
+2. **No residual → merge.** If a factor is nothing but the shared cause (its
+   residual is empty / negligible), there is nothing to keep separately:
+   collapse the near-duplicates to the single shared-cause claim. This is the
+   degenerate case of operation 1.
 
 How each factor type realises this:
 
-- **Weak points** — the extracted shared cause is one weak-point claim with one
-  prior, listed in the `given=[...]` of every conclusion it bounds. The shared
-  uncertainty then enters the graph exactly once and propagates to each
-  conclusion through that single node.
+- **Weak points** — the shared cause is one weak-point claim with one prior,
+  listed in the `given=[...]` of every conclusion it bounds; each residual is a
+  separate weak-point claim listed only in its own conclusion's `given=[...]`.
+  The shared uncertainty enters the graph exactly once and reaches each
+  conclusion through that single node, while the residuals stay independent.
 - **Highlights** — highlights are working-notes folded into `derive(...)`
   warrant prose, so the realisation is prose-level: state the shared strength
   once; do not let two warrants (or one warrant twice) assert the same
@@ -657,10 +670,11 @@ Before moving to Phase 4:
 - Each conclusion has a synthesis (`prior_probability` + `narrative`).
 - The full evidence set — weak points AND highlights, across all
   conclusions — has been scanned for shared-factor groups (Pattern 3) and
-  resolved globally: near-duplicates merged; a shared cause extracted to a
-  single claim premised into every conclusion it bounds (not bound to one and
-  hidden from the others); shared-factor highlights stated once; a factor shared
-  by a weak point and a highlight netted out and counted once, coherently.
+  resolved globally by decomposition: the shared cause extracted to a single
+  claim premised into every conclusion it bounds, each factor's residual kept as
+  a separate claim in only its own conclusion (near-duplicates with no residual
+  merged); shared-factor highlights stated once; a factor shared by a weak point
+  and a highlight netted out and counted once, coherently.
 - Phase 1b LKM reverse-trace has either run (results captured in working
   notes; `lkm_id` joins recorded for Phase 4) or been skipped with the
   skip reason noted for the hand-off report.
