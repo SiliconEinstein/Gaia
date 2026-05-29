@@ -38,6 +38,20 @@ The paper text is the only source of truth. While extracting:
   it undefined and surface the gap.
 - Preserve the authors' epistemic hedging exactly: regimes, error bars,
   speculative qualifiers, modal force ("suggests" stays "suggests").
+- **Inferential conclusions inherit the paper's hedge, never a stronger one.**
+  When a conclusion is a synthesis or inference *from* the paper's observations
+  — a mechanism, a cause, a cross-case generalization — rather than a direct
+  restatement of one paper sentence, its modal force must not exceed the paper's
+  strongest claim about that inference. If the paper only *observes* X and
+  *suggests* mechanism M, the conclusion is "X is observed; the authors
+  attribute it to M", not "M causes X". Two recurring traps:
+  - **Observation upgraded to a property the data only partially supports** —
+    e.g. "the loci amplified" becomes "the loci are polymorphic" when some of
+    them are monomorphic in the reported table. State only the property the
+    data actually shows.
+  - **Attributed mechanism stated as established fact** — e.g. the authors
+    write "we attribute the effect to surface area"; the conclusion must keep
+    the attribution framing, not assert the mechanism outright.
 
 ## Write every claim self-contained
 
