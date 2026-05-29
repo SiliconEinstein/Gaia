@@ -101,19 +101,37 @@ Before committing to a weak point, it must pass all five:
 - Background facts not in question here.
 - Caveats that do not affect the conclusion.
 
-### Shared-factor weak points (independence — Pattern 3)
+### Shared-factor evidence (independence — Pattern 3)
 
-Leaf weak points are modelled as independent prior-bearing claims, so two weak
-points that are really driven by the **same latent cause** double-count that
-uncertainty in belief propagation unless you handle the shared factor
-explicitly. Common shared causes: the same sample / cohort / specimen, the same
-instrument or measurement, the same software / numerical method, the same
-external assumption or lemma. Scan the full weak-point set (across all
-conclusions, not just within one) for such groups before closing Phase 3. This
-is Gaia "Pattern 3 — unmodelled shared dependency"; see
+The independence scan covers **every evidential factor that enters a
+conclusion's warrant — weak points AND highlights together**, not weak points
+alone. Both are evidence about the conclusion: a weak point lowers credence, a
+highlight raises it, and either is double-counted (or, across the two, left
+incoherent) when two factors are really driven by the **same latent cause**.
+Common shared causes: the same sample / cohort / specimen, the same instrument
+or measurement, the same software / numerical method, the same external
+assumption or lemma. Before closing Phase 3, scan the full factor set — every
+weak point and every highlight, across all conclusions, not just within one —
+for groups that share a cause. This is Gaia "Pattern 3 — unmodelled shared
+dependency"; see
 [`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md).
 
-Two cases, handled differently because of coarse's constraints:
+Three kinds of sharing:
+
+- **Two weak points share a factor** — the doubt is double-counted. Handle by
+  the same-conclusion / cross-conclusion rules below.
+- **Two highlights share a factor** — the credit is double-counted. Highlights
+  are working-notes folded into the `derive(...)` warrant prose, so the fix is
+  prose-level: state the shared strength once, do not let the warrant assert it
+  as two independent reasons to credit the conclusion.
+- **A weak point and a highlight share a factor** — the same cause is being
+  used to both doubt and credit. Reconcile: a single factor cannot
+  independently weaken and strengthen the conclusion. Net it out — decide which
+  direction it genuinely bears on the conclusion (or that it is a
+  strength bounded by a caveat) and write the warrant so the factor is counted
+  once, coherently, rather than once as a highlight and again as a weak point.
+
+For weak points, two cases, handled differently because of coarse's constraints:
 
 - **Same-conclusion shared factor.** If the sharing weak points all bound the
   *same* conclusion, extract the shared factor as a single weak-point claim and
@@ -635,11 +653,13 @@ Before moving to Phase 4:
   underwritten, scope of credit) and is not generic praise or
   paper-description.
 - Each conclusion has a synthesis (`prior_probability` + `narrative`).
-- The full weak-point set has been scanned for shared-factor groups
-  (Pattern 3): same-conclusion groups are merged to a single weak point;
+- The full evidence set — weak points AND highlights, across all
+  conclusions — has been scanned for shared-factor groups (Pattern 3):
+  same-conclusion weak-point groups are merged to a single weak point;
   cross-conclusion shared causes are recorded in the independence note and
   reflected in prior calibration rather than counted independently per
-  conclusion.
+  conclusion; shared-factor highlights are stated once; a factor shared by a
+  weak point and a highlight is netted out and counted once, coherently.
 - Phase 1b LKM reverse-trace has either run (results captured in working
   notes; `lkm_id` joins recorded for Phase 4) or been skipped with the
   skip reason noted for the hand-off report.
