@@ -416,7 +416,7 @@ There are no separate `p1` / `p2` (sufficiency / necessity) numbers to record:
 the premise→conclusion link is the deterministic `derive(...)` implication, not
 a soft conditional, so BP has nowhere to consume them. How the premise bears on
 the conclusion — what follows if it holds, what breaks if it fails — is captured
-in prose: the `failure_mode` field and the `derive(...)` `--rationale`.
+in prose: the `register_prior(...)` `justification` and the `derive(...)` `rationale=`.
 
 ## Per-Conclusion Synthesis
 
@@ -429,11 +429,11 @@ synthesis for that conclusion:
   points and highlights. This is **not** a mechanical function of
   the weak points' probabilities; it is informed by both findings. In
   Phase 4 this number is consumed in two ways: (1) for isolated
-  conclusions (no upstream, no weak points → no `derive(...)`) it becomes
+  conclusions (no upstream, no leaf premises → no `derive(...)`) it becomes
   the conclusion's `register_prior(...)` value because the conclusion is a
   leaf in that case; (2) for derived conclusions it informs the qualitative
-  warrant-strength prose Phase 4 writes into the `derive(...)` `--rationale`
-  (alongside per-highlight and per-gap commentary — see Phase 4 Step 4a).
+  warrant-strength prose Phase 4 writes into the `derive(...)` `rationale=`
+  (alongside per-premise commentary — see Phase 4).
   The engine `derive(...)` signature has no `metadata=` / `warrant_prior`
   kwarg, so warrant-strength intent does not live as a number on the
   deduction itself; numerical priors live only on leaf claims via
@@ -518,128 +518,6 @@ This check guards against a known failure mode: agents tend to cluster
 priors at 0.80 because the bodies "look reasonable", losing the signal
 the weak-point analysis is supposed to produce.
 
-## Phase 1b — LKM Reverse-Provenance Trace (cross-grounding)
-
-This section is named "Phase 1b" because the *analytical role* it plays
-is paper-level cross-grounding — adjacent to Phase 1's conclusion
-extraction. It runs late (here, in Phase 3) only because the audit weights
-it produces are consumed by the same pass that calibrates weak-point
-priors. Phase 4 emit time is when the resulting `lkm_id=` metadata
-actually lands on `claim(...)` calls.
-
-### Goal
-
-Cross-ground the paper's claims by checking whether they appear in LKM's
-existing knowledge graph as evidence chains rooted in this paper's
-`paper:<id>`. The pass surfaces:
-
-- Which Phase 1 conclusions have been independently formalized by LKM
-  with provenance back to *this* paper (their `gcn_*` ids become the
-  `lkm_id=` metadata on the paper-extract `claim(...)`).
-- Which Phase 3 weak points threaten conclusions that LKM treats as
-  load-bearing for downstream multi-paper reasoning (cross-paper evidence
-  fan-out). The reviewer should weight those weak points heavier in the
-  per-conclusion synthesis prior: their failure doesn't just collapse one
-  paper's claim, it perturbs an inter-paper reasoning chain.
-
-This is **best-effort cross-grounding**, not a gate. Papers not yet
-ingested by LKM yield no trace; that is a no-op, not a failure. The
-underlying `claim(...)` bodies and conclusion list are not changed by
-Phase 1b — only `lkm_id=` metadata is added in Phase 4, and the reviewer's
-per-conclusion synthesis judgment may shift.
-
-### Procedure
-
-Use the native `gaia search lkm` CLI. Make sure an LKM access key is set —
-run `gaia search lkm auth login` (or set `GAIA_LKM_ACCESS_KEY` /
-`LKM_ACCESS_KEY`); check with `gaia search lkm auth status`. Verify any flag
-with `gaia search lkm <verb> --help`.
-
-1. **Identify the input paper's `paper:<id>`.** From the paper Markdown's
-   bibliographic metadata (DOI, first-author surname + year). If the
-   paper id cannot be derived (corrupted bibliography, unindexed
-   preprint), skip Phase 1b entirely and note it in the hand-off report's
-   metadata-gaps section.
-2. **Query LKM by title or anchor phrase.** Use the paper title; if it is
-   too generic, supplement with one or two distinctive anchor phrases
-   from the paper's contribution sentences (Phase 1 working notes are a
-   good source). Filter to claim-typed nodes with reasoning backing so
-   the next step has something to trace. Use `--format raw-json` so the
-   verbatim LKM envelope (`data.variables[]` with `provenance`, plus
-   `data.papers`) is preserved for the provenance filter in step 3.
-
-   ```bash
-   gaia search lkm knowledge "<paper title or anchor phrase>" \
-     --scopes claim --reasoning-only \
-     --limit 50 --format raw-json --out search.json
-   ```
-
-3. **Filter `data.variables[]`** for entries whose
-   `provenance.source_packages` list contains the input paper's
-   `paper:<id>`. Those are LKM claims whose provenance traces back to
-   this paper. Collect the matching `gcn_*` ids (each will be
-   `type=claim` because of `--reasoning-only`) and their `data.papers`
-   metadata into working notes.
-4. **Fetch reasoning chains for each match.** For every matching
-   `gcn_id`:
-
-   ```bash
-   gaia search lkm reasoning --claim-id <gcn_id> \
-     --max-chains 10 --format raw-json --out reasoning_<gcn_id>.json
-   ```
-
-   Some claims may come back with no reasoning chains
-   (`total_chains == 0`); treat those as `unmatched` for verdict purposes
-   and move on.
-
-5. **Verify chain closure.** For each `reasoning_chains[]` entry, examine
-   the chain's `paper_id` (resolves into `data.papers`). A chain whose
-   `paper_id` matches the input paper's id represents reasoning fully
-   internal to this paper — expected for a typical paper-extract claim.
-   A chain whose `paper_id` is a *different* paper indicates LKM has
-   rooted this claim in inter-paper reasoning; this paper is feeding
-   into a cross-paper provenance chain. Count the cross-paper chains per
-   `gcn_id`; these are the "LKM treats as load-bearing for downstream
-   reasoning" signal.
-
-### Outputs
-
-- **Phase 1b LKM-trace table in working notes.** Columns:
-  `gcn_id | matched_paper_claim_label | chain_total | cross_paper_chains | LKM_provenance_verdict`.
-  The verdict is one of `single-paper-internal`, `cross-paper-fanout`,
-  or `unmatched`. Surface a summary count in the hand-off report.
-- **`lkm_id=` metadata on Phase 1 conclusion claims.** Whenever a
-  matched `gcn_id` corresponds to a Phase 1 conclusion (mapped by content
-  similarity in working notes), record the join so Phase 4 can emit
-  `lkm_id="gcn_..."` on that conclusion's `claim(...)`. Paper-extract
-  emitters reuse `lkm_id` purely as a provenance join.
-- **Reviewer-signal bump on cross-paper-fanout weak points.** When a
-  Phase 3 weak point threatens a conclusion whose matched `gcn_id` has
-  `cross_paper_chains > 0`, note the cross-paper exposure in working
-  notes; the reviewer may use it to nudge the per-conclusion synthesis
-  prior or the deduction warrant downward. Phase 1b does **not**
-  automatically lower or raise the weak point's numeric
-  `prior_probability` — it reflects the paper's own evidence, not LKM
-  downstream consumption.
-
-### When to skip
-
-- **Paper not in LKM corpus.** Step 3 yields no `data.variables[]` whose
-  `provenance.source_packages` includes the paper's `paper:<id>`. Note
-  the skip in the hand-off report; Phase 4 emit proceeds without
-  cross-grounding.
-- **Network or API failure.** Best-effort. Note the failure mode (e.g.
-  `code=290001` retry exhausted, network timeout) in the hand-off report
-  and continue. Phase 4 emit proceeds.
-- **Paper too recent for LKM ingestion cutoff.** Same handling as
-  not-found.
-- **`LKM_ACCESS_KEY` unavailable** (and the user declines to provide
-  one). Same handling as not-found.
-
-In every skip path, the rest of Phase 3 (weak points, highlights,
-synthesis priors) is unaffected. Phase 1b is an additive audit; its
-absence does not block emission.
-
 ## Phase-Completion Gate
 
 Before moving to Phase 4:
@@ -668,8 +546,5 @@ Before moving to Phase 4:
   self-contained (near-duplicates with no residual merged instead); shared-factor
   highlights stated once; a factor shared by a weak point and a highlight netted
   out and counted once, coherently.
-- Phase 1b LKM reverse-trace has either run (results captured in working
-  notes; `lkm_id` joins recorded for Phase 4) or been skipped with the
-  skip reason noted for the hand-off report.
 - The next todo is marked in progress before loading
   `phase-4-emit-package.md`.

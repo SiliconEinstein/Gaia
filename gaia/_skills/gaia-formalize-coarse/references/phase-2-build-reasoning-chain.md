@@ -28,14 +28,13 @@ Coarse-specific points on top of the shared methodology:
 
 - Coarse emits a **reduced DSL**: each derived conclusion becomes exactly one
   `derive(...)` whose premises are the union of its upstream conclusions and
-  (after Phase 3) its weak-point claims. This skill emits no `infer` /
+  (after Phase 3) its leaf premises (weak points and highlights). This skill
+  emits no `infer` /
   `observe` / `compute`, so the shared file's verb-specific remarks for those
   verbs do not apply here. The **one** exception is `decompose(...)`, emitted
   solely for the Phase 3 shared-factor (Pattern 3) case — to split a weak point
   that shares a latent cause into that cause plus its residual without deleting
   the original (see Phase 3 "Shared-factor evidence" and Phase 4).
-- The reconstructed step list stays in working notes (schema below); it
-  becomes the `--rationale` prose in Phase 4, not a file on disk now.
 
 ## Independence Check
 

@@ -11,10 +11,7 @@ description: |
   upfront suitability check (skip review/survey/perspective papers and
   corrupted paper text). Surfaces 9 argument-pattern weak-point types
   (`measurement`, `causal`, `model`, `statistical`, `generalization`,
-  `comparative`, `formal`, `computational`, `external`). Cross-grounds the
-  paper against LKM's existing knowledge graph in Phase 1b via
-  `gaia search lkm knowledge`, filtering on `provenance.source_packages` and
-  verifying reasoning-chain closure via `gaia search lkm reasoning --claim-id`.
+  `comparative`, `formal`, `computational`, `external`).
   This is the **Paper → package** entry point when speed matters — the quick
   four-phase single-pass sibling of `gaia-formalize-fine` (the thorough
   six-pass treatment). Reach for `gaia-formalize-coarse` for a fast first cut
@@ -91,10 +88,6 @@ on the working notes produced by the earlier phases.
    [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md).
 3. **Audit weak points and highlights, calibrate probabilities** — load
    [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md).
-   Phase 3 also contains the **Phase 1b LKM reverse-provenance trace** —
-   a best-effort cross-grounding pass against LKM's existing graph via
-   `gaia search lkm knowledge`. Skipped silently when the paper is
-   not yet in the LKM corpus.
 4. **Emit the Gaia package and audit log** — load
    [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md).
 
@@ -135,17 +128,16 @@ paragraph. Do not invent contributions to fill the gap.
 - **Paper text is the only source of truth.** Do not introduce external
   knowledge, repair missing arguments, or upgrade speculative claims. If a
   symbol is undefined in the paper, leave it undefined and surface the gap
-  in the hand-off report. (Phase 1b LKM cross-grounding is the one
-  exception — it queries LKM purely to *audit* what the paper said, never
-  to augment paper content.)
+  in the hand-off report.
 - **Two claim kinds only.** A `claim(...)` is either a step-1 root
-  conclusion or a step-3 weak point used as a leaf premise (the leaf gets
-  a paired `register_prior(...)`). A reasoning step is not a claim; it is
-  text that lives inside a `derive(...)` `rationale=` field. *Exception —
-  Pattern 3:* when step-3 finds weak points that share a latent cause, each
-  is `decompose`d into a shared-cause claim plus a residual claim; those
-  parts are the prior-bearing leaf premises and the original weak point is
-  kept as the composed whole (see Phase 3 "Shared-factor evidence").
+  conclusion or a step-3 leaf premise (a weak point or a highlight) used in a
+  conclusion's `given=[...]` with a paired `register_prior(...)`. A reasoning
+  step is not a claim; it is text that lives inside a `derive(...)`
+  `rationale=` field. *Exception — Pattern 3:* when step-3 finds leaf premises
+  that share a latent cause, each is `decompose`d into a shared-cause claim
+  plus a residual claim; those parts are the prior-bearing leaf premises and
+  the original is kept as the composed whole (see Phase 3 "Shared-factor
+  evidence").
 - **One epistemic question per conclusion.** Each conclusion `claim(...)`
   body answers exactly one citable question — "what is the new bound /
   relation / procedure / value / agreement?" — not several. A paragraph
@@ -158,10 +150,10 @@ paragraph. Do not invent contributions to fill the gap.
   of exactly one
   `derive(conclusion, given=[premises], rationale=..., label=...)`.
   Premises are the union of the conclusion's upstream conclusions (from
-  the cross-conclusion logic graph) and its weak-point claims. The
-  engine `derive(...)` signature accepts only
+  the cross-conclusion logic graph) and its leaf premises (weak points and
+  highlights). The engine `derive(...)` signature accepts only
   `{given, background, rationale, label}` — no `metadata=` kwarg, so
-  warrant-strength intent lives in `--rationale` prose.
+  warrant-strength intent lives in `rationale=` prose.
 - **Weak points and highlights are the same kind of leaf premise.** Both are
   non-trivial propositions the conclusion's derivation rests on, emitted as a
   `claim(...)` in the conclusion's `given=[...]` with a paired
@@ -181,8 +173,7 @@ paragraph. Do not invent contributions to fill the gap.
 
 ## Responsibility Boundaries
 
-- This skill owns the four analytical passes (plus the Phase 1b LKM
-  reverse-trace audit) and the Gaia package emission.
+- This skill owns the four analytical passes and the Gaia package emission.
 - It does not own package-shape — that is the canonical Gaia spec (see
   `docs/for-users/`). This skill consumes those rules where they apply and
   adds paper-decomposition workflow on top.
@@ -193,9 +184,9 @@ paragraph. Do not invent contributions to fill the gap.
 - It does not orchestrate the existing `paper-extract` Python pipeline.
   The Python pipeline is a parallel route from paper to XML; this skill
   is the direct route from paper to Gaia.
-- It does not own the LKM API surface — Phase 1b shells out to the
-  `gaia search lkm` CLI (`knowledge` / `reasoning --claim-id`). Flags, auth,
-  and known quirks live behind `gaia search lkm <verb> --help`.
+- It does not query LKM. Formalization is a paper → package transformation;
+  the LKM-driven route (which consumes the knowledge graph) is the separate
+  `gaia-lkm-explore` client.
 - Multi-paper merges, cross-paper contradictions, and downstream rendering
   are separate concerns handled by other tools.
 
@@ -208,8 +199,8 @@ paragraph. Do not invent contributions to fill the gap.
 - [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md)
   — per-conclusion reasoning reconstruction.
 - [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md)
-  — weak-point and highlight audit, probability calibration, and the
-  Phase 1b LKM reverse-provenance trace.
+  — weak-point and highlight audit (both as leaf premises) and probability
+  calibration.
 - [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md)
   — composing Phase 1–3 working notes into Gaia DSL package files.
 
@@ -233,10 +224,10 @@ with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
 
 - `docs/for-users/quick-start.md` — end-to-end Gaia knowledge-package
   workflow, including single-paper package layout and file templates.
-- `docs/for-users/language-reference.md` — `claim` / `derive` /
-  `question` emission rules, generic `lkm_id` / `provenance_source`
-  metadata semantics, deduction warrant calibration, label rules, and
-  `references.json` (CSL-JSON) conventions.
+- `docs/for-users/language-reference.md` — `claim` / `derive` / `decompose` /
+  `question` emission rules, `provenance_source` metadata semantics,
+  deduction warrant calibration, label rules, and `references.json`
+  (CSL-JSON) conventions.
 - `docs/for-users/cli-commands.md` — full CLI reference (`gaia build compile`
   / `build check` / `run infer` / `run render`).
 - `docs/for-users/hole-bridge-tutorial.md` — prior calibration tutorial.
@@ -245,10 +236,6 @@ For runtime help, prefer `gaia <group> <cmd> --help`.
 
 Sibling skills (this registry):
 
-- LKM search is the native `gaia search lkm` CLI (`knowledge` /
-  `reasoning [--claim-id]` / `nodes` / `package` / `auth`), used by the
-  Phase 1b reverse-provenance trace. Verify flags with
-  `gaia search lkm <verb> --help`.
 - The **`gaia-lkm-explore`** orchestrator client (run `gaia-lkm-explore turn <pkg>`; a
   sibling of `gaia`, not a registered skill) — the LKM-driven exploration turn
   loop producing the same Gaia knowledge-package output shape from a different
