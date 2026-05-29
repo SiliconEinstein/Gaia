@@ -36,10 +36,14 @@ agent running this skill does the analytical work itself; it does not
 orchestrate a separate extraction pipeline and does not produce intermediate
 XML artifacts.
 
-Gaia knowledge-package shape is the canonical Gaia spec — see
-`docs/for-users/language-reference.md` and `docs/for-users/quick-start.md` in
-this repo. This skill defines the paper-driven workflow that produces packages
-conforming to that spec.
+The canonical DSL surface is whatever `gaia sdk` emits — run it to drop a
+self-contained SDK reference + one-page cheat sheet into `./gaia-sdk/`; that is
+the version-matched, runtime-accessible source of truth for every verb, term,
+and distribution. Package layout comes from `gaia pkg scaffold`. This skill
+defines the paper-driven workflow that produces packages conforming to that
+surface; it does not restate the DSL spec. (The fuller human docs live under
+`docs/for-users/` when running inside the repo, but the skill relies on
+`gaia sdk`, not those paths.)
 
 ```
 paper.{md,txt,...}
@@ -173,9 +177,9 @@ paragraph. Do not invent contributions to fill the gap.
 ## Responsibility Boundaries
 
 - This skill owns the four analytical passes and the Gaia package emission.
-- It does not own package-shape — that is the canonical Gaia spec (see
-  `docs/for-users/`). This skill consumes those rules where they apply and
-  adds paper-decomposition workflow on top.
+- It does not own package-shape — that is the canonical DSL surface (`gaia sdk`)
+  plus the `gaia pkg scaffold` layout. This skill consumes those where they
+  apply and adds paper-decomposition workflow on top.
 - Phase 4 runs `gaia build compile` itself to validate the directly-written
   modules and iterates until it compiles clean. It does not run `gaia run infer`
   / `gaia inquiry review` — those downstream quality gates are caller obligations
@@ -219,16 +223,19 @@ with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
 - [`../_shared/formalize-independence.md`](../_shared/formalize-independence.md)
   — the no-double-counting check on each conclusion's premise set.
 
-### Gaia knowledge-package contract (this repo's docs)
+### Gaia DSL surface and CLI (runtime-accessible)
 
-- `docs/for-users/quick-start.md` — end-to-end Gaia knowledge-package
-  workflow, including single-paper package layout and file templates.
-- `docs/for-users/language-reference.md` — `claim` / `derive` / `decompose` /
-  `question` emission rules, `provenance_source` metadata semantics,
-  deduction warrant calibration, label rules, and `references.json`
-  (CSL-JSON) conventions.
-- `docs/for-users/cli-commands.md` — full CLI reference (`gaia build compile`
-  / `build check` / `run infer` / `run render`).
-- `docs/for-users/hole-bridge-tutorial.md` — prior calibration tutorial.
+- **`gaia sdk`** — the canonical DSL surface: writes a self-contained SDK
+  reference + one-page cheat sheet (every `claim` / `derive` / `decompose` /
+  `question` rule, terms, distributions, relations, label and citation
+  conventions) into `./gaia-sdk/`. **Read this before emitting; it is the
+  source of truth, not the docs tree.**
+- **`gaia pkg scaffold`** / **`gaia pkg add-module`** — package layout and
+  module files (run them; they create the structure).
+- **`gaia <group> <cmd> --help`** — per-command CLI reference
+  (`gaia build compile` / `build check` / `run infer` / `inquiry review`).
 
-For runtime help, prefer `gaia <group> <cmd> --help`.
+The fuller human docs (`docs/for-users/quick-start.md`,
+`language-reference.md`, `cli-commands.md`, `hole-bridge-tutorial.md`) exist
+for deeper reference when running inside the repo, but the skill relies on
+`gaia sdk` + `--help`, which match the installed version.

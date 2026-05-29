@@ -6,11 +6,11 @@ knowledge package on disk.
 
 ## Goal
 
-Produce a `<name>-gaia/` package on disk per the Gaia knowledge-package spec
-(file layout: `docs/for-users/quick-start.md`; `claim` / `derive` /
-`question` body discipline, label rules: `docs/for-users/language-reference.md`).
-After emission, the package must compile with `gaia build compile` and pass
-`gaia build check --hole .` (see `docs/for-users/cli-commands.md`).
+Produce a `<name>-gaia/` package on disk per the Gaia DSL surface (run
+`gaia sdk` for the `claim` / `derive` / `decompose` / `question` rules, body
+discipline, and label conventions; `gaia pkg scaffold` for the layout). After
+emission, the package must compile with `gaia build compile` and pass
+`gaia build check --hole .` (`gaia build check --help` for flags).
 
 ## Authoring surface — write the DSL directly
 
@@ -69,7 +69,7 @@ For every Phase 3 weak point, mint a label `<key>_c<id>_wp_<semantic_suffix>`;
 for every Phase 3 highlight, `<key>_c<id>_hl_<semantic_suffix>` (the `_wp_` /
 `_hl_` infix is the only marker distinguishing the two leaf-premise kinds).
 
-Label rules (canonical: `docs/for-users/language-reference.md` "label rules"):
+Label rules (canonical: the "label rules" in the `gaia sdk` reference):
 
 - Valid Gaia QID: `[a-z_][a-z0-9_]*`. Lowercase letters, digits, underscores.
 - No hyphens, no dots, no uppercase, no diacritics.
