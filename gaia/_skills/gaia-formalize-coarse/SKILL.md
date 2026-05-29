@@ -3,17 +3,17 @@ name: gaia-formalize-coarse
 description: |
   Use for a quick, single-paper formalization into a Gaia knowledge package:
   read one academic paper (Markdown preferred; plain-text or other readable
-  formats also accepted) and emit a standalone `<name>-gaia/` package. Runs a
-  four-phase analytical workflow (Phase 1 extract conclusions / motivation /
-  open questions / cross-conclusion logic graph; Phase 2 reconstruct each
-  conclusion's reasoning chain; Phase 3 audit weak points and highlights,
-  calibrate leaf priors; Phase 4 emit Gaia DSL package files), gated by an
+  formats also accepted) and emit a standalone `<name>-gaia/` package. Builds
+  the package incrementally: scaffold; write the conclusions (with motivation
+  and open questions); organize the cross-conclusion logic graph; then per
+  conclusion emit its weak points, highlights, and `derive(...)`; then finalize
+  (shared-factor decomposition, leaf priors, references, compile). Gated by an
   upfront suitability check (skip review/survey/perspective papers and
   corrupted paper text). Surfaces 9 argument-pattern weak-point types
   (`measurement`, `causal`, `model`, `statistical`, `generalization`,
   `comparative`, `formal`, `computational`, `external`).
   This is the **Paper → package** entry point when speed matters — the quick
-  four-phase single-pass sibling of `gaia-formalize-fine` (the thorough
+  single-pass sibling of `gaia-formalize-fine` (the thorough
   six-pass treatment). Reach for `gaia-formalize-coarse` for a fast first cut
   of one paper; reach for `gaia-formalize-fine` when the source is
   load-bearing, multi-section, or destined for publication. Use whenever the
@@ -72,38 +72,51 @@ Refresh / multi-paper batches are out of scope; if the user wants to merge a
 paper into an existing multi-paper package, the workflow is to produce the
 single-paper package here and then hand it off to a downstream merge step.
 
-## Progressive Workflow
+## Workflow
 
-At the start of each `gaia-formalize-coarse` run, create a session todo list
-with the four items below. Mark only Phase 1 as in progress. Do not load later
-phase documents until the current phase is complete; each later phase depends
-on the working notes produced by the earlier phases.
+The package is built **incrementally** — scaffold first, then write the DSL into
+each module as it is organized — not analyzed in full and dumped at the end.
+Create a session todo list with the six steps below and work them in order.
 
-1. **Extract conclusions, motivation, open questions, and the
-   cross-conclusion logic graph** — load
-   [`references/phase-1-extract-conclusions.md`](references/phase-1-extract-conclusions.md).
-2. **Reconstruct each conclusion's reasoning chain** — load
-   [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md).
-3. **Audit weak points and highlights, calibrate probabilities** — load
-   [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md).
-4. **Emit the Gaia package and audit log** — load
+1. **Suitability gate** (below) — decide whether the paper is formalizable; skip
+   with a `.skip.md` note if not.
+2. **Scaffold the package.** Read the DSL surface (`gaia sdk`), then
+   `gaia pkg scaffold` and add one module per source section. See
    [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md).
+3. **Write the conclusions.** Extract every conclusion and emit it as a
+   `claim(...)` into the module of the section where it is established; emit the
+   motivation `question(...)` into the intro module and each section's open
+   questions. Methodology:
+   [`references/phase-1-extract-conclusions.md`](references/phase-1-extract-conclusions.md).
+   (At this point the modules hold conclusion claims only — no derives, no
+   premises.)
+4. **Organize the logic graph.** With every conclusion now written, lay out the
+   directed dependencies among them (`A → B` = the paper uses A to derive B).
+   Same methodology file as step 3.
+5. **Per conclusion, in topological order: derive + weak points + highlights.**
+   For each conclusion, analyze and emit its weak points and highlights (leaf
+   premises) into its module, then emit its `derive(...)` whose `given` is its
+   upstream conclusions (from the logic graph) plus those leaf premises.
+   Compile-check the module before moving on. Methodology:
+   [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md)
+   (reasoning chains / derive) and
+   [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md)
+   (weak points, highlights, prior calibration).
+6. **Finalize.** Run the global independence (Pattern 3) scan over all leaf
+   premises and `decompose` shared causes; write `priors.py` (a
+   `register_prior` per leaf premise) and `references.json`; run the full
+   `gaia build compile` and the self-check. See phase-3 (independence) and
+   phase-4 (priors, compile, self-check).
 
-After each phase, immediately mark the corresponding todo complete, mark the
-next one in progress, and only then load the next phase document. Phases 1–3
-produce structured working notes (held in the agent's scratch, not on disk).
-Phase 4 is the only phase that writes files.
-
-The four-phase split is mental scaffolding, not a contract with the user.
-The agent must treat the phases as cumulative — the package emitted in Phase
-4 must reflect the conclusions, reasoning chains, weak points, and
-highlights surfaced in Phases 1–3 as a single coherent body of work, not as
-independent passes.
+Load each methodology file as you reach the step that needs it; you may load
+several at once (steps 3–6 draw on all four). The step split is scaffolding for
+sequencing the build, not independent passes — the finished package must be one
+coherent body of work.
 
 ## Suitability Gate
 
-Before Phase 1 begins, decide whether the paper is amenable to formalization.
-Skip with a short note if:
+Before scaffolding (step 1), decide whether the paper is amenable to
+formalization. Skip with a short note if:
 
 - The paper is a review, survey, or perspective without original results.
 - The paper has no identifiable structured contributions (no derivations, no
@@ -134,8 +147,8 @@ paragraph. Do not invent contributions to fill the gap.
   `rationale=` field. *Exception — Pattern 3:* when step-3 finds leaf premises
   that share a latent cause, each is `decompose`d into a shared-cause claim
   plus a residual claim; those parts are the prior-bearing leaf premises and
-  the original is kept as the composed whole (see Phase 3 "Shared-factor
-  evidence").
+  the original is kept as the composed whole (see the "Shared-factor
+  evidence" guidance in phase-3, run at the finalize step).
 - **One epistemic question per conclusion.** Each conclusion `claim(...)`
   body answers exactly one citable question — "what is the new bound /
   relation / procedure / value / agreement?" — not several. A paragraph
@@ -180,10 +193,10 @@ paragraph. Do not invent contributions to fill the gap.
 - It does not own package-shape — that is the canonical DSL surface (`gaia sdk`)
   plus the `gaia pkg scaffold` layout. This skill consumes those where they
   apply and adds paper-decomposition workflow on top.
-- Phase 4 runs `gaia build compile` itself to validate the directly-written
-  modules and iterates until it compiles clean. It does not run `gaia run infer`
-  / `gaia inquiry review` — those downstream quality gates are caller obligations
-  surfaced in the hand-off report.
+- The finalize step runs `gaia build compile` itself to validate the
+  directly-written modules and iterates until it compiles clean. It does not run
+  `gaia run infer` / `gaia inquiry review` — those downstream quality gates are
+  caller obligations surfaced in the hand-off report.
 - It does not orchestrate the existing `paper-extract` Python pipeline.
   The Python pipeline is a parallel route from paper to XML; this skill
   is the direct route from paper to Gaia.
@@ -205,7 +218,8 @@ paragraph. Do not invent contributions to fill the gap.
   — weak-point and highlight audit (both as leaf premises) and probability
   calibration.
 - [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md)
-  — composing Phase 1–3 working notes into Gaia DSL package files.
+  — emission mechanics: scaffold, write conclusions, per-conclusion derive +
+  leaf premises, finalize (decompose, priors, references, compile).
 
 ### Shared formalization methodology (`../_shared/`)
 

@@ -1,18 +1,19 @@
-# Phase 2 — Reconstruct the Reasoning Chain
+# Reconstruct the Reasoning Chain
 
-Load this file after Phase 1 is complete. Phase 2 produces the per-conclusion
-reasoning chains that will populate the `rationale=` field of each
-`derive(...)` in Phase 4.
+Methodology for the **derive** part of **workflow step 5** (per conclusion, in
+topological order). It produces the reasoning chain that becomes the
+`rationale=` of each conclusion's `derive(...)`.
 
 ## Goal
 
-For every Phase 1 conclusion, reconstruct the paper's own reasoning trace
-from foundational material (definitions, assumptions, experimental setups,
-upstream conclusions, prior cited results) to the conclusion itself.
+For each conclusion (taken in topological order on the step-4 logic graph),
+reconstruct the paper's own reasoning trace from foundational material
+(definitions, assumptions, experimental setups, upstream conclusions, prior
+cited results) to the conclusion itself.
 
-The trace is held in working notes as an ordered list of step strings per
-conclusion. Each step is one logical move. Steps are not claims; they are
-prose that becomes part of `derive(...)`'s `rationale=`.
+The trace is an ordered list of step strings — each step one logical move.
+Steps are not claims; they are the prose written directly into that
+conclusion's `derive(...)` `rationale=` when you emit it in step 5.
 
 ## Reconstruction Methodology
 
@@ -37,44 +38,32 @@ Coarse-specific points on top of the shared methodology:
   skill emits no `infer` /
   `observe` / `compute`, so the shared file's verb-specific remarks for those
   verbs do not apply here. The **one** exception is `decompose(...)`, emitted
-  solely for the Phase 3 shared-factor (Pattern 3) case — to split a weak point
-  that shares a latent cause into that cause plus its residual without deleting
-  the original (see Phase 3 "Shared-factor evidence" and Phase 4).
+  in the finalize step (step 6) for the shared-factor (Pattern 3) case — to
+  split a leaf premise that shares a latent cause into that cause plus its
+  residual without deleting the original (see phase-3 "Shared-factor evidence").
 
-## Independence Check
+## Per-derive independence (Pattern 1c)
 
-Before closing Phase 2, verify each derived conclusion's premise set encodes
-genuinely independent support — apply
-[`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md).
-At Phase 2 the load-bearing case is **Pattern 1c** (derived-premise
-redundancy): if an upstream conclusion reaches the current conclusion *only*
-through another upstream conclusion, drop it from the premise set so the same
-support does not enter the conclusion twice. **Pattern 3** (leaf premises that
-share a latent cause) is handled later, in Phase 3, once the weak-point leaves
-exist — by `decompose` rather than by dropping premises.
+When you assemble a conclusion's `derive(...)` premise set in step 5, apply the
+Pattern 1c check from
+[`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md):
+if an upstream conclusion reaches this conclusion *only* through another
+upstream conclusion, drop it from `given` so the same support does not enter
+twice. (**Pattern 3** — leaf premises across conclusions sharing a latent cause
+— is the global finalize-step scan, by `decompose`, not a per-derive drop.)
 
-## Holding Phase 2 output
+## Per-conclusion checks (within step 5)
 
-For each conclusion, hold its reasoning chain in context as an ordered, numbered
-list of step strings (and which upstream conclusions it builds on). No
-intermediate YAML/JSON — this prose **is** the `derive(...)` `rationale=` field
-Phase 4 emits, so write the numbered steps the way they should read in the final
-package. Step numbers are local to each conclusion's chain.
+As you emit each conclusion's `derive(...)`:
 
-## Phase-Completion Gate
-
-Before moving to Phase 3:
-
-- Every Phase 1 conclusion has a reasoning chain in working notes.
-- Each chain processes the conclusion in topological order on the logic
-  graph.
+- Its reasoning chain is an ordered, numbered list of logical moves, written
+  straight into `rationale=` (no intermediate artifact) — phrase the steps the
+  way they should read in the final package; step numbers are local to the chain.
+- The chain processes the conclusion in topological order on the logic graph.
 - No step contains a paper-internal pointer (Eq./Fig./Table/Sec./Appendix)
   whose content has not been inlined.
-- Every flagged logical gap or heuristic move is recorded as such, not
-  silently repaired.
-- Each conclusion's premise set contains every upstream conclusion it
-  depends on per the logic graph (none dropped except by the Pattern 1c
-  independence check below).
-- Each conclusion's premise set has passed the independence check.
-- The next todo is marked in progress before loading
-  `phase-3-review-weak-points.md`.
+- Every flagged logical gap or heuristic move is stated as such, not silently
+  repaired.
+- `given=` contains every upstream conclusion this one depends on per the logic
+  graph (none dropped except by the Pattern 1c check above), plus this
+  conclusion's leaf premises (weak points + highlights from phase-3).

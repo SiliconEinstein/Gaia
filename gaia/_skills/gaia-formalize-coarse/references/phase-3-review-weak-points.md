@@ -1,21 +1,22 @@
-# Phase 3 — Audit Weak Points and Highlights, Calibrate Probabilities
+# Audit Weak Points and Highlights, Calibrate Probabilities
 
-Load this file after Phase 2 is complete. Phase 3 is the analytical heart of
-the skill: it produces the load-bearing uncertainties (weak points) and
-load-bearing strengths (highlights) for each conclusion, and the leaf-claim
-prior calibrations that drive `priors.py`.
+The analytical heart of the skill. It supplies two things: the **per-conclusion**
+weak points and highlights (leaf premises) emitted in **workflow step 5**
+alongside each `derive(...)`, and the **global shared-factor (Pattern 3)** scan
+run in the **finalize step 6**. The leaf-premise prior calibrations here drive
+`priors.py` (also step 6).
 
 ## Goal
 
-For every Phase 1 conclusion, audit the reasoning chain reconstructed in
-Phase 2 and produce in working notes:
+In step 5, for the conclusion you are working on, audit its reasoning chain and
+emit:
 
 1. **Weak points** — non-trivial load-bearing premises the conclusion rests on
-   that the reviewer is *less* sure of. Each becomes a leaf `claim(...)` plus a
-   `register_prior(...)` entry (lower prior) in Phase 4.
+   that the reviewer is *less* sure of. Each is a leaf `claim(...)` in the
+   conclusion's `given=[...]` plus a `register_prior(...)` entry (lower prior).
 2. **Highlights** — non-trivial load-bearing premises the conclusion rests on
-   that the reviewer is *very* sure of. Same treatment: each becomes a leaf
-   `claim(...)` plus a `register_prior(...)` entry (higher prior) in Phase 4.
+   that the reviewer is *very* sure of. Same treatment: a leaf `claim(...)` plus
+   a `register_prior(...)` entry (higher prior).
    Weak points and highlights are the **same kind of leaf premise** — both go in
    the conclusion's `given=[...]`; the only difference is the prior magnitude and
    the `weak_point` / `highlight` tag. A highlight is extracted because it is
@@ -111,16 +112,17 @@ Before committing to a weak point, it must pass all five:
 
 ### Shared-factor evidence (independence — Pattern 3)
 
-The independence scan covers **every evidential factor that enters a
-conclusion's warrant — weak points AND highlights together**, not weak points
-alone. Both are evidence about the conclusion: a weak point lowers credence, a
-highlight raises it, and either is double-counted (or, across the two, left
-incoherent) when two factors are really driven by the **same latent cause**.
-Common shared causes: the same sample / cohort / specimen, the same instrument
-or measurement, the same software / numerical method, the same external
-assumption or lemma. Before closing Phase 3, scan the full factor set — every
-weak point and every highlight, across all conclusions, not just within one —
-for groups that share a cause. This is Gaia "Pattern 3 — unmodelled shared
+This is the **finalize step (step 6)** — run it once, globally, after every
+conclusion's leaf premises exist. The independence scan covers **every
+evidential factor that enters a conclusion's warrant — weak points AND
+highlights together**, not weak points alone. Both are evidence about the
+conclusion: a weak point lowers credence, a highlight raises it, and either is
+double-counted (or, across the two, left incoherent) when two factors are
+really driven by the **same latent cause**. Common shared causes: the same
+sample / cohort / specimen, the same instrument or measurement, the same
+software / numerical method, the same external assumption or lemma. Scan the
+full factor set — every weak point and every highlight, across all conclusions,
+not just within one — for groups that share a cause. This is Gaia "Pattern 3 — unmodelled shared
 dependency"; see
 [`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md).
 
@@ -166,14 +168,14 @@ How each factor type realises this:
   (name the system, symbols, units, regime — a residual readable only as "the
   rest of <original>" is not acceptable). This is the one place coarse emits
   `decompose` rather than `derive` (see Phase 4).
-- **Highlights** — highlights are working-notes folded into `derive(...)`
-  warrant prose, so the realisation is prose-level: state the shared strength
-  once; do not let two warrants (or one warrant twice) assert the same
-  underlying strength as independent reasons to credit.
+- **Highlights** — a highlight is a leaf premise too, so a shared cause among
+  highlights is decomposed exactly as for weak points (one shared-cause claim
+  reused across each highlight's decomposition; per-highlight residuals).
 - **A weak point and a highlight on the same cause** — the same cause cannot
-  independently both weaken and strengthen. Reconcile: decide the direction it
-  genuinely bears (or that it is a strength bounded by a caveat) and write it
-  once, coherently, not once as a highlight and again as a weak point.
+  coherently both weaken and strengthen the conclusion. Before decomposing,
+  reconcile: decide the direction the cause genuinely bears (or that it is a
+  strength bounded by a caveat) so it is represented once, not as an independent
+  weak point and an independent highlight pulling opposite ways.
 
 ## What Counts as a Highlight
 
@@ -463,11 +465,11 @@ always has premises to weigh. A conclusion with no weak point and no highlight
 and no upstream is isolated, which is not allowed: go back and surface its
 supporting premise.
 
-## Holding Phase 3 output
+## How this analysis maps to the DSL
 
-Hold the analysis in context — there is no intermediate working-notes
-YAML/JSON. Each leaf premise (weak point or highlight) maps directly to the
-Phase 4 DSL, and its reviewer reasoning lives in the DSL's own prose fields:
+There is no intermediate working-notes YAML/JSON. Each leaf premise (weak point
+or highlight) maps directly to DSL as you emit it (step 5), and its reviewer
+reasoning lives in the DSL's own prose fields:
 
 - **body** → the `claim(...)` string.
 - **`prior_probability`** → the `register_prior(...)` `value`.
@@ -510,9 +512,9 @@ This check guards against a known failure mode: agents tend to cluster
 priors at 0.80 because the bodies "look reasonable", losing the signal
 the weak-point analysis is supposed to produce.
 
-## Phase-Completion Gate
+## Gate (step 5 per conclusion + step 6 finalize)
 
-Before moving to Phase 4:
+Across the per-conclusion step and the finalize step, confirm:
 
 - Every conclusion has gone through both weak-point and highlight gating.
 - Every retained weak point and highlight passes its five gating questions

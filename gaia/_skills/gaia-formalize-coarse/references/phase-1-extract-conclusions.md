@@ -1,11 +1,13 @@
-# Phase 1 — Extract Conclusions, Motivation, Open Questions, Logic Graph
+# Extract Conclusions, Motivation, Open Questions, Logic Graph
 
-Load this file when `gaia-formalize-coarse` starts. Do not load later phase
-files until this phase is complete.
+Methodology for **workflow steps 3–4**: writing the conclusions (step 3) and
+organizing the logic graph among them (step 4). Conclusions are written
+directly as `claim(...)` into their section modules as they are identified — the
+DSL package is the only artifact.
 
 ## Goal
 
-Read the paper end-to-end and identify, in working notes:
+Read the paper end-to-end and identify:
 
 1. **Motivation** — the unresolved scientific problem-state that necessitated
    the paper's work (paper-level, single block).
@@ -16,8 +18,10 @@ Read the paper end-to-end and identify, in working notes:
 4. **Logic graph** — directed dependency edges among conclusions: an edge
    `A → B` means the paper's own reasoning uses A in deriving B.
 
-These four objects are held in context, not serialized to any intermediate
-artifact. Phase 4 is the only phase that writes files.
+The conclusions are emitted as `claim(...)` into their section modules as you
+identify them (step 3); motivation and open questions likewise. The logic graph
+(step 4) is held in context — it drives which upstream conclusions each
+`derive(...)` lists in step 5. No intermediate YAML/JSON artifact.
 
 ## Suitability Gate
 
@@ -28,9 +32,8 @@ Before extraction, decide whether the paper is amenable to formalization:
   new measurements, no new methods).
 - A corrupted / abstract-only paper text.
 
-If any holds, **stop here**. Do not invent contributions. Record the reason in
-working notes; Phase 4 will write a `<package_name>.skip.md` file instead of
-the package.
+If any holds, **stop here**. Do not invent contributions. Write a single
+`<package_name>.skip.md` recording the reason, and do not scaffold a package.
 
 ## Extraction Rules
 
@@ -49,13 +52,15 @@ apply them as you extract:
 
 Coarse-specific points on top of the shared rules:
 
-- Phase 1 extracts **conclusions only**. Weak points are extracted later, in
-  Phase 3, as leaf premises — they are not conclusions and are not subject to
+- Step 3 emits **conclusions only**. Weak points and highlights come later, in
+  step 5, as leaf premises — they are not conclusions and are not subject to
   the "what counts as a conclusion" test here.
-- Conclusions are held in context (see "Holding Phase 1 output" below), not on
-  disk; Phase 4 is the only phase that emits files.
+- Each conclusion is written as a `claim(...)` into the module of the section
+  where it is **established** (so dependencies run forward and later modules can
+  `import` it). Place a result mentioned early but established later in the
+  later section's module.
 - The figure / equation / citation pointers collected per the shared file's
-  `refs` whitelist become the `refs` metadata on each `claim(...)` in Phase 4.
+  `refs` whitelist become the `refs` metadata on each `claim(...)`.
 
 ## Motivation Block
 
@@ -81,35 +86,20 @@ conclusions into open questions.
 
 ## Logic Graph
 
-Build the directed dependency graph among conclusions — an edge `A → B` means
-the paper's own reasoning uses A in deriving B — per the "The logic graph"
-section of
+This is **step 4**, after every conclusion is written. Build the directed
+dependency graph among the conclusions — an edge `A → B` means the paper's own
+reasoning uses A in deriving B — per the "The logic graph" section of
 [`../../_shared/formalize-reasoning-chains.md`](../../_shared/formalize-reasoning-chains.md).
-Phase 2 consumes this graph for topological ordering.
+Step 5 consumes this graph: each conclusion's `derive(...)` lists its upstream
+conclusions in topological order. The graph is held in context (it maps onto
+the `derive` `given=` references — no intermediate artifact).
 
-## Holding Phase 1 output
+## Step gate (before step 5)
 
-Hold the four objects — motivation, the conclusions (each with a title, a
-self-contained body, and its citation / figure / table anchors), the logic
-graph, and open questions — **in context, in whatever form you find clearest**.
-Do not serialize them to an intermediate YAML/JSON artifact; there is no
-separate working-notes format. The Gaia DSL package is the only artifact, and
-Phase 4 emits it directly.
+Before starting the per-conclusion step:
 
-Give each conclusion a local id (1, 2, …) so Phases 2–3 can reference it and the
-logic graph can be stated as edges (`1 → 2`). These ids never appear in the
-emitted package — Phase 4 mints the final DSL labels from the paper key plus a
-semantic suffix.
-
-## Phase-Completion Gate
-
-Before moving to Phase 2:
-
-- Suitability decision is made; if skipping, stop here and note for Phase 4.
-- Every retained conclusion passes the atomicity, fidelity, and
-  self-containment checks from the `_shared/` files.
-- The logic graph is acyclic and minimal.
-- Motivation and open-question paragraphs are present (or recorded as
-  "no motivation block" / "no open questions" if genuinely absent).
-- The next todo is marked in progress before loading
-  `phase-2-build-reasoning-chain.md`.
+- Suitability decision is made; if skipping, stop and write the `.skip.md`.
+- Every conclusion has been written as a `claim(...)` in its section module and
+  passes the atomicity, fidelity, and self-containment checks from `_shared/`.
+- The logic graph over the written conclusions is acyclic and minimal.
+- Motivation and open questions are emitted (or recorded as genuinely absent).

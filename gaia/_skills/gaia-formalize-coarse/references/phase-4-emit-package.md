@@ -1,26 +1,29 @@
-# Phase 4 — Emit the Gaia Package
+# Emit the Gaia Package (mechanics)
 
-Load this file after Phase 3 is complete. This is the only phase that writes
-files. It composes the working notes from Phases 1–3 into a standalone Gaia
-knowledge package on disk.
+The emission mechanics for **workflow steps 2, 3, 5, and 6**. The package is
+built **incrementally**, not dumped at the end: scaffold (step 2), write the
+conclusion claims into their modules (step 3), then per conclusion append its
+leaf premises and `derive(...)` (step 5), then finalize — decompose shared
+factors, write priors + references, compile (step 6).
 
 ## Goal
 
 Produce a `<name>-gaia/` package on disk per the Gaia DSL surface (run
 `gaia sdk` for the `claim` / `derive` / `decompose` / `question` rules, body
-discipline, and label conventions; `gaia pkg scaffold` for the layout). After
-emission, the package must compile with `gaia build compile` and pass
+discipline, and label conventions; `gaia pkg scaffold` for the layout). When
+finalized, the package must compile with `gaia build compile` and pass
 `gaia build check --hole .` (`gaia build check --help` for flags).
 
 ## Authoring surface — write the DSL directly
 
-**Writing the DSL via the Python SDK is the primary authoring path.** Phase 4
-emits modules by writing Python source files directly (the file-write tool of
-your choice), not by driving the `gaia author` CLI one statement at a time. The
-`gaia author` CLI exists as an optional convenience; it writes the *same*
-statements one per invocation, which for a whole-paper package is dozens of
-round-trips. A direct module write is one file per section, then a single
-compile.
+**Writing the DSL via the Python SDK is the primary authoring path.** Emit by
+writing Python source files directly (the file-write tool of your choice), not
+by driving the `gaia author` CLI one statement at a time. The `gaia author` CLI
+exists as an optional convenience; it writes the *same* statements one per
+invocation, which for a whole-paper package is dozens of round-trips. Each
+module is built up directly: its conclusion claims in step 3, then its leaf
+premises and `derive(...)` appended in step 5 — compile-check the module as it
+takes shape, with a full compile at finalize.
 
 Before emitting, read the canonical DSL cheat sheet:
 
@@ -34,7 +37,7 @@ below is just the sequencing of those primitives for a single paper.
 
 The DSL primitives this skill emits:
 
-| Phase 4 emission | DSL primitive |
+| Emission | DSL primitive |
 |---|---|
 | Motivation question | `question(...)` |
 | Conclusion / weak-point / highlight claim | `claim(...)` |
@@ -43,7 +46,9 @@ The DSL primitives this skill emits:
 | Shared-factor split (Pattern 3 only) | `decompose(...)` |
 | Leaf prior record | `register_prior(...)` |
 
-## Step 0 — Decide the package name and import name
+## Naming and labels (decide before scaffolding)
+
+### Package name and import name
 
 - Extract the paper's reference key from its bibliographic metadata
   (`<FirstAuthorSurname><Year>`, e.g., `Liu2015`). If multiple papers shared a
@@ -59,15 +64,15 @@ The DSL primitives this skill emits:
 If the paper Markdown is missing author / year, fall back to `<topic-slug>-gaia`
 and note the metadata gap in the hand-off report.
 
-## Step 1 — Mint claim labels
+### Claim labels
 
-For every Phase 1 conclusion, mint a label `<key>_c<id>_<semantic_suffix>`,
-where the suffix is 1–4 tokens drawn from the conclusion's title (lowercase,
-ASCII, underscores only).
+For every conclusion, mint a label `<key>_c<id>_<semantic_suffix>`, where the
+suffix is 1–4 tokens drawn from the conclusion's title (lowercase, ASCII,
+underscores only). (Mint a conclusion's label when you write it in step 3.)
 
-For every Phase 3 weak point, mint a label `<key>_c<id>_wp_<semantic_suffix>`;
-for every Phase 3 highlight, `<key>_c<id>_hl_<semantic_suffix>` (the `_wp_` /
-`_hl_` infix is the only marker distinguishing the two leaf-premise kinds).
+For every weak point, mint `<key>_c<id>_wp_<semantic_suffix>`; for every
+highlight, `<key>_c<id>_hl_<semantic_suffix>` (the `_wp_` / `_hl_` infix is the
+only marker distinguishing the two leaf-premise kinds). (Mint these in step 5.)
 
 Label rules (canonical: the "label rules" in the `gaia sdk` reference):
 
@@ -78,7 +83,7 @@ Label rules (canonical: the "label rules" in the `gaia sdk` reference):
 The Python LHS binding name (the variable the rest of the package references)
 should equal the label, so a claim is `liu2015_c1_yield = claim(...)`.
 
-## Step 2 — Scaffold the package and add one module per section
+## Workflow step 2 — Scaffold the package and add one module per section
 
 Bootstrap the package directory:
 
@@ -121,105 +126,96 @@ not restrict cross-module references; later modules `from .motivation import ...
 If the paper has no clean section structure, a single `__init__.py` is
 acceptable — but prefer per-section whenever the paper has identifiable sections.
 
-## Step 3 — Write each section module directly
+## Workflow step 3 — Write the conclusions into their modules
 
-For each section module, use the file-write tool to emit the whole file in one
-write. A module looks like:
+Write each conclusion as a `claim(...)` into the module of the section where it
+is established. Also emit the motivation `question(...)` (into `motivation.py`)
+and each section's open questions. At this point the modules hold conclusion
+claims only — no leaf premises, no derives. A module under construction in step 3:
 
 ```python
 """<Section heading — the module's docstring is the section title>."""
 
-from gaia.engine.lang import claim, derive, question, note
-# later modules also import upstream claims they premise on:
-# from .motivation import liu2015_problem
-# from .s2_methods import liu2015_c1_protocol
+from gaia.engine.lang import claim, question, note
 
-# --- conclusions (Phase 1, this section) ---
 liu2015_c3_yield = claim(
     "<self-contained conclusion body, numbers + units inline>",
     title="<short title>",
     label="liu2015_c3_yield",
 )
+```
 
-# --- leaf-premise claims: weak points + highlights (Phase 3) ---
-# same shape; only the prior (set in priors.py) and the _wp_/_hl_ infix differ
-liu2015_c3_wp_sample = claim(
-    "<self-contained weak-point body>",
-    title="<short title>",
-    label="liu2015_c3_wp_sample",
-)
-liu2015_c3_hl_crosscheck = claim(
-    "<self-contained highlight body>",
-    title="<short title>",
-    label="liu2015_c3_hl_crosscheck",
-)
+- **Motivation** — one `question(...)` in `motivation.py`, bound as `<key>_problem`.
+- **Conclusions** — one `claim(...)` per conclusion. Body = the self-contained
+  body; do not rewrite it. Mint the label (above). The figure / table / citation
+  `refs` collected in step 3 attach here.
+- **Open questions (optional)** — one `question(...)` per open question, bound
+  `<key>_open_question_<n>`.
 
-# --- deductions: given= lists both weak-point and highlight premises ---
+## Workflow step 5 — Per conclusion: leaf premises + derive
+
+Walk the conclusions in topological order on the logic graph. For each, append
+to its module its leaf premises and its `derive(...)`, then compile-check the
+module before the next conclusion:
+
+```python
+from .s2_methods import liu2015_c1_protocol   # upstream conclusion it depends on
+
+# leaf premises (weak points + highlights) — same shape; only the prior
+# (set in priors.py) and the _wp_ / _hl_ infix differ:
+liu2015_c3_wp_sample = claim("<weak-point body>", title="...", label="liu2015_c3_wp_sample")
+liu2015_c3_hl_crosscheck = claim("<highlight body>", title="...", label="liu2015_c3_hl_crosscheck")
+
 liu2015_c3_chain = derive(
     liu2015_c3_yield,
     given=[liu2015_c1_protocol, liu2015_c3_wp_sample, liu2015_c3_hl_crosscheck],
-    rationale="<Phase 2 numbered chain prose; warrant-strength intent inline>",
+    rationale="<reasoning chain; warrant-strength intent inline>",
     label="liu2015_c3_chain",
 )
 ```
 
-Emission rules (carried over from the per-statement CLI path):
-
-1. **Motivation as `question(...)`** — one `question(...)` in `motivation.py`
-   for Phase 1's motivation block, bound as `<key>_problem`.
-2. **Conclusions** — one `claim(...)` per Phase 1 conclusion, in topological
-   order, in the module for the section where it first appears. Body = the
-   self-contained body from Phase 1 working notes; do not rewrite here.
-3. **Leaf-premise claims (weak points + highlights)** — one `claim(...)` per
-   Phase 3 weak point **and** per Phase 3 highlight; they are the same kind of
-   leaf premise and are emitted identically (a `claim(...)` in the target
-   conclusion's `given=[...]` plus a `register_prior(...)`), differing only in
-   the prior magnitude (weak points lower, highlights higher). Each is defined
-   exactly once; when conclusions are linked by the logic graph, bind a shared
-   premise upstream and let it propagate rather than re-listing it downstream.
-4. **Shared-factor decomposition (Pattern 3 only)** — when Phase 3 identified a
-   group of weak points driven by one latent cause, do **not** delete the
-   originals. Keep each original weak-point `claim(...)` and emit a
-   `decompose(...)` that splits it into the shared cause and its residual:
-
-   ```python
-   decompose(
-       c2_wp_sample_size,
-       parts=[sample_size_limit, c2_resid],
-       formula=land(sample_size_limit, c2_resid),
-       rationale="...",
-   )
-   ```
-
-   The `sample_size_limit` claim (the shared cause) is reused as a part across
-   every original in the group, so the shared uncertainty enters the graph once;
-   each residual is its own part. The shared cause and residual claims are new
-   `claim(...)`s that must be self-contained. This is the only place coarse uses
-   `decompose`; everywhere else it is `derive`.
-5. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
-   per **conclusion** (every conclusion, not only "derived" ones — there are no
-   isolated conclusions). Build the `given=` list **in this order**: first the
-   upstream conclusions this one depends on (every one, in logic-graph /
-   topological order — the Phase 2 inputs), then the leaf premises surfaced
-   while reasoning — weak points and highlights (the Phase 3 additions; the
-   originals, which Pattern 3 decomposition keeps intact). A root conclusion
-   with no upstream still has its ≥1 supporting leaf premise here.
-   - **Do not pass `metadata=` to `derive(...)`** — the engine signature accepts
-     only `{given, background, rationale, label}`. The same applies to
-     `contradict` / `equal` / `exclusive` / `observe`. Warrant-strength intent
-     lives in `rationale` prose, not a metadata kwarg.
-   - Warrant-strength intent: when Phase 2 surfaced an explicit logical gap, say
-     so in the rationale; when Phase 3 surfaced a highlight underwriting a step,
-     say so. The numerical prior surface lives only on leaf claims in `priors.py`.
-6. **Open questions (optional, opt-in)** — only when the user asks, emit
-   `question(...)` bound as `<key>_open_question_<n>`.
+- **Leaf-premise claims (weak points + highlights)** — one `claim(...)` each;
+  same kind of leaf premise, differing only in prior magnitude (weak points
+  lower, highlights higher) and the `_wp_` / `_hl_` infix. Each is defined once.
+- **One `derive(...)` per conclusion** (every conclusion — there are no isolated
+  conclusions). Build `given=` **in order**: first the upstream conclusions it
+  depends on (every one, topological order), then this conclusion's leaf
+  premises. A root with no upstream still has its ≥1 supporting leaf premise.
+  Apply the Pattern 1c check (drop an upstream that reaches the conclusion only
+  through another upstream).
+  - **Do not pass `metadata=` to `derive(...)`** — the signature is
+    `{given, background, rationale, label}` (same for `contradict` / `equal` /
+    `exclusive` / `observe`). Warrant-strength intent lives in `rationale=`
+    prose, not a kwarg; the numeric prior surface lives only on leaf premises.
 
 The string body of every `claim(...)` / `question(...)` is the self-contained
-body from working notes — no further rewriting in Phase 4. The Phase 1
-self-containment discipline and the Phase 3 body-writing rule already satisfy
-the body requirements; this phase only places and emits.
+body — no rewriting at emit time; the extraction and body-writing discipline
+already satisfied the requirements.
 
-## Step 4 — Write `priors.py`
+## Workflow step 6 — Finalize
+
+### 6a. Shared-factor decomposition (Pattern 3, global)
+
+Run the independence scan over **all** leaf premises (phase-3 "Shared-factor
+evidence"). For each group sharing a latent cause, do **not** delete the
+originals — keep each and emit a `decompose(...)` splitting it into the shared
+cause and its residual:
+
+```python
+decompose(
+    c2_wp_sample_size,
+    parts=[sample_size_limit, c2_resid],
+    formula=land(sample_size_limit, c2_resid),
+    rationale="...",
+)
+```
+
+The `sample_size_limit` claim (the shared cause) is reused as a part across
+every original in the group, so the shared uncertainty enters the graph once;
+each residual is its own part. Shared cause and residual are new self-contained
+`claim(...)`s. This is the only place coarse uses `decompose`.
+
+### 6b. Write `priors.py`
 
 Emit a `register_prior(...)` for **every leaf premise and nothing else**.
 Conclusions never get a prior — there are no isolated conclusions (every
@@ -251,7 +247,7 @@ it fails) compressed to one sentence; for a highlight, why the reviewer is
 near-certain of it. There is no separate stored field — the justification string
 is the reasoning.
 
-## Step 5 — Write `references.json`
+### 6c. Write `references.json`
 
 Emit a CSL-JSON object keyed by citation key. Each entry:
 
@@ -262,9 +258,10 @@ Emit a CSL-JSON object keyed by citation key. Each entry:
 
 Full schema: `docs/specs/2026-04-09-references-and-at-syntax.md`.
 
-## Step 6 — Compile once, then fix
+### 6d. Full compile, then fix
 
-Run a single full-package compile:
+Run the full-package compile (per-module compile-checks already happened in
+step 5; this catches cross-module issues):
 
 ```bash
 gaia build compile <name>-gaia/
@@ -275,7 +272,7 @@ recompile. Repeat until clean. A full compile catches cross-module issues
 (cyclic imports, unresolved references, IR-hash drift, manifest emission) that a
 per-statement check cannot.
 
-## Step 7 — Self-Check Before Reporting Complete
+### 6e. Self-check before reporting complete
 
 After a clean compile, verify the SOP-owned semantic content:
 
@@ -305,7 +302,7 @@ After a clean compile, verify the SOP-owned semantic content:
 
 If any check fails, fix it and recompile before reporting completion.
 
-## Step 8 — Hand Off
+### 6f. Hand off
 
 Report to the user:
 
@@ -319,5 +316,5 @@ Report to the user:
   - `gaia inquiry review --strict <name>-gaia/` — strict warrant / obligation /
     duplicate-control review.
 
-This skill does not run the quality gates itself beyond the Step 6 compile;
+This skill does not run the quality gates itself beyond the finalize compile;
 surfaced inquiry-review findings come back as a follow-up obligation.
