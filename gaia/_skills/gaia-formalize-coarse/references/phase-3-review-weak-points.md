@@ -101,17 +101,38 @@ Before committing to a weak point, it must pass all five:
 - Background facts not in question here.
 - Caveats that do not affect the conclusion.
 
-### Shared-factor weak points
+### Shared-factor weak points (independence — Pattern 3)
 
-If two weak points on the same conclusion share an underlying factor — same
-approximation, same dataset, same lemma, same external assumption — extract
-the shared factor as a separate weak-point claim and let both supports
-threaten that one factor. This is the same shared-factor extraction logic the
-`gaia-lkm-explore` orchestrator client bakes into its survey instructions (route
-two supports converging on one target through an extracted shared-factor claim
-so BP does not double-count them) on the `derive(...)` warrant surface (legacy
-`support()`); see `docs/for-users/language-reference.md` (`derive` semantics)
-for the canonical statement.
+Leaf weak points are modelled as independent prior-bearing claims, so two weak
+points that are really driven by the **same latent cause** double-count that
+uncertainty in belief propagation unless you handle the shared factor
+explicitly. Common shared causes: the same sample / cohort / specimen, the same
+instrument or measurement, the same software / numerical method, the same
+external assumption or lemma. Scan the full weak-point set (across all
+conclusions, not just within one) for such groups before closing Phase 3. This
+is Gaia "Pattern 3 — unmodelled shared dependency"; see
+[`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md).
+
+Two cases, handled differently because of coarse's constraints:
+
+- **Same-conclusion shared factor.** If the sharing weak points all bound the
+  *same* conclusion, extract the shared factor as a single weak-point claim and
+  drop the redundant siblings, so the one conclusion's premise set carries the
+  shared uncertainty exactly once. This both fixes the double-count and reduces
+  leaf count.
+- **Cross-conclusion shared factor.** If the sharing weak points bound
+  *different* conclusions (e.g. a small-sample-size limitation that both caps a
+  diversity estimate on C2 and weakens a linkage-disequilibrium test on C4), do
+  **not** extract one shared-factor claim and feed it into both conclusions'
+  `derive(...)` calls: a single premise fanning out to several conclusions
+  triggers the deduction fan-out penalty (modus-tollens drag — a known
+  factor-graph modelling issue) and breaks the weak-point ↔ one-conclusion
+  (strict) discipline. Instead keep each weak point bound to its own conclusion
+  but (a) record the shared cause in the hand-off report's independence note,
+  and (b) calibrate the priors so the shared uncertainty is not counted at full
+  independent strength in every conclusion — the same underlying risk must not
+  read as several independent near-fatal risks. The reviewer raises the shared
+  uncertainty's effective weight once, not once per conclusion.
 
 ## What Counts as a Highlight
 
@@ -614,6 +635,11 @@ Before moving to Phase 4:
   underwritten, scope of credit) and is not generic praise or
   paper-description.
 - Each conclusion has a synthesis (`prior_probability` + `narrative`).
+- The full weak-point set has been scanned for shared-factor groups
+  (Pattern 3): same-conclusion groups are merged to a single weak point;
+  cross-conclusion shared causes are recorded in the independence note and
+  reflected in prior calibration rather than counted independently per
+  conclusion.
 - Phase 1b LKM reverse-trace has either run (results captured in working
   notes; `lkm_id` joins recorded for Phase 4) or been skipped with the
   skip reason noted for the hand-off report.
