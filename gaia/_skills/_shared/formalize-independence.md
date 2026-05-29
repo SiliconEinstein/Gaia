@@ -78,8 +78,42 @@ You cannot create new experiments — you formalize what the paper provides:
 | Observation relationship | Modelling approach |
 |---|---|
 | Truly independent (different samples / labs) | Use the observations directly as parallel premises |
-| Partially independent (shared dependency + independent components) | Extract the shared dependency as an explicit claim |
+| Partially independent (shared dependency + independent components) | Decompose each into the shared cause + its residual (below) |
 | Completely redundant (same data rephrased) | Merge into a single claim |
+
+### Decompose, do not delete the original
+
+The `derive`-based rewrite above re-roots fresh observations in a shared cause.
+But a factor you want to split is often **load-bearing elsewhere** — it is the
+conclusion of another reasoning step, or a premise of more than one derivation.
+Do **not** delete it or silently rewrite it into pieces: that breaks every
+reference to it. Instead keep the original claim and use `decompose(...)` to
+state it as its shared-cause part plus its residual:
+
+```python
+# the original premise is KEPT as the `whole`; it stays referenceable everywhere
+decompose(
+    original_premise,
+    parts=[shared_cause, residual],
+    formula=land(shared_cause, residual),
+    rationale="the original holds iff the shared cause holds and the residual-specific consequence holds",
+)
+```
+
+- `shared_cause` is one claim, reused as a part in **every** original that
+  shares it — the correlation then enters the graph once, at this single leaf,
+  and reaches each dependent through its decomposition.
+- `residual` is what the original asserts *given* the shared cause; it stays an
+  independent leaf, one per original.
+- `gaia build check --hole` treats the `parts` (shared cause + residual) as the
+  atomic prior-bearing leaves, while the original `whole` remains a usable node,
+  so no upstream reasoning or downstream premise that referenced it breaks.
+
+Rewrite both the shared cause and each residual to be **self-contained** — they
+are now standalone prior-bearing claims, so each must name its system, symbols,
+units, and regime on its own (the self-standing rule every claim obeys). A
+residual readable only as "the rest of <original>" is not acceptable; state the
+conclusion-specific consequence in full.
 
 ## Pattern 4 — `equal` plus separate relations (structural-verb skills only)
 

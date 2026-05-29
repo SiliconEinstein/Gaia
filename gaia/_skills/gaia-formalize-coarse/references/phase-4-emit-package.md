@@ -40,6 +40,7 @@ The DSL primitives this skill emits:
 | Conclusion / weak-point claim | `claim(...)` |
 | Transcribed figure / table context | `note(...)` (optional) |
 | Deduction (1+ premises → conclusion) | `derive(...)` |
+| Shared-factor split (Pattern 3 only) | `decompose(...)` |
 | Leaf prior record | `register_prior(...)` |
 
 ## Step 0 — Decide the package name and import name
@@ -162,20 +163,32 @@ Emission rules (carried over from the per-statement CLI path):
    order, in the module for the section where it first appears. Body = the
    self-contained body from Phase 1 working notes; do not rewrite here.
 3. **Weak-point leaf claims** — one `claim(...)` per Phase 3 weak point, each
-   defined exactly once. A weak point that undermines a single conclusion is a
-   premise in that one conclusion's deduction; when the conclusions are linked
-   by the logic graph, bind it upstream and let it propagate rather than
-   re-listing it downstream. A Phase 3 **shared-factor** weak point (one cause
-   that genuinely bounds several conclusions with no logic-graph link between
-   them) is the exception: list it in the `given=[...]` of each conclusion it
-   bounds, so the shared uncertainty enters once and reaches every dependent.
-   This does not incur a fan-out penalty — deduction implication factors are
-   directed. The per-conclusion **residuals** of that group stay as ordinary
-   single-conclusion weak points, each listed only in its own conclusion's
-   `given=[...]`.
-4. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
+   defined exactly once and a premise in its target conclusion's deduction; when
+   conclusions are linked by the logic graph, bind a shared weak point upstream
+   and let it propagate rather than re-listing it downstream.
+4. **Shared-factor decomposition (Pattern 3 only)** — when Phase 3 identified a
+   group of weak points driven by one latent cause, do **not** delete the
+   originals. Keep each original weak-point `claim(...)` and emit a
+   `decompose(...)` that splits it into the shared cause and its residual:
+
+   ```python
+   decompose(
+       c2_wp_sample_size,
+       parts=[sample_size_limit, c2_resid],
+       formula=land(sample_size_limit, c2_resid),
+       rationale="...",
+   )
+   ```
+
+   The `sample_size_limit` claim (the shared cause) is reused as a part across
+   every original in the group, so the shared uncertainty enters the graph once;
+   each residual is its own part. The shared cause and residual claims are new
+   `claim(...)`s that must be self-contained. This is the only place coarse uses
+   `decompose`; everywhere else it is `derive`.
+5. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
    per derived conclusion. The `given=` list is the union of upstream conclusion
-   bindings and this conclusion's weak-point bindings.
+   bindings and this conclusion's weak-point bindings (the original weak points,
+   which Pattern 3 decomposition keeps intact).
    - **Do not pass `metadata=` to `derive(...)`** — the engine signature accepts
      only `{given, background, rationale, label}`. The same applies to
      `contradict` / `equal` / `exclusive` / `observe`. Warrant-strength intent
@@ -183,7 +196,7 @@ Emission rules (carried over from the per-statement CLI path):
    - Warrant-strength intent: when Phase 2 surfaced an explicit logical gap, say
      so in the rationale; when Phase 3 surfaced a highlight underwriting a step,
      say so. The numerical prior surface lives only on leaf claims in `priors.py`.
-5. **Open questions (optional, opt-in)** — only when the user asks, emit
+6. **Open questions (optional, opt-in)** — only when the user asks, emit
    `question(...)` bound as `<key>_open_question_<n>`.
 
 The string body of every `claim(...)` / `question(...)` is the self-contained

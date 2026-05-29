@@ -141,7 +141,11 @@ paragraph. Do not invent contributions to fill the gap.
 - **Two claim kinds only.** A `claim(...)` is either a step-1 root
   conclusion or a step-3 weak point used as a leaf premise (the leaf gets
   a paired `register_prior(...)`). A reasoning step is not a claim; it is
-  text that lives inside a `derive(...)` `rationale=` field.
+  text that lives inside a `derive(...)` `rationale=` field. *Exception —
+  Pattern 3:* when step-3 finds weak points that share a latent cause, each
+  is `decompose`d into a shared-cause claim plus a residual claim; those
+  parts are the prior-bearing leaf premises and the original weak point is
+  kept as the composed whole (see Phase 3 "Shared-factor evidence").
 - **One epistemic question per conclusion.** Each conclusion `claim(...)`
   body answers exactly one citable question — "what is the new bound /
   relation / procedure / value / agreement?" — not several. A paragraph

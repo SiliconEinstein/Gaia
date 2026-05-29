@@ -134,15 +134,17 @@ factor's residual.
      sample size"; for C4 "the linkage-disequilibrium test is underpowered at
      this sample size"). The residuals are conditionally independent given `C`,
      so they stay as separate independent factors.
-   Then each conclusion's `derive(...)` lists **both** `C` and that conclusion's
-   own residual. `C` enters the graph once and reaches every dependent; the
-   residual carries only the conclusion-specific consequence. A shared cause
-   premised into several conclusions' derives is correct and carries **no
-   fan-out penalty** — deduction implication factors are directed, so the
-   conclusion does not send a spurious backward drag to the shared antecedent.
-   Do this whether the factors sit under the same conclusion or different ones;
-   never bind the cause to one conclusion and hide its effect on the others in
-   working notes.
+   **Keep the original factor — do not delete it.** It may be the conclusion of
+   another reasoning step or a premise of more than one derivation; rewriting it
+   away breaks those references. Realise the split with `decompose(...)`, which
+   keeps the original as the `whole` and makes the shared cause and residual its
+   atomic prior-bearing parts. Do this whether the factors sit under the same
+   conclusion or different ones; never bind the cause to one conclusion and hide
+   its effect on the others in working notes. A shared cause reaching several
+   conclusions carries **no fan-out penalty** — deduction implication factors
+   are directed, so the conclusion does not drag the shared antecedent backward.
+   See [`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md)
+   ("Decompose, do not delete the original") for the canonical statement.
 2. **No residual → merge.** If a factor is nothing but the shared cause (its
    residual is empty / negligible), there is nothing to keep separately:
    collapse the near-duplicates to the single shared-cause claim. This is the
@@ -150,11 +152,15 @@ factor's residual.
 
 How each factor type realises this:
 
-- **Weak points** — the shared cause is one weak-point claim with one prior,
-  listed in the `given=[...]` of every conclusion it bounds; each residual is a
-  separate weak-point claim listed only in its own conclusion's `given=[...]`.
-  The shared uncertainty enters the graph exactly once and reaches each
-  conclusion through that single node, while the residuals stay independent.
+- **Weak points** — keep each original weak-point claim and emit
+  `decompose(original_wp, parts=[shared_cause, residual], formula=land(...))`.
+  The `shared_cause` claim is reused as a part in **every** weak point that
+  shares it, so the shared uncertainty enters the graph once; each `residual` is
+  its own part, independent given the cause. Both the shared cause and every
+  residual are new standalone claims and must be rewritten **self-contained**
+  (name the system, symbols, units, regime — a residual readable only as "the
+  rest of <original>" is not acceptable). This is the one place coarse emits
+  `decompose` rather than `derive` (see Phase 4).
 - **Highlights** — highlights are working-notes folded into `derive(...)`
   warrant prose, so the realisation is prose-level: state the shared strength
   once; do not let two warrants (or one warrant twice) assert the same
@@ -670,11 +676,11 @@ Before moving to Phase 4:
 - Each conclusion has a synthesis (`prior_probability` + `narrative`).
 - The full evidence set — weak points AND highlights, across all
   conclusions — has been scanned for shared-factor groups (Pattern 3) and
-  resolved globally by decomposition: the shared cause extracted to a single
-  claim premised into every conclusion it bounds, each factor's residual kept as
-  a separate claim in only its own conclusion (near-duplicates with no residual
-  merged); shared-factor highlights stated once; a factor shared by a weak point
-  and a highlight netted out and counted once, coherently.
+  resolved globally by `decompose`: each original weak point is kept and split
+  into a reused shared-cause part plus its own residual part, both rewritten
+  self-contained (near-duplicates with no residual merged instead); shared-factor
+  highlights stated once; a factor shared by a weak point and a highlight netted
+  out and counted once, coherently.
 - Phase 1b LKM reverse-trace has either run (results captured in working
   notes; `lkm_id` joins recorded for Phase 4) or been skipped with the
   skip reason noted for the hand-off report.

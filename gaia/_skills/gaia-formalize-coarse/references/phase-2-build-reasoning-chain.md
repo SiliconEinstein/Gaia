@@ -29,8 +29,11 @@ Coarse-specific points on top of the shared methodology:
 - Coarse emits a **reduced DSL**: each derived conclusion becomes exactly one
   `derive(...)` whose premises are the union of its upstream conclusions and
   (after Phase 3) its weak-point claims. This skill emits no `infer` /
-  `observe` / `compute` / `decompose`, so the shared file's verb-specific
-  remarks for those verbs do not apply here.
+  `observe` / `compute`, so the shared file's verb-specific remarks for those
+  verbs do not apply here. The **one** exception is `decompose(...)`, emitted
+  solely for the Phase 3 shared-factor (Pattern 3) case — to split a weak point
+  that shares a latent cause into that cause plus its residual without deleting
+  the original (see Phase 3 "Shared-factor evidence" and Phase 4).
 - The reconstructed step list stays in working notes (schema below); it
   becomes the `--rationale` prose in Phase 4, not a file on disk now.
 
@@ -39,10 +42,12 @@ Coarse-specific points on top of the shared methodology:
 Before closing Phase 2, verify each derived conclusion's premise set encodes
 genuinely independent support — apply
 [`../../_shared/formalize-independence.md`](../../_shared/formalize-independence.md).
-In coarse's reduced DSL the load-bearing case is **Pattern 1c**
-(derived-premise redundancy): if an upstream conclusion reaches the current
-conclusion *only* through another upstream conclusion, drop it from the
-premise set so the same support does not enter the conclusion twice.
+At Phase 2 the load-bearing case is **Pattern 1c** (derived-premise
+redundancy): if an upstream conclusion reaches the current conclusion *only*
+through another upstream conclusion, drop it from the premise set so the same
+support does not enter the conclusion twice. **Pattern 3** (leaf premises that
+share a latent cause) is handled later, in Phase 3, once the weak-point leaves
+exist — by `decompose` rather than by dropping premises.
 
 ## Working Notes Schema
 
