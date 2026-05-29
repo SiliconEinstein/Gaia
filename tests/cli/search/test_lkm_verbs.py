@@ -805,8 +805,7 @@ class TestReasoning:
         assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] is None
         assert item["source"]["conclusion_id"] == "7"
-        assert item["source"]["has_factors"] is False
-        assert item["source"]["can_compile"] is False
+        assert item["source"]["factors"] == []
         assert item["actions"] == [
             {
                 "kind": "inspect",
@@ -860,8 +859,7 @@ class TestReasoning:
         item = json.loads(result.output)["results"][0]
         assert item["kind"] == "reasoning_chain"
         assert item["gaia"]["object_kind"] == "derive"
-        assert item["source"]["has_factors"] is True
-        assert item["source"]["can_compile"] is True
+        assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
 
     def test_claim_reasoning_uses_factor_id_when_chain_id_is_missing(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1020,8 +1018,7 @@ class TestReasoningSearch:
         assert item["source"]["paper_id"] == "811827932371615744"
         assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] == "FAPbI3 processing paper"
-        assert item["source"]["has_factors"] is True
-        assert item["source"]["can_compile"] is True
+        assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
         assert item["actions"] == [
             {
                 "kind": "add",

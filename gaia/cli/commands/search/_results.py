@@ -200,10 +200,10 @@ def _normalize_lkm_chain(
         or provider_id
     )
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
-    has_factors = bool(_list(chain.get("factors")))
-    can_compile = _chain_can_compile(chain)
+    factors_summary = _factor_summaries(chain)
+    has_premised_factor = any(f["premise_count"] > 0 for f in factors_summary)
     actions: list[dict[str, Any]] = []
-    if not can_compile and paper_id is not None:
+    if not has_premised_factor and paper_id is not None:
         actions.append(
             {
                 "kind": "inspect",
@@ -223,7 +223,7 @@ def _normalize_lkm_chain(
             "score": _number(chain.get("score"), chain.get("rerank_score")),
             "score_kind": "retrieval",
         },
-        "gaia": _gaia_identity("derive" if can_compile else None),
+        "gaia": _gaia_identity("derive" if has_premised_factor else None),
         "source": {
             "provider_id": provider_id,
             "index_id": index_id,
@@ -232,8 +232,7 @@ def _normalize_lkm_chain(
             "paper_title": paper_title,
             "doi": doi,
             "conclusion_id": _string(conclusion.get("id")) or _string(chain.get("conclusion_id")),
-            "has_factors": has_factors,
-            "can_compile": can_compile,
+            "factors": factors_summary,
         },
         "actions": actions,
         "raw": {"provider": "lkm", "payload": chain},
@@ -402,14 +401,25 @@ def _chain_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _chain_can_compile(chain: dict[str, Any]) -> bool:
-    factors = _list(chain.get("factors"))
-    for factor in factors:
+def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-factor premise counts.
+
+    ``premise_count > 0`` is the single signal for "this factor is a derivation
+    step" (emit a ``derive``); ``premise_count == 0`` is a base/leaf assertion
+    (emit a leaf ``claim``). Replaces the old chain-level ``can_compile`` /
+    ``has_factors`` booleans, which conflated leaf factors with failures.
+    """
+    summaries: list[dict[str, Any]] = []
+    for factor in _list(chain.get("factors")):
         if not isinstance(factor, dict):
             continue
-        if _dict(factor.get("conclusion")) and _list(factor.get("premises")):
-            return True
-    return False
+        summaries.append(
+            {
+                "factor_id": _string(factor.get("id")) or _string(factor.get("factor_id")),
+                "premise_count": len(_list(factor.get("premises"))),
+            }
+        )
+    return summaries
 
 
 def _chain_source_package(chain: dict[str, Any]) -> str | None:
