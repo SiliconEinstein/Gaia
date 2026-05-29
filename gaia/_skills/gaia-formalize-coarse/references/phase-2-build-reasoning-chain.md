@@ -49,29 +49,13 @@ support does not enter the conclusion twice. **Pattern 3** (leaf premises that
 share a latent cause) is handled later, in Phase 3, once the weak-point leaves
 exist — by `decompose` rather than by dropping premises.
 
-## Working Notes Schema
+## Holding Phase 2 output
 
-```yaml
-reasoning_chains:
-  - conclusion_id: 1
-    title: <repeats Phase 1 title>
-    upstreams: []
-    steps:
-      - "1. <full prose for step 1>."
-      - "2. <full prose for step 2>."
-      - ...
-  - conclusion_id: 2
-    title: ...
-    upstreams: [1]
-    steps:
-      - "1. From conclusion 1's result, ... is treated as known: <inlined statement>."
-      - "2. <bridging step>."
-      - ...
-```
-
-Step ids are **local** to each conclusion's chain (1, 2, 3, ... per chain).
-The numbered Markdown formatting carries through to the final `derive(...)`
-`rationale=` field in Phase 4.
+For each conclusion, hold its reasoning chain in context as an ordered, numbered
+list of step strings (and which upstream conclusions it builds on). No
+intermediate YAML/JSON — this prose **is** the `derive(...)` `rationale=` field
+Phase 4 emits, so write the numbered steps the way they should read in the final
+package. Step numbers are local to each conclusion's chain.
 
 ## Phase-Completion Gate
 

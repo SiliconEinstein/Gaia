@@ -16,8 +16,8 @@ Read the paper end-to-end and identify, in working notes:
 4. **Logic graph** — directed dependency edges among conclusions: an edge
    `A → B` means the paper's own reasoning uses A in deriving B.
 
-These four objects are held in working notes only. Phase 4 is the only phase
-that writes files.
+These four objects are held in context, not serialized to any intermediate
+artifact. Phase 4 is the only phase that writes files.
 
 ## Suitability Gate
 
@@ -52,8 +52,8 @@ Coarse-specific points on top of the shared rules:
 - Phase 1 extracts **conclusions only**. Weak points are extracted later, in
   Phase 3, as leaf premises — they are not conclusions and are not subject to
   the "what counts as a conclusion" test here.
-- Conclusions live in working notes (schema below), not on disk; Phase 4 is
-  the only phase that emits files.
+- Conclusions are held in context (see "Holding Phase 1 output" below), not on
+  disk; Phase 4 is the only phase that emits files.
 - The figure / equation / citation pointers collected per the shared file's
   `refs` whitelist become the `refs` metadata on each `claim(...)` in Phase 4.
 
@@ -87,49 +87,19 @@ section of
 [`../../_shared/formalize-reasoning-chains.md`](../../_shared/formalize-reasoning-chains.md).
 Phase 2 consumes this graph for topological ordering.
 
-## Working Notes Schema
+## Holding Phase 1 output
 
-Hold Phase 1 output in scratch as something like:
+Hold the four objects — motivation, the conclusions (each with a title, a
+self-contained body, and its citation / figure / table anchors), the logic
+graph, and open questions — **in context, in whatever form you find clearest**.
+Do not serialize them to an intermediate YAML/JSON artifact; there is no
+separate working-notes format. The Gaia DSL package is the only artifact, and
+Phase 4 emits it directly.
 
-```yaml
-suitability: ok | skip
-skip_reason: <if skipping>
-
-motivation: |
-  <single paragraph>
-
-conclusions:
-  - id: 1
-    title: <≤ 25-word descriptor>
-    body: <self-contained scientific proposition>
-    citation_keys: ["Smith2020"]
-    artifact_anchors:
-      - kind: figure
-        source: Smith2020
-        locator: "Fig. 2"
-      - kind: table
-        source: Smith2020
-        locator: "Table I"
-    inline_equations: ["Eq. (5) content must be transcribed into body if load-bearing"]
-  - id: 2
-    title: ...
-    body: ...
-    citation_keys: ...
-    artifact_anchors: ...
-
-logic_graph:
-  - from: 1
-    to: 2
-  - from: 1
-    to: 3
-
-open_questions: |
-  <single paragraph>
-```
-
-The `id` integers are local to this paper and are referenced by Phases 2 and
-3. They will not appear in the emitted Gaia DSL — the final claim labels are
-minted in Phase 4 from the paper key plus a semantic suffix.
+Give each conclusion a local id (1, 2, …) so Phases 2–3 can reference it and the
+logic graph can be stated as edges (`1 → 2`). These ids never appear in the
+emitted package — Phase 4 mints the final DSL labels from the paper key plus a
+semantic suffix.
 
 ## Phase-Completion Gate
 

@@ -240,9 +240,12 @@ register_prior(
 )
 ```
 
-Justification format: one line, terse rationale (model assumption / empirical
-pattern / cited result) ending with `TODO:review`. Pull it from the weak point's
-`weakness_reason` (compressed to one sentence) or the conclusion's `narrative`.
+Justification format: one line, terse rationale ending with `TODO:review`. This
+is where the Phase 3 reviewer reasoning lives — for a weak point, the
+`weakness_reason` plus the `failure_mode` (why it is uncertain and what breaks if
+it fails) compressed to one sentence; for a highlight, why the reviewer is
+near-certain of it; for an isolated conclusion, its synthesis narrative. There
+is no separate stored field — the justification string is the reasoning.
 
 ## Step 5 — Write `references.json`
 

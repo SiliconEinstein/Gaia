@@ -252,23 +252,21 @@ prior magnitude — see formalize/SKILL.md). The writing rules are identical:
 - **Concrete subject**: the procedure, the estimator, the model, the
   measurement — not "the paper" or "this work".
 
-The reviewer fields (`weakness_reason`, `failure_mode` for weak points;
-`credit` for highlights) are reviewer commentary written **about** the body
-and live in Phase 3 working notes only — they do not enter the executable
-DSL and do not get emitted as audit artifacts in the post-purge SOP. They
-inform the qualitative warrant-strength prose Phase 4 writes into each
-deduction's `--rationale` and the agent's own hand-off narrative.
+The reviewer reasoning (`weakness_reason`, `failure_mode` for weak points;
+`credit` for highlights) is commentary written **about** the body. It is not a
+separate stored field — it is written directly into the DSL prose: the
+`register_prior(...)` `justification` (for weak points / highlights) and the
+threatened conclusion's `derive(...)` `rationale` (warrant strength, credit).
 
-## Reviewer-Field Writing Rules (`weakness_reason` / `failure_mode` / `credit`)
+## Reviewer-Reasoning Writing Rules (`weakness_reason` / `failure_mode` / `credit`)
 
-These three fields are where Phase 3's analytical value materializes for the
-reviewing agent. Gaia's BP propagation only consumes the numeric
-`prior_probability` on leaf claims (via `register_prior`); the textual
-reasoning behind those numbers — what makes a weak point worth surfacing,
-what would break if it failed, why a highlight underwrites the conclusion —
-lives only in working notes and informs the warrant-strength prose Phase 4
-writes into each deduction's `--rationale`. Sloppy writing here means
-Phase 4's rationale and the agent's own hand-off narrative are unjustified.
+This reasoning is where Phase 3's analytical value materializes. Gaia's BP
+propagation only consumes the numeric `prior_probability` on leaf claims (via
+`register_prior`); the textual reasoning behind those numbers — what makes a
+weak point worth surfacing, what would break if it failed, why a highlight
+underwrites the conclusion — is written into the `register_prior(...)`
+`justification` and the `derive(...)` `rationale` Phase 4 emits. Sloppy writing
+here means those justifications and rationales are unjustified.
 
 All three are read alongside the `body` they annotate and may freely refer
 to its contents — they do **not** need to restate the body's setup, and
@@ -472,54 +470,28 @@ If a conclusion has zero weak points and zero highlights, the narrative is a
 single sentence stating that no load-bearing risks or distinguishing
 strengths were identified.
 
-## Working Notes Schema
+## Holding Phase 3 output
 
-```yaml
-weak_points:
-  - id: P1                       # ephemeral id local to working notes
-    conclusion_ids: [1]          # conclusion(s) this weak point is premised into.
-                                 # Usually one. A shared-factor weak point (Pattern 3)
-                                 # genuinely bounding several unlinked conclusions lists
-                                 # all of them — it is emitted into each one's deduction.
-    shared_cause: null           # set when this weak point was extracted as the common
-                                 # cause of a Pattern 3 group (scan aid → drives conclusion_ids)
-    title: <≤ 25-word descriptor>
-    body: <self-standing scientific proposition>
-    weak_types: [model]
-    prior_probability: 0.65
-    weakness_reason: <reviewer critique of why the body claim is uncertain>
-    failure_mode: <reviewer counterfactual: what breaks in the threatened conclusion if body fails>
-    citation_keys: ["SourceKey"]
-    artifact_anchors:
-      - {kind: figure, source: "SourceKey", locator: "Fig. 4"}
-    inline_equations: ["Eq. (12) content must be transcribed into body if load-bearing"]
+Hold the analysis in context — there is no intermediate working-notes
+YAML/JSON. Each leaf premise (weak point or highlight) maps directly to the
+Phase 4 DSL, and its reviewer reasoning lives in the DSL's own prose fields:
 
-highlights:                        # same leaf-premise shape as weak_points;
-                                   # emitted into the conclusion's given=[...] with a
-                                   # register_prior — the only difference is the higher prior
-  - id: H1
-    conclusion_ids: [1]            # conclusion(s) this highlight is premised into (Pattern 3 may list several)
-    shared_cause: null
-    title: <descriptor>
-    body: <self-standing scientific proposition>
-    strength_types: [computational, statistical]
-    prior_probability: 0.96        # highlights land high — the reviewer is very sure of them; no cap
-    credit: <reviewer integrated argument: failure preempted, layer underwritten, scope of credit>
-    citation_keys: ["SourceKey"]
-    artifact_anchors:
-      - {kind: figure, source: "SourceKey", locator: "Fig. 4"}
-    inline_equations: ["Eq. (12) content must be transcribed into body if load-bearing"]
+- **body** → the `claim(...)` string.
+- **`prior_probability`** → the `register_prior(...)` `value`.
+- **`weakness_reason` + `failure_mode`** (for weak points) → written into the
+  `register_prior(...)` `justification` (why this prior; what breaks if the
+  premise fails). They are not a separate stored field.
+- **`credit`** (for highlights) → written into the threatened conclusion's
+  `derive(...)` `rationale` (the warrant-strength prose).
+- which conclusion(s) it bounds → the `given=[...]` membership (a Pattern 3
+  shared cause bounds several; everything else bounds one).
+- **per-conclusion synthesis** (an overall `prior_probability` + a short
+  narrative) → for an isolated conclusion the prior becomes its
+  `register_prior(...)`; for a derived conclusion the narrative becomes part of
+  its `derive(...)` `rationale`.
 
-conclusion_synthesis:
-  - conclusion_id: 1
-    prior_probability: 0.78
-    narrative: |
-      <2–4 sentences>
-```
-
-P-ids and H-ids are ephemeral and used only for cross-references in the
-narrative; the final claim labels for weak points are minted in Phase 4 from
-the paper key plus a semantic suffix.
+Use local ids for in-context cross-reference if helpful; the final DSL labels
+are minted in Phase 4 from the paper key plus a semantic suffix.
 
 ## Calibration Sanity Check
 
