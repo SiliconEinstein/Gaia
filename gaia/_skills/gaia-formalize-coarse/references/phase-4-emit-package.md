@@ -37,7 +37,7 @@ The DSL primitives this skill emits:
 | Phase 4 emission | DSL primitive |
 |---|---|
 | Motivation question | `question(...)` |
-| Conclusion / weak-point claim | `claim(...)` |
+| Conclusion / weak-point / highlight claim | `claim(...)` |
 | Transcribed figure / table context | `note(...)` (optional) |
 | Deduction (1+ premises → conclusion) | `derive(...)` |
 | Shared-factor split (Pattern 3 only) | `decompose(...)` |
@@ -65,7 +65,9 @@ For every Phase 1 conclusion, mint a label `<key>_c<id>_<semantic_suffix>`,
 where the suffix is 1–4 tokens drawn from the conclusion's title (lowercase,
 ASCII, underscores only).
 
-For every Phase 3 weak point, mint a label `<key>_c<id>_wp_<semantic_suffix>`.
+For every Phase 3 weak point, mint a label `<key>_c<id>_wp_<semantic_suffix>`;
+for every Phase 3 highlight, `<key>_c<id>_hl_<semantic_suffix>` (the `_wp_` /
+`_hl_` infix is the only marker distinguishing the two leaf-premise kinds).
 
 Label rules (canonical: `docs/for-users/language-reference.md` "label rules"):
 
@@ -139,17 +141,23 @@ liu2015_c3_yield = claim(
     label="liu2015_c3_yield",
 )
 
-# --- weak-point leaf claims (Phase 3, bound to this section's conclusions) ---
+# --- leaf-premise claims: weak points + highlights (Phase 3) ---
+# same shape; only the prior (set in priors.py) and the _wp_/_hl_ infix differ
 liu2015_c3_wp_sample = claim(
     "<self-contained weak-point body>",
     title="<short title>",
     label="liu2015_c3_wp_sample",
 )
+liu2015_c3_hl_crosscheck = claim(
+    "<self-contained highlight body>",
+    title="<short title>",
+    label="liu2015_c3_hl_crosscheck",
+)
 
-# --- deductions (one per derived conclusion in this section) ---
+# --- deductions: given= lists both weak-point and highlight premises ---
 liu2015_c3_chain = derive(
     liu2015_c3_yield,
-    given=[liu2015_c1_protocol, liu2015_c3_wp_sample],
+    given=[liu2015_c1_protocol, liu2015_c3_wp_sample, liu2015_c3_hl_crosscheck],
     rationale="<Phase 2 numbered chain prose; warrant-strength intent inline>",
     label="liu2015_c3_chain",
 )
@@ -162,10 +170,13 @@ Emission rules (carried over from the per-statement CLI path):
 2. **Conclusions** — one `claim(...)` per Phase 1 conclusion, in topological
    order, in the module for the section where it first appears. Body = the
    self-contained body from Phase 1 working notes; do not rewrite here.
-3. **Weak-point leaf claims** — one `claim(...)` per Phase 3 weak point, each
-   defined exactly once and a premise in its target conclusion's deduction; when
-   conclusions are linked by the logic graph, bind a shared weak point upstream
-   and let it propagate rather than re-listing it downstream.
+3. **Leaf-premise claims (weak points + highlights)** — one `claim(...)` per
+   Phase 3 weak point **and** per Phase 3 highlight; they are the same kind of
+   leaf premise and are emitted identically (a `claim(...)` in the target
+   conclusion's `given=[...]` plus a `register_prior(...)`), differing only in
+   the prior magnitude (weak points lower, highlights higher). Each is defined
+   exactly once; when conclusions are linked by the logic graph, bind a shared
+   premise upstream and let it propagate rather than re-listing it downstream.
 4. **Shared-factor decomposition (Pattern 3 only)** — when Phase 3 identified a
    group of weak points driven by one latent cause, do **not** delete the
    originals. Keep each original weak-point `claim(...)` and emit a
@@ -187,8 +198,8 @@ Emission rules (carried over from the per-statement CLI path):
    `decompose`; everywhere else it is `derive`.
 5. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
    per derived conclusion. The `given=` list is the union of upstream conclusion
-   bindings and this conclusion's weak-point bindings (the original weak points,
-   which Pattern 3 decomposition keeps intact).
+   bindings and this conclusion's leaf-premise bindings — both weak points and
+   highlights (the originals, which Pattern 3 decomposition keeps intact).
    - **Do not pass `metadata=` to `derive(...)`** — the engine signature accepts
      only `{given, background, rationale, label}`. The same applies to
      `contradict` / `equal` / `exclusive` / `observe`. Warrant-strength intent
@@ -208,11 +219,13 @@ the body requirements; this phase only places and emits.
 
 For every **leaf** claim, emit a `register_prior(...)`:
 
-- Every Phase 3 weak point is a leaf — its `prior_probability` from working
-  notes goes here, capped at 0.9 (floor 0.001).
-- A Phase 1 conclusion with **no** upstream conclusions and **no** weak points
+- Every Phase 3 leaf premise — weak point **and** highlight — is a leaf; its
+  `prior_probability` from working notes goes here verbatim. No cap: weak points
+  land lower, highlights higher (often 0.9+); the only bounds are BP validity
+  (strictly between 0 and 1, practical extremes ~0.001 / ~0.999).
+- A Phase 1 conclusion with **no** upstream conclusions and **no** leaf premises
   is also a leaf — its prior comes from Phase 3's per-conclusion
-  `prior_probability`, capped at 0.9.
+  `prior_probability`, under the same bounds.
 
 ```python
 """Leaf-claim priors."""
@@ -259,8 +272,9 @@ per-statement check cannot.
 
 After a clean compile, verify the SOP-owned semantic content:
 
-1. Every leaf claim (every weak point + any isolated conclusions) has a
-   `register_prior(...)` entry; no prior exceeds 0.9 or falls below 0.001.
+1. Every leaf claim (every weak point, every highlight, plus any isolated
+   conclusions) has a `register_prior(...)` entry; every prior is strictly
+   between 0 and 1 (practical extremes ~0.001 / ~0.999) — no 0.9 cap.
 2. Every `register_prior(...)` justification ends with `TODO:review`.
 3. Every `claim(...)` body passes the self-standing test: stripped of all
    surrounding context, can a reader unfamiliar with the paper identify the

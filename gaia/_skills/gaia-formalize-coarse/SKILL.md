@@ -162,17 +162,22 @@ paragraph. Do not invent contributions to fill the gap.
   engine `derive(...)` signature accepts only
   `{given, background, rationale, label}` — no `metadata=` kwarg, so
   warrant-strength intent lives in `--rationale` prose.
-- **Highlights are working-notes only.** Step-3 highlights characterize
-  *why* a conclusion is unusually solid, but they do not enter the
-  executable DSL — Gaia's BP semantics already handle credit through
-  priors and the `derive(...)` warrant. Highlights inform the qualitative
-  warrant-strength prose Phase 4 writes into each deduction's
-  `--rationale`.
-- **Probability calibration via `register_prior(...)`.** Leaf-claim priors
-  come from step-3 calibrations (`prior_probability` for the weak point,
-  capped at 0.9). Each justification ends with `TODO:review`. Do not
-  invent priors that contradict the reviewer's calibration in working
-  notes.
+- **Weak points and highlights are the same kind of leaf premise.** Both are
+  non-trivial propositions the conclusion's derivation rests on, emitted as a
+  `claim(...)` in the conclusion's `given=[...]` with a paired
+  `register_prior(...)`. They are not distinguished mechanically — the only
+  difference is the prior magnitude (a weak point is a premise the reviewer is
+  less sure of, lower prior; a highlight is one the reviewer is very sure of,
+  higher prior) plus a `weak_point` / `highlight` tag. A highlight is extracted
+  because it is non-trivial and worth making explicit and reviewable, not to
+  raise the conclusion's belief; as a high-prior premise it is near-inert in BP,
+  which is fine. Neither is working-notes-only.
+- **Probability calibration via `register_prior(...)`.** Every leaf premise
+  (weak point and highlight alike) gets a `register_prior(...)`. **Let the
+  reviewer judge each prior on its merits — there is no fixed range or cap.** A
+  weak point is not forced below any threshold; a highlight is not forced above
+  one. The only bounds are BP validity (strictly between 0 and 1; use ~0.001 and
+  ~0.999 as the practical extremes). Each justification ends with `TODO:review`.
 
 ## Responsibility Boundaries
 

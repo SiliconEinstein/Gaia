@@ -10,16 +10,20 @@ prior calibrations that drive `priors.py`.
 For every Phase 1 conclusion, audit the reasoning chain reconstructed in
 Phase 2 and produce in working notes:
 
-1. **Weak points** — load-bearing uncertainties between the paper's evidence
-   and the conclusion. Each weak point will become a leaf `claim(...)` plus a
-   `register_prior(...)` entry in Phase 4.
-2. **Highlights** — load-bearing strengths whose presence is a substantive
-   reason to credit the conclusion. Highlights are working-notes only; they
-   inform the qualitative warrant-strength prose Phase 4 writes into each
-   `derive(...)` `--rationale`, but do not enter the executable DSL.
+1. **Weak points** — non-trivial load-bearing premises the conclusion rests on
+   that the reviewer is *less* sure of. Each becomes a leaf `claim(...)` plus a
+   `register_prior(...)` entry (lower prior) in Phase 4.
+2. **Highlights** — non-trivial load-bearing premises the conclusion rests on
+   that the reviewer is *very* sure of. Same treatment: each becomes a leaf
+   `claim(...)` plus a `register_prior(...)` entry (higher prior) in Phase 4.
+   Weak points and highlights are the **same kind of leaf premise** — both go in
+   the conclusion's `given=[...]`; the only difference is the prior magnitude and
+   the `weak_point` / `highlight` tag. A highlight is extracted because it is
+   non-trivial and worth making explicit, not to raise belief; as a high-prior
+   premise it is near-inert in BP, which is fine.
 3. **Per-conclusion synthesis** — an integrated `prior_probability` and a
-   short narrative explaining how the weak points and highlights interact for
-   that conclusion.
+   short narrative explaining how the premises (weak points and highlights)
+   interact for that conclusion.
 
 ## What Counts as a Weak Point
 
@@ -226,10 +230,10 @@ conclusion materially less credible. Use the same nine patterns
 ## Body-Writing Rule (Same for Weak Points and Highlights)
 
 Each weak point and each highlight gets a **body** — a self-standing
-scientific proposition that, in Phase 4, will become the string body of a
-`claim(...)` (for weak points) or a working-notes line (for highlights;
-highlights do not enter the executable DSL — see formalize/SKILL.md).
-The writing rules are identical:
+scientific proposition that, in Phase 4, becomes the string body of a leaf
+`claim(...)` (the same for weak points and highlights; both are emitted into
+the conclusion's `given=[...]` with a `register_prior(...)`, differing only in
+prior magnitude — see formalize/SKILL.md). The writing rules are identical:
 
 - **Self-standing setup**: every model / system / procedure / dataset /
   regime / variable named inside the body must be **introduced inside the
@@ -369,11 +373,20 @@ the reasoning.
 
 ## Probability Calibration
 
-Each weak point carries three numbers in `[0, 1]`. Use the full range; do
-not default everything to 0.7–0.8.
+Each leaf premise — weak point **and** highlight alike — carries a
+`prior_probability` plus the working-notes `p1` / `p2`. **Judge each prior on
+its merits; there is no fixed range or cap, and the `weak_point` / `highlight`
+tag does not pin it.** Use the full range; do not default everything to
+0.7–0.8. A weak point typically lands lower because the reviewer is less sure
+of it; a highlight typically lands high (0.90+) because the reviewer is very
+sure of it — but those are consequences of the judged credibility, not rules.
 
-- **`prior_probability`** — the weak-point claim's intrinsic credibility on
-  its own merits.
+- **`prior_probability`** — the leaf premise's intrinsic credibility on its own
+  merits.
+  - **0.90–0.999** — the reviewer is very sure of it: an independently verified
+    fact, a settled result, a strong cross-check. Most highlights land here.
+    Near the top of this band the premise is near-inert in BP (it barely caps
+    the conclusion), which is expected and fine.
   - **0.80–0.90** — standard approximation used within its **known valid
     regime**, or an empirical fact the field treats as settled. The claim
     is defensible by appeal to established practice; the only residual
@@ -395,12 +408,13 @@ not default everything to 0.7–0.8.
     elsewhere.
   - **0.001–0.20** — almost certainly wrong (rare; reserved for clear
     refutations).
-  - Cap at 0.9 (no claim is absolutely certain). Lower bound 0.001
-    (Cromwell).
-- **`p1`** — sufficiency: if the weak-point claim is true, how strongly does
-  the conclusion follow? `p1 ≈ P(conclusion | weak point true)`.
-- **`p2`** — necessity: if the weak-point claim is false, how strongly does
-  the conclusion fail? `p2 ≈ P(conclusion false | weak point false)`.
+  - Only hard bounds are BP validity: strictly between 0 and 1, so ~0.001 and
+    ~0.999 are the practical extremes (Cromwell). **No 0.9 cap** — a premise the
+    reviewer is genuinely near-certain of belongs at 0.95–0.999.
+- **`p1`** — sufficiency: if the premise is true, how strongly does the
+  conclusion follow? `p1 ≈ P(conclusion | premise true)`.
+- **`p2`** — necessity: if the premise is false, how strongly does the
+  conclusion fail? `p2 ≈ P(conclusion false | premise false)`.
 
 `prior_probability` is consumed by Phase 4's `register_prior(...)` emission
 for this weak point. `p1` and `p2` are reviewer working-notes only — they
@@ -413,9 +427,10 @@ not consume them.
 After all weak points and highlights for a conclusion are recorded, write a
 synthesis for that conclusion:
 
-- **`prior_probability`** (a number in `[0.001, 0.9]`) — the reviewer's
-  overall credibility judgment (posterior) for the conclusion, integrating
-  its weak points and highlights. This is **not** a mechanical function of
+- **`prior_probability`** (a number strictly between 0 and 1, practical
+  extremes ~0.001 / ~0.999 — no fixed cap) — the reviewer's overall
+  credibility judgment (posterior) for the conclusion, integrating its weak
+  points and highlights. This is **not** a mechanical function of
   the weak points' probabilities; it is informed by both findings. In
   Phase 4 this number is consumed in two ways: (1) for isolated
   conclusions (no upstream, no weak points → no `derive(...)`) it becomes
@@ -483,12 +498,18 @@ weak_points:
       - {kind: figure, source: "SourceKey", locator: "Fig. 4"}
     inline_equations: ["Eq. (12) content must be transcribed into body if load-bearing"]
 
-highlights:
+highlights:                        # same leaf-premise shape as weak_points;
+                                   # emitted into the conclusion's given=[...] with a
+                                   # register_prior — the only difference is the higher prior
   - id: H1
-    conclusion_id: 1
+    conclusion_ids: [1]            # conclusion(s) this highlight is premised into (Pattern 3 may list several)
+    shared_cause: null
     title: <descriptor>
     body: <self-standing scientific proposition>
     strength_types: [computational, statistical]
+    prior_probability: 0.96        # highlights land high — the reviewer is very sure of them; no cap
+    p1: 0.95
+    p2: 0.4
     credit: <reviewer integrated argument: failure preempted, layer underwritten, scope of credit>
     citation_keys: ["SourceKey"]
     artifact_anchors:
@@ -663,7 +684,8 @@ Before moving to Phase 4:
 - Every body satisfies the self-standing rule.
 - Each weak point has `prior_probability`, `p1`, `p2`, `weakness_reason`,
   `failure_mode`.
-- Each highlight has `credit`.
+- Each highlight has `prior_probability`, `p1`, `p2`, `credit` (same leaf-premise
+  shape as a weak point; the prior just lands higher).
 - Every `weakness_reason` passes its judgment test (strip paper-structure
   references; substantive critique remains).
 - Every `failure_mode` carries all four components (counterfactual
