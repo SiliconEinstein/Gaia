@@ -139,13 +139,15 @@ paragraph. Do not invent contributions to fill the gap.
   passed is three conclusions, not one. See
   `phase-1-extract-conclusions.md` for the split test and common
   under-splitting traps.
-- **One deduction per derived conclusion.** Each conclusion that has at
-  least one upstream conclusion or one weak point becomes the conclusion
-  of exactly one
-  `derive(conclusion, given=[premises], rationale=..., label=...)`.
-  Premises are the union of the conclusion's upstream conclusions (from
-  the cross-conclusion logic graph) and its leaf premises (weak points and
-  highlights). The engine `derive(...)` signature accepts only
+- **One deduction per conclusion; no isolated conclusions.** Every
+  conclusion is the conclusion of exactly one
+  `derive(conclusion, given=[premises], rationale=..., label=...)`. There is
+  no such thing as an isolated conclusion — a conclusion always rests on
+  something. The `given` is the union of the conclusion's upstream conclusions
+  (every conclusion it depends on per the cross-conclusion logic graph must
+  appear) and its leaf premises (weak points and highlights). A root
+  conclusion with no upstream still has ≥1 leaf premise carrying its support.
+  The engine `derive(...)` signature accepts only
   `{given, background, rationale, label}` — no `metadata=` kwarg, so
   warrant-strength intent lives in `rationale=` prose.
 - **Weak points and highlights are the same kind of leaf premise.** Both are
@@ -158,12 +160,15 @@ paragraph. Do not invent contributions to fill the gap.
   because it is non-trivial and worth making explicit and reviewable, not to
   raise the conclusion's belief; as a high-prior premise it is near-inert in BP,
   which is fine. Neither is working-notes-only.
-- **Probability calibration via `register_prior(...)`.** Every leaf premise
-  (weak point and highlight alike) gets a `register_prior(...)`. **Let the
-  reviewer judge each prior on its merits — there is no fixed range or cap.** A
-  weak point is not forced below any threshold; a highlight is not forced above
-  one. The only bounds are BP validity (strictly between 0 and 1; use ~0.001 and
-  ~0.999 as the practical extremes). Each justification ends with `TODO:review`.
+- **Only leaf premises carry priors.** A `register_prior(...)` is emitted for
+  every leaf premise (weak point and highlight alike) and for nothing else.
+  Conclusions never get a direct prior — their belief propagates through their
+  `derive(...)` from the premises. (Since there are no isolated conclusions,
+  there is no leaf conclusion to prior.) **Let the reviewer judge each prior on
+  its merits — there is no fixed range or cap.** A weak point is not forced
+  below any threshold; a highlight is not forced above one. The only bounds are
+  BP validity (strictly between 0 and 1; use ~0.001 and ~0.999 as the practical
+  extremes). Each justification ends with `TODO:review`.
 
 ## Responsibility Boundaries
 

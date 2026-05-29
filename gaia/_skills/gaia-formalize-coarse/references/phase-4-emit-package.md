@@ -197,9 +197,12 @@ Emission rules (carried over from the per-statement CLI path):
    `claim(...)`s that must be self-contained. This is the only place coarse uses
    `decompose`; everywhere else it is `derive`.
 5. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
-   per derived conclusion. The `given=` list is the union of upstream conclusion
-   bindings and this conclusion's leaf-premise bindings — both weak points and
-   highlights (the originals, which Pattern 3 decomposition keeps intact).
+   per **conclusion** (every conclusion, not only "derived" ones — there are no
+   isolated conclusions). The `given=` list is the union of upstream conclusion
+   bindings (every conclusion this one depends on) and this conclusion's
+   leaf-premise bindings — both weak points and highlights (the originals, which
+   Pattern 3 decomposition keeps intact). A root conclusion with no upstream
+   still has its ≥1 supporting leaf premise here.
    - **Do not pass `metadata=` to `derive(...)`** — the engine signature accepts
      only `{given, background, rationale, label}`. The same applies to
      `contradict` / `equal` / `exclusive` / `observe`. Warrant-strength intent
@@ -217,15 +220,15 @@ the body requirements; this phase only places and emits.
 
 ## Step 4 — Write `priors.py`
 
-For every **leaf** claim, emit a `register_prior(...)`:
+Emit a `register_prior(...)` for **every leaf premise and nothing else**.
+Conclusions never get a prior — there are no isolated conclusions (every
+conclusion is the conclusion of a `derive(...)`), so a conclusion's belief
+always propagates from its premises; it is never a leaf.
 
 - Every Phase 3 leaf premise — weak point **and** highlight — is a leaf; its
-  `prior_probability` from working notes goes here verbatim. No cap: weak points
-  land lower, highlights higher (often 0.9+); the only bounds are BP validity
-  (strictly between 0 and 1, practical extremes ~0.001 / ~0.999).
-- A Phase 1 conclusion with **no** upstream conclusions and **no** leaf premises
-  is also a leaf — its prior comes from Phase 3's per-conclusion
-  `prior_probability`, under the same bounds.
+  reviewer-judged prior goes here verbatim. No cap: weak points land lower,
+  highlights higher (often 0.9+); the only bounds are BP validity (strictly
+  between 0 and 1, practical extremes ~0.001 / ~0.999).
 
 ```python
 """Leaf-claim priors."""
@@ -244,8 +247,8 @@ Justification format: one line, terse rationale ending with `TODO:review`. This
 is where the Phase 3 reviewer reasoning lives — for a weak point, the
 `weakness_reason` plus the `failure_mode` (why it is uncertain and what breaks if
 it fails) compressed to one sentence; for a highlight, why the reviewer is
-near-certain of it; for an isolated conclusion, its synthesis narrative. There
-is no separate stored field — the justification string is the reasoning.
+near-certain of it. There is no separate stored field — the justification string
+is the reasoning.
 
 ## Step 5 — Write `references.json`
 
@@ -275,25 +278,29 @@ per-statement check cannot.
 
 After a clean compile, verify the SOP-owned semantic content:
 
-1. Every leaf claim (every weak point, every highlight, plus any isolated
-   conclusions) has a `register_prior(...)` entry; every prior is strictly
-   between 0 and 1 (practical extremes ~0.001 / ~0.999) — no 0.9 cap.
-2. Every `register_prior(...)` justification ends with `TODO:review`.
-3. Every `claim(...)` body passes the self-standing test: stripped of all
+1. **No isolated conclusion.** Every conclusion is the conclusion of exactly
+   one `derive(...)`; none is left without a deduction. `gaia inquiry review`
+   (the caller's hand-off gate) reports any orphaned claim — but catch it here
+   first by confirming every Phase 1 conclusion appears as a `derive` conclusion.
+2. Every leaf premise (every weak point, every highlight) has a
+   `register_prior(...)` entry, and **no conclusion has one**; every prior is
+   strictly between 0 and 1 (practical extremes ~0.001 / ~0.999) — no 0.9 cap.
+3. Every `register_prior(...)` justification ends with `TODO:review`.
+4. Every `claim(...)` body passes the self-standing test: stripped of all
    surrounding context, can a reader unfamiliar with the paper identify the
    model / system / regime, the symbols, and the claim? If any body fails,
    rewrite it before reporting completion.
-4. **Pointer and citation hygiene** (both must pass):
-   - **4a.** No paper-internal pointer (`Eq. (X)` / `Fig. Y` / `Table Z` /
+5. **Pointer and citation hygiene** (both must pass):
+   - **5a.** No paper-internal pointer (`Eq. (X)` / `Fig. Y` / `Table Z` /
      `Sec. W` / `Appendix A` / `Theorem N` / `Lemma M`) appears inside a
      `claim(...)` body, a `derive(...)` rationale, or a `register_prior(...)`
      justification. External `[@key]` citations are allowed in any prose.
-   - **4b.** Every prose citation uses `[@key]` form, where `key` matches an
+   - **5b.** Every prose citation uses `[@key]` form, where `key` matches an
      entry in `references.json`. Numeric paper-style citations (`[33]`,
      `Ref. 5`, `Smith et al., 2020`) must not survive — convert at write time.
      Unresolvable citations are emitted as `@unknown_<n>` (bare, **no brackets**
      — bracketed `[@unknown_n]` fails the strict-reference check).
-5. `references.json` contains an entry for every `[@key]` cited in any prose.
+6. `references.json` contains an entry for every `[@key]` cited in any prose.
 
 If any check fails, fix it and recompile before reporting completion.
 

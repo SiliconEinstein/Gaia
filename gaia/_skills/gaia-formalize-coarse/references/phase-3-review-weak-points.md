@@ -21,9 +21,10 @@ Phase 2 and produce in working notes:
    the `weak_point` / `highlight` tag. A highlight is extracted because it is
    non-trivial and worth making explicit, not to raise belief; as a high-prior
    premise it is near-inert in BP, which is fine.
-3. **Per-conclusion synthesis** — an integrated `prior_probability` and a
-   short narrative explaining how the premises (weak points and highlights)
-   interact for that conclusion.
+3. **Per-conclusion synthesis** — a short narrative (no prior number)
+   explaining how the premises (upstream conclusions, weak points, highlights)
+   interact for that conclusion. Every conclusion must end with ≥1 premise — no
+   isolated conclusions.
 
 ## What Counts as a Weak Point
 
@@ -421,29 +422,19 @@ in prose: the `register_prior(...)` `justification` and the `derive(...)` `ratio
 ## Per-Conclusion Synthesis
 
 After all weak points and highlights for a conclusion are recorded, write a
-synthesis for that conclusion:
+synthesis **narrative** for that conclusion. There is **no** per-conclusion
+prior number: a conclusion never carries a `register_prior` — only its leaf
+premises do, and its belief propagates through its `derive(...)`. The narrative
+is the reviewer's holistic weighing, and it becomes part of the conclusion's
+`derive(...)` `rationale=` in Phase 4.
 
-- **`prior_probability`** (a number strictly between 0 and 1, practical
-  extremes ~0.001 / ~0.999 — no fixed cap) — the reviewer's overall
-  credibility judgment (posterior) for the conclusion, integrating its weak
-  points and highlights. This is **not** a mechanical function of
-  the weak points' probabilities; it is informed by both findings. In
-  Phase 4 this number is consumed in two ways: (1) for isolated
-  conclusions (no upstream, no leaf premises → no `derive(...)`) it becomes
-  the conclusion's `register_prior(...)` value because the conclusion is a
-  leaf in that case; (2) for derived conclusions it informs the qualitative
-  warrant-strength prose Phase 4 writes into the `derive(...)` `rationale=`
-  (alongside per-premise commentary — see Phase 4).
-  The engine `derive(...)` signature has no `metadata=` / `warrant_prior`
-  kwarg, so warrant-strength intent does not live as a number on the
-  deduction itself; numerical priors live only on leaf claims via
-  `register_prior`. Calibration:
-  - A conclusion with several low-prior, load-bearing weak points (ones whose
-    failure would break it) cannot have a high prior, even with highlights.
-  - A conclusion with no load-bearing weak points and at least one
-    substantive highlight should be close to 1.
-  - A conclusion with neither weak points nor highlights (a routine
-    derivation) sits in the upper-middle range, not at the ceiling.
+**Every conclusion must leave Phase 3 with at least one premise** — an upstream
+conclusion, a weak point, or a highlight. A logic-graph root with no upstream
+and no weak point still needs ≥1 **highlight** carrying its support (e.g. "the
+measurement was performed reliably under conditions X"). There are no isolated
+conclusions; "I found neither a weak point nor a highlight" means Phase 3 is
+incomplete for that conclusion, not that it is premise-free.
+
 - **`narrative`** (2–4 sentences in reviewer voice) — articulates how the
   attached weak points and highlights interact for this conclusion. Cover
   at least 2–3 of:
@@ -466,9 +457,11 @@ The narrative is not an index. Naming weak-point and highlight ids is fine,
 but a narrative that only lists ids and restates one-line content is not
 doing its job.
 
-If a conclusion has zero weak points and zero highlights, the narrative is a
-single sentence stating that no load-bearing risks or distinguishing
-strengths were identified.
+If a conclusion has no weak points, it must still have at least one highlight
+(its support) plus, if derived, its upstream conclusions — so the narrative
+always has premises to weigh. A conclusion with no weak point and no highlight
+and no upstream is isolated, which is not allowed: go back and surface its
+supporting premise.
 
 ## Holding Phase 3 output
 
@@ -485,10 +478,9 @@ Phase 4 DSL, and its reviewer reasoning lives in the DSL's own prose fields:
   `derive(...)` `rationale` (the warrant-strength prose).
 - which conclusion(s) it bounds → the `given=[...]` membership (a Pattern 3
   shared cause bounds several; everything else bounds one).
-- **per-conclusion synthesis** (an overall `prior_probability` + a short
-  narrative) → for an isolated conclusion the prior becomes its
-  `register_prior(...)`; for a derived conclusion the narrative becomes part of
-  its `derive(...)` `rationale`.
+- **per-conclusion synthesis narrative** → becomes part of the conclusion's
+  `derive(...)` `rationale`. There is no per-conclusion prior number; a
+  conclusion never gets a `register_prior` (only its leaf premises do).
 
 Use local ids for in-context cross-reference if helpful; the final DSL labels
 are minted in Phase 4 from the paper key plus a semantic suffix.
@@ -538,7 +530,10 @@ Before moving to Phase 4:
 - Every `credit` integrates the three aspects (failure preempted, layer
   underwritten, scope of credit) and is not generic praise or
   paper-description.
-- Each conclusion has a synthesis (`prior_probability` + `narrative`).
+- Each conclusion has a synthesis `narrative` (no prior number).
+- **No isolated conclusion**: every conclusion has at least one premise (an
+  upstream conclusion, a weak point, or a highlight). A root with no upstream
+  and no weak point has been given ≥1 supporting highlight.
 - The full evidence set — weak points AND highlights, across all
   conclusions — has been scanned for shared-factor groups (Pattern 3) and
   resolved globally by `decompose`: each original weak point is kept and split

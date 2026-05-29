@@ -26,10 +26,15 @@ apply:
 
 Coarse-specific points on top of the shared methodology:
 
-- Coarse emits a **reduced DSL**: each derived conclusion becomes exactly one
+- Coarse emits a **reduced DSL**: **every** conclusion becomes exactly one
   `derive(...)` whose premises are the union of its upstream conclusions and
-  (after Phase 3) its leaf premises (weak points and highlights). This skill
-  emits no `infer` /
+  (after Phase 3) its leaf premises (weak points and highlights). **Every
+  upstream conclusion the reasoning depends on must be in the premise set** —
+  if the paper's reasoning for conclusion C uses conclusions A and B, both A
+  and B appear in C's `given`. A conclusion that is a logic-graph root (no
+  upstream) is **not** left without premises: Phase 3 will give it at least one
+  leaf premise carrying its support. There are no isolated conclusions. This
+  skill emits no `infer` /
   `observe` / `compute`, so the shared file's verb-specific remarks for those
   verbs do not apply here. The **one** exception is `decompose(...)`, emitted
   solely for the Phase 3 shared-factor (Pattern 3) case — to split a weak point
@@ -67,6 +72,9 @@ Before moving to Phase 3:
   whose content has not been inlined.
 - Every flagged logical gap or heuristic move is recorded as such, not
   silently repaired.
-- Each derived conclusion's premise set has passed the independence check.
+- Each conclusion's premise set contains every upstream conclusion it
+  depends on per the logic graph (none dropped except by the Pattern 1c
+  independence check below).
+- Each conclusion's premise set has passed the independence check.
 - The next todo is marked in progress before loading
   `phase-3-review-weak-points.md`.
