@@ -234,6 +234,7 @@ def observe(
         conclusion = Claim(conclusion)
     else:
         conclusion = _lift_to_claim(conclusion, verb="observe", position="conclusion")
+    assert isinstance(conclusion, Claim)  # narrow Any back to Claim for mypy
     given_tuple = tuple(
         _lift_to_claim(g, verb="observe", position=f"given[{i}]")
         for i, g in enumerate(_as_given_tuple(given))
