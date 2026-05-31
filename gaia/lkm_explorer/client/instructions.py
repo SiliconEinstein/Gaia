@@ -204,7 +204,8 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
      in `raw.payload.factors[]` by its premises (NOT a chain-level flag):
        * `premise_count > 0` → one factor-derived `derive(conclusion,
          given=[premises], rationale="<numbered LKM steps>", label="<factor_id>")`
-         (LKM factor ids are `lfac_*`; use that id as the label);
+         (LKM factor ids are `gfac_*`; use that id as the label — `factor_id`
+         may be null when upstream omits it; then fall back to the chain id);
        * `premise_count == 0` → a base/leaf factor: emit its conclusion as a
          leaf `claim(...)`, NOT a `derive(..., given=[])`. A premise-less factor
          is a normal grounding assertion (observation / given / definition), not
