@@ -79,35 +79,58 @@ across two conclusions — sweep that same-pattern group once more for
 causes (Pattern 3) and not just upstream/downstream support. Two premises
 within the same pattern often have one of:
 
-- **`equal(p1, p2)`** — two premises that restate the same proposition in
-  different forms (e.g. a `measurement` premise stated qualitatively and the
-  same quantity stated numerically). Two should usually collapse into one;
-  use `equal` when the paper itself uses both formulations and the audit
-  wants to surface that.
-- **`contradict(p1, p2)`** — two premises that cannot both hold (e.g. two
-  `model` premises that assume incompatible regimes). If one is a weak
-  point and the other a highlight, that's already the "weak point and
-  highlight on the same cause" reconciliation case in Shared-factor
-  evidence; if both are weak points (or both highlights), they materially
-  weaken the warrant and the relation deserves to be in the graph.
-- **`exclusive(p1, p2)`** — two `comparative` premises that exhaust a binary
-  choice (the paper picks exactly one baseline / pretraining recipe).
-- **`associate(p1, p2, p_a_given_b=…, p_b_given_a=…, pattern=…)`** — when
-  you suspect a relation but the strength is judgment-bound (the paper does
-  not explicitly assert it, or the regime makes the entailment soft),
-  reach for the soft form. Pass `pattern="contradict"` (or `"equal"` /
-  `"exclusive"`) when you mean a probabilistic version of one of the hard
-  relations; the engine then validates the conditional-probability
-  semantics against the pattern.
+- **`equal(p1, p2, rationale=…)`** — two premises that restate the same
+  proposition in different forms (e.g. a `measurement` premise stated
+  qualitatively and the same quantity stated numerically). Two should
+  usually collapse into one; use `equal` when the paper itself uses both
+  formulations and the audit wants to surface that.
+- **`contradict(p1, p2, rationale=…)`** — two premises that cannot both
+  hold (e.g. two `model` premises that assume incompatible regimes). If
+  one is a weak point and the other a highlight, that is already the
+  "weak point and highlight on the same cause" reconciliation case in
+  Shared-factor evidence; if both are weak points (or both highlights),
+  they materially weaken the warrant and the relation deserves to be in
+  the graph.
+- **`exclusive(p1, p2, rationale=…)`** — two `comparative` premises that
+  exhaust a binary choice (the paper picks exactly one baseline /
+  pretraining recipe).
+- **`associate(p1, p2, p_a_given_b=…, p_b_given_a=…, pattern=…, rationale=…)`**
+  — when you suspect a relation but the strength is judgment-bound (the
+  paper does not explicitly assert it, or the regime makes the entailment
+  soft), reach for the soft form. Pass `pattern="contradict"` (or
+  `"equal"` / `"exclusive"`) when you mean a probabilistic version of one
+  of the hard relations; the engine then validates the conditional-
+  probability semantics against the pattern.
 
-Surface these where they live (the downstream-most module among the two
-relata, just like conclusion-level relations); they get no `register_prior`
-entry and they are not added to root `__all__`. **A wrong `contradict` /
-`exclusive` silently distorts every downstream belief, so when in doubt
-prefer `associate`** (soft) over hard relations — `associate` carries its
-own honest conditionals and stays reviewable. The same "What NOT to model"
-list from phase-1 §Relations applies: do not force a hard relation on a
-premise pair that is merely in tension.
+**The `rationale=` is mandatory and load-bearing.** Premise-level relations
+are reviewer assertions about the audit material — typically the paper
+itself does *not* state them outright (otherwise they would have surfaced
+at the conclusion-graph layer in phase-1 §Relations). The `rationale` is
+where the reviewer's reasoning lives, and it has to do three things:
+
+1. **Name the relation as the reviewer is asserting it** — not just restate
+   the verb's semantics, but say *why these two specific premises* stand in
+   this relation in the paper's setting (regime, system, parameter range).
+2. **Cite the paper-textual evidence** the reviewer is reading the relation
+   off of — equations, observed values, hypothesis statements (use
+   `[@key]` citations only; no `Eq.` / `Fig.` / `Sec.` pointers per the
+   pointer-and-citation invariant).
+3. **For `associate`**, additionally justify the two conditional
+   probabilities (`p_a_given_b`, `p_b_given_a`) — what evidence makes them
+   the values they are, not arbitrary defaults. (Hard relations carry no
+   prior, so the rationale alone bears the audit weight.)
+
+A relation whose rationale reduces to "they look related" or restates the
+verb definition is not reviewable and must be rewritten before emit.
+
+Surface these relations where they live (the downstream-most module among
+the two relata, just like conclusion-level relations); they get no
+`register_prior` entry and they are not added to root `__all__`. **A wrong
+`contradict` / `exclusive` silently distorts every downstream belief, so
+when in doubt prefer `associate`** (soft) over hard relations — `associate`
+carries its own honest conditionals and stays reviewable. The same "What
+NOT to model" list from phase-1 §Relations applies: do not force a hard
+relation on a premise pair that is merely in tension.
 
 ### Gating Questions for Each Candidate Weak Point
 
