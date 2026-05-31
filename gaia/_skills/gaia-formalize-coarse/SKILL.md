@@ -5,10 +5,10 @@ description: |
   read one academic paper (Markdown preferred; plain-text or other readable
   formats also accepted) and emit a standalone `<name>-gaia/` package. Builds
   the package incrementally: scaffold; write the conclusions (with motivation
-  and open questions); organize the cross-conclusion logic graph; then per
+  and open questions, marking each main conclusion in the root `__all__`);
+  organize the cross-conclusion logic graph; then per
   conclusion emit its weak points, highlights, and `derive(...)`; then finalize
-  (shared-factor decomposition, leaf priors, mark `__all__` with conclusions
-  only, references, compile). Gated by an
+  (shared-factor decomposition, leaf priors, references, compile). Gated by an
   upfront suitability check (skip review/survey/perspective papers and
   corrupted paper text). Surfaces 9 argument-pattern weak-point types
   (`measurement`, `causal`, `model`, `statistical`, `generalization`,
@@ -85,15 +85,19 @@ Create a session todo list with the six steps below and work them in order.
    `gaia pkg scaffold` and add one module per source section. See
    [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md).
 3. **Write the conclusions.** Walk the paper section by section. For each
-   section, emit its conclusions as `claim(...)` into the section's module.
-   Into the introduction module (`motivation.py`), emit the whole-paper
-   motivation as a single `note(...)` (framing prose, no truth value) **and**
-   the paper's overall open problem as a single `question(...)` (the
-   research question the paper as a whole sets out to answer). Methodology:
+   section, emit its conclusions as `claim(...)` into the section's module,
+   and as each main conclusion is written append its label to the **root**
+   `src/<import_name>/__init__.py`'s `__all__` (root `__all__` is the
+   package's exported surface — see the export invariant). Into the
+   introduction module (`motivation.py`), emit the whole-paper motivation as
+   a single `note(...)` (framing prose, no truth value) **and** the paper's
+   overall open problem as a single `question(...)` (the research question
+   the paper as a whole sets out to answer); neither the note nor the
+   question is added to `__all__`. Methodology:
    [`references/phase-1-extract-conclusions.md`](references/phase-1-extract-conclusions.md).
    (At this point `motivation.py` holds the motivation note + the open-problem
    question; section modules hold conclusion claims only — no derives, no leaf
-   premises.)
+   premises; the root `__all__` lists the main-conclusion labels.)
 4. **Organize the logic graph.** With every conclusion now written, lay out the
    directed dependencies among them (`A → B` = the paper uses A to derive B).
    Same methodology file as step 3.
@@ -133,11 +137,11 @@ Create a session todo list with the six steps below and work them in order.
    (weak points, highlights, prior calibration).
 6. **Finalize.** Run the global independence (Pattern 3) scan over all leaf
    premises and `decompose` shared causes; write `priors.py` (a
-   `register_prior` per leaf premise); mark the public surface in the root
-   `__init__.py`'s `__all__` (conclusions + motivation note + open-problem
-   question only — no leaf premises); write `references.json`; run the full
-   `gaia build compile` and the self-check. See phase-3 (independence) and
-   phase-4 (priors, `__all__`, references, compile, self-check).
+   `register_prior` per leaf premise) and `references.json`; run the full
+   `gaia build compile` and the self-check (which verifies, among other
+   things, that the root `__all__` populated in step 3 is non-empty and
+   curated). See phase-3 (independence) and phase-4 (priors, references,
+   compile, self-check).
 
 Load each methodology file as you reach the step that needs it; you may load
 several at once (steps 3–6 draw on all four). The step split is scaffolding for
@@ -217,19 +221,27 @@ paragraph. Do not invent contributions to fill the gap.
   below any threshold; a highlight is not forced above one. The only bounds are
   BP validity (strictly between 0 and 1; use ~0.001 and ~0.999 as the practical
   extremes). Each justification ends with `TODO:review`.
-- **Conclusions are exported; leaf premises are not.** The package's external
-  interface — what other knowledge packages may reference — is its
-  **conclusions** (every `claim(...)` written in step 3) plus the motivation
-  `note(...)` and the open-problem `question(...)` in `motivation.py`. Weak
-  points and highlights are audit-internal commentary; decompose parts (shared
-  cause + residuals from Pattern 3) are likewise internal. Concretely: in the
-  root `src/<import_name>/__init__.py`, replace the scaffolded
-  `__all__: list[str] = []` with the conclusion / note / question labels;
-  leave the `_wp_` and `_hl_` leaf-premise labels out. (The default
-  `__all__ = []` is treated as "export every labeled claim" by the engine,
-  including leaf premises — which is wrong for a finished package.) The
-  package's section modules (`s2_methods.py`, etc.) keep their own scaffolded
-  `__all__: list[str] = []` — only the root list drives the IR `exported` flag.
+- **Main conclusions are the exported surface.** A package's external
+  interface — what downstream tools (`gaia register`, README rendering,
+  `gaia inquiry`, lkm_explorer, starmap, the `gaia-publish` skill) treat as
+  "this paper's headline contributions" — is its **main conclusions**: the
+  `claim(...)`s written in step 3 that carry the paper's contributions. The
+  motivation `note(...)`, the open-problem `question(...)`, weak points /
+  highlights, and decompose parts (shared cause + residuals from Pattern 3)
+  are **not** exported; they are framing, internal record, or audit material.
+  Mechanism: list the main-conclusion labels in the **root**
+  `src/<import_name>/__init__.py`'s `__all__` (the engine only reads
+  `__all__` from the root module — section modules' lists do not propagate).
+  The scaffold writes `__all__: list[str] = []`; this is treated by IR
+  generation as "no exports" (`compile.py:1881` — every label tests `in set()`
+  → `False`), so the curated list **must** be filled in. Per the engine
+  convention this happens at the moment each conclusion is written (step 3),
+  not deferred to finalize. **Note**: this convention diverges from
+  `gaia author` CLI defaults (which export every BP-participating verb) and
+  from the Galileo / Mendel example packages (which list derives and
+  relations in `__all__` too). See issue #724 for the open question on the
+  engine-wide convention; coarse follows the curated semantic that every
+  downstream IR consumer assumes.
 
 ## Responsibility Boundaries
 
@@ -262,8 +274,9 @@ paragraph. Do not invent contributions to fill the gap.
   — weak-point and highlight audit (both as leaf premises) and probability
   calibration.
 - [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md)
-  — emission mechanics: scaffold, write conclusions, per-conclusion derive +
-  leaf premises, finalize (decompose, priors, `__all__`, references, compile).
+  — emission mechanics: scaffold, write conclusions (and append each main
+  conclusion to root `__all__`), per-conclusion derive + leaf premises,
+  finalize (decompose, priors, references, compile, self-check).
 
 ### Shared formalization methodology (`../_shared/`)
 

@@ -65,6 +65,52 @@ Coarse-specific points on top of the shared rules:
 - The figure / equation / citation pointers collected per the shared file's
   `refs` whitelist become the `refs` metadata on each `claim(...)`.
 
+## Mark each main conclusion in the root `__all__`
+
+A package's exported surface is its main conclusions, and the engine reads
+the surface from the **root** `src/<import_name>/__init__.py`'s `__all__`
+(section modules' own `__all__` are not propagated upward). Because the
+conclusion's status as "main conclusion of this paper" is decided exactly
+when it is written in step 3, the `__all__` entry is added **here**, not
+deferred to finalize.
+
+For each conclusion you emit as `claim(...)` in step 3:
+
+1. Mint its label per the naming rule in `phase-4-emit-package.md`
+   ("Claim labels").
+2. Write the `claim(...)` into its section module.
+3. Open the root `src/<import_name>/__init__.py` (which the scaffold left
+   with `__all__: list[str] = []`) and append the label to `__all__`. Also
+   add the matching `from .<section> import <label>` so the name is
+   importable from the package root (the engine matches `__all__` against
+   registered knowledge by label string, but having the name actually
+   importable keeps the Python convention honest and lets downstream code
+   `from <import_name> import <label>` cleanly).
+
+What does **not** go in `__all__`:
+
+- The motivation `note(...)` and the open-problem `question(...)` in
+  `motivation.py` — these are framing / record, not contributions.
+- Weak points and highlights (step 5 leaf premises) — these are audit
+  material, not contributions.
+- Decompose parts (shared cause + residuals from Pattern 3 at finalize) —
+  these are internal restructurings of leaf premises.
+- `derive(...)` labels and `register_prior(...)` records — these are
+  reasoning steps and prior records, not exported surface.
+
+> **Why curated, not permissive.** Downstream tools — `gaia register`'s
+> release manifest, `gaia inquiry review`'s dependency walk,
+> `_github.py`'s README rendering, `lkm_explorer`, starmap, the
+> `gaia-publish` skill — all treat the IR `exported` flag as "this paper's
+> headline contributions" and visualise / list them as ★ headline nodes. If
+> every BP-participating knowledge ends up in `__all__`, those views fill
+> with intermediate derives and audit claims and lose their signal. The
+> `gaia author` CLI and a couple of in-tree example packages
+> (`examples/galileo-v0-5-gaia`, `examples/mendel-v0-5-gaia`) default to
+> the permissive convention; coarse follows the curated one so the package
+> renders correctly in the downstream stack. See issue #724 for the
+> engine-wide open question.
+
 ## Motivation Block
 
 Write a single paragraph (3–6 sentences) capturing:
