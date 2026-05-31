@@ -6,10 +6,17 @@ topological order). It produces the reasoning chain that becomes the
 
 ## Goal
 
-For each conclusion (taken in topological order on the step-4 logic graph),
-reconstruct the paper's own reasoning trace from foundational material
-(definitions, assumptions, experimental setups, upstream conclusions, prior
-cited results) to the conclusion itself.
+For each **atomic** conclusion (after step 5's atomicity re-check, taken in
+topological order on the step-4 logic graph), reconstruct the paper's own
+reasoning trace from foundational material (definitions, assumptions,
+experimental setups, upstream conclusions, prior cited results) to the
+conclusion itself. **The trace content matches the conclusion's nature**:
+a theoretical conclusion gets its mathematical / logical derivation; an
+experimental measurement gets the experimental procedure (setup, instrument,
+sampling, how the value was read out); a computational result gets the
+method + parameters + numerical run. After an atomicity split, the theory atom
+and the experiment atom each get their own chain — do not collapse them into
+one trace.
 
 The trace is an ordered list of step strings — each step one logical move.
 Steps are not claims; they are the prose written directly into that

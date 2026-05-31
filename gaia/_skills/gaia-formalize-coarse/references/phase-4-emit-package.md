@@ -175,8 +175,14 @@ conclusion, follow this conceptual order before emitting:
    experiment", "Separate method from result"), split it now: replace the
    bundled `claim(...)` in the module with the atomic ones, update the logic
    graph, and proceed with each atomic conclusion separately.
-2. Summarize the paper's reasoning chain for this (now-atomic) conclusion (the
-   prose that will go into `rationale=`).
+2. Summarize the paper's reasoning chain **for this (now-atomic) conclusion
+   specifically** — the chain's content matches the conclusion's nature: a
+   theoretical conclusion gets its mathematical / logical derivation; an
+   experimental measurement gets the experimental procedure (setup, instrument,
+   sampling, how the value was read out); a computational result gets the
+   method + parameters + numerical run. After an atomicity split, the theory
+   atom and the experiment atom each get their own chain; do not collapse them.
+   This prose becomes `rationale=`.
 3. From the reasoning, identify which upstream conclusions it depends on (from
    the step-4 logic graph) — these are the first entries in `given=`.
 4. Surface the **residual** weak points and highlights — the load-bearing

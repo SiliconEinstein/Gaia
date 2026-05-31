@@ -106,8 +106,15 @@ Create a session todo list with the six steps below and work them in order.
       "Separate method from result"): replace the bundled claim in the module
       with the atomic ones, update the logic graph, and proceed with each atomic
       conclusion separately in step 5.
-   2. Summarize the paper's reasoning chain for this (now-atomic) conclusion
-      (the prose that will become `derive(...)`'s `rationale=`).
+   2. Summarize the paper's reasoning chain **for this (now-atomic)
+      conclusion specifically** — the chain's content matches the conclusion's
+      nature: a theoretical conclusion gets its mathematical / logical
+      derivation; an experimental measurement gets the experimental procedure
+      (setup, instrument, sampling, how the value was read out); a computational
+      result gets the method + parameters + numerical run. After an atomicity
+      split, the theory atom and the experiment atom each get their own chain;
+      do not collapse them. This prose becomes that conclusion's `derive(...)`
+      `rationale=`.
    3. From the reasoning, identify the upstream conclusions it depends on
       (from the step-4 logic graph) — these go in `given=` first.
    4. Surface its weak points and highlights as the **residual** load-bearing
