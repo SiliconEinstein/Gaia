@@ -1,9 +1,10 @@
-"""Tests for the `gaia starmap` command."""
+"""Tests for the `gaia inspect starmap` command."""
 
 from __future__ import annotations
 
 import json
 import re
+from typing import ClassVar
 
 import pytest
 from typer.testing import CliRunner
@@ -15,6 +16,8 @@ from gaia.cli.commands._stellaris_svg import (
     recolor_background,
 )
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 
@@ -31,24 +34,22 @@ def _write_base_package(pkg_dir, *, name: str, version: str = "1.0.0") -> None:
 
 def _write_minimal_source(pkg_dir, name: str) -> None:
     (pkg_dir / name / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim, derive\n\n"
         'evidence_a = claim("Observed evidence A.")\n'
         'evidence_b = claim("Observed evidence B.")\n'
         'hypothesis = claim("Main hypothesis.")\n'
-        "s = deduction(premises=[evidence_a, evidence_b], conclusion=hypothesis,"
-        " reason='test', prior=0.9)\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "s"]\n'
+        "derive(hypothesis, given=[evidence_a, evidence_b], rationale='test', label='s')\n"
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis"]\n'
     )
 
 
 def _write_priors(pkg_dir, name: str) -> None:
     (pkg_dir / name / "priors.py").write_text(
         "from . import evidence_a, evidence_b, hypothesis\n\n"
-        "PRIORS = {\n"
-        '    evidence_a: (0.9, "Direct observation."),\n'
-        '    evidence_b: (0.8, "Supporting observation."),\n'
-        '    hypothesis: (0.4, "Base rate."),\n'
-        "}\n"
+        "from gaia.engine.lang import register_prior\n"
+        'register_prior(evidence_a, value=0.9, justification="Direct observation.")\n'
+        'register_prior(evidence_b, value=0.8, justification="Supporting observation.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
     )
 
 
@@ -58,13 +59,13 @@ def _prepare_inferred_package(tmp_path, name: str = "starmap_demo"):
     _write_base_package(pkg_dir, name=name)
     _write_minimal_source(pkg_dir, name)
     _write_priors(pkg_dir, name)
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
-    assert runner.invoke(app, ["infer", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["run", "infer", str(pkg_dir)]).exit_code == 0
     return pkg_dir
 
 
 def _extract_graph_data(html: str) -> dict:
-    """Parse the JSON payload injected by `gaia starmap` out of the HTML."""
+    """Parse the JSON payload injected by `gaia inspect starmap` out of the HTML."""
     match = re.search(r"window\.GRAPH_DATA = (.*?);</script>", html, re.DOTALL)
     assert match is not None, "window.GRAPH_DATA assignment not found in starmap HTML"
     return json.loads(match.group(1))
@@ -74,7 +75,7 @@ def test_starmap_default_output(tmp_path):
     """Happy path: writes .gaia/starmap.html with a parseable graph payload."""
     pkg_dir = _prepare_inferred_package(tmp_path)
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / ".gaia" / "starmap.html"
@@ -84,14 +85,15 @@ def test_starmap_default_output(tmp_path):
 
     data = _extract_graph_data(html)
     knowledge_nodes = [n for n in data["nodes"] if n["type"] not in ("strategy", "operator")]
-    # 3 knowledge nodes: evidence_a, evidence_b, hypothesis.
-    assert len(knowledge_nodes) == 3
-    labels = {n["label"] for n in knowledge_nodes}
+    authored_nodes = [n for n in knowledge_nodes if not n["metadata"].get("generated")]
+    # 3 authored knowledge nodes: evidence_a, evidence_b, hypothesis.
+    assert len(authored_nodes) == 3
+    labels = {n["label"] for n in authored_nodes}
     assert labels == {"evidence_a", "evidence_b", "hypothesis"}
 
     # Beliefs and priors should be threaded through.
-    assert any(n.get("belief") is not None for n in knowledge_nodes)
-    assert any(n.get("prior") is not None for n in knowledge_nodes)
+    assert any(n.get("belief") is not None for n in authored_nodes)
+    assert any(n.get("prior") is not None for n in authored_nodes)
 
     # Success message reports counts.
     assert "Wrote starmap to" in result.output
@@ -103,7 +105,7 @@ def test_starmap_custom_output(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_custom")
     custom = "build/star.html"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--out", custom])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--out", custom])
     assert result.exit_code == 0, result.output
 
     expected = pkg_dir / custom
@@ -116,7 +118,7 @@ def test_starmap_creates_parent_dirs(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_nested")
     nested = "nested/dir/foo.html"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--out", nested])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--out", nested])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / nested
@@ -129,19 +131,19 @@ def test_starmap_absolute_out_path(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_abs")
     abs_out = tmp_path / "elsewhere" / "starmap.html"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--out", str(abs_out)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--out", str(abs_out)])
     assert result.exit_code == 0, result.output
     assert abs_out.exists()
 
 
 def test_starmap_without_beliefs(tmp_path):
-    """Without `gaia infer`, starmap still produces HTML; beliefs are absent."""
+    """Without `gaia run infer`, starmap still produces HTML; beliefs are absent."""
     pkg_dir = tmp_path / "starmap_no_infer"
     _write_base_package(pkg_dir, name="starmap_no_infer")
     _write_minimal_source(pkg_dir, "starmap_no_infer")
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / ".gaia" / "starmap.html"
@@ -154,12 +156,12 @@ def test_starmap_without_beliefs(tmp_path):
 
 
 def test_starmap_missing_ir(tmp_path):
-    """Without `gaia compile`, starmap exits non-zero with a clear message."""
+    """Without `gaia build compile`, starmap exits non-zero with a clear message."""
     pkg_dir = tmp_path / "starmap_no_compile"
     _write_base_package(pkg_dir, name="starmap_no_compile")
     _write_minimal_source(pkg_dir, "starmap_no_compile")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code != 0
     assert "missing compiled artifacts" in result.output
 
@@ -171,7 +173,7 @@ def test_starmap_dot_default_output(tmp_path):
     """`--format dot` writes `.gaia/starmap.dot` with paper-ready Graphviz content."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dot")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
 
     out_path = pkg_dir / ".gaia" / "starmap.dot"
@@ -197,7 +199,9 @@ def test_starmap_dot_custom_out(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dot_custom")
     custom = "build/diagram.dot"
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot", "--out", custom])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--out", custom]
+    )
     assert result.exit_code == 0, result.output
 
     expected = pkg_dir / custom
@@ -212,7 +216,7 @@ def test_starmap_dot_belief_annotation(tmp_path):
     """With priors+beliefs present, knowledge nodes carry a `(P → B)` substring."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dot_belief")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
 
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
@@ -222,13 +226,13 @@ def test_starmap_dot_belief_annotation(tmp_path):
 
 
 def test_starmap_dot_no_beliefs(tmp_path):
-    """Without `gaia infer`, dot still renders and skips trend arrows."""
+    """Without `gaia run infer`, dot still renders and skips trend arrows."""
     pkg_dir = tmp_path / "starmap_dot_no_infer"
     _write_base_package(pkg_dir, name="starmap_dot_no_infer")
     _write_minimal_source(pkg_dir, "starmap_dot_no_infer")
-    assert runner.invoke(app, ["compile", str(pkg_dir)]).exit_code == 0
+    assert runner.invoke(app, ["build", "compile", str(pkg_dir)]).exit_code == 0
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
 
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
@@ -485,6 +489,61 @@ def test_to_dot_stellaris_knowledge_palette():
     assert "#6d6d80" in setting_line
 
 
+def test_to_dot_knowledge_content_fallback_when_unnamed():
+    """A claim with empty title+label falls back to its (truncated) content."""
+    graph_json = json.dumps(
+        {
+            "nodes": [
+                {
+                    "id": "p:m::_anon_001",
+                    "type": "claim",
+                    "label": "",
+                    "title": None,
+                    "module": "m",
+                    "content": "derive warrants The muon g-2 anomaly provides a sensitive test "
+                    "of the Standard Model and beyond",
+                    "belief": 0.5,
+                }
+            ],
+            "edges": [],
+        }
+    )
+    for theme in ("stellaris", "light"):
+        dot = to_dot(graph_json, theme=theme)
+        line = _node_line(dot, "p:m::_anon_001")
+        m = re.search(r'label="([^"]*)"', line)
+        assert m, line
+        label = m.group(1)
+        # "derive warrants " prefix stripped; substantive text shown.
+        assert label.startswith("The muon g-2 anomaly"), f"{theme}: {label!r}"
+        assert "derive warrants" not in label, f"{theme}: {label!r}"
+        # Truncated with an ellipsis (content is longer than the cap), then the
+        # belief annotation trails it.
+        assert "…" in label, f"{theme}: {label!r}"
+        assert label.endswith("(0.50)"), f"{theme}: {label!r}"
+
+
+def test_to_dot_knowledge_title_wins_over_content():
+    """When a title is present it is used; content is only a last-resort fallback."""
+    graph_json = json.dumps(
+        {
+            "nodes": [
+                {
+                    "id": "p:m::named",
+                    "type": "claim",
+                    "label": "named",
+                    "title": "A Named Claim",
+                    "module": "m",
+                    "content": "derive warrants some other text",
+                }
+            ],
+            "edges": [],
+        }
+    )
+    line = _node_line(to_dot(graph_json, theme="stellaris"), "p:m::named")
+    assert 'label="A Named Claim"' in line
+
+
 def test_to_dot_question_knowledge_branch_stellaris():
     """Question knowledge nodes render with a dashed amber box (open inquiry)."""
     dot = to_dot(_make_stellaris_fixture(), theme="stellaris")
@@ -590,10 +649,10 @@ def test_to_dot_contradiction_incident_edges_recolored():
 
 
 def test_starmap_cli_theme_flag(tmp_path):
-    """`gaia starmap --format dot --theme stellaris` produces dot with sfdp layout."""
+    """`gaia inspect starmap --format dot --theme stellaris` produces dot with sfdp layout."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_theme")
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "dot", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "stellaris"]
     )
     assert result.exit_code == 0, result.output
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
@@ -604,7 +663,7 @@ def test_starmap_cli_theme_flag(tmp_path):
 def test_starmap_cli_theme_default_is_light(tmp_path):
     """Without `--theme`, output stays on the light/TB layout (regression guard)."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_default_theme")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "dot"])
     assert result.exit_code == 0, result.output
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
     assert "layout=sfdp" not in content
@@ -615,7 +674,9 @@ def test_starmap_cli_theme_default_is_light(tmp_path):
 def test_starmap_cli_theme_dark_alias(tmp_path):
     """`--theme dark` is accepted and produces stellaris output."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_dark")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot", "--theme", "dark"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "dark"]
+    )
     assert result.exit_code == 0, result.output
     content = (pkg_dir / ".gaia" / "starmap.dot").read_text()
     assert "layout=sfdp" in content
@@ -624,7 +685,9 @@ def test_starmap_cli_theme_dark_alias(tmp_path):
 def test_starmap_cli_theme_invalid(tmp_path):
     """Unknown theme exits non-zero with a clear message."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_theme")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "dot", "--theme", "bogus"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "dot", "--theme", "bogus"]
+    )
     assert result.exit_code != 0
     assert "theme" in result.output.lower()
 
@@ -716,6 +779,61 @@ def test_post_process_stellaris_svg_combines_both_steps():
     assert 'fill="url(#space-bg)"' in out
 
 
+def _multi_contradiction_graph_json(n: int) -> str:
+    """Graph JSON with *n* contradiction operators, each on its own conclusion."""
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    for i in range(n):
+        kid = f"p:m::c{i}"
+        nodes.append({"id": kid, "type": "claim", "label": f"c{i}", "module": "m"})
+        nodes.append(
+            {"id": f"oper_{i}", "type": "operator", "operator_type": "contradiction", "module": "m"}
+        )
+        edges.append({"source": f"oper_{i}", "target": kid, "role": "conclusion"})
+    return json.dumps({"nodes": nodes, "edges": edges})
+
+
+def _count_contradiction_node_groups(svg: str) -> int:
+    """Count SVG node ``<g>`` groups whose class carries the contradiction token."""
+    count = 0
+    for m in re.finditer(r'<g\s+id="[^"]*"\s+class="([^"]*)"[^>]*>\s*<title>([^<]*)</title>', svg):
+        cls, title = m.groups()
+        if "contradiction" in cls.split() and title.startswith("oper_"):
+            count += 1
+    return count
+
+
+def test_ensure_contradiction_classes_restamps_dropped_marker():
+    """When Graphviz drops the per-node class, all N markers are re-injected.
+
+    Simulates Graphviz 2.43, which emits operator groups as ``class="node"`` with
+    the dot ``class="contradiction"`` dropped. The post-process keyed off the dot
+    source must restore the token on every contradiction node group.
+    """
+    from gaia.cli.commands._stellaris_svg import (
+        _contradiction_node_ids_from_dot,
+        ensure_contradiction_classes,
+    )
+
+    dot = to_dot(_multi_contradiction_graph_json(3), theme="stellaris")
+    contra_ids = _contradiction_node_ids_from_dot(dot)
+    assert contra_ids == {"oper_0", "oper_1", "oper_2"}
+
+    # Graphviz-2.43-style SVG: contradiction class dropped to a bare node class.
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<g id="node1" class="node"><title>oper_0</title></g>'
+        '<g id="node2" class="node"><title>oper_1</title></g>'
+        '<g id="node3" class="node"><title>oper_2</title></g>'
+        "</svg>"
+    )
+    assert _count_contradiction_node_groups(svg) == 0
+    out = ensure_contradiction_classes(svg, contra_ids)
+    assert _count_contradiction_node_groups(out) == 3
+    # Idempotent.
+    assert _count_contradiction_node_groups(ensure_contradiction_classes(out, contra_ids)) == 3
+
+
 # ── CLI --format svg integration tests ───────────────────────────────────────
 
 
@@ -729,9 +847,28 @@ def _has_graphviz() -> bool:
 def test_starmap_svg_invalid_format_rejected(tmp_path):
     """`--format` only accepts 'html', 'dot', 'svg'."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_fmt")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "garbage"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "garbage"])
     assert result.exit_code != 0
     assert "format" in result.output.lower()
+
+
+@pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
+def test_post_process_styles_all_contradiction_nodes_end_to_end():
+    """All N contradiction operators are styled, not just 1, through sfdp + post.
+
+    Regression: a 3-operator graph previously surfaced a single contradiction
+    marker downstream because Graphviz emission dropped/merged the per-node
+    class. Driving the real pipeline (to_dot → sfdp → post_process with the dot
+    source) must leave all 3 contradiction node groups carrying the token.
+    """
+    import subprocess
+
+    dot = to_dot(_multi_contradiction_graph_json(3), theme="stellaris")
+    svg = subprocess.run(
+        ["sfdp", "-Tsvg"], input=dot, capture_output=True, text=True, check=True
+    ).stdout
+    out = post_process_stellaris_svg(svg, dot_source=dot)
+    assert _count_contradiction_node_groups(out) == 3
 
 
 @pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
@@ -739,7 +876,7 @@ def test_starmap_svg_stellaris_end_to_end(tmp_path):
     """`--format svg --theme stellaris` writes a paper-ready glowing SVG."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_stellaris")
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
     )
     assert result.exit_code == 0, result.output
 
@@ -779,7 +916,7 @@ def test_starmap_svg_stellaris_well_formed_xml(tmp_path):
 
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_xml")
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
     )
     assert result.exit_code == 0, result.output
 
@@ -792,7 +929,9 @@ def test_starmap_svg_stellaris_well_formed_xml(tmp_path):
 def test_starmap_svg_dark_alias(tmp_path):
     """`--theme dark` produces the same stellaris SVG output."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_dark")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "dark"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "dark"]
+    )
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
     assert "<defs>" in svg
@@ -804,7 +943,9 @@ def test_starmap_svg_dark_alias(tmp_path):
 def test_starmap_svg_light_no_defs(tmp_path):
     """Light theme SVG goes through `dot` and skips the stellaris post-process."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_light")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "light"])
+    result = runner.invoke(
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "light"]
+    )
     assert result.exit_code == 0, result.output
 
     svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
@@ -821,7 +962,7 @@ def test_starmap_svg_light_no_defs(tmp_path):
 def test_starmap_svg_default_theme_is_light(tmp_path):
     """`--format svg` without `--theme` defaults to the light variant."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_svg_default")
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "svg"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "svg"])
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / ".gaia" / "starmap.svg").read_text(encoding="utf-8")
     assert 'id="contra-glow"' not in svg
@@ -835,6 +976,7 @@ def test_starmap_svg_custom_out_path(tmp_path):
     result = runner.invoke(
         app,
         [
+            "inspect",
             "starmap",
             str(pkg_dir),
             "--format",
@@ -868,7 +1010,7 @@ def test_starmap_svg_graphviz_missing_error_message(tmp_path, monkeypatch):
     monkeypatch.setattr("shutil.which", fake_which)
 
     result = runner.invoke(
-        app, ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
+        app, ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris"]
     )
     assert result.exit_code != 0
     msg = result.output.lower()
@@ -877,14 +1019,27 @@ def test_starmap_svg_graphviz_missing_error_message(tmp_path, monkeypatch):
     assert "sfdp" in result.output or "dot" in result.output
 
 
-def test_to_dot_stellaris_strategy_labels_stripped():
-    """In stellaris, strategy nodes are shape-only — no inline type text."""
+def test_to_dot_stellaris_strategy_labels_carry_glyph():
+    """In stellaris, strategy nodes are glyph-coded (∴ deduction / ⊕ support)."""
     dot = to_dot(_make_stellaris_fixture(), theme="stellaris")
-    # The fixture has both deduction and support strategies.
-    for nid in ("strat_ded", "strat_sup"):
+    expectations = {"strat_ded": "∴", "strat_sup": "⊕"}
+    for nid, glyph in expectations.items():
         line = _node_line(dot, nid)
         m = re.search(r'label="([^"]*)"', line)
-        assert m and m.group(1) == "", f"{nid} expected empty label, got line: {line}"
+        assert m and m.group(1) == glyph, f"{nid} expected {glyph!r}, got line: {line}"
+
+
+def test_to_dot_stellaris_unknown_strategy_falls_back_to_type_text():
+    """A strategy with an unmapped type renders its type text, not a blank label."""
+    graph_json = json.dumps(
+        {
+            "nodes": [{"id": "strat_x", "type": "strategy", "strategy_type": "mystery"}],
+            "edges": [],
+        }
+    )
+    dot = to_dot(graph_json, theme="stellaris")
+    line = _node_line(dot, "strat_x")
+    assert 'label="mystery"' in line
 
 
 def test_to_dot_stellaris_operator_labels_symbol_only():
@@ -928,7 +1083,9 @@ def test_inject_legend_adds_block_before_svg_close():
     minimal = '<svg xmlns="http://www.w3.org/2000/svg"><polygon/></svg>'
     out = inject_legend(minimal)
     assert '<g id="legend"' in out
-    assert "节点角色" in out
+    assert "Stellaris starmap" in out
+    # Legend text is English-only — no CJK leaks into the figure.
+    assert not re.search(r"[一-鿿]", out)
     # Legend appears before </svg>.
     assert out.index('id="legend"') < out.index("</svg>")
 
@@ -938,13 +1095,19 @@ def test_inject_legend_includes_all_node_role_rows():
     from gaia.cli.commands._stellaris_svg import inject_legend
 
     out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
-    # Knowledge boxes
-    assert "premise" in out
-    assert "derived" in out
-    assert "root claim" in out
-    # Strategies
-    assert "deduction" in out
-    assert "support" in out
+    # Knowledge boxes — English-only labels.
+    assert "premise · no upstream strategy/operator" in out
+    assert "derived · ≥1 upstream strategy/operator" in out
+    assert "★ root claim · belief-prop seed" in out
+    assert "⊕ support (independent evidence)" in out
+    assert "box numbers:" in out
+    # Strategies — now glyph-coded (mirrors the dot node labels).
+    assert "∴ deduction" in out
+    assert "⊕ support" in out
+    # The strategy glyphs render as their own <text> nodes (icon labels), not
+    # just inside the row-label text.
+    assert out.count("∴") >= 2
+    assert out.count("⊕") >= 2
     # All 6 operator types by symbol + name
     for sym in ("⊗", "⊙", "⊃", "¬", "∨", "∧"):
         assert sym in out
@@ -957,6 +1120,48 @@ def test_inject_legend_includes_all_node_role_rows():
         "conjunction",
     ):
         assert tname in out
+
+
+def test_inject_legend_frontier_row_off_by_default():
+    """Without `include_frontier`, the legend has no fog row (starmap unchanged)."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+    assert "frontier · unexplored (fog)" not in out
+    assert "stroke-dasharray" not in out
+
+
+def test_inject_legend_frontier_row_added_when_requested():
+    """With `include_frontier=True`, a dashed fog row + label appear."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>', include_frontier=True)
+    assert "frontier · unexplored (fog)" in out
+    # The fog icon is a dashed rounded rect in the question palette.
+    assert 'stroke-dasharray="4,2"' in out
+    assert "#332416" in out
+    assert "#caa84a" in out
+    # The other node-role rows still render.
+    assert "premise · no upstream strategy/operator" in out
+
+
+def test_build_legend_svg_frontier_flag_controls_fog_row():
+    """`_build_legend_svg` gates the fog row on its flag."""
+    from gaia.cli.commands._stellaris_svg import _build_legend_svg
+
+    assert "frontier · unexplored (fog)" not in _build_legend_svg()
+    assert "frontier · unexplored (fog)" in _build_legend_svg(include_frontier=True)
+
+
+def test_post_process_stellaris_svg_frontier_flag_gates_fog_row():
+    """`post_process_stellaris_svg` only emits the fog row when `include_frontier`."""
+    from gaia.cli.commands._stellaris_svg import post_process_stellaris_svg
+
+    svg = '<svg xmlns="http://www.w3.org/2000/svg"><polygon fill="#05060f"/></svg>'
+    # Default (starmap path) — no fog row.
+    assert "frontier · unexplored (fog)" not in post_process_stellaris_svg(svg)
+    # Explorer path — fog row present.
+    assert "frontier · unexplored (fog)" in post_process_stellaris_svg(svg, include_frontier=True)
 
 
 def test_inject_legend_idempotent():
@@ -977,12 +1182,26 @@ def test_starmap_svg_stellaris_includes_legend(tmp_path):
     out = "the.svg"
     result = runner.invoke(
         app,
-        ["starmap", str(pkg_dir), "--format", "svg", "--theme", "stellaris", "--out", out],
+        [
+            "inspect",
+            "starmap",
+            str(pkg_dir),
+            "--format",
+            "svg",
+            "--theme",
+            "stellaris",
+            "--out",
+            out,
+        ],
     )
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / out).read_text(encoding="utf-8")
     assert '<g id="legend"' in svg
-    assert "节点角色" in svg
+    assert "Stellaris starmap" in svg
+    # No CJK leaks into the rendered stellaris figure.
+    assert not re.search(r"[一-鿿]", svg)
+    # Plain starmap has no fog nodes, so the frontier legend row must be absent.
+    assert "frontier · unexplored (fog)" not in svg
 
 
 @pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
@@ -992,7 +1211,7 @@ def test_starmap_svg_light_no_legend(tmp_path):
     out = "the.svg"
     result = runner.invoke(
         app,
-        ["starmap", str(pkg_dir), "--format", "svg", "--theme", "light", "--out", out],
+        ["inspect", "starmap", str(pkg_dir), "--format", "svg", "--theme", "light", "--out", out],
     )
     assert result.exit_code == 0, result.output
     svg = (pkg_dir / out).read_text(encoding="utf-8")
@@ -1021,8 +1240,11 @@ def test_replay_render_html_injects_payload():
 
 
 def test_replay_render_html_raises_when_placeholder_missing():
-    """Templates without the placeholder are rejected loudly — silent failure would
-    leave the frontend with no timeline data."""
+    """Verify replay render html raises when placeholder missing.
+
+    Templates without the placeholder are rejected loudly — silent failure would leave the
+    frontend with no timeline data.
+    """
     from gaia.cli.commands.starmap_replay import _render_html
 
     with pytest.raises(RuntimeError, match="placeholder"):
@@ -1126,8 +1348,11 @@ def test_replay_compute_round_beliefs_empty_ir_returns_empty():
 
 
 def test_replay_compute_dot_layout_parses_canned_json(monkeypatch):
-    """`compute_dot_layout` consumes Graphviz `-Tjson0` output: nodes get y-flipped,
-    cluster bounding boxes flatten into the clusters list."""
+    """Verify replay compute dot layout parses canned json.
+
+    `compute_dot_layout` consumes Graphviz `-Tjson0` output: nodes get y-flipped cluster
+    bounding boxes flatten into the clusters list.
+    """
     import subprocess as _subprocess
 
     from gaia.cli.commands import _replay_build as rb
@@ -1157,6 +1382,7 @@ def test_replay_compute_dot_layout_parses_canned_json(monkeypatch):
             self.stderr = stderr
 
     def _fake_run(cmd, **kwargs):
+        del cmd
         # Caller passes the dot source via stdin.
         assert kwargs.get("input")
         return _FakeProc(json.dumps(canned))
@@ -1204,7 +1430,7 @@ def test_starmap_replay_cli_smoke(tmp_path):
     out_path = tmp_path / "replay.html"
     result = runner.invoke(
         app,
-        ["starmap-replay", str(_STARMAP_REPLAY_FIXTURE), "--out", str(out_path)],
+        ["inspect", "starmap-replay", str(_STARMAP_REPLAY_FIXTURE), "--out", str(out_path)],
     )
     assert result.exit_code == 0, result.output
     html = out_path.read_text(encoding="utf-8")
@@ -1222,7 +1448,7 @@ def test_starmap_replay_cli_rejects_non_directory(tmp_path):
     """Replaying against a file (not a package directory) fails with exit code 1."""
     f = tmp_path / "not_a_dir"
     f.write_text("hello", encoding="utf-8")
-    result = runner.invoke(app, ["starmap-replay", str(f)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(f)])
     assert result.exit_code == 1
     assert "is not a directory" in result.output
 
@@ -1231,7 +1457,7 @@ def test_starmap_replay_cli_reports_missing_logs(tmp_path):
     """Replaying a directory missing its lkm-discovery JSONL logs surfaces both paths."""
     pkg_dir = tmp_path / "empty_pkg"
     pkg_dir.mkdir()
-    result = runner.invoke(app, ["starmap-replay", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(pkg_dir)])
     assert result.exit_code == 1
     assert "missing timeline log" in result.output
     assert "graph_growth_log.jsonl" in result.output
@@ -1239,8 +1465,11 @@ def test_starmap_replay_cli_reports_missing_logs(tmp_path):
 
 
 def test_replay_compute_round_beliefs_runs_inference_on_synthetic_ir():
-    """Two-claim IR + lkm-driven events: each round's truncation runs through
-    the BP engine and beliefs land at the priors (no edges)."""
+    """Verify replay compute round beliefs runs inference on synthetic ir.
+
+    Two-claim IR + lkm-driven events: each round's truncation runs through the BP engine and
+    beliefs land at the priors (no edges).
+    """
     from gaia.cli.commands._replay_build import compute_round_beliefs
 
     ir = {
@@ -1319,12 +1548,15 @@ def test_replay_collect_round_order_dedup_preserves_first_appearance():
 
 @pytest.mark.skipif(not _has_graphviz(), reason="graphviz binaries not on PATH")
 def test_starmap_replay_cli_with_real_package_triggers_layout_pipeline(tmp_path):
-    """End-to-end: a compiled package + the bundled fixture's logs exercises the
-    full pipeline (dot layout, IR-side annotation, round beliefs).
+    """Verify starmap replay cli with real package triggers layout pipeline.
+
+    End-to-end: a compiled package + the bundled fixture's logs exercises the full pipeline (dot
+    layout, IR-side annotation, round beliefs).
 
     This is a smoke test — we don't assert the layout *contents* (those depend
     on the package's specific IR), only that the pipeline emits a payload with
-    a non-None final_layout when graphviz is available."""
+    a non-None final_layout when graphviz is available.
+    """
     import shutil as _shutil
 
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_replay_real")
@@ -1341,7 +1573,7 @@ def test_starmap_replay_cli_with_real_package_triggers_layout_pipeline(tmp_path)
     out_path = tmp_path / "real_replay.html"
     result = runner.invoke(
         app,
-        ["starmap-replay", str(pkg_dir), "--out", str(out_path)],
+        ["inspect", "starmap-replay", str(pkg_dir), "--out", str(out_path)],
     )
     assert result.exit_code == 0, result.output
     html = out_path.read_text(encoding="utf-8")
@@ -1366,7 +1598,7 @@ def test_starmap_invalid_format_rejects_with_exit_2(tmp_path):
     _write_base_package(pkg_dir, name="starmap_bad_fmt")
     _write_minimal_source(pkg_dir, "starmap_bad_fmt")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--format", "pdf"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--format", "pdf"])
     assert result.exit_code == 2
     assert "--format must be one of" in result.output
 
@@ -1377,7 +1609,7 @@ def test_starmap_invalid_theme_rejects_with_exit_2(tmp_path):
     _write_base_package(pkg_dir, name="starmap_bad_theme")
     _write_minimal_source(pkg_dir, "starmap_bad_theme")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir), "--theme", "neon"])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir), "--theme", "neon"])
     assert result.exit_code == 2
     assert "--theme must be one of" in result.output
 
@@ -1388,7 +1620,7 @@ def test_starmap_stale_ir_hash_errors(tmp_path):
     # Corrupt the recorded ir_hash so the freshness gate fires.
     (pkg_dir / ".gaia" / "ir_hash").write_text("not-the-real-hash\n")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "stale" in result.output
 
@@ -1398,7 +1630,7 @@ def test_starmap_corrupt_ir_json_errors(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_ir_json")
     (pkg_dir / ".gaia" / "ir.json").write_text("{ this is not json")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "ir.json is not valid JSON" in result.output
 
@@ -1408,20 +1640,20 @@ def test_starmap_corrupt_beliefs_json_errors(tmp_path):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_bad_beliefs_json")
     (pkg_dir / ".gaia" / "beliefs.json").write_text("{ broken")
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "beliefs.json" in result.output and "not valid JSON" in result.output
 
 
 def test_starmap_stale_beliefs_errors(tmp_path):
-    """Beliefs whose ir_hash doesn't match compile output prompt `gaia infer` again."""
+    """Beliefs whose ir_hash doesn't match compile output prompt `gaia run infer` again."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_stale_beliefs")
     beliefs_path = pkg_dir / ".gaia" / "beliefs.json"
     data = json.loads(beliefs_path.read_text())
     data["ir_hash"] = "wrong-hash"
     beliefs_path.write_text(json.dumps(data))
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "beliefs are stale" in result.output
 
@@ -1432,7 +1664,7 @@ def test_starmap_render_html_missing_placeholder_via_monkeypatch(tmp_path, monke
     from gaia.cli.commands import starmap as starmap_mod
 
     monkeypatch.setattr(starmap_mod, "_load_template", lambda: "<html>no marker</html>")
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "placeholder" in result.output
 
@@ -1447,7 +1679,14 @@ def test_starmap_replay_missing_template_exits_1(tmp_path, monkeypatch):
     monkeypatch.setattr(sr, "_load_template", lambda: "<html>no marker</html>")
 
     result = runner.invoke(
-        app, ["starmap-replay", str(_STARMAP_REPLAY_FIXTURE), "--out", str(tmp_path / "x.html")]
+        app,
+        [
+            "inspect",
+            "starmap-replay",
+            str(_STARMAP_REPLAY_FIXTURE),
+            "--out",
+            str(tmp_path / "x.html"),
+        ],
     )
     assert result.exit_code == 1
     assert "placeholder" in result.output
@@ -1468,7 +1707,7 @@ def test_starmap_replay_validates_schema_warning_lines(tmp_path):
     )
 
     out_path = tmp_path / "out.html"
-    result = runner.invoke(app, ["starmap-replay", str(pkg_dir), "--out", str(out_path)])
+    result = runner.invoke(app, ["inspect", "starmap-replay", str(pkg_dir), "--out", str(out_path)])
     assert result.exit_code == 0, result.output
     assert "Warning:" in result.output
     assert "schema_version" in result.output
@@ -1654,8 +1893,11 @@ def test_replay_collect_round_lkm_membership_is_cumulative():
 
 
 def test_replay_truncated_canonical_graph_filters_to_kept_ids():
-    """`_truncated_canonical_graph` returns None when the kept set is empty
-    or the result fails Pydantic validation; happy path keeps survivors."""
+    """Verify replay truncated canonical graph filters to kept ids.
+
+    `_truncated_canonical_graph` returns None when the kept set is empty or the result fails
+    Pydantic validation; happy path keeps survivors.
+    """
     from gaia.cli.commands._replay_build import _truncated_canonical_graph
 
     # Knowledge-only IR (no strategies / operators) avoids pydantic surface
@@ -1696,8 +1938,11 @@ def test_replay_truncated_canonical_graph_filters_to_kept_ids():
 
 
 def test_replay_annotate_ticks_with_survival_marks_orphans():
-    """Ticks whose `action.symbol` doesn't resolve to the final IR get
-    `survives_to_final=False` plus a warning."""
+    """Verify replay annotate ticks with survival marks orphans.
+
+    Ticks whose `action.symbol` doesn't resolve to the final IR get `survives_to_final=False`
+    plus a warning.
+    """
     from gaia.cli.commands._replay_build import annotate_ticks_with_survival
 
     layout = {
@@ -1788,8 +2033,11 @@ def test_replay_annotate_ticks_with_survival_skips_when_layout_nodes_not_dict():
 
 
 def test_replay_bridge_event_symbols_to_layout_aliases_strat_via_edge_signature():
-    """An event whose deduction edge matches an IR strategy's lkm-id signature
-    aliases ``gfac_*`` to ``strat_<i>`` and stamps `canonical_id`."""
+    """Verify replay bridge event symbols to layout aliases strat via edge signature.
+
+    An event whose deduction edge matches an IR strategy's lkm-id signature aliases ``gfac_*``
+    to ``strat_<i>`` and stamps `canonical_id`.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -1868,8 +2116,11 @@ def test_replay_topo_reorder_ticks_preserves_chronology_when_no_dep_pressure():
 
 
 def test_replay_topo_reorder_ticks_swaps_premature_strategy():
-    """A strategy tick fired before its premise/conclusion claims should be
-    moved past those claims by the topo reorder."""
+    """Verify replay topo reorder ticks swaps premature strategy.
+
+    A strategy tick fired before its premise/conclusion claims should be moved past those claims
+    by the topo reorder.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {
@@ -1926,8 +2177,11 @@ def test_replay_topo_reorder_ticks_swaps_premature_strategy():
 
 
 def test_replay_topo_reorder_ticks_keeps_orphans_in_place():
-    """Orphan ticks (`survives_to_final=False`) stay in their original slot
-    while surviving ticks pour through the reordered slots."""
+    """Verify replay topo reorder ticks keeps orphans in place.
+
+    Orphan ticks (`survives_to_final=False`) stay in their original slot while surviving ticks
+    pour through the reordered slots.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {"nodes": {"gcn_a": {"kind": "knowledge"}, "gcn_b": {"kind": "knowledge"}}}
@@ -1966,8 +2220,11 @@ def test_replay_topo_reorder_ticks_keeps_orphans_in_place():
 
 
 def test_replay_bridge_event_symbols_to_layout_pair_signature_match():
-    """`pair_signatures` route bridges support / contradiction / equivalence
-    events whose two-endpoint edge matches an IR operator's variable set."""
+    """Verify replay bridge event symbols to layout pair signature match.
+
+    `pair_signatures` route bridges support / contradiction / equivalence events whose two-
+    endpoint edge matches an IR operator's variable set.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -2043,6 +2300,7 @@ def test_replay_bridge_event_symbols_skips_when_already_in_layout():
 
 def test_replay_compute_dot_layout_real_graphviz_smoke(tmp_path):
     """End-to-end against a real graphviz dot binary: produces nodes + viewport."""
+    del tmp_path
     if not _has_graphviz():
         pytest.skip("graphviz not on PATH")
     from gaia.cli.commands._replay_build import compute_dot_layout
@@ -2067,7 +2325,7 @@ def test_replay_compute_dot_layout_raises_on_dot_failure(monkeypatch):
         stdout = ""
         stderr = "syntax error near token foo"
 
-    monkeypatch.setattr(rb.subprocess, "run", lambda *a, **k: _FakeProc())
+    monkeypatch.setattr(rb.subprocess, "run", lambda *_args, **_kwargs: _FakeProc())
     with pytest.raises(RuntimeError, match="dot -Tjson0"):
         rb.compute_dot_layout("digraph { a }")
 
@@ -2082,28 +2340,28 @@ def test_starmap_validation_error_exits_1(tmp_path, monkeypatch):
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_validate_err")
 
     class _Result:
-        warnings = ["a soft note"]
-        errors = ["something is broken"]
+        warnings: ClassVar[list[str]] = ["a soft note"]
+        errors: ClassVar[list[str]] = ["something is broken"]
 
     monkeypatch.setattr(starmap_mod, "validate_local_graph", lambda _g: _Result())
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "Warning:" in result.output
     assert "something is broken" in result.output
 
 
 def test_starmap_load_failure_exits_1(tmp_path, monkeypatch):
-    """A GaiaCliError raised by `load_gaia_package` is captured + exit 1."""
-    from gaia.cli._packages import GaiaCliError
+    """A GaiaPackagingError raised by `load_gaia_package` is captured + exit 1."""
     from gaia.cli.commands import starmap as starmap_mod
+    from gaia.engine.packaging import GaiaPackagingError
 
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_load_fail")
 
     def _boom(_path):
-        raise GaiaCliError("simulated load failure")
+        raise GaiaPackagingError("simulated load failure")
 
     monkeypatch.setattr(starmap_mod, "load_gaia_package", _boom)
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "simulated load failure" in result.output
 
@@ -2119,7 +2377,7 @@ def test_starmap_stored_ir_mismatches_compiled_ir(tmp_path):
     data["package_name"] = "TAMPERED"
     ir_path.write_text(json.dumps(data))
 
-    result = runner.invoke(app, ["starmap", str(pkg_dir)])
+    result = runner.invoke(app, ["inspect", "starmap", str(pkg_dir)])
     assert result.exit_code == 1
     assert "stale" in result.output
 
@@ -2128,8 +2386,11 @@ def test_starmap_stored_ir_mismatches_compiled_ir(tmp_path):
 
 
 def test_replay_bridge_event_symbols_file_symbol_name_fallback():
-    """Step B fallback: when no edge signature matches, action.file + symbol
-    name (matching the IR conclusion slug) bridges the symbol."""
+    """Verify replay bridge event symbols file symbol name fallback.
+
+    Step B fallback: when no edge signature matches, action.file + symbol name (matching the IR
+    conclusion slug) bridges the symbol.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -2176,8 +2437,11 @@ def test_replay_bridge_event_symbols_file_symbol_name_fallback():
 
 
 def test_replay_bridge_event_symbols_file_kind_uniqueness_fallback():
-    """Step C fallback: when no edge / name match, the sole IR strat/oper of
-    the right kind in the right module gets claimed."""
+    """Verify replay bridge event symbols file kind uniqueness fallback.
+
+    Step C fallback: when no edge / name match, the sole IR strat/oper of the right kind in the
+    right module gets claimed.
+    """
     from gaia.cli.commands._replay_build import bridge_event_symbols_to_layout
 
     layout = {
@@ -2221,8 +2485,11 @@ def test_replay_bridge_event_symbols_file_kind_uniqueness_fallback():
 
 
 def test_replay_topo_reorder_with_operator_dependency():
-    """A contradiction operator tick depends on its variable claims; if it
-    fires before them, topo reorder pushes it past."""
+    """Verify replay topo reorder with operator dependency.
+
+    A contradiction operator tick depends on its variable claims; if it fires before them, topo
+    reorder pushes it past.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {
@@ -2274,9 +2541,11 @@ def test_replay_topo_reorder_with_operator_dependency():
 
 
 def test_replay_topo_reorder_prior_dep_keys_resolution():
-    """A `prior` action's dependency comes from its event's payload — the
-    `_prior_dep_keys` helper should pull `target_lkm_id` / `priors` /
-    `claim_ids` / prior edges correctly."""
+    """Verify replay topo reorder prior dep keys resolution.
+
+    A `prior` action's dependency comes from its event's payload — the `_prior_dep_keys` helper
+    should pull `target_lkm_id` / `priors` / `claim_ids` / prior edges correctly.
+    """
     from gaia.cli.commands._replay_build import topo_reorder_ticks
 
     layout = {
@@ -2337,9 +2606,11 @@ def test_replay_topo_reorder_prior_dep_keys_resolution():
 
 
 def test_replay_compute_round_beliefs_full_engine_path():
-    """`compute_round_beliefs` runs the BP engine on an IR with a deduction
-    edge. Each round's truncated graph yields a beliefs dict containing the
-    admitted claims."""
+    """Verify replay compute round beliefs full engine path.
+
+    `compute_round_beliefs` runs the BP engine on an IR with a deduction edge. Each round's
+    truncated graph yields a beliefs dict containing the admitted claims.
+    """
     from gaia.cli.commands._replay_build import compute_round_beliefs
 
     ir = {
@@ -2385,8 +2656,11 @@ def test_replay_compute_round_beliefs_full_engine_path():
 
 
 def test_replay_compute_round_beliefs_returns_empty_when_membership_empty():
-    """When no events have lkm_id-bearing nodes_added entries, every IR claim
-    is "always-present" and `cumulative` is empty → returns {}."""
+    """Verify replay compute round beliefs returns empty when membership empty.
+
+    When no events have lkm_id-bearing nodes_added entries, every IR claim is "always-present"
+    and `cumulative` is empty → returns {}.
+    """
     from gaia.cli.commands._replay_build import compute_round_beliefs
 
     ir = {

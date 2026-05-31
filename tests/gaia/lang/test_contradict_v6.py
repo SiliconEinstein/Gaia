@@ -1,0 +1,40 @@
+from gaia.engine.lang import contradict
+from gaia.engine.lang.runtime.action import Contradict
+from gaia.engine.lang.runtime.knowledge import Claim
+from gaia.engine.lang.runtime.package import CollectedPackage
+
+
+def test_contradict_returns_helper_claim():
+    a = Claim("Classical prediction.")
+    b = Claim("Observation.")
+    helper = contradict(a, b, rationale="Classical theory fails.")
+    assert isinstance(helper, Claim)
+    assert helper.metadata.get("generated") is True
+    assert helper.metadata.get("helper_kind") == "contradiction_result"
+    assert helper.metadata.get("review") is True
+
+
+def test_contradict_registers_action_and_helper_attachment():
+    with CollectedPackage("v6_test") as pkg:
+        a = Claim("Classical prediction.")
+        b = Claim("Observation.")
+        helper = contradict(a, b, rationale="Classical theory fails.", label="conflict")
+    assert len(pkg.actions) == 1
+    action = pkg.actions[0]
+    assert isinstance(action, Contradict)
+    assert action.label == "conflict"
+    assert action.a is a
+    assert action.b is b
+    assert action.helper is helper
+    assert helper.from_actions == [action]
+    assert action.warrants == []
+
+
+def test_contradict_records_background_information():
+    with CollectedPackage("v6_test") as pkg:
+        a = Claim("Classical prediction.")
+        b = Claim("Observation.")
+        bg = Claim("Same measurement protocol.")
+        contradict(a, b, background=[bg], rationale="Classical theory fails.")
+    action = pkg.actions[0]
+    assert action.background == [bg]

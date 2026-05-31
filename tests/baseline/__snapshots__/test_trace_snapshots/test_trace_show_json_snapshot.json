@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "trace",
+    "show",
+    "<TMP>",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "{\"event_id\":\"e0\",\"seq\":0,\"prev_hash\":\"\",\"ts\":\"<ISO_TS>\",\"kind\":\"decision\",\"actor\":\"arm\",\"inputs\":{\"step\":\"inputs\"},\"outputs\":null,\"reason\":\"grounded by inputs\",\"refs\":[],\"parent_event_id\":null,\"tool\":null,\"error\":null}\n{\"event_id\":\"e1\",\"seq\":1,\"prev_hash\":\"4156da5d15b5c54269c6cc4c1d2a95f2e6d9d96718b08d571a0c1bf95b99a98d\",\"ts\":\"<ISO_TS>\",\"kind\":\"decision\",\"actor\":\"arm\",\"inputs\":{\"step\":\"inputs\"},\"outputs\":null,\"reason\":\"grounded by inputs\",\"refs\":[],\"parent_event_id\":null,\"tool\":null,\"error\":null}\n{\"event_id\":\"e2\",\"seq\":2,\"prev_hash\":\"025de033811b05e708f5f6196ad8d4ff60efd1cc1cb540431026887e842c0966\",\"ts\":\"<ISO_TS>\",\"kind\":\"decision\",\"actor\":\"arm\",\"inputs\":{\"step\":\"inputs\"},\"outputs\":null,\"reason\":\"grounded by inputs\",\"refs\":[],\"parent_event_id\":null,\"tool\":null,\"error\":null}\n"
+}

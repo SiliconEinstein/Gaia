@@ -21,7 +21,7 @@ def _simple_pkg(pkg_dir, name: str = "proof_pkg") -> None:
     src = pkg_dir / name
     src.mkdir()
     (src / "__init__.py").write_text(
-        "from gaia.lang import claim\n"
+        "from gaia.engine.lang import claim\n"
         'main_claim = claim("main hypothesis", metadata={"prior": 0.5})\n'
         '__all__ = ["main_claim"]\n',
         encoding="utf-8",
@@ -144,6 +144,23 @@ def test_obligation_bad_kind_rejected(tmp_path):
         ["inquiry", "obligation", "add", "X", "-c", "a", "--kind", "bogus", "--path", str(pkg)],
     )
     assert r.exit_code == 2
+
+
+def test_obligation_target_alias_matches_path(tmp_path):
+    """`--target` is accepted as an alias for `--path` on inquiry verbs."""
+    pkg = tmp_path / "p"
+    _simple_pkg(pkg)
+    r = runner.invoke(
+        app,
+        ["inquiry", "obligation", "add", "X", "-c", "a", "--kind", "other", "--target", str(pkg)],
+    )
+    assert r.exit_code == 0, r.output
+    r2 = runner.invoke(app, ["inquiry", "obligation", "list", "--json", "--target", str(pkg)])
+    rows = json.loads(r2.output)
+    assert len(rows) == 1
+    # The bare --path form keeps working and reads the same state.
+    r3 = runner.invoke(app, ["inquiry", "obligation", "list", "--json", "--path", str(pkg)])
+    assert json.loads(r3.output) == rows
 
 
 # ---------------------------------------------------------------------------

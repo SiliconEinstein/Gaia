@@ -1,22 +1,24 @@
 """Tests for Strategy data model (Strategy, CompositeStrategy, FormalStrategy)."""
 
 import pytest
-from gaia.ir import (
-    Strategy,
+
+from gaia.engine.ir import (
     CompositeStrategy,
-    FormalStrategy,
     FormalExpr,
-    StrategyType,
-    Step,
+    FormalStrategy,
     Operator,
+    Step,
+    Strategy,
+    StrategyType,
 )
 
 
 class TestStrategyType:
-    def test_thirteen_types(self):
-        assert len(StrategyType) == 13
+    def test_fourteen_types(self):
+        assert len(StrategyType) == 14
         expected = {
             "infer",
+            "associate",
             "noisy_and",
             "deduction",
             "reductio",
@@ -33,12 +35,12 @@ class TestStrategyType:
         assert set(StrategyType) == expected
 
     def test_no_toolcall(self):
-        """toolcall is deferred per spec."""
+        """Toolcall is deferred per spec."""
         with pytest.raises(ValueError):
             StrategyType("toolcall")
 
     def test_no_proof(self):
-        """proof is deferred per spec."""
+        """Proof is deferred per spec."""
         with pytest.raises(ValueError):
             StrategyType("proof")
 
@@ -48,7 +50,7 @@ class TestStrategyType:
             StrategyType("soft_implication")
 
     def test_binding_deferred(self):
-        """binding is deferred outside Gaia IR core."""
+        """Binding is deferred outside Gaia IR core."""
         with pytest.raises(ValueError):
             StrategyType("binding")
 
@@ -58,7 +60,7 @@ class TestStrategyType:
             StrategyType("independent_evidence")
 
     def test_induction_exists(self):
-        """induction is a valid CompositeStrategy type."""
+        """Induction is a valid CompositeStrategy type."""
         assert StrategyType("induction") == StrategyType.INDUCTION
 
 
@@ -106,6 +108,74 @@ class TestStrategyCreation:
             steps=[Step(reasoning="observed correlation")],
         )
         assert len(s.steps) == 1
+
+    def test_infer_preserves_author_probability_bounds(self):
+        s = Strategy(
+            scope="local",
+            type="infer",
+            premises=["github:test::h"],
+            conclusion="github:test::e",
+            conditional_probabilities=[0.0, 1.0],
+        )
+
+        assert s.conditional_probabilities == [0.0, 1.0]
+
+    def test_infer_rejects_out_of_range_author_probability(self):
+        with pytest.raises(ValueError, match="conditional_probabilities"):
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=["github:test::h"],
+                conclusion="github:test::e",
+                conditional_probabilities=[-0.1, 0.8],
+            )
+
+    def test_infer_rejects_inline_prior_fields(self):
+        with pytest.raises(ValueError, match="prior_hypothesis"):
+            Strategy(
+                scope="local",
+                type="infer",
+                premises=["github:test::h"],
+                conclusion="github:test::e",
+                conditional_probabilities=[0.2, 0.8],
+                prior_hypothesis=0.5,
+            )
+
+    def test_associate_preserves_author_probability_bounds(self):
+        s = Strategy(
+            scope="local",
+            type="associate",
+            premises=["github:test::a", "github:test::b"],
+            conclusion="github:test::assoc",
+            p_a_given_b=1.0,
+            p_b_given_a=0.0,
+        )
+
+        assert s.p_a_given_b == 1.0
+        assert s.p_b_given_a == 0.0
+
+    def test_associate_rejects_out_of_range_author_probability(self):
+        with pytest.raises(ValueError, match="p_a_given_b"):
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=["github:test::a", "github:test::b"],
+                conclusion="github:test::assoc",
+                p_a_given_b=1.2,
+                p_b_given_a=0.5,
+            )
+
+    def test_associate_rejects_inline_prior_fields(self):
+        with pytest.raises(ValueError, match="prior_b"):
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=["github:test::a", "github:test::b"],
+                conclusion="github:test::assoc",
+                p_a_given_b=0.5,
+                p_b_given_a=0.5,
+                prior_b=0.5,
+            )
 
     def test_invalid_scope_rejected(self):
         with pytest.raises(ValueError, match="scope must be 'local'"):
@@ -201,7 +271,7 @@ class TestCompositeStrategy:
         assert cs1.strategy_id != cs2.strategy_id
 
     def test_structure_hash_affects_id(self):
-        """CompositeStrategy ID differs from leaf Strategy ID with same scope/type/premises/conclusion."""
+        """CompositeStrategy ID differs from the equivalent leaf Strategy ID."""
         leaf = Strategy(scope="local", type="infer", premises=["a"], conclusion="b")
         comp = CompositeStrategy(
             scope="local",
@@ -435,7 +505,7 @@ class TestFormalStrategy:
         assert fs1.strategy_id != fs2.strategy_id
 
     def test_structure_hash_affects_id_vs_leaf(self):
-        """FormalStrategy ID differs from hypothetical leaf with same scope/type/premises/conclusion."""
+        """FormalStrategy ID differs from the equivalent hypothetical leaf ID."""
         fs = FormalStrategy(
             scope="local",
             type="deduction",
@@ -448,7 +518,7 @@ class TestFormalStrategy:
             ),
         )
         # A leaf with same inputs but empty structure_hash would get a different ID
-        from gaia.ir.strategy import _compute_strategy_id
+        from gaia.engine.ir.strategy import _compute_strategy_id
 
         leaf_id = _compute_strategy_id("local", "deduction", ["a"], "b", structure_hash="")
         assert fs.strategy_id != leaf_id

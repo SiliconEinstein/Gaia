@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from gaia.cli.commands._graph_json import generate_graph_json
+
+pytestmark = pytest.mark.pr_gate
 
 
 def _make_ir(
@@ -280,6 +284,13 @@ def test_helper_nodes_filtered():
                 "label": "__helper",
                 "type": "claim",
                 "content": "Helper.",
+                "module": "m1",
+            },
+            {
+                "id": "github:test_pkg::_anon_001",
+                "label": "_anon_001",
+                "type": "claim",
+                "content": "Anonymous helper.",
                 "module": "m1",
             },
         ],

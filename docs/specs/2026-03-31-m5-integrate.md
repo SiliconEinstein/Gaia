@@ -2,7 +2,9 @@
 
 > **Status:** Draft
 > **Date:** 2026-03-31
-> **实现文件:** `gaia_lkm/core/integrate.py`
+> **实现文件:** target external LKM implementation
+> (`gaia_lkm/core/integrate.py`), not present in the current Gaia v0.5 CLI
+> repository.
 
 ## 概述
 

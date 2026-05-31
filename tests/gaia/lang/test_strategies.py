@@ -1,10 +1,10 @@
 import pytest
 
-from gaia.lang import (
+from gaia.engine.lang import claim
+from gaia.engine.lang.compat import (
     Step,
     analogy,
     case_analysis,
-    claim,
     composite,
     deduction,
     elimination,
@@ -15,17 +15,16 @@ from gaia.lang import (
     setting,
     support,
 )
-from gaia.lang.runtime.package import CollectedPackage
+from gaia.engine.lang.runtime.package import CollectedPackage
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_explicit():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         s = noisy_and(premises=[a, b], conclusion=c, reason=["Step 1", "Step 2"])
     # noisy_and now delegates to support()
     assert s.type == "support"
@@ -35,14 +34,13 @@ def test_noisy_and_explicit():
     assert len(s.reason) == 2
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_structured_steps():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         s = noisy_and(
             premises=[a, b],
             conclusion=c,
@@ -55,32 +53,32 @@ def test_noisy_and_structured_steps():
     assert s.reason[0].premises == [a, b]
 
 
+@pytest.mark.legacy_dsl
 def test_noisy_and_simple_reason():
     a = claim("A.")
     c = claim("C.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
+    with pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"):
         s = noisy_and(premises=[a], conclusion=c, reason="Because A implies C.")
     assert s.reason == "Because A implies C."
 
 
+@pytest.mark.legacy_dsl
 def test_step_premise_validation():
     a = claim("A.")
     b = claim("B.")
     c = claim("C.")
     outside = claim("Not a premise.")
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        with pytest.raises(ValueError, match="not in the strategy's premise list"):
-            noisy_and(
-                premises=[a, b],
-                conclusion=c,
-                reason=[Step(reason="Bad step", premises=[outside])],
-            )
+    with (
+        pytest.warns(DeprecationWarning, match="noisy_and\\(\\) is deprecated"),
+        pytest.raises(ValueError, match="not in the strategy's premise list"),
+    ):
+        noisy_and(
+            premises=[a, b],
+            conclusion=c,
+            reason=[Step(reason="Bad step", premises=[outside])],
+        )
 
 
 def test_deduction():
@@ -175,14 +173,14 @@ def test_fills_explicit_mode_overrides_strength_default():
 def test_fills_rejects_non_claim_source():
     source = setting("Background.")
     target = claim("Target premise.")
-    with pytest.raises(ValueError, match="source.type == 'claim'"):
+    with pytest.raises(ValueError, match=r"source.type == 'claim'"):
         fills(source=source, target=target)
 
 
 def test_fills_rejects_non_claim_target():
     source = claim("Source theorem.")
     target = setting("Background.")
-    with pytest.raises(ValueError, match="target.type == 'claim'"):
+    with pytest.raises(ValueError, match=r"target.type == 'claim'"):
         fills(source=source, target=target)
 
 
@@ -263,12 +261,14 @@ def test_mathematical_induction():
     assert s.formal_expr is None
 
 
+@pytest.mark.legacy_dsl
 def test_composite():
     evidence = claim("Evidence.")
     intermediate = claim("Intermediate.")
     conclusion = claim("Conclusion.")
-    s1 = support(premises=[evidence], conclusion=intermediate)
-    s2 = support(premises=[intermediate], conclusion=conclusion)
+    with pytest.warns(DeprecationWarning, match="support\\(\\) is deprecated"):
+        s1 = support(premises=[evidence], conclusion=intermediate)
+        s2 = support(premises=[intermediate], conclusion=conclusion)
     composite_strategy = composite(
         premises=[evidence],
         conclusion=conclusion,
@@ -301,7 +301,7 @@ def test_deduction_prior_stored():
 
 
 def test_deduction_reason_without_prior_raises():
-    with pytest.raises(ValueError, match="reason.*prior.*paired"):
+    with pytest.raises(ValueError, match=r"reason.*prior.*paired"):
         deduction([claim("A")], claim("B"), reason="no prior")
 
 

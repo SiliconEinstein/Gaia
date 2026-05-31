@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gaia.lang.refs import extract
+from gaia.engine.lang.refs import extract
 
 
 def test_extract_empty_string() -> None:
@@ -55,7 +55,7 @@ def test_extract_email_not_matched() -> None:
 
 
 def test_extract_escaped_at_not_matched() -> None:
-    """`\\@foo` is literal — extractor skips it."""
+    r"""`\\@foo` is literal — extractor skips it."""
     result = extract("Use the \\@dataclass decorator.")
     assert result.markers == ()
 
@@ -133,10 +133,12 @@ def test_extract_bracket_no_at_not_group() -> None:
 
 
 def test_extract_escaped_at_inside_brackets() -> None:
-    """Regression for Codex review P2: `\\@` escape must work inside
-    bracketed groups too, not just bare form. This lets authors write
-    literal `[@key]` examples in documentation without triggering the
-    strict-form error."""
+    r"""Verify extract escaped at inside brackets.
+
+    Regression for Codex review P2: `\\@` escape must work inside bracketed groups too, not just
+    bare form. This lets authors write literal `[@key]` examples in documentation without
+    triggering the strict-form error.
+    """
     result = extract("Literal example: [\\@Bell1964] is a strict ref.")
     assert result.groups == ()
     assert result.markers == ()

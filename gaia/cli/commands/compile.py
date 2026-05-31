@@ -1,4 +1,4 @@
-"""gaia compile -- compile Python DSL package to Gaia IR v2 JSON."""
+"""gaia build compile -- compile Python DSL package to Gaia IR v2 JSON."""
 
 from __future__ import annotations
 
@@ -6,8 +6,10 @@ from pathlib import Path
 
 import typer
 
-from gaia.cli._packages import (
-    GaiaCliError,
+from gaia.engine.ir import LocalCanonicalGraph
+from gaia.engine.ir.validator import validate_local_graph
+from gaia.engine.packaging import (
+    GaiaPackagingError,
     apply_package_priors,
     build_package_manifests,
     compile_loaded_package_artifact,
@@ -15,14 +17,25 @@ from gaia.cli._packages import (
     load_gaia_package,
     write_compiled_artifacts,
 )
-from gaia.ir import LocalCanonicalGraph
-from gaia.ir.validator import validate_local_graph
 
 
 def compile_command(
     path: str = typer.Argument(".", help="Path to knowledge package directory"),
 ) -> None:
-    """Compile a knowledge package to .gaia/ir.json."""
+    """Compile a knowledge package to ``.gaia/ir.json``.
+
+    Loads the package's Python DSL, applies any sidecar priors (``priors.py``),
+    lowers it into the canonical IR v2 JSON, runs the IR validator, and
+    writes ``.gaia/ir.json`` + ``.gaia/ir_hash`` + ``.gaia/compile_metadata.json``.
+    Downstream verbs (``gaia run infer``, ``gaia run render``, ``gaia inspect
+    starmap``, ``gaia pkg register``) all require fresh compile artifacts.
+
+    Example:
+
+    .. code-block:: bash
+
+        gaia build compile .
+    """
     try:
         ensure_package_env(Path(path).resolve())
         loaded = load_gaia_package(path)
@@ -30,9 +43,9 @@ def compile_command(
         compiled = compile_loaded_package_artifact(loaded)
         ir = compiled.to_json()
         manifests = build_package_manifests(loaded, compiled)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     validation = validate_local_graph(LocalCanonicalGraph(**ir))
     for warning in validation.warnings:
@@ -42,7 +55,12 @@ def compile_command(
             typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1)
 
-    gaia_dir = write_compiled_artifacts(loaded.pkg_path, ir, manifests=manifests)
+    gaia_dir = write_compiled_artifacts(
+        loaded.pkg_path,
+        ir,
+        manifests=manifests,
+        formalization_manifest=compiled.formalization_manifest,
+    )
 
     typer.echo(
         f"Compiled {len(ir['knowledges'])} knowledge, "

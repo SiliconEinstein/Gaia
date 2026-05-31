@@ -2,24 +2,30 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import uuid
 from pathlib import Path
 
 import typer
 
-from gaia.cli._packages import GaiaCliError
+from gaia.cli.commands.author._authored import AUTHORED_INIT_BODY, ROOT_REEXPORT_BLOCK
+from gaia.engine.packaging import GaiaPackagingError
 
-_DSL_TEMPLATE = """\
-from gaia.lang import claim, setting, noisy_and
+# Minimal DSL template: the canonical ``claim`` import, an empty
+# ``__all__``, and the ``authored/`` re-export block. Hand-authored DSL
+# goes directly in this root ``__init__.py``; ``gaia author <verb>``
+# commands write into the re-exported ``authored/`` submodule. No
+# placeholder demo statement — the package starts empty.
+_DSL_BODY_NO_DOCSTRING = (
+    "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n\n" + ROOT_REEXPORT_BLOCK
+)
 
-context = setting("Background context for this package.")
-hypothesis = claim("A scientific hypothesis.")
-evidence = claim("Supporting evidence.")
-_strat = noisy_and([hypothesis], evidence, reason="Hypothesis supports evidence.")
 
-__all__ = ["context", "hypothesis", "evidence"]
-"""
+_DSL_BODY_WITH_DOCSTRING = (
+    '"""{docstring}"""\n\nfrom gaia.engine.lang import claim\n\n__all__: list[str] = []\n\n'
+    + ROOT_REEXPORT_BLOCK
+)
 
 
 def _run_uv(
@@ -30,20 +36,50 @@ def _run_uv(
 ) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
-    except FileNotFoundError:
-        raise GaiaCliError(
+    except FileNotFoundError as exc:
+        raise GaiaPackagingError(
             "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-        )
+        ) from exc
     if check and result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip() or "command failed"
-        raise GaiaCliError(f"Error running {' '.join(args)}: {stderr}")
+        raise GaiaPackagingError(f"Error running {' '.join(args)}: {stderr}")
     return result
+
+
+def _strip_authors_from_pyproject(pyproject_text: str) -> str:
+    """Remove a leading ``[project] authors = [...]`` block written by ``uv init``.
+
+    ``uv init`` populates ``authors`` from the local git config (``user.name`` /
+    ``user.email``). For a public-tier scaffold we drop that line entirely;
+    users add their own afterward. Matches both single-line and multi-line
+    array forms.
+    """
+    # Multi-line form: `authors = [\n    { name = "...", email = "..." },\n]`
+    pattern_multiline = re.compile(
+        r"^authors\s*=\s*\[\s*\n(?:[^\]\n]*\n)*?\]\s*\n",
+        re.MULTILINE,
+    )
+    pyproject_text = pattern_multiline.sub("", pyproject_text)
+    # Single-line form: `authors = [{ name = "...", email = "..." }]`
+    pattern_singleline = re.compile(r"^authors\s*=\s*\[.*\]\s*\n", re.MULTILINE)
+    return pattern_singleline.sub("", pyproject_text)
 
 
 def init_command(
     name: str = typer.Argument(help="Package name (must end with '-gaia')."),
+    docstring: str | None = typer.Option(
+        None,
+        "--docstring",
+        help=(
+            "Module docstring for the generated src/<import_name>/__init__.py. "
+            "Wrapped in triple quotes at line 1. Default: no docstring."
+        ),
+    ),
 ) -> None:
-    """Create a new Gaia knowledge package."""
+    """Create a new Gaia knowledge package.
+
+    Example: ``gaia build init mypkg-gaia --docstring "My package."``
+    """
     # --- validate name suffix ---------------------------------------------------
     if not name.endswith("-gaia"):
         suggested = f"{name}-gaia"
@@ -59,15 +95,23 @@ def init_command(
     # --- scaffold with uv init --lib -------------------------------------------
     try:
         _run_uv(["uv", "init", "--lib", name], cwd=cwd)
-    except GaiaCliError as exc:
+    except GaiaPackagingError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # --- compute import name early (needed for both pyproject patch and rename) --
     import_name = name.removesuffix("-gaia").replace("-", "_")
 
     # --- patch pyproject.toml with [tool.hatch] + [tool.gaia] sections ---------
+    # First strip any ``[project] authors`` block that ``uv init`` populated from
+    # local git config — public-tier scaffold leaves authors empty so users
+    # don't inadvertently expose internal email domains.
     pyproject_path = pkg_dir / "pyproject.toml"
+    existing_pyproject = pyproject_path.read_text()
+    cleaned_pyproject = _strip_authors_from_pyproject(existing_pyproject)
+    if cleaned_pyproject != existing_pyproject:
+        pyproject_path.write_text(cleaned_pyproject)
+
     gaia_uuid = str(uuid.uuid4())
     extra_sections = (
         f"\n[tool.hatch.build.targets.wheel]\n"
@@ -93,7 +137,17 @@ def init_command(
 
     # --- write DSL template into __init__.py -----------------------------------
     init_py = target_pkg_dir / "__init__.py"
-    init_py.write_text(_DSL_TEMPLATE)
+    if docstring is not None:
+        init_py.write_text(_DSL_BODY_WITH_DOCSTRING.format(docstring=docstring))
+    else:
+        init_py.write_text(_DSL_BODY_NO_DOCSTRING)
+
+    # --- create the re-exported authored/ submodule ----------------------------
+    # Every `gaia author <verb>` write lands in authored/; the root
+    # __init__.py re-exports it (ROOT_REEXPORT_BLOCK above).
+    authored_dir = target_pkg_dir / "authored"
+    authored_dir.mkdir(parents=True, exist_ok=True)
+    (authored_dir / "__init__.py").write_text(AUTHORED_INIT_BODY)
 
     # --- append Gaia ignore patterns to .gitignore --------------------------------
     # .gaia/ir.json and .gaia/ir_hash should be tracked (registry needs them).
@@ -110,22 +164,43 @@ def init_command(
             existing = existing.replace(".gaia/\n", "")
         missing = [p for p in gaia_ignore_patterns if p not in existing]
         if missing:
-            block = "\n# Gaia inference outputs (regenerated by gaia infer)\n"
+            block = "\n# Gaia inference outputs (regenerated by gaia run infer)\n"
             block += "\n".join(missing) + "\n"
             with open(gitignore_path, "w") as f:
                 f.write(existing.rstrip() + block)
     else:
-        block = "# Gaia inference outputs (regenerated by gaia infer)\n"
+        block = "# Gaia inference outputs (regenerated by gaia run infer)\n"
         block += "\n".join(gaia_ignore_patterns) + "\n"
         gitignore_path.write_text(block)
 
     # --- add gaia-lang dependency (warn on failure) ----------------------------
     try:
         _run_uv(["uv", "add", "gaia-lang"], cwd=pkg_dir)
-    except GaiaCliError:
+    except GaiaPackagingError:
         typer.echo(
-            "Warning: could not add gaia-lang dependency. Run 'uv add gaia-lang' manually.",
+            f"Warning: could not add gaia-lang to {pkg_dir / 'pyproject.toml'}. "
+            "Run 'uv add gaia-lang' from inside the new package directory "
+            f"({pkg_dir}) to add it. "
+            "This affects the new package's own Python environment — not "
+            "the directory you are running gaia from. "
+            "Skipping this step is fine if you plan to author with "
+            "`gaia author …` from outside the package; the dependency is "
+            "required only when the package is imported at runtime or "
+            "compiled with `gaia build compile`.",
             err=True,
         )
 
     typer.echo(f"Created Gaia knowledge package: {name}")
+    typer.echo(
+        "\nNext steps:\n"
+        f"  cd <parent of {name}>\n"
+        f'  gaia author claim "..." --target ./{name}\n'
+        "\n"
+        f"Point every verb at the package with --target ./{name} (author verbs\n"
+        f"and `gaia pkg add`) or the path argument (`gaia build compile` / "
+        "`gaia run infer`).\n"
+        "The same target works from the parent directory or from inside the package.\n"
+        f"\n  gaia pkg add --lkm-paper <id> --target ./{name}\n"
+        f"  gaia build compile ./{name}\n"
+        f"  gaia run infer ./{name}"
+    )

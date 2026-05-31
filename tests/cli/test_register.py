@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 import subprocess
 
+import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands import register as register_module
 from gaia.cli.main import app
+
+pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
 
@@ -38,7 +41,7 @@ def _write_package(pkg_dir) -> None:
     pkg_src = pkg_dir / "register_demo"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim\n\n"
+        "from gaia.engine.lang import claim\n\n"
         'exported_claim = claim("A release-ready claim.")\n'
         '__all__ = ["exported_claim"]\n'
     )
@@ -60,7 +63,7 @@ def _write_dependency_with_local_hole(dep_dir) -> None:
     dep_src = dep_dir / "src" / "dep_bridge"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -88,7 +91,7 @@ def _write_package_with_local_hole_and_bridge(pkg_dir) -> None:
     pkg_src = pkg_dir / "register_bridge"
     pkg_src.mkdir()
     (pkg_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction, fills\n"
         "from dep_bridge import missing_lemma\n\n"
         'local_premise = claim("A local missing lemma.")\n'
         'main_claim = claim("A release-ready claim.")\n'
@@ -96,6 +99,46 @@ def _write_package_with_local_hole_and_bridge(pkg_dir) -> None:
         "deduction(premises=[local_premise], conclusion=main_claim)\n"
         'fills(source=bridge_claim, target=missing_lemma, reason="Theorem 3 establishes A.")\n'
         '__all__ = ["main_claim", "bridge_claim"]\n'
+    )
+
+
+def _write_package_with_v6_infer(pkg_dir) -> None:
+    pkg_dir.mkdir()
+    (pkg_dir / ".gitignore").write_text(".gaia/\nuv.lock\n")
+    (pkg_dir / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "register-infer-gaia"\n'
+        'version = "1.2.0"\n'
+        'description = "Registration demo with v6 infer CPTs"\n'
+        "dependencies = [\n"
+        '  "gaia-lang>=0.1.0",\n'
+        "]\n\n"
+        "[tool.gaia]\n"
+        'namespace = "github"\n'
+        'type = "knowledge-package"\n'
+        'uuid = "8fae1bcb-6c5c-5d91-9de7-b76f0689c8ff"\n'
+    )
+    pkg_src = pkg_dir / "register_infer"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.engine.lang import claim, infer\n\n"
+        'hypothesis = claim("Hypothesis.")\n'
+        'evidence = claim("Evidence.")\n'
+        "infer(\n"
+        "    evidence,\n"
+        "    hypothesis=hypothesis,\n"
+        "    p_e_given_h=0.95,\n"
+        "    p_e_given_not_h=0.05,\n"
+        '    rationale="Hypothesis strongly predicts evidence.",\n'
+        '    label="bayes_update",\n'
+        ")\n"
+        '__all__ = ["hypothesis", "evidence"]\n'
+    )
+    (pkg_src / "priors.py").write_text(
+        "from . import evidence, hypothesis\n\n"
+        "from gaia.engine.lang import register_prior\n"
+        'register_prior(hypothesis, value=0.2, justification="Low base rate.")\n'
+        'register_prior(evidence, value=0.9, justification="Observed evidence.")\n'
     )
 
 
@@ -129,7 +172,7 @@ def test_register_dry_run_emits_registration_plan(tmp_path):
     _write_package(pkg_dir)
     _init_git_repo(pkg_dir, remote_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
@@ -138,6 +181,7 @@ def test_register_dry_run_emits_registration_plan(tmp_path):
     result = runner.invoke(
         app,
         [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -174,15 +218,14 @@ def test_register_dry_run_emits_registration_plan(tmp_path):
     assert "exported_claim" in exported_labels
 
 
-def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
-    pkg_dir = tmp_path / "register_demo"
-    remote_dir = tmp_path / "register_demo_remote.git"
-    registry_dir = tmp_path / "gaia-registry"
-    _write_package(pkg_dir)
+def test_register_beliefs_use_v6_infer_action_cpt(tmp_path):
+    """register-generated beliefs.json must use v6 InferAction CPTs from IR strategies."""
+    pkg_dir = tmp_path / "register_infer"
+    remote_dir = tmp_path / "register_infer_remote.git"
+    _write_package_with_v6_infer(pkg_dir)
     _init_git_repo(pkg_dir, remote_dir)
-    _init_registry_repo(registry_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
@@ -191,6 +234,40 @@ def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
     result = runner.invoke(
         app,
         [
+            "pkg",
+            "register",
+            str(pkg_dir),
+            "--repo",
+            "https://github.com/example/RegisterInfer.gaia",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    plan = json.loads(result.output)
+    release_dir = "packages/register-infer/releases/1.2.0"
+    beliefs_manifest = json.loads(plan["files"][f"{release_dir}/beliefs.json"])
+    belief_by_label = {item["label"]: item["belief"] for item in beliefs_manifest["beliefs"]}
+    assert belief_by_label["hypothesis"] > 0.5
+
+
+def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
+    pkg_dir = tmp_path / "register_demo"
+    remote_dir = tmp_path / "register_demo_remote.git"
+    registry_dir = tmp_path / "gaia-registry"
+    _write_package(pkg_dir)
+    _init_git_repo(pkg_dir, remote_dir)
+    _init_registry_repo(registry_dir)
+
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
+    _run(["git", "push", "origin", "v1.2.0"], cwd=pkg_dir)
+
+    result = runner.invoke(
+        app,
+        [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -243,6 +320,7 @@ def test_register_writes_registry_metadata_to_local_checkout(tmp_path):
     )
 
 
+@pytest.mark.legacy_dsl
 def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_bridge"
     pkg_dir = tmp_path / "register_bridge"
@@ -251,11 +329,11 @@ def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch
     _write_package_with_local_hole_and_bridge(pkg_dir)
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
 
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     _init_git_repo(pkg_dir, remote_dir)
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
@@ -264,6 +342,7 @@ def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch
     result = runner.invoke(
         app,
         [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -286,6 +365,7 @@ def test_register_dry_run_emits_nonempty_release_manifests(tmp_path, monkeypatch
     assert bridges_manifest["bridges"][0]["declared_by_owner_of_source"] is True
 
 
+@pytest.mark.legacy_dsl
 def test_register_writes_nonempty_release_manifests_to_local_checkout(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_bridge"
     pkg_dir = tmp_path / "register_bridge"
@@ -295,13 +375,13 @@ def test_register_writes_nonempty_release_manifests_to_local_checkout(tmp_path, 
     _write_package_with_local_hole_and_bridge(pkg_dir)
     monkeypatch.syspath_prepend(str(dep_dir / "src"))
 
-    dep_compile = runner.invoke(app, ["compile", str(dep_dir)])
+    dep_compile = runner.invoke(app, ["build", "compile", str(dep_dir)])
     assert dep_compile.exit_code == 0, dep_compile.output
 
     _init_git_repo(pkg_dir, remote_dir)
     _init_registry_repo(registry_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
@@ -310,6 +390,7 @@ def test_register_writes_nonempty_release_manifests_to_local_checkout(tmp_path, 
     result = runner.invoke(
         app,
         [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -340,7 +421,7 @@ def test_register_fails_when_release_dir_already_exists(tmp_path):
     _init_git_repo(pkg_dir, remote_dir)
     _init_registry_repo(registry_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     package_dir = registry_dir / "packages" / "register-demo"
@@ -356,6 +437,7 @@ def test_register_fails_when_release_dir_already_exists(tmp_path):
     result = runner.invoke(
         app,
         [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -381,7 +463,7 @@ def test_register_no_orphan_branch_on_validation_failure(tmp_path):
     _init_git_repo(pkg_dir, remote_dir)
     _init_registry_repo(registry_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     # Pre-create the release dir to trigger a validation failure
@@ -399,6 +481,7 @@ def test_register_no_orphan_branch_on_validation_failure(tmp_path):
     result = runner.invoke(
         app,
         [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -431,7 +514,7 @@ def test_register_fails_gracefully_when_checkout_fails(tmp_path, monkeypatch):
     _init_git_repo(pkg_dir, remote_dir)
     _init_registry_repo(registry_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code == 0, compile_result.output
 
     _run(["git", "tag", "v1.2.0"], cwd=pkg_dir)
@@ -442,7 +525,9 @@ def test_register_fails_gracefully_when_checkout_fails(tmp_path, monkeypatch):
 
     def failing_run(args, *, cwd, check=True):
         if "checkout" in args and "-b" in args:
-            raise register_module.GaiaCliError("Error running git checkout -b: simulated failure")
+            raise register_module.GaiaPackagingError(
+                "Error running git checkout -b: simulated failure"
+            )
         return original_run(args, cwd=cwd, check=check)
 
     monkeypatch.setattr(register_module, "_run", failing_run)
@@ -450,6 +535,7 @@ def test_register_fails_gracefully_when_checkout_fails(tmp_path, monkeypatch):
     result = runner.invoke(
         app,
         [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -462,6 +548,7 @@ def test_register_fails_gracefully_when_checkout_fails(tmp_path, monkeypatch):
     assert "simulated failure" in result.output
 
 
+@pytest.mark.legacy_dsl
 def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_dir = tmp_path / "dep_register_missing_root"
     dep_dir.mkdir()
@@ -472,7 +559,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     dep_src = dep_dir / "src" / "dep_register_missing"
     dep_src.mkdir(parents=True)
     (dep_src / "__init__.py").write_text(
-        "from gaia.lang import claim, deduction\n\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import deduction\n\n"
         'missing_lemma = claim("A missing lemma.")\n'
         'main_theorem = claim("Main theorem.")\n'
         "deduction(premises=[missing_lemma], conclusion=main_theorem)\n"
@@ -498,7 +585,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
         'uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"\n'
     )
     (pkg_dir / "register_demo" / "__init__.py").write_text(
-        "from gaia.lang import claim, fills\n"
+        "from gaia.engine.lang import claim\nfrom gaia.engine.lang.compat import fills\n"
         "from dep_register_missing import missing_lemma\n\n"
         'exported_claim = claim("A release-ready claim.")\n'
         "fills(source=exported_claim, target=missing_lemma)\n"
@@ -506,7 +593,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     )
     _init_git_repo(pkg_dir, remote_dir)
 
-    compile_result = runner.invoke(app, ["compile", str(pkg_dir)])
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert compile_result.exit_code != 0
     assert "missing .gaia/manifests/premises.json" in compile_result.output
 
@@ -516,6 +603,7 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
     result = runner.invoke(
         app,
         [
+            "pkg",
             "register",
             str(pkg_dir),
             "--repo",
@@ -527,8 +615,11 @@ def test_register_fails_on_invalid_fills_target(tmp_path, monkeypatch):
 
 
 def test_render_versions_toml_emits_gaia_lang_version_when_present():
-    """New entries with gaia_lang_version emit it in canonical order; older entries
-    lacking the field render unchanged (forward compat when appending)."""
+    """Verify render versions toml emits gaia lang version when present.
+
+    New entries with gaia_lang_version emit it in canonical order; older entries lacking the
+    field render unchanged (forward compat when appending).
+    """
     from gaia.cli.commands.register import _render_versions_toml
 
     versions = {
@@ -564,11 +655,12 @@ def test_render_versions_toml_emits_gaia_lang_version_when_present():
 
 
 def test_render_versions_toml_preserves_unknown_keys_with_types():
-    """Forward-compat: keys not in the canonical list are preserved AND their
-    native TOML type is respected (not silently coerced to strings). This
-    guards against the corruption mode where an older gaia reads a
-    Versions.toml with a bool/int field added by a newer gaia and re-emits it
-    as a quoted string.
+    """Verify render versions toml preserves unknown keys with types.
+
+    Forward-compat: keys not in the canonical list are preserved AND their native TOML type is
+    respected (not silently coerced to strings). This guards against the corruption mode where
+    an older gaia reads a Versions.toml with a bool/int field added by a newer gaia and re-emits
+    it as a quoted string.
 
     Regression test for Codex adversarial review Finding 3 (medium).
     """
@@ -614,9 +706,11 @@ def test_render_versions_toml_preserves_unknown_keys_with_types():
 
 
 def test_render_versions_toml_rejects_complex_types():
-    """Unsupported types (arrays, dicts, None) must raise ValueError rather
-    than silently corrupting the output. Explicit failure beats silent data
-    loss for the forward-compat path."""
+    """Verify render versions toml rejects complex types.
+
+    Unsupported types (arrays, dicts, None) must raise ValueError rather than silently
+    corrupting the output. Explicit failure beats silent data loss for the forward-compat path.
+    """
     import pytest as _pytest
 
     from gaia.cli.commands.register import _render_versions_toml
@@ -632,15 +726,16 @@ def test_render_versions_toml_rejects_complex_types():
                 "weird_field": bad_value,
             },
         }
-        with _pytest.raises(ValueError, match="Cannot render Versions.toml value of type"):
+        with _pytest.raises(ValueError, match=r"Cannot render Versions.toml value of type"):
             _render_versions_toml(versions)
 
 
 def test_read_gaia_lang_version_from_compile_metadata(tmp_path):
-    """Register reads gaia_lang_version from `.gaia/compile_metadata.json`
-    rather than from the live process environment. This makes registration
-    reproducible from a committed package state regardless of which gaia-lang
-    the operator has installed at register time.
+    """Verify read gaia lang version from compile metadata.
+
+    Register reads gaia_lang_version from `.gaia/compile_metadata.json` rather than from the
+    live process environment. This makes registration reproducible from a committed package
+    state regardless of which gaia-lang the operator has installed at register time.
 
     Covers all three branches of the helper:
     1. File present and well-formed → returns the recorded version

@@ -5,15 +5,15 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from gaia.bp.contraction import (
+from gaia.engine.bp.contraction import (
     contract_to_cpt,
     cpt_tensor_to_list,
     factor_to_tensor,
     strategy_cpt,
 )
-from gaia.bp.exact import _factor_log_potentials
-from gaia.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
-from gaia.ir.strategy import CompositeStrategy, Strategy
+from gaia.engine.bp.exact import _factor_log_potentials
+from gaia.engine.bp.factor_graph import CROMWELL_EPS, Factor, FactorGraph, FactorType
+from gaia.engine.ir.strategy import CompositeStrategy, Strategy
 
 _HIGH = 1.0 - CROMWELL_EPS
 _LOW = CROMWELL_EPS
@@ -100,6 +100,22 @@ def test_factor_to_tensor_disjunction():
     assert _almost(t[1, 1, 0], _LOW)
 
 
+def test_factor_to_tensor_negation():
+    f = Factor(
+        factor_id="f1",
+        factor_type=FactorType.NEGATION,
+        variables=["A"],
+        conclusion="N",
+    )
+    t, axes = factor_to_tensor(f)
+    assert axes == ["A", "N"]
+    # N is true exactly when A is false.
+    assert _almost(t[0, 1], _HIGH)
+    assert _almost(t[0, 0], _LOW)
+    assert _almost(t[1, 0], _HIGH)
+    assert _almost(t[1, 1], _LOW)
+
+
 def test_factor_to_tensor_equivalence():
     f = Factor(
         factor_id="f1",
@@ -109,7 +125,7 @@ def test_factor_to_tensor_equivalence():
     )
     t, axes = factor_to_tensor(f)
     assert axes == ["A", "B", "H"]
-    # H == (A == B)
+    # H is true exactly when A and B have the same truth value.
     assert _almost(t[0, 0, 1], _HIGH)
     assert _almost(t[0, 0, 0], _LOW)
     assert _almost(t[1, 1, 1], _HIGH)
@@ -306,8 +322,8 @@ def test_contract_to_cpt_empty_free_vars_raises():
         contract_to_cpt([], free_vars=[], unary_priors={})
 
 
-def test_contract_to_cpt_missing_prior_raises():
-    """Non-free variable without a prior should raise with a descriptive message."""
+def test_contract_to_cpt_missing_prior_uses_counting_measure():
+    """Non-free variable without a unary factor is marginalized neutrally."""
     fg = FactorGraph()
     fg.add_variable("A", 0.5)
     fg.add_variable("M", 0.5)
@@ -315,12 +331,13 @@ def test_contract_to_cpt_missing_prior_raises():
     fg.add_factor("f1", FactorType.SOFT_ENTAILMENT, ["A"], "M", p1=0.9, p2=1.0 - CROMWELL_EPS)
     fg.add_factor("f2", FactorType.SOFT_ENTAILMENT, ["M"], "C", p1=0.8, p2=1.0 - CROMWELL_EPS)
     tensors = [factor_to_tensor(f) for f in fg.factors]
-    with pytest.raises(ValueError, match="unary prior missing"):
-        contract_to_cpt(
-            tensors,
-            free_vars=["A", "C"],
-            unary_priors={},  # missing M
-        )
+    cpt = contract_to_cpt(
+        tensors,
+        free_vars=["A", "C"],
+        unary_priors={},
+    )
+    assert cpt.shape == (2, 2)
+    assert np.all(np.isfinite(cpt))
 
 
 def test_contract_to_cpt_many_variables():
@@ -344,8 +361,8 @@ def test_contract_to_cpt_many_variables():
         )
         factors.append(factor_to_tensor(f))
     # Priors for internal variables (not the first and last main vars) and all helpers
-    priors = {v: 0.5 for v in var_names[1:-1]}
-    priors.update({h: _HIGH for h in helper_names})
+    priors = dict.fromkeys(var_names[1:-1], 0.5)
+    priors.update(dict.fromkeys(helper_names, _HIGH))
     cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
     assert cpt.shape == (2, 2)
     assert _np.all(_np.isfinite(cpt))
@@ -474,7 +491,7 @@ def test_cpt_tensor_to_list_bit_ordering():
     t[1, 1, 0] = 0.56
     axes = ["A", "B", "C"]
     cpt_list = cpt_tensor_to_list(t, axes, premises=["A", "B"], conclusion="C")
-    # index = (A << 0) | (B << 1)
+    # Bit index uses A as bit 0 and B as bit 1.
     assert cpt_list == [0.11, 0.22, 0.33, 0.44]
 
 
@@ -556,8 +573,11 @@ def test_strategy_cpt_composite_chain_with_bridge_var():
 
 
 def test_strategy_cpt_composite_populates_cache_for_subs():
-    """After folding a composite, all sub-strategies are in the cache,
-    and re-calling strategy_cpt on a sub returns the cached tensor object."""
+    """Verify strategy cpt composite populates cache for subs.
+
+    After folding a composite, all sub-strategies are in the cache and re-calling strategy_cpt
+    on a sub returns the cached tensor object.
+    """
     sub1 = Strategy(
         scope="local",
         type="noisy_and",
@@ -683,8 +703,11 @@ def test_strategy_cpt_nested_composite():
 
 
 def test_strategy_cpt_cycle_detection():
-    """A composite that references itself (via a manually forged strategy_id)
-    must raise ValueError instead of looping forever."""
+    """Verify strategy cpt cycle detection.
+
+    A composite that references itself (via a manually forged strategy_id) must raise ValueError
+    instead of looping forever.
+    """
     # Build a composite that references itself by reusing the same strategy_id
     # in its sub_strategies.  Since _compute_strategy_id is content-addressed,
     # the default auto-computed ID cannot be self-referential.  We construct
@@ -730,8 +753,8 @@ def _run_exact_with_premise_clamps(
 ) -> list[float]:
     """Reference CPT via brute-force exact conditional marginalization.
 
-    Enumerates all 2^n joint states once, using the un-clamped priors in
-    ``fg.variables``.  For each of the 2^k premise assignments, filters the
+    Enumerates all 2^n joint states once, using only the explicit unary factors
+    in ``fg.unary_factors``. For each of the 2^k premise assignments, filters the
     joint to states consistent with that assignment and reads
     P(conclusion=1 | premises=assignment) by summing the filtered joint.
 
@@ -743,18 +766,17 @@ def _run_exact_with_premise_clamps(
     var_ids = sorted(fg.variables.keys())
     n = len(var_ids)
     var_idx = {v: i for i, v in enumerate(var_ids)}
-    priors = np.array([fg.variables[v] for v in var_ids], dtype=np.float64)
-
     N = 1 << n
     arange = np.arange(N, dtype=np.int64)
     states = np.empty((N, n), dtype=np.int8)
     for i in range(n):
         states[:, i] = (arange >> i) & 1
 
-    # Log-joint under the un-clamped priors + all factors
-    log_p1 = np.log(np.clip(priors, 1e-300, None))
-    log_p0 = np.log(np.clip(1.0 - priors, 1e-300, None))
-    log_j = (states * log_p1 + (1 - states) * log_p0).sum(axis=1)
+    # Log-joint under the explicit unary factors + all factors
+    log_j = np.zeros(N, dtype=np.float64)
+    for v, p in fg.unary_factors.items():
+        idx = var_idx[v]
+        log_j += np.where(states[:, idx] == 1, np.log(p), np.log(1.0 - p))
 
     for fac in fg.factors:
         log_j += _factor_log_potentials(fac, states, var_idx)
@@ -782,11 +804,11 @@ def _cpt_via_contraction(
     premises: list[str],
     conclusion: str,
 ) -> list[float]:
-    """Tensor-contraction CPT: all factors in fg, premises free, others priored."""
+    """Tensor-contraction CPT: all factors in fg, premises free, others with explicit unary."""
     tensors = [factor_to_tensor(f) for f in fg.factors]
     free = [*premises, conclusion]
     free_set = set(free)
-    unary_priors = {v: p for v, p in fg.variables.items() if v not in free_set}
+    unary_priors = {v: p for v, p in fg.unary_factors.items() if v not in free_set}
     cpt_tensor = contract_to_cpt(tensors, free_vars=free, unary_priors=unary_priors)
     return cpt_tensor_to_list(cpt_tensor, free, premises, conclusion)
 
@@ -875,7 +897,8 @@ def test_equivalence_disjunction_and_contradiction():
 
 
 def test_compute_coarse_cpts_skips_composite_strategies():
-    """Regression for Codex P1: compute_coarse_cpts must NOT add a composite
+    """Regression for Codex P1: compute_coarse_cpts must NOT add a composite.
+
     CPT as a separate factor, because the composite is just an organizational
     wrapper around its sub-strategies.  Including it double-counts every path
     through the composite.
@@ -884,7 +907,7 @@ def test_compute_coarse_cpts_skips_composite_strategies():
     wraps it, then call compute_coarse_cpts and compare the coarse CPT to the
     CPT we'd get from the leaf alone.
     """
-    from gaia.ir.coarsen import compute_coarse_cpts, coarsen_ir
+    from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
 
     leaf = Strategy(
         scope="local",
@@ -945,7 +968,8 @@ def test_compute_coarse_cpts_skips_composite_strategies():
 
 
 def test_contract_to_cpt_deep_chain_no_underflow():
-    """Regression for Codex P2: contract_to_cpt must handle deep chains of
+    """Regression for Codex P2: contract_to_cpt must handle deep chains of.
+
     Cromwell-low factors without the intermediate joint underflowing to 0.
 
     Builds a 150-factor IMPLICATION chain.  Each IMPLICATION factor has one
@@ -966,8 +990,8 @@ def test_contract_to_cpt_deep_chain_no_underflow():
             conclusion=helper_names[i],
         )
         factors.append(factor_to_tensor(f))
-    priors = {v: 0.5 for v in var_names[1:-1]}
-    priors.update({h: _HIGH for h in helper_names})
+    priors = dict.fromkeys(var_names[1:-1], 0.5)
+    priors.update(dict.fromkeys(helper_names, _HIGH))
     # Should NOT raise, and should produce a valid CPT.
     cpt = contract_to_cpt(factors, free_vars=[var_names[0], var_names[-1]], unary_priors=priors)
     assert cpt.shape == (2, 2)
@@ -977,9 +1001,11 @@ def test_contract_to_cpt_deep_chain_no_underflow():
 
 
 def test_contract_to_cpt_allows_degenerate_free_var():
-    """Regression for Codex P2 (the third finding): a free variable that
-    doesn't appear in any input tensor must be handled gracefully as a
-    constant axis (uniform along that axis), not rejected with ValueError.
+    """Verify contract to cpt allows degenerate free var.
+
+    Regression for Codex P2 (the third finding): a free variable that doesn't appear in any
+    input tensor must be handled gracefully as a constant axis (uniform along that axis), not
+    rejected with ValueError.
 
     This happens for CompositeStrategy with interface premises that no
     sub-strategy actually touches.
@@ -1007,11 +1033,13 @@ def test_contract_to_cpt_allows_degenerate_free_var():
 
 
 def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
-    """Regression: induction creates cycles (law → obs via support, obs₁+obs₂ → law
-    via induction composite), making every node 'concluded'. Exported conclusions
-    reachable only through such cycles must still appear in the coarse graph via
-    surrogate leaf premises."""
-    from gaia.ir.coarsen import coarsen_ir
+    """Verify coarsen ir induction cycle promotes surrogate leaves.
+
+    Regression: induction creates cycles (law → obs via support, obs₁+obs₂ → law via induction
+    composite), making every node 'concluded'. Exported conclusions reachable only through such
+    cycles must still appear in the coarse graph via surrogate leaf premises.
+    """
+    from gaia.engine.ir.coarsen import coarsen_ir
 
     # Minimal induction pattern:
     #   law → (support) → obs1
@@ -1066,25 +1094,37 @@ def test_coarsen_ir_induction_cycle_promotes_surrogate_leaves():
         pytest.fail("No coarse strategy concluding to ns::law found")
 
 
+@pytest.mark.legacy_dsl
+@pytest.mark.filterwarnings("ignore:support\\(\\) is deprecated:DeprecationWarning")
 def test_compiled_induction_coarsens_to_observations_and_cpt():
     """Compiled DSL induction should expose observations, not law -> law."""
-    from gaia.ir.coarsen import coarsen_ir, compute_coarse_cpts
-    from gaia.lang import claim, support
-    from gaia.lang.compiler.compile import compile_package_artifact
-    from gaia.lang.dsl.strategies import induction
-    from gaia.lang.runtime.package import CollectedPackage
+    from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
+    from gaia.engine.lang import claim, register_prior
+    from gaia.engine.lang.compat import support
+    from gaia.engine.lang.compiler.compile import compile_package_artifact
+    from gaia.engine.lang.dsl.strategies import induction
+    from gaia.engine.lang.runtime.package import CollectedPackage
 
     pkg = CollectedPackage("induction_demo", namespace="github", version="1.0.0")
     with pkg:
-        law = claim("Law.", prior=0.5)
+        law = claim("Law.")
         law.label = "law"
-        obs1 = claim("Observation 1.", prior=0.9)
+        register_prior(law, 0.5, justification="test fixture: neutral law prior")
+        obs1 = claim("Observation 1.")
         obs1.label = "obs1"
-        obs2 = claim("Observation 2.", prior=0.9)
+        register_prior(obs1, 0.9, justification="test fixture: strong observation")
+        obs2 = claim("Observation 2.")
         obs2.label = "obs2"
+        register_prior(obs2, 0.9, justification="test fixture: strong observation")
         sup1 = support([law], obs1, reason="law predicts obs1", prior=0.9)
         sup2 = support([law], obs2, reason="law predicts obs2", prior=0.9)
         induction(sup1, sup2, law=law, reason="independent observations")
+
+    # Resolve register_prior records into metadata["prior"] so coarsen_ir can read them.
+    from gaia.engine.ir import default_resolution_policy
+    from gaia.engine.lang.dsl.register_prior import resolve_priors_to_metadata
+
+    resolve_priors_to_metadata(pkg.knowledge, default_resolution_policy())
 
     compiled = compile_package_artifact(pkg)
     ir = compiled.to_json()
@@ -1111,9 +1151,12 @@ def test_compiled_induction_coarsens_to_observations_and_cpt():
 
 
 def test_coarsen_ir_induction_to_downstream_export():
-    """Regression: an exported conclusion supported by an induction law (which is
-    itself in a cycle) should also be reachable via the surrogate leaves."""
-    from gaia.ir.coarsen import coarsen_ir
+    """Verify coarsen ir induction to downstream export.
+
+    Regression: an exported conclusion supported by an induction law (which is itself in a
+    cycle) should also be reachable via the surrogate leaves.
+    """
+    from gaia.engine.ir.coarsen import coarsen_ir
 
     # law → obs1, law → obs2 (support)
     # obs1 + obs2 → law (induction)
@@ -1151,9 +1194,12 @@ def test_coarsen_ir_induction_to_downstream_export():
 
 
 def test_coarsen_ir_mixed_leaf_and_cycle():
-    """A graph with both normal leaf premises and induction cycles — the normal
-    leaf path should still work, and the cycle path should also produce edges."""
-    from gaia.ir.coarsen import coarsen_ir
+    """Verify coarsen ir mixed leaf and cycle.
+
+    A graph with both normal leaf premises and induction cycles — the normal leaf path should
+    still work, and the cycle path should also produce edges.
+    """
+    from gaia.engine.ir.coarsen import coarsen_ir
 
     ir = {
         "knowledges": [
@@ -1192,11 +1238,13 @@ def test_coarsen_ir_mixed_leaf_and_cycle():
 
 
 def test_compute_coarse_cpts_with_helper_claims():
-    """Regression: compute_coarse_cpts needs priors for ALL variables including
-    helper claims (__implication_result_*, etc.). If helper priors are missing,
-    tensor contraction fails. This test verifies that passing complete priors
-    (with helper claims at 1-ε) produces valid CPTs."""
-    from gaia.ir.coarsen import compute_coarse_cpts, coarsen_ir
+    """Verify compute coarse cpts with helper claims.
+
+    Regression: compute_coarse_cpts needs priors for ALL variables including helper claims
+    (__implication_result_*, etc.). If helper priors are missing, tensor contraction fails. This
+    test verifies that passing complete priors (with helper claims at 1-ε) produces valid CPTs.
+    """
+    from gaia.engine.ir.coarsen import coarsen_ir, compute_coarse_cpts
 
     # Build a support strategy (which auto-formalizes to conjunction + implication
     # with helper claims like __implication_result_*, __conjunction_result_*)
@@ -1219,7 +1267,7 @@ def test_compute_coarse_cpts_with_helper_claims():
     }
 
     # Compile to get the full IR with helper claims
-    from gaia.ir.graphs import LocalCanonicalGraph
+    from gaia.engine.ir.graphs import LocalCanonicalGraph
 
     canon = LocalCanonicalGraph(
         **{

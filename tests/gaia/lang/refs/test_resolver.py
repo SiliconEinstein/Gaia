@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from gaia.lang.refs import (
+from gaia.engine.lang.refs import (
     ReferenceError,
     check_collisions,
     extract,
@@ -32,8 +32,11 @@ def test_resolve_unknown() -> None:
 
 
 def test_resolve_citation_precedence_not_applicable_after_collision_check() -> None:
-    """If check_collisions passed, resolver must not see both. This test
-    documents that resolver assumes disjoint inputs."""
+    """Verify resolve citation precedence not applicable after collision check.
+
+    If check_collisions passed, resolver must not see both. This test documents that resolver
+    assumes disjoint inputs.
+    """
     label_table = {"only_local": "qid"}
     references = {"only_remote": {"type": "book", "title": "X"}}
     assert resolve("only_local", label_table, references) == "knowledge"
@@ -122,9 +125,10 @@ def test_validate_groups_unknown_in_group_not_flagged_as_mixed() -> None:
 
 
 def test_validate_groups_bare_before_pure_citation_group_ok() -> None:
-    """A bare knowledge ref appearing BEFORE a pure-citation bracket group
-    must not corrupt the group's member indices. Before the fix, this
-    raised a false-positive mixed-group error.
+    """Verify validate groups bare before pure citation group ok.
+
+    A bare knowledge ref appearing BEFORE a pure-citation bracket group must not corrupt the
+    group's member indices. Before the fix, this raised a false-positive mixed-group error.
     """
     text = "First @lemma_a then see [@Bell1964; @CHSH1969]"
     result = extract(text)
@@ -147,9 +151,11 @@ def test_validate_groups_bare_before_pure_knowledge_group_ok() -> None:
 
 
 def test_validate_groups_bare_before_mixed_group_still_detected() -> None:
-    """False-negative guard: a bare marker must NOT mask a genuine mixed
-    group. Before the fix, the index shift could point group indices at
-    two like-typed markers and let a real mixed group through.
+    """Verify validate groups bare before mixed group still detected.
+
+    False-negative guard: a bare marker must NOT mask a genuine mixed group. Before the fix, the
+    index shift could point group indices at two like-typed markers and let a real mixed group
+    through.
     """
     text = "As @helper shows, see [@lemma_a; @Bell1964] for details"
     result = extract(text)

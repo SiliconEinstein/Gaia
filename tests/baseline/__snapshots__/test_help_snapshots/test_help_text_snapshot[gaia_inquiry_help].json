@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "inquiry",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia inquiry [OPTIONS] COMMAND [ARGS]...\n\n Gaia Inquiry — semantic review loop (focus / review / reject / obligation /\n hypothesis / tactics).\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Commands ───────────────────────────────────────────────────────────────────╮\n│ focus       Inspect or update the current inquiry focus.                     │\n│ reject      Record a synthetic rejection for a strategy.                     │\n│ context     Render a focus-centered context packet for the current inquiry   │\n│             claim.                                                           │\n│ review      Run the local semantic inquiry review.                           │\n│ obligation  Manage synthetic obligations.                                    │\n│ hypothesis  Manage working hypotheses.                                       │\n│ tactics     Inspect the inquiry tactic log.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

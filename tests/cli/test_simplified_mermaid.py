@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from gaia.cli.commands._simplified_mermaid import (
     render_simplified_mermaid,
     select_simplified_nodes,
 )
 
+pytestmark = pytest.mark.pr_gate
 
 # ── Task 6: select_simplified_nodes ──
 
@@ -99,7 +102,11 @@ def test_render_simplified_mermaid_non_exported_no_star():
     exported: set[str] = set()
     mermaid = render_simplified_mermaid(ir, beliefs, priors, exported)
     assert "0.50" in mermaid and "0.70" in mermaid
-    assert "⭐" not in mermaid and "★" not in mermaid
+    # Stars must not appear in node labels when the node is not exported.
+    # The legend line mentions ★ as a notation explanation, so we only check
+    # the graph section (lines inside the fenced code block).
+    graph_section = mermaid.split("```mermaid")[1].split("```")[0]
+    assert "⭐" not in graph_section and "★" not in graph_section
 
 
 def test_render_simplified_mermaid_includes_strategy_edges():
