@@ -15,16 +15,16 @@ Read the paper end-to-end and identify:
 2. **Conclusions** — the genuinely new contributions established by the paper,
    each as an atomic scientific proposition (each → a `claim(...)` in the
    module of the section where it is established).
-3. **Open questions, one per conclusion** — for each conclusion, the driving
-   research question it answers (each → a `question(...)` in the same module
-   as its conclusion).
+3. **Open problem** — the paper's overall research question (paper-level,
+   single → a `question(...)` in `motivation.py`).
 4. **Logic graph** — directed dependency edges among conclusions: an edge
    `A → B` means the paper's own reasoning uses A in deriving B.
 
-Conclusions, the motivation note, and each conclusion's driving question are
-emitted directly to the modules in step 3. The logic graph (step 4) is held in
-context — it drives which upstream conclusions each `derive(...)` lists in
-step 5. No intermediate YAML/JSON artifact.
+Conclusions are emitted directly into their section modules in step 3; the
+motivation note and the paper-level open-problem question both go in
+`motivation.py`. The logic graph (step 4) is held in context — it drives which
+upstream conclusions each `derive(...)` lists in step 5. No intermediate
+YAML/JSON artifact.
 
 ## Suitability Gate
 
@@ -80,23 +80,20 @@ Style: narrative, like an Introduction-section paragraph. Not a checklist of
 "lack of X". Do **not** include the paper's solutions — motivation is the
 pre-paper state.
 
-## Open Questions (one per conclusion — the driving question it answers)
+## Open Problem (paper-level, single question)
 
-In Gaia, an "open question" is a **driving research question** — the question
-the paper is trying to answer. It pairs with the conclusion that answers it:
-the `question(...)` records the question, the `claim(...)` records the paper's
-answer. Per the legacy paper-extract pipeline ("该结论对应的子问题") and fine's
-pass-1 ("Driving questions for the source"), this is the canonical model.
+In Gaia, a `question(...)` records a research question. The coarse skill emits
+**one** `question(...)` at the paper level — the paper's overall open problem,
+i.e. the research question the paper as a whole sets out to answer. It lives
+in `motivation.py` alongside the motivation note. This matches the legacy
+paper-extract pipeline B (top-level `<problem>研究问题描述...</problem>`
+mapped to `type="question"`).
 
-For **each conclusion**, identify the question it answers and write it (in
-step 3) as a `question(...)` in the same module as the conclusion claim. The
-question text states the unresolved problem this conclusion addresses — not
-restatements of the conclusion in interrogative form, and not generic field-wide
-questions. Atomic conclusion ↔ atomic driving question.
+State the open problem as a concrete research question, not a restatement of
+the conclusions in interrogative form and not a generic field-wide question.
 
-Paper-stated "future work" / "things left for follow-ups" that the paper itself
-does **not** answer is not a driving question of any conclusion in this paper.
-Leave it out of the package; the skill does not model future-work statements.
+Paper-stated "future work" / next-step questions the paper does **not** answer
+are not modelled. Leave them out of the package.
 
 ## Logic Graph
 
@@ -116,5 +113,5 @@ Before starting the per-conclusion step:
 - Every conclusion has been written as a `claim(...)` in its section module and
   passes the atomicity, fidelity, and self-containment checks from `_shared/`.
 - The logic graph over the written conclusions is acyclic and minimal.
-- The motivation note is emitted in `motivation.py`; every conclusion has its
-  driving question (`question(...)`) emitted alongside it in its section module.
+- `motivation.py` contains the motivation `note(...)` and the paper-level
+  open-problem `question(...)`.

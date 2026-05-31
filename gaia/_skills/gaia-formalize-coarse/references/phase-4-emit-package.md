@@ -40,7 +40,7 @@ The DSL primitives this skill emits:
 | Emission | DSL primitive |
 |---|---|
 | Whole-paper motivation | `note(...)` (in `motivation.py`) |
-| Driving question (one per conclusion) | `question(...)` |
+| Paper-level open problem | `question(...)` (in `motivation.py`) |
 | Conclusion / weak-point / highlight claim | `claim(...)` |
 | Transcribed figure / table context | `note(...)` (optional) |
 | Deduction (1+ premises → conclusion) | `derive(...)` |
@@ -130,10 +130,12 @@ acceptable — but prefer per-section whenever the paper has identifiable sectio
 ## Workflow step 3 — Write the conclusions into their modules
 
 Write each conclusion as a `claim(...)` into the module of the section where it
-is established. Also emit the whole-paper motivation as a single `note(...)`
-into `motivation.py` (the introduction module) and each section's open
-questions as `question(...)` calls in that section's module. At this point the modules hold conclusion
-claims only — no leaf premises, no derives. A module under construction in step 3:
+is established. In `motivation.py` (the introduction module), also emit the
+whole-paper motivation as a single `note(...)` and the paper's overall open
+problem as a single `question(...)`. At this point `motivation.py` holds the
+motivation note + the open-problem question; section modules hold conclusion
+claims only — no leaf premises, no derives. A section module under
+construction in step 3:
 
 ```python
 """<Section heading — the module's docstring is the section title>."""
@@ -148,17 +150,18 @@ liu2015_c3_yield = claim(
 ```
 
 - **Motivation** — one `note(...)` in `motivation.py` summarizing the
-  whole-paper motivation (the pre-paper problem-state). It is framing/context
-  with no truth value, so `note` (not `question` — that primitive is reserved
-  for the per-conclusion driving questions below).
+  whole-paper motivation (the pre-paper problem-state, framing prose with no
+  truth value). Distinct from the open problem below: the note is the *context*
+  that necessitated the work; the question is the *research question* the work
+  sets out to answer.
 - **Conclusions** — one `claim(...)` per conclusion. Body = the self-contained
   body; do not rewrite it. Mint the label (above). The figure / table / citation
   `refs` collected in step 3 attach here.
-- **Driving question per conclusion** — for each conclusion, one
-  `question(...)` in the same module recording the research question that
-  conclusion answers, bound `<key>_c<id>_q`. (Atomic conclusion ↔ atomic
-  driving question.) The paper's "future work" / unanswered next-step
-  statements are not modelled here — leave them out.
+- **Open problem (paper-level)** — one `question(...)` in `motivation.py`
+  recording the paper's overall research question, bound `<key>_problem`.
+  Single question at the paper level (not per conclusion). The paper's
+  "future work" / unanswered next-step statements are not modelled — leave
+  them out.
 
 ## Workflow step 5 — Per conclusion: leaf premises + derive
 
