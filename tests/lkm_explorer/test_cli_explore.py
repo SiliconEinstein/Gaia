@@ -35,6 +35,18 @@ def _galileo_qid(label: str) -> str:
     return f"{GALILEO_NS}:{GALILEO_PKG}::{label}"
 
 
+def _trailing_json_object(output: str) -> dict[str, object]:
+    start = output.rfind("\n{")
+    if start == -1:
+        start = output.find("{")
+    else:
+        start += 1
+    assert start != -1, output
+    payload = json.loads(output[start:])
+    assert isinstance(payload, dict)
+    return payload
+
+
 def _example_root() -> Path:
     # tests/exploration/ -> repo root -> examples/galileo-v0-5-gaia
     return Path(__file__).resolve().parents[2] / "examples" / "galileo-v0-5-gaia"
@@ -453,7 +465,20 @@ def test_explore_help_lists_all_verbs():
     # alongside the orchestrator `turn` (CLIENT.md "Unified surface", build 7).
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for verb in ("init", "observe", "frontier", "round", "status", "render", "turn"):
+    for verb in (
+        "init",
+        "scope",
+        "observe",
+        "landscape",
+        "focuses",
+        "artifact",
+        "gate",
+        "frontier",
+        "round",
+        "status",
+        "render",
+        "turn",
+    ):
         assert verb in result.output
 
 
@@ -560,6 +585,190 @@ def test_explore_landscape_writes_neutral_paper_leads(galileo_pkg: Path):
     assert {"paper_id", "best_rank", "queries", "lkm_node_ids"} <= set(first)
     assert "pico" not in first
     assert "evidence_hierarchy" not in first
+
+
+def test_explore_scope_writes_scope_artifact(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    result = runner.invoke(
+        app,
+        [
+            "scope",
+            str(galileo_pkg),
+            "--seed",
+            "aspirin primary prevention",
+            "--profile",
+            "clinical",
+            "--dimension",
+            "population=adults",
+            "--dimension",
+            "endpoint=mi",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Scope:" in result.output
+
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "scope.json").read_text(encoding="utf-8")
+    )
+    assert payload["kind"] == "exploration_scope"
+    assert payload["inputs"]["seeds"] == ["aspirin primary prevention"]
+    assert payload["inputs"]["profile"] == "clinical"
+    assert payload["inputs"]["dimensions"] == {
+        "population": ["adults"],
+        "endpoint": ["mi"],
+    }
+    assert payload["provenance"]["seed_source"] == "cli"
+    stdout_payload = _trailing_json_object(result.output)
+    assert stdout_payload["kind"] == "exploration_scope"
+    assert stdout_payload["inputs"] == payload["inputs"]
+
+
+def test_explore_scope_derives_seeds_from_map(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+
+    result = runner.invoke(app, ["scope", str(galileo_pkg)])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "scope.json").read_text(encoding="utf-8")
+    )
+    assert payload["inputs"]["seeds"] == [_galileo_qid("aristotle_model")]
+    assert payload["provenance"]["seed_source"] == "map"
+
+
+def test_explore_scope_rejects_invalid_dimension(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+
+    result = runner.invoke(app, ["scope", str(galileo_pkg), "--dimension", "population"])
+
+    assert result.exit_code == 2
+    assert "key=value" in result.output
+
+
+def test_explore_scope_help_is_available():
+    result = runner.invoke(
+        app,
+        ["scope", "--help"],
+        color=False,
+        terminal_width=200,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Write the explicit Explore scope sidecar" in result.output
+
+
+def test_explore_focuses_writes_focuses_from_landscape(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    landscape_result = runner.invoke(
+        app,
+        ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)],
+    )
+    assert landscape_result.exit_code == 0, landscape_result.output
+
+    result = runner.invoke(app, ["focuses", str(galileo_pkg)])
+
+    assert result.exit_code == 0, result.output
+    assert "Focuses:" in result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "focuses.json").read_text(encoding="utf-8")
+    )
+    assert payload["kind"] == "exploration_focuses"
+    assert payload["focuses"]
+    focus = payload["focuses"][0]
+    assert focus["kind"] == "paper_lead_cluster"
+    assert focus["recommended_next"] == "assess"
+    assert focus["evidence_refs"]
+
+
+def test_explore_focuses_requires_landscape(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+
+    result = runner.invoke(app, ["focuses", str(galileo_pkg)])
+
+    assert result.exit_code == 2
+    assert "no landscape" in result.output
+
+
+def test_explore_artifact_writes_handoff_envelope(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["scope", str(galileo_pkg)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["focuses", str(galileo_pkg)])
+
+    result = runner.invoke(app, ["artifact", str(galileo_pkg)])
+
+    assert result.exit_code == 0, result.output
+    assert "Artifact:" in result.output
+    assert "gaia-evidence assess" in result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "artifact.json").read_text(encoding="utf-8")
+    )
+    assert payload["kind"] == "lkm_exploration"
+    assert payload["artifacts"]["scope"] == ".gaia/exploration/scope.json"
+    assert payload["artifacts"]["focuses"] == ".gaia/exploration/focuses.json"
+    assert payload["artifacts"]["artifact"] == ".gaia/exploration/artifact.json"
+    assert payload["interface"]["assess"]["command"].startswith("gaia-evidence assess")
+
+
+def test_explore_gate_blocks_without_focuses(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["scope", str(galileo_pkg)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["artifact", str(galileo_pkg)])
+
+    result = runner.invoke(app, ["gate", str(galileo_pkg)])
+
+    assert result.exit_code == 1
+    assert "Gate: block" in result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "gate_report.json").read_text(encoding="utf-8")
+    )
+    assert payload["verdict"] == "block"
+    assert payload["checks"]["focuses_present"]["status"] == "fail"
+
+
+def test_explore_gate_passes_with_complete_assessable_artifacts(galileo_pkg: Path):
+    runner.invoke(
+        app,
+        ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
+    )
+    runner.invoke(app, ["scope", str(galileo_pkg)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["focuses", str(galileo_pkg)])
+    (galileo_pkg / ".gaia" / "exploration" / "rounds.jsonl").write_text("{}\n", encoding="utf-8")
+    runner.invoke(app, ["artifact", str(galileo_pkg)])
+
+    result = runner.invoke(app, ["gate", str(galileo_pkg)])
+
+    assert result.exit_code == 0, result.output
+    assert "Gate: pass" in result.output
+    payload = json.loads(
+        (galileo_pkg / ".gaia" / "exploration" / "gate_report.json").read_text(encoding="utf-8")
+    )
+    assert payload["verdict"] == "pass"
+    assert payload["audit"]["allowed_next_steps"] == ["assess"]
 
 
 def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):

@@ -177,9 +177,10 @@ paragraph. Do not invent contributions to fill the gap.
 - It does not own package-shape — that is the canonical Gaia spec (see
   `docs/for-users/`). This skill consumes those rules where they apply and
   adds paper-decomposition workflow on top.
-- It does not run `gaia build compile` / `gaia run infer` itself; the caller runs
-  those quality gates after emission. Surfaced compile errors come back as
-  Phase 4 follow-up obligations, not as a built-in step.
+- Phase 4 runs `gaia build compile` itself to validate the directly-written
+  modules and iterates until it compiles clean. It does not run `gaia run infer`
+  / `gaia inquiry review` — those downstream quality gates are caller obligations
+  surfaced in the hand-off report.
 - It does not orchestrate the existing `paper-extract` Python pipeline.
   The Python pipeline is a parallel route from paper to XML; this skill
   is the direct route from paper to Gaia.
