@@ -165,9 +165,20 @@ liu2015_c3_yield = claim(
 
 ## Workflow step 5 — Per conclusion: leaf premises + derive
 
-Walk the conclusions in topological order on the logic graph. For each, append
-to its module its leaf premises and its `derive(...)`, then compile-check the
-module before the next conclusion:
+Walk the conclusions in topological order on the logic graph. For each
+conclusion, follow this conceptual order before emitting:
+
+1. Summarize the paper's reasoning chain for this conclusion (the prose that
+   will go into `rationale=`).
+2. From the reasoning, identify which upstream conclusions it depends on (from
+   the step-4 logic graph) — these are the first entries in `given=`.
+3. Surface the **residual** weak points and highlights — the load-bearing
+   uncertainties and strengths the reasoning rests on **beyond** what the
+   upstream conclusions already capture. A factor already represented by an
+   upstream conclusion is not duplicated here; only the new, this-derivation-
+   specific factors become leaf premises.
+4. Emit the leaf-premise `claim(...)`s, then the `derive(...)`. Append both to
+   the conclusion's module, then compile-check before moving on:
 
 ```python
 from .s2_methods import liu2015_c1_protocol   # upstream conclusion it depends on

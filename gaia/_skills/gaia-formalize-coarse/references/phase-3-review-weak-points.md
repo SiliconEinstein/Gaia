@@ -72,7 +72,7 @@ order — first key is the dominant pattern.
 
 ### Gating Questions for Each Candidate Weak Point
 
-Before committing to a weak point, it must pass all five:
+Before committing to a weak point, it must pass all six:
 
 - **Which conclusion(s) does it threaten?** — Most weak points undermine
   exactly one conclusion's derivation; name it by Phase 1 id and bind there.
@@ -97,6 +97,11 @@ Before committing to a weak point, it must pass all five:
   becomes unsupported.
 - **Is the failure specific and load-bearing?** — If the same objection
   could be pasted against almost any paper in the field, it is not specific.
+- **Is it already captured by an upstream conclusion in `given=`?** — A weak
+  point is the **residual** load-bearing factor not already represented by the
+  conclusion's upstream premises. If the same uncertainty is already an upstream
+  conclusion (or is carried by one), do not duplicate it as a leaf premise here;
+  it would double-count the same evidence.
 - **Is the claim already directly established by the paper?** — If the paper
   proves it, validates it with independent evidence, or it is a universally
   accepted fact, it is not a weak point.
@@ -217,6 +222,10 @@ conclusion materially less credible. Use the same nine patterns
   or interpretive attribution would no longer be credibly supported.
 - **Is the strength specific and load-bearing?** — If the same praise could
   be pasted onto any competently written paper, it is not specific.
+- **Is it already captured by an upstream conclusion in `given=`?** — A highlight
+  is the **residual** load-bearing strength not already represented by the
+  conclusion's upstream premises. If the strength is already carried by an
+  upstream conclusion, do not duplicate it as a leaf premise.
 - **Is the strength actually supplied?** — If the paper merely declares the
   property without evidence (claims robustness without showing the sweep),
   it is not a highlight.

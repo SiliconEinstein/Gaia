@@ -97,10 +97,20 @@ Create a session todo list with the six steps below and work them in order.
    directed dependencies among them (`A → B` = the paper uses A to derive B).
    Same methodology file as step 3.
 5. **Per conclusion, in topological order: derive + weak points + highlights.**
-   For each conclusion, analyze and emit its weak points and highlights (leaf
-   premises) into its module, then emit its `derive(...)` whose `given` is its
-   upstream conclusions (from the logic graph) plus those leaf premises.
-   Compile-check the module before moving on. Methodology:
+   For each conclusion, work in this conceptual order:
+   1. Summarize the paper's reasoning chain for this conclusion (the prose that
+      will become `derive(...)`'s `rationale=`).
+   2. From the reasoning, identify the upstream conclusions it depends on
+      (from the step-4 logic graph) — these go in `given=` first.
+   3. Surface its weak points and highlights as the **residual** load-bearing
+      factors — the uncertainties and strengths in the reasoning that the
+      upstream conclusions do **not** already capture. (If a factor is already
+      represented by an upstream conclusion, do not duplicate it as a leaf
+      premise here.) These go in `given=` after the upstream conclusions.
+   4. Emit the leaf-premise `claim(...)`s and the `derive(...)` into the
+      conclusion's module; compile-check before moving on.
+
+   Methodology:
    [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md)
    (reasoning chains / derive) and
    [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md)
