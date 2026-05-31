@@ -106,7 +106,10 @@ def build_search_execution_task(
         if not isinstance(query, str) or not query.strip():
             continue
         output_path = paths.explore_artifacts / f"raw-search-0001-{index}.json"
-        command = f"gaia search lkm knowledge {quote(query)} --json > {quote(str(output_path))}"
+        command = (
+            "gaia search lkm knowledge "
+            f"{quote(query)} --format gaia-json --out {quote(str(output_path))}"
+        )
         commands.append(
             {
                 "query": query,

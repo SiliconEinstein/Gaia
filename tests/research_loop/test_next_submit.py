@@ -184,6 +184,9 @@ def test_next_after_query_plan_emits_search_execution(tmp_path: Path) -> None:
     task = json.loads(Path(payload["task_path"]).read_text(encoding="utf-8"))
     assert task["kind"] == "search_execution"
     assert "gaia search lkm knowledge" in task["inputs"]["commands"][0]["command"]
+    assert "--format gaia-json" in task["inputs"]["commands"][0]["command"]
+    assert "--out" in task["inputs"]["commands"][0]["command"]
+    assert ">" not in task["inputs"]["commands"][0]["command"]
     assert task["inputs"]["commands"][0]["output_path"].endswith(".json")
 
 
