@@ -26,7 +26,9 @@ reading into a threshold rule on the belief.
   plus the available evidence.
 - The Gaia cheat sheet at the path printed by `gaia sdk --out ./gaia-sdk`.
 
-Use only `gaia.engine.lang` — the cheat sheet's import block.
+Use the import shape from the generated cheat sheet: core DSL symbols and
+distribution factories come from `gaia.engine.lang`; if you use the optional
+Bayes comparison step in §3, import `gaia.engine.bayes` as `bayes`.
 
 ## 2. Build the logical structure (no probability yet)
 
@@ -262,8 +264,10 @@ A reproducible result record should include:
 
 ## Constraints
 
-- Use only `gaia.engine.lang`. Do not import from `gaia.engine.bp.*` (engine
-  internals).
+- Use only public SDK surfaces: `gaia.engine.lang` for claims, formulas,
+  reasoning verbs, priors, and distributions; `gaia.engine.bayes` for
+  `bayes.model(...)` / `bayes.compare(...)`. Do not import from
+  `gaia.engine.bp.*` (engine internals).
 - Probability attachment (§3) is optional. The structural deliverable (§2 →
   §5 `gaia build check`) is load-bearing.
 
