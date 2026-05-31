@@ -39,7 +39,8 @@ The DSL primitives this skill emits:
 
 | Emission | DSL primitive |
 |---|---|
-| Motivation question | `question(...)` |
+| Whole-paper motivation | `note(...)` (in `motivation.py`) |
+| Open question | `question(...)` |
 | Conclusion / weak-point / highlight claim | `claim(...)` |
 | Transcribed figure / table context | `note(...)` (optional) |
 | Deduction (1+ premises → conclusion) | `derive(...)` |
@@ -129,8 +130,9 @@ acceptable — but prefer per-section whenever the paper has identifiable sectio
 ## Workflow step 3 — Write the conclusions into their modules
 
 Write each conclusion as a `claim(...)` into the module of the section where it
-is established. Also emit the motivation `question(...)` (into `motivation.py`)
-and each section's open questions. At this point the modules hold conclusion
+is established. Also emit the whole-paper motivation as a single `note(...)`
+into `motivation.py` (the introduction module) and each section's open
+questions as `question(...)` calls in that section's module. At this point the modules hold conclusion
 claims only — no leaf premises, no derives. A module under construction in step 3:
 
 ```python
@@ -145,7 +147,10 @@ liu2015_c3_yield = claim(
 )
 ```
 
-- **Motivation** — one `question(...)` in `motivation.py`, bound as `<key>_problem`.
+- **Motivation** — one `note(...)` in `motivation.py` summarizing the
+  whole-paper motivation (the pre-paper problem-state). It is framing/context
+  with no truth value, so `note` (not `question` — that primitive is for
+  specific unresolved questions, the open-questions output).
 - **Conclusions** — one `claim(...)` per conclusion. Body = the self-contained
   body; do not rewrite it. Mint the label (above). The figure / table / citation
   `refs` collected in step 3 attach here.

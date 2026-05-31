@@ -83,13 +83,14 @@ Create a session todo list with the six steps below and work them in order.
 2. **Scaffold the package.** Read the DSL surface (`gaia sdk`), then
    `gaia pkg scaffold` and add one module per source section. See
    [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md).
-3. **Write the conclusions.** Extract every conclusion and emit it as a
-   `claim(...)` into the module of the section where it is established; emit the
-   motivation `question(...)` into the intro module and each section's open
-   questions. Methodology:
+3. **Write the conclusions.** Walk the paper section by section. For each
+   section, emit its conclusions as `claim(...)` and its open questions as
+   `question(...)` into the section's module. Into the introduction module
+   (`motivation.py`), also emit the whole-paper motivation as a single
+   `note(...)` (framing — no truth value). Methodology:
    [`references/phase-1-extract-conclusions.md`](references/phase-1-extract-conclusions.md).
-   (At this point the modules hold conclusion claims only — no derives, no
-   premises.)
+   (At this point the modules hold conclusion claims, the motivation note, and
+   open questions — no derives, no leaf premises.)
 4. **Organize the logic graph.** With every conclusion now written, lay out the
    directed dependencies among them (`A → B` = the paper uses A to derive B).
    Same methodology file as step 3.
