@@ -10,18 +10,21 @@ DSL package is the only artifact.
 Read the paper end-to-end and identify:
 
 1. **Motivation** — the unresolved scientific problem-state that necessitated
-   the paper's work (paper-level, single block).
+   the paper's work (paper-level, single block; framing prose with no truth
+   value → a `note(...)` in `motivation.py`).
 2. **Conclusions** — the genuinely new contributions established by the paper,
-   each as an atomic scientific proposition.
-3. **Open questions** — scientifically meaningful issues the paper explicitly
-   leaves unresolved (paper-level, single block).
+   each as an atomic scientific proposition (each → a `claim(...)` in the
+   module of the section where it is established).
+3. **Open questions, one per conclusion** — for each conclusion, the driving
+   research question it answers (each → a `question(...)` in the same module
+   as its conclusion).
 4. **Logic graph** — directed dependency edges among conclusions: an edge
    `A → B` means the paper's own reasoning uses A in deriving B.
 
-The conclusions are emitted as `claim(...)` into their section modules as you
-identify them (step 3); motivation and open questions likewise. The logic graph
-(step 4) is held in context — it drives which upstream conclusions each
-`derive(...)` lists in step 5. No intermediate YAML/JSON artifact.
+Conclusions, the motivation note, and each conclusion's driving question are
+emitted directly to the modules in step 3. The logic graph (step 4) is held in
+context — it drives which upstream conclusions each `derive(...)` lists in
+step 5. No intermediate YAML/JSON artifact.
 
 ## Suitability Gate
 
@@ -77,12 +80,23 @@ Style: narrative, like an Introduction-section paragraph. Not a checklist of
 "lack of X". Do **not** include the paper's solutions — motivation is the
 pre-paper state.
 
-## Open Questions Block
+## Open Questions (one per conclusion — the driving question it answers)
 
-Write a single paragraph capturing what the paper itself leaves unresolved:
-explicit future work, acknowledged limitations, conjectures, unresolved
-regimes. Do not invent new open problems and do not weaken accepted
-conclusions into open questions.
+In Gaia, an "open question" is a **driving research question** — the question
+the paper is trying to answer. It pairs with the conclusion that answers it:
+the `question(...)` records the question, the `claim(...)` records the paper's
+answer. Per the legacy paper-extract pipeline ("该结论对应的子问题") and fine's
+pass-1 ("Driving questions for the source"), this is the canonical model.
+
+For **each conclusion**, identify the question it answers and write it (in
+step 3) as a `question(...)` in the same module as the conclusion claim. The
+question text states the unresolved problem this conclusion addresses — not
+restatements of the conclusion in interrogative form, and not generic field-wide
+questions. Atomic conclusion ↔ atomic driving question.
+
+Paper-stated "future work" / "things left for follow-ups" that the paper itself
+does **not** answer is not a driving question of any conclusion in this paper.
+Leave it out of the package; the skill does not model future-work statements.
 
 ## Logic Graph
 
@@ -102,4 +116,5 @@ Before starting the per-conclusion step:
 - Every conclusion has been written as a `claim(...)` in its section module and
   passes the atomicity, fidelity, and self-containment checks from `_shared/`.
 - The logic graph over the written conclusions is acyclic and minimal.
-- Motivation and open questions are emitted (or recorded as genuinely absent).
+- The motivation note is emitted in `motivation.py`; every conclusion has its
+  driving question (`question(...)`) emitted alongside it in its section module.

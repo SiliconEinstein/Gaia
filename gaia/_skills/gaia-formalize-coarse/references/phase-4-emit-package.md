@@ -40,7 +40,7 @@ The DSL primitives this skill emits:
 | Emission | DSL primitive |
 |---|---|
 | Whole-paper motivation | `note(...)` (in `motivation.py`) |
-| Open question | `question(...)` |
+| Driving question (one per conclusion) | `question(...)` |
 | Conclusion / weak-point / highlight claim | `claim(...)` |
 | Transcribed figure / table context | `note(...)` (optional) |
 | Deduction (1+ premises → conclusion) | `derive(...)` |
@@ -149,13 +149,16 @@ liu2015_c3_yield = claim(
 
 - **Motivation** — one `note(...)` in `motivation.py` summarizing the
   whole-paper motivation (the pre-paper problem-state). It is framing/context
-  with no truth value, so `note` (not `question` — that primitive is for
-  specific unresolved questions, the open-questions output).
+  with no truth value, so `note` (not `question` — that primitive is reserved
+  for the per-conclusion driving questions below).
 - **Conclusions** — one `claim(...)` per conclusion. Body = the self-contained
   body; do not rewrite it. Mint the label (above). The figure / table / citation
   `refs` collected in step 3 attach here.
-- **Open questions (optional)** — one `question(...)` per open question, bound
-  `<key>_open_question_<n>`.
+- **Driving question per conclusion** — for each conclusion, one
+  `question(...)` in the same module recording the research question that
+  conclusion answers, bound `<key>_c<id>_q`. (Atomic conclusion ↔ atomic
+  driving question.) The paper's "future work" / unanswered next-step
+  statements are not modelled here — leave them out.
 
 ## Workflow step 5 — Per conclusion: leaf premises + derive
 
