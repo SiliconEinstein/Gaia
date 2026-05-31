@@ -12,6 +12,8 @@ from typing import Any
 
 from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 
+_FACTOR_CONTEXT_COMMENT = "uses chain-level or preceding-chain conclusion"
+
 
 class SearchOutputFormat(StrEnum):
     """Output formats for provider-backed search commands."""
@@ -202,8 +204,11 @@ def _normalize_lkm_chain(
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
     factors_summary = _factor_summaries(chain)
     has_premised_factor = any(f["premise_count"] > 0 for f in factors_summary)
+    needs_package_context = any(
+        f.get("comment") == _FACTOR_CONTEXT_COMMENT for f in factors_summary
+    )
     actions: list[dict[str, Any]] = []
-    if not has_premised_factor and paper_id is not None:
+    if (not has_premised_factor or needs_package_context) and paper_id is not None:
         actions.append(
             {
                 "kind": "inspect",
@@ -404,22 +409,32 @@ def _chain_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
 def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
     """Per-factor premise counts.
 
-    ``premise_count > 0`` is the single signal for "this factor is a derivation
-    step" (emit a ``derive``); ``premise_count == 0`` is a base/leaf assertion
-    (emit a leaf ``claim``). Replaces the old chain-level ``can_compile`` /
-    ``has_factors`` booleans, which conflated leaf factors with failures.
+    For normal inline factors, ``premise_count > 0`` marks a derivation step
+    (emit a ``derive``), while ``premise_count == 0`` marks a base/leaf assertion
+    (emit a leaf ``claim``). A premised factor without an inline conclusion is
+    still legal: the conclusion may be supplied at chain level or by a preceding
+    chain, so the summary adds a non-warning comment for agents. Replaces the old
+    chain-level ``can_compile`` / ``has_factors`` booleans, which conflated leaf
+    factors with failures.
     """
     summaries: list[dict[str, Any]] = []
     for factor in _list(chain.get("factors")):
         if not isinstance(factor, dict):
             continue
-        summaries.append(
-            {
-                "factor_id": _string(factor.get("id")) or _string(factor.get("factor_id")),
-                "premise_count": len(_list(factor.get("premises"))),
-            }
-        )
+        factor_id = _factor_id(factor)
+        premise_count = len(_list(factor.get("premises")))
+        summary = {
+            "factor_id": factor_id,
+            "premise_count": premise_count,
+        }
+        if premise_count > 0 and not _dict(factor.get("conclusion")):
+            summary["comment"] = _FACTOR_CONTEXT_COMMENT
+        summaries.append(summary)
     return summaries
+
+
+def _factor_id(factor: dict[str, Any]) -> str | None:
+    return _string(factor.get("id")) or _string(factor.get("factor_id"))
 
 
 def _chain_source_package(chain: dict[str, Any]) -> str | None:

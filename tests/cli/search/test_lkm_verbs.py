@@ -861,6 +861,65 @@ class TestReasoning:
         assert item["gaia"]["object_kind"] == "derive"
         assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
 
+    def test_default_comments_premised_factor_without_inline_conclusion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "paper_id": "811",
+                            "conclusion": {"id": "gcn_result", "title": "Result"},
+                            "factors": [
+                                {
+                                    "id": "fac_missing_conclusion",
+                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["gaia"]["object_kind"] == "derive"
+        assert item["source"]["factors"] == [
+            {
+                "factor_id": "fac_missing_conclusion",
+                "premise_count": 1,
+                "comment": "uses chain-level or preceding-chain conclusion",
+            }
+        ]
+        assert item["actions"] == [
+            {
+                "kind": "inspect",
+                "ref": "lkm:bohrium:paper:811",
+                "label": "Inspect paper",
+                "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
+            },
+            {
+                "kind": "add",
+                "ref": "lkm:bohrium:paper:811",
+                "label": "Add LKM paper 811",
+                "target": {
+                    "kind": "paper",
+                    "title": None,
+                    "doi": None,
+                    "index_id": "bohrium",
+                    "paper_id": "811",
+                },
+                "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811",
+            },
+        ]
+
     def test_claim_reasoning_uses_factor_id_when_chain_id_is_missing(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

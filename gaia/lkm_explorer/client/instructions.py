@@ -200,8 +200,14 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
      `gaia.object_kind == "derive"`), or a `knowledge` claim with
      `source.has_reasoning == true` (its `inspect` action gives the
      `gaia search lkm reasoning --claim-id <id>` to fetch the chain). Emit
-     `claim(...)` for the conclusion + each usable premise. Then route PER FACTOR
-     in `raw.payload.factors[]` by its premises (NOT a chain-level flag):
+     `claim(...)` for the conclusion + each usable premise. A premised factor may
+     omit an inline conclusion when it continues from a chain-level or preceding
+     chain conclusion; the normalizer records that as a non-warning `comment` on
+     `source.factors[]` and includes an `inspect` action. Follow that action
+     (`gaia search lkm package --index <index> --paper-id <paper>`) when you need
+     the full paper package to recover the prior reasoning-chain/conclusion chain
+     that the current conclusion depends on. Route PER FACTOR in
+     `raw.payload.factors[]` by its premises (NOT a chain-level flag):
        * `premise_count > 0` → one factor-derived `derive(conclusion,
          given=[premises], rationale="<numbered LKM steps>", label="<factor_id>")`
          (LKM factor ids are `gfac_*`; use that id as the label — `factor_id`
