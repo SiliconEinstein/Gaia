@@ -151,6 +151,41 @@ Step 5 consumes this graph: each conclusion's `derive(...)` lists its upstream
 conclusions in topological order. The graph is held in context (it maps onto
 the `derive` `given=` references — no intermediate artifact).
 
+### Relations between conclusions
+
+Not every connection between two conclusions is a derivation. Some pairs are
+**logical relations** the paper itself states (or strongly implies): "Model A
+and Model B cannot both be right"; "this theoretical prediction and that
+experimental value are the same proposition"; "these two outcomes exhaust the
+possibilities and the data picks one". Capture these at step 4 alongside the
+derivation edges — they sit at the same conclusion-graph layer.
+
+The verbs (canonical surface: `gaia sdk`):
+
+| Verb | Semantics | Use when |
+|---|---|---|
+| `equal(a, b, rationale=…)` | both must hold the same truth value | A theoretical prediction and the matching experimental observation; word form vs equation form of the same proposition; "Y₁ = Y₂ within stated error bars". After atomicity-splitting a theory+experiment bundle in step 5.1, the resulting atoms typically deserve an `equal(...)` between them. |
+| `contradict(a, b, rationale=…)` | NOT (A AND B) — both cannot be true, but both **can** be false | Two competing hypotheses the paper says are incompatible (a third option may still exist). |
+| `exclusive(a, b, rationale=…)` | A XOR B — exactly one must be true (exhaustive + mutually exclusive; **strictly binary**) | The paper frames the alternatives as exhaustive — exactly one wins. For ≥3 alternatives use `decompose(formula=lor(...))` (see phase-4 step 6a) instead. |
+| `associate(a, b, p_a_given_b=…, p_b_given_a=…, rationale=…)` | symmetric probabilistic association (no logical entailment); pass `pattern="equal"` / `"contradict"` / `"exclusive"` when you mean a soft version of the hard relation | The paper hints at a relation but the strength is judgment-bound — e.g. "results A and B point in the same direction" without a logical equivalence; or competing-models language that does not actually exhaust the space. The two `p_*` conditionals are reviewer-judged honest estimates, not derived from data. |
+
+The labelling rule: a relation between conclusions `C_i` and `C_j` lives in
+the **module of the later (downstream) conclusion** — so the relation can
+`import` both relata. Mint the label as `<key>_rel_<short_suffix>` (e.g.
+`liu2015_rel_theory_match`). Relations do **not** carry priors
+(hard relations are deterministic; `associate` carries its conditionals
+directly), so they get no `register_prior` entry and they are **not** added
+to root `__all__`.
+
+What NOT to model:
+
+- "In tension but can both be true" — flag in the hand-off report as an
+  unmodelled tension; do not force a `contradict`. A wrong `contradict`
+  silently distorts every downstream belief.
+- Quantitative-difference observations where the paper doesn't actually
+  claim "these are the same proposition" — use a `derive(...)` instead.
+- Field-wide rivalries the paper does not itself adjudicate.
+
 ## Step gate (before step 5)
 
 Before starting the per-conclusion step:
@@ -159,5 +194,8 @@ Before starting the per-conclusion step:
 - Every conclusion has been written as a `claim(...)` in its section module and
   passes the atomicity, fidelity, and self-containment checks from `_shared/`.
 - The logic graph over the written conclusions is acyclic and minimal.
+- Conclusion-level relations (equal / contradict / exclusive / associate) the
+  paper states or strongly implies have been identified, located in their
+  downstream module, and labelled.
 - `motivation.py` contains the motivation `note(...)` and the paper-level
   open-problem `question(...)`.

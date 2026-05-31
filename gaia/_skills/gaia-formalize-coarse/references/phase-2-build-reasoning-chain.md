@@ -42,13 +42,17 @@ Coarse-specific points on top of the shared methodology:
   conclusions A and B, both A and B appear in C's `given`. A conclusion that
   is a logic-graph root (no upstream) is **not** left without premises: the
   phase-3 audit will give it at least one leaf premise carrying its support.
-  There are no isolated conclusions. This
-  skill emits no `infer` /
+  There are no isolated conclusions. This skill emits no `infer` /
   `observe` / `compute`, so the shared file's verb-specific remarks for those
-  verbs do not apply here. The **one** exception is `decompose(...)`, emitted
-  in the finalize step (step 6) for the shared-factor (Pattern 3) case — to
-  split a leaf premise that shares a latent cause into that cause plus its
-  residual without deleting the original (see phase-3 "Shared-factor evidence").
+  verbs do not apply here. **Four relation verbs are allowed when the paper
+  itself states or strongly implies them**: `equal` / `contradict` /
+  `exclusive` (hard) and `associate` (soft, with reviewer-judged conditional
+  probabilities) — at the conclusion-graph layer (phase-1 step 4 §Relations
+  between conclusions) and at the cross-premise layer (phase-3 §Cross-premise
+  relations within a pattern). `decompose(...)` is emitted in the finalize
+  step (step 6) for the shared-factor (Pattern 3) case — to split a leaf
+  premise that shares a latent cause into that cause plus its residual
+  without deleting the original (see phase-3 "Shared-factor evidence").
 
 ## Per-derive independence (Pattern 1c)
 

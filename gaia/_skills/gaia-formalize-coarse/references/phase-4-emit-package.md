@@ -193,10 +193,59 @@ from .authored import *  # scaffold-default re-export; harmless here
 ```
 
 Do **not** add to `__all__`: the motivation `note(...)`, the open-problem
-`question(...)`, weak point / highlight leaf-premise claims (step 5), or
-decompose parts (step 6 shared cause + residuals). Section modules
-(`motivation.py`, `s2_methods.py`, …) keep their scaffolded
-`__all__: list[str] = []` unchanged.
+`question(...)`, weak point / highlight leaf-premise claims (step 5),
+decompose parts (step 6 shared cause + residuals), or any relation labels
+(see below). Section modules (`motivation.py`, `s2_methods.py`, …) keep
+their scaffolded `__all__: list[str] = []` unchanged.
+
+### Conclusion-level relations (also step 4 emission)
+
+When step 4 (logic graph) surfaces `equal` / `contradict` / `exclusive` /
+`associate` relations between conclusions, emit them into the **downstream-most
+module among the two relata** so the relation can `import` both. Methodology
+is in `phase-1-extract-conclusions.md` (§Relations between conclusions);
+the code shape:
+
+```python
+from gaia.engine.lang import equal, contradict, exclusive, associate
+
+from .s2_methods import liu2015_c1_theory_prediction
+from .s3_results import liu2015_c3_experiment_value
+
+# Hard: theory atom and experiment atom express the same proposition
+liu2015_rel_theory_match = equal(
+    liu2015_c1_theory_prediction,
+    liu2015_c3_experiment_value,
+    rationale="The theoretical prediction P = 0.42 ± 0.03 and the measured value …",
+    label="liu2015_rel_theory_match",
+)
+
+# Hard: two competing hypotheses the paper says cannot both hold
+liu2015_rel_models_incompatible = contradict(
+    liu2015_c2_model_a, liu2015_c2_model_b,
+    rationale="A and B predict opposite signs of the response …",
+    label="liu2015_rel_models_incompatible",
+)
+
+# Hard: exhaustive binary choice (use decompose(formula=lor(...)) for n≥3)
+liu2015_rel_binary_outcome = exclusive(
+    liu2015_c4_outcome_pos, liu2015_c4_outcome_neg,
+    rationale="On this benchmark the metric is signed; one of the two must hold.",
+    label="liu2015_rel_binary_outcome",
+)
+
+# Soft: judgement-bound association (no logical entailment)
+liu2015_rel_soft_assoc = associate(
+    liu2015_c5_method, liu2015_c5_outcome,
+    p_a_given_b=0.75, p_b_given_a=0.40,
+    pattern="equal",
+    rationale="The paper presents them as broadly consistent under regime X, but …",
+    label="liu2015_rel_soft_assoc",
+)
+```
+
+Relations carry no `register_prior` (hard verbs are deterministic;
+`associate` carries its conditionals directly) and are **not** in `__all__`.
 
 ## Workflow step 5 — Per conclusion: leaf premises + derive
 
@@ -374,12 +423,13 @@ After a clean compile, verify the SOP-owned semantic content:
    has a non-empty `__all__` listing **every main conclusion** written in
    step 3 — and nothing else. No motivation `note(...)` label, no
    open-problem `question(...)` label, no `_wp_` / `_hl_` leaf-premise
-   label, no `derive(...)` label, no `register_prior` label, no
-   shared-cause / residual label from 6a. The scaffold default
-   `__all__: list[str] = []` must have been replaced in step 3 as each
-   conclusion was written; the IR generator treats an empty `__all__` as
-   "no exports at all" (`compile.py:1881`) and downstream tools then see a
-   package with no headline contributions.
+   label, no `derive(...)` label, no relation label (`equal` / `contradict` /
+   `exclusive` / `associate`), no `register_prior` label, no shared-cause /
+   residual label from 6a. The scaffold default `__all__: list[str] = []`
+   must have been replaced in step 3 as each conclusion was written; the IR
+   generator treats an empty `__all__` as "no exports at all"
+   (`compile.py:1881`) and downstream tools then see a package with no
+   headline contributions.
 
 If any check fails, fix it and recompile before reporting completion.
 

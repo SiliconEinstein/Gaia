@@ -70,6 +70,45 @@ A single conclusion typically rests on several patterns simultaneously. Tag
 each weak point with 1–3 of these patterns (`weak_types`), in dominance
 order — first key is the dominant pattern.
 
+### Cross-premise relations within a pattern
+
+When you have classified premises (weak points + highlights) and have several
+sharing a pattern — typically within one conclusion's `given=`, sometimes
+across two conclusions — sweep that same-pattern group once more for
+**logical relations between the premises themselves**, not just shared
+causes (Pattern 3) and not just upstream/downstream support. Two premises
+within the same pattern often have one of:
+
+- **`equal(p1, p2)`** — two premises that restate the same proposition in
+  different forms (e.g. a `measurement` premise stated qualitatively and the
+  same quantity stated numerically). Two should usually collapse into one;
+  use `equal` when the paper itself uses both formulations and the audit
+  wants to surface that.
+- **`contradict(p1, p2)`** — two premises that cannot both hold (e.g. two
+  `model` premises that assume incompatible regimes). If one is a weak
+  point and the other a highlight, that's already the "weak point and
+  highlight on the same cause" reconciliation case in Shared-factor
+  evidence; if both are weak points (or both highlights), they materially
+  weaken the warrant and the relation deserves to be in the graph.
+- **`exclusive(p1, p2)`** — two `comparative` premises that exhaust a binary
+  choice (the paper picks exactly one baseline / pretraining recipe).
+- **`associate(p1, p2, p_a_given_b=…, p_b_given_a=…, pattern=…)`** — when
+  you suspect a relation but the strength is judgment-bound (the paper does
+  not explicitly assert it, or the regime makes the entailment soft),
+  reach for the soft form. Pass `pattern="contradict"` (or `"equal"` /
+  `"exclusive"`) when you mean a probabilistic version of one of the hard
+  relations; the engine then validates the conditional-probability
+  semantics against the pattern.
+
+Surface these where they live (the downstream-most module among the two
+relata, just like conclusion-level relations); they get no `register_prior`
+entry and they are not added to root `__all__`. **A wrong `contradict` /
+`exclusive` silently distorts every downstream belief, so when in doubt
+prefer `associate`** (soft) over hard relations — `associate` carries its
+own honest conditionals and stays reviewable. The same "What NOT to model"
+list from phase-1 §Relations applies: do not force a hard relation on a
+premise pair that is merely in tension.
+
 ### Gating Questions for Each Candidate Weak Point
 
 Before committing to a weak point, it must pass all six:

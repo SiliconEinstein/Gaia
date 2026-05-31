@@ -98,9 +98,14 @@ Create a session todo list with the six steps below and work them in order.
    (At this point `motivation.py` holds the motivation note + the open-problem
    question; section modules hold conclusion claims only — no derives, no leaf
    premises; the root `__all__` lists the main-conclusion labels.)
-4. **Organize the logic graph.** With every conclusion now written, lay out the
-   directed dependencies among them (`A → B` = the paper uses A to derive B).
-   Same methodology file as step 3.
+4. **Organize the logic graph + surface conclusion-level relations.** With
+   every conclusion now written, lay out the directed dependencies among
+   them (`A → B` = the paper uses A to derive B), and emit the hard /
+   soft relations the paper itself states between conclusions or atomic
+   sub-conclusions: `equal` / `contradict` / `exclusive` for clear logical
+   relations, `associate` (soft, with reviewer-judged conditionals) when
+   the strength is judgment-bound. Same methodology file as step 3
+   (§Relations between conclusions).
 5. **Per conclusion, in topological order: derive + weak points + highlights.**
    For each conclusion, work in this conceptual order:
    1. **Atomicity re-check before the derive.** Building the evidence chain
@@ -127,6 +132,12 @@ Create a session todo list with the six steps below and work them in order.
       upstream conclusions do **not** already capture. (If a factor is already
       represented by an upstream conclusion, do not duplicate it as a leaf
       premise here.) These go in `given=` after the upstream conclusions.
+      When sweeping each argument-pattern group of premises (measurement,
+      causal, model, …), also check for logical relations **between**
+      same-pattern premises — `equal` / `contradict` / `exclusive` when the
+      paper itself asserts the relation, `associate` (soft) when the
+      strength is judgment-bound. Methodology in phase-3
+      §Cross-premise relations.
    5. Emit the leaf-premise `claim(...)`s and the `derive(...)` into the
       conclusion's module; compile-check before moving on.
 
@@ -175,15 +186,18 @@ paragraph. Do not invent contributions to fill the gap.
   knowledge, repair missing arguments, or upgrade speculative claims. If a
   symbol is undefined in the paper, leave it undefined and surface the gap
   in the hand-off report.
-- **Two claim kinds only.** A `claim(...)` is either a step-1 root
-  conclusion or a step-3 leaf premise (a weak point or a highlight) used in a
-  conclusion's `given=[...]` with a paired `register_prior(...)`. A reasoning
-  step is not a claim; it is text that lives inside a `derive(...)`
-  `rationale=` field. *Exception — Pattern 3:* when step-3 finds leaf premises
-  that share a latent cause, each is `decompose`d into a shared-cause claim
-  plus a residual claim; those parts are the prior-bearing leaf premises and
-  the original is kept as the composed whole (see the "Shared-factor
-  evidence" guidance in phase-3, run at the finalize step).
+- **Two claim kinds only.** A `claim(...)` is either a step-3 conclusion or
+  a step-5 leaf premise (a weak point or a highlight) used in a conclusion's
+  `given=[...]` with a paired `register_prior(...)`. A reasoning step is not a
+  claim; it is text that lives inside a `derive(...)` `rationale=` field. The
+  relation verbs (`equal` / `contradict` / `exclusive` / `associate`) are not
+  claims either — they emit relation-helper Claims internally that the engine
+  treats as structural, not as new propositions the agent has to write.
+  *Exception — Pattern 3:* when step-5 finds leaf premises that share a
+  latent cause, each is `decompose`d into a shared-cause claim plus a residual
+  claim; those parts are the prior-bearing leaf premises and the original is
+  kept as the composed whole (see the "Shared-factor evidence" guidance in
+  phase-3, run at the finalize step).
 - **One epistemic question per conclusion.** Each conclusion `claim(...)`
   body answers exactly one citable question — "what is the new bound /
   relation / procedure / value / agreement?" — not several. A paragraph
