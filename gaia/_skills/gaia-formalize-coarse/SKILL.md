@@ -162,16 +162,30 @@ coherent body of work.
 ## Suitability Gate
 
 Before scaffolding (step 1), decide whether the paper is amenable to
-formalization. Skip with a short note if:
+**coarse** formalization. Skip with a short note (or hand off to a sibling
+skill) in any of the following cases:
 
 - The paper is a review, survey, or perspective without original results.
 - The paper has no identifiable structured contributions (no derivations, no
   measurements, no method introductions).
 - The paper text is corrupted, truncated, or contains only abstract/metadata.
+- **The paper's core contribution is Bayesian / statistical model comparison.**
+  Coarse emits only `derive` (no `infer` / `observe` / `compute` /
+  `bayes.compare` / `bayes.model`), so a paper whose contribution is
+  "Model A beats Model B by Bayes factor / likelihood ratio / posterior
+  predictive" loses its core epistemic structure when coarsened to
+  deductive `claim`+`derive`. Hand off to `gaia-formalize-fine`, which
+  handles the `bayes.*` and `infer` surfaces. (A paper that *mentions*
+  statistical tests in service of a primarily deductive / experimental
+  story is fine for coarse; the gate is the **core contribution**, not
+  the presence of any statistical method.)
 
-In any of these cases, do not emit a Gaia package. Write a single
+In any of the first three cases, do not emit a Gaia package — write a single
 `<package_name>.skip.md` next to the input that records the reason in one
-paragraph. Do not invent contributions to fill the gap.
+paragraph. In the fourth case, redirect to `gaia-formalize-fine` rather than
+producing a coarsened package; record the redirect in the same `.skip.md`
+shape if no fine run is being launched immediately. Do not invent
+contributions to fill the gap.
 
 ## Non-Negotiable Invariants
 

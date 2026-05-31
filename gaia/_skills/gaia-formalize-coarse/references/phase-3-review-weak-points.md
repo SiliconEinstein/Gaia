@@ -509,6 +509,22 @@ upstream and no weak point still needs ≥1 **highlight** carrying its support
 no isolated conclusions; "I found neither a weak point nor a highlight" means
 this audit is incomplete for that conclusion, not that it is premise-free.
 
+**Escape hatch when the paper itself supplies no premise.** A common
+audit-incomplete case is a paper that states a load-bearing assumption
+without justifying it ("we assume X"), or asserts a result with no visible
+derivation or measurement. **Do not skip the conclusion, and do not invent
+a justification.** The paper's silence is itself the load-bearing factor —
+extract it as a **`formal`** weak point whose body names the missing
+justification ("the paper asserts assumption X without supplying a
+derivation, citation, or measurement"), set a moderate-to-low
+`prior_probability` reflecting the reviewer's residual doubt about an
+unjustified step, and write the `weakness_reason` as "no derivation /
+citation / measurement is offered by the paper for this load-bearing step"
+and the `failure_mode` as "if X turns out false, [the specific downstream
+collapse]". This is **not** a hedging weak point — it is the honest, paper-
+faithful representation of a real gap, and it lets the conclusion enter
+step 5 without violating the no-isolated-conclusion invariant.
+
 - **`narrative`** (2–4 sentences in reviewer voice) — articulates how the
   attached weak points and highlights interact for this conclusion. Cover
   at least 2–3 of:
