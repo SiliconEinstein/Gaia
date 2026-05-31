@@ -6,84 +6,78 @@ knowledge package on disk.
 
 ## Goal
 
-Produce a `<name>-gaia/` package on disk per the Gaia
-knowledge-package spec (file layout: `docs/for-users/quick-start.md`;
-`claim` / `derive` / `question` body discipline, label rules, `__all__`
-rules: `docs/for-users/language-reference.md`). After emission, the package
-must be ready for `gaia build compile` and `gaia build check --hole .` (see
-`docs/for-users/cli-commands.md`).
+Produce a `<name>-gaia/` package on disk per the Gaia knowledge-package spec
+(file layout: `docs/for-users/quick-start.md`; `claim` / `derive` /
+`question` body discipline, label rules: `docs/for-users/language-reference.md`).
+After emission, the package must compile with `gaia build compile` and pass
+`gaia build check --hole .` (see `docs/for-users/cli-commands.md`).
 
-## Authoring surface — `gaia author` (cli-as-client)
+## Authoring surface — write the DSL directly
 
-Phase 4 emits the package through the **agent-first authoring CLI**
-(`docs/reference/cli/author.md`), not by writing raw
-Python DSL by hand. The CLI:
+**Writing the DSL via the Python SDK is the primary authoring path.** Phase 4
+emits modules by writing Python source files directly (the file-write tool of
+your choice), not by driving the `gaia author` CLI one statement at a time. The
+`gaia author` CLI exists as an optional convenience; it writes the *same*
+statements one per invocation, which for a whole-paper package is dozens of
+round-trips. A direct module write is one file per section, then a single
+compile.
 
-- pre-validates each statement (identifier collision, reference resolution,
-  syntactic well-formedness) before writing,
-- appends the rendered Python to the target source file,
-- runs `gaia build check` automatically after each successful write
-  (default `--check` on),
-- emits a uniform JSON envelope on stdout — `json.loads(stdout)` once and
-  dispatch on `verb` / `status` / `code`.
+Before emitting, read the canonical DSL cheat sheet:
 
-Every Phase 4 sub-step below names the specific `gaia author <verb>`
-invocations to use. The DSL primitives this skill emits map to author verbs
-as follows (canonical v0.5 names; legacy aliases in
-`gaia.engine.lang.compat` emit `DeprecationWarning` and must not be used in
-fresh packages):
+```bash
+gaia sdk            # writes ./gaia-sdk/ — SDK reference + one-page CHEATSHEET.md
+```
 
-| Phase 4 emission | DSL primitive | Author verb |
-|---|---|---|
-| Motivation question | `question(...)` | `gaia author question` |
-| Conclusion / weak-point claim | `claim(...)` | `gaia author claim` |
-| Deduction (1+ premises → conclusion) | `derive(...)` | `gaia author derive` |
-| Leaf prior record | `register_prior(...)` | `gaia author register-prior` |
+The cheat sheet is authoritative for every primitive (`claim`, `note`,
+`question`, `derive`, `register_prior`, distributions, relations). Phase 4
+below is just the sequencing of those primitives for a single paper.
 
-Errors surface in the envelope's `diagnostics` array with a `kind`
-dispatch key (`prewrite.collision`, `prewrite.reference_unresolved`,
-`prewrite.syntax`, `prewrite.self_loop`, `postwrite.check_fail`, ...).
-Treat non-zero `code` as a fix-and-retry obligation before moving on; the
-CLI guarantees no partial writes on pre-write failure.
+The DSL primitives this skill emits:
+
+| Phase 4 emission | DSL primitive |
+|---|---|
+| Motivation question | `question(...)` |
+| Conclusion / weak-point claim | `claim(...)` |
+| Transcribed figure / table context | `note(...)` (optional) |
+| Deduction (1+ premises → conclusion) | `derive(...)` |
+| Leaf prior record | `register_prior(...)` |
 
 ## Step 0 — Decide the package name and import name
 
 - Extract the paper's reference key from its bibliographic metadata
-  (`<FirstAuthorSurname><Year>`, e.g., `Liu2015`). If multiple papers shared
-  a key in this run, append `a`, `b`, ...
-- Derive a short topic slug (1–4 lowercase tokens) from the paper title or
-  the dominant conclusion's title.
-- Package directory: `<author-lowercase><year>-<topic-slug>-gaia` (kebab
-  case), e.g., `liu2015-fibonacci-anyons-gaia`.
-- Python import name: derived **by the CLI** from `--name` by stripping the
-  trailing `-gaia` and converting hyphens to underscores
-  (`liu2015-fibonacci-anyons-gaia` → `liu2015_fibonacci_anyons`). Per
-  `docs/reference/cli/author.md` `gaia pkg scaffold` section, the cli does
-  not accept an `--import-name` override.
+  (`<FirstAuthorSurname><Year>`, e.g., `Liu2015`). If multiple papers shared a
+  key in this run, append `a`, `b`, ...
+- Derive a short topic slug (1–4 lowercase tokens) from the paper title or the
+  dominant conclusion's title.
+- Package directory: `<author-lowercase><year>-<topic-slug>-gaia` (kebab case),
+  e.g., `liu2015-fibonacci-anyons-gaia`.
+- Python import name: derived by `gaia pkg scaffold` from `--name` by stripping
+  the trailing `-gaia` and converting hyphens to underscores
+  (`liu2015-fibonacci-anyons-gaia` → `liu2015_fibonacci_anyons`).
 
-If the paper Markdown is missing author / year, fall back to
-`<topic-slug>-gaia` and note the metadata gap in the hand-off report.
+If the paper Markdown is missing author / year, fall back to `<topic-slug>-gaia`
+and note the metadata gap in the hand-off report.
 
 ## Step 1 — Mint claim labels
 
-For every Phase 1 conclusion, mint a label of the form
-`<key>_c<id>_<semantic_suffix>`, where the suffix is 1–4 tokens drawn from
-the conclusion's title (lowercase, ASCII, underscores only).
+For every Phase 1 conclusion, mint a label `<key>_c<id>_<semantic_suffix>`,
+where the suffix is 1–4 tokens drawn from the conclusion's title (lowercase,
+ASCII, underscores only).
 
-For every Phase 3 weak point, mint a label of the form
-`<key>_c<id>_wp_<semantic_suffix>`, where the suffix is 1–4 tokens drawn
-from the weak point's title.
+For every Phase 3 weak point, mint a label `<key>_c<id>_wp_<semantic_suffix>`.
 
-Label rules (recap; canonical rules in
-`docs/for-users/language-reference.md` "label rules"):
+Label rules (canonical: `docs/for-users/language-reference.md` "label rules"):
 
 - Valid Gaia QID: `[a-z_][a-z0-9_]*`. Lowercase letters, digits, underscores.
 - No hyphens, no dots, no uppercase, no diacritics.
-- 1–4 token semantic suffixes; do not pack the entire body into the label.
+- 1–4 token semantic suffixes; do not pack the body into the label.
 
-## Step 2 — Scaffold the package
+The Python LHS binding name (the variable the rest of the package references)
+should equal the label, so a claim is `liu2015_c1_yield = claim(...)`.
 
-Bootstrap the package directory with the CLI:
+## Step 2 — Scaffold the package and add one module per section
+
+Bootstrap the package directory:
 
 ```bash
 gaia pkg scaffold \
@@ -94,261 +88,191 @@ gaia pkg scaffold \
     --description "<one-line description from Phase 1 motivation>"
 ```
 
-This writes `pyproject.toml` (with `[tool.gaia] type = "knowledge-package"`
-and a freshly-minted `uuid`), `src/<import_name>/__init__.py` seeded with
-`from gaia.engine.lang import claim`, and `.gaia/.gitkeep`. The cli refuses
-to write into a non-empty target. `--namespace` sets the Gaia package
-namespace (matches the upstream `gaia example mendel` / `gaia example
-galileo` walkthroughs, which pass `--namespace example`); use whatever
-namespace the calling SOP has chosen for this run.
+This writes `pyproject.toml` (with `[tool.gaia] type = "knowledge-package"` and
+a minted `uuid`), `src/<import_name>/__init__.py`, and `.gaia/.gitkeep`. Use the
+namespace the calling SOP chose for this run.
 
-All Phase 4 DSL emissions for this paper — motivation question, conclusions,
-weak-point claims, deductions — go in the scaffolded `__init__.py` (the
-default target when `gaia author <verb>` is invoked without `--file`). The
-only sibling module Phase 4 creates is `priors.py`, scaffolded with the
-upstream pattern:
+**Organize by section — one module (Python file) per source section.** This
+matches `gaia-formalize-fine` and the upstream knowledge-package convention,
+and keeps the package traceable back to the paper:
+
+- Introduction / motivation → `motivation.py`
+- Section II / Methods → `s2_methods.py`
+- Section III / Results → `s3_results.py`
+- Section IV / Discussion (if a distinct section) → `s4_discussion.py`
+- Leaf priors → `priors.py`
+
+Add each section module:
 
 ```bash
-gaia pkg add-module \
-    --name priors \
-    --imports register_prior \
-    --target <name>-gaia
+gaia pkg add-module --name <module_name> --target <name>-gaia
+gaia pkg add-module --name priors --imports register_prior --target <name>-gaia
 ```
 
-`--imports register_prior` pre-seeds the import so `priors.py` can call
-`register_prior(...)` directly. This matches the canonical
-`gaia example mendel` / `gaia example galileo` walkthroughs and the
-upstream knowledge-package convention; this skill does not prescribe
-per-paper sibling modules.
+**Place each knowledge node in the earliest module where it first appears.**
+Content from the Introduction goes into `motivation.py`. A conclusion stated in
+Results goes into `s3_results.py`. Claims in `motivation.py` can be freely
+referenced as premises / `background=` by later modules — module membership does
+not restrict cross-module references; later modules `from .motivation import ...`.
 
-## Step 3 — Write `references.json`
+If the paper has no clean section structure, a single `__init__.py` is
+acceptable — but prefer per-section whenever the paper has identifiable sections.
 
-Emit a CSL-JSON record for the paper using its reference key. Fields:
+## Step 3 — Write each section module directly
 
-- `type`: `article-journal` (default; switch to `paper-conference`,
-  `book-chapter`, etc. only if the paper Markdown clearly indicates so).
-- `title`, `DOI`, `container-title`, `issued`, `author`.
-- Use the paper's own metadata; do not invent fields. Missing fields are
-  omitted, not stubbed.
+For each section module, use the file-write tool to emit the whole file in one
+write. A module looks like:
 
-`references.json` is a JSON object keyed by citation key, CSL-JSON entry
-shape; each entry must include `type` (drawn from the CSL allowlist). The
-full schema is in
-`docs/specs/2026-04-09-references-and-at-syntax.md`.
+```python
+"""<Section heading — the module's docstring is the section title>."""
 
-`references.json` is SOP-owned — the CLI does not manage it. Write the file
-directly with the file-write tooling of choice.
+from gaia.engine.lang import claim, derive, question, note
+# later modules also import upstream claims they premise on:
+# from .motivation import liu2015_problem
+# from .s2_methods import liu2015_c1_protocol
 
-## Step 4 — Emit the DSL statements via `gaia author`
+# --- conclusions (Phase 1, this section) ---
+liu2015_c3_yield = claim(
+    "<self-contained conclusion body, numbers + units inline>",
+    title="<short title>",
+    label="liu2015_c3_yield",
+)
 
-Emit one CLI invocation per DSL statement, in the order below. Each
-invocation auto-runs `gaia build check` post-write (default), so a failure
-in any statement halts the chain at that statement.
+# --- weak-point leaf claims (Phase 3, bound to this section's conclusions) ---
+liu2015_c3_wp_sample = claim(
+    "<self-contained weak-point body>",
+    title="<short title>",
+    label="liu2015_c3_wp_sample",
+)
 
-### 4a. `__init__.py` — motivation, conclusions, weak-point claims, deductions
+# --- deductions (one per derived conclusion in this section) ---
+liu2015_c3_chain = derive(
+    liu2015_c3_yield,
+    given=[liu2015_c1_protocol, liu2015_c3_wp_sample],
+    rationale="<Phase 2 numbered chain prose; warrant-strength intent inline>",
+    label="liu2015_c3_chain",
+)
+```
 
-All Phase 4 DSL emissions for this paper go into the scaffolded
-`__init__.py`. Omit `--file` and the default is `__init__.py`, matching the
-upstream Mendel/Galileo walkthroughs.
+Emission rules (carried over from the per-statement CLI path):
 
-1. **Motivation as `question(...)`** — one invocation for Phase 1's
-   motivation block:
+1. **Motivation as `question(...)`** — one `question(...)` in `motivation.py`
+   for Phase 1's motivation block, bound as `<key>_problem`.
+2. **Conclusions** — one `claim(...)` per Phase 1 conclusion, in topological
+   order, in the module for the section where it first appears. Body = the
+   self-contained body from Phase 1 working notes; do not rewrite here.
+3. **Weak-point leaf claims** — one `claim(...)` per Phase 3 weak point.
+   Each weak point is defined exactly once and is a premise in exactly one
+   deduction (its target conclusion's). Do NOT share a weak point across
+   deductions — cross-conclusion uncertainty propagates through the logic graph
+   (weak point ↔ one conclusion, strict).
+4. **Deductions** — one `derive(conclusion, given=[...], rationale=..., label=...)`
+   per derived conclusion. The `given=` list is the union of upstream conclusion
+   bindings and this conclusion's weak-point bindings.
+   - **Do not pass `metadata=` to `derive(...)`** — the engine signature accepts
+     only `{given, background, rationale, label}`. The same applies to
+     `contradict` / `equal` / `exclusive` / `observe`. Warrant-strength intent
+     lives in `rationale` prose, not a metadata kwarg.
+   - Warrant-strength intent: when Phase 2 surfaced an explicit logical gap, say
+     so in the rationale; when Phase 3 surfaced a highlight underwriting a step,
+     say so. The numerical prior surface lives only on leaf claims in `priors.py`.
+5. **Open questions (optional, opt-in)** — only when the user asks, emit
+   `question(...)` bound as `<key>_open_question_<n>`.
 
-   ```bash
-   gaia author question "<motivation prose>" \
-       --dsl-binding-name <key>_problem \
-       --target <name>-gaia
-   ```
+The string body of every `claim(...)` / `question(...)` is the self-contained
+body from working notes — no further rewriting in Phase 4. The Phase 1
+self-containment discipline and the Phase 3 body-writing rule already satisfy
+the body requirements; this phase only places and emits.
 
-   `gaia author question` has no `--label` flag because the underlying
-   `question(...)` constructor does not accept an engine `label=` kwarg;
-   `--dsl-binding-name` is the only label-like flag the verb exposes and
-   sets the Python LHS binding. Aligns `gaia-formalize-coarse` with pipeline B
-   (XML→LKM), where `<problem>` from `select_conclusion.xml` becomes a
-   `LocalVariableNode(type="question")`.
+## Step 4 — Write `priors.py`
 
-2. **Conclusions section** — one `gaia author claim` per Phase 1 conclusion,
-   in topological order:
-
-   ```bash
-   gaia author claim "<self-contained conclusion body>" \
-       --dsl-binding-name <key>_c<id>_<suffix> \
-       --label <key>_c<id>_<suffix> \
-       --target <name>-gaia
-   ```
-
-   The CLI requires `--dsl-binding-name` whenever `--label` is set, so
-   pair them with the same identifier: `--dsl-binding-name` mints the
-   Python LHS the rest of the package references by name; `--label` sets
-   the engine `Claim.label` used by `[@label]` prose references and by
-   `gaia inquiry review`.
-
-   Phase 3's per-conclusion synthesis posterior is consumed as the
-   conclusion's leaf prior in Step 4b only when the conclusion is isolated
-   (no upstream conclusions, no weak points → no `derive(...)`). For
-   derived conclusions, Phase 3's synthesis informs the qualitative
-   warrant-strength prose written into the deduction's `--rationale`
-   (Phase 4 does not emit a numerical warrant prior; see Step 4a step 4
-   below).
-
-3. **Weak-point leaf claims section** — one `gaia author claim` per Phase 3
-   weak point, into the same `__init__.py`:
-
-   ```bash
-   gaia author claim "<self-contained weak-point body>" \
-       --dsl-binding-name <key>_c<id>_wp_<suffix> \
-       --label <key>_c<id>_wp_<suffix> \
-       --target <name>-gaia
-   ```
-
-   Each weak-point claim is defined exactly once and appears as a premise
-   in exactly one deduction (its target conclusion's). It is NOT shared
-   across deductions; cross-conclusion uncertainty propagates through the
-   logic graph instead (weak point ↔ one conclusion (strict) discipline).
-
-4. **Deductions section** — one `gaia author derive` per derived conclusion,
-   into `__init__.py`. The premises list is the union of upstream
-   conclusion labels and weak-point labels:
-
-   ```bash
-   gaia author derive \
-       --conclusion <key>_c<id>_<suffix> \
-       --given <upstream_label_1>,<upstream_label_2>,<wp_label_1>,... \
-       --label <key>_c<id>_chain \
-       --rationale "<Phase 2 numbered chain prose, with warrant-strength intent inline>" \
-       --target <name>-gaia
-   ```
-
-   Use the `--conclusion <ident>` shape (NOT `--conclusion-content` /
-   `--conclusion-prose`) because the conclusion Claim has already been
-   minted with a named label in Step 4a step 2.
-
-   **Do not pass `--metadata`.** The engine `derive(...)` signature accepts
-   only `{given, background, rationale, label}` — no `metadata=` kwarg.
-   The CLI's `--metadata` flag on `derive` is silently broken: it renders
-   `derive(..., metadata={...})` and the post-write `gaia build check`
-   rejects. The same constraint applies to `contradict` / `equal` /
-   `exclusive` / `observe`. Warrant-strength intent therefore lives in
-   `--rationale` prose, not in a metadata kwarg.
-
-5. **Open questions section (optional, opt-in)** — only when the user asks,
-   emit `gaia author question` calls into `__init__.py` with binding names
-   `<key>_open_question_<n>` (via `--dsl-binding-name`). Pipeline B does
-   not extract open questions; this is a `gaia-formalize-coarse` extension.
-
-The string body of every `claim(...)` / `question(...)` is the
-self-contained body from working notes — no further rewriting in Phase 4.
-The Phase 1 self-containment discipline and the Phase 3 body-writing rule
-already satisfy what the legacy step-4 prompt enforced; this phase only
-relabels and emits.
-
-Warrant-strength intent (formerly the `warrant_prior` numerical
-calibration) is encoded in `--rationale` prose: when Phase 2 surfaced an
-explicit logical gap, say so; when Phase 3 surfaced a highlight that
-specifically underwrites a step in this chain, say so. The reviewer's
-calibration shows up as qualitative prose in the deduction rationale; the
-numerical prior surface lives only on leaf claims via `register_prior` in
-`priors.py` (Step 4b).
-
-### 4b. Leaf priors in `priors.py`
-
-For every leaf claim in the package, emit a `gaia author register-prior`
-invocation routed to the scaffolded `priors.py`:
+For every **leaf** claim, emit a `register_prior(...)`:
 
 - Every Phase 3 weak point is a leaf — its `prior_probability` from working
-  notes goes here, capped at 0.9.
-- A Phase 1 conclusion that ended up with **no** upstream conclusions and
-  **no** weak points is also a leaf — its prior comes from Phase 3's
-  per-conclusion `prior_probability`, capped at 0.9.
+  notes goes here, capped at 0.9 (floor 0.001).
+- A Phase 1 conclusion with **no** upstream conclusions and **no** weak points
+  is also a leaf — its prior comes from Phase 3's per-conclusion
+  `prior_probability`, capped at 0.9.
 
-`register-prior` writes a bare `register_prior(...)` expression (no LHS
-binding):
+```python
+"""Leaf-claim priors."""
 
-```bash
-gaia author register-prior \
-    --claim <key>_c<id>_wp_<suffix> \
-    --value <float> \
-    --justification "<terse rationale ending in TODO:review>" \
-    --target <name>-gaia \
-    --file priors.py
+from gaia.engine.lang import register_prior
+from .s3_results import liu2015_c3_wp_sample
+
+register_prior(
+    liu2015_c3_wp_sample,
+    value=0.55,
+    justification="<one-line rationale ending in TODO:review>",
+)
 ```
 
-The CLI auto-inserts `from <import_name> import <claim>` into `priors.py`
-when the referenced claim is not already imported.
+Justification format: one line, terse rationale (model assumption / empirical
+pattern / cited result) ending with `TODO:review`. Pull it from the weak point's
+`weakness_reason` (compressed to one sentence) or the conclusion's `narrative`.
 
-Justification text format: one line, terse rationale (model assumption /
-empirical pattern / cited result / etc.) ending with `TODO:review`. Pull the
-rationale from the weak point's `weakness_reason` (compressed to one
-sentence) or from the conclusion's `narrative`. The `TODO:review` convention
-survives the CLI's `--justification` round-trip verbatim.
+## Step 5 — Write `references.json`
 
-## Step 5 — Self-Check Before Reporting Complete
+Emit a CSL-JSON object keyed by citation key. Each entry:
 
-`gaia author --check` runs `gaia build check` automatically after each
-statement write, so pre-write reference resolution, label collision, and
-syntactic well-formedness are already enforced statement-by-statement.
-Treat any non-zero envelope `code` from Step 4 as a fix-and-retry
-obligation. The remaining self-check is the SOP-owned semantic content:
+- `type`: `article-journal` (default; switch to `paper-conference`,
+  `book-chapter`, etc. only if the paper clearly indicates so).
+- `title`, `DOI`, `container-title`, `issued`, `author` — from the paper's own
+  metadata. Do not invent fields; omit missing ones.
 
-1. (manual) Every leaf claim (every weak point + any isolated conclusions)
-   has a `register_prior(...)` entry; no entry's prior exceeds 0.9 or falls
-   below 0.001.
-2. (manual) Every justification in a `register_prior(...)` call ends with
-   `TODO:review`.
-3. (manual) Every `claim(...)` body passes the self-standing test:
-   stripped of all surrounding context, can a reader unfamiliar with the
-   paper identify the model / system / regime, the symbols, and the
-   claim? If any body fails, rewrite it before reporting completion.
-4. (manual) **Pointer and citation hygiene** (two-part check, must both
-   pass):
+Full schema: `docs/specs/2026-04-09-references-and-at-syntax.md`.
+
+## Step 6 — Compile once, then fix
+
+Run a single full-package compile:
+
+```bash
+gaia build compile <name>-gaia/
+```
+
+If it fails, read **all** diagnostics at once, fix the offending module(s), and
+recompile. Repeat until clean. A full compile catches cross-module issues
+(cyclic imports, unresolved references, IR-hash drift, manifest emission) that a
+per-statement check cannot.
+
+## Step 7 — Self-Check Before Reporting Complete
+
+After a clean compile, verify the SOP-owned semantic content:
+
+1. Every leaf claim (every weak point + any isolated conclusions) has a
+   `register_prior(...)` entry; no prior exceeds 0.9 or falls below 0.001.
+2. Every `register_prior(...)` justification ends with `TODO:review`.
+3. Every `claim(...)` body passes the self-standing test: stripped of all
+   surrounding context, can a reader unfamiliar with the paper identify the
+   model / system / regime, the symbols, and the claim? If any body fails,
+   rewrite it before reporting completion.
+4. **Pointer and citation hygiene** (both must pass):
    - **4a.** No paper-internal pointer (`Eq. (X)` / `Fig. Y` / `Table Z` /
      `Sec. W` / `Appendix A` / `Theorem N` / `Lemma M`) appears inside a
-     `claim(...)` body, inside a `derive(...)` `--rationale`, or inside
-     a `register_prior(...)` justification. External bibliographic
-     citations in `[@key]` form are allowed in any prose.
-   - **4b.** Every prose citation uses the `[@key]` form, where `key`
-     matches an entry in `references.json`. Numeric paper-style
-     citations (`[33]`, `Ref. 5`, `Smith et al., 2020`) must not survive
-     in any prose; convert at write time. Unresolvable citations are
-     emitted as `@unknown_<n>` (bare, **no brackets** — bracketed
-     `[@unknown_n]` fails `gaia build compile`'s strict-reference check;
-     bare `@key` is treated as opportunistic).
-5. (manual) `references.json` contains an entry whose key matches every
-   `[@key]` cited in any prose.
+     `claim(...)` body, a `derive(...)` rationale, or a `register_prior(...)`
+     justification. External `[@key]` citations are allowed in any prose.
+   - **4b.** Every prose citation uses `[@key]` form, where `key` matches an
+     entry in `references.json`. Numeric paper-style citations (`[33]`,
+     `Ref. 5`, `Smith et al., 2020`) must not survive — convert at write time.
+     Unresolvable citations are emitted as `@unknown_<n>` (bare, **no brackets**
+     — bracketed `[@unknown_n]` fails the strict-reference check).
+5. `references.json` contains an entry for every `[@key]` cited in any prose.
 
-The final invocation's envelope `payload.check.knowledge_count` /
-`check.strategy_count` / `check.operator_count` give a sanity-report count
-of the package's IR contents — surface these in the hand-off report.
+If any check fails, fix it and recompile before reporting completion.
 
-If any check fails, fix it before reporting completion. Surface remaining
-issues to the user in the final report (e.g., conclusions you could not
-derive a self-contained body for, or metadata gaps that prevented a clean
-references.json).
-
-## Step 6 — Hand Off
+## Step 8 — Hand Off
 
 Report to the user:
 
 - The path of the emitted `<name>-gaia/` directory.
-- The counts: conclusions, weak points, deductions, priors (plus the
-  final `gaia author` envelope's `check.knowledge_count` /
-  `check.strategy_count` / `check.operator_count` as IR-side sanity).
-- The three follow-up commands the user is expected to run as quality
-  gates (this skill produces production-quality knowledge packages, so
-  the gate goes beyond the minimum demo `gaia build compile + gaia build
-  check` of the upstream Mendel/Galileo walkthroughs):
-  - `gaia build compile <name>-gaia/` — full-package compile catches
-    cross-statement issues the per-write `gaia build check` cannot
-    (cyclic imports, IR-hash drift, manifest emission).
+- The counts: conclusions, weak points, deductions, priors, plus the
+  `gaia build compile` IR-side counts (knowledge / strategy / operator).
+- The three follow-up quality-gate commands the user is expected to run:
+  - `gaia build compile <name>-gaia/` — full-package compile.
   - `gaia run infer <name>-gaia/` — belief propagation; emits
-    `.gaia/beliefs.json` so the user can inspect downstream posteriors.
-  - `gaia inquiry review --strict <name>-gaia/` — strict warrant /
-    obligation / duplicate-control review.
+    `.gaia/beliefs.json` for downstream posterior inspection.
+  - `gaia inquiry review --strict <name>-gaia/` — strict warrant / obligation /
+    duplicate-control review.
 
-Per-write `gaia build check` already ran after every Step 4 statement; the
-end-of-package full compile is implicit in `gaia build compile` (and surfaces
-issues that only fire when the full module graph loads together).
-
-This skill does not run the quality gates itself; surfaced compile errors or
-inquiry-review findings come back as a follow-up obligation, not a built-in
-step.
+This skill does not run the quality gates itself beyond the Step 6 compile;
+surfaced inquiry-review findings come back as a follow-up obligation.

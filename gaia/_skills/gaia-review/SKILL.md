@@ -1,10 +1,10 @@
 ---
 name: gaia-review
 description: |
-  Use when assigning priors to a Gaia knowledge package via `priors.py` and
-  `register_prior` against warrant Claims. Carries the prior-assignment guide
-  (evidence-level → prior-range table, warrant priors via `register_prior`,
-  abduction π(Alt) explanatory-power semantics encoded as the
+  Use when assigning priors to independent claims in a Gaia knowledge package
+  via `priors.py` and `register_prior`. Carries the prior-assignment guide
+  (evidence-level → prior-range table, abduction π(Alt) explanatory-power
+  semantics encoded as the
   `p_e_given_h` / `p_e_given_not_h` likelihood ratio) and the iteration loop.
   Different from `gaia inquiry review` — that is a graph-health publish-gate
   verb; this skill is the prior-assignment workflow.
@@ -12,16 +12,16 @@ description: |
 
 ## Intent
 
-Assign priors to a Gaia knowledge package via `priors.py` plus `register_prior`
-against labelled warrant Claims, run belief propagation, and iterate until the
-package is internally consistent and publish-ready. The primary audience is a
-reviewer working a package after formalization Passes 1-5, and the artifact
+Assign priors to independent claims in a Gaia knowledge package via
+`priors.py` plus `register_prior`, run belief propagation, and iterate until
+the package is internally consistent and publish-ready. The primary audience is
+a reviewer working a package after formalization Passes 1-5, and the artifact
 this skill produces is a complete `priors.py` (one entry per independent claim
 that needs one) backed by a re-run of `gaia run infer` whose result
 interpretation matches the reviewer's intent. Every prior is paired with a
-justification string. The two prior surfaces — claim priors (on independent
-claims) and warrant priors (on the auto-generated helper Claim emitted by
-`derive` / `infer`) — stay disciplined apart so evidence is not double-counted.
+justification string. Do not assign priors to derived conclusions, action
+outputs, or generated helper claims; relation quality belongs in rationale text
+and review / gate checks.
 
 ## CLI invocations
 
@@ -33,7 +33,7 @@ live behind `--help`).
   trailing "Holes (no prior set): N" line.
 - `gaia build check <pkg> --brief` — per-module overview: settings, claims
   (role-tagged: independent / derived / structural / background / scaffolded /
-  orphaned), strategies (premise labels, conclusion, prior, reason),
+  orphaned), strategies (premise labels, conclusion, rationale),
   operator constraints (`contradict`, `equal`, `exclusive`).
 - `gaia build check <pkg> --hole` — split listing of every independent
   claim into **Holes** (QID, content, status — no prior set) and **Covered**
@@ -79,14 +79,14 @@ Every independent claim falls into one of four roles. The role determines
 whether you set a prior, and roughly where it should land.
 
 - **Independent (need prior).** A leaf claim — not concluded by any
-  warrant. These must appear in `priors.py`. Prior reflects evidence
+  relation. These must appear in `priors.py`. Prior reflects evidence
   strength for the claim itself.
 - **Derived (BP propagates — do NOT set prior).** A claim that *is* the
-  conclusion of one or more warrants. The inference engine assigns 0.5 as
+  conclusion of one or more relations. The inference engine assigns 0.5 as
   an uninformative prior automatically; BP then pulls the belief up (or
-  down) based on the warrants and their premises. Setting an explicit
+  down) based on the authored graph and its premises. Setting an explicit
   prior here double-counts evidence — the same support flows in twice,
-  once via your prior and once via the warrant — and corrupts the belief.
+  once via your prior and once via the reasoning chain — and corrupts the belief.
 - **Background-only.** A claim used only as a premise in `note` /
   background slots, never the conclusion of a warrant. Treat like an
   independent claim; priors typically sit high (0.90-0.95) because
@@ -124,54 +124,20 @@ to the target file and auto-injects the necessary import.
 The legacy `PRIORS = {...}` dict form is rejected at compile time with a
 migration error — `register_prior` is the only supported shape in v0.5.
 
-## Warrant priors via `register_prior`
+## Relation quality is not a prior
 
-Warrants — `derive`, `infer`, and the other v6 verbs — do not accept a
-`prior=` kwarg. They each emit an auto-generated helper Claim
-representing the implication itself; warrant uncertainty is expressed by
-attaching a prior to that helper via `register_prior`. The warrant prior
-answers: **if every premise of this warrant were certainly true, how
-confident am I in the conclusion?** It is pinned on the implication, not
-on the conclusion.
-
-To make a warrant prior addressable, give the action a `label`, then
-register a prior against the labelled Claim from `priors.py`:
-
-```python
-# src/my_package/derivations.py
-from gaia.engine.lang import derive
-from . import hypothesis, obs
-
-strat_h_explains = derive(
-    obs, given=[hypothesis],
-    rationale="Hypothesis predicts the observation exactly.",
-    label="h_explains_obs",
-)
-```
-
-```python
-# src/my_package/priors.py
-from gaia.engine.lang import register_prior
-from . import strat_h_explains
-
-register_prior(
-    strat_h_explains, 0.9,
-    justification="Premises rigidly entail the observation modulo standard-method uncertainty.",
-)
-```
-
-This is different from a claim prior. Setting a 0.9 prior on `obs` in
-`priors.py` says "I'm 90% confident in `obs` standing alone, from the
-direct evidence I have for it." Registering 0.9 against the warrant
-Claim says "given the premises, the implication to `obs` holds with 90%
-confidence." The two compose multiplicatively through BP; mistaking one
-for the other inflates beliefs.
+`derive`, `infer`, and the other v6 verbs do not accept a `prior=` kwarg, and
+reviewers should not register priors against derived conclusions, action
+outputs, or generated helper claims. A relation's acceptability is captured by
+its `rationale` text, by choosing the right verb and parameters
+(`infer(..., p_e_given_h=..., p_e_given_not_h=...)` when the source supplies a
+Bayesian update), and by review / gate checks. If a reasoning step is weak,
+revise the graph or surface the weakness in analysis; do not force the belief
+by writing a prior on the step.
 
 ## Prior-assignment guide
 
-Two tables, both load-bearing. The first picks claim priors for
-independent claims; the second picks warrant priors registered against
-labelled `derive` / `infer` warrants.
+Use this table to pick claim priors for independent claims.
 
 ### Claim priors — evidence level → prior range
 
@@ -184,24 +150,6 @@ labelled `derive` / `infer` warrants.
 
 Round to two decimals. A claim with 0.83 vs 0.85 is not meaningfully
 distinguishable; pretending otherwise is false precision.
-
-### Warrant priors — reasoning quality → prior range
-
-For a `register_prior(strat_label, X, ...)` against a labelled `derive`
-warrant, ask: "if all premises are definitely true, how confident am I
-in the conclusion?"
-
-| Reasoning quality | Prior value | Examples |
-|---|---|---|
-| Near-certain (rigid derivation) | 0.95-0.99 | Mathematical proofs, logical syllogisms |
-| Strong support | 0.80-0.95 | Straightforward numerical calculation |
-| Reliable but approximate | 0.60-0.80 | Standard approximation method |
-| Moderate confidence | 0.40-0.60 | Empirical rule of thumb |
-
-A `derive` warrant whose prior sits below 0.40 is a smell — either the
-reasoning is too weak to count as a derivation (consider whether it
-should be an `infer` against new evidence instead), or the prior is
-under-estimating actual support.
 
 ## π(Alt) for abductive reasoning — CRITICAL
 
@@ -253,9 +201,9 @@ plausibility.
 
 ### Expressed as `infer(...)` in v0.5
 
-A `derive` warrant cannot carry this asymmetry — `derive` says "given
-premises, conclusion holds with warrant prior P", and that is one
-number. The abductive case wants two: how well does H explain Obs (high
+A `derive` relation cannot carry this asymmetry — it records that the premises
+support the conclusion through the stated rationale. The abductive case wants
+two likelihoods: how well does H explain Obs (high
 — that is why we are entertaining H), and how well does `not H` explain
 Obs (low — that is why H wins). The `infer(...)` warrant fits because
 its two-likelihood signature **is** the Bayesian update:
@@ -340,11 +288,9 @@ Five steps, repeated until clean.
 2. `gaia build check <pkg> --hole` — read Holes + Covered; decide what
    priors to write or revise.
 3. Write `priors.py` — register claim priors for independent / background
-   / orphan claims, and register warrant priors against labelled `derive`
-   / `infer` warrants that need them. Use `gaia author register-prior
-   --file priors.py` for the bulk-add path so the import injection
-   happens automatically; hand-edit when an entry needs commentary or
-   careful ordering.
+   / orphan claims. Use `gaia author register-prior --file priors.py` for
+   the bulk-add path so the import injection happens automatically; hand-edit
+   when an entry needs commentary or careful ordering.
 4. `gaia build check <pkg> --hole` — confirm "All independent claims
    have priors assigned." If you broke something (a deleted import, a
    typo in a claim name), the diagnostics will surface here, not later.
@@ -352,8 +298,8 @@ Five steps, repeated until clean.
    `../_shared/bp-interpretation.md`. If the interpretation flags
    problems (a derived belief stuck near 0.5, a contradict-pair that
    does not pick a side, an unexpectedly low independent belief), the
-   loop returns to step 2 — adjust priors or warrant priors, never
-   silently move on.
+   loop returns to step 2 — adjust independent-claim priors or the graph
+   structure, never silently move on.
 
 Once the loop reports clean and the interpretation matches intent, run
 `gaia build check <pkg> --gate` for the publish-readiness gate and pass
@@ -361,10 +307,9 @@ the package downstream.
 
 ## Complete example
 
-A minimal package showing the two prior surfaces side by side: claim
-priors via `register_prior` against independent / background / orphan
-claims, and warrant priors via `register_prior` against labelled
-`derive` / `infer` warrants.
+A minimal package showing claim priors via `register_prior` against
+independent / background / orphan claims while relation quality stays in
+`rationale`, likelihood parameters, and review / gate checks.
 
 ```python
 # src/my_package/s2_results.py
@@ -406,7 +351,6 @@ from . import (
     measurement_artefact,
     isolated_note,
 )
-from .s2_results import strat_calc, strat_h_vs_not_h
 
 # Claim priors — one per independent / background / orphan role.
 
@@ -431,24 +375,15 @@ register_prior(measurement_artefact, 0.20,
 register_prior(isolated_note, 0.50,
                justification="Orphan node — pending decision to wire in or drop.")
 
-# Warrant priors — registered against the labelled warrant Claims.
-register_prior(strat_calc, 0.95,
-               justification="Rate-equation calculation is standard; residual uncertainty from rounding only.")
-register_prior(strat_h_vs_not_h, 0.90,
-               justification="Inference step itself is well-posed; uncertainty lives in the two likelihoods, not the warrant.")
 ```
 
-Note: claim priors and warrant priors both flow through
-`register_prior`, but they answer different questions. No independent
-claim has both a claim prior and a warrant prior (warrant priors attach
-only to `derive` / `infer` output Claims). No derived claim — anything
-that appears as the conclusion of a warrant — gets a claim prior in
-`priors.py`; BP propagates it.
+Note: no derived claim — anything that appears as the conclusion of a relation
+— gets a claim prior in `priors.py`; BP propagates it from independent leaves.
 
 ## Disambiguation — this skill vs `gaia inquiry review`
 
-This skill is the **prior-assignment workflow** — write `priors.py`,
-pair inline warrant priors, run BP, iterate.
+This skill is the **prior-assignment workflow** — write `priors.py`, run BP,
+interpret the result, and iterate.
 
 `gaia inquiry review <pkg>` is a different verb entirely: a
 **graph-health publish-gate** check. It supports profiles

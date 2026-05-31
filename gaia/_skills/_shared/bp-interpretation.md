@@ -6,7 +6,7 @@ This doc is reference, not procedure. It is not itself a skill; it has no frontm
 
 ## What `gaia run infer` writes
 
-`gaia run infer [PATH]` reads the compiled IR at `.gaia/ir.json`, lowers it into a factor graph, runs belief propagation, and writes `.gaia/beliefs.json`. Priors come from claim metadata (set during compilation by `priors.py` and inline `prior=` warrant pairing) — `gaia run infer` itself does not edit priors, only propagates them.
+`gaia run infer [PATH]` reads the compiled IR at `.gaia/ir.json`, lowers it into a factor graph, runs belief propagation, and writes `.gaia/beliefs.json`. Priors come from claim metadata set during compilation by `priors.py`; they should be assigned only to independent leaf claims. `gaia run infer` itself does not edit priors, only propagates them through the authored graph.
 
 The output shape:
 
@@ -80,7 +80,7 @@ These are claims you assigned a prior to in `priors.py` (or background-only clai
 
 These are claims that *are* the conclusion of one or more `derive` or `infer` strategies. They have no own prior (setting one would double-count evidence) — their belief is determined entirely by BP propagating up from premises through warrants.
 
-- **Normal.** Belief above 0.5, pulled up by the supporting derivations. The exact value reflects (premise priors) ⊗ (warrant priors on each `derive`) ⊗ (chain depth and breadth).
+- **Normal.** Belief above 0.5, pulled up by the supporting derivations. The exact value reflects premise priors, relation structure and parameters, chain depth, and graph breadth.
 - **Abnormal.** Belief below 0.5 — the chain is not "pulling up." See common problems and fixes below.
 
 ### Contradiction / exclusive pairs
@@ -101,9 +101,9 @@ Both create strong coupling: when one side's belief goes up, the other(s) must c
 |---|---|---|
 | Derived conclusion belief too low (< 0.3) | Chain too deep — multiplicative attenuation through many `derive` warrants. | Restructure with `compose` to control depth: collapse mechanical intermediate steps into a single composite warrant rather than chaining 5+ atomic `derive` calls. |
 | Derived conclusion belief too low (< 0.3) | Premise priors too low for the strength of evidence. | Revisit `priors.py`; the leaf priors may understate well-established facts. |
-| Derived conclusion belief too low (< 0.3) | Warrant `prior=` too low on one or more `derive` calls. | Audit warrants on the chain with `gaia build check --show <label>`; raise the `prior=` on any rigid-implication step that was conservatively set. |
-| `contradict` doesn't "pick a side" (both ≈ 0.3-0.5) | Priors on both sides symmetric, so BP can't break the tie. | Lower the prior of the side that should be refuted. Keep the side with stronger backing at its informed prior. |
-| Derived conclusion belief ≈ 0.5 (no movement at all) | Chain broken — some `derive` missing `prior=`, or an `infer` missing its CPT parameters, so the warrant defaults to uninformative. | Audit with `gaia build check --show <label>`; every warrant in the path should show an explicit prior or parameter set. |
+| Derived conclusion belief too low (< 0.3) | The authored relation may not actually capture the source's reasoning, or an intermediate claim may be unnecessary/deepening the chain. | Audit the chain with `gaia build check --show <label>`; rewrite the relation rationale, remove redundant intermediates, or restructure with `compose` when there are meaningful sub-steps. |
+| `contradict` doesn't "pick a side" (both ≈ 0.3-0.5) | Priors on independent leaf claims feeding both sides are symmetric, so BP can't break the tie. | Re-examine the leaf priors and graph wiring on both sides. Lower only a genuinely weaker independent premise; do not set a prior on the derived side just to force a result. |
+| Derived conclusion belief ≈ 0.5 (no movement at all) | Chain broken — the conclusion may not be reachable from leaf claims, or an `infer` relation may be missing its likelihood parameters. | Audit with `gaia build check --show <label>`; every derived conclusion should have a visible path from independent leaf claims through authored relations. |
 | `exclusive` forces an unexpected branch high | `exclusive` redistributes the full probability mass across its arguments — if you wrote `exclusive(a, b)` but a third possibility exists in the domain, BP will push mass onto `b` whenever `a` is refuted, even if "neither" is the truth. | Either add the missing branches to the `exclusive`, or downgrade to `contradict` (which only forbids "both", not "neither"). |
 | Independent premise belief pulled far below prior | Downstream `contradict` or `exclusive` is firing against the prior. | Identify the firing relation with `gaia build check --show <leaf-label>`; either fix the relation's other side or re-examine the leaf's prior. |
 | BP `converged: false` | Loopy factor graph with conflicting evidence (rare in well-formed packages). | Inspect `diagnostics.belief_history` for oscillation; check for redundant relations (e.g., two `derive` paths to the same conclusion both with `contradict` partners) that create cycles. |
@@ -115,5 +115,5 @@ Interpretation is rarely one-shot. The expected loop:
 1. `gaia run infer .` (add `--depth 1` if you want sibling-package evidence to participate).
 2. Read `.gaia/beliefs.json`, classify each interesting node as normal/abnormal per the rules above.
 3. For each abnormal node, localise with `gaia build check --show <label>`.
-4. Edit `priors.py`, `derive(..., prior=...)`, or the structural relations as the table prescribes.
+4. Edit `priors.py` for independent leaf claims, or edit the authored relations / structural verbs when the graph is miswired.
 5. Re-run from step 1. Stop when every conclusion belief reflects the evidence the package actually carries — not when it hits a target number.

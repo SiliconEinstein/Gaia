@@ -55,6 +55,15 @@ from gaia.cli.commands._stellaris_svg import post_process_stellaris_svg
 from gaia.engine.inquiry.focus import resolve_focus_target
 from gaia.engine.inquiry.review import resolve_graph
 from gaia.engine.packaging import write_text_atomic
+from gaia.lkm_explorer.engine.artifacts import (
+    build_exploration_artifact,
+    build_focuses_artifact,
+    build_gate_report,
+    build_scope_artifact,
+    latest_landscape_path,
+    parse_dimensions,
+    rel_artifact_path,
+)
 from gaia.lkm_explorer.engine.discoveries import compute_discoveries
 from gaia.lkm_explorer.engine.frontier import (
     JointView,
@@ -161,6 +170,46 @@ _LANDSCAPE_JSON_OPT = typer.Option(
     False,
     "--json",
     help="Print the landscape artifact JSON to stdout after writing it.",
+)
+_SCOPE_SEED_OPT = typer.Option(
+    None,
+    "--seed",
+    help="Scope seed text or QID (repeatable; defaults to map seeds).",
+)
+_SCOPE_PROFILE_OPT = typer.Option(
+    None,
+    "--profile",
+    help="Optional exploration profile name.",
+)
+_SCOPE_DIMENSION_OPT = typer.Option(
+    None,
+    "--dimension",
+    help="Exploration dimension as key=value (repeatable).",
+)
+_SCOPE_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/scope.json).",
+)
+_FOCUSES_LANDSCAPE_OPT = typer.Option(
+    None,
+    "--landscape",
+    help="Landscape JSON path (default latest <pkg>/.gaia/exploration/landscape-*.json).",
+)
+_FOCUSES_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/focuses.json).",
+)
+_ARTIFACT_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/artifact.json).",
+)
+_GATE_OUT_OPT = typer.Option(
+    None,
+    "--out",
+    help="Output JSON path (default <pkg>/.gaia/exploration/gate_report.json).",
 )
 _OBSERVE_SOURCE_OPT = typer.Option(
     None,
@@ -715,6 +764,74 @@ def init_command(
 
 
 # --------------------------------------------------------------------------- #
+# scope                                                                       #
+# --------------------------------------------------------------------------- #
+
+
+def scope_command(
+    pkg: str = _PKG_ARG,
+    seed: list[str] | None = _SCOPE_SEED_OPT,
+    profile: str | None = _SCOPE_PROFILE_OPT,
+    dimension: list[str] | None = _SCOPE_DIMENSION_OPT,
+    out: str | None = _SCOPE_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Write the explicit Explore scope sidecar.
+
+    The scope artifact captures the broad exploration setup — seeds, optional
+    profile, and user-supplied dimensions — so later landscape/focus/gate steps
+    can be audited without guessing the user's intent from the map alone.
+    """
+    map_path = _gaia_dir(pkg) / "exploration" / "map.json"
+    if not map_path.exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        dimensions = parse_dimensions(dimension)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+    exploration_map = load_map(pkg)
+    if seed:
+        seeds = [s.strip() for s in seed if s.strip()]
+        seed_source = "cli"
+    else:
+        seeds = []
+        for item in exploration_map.seeds:
+            qid = item.get("qid")
+            text = item.get("text")
+            if qid:
+                seeds.append(str(qid))
+            elif text:
+                seeds.append(str(text))
+        seed_source = "map"
+    payload = build_scope_artifact(
+        pkg,
+        seeds=seeds,
+        profile=profile,
+        dimensions=dimensions,
+        seed_source=seed_source,
+        map_round=exploration_map.round,
+    )
+
+    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "scope.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+    typer.echo(
+        f"Scope: {len(seeds)} seed(s), {len(dimensions)} dimension group(s) ({seed_source} seeds)."
+    )
+    typer.echo(f"Output: {output_path}")
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+# --------------------------------------------------------------------------- #
 # observe                                                                     #
 # --------------------------------------------------------------------------- #
 
@@ -923,6 +1040,156 @@ def landscape_command(
 
     if json_out:
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+# --------------------------------------------------------------------------- #
+# focuses                                                                     #
+# --------------------------------------------------------------------------- #
+
+
+def focuses_command(
+    pkg: str = _PKG_ARG,
+    landscape: str | None = _FOCUSES_LANDSCAPE_OPT,
+    out: str | None = _FOCUSES_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Create deterministic Explore focuses from a landscape artifact."""
+    map_path = _gaia_dir(pkg) / "exploration" / "map.json"
+    if not map_path.exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    landscape_path = Path(landscape) if landscape is not None else latest_landscape_path(pkg)
+    if landscape_path is None or not landscape_path.exists():
+        typer.echo(
+            "Error: no landscape artifact found; run `gaia-lkm-explore landscape` first "
+            "or pass --landscape.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    scope_path = _gaia_dir(pkg) / "exploration" / "scope.json"
+    payload = build_focuses_artifact(
+        pkg,
+        scope_path=scope_path if scope_path.exists() else None,
+        landscape_path=landscape_path,
+        landscape=_read_json_object(landscape_path),
+        map_round=load_map(pkg).round,
+    )
+    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "focuses.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+    typer.echo(f"Focuses: {len(payload['focuses'])} focus(es) from {landscape_path}.")
+    typer.echo(f"Output: {output_path}")
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+# --------------------------------------------------------------------------- #
+# artifact                                                                    #
+# --------------------------------------------------------------------------- #
+
+
+def artifact_command(
+    pkg: str = _PKG_ARG,
+    out: str | None = _ARTIFACT_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Write the Explore handoff envelope for downstream evidence assessment."""
+    map_path = _gaia_dir(pkg) / "exploration" / "map.json"
+    if not map_path.exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    exploration_map = load_map(pkg)
+    output_path = Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "artifact.json"
+    payload = build_exploration_artifact(
+        pkg,
+        map_round=exploration_map.round,
+        map_version=exploration_map.version,
+    )
+    payload["artifacts"]["artifact"] = rel_artifact_path(pkg, output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+    limitations = payload["audit"]["known_limitations"]
+    typer.echo(f"Artifact: {len(limitations)} known limitation(s).")
+    typer.echo(f"Output: {output_path}")
+    typer.echo(f"Assess: {payload['interface']['assess']['command']}")
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+# --------------------------------------------------------------------------- #
+# gate                                                                        #
+# --------------------------------------------------------------------------- #
+
+
+def _build_and_write_exploration_artifact(pkg: str, output_path: Path) -> dict[str, Any]:
+    exploration_map = load_map(pkg)
+    payload = build_exploration_artifact(
+        pkg,
+        map_round=exploration_map.round,
+        map_version=exploration_map.version,
+    )
+    payload["artifacts"]["artifact"] = rel_artifact_path(pkg, output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(payload, ensure_ascii=False, indent=2))
+    return payload
+
+
+def _resolve_pkg_artifact_path(pkg: str, ref: Any) -> Path | None:
+    if not isinstance(ref, str) or not ref:
+        return None
+    path = Path(ref)
+    return path if path.is_absolute() else Path(pkg).resolve() / path
+
+
+def gate_command(
+    pkg: str = _PKG_ARG,
+    out: str | None = _GATE_OUT_OPT,
+    json_out: bool = _LANDSCAPE_JSON_OPT,
+) -> None:
+    r"""Check whether Explore artifacts are ready for evidence assessment."""
+    map_path = _gaia_dir(pkg) / "exploration" / "map.json"
+    if not map_path.exists():
+        typer.echo(
+            f"Error: no exploration map at {pkg}; run `gaia-lkm-explore init` first.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    artifact_path = _gaia_dir(pkg) / "exploration" / "artifact.json"
+    if artifact_path.exists():
+        artifact = _read_json_object(artifact_path)
+    else:
+        artifact = _build_and_write_exploration_artifact(pkg, artifact_path)
+
+    focuses_path = _resolve_pkg_artifact_path(pkg, artifact.get("artifacts", {}).get("focuses"))
+    if focuses_path is None:
+        focuses_path = _gaia_dir(pkg) / "exploration" / "focuses.json"
+    focuses = _read_json_object(focuses_path) if focuses_path.exists() else None
+
+    report = build_gate_report(artifact, focuses)
+    output_path = (
+        Path(out) if out is not None else _gaia_dir(pkg) / "exploration" / "gate_report.json"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(output_path, json.dumps(report, ensure_ascii=False, indent=2))
+
+    typer.echo(f"Gate: {report['verdict']}")
+    typer.echo(f"Output: {output_path}")
+    if json_out:
+        typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+    if report["verdict"] == "block":
+        raise typer.Exit(1)
 
 
 # --------------------------------------------------------------------------- #

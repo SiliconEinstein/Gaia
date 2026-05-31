@@ -4,8 +4,9 @@ A **sibling console_scripts entrypoint** to ``gaia`` and, as of build 7
 (CLIENT.md "Unified surface"), the *single* user-facing surface for exploration.
 It carries both halves of the turn loop:
 
-* the deterministic **engine verbs** (``init`` / ``observe`` / ``landscape`` /
-  ``frontier`` / ``round`` / ``status`` / ``render``), migrated here from the now-removed
+* the deterministic **engine verbs** (``init`` / ``scope`` / ``observe`` /
+  ``landscape`` / ``focuses`` / ``artifact`` / ``gate`` / ``frontier`` /
+  ``round`` / ``status`` / ``render``), migrated here from the now-removed
   ``gaia explore`` sub-app — thin wrappers over :mod:`gaia.lkm_explorer.engine`
   (the library / SDK, which stays in gaia); and
 * the **orchestrator** phase-aware step ``turn`` — the turn state machine that
@@ -35,12 +36,16 @@ from gaia.lkm_explorer.client.orchestrator import (
     run_turn,
 )
 from gaia.lkm_explorer.client.verbs import (
+    artifact_command,
+    focuses_command,
     frontier_command,
+    gate_command,
     init_command,
     landscape_command,
     observe_command,
     render_command,
     round_command,
+    scope_command,
     status_command,
 )
 
@@ -48,9 +53,10 @@ app = typer.Typer(
     name="gaia-lkm-explore",
     help=(
         "Gaia LKM Explore — fog-of-war exploration of a knowledge package. "
-        "Deterministic engine verbs (init / observe / landscape / frontier / round / "
-        "status / render) plus the orchestrator turn state machine (turn), which hands the "
-        "fuzzy survey to an agent through a self-contained task envelope."
+        "Deterministic engine verbs (init / scope / observe / landscape / focuses / "
+        "artifact / gate / frontier / round / status / render) plus the orchestrator "
+        "turn state machine (turn), which hands the fuzzy survey to an agent through a "
+        "self-contained task envelope."
     ),
     no_args_is_help=True,
 )
@@ -59,8 +65,12 @@ app = typer.Typer(
 # wrap `gaia.lkm_explorer.engine` (the library / SDK) and are pure + deterministic
 # — no LKM call, no `gaia author` orchestration; those are the agent's survey.
 app.command(name="init")(init_command)
+app.command(name="scope")(scope_command)
 app.command(name="observe")(observe_command)
 app.command(name="landscape")(landscape_command)
+app.command(name="focuses")(focuses_command)
+app.command(name="artifact")(artifact_command)
+app.command(name="gate")(gate_command)
 app.command(name="frontier")(frontier_command)
 app.command(name="round")(round_command)
 app.command(name="status")(status_command)

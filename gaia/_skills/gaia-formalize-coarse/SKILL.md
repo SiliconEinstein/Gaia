@@ -177,9 +177,10 @@ paragraph. Do not invent contributions to fill the gap.
 - It does not own package-shape — that is the canonical Gaia spec (see
   `docs/for-users/`). This skill consumes those rules where they apply and
   adds paper-decomposition workflow on top.
-- It does not run `gaia build compile` / `gaia run infer` itself; the caller runs
-  those quality gates after emission. Surfaced compile errors come back as
-  Phase 4 follow-up obligations, not as a built-in step.
+- Phase 4 runs `gaia build compile` itself to validate the directly-written
+  modules and iterates until it compiles clean. It does not run `gaia run infer`
+  / `gaia inquiry review` — those downstream quality gates are caller obligations
+  surfaced in the hand-off report.
 - It does not orchestrate the existing `paper-extract` Python pipeline.
   The Python pipeline is a parallel route from paper to XML; this skill
   is the direct route from paper to Gaia.
@@ -202,6 +203,22 @@ paragraph. Do not invent contributions to fill the gap.
   Phase 1b LKM reverse-provenance trace.
 - [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md)
   — composing Phase 1–3 working notes into Gaia DSL package files.
+
+### Shared formalization methodology (`../_shared/`)
+
+Extraction, atomicity, reasoning-chain, and independence methodology shared
+with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
+
+- [`../_shared/formalize-extract-conclusions.md`](../_shared/formalize-extract-conclusions.md)
+  — what counts as a conclusion, fidelity, self-contained bodies, figures as
+  prose, `refs` whitelist, citation form.
+- [`../_shared/formalize-atomicity.md`](../_shared/formalize-atomicity.md)
+  — one-question-per-claim, under-splitting traps, the two tests.
+- [`../_shared/formalize-reasoning-chains.md`](../_shared/formalize-reasoning-chains.md)
+  — logic graph, topological order, reasoning-trace reconstruction, step
+  rules.
+- [`../_shared/formalize-independence.md`](../_shared/formalize-independence.md)
+  — the no-double-counting check on each conclusion's premise set.
 
 ### Gaia knowledge-package contract (this repo's docs)
 
