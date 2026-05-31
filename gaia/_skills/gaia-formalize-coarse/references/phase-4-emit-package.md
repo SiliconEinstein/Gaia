@@ -32,8 +32,8 @@ gaia sdk            # writes ./gaia-sdk/ — SDK reference + one-page CHEATSHEET
 ```
 
 The cheat sheet is authoritative for every primitive (`claim`, `note`,
-`question`, `derive`, `register_prior`, distributions, relations). Phase 4
-below is just the sequencing of those primitives for a single paper.
+`question`, `derive`, `register_prior`, distributions, relations). The
+sections below are just the sequencing of those primitives for a single paper.
 
 The DSL primitives this skill emits:
 
@@ -94,7 +94,7 @@ gaia pkg scaffold \
     --name <name>-gaia \
     --namespace <namespace> \
     --with-uuid \
-    --description "<one-line description from Phase 1 motivation>"
+    --description "<one-line description from the motivation note>"
 ```
 
 This writes `pyproject.toml` (with `[tool.gaia] type = "knowledge-package"` and
@@ -257,10 +257,10 @@ Conclusions never get a prior — there are no isolated conclusions (every
 conclusion is the conclusion of a `derive(...)`), so a conclusion's belief
 always propagates from its premises; it is never a leaf.
 
-- Every Phase 3 leaf premise — weak point **and** highlight — is a leaf; its
-  reviewer-judged prior goes here verbatim. No cap: weak points land lower,
-  highlights higher (often 0.9+); the only bounds are BP validity (strictly
-  between 0 and 1, practical extremes ~0.001 / ~0.999).
+- Every leaf premise from the step-5 audit — weak point **and** highlight —
+  is a leaf; its reviewer-judged prior goes here verbatim. No cap: weak points
+  land lower, highlights higher (often 0.9+); the only bounds are BP validity
+  (strictly between 0 and 1, practical extremes ~0.001 / ~0.999).
 
 ```python
 """Leaf-claim priors."""
@@ -276,11 +276,11 @@ register_prior(
 ```
 
 Justification format: one line, terse rationale ending with `TODO:review`. This
-is where the Phase 3 reviewer reasoning lives — for a weak point, the
-`weakness_reason` plus the `failure_mode` (why it is uncertain and what breaks if
-it fails) compressed to one sentence; for a highlight, why the reviewer is
-near-certain of it. There is no separate stored field — the justification string
-is the reasoning.
+is where the reviewer reasoning from the step-5 audit lives — for a weak point,
+the `weakness_reason` plus the `failure_mode` (why it is uncertain and what
+breaks if it fails) compressed to one sentence; for a highlight, why the
+reviewer is near-certain of it. There is no separate stored field — the
+justification string is the reasoning.
 
 ### 6c. Write `references.json`
 
@@ -314,7 +314,8 @@ After a clean compile, verify the SOP-owned semantic content:
 1. **No isolated conclusion.** Every conclusion is the conclusion of exactly
    one `derive(...)`; none is left without a deduction. `gaia inquiry review`
    (the caller's hand-off gate) reports any orphaned claim — but catch it here
-   first by confirming every Phase 1 conclusion appears as a `derive` conclusion.
+   first by confirming every conclusion written in step 3 appears as a
+   `derive` conclusion.
 2. Every leaf premise (every weak point, every highlight) has a
    `register_prior(...)` entry, and **no conclusion has one**; every prior is
    strictly between 0 and 1 (practical extremes ~0.001 / ~0.999) — no 0.9 cap.

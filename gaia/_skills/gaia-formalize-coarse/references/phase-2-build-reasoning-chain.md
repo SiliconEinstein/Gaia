@@ -36,12 +36,13 @@ Coarse-specific points on top of the shared methodology:
 
 - Coarse emits a **reduced DSL**: **every** conclusion becomes exactly one
   `derive(...)` whose premises are the union of its upstream conclusions and
-  (after Phase 3) its leaf premises (weak points and highlights). **Every
-  upstream conclusion the reasoning depends on must be in the premise set** —
-  if the paper's reasoning for conclusion C uses conclusions A and B, both A
-  and B appear in C's `given`. A conclusion that is a logic-graph root (no
-  upstream) is **not** left without premises: Phase 3 will give it at least one
-  leaf premise carrying its support. There are no isolated conclusions. This
+  its leaf premises (weak points and highlights surfaced by the
+  phase-3 audit). **Every upstream conclusion the reasoning depends on must be
+  in the premise set** — if the paper's reasoning for conclusion C uses
+  conclusions A and B, both A and B appear in C's `given`. A conclusion that
+  is a logic-graph root (no upstream) is **not** left without premises: the
+  phase-3 audit will give it at least one leaf premise carrying its support.
+  There are no isolated conclusions. This
   skill emits no `infer` /
   `observe` / `compute`, so the shared file's verb-specific remarks for those
   verbs do not apply here. The **one** exception is `decompose(...)`, emitted

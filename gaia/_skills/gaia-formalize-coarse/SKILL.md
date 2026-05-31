@@ -217,7 +217,7 @@ paragraph. Do not invent contributions to fill the gap.
 
 ## Responsibility Boundaries
 
-- This skill owns the four analytical passes and the Gaia package emission.
+- This skill owns the paper-driven analytical workflow and the Gaia package emission.
 - It does not own package-shape — that is the canonical DSL surface (`gaia sdk`)
   plus the `gaia pkg scaffold` layout. This skill consumes those where they
   apply and adds paper-decomposition workflow on top.
@@ -252,7 +252,7 @@ paragraph. Do not invent contributions to fill the gap.
 ### Shared formalization methodology (`../_shared/`)
 
 Extraction, atomicity, reasoning-chain, and independence methodology shared
-with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
+with `gaia-formalize-fine`; workflow steps 3–6 load these from `_shared/`:
 
 - [`../_shared/formalize-extract-conclusions.md`](../_shared/formalize-extract-conclusions.md)
   — what counts as a conclusion, fidelity, self-contained bodies, figures as

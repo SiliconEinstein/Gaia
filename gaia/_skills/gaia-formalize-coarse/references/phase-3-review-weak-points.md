@@ -75,7 +75,7 @@ order — first key is the dominant pattern.
 Before committing to a weak point, it must pass all six:
 
 - **Which conclusion(s) does it threaten?** — Most weak points undermine
-  exactly one conclusion's derivation; name it by Phase 1 id and bind there.
+  exactly one conclusion's derivation; name it by conclusion label and bind there.
   When the uncertainty seems to threaten several conclusions, distinguish two
   cases:
   - **Linked by the logic graph** (`W → C2 → C4` with C2 upstream of C4): bind
@@ -90,8 +90,8 @@ Before committing to a weak point, it must pass all six:
     effect on the other conclusions to a working-notes `also_threatens` note —
     that hides a real dependency from inference.
 - **Which part of that conclusion's derivation depends on it?** — Point to
-  the specific argumentative move (a Phase 2 step, an experimental design
-  choice, an assumption, a comparison).
+  the specific argumentative move (a step in the reasoning chain, an
+  experimental design choice, an assumption, a comparison).
 - **If false or weaker, what specifically would fail?** — Describe the
   concrete failure: which part of the conclusion collapses, narrows, or
   becomes unsupported.
@@ -172,7 +172,7 @@ How each factor type realises this:
   residual are new standalone claims and must be rewritten **self-contained**
   (name the system, symbols, units, regime — a residual readable only as "the
   rest of <original>" is not acceptable). This is the one place coarse emits
-  `decompose` rather than `derive` (see Phase 4).
+  `decompose` rather than `derive` (see `phase-4-emit-package.md`, step 6).
 - **Highlights** — a highlight is a leaf premise too, so a shared cause among
   highlights is decomposed exactly as for weak points (one shared-cause claim
   reused across each highlight's decomposition; per-highlight residuals).
@@ -242,10 +242,11 @@ conclusion materially less credible. Use the same nine patterns
 ## Body-Writing Rule (Same for Weak Points and Highlights)
 
 Each weak point and each highlight gets a **body** — a self-standing
-scientific proposition that, in Phase 4, becomes the string body of a leaf
-`claim(...)` (the same for weak points and highlights; both are emitted into
-the conclusion's `given=[...]` with a `register_prior(...)`, differing only in
-prior magnitude — see formalize/SKILL.md). The writing rules are identical:
+scientific proposition that, when emitted in step 5, becomes the string body
+of a leaf `claim(...)` (the same for weak points and highlights; both are
+emitted into the conclusion's `given=[...]` with a `register_prior(...)`,
+differing only in prior magnitude — see formalize/SKILL.md). The writing
+rules are identical:
 
 - **Self-standing setup**: every model / system / procedure / dataset /
   regime / variable named inside the body must be **introduced inside the
@@ -272,13 +273,13 @@ threatened conclusion's `derive(...)` `rationale` (warrant strength, credit).
 
 ## Reviewer-Reasoning Writing Rules (`weakness_reason` / `failure_mode` / `credit`)
 
-This reasoning is where Phase 3's analytical value materializes. Gaia's BP
+This reasoning is where this audit's analytical value materializes. Gaia's BP
 propagation only consumes the numeric `prior_probability` on leaf claims (via
 `register_prior`); the textual reasoning behind those numbers — what makes a
 weak point worth surfacing, what would break if it failed, why a highlight
 underwrites the conclusion — is written into the `register_prior(...)`
-`justification` and the `derive(...)` `rationale` Phase 4 emits. Sloppy writing
-here means those justifications and rationales are unjustified.
+`justification` and the `derive(...)` `rationale` emitted in steps 5–6. Sloppy
+writing here means those justifications and rationales are unjustified.
 
 All three are read alongside the `body` they annotate and may freely refer
 to its contents — they do **not** need to restate the body's setup, and
@@ -423,7 +424,7 @@ but those are consequences of the judged credibility, not rules.
     ~0.999 are the practical extremes (Cromwell). **No 0.9 cap** — a premise the
     reviewer is genuinely near-certain of belongs at 0.95–0.999.
 
-`prior_probability` is the single number Phase 4 emits via `register_prior(...)`.
+`prior_probability` is the single number `register_prior(...)` emits in step 6.
 There are no separate `p1` / `p2` (sufficiency / necessity) numbers to record:
 the premise→conclusion link is the deterministic `derive(...)` implication, not
 a soft conditional, so BP has nowhere to consume them. How the premise bears on
@@ -437,14 +438,14 @@ synthesis **narrative** for that conclusion. There is **no** per-conclusion
 prior number: a conclusion never carries a `register_prior` — only its leaf
 premises do, and its belief propagates through its `derive(...)`. The narrative
 is the reviewer's holistic weighing, and it becomes part of the conclusion's
-`derive(...)` `rationale=` in Phase 4.
+`derive(...)` `rationale=` (emitted in step 5).
 
-**Every conclusion must leave Phase 3 with at least one premise** — an upstream
-conclusion, a weak point, or a highlight. A logic-graph root with no upstream
-and no weak point still needs ≥1 **highlight** carrying its support (e.g. "the
-measurement was performed reliably under conditions X"). There are no isolated
-conclusions; "I found neither a weak point nor a highlight" means Phase 3 is
-incomplete for that conclusion, not that it is premise-free.
+**Every conclusion must leave this audit with at least one premise** — an
+upstream conclusion, a weak point, or a highlight. A logic-graph root with no
+upstream and no weak point still needs ≥1 **highlight** carrying its support
+(e.g. "the measurement was performed reliably under conditions X"). There are
+no isolated conclusions; "I found neither a weak point nor a highlight" means
+this audit is incomplete for that conclusion, not that it is premise-free.
 
 - **`narrative`** (2–4 sentences in reviewer voice) — articulates how the
   attached weak points and highlights interact for this conclusion. Cover
@@ -454,7 +455,7 @@ incomplete for that conclusion, not that it is premise-free.
     generalization scope, error / uncertainty.
   - **Dominant risks vs refinements** — among the weak points, which would
     materially collapse the conclusion (show-stoppers) versus which only
-    shift magnitude (refinements). Reference by working-note id.
+    shift magnitude (refinements). Reference by leaf-premise label.
   - **Composition of risks and supports** — how weak points and highlights
     interact: compounding, cumulative, partially redundant, offsetting (a
     highlight specifically preempts a failure mode named in a weak point's
@@ -494,7 +495,8 @@ reasoning lives in the DSL's own prose fields:
   conclusion never gets a `register_prior` (only its leaf premises do).
 
 Use local ids for in-context cross-reference if helpful; the final DSL labels
-are minted in Phase 4 from the paper key plus a semantic suffix.
+are minted at emit time (step 3 for conclusions, step 5 for leaf premises)
+from the paper key plus a semantic suffix.
 
 ## Calibration Sanity Check
 
@@ -526,7 +528,7 @@ the weak-point analysis is supposed to produce.
 Across the per-conclusion step and the finalize step, confirm:
 
 - Every conclusion has gone through both weak-point and highlight gating.
-- Every retained weak point and highlight passes its five gating questions
+- Every retained weak point and highlight passes its six gating questions
   and is not on its do-not-extract list.
 - Every body satisfies the self-standing rule.
 - Each weak point has `prior_probability`, `weakness_reason`, `failure_mode`.
