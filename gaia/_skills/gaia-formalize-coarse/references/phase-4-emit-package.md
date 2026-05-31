@@ -168,16 +168,23 @@ liu2015_c3_yield = claim(
 Walk the conclusions in topological order on the logic graph. For each
 conclusion, follow this conceptual order before emitting:
 
-1. Summarize the paper's reasoning chain for this conclusion (the prose that
-   will go into `rationale=`).
-2. From the reasoning, identify which upstream conclusions it depends on (from
+1. **Atomicity re-check before the derive.** Building the evidence chain often
+   exposes a still-bundled conclusion — most commonly a theoretical prediction
+   fused with its experimental measurement (or a method fused with its
+   produced value). Per `_shared/formalize-atomicity.md` ("Separate theory from
+   experiment", "Separate method from result"), split it now: replace the
+   bundled `claim(...)` in the module with the atomic ones, update the logic
+   graph, and proceed with each atomic conclusion separately.
+2. Summarize the paper's reasoning chain for this (now-atomic) conclusion (the
+   prose that will go into `rationale=`).
+3. From the reasoning, identify which upstream conclusions it depends on (from
    the step-4 logic graph) — these are the first entries in `given=`.
-3. Surface the **residual** weak points and highlights — the load-bearing
+4. Surface the **residual** weak points and highlights — the load-bearing
    uncertainties and strengths the reasoning rests on **beyond** what the
    upstream conclusions already capture. A factor already represented by an
    upstream conclusion is not duplicated here; only the new, this-derivation-
    specific factors become leaf premises.
-4. Emit the leaf-premise `claim(...)`s, then the `derive(...)`. Append both to
+5. Emit the leaf-premise `claim(...)`s, then the `derive(...)`. Append both to
    the conclusion's module, then compile-check before moving on:
 
 ```python

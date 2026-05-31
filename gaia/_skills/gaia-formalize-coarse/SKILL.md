@@ -98,16 +98,24 @@ Create a session todo list with the six steps below and work them in order.
    Same methodology file as step 3.
 5. **Per conclusion, in topological order: derive + weak points + highlights.**
    For each conclusion, work in this conceptual order:
-   1. Summarize the paper's reasoning chain for this conclusion (the prose that
-      will become `derive(...)`'s `rationale=`).
-   2. From the reasoning, identify the upstream conclusions it depends on
+   1. **Atomicity re-check before the derive.** Building the evidence chain
+      often exposes a still-bundled conclusion — most commonly a theoretical
+      prediction fused with its experimental measurement, or a method fused
+      with the value it produced. If so, split it into atomic claims **now**
+      per `_shared/formalize-atomicity.md` ("Separate theory from experiment",
+      "Separate method from result"): replace the bundled claim in the module
+      with the atomic ones, update the logic graph, and proceed with each atomic
+      conclusion separately in step 5.
+   2. Summarize the paper's reasoning chain for this (now-atomic) conclusion
+      (the prose that will become `derive(...)`'s `rationale=`).
+   3. From the reasoning, identify the upstream conclusions it depends on
       (from the step-4 logic graph) — these go in `given=` first.
-   3. Surface its weak points and highlights as the **residual** load-bearing
+   4. Surface its weak points and highlights as the **residual** load-bearing
       factors — the uncertainties and strengths in the reasoning that the
       upstream conclusions do **not** already capture. (If a factor is already
       represented by an upstream conclusion, do not duplicate it as a leaf
       premise here.) These go in `given=` after the upstream conclusions.
-   4. Emit the leaf-premise `claim(...)`s and the `derive(...)` into the
+   5. Emit the leaf-premise `claim(...)`s and the `derive(...)` into the
       conclusion's module; compile-check before moving on.
 
    Methodology:
