@@ -9,9 +9,10 @@ The `gaia author` subcommand group and the `gaia pkg scaffold` verb are an
 **optional convenience** over direct SDK authoring: instead of editing the
 Python source, you can scaffold a fresh `-gaia` package and append DSL
 statements through `gaia author <verb>`. Every CLI write is confined to the
-package's re-exported `authored/` submodule (`src/<pkg>/authored/`) — the cli
-never writes the package-root `__init__.py`, which composes the CLI-authored
-statements back in via `from .authored import *`. The cli owns identifier
+package's composed `authored/` submodule (`src/<pkg>/authored/`) — the cli
+never writes the package-root `__init__.py`, which imports the CLI-authored
+runtime bindings while keeping root `__all__` as the curated public surface.
+The cli owns identifier
 collision checks, reference resolution, pre-write defensive validation, file
 appending, and (by default) a post-write `gaia build check` to confirm the
 package still compiles.
@@ -462,7 +463,7 @@ The verb writes:
 * `src/<import_name>/__init__.py` importing the minimal DSL seed
   `from gaia.engine.lang import claim` plus `__all__: list[str] = []`. It does
   not seed a placeholder claim; subsequent `gaia author <verb>` calls populate
-  the file and update `__all__`.
+  the file. They update `__all__` only when `--export` is explicit.
 * `.gaia/.gitkeep` so the cli postwrite check can find the IR artifact
   directory.
 

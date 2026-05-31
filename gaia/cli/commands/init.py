@@ -13,9 +13,9 @@ from gaia.cli.commands.author._authored import AUTHORED_INIT_BODY, ROOT_REEXPORT
 from gaia.engine.packaging import GaiaPackagingError
 
 # Minimal DSL template: the canonical ``claim`` import, an empty
-# ``__all__``, and the ``authored/`` re-export block. Hand-authored DSL
+# ``__all__``, and the ``authored/`` import block. Hand-authored DSL
 # goes directly in this root ``__init__.py``; ``gaia author <verb>``
-# commands write into the re-exported ``authored/`` submodule. No
+# commands write into the composed ``authored/`` submodule. No
 # placeholder demo statement — the package starts empty.
 _DSL_BODY_NO_DOCSTRING = (
     "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n\n" + ROOT_REEXPORT_BLOCK
@@ -142,9 +142,9 @@ def init_command(
     else:
         init_py.write_text(_DSL_BODY_NO_DOCSTRING)
 
-    # --- create the re-exported authored/ submodule ----------------------------
+    # --- create the authored/ submodule ----------------------------------------
     # Every `gaia author <verb>` write lands in authored/; the root
-    # __init__.py re-exports it (ROOT_REEXPORT_BLOCK above).
+    # __init__.py imports it (ROOT_REEXPORT_BLOCK above).
     authored_dir = target_pkg_dir / "authored"
     authored_dir.mkdir(parents=True, exist_ok=True)
     (authored_dir / "__init__.py").write_text(AUTHORED_INIT_BODY)

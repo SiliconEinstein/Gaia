@@ -14,7 +14,7 @@ from gaia.engine.lang.dsl.formula import (
     lor,
 )
 from gaia.engine.lang.dsl.infer_verb import infer
-from gaia.engine.lang.dsl.knowledge import claim, context, note, question, setting
+from gaia.engine.lang.dsl.knowledge import claim, context, export, note, question, setting
 from gaia.engine.lang.dsl.operators import complement, contradiction, disjunction, equivalence
 from gaia.engine.lang.dsl.propositional import and_, not_, or_
 from gaia.engine.lang.dsl.register_prior import (
@@ -78,6 +78,7 @@ __all__ = [
     "equivalence",
     "exclusive",
     "exists",
+    "export",
     "extrapolation",
     "figure",
     "fills",

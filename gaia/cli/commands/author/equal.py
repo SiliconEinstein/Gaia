@@ -115,11 +115,12 @@ def equal_command(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
     export: bool = typer.Option(
-        True,
+        False,
         "--export/--no-export",
         help=(
             "Add --dsl-binding-name to the target module's __all__ on a "
-            "successful write (default on for equal)."
+            "successful write. Default off: exports are the package's curated "
+            "public Knowledge surface."
         ),
     ),
     check: bool = typer.Option(

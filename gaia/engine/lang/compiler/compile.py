@@ -1864,7 +1864,14 @@ def _build_ir_knowledges(
     knowledge_nodes: list[Knowledge],
     knowledge_map: dict[int, str],
 ) -> list[IrKnowledge]:
+    exported_knowledge_ids: set[int] = getattr(pkg, "_exported_knowledge_ids", set())
     exported_labels: set[str] = getattr(pkg, "_exported_labels", set())
+
+    def is_exported(knowledge: Knowledge) -> bool:
+        if exported_knowledge_ids:
+            return id(knowledge) in exported_knowledge_ids
+        return knowledge.label is not None and knowledge.label in exported_labels
+
     return [
         IrKnowledge(
             id=knowledge_map[id(knowledge)],
@@ -1878,7 +1885,7 @@ def _build_ir_knowledges(
             metadata=_knowledge_metadata(knowledge, knowledge_map),
             module=getattr(knowledge, "_source_module", None),
             declaration_index=getattr(knowledge, "_declaration_index", None),
-            exported=knowledge.label in exported_labels if knowledge.label else False,
+            exported=is_exported(knowledge),
         )
         for knowledge in knowledge_nodes
     ]

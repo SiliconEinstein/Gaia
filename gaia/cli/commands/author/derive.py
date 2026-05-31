@@ -204,12 +204,12 @@ def derive_command(
         help="Comma-separated identifiers passed as the derive() background kwarg.",
     ),
     export: bool = typer.Option(
-        True,
+        False,
         "--export/--no-export",
         help=(
             "Append --dsl-binding-name to the target module's __all__ on a "
-            "successful write (default on for derive: its result is a warrant "
-            "Claim downstream verbs reference)."
+            "successful write. Default off: exports are the package's curated "
+            "public Knowledge surface."
         ),
     ),
     check: bool = typer.Option(
