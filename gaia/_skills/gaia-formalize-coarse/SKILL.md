@@ -7,7 +7,8 @@ description: |
   the package incrementally: scaffold; write the conclusions (with motivation
   and open questions); organize the cross-conclusion logic graph; then per
   conclusion emit its weak points, highlights, and `derive(...)`; then finalize
-  (shared-factor decomposition, leaf priors, references, compile). Gated by an
+  (shared-factor decomposition, leaf priors, mark `__all__` with conclusions
+  only, references, compile). Gated by an
   upfront suitability check (skip review/survey/perspective papers and
   corrupted paper text). Surfaces 9 argument-pattern weak-point types
   (`measurement`, `causal`, `model`, `statistical`, `generalization`,
@@ -132,9 +133,11 @@ Create a session todo list with the six steps below and work them in order.
    (weak points, highlights, prior calibration).
 6. **Finalize.** Run the global independence (Pattern 3) scan over all leaf
    premises and `decompose` shared causes; write `priors.py` (a
-   `register_prior` per leaf premise) and `references.json`; run the full
+   `register_prior` per leaf premise); mark the public surface in the root
+   `__init__.py`'s `__all__` (conclusions + motivation note + open-problem
+   question only — no leaf premises); write `references.json`; run the full
    `gaia build compile` and the self-check. See phase-3 (independence) and
-   phase-4 (priors, compile, self-check).
+   phase-4 (priors, `__all__`, references, compile, self-check).
 
 Load each methodology file as you reach the step that needs it; you may load
 several at once (steps 3–6 draw on all four). The step split is scaffolding for
@@ -214,6 +217,19 @@ paragraph. Do not invent contributions to fill the gap.
   below any threshold; a highlight is not forced above one. The only bounds are
   BP validity (strictly between 0 and 1; use ~0.001 and ~0.999 as the practical
   extremes). Each justification ends with `TODO:review`.
+- **Conclusions are exported; leaf premises are not.** The package's external
+  interface — what other knowledge packages may reference — is its
+  **conclusions** (every `claim(...)` written in step 3) plus the motivation
+  `note(...)` and the open-problem `question(...)` in `motivation.py`. Weak
+  points and highlights are audit-internal commentary; decompose parts (shared
+  cause + residuals from Pattern 3) are likewise internal. Concretely: in the
+  root `src/<import_name>/__init__.py`, replace the scaffolded
+  `__all__: list[str] = []` with the conclusion / note / question labels;
+  leave the `_wp_` and `_hl_` leaf-premise labels out. (The default
+  `__all__ = []` is treated as "export every labeled claim" by the engine,
+  including leaf premises — which is wrong for a finished package.) The
+  package's section modules (`s2_methods.py`, etc.) keep their own scaffolded
+  `__all__: list[str] = []` — only the root list drives the IR `exported` flag.
 
 ## Responsibility Boundaries
 
@@ -247,7 +263,7 @@ paragraph. Do not invent contributions to fill the gap.
   calibration.
 - [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md)
   — emission mechanics: scaffold, write conclusions, per-conclusion derive +
-  leaf premises, finalize (decompose, priors, references, compile).
+  leaf premises, finalize (decompose, priors, `__all__`, references, compile).
 
 ### Shared formalization methodology (`../_shared/`)
 

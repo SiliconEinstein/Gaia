@@ -282,7 +282,47 @@ breaks if it fails) compressed to one sentence; for a highlight, why the
 reviewer is near-certain of it. There is no separate stored field — the
 justification string is the reasoning.
 
-### 6c. Write `references.json`
+### 6c. Mark the public surface in `__all__`
+
+The package's external interface — what other knowledge packages may
+reference — is its **conclusions** (every `claim(...)` written in step 3)
+plus the motivation `note(...)` and the open-problem `question(...)` in
+`motivation.py`. Weak points, highlights, and decompose parts (shared cause +
+residuals from 6a) are audit-internal and stay package-private.
+
+The engine reads `__all__` only from the **root** `src/<import_name>/__init__.py`
+to populate the IR `exported` flag (label-matched against every registered
+knowledge node). The scaffold default `__all__: list[str] = []` is treated as
+"export every labeled claim" — including leaf premises — which is wrong for a
+finished package. Replace it before compile:
+
+```python
+# src/<import_name>/__init__.py
+"""<package one-line description>."""
+
+from gaia.engine.lang import claim
+
+from .motivation import liu2015_motivation, liu2015_problem
+from .s2_methods import liu2015_c1_protocol
+from .s3_results import liu2015_c3_yield, liu2015_c4_agreement
+
+__all__ = [
+    "liu2015_motivation",      # motivation note
+    "liu2015_problem",         # open-problem question
+    "liu2015_c1_protocol",     # conclusion
+    "liu2015_c3_yield",        # conclusion
+    "liu2015_c4_agreement",    # conclusion
+]
+
+from .authored import *  # scaffold-default re-export; harmless here
+```
+
+Section modules (`motivation.py`, `s2_methods.py`, …) keep their own
+scaffolded `__all__: list[str] = []`; only the root list drives the IR
+export flag. Do **not** add `_wp_` / `_hl_` leaf-premise labels, or the
+shared-cause / residual labels emitted by `decompose(...)` in 6a.
+
+### 6d. Write `references.json`
 
 Emit a CSL-JSON object keyed by citation key. Each entry:
 
@@ -293,7 +333,7 @@ Emit a CSL-JSON object keyed by citation key. Each entry:
 
 Full schema: `docs/specs/2026-04-09-references-and-at-syntax.md`.
 
-### 6d. Full compile, then fix
+### 6e. Full compile, then fix
 
 Run the full-package compile (per-module compile-checks already happened in
 step 5; this catches cross-module issues):
@@ -307,7 +347,7 @@ recompile. Repeat until clean. A full compile catches cross-module issues
 (cyclic imports, unresolved references, IR-hash drift, manifest emission) that a
 per-statement check cannot.
 
-### 6e. Self-check before reporting complete
+### 6f. Self-check before reporting complete
 
 After a clean compile, verify the SOP-owned semantic content:
 
@@ -335,10 +375,17 @@ After a clean compile, verify the SOP-owned semantic content:
      Unresolvable citations are emitted as `@unknown_<n>` (bare, **no brackets**
      — bracketed `[@unknown_n]` fails the strict-reference check).
 6. `references.json` contains an entry for every `[@key]` cited in any prose.
+7. **Public surface (`__all__`)**: the root `src/<import_name>/__init__.py`
+   has a non-empty `__all__` listing the motivation note + open-problem
+   question + every conclusion (from step 3) — and **no** `_wp_` / `_hl_`
+   leaf-premise label, and no shared-cause / residual label from 6a. The
+   scaffold default `__all__: list[str] = []` must be replaced; an empty list
+   is treated as "export everything labeled" and leaks the audit-internal
+   leaf premises into the public IR.
 
 If any check fails, fix it and recompile before reporting completion.
 
-### 6f. Hand off
+### 6g. Hand off
 
 Report to the user:
 
