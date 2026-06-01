@@ -12,9 +12,7 @@ from typing import Any
 
 from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 
-_FACTOR_MISSING_CONCLUSION_WARNING = (
-    "missing factor conclusion; cannot derive from this factor"
-)
+_FACTOR_MISSING_CONCLUSION_WARNING = "missing factor conclusion; cannot derive from this factor"
 _FACTOR_UPSTREAM_CONTEXT_COMMENT = (
     "premises omitted; inspect package for upstream reasoning context"
 )
