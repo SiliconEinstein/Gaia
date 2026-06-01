@@ -260,16 +260,11 @@ contributions to fill the gap.
   Mechanism: list the main-conclusion labels in the **root**
   `src/<import_name>/__init__.py`'s `__all__` (the engine only reads
   `__all__` from the root module — section modules' lists do not propagate).
-  The scaffold writes `__all__: list[str] = []`; this is treated by IR
-  generation as "no exports" (`compile.py:1881` — every label tests `in set()`
-  → `False`), so the curated list **must** be filled in. Per the engine
-  convention this happens at the moment each conclusion is written (step 3),
-  not deferred to finalize. **Note**: this convention diverges from
-  `gaia author` CLI defaults (which export every BP-participating verb) and
-  from the Galileo / Mendel example packages (which list derives and
-  relations in `__all__` too). See issue #724 for the open question on the
-  engine-wide convention; coarse follows the curated semantic that every
-  downstream IR consumer assumes.
+  The scaffold writes `__all__: list[str] = []` (empty = nothing exported), so
+  the curated list **must** be filled in, and per the engine convention this
+  happens the moment each conclusion is written (step 3), not deferred to
+  finalize. Root `__all__` is the single source of truth for the exported
+  surface and is validated at compile.
 
 ## Responsibility Boundaries
 

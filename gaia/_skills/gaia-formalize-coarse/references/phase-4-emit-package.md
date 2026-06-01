@@ -168,7 +168,8 @@ liu2015_c3_yield = claim(
 As you write each conclusion, also update the **root** package
 `src/<import_name>/__init__.py` so the conclusion is part of the package's
 exported surface. The engine reads `__all__` only from the root; section
-modules' `__all__` are not propagated (`gaia/engine/packaging.py:421`).
+modules' `__all__` are not propagated (`_record_root_exports` in
+`gaia/engine/packaging.py`).
 Methodology — including which knowledge kinds belong in `__all__` and why
 coarse picks the curated surface — is in
 [`phase-1-extract-conclusions.md`](phase-1-extract-conclusions.md)
@@ -425,11 +426,10 @@ After a clean compile, verify the SOP-owned semantic content:
    open-problem `question(...)` label, no `_wp_` / `_hl_` leaf-premise
    label, no `derive(...)` label, no relation label (`equal` / `contradict` /
    `exclusive` / `associate`), no `register_prior` label, no shared-cause /
-   residual label from 6a. The scaffold default `__all__: list[str] = []`
-   must have been replaced in step 3 as each conclusion was written; the IR
-   generator treats an empty `__all__` as "no exports at all"
-   (`compile.py:1881`) and downstream tools then see a package with no
-   headline contributions.
+   residual label from 6a. The scaffold default `__all__: list[str] = []` must
+   have been replaced in step 3 as each conclusion was written; an empty or
+   missing `__all__` exports nothing, so downstream tools would see a package
+   with no headline contributions.
 
 If any check fails, fix it and recompile before reporting completion.
 

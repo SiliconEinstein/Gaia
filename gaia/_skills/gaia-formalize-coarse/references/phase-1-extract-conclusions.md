@@ -104,12 +104,9 @@ What does **not** go in `__all__`:
 > `gaia-publish` skill — all treat the IR `exported` flag as "this paper's
 > headline contributions" and visualise / list them as ★ headline nodes. If
 > every BP-participating knowledge ends up in `__all__`, those views fill
-> with intermediate derives and audit claims and lose their signal. The
-> `gaia author` CLI and a couple of in-tree example packages
-> (`examples/galileo-v0-5-gaia`, `examples/mendel-v0-5-gaia`) default to
-> the permissive convention; coarse follows the curated one so the package
-> renders correctly in the downstream stack. See issue #724 for the
-> engine-wide open question.
+> with intermediate derives and audit claims and lose their signal — so list
+> only the main conclusions. Root `__all__` is the single source of truth and
+> is validated at compile.
 
 ## Motivation Block
 
