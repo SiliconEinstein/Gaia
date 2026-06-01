@@ -206,3 +206,8 @@ entries keep their previous shape:
 - `lkm_explorer` / `starmap.py` — `exported_ids` as the public surface.
 - `gaia-formalize-fine` / `gaia-publish` skills — "exported conclusions" vs.
   internal nodes.
+
+Consumer-side filtering of `export_kind` is a follow-up. Tools that need only
+headline claim conclusions should skip entries with
+`export_kind="structural_relation"` or `export_kind="probabilistic_relation"`;
+this design change only makes that distinction available in the manifest.
