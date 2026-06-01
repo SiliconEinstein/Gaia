@@ -62,7 +62,7 @@ Every implementation PR must preserve these checks:
 
 ## M3. Explore Expand
 
-**Plan:** Create a dedicated `docs/superpowers/plans/YYYY-MM-DD-gaia-research-m3-explore-expand.md` before implementation.
+**Plan:** `docs/superpowers/plans/2026-06-01-gaia-research-m3-explore-expand.md`
 
 **Reviewable Success Criteria:**
 

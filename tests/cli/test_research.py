@@ -76,8 +76,8 @@ def _lkm_row(
     }
 
 
-def _landscape_artifacts(pkg_dir: Path) -> list[Path]:
-    return sorted((pkg_dir / ".gaia" / "research" / "landscapes").glob("scan-*.json"))
+def _landscape_artifacts(pkg_dir: Path, stem: str = "scan") -> list[Path]:
+    return sorted((pkg_dir / ".gaia" / "research" / "landscapes").glob(f"{stem}-*.json"))
 
 
 def test_research_group_is_help_visible() -> None:
@@ -221,6 +221,87 @@ def test_research_scan_reads_search_json_from_stdin(tmp_path: Path) -> None:
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert payload["query_provenance"][0]["path"] == "<stdin>"
     assert payload["paper_leads"][0]["paper_id"] == "P3"
+
+
+def test_research_expand_requires_focus_or_obligation(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "targeted query",
+                [_lkm_row("P4", "lkm:bohrium:n5", 0.8, paper_title="Paper Four")],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "explore",
+            str(pkg_dir),
+            "--mode",
+            "expand",
+            "--search-json",
+            str(search_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "requires --focus or --obligation" in result.output
+    assert not _landscape_artifacts(pkg_dir, "expand")
+
+
+def test_research_expand_writes_targeted_landscape(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "targeted query",
+                [_lkm_row("P4", "lkm:bohrium:n5", 0.8, paper_title="Paper Four")],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "explore",
+            str(pkg_dir),
+            "--mode",
+            "expand",
+            "--focus",
+            "seed",
+            "--search-json",
+            str(search_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Target: focus seed" in result.output
+    assert "pull_budget: 0" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+    assert not (pkg_dir / ".gaia" / "lkm_packages").exists()
+
+    artifacts = _landscape_artifacts(pkg_dir, "expand")
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert payload["action"] == "explore.expand"
+    assert payload["target"] == {"kind": "focus", "id": "seed"}
+    assert payload["pull_budget"] == 0
+    assert payload["paper_leads"][0]["paper_id"] == "P4"
+
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "explore.expand.completed"
+    assert events[-1]["payload"]["target"] == {"kind": "focus", "id": "seed"}
 
 
 def test_research_assess_artifact_only_records_planning_event(tmp_path: Path) -> None:
