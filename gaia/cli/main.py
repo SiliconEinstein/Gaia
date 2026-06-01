@@ -17,6 +17,7 @@ The CLI organizes verbs into explicit top-level groups:
            variable / depends-on / candidate-relation / materialize /
            compose / composition
   bayes    model / compare / distribution literals
+  research package-native research actions (explore / assess / propose)
   example  galileo / mendel (print or save the cli walkthrough for a
            shipping v0.5 example package)
   trace    (independent sub-app: verify / review / show)
@@ -81,6 +82,7 @@ from gaia.cli.commands.inquiry import inquiry_app
 from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
+from gaia.cli.commands.research import research_app
 from gaia.cli.commands.sdk import sdk_command
 from gaia.cli.commands.search import search_app
 from gaia.cli.commands.skill import list_command as skill_list_command
@@ -394,6 +396,13 @@ app.add_typer(skill_app, name="skill")
 # backends; see `gaia.cli.commands.search`.
 
 app.add_typer(search_app, name="search")
+
+
+# --------------------------------------------------------------------------- #
+# research — package-native research actions                                  #
+# --------------------------------------------------------------------------- #
+
+app.add_typer(research_app, name="research")
 
 
 # --------------------------------------------------------------------------- #
