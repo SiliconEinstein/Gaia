@@ -12,6 +12,7 @@ from gaia.engine.research.artifacts import (
 from gaia.engine.research.assessment import (
     AssessmentSchemaError,
     build_assessment_artifact,
+    build_assessment_from_landscapes,
     validate_assessment_artifact,
     validate_assessment_relation,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "ScanBatch",
     "append_research_event",
     "build_assessment_artifact",
+    "build_assessment_from_landscapes",
     "build_research_landscape",
     "ensure_research_manifest",
     "load_research_package",

@@ -14,6 +14,7 @@ from gaia.engine.research import (
     ResearchTargetError,
     ScanBatch,
     append_research_event,
+    build_assessment_from_landscapes,
     build_research_landscape,
     ensure_research_manifest,
     load_research_package,
@@ -68,6 +69,29 @@ def _read_search_json(ref: str) -> tuple[dict[str, object], str]:
         typer.echo("Error: --search-json must contain a results array.", err=True)
         raise typer.Exit(2)
     return payload, label
+
+
+def _read_json_object_path(path: Path) -> dict[str, object]:
+    if not path.exists():
+        typer.echo(f"Error: file not found: {path}", err=True)
+        raise typer.Exit(2)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: file is not valid JSON: {path}: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    if not isinstance(payload, dict):
+        typer.echo(f"Error: file must contain a JSON object: {path}", err=True)
+        raise typer.Exit(2)
+    return payload
+
+
+def _latest_landscape_paths(pkg: ResearchPackage) -> list[Path]:
+    landscape_dir = pkg.path / ".gaia" / "research" / "landscapes"
+    if not landscape_dir.exists():
+        return []
+    paths = sorted(landscape_dir.glob("*.json"), key=lambda item: item.stat().st_mtime)
+    return paths[-1:] if paths else []
 
 
 def _scan_batches(
@@ -283,6 +307,13 @@ def assess_command(
             help="M1 supports only artifact-only assessment planning.",
         ),
     ] = True,
+    landscape: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--landscape",
+            help="Assessment input landscape artifact; defaults to latest landscape.",
+        ),
+    ] = None,
 ) -> None:
     """Plan an artifact-only Assess action."""
     if not artifact_only:
@@ -291,6 +322,45 @@ def assess_command(
 
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
+    landscape_paths = [Path(item) for item in landscape or []] or _latest_landscape_paths(
+        research_pkg
+    )
+    if landscape_paths:
+        landscapes = [_read_json_object_path(path) for path in landscape_paths]
+        assessment = build_assessment_from_landscapes(
+            focus={"kind": "focus", "id": focus},
+            landscapes=landscapes,
+        )
+        output_path = write_research_artifact(
+            research_pkg,
+            "assessments",
+            "assessment",
+            assessment,
+        )
+        snippets = assessment["evidence_packet"]["snippets"]
+        append_research_event(
+            research_pkg,
+            "assess.completed",
+            {
+                "focus": focus,
+                "artifact": str(output_path),
+                "artifact_only": True,
+                "landscapes": [str(path) for path in landscape_paths],
+                "snippets": len(snippets),
+                "relations": len(assessment["relations"]),
+                "candidate_obligations": len(assessment["candidate_obligations"]),
+                "writes_source": False,
+            },
+        )
+        typer.echo(f"Assessment: {output_path}")
+        typer.echo(f"focus: {focus}")
+        typer.echo(f"snippets: {len(snippets)}")
+        typer.echo(f"relations: {len(assessment['relations'])}")
+        typer.echo("artifact_only: true")
+        typer.echo("writes_source: false")
+        _print_inquiry_suggestions(research_pkg)
+        return
+
     append_research_event(
         research_pkg,
         "assess.planned",

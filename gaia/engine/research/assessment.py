@@ -49,6 +49,88 @@ def build_assessment_artifact(
     }
 
 
+def build_assessment_from_landscapes(
+    *,
+    focus: dict[str, Any],
+    landscapes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build a conservative assessment artifact from landscape snippets."""
+    snippets: list[dict[str, Any]] = []
+    paper_leads: list[dict[str, Any]] = []
+    landscape_refs: list[dict[str, Any]] = []
+    for landscape_index, landscape in enumerate(landscapes):
+        landscape_refs.append(
+            {
+                "index": landscape_index,
+                "kind": landscape.get("kind"),
+                "action": landscape.get("action"),
+                "target": landscape.get("target"),
+            }
+        )
+        for raw_snippet in landscape.get("retrieved_snippets", []):
+            if not isinstance(raw_snippet, dict):
+                continue
+            snippet = dict(raw_snippet)
+            snippet["id"] = f"snippet_{len(snippets)}"
+            snippet["landscape_index"] = landscape_index
+            snippets.append(snippet)
+        for raw_lead in landscape.get("paper_leads", []):
+            if isinstance(raw_lead, dict):
+                lead = dict(raw_lead)
+                lead["landscape_index"] = landscape_index
+                paper_leads.append(lead)
+
+    focus_id = focus.get("id", "focus")
+    relations = [
+        {
+            "type": "background_for",
+            "claim": f"Retrieved snippet is background evidence for {focus_id}.",
+            "rationale": "The snippet was retrieved by a landscape query selected for this focus.",
+            "epistemic_status": "candidate",
+            "promotion_hint": "none",
+            "source_refs": [{"kind": "snippet", "id": snippet["id"]}],
+        }
+        for snippet in snippets
+    ]
+    if not relations:
+        relations.append(
+            {
+                "type": "needs_more_evidence",
+                "claim": f"No retrieved snippets are available for {focus_id}.",
+                "rationale": (
+                    "Assessment cannot classify support or opposition without grounded snippets."
+                ),
+                "epistemic_status": "candidate",
+                "promotion_hint": "obligation",
+                "source_refs": [{"kind": "focus", "id": str(focus_id)}],
+            }
+        )
+
+    candidate_obligations = [
+        {
+            "kind": "needs_more_evidence",
+            "target": dict(focus),
+            "content": (
+                "Classify whether the retrieved snippets support, oppose, qualify, "
+                "or undercut the focus."
+            ),
+            "source_refs": [{"kind": "snippet", "id": snippet["id"]} for snippet in snippets],
+        }
+    ]
+    artifact = build_assessment_artifact(
+        focus=focus,
+        evidence_packet={
+            "landscapes": landscape_refs,
+            "snippets": snippets,
+            "paper_leads": paper_leads,
+        },
+        relations=relations,
+        candidate_obligations=candidate_obligations,
+    )
+    validate_assessment_artifact(artifact)
+    return artifact
+
+
 def _require_dict(payload: Any, field: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise AssessmentSchemaError(f"{field} must be an object")
@@ -128,6 +210,7 @@ __all__ = [
     "VALID_RELATIONS",
     "AssessmentSchemaError",
     "build_assessment_artifact",
+    "build_assessment_from_landscapes",
     "validate_assessment_artifact",
     "validate_assessment_relation",
 ]

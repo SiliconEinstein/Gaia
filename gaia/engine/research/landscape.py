@@ -234,6 +234,42 @@ def _paper_leads(
     return queries, [lead.to_dict() for lead in sorted_leads]
 
 
+def _retrieved_snippets(batches: list[ScanBatch]) -> list[dict[str, Any]]:
+    snippets: list[dict[str, Any]] = []
+    for query_index, batch in enumerate(batches):
+        query = _query_text(batch.search_results, batch.query)
+        results = batch.search_results.get("results")
+        if not isinstance(results, list):
+            continue
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            text = result.get("content")
+            if not isinstance(text, str) or not text.strip():
+                continue
+            source = result.get("source")
+            source_payload: dict[str, Any] = source if isinstance(source, dict) else {}
+            node_id = result.get("id")
+            paper_id = _result_paper_id(result)
+            snippets.append(
+                {
+                    "id": f"snippet_{len(snippets)}",
+                    "text": text.strip(),
+                    "title": result.get("title"),
+                    "query_index": query_index,
+                    "query": query,
+                    "paper_id": paper_id,
+                    "paper_title": source_payload.get("paper_title"),
+                    "lkm_node_id": node_id,
+                    "source_ref": {
+                        "kind": "lkm_node",
+                        "id": node_id,
+                    },
+                }
+            )
+    return snippets
+
+
 def _pull_candidates(paper_leads: list[dict[str, Any]]) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for lead in paper_leads:
@@ -345,6 +381,7 @@ def build_research_landscape(
         "query_provenance": query_provenance,
         "stats": stats,
         "paper_leads": paper_leads,
+        "retrieved_snippets": _retrieved_snippets(batches),
         "pull_candidates": _pull_candidates(paper_leads),
         "candidate_coverage_gaps": coverage_gaps,
         "coverage_map": {
