@@ -59,12 +59,14 @@ def _lkm_row(
     *,
     paper_title: str,
     doi: str | None = None,
+    content: str | None = None,
 ) -> dict[str, object]:
     return {
         "id": node_id,
         "provider": "lkm",
         "kind": "claim",
         "title": f"Claim surfaced from {paper_title}",
+        "content": content or f"Retrieved snippet from {paper_title}.",
         "source": {
             "paper_id": paper_id,
             "paper_title": paper_title,
@@ -78,6 +80,10 @@ def _lkm_row(
 
 def _landscape_artifacts(pkg_dir: Path, stem: str = "scan") -> list[Path]:
     return sorted((pkg_dir / ".gaia" / "research" / "landscapes").glob(f"{stem}-*.json"))
+
+
+def _assessment_artifacts(pkg_dir: Path) -> list[Path]:
+    return sorted((pkg_dir / ".gaia" / "research" / "assessments").glob("assessment-*.json"))
 
 
 def test_research_group_is_help_visible() -> None:
@@ -157,6 +163,7 @@ def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path)
                         0.7,
                         paper_title="Paper One",
                         doi="10.1/example",
+                        content="Snippet about the first paper.",
                     ),
                     _lkm_row("P1", "lkm:bohrium:n2", 0.9, paper_title="Paper One"),
                     _lkm_row("P2", "lkm:bohrium:n3", 0.4, paper_title="Paper Two"),
@@ -189,6 +196,7 @@ def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path)
     assert payload["query_provenance"][0]["path"] == str(search_path)
     assert [lead["paper_id"] for lead in payload["paper_leads"]] == ["P1", "P2"]
     assert payload["paper_leads"][0]["lkm_node_ids"] == ["lkm:bohrium:n1", "lkm:bohrium:n2"]
+    assert payload["retrieved_snippets"][0]["text"] == "Snippet about the first paper."
     assert payload["pull_candidates"][0]["command"] == (
         "gaia pkg add --lkm-index bohrium --lkm-paper P1"
     )
@@ -322,6 +330,73 @@ def test_research_assess_artifact_only_records_planning_event(tmp_path: Path) ->
     assert events[-1]["event"] == "assess.planned"
     assert events[-1]["payload"]["artifact_only"] is True
     assert events[-1]["payload"]["focus"] == "seed"
+
+
+def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "assessment query",
+                [
+                    _lkm_row(
+                        "P5",
+                        "lkm:bohrium:n6",
+                        0.9,
+                        paper_title="Assessment Paper",
+                        content="A retrieved claim-level snippet relevant to the focus.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "seed",
+            "--artifact-only",
+            "--landscape",
+            str(landscape_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Assessment:" in result.output
+    assert "gaia inquiry obligation add" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+
+    artifacts = _assessment_artifacts(pkg_dir)
+    assert len(artifacts) == 1
+    assessment = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert assessment["kind"] == "assessment"
+    assert assessment["focus"] == {"kind": "focus", "id": "seed"}
+    assert assessment["evidence_packet"]["snippets"][0]["text"] == (
+        "A retrieved claim-level snippet relevant to the focus."
+    )
+    assert assessment["relations"][0]["type"] == "background_for"
+    assert assessment["relations"][0]["epistemic_status"] == "candidate"
+    assert assessment["relations"][0]["promotion_hint"] == "none"
+    assert assessment["relations"][0]["source_refs"][0]["id"] == "snippet_0"
+    assert assessment["candidate_obligations"]
+
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "assess.completed"
+    assert events[-1]["payload"]["artifact"].endswith(artifacts[0].name)
 
 
 def test_research_rejects_non_package_without_creating_layout(tmp_path: Path) -> None:

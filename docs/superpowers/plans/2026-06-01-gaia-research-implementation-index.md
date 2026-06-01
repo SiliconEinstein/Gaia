@@ -85,7 +85,7 @@ Every implementation PR must preserve these checks:
 
 ## M5. Assess
 
-**Plan:** Create a dedicated `docs/superpowers/plans/YYYY-MM-DD-gaia-research-m5-assess.md` before implementation.
+**Plan:** `docs/superpowers/plans/2026-06-01-gaia-research-m5-assess.md`
 
 **Reviewable Success Criteria:**
 
