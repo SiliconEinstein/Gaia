@@ -392,12 +392,6 @@ gaia inspect starmap [PATH] [--format html|dot|svg] [--theme light|stellaris|dar
 | `--theme` | `light` | Visual theme: `light` (flat paper-friendly), `stellaris` / `dark` (deep-space dark with glow filters for svg) |
 | `--out` | `.gaia/starmap.{html,dot,svg}` | Output destination |
 
-`gaia inspect starmap-replay` is an experimental sibling that renders an animated
-playback of an LKM discovery run. It expects
-`artifacts/lkm-discovery/retrieval_log.jsonl` and
-`artifacts/lkm-discovery/graph_growth_log.jsonl`.
-
-
 ## Artifacts by Stage
 
 | Stage    | Command          | Key Artifacts |

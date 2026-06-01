@@ -5,10 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:replay": "VIZ_ENTRY=replay vite",
     "build:starmap": "vite build && node scripts/rename_output.mjs starmap",
-    "build:replay": "VIZ_ENTRY=replay vite build && node scripts/rename_output.mjs replay",
-    "build": "tsc --noEmit && npm run build:starmap && npm run build:replay",
+    "build": "tsc --noEmit && npm run build:starmap",
     "preview": "vite preview"
   },
   "dependencies": {

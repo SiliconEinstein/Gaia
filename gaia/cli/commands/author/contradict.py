@@ -108,10 +108,11 @@ def contradict_command(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
     export: bool = typer.Option(
-        True,
+        False,
         "--export/--no-export",
         help=(
-            "Add --dsl-binding-name to __all__ on a successful write (default on for contradict)."
+            "Add the returned contradiction helper to __all__ as a public "
+            "relation export. Default off: exports are curated explicitly."
         ),
     ),
     check: bool = typer.Option(

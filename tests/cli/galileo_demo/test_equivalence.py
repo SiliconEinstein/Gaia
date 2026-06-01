@@ -619,7 +619,7 @@ def test_galileo_register_prior_omits_default_source_id(tmp_path: Path) -> None:
     mirror = _scaffold_mirror(tmp_path)
     _author_galileo(mirror)
 
-    # CLI-authored priors land in the re-exported authored/ submodule;
+    # CLI-authored priors land in the composed authored/ submodule;
     # the hand-authored ground truth keeps its sibling at the package root.
     cli_priors = (mirror / "src" / "galileo_v0_5" / "authored" / "priors.py").read_text()
     hand_priors = (_GROUND_TRUTH_PKG / "src" / "galileo_v0_5" / "priors.py").read_text()

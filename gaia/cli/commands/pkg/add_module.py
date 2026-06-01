@@ -167,7 +167,7 @@ def add_module_command(
 ) -> None:
     r"""Scaffold a sibling Python module under ``src/<import_name>/authored/``.
 
-    The module is created inside the re-exported ``authored/`` submodule so
+    The module is created inside the composed ``authored/`` submodule so
     a later ``gaia author <verb> --file <name>.py`` (which routes into
     ``authored/``) can write into it.
 
@@ -227,8 +227,8 @@ def add_module_command(
     source_root = pre.source_root
     import_name = pre.import_name or ""
 
-    # Sibling modules for CLI-authored statements live inside the
-    # re-exported ``authored/`` submodule (canon), so ``gaia author <verb>
+    # Sibling modules for CLI-authored statements live inside the composed
+    # ``authored/`` submodule (canon), so ``gaia author <verb>
     # --file <name>.py`` (which routes to ``authored/<name>.py``) finds the
     # module this verb created. Ensure the submodule exists first.
     authored_init = ensure_authored_submodule(source_root, pre.source_init_path)

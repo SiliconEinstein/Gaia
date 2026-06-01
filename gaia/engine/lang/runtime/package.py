@@ -46,6 +46,7 @@ class CollectedPackage:
         self._module_order: list[str] = []
         self._module_titles: dict[str, str] | None = None
         self._exported_labels: set[str] = set()
+        self._exported_knowledge_ids: set[int] = set()
         self._resolution_policy: Any | None = None
 
     def __enter__(self) -> CollectedPackage:
@@ -101,9 +102,17 @@ class CollectedPackage:
     @property
     def exported(self) -> list[str]:
         """Return exported knowledge labels in declaration order."""
-        if self._exported_labels:
-            return [k.label for k in self.knowledge if k.label in self._exported_labels]
-        return [k.label for k in self.knowledge if k.label is not None]
+        if self._exported_knowledge_ids:
+            return [
+                k.label
+                for k in self.knowledge
+                if id(k) in self._exported_knowledge_ids and k.label is not None
+            ]
+        return [
+            k.label
+            for k in self.knowledge
+            if k.label is not None and k.label in self._exported_labels
+        ]
 
 
 _inferred_packages: dict[Path, CollectedPackage] = {}
