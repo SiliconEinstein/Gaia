@@ -893,7 +893,7 @@ class TestReasoning:
         item = json.loads(result.output)["results"][0]
         assert item["source"]["factors"] == [{"factor_id": "gfac_phase", "premise_count": 1}]
 
-    def test_default_comments_premised_factor_without_inline_conclusion(
+    def test_default_warns_premised_factor_without_inline_conclusion(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -922,12 +922,12 @@ class TestReasoning:
 
         assert result.exit_code == 0, result.output
         item = json.loads(result.output)["results"][0]
-        assert item["gaia"]["object_kind"] == "derive"
+        assert item["gaia"]["object_kind"] is None
         assert item["source"]["factors"] == [
             {
                 "factor_id": "fac_missing_conclusion",
                 "premise_count": 1,
-                "comment": "uses chain-level or preceding-chain conclusion",
+                "warning": "missing factor conclusion; cannot derive from this factor",
             }
         ]
         assert item["actions"] == [

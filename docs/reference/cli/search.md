@@ -81,8 +81,9 @@ Normalized `gaia-json` keeps the factor, adds a non-warning `comment` on that
 runs `gaia search lkm package --index <index> --paper-id <paper>` so agents can
 fetch the whole paper package and recover the prior reasoning-chain/conclusion
 chain that the current conclusion depends on. A factor with premises but no
-inline conclusion is similarly kept as a valid continuation from a chain-level or
-preceding-chain conclusion and annotated with a non-warning `comment`.
+inline conclusion is an incomplete LKM payload, not a valid continuation and not
+a candidate `derive(...)`; normalized `gaia-json` leaves `gaia.object_kind`
+unset and annotates that `source.factors[]` entry with a `warning`.
 
 The planned normalized result schema and the `search` / `pkg add` boundary are
 tracked in the internal draft `docs/specs/2026-05-20-gaia-search-design.md`.
