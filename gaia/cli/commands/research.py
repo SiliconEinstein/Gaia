@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -9,9 +12,12 @@ import typer
 from gaia.engine.research import (
     ResearchPackage,
     ResearchTargetError,
+    ScanBatch,
     append_research_event,
+    build_research_landscape,
     ensure_research_manifest,
     load_research_package,
+    write_research_artifact,
 )
 
 research_app = typer.Typer(
@@ -36,6 +42,32 @@ def _print_inquiry_suggestions(pkg: ResearchPackage) -> None:
         f'{pkg.import_name}:target "Describe the missing evidence or coverage gap."'
     )
     typer.echo("  gaia build check " + str(pkg.path))
+
+
+def _read_search_json(ref: str) -> tuple[dict[str, object], str]:
+    if ref == "-":
+        raw = sys.stdin.read()
+        label = "<stdin>"
+    else:
+        path = Path(ref)
+        label = str(path)
+        if not path.exists():
+            typer.echo(f"Error: --search-json file not found: {ref}", err=True)
+            raise typer.Exit(2)
+        raw = path.read_text(encoding="utf-8")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: --search-json is not valid JSON: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    if not isinstance(payload, dict):
+        typer.echo("Error: --search-json must be a JSON object.", err=True)
+        raise typer.Exit(2)
+    results = payload.get("results")
+    if not isinstance(results, list):
+        typer.echo("Error: --search-json must contain a results array.", err=True)
+        raise typer.Exit(2)
+    return payload, label
 
 
 @research_app.command("status")
@@ -68,17 +100,85 @@ def explore_command(
         bool,
         typer.Option("--dry-run", help="Plan the scan without pulling papers or writing source."),
     ] = False,
+    search_json: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--search-json",
+            help="Normalized `gaia search lkm` JSON file; use '-' to read stdin.",
+        ),
+    ] = None,
+    query: Annotated[
+        list[str] | None,
+        typer.Option("--query", help="Override query text for the matching --search-json."),
+    ] = None,
+    source: Annotated[
+        list[str] | None,
+        typer.Option("--source", help="Source QID for the matching --search-json."),
+    ] = None,
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Optional output path for the landscape artifact."),
+    ] = None,
 ) -> None:
     """Plan an artifact-only Explore action."""
     if mode != "scan":
         typer.echo("Error: M1 supports only `--mode scan`.", err=True)
         raise typer.Exit(2)
-    if not dry_run:
+    search_refs = list(search_json or [])
+    if not search_refs and not dry_run:
         typer.echo("Error: M1 explore requires `--dry-run`.", err=True)
         raise typer.Exit(2)
 
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
+    if search_refs:
+        queries = list(query or [])
+        sources = list(source or [])
+        batches: list[ScanBatch] = []
+        for index, ref in enumerate(search_refs):
+            payload, path_label = _read_search_json(ref)
+            batches.append(
+                ScanBatch(
+                    search_results=payload,
+                    query=queries[index] if index < len(queries) else None,
+                    source_qid=sources[index] if index < len(sources) else None,
+                    path=path_label,
+                )
+            )
+        landscape = build_research_landscape(batches, pull_budget=0)
+        output_path = write_research_artifact(
+            research_pkg,
+            "landscapes",
+            "scan",
+            landscape,
+            out=out,
+        )
+        append_research_event(
+            research_pkg,
+            "explore.scan.completed",
+            {
+                "mode": "scan",
+                "artifact": str(output_path),
+                "stats": landscape["stats"],
+                "pull_budget": 0,
+                "writes_source": False,
+                "writes_focus_registry": False,
+                "writes_obligation_ledger": False,
+            },
+        )
+        stats = landscape["stats"]
+        typer.echo(
+            "Landscape: "
+            f"{stats['query_batches']} query batch(es), "
+            f"{stats['raw_results']} raw result(s), "
+            f"{stats['paper_leads']} paper lead(s)."
+        )
+        typer.echo(f"Output: {output_path}")
+        typer.echo("pull_budget: 0")
+        typer.echo("candidate_focuses: artifact-local only")
+        _print_inquiry_suggestions(research_pkg)
+        return
+
     append_research_event(
         research_pkg,
         "explore.scan.planned",

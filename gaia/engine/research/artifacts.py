@@ -43,6 +43,10 @@ def _utcnow() -> str:
     return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _utcstamp() -> str:
+    return datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%S%fZ")
+
+
 def _derive_import_name(project_name: str) -> str:
     return project_name.removesuffix("-gaia").replace("-", "_")
 
@@ -187,3 +191,46 @@ def append_research_event(
         encoding="utf-8",
     )
     return record
+
+
+def write_research_artifact(
+    pkg: ResearchPackage,
+    category: str,
+    stem: str,
+    payload: dict[str, Any],
+    *,
+    out: str | Path | None = None,
+) -> Path:
+    """Write one package-local research artifact and index it in the manifest."""
+    if out is None:
+        output_path = research_dir(pkg) / category / f"{stem}-{_utcstamp()}.json"
+    else:
+        output_path = Path(out)
+        if not output_path.is_absolute():
+            output_path = pkg.path / output_path
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    manifest = ensure_research_manifest(pkg)
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, list):
+        artifacts = []
+    artifacts.append(
+        {
+            "path": str(output_path),
+            "category": category,
+            "kind": payload.get("kind"),
+            "action": payload.get("action"),
+            "created_at": _utcnow(),
+        }
+    )
+    manifest["artifacts"] = artifacts
+    manifest["updated_at"] = _utcnow()
+    _manifest_path(pkg).write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return output_path
