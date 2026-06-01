@@ -96,6 +96,45 @@ research behavior 应该能从 `gaia --help` 发现，并与 `gaia pkg`、`gaia 
 所以新设计应该吸收 #726 的经验，但把 contract boundary 移回 Gaia package 和
 Gaia CLI primitives。
 
+### 2.1 与 `gaia-lkm-explore` 的关系
+
+`gaia-lkm-explore` 是这个方向的重要前期探索，但不应该成为 `gaia research`
+之外的长期并列用户界面。它的价值主要在于验证了一批 LKM-specific research workflow
+经验：
+
+- 如何做 landscape scan 和多轮扩图；
+- 如何记录 query、round、frontier、artifact trace；
+- 如何从 paper leads 进入 candidate focus；
+- 如何避免 Assess 只看标题而看不到真实检索内容；
+- 哪些 schema validation、grounding check 和 event trace 对 agent 自解释执行有用；
+- 哪些设计容易踩坑，例如 `focuses.json` 变成平行 source of truth。
+
+长期关系应该是：
+
+```text
+Gaia package
+  = durable workspace / source of truth
+
+Gaia primitives
+  = search / pkg add / inquiry / author / build
+
+gaia research
+  = canonical package-native orchestration surface
+
+gaia-lkm-explore
+  = experimental LKM exploration reference and migration source
+```
+
+因此，成熟能力应该逐步从 `gaia-lkm-explore` 迁入 `gaia research explore` /
+`gaia research assess`，并在迁移时改用 Gaia package、`gaia inquiry` 和
+`gaia pkg add` 作为语义状态。`gaia-lkm-explore` 可以短期保留为实验入口或兼容
+wrapper，但 agent-facing docs 和 task envelopes 不应该继续把它当作 canonical
+workflow。
+
+等 `gaia research` 的 Explore / Assess surface 足够完整后，可以考虑正式
+deprecate `gaia-lkm-explore`。这不会否定它的实验价值；它应该被看作迁移和设计参考，
+而不是需要长期维护的第二套 research product surface。
+
 ## 3. 设计目标
 
 1. Gaia package 是所有 research actions 的长期沟通介质。
