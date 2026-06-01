@@ -50,7 +50,7 @@ Every implementation PR must preserve these checks:
 
 ## M2b. Port Selected Exploration Utilities
 
-**Plan:** Create a dedicated `docs/superpowers/plans/YYYY-MM-DD-gaia-research-m2b-port-exploration-utilities.md` before implementation.
+**Plan:** `docs/superpowers/plans/2026-06-01-gaia-research-m2b-port-exploration-utilities.md`
 
 **Reviewable Success Criteria:**
 
