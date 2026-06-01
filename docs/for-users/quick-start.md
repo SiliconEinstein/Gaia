@@ -135,8 +135,9 @@ Key points:
 - `claim()` declares propositions that carry probability in inference
 - `derive()` connects explicit premises to deterministic conclusions
 - `contradict()` declares a reviewable relation between two claims
-- `__all__` lists exported conclusions (the package's curated external
-  `Knowledge` interface); omit internal premises and helper claims
+- `__all__` lists the package's curated external interface; here it exports
+  the returned contradiction helper as a typed relation, while internal
+  premises stay unexported
 
 ## Compile
 

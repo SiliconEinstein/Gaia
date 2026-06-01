@@ -87,6 +87,69 @@ def test_explicit_export_grows_all_block_alphabetically(gaia_package: FixturePac
     assert pos_added < pos_hypothesis < pos_observation
 
 
+def test_relation_author_export_controls_returned_helper_all_block(
+    gaia_package: FixturePackage,
+) -> None:
+    """Relation verbs export only when the returned helper is explicitly public."""
+    default_result = runner.invoke(
+        app,
+        [
+            "author",
+            "equal",
+            "--a",
+            "hypothesis",
+            "--b",
+            "observation",
+            "--dsl-binding-name",
+            "same_internal",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert default_result.exit_code == 0, default_result.output
+    default_envelope = _parse(default_result.output)
+    default_payload = default_envelope["payload"]
+    assert isinstance(default_payload, dict)
+    assert not default_payload.get("all_managed", False)
+
+    text = gaia_package.source_init.read_text()
+    assert "same_internal = equal(hypothesis, observation)" in text
+    all_start = text.find("__all__")
+    all_block = text[all_start : text.find("]", all_start) + 1]
+    assert "'same_internal'" not in all_block
+
+    export_result = runner.invoke(
+        app,
+        [
+            "author",
+            "equal",
+            "--a",
+            "hypothesis",
+            "--b",
+            "observation",
+            "--dsl-binding-name",
+            "same_public",
+            "--export",
+            "--target",
+            str(gaia_package.root),
+            "--no-check",
+        ],
+    )
+    assert export_result.exit_code == 0, export_result.output
+    export_envelope = _parse(export_result.output)
+    export_payload = export_envelope["payload"]
+    assert isinstance(export_payload, dict)
+    assert export_payload.get("all_managed") is True
+
+    text = gaia_package.source_init.read_text()
+    assert "same_public = equal(hypothesis, observation)" in text
+    all_start = text.find("__all__")
+    all_block = text[all_start : text.find("]", all_start) + 1]
+    assert "'same_public'" in all_block
+    assert "'same_internal'" not in all_block
+
+
 def test_all_skipped_when_no_all_block(gaia_package: FixturePackage) -> None:
     """A package without `__all__` is left as-is (no synthesis)."""
     # Strip __all__ from the fixture.
