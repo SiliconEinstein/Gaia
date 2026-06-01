@@ -258,6 +258,12 @@ experiments、simulations、proofs、benchmarks 或 research tasks。
 
 Explore 负责扩大问题空间、建立 landscape。
 
+早期 Explore 的第一目标不是找到最值得深入的一篇 paper，而是用最低成本尽量浏览整个
+field 的结构化全貌。它应该优先建立 breadth-first landscape：query families、
+paper/claim/method clusters、coverage dimensions、major schools、known controversies
+和 under-covered regions。早期成功标准是 field coverage 和核心分歧是否被摊开，而不是
+是否已经完成 paper triage 或 deep assessment。
+
 它回答：
 
 - 这个领域/问题的 literature 和 evidence landscape 长什么样？
@@ -387,6 +393,10 @@ search first, pull later
 - ranking signals；
 - candidate pull rationale。
 
+它不应该默认要求 agent 选择 top-1 / top-3 paper，不应该把 frontier ranking 当成
+landscape 完成标准，也不应该过早生成 definitive focus。Candidate focuses 可以被记录，
+但必须保持候选状态，直到 coverage 足够、用户确认或 inquiry primitive 接收。
+
 除非显式设置 pull budget，否则不运行 `gaia pkg add --lkm-paper`。
 
 ### 8.2 Explore expand
@@ -512,8 +522,10 @@ claim。未来如果设计 LKM writeback，也必须保留这个 epistemic statu
    LKM paper ids、pulled package names、source paths、content hashes。
 5. `gaia build check` 仍然是 package structural validation path。Research-specific
    checks 可以存在，但不能替代 package checks。
-6. Broad `explore --mode scan` 默认 pull budget 为 0。
-7. Assessment artifacts 必须带 epistemic status，不能被解释成 paper claims 或
+6. Broad `explore --mode scan` 必须 breadth-first，并以 field coverage 为早期成功标准；
+   它不能默认把 top-ranked paper triage 当成完成条件。
+7. Broad `explore --mode scan` 默认 pull budget 为 0。
+8. Assessment artifacts 必须带 epistemic status，不能被解释成 paper claims 或
    discovery claims。
 
 ## 12. Gaia Package 里的 Knowledge Model
@@ -925,12 +937,16 @@ gaia research assess <pkg> --focus <target> --artifact-only
 - paper leads；
 - pull candidates；
 - candidate coverage gaps。
+- breadth-first coverage map，包括 query families、claim/method clusters、
+  under-covered regions 和 candidate focuses。
 
 验证：
 
 - 默认 pull budget 为 0；
 - 除非显式请求，否则不创建 `.gaia/lkm_packages/`；
 - landscape refs 保留 LKM provenance。
+- 不要求 agent 在第一轮选择 top paper 进入 assessment；
+- candidate focuses 保持候选状态，不写入 canonical focus registry。
 
 ### M3: Explore expand
 
