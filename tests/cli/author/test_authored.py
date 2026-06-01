@@ -1,6 +1,6 @@
 """Unit tests for the canonical ``authored/`` submodule helpers.
 
-Focus: :func:`ensure_root_reexport` must compose the ``authored`` re-export
+Focus: :func:`ensure_root_reexport` must compose the ``authored`` import block
 into an existing root ``__init__.py`` *without* silently changing the
 container kind of a pre-existing ``__all__`` — a ``tuple`` stays a tuple,
 a ``list`` stays a list — and the fresh-package seed stays byte-identical
@@ -86,7 +86,7 @@ def test_ensure_root_reexport_seeds_list_when_no_all(tmp_path: Path) -> None:
 
 
 def test_ensure_root_reexport_is_idempotent(tmp_path: Path) -> None:
-    """A second call leaves an already-re-exporting root untouched."""
+    """A second call leaves an already-importing root untouched."""
     root = tmp_path / "__init__.py"
     root.write_text('__all__: tuple[str, ...] = ("alpha",)\n')
 
@@ -96,3 +96,20 @@ def test_ensure_root_reexport_is_idempotent(tmp_path: Path) -> None:
     twice = root.read_text()
 
     assert once == twice
+
+
+def test_ensure_root_reexport_upgrades_legacy_star_block(tmp_path: Path) -> None:
+    """Old scaffold blocks gain runtime binding import without duplicating __all__."""
+    root = tmp_path / "__init__.py"
+    root.write_text(
+        "__all__: list[str] = []\n\n"
+        "from .authored import *  # noqa: F403  (CLI-authored statements)\n"
+        "from . import authored as _authored\n\n"
+        "__all__ = [*__all__, *_authored.__all__]\n"
+    )
+
+    ensure_root_reexport(root)
+    result = root.read_text()
+
+    assert "for _gaia_name, _gaia_value in vars(_authored).items():" in result
+    assert result.count("__all__ = [*__all__, *_authored.__all__]") == 1

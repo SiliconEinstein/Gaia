@@ -161,6 +161,58 @@ def _assign_labels_for_loaded_modules() -> None:
         _assign_labels(module, pkg, source_module)
 
 
+def _root_all_names(module: ModuleType) -> list[str]:
+    export_names = getattr(module, "__all__", None)
+    if export_names is None:
+        return []
+    if not isinstance(export_names, (list, tuple)):
+        raise GaiaPackagingError("Error: package root __all__ must be a list or tuple of strings.")
+    if not all(isinstance(name, str) for name in export_names):
+        raise GaiaPackagingError(
+            "Error: package root __all__ must contain only string export names."
+        )
+    return list(export_names)
+
+
+def _record_root_exports(module: ModuleType, pkg: CollectedPackage) -> None:
+    """Resolve root ``__all__`` names to local Knowledge objects."""
+    local_knowledge_ids = {id(knowledge) for knowledge in pkg.knowledge}
+    exported_knowledge_ids: set[int] = set()
+    exported_labels: set[str] = set()
+
+    for name in _root_all_names(module):
+        if not hasattr(module, name):
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but the package root has no such attribute."
+            )
+        exported = getattr(module, name)
+        if not isinstance(exported, Knowledge):
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but it resolves to "
+                f"{type(exported).__name__}, not a Gaia Knowledge object."
+            )
+        if id(exported) not in local_knowledge_ids:
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but it points to Knowledge "
+                "from another package. Export only local package Knowledge objects."
+            )
+        if exported.label != name:
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but it points to Knowledge "
+                f"labeled {exported.label!r}. Exported Knowledge names must match "
+                "their Gaia labels."
+            )
+        if id(exported) in exported_knowledge_ids:
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports duplicate Knowledge object {name!r}."
+            )
+        exported_knowledge_ids.add(id(exported))
+        exported_labels.add(name)
+
+    pkg._exported_knowledge_ids = exported_knowledge_ids
+    pkg._exported_labels = exported_labels
+
+
 def _is_auxiliary_source_module(parts: tuple[str, ...]) -> bool:
     if "reviews" in parts:
         return True
@@ -417,10 +469,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
 
     _assign_labels_for_loaded_modules()
 
-    # Record exported labels from __all__ for the compiler
-    export_names = getattr(module, "__all__", None)
-    if isinstance(export_names, list) and all(isinstance(n, str) for n in export_names):
-        pkg._exported_labels = set(export_names)
+    _record_root_exports(module, pkg)
 
     module_titles = _module_titles(import_name, pkg)
     if module_titles:

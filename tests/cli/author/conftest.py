@@ -38,21 +38,26 @@ type = "knowledge-package"
 uuid = "{uuid}"
 """
 
-# Package-root ``__init__.py`` — a thin re-export shell. Hand-authored
+# Package-root ``__init__.py`` — a thin composition shell. Hand-authored
 # DSL would live here directly; the fixture keeps its seed statements in
 # the ``authored/`` submodule (where ``gaia author`` writes), so the
 # package's effective authoring surface is the canonical CLI target. The
-# root re-exports ``authored/`` so the composed package loads as one DSL.
+# root imports ``authored/`` so the composed package loads as one DSL while
+# ``__all__`` stays the curated public surface.
 _ROOT_INIT_TEMPLATE = """\
 __all__: list[str] = []
 
-from .authored import *  # noqa: E402, F403  (CLI-authored statements)
-from . import authored as _authored  # noqa: E402
+from . import authored as _authored
+
+for _gaia_name, _gaia_value in vars(_authored).items():
+    if not _gaia_name.startswith("_"):
+        globals()[_gaia_name] = _gaia_value
+del _gaia_name, _gaia_value
 
 __all__ = [*__all__, *_authored.__all__]
 """
 
-# The re-exported ``authored/`` submodule — the canonical home for every
+# The composed ``authored/`` submodule — the canonical home for every
 # ``gaia author <verb>`` write. Imports the full agent-author DSL surface
 # so the post-write ``--check`` integration can load freshly-authored
 # statements without name-resolution errors, and seeds two claims so the
@@ -101,9 +106,9 @@ class FixturePackage:
     # ``source_init`` points at the ``authored/__init__.py`` — the canonical
     # target every ``gaia author`` write lands in. Tests read it to assert
     # the appended statement and seed bindings into it for collision /
-    # reference checks. The package-root ``__init__.py`` (a thin re-export
+    # reference checks. The package-root ``__init__.py`` (a thin composition
     # shell) is exposed separately as ``root_init`` for the handful of tests
-    # that assert the root re-export composition.
+    # that assert the root authored-import composition.
     source_init: Path
     authored_init: Path
     root_init: Path

@@ -47,13 +47,26 @@ from .s2_methods import *
 from .s3_results import *
 ```
 
-The package root `__all__` is the cross-package interface: names listed there
-are exported into the compiled package manifests. Sibling modules may also carry
+The package root `__all__` is the curated cross-package `Knowledge` interface:
+names listed there are exported into the compiled package manifests. Each name
+must resolve to a local `Knowledge` object through normal root-module attribute
+lookup, and the public name must match the object's Gaia label. Empty or missing
+root `__all__` means no exported public surface. Sibling modules may also carry
 their own literal `__all__` blocks when they are CLI authoring targets:
 `gaia pkg add-module` creates `__all__: list[str] = []`, and `gaia author
---file <module.py>` can insert new bindings into that module's list. Keep these
-lists literal and static; the CLI intentionally does not edit dynamically
-constructed `__all__` values.
+--file <module.py> --export` can insert new bindings into that module's list.
+Keep these lists literal and static; the CLI intentionally does not edit
+dynamically constructed `__all__` values.
+
+> **Migration (breaking).** Root `__all__` is now strictly validated at load /
+> compile time. A package whose root `__all__` lists a strategy
+> (`deduction(...)`, `support(...)`, composites), a `fills(...)`/bridge
+> relation, a name imported from a dependency package, an aliased `Knowledge`
+> (export name ≠ label), or a typo now fails with a `GaiaPackagingError` that
+> names the offending entry. Older loaders silently ignored such names. To
+> migrate, drop everything that is not a local headline `Knowledge` label from
+> root `__all__` and run `gaia build compile <pkg>`. See
+> [Curated Package Exports Design](../specs/2026-05-31-curated-package-exports-design.md).
 
 ## Imports
 
@@ -937,9 +950,9 @@ tc_prediction = claim("Tc of MgB2 is 39K.")
 
 | Convention | Visibility | Example |
 |------------|-----------|---------|
-| In `__all__` | Exported (cross-package interface) | `__all__ = ["main_theorem"]` |
+| In root `__all__` | Exported (cross-package `Knowledge` interface) | `__all__ = ["main_theorem"]` or `__all__ = export(main_theorem)` |
 | No `_` prefix | Package-scope binding; may receive an inferred label | `supporting_lemma = claim(...)` |
-| `_` prefix | Python private convention only; not exported unless listed in `__all__` | `_helper = claim(...)` |
+| `_` prefix | Python private convention only; do not export it | `_helper = claim(...)` |
 
 **Legacy strategy naming:** Assign legacy strategies to named variables so they appear in `gaia build check --brief` output:
 
@@ -994,7 +1007,7 @@ Do not assign manual priors to derived claims, structural expression helpers, re
 | Assigning priors to derived/helper claims | Put priors only on independent probabilistic inputs |
 | `PRIORS = {...}` in `priors.py` | Use `register_prior(claim, value, justification=...)` |
 | `reason` without `prior` in legacy APIs (or vice versa) | Provide both or neither |
-| Dynamic or computed `__all__` | Keep `__all__` literal and static. Root `__all__` is the cross-package export surface; CLI target submodules may also keep literal lists for `gaia author --file`. |
+| Dynamic or computed `__all__` | Keep `__all__` literal and static, or use `export(...)` with module-scope `Knowledge` objects. Root `__all__` is the cross-package export surface; CLI target submodules may also keep literal lists for `gaia author --file`. |
 | `from gaia.gaia_ir import ...` | Use `from gaia.engine.ir import ...` |
 | `noisy_and()` | Deprecated legacy compatibility path |
 
