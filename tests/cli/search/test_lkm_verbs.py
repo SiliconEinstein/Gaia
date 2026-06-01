@@ -861,6 +861,38 @@ class TestReasoning:
         assert item["gaia"]["object_kind"] == "derive"
         assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
 
+    def test_default_uses_global_factor_id_not_local_factor_id(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "source_package": "paper:811",
+                            "factors": [
+                                {
+                                    "global_id": "gfac_phase",
+                                    "local_id": "lfac_phase",
+                                    "conclusion": {"id": "gcn_result", "title": "Result"},
+                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["source"]["factors"] == [{"factor_id": "gfac_phase", "premise_count": 1}]
+
     def test_default_comments_premised_factor_without_inline_conclusion(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

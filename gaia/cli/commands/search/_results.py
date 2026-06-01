@@ -434,7 +434,11 @@ def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _factor_id(factor: dict[str, Any]) -> str | None:
-    return _string(factor.get("id")) or _string(factor.get("factor_id"))
+    return (
+        _string(factor.get("global_id"))
+        or _string(factor.get("id"))
+        or _string(factor.get("factor_id"))
+    )
 
 
 def _chain_source_package(chain: dict[str, Any]) -> str | None:
