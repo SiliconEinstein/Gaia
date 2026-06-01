@@ -568,7 +568,11 @@ vacuum_prediction = claim("...")
 #              id="galileo:galileo_falling_bodies::vacuum_prediction")
 ```
 
-Implementation: after import, the compiler inspects the loaded module and uses `__all__` when present, otherwise public module globals, to assign labels.
+Implementation note (current behavior): after import, the compiler assigns
+labels from loaded module variable names. Root `__all__` is not a fallback label
+source; it is the curated public `Knowledge` surface. Entries in root `__all__`
+must resolve through normal Python attribute lookup to local `Knowledge`
+objects, and the public name must match the object's Gaia label.
 
 **Edge cases:**
 - Inline claims (e.g., `analogy(bridge=claim("..."))`) without variable binding get auto-generated labels (e.g., `_anon_claim_001`), marked as private.

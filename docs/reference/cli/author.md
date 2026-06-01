@@ -9,9 +9,10 @@ The `gaia author` subcommand group and the `gaia pkg scaffold` verb are an
 **optional convenience** over direct SDK authoring: instead of editing the
 Python source, you can scaffold a fresh `-gaia` package and append DSL
 statements through `gaia author <verb>`. Every CLI write is confined to the
-package's re-exported `authored/` submodule (`src/<pkg>/authored/`) — the cli
-never writes the package-root `__init__.py`, which composes the CLI-authored
-statements back in via `from .authored import *`. The cli owns identifier
+package's composed `authored/` submodule (`src/<pkg>/authored/`) — the cli
+never writes the package-root `__init__.py`, which imports the CLI-authored
+runtime bindings while keeping root `__all__` as the curated public surface.
+The cli owns identifier
 collision checks, reference resolution, pre-write defensive validation, file
 appending, and (by default) a post-write `gaia build check` to confirm the
 package still compiles.
@@ -31,6 +32,9 @@ all 5 of the DSL verbs the canonical Galileo example exercises, see
 - **`--file <relative>`** on every author verb — route the statement to
   a sibling Python module instead of `__init__.py`. Pair with
   `gaia pkg add-module --name <name>` to scaffold the sibling.
+- **`--export`** on statement-emitting author verbs — add the emitted
+  binding to the target module's literal `__all__`. Relation verbs export
+  the returned helper Claim only when this flag is explicit.
 - **`--background <csv>`** on `equal` / `contradict` / `exclusive` /
   `observe` — passes through to the engine's `background=[...]` kwarg.
 - **`derive --conclusion-prose`** / **`observe --observation-prose`** /
@@ -95,6 +99,7 @@ cutting flags. Per-verb flags layer on top of these.
 | `--rationale <text>` | string | none | Natural-language justification carried through to the DSL kwarg. |
 | `--metadata <json>` | JSON object | none | Optional metadata dict; rendered as the DSL `metadata=` kwarg. |
 | `--references <csv>` | csv idents | none | Comma-separated background reference identifiers (only the verbs that accept background context). |
+| `--export / --no-export` | bool | `--no-export` | Add the emitted binding to the target module's literal `__all__`. For `equal`, `contradict`, `exclusive`, and `associate`, this exports the returned relation helper Claim. |
 | `--check / --no-check` | bool | `--check` on | Run post-write `gaia build check` after a successful write. Short-circuited when pre-write fails. |
 | `--human` | bool flag | `False` | Render the envelope as human-readable text instead of JSON. |
 | `--interactive` | bool flag | `False` | Surface pre-write warnings as a numbered prompt (human mode only — JSON mode auto-suppresses). |
@@ -103,9 +108,10 @@ cutting flags. Per-verb flags layer on top of these.
 `--label` is **required** for every statement-emitting verb except
 `register-prior` (which writes a bare `register_prior(...)` expression with
 no LHS binding) and `note` / `claim` / `question` (where the positional
-content arg is also required). Verbs that emit a relation (`equal` /
-`contradict` / `exclusive` / `decompose`) bind the relation's helper Claim
-to `--label`.
+content arg is also required). Relation verbs (`equal` / `contradict` /
+`exclusive` / `associate`) return helper Claims; `--export` makes that
+returned helper part of the curated public interface. `decompose` returns
+its `whole` Claim rather than a separate public helper.
 
 ## Per-verb flag surface (statement-emitting verbs)
 
@@ -191,7 +197,7 @@ gaia author question <content> --label <ident> [--target <path>]
 ```
 gaia author <equal|contradict|exclusive> --a <ident> --b <ident> \
     --label <ident> [--target <path>]
-    [--rationale <text>] [--metadata <json>] ...
+    [--rationale <text>] [--metadata <json>] [--export] ...
 ```
 
 | Flag | Required | Description |
@@ -199,8 +205,11 @@ gaia author <equal|contradict|exclusive> --a <ident> --b <ident> \
 | `--a <ident>` | yes | Identifier of the first Claim. |
 | `--b <ident>` | yes | Identifier of the second Claim. |
 
-All three verbs produce a binary structural relation between existing
-Claim references — they do **not** mint fresh claims, by design.
+All three verbs produce a binary structural relation between existing Claim
+references and return a generated relation helper Claim. By default the helper
+is internal to the package; `--export` adds the returned helper binding to
+`__all__`, and the compiled export manifest marks it as a structural relation
+interface.
 
 ### `decompose`
 
@@ -301,7 +310,7 @@ gaia author infer --evidence <ident> \
 ```
 gaia author associate --a <ident> --b <ident> \
     --p-a-given-b <float> --p-b-given-a <float> --label <ident> [--target <path>]
-    [--pattern <name>] [--rationale <text>] [--metadata <json>] ...
+    [--pattern <name>] [--rationale <text>] [--metadata <json>] [--export] ...
 ```
 
 | Flag | Required | Description |
@@ -311,6 +320,11 @@ gaia author associate --a <ident> --b <ident> \
 | `--p-a-given-b <float>` | yes | P(a \| b). |
 | `--p-b-given-a <float>` | yes | P(b \| a). |
 | `--pattern <name>` | no | Optional engine-pattern hint. |
+
+`associate(...)` returns an association helper Claim. By default the helper is
+internal to the package; `--export` adds the returned helper binding to
+`__all__`, and the compiled export manifest marks it as a probabilistic
+relation interface with endpoint QIDs and conditional probabilities.
 
 ### `parameter`
 
@@ -462,7 +476,7 @@ The verb writes:
 * `src/<import_name>/__init__.py` importing the minimal DSL seed
   `from gaia.engine.lang import claim` plus `__all__: list[str] = []`. It does
   not seed a placeholder claim; subsequent `gaia author <verb>` calls populate
-  the file and update `__all__`.
+  the file. They update `__all__` only when `--export` is explicit.
 * `.gaia/.gitkeep` so the cli postwrite check can find the IR artifact
   directory.
 

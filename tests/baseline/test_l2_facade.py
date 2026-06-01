@@ -8,15 +8,15 @@ Locks the 7-submodule public surface:
   distribution aliases moved to ``gaia.engine.lang``.
 - `gaia.engine.bp` (24)
 - `gaia.engine.ir` (36)
-- `gaia.engine.lang` (96) — adds ``artifact`` / ``figure`` note anchors
+- `gaia.engine.lang` (97) — adds ``artifact`` / ``figure`` note anchors
   for references and artifact metadata, plus the ``BetaBinomial`` factory
   used by both Bayes hypothesis comparison and quantity-with-predicate
-  surfaces.
+  surfaces, and ``export`` for package public-surface declarations.
 - `gaia.engine.inquiry` (45)
 - `gaia.engine.trace` (7)
-- `gaia.engine.packaging` (9)
+- `gaia.engine.packaging` (10)
 
-Total 223. Adding or removing a symbol from a facade `__all__` requires
+Total 225. Adding or removing a symbol from a facade `__all__` requires
 updating both `docs/reference/engine/index.md` and these counts.
 """
 
@@ -32,10 +32,10 @@ EXPECTED = {
     "gaia.engine.bayes": 6,
     "gaia.engine.bp": 24,
     "gaia.engine.ir": 36,
-    "gaia.engine.lang": 96,
+    "gaia.engine.lang": 97,
     "gaia.engine.inquiry": 45,
     "gaia.engine.trace": 7,
-    "gaia.engine.packaging": 9,
+    "gaia.engine.packaging": 10,
 }
 
 
@@ -49,4 +49,4 @@ def test_facade_surface(module_name: str, expected: int) -> None:
 
 def test_grand_total() -> None:
     total = sum(len(importlib.import_module(m).__all__) for m in EXPECTED)
-    assert total == 223
+    assert total == 225

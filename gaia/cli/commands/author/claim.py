@@ -220,12 +220,12 @@ def claim_command(
         ),
     ),
     export: bool = typer.Option(
-        True,
+        False,
         "--export/--no-export",
         help=(
             "Add --dsl-binding-name to the target module's __all__ on a "
-            "successful write (default on for claim: claims are referenceable "
-            "Knowledge bindings other verbs cite by name)."
+            "successful write. Default off: exports are the package's curated "
+            "public Knowledge surface."
         ),
     ),
     check: bool = typer.Option(

@@ -93,9 +93,12 @@ def question_command(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
     export: bool = typer.Option(
-        True,
+        False,
         "--export/--no-export",
-        help=("Add --dsl-binding-name to __all__ on a successful write (default on for question)."),
+        help=(
+            "Add --dsl-binding-name to __all__ on a successful write. Default off: "
+            "exports are the package's curated public Knowledge surface."
+        ),
     ),
     check: bool = typer.Option(
         True,
