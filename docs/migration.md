@@ -40,7 +40,6 @@ and `pkg add-module` are current v0.5 additions, not old flat-verb mappings.
 | `gaia infer` | `gaia run infer` |
 | `gaia render` | `gaia run render` |
 | `gaia starmap` | `gaia inspect starmap` |
-| `gaia starmap-replay` | `gaia inspect starmap-replay` |
 | `gaia add` | `gaia pkg add` |
 | `gaia register` | `gaia pkg register` |
 
@@ -50,7 +49,7 @@ and `pkg add-module` are current v0.5 additions, not old flat-verb mappings.
 |---|---|---|
 | `build` | `init` / `compile` / `check` | Create and validate a knowledge package |
 | `run` | `infer` / `render` | Execute inference + emit presentation outputs |
-| `inspect` | `starmap` / `starmap-replay` | Visualize the compiled graph |
+| `inspect` | `starmap` | Visualize the compiled graph |
 | `review` | *(skeleton — no commands yet)* | Reserved for downstream reviewer tooling |
 | `inquiry` | `focus` / `review` / `obligation [add\|list\|close]` / `hypothesis [add\|list\|remove]` / `tactics log` / `reject` | Local semantic inquiry loop *(unchanged)* |
 | `pkg` | `add` / `add-import` / `add-module` / `register` / `scaffold` | Install dependencies, manage package modules/imports, publish, and bootstrap packages |

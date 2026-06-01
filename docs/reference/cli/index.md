@@ -10,7 +10,7 @@ organized into explicit top-level groups:
 | [author](author.md) | 18 statement-emitting verbs + 2 composition registration verbs (`note` / `claim` / `derive` / `variable` / ... / `compose`) | Agent-first authoring surface — append DSL statements through the cli without hand-editing source |
 | [build](build.md) | `init` / `compile` / `check` | Create and validate a knowledge package |
 | [run](run.md) | `infer` / `render` | Execute inference and emit presentation outputs |
-| [inspect](inspect.md) | `starmap` / `starmap-replay` | Visualize the compiled package graph |
+| [inspect](inspect.md) | `starmap` | Visualize the compiled package graph |
 | [review](review.md) | *(skeleton — no commands in alpha 0)* | Reserved for downstream reviewer tooling |
 | [inquiry](inquiry.md) | `focus` / `review` / `obligation [add\|list\|close]` / `hypothesis [add\|list\|remove]` / `tactics log` / `reject` | Local semantic-inquiry loop *(unchanged)* |
 | [pkg](pkg.md) | `add` / `add-import` / `add-module` / `register` / `scaffold` | Install dependencies, manage package modules/imports, publish, and bootstrap packages |
