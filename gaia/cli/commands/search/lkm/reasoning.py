@@ -160,11 +160,7 @@ def reasoning_command(
         )
         payload = _normalize(payload)
         if output_format == SearchOutputFormat.GAIA_JSON:
-            payload = normalize_lkm_reasoning_search(
-                payload,
-                query=claim_id,
-                index_id=index_id,
-            )
+            payload = normalize_lkm_reasoning_search(payload, query=claim_id, index_id=index_id)
         emit(payload, out)
         return
 

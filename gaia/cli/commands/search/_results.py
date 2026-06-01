@@ -12,6 +12,11 @@ from typing import Any
 
 from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 
+_FACTOR_MISSING_CONCLUSION_WARNING = "missing factor conclusion; cannot derive from this factor"
+_FACTOR_UPSTREAM_CONTEXT_COMMENT = (
+    "premises omitted; inspect package for upstream reasoning context"
+)
+
 
 class SearchOutputFormat(StrEnum):
     """Output formats for provider-backed search commands."""
@@ -200,10 +205,11 @@ def _normalize_lkm_chain(
         or provider_id
     )
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
-    has_factors = bool(_list(chain.get("factors")))
-    can_compile = _chain_can_compile(chain)
+    factors_summary = _factor_summaries(chain)
+    has_derivable_factor = _has_derivable_factor(chain)
+    needs_package_context = any("comment" in f for f in factors_summary)
     actions: list[dict[str, Any]] = []
-    if not can_compile and paper_id is not None:
+    if (not has_derivable_factor or needs_package_context) and paper_id is not None:
         actions.append(
             {
                 "kind": "inspect",
@@ -223,7 +229,7 @@ def _normalize_lkm_chain(
             "score": _number(chain.get("score"), chain.get("rerank_score")),
             "score_kind": "retrieval",
         },
-        "gaia": _gaia_identity("derive" if can_compile else None),
+        "gaia": _gaia_identity("derive" if has_derivable_factor else None),
         "source": {
             "provider_id": provider_id,
             "index_id": index_id,
@@ -232,8 +238,7 @@ def _normalize_lkm_chain(
             "paper_title": paper_title,
             "doi": doi,
             "conclusion_id": _string(conclusion.get("id")) or _string(chain.get("conclusion_id")),
-            "has_factors": has_factors,
-            "can_compile": can_compile,
+            "factors": factors_summary,
         },
         "actions": actions,
         "raw": {"provider": "lkm", "payload": chain},
@@ -251,7 +256,7 @@ def _chain_provider_id(chain: dict[str, Any], *, index: int) -> str:
     for factor in _list(chain.get("factors")):
         if not isinstance(factor, dict):
             continue
-        factor_id = _string(factor.get("id")) or _string(factor.get("factor_id"))
+        factor_id = _factor_id(factor)
         if factor_id is not None:
             return factor_id
     return f"chain_{index}"
@@ -402,14 +407,52 @@ def _chain_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _chain_can_compile(chain: dict[str, Any]) -> bool:
-    factors = _list(chain.get("factors"))
-    for factor in factors:
+def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-factor premise counts.
+
+    For normal inline factors, ``premise_count > 0`` plus a factor-level
+    conclusion marks a derivation step (emit a ``derive``). A premised factor
+    without a factor-level conclusion is an incomplete LKM payload, not a valid
+    continuation. A zero-premise factor with a conclusion is an intermediate
+    paper-chain node whose upstream premises are omitted from this search result;
+    inspect the paper package to recover them. Replaces the old chain-level
+    ``can_compile`` / ``has_factors`` booleans, which conflated leaf factors with
+    failures.
+    """
+    summaries: list[dict[str, Any]] = []
+    for factor in _list(chain.get("factors")):
         if not isinstance(factor, dict):
             continue
-        if _dict(factor.get("conclusion")) and _list(factor.get("premises")):
+        factor_id = _factor_id(factor)
+        premise_count = len(_list(factor.get("premises")))
+        has_conclusion = bool(_dict(factor.get("conclusion")))
+        summary = {
+            "factor_id": factor_id,
+            "premise_count": premise_count,
+        }
+        if premise_count > 0 and not has_conclusion:
+            summary["warning"] = _FACTOR_MISSING_CONCLUSION_WARNING
+        elif premise_count == 0 and has_conclusion:
+            summary["comment"] = _FACTOR_UPSTREAM_CONTEXT_COMMENT
+        summaries.append(summary)
+    return summaries
+
+
+def _has_derivable_factor(chain: dict[str, Any]) -> bool:
+    for factor in _list(chain.get("factors")):
+        if not isinstance(factor, dict):
+            continue
+        if _list(factor.get("premises")) and _dict(factor.get("conclusion")):
             return True
     return False
+
+
+def _factor_id(factor: dict[str, Any]) -> str | None:
+    return (
+        _string(factor.get("global_id"))
+        or _string(factor.get("id"))
+        or _string(factor.get("factor_id"))
+    )
 
 
 def _chain_source_package(chain: dict[str, Any]) -> str | None:

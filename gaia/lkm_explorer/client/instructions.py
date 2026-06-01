@@ -133,8 +133,9 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
      `--format raw-json`. Its shape is `{schema_version, query, results: [...]}`;
      each result carries `id`, `kind`, `rank.score`, `gaia.{qid,object_kind}`,
      `source.{paper_id,paper_title,doi,role,has_reasoning,has_evidence,
-     conclusion_id,has_factors,can_compile}`, `actions[]`, and `raw.payload`
-     (the verbatim upstream node/chain, the only place factor detail survives).
+     conclusion_id,factors}` (where `source.factors` is a per-factor list of
+     `{factor_id, premise_count}`), `actions[]`, and `raw.payload`
+     (the verbatim upstream node/chain, the only place full factor detail survives).
 
 2. RECORD unpulled related papers as frontier contacts — REQUIRED, the primary
    growth path. Pipe each search's JSON to:
@@ -195,18 +196,32 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
    envelope — there is no `total_chains` field; a result is chain-backed iff the
    normalizer says so:
    - Chain-backed claim — a `reasoning` result (`kind == "reasoning_chain"`) with
-     `source.can_compile == true` / `source.has_factors == true` (equivalently
-     `gaia.object_kind == "derive"`), or a `knowledge` claim with
+     `gaia.object_kind == "derive"` (the normalizer sets this only when at least
+     one factor has premises and a factor-level conclusion), or a `knowledge` claim with
      `source.has_reasoning == true` (its `inspect` action gives the
      `gaia search lkm reasoning --claim-id <id>` to fetch the chain). Emit
-     `claim(...)` for the conclusion + each usable premise, and one
-     factor-derived `derive(conclusion, given=[premises],
-     rationale="<numbered LKM steps>", label="<factor_id>")` per factor in
-     `raw.payload.factors[]` (LKM factor ids are `lfac_*`; use that id as the
-     label).
-   - LKM source claim (FALLBACK) — no compilable chain (a `knowledge` claim with
-     `source.has_reasoning == false`, or a `reasoning_chain` with
-     `source.can_compile == false`): emit a leaf/source `claim(...)` with
+     `claim(...)` for the conclusion + each usable premise. Route PER FACTOR in
+     `raw.payload.factors[]` by its premises and factor-level conclusion (NOT a
+     chain-level flag or chain-level conclusion):
+       * `premise_count > 0` with a factor-level conclusion → one
+         factor-derived `derive(conclusion,
+         given=[premises], rationale="<numbered LKM steps>", label="<factor_id>")`
+         (LKM factor ids are `gfac_*`; use that id as the label — `factor_id`
+         may be null when upstream omits it; then fall back to the chain id);
+       * `premise_count == 0` with a conclusion → an intermediate paper-chain
+         node whose upstream premises are omitted from the search result. Do NOT
+         emit it as `derive(..., given=[])` or immediately downgrade it to
+         `lkm_no_chain`; follow the `inspect` action to fetch the full package and
+         recover the prior reasoning-chain/conclusion chain;
+       * `premise_count > 0` without a factor-level conclusion → incomplete LKM
+         payload / likely data issue. Do NOT borrow `chain.conclusion`, do NOT
+         emit `derive`, and do NOT invent the missing conclusion; inspect the
+         package if needed, otherwise treat it as unusable chain context.
+   - LKM source claim (FALLBACK) — no chain or no usable chain context (a
+     `knowledge` claim with `source.has_reasoning == false`, or a
+     `reasoning_chain` empty shell with `source.factors == []`, or only
+     warning-bearing incomplete factors after you could not recover the package
+     context): emit a leaf/source `claim(...)` with
      `provenance_source="lkm_no_chain"` and the preserved `lkm_id` (the result's
      `id`); do not invent premises, factors, or derives. Reach for `lkm_no_chain`
      only when you could not pull the source or it is genuinely chain-less —
