@@ -145,8 +145,7 @@ def test_compile_errors_when_exported_public_name_differs_from_label(tmp_path):
         ),
         extra_modules={
             "section": (
-                "from gaia.engine.lang import claim\n\n"
-                'conclusion = claim("Section result.")\n'
+                'from gaia.engine.lang import claim\n\nconclusion = claim("Section result.")\n'
             )
         },
     )

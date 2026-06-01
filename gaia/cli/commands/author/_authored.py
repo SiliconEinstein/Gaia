@@ -42,7 +42,7 @@ AUTHORED_INIT_BODY = "__all__: list[str] = []\n"
 AUTHORED_RUNTIME_BINDINGS_LOOP = (
     "\n"
     "for _gaia_name, _gaia_value in vars(_authored).items():\n"
-    "    if not _gaia_name.startswith(\"_\"):\n"
+    '    if not _gaia_name.startswith("_"):\n'
     "        globals()[_gaia_name] = _gaia_value\n"
     "del _gaia_name, _gaia_value\n"
 )
@@ -53,10 +53,7 @@ AUTHORED_RUNTIME_BINDINGS_LOOP = (
 #: :data:`ROOT_REEXPORT_BLOCK` (the scaffolder seed) and
 #: :func:`ensure_root_reexport` (the on-the-fly merge into an existing root),
 #: so both stay byte-identical on the import portion.
-AUTHORED_REEXPORT_IMPORTS = (
-    "from . import authored as _authored\n"
-    + AUTHORED_RUNTIME_BINDINGS_LOOP
-)
+AUTHORED_REEXPORT_IMPORTS = "from . import authored as _authored\n" + AUTHORED_RUNTIME_BINDINGS_LOOP
 
 
 def _reexport_merge_line(container: str) -> str:

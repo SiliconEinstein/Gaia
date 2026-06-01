@@ -166,9 +166,7 @@ def _root_all_names(module: ModuleType) -> list[str]:
     if export_names is None:
         return []
     if not isinstance(export_names, (list, tuple)):
-        raise GaiaPackagingError(
-            "Error: package root __all__ must be a list or tuple of strings."
-        )
+        raise GaiaPackagingError("Error: package root __all__ must be a list or tuple of strings.")
     if not all(isinstance(name, str) for name in export_names):
         raise GaiaPackagingError(
             "Error: package root __all__ must contain only string export names."
