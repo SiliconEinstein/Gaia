@@ -1,6 +1,15 @@
 # Gaia LKM Explore and Evidence Assess Design
 
-> **Status:** Draft
+> **状态：** Experimental / historical reference。
+>
+> **当前实现锚点：**
+> [Research Actions Package-Native Overview](2026-06-01-research-actions-package-native-overview.md)
+> 和
+> [Research Actions Implementation Roadmap](2026-06-01-research-actions-implementation-roadmap.md).
+>
+> **适合用于：** early Explore / Assess 拆分思路、历史 rationale 和踩坑记录。
+>
+> **不要作为：** 当前 `gaia research` implementation contract。
 >
 > **Date:** 2026-05-25
 >
