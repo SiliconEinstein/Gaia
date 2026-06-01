@@ -167,12 +167,12 @@ def decompose_command(
         None, "--metadata", help="Optional JSON-encoded metadata dict."
     ),
     export: bool = typer.Option(
-        True,
+        False,
         "--export/--no-export",
         help=(
             "Add --dsl-binding-name to __all__ on a successful write "
-            "(default on for decompose: the action's helper Claim is "
-            "referenceable by downstream verbs)."
+            "when the decomposed Knowledge is part of the curated public surface. "
+            "Default off."
         ),
     ),
     check: bool = typer.Option(

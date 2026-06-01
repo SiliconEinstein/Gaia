@@ -898,7 +898,7 @@ def test_mendel_register_prior_in_sibling_module(tmp_path: Path) -> None:
     mirror = _scaffold_mirror(tmp_path)
     _author_mendel(mirror)
 
-    # CLI-authored statements + priors land in the re-exported authored/
+    # CLI-authored statements + priors land in the composed authored/
     # submodule (canon), not the package-root __init__.py.
     init_path = mirror / "src" / "mendel_v0_5" / "authored" / "__init__.py"
     priors_path = mirror / "src" / "mendel_v0_5" / "authored" / "priors.py"

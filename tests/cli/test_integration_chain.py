@@ -240,7 +240,7 @@ def test_chain_cross_module_reference_with_check(tmp_path: Path) -> None:
     assert derive_result.exit_code == 0, derive_result.output
 
     # Both the base claim and the sibling live in the authored/ submodule;
-    # base_obs is re-exported through the package root, so the auto-inserted
+    # base_obs is imported through the package root, so the auto-inserted
     # ``from chain import base_obs`` resolves at load time.
     evidence_path = target / "src" / "chain" / "authored" / "evidence.py"
     text = evidence_path.read_text()
@@ -261,7 +261,7 @@ def test_chain_priors_policy_rejects_claim(tmp_path: Path) -> None:
 
     # Capture the package shape BEFORE the rejected command. Prewrite is
     # side-effect-free: a rejected author command must leave every file
-    # byte-identical (no authored/ materialization, no root re-export
+    # byte-identical (no authored/ materialization, no root import block
     # mutation, no append to priors.py).
     src = target / "src" / "chain"
     init_path = src / "__init__.py"
@@ -290,7 +290,7 @@ def test_chain_priors_policy_rejects_claim(tmp_path: Path) -> None:
     # The rejected claim must NOT have been appended to priors.py.
     assert "forbidden_claim" not in priors_path.read_text()
     # The whole package shape is unchanged after the rejection: same set of
-    # files, each byte-identical (covers the root __init__.py re-export and
+    # files, each byte-identical (covers the root __init__.py import block and
     # any authored/ contents — prewrite mutates nothing on rejection).
     after = {path: path.read_text() for path in sorted(src.rglob("*.py"))}
     assert after == before

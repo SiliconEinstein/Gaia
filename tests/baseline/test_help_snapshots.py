@@ -39,7 +39,6 @@ HELP_PATHS: list[tuple[str, ...]] = [
     # inspect group
     ("inspect", "--help"),
     ("inspect", "starmap", "--help"),
-    ("inspect", "starmap-replay", "--help"),
     # review group (alpha 0: empty skeleton)
     ("review", "--help"),
     # inquiry subgroup

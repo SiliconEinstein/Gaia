@@ -498,20 +498,20 @@ def _resolve_target_file_or_default(
     policy refuses the verb.
 
     Canon: every CLI-authored statement lands inside the package's
-    re-exported ``authored/`` submodule — never the package-root
+    composed ``authored/`` submodule — never the package-root
     ``__init__.py``. When ``target_file`` is unset, the path defaults to
     ``authored/__init__.py``; when ``--file <relative>`` is supplied, it
     routes to ``authored/<relative>``.
 
     This function is **read-only**: it computes the ``authored/`` path
     purely (no disk write). Materialization of the submodule + the root
-    ``from .authored import *`` re-export is deferred to the WRITER (the
+    authored import block is deferred to the WRITER (the
     runner, after the snapshot), so a rejected ``gaia author`` command —
     a collision, unresolved reference, role-forbidden file, etc. — leaves
     the user's package untouched.
     """
     # Compute the authored/ paths purely; do NOT create them here. The
-    # runner materializes the submodule + root re-export after the snapshot
+    # runner materializes the submodule + root import block after the snapshot
     # and only on a successful prewrite. ``source_init_path`` is the
     # package-root __init__.py.
     assert source_init_path is not None  # invariant after target-structure validation
@@ -815,8 +815,8 @@ def _collect_module_symbols(source_root: Path, import_name: str | None) -> set[s
     # Scan the package-root ``.py`` files (hand-authored DSL) plus the
     # ``authored/`` submodule (CLI-authored DSL). A CLI statement may
     # reference a hand-authored binding (in the root) and vice-versa;
-    # both compose into one package via the ``from .authored import *``
-    # re-export, so collision + reference resolution must see both.
+    # both compose into one package via the root authored import block, so
+    # collision + reference resolution must see both.
     scan_paths = sorted(source_root.glob("*.py"))
     authored_subdir = authored_init(source_root).parent
     if authored_subdir.exists() and authored_subdir.is_dir():

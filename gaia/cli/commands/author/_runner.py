@@ -158,15 +158,15 @@ def _execute_writes(
         # Prepended statements (e.g. auto-mint claim ahead of a derive) inherit
         # the main op's required_imports — the auto-claim needs ``claim`` and
         # the main statement needs the verb itself; passing both at every
-        # write keeps the import line current. Auto-mint claims are
-        # export=True by default: they're real Knowledge bindings the
-        # downstream verb references by name.
+        # write keeps the import line current. Auto-mint claims inherit
+        # the main op's export choice: referenceability is separate from
+        # the package's curated public surface.
         prep_write = append_statement(
             write_target,
             prep_code,
             new_label=_prep_label,
             required_imports=("claim", *proposed_op.required_imports),
-            export=True,
+            export=proposed_op.export,
         )
         written_segments.append(prep_write.appended)
         if prep_write.all_warning:
@@ -311,15 +311,15 @@ def run_author_op(
             )
             return
 
-    # ---- materialize the authored/ submodule + root re-export ---------- #
+    # ---- materialize the authored/ submodule + root import block ------- #
     #
     # Prewrite is read-only (FIX: a rejected command must not mutate the
-    # package), so the submodule + the root ``from .authored import *``
-    # re-export are created here — after the snapshot above captured
+    # package), so the submodule + the root authored import block are
+    # created here — after the snapshot above captured
     # ``{source_init_path, write_target}`` in their PRE-materialization
     # shape, and only now that prewrite passed and any warning prompt was
     # accepted. Doing it after the snapshot means a postwrite-failure
-    # rollback restores the root __init__.py to its pre-re-export content
+    # rollback restores the root __init__.py to its pre-import-block content
     # and unlinks a freshly-created authored/__init__.py.
     assert pre.source_root is not None  # invariant after a successful prewrite
     try:

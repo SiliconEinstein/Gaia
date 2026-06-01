@@ -230,6 +230,10 @@ The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's regist
 
 Most action helpers carry `metadata["review"] = true` and `metadata["helper_kind"]` indicating the lowering origin (`implication_warrant`, `equivalence_result`, `association`, ...). Reviewers see them in the review manifest. They carry no independent prior — their distribution is fully determined by the IR operator they back, except for `infer` / `associate` warrants which encode the author's CPT.
 
+Top-level relation helpers returned by `equal`, `contradict`, `exclusive`, and `associate` are ordinary package-local `Knowledge` objects. They are addressable in author text and may be explicitly listed in root `__all__`; export manifests type them as structural or probabilistic relation interfaces. The `infer(...)` verb is different: it returns the evidence Claim, not the likelihood warrant helper. `decompose(...)` returns its `whole` Claim and lowers formula structure behind it.
+
+Implicit helpers minted by `_lift_to_claim(...)` are not public relation helpers. They are created only when a verb needs to adapt a direct `Formula` or `BoolExpr` operand into a Claim-shaped slot, are marked `metadata["helper_kind"] = "operand_lift"` and `metadata["review"] = false`, and are rejected from root `__all__`. Authors who want a formula in the public interface should bind it explicitly with `claim(..., formula=...)`.
+
 Structural-expression helpers from the deprecated function-call compatibility helpers `not_(A)`, `and_(A, B)`, and `or_(A, B)` use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
 
 The modern `Claim` dunder shortcuts `~A`, `A & B`, and `A | B` no longer create helper `Claim` objects. They return Formula AST nodes (`Lnot`, `Land`, `Lor`) that become graph structure only when attached to an authored claim with `claim(..., formula=...)`.

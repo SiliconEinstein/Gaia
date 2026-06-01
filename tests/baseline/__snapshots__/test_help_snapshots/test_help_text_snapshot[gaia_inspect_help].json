@@ -5,5 +5,5 @@
   ],
   "exit_code": 0,
   "stderr": "",
-  "stdout": "\n Usage: gaia inspect [OPTIONS] COMMAND [ARGS]...\n\n Inspect compiled artifacts (starmap / starmap-replay).\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Commands ───────────────────────────────────────────────────────────────────╮\n│ starmap         Emit a starmap of the compiled package.                      │\n│ starmap-replay  Emit an HTML replay of a package's lkm-discovery run.        │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+  "stdout": "\n Usage: gaia inspect [OPTIONS] COMMAND [ARGS]...\n\n Inspect compiled artifacts (starmap).\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Commands ───────────────────────────────────────────────────────────────────╮\n│ starmap  Emit a starmap of the compiled package.                             │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
 }

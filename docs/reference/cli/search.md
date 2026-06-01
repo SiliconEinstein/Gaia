@@ -70,10 +70,20 @@ formal Gaia reasoning edge in IR/BP.
 LKM retrieval scores are ranking signals only. They must not be copied into
 Gaia priors, beliefs, or warrant strengths.
 
-`reasoning` returns reasoning-chain search results. A result is a complete
-candidate Gaia `derive(...)` only when the payload includes a factor with both
-`premises` and `conclusion`; otherwise inspect the claim reasoning by
-`--claim-id` or fetch the paper package candidate.
+`reasoning` returns reasoning-chain search results. Normalized results expose
+`source.factors` as a per-factor list of `{factor_id, premise_count}`. A factor
+with premises and a conclusion is a candidate Gaia `derive(...)`. A factor with a
+conclusion but no premises is not a reasoning failure and is not lowered to
+`derive(..., given=[])`; in reasoning search it usually means the result is an
+intermediate paper-chain node whose upstream premises are outside this slice.
+Normalized `gaia-json` keeps the factor, adds a non-warning `comment` on that
+`source.factors[]` entry, and includes an `inspect` action whose `next_steps`
+runs `gaia search lkm package --index <index> --paper-id <paper>` so agents can
+fetch the whole paper package and recover the prior reasoning-chain/conclusion
+chain that the current conclusion depends on. A factor with premises but no
+inline conclusion is an incomplete LKM payload, not a valid continuation and not
+a candidate `derive(...)`; normalized `gaia-json` leaves `gaia.object_kind`
+unset and annotates that `source.factors[]` entry with a `warning`.
 
 The planned normalized result schema and the `search` / `pkg add` boundary are
 tracked in the internal draft `docs/specs/2026-05-20-gaia-search-design.md`.

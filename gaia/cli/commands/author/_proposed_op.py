@@ -59,13 +59,11 @@ class ProposedAuthorOp:
     references: list[str] = field(default_factory=list)
     generated_code: str = ""
     required_imports: tuple[str, ...] = ()
-    # G5 — per-verb export gate. When ``True`` (default for warrant-bearing
-    # / referenceable verbs), the writer appends ``label`` into the target
-    # module's ``__all__`` literal. When ``False`` (default for verbs whose
-    # output is structural / advisory / scaffold-only), ``__all__`` is left
-    # untouched even when ``label`` is set. Per-verb default lives on the
-    # command function; this field carries the resolved-at-runtime value.
-    export: bool = True
+    # G5 — per-verb export gate. When ``True``, the writer appends ``label``
+    # into the target module's ``__all__`` literal. Defaults should stay
+    # conservative: referenceability inside the package is separate from the
+    # curated public Knowledge surface.
+    export: bool = False
     # Prose mode: optional auto-generated supporting statement that
     # must be written **before** ``generated_code`` (e.g. an auto-claim
     # minted from ``--conclusion-content``). Each entry is a

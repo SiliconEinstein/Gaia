@@ -27,6 +27,17 @@ from gaia.engine.lang.formula.predicate import ClaimAtom, is_formula
 from gaia.engine.lang.runtime.knowledge import Claim
 
 
+def _lift_metadata(verb: str, position: str) -> dict[str, Any]:
+    """Mark claims materialized only to adapt a Boolean-valued operand."""
+    return {
+        "generated": True,
+        "helper_kind": "operand_lift",
+        "review": False,
+        "lifted_by": verb,
+        "lift_position": position,
+    }
+
+
 def _synth_description(value: Any) -> str:
     """Render a Boolean-valued expression to a human-readable description.
 
@@ -61,9 +72,9 @@ def _lift_to_claim(value: Any, *, verb: str, position: str) -> Claim:
     if isinstance(value, ClaimAtom):
         return value.claim
     if is_formula(value):
-        return claim(_synth_description(value), formula=value)
+        return claim(_synth_description(value), formula=value, **_lift_metadata(verb, position))
     if isinstance(value, BoolExpr):
-        return claim(_synth_description(value), value)
+        return claim(_synth_description(value), value, **_lift_metadata(verb, position))
     raise TypeError(
         f"{verb}() expected Claim or a Boolean-valued expression "
         f"(Formula / BoolExpr / ClaimAtom) as {position}; "
