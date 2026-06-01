@@ -70,6 +70,26 @@ def _read_search_json(ref: str) -> tuple[dict[str, object], str]:
     return payload, label
 
 
+def _scan_batches(
+    refs: list[str],
+    *,
+    queries: list[str],
+    sources: list[str],
+) -> list[ScanBatch]:
+    batches: list[ScanBatch] = []
+    for index, ref in enumerate(refs):
+        payload, path_label = _read_search_json(ref)
+        batches.append(
+            ScanBatch(
+                search_results=payload,
+                query=queries[index] if index < len(queries) else None,
+                source_qid=sources[index] if index < len(sources) else None,
+                path=path_label,
+            )
+        )
+    return batches
+
+
 @research_app.command("status")
 def status_command(
     pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
@@ -94,7 +114,7 @@ def explore_command(
     pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
     mode: Annotated[
         str,
-        typer.Option("--mode", help="Explore mode. M1 supports only 'scan'."),
+        typer.Option("--mode", help="Explore mode: 'scan' or 'expand'."),
     ] = "scan",
     dry_run: Annotated[
         bool,
@@ -119,32 +139,83 @@ def explore_command(
         str | None,
         typer.Option("--out", help="Optional output path for the landscape artifact."),
     ] = None,
+    focus: Annotated[
+        str | None,
+        typer.Option("--focus", help="Focus target for --mode expand."),
+    ] = None,
+    obligation: Annotated[
+        str | None,
+        typer.Option("--obligation", help="Inquiry obligation target for --mode expand."),
+    ] = None,
 ) -> None:
     """Plan an artifact-only Explore action."""
-    if mode != "scan":
-        typer.echo("Error: M1 supports only `--mode scan`.", err=True)
+    if mode not in {"scan", "expand"}:
+        typer.echo("Error: supported explore modes are `scan` and `expand`.", err=True)
         raise typer.Exit(2)
     search_refs = list(search_json or [])
-    if not search_refs and not dry_run:
+    if mode == "scan" and not search_refs and not dry_run:
         typer.echo("Error: M1 explore requires `--dry-run`.", err=True)
         raise typer.Exit(2)
 
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
+    if mode == "expand":
+        if bool(focus) == bool(obligation):
+            typer.echo("Error: --mode expand requires --focus or --obligation.", err=True)
+            raise typer.Exit(2)
+        if not search_refs:
+            typer.echo("Error: --mode expand requires at least one --search-json.", err=True)
+            raise typer.Exit(2)
+        target = (
+            {"kind": "focus", "id": focus} if focus else {"kind": "obligation", "id": obligation}
+        )
+        landscape = build_research_landscape(
+            _scan_batches(search_refs, queries=list(query or []), sources=list(source or [])),
+            pull_budget=0,
+        )
+        landscape["action"] = "explore.expand"
+        landscape["target"] = target
+        landscape["notes"] = [
+            "This is a targeted expansion landscape, not an assessment.",
+            "The target links this artifact back to inquiry state or an accepted focus.",
+        ]
+        output_path = write_research_artifact(
+            research_pkg,
+            "landscapes",
+            "expand",
+            landscape,
+            out=out,
+        )
+        append_research_event(
+            research_pkg,
+            "explore.expand.completed",
+            {
+                "mode": "expand",
+                "target": target,
+                "artifact": str(output_path),
+                "stats": landscape["stats"],
+                "pull_budget": 0,
+                "writes_source": False,
+                "writes_focus_registry": False,
+                "writes_obligation_ledger": False,
+            },
+        )
+        stats = landscape["stats"]
+        typer.echo(
+            "Landscape: "
+            f"{stats['query_batches']} query batch(es), "
+            f"{stats['raw_results']} raw result(s), "
+            f"{stats['paper_leads']} paper lead(s)."
+        )
+        typer.echo(f"Target: {target['kind']} {target['id']}")
+        typer.echo(f"Output: {output_path}")
+        typer.echo("pull_budget: 0")
+        typer.echo("candidate_focuses: artifact-local only")
+        _print_inquiry_suggestions(research_pkg)
+        return
+
     if search_refs:
-        queries = list(query or [])
-        sources = list(source or [])
-        batches: list[ScanBatch] = []
-        for index, ref in enumerate(search_refs):
-            payload, path_label = _read_search_json(ref)
-            batches.append(
-                ScanBatch(
-                    search_results=payload,
-                    query=queries[index] if index < len(queries) else None,
-                    source_qid=sources[index] if index < len(sources) else None,
-                    path=path_label,
-                )
-            )
+        batches = _scan_batches(search_refs, queries=list(query or []), sources=list(source or []))
         landscape = build_research_landscape(batches, pull_budget=0)
         output_path = write_research_artifact(
             research_pkg,
