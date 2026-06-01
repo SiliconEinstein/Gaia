@@ -212,14 +212,15 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
          given=[premises], rationale="<numbered LKM steps>", label="<factor_id>")`
          (LKM factor ids are `gfac_*`; use that id as the label — `factor_id`
          may be null when upstream omits it; then fall back to the chain id);
-       * `premise_count == 0` → a base/leaf factor: emit its conclusion as a
-         leaf `claim(...)`, NOT a `derive(..., given=[])`. A premise-less factor
-         is a normal grounding assertion (observation / given / definition), not
-         a defect.
-   - LKM source claim (FALLBACK) — no derivable factor (a `knowledge` claim with
-     `source.has_reasoning == false`, or a `reasoning_chain` whose factors are all
-     `premise_count == 0` — including the empty-shell case `source.factors == []`,
-     a conclusion with zero factors): emit a leaf/source `claim(...)` with
+       * `premise_count == 0` with a conclusion → an intermediate paper-chain
+         node whose upstream premises are omitted from the search result. Do NOT
+         emit it as `derive(..., given=[])` or immediately downgrade it to
+         `lkm_no_chain`; follow the `inspect` action to fetch the full package and
+         recover the prior reasoning-chain/conclusion chain.
+   - LKM source claim (FALLBACK) — no chain or no usable chain context (a
+     `knowledge` claim with `source.has_reasoning == false`, or a
+     `reasoning_chain` empty shell with `source.factors == []` after you could not
+     recover the package context): emit a leaf/source `claim(...)` with
      `provenance_source="lkm_no_chain"` and the preserved `lkm_id` (the result's
      `id`); do not invent premises, factors, or derives. Reach for `lkm_no_chain`
      only when you could not pull the source or it is genuinely chain-less —

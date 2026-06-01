@@ -952,6 +952,50 @@ class TestReasoning:
             },
         ]
 
+    def test_default_marks_zero_premise_factor_as_package_context_required(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "paper_id": "811",
+                            "factors": [
+                                {
+                                    "global_id": "gfac_intermediate",
+                                    "conclusion": {"id": "gcn_result", "title": "Result"},
+                                    "premises": [],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["gaia"]["object_kind"] is None
+        assert item["source"]["factors"] == [
+            {
+                "factor_id": "gfac_intermediate",
+                "premise_count": 0,
+                "comment": "premises omitted; inspect package for upstream reasoning context",
+            }
+        ]
+        assert item["actions"][0] == {
+            "kind": "inspect",
+            "ref": "lkm:bohrium:paper:811",
+            "label": "Inspect paper",
+            "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
+        }
+
     def test_claim_reasoning_uses_factor_id_when_chain_id_is_missing(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

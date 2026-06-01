@@ -13,6 +13,9 @@ from typing import Any
 from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 
 _FACTOR_CONTEXT_COMMENT = "uses chain-level or preceding-chain conclusion"
+_FACTOR_UPSTREAM_CONTEXT_COMMENT = (
+    "premises omitted; inspect package for upstream reasoning context"
+)
 
 
 class SearchOutputFormat(StrEnum):
@@ -204,9 +207,7 @@ def _normalize_lkm_chain(
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
     factors_summary = _factor_summaries(chain)
     has_premised_factor = any(f["premise_count"] > 0 for f in factors_summary)
-    needs_package_context = any(
-        f.get("comment") == _FACTOR_CONTEXT_COMMENT for f in factors_summary
-    )
+    needs_package_context = any("comment" in f for f in factors_summary)
     actions: list[dict[str, Any]] = []
     if (not has_premised_factor or needs_package_context) and paper_id is not None:
         actions.append(
@@ -410,12 +411,13 @@ def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
     """Per-factor premise counts.
 
     For normal inline factors, ``premise_count > 0`` marks a derivation step
-    (emit a ``derive``), while ``premise_count == 0`` marks a base/leaf assertion
-    (emit a leaf ``claim``). A premised factor without an inline conclusion is
-    still legal: the conclusion may be supplied at chain level or by a preceding
-    chain, so the summary adds a non-warning comment for agents. Replaces the old
-    chain-level ``can_compile`` / ``has_factors`` booleans, which conflated leaf
-    factors with failures.
+    (emit a ``derive``). A premised factor without an inline conclusion is still
+    legal: the conclusion may be supplied at chain level or by a preceding chain,
+    so the summary adds a non-warning comment for agents. A zero-premise factor
+    with a conclusion is an intermediate paper-chain node whose upstream premises
+    are omitted from this search result; inspect the paper package to recover
+    them. Replaces the old chain-level ``can_compile`` / ``has_factors`` booleans,
+    which conflated leaf factors with failures.
     """
     summaries: list[dict[str, Any]] = []
     for factor in _list(chain.get("factors")):
@@ -429,6 +431,8 @@ def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
         }
         if premise_count > 0 and not _dict(factor.get("conclusion")):
             summary["comment"] = _FACTOR_CONTEXT_COMMENT
+        elif premise_count == 0 and _dict(factor.get("conclusion")):
+            summary["comment"] = _FACTOR_UPSTREAM_CONTEXT_COMMENT
         summaries.append(summary)
     return summaries
 

@@ -72,15 +72,17 @@ Gaia priors, beliefs, or warrant strengths.
 
 `reasoning` returns reasoning-chain search results. Normalized results expose
 `source.factors` as a per-factor list of `{factor_id, premise_count}`. A factor
-with premises and a conclusion is a candidate Gaia `derive(...)`; a factor with
-a conclusion but no premises is a base/leaf claim, not a reasoning failure. A
-factor with premises but no inline conclusion can still be a valid continuation
-from a chain-level or preceding-chain conclusion; normalized `gaia-json` keeps it
-as a premised factor and adds a non-warning `comment` on that `source.factors[]`
-entry. In that case the result also includes an `inspect` action whose
-`next_steps` runs `gaia search lkm package --index <index> --paper-id <paper>` so
-agents can fetch the whole paper package and recover the prior
-reasoning-chain/conclusion chain that the current conclusion depends on.
+with premises and a conclusion is a candidate Gaia `derive(...)`. A factor with a
+conclusion but no premises is not a reasoning failure and is not lowered to
+`derive(..., given=[])`; in reasoning search it usually means the result is an
+intermediate paper-chain node whose upstream premises are outside this slice.
+Normalized `gaia-json` keeps the factor, adds a non-warning `comment` on that
+`source.factors[]` entry, and includes an `inspect` action whose `next_steps`
+runs `gaia search lkm package --index <index> --paper-id <paper>` so agents can
+fetch the whole paper package and recover the prior reasoning-chain/conclusion
+chain that the current conclusion depends on. A factor with premises but no
+inline conclusion is similarly kept as a valid continuation from a chain-level or
+preceding-chain conclusion and annotated with a non-warning `comment`.
 
 The planned normalized result schema and the `search` / `pkg add` boundary are
 tracked in the internal draft `docs/specs/2026-05-20-gaia-search-design.md`.
