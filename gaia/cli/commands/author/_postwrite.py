@@ -18,6 +18,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from gaia.cli.commands._probabilistic_warnings import (
+    associate_local_maxent_warnings,
+    infer_default_likelihood_warnings,
+)
 from gaia.cli.commands.author._envelope import Diagnostic
 from gaia.engine.ir import LocalCanonicalGraph
 from gaia.engine.ir.validator import validate_local_graph
@@ -107,6 +111,19 @@ def postwrite_check(target_path: str | Path) -> PostWriteResult:
             )
         )
     for warn in validation.warnings:
+        warnings.append(
+            Diagnostic(
+                kind="postwrite.check_fail",
+                level="warning",
+                message=warn,
+                source="postwrite",
+                where={"target": str(target)},
+            )
+        )
+    for warn in [
+        *associate_local_maxent_warnings(ir),
+        *infer_default_likelihood_warnings(ir),
+    ]:
         warnings.append(
             Diagnostic(
                 kind="postwrite.check_fail",

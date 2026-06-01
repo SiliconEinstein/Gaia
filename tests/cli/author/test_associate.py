@@ -81,6 +81,37 @@ def test_associate_with_pattern(gaia_package: FixturePackage) -> None:
     assert "pattern='equal'" in written
 
 
+def test_associate_postwrite_warns_on_local_maxent_closure(
+    gaia_package: FixturePackage,
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "associate",
+            "--a",
+            "hypothesis",
+            "--b",
+            "observation",
+            "--p-a-given-b",
+            "0.9",
+            "--p-b-given-a",
+            "0.6",
+            "--dsl-binding-name",
+            "h_obs_assoc",
+            "--target",
+            str(gaia_package.root),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    warnings = envelope["warnings"]
+    assert isinstance(warnings, list)
+    warning_messages = [str(warn) for warn in warnings]
+    assert any("local Jaynes MaxEnt closure" in message for message in warning_messages)
+    assert any("register_prior" in message for message in warning_messages)
+
+
 def test_associate_bad_pattern_exits_2(gaia_package: FixturePackage) -> None:
     result = runner.invoke(
         app,

@@ -1362,6 +1362,8 @@ class _ActionCompiler:
         given_ids = [self.knowledge_map[id(given)] for given in action.given]
         if given_ids:
             metadata["given"] = given_ids
+        if action.p_e_given_not_h_defaulted:
+            metadata["p_e_given_not_h_defaulted"] = True
         p_e_given_not_h = _probability_scalar(action.p_e_given_not_h, field_name="p_e_given_not_h")
         p_e_given_h = _probability_scalar(action.p_e_given_h, field_name="p_e_given_h")
         strategy = IrStrategy(

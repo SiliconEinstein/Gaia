@@ -197,6 +197,7 @@ class Infer(Directed):
     given: tuple[Claim, ...] = ()
     p_e_given_h: float | Claim = 0.5
     p_e_given_not_h: float | Claim | None = 0.5
+    p_e_given_not_h_defaulted: bool = False
 
 
 @dataclass

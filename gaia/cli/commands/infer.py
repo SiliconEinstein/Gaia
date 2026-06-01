@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 import typer
 
+from gaia.cli.commands._probabilistic_warnings import infer_default_likelihood_warnings
 from gaia.engine._stale_check import check_compiled_artifacts
 from gaia.engine.bp import FactorGraph, lower_local_graph, merge_factor_graphs
 from gaia.engine.bp.engine import InferenceEngine
@@ -52,6 +54,19 @@ def _emit_graph_validation_errors(compiled: Any) -> None:
         for error in graph_validation.errors:
             typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1)
+
+
+def _lower_local_graph_reporting_warnings(*args: Any, **kwargs: Any) -> FactorGraph:
+    """Lower a graph and surface warning diagnostics in CLI-friendly form."""
+    if args:
+        for message in infer_default_likelihood_warnings(args[0]):
+            typer.echo(f"Warning: {message}", err=True)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        factor_graph = lower_local_graph(*args, **kwargs)
+    for caught_warning in caught:
+        typer.echo(f"Warning: {caught_warning.message}", err=True)
+    return factor_graph
 
 
 def _require_fresh_compile_artifacts(
@@ -99,7 +114,7 @@ def _dependency_factor_graphs(
 
     dep_factor_graphs: list[tuple[str, FactorGraph, str]] = []
     for dep in dep_compiled:
-        dep_fg = lower_local_graph(dep.graph)
+        dep_fg = _lower_local_graph_reporting_warnings(dep.graph)
         dep_prefix = f"{dep.graph.namespace}:{dep.graph.package_name}::"
         dep_factor_graphs.append((dep.import_name, dep_fg, dep_prefix))
         typer.echo(
@@ -121,13 +136,13 @@ def _lower_inference_graph(
         foreign_priors = collect_foreign_node_priors(compiled.graph, loaded.pkg_path)
         if foreign_priors:
             typer.echo(f"Loaded {len(foreign_priors)} upstream belief(s) for foreign nodes")
-        return lower_local_graph(
+        return _lower_local_graph_reporting_warnings(
             compiled.graph,
             node_priors=foreign_priors or None,
         )
 
     dep_factor_graphs = _dependency_factor_graphs(loaded, depth=depth)
-    local_fg = lower_local_graph(compiled.graph)
+    local_fg = _lower_local_graph_reporting_warnings(compiled.graph)
     local_prefix = f"{compiled.graph.namespace}:{compiled.graph.package_name}::"
     if not dep_factor_graphs:
         return local_fg

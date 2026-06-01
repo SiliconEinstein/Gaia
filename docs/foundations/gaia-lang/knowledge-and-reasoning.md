@@ -149,12 +149,19 @@ Bayesian update: given a hypothesis Claim `H`, evidence Claim `E`, and explicit 
 - Without `given`: factor is `H → E`, CPT = `[P(E|¬H), P(E|H)]`.
 - With `given=G`: factor uses premises `[H, *G]`. When any of `G` is false, the CPT entry collapses to `0.5` (the soft-implication baseline) — the relation becomes neutral when its enabling preconditions are not in force. This is the *infer-with-given gating* contract introduced in v0.5.
 - `p_e_given_h` and `p_e_given_not_h` may be a literal float **or** a Claim whose first numeric `parameter("value", ...)` is read at compile time.
+- If `p_e_given_not_h` is omitted, Gaia records that the neutral `0.5` background likelihood was defaulted and warns during `gaia build check` / `gaia run infer`; authors should provide an explicit background/false-positive likelihood when they know it.
 
 Returns the evidence Claim. The author should prefer `bayes.model(...) + bayes.compare(...)` (see [§6 Bayes Module](#6-bayes-module)) when the probability is an instance of a predictive distribution.
 
 #### `associate(a, b, *, p_a_given_b, p_b_given_a, pattern=None, ...)`
 
-Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.engine.bayes`. Returns the association warrant helper Claim.
+Symmetric pairwise potential between two Claims. `associate(...)` itself records
+only the two conditional constraints; if neither endpoint has a declared
+marginal prior, BP lowering closes the remaining local degree of freedom by
+Jaynes MaxEnt rather than inventing a user prior, and warns that an explicit
+endpoint `register_prior(...)` is preferable when the marginal is known.
+Model-derived marginals belong in `gaia.engine.bayes`. Returns the association
+warrant helper Claim.
 
 ### 3.3 Relation reasoning — hard constraint between Claims
 
