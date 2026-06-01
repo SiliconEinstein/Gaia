@@ -75,13 +75,6 @@ def test_starmap_missing_pyproject_snapshot(tmp_path: Path, run_gaia, snapshot) 
     assert cli_snapshot(result) == snapshot
 
 
-def test_starmap_replay_missing_logs_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
-    """Gaia inspect starmap-replay on an empty dir → non-zero."""
-    result = run_gaia("inspect", "starmap-replay", str(tmp_path))
-    assert result.exit_code != 0
-    assert cli_snapshot(result) == snapshot
-
-
 # --------------------------------------------------------------------------- #
 # inquiry subgroup                                                            #
 # --------------------------------------------------------------------------- #

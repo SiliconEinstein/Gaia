@@ -13,7 +13,7 @@ into explicit command groups:
 ```text
 gaia build    init / compile / check          Create and validate a package
 gaia run      infer / render                  Execute inference + render
-gaia inspect  starmap / starmap-replay        Visualize the compiled graph
+gaia inspect  starmap                         Visualize the compiled graph
 gaia review   (skeleton — no commands yet)    Reserved for reviewer tooling
 gaia inquiry  focus / review / obligation /   Local semantic-inquiry loop
               hypothesis / tactics / reject
@@ -301,27 +301,6 @@ Typical use:
 - Use `dot` when you want to post-process the graph yourself with Graphviz.
 - Use `svg` when you need a paper-ready or slide-ready static figure.
 
-### `gaia inspect starmap-replay`
-
-Render an animated HTML replay of an LKM discovery run.
-
-```bash
-gaia inspect starmap-replay [path]
-gaia inspect starmap-replay [path] --out figures/replay.html
-```
-
-Input files:
-
-- `artifacts/lkm-discovery/retrieval_log.jsonl`
-- `artifacts/lkm-discovery/graph_growth_log.jsonl`
-
-Output: `.gaia/starmap-replay.html` by default.
-
-This command is useful after an LKM-to-Gaia run. It merges retrieval and
-graph growth events, drops retry/failure events, replays each emitted Gaia
-action on a pinned layout, and recomputes round-by-round beliefs from the
-truncated IR.
-
 ## `gaia review`
 
 Reserved for downstream reviewer tooling.
@@ -582,7 +561,7 @@ gaia pkg register . --registry-dir ../gaia-registry --create-pr      # 10. Publi
 ## Old flat verbs
 
 The historical flat top-level verbs (`gaia compile`, `gaia infer`, `gaia check`,
-`gaia init`, `gaia render`, `gaia starmap`, `gaia starmap-replay`, `gaia add`,
+`gaia init`, `gaia render`, `gaia starmap`, `gaia add`,
 `gaia register`) were removed in alpha 0. The grouped forms documented above
 (`gaia build compile`, `gaia run infer`, `gaia inspect starmap`, etc.) are the
 current canonical replacements.
