@@ -52,9 +52,9 @@ obs = observe("...")
 # stays at baseline because the evidence does not bear on it.
 
 q_relevance = question(
-    "What evidence TYPE would actually address this claim?",
-    rationale="The available evidence is descriptive / proxy / out-of-scope "
-              "for what the claim asks.",
+    "What evidence TYPE would actually address this claim? The available "
+    "evidence is descriptive / proxy / out-of-scope for what the claim asks.",
+    title="Evidence type mismatch",
 )
 ```
 
