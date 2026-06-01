@@ -118,9 +118,8 @@ def equal_command(
         False,
         "--export/--no-export",
         help=(
-            "Add --dsl-binding-name to the target module's __all__ on a "
-            "successful write. Default off: exports are the package's curated "
-            "public Knowledge surface."
+            "Add the returned equivalence helper to __all__ as a public "
+            "relation export. Default off: exports are curated explicitly."
         ),
     ),
     check: bool = typer.Option(

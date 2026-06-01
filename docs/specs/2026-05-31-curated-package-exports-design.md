@@ -48,6 +48,11 @@ Adopt **curated** semantics everywhere (Option A from #724):
 - A knowledge is exported **iff** its label is explicitly listed in root
   `__all__`. Notes, `register_prior`, strategies, bridge relations, and
   intermediate derivations are not exported unless the author lists them.
+  Returned relation helpers from `equal`, `contradict`, `exclusive`, and
+  `associate` are exportable `Knowledge` objects, but manifests type them as
+  relation interfaces rather than plain headline conclusions.
+- Implicit operand-lift helpers created only to adapt `Formula` / `BoolExpr`
+  operands are internal compiler scaffolding and are never exportable.
 - `gaia author` defaults to `--no-export`: being **referenceable inside** the
   package is independent of being a **public export**.
 
@@ -72,7 +77,9 @@ Each name in root `__all__` must:
 3. point to a **local** package `Knowledge` — rejects dependency re-exports;
 4. have `.label == name` — the export name is the QID basis, so aliasing under a
    different name is rejected;
-5. be unique.
+5. not be an implicit operand-lift helper (`metadata["helper_kind"] ==
+   "operand_lift"`);
+6. be unique.
 
 Any violation raises `GaiaPackagingError` at load/compile time with an
 actionable message (see §4).
@@ -120,6 +127,45 @@ on an ambiguous object (bound to multiple public names), an object with no publi
 caller-scope name, a non-`Knowledge` value, or a duplicate name — so `__all__`
 stays a literal, statically analyzable list while avoiding label typos.
 
+### 3.7 Relation helper exports
+
+Relation verbs have return values because the relation itself may be the public
+semantic object:
+
+- `equal(a, b)`, `contradict(a, b)`, and `exclusive(a, b)` return structural
+  relation helpers backed by IR operators.
+- `associate(a, b, ...)` returns a probabilistic relation helper backed by an
+  IR `Strategy(type=associate)`.
+
+When one of these returned helpers is explicitly listed in root `__all__`, the
+compiled export manifest preserves the exported `Knowledge` entry and adds
+relation-specific fields:
+
+| Field | Meaning |
+| --- | --- |
+| `export_kind` | `structural_relation` or `probabilistic_relation` |
+| `relation_kind` | `equivalence`, `contradiction`, `complement`, or `associate` |
+| `endpoints` | The endpoint claim QIDs in the operator / strategy |
+| `target_type` / `target_id` | The backing IR operator or strategy |
+| `p_a_given_b` / `p_b_given_a` | Present only for `associate` |
+
+By contrast, `_lift_to_claim(...)` may materialize a helper claim when an author
+passes a `Formula` or `BoolExpr` directly as a relation operand, for example
+`equal(a & b, c)`. That helper exists only so the verb has a claim-shaped
+operand; it is marked `helper_kind="operand_lift"` and cannot be exported. If
+the formula belongs in the public interface, the author must name it explicitly:
+
+```python
+ab = claim("A and B jointly hold.", formula=a & b)
+same = equal(ab, c, rationale="The conjunction and C are equivalent.")
+
+__all__ = export(ab, same)
+```
+
+An explicitly named formula claim remains a claim interface even if its formula
+lowers to an equivalence operator; typed relation export fields are reserved
+for the relation helper claims returned by relation verbs.
+
 ## 4. Migration (breaking change)
 
 Before this change the root `__all__` was a loose string set: names that did not
@@ -132,19 +178,24 @@ an existing package fails to compile if its root `__all__` contains:
 | a `fills(...)` / bridge relation | `... resolves to <type>, not a Gaia Knowledge object.` |
 | a name imported from a dependency package | `... points to Knowledge from another package.` |
 | a `Knowledge` aliased under a different name | `... points to Knowledge labeled '<label>'.` |
+| an implicit lift helper from a Formula / BoolExpr operand | `... is an implicit lift helper ... write an explicit claim(..., formula=...) ...` |
 | a typo'd / missing name | `... the package root has no such attribute.` |
 
 To migrate: remove every non-`Knowledge` name and every alias from the root
-`__all__`, leaving only the package's headline `Knowledge` labels. Strategies and
-bridges remain fully functional and referenceable — they are simply not part of
-the public surface. Run `gaia build compile <pkg>` to surface any remaining
-violations. Packages that still carry the legacy `from .authored import *` block
-are upgraded in place on the next `gaia author` write.
+`__all__`, leaving only the package's headline claim labels and any explicitly
+public relation helpers. Strategies, bridges, and implicit operand helpers
+remain fully functional and referenceable inside the package — they are simply
+not part of the public surface. Run `gaia build compile <pkg>` to surface any
+remaining violations. Packages that still carry the legacy
+`from .authored import *` block are upgraded in place on the next
+`gaia author` write.
 
 ## 5. Affected consumers
 
 All of the following already assumed curated semantics; with this change the
-**producer** finally matches them, so no consumer logic changes:
+**producer** finally matches them. Export manifests additionally expose typed
+fields for explicitly exported relation helpers, while plain exported claim
+entries keep their previous shape:
 
 - `gaia register` — the exported-beliefs release manifest.
 - `_manifest.py` — `exported_conclusions`.

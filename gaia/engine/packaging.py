@@ -68,6 +68,11 @@ class GaiaPackagingError(RuntimeError):
 
 
 _MANIFEST_SCHEMA_VERSION = 1
+_STRUCTURAL_RELATION_EXPORT_HELPERS = {
+    "equivalence": "equivalence_result",
+    "contradiction": "contradiction_result",
+    "complement": "complement_result",
+}
 
 
 @dataclass
@@ -174,6 +179,17 @@ def _root_all_names(module: ModuleType) -> list[str]:
     return list(export_names)
 
 
+def _validate_exportable_knowledge(name: str, exported: Knowledge) -> None:
+    metadata = exported.metadata or {}
+    if metadata.get("helper_kind") == "operand_lift":
+        raise GaiaPackagingError(
+            f"Error: root __all__ exports {name!r}, but it is an implicit lift helper "
+            "created to adapt a Formula/BoolExpr operand. If that formula is part of "
+            "the public surface, write an explicit claim(..., formula=...) and export "
+            "that named claim instead."
+        )
+
+
 def _record_root_exports(module: ModuleType, pkg: CollectedPackage) -> None:
     """Resolve root ``__all__`` names to local Knowledge objects."""
     local_knowledge_ids = {id(knowledge) for knowledge in pkg.knowledge}
@@ -202,6 +218,7 @@ def _record_root_exports(module: ModuleType, pkg: CollectedPackage) -> None:
                 f"labeled {exported.label!r}. Exported Knowledge names must match "
                 "their Gaia labels."
             )
+        _validate_exportable_knowledge(name, exported)
         if id(exported) in exported_knowledge_ids:
             raise GaiaPackagingError(
                 f"Error: root __all__ exports duplicate Knowledge object {name!r}."
@@ -1050,7 +1067,52 @@ def _resolve_fills_relations(
     return sorted(relations, key=lambda item: item["relation_id"])
 
 
-def _knowledge_manifest_entry(knowledge: IrKnowledge) -> dict[str, Any]:
+def _enum_value(value: Any) -> str:
+    return str(getattr(value, "value", value))
+
+
+def _export_relation_fields(graph: LocalCanonicalGraph) -> dict[str, dict[str, Any]]:
+    knowledge_by_qid = {knowledge.id: knowledge for knowledge in graph.knowledges if knowledge.id}
+    fields: dict[str, dict[str, Any]] = {}
+    for operator in graph.operators:
+        relation_kind = _enum_value(operator.operator)
+        expected_helper_kind = _STRUCTURAL_RELATION_EXPORT_HELPERS.get(relation_kind)
+        if expected_helper_kind is None:
+            continue
+        knowledge = knowledge_by_qid.get(operator.conclusion)
+        metadata = knowledge.metadata if knowledge is not None else {}
+        if (metadata or {}).get("helper_kind") != expected_helper_kind:
+            continue
+        fields[operator.conclusion] = {
+            "export_kind": "structural_relation",
+            "relation_kind": relation_kind,
+            "endpoints": list(operator.variables),
+            "target_type": "operator",
+            "target_id": operator.operator_id,
+        }
+
+    for strategy in graph.strategies:
+        if _enum_value(strategy.type) != "associate" or strategy.conclusion is None:
+            continue
+        knowledge = knowledge_by_qid.get(strategy.conclusion)
+        metadata = knowledge.metadata if knowledge is not None else {}
+        if (metadata or {}).get("helper_kind") != "association":
+            continue
+        fields[strategy.conclusion] = {
+            "export_kind": "probabilistic_relation",
+            "relation_kind": "associate",
+            "endpoints": list(strategy.premises),
+            "target_type": "strategy",
+            "target_id": strategy.strategy_id,
+            "p_a_given_b": strategy.p_a_given_b,
+            "p_b_given_a": strategy.p_b_given_a,
+        }
+    return fields
+
+
+def _knowledge_manifest_entry(
+    knowledge: IrKnowledge, *, export_fields: dict[str, Any] | None = None
+) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "qid": knowledge.id,
         "label": knowledge.label,
@@ -1058,6 +1120,8 @@ def _knowledge_manifest_entry(knowledge: IrKnowledge) -> dict[str, Any]:
         "content": knowledge.content,
         "content_hash": knowledge.content_hash,
     }
+    if export_fields:
+        entry.update(export_fields)
     parameters = [parameter.model_dump(mode="json") for parameter in knowledge.parameters]
     if parameters:
         entry["parameters"] = parameters
@@ -1094,8 +1158,12 @@ def _manifest_graph_sets(
 
 def _manifest_exports(graph: LocalCanonicalGraph) -> list[dict[str, Any]]:
     """Return sorted exported-knowledge manifest entries."""
+    relation_fields = _export_relation_fields(graph)
     return [
-        _knowledge_manifest_entry(knowledge)
+        _knowledge_manifest_entry(
+            knowledge,
+            export_fields=relation_fields.get(knowledge.id or ""),
+        )
         for knowledge in sorted(graph.knowledges, key=lambda item: item.id or "")
         if knowledge.exported and knowledge.id is not None
     ]
