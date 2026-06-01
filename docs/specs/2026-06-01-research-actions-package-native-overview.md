@@ -9,6 +9,9 @@
 >
 > **迁移说明：**
 > [Research Actions Migration Notes](2026-06-01-research-actions-migration-notes.md)
+>
+> **知识模型说明：**
+> [Research Actions Knowledge Model](2026-06-01-research-actions-knowledge-model.md)
 
 ## 1. 核心判断
 
@@ -145,6 +148,8 @@ primitive，而不是在 `gaia research` 里藏第二套语义实现。
 
 这份 overview 是当前架构锚点。细节分流到两个 companion docs：
 
+- focus / obligation / assessment relation 的知识模型：
+  [Research Actions Knowledge Model](2026-06-01-research-actions-knowledge-model.md)；
 - 旧系统关系和迁移取舍：
   [Research Actions Migration Notes](2026-06-01-research-actions-migration-notes.md)；
 - 实现切片和验证方式：

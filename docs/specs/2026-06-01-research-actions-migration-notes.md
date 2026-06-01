@@ -18,6 +18,7 @@
 | 文档或分支 | 状态 | 可以用于 | 不要作为 |
 | --- | --- | --- | --- |
 | `2026-06-01-research-actions-package-native-overview.md` | canonical | 架构锚点 | 迁移细节日志 |
+| `2026-06-01-research-actions-knowledge-model.md` | canonical | focus / obligation / assessment relation 分层 | 迁移计划 |
 | `2026-06-01-research-actions-implementation-roadmap.md` | canonical | 实现切片和验证 | 架构长篇论证 |
 | `2026-05-25-gaia-lkm-explore-assess-design.md` | experimental / historical | 早期 Explore / Assess 拆分思路 | 当前 contract |
 | `2026-05-26-lkm-explore-artifact-mvp-design.md` | experimental / historical | artifact MVP 经验 | 当前 artifact schema |
@@ -105,3 +106,21 @@ PR #726 不应该成为 canonical architecture：
 
 新的实现 PR 如果需要引用历史文档，应该先链接 canonical overview，再把历史文档作为
 reference material。不要再把新需求加到 historical specs 里。
+
+## 6. 共存期 Artifact 规则
+
+在 `gaia-lkm-explore` 还没有 deprecate 前，可能同时存在两棵 artifact 树：
+
+```text
+.gaia/exploration/   # legacy experimental engine state
+.gaia/research/      # canonical package-native research artifacts
+```
+
+共存期规则：
+
+- `.gaia/research/` 是 `gaia research` 的 canonical artifact location。
+- `.gaia/exploration/` 可以作为 import / migration source 读取，但不能作为新的
+  canonical source of truth。
+- `gaia research` 不应双写两棵树；需要兼容旧结果时，显式执行 import/migrate step，
+  并把原始 `.gaia/exploration/` path 记录为 provenance。
+- 删除 `gaia-lkm-explore` entry point 前，必须先有文档化的替代命令覆盖主要 workflow。

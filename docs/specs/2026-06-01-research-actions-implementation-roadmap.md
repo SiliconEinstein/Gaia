@@ -9,6 +9,9 @@
 >
 > **迁移说明：**
 > [Research Actions Migration Notes](2026-06-01-research-actions-migration-notes.md)
+>
+> **知识模型说明：**
+> [Research Actions Knowledge Model](2026-06-01-research-actions-knowledge-model.md)
 
 ## 1. 实现原则
 
@@ -60,9 +63,9 @@ gaia research assess <pkg> --focus <target> --artifact-only
 
 实现 `gaia research explore --mode scan`。
 
-它应该组合 `gaia search lkm`，并 port `gaia-lkm-explore` 中可复用的 deterministic
-landscape-staging 逻辑。不要只 dump raw search output，也不要继承旧 central turn state
-machine。
+M2 只负责消费 `gaia search lkm` 的标准输出并产出 package-native landscape artifact。
+从 `gaia-lkm-explore` 搬运 deterministic code 的工作全部归 M2b，避免同一块
+landscape-staging 逻辑在两个 milestone 里重复实现。
 
 输出：
 
@@ -140,7 +143,6 @@ needs_more_evidence
 
 ```text
 depends_on
-candidate_relation
 derive
 infer
 contradict
@@ -148,6 +150,21 @@ question
 obligation
 none
 ```
+
+第一版 `promotion_hint` 到 Gaia DSL 的映射必须收窄到当前 CLI 真能表达的目标：
+
+| Assessment relation | 允许的 `promotion_hint` | 说明 |
+| --- | --- | --- |
+| `supports` | `derive` / `infer` / `depends_on` / `none` | `depends_on` 只表示 unfinished support dependency |
+| `opposes` | `contradict` / `infer` / `none` | 只有 adjudicable conflict 才能是 `contradict` |
+| `qualifies` | `derive` / `question` / `obligation` / `none` | 通常需要先形成 narrower claim 或 follow-up question |
+| `undercuts` | `obligation` / `question` / `none` | 多数情况下先变成待检查问题 |
+| `background_for` | `none` | v1 保持 artifact-only；需要 `note(...)` 时另走 formalization |
+| `needs_more_evidence` | `obligation` / `none` | accepted gap 进入 inquiry obligation |
+
+`candidate_relation` 暂不作为 v1 promotion target。当前 `gaia author candidate-relation`
+只支持 `equal` / `contradict` / `exclusive` pattern，不能表达 `supports`、`qualifies`
+或 `undercuts` 这类 assessment relation。
 
 验证：
 
@@ -196,6 +213,24 @@ none
 - 默认只写 proposal artifact；
 - `--accept` 可以写 inquiry state 或 package questions；
 - 不写 stable truth claims。
+
+## M7. `gaia-lkm-explore` Deprecation Gate
+
+在删除 `pyproject.toml` 里的 `gaia-lkm-explore` entry point 前，需要满足这些条件：
+
+- M1-M5 的 `gaia research` commands 已覆盖旧 workflow 的核心路径：status、broad
+  landscape scan、targeted expand、assessment artifact。
+- M2b 已迁移必要 deterministic utilities，且不再依赖 `.gaia/exploration/map.json` 作为
+  canonical state。
+- `.gaia/exploration/` 到 `.gaia/research/` 的 import/migration 行为有文档和测试。
+- docs 和 agent-facing instructions 不再把 `gaia-lkm-explore` 当作 canonical workflow。
+- 至少一个真实 LKM-backed example 用 `gaia research` 跑通，不需要旧 entry point。
+
+deprecation 执行顺序：
+
+1. 标记 `gaia-lkm-explore` 为 deprecated compatibility entry point。
+2. 保留一段迁移窗口，只读旧 `.gaia/exploration/` artifacts。
+3. 在后续 breaking cleanup PR 中删除 entry point 和旧 CLI-only docs。
 
 ## Later Specs
 
