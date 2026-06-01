@@ -981,6 +981,38 @@ class TestReasoning:
         assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
         assert item["source"]["index_id"] == "bohrium"
 
+    def test_claim_reasoning_uses_global_factor_id_when_chain_id_is_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "reasoning_chains": [
+                    {
+                        "factors": [
+                            {
+                                "global_id": "gfac_2d9b044b8de74fe4",
+                                "local_id": "lfac_local",
+                                "conclusion": {"id": "gcn_result", "title": "Result"},
+                                "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                            }
+                        ]
+                    }
+                ],
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["id"] == "lkm:bohrium:gfac_2d9b044b8de74fe4"
+        assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
+        assert item["source"]["factors"] == [
+            {"factor_id": "gfac_2d9b044b8de74fe4", "premise_count": 1}
+        ]
+
 
 # --------------------------------------------------------------------------- #
 # reasoning-search alias                                                      #

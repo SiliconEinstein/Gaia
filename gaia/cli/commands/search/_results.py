@@ -255,7 +255,7 @@ def _chain_provider_id(chain: dict[str, Any], *, index: int) -> str:
     for factor in _list(chain.get("factors")):
         if not isinstance(factor, dict):
             continue
-        factor_id = _string(factor.get("id")) or _string(factor.get("factor_id"))
+        factor_id = _factor_id(factor)
         if factor_id is not None:
             return factor_id
     return f"chain_{index}"
