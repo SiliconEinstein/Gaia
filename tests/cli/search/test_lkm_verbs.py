@@ -805,8 +805,7 @@ class TestReasoning:
         assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] is None
         assert item["source"]["conclusion_id"] == "7"
-        assert item["source"]["has_factors"] is False
-        assert item["source"]["can_compile"] is False
+        assert item["source"]["factors"] == []
         assert item["actions"] == [
             {
                 "kind": "inspect",
@@ -860,8 +859,142 @@ class TestReasoning:
         item = json.loads(result.output)["results"][0]
         assert item["kind"] == "reasoning_chain"
         assert item["gaia"]["object_kind"] == "derive"
-        assert item["source"]["has_factors"] is True
-        assert item["source"]["can_compile"] is True
+        assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
+
+    def test_default_uses_global_factor_id_not_local_factor_id(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "source_package": "paper:811",
+                            "factors": [
+                                {
+                                    "global_id": "gfac_phase",
+                                    "local_id": "lfac_phase",
+                                    "conclusion": {"id": "gcn_result", "title": "Result"},
+                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["source"]["factors"] == [{"factor_id": "gfac_phase", "premise_count": 1}]
+
+    def test_default_warns_premised_factor_without_inline_conclusion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "paper_id": "811",
+                            "conclusion": {"id": "gcn_result", "title": "Result"},
+                            "factors": [
+                                {
+                                    "id": "fac_missing_conclusion",
+                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["gaia"]["object_kind"] is None
+        assert item["source"]["factors"] == [
+            {
+                "factor_id": "fac_missing_conclusion",
+                "premise_count": 1,
+                "warning": "missing factor conclusion; cannot derive from this factor",
+            }
+        ]
+        assert item["actions"] == [
+            {
+                "kind": "inspect",
+                "ref": "lkm:bohrium:paper:811",
+                "label": "Inspect paper",
+                "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
+            },
+            {
+                "kind": "add",
+                "ref": "lkm:bohrium:paper:811",
+                "label": "Add LKM paper 811",
+                "target": {
+                    "kind": "paper",
+                    "title": None,
+                    "doi": None,
+                    "index_id": "bohrium",
+                    "paper_id": "811",
+                },
+                "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811",
+            },
+        ]
+
+    def test_default_marks_zero_premise_factor_as_package_context_required(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "id": "chain_1",
+                            "paper_id": "811",
+                            "factors": [
+                                {
+                                    "global_id": "gfac_intermediate",
+                                    "conclusion": {"id": "gcn_result", "title": "Result"},
+                                    "premises": [],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["gaia"]["object_kind"] is None
+        assert item["source"]["factors"] == [
+            {
+                "factor_id": "gfac_intermediate",
+                "premise_count": 0,
+                "comment": "premises omitted; inspect package for upstream reasoning context",
+            }
+        ]
+        assert item["actions"][0] == {
+            "kind": "inspect",
+            "ref": "lkm:bohrium:paper:811",
+            "label": "Inspect paper",
+            "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
+        }
 
     def test_claim_reasoning_uses_factor_id_when_chain_id_is_missing(
         self, monkeypatch: pytest.MonkeyPatch
@@ -891,6 +1024,38 @@ class TestReasoning:
         assert item["id"] == "lkm:bohrium:gfac_2d9b044b8de74fe4"
         assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
         assert item["source"]["index_id"] == "bohrium"
+
+    def test_claim_reasoning_uses_global_factor_id_when_chain_id_is_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "reasoning_chains": [
+                    {
+                        "factors": [
+                            {
+                                "global_id": "gfac_2d9b044b8de74fe4",
+                                "local_id": "lfac_local",
+                                "conclusion": {"id": "gcn_result", "title": "Result"},
+                                "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                            }
+                        ]
+                    }
+                ],
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["id"] == "lkm:bohrium:gfac_2d9b044b8de74fe4"
+        assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
+        assert item["source"]["factors"] == [
+            {"factor_id": "gfac_2d9b044b8de74fe4", "premise_count": 1}
+        ]
 
 
 # --------------------------------------------------------------------------- #
@@ -1020,8 +1185,7 @@ class TestReasoningSearch:
         assert item["source"]["paper_id"] == "811827932371615744"
         assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] == "FAPbI3 processing paper"
-        assert item["source"]["has_factors"] is True
-        assert item["source"]["can_compile"] is True
+        assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
         assert item["actions"] == [
             {
                 "kind": "add",

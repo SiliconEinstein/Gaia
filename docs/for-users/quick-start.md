@@ -64,7 +64,7 @@ my-first-gaia/
   pyproject.toml              # [project], [tool.hatch.build.targets.wheel], [tool.gaia]
   uv.lock                     # pinned dependency tree, present after uv dependency resolution succeeds
   src/my_first/
-    __init__.py               # DSL declarations (template) + `from .authored import *`
+    __init__.py               # DSL declarations (template) + authored import block
     authored/
       __init__.py             # CLI-authored statements land here (gaia author)
   .gitignore                  # ignores .gaia/beliefs.json, .gaia/dep_beliefs/
@@ -81,7 +81,7 @@ gaia sdk                      # writes ./gaia-sdk/CHEATSHEET.md + full reference
 
 (The `gaia author` CLI is an optional convenience — see the
 [authoring workflow](authoring-workflow.md). When used, it writes into the
-re-exported `authored/` submodule, never the root `__init__.py`.)
+composed `authored/` submodule, never the root `__init__.py`.)
 
 ## Edit Your Package
 
@@ -135,7 +135,9 @@ Key points:
 - `claim()` declares propositions that carry probability in inference
 - `derive()` connects explicit premises to deterministic conclusions
 - `contradict()` declares a reviewable relation between two claims
-- `__all__` lists exported conclusions (the package's external interface)
+- `__all__` lists the package's curated external interface; here it exports
+  the returned contradiction helper as a typed relation, while internal
+  premises stay unexported
 
 ## Compile
 

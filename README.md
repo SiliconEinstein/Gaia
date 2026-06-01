@@ -308,7 +308,7 @@ The CLI is self-documenting. Use `gaia --help`, `gaia <group> --help`, and
 | `gaia bayes` | `model`, `compare`, `binomial`, `beta-binomial`, `poisson`, `normal`, `log-normal`, `beta`, `exponential`, `gamma`, `student-t`, `cauchy`, `chi-squared` | CLI helpers for Bayesian model comparison declarations and distribution literals. |
 | `gaia pkg` | `add`, `add-import`, `add-module`, `register`, `scaffold` | Manage package dependencies, sibling modules, scaffolds, and registry publication. |
 | `gaia run` | `infer`, `render` | Compute local posterior beliefs and render package outputs. |
-| `gaia inspect` | `starmap`, `starmap-replay` | Inspect compiled graph visualizations and replay artifacts. |
+| `gaia inspect` | `starmap` | Inspect compiled graph visualizations. |
 | `gaia inquiry` | `focus`, `review`, `obligation`, `hypothesis`, `tactics`, `reject` | Run the semantic inquiry and review loop over a compiled package. |
 | `gaia trace` | `verify`, `review`, `show` | Verify and review ARM execution traces. |
 | `gaia review` | skeleton only | Reserved top-level home for future reviewer tooling; do not confuse it with `gaia inquiry review` or `gaia trace review`. |

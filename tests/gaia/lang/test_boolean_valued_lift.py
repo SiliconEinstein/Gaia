@@ -139,6 +139,11 @@ def test_lift_materializes_propositional_formula_as_helper():
     assert isinstance(helper, Claim)
     assert helper.formula is not None
     assert isinstance(helper.formula, Land)
+    assert helper.metadata["generated"] is True
+    assert helper.metadata["helper_kind"] == "operand_lift"
+    assert helper.metadata["review"] is False
+    assert helper.metadata["lifted_by"] == "t"
+    assert helper.metadata["lift_position"] == "x"
     # Helper is distinct from the operand claims.
     assert helper is not a
     assert helper is not b
@@ -157,6 +162,11 @@ def test_lift_materializes_bool_expr_via_proposition_path():
     # claim.formula (which is the propositional/quantifier Formula path).
     assert helper.formula is None
     assert "predicate" in helper.metadata or "equation" in helper.metadata
+    assert helper.metadata["generated"] is True
+    assert helper.metadata["helper_kind"] == "operand_lift"
+    assert helper.metadata["review"] is False
+    assert helper.metadata["lifted_by"] == "t"
+    assert helper.metadata["lift_position"] == "x"
 
 
 def test_lift_rejects_term_layer_with_educational_message():

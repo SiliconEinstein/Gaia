@@ -27,13 +27,17 @@ type = "knowledge-package"
 uuid = "{uuid}"
 """
 
-# Package-root entrypoint: a thin re-export shell over the authored/
+# Package-root entrypoint: a thin composition shell over the authored/
 # submodule (the canonical CLI write target).
 _ROOT_INIT_TEMPLATE = """\
 __all__: list[str] = []
 
-from .authored import *  # noqa: E402, F403  (CLI-authored statements)
-from . import authored as _authored  # noqa: E402
+from . import authored as _authored
+
+for _gaia_name, _gaia_value in vars(_authored).items():
+    if not _gaia_name.startswith("_"):
+        globals()[_gaia_name] = _gaia_value
+del _gaia_name, _gaia_value
 
 __all__ = [*__all__, *_authored.__all__]
 """

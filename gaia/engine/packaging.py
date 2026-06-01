@@ -68,6 +68,11 @@ class GaiaPackagingError(RuntimeError):
 
 
 _MANIFEST_SCHEMA_VERSION = 1
+_STRUCTURAL_RELATION_EXPORT_HELPERS = {
+    "equivalence": "equivalence_result",
+    "contradiction": "contradiction_result",
+    "complement": "complement_result",
+}
 
 
 @dataclass
@@ -159,6 +164,70 @@ def _assign_labels_for_loaded_modules() -> None:
             continue
         source_module = _source_module_for_loaded_module(module_name, pkg)
         _assign_labels(module, pkg, source_module)
+
+
+def _root_all_names(module: ModuleType) -> list[str]:
+    export_names = getattr(module, "__all__", None)
+    if export_names is None:
+        return []
+    if not isinstance(export_names, (list, tuple)):
+        raise GaiaPackagingError("Error: package root __all__ must be a list or tuple of strings.")
+    if not all(isinstance(name, str) for name in export_names):
+        raise GaiaPackagingError(
+            "Error: package root __all__ must contain only string export names."
+        )
+    return list(export_names)
+
+
+def _validate_exportable_knowledge(name: str, exported: Knowledge) -> None:
+    metadata = exported.metadata or {}
+    if metadata.get("helper_kind") == "operand_lift":
+        raise GaiaPackagingError(
+            f"Error: root __all__ exports {name!r}, but it is an implicit lift helper "
+            "created to adapt a Formula/BoolExpr operand. If that formula is part of "
+            "the public surface, write an explicit claim(..., formula=...) and export "
+            "that named claim instead."
+        )
+
+
+def _record_root_exports(module: ModuleType, pkg: CollectedPackage) -> None:
+    """Resolve root ``__all__`` names to local Knowledge objects."""
+    local_knowledge_ids = {id(knowledge) for knowledge in pkg.knowledge}
+    exported_knowledge_ids: set[int] = set()
+    exported_labels: set[str] = set()
+
+    for name in _root_all_names(module):
+        if not hasattr(module, name):
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but the package root has no such attribute."
+            )
+        exported = getattr(module, name)
+        if not isinstance(exported, Knowledge):
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but it resolves to "
+                f"{type(exported).__name__}, not a Gaia Knowledge object."
+            )
+        if id(exported) not in local_knowledge_ids:
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but it points to Knowledge "
+                "from another package. Export only local package Knowledge objects."
+            )
+        if exported.label != name:
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports {name!r}, but it points to Knowledge "
+                f"labeled {exported.label!r}. Exported Knowledge names must match "
+                "their Gaia labels."
+            )
+        _validate_exportable_knowledge(name, exported)
+        if id(exported) in exported_knowledge_ids:
+            raise GaiaPackagingError(
+                f"Error: root __all__ exports duplicate Knowledge object {name!r}."
+            )
+        exported_knowledge_ids.add(id(exported))
+        exported_labels.add(name)
+
+    pkg._exported_knowledge_ids = exported_knowledge_ids
+    pkg._exported_labels = exported_labels
 
 
 def _is_auxiliary_source_module(parts: tuple[str, ...]) -> bool:
@@ -417,10 +486,7 @@ def load_gaia_package(path: str | Path = ".") -> LoadedGaiaPackage:
 
     _assign_labels_for_loaded_modules()
 
-    # Record exported labels from __all__ for the compiler
-    export_names = getattr(module, "__all__", None)
-    if isinstance(export_names, list) and all(isinstance(n, str) for n in export_names):
-        pkg._exported_labels = set(export_names)
+    _record_root_exports(module, pkg)
 
     module_titles = _module_titles(import_name, pkg)
     if module_titles:
@@ -1001,7 +1067,52 @@ def _resolve_fills_relations(
     return sorted(relations, key=lambda item: item["relation_id"])
 
 
-def _knowledge_manifest_entry(knowledge: IrKnowledge) -> dict[str, Any]:
+def _enum_value(value: Any) -> str:
+    return str(getattr(value, "value", value))
+
+
+def _export_relation_fields(graph: LocalCanonicalGraph) -> dict[str, dict[str, Any]]:
+    knowledge_by_qid = {knowledge.id: knowledge for knowledge in graph.knowledges if knowledge.id}
+    fields: dict[str, dict[str, Any]] = {}
+    for operator in graph.operators:
+        relation_kind = _enum_value(operator.operator)
+        expected_helper_kind = _STRUCTURAL_RELATION_EXPORT_HELPERS.get(relation_kind)
+        if expected_helper_kind is None:
+            continue
+        knowledge = knowledge_by_qid.get(operator.conclusion)
+        metadata = knowledge.metadata if knowledge is not None else {}
+        if (metadata or {}).get("helper_kind") != expected_helper_kind:
+            continue
+        fields[operator.conclusion] = {
+            "export_kind": "structural_relation",
+            "relation_kind": relation_kind,
+            "endpoints": list(operator.variables),
+            "target_type": "operator",
+            "target_id": operator.operator_id,
+        }
+
+    for strategy in graph.strategies:
+        if _enum_value(strategy.type) != "associate" or strategy.conclusion is None:
+            continue
+        knowledge = knowledge_by_qid.get(strategy.conclusion)
+        metadata = knowledge.metadata if knowledge is not None else {}
+        if (metadata or {}).get("helper_kind") != "association":
+            continue
+        fields[strategy.conclusion] = {
+            "export_kind": "probabilistic_relation",
+            "relation_kind": "associate",
+            "endpoints": list(strategy.premises),
+            "target_type": "strategy",
+            "target_id": strategy.strategy_id,
+            "p_a_given_b": strategy.p_a_given_b,
+            "p_b_given_a": strategy.p_b_given_a,
+        }
+    return fields
+
+
+def _knowledge_manifest_entry(
+    knowledge: IrKnowledge, *, export_fields: dict[str, Any] | None = None
+) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "qid": knowledge.id,
         "label": knowledge.label,
@@ -1009,6 +1120,8 @@ def _knowledge_manifest_entry(knowledge: IrKnowledge) -> dict[str, Any]:
         "content": knowledge.content,
         "content_hash": knowledge.content_hash,
     }
+    if export_fields:
+        entry.update(export_fields)
     parameters = [parameter.model_dump(mode="json") for parameter in knowledge.parameters]
     if parameters:
         entry["parameters"] = parameters
@@ -1045,8 +1158,12 @@ def _manifest_graph_sets(
 
 def _manifest_exports(graph: LocalCanonicalGraph) -> list[dict[str, Any]]:
     """Return sorted exported-knowledge manifest entries."""
+    relation_fields = _export_relation_fields(graph)
     return [
-        _knowledge_manifest_entry(knowledge)
+        _knowledge_manifest_entry(
+            knowledge,
+            export_fields=relation_fields.get(knowledge.id or ""),
+        )
         for knowledge in sorted(graph.knowledges, key=lambda item: item.id or "")
         if knowledge.exported and knowledge.id is not None
     ]

@@ -103,7 +103,7 @@ def test_compile_discovers_source_modules_without_root_imports(tmp_path):
         '    given=[evidence], rationale="Evidence supports result.", label="_strat_result"\n'
         ")\n"
     )
-    (pkg_src / "__init__.py").write_text('__all__ = ["result"]\n')
+    (pkg_src / "__init__.py").write_text("__all__ = []\n")
 
     result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
     assert result.exit_code == 0, f"Failed: {result.output}"
@@ -113,7 +113,7 @@ def test_compile_discovers_source_modules_without_root_imports(tmp_path):
 
     assert by_label["evidence"]["module"] == "claims"
     assert by_label["result"]["module"] == "claims"
-    assert by_label["result"]["exported"] is True
+    assert by_label["result"]["exported"] is False
     assert ir["module_order"] == ["claims"]
 
 

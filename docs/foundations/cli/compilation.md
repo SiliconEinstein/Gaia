@@ -70,8 +70,10 @@ correct `CollectedPackage`.
 
 **Label inference** (`_assign_labels` in `gaia/engine/packaging.py`): after import completes, the loader imports the package root and all non-helper source modules, then scans loaded module attributes to assign labels to unlabeled DSL objects:
 
-- `__all__` controls which labels become exported cross-package interface
-  labels; it does **not** limit which declarations are discovered or compiled.
+- Root `__all__` controls which local `Knowledge` objects become the exported
+  cross-package interface; each name must resolve as a root-module attribute
+  and match the object's Gaia label. It does **not** limit which declarations
+  are discovered or compiled.
 - Any assignable module variable name can receive a label; `__dunder__` names
   are skipped. A single leading underscore is a Python convention but does not
   by itself prevent labeling or compilation. Unbound/generated helpers enter
