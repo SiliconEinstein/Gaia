@@ -487,7 +487,9 @@ def test_gaia_cli_no_longer_lists_explore():
     # not list it, and `gaia explore` must error as an unknown command.
     help_result = runner.invoke(gaia_app, ["--help"])
     assert help_result.exit_code == 0
-    assert "explore" not in help_result.output
+    command_names = {command.name for command in gaia_app.registered_commands}
+    group_names = {group.name for group in gaia_app.registered_groups}
+    assert "explore" not in command_names | group_names
     unknown = runner.invoke(gaia_app, ["explore", "status", "."])
     assert unknown.exit_code != 0
 
