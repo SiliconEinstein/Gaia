@@ -74,6 +74,64 @@ def test_task_query_plan_primitive_uses_existing_scope(tmp_path: Path) -> None:
     assert task["inputs"]["scope"]["seed_question"] == "aspirin primary prevention"
 
 
+def test_task_help_lists_all_loop_primitives() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["task", "--help"])
+
+    assert result.exit_code == 0
+    for command in [
+        "scope",
+        "query-plan",
+        "search-execution",
+        "focus-synthesis",
+        "assessment-context",
+        "evidence-diagnosis",
+    ]:
+        assert command in result.stdout
+
+
+def test_task_search_execution_primitive_uses_existing_query_plan(tmp_path: Path) -> None:
+    runner = CliRunner()
+    artifacts = tmp_path / ".gaia" / "research_loop" / "explore" / "artifacts"
+    artifacts.mkdir(parents=True)
+    (artifacts / "query_plan.json").write_text(
+        json.dumps(
+            {
+                "queries": [{"query": "aspirin primary prevention bleeding", "purpose": "harms"}],
+                "rationale": "Need harm evidence.",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["task", "search-execution", str(tmp_path), "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    task = json.loads(Path(payload["task_path"]).read_text(encoding="utf-8"))
+    assert task["kind"] == "search_execution"
+    assert "--format gaia-json --out" in task["inputs"]["commands"][0]["command"]
+
+
+def test_task_focus_synthesis_primitive_uses_existing_landscape(tmp_path: Path) -> None:
+    runner = CliRunner()
+    artifacts = tmp_path / ".gaia" / "research_loop" / "explore" / "artifacts"
+    artifacts.mkdir(parents=True)
+    (artifacts / "landscape-0000.json").write_text(
+        json.dumps({"kind": "landscape", "paper_leads": [{"paper_id": "P1"}]}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["task", "focus-synthesis", str(tmp_path), "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    task = json.loads(Path(payload["task_path"]).read_text(encoding="utf-8"))
+    assert task["kind"] == "focus_synthesis"
+    assert task["allowed_refs"] == [{"kind": "paper", "id": "P1", "role": None}]
+
+
 def test_submit_scope_writes_scope_artifact(tmp_path: Path) -> None:
     runner = CliRunner()
     next_result = runner.invoke(app, ["next", str(tmp_path), "--json"])

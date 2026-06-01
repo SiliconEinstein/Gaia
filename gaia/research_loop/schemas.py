@@ -186,6 +186,8 @@ class FocusSynthesisCandidatePayload(BaseModel):
 
     focuses: list[FocusRecord]
     selection: FocusSelection | None = None
+    next_queries: list[PlannedQuery] = Field(default_factory=list)
+    continue_rationale: str | None = None
 
 
 class AssessmentContextCandidatePayload(BaseModel):
@@ -195,6 +197,10 @@ class AssessmentContextCandidatePayload(BaseModel):
 
     focus_id: str
     evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    supporting_refs: list[EvidenceRef] = Field(default_factory=list)
+    opposing_refs: list[EvidenceRef] = Field(default_factory=list)
+    known_gaps: list[str] = Field(default_factory=list)
+    assessment_mode: str | None = None
 
 
 class EvidenceItem(BaseModel):
@@ -204,6 +210,10 @@ class EvidenceItem(BaseModel):
 
     id: str
     refs: list[EvidenceRef]
+    summary: str | None = None
+    claim: str | None = None
+    evidence_family: str | None = None
+    confidence_note: str | None = None
 
 
 class GapMapEntry(BaseModel):
@@ -231,10 +241,13 @@ class EvidenceDiagnosisCandidatePayload(BaseModel):
 
     focus_id: str
     evidence_items: list[EvidenceItem]
+    candidate_claims: list[dict[str, Any]] = Field(default_factory=list)
     contradictions_or_tensions: list[dict[str, Any]] = Field(default_factory=list)
     limitations: list[str]
+    missing_evidence: list[str] = Field(default_factory=list)
     gap_map: list[GapMapEntry]
     next_tests: list[NextTest]
+    confidence_notes: list[str] = Field(default_factory=list)
 
 
 class ResearchLoopEvent(BaseModel):

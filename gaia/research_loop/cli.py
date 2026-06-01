@@ -100,8 +100,10 @@ def _echo_task_payload(payload: dict[str, object], json_out: bool) -> None:
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
         return
     typer.echo(f"Recommended: {payload['recommended_action']}")
-    typer.echo(f"Task: {payload['task_path']}")
-    typer.echo(f"Submit: {payload['submit_command']}")
+    if payload.get("task_path") is not None:
+        typer.echo(f"Task: {payload['task_path']}")
+    if payload.get("submit_command") is not None:
+        typer.echo(f"Submit: {payload['submit_command']}")
 
 
 @task_app.command("scope")
@@ -115,4 +117,32 @@ def task_scope_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
 def task_query_plan_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
     """Emit a query planning task envelope from the current scope artifact."""
     payload = emit_task(pkg, kind=TaskKind.QUERY_PLAN)
+    _echo_task_payload(payload, json_out)
+
+
+@task_app.command("search-execution")
+def task_search_execution_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit a search execution task envelope from the current query plan."""
+    payload = emit_task(pkg, kind=TaskKind.SEARCH_EXECUTION)
+    _echo_task_payload(payload, json_out)
+
+
+@task_app.command("focus-synthesis")
+def task_focus_synthesis_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit a focus synthesis task envelope from the current landscape."""
+    payload = emit_task(pkg, kind=TaskKind.FOCUS_SYNTHESIS)
+    _echo_task_payload(payload, json_out)
+
+
+@task_app.command("assessment-context")
+def task_assessment_context_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit an assessment context task envelope from selected focuses."""
+    payload = emit_task(pkg, kind=TaskKind.ASSESSMENT_CONTEXT)
+    _echo_task_payload(payload, json_out)
+
+
+@task_app.command("evidence-diagnosis")
+def task_evidence_diagnosis_command(pkg: str = _PKG_ARG, json_out: bool = _JSON_OPT) -> None:
+    """Emit an evidence diagnosis task envelope from assessment context."""
+    payload = emit_task(pkg, kind=TaskKind.EVIDENCE_DIAGNOSIS)
     _echo_task_payload(payload, json_out)

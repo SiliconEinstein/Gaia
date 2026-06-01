@@ -60,15 +60,21 @@ def build_scope_task(paths: ResearchLoopPaths) -> tuple[ResearchLoopTask, Path]:
 def build_query_plan_task(
     paths: ResearchLoopPaths,
     scope: dict[str, Any],
+    *,
+    round_number: int = 0,
+    prior_focus_synthesis: dict[str, Any] | None = None,
 ) -> tuple[ResearchLoopTask, Path]:
     """Build a task asking the agent to plan the next LKM searches."""
-    task_id = "task-query-plan-0001"
+    task_id = f"task-query-plan-{round_number + 1:04d}"
+    inputs: dict[str, Any] = {"scope": scope, "round": round_number}
+    if prior_focus_synthesis is not None:
+        inputs["prior_focus_synthesis"] = prior_focus_synthesis
     task = ResearchLoopTask(
         task_id=task_id,
         stage="explore",
         kind=TaskKind.QUERY_PLAN,
         objective="Plan the next LKM searches from the current scope and coverage.",
-        inputs={"scope": scope},
+        inputs=inputs,
         instructions=[
             "Propose a small set of LKM search queries.",
             "Prefer breadth-first coverage over deep paper analysis.",
@@ -95,9 +101,11 @@ def build_query_plan_task(
 def build_search_execution_task(
     paths: ResearchLoopPaths,
     query_plan: dict[str, Any],
+    *,
+    round_number: int = 0,
 ) -> tuple[ResearchLoopTask, Path]:
     """Build a mechanical task for running planned LKM searches."""
-    task_id = "task-search-execution-0001"
+    task_id = f"task-search-execution-{round_number + 1:04d}"
     commands: list[dict[str, str]] = []
     for index, item in enumerate(query_plan.get("queries", [])):
         if not isinstance(item, dict):
@@ -105,7 +113,7 @@ def build_search_execution_task(
         query = item.get("query")
         if not isinstance(query, str) or not query.strip():
             continue
-        output_path = paths.explore_artifacts / f"raw-search-0001-{index}.json"
+        output_path = paths.explore_artifacts / f"raw-search-{round_number + 1:04d}-{index}.json"
         command = (
             "gaia search lkm knowledge "
             f"{quote(query)} --format gaia-json --out {quote(str(output_path))}"
@@ -123,7 +131,7 @@ def build_search_execution_task(
         stage="explore",
         kind=TaskKind.SEARCH_EXECUTION,
         objective="Run the planned LKM searches and submit raw JSON result paths.",
-        inputs={"query_plan": query_plan, "commands": commands},
+        inputs={"query_plan": query_plan, "round": round_number, "commands": commands},
         instructions=[
             "Run each command exactly as written.",
             "Do not summarize or transform the raw LKM JSON.",
@@ -148,17 +156,20 @@ def build_search_execution_task(
 def build_focus_synthesis_task(
     paths: ResearchLoopPaths,
     landscape: dict[str, Any],
+    *,
+    round_number: int = 0,
 ) -> tuple[ResearchLoopTask, Path]:
     """Build a semantic task for synthesizing assessment focuses."""
-    task_id = "task-focus-synthesis-0001"
+    task_id = f"task-focus-synthesis-{round_number + 1:04d}"
     task = ResearchLoopTask(
         task_id=task_id,
         stage="explore",
         kind=TaskKind.FOCUS_SYNTHESIS,
-        objective="Synthesize assessment focuses from the current landscape.",
-        inputs={"landscape": landscape},
+        objective="Synthesize assessment focuses from the cumulative landscape through this round.",
+        inputs={"landscape": landscape, "round": round_number},
         instructions=[
             "Generate research questions, not paper clusters.",
+            "Use the cumulative landscape to preserve cross-round evidence context.",
             "Ground every evidence ref in the allowed refs.",
             "Select ready focuses only when they have enough refs for assessment.",
         ],
@@ -189,19 +200,26 @@ def build_focus_synthesis_task(
 def build_assessment_context_task(
     paths: ResearchLoopPaths,
     focuses: dict[str, Any],
+    *,
+    evidence_context: list[dict[str, Any]] | None = None,
 ) -> tuple[ResearchLoopTask, Path]:
     """Build an assessment-context task from selected Explore focuses."""
     task_id = "task-assessment-context-0001"
     selected_focus = _selected_focus(focuses)
+    inputs: dict[str, Any] = {"focus": selected_focus, "focuses": focuses}
+    if evidence_context is not None:
+        inputs["evidence_context"] = evidence_context
     task = ResearchLoopTask(
         task_id=task_id,
         stage="assess",
         kind=TaskKind.ASSESSMENT_CONTEXT,
         objective="Package the selected focus for evidence diagnosis.",
-        inputs={"focus": selected_focus, "focuses": focuses},
+        inputs=inputs,
         instructions=[
             "Preserve the selected focus id.",
             "Carry forward only evidence refs grounded by the selected focus.",
+            "Read evidence_context snippets before assigning support, opposition, or gaps.",
+            "Separate supporting refs, opposing refs, known gaps, and assessment mode when known.",
         ],
         allowed_actions=["submit_assessment_context", "stop"],
         recommended_action="submit_assessment_context",
@@ -212,7 +230,14 @@ def build_assessment_context_task(
             "stage": "assess",
             "kind": "assessment_context",
             "selected_action": "submit_assessment_context",
-            "payload": {"focus_id": "focus-example", "evidence_refs": []},
+            "payload": {
+                "focus_id": "focus-example",
+                "evidence_refs": [{"kind": "paper", "id": "P1"}],
+                "supporting_refs": [{"kind": "paper", "id": "P1"}],
+                "opposing_refs": [],
+                "known_gaps": ["Example gap."],
+                "assessment_mode": "evidence_diagnosis",
+            },
         },
         submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
     )
@@ -222,18 +247,28 @@ def build_assessment_context_task(
 def build_evidence_diagnosis_task(
     paths: ResearchLoopPaths,
     assessment_context: dict[str, Any],
+    *,
+    evidence_context: list[dict[str, Any]] | None = None,
 ) -> tuple[ResearchLoopTask, Path]:
     """Build an evidence-diagnosis task from an assessment context."""
     task_id = "task-evidence-diagnosis-0001"
+    inputs: dict[str, Any] = {"assessment_context": assessment_context}
+    if evidence_context is not None:
+        inputs["evidence_context"] = evidence_context
     task = ResearchLoopTask(
         task_id=task_id,
         stage="assess",
         kind=TaskKind.EVIDENCE_DIAGNOSIS,
         objective="Diagnose the evidence, tensions, limitations, gaps, and next tests.",
-        inputs={"assessment_context": assessment_context},
+        inputs=inputs,
         instructions=[
             "Ground every evidence item in allowed refs.",
+            "Use evidence_context snippets as the primary content to analyze.",
             "Tie each next test to a gap id.",
+            "Preserve the assessment context focus id.",
+            "When listing a contradiction or tension, link at least two evidence items or claims.",
+            "Use limitations, missing_evidence, and confidence_notes "
+            "to explain residual uncertainty.",
         ],
         allowed_actions=["submit_evidence_diagnosis", "stop"],
         recommended_action="submit_evidence_diagnosis",
@@ -250,10 +285,19 @@ def build_evidence_diagnosis_task(
             "selected_action": "submit_evidence_diagnosis",
             "payload": {
                 "focus_id": "focus-example",
-                "evidence_items": [{"id": "e1", "refs": []}],
+                "evidence_items": [
+                    {
+                        "id": "e1",
+                        "refs": [{"kind": "paper", "id": "P1"}],
+                        "summary": "Example evidence item.",
+                    }
+                ],
+                "candidate_claims": [{"id": "c1", "claim": "Example candidate claim."}],
                 "limitations": ["Example limitation."],
+                "missing_evidence": ["Example missing evidence."],
                 "gap_map": [{"gap_id": "g1", "description": "Example gap."}],
                 "next_tests": [{"gap_id": "g1", "test": "Example test."}],
+                "confidence_notes": ["Example confidence note."],
             },
         },
         submit_command=f"gaia-research-loop submit {paths.pkg} <candidate.json>",
