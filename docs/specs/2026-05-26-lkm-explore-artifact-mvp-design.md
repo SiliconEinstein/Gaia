@@ -1,6 +1,15 @@
 # LKM Explore Artifact MVP Design
 
-> **Status:** Draft
+> **状态：** Experimental / historical reference。
+>
+> **当前实现锚点：**
+> [Research Actions Package-Native Overview](2026-06-01-research-actions-package-native-overview.md)
+> 和
+> [Research Actions Implementation Roadmap](2026-06-01-research-actions-implementation-roadmap.md).
+>
+> **适合用于：** `gaia-lkm-explore` artifact MVP 经验。
+>
+> **不要作为：** 当前 `.gaia/research/` artifact contract。
 >
 > **Date:** 2026-05-26
 >
