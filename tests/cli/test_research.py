@@ -44,6 +44,42 @@ def _read_events(pkg_dir: Path) -> list[dict[str, object]]:
     ]
 
 
+def _search(query: str, rows: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "query": {"text": query, "provider": "lkm", "kind": "knowledge"},
+        "results": rows,
+    }
+
+
+def _lkm_row(
+    paper_id: str,
+    node_id: str,
+    score: float,
+    *,
+    paper_title: str,
+    doi: str | None = None,
+) -> dict[str, object]:
+    return {
+        "id": node_id,
+        "provider": "lkm",
+        "kind": "claim",
+        "title": f"Claim surfaced from {paper_title}",
+        "source": {
+            "paper_id": paper_id,
+            "paper_title": paper_title,
+            "doi": doi,
+            "index_id": "bohrium",
+        },
+        "rank": {"score": score, "score_kind": "retrieval"},
+        "gaia": {"qid": None},
+    }
+
+
+def _landscape_artifacts(pkg_dir: Path) -> list[Path]:
+    return sorted((pkg_dir / ".gaia" / "research" / "landscapes").glob("scan-*.json"))
+
+
 def test_research_group_is_help_visible() -> None:
     result = runner.invoke(app, ["--help"])
 
@@ -103,6 +139,88 @@ def test_research_scan_dry_run_writes_events_without_pulls_or_source_edits(
     assert events[-1]["event"] == "explore.scan.planned"
     assert events[-1]["payload"]["dry_run"] is True
     assert events[-1]["payload"]["pull_budget"] == 0
+
+
+def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "free fall",
+                [
+                    _lkm_row(
+                        "P1",
+                        "lkm:bohrium:n1",
+                        0.7,
+                        paper_title="Paper One",
+                        doi="10.1/example",
+                    ),
+                    _lkm_row("P1", "lkm:bohrium:n2", 0.9, paper_title="Paper One"),
+                    _lkm_row("P2", "lkm:bohrium:n3", 0.4, paper_title="Paper Two"),
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Landscape:" in result.output
+    assert "pull_budget: 0" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+    assert not (pkg_dir / ".gaia" / "lkm_packages").exists()
+
+    artifacts = _landscape_artifacts(pkg_dir)
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert payload["kind"] == "research_landscape"
+    assert payload["action"] == "explore.scan"
+    assert payload["pull_budget"] == 0
+    assert payload["stats"]["query_batches"] == 1
+    assert payload["stats"]["paper_leads"] == 2
+    assert payload["query_provenance"][0]["query"] == "free fall"
+    assert payload["query_provenance"][0]["path"] == str(search_path)
+    assert [lead["paper_id"] for lead in payload["paper_leads"]] == ["P1", "P2"]
+    assert payload["paper_leads"][0]["lkm_node_ids"] == ["lkm:bohrium:n1", "lkm:bohrium:n2"]
+    assert payload["pull_candidates"][0]["command"] == (
+        "gaia pkg add --lkm-index bohrium --lkm-paper P1"
+    )
+    assert payload["coverage_map"]["query_families"][0]["paper_leads"] == 2
+    assert payload["candidate_focuses"][0]["status"] == "candidate"
+
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "explore.scan.completed"
+    assert events[-1]["payload"]["artifact"].endswith(artifacts[0].name)
+    assert events[-1]["payload"]["stats"]["paper_leads"] == 2
+
+
+def test_research_scan_reads_search_json_from_stdin(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    envelope = _search(
+        "stdin query",
+        [_lkm_row("P3", "lkm:bohrium:n4", 0.5, paper_title="Paper Three")],
+    )
+
+    result = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", "-"],
+        input=json.dumps(envelope),
+    )
+
+    assert result.exit_code == 0, result.output
+    artifacts = _landscape_artifacts(pkg_dir)
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert payload["query_provenance"][0]["path"] == "<stdin>"
+    assert payload["paper_leads"][0]["paper_id"] == "P3"
 
 
 def test_research_assess_artifact_only_records_planning_event(tmp_path: Path) -> None:

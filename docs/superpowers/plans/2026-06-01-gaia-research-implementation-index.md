@@ -37,7 +37,7 @@ Every implementation PR must preserve these checks:
 
 ## M2. Explore Scan
 
-**Plan:** Create a dedicated `docs/superpowers/plans/YYYY-MM-DD-gaia-research-m2-explore-scan.md` before implementation.
+**Plan:** `docs/superpowers/plans/2026-06-01-gaia-research-m2-explore-scan.md`
 
 **Reviewable Success Criteria:**
 
