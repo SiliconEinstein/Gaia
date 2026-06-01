@@ -109,7 +109,7 @@ def test_infer_with_deduction_strategy(tmp_path):
         'law = claim("forall x. P(x)")\n'
         'instance = claim("P(a)")\n'
         "proof = deduction(premises=[law], conclusion=instance, reason='instantiate', prior=0.9)\n"
-        '__all__ = ["law", "instance", "proof"]\n'
+        '__all__ = ["law", "instance"]\n'
     )
     (pkg_dir / "deduction_demo" / "priors.py").write_text(
         "from . import law, instance\n\n"

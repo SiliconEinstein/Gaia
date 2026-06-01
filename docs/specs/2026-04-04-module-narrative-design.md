@@ -88,9 +88,15 @@ During compilation:
 
 1. Read `_source_module` and `_declaration_index` from each runtime Knowledge → write to IR `module` and `declaration_index`
 2. Read `_module_order` from CollectedPackage → write to IR `module_order`
-3. Read the user package's `__all__` → set `exported = True` on matching Knowledge nodes
+3. Resolve the user package root's `__all__` as the curated public `Knowledge`
+   surface → set `exported = True` on those Knowledge nodes
 
-**`__all__` resolution:** The compiler already loads the user's Python module. After import, read `__all__` from the module's namespace. Match labels against `__all__` entries to set `exported`.
+**`__all__` resolution:** The compiler already loads the user's Python module.
+After import and label assignment, read root `__all__` from the module's
+namespace. Each entry must be a string that resolves through normal Python
+attribute lookup to a local `Knowledge` object, and the public name must match
+that object's Gaia label. Missing or empty root `__all__` means no exported
+public surface.
 
 #### 4. README generation (`gaia/cli/commands/_readme.py`)
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-// Renames the freshly-built single-file HTML in dist[/dist-replay] to
+// Renames the freshly-built single-file HTML in dist to
 // `template.html`, verifies the placeholder is intact, and copies it into
 // the Python package's ship location.
 //
 // Args:
 //   node rename_output.mjs starmap      # default — ships starmap to gaia/cli/starmap_assets/
-//   node rename_output.mjs replay       # ships replay to gaia/cli/starmap_replay_assets/
 //
 // The starmap target preserves the original behavior (placeholder
 // `__GRAPH_DATA__`, source dir `dist/`, source file `index.html`).
@@ -28,17 +27,7 @@ const TARGETS = {
     distDir: resolve(__dirname, '..', 'dist'),
     sourceName: 'index.html',
     placeholder: '<!--__GRAPH_DATA__-->',
-    shipDir: resolve(
-      __dirname, '..', '..', 'gaia', 'cli', 'starmap_assets'
-    ),
-  },
-  replay: {
-    distDir: resolve(__dirname, '..', 'dist-replay'),
-    sourceName: 'index-replay.html',
-    placeholder: '<!--__TIMELINE_DATA__-->',
-    shipDir: resolve(
-      __dirname, '..', '..', 'gaia', 'cli', 'starmap_replay_assets'
-    ),
+    shipDir: resolve(__dirname, '..', '..', 'gaia', 'cli', 'starmap_assets'),
   },
 };
 

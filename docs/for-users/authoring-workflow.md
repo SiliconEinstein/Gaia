@@ -35,7 +35,7 @@ you'd rather write Python directly.
    Tier 2, optional. Start with `gaia sdk`, not the CLI.
 2. **One on-disk format.** A Gaia package is plain Python (`.py`). There is
    no second serialized format. CLI output is confined to the package's
-   re-exported `authored/` submodule (see below).
+   composed `authored/` submodule (see below).
 3. **`gaia author` APPENDS and is NOT idempotent.** Re-running the same
    `gaia author` command writes the statement again; a later binding of the
    same name shadows the earlier one. `gaia author list` reports shadowing
@@ -53,9 +53,13 @@ you'd rather write Python directly.
 6. **Mixing contract.** Hand-authored DSL lives in your own modules (the
    package root `__init__.py` and any siblings you write). CLI-authored DSL
    lives in `authored/`. The two **compose by import**, never by interleaving
-   in one file: the package-root `__init__.py` carries
-   `from .authored import *` and merges `authored.__all__` into its own
-   `__all__`, so the complete DSL loads as one package.
+   in one file: the package-root `__init__.py` imports the `authored`
+   module, copies its public runtime bindings into root globals for package
+   local references, and merges only `authored.__all__` into its own
+   `__all__`. Only names in the merged root `__all__` become the package's
+   exported public surface. Exported names must be local `Knowledge` objects;
+   returned helpers from relation verbs are allowed and are typed as relation
+   interfaces in manifests.
 
 ## The `authored/` submodule
 
@@ -64,7 +68,7 @@ you'd rather write Python directly.
 ```
 my-package-gaia/
   src/my_package/
-    __init__.py          # hand-authored DSL + `from .authored import *`
+    __init__.py          # hand-authored DSL + authored import block
     authored/
       __init__.py         # CLI-authored statements land here (__all__ literal)
       priors.py           # optional CLI-managed sibling (gaia pkg add-module)
@@ -73,21 +77,30 @@ my-package-gaia/
 The package-root `__init__.py` ends with:
 
 ```python
-__all__: list[str] = [...]               # your hand-authored exports
+__all__: list[str] = [...]               # your hand-authored public exports
 
-from .authored import *                  # CLI-authored statements
 from . import authored as _authored
+
+for _gaia_name, _gaia_value in vars(_authored).items():
+    if not _gaia_name.startswith("_"):
+        globals()[_gaia_name] = _gaia_value
+del _gaia_name, _gaia_value
+
 __all__ = [*__all__, *_authored.__all__]
 ```
 
 `gaia author` never writes the package-root `__init__.py`; every CLI write
 goes into `authored/`. This keeps hand-authored and CLI-authored statements
-in separate files that compose cleanly.
+in separate files that compose cleanly. Author commands default to internal
+writes; pass `--export` only for bindings that belong in the curated public
+surface. For relation verbs, `--export` exports the returned relation helper;
+for direct formula operands, name the formula with `claim(..., formula=...)`
+instead of exporting the implicit lift helper.
 
-> **Pre-canon alpha packages.** You do **not** add the re-export block by
+> **Pre-canon alpha packages.** You do **not** add the authored import block by
 > hand. On the **first** `gaia author <verb>` write, the CLI automatically
-> creates `authored/` and appends the re-export block (the
-> `from .authored import *` import plus the `__all__` merge) to your
+> creates `authored/` and appends the authored import block plus the
+> `__all__` merge to your
 > package-root `__init__.py`. The only manual step for an alpha-era package
 > is relocating any pre-existing CLI-style statements that currently live in
 > the root `__init__.py` into `authored/` if you want them CLI-managed there.

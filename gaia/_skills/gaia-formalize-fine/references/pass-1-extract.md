@@ -90,11 +90,11 @@ After extracting all modules, ask yourself:
 
 ### Marking exported conclusions
 
-The source's **core contributions** (new theoretical results, new numerical computation results, new experimental findings, key arguments) should be marked as exported conclusions in `__all__`. These are this knowledge package's external interface — other packages can reference them.
+The source's **core contributions** (new theoretical results, new numerical computation results, new experimental findings, key arguments) should be marked as exported conclusions in the root package `__all__`. These are this knowledge package's curated external `Knowledge` interface — other packages can reference them.
 
 Criterion: if this result were removed from the source, the source would lose its core value.
 
-When you use `gaia author claim` / `gaia author derive` / etc., the verbs default to `--export` on every Knowledge-producing call; explicitly pass `--no-export` for an internal-only binding.
+When you use `gaia author claim` / `gaia author derive` / etc., the verbs default to internal-only writes. Pass `--export` only for bindings that belong in the package's curated public surface.
 
 ### Pass 1 deliverable
 

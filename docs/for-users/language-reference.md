@@ -47,13 +47,30 @@ from .s2_methods import *
 from .s3_results import *
 ```
 
-The package root `__all__` is the cross-package interface: names listed there
-are exported into the compiled package manifests. Sibling modules may also carry
-their own literal `__all__` blocks when they are CLI authoring targets:
+The package root `__all__` is the curated cross-package interface: names listed
+there are exported into the compiled package manifests. Each name must resolve
+to a local `Knowledge` object through normal root-module attribute lookup, and
+the public name must match the object's Gaia label. Returned relation helpers
+from `equal`, `contradict`, `exclusive`, and `associate` are still `Knowledge`
+objects; if exported, the manifest marks them as typed relation interfaces.
+Empty or missing root `__all__` means no exported public surface. Sibling
+modules may also carry their own literal `__all__` blocks when they are CLI
+authoring targets:
 `gaia pkg add-module` creates `__all__: list[str] = []`, and `gaia author
---file <module.py>` can insert new bindings into that module's list. Keep these
-lists literal and static; the CLI intentionally does not edit dynamically
-constructed `__all__` values.
+--file <module.py> --export` can insert new bindings into that module's list.
+Keep these lists literal and static; the CLI intentionally does not edit
+dynamically constructed `__all__` values.
+
+> **Migration (breaking).** Root `__all__` is now strictly validated at load /
+> compile time. A package whose root `__all__` lists a strategy
+> (`deduction(...)`, `support(...)`, composites), a `fills(...)`/bridge
+> relation, a name imported from a dependency package, an aliased `Knowledge`
+> (export name ≠ label), an implicit `Formula` / `BoolExpr` operand-lift helper,
+> or a typo now fails with a `GaiaPackagingError` that names the offending
+> entry. Older loaders silently ignored such names. To migrate, drop everything
+> that is not a local headline claim or explicitly public relation helper from
+> root `__all__` and run `gaia build compile <pkg>`. See
+> [Curated Package Exports Design](../specs/2026-05-31-curated-package-exports-design.md).
 
 ## Imports
 
@@ -618,8 +635,11 @@ constraint only for the remaining numeric uncertainty.
 
 `infer(...)` returns the evidence claim and creates an internal likelihood
 warrant for review. `associate(...)` returns an association helper claim because
-the association itself is the review target. These helper claims are not
-independent probabilistic inputs, so do not put priors on them.
+the association itself is the review target. If that helper is listed in root
+`__all__`, `.gaia/manifests/exports.json` marks it as
+`export_kind="probabilistic_relation"` and records the endpoint QIDs plus
+`p_a_given_b` / `p_b_given_a`. These helper claims are not independent
+probabilistic inputs, so do not put priors on them.
 
 ### Model-based Bayesian soft constraints: prefer this for real data likelihoods
 
@@ -675,8 +695,18 @@ reviewers something concrete to inspect.
 Support-like actions (`observe`, `derive`, `compute`, and `infer`) return the
 claim they produce or affect. Relation-shaped actions (`associate`, `equal`,
 `contradict`, and `exclusive`) return generated helper claims because the
-relation itself is the public review target. Scaffold actions return scaffold
-records and do not create BP factors.
+relation itself is the public review target. `decompose(...)` returns the
+`whole` claim; its formula structure is attached through lowering, not returned
+as a separate public claim. Scaffold actions return scaffold records and do not
+create BP factors.
+
+The returned helpers from `associate`, `equal`, `contradict`, and `exclusive`
+may be explicitly exported when the relation belongs in the package interface.
+Helpers created only by `_lift_to_claim` to adapt a direct `Formula` or
+`BoolExpr` operand, such as the anonymous helper behind `equal(a & b, c)`, are
+internal and cannot be exported. Name public formulas yourself with
+`claim(..., formula=...)`; those explicit formula bindings export as claims,
+not as returned relation helpers.
 
 External priors belong on independent input claims, usually through
 `priors.py`. They do not belong on derived conclusions, helper claims, scaffold
@@ -800,6 +830,12 @@ same = equal(prediction, observation,
 one_of = exclusive(conventional_sc, unconventional_sc,
     rationale="This package treats the two cases as an exhaustive binary split.")
 ```
+
+If one of these returned helpers is listed in root `__all__`, the export
+manifest keeps the helper claim and adds `export_kind="structural_relation"`,
+the relation kind, endpoint QIDs, and the backing operator ID. This makes the
+public interface say "these claims stand in this relation" instead of treating
+the helper as an ordinary headline conclusion.
 
 Use scaffold relations when the relation is worth tracking but not ready to
 enter inference:
@@ -937,9 +973,14 @@ tc_prediction = claim("Tc of MgB2 is 39K.")
 
 | Convention | Visibility | Example |
 |------------|-----------|---------|
-| In `__all__` | Exported (cross-package interface) | `__all__ = ["main_theorem"]` |
+| In root `__all__` | Exported cross-package claim or typed relation interface | `__all__ = ["main_theorem"]` or `__all__ = export(main_theorem)` |
 | No `_` prefix | Package-scope binding; may receive an inferred label | `supporting_lemma = claim(...)` |
-| `_` prefix | Python private convention only; not exported unless listed in `__all__` | `_helper = claim(...)` |
+| `_` prefix | Python private convention only; do not export it | `_helper = claim(...)` |
+
+Relation helpers returned by `equal`, `contradict`, `exclusive`, and
+`associate` can be exported explicitly. Implicit operand-lift helpers generated
+from `Formula` / `BoolExpr` arguments cannot; use an explicit
+`claim(..., formula=...)` binding if that formula is part of the public surface.
 
 **Legacy strategy naming:** Assign legacy strategies to named variables so they appear in `gaia build check --brief` output:
 
@@ -994,7 +1035,7 @@ Do not assign manual priors to derived claims, structural expression helpers, re
 | Assigning priors to derived/helper claims | Put priors only on independent probabilistic inputs |
 | `PRIORS = {...}` in `priors.py` | Use `register_prior(claim, value, justification=...)` |
 | `reason` without `prior` in legacy APIs (or vice versa) | Provide both or neither |
-| Dynamic or computed `__all__` | Keep `__all__` literal and static. Root `__all__` is the cross-package export surface; CLI target submodules may also keep literal lists for `gaia author --file`. |
+| Dynamic or computed `__all__` | Keep `__all__` literal and static, or use `export(...)` with module-scope `Knowledge` objects. Root `__all__` is the cross-package export surface; CLI target submodules may also keep literal lists for `gaia author --file`. |
 | `from gaia.gaia_ir import ...` | Use `from gaia.engine.ir import ...` |
 | `noisy_and()` | Deprecated legacy compatibility path |
 

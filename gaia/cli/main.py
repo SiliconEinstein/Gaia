@@ -6,7 +6,7 @@ The CLI organizes verbs into explicit top-level groups:
            author the DSL directly — the primary path)
   build    init / compile / check
   run      infer / render
-  inspect  starmap / starmap-replay
+  inspect  starmap
   review   (empty skeleton — held for downstream reviewer tooling)
   inquiry  (sub-app: focus / review / obligation / hypothesis / tactics / reject)
   pkg      add / add-import / add-module / register / scaffold
@@ -86,7 +86,6 @@ from gaia.cli.commands.search import search_app
 from gaia.cli.commands.skill import list_command as skill_list_command
 from gaia.cli.commands.skill import register_command as skill_register_command
 from gaia.cli.commands.starmap import starmap_command
-from gaia.cli.commands.starmap_replay import starmap_replay_command
 from gaia.cli.commands.trace import trace_app
 
 _ROOT_EPILOG = (
@@ -187,16 +186,15 @@ app.add_typer(run_app, name="run")
 
 
 # --------------------------------------------------------------------------- #
-# inspect — starmap / starmap-replay                                          #
+# inspect — starmap                                                           #
 # --------------------------------------------------------------------------- #
 
 inspect_app = typer.Typer(
     name="inspect",
-    help="Inspect compiled artifacts (starmap / starmap-replay).",
+    help="Inspect compiled artifacts (starmap).",
     no_args_is_help=True,
 )
 inspect_app.command(name="starmap")(starmap_command)
-inspect_app.command(name="starmap-replay")(starmap_replay_command)
 app.add_typer(inspect_app, name="inspect")
 
 
@@ -266,7 +264,7 @@ app.add_typer(pkg_app, name="pkg")
 # primary path. The author group is an OPTIONAL convenience that CRUDs the
 # same DSL statements through structured commands — useful for machine-
 # checked appends, but not the recommended first move. Every write is
-# confined to the package's re-exported ``authored/`` submodule; the CLI
+# confined to the package's composed ``authored/`` submodule; the CLI
 # never writes the package-root ``__init__.py``. 18 statement-emitting
 # verbs share the same pre-write + envelope skeleton; ``compose`` /
 # ``composition`` use a file-based validate-and-register surface (see
