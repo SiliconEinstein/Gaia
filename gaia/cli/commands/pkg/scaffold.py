@@ -102,11 +102,12 @@ allow_holes = true
 
 
 # Minimal DSL template: the canonical ``claim`` import, an empty
-# ``__all__``, and the ``authored/`` re-export block. Hand-authored DSL
-# goes directly in this root ``__init__.py``; ``gaia author <verb>``
-# commands write into the re-exported ``authored/`` submodule, which
-# composes back via ``from .authored import *``. No placeholder demo
-# statement — the package starts empty.
+# ``__all__`` public-surface list, and the ``authored/`` import block.
+# Hand-authored DSL goes directly in this root ``__init__.py``; ``gaia
+# author <verb>`` commands write into the composed ``authored/``
+# submodule, which the root imports for package-local name resolution. No
+# placeholder demo statement — the package starts empty and exports no
+# public Knowledge until the author curates ``__all__``.
 #
 # The import line stays narrow (``claim`` only) for the default. The
 # freshly scaffolded package is loadable by ``gaia build check`` because
@@ -284,9 +285,9 @@ def _scaffold_layout(plan: _ScaffoldPlan) -> list[Path]:
     init_py.write_text(init_text)
     created.append(init_py)
 
-    # ``authored/`` re-exported submodule — the canonical home for every
-    # ``gaia author <verb>`` write. The root ``__init__.py`` re-exports it
-    # via ``from .authored import *`` (see ROOT_REEXPORT_BLOCK above).
+    # ``authored/`` submodule — the canonical home for every ``gaia author
+    # <verb>`` write. The root ``__init__.py`` imports its public runtime
+    # bindings and merges only curated authored exports into ``__all__``.
     authored_dir = src_pkg / "authored"
     authored_dir.mkdir()
     authored_init = authored_dir / "__init__.py"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import warnings
 from typing import Any
 
@@ -105,6 +106,60 @@ def _flatten_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     if "metadata" in metadata and isinstance(metadata["metadata"], dict) and len(metadata) == 1:
         return metadata["metadata"]
     return metadata
+
+
+def export(*items: str | Knowledge) -> list[str]:
+    """Return root ``__all__`` names for a package's public Knowledge surface.
+
+    The helper is intentionally small: it returns a plain ``list[str]`` and
+    stores no hidden export state. Passing strings is equivalent to writing the
+    names directly. Passing a ``Knowledge`` object resolves the object's public
+    name from the caller's module or local scope, which keeps ``__all__`` close
+    to normal Python public-API conventions while avoiding string typos.
+    """
+    namespace: dict[str, Any] = {}
+    current = inspect.currentframe()
+    frame = None
+    try:
+        frame = current.f_back if current is not None else None
+        if frame is not None:
+            namespace.update(frame.f_globals)
+            namespace.update(frame.f_locals)
+    finally:
+        del frame
+        del current
+
+    names: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            name = item
+        elif isinstance(item, Knowledge):
+            matches = [
+                candidate
+                for candidate, value in namespace.items()
+                if value is item and not candidate.startswith("_")
+            ]
+            if not matches:
+                raise ValueError(
+                    "export() could not find a public caller-scope name for "
+                    f"Knowledge object {item!r}; pass the name string explicitly"
+                )
+            if len(matches) > 1:
+                joined = ", ".join(sorted(matches))
+                raise ValueError(
+                    "export() found multiple names for the same Knowledge object: "
+                    f"{joined}; pass the intended name string explicitly"
+                )
+            name = matches[0]
+        else:
+            raise TypeError(
+                "export() entries must be strings or Gaia Knowledge objects, "
+                f"got {type(item).__name__}"
+            )
+        if name in names:
+            raise ValueError(f"export() received duplicate export name {name!r}")
+        names.append(name)
+    return names
 
 
 def claim(

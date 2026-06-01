@@ -138,13 +138,17 @@ and what is **exported** as the cross-package interface.
 
 | Level | Mechanism | Effect |
 |-------|-----------|--------|
-| **Exported** | Listed in the package root `__all__` | Cross-package visible. Exported labels appear in `exports.json` and release manifests. |
+| **Exported** | Root `__all__` names that resolve to local `Knowledge` objects | Cross-package visible. Exported labels appear in `exports.json` and release manifests. |
 | **Compiled local declaration** | Any local Gaia object registered during import of the package root or source modules | Compiled into IR and labelable from its Python variable name, even when not exported. |
 | **Anonymous helper** | Generated helper or object without an assignable module variable | Compiled with generated or anonymous identity. |
 
 Labels are assigned automatically from loaded module variable names during
 package loading. `__all__` does not limit discovery or compilation; it marks the
-exported interface. The label then forms the final segment of the object's QID.
+curated public `Knowledge` interface. Empty or missing `__all__` means no
+exported public surface. Each root `__all__` entry must resolve through normal
+Python attribute lookup to a local `Knowledge` object, and the public name must
+match that object's Gaia label because the label forms the final segment of the
+object's QID.
 Action labels are addressable via `[@label]` references the same way Knowledge
 labels are; see [knowledge-and-reasoning.md §4.3](knowledge-and-reasoning.md#43-action-label-references).
 
@@ -160,6 +164,16 @@ __all__ = ["vacuum_prediction", "air_resistance_hypothesis"]
 These two claims become:
 - `github:galileo_falling_bodies::vacuum_prediction`
 - `github:galileo_falling_bodies::air_resistance_hypothesis`
+
+For hand-written packages, `export(...)` is optional sugar that returns the same
+list of strings without maintaining hidden state:
+
+```python
+from gaia.engine.lang import export
+from .reasoning import vacuum_prediction, air_resistance_hypothesis
+
+__all__ = export(vacuum_prediction, air_resistance_hypothesis)
+```
 
 ## Version Semantics
 

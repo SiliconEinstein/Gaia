@@ -1,6 +1,7 @@
 """Tests for gaia compile command."""
 
 import json
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -8,7 +9,7 @@ from typer.testing import CliRunner
 from gaia.cli.main import app
 from gaia.engine.ir import LocalCanonicalGraph
 from gaia.engine.ir.validator import validate_local_graph
-from gaia.engine.packaging import write_text_atomic
+from gaia.engine.packaging import compile_loaded_package, load_gaia_package, write_text_atomic
 
 pytestmark = pytest.mark.pr_gate
 
@@ -72,6 +73,107 @@ def test_compile_creates_ir_json(tmp_path):
     assert premises_manifest["premises"] == []
     assert holes_manifest["holes"] == []
     assert bridges_manifest["bridges"] == []
+
+
+def _write_export_contract_package(
+    tmp_path,
+    *,
+    import_name: str,
+    body: str,
+    extra_modules: dict[str, str] | None = None,
+) -> Path:
+    pkg_dir = tmp_path / import_name
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        f'[project]\nname = "{import_name.replace("_", "-")}-gaia"\nversion = "1.0.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / import_name
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(body)
+    for module_name, module_body in (extra_modules or {}).items():
+        (pkg_src / f"{module_name}.py").write_text(module_body)
+    return pkg_dir
+
+
+def test_empty_root_all_exports_nothing_at_runtime_and_ir(tmp_path):
+    """An explicit empty root __all__ means no public exports anywhere."""
+    pkg_dir = _write_export_contract_package(
+        tmp_path,
+        import_name="empty_exports_pkg",
+        body=(
+            "from gaia.engine.lang import claim\n\n"
+            'hidden = claim("Internal claim.")\n'
+            "__all__ = []\n"
+        ),
+    )
+
+    loaded = load_gaia_package(pkg_dir)
+    ir = compile_loaded_package(loaded)
+
+    assert loaded.package.exported == []
+    assert [k["label"] for k in ir["knowledges"] if k["exported"]] == []
+
+
+def test_compile_errors_when_root_all_name_is_missing(tmp_path):
+    """Root __all__ is resolved as Python public attributes, so typos fail."""
+    pkg_dir = _write_export_contract_package(
+        tmp_path,
+        import_name="missing_export_pkg",
+        body=(
+            "from gaia.engine.lang import claim\n\n"
+            'main = claim("Main claim.")\n'
+            '__all__ = ["ghost"]\n'
+        ),
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+
+    assert result.exit_code != 0
+    assert "root __all__ exports 'ghost'" in result.output
+    assert "no such attribute" in result.output
+
+
+def test_compile_errors_when_exported_public_name_differs_from_label(tmp_path):
+    """A public export name must match the local Knowledge label that QIDs use."""
+    pkg_dir = _write_export_contract_package(
+        tmp_path,
+        import_name="aliased_export_pkg",
+        body=(
+            "from .section import conclusion as public_conclusion\n\n"
+            '__all__ = ["public_conclusion"]\n'
+        ),
+        extra_modules={
+            "section": (
+                'from gaia.engine.lang import claim\n\nconclusion = claim("Section result.")\n'
+            )
+        },
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+
+    assert result.exit_code != 0
+    assert "public_conclusion" in result.output
+    assert "Knowledge labeled 'conclusion'" in result.output
+
+
+def test_compile_accepts_export_helper_in_root_all(tmp_path):
+    """The DSL export(...) helper returns __all__ names without hidden state."""
+    pkg_dir = _write_export_contract_package(
+        tmp_path,
+        import_name="helper_export_pkg",
+        body=(
+            "from gaia.engine.lang import claim, export\n\n"
+            'main = claim("Main public claim.")\n'
+            "__all__ = export(main)\n"
+        ),
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+
+    assert result.exit_code == 0, result.output
+    exports_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "exports.json").read_text())
+    assert [item["label"] for item in exports_manifest["exports"]] == ["main"]
 
 
 def test_atomic_text_writer_replaces_without_temp_leftovers(tmp_path):
@@ -218,7 +320,7 @@ def test_compile_preserves_structured_steps_and_provenance(tmp_path):
         '    reason=[Step(reason="Combine both evidence lines.", '
         "premises=[evidence_a, evidence_b])],\n"
         ")\n"
-        '__all__ = ["evidence_a", "evidence_b", "hypothesis", "support"]\n'
+        '__all__ = ["evidence_a", "evidence_b", "hypothesis"]\n'
     )
 
     result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
@@ -469,7 +571,7 @@ def test_compile_fills_validates_foreign_local_hole_target(tmp_path, monkeypatch
         "from dep_pkg import missing_lemma\n\n"
         'b_result = claim("B theorem.")\n'
         'bridge = fills(source=b_result, target=missing_lemma, reason="Theorem 3 establishes A.")\n'
-        '__all__ = ["b_result", "bridge"]\n'
+        '__all__ = ["b_result"]\n'
     )
 
     result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
@@ -532,7 +634,7 @@ def test_compile_fills_emits_conditional_infer_bridge_metadata(tmp_path, monkeyp
         'b_result = claim("B theorem.")\n'
         "bridge = fills(source=b_result, target=missing_lemma, "
         'strength="conditional", mode="infer", reason="Only under extra assumptions.")\n'
-        '__all__ = ["b_result", "bridge"]\n'
+        '__all__ = ["b_result"]\n'
     )
 
     result = runner.invoke(app, ["build", "compile", str(consumer_dir)])
@@ -849,7 +951,7 @@ def test_compile_bridge_package_emits_declared_by_owner_false(tmp_path, monkeypa
         "from dep_a import missing_lemma\n"
         "from dep_b import b_result\n\n"
         'bridge = fills(source=b_result, target=missing_lemma, reason="Third-party bridge.")\n'
-        '__all__ = ["bridge"]\n'
+        "__all__ = []\n"
     )
 
     result = runner.invoke(app, ["build", "compile", str(bridge_dir)])
@@ -928,7 +1030,7 @@ def test_compile_named_strategy_uses_ir_canonical_formalization(tmp_path):
         'law = claim("forall x. P(x)")\n'
         'instance = claim("P(a)")\n'
         'proof = deduction(premises=[law], conclusion=instance, reason="instantiate", prior=0.9)\n'
-        '__all__ = ["law", "instance", "proof"]\n'
+        '__all__ = ["law", "instance"]\n'
     )
 
     result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
@@ -1003,7 +1105,7 @@ def test_compile_elimination_strategy_uses_ir_canonical_formalization(tmp_path):
         '    reason="All alternative causes were excluded.",\n'
         ")\n"
         '__all__ = ["exhaustive", "bacterial", "antibiotics_neg", "viral", '
-        '"viral_test_neg", "autoimmune", "argument"]\n'
+        '"viral_test_neg", "autoimmune"]\n'
     )
 
     result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
@@ -1060,7 +1162,7 @@ def test_compile_composite_strategy_preserves_sub_strategy_references(tmp_path):
         "    sub_strategies=[step1, step2],\n"
         '    reason="Compose the two support sub-arguments.",\n'
         ")\n"
-        '__all__ = ["evidence", "intermediate", "final_claim", "step1", "step2", "argument"]\n'
+        '__all__ = ["evidence", "intermediate", "final_claim"]\n'
     )
 
     result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
@@ -1113,8 +1215,7 @@ def test_compile_nested_composite_strategy_collects_recursive_knowledge(tmp_path
         "    conclusion=final_claim,\n"
         "    sub_strategies=[inner, final_support],\n"
         ")\n"
-        '__all__ = ["evidence", "hypothesis", "intermediate", "final_claim", '
-        '"step1", "step2", "inner", "final_support", "argument"]\n'
+        '__all__ = ["evidence", "hypothesis", "intermediate", "final_claim"]\n'
     )
 
     result = runner.invoke(app, ["build", "compile", str(pkg_dir)])

@@ -462,7 +462,9 @@ gaia pkg add-module --name probabilities.py --docstring "Mendel count constants"
 | `--docstring` | Optional module docstring |
 
 The created file contains a literal empty `__all__: list[str] = []`; later
-`gaia author --file <module.py>` calls can add new exported bindings to it.
+`gaia author --file <module.py> --export` calls can add bindings that belong
+in the package's curated public `Knowledge` surface. Without `--export`, author
+commands leave `__all__` untouched.
 
 ### `gaia pkg register`
 

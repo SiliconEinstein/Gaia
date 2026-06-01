@@ -11,7 +11,7 @@ SDK authoring (``gaia sdk`` + writing the DSL in Python) is the primary
 path; this CLI is an OPTIONAL convenience for humans and agents alike.
 When used, it owns identifier collision checks, reference resolution,
 pre-write defensive validation, file appending into the package's
-re-exported ``authored/`` submodule (never the package-root
+composed ``authored/`` submodule (never the package-root
 ``__init__.py``), and (by default) a post-write ``gaia build check`` to
 make sure the package still compiles. Output is JSON-by-default through a
 uniform envelope (see :mod:`._envelope`); ``--human`` opts into a
