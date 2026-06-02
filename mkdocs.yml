@@ -55,6 +55,8 @@ nav:
       - Quick Start: for-users/quick-start.md
       - Authoring Workflow: for-users/authoring-workflow.md
       - Hole And Bridge Tutorial: for-users/hole-bridge-tutorial.md
+  - Examples:
+      - Bayes LDL Phase II Trial: examples/bayes-ldl-trial.md
   - User Reference:
       - Language Reference: for-users/language-reference.md
       - CLI Commands: for-users/cli-commands.md
