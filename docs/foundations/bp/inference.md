@@ -45,8 +45,8 @@ FactorGraph 是一个**概念**，不绑定特定的存储或运行方式：
 
 - 每个 `Knowledge` 节点变成一个二值变量，prior 来源见下节Prior 赋值规则。
 - 每个 `Operator` 通过 `_OPERATOR_MAP` 映射到对应的确定性 FactorType（IMPLICATION / NEGATION / CONJUNCTION / DISJUNCTION / EQUIVALENCE / CONTRADICTION / COMPLEMENT），CPT 由真值表决定（详见 [formal-strategy-lowering.md](formal-strategy-lowering.md)）。
-- 每个 `Strategy(type=infer)` 变成 CONDITIONAL 因子，CPT 来自作者的 `p_e_given_h` / `p_e_given_not_h`（含 `given` 时按 v0.5 gating 收缩为 MaxEnt）。
-- 每个 `Strategy(type=associate)` 变成 PAIRWISE_POTENTIAL 因子，直接连接两个 Claim 变量（无 helper conclusion），joint weights 由 `p_a_given_b` / `p_b_given_a` 和至少一个边际 prior 推导。
+- 每个 `Strategy(type=infer)` 变成 CONDITIONAL 因子，CPT 来自作者的 `p_e_given_h` / `p_e_given_not_h`（含 `given` 时按 v0.5 gating 收缩为 MaxEnt）。如果 `p_e_given_not_h` 是 DSL 默认的中性 `0.5`，`gaia build check` / `gaia run infer` 会提示作者在知道背景/假阳性率时显式给出该值。
+- 每个 `Strategy(type=associate)` 变成 PAIRWISE_POTENTIAL 因子，直接连接两个 Claim 变量（无 helper conclusion）。joint weights 由 `p_a_given_b` / `p_b_given_a` 和已声明的端点边际 prior 推导；如果两个端点都没有声明边际 prior，则用局部 Jaynes MaxEnt closure 补完 2x2 joint table，并发出 warning 建议作者给至少一个端点补 `register_prior(...)`。
 - 每个 `FormalStrategy`（包括所有 v5 命名策略 formalize 后的形态）按内部 Operator 逐一 lower。
 - `CompositeStrategy` 递归 lower 子策略。
 - `Compose` 不产生 BP 因子（它是 IR 一等节点但语义上是 authoring container）。

@@ -56,6 +56,79 @@ def test_check_applies_priors_py_before_stale_check(tmp_path):
     assert "Check passed" in result.output
 
 
+def test_check_warns_on_priorless_associate_local_maxent_closure(tmp_path):
+    pkg_dir = tmp_path / "associate_priorless_check"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "associate-priorless-check-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "associate_priorless_check"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.engine.lang import associate, claim, derive, register_prior\n\n"
+        'premise = claim("Shared premise.")\n'
+        'claim_a = claim("Derived claim A.")\n'
+        'claim_b = claim("Derived claim B.")\n'
+        'derive(claim_a, given=[premise], rationale="Premise supports A.", label="derive_a")\n'
+        'derive(claim_b, given=[premise], rationale="Premise supports B.", label="derive_b")\n'
+        'register_prior(premise, value=0.7, justification="Observed shared premise.")\n'
+        "relation = associate(\n"
+        "    claim_a,\n"
+        "    claim_b,\n"
+        "    p_a_given_b=0.7,\n"
+        "    p_b_given_a=0.6,\n"
+        '    rationale="Derived claims are associated.",\n'
+        '    label="relation",\n'
+        ")\n"
+        '__all__ = ["relation"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["build", "check", "--hole", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "Warning:" in result.output
+    assert "local Jaynes MaxEnt closure" in result.output
+    assert "register_prior" in result.output
+
+
+def test_check_warns_on_defaulted_infer_background_likelihood(tmp_path):
+    pkg_dir = tmp_path / "infer_default_not_h_check"
+    pkg_dir.mkdir()
+    (pkg_dir / "pyproject.toml").write_text(
+        '[project]\nname = "infer-default-not-h-check-gaia"\nversion = "0.1.0"\n\n'
+        '[tool.gaia]\nnamespace = "github"\ntype = "knowledge-package"\n'
+    )
+    pkg_src = pkg_dir / "infer_default_not_h_check"
+    pkg_src.mkdir()
+    (pkg_src / "__init__.py").write_text(
+        "from gaia.engine.lang import claim, infer, register_prior\n\n"
+        'hypothesis = claim("Hypothesis.")\n'
+        'evidence = claim("Evidence.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
+        'register_prior(evidence, value=0.6, justification="Observed evidence.")\n'
+        "infer(\n"
+        "    evidence,\n"
+        "    hypothesis=hypothesis,\n"
+        "    p_e_given_h=0.8,\n"
+        '    rationale="Hypothesis predicts evidence.",\n'
+        '    label="bayes_update",\n'
+        ")\n"
+        '__all__ = ["hypothesis", "evidence"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["build", "check", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "Warning:" in result.output
+    assert "p_e_given_not_h was omitted" in result.output
+    assert "neutral 0.5 background likelihood" in result.output
+
+
 def test_check_fails_when_compiled_artifacts_are_stale(tmp_path):
     pkg_dir = tmp_path / "check_demo"
     _write_package(pkg_dir, content="Original claim.")

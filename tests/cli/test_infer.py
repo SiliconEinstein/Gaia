@@ -76,6 +76,39 @@ def test_infer_without_priors_py(tmp_path):
     assert len(beliefs["beliefs"]) >= 2
 
 
+def test_infer_associate_between_priorless_derived_claims(tmp_path):
+    """A soft association can close locally by MaxEnt when endpoints lack priors."""
+    pkg_dir = tmp_path / "associate_priorless_derived"
+    _write_base_package(pkg_dir, name="associate_priorless_derived")
+    (pkg_dir / "associate_priorless_derived" / "__init__.py").write_text(
+        "from gaia.engine.lang import associate, claim, derive, register_prior\n\n"
+        'pA = claim("Premise A.")\n'
+        'cA = claim("Conclusion A.")\n'
+        'derive(cA, given=[pA], rationale="A supports cA.", label="dA")\n'
+        'cB = claim("Conclusion B.")\n'
+        'derive(cB, given=[pA], rationale="A supports cB.", label="dB")\n'
+        'register_prior(pA, value=0.7, justification="Only the premise has a prior.")\n'
+        "rel = associate(\n"
+        "    cA,\n"
+        "    cB,\n"
+        "    p_a_given_b=0.7,\n"
+        "    p_b_given_a=0.6,\n"
+        '    rationale="Derived conclusions are associated.",\n'
+        '    label="rel",\n'
+        ")\n"
+        '__all__ = ["rel"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "Inferred" in result.output
+    assert "local Jaynes MaxEnt closure" in result.output
+    assert "register_prior" in result.output
+
+
 def test_infer_fails_when_compiled_artifacts_are_stale(tmp_path):
     pkg_dir = tmp_path / "infer_demo"
     _write_base_package(pkg_dir, name="infer_demo")
@@ -308,6 +341,34 @@ def test_infer_uses_v6_infer_action_cpt(tmp_path):
     beliefs = json.loads((pkg_dir / ".gaia" / "beliefs.json").read_text())
     belief_by_label = {item["label"]: item["belief"] for item in beliefs["beliefs"]}
     assert belief_by_label["hypothesis"] > 0.5
+
+
+def test_infer_warns_on_defaulted_v6_infer_not_h_likelihood(tmp_path):
+    pkg_dir = tmp_path / "v6_default_not_h_infer"
+    _write_base_package(pkg_dir, name="v6_default_not_h_infer")
+    (pkg_dir / "v6_default_not_h_infer" / "__init__.py").write_text(
+        "from gaia.engine.lang import claim, infer, register_prior\n\n"
+        'hypothesis = claim("Hypothesis.")\n'
+        'evidence = claim("Evidence.")\n'
+        'register_prior(hypothesis, value=0.4, justification="Base rate.")\n'
+        'register_prior(evidence, value=0.6, justification="Observed evidence.")\n'
+        "infer(\n"
+        "    evidence,\n"
+        "    hypothesis=hypothesis,\n"
+        "    p_e_given_h=0.8,\n"
+        '    rationale="Hypothesis predicts evidence.",\n'
+        '    label="bayes_update",\n'
+        ")\n"
+        '__all__ = ["hypothesis", "evidence"]\n'
+    )
+
+    compile_result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+    assert compile_result.exit_code == 0, compile_result.output
+
+    result = runner.invoke(app, ["run", "infer", str(pkg_dir)])
+    assert result.exit_code == 0, result.output
+    assert "p_e_given_not_h was omitted" in result.output
+    assert "neutral 0.5 background likelihood" in result.output
 
 
 def test_infer_with_root_observe(tmp_path):

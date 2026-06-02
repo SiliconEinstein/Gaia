@@ -609,6 +609,11 @@ infer(
 )
 ```
 
+If `p_e_given_not_h` is omitted, Gaia uses the neutral background likelihood
+`0.5` and emits a warning during `gaia build check` / `gaia run infer`. This is
+valid for a least-committal preview, but an explicit false-positive/background
+rate is preferable when you know it.
+
 `associate(...)` is symmetric. Use it when neither claim is naturally the
 hypothesis and neither is naturally the evidence, but the two are statistically
 linked.
@@ -640,6 +645,13 @@ the association itself is the review target. If that helper is listed in root
 `export_kind="probabilistic_relation"` and records the endpoint QIDs plus
 `p_a_given_b` / `p_b_given_a`. These helper claims are not independent
 probabilistic inputs, so do not put priors on them.
+
+The endpoint claims do not need declared priors solely to make
+`associate(...)` lowerable. When both endpoint marginals are missing, Gaia uses
+a local Jaynes MaxEnt closure for the 2x2 association table and emits a warning
+recommending `register_prior(...)` on at least one endpoint. Explicit endpoint
+priors remain preferable when you know the marginal prevalence; they participate
+in the usual Bayes-consistency checks.
 
 ### Model-based Bayesian soft constraints: prefer this for real data likelihoods
 

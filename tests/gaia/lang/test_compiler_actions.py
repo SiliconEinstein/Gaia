@@ -225,10 +225,12 @@ def test_compile_infer_action_with_given_switch_cpt():
     assert strategy.conclusion == "github:v6_actions::e"
     assert strategy.conditional_probabilities == [0.5, 0.5, 0.5, 0.8]
     assert strategy.metadata["given"] == ["github:v6_actions::g"]
+    assert strategy.metadata["p_e_given_not_h_defaulted"] is True
 
     stat_support = _knowledge_by_label(compiled)["likelihood_helper"]
     assert stat_support.metadata["relation"]["given"] == ["github:v6_actions::g"]
     assert stat_support.metadata["relation"]["p_e_given_not_h"] == 0.5
+    assert stat_support.metadata["relation"]["p_e_given_not_h_defaulted"] is True
 
 
 def test_compile_infer_lifts_probability_claims_to_cpt_values():

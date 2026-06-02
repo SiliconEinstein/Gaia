@@ -70,7 +70,7 @@ records its metadata in `pyproject.toml`).
 | Support | `derive` | `derive(conclusion, *, given=(), background=None, rationale="", label=None)` | yes |
 | Support | `observe` | `observe(conclusion, *, value=…, error=…, given=…, rationale="", label=None)` | yes |
 | Support | `compute` | `compute(result, *, fn, given=…, rationale="", label=None)` | yes |
-| Probabilistic | `infer` | `infer(evidence, hypothesis, p_e_given_h, *, p_e_given_not_h=…, given=…, label=None)` | yes |
+| Probabilistic | `infer` | `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h=…, given=…, label=None)` | yes |
 | Probabilistic | `associate` | `associate(a, b, p_a_given_b, p_b_given_a, *, pattern=…, rationale="", label=None)` | yes |
 | Sugar | `parameter` | `parameter(variable, value, *, content=…, prior=…, label=None, **metadata)` | yes |
 | Prior | `register-prior` | `register_prior(claim, *, value, justification, source_id=…)` | yes |
@@ -302,7 +302,7 @@ gaia author infer --evidence <ident> \
 | `--hypothesis-content "<prose>"` | one-of | **Prose mode** — mint a fresh hypothesis Claim. |
 | `--hypothesis-label <ident>` | no | Explicit label override for prose mode. |
 | `--p-e-given-h <float>` | yes | P(evidence \| hypothesis). |
-| `--p-e-given-not-h <float>` | no | P(evidence \| NOT hypothesis); DSL default 0.5. |
+| `--p-e-given-not-h <float>` | no | P(evidence \| NOT hypothesis); DSL default 0.5. Omitting it emits a `gaia build check` / `gaia run infer` warning because an explicit background/false-positive rate is preferable when known. |
 | `--given <csv>` | no | Conditioning Claim identifiers. |
 
 ### `associate`
@@ -325,6 +325,9 @@ gaia author associate --a <ident> --b <ident> \
 internal to the package; `--export` adds the returned helper binding to
 `__all__`, and the compiled export manifest marks it as a probabilistic
 relation interface with endpoint QIDs and conditional probabilities.
+If neither endpoint has a declared marginal prior, inference lowers the
+association by a local Jaynes MaxEnt closure of the 2x2 joint table and emits a
+warning recommending `register_prior(...)` on at least one endpoint.
 
 ### `parameter`
 

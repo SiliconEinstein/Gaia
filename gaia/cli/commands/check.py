@@ -13,6 +13,12 @@ from sympy.logic.boolalg import Not
 from sympy.logic.inference import satisfiable
 
 from gaia.cli.commands._inquiry import InquiryNode, build_goal_trees, render_inquiry
+from gaia.cli.commands._probabilistic_warnings import (
+    associate_local_maxent_warnings as _associate_local_maxent_warnings,
+)
+from gaia.cli.commands._probabilistic_warnings import (
+    infer_default_likelihood_warnings as _infer_default_likelihood_warnings,
+)
 from gaia.engine._stale_check import check_compiled_artifacts
 from gaia.engine.bp import lower_local_graph
 from gaia.engine.bp.exact import exact_joint_over
@@ -1284,6 +1290,8 @@ def _collect_check_diagnostics(loaded: Any, ir: dict[str, Any]) -> tuple[list[st
     validation = validate_local_graph(LocalCanonicalGraph(**ir))
     errors.extend(validation.errors)
     warnings.extend(validation.warnings)
+    warnings.extend(_associate_local_maxent_warnings(ir))
+    warnings.extend(_infer_default_likelihood_warnings(ir))
     bayes_diagnostics = _bayes_check_diagnostics(ir)
     errors.extend(bayes_diagnostics.errors)
     warnings.extend(bayes_diagnostics.warnings)
