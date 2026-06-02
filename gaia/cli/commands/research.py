@@ -11,13 +11,19 @@ import typer
 
 from gaia.engine.research import (
     ResearchPackage,
+    ResearchReportError,
     ResearchTargetError,
     ScanBatch,
     append_research_event,
+    build_assessment_from_analysis,
     build_assessment_from_landscapes,
+    build_focus_synthesis_artifact,
     build_research_landscape,
     ensure_research_manifest,
+    evaluate_research_stop,
     load_research_package,
+    render_research_artifact_markdown,
+    research_contract,
     write_research_artifact,
 )
 
@@ -86,12 +92,41 @@ def _read_json_object_path(path: Path) -> dict[str, object]:
     return payload
 
 
+def _read_json_object_ref(ref: str, *, label: str) -> dict[str, object]:
+    if ref == "-":
+        raw = sys.stdin.read()
+        source = "<stdin>"
+    else:
+        path = Path(ref)
+        source = str(path)
+        if not path.exists():
+            typer.echo(f"Error: {label} file not found: {ref}", err=True)
+            raise typer.Exit(2)
+        raw = path.read_text(encoding="utf-8")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: {label} is not valid JSON: {source}: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    if not isinstance(payload, dict):
+        typer.echo(f"Error: {label} must contain a JSON object: {source}", err=True)
+        raise typer.Exit(2)
+    return payload
+
+
 def _latest_landscape_paths(pkg: ResearchPackage) -> list[Path]:
     landscape_dir = pkg.path / ".gaia" / "research" / "landscapes"
     if not landscape_dir.exists():
         return []
     paths = sorted(landscape_dir.glob("*.json"), key=lambda item: item.stat().st_mtime)
     return paths[-1:] if paths else []
+
+
+def _all_landscape_paths(pkg: ResearchPackage) -> list[Path]:
+    landscape_dir = pkg.path / ".gaia" / "research" / "landscapes"
+    if not landscape_dir.exists():
+        return []
+    return sorted(landscape_dir.glob("*.json"), key=lambda item: item.stat().st_mtime)
 
 
 def _scan_batches(
@@ -112,6 +147,36 @@ def _scan_batches(
             )
         )
     return batches
+
+
+def _relation_type_counts(relations: object) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    if not isinstance(relations, list):
+        return counts
+    for relation in relations:
+        if not isinstance(relation, dict):
+            continue
+        relation_type = relation.get("type")
+        if isinstance(relation_type, str) and relation_type:
+            counts[relation_type] = counts.get(relation_type, 0) + 1
+    return counts
+
+
+@research_app.command("contract")
+def contract_command(
+    kind: Annotated[str, typer.Argument(help="Contract to print: focus or assess.")],
+    language: Annotated[
+        str,
+        typer.Option("--language", help="Preferred analysis language for examples/guidance."),
+    ] = "zh",
+) -> None:
+    """Print an agent-facing JSON contract for research analysis."""
+    try:
+        contract = research_contract(kind, language=language)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    typer.echo(json.dumps(contract, indent=2, ensure_ascii=False))
 
 
 @research_app.command("status")
@@ -296,6 +361,81 @@ def explore_command(
     _print_inquiry_suggestions(research_pkg)
 
 
+@research_app.command("focus")
+def focus_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    landscape: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--landscape",
+            help="Focus synthesis input landscape artifact; defaults to latest landscape.",
+        ),
+    ] = None,
+    analysis_json: Annotated[
+        str | None,
+        typer.Option(
+            "--analysis-json",
+            help="Agent/LLM JSON matching `gaia research contract focus`; use '-' for stdin.",
+        ),
+    ] = None,
+    language: Annotated[
+        str,
+        typer.Option("--language", help="Preferred output language for synthesized focuses."),
+    ] = "zh",
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Optional output path for the focus synthesis artifact."),
+    ] = None,
+) -> None:
+    """Synthesize assessment-ready research focuses from landscape artifacts."""
+    research_pkg = _load_or_exit(pkg)
+    ensure_research_manifest(research_pkg)
+    landscape_paths = [Path(item) for item in landscape or []] or _latest_landscape_paths(
+        research_pkg
+    )
+    if not landscape_paths:
+        typer.echo("Error: research focus requires at least one landscape artifact.", err=True)
+        raise typer.Exit(2)
+    landscapes = [_read_json_object_path(path) for path in landscape_paths]
+    analysis = (
+        _read_json_object_ref(analysis_json, label="--analysis-json")
+        if analysis_json is not None
+        else None
+    )
+    artifact = build_focus_synthesis_artifact(
+        landscapes=landscapes,
+        analysis=analysis,
+        language=language,
+    )
+    output_path = write_research_artifact(
+        research_pkg,
+        "focuses",
+        "focuses",
+        artifact,
+        out=out,
+    )
+    append_research_event(
+        research_pkg,
+        "focus.synthesis.completed",
+        {
+            "artifact": str(output_path),
+            "landscapes": [str(path) for path in landscape_paths],
+            "focuses": len(artifact["focuses"]),
+            "coverage_gaps": len(artifact["coverage_gaps"]),
+            "analysis_json": analysis_json is not None,
+            "language": language,
+            "writes_source": False,
+            "writes_focus_registry": False,
+        },
+    )
+    typer.echo(f"Focus synthesis: {output_path}")
+    typer.echo(f"focuses: {len(artifact['focuses'])}")
+    typer.echo(f"coverage_gaps: {len(artifact['coverage_gaps'])}")
+    typer.echo("writes_source: false")
+    typer.echo("writes_focus_registry: false")
+    _print_inquiry_suggestions(research_pkg)
+
+
 @research_app.command("assess")
 def assess_command(
     pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
@@ -314,6 +454,20 @@ def assess_command(
             help="Assessment input landscape artifact; defaults to latest landscape.",
         ),
     ] = None,
+    analysis_json: Annotated[
+        str | None,
+        typer.Option(
+            "--analysis-json",
+            help="Agent/LLM JSON matching `gaia research contract assess`; use '-' for stdin.",
+        ),
+    ] = None,
+    strict_grounding: Annotated[
+        bool,
+        typer.Option(
+            "--strict-grounding/--no-strict-grounding",
+            help="Require relation source refs to resolve inside the evidence packet.",
+        ),
+    ] = True,
 ) -> None:
     """Plan an artifact-only Assess action."""
     if not artifact_only:
@@ -327,10 +481,23 @@ def assess_command(
     )
     if landscape_paths:
         landscapes = [_read_json_object_path(path) for path in landscape_paths]
-        assessment = build_assessment_from_landscapes(
-            focus={"kind": "focus", "id": focus},
-            landscapes=landscapes,
+        analysis = (
+            _read_json_object_ref(analysis_json, label="--analysis-json")
+            if analysis_json is not None
+            else None
         )
+        if analysis is None:
+            assessment = build_assessment_from_landscapes(
+                focus={"kind": "focus", "id": focus},
+                landscapes=landscapes,
+            )
+        else:
+            assessment = build_assessment_from_analysis(
+                focus={"kind": "focus", "id": focus},
+                landscapes=landscapes,
+                analysis=analysis,
+                strict_grounding=strict_grounding,
+            )
         output_path = write_research_artifact(
             research_pkg,
             "assessments",
@@ -338,6 +505,7 @@ def assess_command(
             assessment,
         )
         snippets = assessment["evidence_packet"]["snippets"]
+        relation_counts = _relation_type_counts(assessment["relations"])
         append_research_event(
             research_pkg,
             "assess.completed",
@@ -348,7 +516,11 @@ def assess_command(
                 "landscapes": [str(path) for path in landscape_paths],
                 "snippets": len(snippets),
                 "relations": len(assessment["relations"]),
+                "relation_type_counts": relation_counts,
                 "candidate_obligations": len(assessment["candidate_obligations"]),
+                "analysis_json": analysis_json is not None,
+                "review": "review" in assessment,
+                "strict_grounding": strict_grounding,
                 "writes_source": False,
             },
         )
@@ -356,10 +528,17 @@ def assess_command(
         typer.echo(f"focus: {focus}")
         typer.echo(f"snippets: {len(snippets)}")
         typer.echo(f"relations: {len(assessment['relations'])}")
+        if relation_counts:
+            typer.echo(f"relation_type_counts: {json.dumps(relation_counts, ensure_ascii=False)}")
+        typer.echo(f"review: {'true' if 'review' in assessment else 'false'}")
         typer.echo("artifact_only: true")
         typer.echo("writes_source: false")
         _print_inquiry_suggestions(research_pkg)
         return
+
+    if analysis_json is not None:
+        typer.echo("Error: --analysis-json requires at least one landscape artifact.", err=True)
+        raise typer.Exit(2)
 
     append_research_event(
         research_pkg,
@@ -378,6 +557,145 @@ def assess_command(
     typer.echo("artifact_only: true")
     typer.echo("writes_source: false")
     _print_inquiry_suggestions(research_pkg)
+
+
+@research_app.command("report")
+def report_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    artifact: Annotated[
+        str,
+        typer.Option("--artifact", help="Research artifact JSON to render as Markdown."),
+    ],
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Optional output path for the rendered Markdown report."),
+    ] = None,
+) -> None:
+    """Render a research artifact as readable Markdown."""
+    research_pkg = _load_or_exit(pkg)
+    ensure_research_manifest(research_pkg)
+    artifact_path = Path(artifact)
+    payload = _read_json_object_path(artifact_path)
+    try:
+        markdown = render_research_artifact_markdown(payload)
+    except ResearchReportError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+    if out is None:
+        typer.echo(markdown.rstrip())
+        append_research_event(
+            research_pkg,
+            "report.rendered",
+            {"artifact": str(artifact_path), "out": None, "writes_source": False},
+        )
+        return
+
+    output_path = Path(out)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(markdown, encoding="utf-8")
+    append_research_event(
+        research_pkg,
+        "report.rendered",
+        {"artifact": str(artifact_path), "out": str(output_path), "writes_source": False},
+    )
+    typer.echo(f"Report: {output_path}")
+    typer.echo("writes_source: false")
+
+
+@research_app.command("stop")
+def stop_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    focus_artifact: Annotated[
+        str | None,
+        typer.Option("--focus-artifact", help="Optional focus synthesis artifact JSON."),
+    ] = None,
+    assessment: Annotated[
+        str | None,
+        typer.Option("--assessment", help="Optional assessment artifact JSON."),
+    ] = None,
+    landscape: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--landscape",
+            help="Current landscape artifact; defaults to latest package landscape.",
+        ),
+    ] = None,
+    previous_landscape: Annotated[
+        list[str] | None,
+        typer.Option("--previous-landscape", help="Earlier landscape for query novelty."),
+    ] = None,
+    max_open_obligations: Annotated[
+        int,
+        typer.Option(
+            "--max-open-obligations",
+            help="Maximum unresolved assessment obligations before expansion is weak.",
+        ),
+    ] = 2,
+    min_new_lead_ratio: Annotated[
+        float,
+        typer.Option(
+            "--min-new-lead-ratio",
+            help="Minimum latest-vs-previous new paper lead ratio before query novelty is weak.",
+        ),
+    ] = 0.2,
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Optional output path for the stop criteria JSON."),
+    ] = None,
+) -> None:
+    """Evaluate auditable stop criteria for the current research-loop state."""
+    research_pkg = _load_or_exit(pkg)
+    ensure_research_manifest(research_pkg)
+    default_landscapes = _all_landscape_paths(research_pkg)
+    landscape_paths = [Path(item) for item in landscape or []]
+    if not landscape_paths and default_landscapes:
+        landscape_paths = default_landscapes[-1:]
+
+    previous_paths = [Path(item) for item in previous_landscape or []]
+    if not previous_paths and not landscape and default_landscapes:
+        previous_paths = default_landscapes[:-1]
+
+    stop_artifact = evaluate_research_stop(
+        focus_artifact=(
+            _read_json_object_path(Path(focus_artifact)) if focus_artifact is not None else None
+        ),
+        assessment=_read_json_object_path(Path(assessment)) if assessment is not None else None,
+        landscapes=[_read_json_object_path(path) for path in landscape_paths],
+        previous_landscapes=[_read_json_object_path(path) for path in previous_paths],
+        max_open_obligations=max_open_obligations,
+        min_new_lead_ratio=min_new_lead_ratio,
+    )
+    output_path = write_research_artifact(
+        research_pkg,
+        "stops",
+        "stop",
+        stop_artifact,
+        out=out,
+    )
+    append_research_event(
+        research_pkg,
+        "stop.evaluated",
+        {
+            "artifact": str(output_path),
+            "focus_artifact": focus_artifact,
+            "assessment": assessment,
+            "landscapes": [str(path) for path in landscape_paths],
+            "previous_landscapes": [str(path) for path in previous_paths],
+            "recommendation": stop_artifact["recommendation"],
+            "should_stop": stop_artifact["should_stop"],
+            "writes_source": False,
+        },
+    )
+    typer.echo(f"Stop criteria: {output_path}")
+    typer.echo(f"recommendation: {stop_artifact['recommendation']}")
+    typer.echo(f"should_stop: {str(stop_artifact['should_stop']).lower()}")
+    dimensions = stop_artifact["dimensions"]
+    if isinstance(dimensions, dict):
+        for name, dimension in sorted(dimensions.items()):
+            if isinstance(dimension, dict):
+                typer.echo(f"{name}: {dimension.get('status')} - {dimension.get('reason')}")
+    typer.echo("writes_source: false")
 
 
 __all__ = ["research_app"]

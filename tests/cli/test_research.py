@@ -86,11 +86,29 @@ def _assessment_artifacts(pkg_dir: Path) -> list[Path]:
     return sorted((pkg_dir / ".gaia" / "research" / "assessments").glob("assessment-*.json"))
 
 
+def _stop_artifacts(pkg_dir: Path) -> list[Path]:
+    return sorted((pkg_dir / ".gaia" / "research" / "stops").glob("stop-*.json"))
+
+
 def test_research_group_is_help_visible() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0, result.output
     assert "research" in result.output
+
+
+def test_research_contract_commands_emit_json() -> None:
+    focus = runner.invoke(app, ["research", "contract", "focus"])
+    assess = runner.invoke(app, ["research", "contract", "assess"])
+
+    assert focus.exit_code == 0, focus.output
+    assert assess.exit_code == 0, assess.output
+    focus_payload = json.loads(focus.output)
+    assess_payload = json.loads(assess.output)
+    assert focus_payload["contract"] == "gaia.research.focus_synthesis"
+    assert assess_payload["contract"] == "gaia.research.assessment_analysis"
+    assert "ready_for_assess" in focus_payload["focus_fields"]["readiness"]
+    assert "supports" in assess_payload["relation_fields"]["type"]
 
 
 def test_research_status_creates_manifest_and_suggests_inquiry_commands(tmp_path: Path) -> None:
@@ -312,6 +330,89 @@ def test_research_expand_writes_targeted_landscape(tmp_path: Path) -> None:
     assert events[-1]["payload"]["target"] == {"kind": "focus", "id": "seed"}
 
 
+def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "lkm:bohrium:aspree",
+                        0.9,
+                        paper_title="ASPREE trial",
+                        content=(
+                            "ASPREE reported no cardiovascular benefit and more major hemorrhage."
+                        ),
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+    analysis_path = tmp_path / "focus-analysis.json"
+    analysis_path.write_text(
+        json.dumps(
+            {
+                "focuses": [
+                    {
+                        "id": "elderly_net_benefit",
+                        "kind": "research_focus",
+                        "status": "candidate",
+                        "question": "70岁及以上人群中，阿司匹林一级预防的净获益是否为正？",
+                        "rationale": "ASPREE 证据直接涉及老年人无获益和出血增加。",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {"population": "older adults"},
+                        "coverage": {"snippets": 1, "paper_leads": 1},
+                        "evidence_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                        "suggested_queries": [],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": ["agent synthesis"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "focus",
+            str(pkg_dir),
+            "--landscape",
+            str(landscape_path),
+            "--analysis-json",
+            str(analysis_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Focus synthesis:" in result.output
+    assert "focuses: 1" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+    artifacts = sorted((pkg_dir / ".gaia" / "research" / "focuses").glob("focuses-*.json"))
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert payload["focuses"][0]["id"] == "elderly_net_benefit"
+    assert payload["focuses"][0]["readiness"] == "ready_for_assess"
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "focus.synthesis.completed"
+    assert events[-1]["payload"]["analysis_json"] is True
+
+
 def test_research_assess_artifact_only_records_planning_event(tmp_path: Path) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
@@ -397,6 +498,313 @@ def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Pat
     events = _read_events(pkg_dir)
     assert events[-1]["event"] == "assess.completed"
     assert events[-1]["payload"]["artifact"].endswith(artifacts[0].name)
+
+
+def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly assessment",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "lkm:bohrium:aspree",
+                        0.9,
+                        paper_title="ASPREE trial",
+                        content=(
+                            "ASPREE reported no cardiovascular benefit and more major hemorrhage."
+                        ),
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+    analysis_path = tmp_path / "assess-analysis.json"
+    analysis_path.write_text(
+        json.dumps(
+            {
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": (
+                            "ASPREE opposes routine aspirin primary prevention in older adults."
+                        ),
+                        "rationale": (
+                            "The retrieved snippet reports no cardiovascular benefit "
+                            "and more major hemorrhage."
+                        ),
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                    }
+                ],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "summary": "老年人常规一级预防净获益不足。",
+                    "sections": [{"title": "老年人", "body": "ASPREE 指向无获益且出血增加。"}],
+                    "limitations": ["需要核对原始试验终点定义。"],
+                    "next_queries": ["aspirin primary prevention elderly NNH"],
+                },
+                "candidate_obligations": [
+                    {
+                        "kind": "needs_more_evidence",
+                        "content": "补充老年人绝对风险差。",
+                        "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "elderly_net_benefit",
+            "--artifact-only",
+            "--landscape",
+            str(landscape_path),
+            "--analysis-json",
+            str(analysis_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "relation_type_counts" in result.output
+    assert "review: true" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+    artifacts = _assessment_artifacts(pkg_dir)
+    assessment = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert assessment["relations"][0]["type"] == "opposes"
+    assert assessment["review"]["summary"] == "老年人常规一级预防净获益不足。"
+    events = _read_events(pkg_dir)
+    assert events[-1]["payload"]["relation_type_counts"] == {"opposes": 1}
+    assert events[-1]["payload"]["review"] is True
+
+
+def test_research_report_renders_artifact_to_markdown_file(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    artifact_path = tmp_path / "focuses.json"
+    artifact_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "focus_synthesis",
+                "language": "zh",
+                "source_landscapes": [],
+                "focuses": [
+                    {
+                        "id": "core_tension",
+                        "kind": "research_focus",
+                        "status": "candidate",
+                        "question": "核心矛盾是什么？",
+                        "rationale": "检索结果显示存在可评估的证据张力。",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {"topic": "demo"},
+                        "coverage": {"snippets": 2},
+                        "evidence_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                        "suggested_queries": ["core tension follow up"],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": ["agent synthesis"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    report_path = tmp_path / "focus_report.md"
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "report",
+            str(pkg_dir),
+            "--artifact",
+            str(artifact_path),
+            "--out",
+            str(report_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Report:" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+    markdown = report_path.read_text(encoding="utf-8")
+    assert "# Research Focus Synthesis" in markdown
+    assert "core_tension" in markdown
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "report.rendered"
+    assert events[-1]["payload"]["writes_source"] is False
+
+
+def test_research_report_prints_markdown_to_stdout(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    artifact_path = tmp_path / "assessment.json"
+    artifact_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "assessment",
+                "focus": {"kind": "focus", "id": "core_tension"},
+                "evidence_packet": {"snippets": [], "paper_leads": []},
+                "relations": [
+                    {
+                        "type": "needs_more_evidence",
+                        "claim": "当前证据不足。",
+                        "rationale": "没有可用 snippets。",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "obligation",
+                        "source_refs": [{"kind": "focus", "id": "core_tension"}],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["research", "report", str(pkg_dir), "--artifact", str(artifact_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "# Research Assessment" in result.output
+    assert "needs_more_evidence: 1" in result.output
+
+
+def test_research_stop_writes_stop_criteria_artifact(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    focus_path = tmp_path / "focuses.json"
+    focus_path.write_text(
+        json.dumps(
+            {
+                "kind": "focus_synthesis",
+                "focuses": [{"id": "core_tension", "readiness": "ready_for_assess"}],
+                "coverage_gaps": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assessment_path = tmp_path / "assessment.json"
+    assessment_path.write_text(
+        json.dumps(
+            {
+                "kind": "assessment",
+                "relations": [
+                    {"type": "supports"},
+                    {"type": "opposes"},
+                    {"type": "qualifies"},
+                ],
+                "candidate_obligations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    current_landscape = tmp_path / "current.json"
+    current_landscape.write_text(
+        json.dumps(
+            {
+                "kind": "research_landscape",
+                "paper_leads": [{"paper_id": "P1"}, {"paper_id": "P2"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    previous_landscape = tmp_path / "previous.json"
+    previous_landscape.write_text(
+        json.dumps({"kind": "research_landscape", "paper_leads": [{"paper_id": "P0"}]}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "stop",
+            str(pkg_dir),
+            "--focus-artifact",
+            str(focus_path),
+            "--assessment",
+            str(assessment_path),
+            "--landscape",
+            str(current_landscape),
+            "--previous-landscape",
+            str(previous_landscape),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "recommendation: ready_for_human_review" in result.output
+    assert "coverage: sufficient" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+    artifacts = _stop_artifacts(pkg_dir)
+    assert len(artifacts) == 1
+    stop_payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert stop_payload["kind"] == "research_stop"
+    assert stop_payload["should_stop"] is True
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "stop.evaluated"
+    assert events[-1]["payload"]["writes_source"] is False
+
+
+def test_research_report_renders_stop_artifact(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    stop_path = tmp_path / "stop.json"
+    stop_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "research_stop",
+                "recommendation": "ready_for_assess",
+                "should_stop": True,
+                "dimensions": {
+                    "coverage": {
+                        "status": "sufficient",
+                        "score": 1.0,
+                        "reason": "1 focus is ready.",
+                    }
+                },
+                "reasons": ["coverage: 1 focus is ready."],
+                "metrics": {"new_paper_lead_ratio": 0.5},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["research", "report", str(pkg_dir), "--artifact", str(stop_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "# Research Stop Criteria" in result.output
+    assert "ready_for_assess" in result.output
+    assert "new_paper_lead_ratio" in result.output
 
 
 def test_research_rejects_non_package_without_creating_layout(tmp_path: Path) -> None:
