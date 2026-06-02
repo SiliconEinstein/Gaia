@@ -106,6 +106,51 @@ def test_assessment_rejects_invalid_citation_payload() -> None:
         validate_assessment_artifact(artifact)
 
 
+def test_assessment_derives_citations_from_review_inline_item_refs() -> None:
+    artifact = build_assessment_artifact(
+        focus={"kind": "focus", "id": "focus_1"},
+        evidence_packet={
+            "items": [
+                {
+                    "item_id": "item_0",
+                    "kind": "variable",
+                    "id": "variable_0",
+                    "source": {
+                        "paper_id": "P1",
+                        "paper_title": "Paper One",
+                        "doi": "10.1/example",
+                    },
+                }
+            ]
+        },
+        relations=[
+            _relation(
+                type="needs_more_evidence",
+                promotion_hint="obligation",
+                source_refs=[{"kind": "focus", "id": "focus_1"}],
+            )
+        ],
+        review={
+            "language": "zh",
+            "depth": "review",
+            "summary": "底线来自检索证据。[item:item_0]",
+            "sections": [{"title": "证据", "body": "正文也引用同一 item。[item:item_0]"}],
+        },
+    )
+
+    assert artifact["citations"] == [
+        {
+            "id": "citation_1",
+            "source_kind": "paper",
+            "paper_id": "P1",
+            "title": "Paper One",
+            "doi": "10.1/example",
+            "item_ids": ["item_0"],
+            "variable_ids": ["variable_0"],
+        }
+    ]
+
+
 def _landscape() -> dict[str, object]:
     return {
         "kind": "research_landscape",
