@@ -192,11 +192,9 @@ resp_comparison = bayes.compare(
 # 7. 假设比较结果进入临床决策链。
 recommend_phase3 = claim(
     "该 PCSK9 抑制剂应推进到 Phase III 关键试验。",
-    label="recommend_phase3",
 )
 phase3_threshold = claim(
     "若强效模型成立，效应量足够支持推进 Phase III。",
-    label="phase3_threshold",
 )
 register_prior(
     phase3_threshold,
@@ -221,7 +219,9 @@ gaia build compile ./ldl-trial-gaia
 gaia run infer ./ldl-trial-gaia
 ```
 
-The current engine gives these posterior values for the claims above:
+`gaia run infer` prints a short summary and writes the full posterior table to
+`.gaia/beliefs.json`. In that JSON, the current engine gives these values for
+the labels above:
 
 ```text
 h_strong posterior   : 0.5258
