@@ -151,7 +151,7 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
     focus = artifact.get("focus", {})
     focus_id = focus.get("id") if isinstance(focus, dict) else None
     evidence_packet = artifact.get("evidence_packet", {})
-    snippets = evidence_packet.get("snippets", []) if isinstance(evidence_packet, dict) else []
+    items = evidence_packet.get("items", []) if isinstance(evidence_packet, dict) else []
     paper_leads = (
         evidence_packet.get("paper_leads", []) if isinstance(evidence_packet, dict) else []
     )
@@ -163,7 +163,7 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
         [
             f"- schema_version: {_cell(artifact.get('schema_version'))}",
             f"- focus: {_cell(focus_id)}",
-            f"- snippets: {len(snippets) if isinstance(snippets, list) else 0}",
+            f"- items: {len(items) if isinstance(items, list) else 0}",
             f"- paper_leads: {len(paper_leads) if isinstance(paper_leads, list) else 0}",
             f"- relations: {len(relations) if isinstance(relations, list) else 0}",
             f"- relation_mix: {_cell(relation_mix)}",

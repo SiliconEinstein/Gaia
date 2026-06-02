@@ -194,7 +194,7 @@ The trace must include:
 - timings;
 - raw result counts;
 - paper lead counts;
-- snippet counts;
+- item counts;
 - focus counts;
 - relation type counts;
 - failed queries/retries;
@@ -245,5 +245,5 @@ replace live eval with fixtures.
 - Do not write stable source claims during Explore or artifact-only Assess.
 - Do not assess after one narrow query unless the user explicitly asks for a
   quick single-paper check.
-- Do not let the LLM invent refs; every relation must ground to snippets,
-  LKM nodes, or paper leads in the evidence packet.
+- Do not let the LLM invent refs; every relation must ground to items,
+  variables, factors, or papers in the evidence packet.

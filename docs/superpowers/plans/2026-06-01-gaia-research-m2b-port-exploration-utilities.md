@@ -16,7 +16,7 @@
 - The ported builder deduplicates paper leads across query batches.
 - It preserves query / source / path provenance.
 - It skips already materialized Gaia QID rows and explicitly provided pulled paper ids.
-- Pull candidates aggregate rationale and LKM node refs from the deduped paper leads.
+- Pull candidates aggregate rationale and LKM variable refs from the deduped paper leads.
 - M2 CLI tests still pass unchanged.
 - `src/<pkg>/` remains unchanged in all CLI tests.
 
@@ -33,7 +33,7 @@
 
 - [ ] **Step 1: Add dedupe/provenance test**
 
-Assert two search batches that surface the same paper produce one paper lead with merged queries, source QIDs, LKM node ids, best rank, and result count.
+Assert two search batches that surface the same paper produce one paper lead with merged queries, source QIDs, variable ids, best rank, and result count.
 
 - [ ] **Step 2: Add materialized/pulled skip test**
 

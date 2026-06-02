@@ -19,8 +19,8 @@ def test_report_renders_focus_synthesis_markdown() -> None:
                     "readiness": "ready_for_assess",
                     "status": "candidate",
                     "rationale": "ASPREE 同时涉及无心血管获益和出血增加。",
-                    "coverage": {"snippets": 4, "paper_leads": 2},
-                    "evidence_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                    "coverage": {"items": 4, "paper_leads": 2},
+                    "evidence_refs": [{"kind": "item", "id": "item_0"}],
                     "suggested_queries": ["aspirin elderly bleeding"],
                 }
             ],
@@ -40,7 +40,7 @@ def test_report_renders_focus_synthesis_markdown() -> None:
     assert "老年人一级预防净获益是否为正？" in markdown
     assert "missing_subgroup" in markdown
     assert "aspirin elderly bleeding" in markdown
-    assert "snippet:snippet_0" in markdown
+    assert "item:item_0" in markdown
 
 
 def test_report_renders_assessment_markdown() -> None:
@@ -50,7 +50,7 @@ def test_report_renders_assessment_markdown() -> None:
             "kind": "assessment",
             "focus": {"kind": "focus", "id": "elderly_net_benefit"},
             "evidence_packet": {
-                "snippets": [{"id": "snippet_0", "paper_id": "P1"}],
+                "items": [{"item_id": "item_0", "kind": "variable", "id": "v1"}],
                 "paper_leads": [{"paper_id": "P1", "title": "ASPREE trial"}],
             },
             "relations": [
@@ -60,7 +60,7 @@ def test_report_renders_assessment_markdown() -> None:
                     "rationale": "无心血管获益且大出血增加。",
                     "epistemic_status": "candidate",
                     "promotion_hint": "none",
-                    "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                    "source_refs": [{"kind": "item", "id": "item_0"}],
                 }
             ],
             "review": {
@@ -75,7 +75,7 @@ def test_report_renders_assessment_markdown() -> None:
                 {
                     "kind": "needs_more_evidence",
                     "content": "补充绝对风险差。",
-                    "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                    "source_refs": [{"kind": "item", "id": "item_0"}],
                 }
             ],
         }

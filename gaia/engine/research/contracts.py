@@ -32,7 +32,7 @@ def focus_contract(*, language: str = "zh") -> dict[str, Any]:
         "input": {
             "landscapes": "One or more .gaia/research/landscapes/*.json artifacts.",
             "grounding": (
-                "Use retrieved_snippets, paper_leads, query_provenance, and coverage_map. "
+                "Use items, paper_leads, query_provenance, and coverage_map. "
                 "Every focus must cite evidence_refs from these inputs."
             ),
         },
@@ -89,8 +89,8 @@ def focus_contract(*, language: str = "zh") -> dict[str, Any]:
                     "priority": "high",
                     "readiness": "ready_for_assess",
                     "scope": {"population": "older adults", "endpoint": "net clinical benefit"},
-                    "coverage": {"snippets": 8, "paper_leads": 3, "missing": []},
-                    "evidence_refs": [{"kind": "snippet", "id": "snippet_12"}],
+                    "coverage": {"items": 8, "paper_leads": 3, "missing": []},
+                    "evidence_refs": [{"kind": "item", "id": "item_12"}],
                     "suggested_queries": [],
                 }
             ],
@@ -113,8 +113,10 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         "input": {
             "focus": "A focus id, question, or obligation selected by the agent/user.",
             "evidence_packet": (
-                "The combined snippets and paper leads from one or more landscape artifacts. "
-                "Use snippet ids exactly as presented by the evidence packet."
+                "The combined items and paper leads from one or more landscape artifacts. "
+                "Use item ids exactly as presented by the evidence packet. Items are "
+                "artifact-local references to LKM variables, factors, papers, packages, "
+                "or chains; they are not new knowledge entities."
             ),
         },
         "output_required_fields": {
@@ -131,7 +133,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 relation_type: sorted(hints)
                 for relation_type, hints in RELATION_PROMOTION_HINTS.items()
             },
-            "source_refs": "non-empty refs grounded in snippets, lkm nodes, or paper leads",
+            "source_refs": "non-empty refs grounded in items, variables, factors, or papers",
         },
         "review_fields": {
             "language": language,
@@ -161,12 +163,12 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                         "in healthy adults aged 70 or older."
                     ),
                     "rationale": (
-                        "The snippet reports no cardiovascular disease reduction "
+                        "The referenced item reports no cardiovascular disease reduction "
                         "and increased major hemorrhage."
                     ),
                     "epistemic_status": "candidate",
                     "promotion_hint": "none",
-                    "source_refs": [{"kind": "snippet", "id": "snippet_20"}],
+                    "source_refs": [{"kind": "item", "id": "item_20"}],
                 }
             ],
             "review": {
@@ -187,7 +189,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 {
                     "kind": "needs_more_evidence",
                     "content": "补充 CAC 分层下 NNT/NNH 的证据。",
-                    "source_refs": [{"kind": "snippet", "id": "snippet_33"}],
+                    "source_refs": [{"kind": "item", "id": "item_33"}],
                 }
             ],
         },

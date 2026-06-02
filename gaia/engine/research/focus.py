@@ -208,7 +208,7 @@ def build_focus_synthesis_artifact(
         coverage_gaps = []
         notes = [
             "No analysis-json was supplied; generated deterministic fallback focuses.",
-            "LLM focus synthesis should cluster snippets and paper leads before assessment.",
+            "LLM focus synthesis should cluster landscape items and paper leads before assessment.",
         ]
 
     artifact = {

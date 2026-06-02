@@ -20,7 +20,7 @@ def _relation(**overrides: object) -> dict[str, object]:
         "rationale": "The evidence packet contains a directly relevant trial summary.",
         "epistemic_status": "candidate",
         "promotion_hint": "derive",
-        "source_refs": [{"kind": "snippet", "id": "snippet_1"}],
+        "source_refs": [{"kind": "item", "id": "item_1"}],
     }
     relation.update(overrides)
     return relation
@@ -30,11 +30,13 @@ def test_assessment_artifact_validates_relation_mapping() -> None:
     artifact = build_assessment_artifact(
         focus={"kind": "focus", "id": "aspirin-primary-prevention"},
         evidence_packet={
-            "snippets": [
+            "items": [
                 {
-                    "id": "snippet_1",
-                    "source_ref": {"kind": "lkm_node", "id": "lkm:node:1"},
-                    "text": "Trial summary.",
+                    "item_id": "item_1",
+                    "kind": "variable",
+                    "id": "variable_1",
+                    "variable_type": "claim",
+                    "content": "Trial summary.",
                 }
             ]
         },
@@ -49,7 +51,7 @@ def test_assessment_artifact_validates_relation_mapping() -> None:
 def test_assessment_rejects_candidate_relation_promotion_hint() -> None:
     artifact = build_assessment_artifact(
         focus={"kind": "focus", "id": "focus_1"},
-        evidence_packet={"snippets": []},
+        evidence_packet={"items": []},
         relations=[_relation(promotion_hint="candidate_relation")],
     )
 
@@ -62,7 +64,7 @@ def test_assessment_relation_requires_epistemic_status() -> None:
     relation.pop("epistemic_status")
     artifact = build_assessment_artifact(
         focus={"kind": "focus", "id": "focus_1"},
-        evidence_packet={"snippets": []},
+        evidence_packet={"items": []},
         relations=[relation],
     )
 
@@ -73,7 +75,7 @@ def test_assessment_relation_requires_epistemic_status() -> None:
 def test_assessment_relation_requires_grounded_source_refs() -> None:
     artifact = build_assessment_artifact(
         focus={"kind": "focus", "id": "focus_1"},
-        evidence_packet={"snippets": []},
+        evidence_packet={"items": []},
         relations=[_relation(source_refs=[])],
     )
 
@@ -84,7 +86,7 @@ def test_assessment_relation_requires_grounded_source_refs() -> None:
 def test_assessment_rejects_invalid_relation_hint_pair() -> None:
     artifact = build_assessment_artifact(
         focus={"kind": "focus", "id": "focus_1"},
-        evidence_packet={"snippets": []},
+        evidence_packet={"items": []},
         relations=[_relation(type="background_for", promotion_hint="derive")],
     )
 
@@ -96,19 +98,23 @@ def _landscape() -> dict[str, object]:
     return {
         "kind": "research_landscape",
         "action": "explore.scan",
-        "retrieved_snippets": [
+        "items": [
             {
-                "id": "original_id",
-                "text": "ASPREE reported no cardiovascular benefit and increased major hemorrhage.",
-                "source_ref": {"kind": "lkm_node", "id": "lkm:node:aspree"},
-                "paper_id": "P_ASPREE",
+                "item_id": "original_item",
+                "kind": "variable",
+                "id": "aspree_variable",
+                "variable_type": "claim",
+                "content": (
+                    "ASPREE reported no cardiovascular benefit and increased major hemorrhage."
+                ),
+                "source": {"paper_id": "P_ASPREE", "paper_title": "ASPREE trial"},
             }
         ],
         "paper_leads": [
             {
                 "paper_id": "P_ASPREE",
                 "title": "ASPREE trial",
-                "lkm_node_ids": ["lkm:node:aspree"],
+                "variable_ids": ["aspree_variable"],
             }
         ],
     }
@@ -123,9 +129,9 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
                 _relation(
                     type="opposes",
                     claim="ASPREE opposes routine aspirin use in healthy older adults.",
-                    rationale="The snippet reports no cardiovascular benefit and more hemorrhage.",
+                    rationale="The item reports no cardiovascular benefit and more hemorrhage.",
                     promotion_hint="none",
-                    source_refs=[{"kind": "snippet", "id": "snippet_0"}],
+                    source_refs=[{"kind": "item", "id": "item_0"}],
                 )
             ],
             "review": {
@@ -140,7 +146,7 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
                 {
                     "kind": "needs_more_evidence",
                     "content": "补充老年亚组的绝对风险差。",
-                    "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                    "source_refs": [{"kind": "item", "id": "item_0"}],
                 }
             ],
         },
@@ -152,15 +158,13 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
     assert validate_assessment_grounding(artifact) is artifact
 
 
-def test_assessment_grounding_rejects_unknown_snippet_ref() -> None:
+def test_assessment_grounding_rejects_unknown_item_ref() -> None:
     with pytest.raises(AssessmentSchemaError, match="not grounded"):
         build_assessment_from_analysis(
             focus={"kind": "focus", "id": "elderly_net_benefit"},
             landscapes=[_landscape()],
             analysis={
-                "relations": [
-                    _relation(source_refs=[{"kind": "snippet", "id": "missing_snippet"}])
-                ],
+                "relations": [_relation(source_refs=[{"kind": "item", "id": "missing_item"}])],
                 "candidate_obligations": [],
             },
         )
@@ -169,7 +173,7 @@ def test_assessment_grounding_rejects_unknown_snippet_ref() -> None:
 def test_assessment_review_requires_summary() -> None:
     artifact = build_assessment_artifact(
         focus={"kind": "focus", "id": "focus_1"},
-        evidence_packet={"snippets": []},
+        evidence_packet={"items": []},
         relations=[_relation()],
         review={"language": "zh", "depth": "review", "sections": []},
     )

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `gaia research assess --focus ...` write a validated, artifact-only assessment artifact grounded in selected landscape snippets.
+**Goal:** Make `gaia research assess --focus ...` write a validated, artifact-only assessment artifact grounded in selected landscape items.
 
-**Architecture:** `assess` reads one or more `.gaia/research/landscapes/*.json` artifacts, extracts retrieved snippets and paper leads into an evidence packet, builds conservative artifact-level relations, validates them with the M4 schema, writes `.gaia/research/assessments/assessment-*.json`, and appends an audit event. It does not write stable source claims or formal Gaia relations.
+**Architecture:** `assess` reads one or more `.gaia/research/landscapes/*.json` artifacts, extracts retrieved items and paper leads into an evidence packet, builds conservative artifact-level relations, validates them with the M4 schema, writes `.gaia/research/assessments/assessment-*.json`, and appends an audit event. It does not write stable source claims or formal Gaia relations.
 
 **Tech Stack:** Typer list options, package-local artifact IO, M4 assessment schema validation, pytest CLI tests.
 
@@ -15,7 +15,7 @@
 - `gaia research assess <pkg> --focus <target> --artifact-only --landscape <file>` writes `.gaia/research/assessments/assessment-*.json`.
 - If `--landscape` is omitted, the command uses the latest landscape artifact when one exists.
 - The assessment artifact links to the focus target.
-- `evidence_packet.snippets` contains retrieved snippets from landscape artifacts, not just paper metadata.
+- `evidence_packet.items` contains retrieved items from landscape artifacts, not just paper metadata.
 - Relations validate against the M4 schema and carry `epistemic_status`, `source_refs`, and `promotion_hint`.
 - Candidate obligations are emitted in the artifact and as `gaia inquiry obligation add ...` suggestions.
 - Default behavior does not write `src/<pkg>/`, stable claims, or formal relations.
@@ -23,10 +23,10 @@
 
 ## File Structure
 
-- Modify `gaia/engine/research/landscape.py`: preserve retrieved snippets from search result rows in landscape artifacts.
+- Modify `gaia/engine/research/landscape.py`: preserve retrieved items from search result rows in landscape artifacts.
 - Modify `gaia/engine/research/assessment.py`: add evidence-packet and conservative assessment builder helpers.
 - Modify `gaia/cli/commands/research.py`: add `--landscape`, latest-landscape discovery, assessment artifact writing, and completed events.
-- Modify `tests/cli/test_research.py`: add assessment artifact CLI test and update scan assertions for snippets.
+- Modify `tests/cli/test_research.py`: add assessment artifact CLI test and update scan assertions for items.
 - Modify `docs/superpowers/plans/2026-06-01-gaia-research-implementation-index.md`: point M5 to this plan.
 
 ## Task 1: Failing CLI Tests
@@ -34,9 +34,9 @@
 **Files:**
 - Modify: `tests/cli/test_research.py`
 
-- [ ] **Step 1: Assert landscape stores retrieved snippets**
+- [ ] **Step 1: Assert landscape stores retrieved items**
 
-Update the scan artifact test to assert `retrieved_snippets[0].text` comes from the search result content.
+Update the scan artifact test to assert `items[0].content` comes from the search result content.
 
 - [ ] **Step 2: Assert assess writes grounded artifact**
 
@@ -48,14 +48,14 @@ uv run pytest tests/cli/test_research.py::test_research_assess_writes_grounded_a
 
 Expected before implementation: fail because `assess` only appends `assess.planned`.
 
-## Task 2: Preserve Snippets In Landscape
+## Task 2: Preserve Items In Landscape
 
 **Files:**
 - Modify: `gaia/engine/research/landscape.py`
 
-- [ ] **Step 1: Extract snippets from normalized LKM search rows**
+- [ ] **Step 1: Extract items from normalized LKM search rows**
 
-Each snippet should include `id`, `text`, `title`, `query_index`, `paper_id`, `lkm_node_id`, and `source_ref`.
+Each item should include an artifact-local `item_id`, `kind`, underlying `id`, content/title, source metadata, and query provenance.
 
 ## Task 3: Assessment Builder
 
@@ -66,9 +66,9 @@ Each snippet should include `id`, `text`, `title`, `query_index`, `paper_id`, `l
 
 Implement a conservative builder that creates:
 
-- `evidence_packet.snippets`;
+- `evidence_packet.items`;
 - `evidence_packet.paper_leads`;
-- `background_for` relations grounded in snippets;
+- `background_for` relations grounded in items;
 - candidate obligations asking the user/agent to classify support, opposition, qualification, and undercutting evidence.
 
 ## Task 4: CLI Integration

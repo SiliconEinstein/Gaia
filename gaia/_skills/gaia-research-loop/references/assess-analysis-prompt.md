@@ -22,7 +22,7 @@ Then ask the active LLM/agent to return JSON only.
 
 - 一个 focus id/question，以及其 scope/rationale（如果有）；
 - 一个或多个 scan/expand landscape artifacts；
-- landscape 中的 `retrieved_snippets`、`paper_leads`、`source_ref`、`paper_id`、`lkm_node_ids`；
+- landscape/evidence packet 中的 `items`、`paper_leads`、`variable_ids`、`paper_id`；
 - `gaia research contract assess --language zh` 打印出的 JSON contract。
 
 输出要求：
@@ -30,8 +30,9 @@ Then ask the active LLM/agent to return JSON only.
 - 只输出合法 JSON，不要 Markdown，不要解释；
 - JSON 必须符合 `gaia.research.assessment_analysis` contract；
 - 保存为 `<run>/analysis/assess-analysis.json`；
-- 所有 relation 的 `source_refs` 必须引用 evidence packet 中真实存在的 snippet、paper 或 lkm node；
-- 不要编造文献、数值、paper id、snippet id、LKM node id；
+- 所有 relation 的 `source_refs` 必须引用 evidence packet 中真实存在的 `item`、`variable`、`factor` 或 `paper`；
+- `item` 是 artifact-local reference，不是新的知识实体；它通常指向 LKM search result 中的 `variable`，也可以指向 `factor`、`paper`、`package` 或 `chain`；
+- 不要编造文献、数值、item id、variable id 或 paper id；
 - `review.depth` 必须是 `review`；
 - `review.summary` 和 `review.sections` 必须用中文，并达到短综述深度，而不是搜索摘要。
 
@@ -47,7 +48,7 @@ Then ask the active LLM/agent to return JSON only.
 分析步骤：
 
 1. 先重述 focus 的可评估命题和边界：研究对象、endpoint/observable、方法或理论语境。
-2. 通读 evidence packet：不要只看 top-ranked snippets；把同一 paper 的多个 snippets 合并理解。
+2. 通读 evidence packet：不要只看 top-ranked items；把同一 paper 的多个 items 合并理解。
 3. 建立 relation mix：尽量区分支持、反对、限定和方法性削弱；不要把所有证据都写成 `background_for`。
 4. 写 review：
    - 第一段给 bottom line；
@@ -63,4 +64,3 @@ Then ask the active LLM/agent to return JSON only.
 - review 应该能让用户判断“现在是否可以进入更正式的 evidence graph / source promotion”。
 - 如果证据不足，要清楚说明不足来自 retrieval coverage、原文未读、指标不可比、还是理论定义不一致。
 - 严格 grounding 优先；只有调试 malformed JSON 时才考虑 `--no-strict-grounding`。
-

@@ -17,17 +17,20 @@ def _search(query: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _row(
     paper_id: str,
-    node_id: str,
+    variable_id: str,
     score: float,
     *,
     title: str,
     qid: str | None = None,
 ) -> dict[str, Any]:
     return {
-        "id": node_id,
+        "id": f"lkm:bohrium:{variable_id}",
+        "kind": "claim",
         "title": f"Claim from {title}",
+        "content": f"Claim content from {title}.",
         "gaia": {"qid": qid},
         "source": {
+            "provider_id": variable_id,
             "paper_id": paper_id,
             "paper_title": title,
             "doi": "10.1/example",
@@ -76,10 +79,22 @@ def test_research_landscape_dedupes_leads_and_preserves_provenance() -> None:
     assert p1["best_rank"] == 0.9
     assert p1["queries"] == ["seed query", "alternate query"]
     assert p1["source_qids"] == ["example:pkg::seed", "example:pkg::other"]
-    assert p1["lkm_node_ids"] == ["n1", "n3"]
+    assert p1["variable_ids"] == ["n1", "n3"]
     assert p1["result_count"] == 2
+    assert "retrieved_snippets" not in payload
+    assert payload["items"][0]["item_id"] == "item_0"
+    assert payload["items"][0]["kind"] == "variable"
+    assert payload["items"][0]["id"] == "n1"
+    assert payload["items"][0]["variable_type"] == "claim"
+    assert payload["items"][0]["content"] == "Claim content from Paper One."
+    assert payload["items"][0]["source"]["paper_id"] == "P1"
+    assert payload["items"][0]["provenance"]["result_id"] == "lkm:bohrium:n1"
     assert payload["query_provenance"][0]["path"] == "a.json"
     assert payload["pull_candidates"][0]["paper_id"] == "P1"
+    assert payload["pull_candidates"][0]["evidence_refs"] == [
+        {"kind": "variable", "id": "n1"},
+        {"kind": "variable", "id": "n3"},
+    ]
 
 
 def test_research_landscape_skips_materialized_and_pulled_papers() -> None:

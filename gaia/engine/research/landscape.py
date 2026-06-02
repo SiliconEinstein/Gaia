@@ -28,7 +28,7 @@ class PaperLead:
     best_rank: float | None = None
     queries: list[str] = field(default_factory=list)
     source_qids: list[str] = field(default_factory=list)
-    lkm_node_ids: list[str] = field(default_factory=list)
+    variable_ids: list[str] = field(default_factory=list)
     result_count: int = 0
 
     def merge_query(self, query: str | None) -> None:
@@ -51,7 +51,7 @@ class PaperLead:
             "best_rank": self.best_rank,
             "queries": list(self.queries),
             "source_qids": list(self.source_qids),
-            "lkm_node_ids": list(self.lkm_node_ids),
+            "variable_ids": list(self.variable_ids),
             "result_count": self.result_count,
         }
 
@@ -123,6 +123,26 @@ def _result_index_id(result: dict[str, Any]) -> str | None:
     return None
 
 
+def _result_variable_id(result: dict[str, Any]) -> str | None:
+    """Return the underlying LKM variable id for a normalized search result."""
+    source = result.get("source")
+    if isinstance(source, dict):
+        provider_id = source.get("provider_id")
+        if isinstance(provider_id, str) and provider_id:
+            return provider_id
+
+    result_id = result.get("id")
+    if not isinstance(result_id, str) or not result_id:
+        return None
+
+    index_id = _result_index_id(result)
+    if index_id:
+        prefix = f"lkm:{index_id}:"
+        if result_id.startswith(prefix):
+            return result_id[len(prefix) :]
+    return result_id
+
+
 def _merge_lead_row(lead: PaperLead, result: dict[str, Any]) -> None:
     source = result.get("source")
     source_payload: dict[str, Any] = source if isinstance(source, dict) else {}
@@ -130,7 +150,7 @@ def _merge_lead_row(lead: PaperLead, result: dict[str, Any]) -> None:
     doi = source_payload.get("doi")
     index_id = _result_index_id(result)
     rank = _result_rank(result)
-    node_id = result.get("id")
+    variable_id = _result_variable_id(result)
 
     if lead.title is None and isinstance(title, str) and title:
         lead.title = title
@@ -140,8 +160,8 @@ def _merge_lead_row(lead: PaperLead, result: dict[str, Any]) -> None:
         lead.index_id = index_id
     if rank is not None and (lead.best_rank is None or rank > lead.best_rank):
         lead.best_rank = rank
-    if isinstance(node_id, str) and node_id and node_id not in lead.lkm_node_ids:
-        lead.lkm_node_ids.append(node_id)
+    if isinstance(variable_id, str) and variable_id and variable_id not in lead.variable_ids:
+        lead.variable_ids.append(variable_id)
 
 
 def _paper_leads_for_batch(
@@ -218,10 +238,10 @@ def _paper_leads(
                 lead.best_rank = batch_lead.best_rank
             lead.merge_query(query)
             lead.merge_source(batch.source_qid)
-            for node_id in batch_lead.lkm_node_ids:
-                if node_id not in lead.lkm_node_ids:
-                    lead.lkm_node_ids.append(node_id)
-            lead.result_count += len(batch_lead.lkm_node_ids)
+            for variable_id in batch_lead.variable_ids:
+                if variable_id not in lead.variable_ids:
+                    lead.variable_ids.append(variable_id)
+            lead.result_count += len(batch_lead.variable_ids)
 
     sorted_leads = sorted(
         leads_by_paper.values(),
@@ -234,8 +254,18 @@ def _paper_leads(
     return queries, [lead.to_dict() for lead in sorted_leads]
 
 
-def _retrieved_snippets(batches: list[ScanBatch]) -> list[dict[str, Any]]:
-    snippets: list[dict[str, Any]] = []
+def _result_item_kind(result: dict[str, Any]) -> tuple[str, str | None]:
+    """Classify a normalized search result for the landscape reference pool."""
+    result_kind = result.get("kind")
+    if isinstance(result_kind, str) and result_kind in {"claim", "question", "note"}:
+        return "variable", result_kind
+    if result_kind in {"factor", "paper", "package", "chain", "variable"}:
+        return str(result_kind), None
+    return "variable", str(result_kind) if isinstance(result_kind, str) and result_kind else None
+
+
+def _landscape_items(batches: list[ScanBatch]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
     for query_index, batch in enumerate(batches):
         query = _query_text(batch.search_results, batch.query)
         results = batch.search_results.get("results")
@@ -244,30 +274,36 @@ def _retrieved_snippets(batches: list[ScanBatch]) -> list[dict[str, Any]]:
         for result in results:
             if not isinstance(result, dict):
                 continue
-            text = result.get("content")
-            if not isinstance(text, str) or not text.strip():
-                continue
             source = result.get("source")
             source_payload: dict[str, Any] = source if isinstance(source, dict) else {}
-            node_id = result.get("id")
+            result_id = result.get("id")
+            variable_id = _result_variable_id(result)
             paper_id = _result_paper_id(result)
-            snippets.append(
-                {
-                    "id": f"snippet_{len(snippets)}",
-                    "text": text.strip(),
-                    "title": result.get("title"),
+            item_kind, variable_type = _result_item_kind(result)
+            item_id = variable_id or paper_id or result_id or f"item_{len(items)}"
+            content = result.get("content")
+            item: dict[str, Any] = {
+                "item_id": f"item_{len(items)}",
+                "kind": item_kind,
+                "id": str(item_id),
+                "title": result.get("title"),
+                "content": content.strip() if isinstance(content, str) else content,
+                "source": dict(source_payload),
+                "provenance": {
                     "query_index": query_index,
                     "query": query,
-                    "paper_id": paper_id,
-                    "paper_title": source_payload.get("paper_title"),
-                    "lkm_node_id": node_id,
-                    "source_ref": {
-                        "kind": "lkm_node",
-                        "id": node_id,
-                    },
-                }
-            )
-    return snippets
+                    "source_qid": batch.source_qid,
+                    "path": batch.path,
+                    "result_id": result_id,
+                    "rank": _result_rank(result),
+                },
+            }
+            if variable_type:
+                item["variable_type"] = variable_type
+            if paper_id and "paper_id" not in item["source"]:
+                item["source"]["paper_id"] = paper_id
+            items.append(item)
+    return items
 
 
 def _pull_candidates(paper_leads: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -287,9 +323,9 @@ def _pull_candidates(paper_leads: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "command": f"gaia pkg add --lkm-index {index_id} --lkm-paper {paper_id}",
                 "rationale": f"surfaced by {query_count} scan query family/families",
                 "evidence_refs": [
-                    {"kind": "lkm_node", "id": node_id}
-                    for node_id in lead.get("lkm_node_ids", [])
-                    if isinstance(node_id, str)
+                    {"kind": "variable", "id": variable_id}
+                    for variable_id in lead.get("variable_ids", [])
+                    if isinstance(variable_id, str)
                 ],
             }
         )
@@ -328,7 +364,7 @@ def _candidate_focuses(
 ) -> list[dict[str, Any]]:
     focuses: list[dict[str, Any]] = []
     first_papers = [
-        {"kind": "lkm_paper", "paper_id": lead["paper_id"]}
+        {"kind": "paper", "id": lead["paper_id"]}
         for lead in paper_leads[:3]
         if isinstance(lead.get("paper_id"), str)
     ]
@@ -381,7 +417,7 @@ def build_research_landscape(
         "query_provenance": query_provenance,
         "stats": stats,
         "paper_leads": paper_leads,
-        "retrieved_snippets": _retrieved_snippets(batches),
+        "items": _landscape_items(batches),
         "pull_candidates": _pull_candidates(paper_leads),
         "candidate_coverage_gaps": coverage_gaps,
         "coverage_map": {
@@ -393,7 +429,7 @@ def build_research_landscape(
                 {
                     "paper_id": lead["paper_id"],
                     "queries": lead.get("queries", []),
-                    "lkm_node_ids": lead.get("lkm_node_ids", []),
+                    "variable_ids": lead.get("variable_ids", []),
                 }
                 for lead in paper_leads
                 if len(lead.get("queries", [])) > 1
