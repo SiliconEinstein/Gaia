@@ -112,6 +112,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         ),
         "review_style_contract": {
             "genre": "standalone scholarly mini-review",
+            "target_style": "Nature Reviews / Annual Review style mini-review",
             "audience": (
                 "Domain readers who care about the scientific question, evidence, "
                 "uncertainties, and next research directions, not the research workflow."
@@ -185,6 +186,9 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         "review_fields": {
             "language": language,
             "depth": "review",
+            "title": "publication-style title naming the scientific question",
+            "abstract": "120-180 Chinese characters when language is zh; standalone overview",
+            "key_points": "4-6 bullet points with the main conclusions and uncertainties",
             "summary": "concise bottom-line answer written as standalone scholarly prose",
             "sections": (
                 "ordered list with title and body fields; body text must read like a "
@@ -192,7 +196,12 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "that the report renderer maps to citations"
             ),
             "evidence_table": (
-                "optional list summarizing trial/paper, population, endpoint, direction"
+                "list summarizing probe/model family, evidence direction, key constraints, "
+                "and unresolved limitations"
+            ),
+            "figure_specs": (
+                "2-4 proposed figures; each has title, purpose, visual_structure, "
+                "data_needed, and takeaway"
             ),
             "limitations": "list[str]",
             "next_queries": "list[str]",
@@ -207,6 +216,17 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "Write the review as a standalone scholarly mini-review; the reader must "
                 "not need to know Gaia, LKM, CLI, items, artifacts, agents, runs, rounds, "
                 "traces, workflows, or evidence packets."
+            ),
+            (
+                "Use a publication-like structure: title, abstract, key points, review "
+                "sections, evidence table, figure specifications, scientific limitations, "
+                "outlook or next research questions, and numbered references."
+            ),
+            (
+                "Limitations must be scientific limitations only: shared datasets, common "
+                "calibration anchors, correlated systematics, incomplete covariance "
+                "reporting, missing likelihood access, model-dependent priors, or "
+                "incomplete observational coverage."
             ),
             (
                 "In review.summary and review.sections[].body, cite important evidence "

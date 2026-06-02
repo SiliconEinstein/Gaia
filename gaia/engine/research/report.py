@@ -12,7 +12,14 @@ class ResearchReportError(ValueError):
 
 
 INLINE_ITEM_REF_RE = re.compile(r"\[item:([A-Za-z0-9_.:-]+)\]")
-ADJACENT_CITATION_REF_RE = re.compile(r"(\[citation_\d+\])(?:\1)+")
+ADJACENT_NUMERIC_REF_RE = re.compile(r"(?:\[\d+\])+")
+CN_SENTENCE_PUNCTUATION = "\u3002\uff01\uff1f"
+CN_CLAUSE_PUNCTUATION = "\uff0c\u3001\uff1b\uff1a"
+CN_SENTENCE_CITATION_RE = re.compile(rf"([{CN_SENTENCE_PUNCTUATION}])(\[\d+(?:[-,]\d+)*\])")
+CN_CLAUSE_CITATION_RE = re.compile(rf"([{CN_CLAUSE_PUNCTUATION}])(\[\d+(?:[-,]\d+)*\])")
+EN_SENTENCE_CITATION_RE = re.compile(r"([.!?])(\[\d+(?:[-,]\d+)*\])")
+CN_PUNCTUATION = f"{CN_SENTENCE_PUNCTUATION}{CN_CLAUSE_PUNCTUATION}"
+CN_PUNCTUATION_SPACE_RE = re.compile(rf"([{CN_PUNCTUATION}])\s+(?=[\u4e00-\u9fff])")
 
 
 def _cell(value: object) -> str:
@@ -38,6 +45,14 @@ def _bullet_list(items: object) -> list[str]:
     if not isinstance(items, list) or not items:
         return ["_None._", ""]
     lines = [f"- {_cell(item)}" for item in items]
+    lines.append("")
+    return lines
+
+
+def _replace_refs_in_bullet_list(items: object, context: dict[str, Any]) -> list[str]:
+    if not isinstance(items, list) or not items:
+        return ["_None._", ""]
+    lines = [f"- {_cell(_replace_inline_item_refs(item, context))}" for item in items]
     lines.append("")
     return lines
 
@@ -73,17 +88,77 @@ def _citation_ids_by_item(citations: object) -> dict[str, str]:
     return ids
 
 
-def _replace_inline_item_refs(text: object, citation_ids_by_item: dict[str, str]) -> object:
+def _citation_context(citations: object) -> dict[str, Any]:
+    citations_by_id: dict[str, dict[str, Any]] = {}
+    if isinstance(citations, list):
+        for citation in citations:
+            if not isinstance(citation, dict):
+                continue
+            citation_id = citation.get("id")
+            if isinstance(citation_id, str) and citation_id:
+                citations_by_id[citation_id] = citation
+    return {
+        "citation_ids_by_item": _citation_ids_by_item(citations),
+        "citations_by_id": citations_by_id,
+        "numbers_by_id": {},
+        "ordered_ids": [],
+    }
+
+
+def _citation_number(citation_id: str, context: dict[str, Any]) -> int:
+    numbers_by_id = context["numbers_by_id"]
+    if citation_id not in numbers_by_id:
+        numbers_by_id[citation_id] = len(context["ordered_ids"]) + 1
+        context["ordered_ids"].append(citation_id)
+    return int(numbers_by_id[citation_id])
+
+
+def _compact_numbers(numbers: list[int]) -> str:
+    unique_numbers = sorted(set(numbers))
+    if not unique_numbers:
+        return ""
+
+    ranges: list[str] = []
+    start = previous = unique_numbers[0]
+    for number in unique_numbers[1:]:
+        if number == previous + 1:
+            previous = number
+            continue
+        ranges.append(f"{start}-{previous}" if start != previous else str(start))
+        start = previous = number
+    ranges.append(f"{start}-{previous}" if start != previous else str(start))
+    return ",".join(ranges)
+
+
+def _compact_adjacent_numeric_refs(text: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        numbers = [int(value) for value in re.findall(r"\d+", match.group(0))]
+        return f"[{_compact_numbers(numbers)}]"
+
+    return ADJACENT_NUMERIC_REF_RE.sub(replace, text)
+
+
+def _normalize_citation_punctuation(text: str) -> str:
+    text = CN_SENTENCE_CITATION_RE.sub(r"\2\1", text)
+    text = CN_CLAUSE_CITATION_RE.sub(r"\2\1", text)
+    text = EN_SENTENCE_CITATION_RE.sub(r"\2\1", text)
+    return CN_PUNCTUATION_SPACE_RE.sub(r"\1", text)
+
+
+def _replace_inline_item_refs(text: object, context: dict[str, Any]) -> object:
     if not isinstance(text, str):
         return text
 
     def replace(match: re.Match[str]) -> str:
         item_id = match.group(1)
-        citation_id = citation_ids_by_item.get(item_id)
-        return f"[{citation_id}]" if citation_id else match.group(0)
+        citation_id = context["citation_ids_by_item"].get(item_id)
+        if not citation_id:
+            return match.group(0)
+        return f"[{_citation_number(citation_id, context)}]"
 
     replaced = INLINE_ITEM_REF_RE.sub(replace, text)
-    return ADJACENT_CITATION_REF_RE.sub(r"\1", replaced)
+    replaced = _compact_adjacent_numeric_refs(replaced)
+    return _normalize_citation_punctuation(replaced)
 
 
 def _render_focus_synthesis(artifact: dict[str, Any]) -> str:
@@ -172,29 +247,86 @@ def _is_zh(language: object) -> bool:
     return isinstance(language, str) and language.lower().startswith("zh")
 
 
-def _render_citations(citations: object, *, language: object = None) -> list[str]:
+def _citation_title(citation: dict[str, Any], *, language: object = None) -> str:
+    title = citation.get("title")
+    if not isinstance(title, str) or not title or title.startswith("gcn_"):
+        return "题名未解析" if _is_zh(language) else "Title metadata unresolved"
+    return title
+
+
+def _citation_reference(citation: dict[str, Any], number: int, *, language: object = None) -> str:
+    title = _citation_title(citation, language=language)
+    doi = citation.get("doi")
+    if isinstance(doi, str) and doi:
+        doi_text = f"DOI: {doi}."
+    else:
+        doi_text = "DOI 未提供。" if _is_zh(language) else "DOI unavailable."
+    terminal_punctuation = (".", "?", "!", "\u3002", "\uff1f", "\uff01")
+    separator = " " if title.endswith(terminal_punctuation) else ". "
+    return f"[{number}] {title}{separator}{doi_text}"
+
+
+def _render_citations(
+    citations: object,
+    *,
+    language: object = None,
+    context: dict[str, Any] | None = None,
+) -> list[str]:
     lines = _section("参考文献" if _is_zh(language) else "Citations")
     if not isinstance(citations, list) or not citations:
         lines.extend(["_None._", ""])
         return lines
 
-    if _is_zh(language):
-        lines.extend(["| 引用 | 来源 | 标题 | DOI |", "| --- | --- | --- | --- |"])
-    else:
-        lines.extend(["| id | source | title | doi |", "| --- | --- | --- | --- |"])
+    if context is not None and context.get("ordered_ids"):
+        citations_by_id = context["citations_by_id"]
+        for citation_id in context["ordered_ids"]:
+            citation = citations_by_id.get(citation_id)
+            number = context["numbers_by_id"].get(citation_id)
+            if isinstance(citation, dict) and isinstance(number, int):
+                lines.append(_citation_reference(citation, number, language=language))
+        lines.append("")
+        return lines
+
+    number = 1
     for citation in citations:
-        if not isinstance(citation, dict):
-            continue
-        source = citation.get("paper_id") or citation.get("source_id")
+        if isinstance(citation, dict):
+            lines.append(_citation_reference(citation, number, language=language))
+            number += 1
+    lines.append("")
+    return lines
+
+
+def _render_evidence_table(
+    table: object,
+    *,
+    context: dict[str, Any],
+    language: object = None,
+) -> list[str]:
+    if not isinstance(table, list) or not table:
+        return []
+
+    rows = [row for row in table if isinstance(row, dict)]
+    if not rows:
+        return []
+
+    columns: list[str] = []
+    for row in rows:
+        for key in row:
+            if isinstance(key, str) and key not in columns:
+                columns.append(key)
+
+    lines = _section("证据概览" if _is_zh(language) else "Evidence Overview")
+    lines.extend(
+        [
+            "| " + " | ".join(_cell(column) for column in columns) + " |",
+            "| " + " | ".join("---" for _ in columns) + " |",
+        ]
+    )
+    for row in rows:
         lines.append(
             "| "
             + " | ".join(
-                [
-                    _cell(citation.get("id")),
-                    _cell(source),
-                    _cell(citation.get("title")),
-                    _cell(citation.get("doi")),
-                ]
+                _cell(_replace_inline_item_refs(row.get(column), context)) for column in columns
             )
             + " |"
         )
@@ -202,11 +334,50 @@ def _render_citations(citations: object, *, language: object = None) -> list[str
     return lines
 
 
+def _render_figure_specs(
+    figures: object,
+    *,
+    context: dict[str, Any],
+    language: object = None,
+) -> list[str]:
+    if not isinstance(figures, list) or not figures:
+        return []
+
+    lines = _section("图表建议" if _is_zh(language) else "Figure Suggestions")
+    for index, figure in enumerate(figures, start=1):
+        if not isinstance(figure, dict):
+            continue
+        title = figure.get("title") or f"Figure {index}"
+        lines.append(
+            f"### 图 {index}: {_cell(title)}"
+            if _is_zh(language)
+            else f"### Figure {index}: {_cell(title)}"
+        )
+        lines.append("")
+        fields = [
+            ("purpose", "用途"),
+            ("visual_structure", "视觉结构"),
+            ("data_needed", "所需数据"),
+            ("takeaway", "预期结论"),
+        ]
+        for field, zh_label in fields:
+            value = figure.get(field)
+            if value in (None, "", [], {}):
+                continue
+            label = zh_label if _is_zh(language) else field.replace("_", " ").title()
+            lines.append(f"- **{label}**: {_cell(_replace_inline_item_refs(value, context))}")
+        lines.append("")
+    return lines
+
+
 def _render_assessment(artifact: dict[str, Any]) -> str:
     review = artifact.get("review", {})
     language = review.get("language") if isinstance(review, dict) else artifact.get("language")
     zh = _is_zh(language)
-    lines = _heading("研究评估" if zh else "Research Assessment")
+    title = review.get("title") if isinstance(review, dict) else None
+    if not isinstance(title, str) or not title:
+        title = "研究评估" if zh else "Research Assessment"
+    lines = _heading(title)
     focus = artifact.get("focus", {})
     focus_id = focus.get("id") if isinstance(focus, dict) else None
     evidence_packet = artifact.get("evidence_packet", {})
@@ -215,15 +386,25 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
         evidence_packet.get("paper_leads", []) if isinstance(evidence_packet, dict) else []
     )
     citations = artifact.get("citations", [])
-    citation_ids_by_item = _citation_ids_by_item(citations)
+    citation_context = _citation_context(citations)
     item_count = len(items) if isinstance(items, list) else 0
     paper_lead_count = len(paper_leads) if isinstance(paper_leads, list) else 0
 
     if isinstance(review, dict) and review:
-        lines.extend(_section("综述" if zh else "Mini Review"))
-        lines.extend([f"### {'小结' if zh else 'Summary'}", ""])
+        abstract = review.get("abstract")
+        if isinstance(abstract, str) and abstract:
+            lines.extend(_section("摘要" if zh else "Abstract"))
+            lines.extend([_cell(_replace_inline_item_refs(abstract, citation_context)), ""])
+
+        key_points = review.get("key_points", [])
+        if isinstance(key_points, list) and key_points:
+            lines.extend(_section("要点" if zh else "Key Points"))
+            lines.extend(_replace_refs_in_bullet_list(key_points, citation_context))
+
+        lines.extend(_section("综述正文" if zh else "Review"))
+        lines.extend([f"### {'核心判断' if zh else 'Core Assessment'}", ""])
         lines.extend(
-            [_cell(_replace_inline_item_refs(review.get("summary"), citation_ids_by_item)), ""]
+            [_cell(_replace_inline_item_refs(review.get("summary"), citation_context)), ""]
         )
         sections = review.get("sections", [])
         if isinstance(sections, list) and sections:
@@ -233,27 +414,37 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
                 lines.append(f"### {_cell(section.get('title'))}")
                 lines.append("")
                 lines.append(
-                    _cell(_replace_inline_item_refs(section.get("body"), citation_ids_by_item))
+                    _cell(_replace_inline_item_refs(section.get("body"), citation_context))
                 )
                 lines.append("")
         else:
             lines.extend(["_None._", ""])
 
-        lines.extend([f"### {'局限性' if zh else 'Limitations'}", ""])
+        lines.extend(
+            _render_evidence_table(
+                review.get("evidence_table", []),
+                context=citation_context,
+                language=language,
+            )
+        )
+
+        lines.extend(
+            _render_figure_specs(
+                review.get("figure_specs", []),
+                context=citation_context,
+                language=language,
+            )
+        )
+
+        lines.extend(_section("局限性" if zh else "Limitations"))
         limitations = review.get("limitations", [])
         if isinstance(limitations, list) and limitations:
-            lines.extend(
-                [
-                    f"- {_cell(_replace_inline_item_refs(item, citation_ids_by_item))}"
-                    for item in limitations
-                ]
-            )
-            lines.append("")
+            lines.extend(_replace_refs_in_bullet_list(limitations, citation_context))
         else:
             lines.extend(["_None._", ""])
 
-        lines.extend([f"### {'后续研究问题' if zh else 'Next Research Questions'}", ""])
-        lines.extend(_bullet_list(review.get("next_queries", [])))
+        lines.extend(_section("后续研究问题" if zh else "Next Research Questions"))
+        lines.extend(_replace_refs_in_bullet_list(review.get("next_queries", []), citation_context))
     else:
         lines.extend(
             [
@@ -270,7 +461,7 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
             ]
         )
 
-    lines.extend(_render_citations(citations, language=language))
+    lines.extend(_render_citations(citations, language=language, context=citation_context))
 
     return "\n".join(lines).rstrip() + "\n"
 
