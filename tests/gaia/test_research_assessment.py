@@ -94,6 +94,18 @@ def test_assessment_rejects_invalid_relation_hint_pair() -> None:
         validate_assessment_artifact(artifact)
 
 
+def test_assessment_rejects_invalid_citation_payload() -> None:
+    artifact = build_assessment_artifact(
+        focus={"kind": "focus", "id": "focus_1"},
+        evidence_packet={"items": []},
+        relations=[_relation()],
+    )
+    artifact["citations"] = [{"id": "", "source_kind": "paper", "item_ids": "item_0"}]
+
+    with pytest.raises(AssessmentSchemaError, match="citations"):
+        validate_assessment_artifact(artifact)
+
+
 def _landscape() -> dict[str, object]:
     return {
         "kind": "research_landscape",
@@ -107,7 +119,11 @@ def _landscape() -> dict[str, object]:
                 "content": (
                     "ASPREE reported no cardiovascular benefit and increased major hemorrhage."
                 ),
-                "source": {"paper_id": "P_ASPREE", "paper_title": "ASPREE trial"},
+                "source": {
+                    "paper_id": "P_ASPREE",
+                    "paper_title": "ASPREE trial",
+                    "doi": "10.1056/aspree",
+                },
             }
         ],
         "paper_leads": [
@@ -154,6 +170,17 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
 
     assert artifact["relations"][0]["type"] == "opposes"
     assert artifact["review"]["summary"] == "老年人中常规一级预防净获益不足。"
+    assert artifact["citations"] == [
+        {
+            "id": "citation_1",
+            "source_kind": "paper",
+            "paper_id": "P_ASPREE",
+            "title": "ASPREE trial",
+            "doi": "10.1056/aspree",
+            "item_ids": ["item_0"],
+            "variable_ids": ["aspree_variable"],
+        }
+    ]
     assert validate_assessment_artifact(artifact) is artifact
     assert validate_assessment_grounding(artifact) is artifact
 

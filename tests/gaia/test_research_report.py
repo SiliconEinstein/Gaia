@@ -53,6 +53,17 @@ def test_report_renders_assessment_markdown() -> None:
                 "items": [{"item_id": "item_0", "kind": "variable", "id": "v1"}],
                 "paper_leads": [{"paper_id": "P1", "title": "ASPREE trial"}],
             },
+            "citations": [
+                {
+                    "id": "citation_1",
+                    "source_kind": "paper",
+                    "paper_id": "P1",
+                    "title": "ASPREE trial",
+                    "doi": "10.1056/aspree",
+                    "item_ids": ["item_0"],
+                    "variable_ids": ["v1"],
+                }
+            ],
             "relations": [
                 {
                     "type": "opposes",
@@ -86,4 +97,9 @@ def test_report_renders_assessment_markdown() -> None:
     assert "opposes: 1" in markdown
     assert "老年人净获益不足。" in markdown
     assert "老年人证据" in markdown
+    assert "## Citations" in markdown
+    assert "citation_1" in markdown
+    assert "ASPREE trial" in markdown
+    assert "10.1056/aspree" in markdown
+    assert "item_0" in markdown
     assert "补充绝对风险差。" in markdown

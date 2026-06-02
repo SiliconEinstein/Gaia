@@ -39,18 +39,159 @@ def build_assessment_artifact(
     review: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a v1 assessment artifact dictionary without writing source."""
+    relation_payloads = [dict(relation) for relation in relations]
+    obligation_payloads = [dict(item) for item in candidate_obligations or []]
     artifact = {
         "schema_version": ASSESSMENT_SCHEMA_VERSION,
         "kind": "assessment",
         "created_at": _utcnow(),
         "focus": dict(focus),
         "evidence_packet": dict(evidence_packet),
-        "relations": [dict(relation) for relation in relations],
-        "candidate_obligations": [dict(item) for item in candidate_obligations or []],
+        "citations": _citations_from_refs(
+            evidence_packet,
+            relations=relation_payloads,
+            candidate_obligations=obligation_payloads,
+        ),
+        "relations": relation_payloads,
+        "candidate_obligations": obligation_payloads,
     }
     if review is not None:
         artifact["review"] = dict(review)
     return artifact
+
+
+def _iter_source_refs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    for record in records:
+        source_refs = record.get("source_refs")
+        if not isinstance(source_refs, list):
+            continue
+        for ref in source_refs:
+            if isinstance(ref, dict):
+                refs.append(ref)
+    return refs
+
+
+def _source_ref_id(ref: dict[str, Any]) -> str | None:
+    ref_id = ref.get("id") or ref.get("paper_id")
+    if isinstance(ref_id, str) and ref_id:
+        return ref_id
+    if isinstance(ref_id, int):
+        return str(ref_id)
+    return None
+
+
+def _cited_ref_ids(
+    *,
+    relations: list[dict[str, Any]],
+    candidate_obligations: list[dict[str, Any]],
+) -> dict[str, set[str]]:
+    cited: dict[str, set[str]] = {
+        "item": set(),
+        "variable": set(),
+        "factor": set(),
+        "chain": set(),
+        "package": set(),
+        "paper": set(),
+    }
+    for ref in _iter_source_refs([*relations, *candidate_obligations]):
+        kind = ref.get("kind")
+        ref_id = _source_ref_id(ref)
+        if isinstance(kind, str) and kind in cited and ref_id:
+            cited[kind].add(ref_id)
+    return cited
+
+
+def _append_unique(values: list[str], value: Any) -> None:
+    if isinstance(value, str) and value and value not in values:
+        values.append(value)
+
+
+def _item_matches_cited_refs(item: dict[str, Any], cited: dict[str, set[str]]) -> bool:
+    item_id = item.get("item_id")
+    kind = item.get("kind")
+    source_id = item.get("id")
+    source = item.get("source")
+    paper_id = source.get("paper_id") if isinstance(source, dict) else None
+    return (
+        (isinstance(item_id, str) and item_id in cited["item"])
+        or (
+            isinstance(kind, str)
+            and kind in cited
+            and isinstance(source_id, str)
+            and source_id in cited[kind]
+        )
+        or (isinstance(paper_id, str) and paper_id in cited["paper"])
+    )
+
+
+def _citation_key(item: dict[str, Any]) -> tuple[str, str] | None:
+    source = item.get("source")
+    source_payload = source if isinstance(source, dict) else {}
+    paper_id = source_payload.get("paper_id")
+    if isinstance(paper_id, str) and paper_id:
+        return ("paper", paper_id)
+    kind = item.get("kind")
+    source_id = item.get("id")
+    if isinstance(kind, str) and kind and isinstance(source_id, str) and source_id:
+        return (kind, source_id)
+    item_id = item.get("item_id")
+    if isinstance(item_id, str) and item_id:
+        return ("item", item_id)
+    return None
+
+
+def _new_citation(item: dict[str, Any], citation_id: str) -> dict[str, Any]:
+    source = item.get("source")
+    source_payload = source if isinstance(source, dict) else {}
+    paper_id = source_payload.get("paper_id")
+    source_kind = (
+        "paper" if isinstance(paper_id, str) and paper_id else str(item.get("kind") or "item")
+    )
+    citation: dict[str, Any] = {
+        "id": citation_id,
+        "source_kind": source_kind,
+        "title": source_payload.get("paper_title") or item.get("title"),
+        "doi": source_payload.get("doi"),
+        "item_ids": [],
+        "variable_ids": [],
+    }
+    if isinstance(paper_id, str) and paper_id:
+        citation["paper_id"] = paper_id
+    else:
+        citation["source_id"] = item.get("id")
+    return citation
+
+
+def _citations_from_refs(
+    evidence_packet: dict[str, Any],
+    *,
+    relations: list[dict[str, Any]],
+    candidate_obligations: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    cited = _cited_ref_ids(relations=relations, candidate_obligations=candidate_obligations)
+    citations: list[dict[str, Any]] = []
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+
+    items = evidence_packet.get("items", [])
+    if not isinstance(items, list):
+        return citations
+
+    for item in items:
+        if not isinstance(item, dict) or not _item_matches_cited_refs(item, cited):
+            continue
+        key = _citation_key(item)
+        if key is None:
+            continue
+        citation = by_key.get(key)
+        if citation is None:
+            citation = _new_citation(item, f"citation_{len(citations) + 1}")
+            by_key[key] = citation
+            citations.append(citation)
+        _append_unique(citation["item_ids"], item.get("item_id"))
+        if item.get("kind") == "variable":
+            _append_unique(citation["variable_ids"], item.get("id"))
+    return citations
 
 
 def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[str, Any]:
@@ -315,6 +456,26 @@ def _validate_review(review: Any) -> None:
             raise AssessmentSchemaError(f"review.{field} must be a list")
 
 
+def _validate_string_list(value: Any, field: str) -> None:
+    if not isinstance(value, list):
+        raise AssessmentSchemaError(f"{field} must be a list")
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item:
+            raise AssessmentSchemaError(f"{field}[{index}] must be a non-empty string")
+
+
+def _validate_citation(citation: Any, index: int) -> None:
+    payload = _require_dict(citation, f"citations[{index}]")
+    for field in ("id", "source_kind"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value:
+            raise AssessmentSchemaError(f"citations[{index}].{field} must be a non-empty string")
+    if not isinstance(payload.get("paper_id") or payload.get("source_id"), str):
+        raise AssessmentSchemaError(f"citations[{index}] must include paper_id or source_id")
+    _validate_string_list(payload.get("item_ids"), f"citations[{index}].item_ids")
+    _validate_string_list(payload.get("variable_ids", []), f"citations[{index}].variable_ids")
+
+
 def validate_assessment_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
     """Validate a v1 assessment artifact dictionary."""
     if artifact.get("schema_version") != ASSESSMENT_SCHEMA_VERSION:
@@ -338,6 +499,13 @@ def validate_assessment_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
         raise AssessmentSchemaError("candidate_obligations must be a list")
     for index, obligation in enumerate(candidate_obligations):
         _require_dict(obligation, f"candidate_obligations[{index}]")
+
+    if "citations" in artifact:
+        citations = artifact["citations"]
+        if not isinstance(citations, list):
+            raise AssessmentSchemaError("citations must be a list")
+        for index, citation in enumerate(citations):
+            _validate_citation(citation, index)
 
     if "review" in artifact:
         _validate_review(artifact["review"])
