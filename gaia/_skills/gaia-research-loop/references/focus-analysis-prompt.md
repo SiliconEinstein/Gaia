@@ -21,7 +21,7 @@ Then ask the active LLM/agent to return JSON only.
 输入：
 
 - 一个或多个 `.gaia/research/landscapes/*.json`；
-- 每个 landscape 中的 `query_provenance`、`coverage_map`、`paper_leads`、`retrieved_snippets`、`candidate_focuses`；
+- 每个 landscape 中的 `query_provenance`、`coverage_map`、`paper_leads`、`items`、`candidate_focuses`；
 - `gaia research contract focus --language zh` 打印出的 JSON contract。
 
 输出要求：
@@ -31,8 +31,9 @@ Then ask the active LLM/agent to return JSON only.
 - 保存为 `<run>/analysis/focus-analysis.json`；
 - `focuses` 通常为 3-8 个，除非 landscape 明显很小；
 - 所有 `question`、`rationale`、`coverage_gaps.description`、`notes` 用中文；
-- 每个 focus 必须有非空 `evidence_refs`，引用 landscape 中真实存在的 snippet、paper、lkm node 或 query index；
-- 不要编造 paper id、snippet id、LKM node id；
+- 每个 focus 必须有非空 `evidence_refs`，优先引用 landscape/evidence packet 中真实存在的 `item`，也可以引用 `paper` 或 query index；
+- 不要编造 item id、variable id、paper id 或 query index；
+- `item` 是 artifact-local reference，不是新的知识实体；底层知识对象应按 `kind` 区分为 `variable`、`factor`、`paper`、`package` 或 `chain`；
 - 不要把检索 query 机械改写成 focus；focus 必须是可以进入支持/反对/限定/削弱关系评估的研究问题。
 
 分析步骤：
@@ -54,4 +55,3 @@ Then ask the active LLM/agent to return JSON only.
 - 好的 focus 不被单篇高排名论文绑架。
 - 好的 focus 能连接到后续 assessment：它可以被 evidence relation 支持、反对、限定或削弱。
 - 如果最初检索明显过窄，要在 `coverage_gaps` 和 `notes` 中说明，并建议继续 broad scan。
-

@@ -30,7 +30,7 @@
 
 - `gaia research assess <pkg> --focus ... --landscape ... --analysis-json ...` writes an assessment artifact with typed relations instead of only `background_for`.
 - Relation types remain constrained to `supports`, `opposes`, `qualifies`, `undercuts`, `background_for`, and `needs_more_evidence`.
-- Strict grounding verifies snippet, LKM node, and paper refs against the evidence packet.
+- Strict grounding verifies item, variable, factor, and paper refs against the evidence packet.
 - The artifact can include a review-grade Chinese report section and candidate obligations.
 - Existing no-analysis behavior remains as a conservative fallback.
 
@@ -90,4 +90,3 @@
 8. Add and update tests.
 9. Run focused tests.
 10. Run PR-gate research tests.
-

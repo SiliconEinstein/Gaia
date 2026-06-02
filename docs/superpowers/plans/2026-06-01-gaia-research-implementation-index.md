@@ -46,7 +46,7 @@ Every implementation PR must preserve these checks:
 - Pull budget defaults to `0`.
 - `.gaia/lkm_packages/` is not created unless the user explicitly requests pulls.
 - Candidate focuses remain artifact-local candidates and are not written to inquiry focus state automatically.
-- Landscape refs preserve LKM provenance and can be resolved back to paper ids, claim ids, snippets, or query records.
+- Landscape refs preserve LKM provenance and can be resolved back to item refs, variable ids, paper ids, or query records.
 
 ## M2b. Port Selected Exploration Utilities
 
@@ -91,7 +91,7 @@ Every implementation PR must preserve these checks:
 
 - `gaia research assess --focus ...` resolves a focus or obligation and selects relevant landscape artifacts.
 - The assessment artifact links to the focus or obligation.
-- Evidence packets include retrieved snippets, not only paper titles or metadata.
+- Evidence packets include landscape items, not only paper titles or metadata.
 - Supporting, opposing, qualifying, and undercutting refs are resolvable.
 - New gaps are emitted as candidate obligations or `gaia inquiry obligation add ...` suggestions.
 - Default behavior writes no stable claims.

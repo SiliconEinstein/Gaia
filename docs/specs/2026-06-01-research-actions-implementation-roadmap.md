@@ -169,7 +169,7 @@ none
 验证：
 
 - relation records 包含 epistemic status；
-- source refs 可以 resolve 到 snippets、LKM ids、pulled packages、QIDs 或 inquiry ids；
+- source refs 可以 resolve 到 artifact-local items、variables、papers、pulled packages、QIDs 或 inquiry ids；
 - `promotion_hint` 不写 source。
 
 ## M5. Assess
@@ -193,7 +193,7 @@ none
 验证：
 
 - artifact 链接到 focus 或 obligation；
-- evidence packet 包含 retrieved snippets；
+- evidence packet 包含从 landscape 汇总出的 items；
 - supporting/opposing refs 可 resolve；
 - 默认不写 stable claims。
 

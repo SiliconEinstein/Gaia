@@ -66,8 +66,9 @@ def _lkm_row(
         "provider": "lkm",
         "kind": "claim",
         "title": f"Claim surfaced from {paper_title}",
-        "content": content or f"Retrieved snippet from {paper_title}.",
+        "content": content or f"Retrieved content item from {paper_title}.",
         "source": {
+            "provider_id": node_id.rsplit(":", 1)[-1],
             "paper_id": paper_id,
             "paper_title": paper_title,
             "doi": doi,
@@ -213,11 +214,18 @@ def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path)
     assert payload["query_provenance"][0]["query"] == "free fall"
     assert payload["query_provenance"][0]["path"] == str(search_path)
     assert [lead["paper_id"] for lead in payload["paper_leads"]] == ["P1", "P2"]
-    assert payload["paper_leads"][0]["lkm_node_ids"] == ["lkm:bohrium:n1", "lkm:bohrium:n2"]
-    assert payload["retrieved_snippets"][0]["text"] == "Snippet about the first paper."
+    assert payload["paper_leads"][0]["variable_ids"] == ["n1", "n2"]
+    assert payload["items"][0]["kind"] == "variable"
+    assert payload["items"][0]["id"] == "n1"
+    assert payload["items"][0]["variable_type"] == "claim"
+    assert payload["items"][0]["content"] == "Snippet about the first paper."
     assert payload["pull_candidates"][0]["command"] == (
         "gaia pkg add --lkm-index bohrium --lkm-paper P1"
     )
+    assert payload["pull_candidates"][0]["evidence_refs"] == [
+        {"kind": "variable", "id": "n1"},
+        {"kind": "variable", "id": "n2"},
+    ]
     assert payload["coverage_map"]["query_families"][0]["paper_leads"] == 2
     assert payload["candidate_focuses"][0]["status"] == "candidate"
 
@@ -374,8 +382,8 @@ def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> N
                         "priority": "high",
                         "readiness": "ready_for_assess",
                         "scope": {"population": "older adults"},
-                        "coverage": {"snippets": 1, "paper_leads": 1},
-                        "evidence_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                        "coverage": {"items": 1, "paper_leads": 1},
+                        "evidence_refs": [{"kind": "item", "id": "item_0"}],
                         "suggested_queries": [],
                     }
                 ],
@@ -448,7 +456,7 @@ def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Pat
                         "lkm:bohrium:n6",
                         0.9,
                         paper_title="Assessment Paper",
-                        content="A retrieved claim-level snippet relevant to the focus.",
+                        content="A retrieved claim-level item relevant to the focus.",
                     )
                 ],
             )
@@ -486,13 +494,13 @@ def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Pat
     assessment = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert assessment["kind"] == "assessment"
     assert assessment["focus"] == {"kind": "focus", "id": "seed"}
-    assert assessment["evidence_packet"]["snippets"][0]["text"] == (
-        "A retrieved claim-level snippet relevant to the focus."
+    assert assessment["evidence_packet"]["items"][0]["content"] == (
+        "A retrieved claim-level item relevant to the focus."
     )
     assert assessment["relations"][0]["type"] == "background_for"
     assert assessment["relations"][0]["epistemic_status"] == "candidate"
     assert assessment["relations"][0]["promotion_hint"] == "none"
-    assert assessment["relations"][0]["source_refs"][0]["id"] == "snippet_0"
+    assert assessment["relations"][0]["source_refs"][0]["id"] == "item_0"
     assert assessment["candidate_obligations"]
 
     events = _read_events(pkg_dir)
@@ -541,12 +549,12 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
                             "ASPREE opposes routine aspirin primary prevention in older adults."
                         ),
                         "rationale": (
-                            "The retrieved snippet reports no cardiovascular benefit "
+                            "The retrieved item reports no cardiovascular benefit "
                             "and more major hemorrhage."
                         ),
                         "epistemic_status": "candidate",
                         "promotion_hint": "none",
-                        "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                        "source_refs": [{"kind": "item", "id": "item_0"}],
                     }
                 ],
                 "review": {
@@ -561,7 +569,7 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
                     {
                         "kind": "needs_more_evidence",
                         "content": "补充老年人绝对风险差。",
-                        "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                        "source_refs": [{"kind": "item", "id": "item_0"}],
                     }
                 ],
             }
@@ -620,8 +628,8 @@ def test_research_report_renders_artifact_to_markdown_file(tmp_path: Path) -> No
                         "priority": "high",
                         "readiness": "ready_for_assess",
                         "scope": {"topic": "demo"},
-                        "coverage": {"snippets": 2},
-                        "evidence_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                        "coverage": {"items": 2},
+                        "evidence_refs": [{"kind": "item", "id": "item_0"}],
                         "suggested_queries": ["core tension follow up"],
                     }
                 ],
@@ -667,12 +675,12 @@ def test_research_report_prints_markdown_to_stdout(tmp_path: Path) -> None:
                 "schema_version": 1,
                 "kind": "assessment",
                 "focus": {"kind": "focus", "id": "core_tension"},
-                "evidence_packet": {"snippets": [], "paper_leads": []},
+                "evidence_packet": {"items": [], "paper_leads": []},
                 "relations": [
                     {
                         "type": "needs_more_evidence",
                         "claim": "当前证据不足。",
-                        "rationale": "没有可用 snippets。",
+                        "rationale": "没有可用 items。",
                         "epistemic_status": "candidate",
                         "promotion_hint": "obligation",
                         "source_refs": [{"kind": "focus", "id": "core_tension"}],

@@ -55,7 +55,7 @@ Record:
 - query count;
 - raw result count;
 - paper lead count;
-- retrieved snippet count;
+- item count;
 - timeout/retry behavior.
 
 ## Focus synthesis
@@ -250,7 +250,7 @@ Observed live metrics:
 - targeted expand: 3 query batches, 30 raw results, 24 paper leads;
 - expand novelty: 17 new paper leads, ratio 0.7083;
 - focus synthesis: 4 focuses, 3 coverage gaps;
-- assessment: 70 snippets, 11 typed relations;
+- assessment: 70 items, 11 typed relations;
 - relation mix: supports 3 / opposes 3 / qualifies 3 / undercuts 2;
 - candidate obligations: 3;
 - stop recommendation: `expand_focus`.

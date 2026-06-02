@@ -54,8 +54,8 @@ def build_assessment_artifact(
 
 
 def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[str, Any]:
-    """Collect snippets and paper leads from landscape artifacts."""
-    snippets: list[dict[str, Any]] = []
+    """Collect reference items and paper leads from landscape artifacts."""
+    items: list[dict[str, Any]] = []
     paper_leads: list[dict[str, Any]] = []
     landscape_refs: list[dict[str, Any]] = []
     for landscape_index, landscape in enumerate(landscapes):
@@ -67,13 +67,16 @@ def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[s
                 "target": landscape.get("target"),
             }
         )
-        for raw_snippet in landscape.get("retrieved_snippets", []):
-            if not isinstance(raw_snippet, dict):
+        for raw_item in landscape.get("items", []):
+            if not isinstance(raw_item, dict):
                 continue
-            snippet = dict(raw_snippet)
-            snippet["id"] = f"snippet_{len(snippets)}"
-            snippet["landscape_index"] = landscape_index
-            snippets.append(snippet)
+            item = dict(raw_item)
+            original_item_id = item.get("item_id")
+            item["item_id"] = f"item_{len(items)}"
+            item["landscape_index"] = landscape_index
+            if isinstance(original_item_id, str) and original_item_id:
+                item["landscape_item_id"] = original_item_id
+            items.append(item)
         for raw_lead in landscape.get("paper_leads", []):
             if isinstance(raw_lead, dict):
                 lead = dict(raw_lead)
@@ -81,7 +84,7 @@ def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[s
                 paper_leads.append(lead)
     return {
         "landscapes": landscape_refs,
-        "snippets": snippets,
+        "items": items,
         "paper_leads": paper_leads,
     }
 
@@ -91,29 +94,29 @@ def build_assessment_from_landscapes(
     focus: dict[str, Any],
     landscapes: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Build a conservative assessment artifact from landscape snippets."""
+    """Build a conservative assessment artifact from landscape reference items."""
     evidence_packet = _evidence_packet_from_landscapes(landscapes)
-    snippets = evidence_packet["snippets"]
+    items = evidence_packet["items"]
 
     focus_id = focus.get("id", "focus")
     relations = [
         {
             "type": "background_for",
-            "claim": f"Retrieved snippet is background evidence for {focus_id}.",
-            "rationale": "The snippet was retrieved by a landscape query selected for this focus.",
+            "claim": f"Retrieved item is background evidence for {focus_id}.",
+            "rationale": "The item was retrieved by a landscape query selected for this focus.",
             "epistemic_status": "candidate",
             "promotion_hint": "none",
-            "source_refs": [{"kind": "snippet", "id": snippet["id"]}],
+            "source_refs": [{"kind": "item", "id": item["item_id"]}],
         }
-        for snippet in snippets
+        for item in items
     ]
     if not relations:
         relations.append(
             {
                 "type": "needs_more_evidence",
-                "claim": f"No retrieved snippets are available for {focus_id}.",
+                "claim": f"No retrieved items are available for {focus_id}.",
                 "rationale": (
-                    "Assessment cannot classify support or opposition without grounded snippets."
+                    "Assessment cannot classify support or opposition without grounded items."
                 ),
                 "epistemic_status": "candidate",
                 "promotion_hint": "obligation",
@@ -126,10 +129,10 @@ def build_assessment_from_landscapes(
             "kind": "needs_more_evidence",
             "target": dict(focus),
             "content": (
-                "Classify whether the retrieved snippets support, oppose, qualify, "
+                "Classify whether the retrieved items support, oppose, qualify, "
                 "or undercut the focus."
             ),
-            "source_refs": [{"kind": "snippet", "id": snippet["id"]} for snippet in snippets],
+            "source_refs": [{"kind": "item", "id": item["item_id"]} for item in items],
         }
     ]
     artifact = build_assessment_artifact(
@@ -144,10 +147,12 @@ def build_assessment_from_landscapes(
 
 def _empty_grounding_ids() -> dict[str, set[str]]:
     return {
-        "snippet": set(),
-        "lkm_node": set(),
+        "item": set(),
+        "variable": set(),
+        "factor": set(),
+        "chain": set(),
+        "package": set(),
         "paper": set(),
-        "lkm_paper": set(),
     }
 
 
@@ -159,31 +164,31 @@ def _add_grounding_id(ids: dict[str, set[str]], kind: str, value: Any) -> None:
 def _add_paper_grounding(ids: dict[str, set[str]], paper_id: Any) -> None:
     if isinstance(paper_id, str) and paper_id:
         ids["paper"].add(paper_id)
-        ids["lkm_paper"].add(paper_id)
 
 
-def _add_snippet_grounding(ids: dict[str, set[str]], snippet: dict[str, Any]) -> None:
-    _add_grounding_id(ids, "snippet", snippet.get("id"))
-    source_ref = snippet.get("source_ref")
-    if isinstance(source_ref, dict):
-        _add_grounding_id(ids, "lkm_node", source_ref.get("id"))
-    _add_grounding_id(ids, "lkm_node", snippet.get("lkm_node_id"))
-    _add_paper_grounding(ids, snippet.get("paper_id"))
+def _add_item_grounding(ids: dict[str, set[str]], item: dict[str, Any]) -> None:
+    _add_grounding_id(ids, "item", item.get("item_id"))
+    kind = item.get("kind")
+    if isinstance(kind, str) and kind in ids and kind != "item":
+        _add_grounding_id(ids, kind, item.get("id"))
+    source = item.get("source")
+    if isinstance(source, dict):
+        _add_paper_grounding(ids, source.get("paper_id"))
 
 
 def _add_paper_lead_grounding(ids: dict[str, set[str]], lead: dict[str, Any]) -> None:
     _add_paper_grounding(ids, lead.get("paper_id"))
-    for node_id in lead.get("lkm_node_ids", []) or []:
-        _add_grounding_id(ids, "lkm_node", node_id)
+    for variable_id in lead.get("variable_ids", []) or []:
+        _add_grounding_id(ids, "variable", variable_id)
 
 
 def _valid_grounding_ids(evidence_packet: dict[str, Any]) -> dict[str, set[str]]:
     ids = _empty_grounding_ids()
-    snippets = evidence_packet.get("snippets", [])
-    if isinstance(snippets, list):
-        for snippet in snippets:
-            if isinstance(snippet, dict):
-                _add_snippet_grounding(ids, snippet)
+    items = evidence_packet.get("items", [])
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict):
+                _add_item_grounding(ids, item)
 
     paper_leads = evidence_packet.get("paper_leads", [])
     if isinstance(paper_leads, list):

@@ -504,7 +504,7 @@ def assess_command(
             "assessment",
             assessment,
         )
-        snippets = assessment["evidence_packet"]["snippets"]
+        items = assessment["evidence_packet"]["items"]
         relation_counts = _relation_type_counts(assessment["relations"])
         append_research_event(
             research_pkg,
@@ -514,7 +514,7 @@ def assess_command(
                 "artifact": str(output_path),
                 "artifact_only": True,
                 "landscapes": [str(path) for path in landscape_paths],
-                "snippets": len(snippets),
+                "items": len(items),
                 "relations": len(assessment["relations"]),
                 "relation_type_counts": relation_counts,
                 "candidate_obligations": len(assessment["candidate_obligations"]),
@@ -526,7 +526,7 @@ def assess_command(
         )
         typer.echo(f"Assessment: {output_path}")
         typer.echo(f"focus: {focus}")
-        typer.echo(f"snippets: {len(snippets)}")
+        typer.echo(f"items: {len(items)}")
         typer.echo(f"relations: {len(assessment['relations'])}")
         if relation_counts:
             typer.echo(f"relation_type_counts: {json.dumps(relation_counts, ensure_ascii=False)}")
