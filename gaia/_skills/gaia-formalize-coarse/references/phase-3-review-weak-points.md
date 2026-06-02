@@ -70,67 +70,68 @@ A single conclusion typically rests on several patterns simultaneously. Tag
 each weak point with 1–3 of these patterns (`weak_types`), in dominance
 order — first key is the dominant pattern.
 
-### Cross-premise relations within a pattern
+### Relations between premises
 
-When you have classified premises (weak points + highlights) and have several
-sharing a pattern — typically within one conclusion's `given=`, sometimes
-across two conclusions — sweep that same-pattern group once more for
-**logical relations between the premises themselves**, not just shared
-causes (Pattern 3) and not just upstream/downstream support. Two premises
-within the same pattern often have one of:
+A relation between two premises is fine **when it genuinely holds and is
+coherent**; the right tool depends on the case, and exactly one configuration is
+incoherent. (Leaf premises feed a `derive(...)` **conjunctively** — the
+conclusion is supported when its premises jointly hold.)
 
-- **`equal(p1, p2, rationale=…)`** — two premises that restate the same
-  proposition in different forms (e.g. a `measurement` premise stated
-  qualitatively and the same quantity stated numerically). Two should
-  usually collapse into one; use `equal` when the paper itself uses both
-  formulations and the audit wants to surface that.
-- **`contradict(p1, p2, rationale=…)`** — two premises that cannot both
-  hold (e.g. two `model` premises that assume incompatible regimes). If
-  one is a weak point and the other a highlight, that is already the
-  "weak point and highlight on the same cause" reconciliation case in
-  Shared-factor evidence; if both are weak points (or both highlights),
-  they materially weaken the warrant and the relation deserves to be in
-  the graph.
-- **`exclusive(p1, p2, rationale=…)`** — two `comparative` premises that
-  exhaust a binary choice (the paper picks exactly one baseline /
-  pretraining recipe).
-- **`associate(p1, p2, p_a_given_b=…, p_b_given_a=…, pattern=…, rationale=…)`**
-  — when you suspect a relation but the strength is judgment-bound (the
-  paper does not explicitly assert it, or the regime makes the entailment
-  soft), reach for the soft form. Pass `pattern="contradict"` (or
-  `"equal"` / `"exclusive"`) when you mean a probabilistic version of one
-  of the hard relations; the engine then validates the conditional-
-  probability semantics against the pattern.
+- **Same proposition** (two premises restate one fact — e.g. a qualitative and a
+  numeric form of one `measurement`) → **reuse one claim object** in both places
+  rather than coupling two claims with `equal`; the `equal` verb is rarely needed
+  at the premise layer.
+- **Correlated** (shared sample / instrument / dataset / lemma) → **`decompose`**
+  (Pattern 3, finalize): extract the shared cause as one node both premises route
+  through — not `associate`. See "Shared-factor evidence" below.
+- **The conclusion rests on a logical combination of A and B** (it follows from a
+  *relationship* between them, not from "A and B both") → **materialize the
+  combination as one premise node** in `given=`:
+  - "**one of A, B holds**" (case analysis — the conclusion follows either way)
+    → simply `C = A | B` (`|` is `lor`; a disjunction is accepted directly as a
+    premise). A and B keep their own prose and priors; the disjunction is their
+    deterministic function — no prior, enters as an anonymous structural node,
+    which is fine. Use `decompose(either, parts=[A, B], formula=lor(A, B))` (or a
+    labelled `claim(..., formula=lor(A, B))`) only when the combined proposition
+    should be a **named, reviewable** node.
+  - "**exactly one (not both)**" → that disjunction premise **plus** an
+    `exclusive(A, B)` constraint (A and B are alternatives here, not conjunctive
+    co-premises, so the constraint is coherent).
+- **A genuine `contradict` / `exclusive` between premises of *different*
+  conclusions** (e.g. C1 assumes the weak-coupling regime, C2 the strong-coupling
+  regime — mutually exclusive) → **add it**: `exclusive(p1, p2)` /
+  `contradict(p1, p2)`. It is coherent (a hard constraint over two prior-bearing
+  leaves — it compiles and infers) and **more faithful** than lifting to a
+  conclusion-level `contradict(C1, C2)`, which overstates the incompatibility
+  when the conclusions have other support. Lift to the conclusion layer only
+  when the two **conclusions** are themselves incompatible.
 
-**The `rationale=` is mandatory and load-bearing.** Premise-level relations
-are reviewer assertions about the audit material — typically the paper
-itself does *not* state them outright (otherwise they would have surfaced
-at the conclusion-graph layer in phase-1 §Relations). The `rationale` is
-where the reviewer's reasoning lives, and it has to do three things:
+**The one incoherent case — never do this.** A `contradict` / `exclusive`
+between two **co-premises of the same `derive`** (both conjunctively required):
+the conjunction with an always-false pair never fires, so it just zeroes the
+conclusion. If two things one derivation jointly needs really cannot both hold,
+the paper's argument is flawed — surface that as one **low-prior weak point**
+("the derivation jointly requires X and Y, which cannot both hold"), not as a
+relation.
 
-1. **Name the relation as the reviewer is asserting it** — not just restate
-   the verb's semantics, but say *why these two specific premises* stand in
-   this relation in the paper's setting (regime, system, parameter range).
-2. **Cite the paper-textual evidence** the reviewer is reading the relation
-   off of — equations, observed values, hypothesis statements (use
-   `[@key]` citations only; no `Eq.` / `Fig.` / `Sec.` pointers per the
-   pointer-and-citation invariant).
-3. **For `associate`**, additionally justify the two conditional
-   probabilities (`p_a_given_b`, `p_b_given_a`) — what evidence makes them
-   the values they are, not arbitrary defaults. (Hard relations carry no
-   prior, so the rationale alone bears the audit weight.)
+### A premise that relates to an earlier conclusion
 
-A relation whose rationale reduces to "they look related" or restates the
-verb definition is not reviewable and must be rewritten before emit.
+While auditing, you may find that a weak point / highlight is really tied to an
+**already-established conclusion**. Resolve it by the strength of the tie, not
+with a relation verb:
 
-Surface these relations where they live (the downstream-most module among
-the two relata, just like conclusion-level relations); they get no
-`register_prior` entry and they are not added to root `__all__`. **A wrong
-`contradict` / `exclusive` silently distorts every downstream belief, so
-when in doubt prefer `associate`** (soft) over hard relations — `associate`
-carries its own honest conditionals and stays reviewable. The same "What
-NOT to model" list from phase-1 §Relations applies: do not force a hard
-relation on a premise pair that is merely in tension.
+- **Tight** (the earlier conclusion genuinely supports this one) → it is an
+  **upstream premise**: put the earlier conclusion in this conclusion's `given=`
+  (a logic-graph edge); do not also emit it as a separate leaf premise.
+- **Weak** → do **not** model it; a faint link adds noise and double-counting
+  risk for little signal.
+- **Clear but not a derivation** (a definite relationship the paper states that
+  is neither "uses-to-derive" nor a logical identity) → **materialize it as an
+  explicit `claim(...)` + `derive(...)`**, not a soft `associate` — an explicit
+  node is transparent and reviewable where a soft coupling is not. The new claim
+  must be a genuinely new, separately-supportable proposition that does not
+  re-import evidence already counted elsewhere (or you have only moved the
+  double count).
 
 ### Gating Questions for Each Candidate Weak Point
 
@@ -233,8 +234,10 @@ How each factor type realises this:
   its own part, independent given the cause. Both the shared cause and every
   residual are new standalone claims and must be rewritten **self-contained**
   (name the system, symbols, units, regime — a residual readable only as "the
-  rest of <original>" is not acceptable). This is the one place coarse emits
-  `decompose` rather than `derive` (see `phase-4-emit-package.md`, step 6).
+  rest of <original>" is not acceptable). This shared-cause split is the main
+  place coarse emits `decompose` (see `phase-4-emit-package.md`, step 6); the
+  only other use is the optional named-disjunction premise in "Relations between
+  premises".
 - **Highlights** — a highlight is a leaf premise too, so a shared cause among
   highlights is decomposed exactly as for weak points (one shared-cause claim
   reused across each highlight's decomposition; per-highlight residuals).
@@ -307,7 +310,7 @@ Each weak point and each highlight gets a **body** — a self-standing
 scientific proposition that, when emitted in step 5, becomes the string body
 of a leaf `claim(...)` (the same for weak points and highlights; both are
 emitted into the conclusion's `given=[...]` with a `register_prior(...)`,
-differing only in prior magnitude — see formalize/SKILL.md). The writing
+differing only in prior magnitude — see SKILL.md). The writing
 rules are identical:
 
 - **Self-standing setup**: every model / system / procedure / dataset /
@@ -560,6 +563,13 @@ or highlight) maps directly to DSL as you emit it (step 5), and its reviewer
 reasoning lives in the DSL's own prose fields:
 
 - **body** → the `claim(...)` string.
+- **`weak_point` / `highlight` tag + `weak_types` / `strength_types`** → passed
+  as `claim(...)` metadata kwargs (e.g.
+  `claim(body, ..., weak_point=True, weak_types=["measurement", "model"])`);
+  they land in the claim's `**metadata` and are **advisory audit tags only** —
+  they do not affect compilation or BP. The load-bearing distinction between a
+  weak point and a highlight is the prior magnitude plus the `_wp_` / `_hl_`
+  label infix, not these tags.
 - **`prior_probability`** → the `register_prior(...)` `value`.
 - **`weakness_reason` + `failure_mode`** (for weak points) → written into the
   `register_prior(...)` `justification` (why this prior; what breaks if the

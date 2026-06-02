@@ -9,8 +9,8 @@ description: |
   organize the cross-conclusion logic graph; then per
   conclusion emit its weak points, highlights, and `derive(...)`; then finalize
   (shared-factor decomposition, leaf priors, references, compile). Gated by an
-  upfront suitability check (skip review/survey/perspective papers and
-  corrupted paper text). Surfaces 9 argument-pattern weak-point types
+  upfront suitability check (skip review/survey/perspective papers, statistical
+  model-comparison papers, and corrupted paper text). Surfaces 9 argument-pattern weak-point types
   (`measurement`, `causal`, `model`, `statistical`, `generalization`,
   `comparative`, `formal`, `computational`, `external`).
   This is the **Paper → package** entry point when speed matters — the quick
@@ -82,7 +82,8 @@ Create a session todo list with the six steps below and work them in order.
 1. **Suitability gate** (below) — decide whether the paper is formalizable; skip
    with a `.skip.md` note if not.
 2. **Scaffold the package.** Read the DSL surface (`gaia sdk`), then
-   `gaia pkg scaffold` and add one module per source section. See
+   `gaia pkg scaffold` and write one module file per source section (flat under
+   `src/<import_name>/` — not `gaia pkg add-module`). See
    [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md).
 3. **Write the conclusions.** Walk the paper section by section. For each
    section, emit its conclusions as `claim(...)` into the section's module,
@@ -100,12 +101,12 @@ Create a session todo list with the six steps below and work them in order.
    premises; the root `__all__` lists the main-conclusion labels.)
 4. **Organize the logic graph + surface conclusion-level relations.** With
    every conclusion now written, lay out the directed dependencies among
-   them (`A → B` = the paper uses A to derive B), and emit the hard /
-   soft relations the paper itself states between conclusions or atomic
-   sub-conclusions: `equal` / `contradict` / `exclusive` for clear logical
-   relations, `associate` (soft, with reviewer-judged conditionals) when
-   the strength is judgment-bound. Same methodology file as step 3
-   (§Relations between conclusions).
+   them (`A → B` = the paper uses A to derive B), and emit the relations the
+   paper itself states between conclusions or atomic sub-conclusions:
+   `equal` / `contradict` / `exclusive` for genuine logical relations (`equal`
+   only after shared dependencies are extracted as shared nodes), reserving
+   soft `associate` for the rare relation you are confident in but unsure is
+   hard. Same methodology file as step 3 (§Relations between conclusions).
 5. **Per conclusion, in topological order: derive + weak points + highlights.**
    For each conclusion, work in this conceptual order:
    1. **Atomicity re-check before the derive.** Building the evidence chain
@@ -132,12 +133,11 @@ Create a session todo list with the six steps below and work them in order.
       upstream conclusions do **not** already capture. (If a factor is already
       represented by an upstream conclusion, do not duplicate it as a leaf
       premise here.) These go in `given=` after the upstream conclusions.
-      When sweeping each argument-pattern group of premises (measurement,
-      causal, model, …), also check for logical relations **between**
-      same-pattern premises — `equal` / `contradict` / `exclusive` when the
-      paper itself asserts the relation, `associate` (soft) when the
-      strength is judgment-bound. Methodology in phase-3
-      §Cross-premise relations.
+      Premises may carry relations where they genuinely hold — same proposition
+      → reuse one claim, shared dependency → `decompose` (Pattern 3), a real
+      `contradict` / `exclusive` between premises of *different* conclusions →
+      add it — but never `contradict` / `exclusive` between two co-premises of
+      one `derive` (incoherent). See phase-3 ("Relations between premises").
    5. Emit the leaf-premise `claim(...)`s and the `derive(...)` into the
       conclusion's module; compile-check before moving on.
 
@@ -191,8 +191,7 @@ contributions to fill the gap.
 
 - **Self-contained `claim(...)` text.** The string body of every `claim(...)`
   must read as a first-class scientific proposition independent of the paper.
-  This is the same rule the legacy step 4 prompt enforced — here it is
-  enforced at the moment the claim is written, not as a post-hoc rewrite.
+  Enforce this at the moment the claim is written, not as a post-hoc rewrite.
   Setup, symbols, regimes, and inlined figure/table content live inside the
   claim string itself; structural pointers ("Eq. (3)", "Fig. 4",
   "Section II") are forbidden inside the claim body.
@@ -324,8 +323,10 @@ with `gaia-formalize-fine`; workflow steps 3–6 load these from `_shared/`:
   `question` rule, terms, distributions, relations, label and citation
   conventions) into `./gaia-sdk/`. **Read this before emitting; it is the
   source of truth, not the docs tree.**
-- **`gaia pkg scaffold`** / **`gaia pkg add-module`** — package layout and
-  module files (run them; they create the structure).
+- **`gaia pkg scaffold`** — creates the package skeleton (`pyproject.toml`,
+  minted uuid, root `__init__.py`); run it. Write the section modules flat
+  under `src/<import_name>/` yourself — **not** `gaia pkg add-module` (which
+  routes into the `authored/` CLI subpackage; see phase-4 step 2).
 - **`gaia <group> <cmd> --help`** — per-command CLI reference
   (`gaia build compile` / `build check` / `run infer` / `inquiry review`).
 

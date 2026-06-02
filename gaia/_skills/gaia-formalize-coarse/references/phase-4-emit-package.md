@@ -84,7 +84,7 @@ Label rules (canonical: the "label rules" in the `gaia sdk` reference):
 The Python LHS binding name (the variable the rest of the package references)
 should equal the label, so a claim is `liu2015_c1_yield = claim(...)`.
 
-## Workflow step 2 — Scaffold the package and add one module per section
+## Workflow step 2 — Scaffold, then write one module per section
 
 Bootstrap the package directory:
 
@@ -99,11 +99,15 @@ gaia pkg scaffold \
 
 This writes `pyproject.toml` (with `[tool.gaia] type = "knowledge-package"` and
 a minted `uuid`), `src/<import_name>/__init__.py`, and `.gaia/.gitkeep`. Use the
-namespace the calling SOP chose for this run.
+namespace the calling SOP chose for this run. (The scaffold also drops an
+`authored/` stub — that is the `gaia author` CLI's write target. This skill
+writes DSL directly, so you do not use it; leave it empty or delete it.)
 
-**Organize by section — one module (Python file) per source section.** This
-matches `gaia-formalize-fine` and the upstream knowledge-package convention,
-and keeps the package traceable back to the paper:
+**Write one module (Python file) per source section, flat under
+`src/<import_name>/`** (`s2_methods.py`, `s3_results.py`, …) — just write the
+files with your file-write tool, like all the DSL. Do **not** use
+`gaia pkg add-module`: it routes modules into the `authored/` CLI subpackage and
+forces `from .authored.<module>` import paths you don't want.
 
 - Introduction / motivation → `motivation.py`
 - Section II / Methods → `s2_methods.py`
@@ -111,18 +115,17 @@ and keeps the package traceable back to the paper:
 - Section IV / Discussion (if a distinct section) → `s4_discussion.py`
 - Leaf priors → `priors.py`
 
-Add each section module:
-
-```bash
-gaia pkg add-module --name <module_name> --target <name>-gaia
-gaia pkg add-module --name priors --imports register_prior --target <name>-gaia
-```
+The **root** `src/<import_name>/__init__.py` is yours to write (overwrite the
+scaffold's): it imports every module — so their `claim` / `derive` /
+`register_prior` side effects register — and lists the main-conclusion labels in
+`__all__` (step 3). All imports are flat siblings: a module references another
+as `from .s2_methods import …`, and the root does the same.
 
 **Place each knowledge node in the earliest module where it first appears.**
 Content from the Introduction goes into `motivation.py`. A conclusion stated in
 Results goes into `s3_results.py`. Claims in `motivation.py` can be freely
 referenced as premises / `background=` by later modules — module membership does
-not restrict cross-module references; later modules `from .motivation import ...`.
+not restrict cross-module references.
 
 If the paper has no clean section structure, a single `__init__.py` is
 acceptable — but prefer per-section whenever the paper has identifiable sections.
@@ -176,11 +179,11 @@ coarse picks the curated surface — is in
 ("Mark each main conclusion in the root `__all__`"); the code shape is:
 
 ```python
-# src/<import_name>/__init__.py
+# src/<import_name>/__init__.py  (root — you write this; flat imports)
 """<package one-line description>."""
 
-from gaia.engine.lang import claim
-
+# import every module so its claim / derive / register_prior side effects run:
+from . import motivation, priors          # note, question, priors (no exports)
 from .s2_methods import liu2015_c1_protocol
 from .s3_results import liu2015_c3_yield, liu2015_c4_agreement
 
@@ -189,15 +192,13 @@ __all__ = [
     "liu2015_c3_yield",
     "liu2015_c4_agreement",
 ]
-
-from .authored import *  # scaffold-default re-export; harmless here
 ```
 
 Do **not** add to `__all__`: the motivation `note(...)`, the open-problem
 `question(...)`, weak point / highlight leaf-premise claims (step 5),
 decompose parts (step 6 shared cause + residuals), or any relation labels
-(see below). Section modules (`motivation.py`, `s2_methods.py`, …) keep
-their scaffolded `__all__: list[str] = []` unchanged.
+(see below). Section modules need no `__all__` of their own — the engine reads
+only the root's.
 
 ### Conclusion-level relations (also step 4 emission)
 
@@ -235,18 +236,27 @@ liu2015_rel_binary_outcome = exclusive(
     label="liu2015_rel_binary_outcome",
 )
 
-# Soft: judgement-bound association (no logical entailment)
-liu2015_rel_soft_assoc = associate(
-    liu2015_c5_method, liu2015_c5_outcome,
-    p_a_given_b=0.75, p_b_given_a=0.40,
-    pattern="equal",
-    rationale="The paper presents them as broadly consistent under regime X, but …",
-    label="liu2015_rel_soft_assoc",
-)
+# Soft (the exception — see phase-1 §Relations discipline): reach for
+# `associate` only when you are confident the relation holds but not that it is
+# a hard logical constraint, and most defensibly for contradict / exclusive
+# (hedging a structural claim you are unsure of). A clear relation is better
+# written as an explicit claim + derive; a weak one is left unmodelled. Soft
+# `associate(pattern="equal")` between two conclusions is discouraged. Shape:
+#   liu2015_rel_soft_tension = associate(
+#       liu2015_c2_model_a, liu2015_c2_model_b,
+#       p_a_given_b=…, p_b_given_a=…, pattern="contradict",
+#       rationale="…", label="liu2015_rel_soft_tension")  # conditionals must satisfy the pattern
 ```
 
 Relations carry no `register_prior` (hard verbs are deterministic;
 `associate` carries its conditionals directly) and are **not** in `__all__`.
+
+**Premise-level relations and combinations** (phase-3 "Relations between
+premises") are emitted in **step 5**, when the premises are written, not here: a
+cross-conclusion `exclusive(p1, p2)` / `contradict(p1, p2)` goes in the
+downstream-most module among its relata; a disjunction premise `C = A | B` goes
+in the module of the conclusion that uses it. These likewise carry no
+`register_prior` and are not in `__all__`.
 
 ## Workflow step 5 — Per conclusion: leaf premises + derive
 
@@ -333,7 +343,9 @@ decompose(
 The `sample_size_limit` claim (the shared cause) is reused as a part across
 every original in the group, so the shared uncertainty enters the graph once;
 each residual is its own part. Shared cause and residual are new self-contained
-`claim(...)`s. This is the only place coarse uses `decompose`.
+`claim(...)`s. This shared-cause split is the main use of `decompose` (the only
+other is the optional named-disjunction premise — phase-3 "Relations between
+premises").
 
 ### 6b. Write `priors.py`
 
@@ -368,6 +380,12 @@ reviewer is near-certain of it. There is no separate stored field — the
 justification string is the reasoning.
 
 ### 6c. Write `references.json`
+
+**Timing:** although listed under finalize, `references.json` must exist as soon
+as the **first** `[@key]` citation is written (step 3) — the strict reference
+check fails *any* `gaia build compile` that has an unresolved `[@key]`, so the
+compile-as-you-go checks in steps 3/5 need it already present. Create it (even
+as a stub) when the first bracketed citation appears, and complete it here.
 
 Emit a CSL-JSON object keyed by citation key. Each entry:
 

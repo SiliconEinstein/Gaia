@@ -28,15 +28,20 @@ YAML/JSON artifact.
 
 ## Suitability Gate
 
-Before extraction, decide whether the paper is amenable to formalization:
+Before extraction, decide whether the paper is amenable to formalization
+(the full statement is in SKILL.md "Suitability Gate"):
 
 - A review article, survey, or perspective without original results.
 - A paper without identifiable structured contributions (no derivations, no
   new measurements, no new methods).
 - A corrupted / abstract-only paper text.
+- A paper whose **core contribution is Bayesian / statistical model
+  comparison** — coarse emits only `derive`, so this loses its epistemic
+  structure; redirect to `gaia-formalize-fine` rather than coarsening.
 
-If any holds, **stop here**. Do not invent contributions. Write a single
+For the first three, **stop here** — do not invent contributions; write a single
 `<package_name>.skip.md` recording the reason, and do not scaffold a package.
+For the fourth, redirect rather than produce a coarsened package.
 
 ## Extraction Rules
 
@@ -79,13 +84,12 @@ For each conclusion you emit as `claim(...)` in step 3:
 1. Mint its label per the naming rule in `phase-4-emit-package.md`
    ("Claim labels").
 2. Write the `claim(...)` into its section module.
-3. Open the root `src/<import_name>/__init__.py` (which the scaffold left
-   with `__all__: list[str] = []`) and append the label to `__all__`. Also
-   add the matching `from .<section> import <label>` so the name is
-   importable from the package root (the engine matches `__all__` against
-   registered knowledge by label string, but having the name actually
-   importable keeps the Python convention honest and lets downstream code
-   `from <import_name> import <label>` cleanly).
+3. In the root `src/<import_name>/__init__.py` (which you write — flat layout,
+   see phase-4 step 2), add `from .<section> import <label>` and list the label
+   in `__all__`. The engine matches `__all__` against registered knowledge by
+   label string, but having the name actually importable keeps the Python
+   convention honest and lets downstream code
+   `from <import_name> import <label>` cleanly.
 
 What does **not** go in `__all__`:
 
@@ -128,9 +132,7 @@ pre-paper state.
 In Gaia, a `question(...)` records a research question. The coarse skill emits
 **one** `question(...)` at the paper level — the paper's overall open problem,
 i.e. the research question the paper as a whole sets out to answer. It lives
-in `motivation.py` alongside the motivation note. This matches the legacy
-paper-extract pipeline B (top-level `<problem>研究问题描述...</problem>`
-mapped to `type="question"`).
+in `motivation.py` alongside the motivation note.
 
 State the open problem as a concrete research question, not a restatement of
 the conclusions in interrogative form and not a generic field-wide question.
@@ -165,6 +167,47 @@ The verbs (canonical surface: `gaia sdk`):
 | `contradict(a, b, rationale=…)` | NOT (A AND B) — both cannot be true, but both **can** be false | Two competing hypotheses the paper says are incompatible (a third option may still exist). |
 | `exclusive(a, b, rationale=…)` | A XOR B — exactly one must be true (exhaustive + mutually exclusive; **strictly binary**) | The paper frames the alternatives as exhaustive — exactly one wins. For ≥3 alternatives use `decompose(formula=lor(...))` (see phase-4 step 6a) instead. |
 | `associate(a, b, p_a_given_b=…, p_b_given_a=…, rationale=…)` | symmetric probabilistic association (no logical entailment); pass `pattern="equal"` / `"contradict"` / `"exclusive"` when you mean a soft version of the hard relation | The paper hints at a relation but the strength is judgment-bound — e.g. "results A and B point in the same direction" without a logical equivalence; or competing-models language that does not actually exhaust the space. The two `p_*` conditionals are reviewer-judged honest estimates, not derived from data. |
+
+**Discipline — the three are not interchangeable.** The table lists the verbs;
+which one (and whether to use any) is governed by:
+
+- **`equal` (and any near-`equal` soft form) — guard against double counting.**
+  `equal(C1, C2)` asserts the two are the *same* truth, so any evidence their
+  derivations share would be counted on both ends of the identity. The fix is
+  **not** to avoid `equal` when paths share evidence — it is to make the sharing
+  explicit first: extract every shared dependency into one node both derivations
+  route through (`decompose`, Pattern 3). Once the graph is faithful, exact
+  inference discounts the shared part and credits only the independent premises
+  as genuine cross-validation (canonical case: a theory atom and the experiment
+  atom that measured it). The test is *"are all shared dependencies modelled as
+  shared nodes?"*, not *"do they share evidence?"*. If, after extraction,
+  nothing independent distinguishes the two, they are one proposition →
+  **merge**, do not `equal`.
+- **`contradict` / `exclusive` — get the logical relation right.** No
+  double-counting concern (these forbid truth combinations, they do not merge
+  evidence); the risk is asserting a relation that is not real — a wrong hard
+  `contradict` / `exclusive` silently distorts every downstream belief. Use the
+  hard verb only when the paper establishes genuine incompatibility
+  (`contradict`) or an exhaustive binary (`exclusive`).
+- **`associate` is the exception, not the default "softener".** Before reaching
+  for it: a *clear* relation the paper states is better **materialized as an
+  explicit `claim(...)` + `derive(...)`** (transparent, reviewable) than encoded
+  as a soft coupling; a *weak* relation is better left **unmodelled** (note it in
+  the hand-off). Reserve `associate(pattern=…)` for the narrow case where you are
+  confident an `equal` / `contradict` / `exclusive`-type relation holds but
+  **not** that it is a hard logical constraint — and even then it is most
+  defensible for `contradict` / `exclusive` (hedging a structural claim you are
+  unsure of). Soft `associate(pattern="equal")` between two conclusions is
+  discouraged: "softly the same proposition" is usually really a derivation or a
+  correlation (model it as such), and at the conclusion layer the soft form
+  anchors a missing marginal with an uninformed MaxEnt prior.
+
+**Rationale discipline (all relations).** The `rationale=` must (1) say *why
+these two specific relata* stand in this relation in the paper's setting, not
+restate the verb; (2) cite the paper-textual evidence with `[@key]` (no
+`Eq.` / `Fig.` / `Sec.` pointers); (3) for `associate`, additionally justify
+both conditionals. A rationale that reduces to "they look related" is not
+reviewable and must be rewritten before emit.
 
 The labelling rule: a relation between conclusions `C_i` and `C_j` lives in
 the **module of the later (downstream) conclusion** — so the relation can
