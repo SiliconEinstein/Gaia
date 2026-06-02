@@ -56,12 +56,6 @@ def _format_refs(refs: object) -> str:
     return ", ".join(formatted)
 
 
-def _join_string_list(values: object) -> str:
-    if not isinstance(values, list):
-        return ""
-    return "; ".join(str(value) for value in values if isinstance(value, str) and value)
-
-
 def _citation_ids_by_item(citations: object) -> dict[str, str]:
     ids: dict[str, str] = {}
     if not isinstance(citations, list):
@@ -174,18 +168,20 @@ def _render_focus_synthesis(artifact: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _render_citations(citations: object) -> list[str]:
-    lines = _section("Citations")
+def _is_zh(language: object) -> bool:
+    return isinstance(language, str) and language.lower().startswith("zh")
+
+
+def _render_citations(citations: object, *, language: object = None) -> list[str]:
+    lines = _section("参考文献" if _is_zh(language) else "Citations")
     if not isinstance(citations, list) or not citations:
         lines.extend(["_None._", ""])
         return lines
 
-    lines.extend(
-        [
-            "| id | source | title | doi | item_ids | variable_ids |",
-            "| --- | --- | --- | --- | --- | --- |",
-        ]
-    )
+    if _is_zh(language):
+        lines.extend(["| 引用 | 来源 | 标题 | DOI |", "| --- | --- | --- | --- |"])
+    else:
+        lines.extend(["| id | source | title | doi |", "| --- | --- | --- | --- |"])
     for citation in citations:
         if not isinstance(citation, dict):
             continue
@@ -198,8 +194,6 @@ def _render_citations(citations: object) -> list[str]:
                     _cell(source),
                     _cell(citation.get("title")),
                     _cell(citation.get("doi")),
-                    _cell(_join_string_list(citation.get("item_ids"))),
-                    _cell(_join_string_list(citation.get("variable_ids"))),
                 ]
             )
             + " |"
@@ -209,7 +203,10 @@ def _render_citations(citations: object) -> list[str]:
 
 
 def _render_assessment(artifact: dict[str, Any]) -> str:
-    lines = _heading("Research Assessment")
+    review = artifact.get("review", {})
+    language = review.get("language") if isinstance(review, dict) else artifact.get("language")
+    zh = _is_zh(language)
+    lines = _heading("研究评估" if zh else "Research Assessment")
     focus = artifact.get("focus", {})
     focus_id = focus.get("id") if isinstance(focus, dict) else None
     evidence_packet = artifact.get("evidence_packet", {})
@@ -222,20 +219,9 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
     item_count = len(items) if isinstance(items, list) else 0
     paper_lead_count = len(paper_leads) if isinstance(paper_leads, list) else 0
 
-    lines.extend(
-        [
-            (
-                f"Focus `{_cell(focus_id)}` is assessed against an evidence packet "
-                f"containing {item_count} item(s) and {paper_lead_count} paper lead(s)."
-            ),
-            "",
-        ]
-    )
-
-    review = artifact.get("review", {})
     if isinstance(review, dict) and review:
-        lines.extend(_section("Mini Review"))
-        lines.extend(["### Summary", ""])
+        lines.extend(_section("综述" if zh else "Mini Review"))
+        lines.extend([f"### {'小结' if zh else 'Summary'}", ""])
         lines.extend(
             [_cell(_replace_inline_item_refs(review.get("summary"), citation_ids_by_item)), ""]
         )
@@ -253,7 +239,7 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
         else:
             lines.extend(["_None._", ""])
 
-        lines.extend(["### Limitations", ""])
+        lines.extend([f"### {'局限性' if zh else 'Limitations'}", ""])
         limitations = review.get("limitations", [])
         if isinstance(limitations, list) and limitations:
             lines.extend(
@@ -266,10 +252,25 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
         else:
             lines.extend(["_None._", ""])
 
-        lines.extend(["### Next Research Questions", ""])
+        lines.extend([f"### {'后续研究问题' if zh else 'Next Research Questions'}", ""])
         lines.extend(_bullet_list(review.get("next_queries", [])))
+    else:
+        lines.extend(
+            [
+                (
+                    f"本报告围绕 `{_cell(focus_id)}` 评估 {item_count} 条检索证据和 "
+                    f"{paper_lead_count} 篇候选文献。"
+                    if zh
+                    else (
+                        f"Focus `{_cell(focus_id)}` is evaluated using {item_count} "
+                        f"retrieved evidence record(s) and {paper_lead_count} candidate paper(s)."
+                    )
+                ),
+                "",
+            ]
+        )
 
-    lines.extend(_render_citations(citations))
+    lines.extend(_render_citations(citations, language=language))
 
     return "\n".join(lines).rstrip() + "\n"
 

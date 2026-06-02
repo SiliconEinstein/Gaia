@@ -110,6 +110,47 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             "Classify grounded evidence relations for one focus and write a review-grade "
             "assessment without writing stable Gaia source."
         ),
+        "review_style_contract": {
+            "genre": "standalone scholarly mini-review",
+            "audience": (
+                "Domain readers who care about the scientific question, evidence, "
+                "uncertainties, and next research directions, not the research workflow."
+            ),
+            "allowed_internal_syntax": (
+                "Inline [item:item_N] markers are allowed only as citation anchors and "
+                "must not be discussed as entities in prose."
+            ),
+            "prose_requirements": [
+                (
+                    "Do not mention research infrastructure, workflow steps, or artifact "
+                    "formats in review.summary, review.sections, limitations, or next_queries."
+                ),
+                (
+                    "Translate source items into ordinary scholarly prose, e.g. "
+                    "'existing studies suggest' instead of 'the evidence packet shows'."
+                ),
+                (
+                    "Use Chinese academic prose when language is zh; keep English domain "
+                    "terms only when scientifically standard or necessary."
+                ),
+            ],
+        },
+        "forbidden_review_terms": [
+            "Gaia",
+            "LKM",
+            "item",
+            "artifact",
+            "evidence packet",
+            "agent",
+            "CLI",
+            "trace",
+            "run",
+            "round",
+            "workflow",
+            "targeted expand",
+            "source promotion",
+            "assessment JSON",
+        ],
         "input": {
             "focus": "A focus id, question, or obligation selected by the agent/user.",
             "evidence_packet": (
@@ -144,10 +185,11 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         "review_fields": {
             "language": language,
             "depth": "review",
-            "summary": "concise bottom-line answer",
+            "summary": "concise bottom-line answer written as standalone scholarly prose",
             "sections": (
-                "ordered list with title and body fields; body text may cite evidence "
-                "with inline [item:item_N] refs that the report renderer maps to citations"
+                "ordered list with title and body fields; body text must read like a "
+                "mini-review section and may cite evidence with inline [item:item_N] refs "
+                "that the report renderer maps to citations"
             ),
             "evidence_table": (
                 "optional list summarizing trial/paper, population, endpoint, direction"
@@ -161,6 +203,11 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             "Discuss population, endpoint, trial-era, and background-therapy heterogeneity.",
             "Use absolute effects, NNT, and NNH when available.",
             "Write enough detail for a domain review, not a terse search summary.",
+            (
+                "Write the review as a standalone scholarly mini-review; the reader must "
+                "not need to know Gaia, LKM, CLI, items, artifacts, agents, runs, rounds, "
+                "traces, workflows, or evidence packets."
+            ),
             (
                 "In review.summary and review.sections[].body, cite important evidence "
                 "with inline [item:item_N] markers; do not write paper citations manually."
