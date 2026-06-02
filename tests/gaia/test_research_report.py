@@ -92,21 +92,24 @@ def test_report_renders_assessment_markdown() -> None:
         }
     )
 
-    assert "# Research Assessment" in markdown
-    assert "elderly_net_benefit" in markdown
-    assert "## Mini Review" in markdown
+    assert "# 研究评估" in markdown
+    assert "## 综述" in markdown
     assert "老年人净获益不足。[citation_1]" in markdown
     assert "[citation_1][citation_1]" not in markdown
     assert "老年人证据" in markdown
     assert "ASPREE 指向无获益。[citation_1]" in markdown
     assert "[item:item_0]" not in markdown
-    assert "## Citations" in markdown
+    assert "## 参考文献" in markdown
     assert "## Evidence Interpretation" not in markdown
     assert "| type | claim |" not in markdown
     assert "## Open Assessment Questions" not in markdown
     assert "| kind | content |" not in markdown
-    assert markdown.index("## Citations") > markdown.index("### Next Research Questions")
+    assert "evidence packet" not in markdown
+    assert "item(s)" not in markdown
+    assert "paper lead(s)" not in markdown
+    assert "item_ids" not in markdown
+    assert "variable_ids" not in markdown
+    assert markdown.index("## 参考文献") > markdown.index("### 后续研究问题")
     assert "citation_1" in markdown
     assert "ASPREE trial" in markdown
     assert "10.1056/aspree" in markdown
-    assert "item_0" in markdown
