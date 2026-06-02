@@ -133,7 +133,7 @@ def _warn_source_refs_deprecated(source_refs: list[str] | None) -> None:
 
 
 def observe(
-    conclusion: Claim | Distribution | Variable | str,
+    conclusion: Any,
     *,
     value: Any = _OBSERVE_VALUE_SENTINEL,
     error: Any = None,
@@ -147,9 +147,10 @@ def observe(
 
     Three authoring shapes:
 
-    1. **Discrete claim observation** — ``observe(my_claim)``. A no-premise
-       observation pins ``my_claim.prior`` to ``1 - CROMWELL_EPS``. Use
-       ``given=`` to record a conditional observation that does not pin the
+    1. **Discrete claim observation** — ``observe(my_claim)``. A Boolean-valued
+       expression such as ``a & b`` is lifted to an explicit helper Claim first.
+       A no-premise observation pins the conclusion to ``1 - CROMWELL_EPS``.
+       Use ``given=`` to record a conditional observation that does not pin the
        conclusion.
     2. **Continuous quantity observation** — ``observe(distribution,
        value=v, error=σ)``. Records a measurement event for a
@@ -231,7 +232,13 @@ def observe(
 
     if isinstance(conclusion, str):
         conclusion = Claim(conclusion)
-    given_tuple = _as_given_tuple(given)
+    else:
+        conclusion = _lift_to_claim(conclusion, verb="observe", position="conclusion")
+    assert isinstance(conclusion, Claim)  # narrow Any back to Claim for mypy
+    given_tuple = tuple(
+        _lift_to_claim(g, verb="observe", position=f"given[{i}]")
+        for i, g in enumerate(_as_given_tuple(given))
+    )
     warrant = _implication_warrant(
         "observe",
         given=given_tuple,
