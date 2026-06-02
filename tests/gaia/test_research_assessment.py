@@ -7,7 +7,9 @@ import pytest
 from gaia.engine.research.assessment import (
     AssessmentSchemaError,
     build_assessment_artifact,
+    build_assessment_from_analysis,
     validate_assessment_artifact,
+    validate_assessment_grounding,
 )
 
 
@@ -87,4 +89,90 @@ def test_assessment_rejects_invalid_relation_hint_pair() -> None:
     )
 
     with pytest.raises(AssessmentSchemaError, match="background_for"):
+        validate_assessment_artifact(artifact)
+
+
+def _landscape() -> dict[str, object]:
+    return {
+        "kind": "research_landscape",
+        "action": "explore.scan",
+        "retrieved_snippets": [
+            {
+                "id": "original_id",
+                "text": "ASPREE reported no cardiovascular benefit and increased major hemorrhage.",
+                "source_ref": {"kind": "lkm_node", "id": "lkm:node:aspree"},
+                "paper_id": "P_ASPREE",
+            }
+        ],
+        "paper_leads": [
+            {
+                "paper_id": "P_ASPREE",
+                "title": "ASPREE trial",
+                "lkm_node_ids": ["lkm:node:aspree"],
+            }
+        ],
+    }
+
+
+def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None:
+    artifact = build_assessment_from_analysis(
+        focus={"kind": "focus", "id": "elderly_net_benefit"},
+        landscapes=[_landscape()],
+        analysis={
+            "relations": [
+                _relation(
+                    type="opposes",
+                    claim="ASPREE opposes routine aspirin use in healthy older adults.",
+                    rationale="The snippet reports no cardiovascular benefit and more hemorrhage.",
+                    promotion_hint="none",
+                    source_refs=[{"kind": "snippet", "id": "snippet_0"}],
+                )
+            ],
+            "review": {
+                "language": "zh",
+                "depth": "review",
+                "summary": "老年人中常规一级预防净获益不足。",
+                "sections": [{"title": "ASPREE", "body": "心血管获益不足且大出血增加。"}],
+                "limitations": ["需要核对原始终点定义。"],
+                "next_queries": ["aspirin primary prevention elderly bleeding"],
+            },
+            "candidate_obligations": [
+                {
+                    "kind": "needs_more_evidence",
+                    "content": "补充老年亚组的绝对风险差。",
+                    "source_refs": [{"kind": "snippet", "id": "snippet_0"}],
+                }
+            ],
+        },
+    )
+
+    assert artifact["relations"][0]["type"] == "opposes"
+    assert artifact["review"]["summary"] == "老年人中常规一级预防净获益不足。"
+    assert validate_assessment_artifact(artifact) is artifact
+    assert validate_assessment_grounding(artifact) is artifact
+
+
+def test_assessment_grounding_rejects_unknown_snippet_ref() -> None:
+    with pytest.raises(AssessmentSchemaError, match="not grounded"):
+        build_assessment_from_analysis(
+            focus={"kind": "focus", "id": "elderly_net_benefit"},
+            landscapes=[_landscape()],
+            analysis={
+                "relations": [
+                    _relation(source_refs=[{"kind": "snippet", "id": "missing_snippet"}])
+                ],
+                "candidate_obligations": [],
+            },
+        )
+
+
+def test_assessment_review_requires_summary() -> None:
+    artifact = build_assessment_artifact(
+        focus={"kind": "focus", "id": "focus_1"},
+        evidence_packet={"snippets": []},
+        relations=[_relation()],
+        review={"language": "zh", "depth": "review", "sections": []},
+    )
+
+    with pytest.raises(AssessmentSchemaError, match="summary"):
         validate_assessment_artifact(artifact)

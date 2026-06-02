@@ -36,9 +36,10 @@ def build_assessment_artifact(
     evidence_packet: dict[str, Any],
     relations: list[dict[str, Any]],
     candidate_obligations: list[dict[str, Any]] | None = None,
+    review: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a v1 assessment artifact dictionary without writing source."""
-    return {
+    artifact = {
         "schema_version": ASSESSMENT_SCHEMA_VERSION,
         "kind": "assessment",
         "created_at": _utcnow(),
@@ -47,14 +48,13 @@ def build_assessment_artifact(
         "relations": [dict(relation) for relation in relations],
         "candidate_obligations": [dict(item) for item in candidate_obligations or []],
     }
+    if review is not None:
+        artifact["review"] = dict(review)
+    return artifact
 
 
-def build_assessment_from_landscapes(
-    *,
-    focus: dict[str, Any],
-    landscapes: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Build a conservative assessment artifact from landscape snippets."""
+def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collect snippets and paper leads from landscape artifacts."""
     snippets: list[dict[str, Any]] = []
     paper_leads: list[dict[str, Any]] = []
     landscape_refs: list[dict[str, Any]] = []
@@ -79,6 +79,21 @@ def build_assessment_from_landscapes(
                 lead = dict(raw_lead)
                 lead["landscape_index"] = landscape_index
                 paper_leads.append(lead)
+    return {
+        "landscapes": landscape_refs,
+        "snippets": snippets,
+        "paper_leads": paper_leads,
+    }
+
+
+def build_assessment_from_landscapes(
+    *,
+    focus: dict[str, Any],
+    landscapes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build a conservative assessment artifact from landscape snippets."""
+    evidence_packet = _evidence_packet_from_landscapes(landscapes)
+    snippets = evidence_packet["snippets"]
 
     focus_id = focus.get("id", "focus")
     relations = [
@@ -119,15 +134,114 @@ def build_assessment_from_landscapes(
     ]
     artifact = build_assessment_artifact(
         focus=focus,
-        evidence_packet={
-            "landscapes": landscape_refs,
-            "snippets": snippets,
-            "paper_leads": paper_leads,
-        },
+        evidence_packet=evidence_packet,
         relations=relations,
         candidate_obligations=candidate_obligations,
     )
     validate_assessment_artifact(artifact)
+    return artifact
+
+
+def _empty_grounding_ids() -> dict[str, set[str]]:
+    return {
+        "snippet": set(),
+        "lkm_node": set(),
+        "paper": set(),
+        "lkm_paper": set(),
+    }
+
+
+def _add_grounding_id(ids: dict[str, set[str]], kind: str, value: Any) -> None:
+    if isinstance(value, str) and value:
+        ids[kind].add(value)
+
+
+def _add_paper_grounding(ids: dict[str, set[str]], paper_id: Any) -> None:
+    if isinstance(paper_id, str) and paper_id:
+        ids["paper"].add(paper_id)
+        ids["lkm_paper"].add(paper_id)
+
+
+def _add_snippet_grounding(ids: dict[str, set[str]], snippet: dict[str, Any]) -> None:
+    _add_grounding_id(ids, "snippet", snippet.get("id"))
+    source_ref = snippet.get("source_ref")
+    if isinstance(source_ref, dict):
+        _add_grounding_id(ids, "lkm_node", source_ref.get("id"))
+    _add_grounding_id(ids, "lkm_node", snippet.get("lkm_node_id"))
+    _add_paper_grounding(ids, snippet.get("paper_id"))
+
+
+def _add_paper_lead_grounding(ids: dict[str, set[str]], lead: dict[str, Any]) -> None:
+    _add_paper_grounding(ids, lead.get("paper_id"))
+    for node_id in lead.get("lkm_node_ids", []) or []:
+        _add_grounding_id(ids, "lkm_node", node_id)
+
+
+def _valid_grounding_ids(evidence_packet: dict[str, Any]) -> dict[str, set[str]]:
+    ids = _empty_grounding_ids()
+    snippets = evidence_packet.get("snippets", [])
+    if isinstance(snippets, list):
+        for snippet in snippets:
+            if isinstance(snippet, dict):
+                _add_snippet_grounding(ids, snippet)
+
+    paper_leads = evidence_packet.get("paper_leads", [])
+    if isinstance(paper_leads, list):
+        for lead in paper_leads:
+            if isinstance(lead, dict):
+                _add_paper_lead_grounding(ids, lead)
+    return ids
+
+
+def validate_assessment_grounding(artifact: dict[str, Any]) -> dict[str, Any]:
+    """Validate that relation refs resolve inside the assessment evidence packet."""
+    evidence_packet = _require_dict(artifact.get("evidence_packet"), "evidence_packet")
+    valid_ids = _valid_grounding_ids(evidence_packet)
+    for relation_index, relation in enumerate(artifact.get("relations", [])):
+        relation_payload = _require_dict(relation, f"relations[{relation_index}]")
+        for ref_index, ref in enumerate(relation_payload.get("source_refs", [])):
+            ref_payload = _require_dict(
+                ref, f"relations[{relation_index}].source_refs[{ref_index}]"
+            )
+            kind = _require_non_empty_string(ref_payload, "kind")
+            ref_id = _require_non_empty_string(ref_payload, "id")
+            if kind in valid_ids and ref_id not in valid_ids[kind]:
+                raise AssessmentSchemaError(
+                    f"relations[{relation_index}].source_refs[{ref_index}] "
+                    f"{kind}:{ref_id} is not grounded in evidence_packet"
+                )
+    return artifact
+
+
+def build_assessment_from_analysis(
+    *,
+    focus: dict[str, Any],
+    landscapes: list[dict[str, Any]],
+    analysis: dict[str, Any],
+    strict_grounding: bool = True,
+) -> dict[str, Any]:
+    """Build an assessment artifact from agent/LLM analysis and landscapes."""
+    evidence_packet = _evidence_packet_from_landscapes(landscapes)
+    relations = analysis.get("relations", [])
+    if not isinstance(relations, list):
+        raise AssessmentSchemaError("analysis.relations must be a list")
+    candidate_obligations = analysis.get("candidate_obligations", [])
+    if not isinstance(candidate_obligations, list):
+        raise AssessmentSchemaError("analysis.candidate_obligations must be a list")
+    review = analysis.get("review")
+    if review is not None and not isinstance(review, dict):
+        raise AssessmentSchemaError("analysis.review must be an object")
+
+    artifact = build_assessment_artifact(
+        focus=focus,
+        evidence_packet=evidence_packet,
+        relations=relations,
+        candidate_obligations=candidate_obligations,
+        review=review,
+    )
+    validate_assessment_artifact(artifact)
+    if strict_grounding:
+        validate_assessment_grounding(artifact)
     return artifact
 
 
@@ -161,6 +275,8 @@ def validate_assessment_relation(relation: dict[str, Any]) -> dict[str, Any]:
             f"relation type {relation_type!r} is invalid; allowed: {sorted(VALID_RELATIONS)}"
         )
 
+    _require_non_empty_string(relation, "claim")
+    _require_non_empty_string(relation, "rationale")
     _require_non_empty_string(relation, "epistemic_status")
     _validate_source_refs(relation.get("source_refs"))
 
@@ -174,6 +290,24 @@ def validate_assessment_relation(relation: dict[str, Any]) -> dict[str, Any]:
             f"allowed: {sorted(allowed_hints)}"
         )
     return relation
+
+
+def _validate_review(review: Any) -> None:
+    payload = _require_dict(review, "review")
+    _require_non_empty_string(payload, "language")
+    _require_non_empty_string(payload, "depth")
+    _require_non_empty_string(payload, "summary")
+    sections = payload.get("sections", [])
+    if not isinstance(sections, list):
+        raise AssessmentSchemaError("review.sections must be a list")
+    for index, section in enumerate(sections):
+        section_payload = _require_dict(section, f"review.sections[{index}]")
+        _require_non_empty_string(section_payload, "title")
+        _require_non_empty_string(section_payload, "body")
+    for field in ("limitations", "next_queries"):
+        value = payload.get(field, [])
+        if not isinstance(value, list):
+            raise AssessmentSchemaError(f"review.{field} must be a list")
 
 
 def validate_assessment_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
@@ -200,6 +334,9 @@ def validate_assessment_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
     for index, obligation in enumerate(candidate_obligations):
         _require_dict(obligation, f"candidate_obligations[{index}]")
 
+    if "review" in artifact:
+        _validate_review(artifact["review"])
+
     return artifact
 
 
@@ -210,7 +347,9 @@ __all__ = [
     "VALID_RELATIONS",
     "AssessmentSchemaError",
     "build_assessment_artifact",
+    "build_assessment_from_analysis",
     "build_assessment_from_landscapes",
     "validate_assessment_artifact",
+    "validate_assessment_grounding",
     "validate_assessment_relation",
 ]
