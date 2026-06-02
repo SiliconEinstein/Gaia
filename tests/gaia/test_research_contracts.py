@@ -30,3 +30,24 @@ def test_assess_contract_forbids_workflow_terms_in_review_prose() -> None:
         "assessment JSON",
     ]:
         assert term in contract["forbidden_review_terms"]
+
+
+def test_assess_contract_requires_publication_style_review_fields() -> None:
+    contract = assess_contract(language="zh")
+    review_fields = contract["review_fields"]
+
+    for field in [
+        "title",
+        "abstract",
+        "key_points",
+        "evidence_table",
+        "figure_specs",
+        "limitations",
+        "next_queries",
+    ]:
+        assert field in review_fields
+
+    payload = json.dumps(contract, ensure_ascii=False)
+    assert "Nature Reviews" in payload
+    assert "numbered references" in payload
+    assert "figure_specs" in payload

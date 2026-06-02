@@ -62,7 +62,14 @@ def test_report_renders_assessment_markdown() -> None:
                     "doi": "10.1056/aspree",
                     "item_ids": ["item_0", "item_1"],
                     "variable_ids": ["v1"],
-                }
+                },
+                {
+                    "id": "citation_2",
+                    "source_kind": "paper",
+                    "paper_id": "P2",
+                    "title": "Does aspirin help?",
+                    "item_ids": ["item_2"],
+                },
             ],
             "relations": [
                 {
@@ -77,8 +84,42 @@ def test_report_renders_assessment_markdown() -> None:
             "review": {
                 "language": "zh",
                 "depth": "review",
-                "summary": "老年人净获益不足。[item:item_0][item:item_1]",
-                "sections": [{"title": "老年人证据", "body": "ASPREE 指向无获益。[item:item_0]"}],
+                "title": "阿司匹林一级预防的净获益",
+                "abstract": "阿司匹林一级预防需要在心血管获益与出血风险之间权衡。",
+                "key_points": [
+                    "老年人证据提示常规使用的净获益不足。[item:item_0]",
+                    "后续需要按风险分层比较绝对获益与危害。",
+                ],
+                "summary": "老年人净获益不足。[item:item_0][item:item_1] 后续仍需风险分层。",
+                "sections": [
+                    {
+                        "title": "老年人证据",
+                        "body": "ASPREE 指向无获益。[item:item_0]",
+                    },
+                    {
+                        "title": "证据合并",
+                        "body": (
+                            "联合证据应合并引用。[item:item_2][item:item_0] "
+                            "系统误差来源，[item:item_0] 而不是统计噪声。"
+                        ),
+                    },
+                ],
+                "evidence_table": [
+                    {
+                        "证据簇": "ASPREE",
+                        "方向": "反对常规使用",
+                        "主要限制": "需要核对绝对风险差",
+                    }
+                ],
+                "figure_specs": [
+                    {
+                        "title": "阿司匹林一级预防的获益-风险矩阵",
+                        "purpose": "展示不同风险人群中获益与出血风险的相对位置",
+                        "visual_structure": "二维矩阵",
+                        "data_needed": "心血管事件、主要出血、年龄和基线风险",
+                        "takeaway": "高出血风险人群不宜常规使用",
+                    }
+                ],
                 "limitations": ["需要核对原始终点。"],
                 "next_queries": ["ASPREE absolute risk difference"],
             },
@@ -92,12 +133,22 @@ def test_report_renders_assessment_markdown() -> None:
         }
     )
 
-    assert "# 研究评估" in markdown
-    assert "## 综述" in markdown
-    assert "老年人净获益不足。[citation_1]" in markdown
-    assert "[citation_1][citation_1]" not in markdown
+    assert "# 阿司匹林一级预防的净获益" in markdown
+    assert "## 摘要" in markdown
+    assert "阿司匹林一级预防需要在心血管获益与出血风险之间权衡。" in markdown
+    assert "## 要点" in markdown
+    assert "老年人证据提示常规使用的净获益不足[1]。" in markdown
+    assert "## 综述正文" in markdown
+    assert "老年人净获益不足[1]。后续仍需风险分层。" in markdown
+    assert "[1][1]" not in markdown
     assert "老年人证据" in markdown
-    assert "ASPREE 指向无获益。[citation_1]" in markdown
+    assert "ASPREE 指向无获益[1]。" in markdown
+    assert "联合证据应合并引用[1-2]。" in markdown
+    assert "系统误差来源[1]，而不是统计噪声。" in markdown
+    assert "## 证据概览" in markdown
+    assert "反对常规使用" in markdown
+    assert "## 图表建议" in markdown
+    assert "阿司匹林一级预防的获益-风险矩阵" in markdown
     assert "[item:item_0]" not in markdown
     assert "## 参考文献" in markdown
     assert "## Evidence Interpretation" not in markdown
@@ -109,7 +160,10 @@ def test_report_renders_assessment_markdown() -> None:
     assert "paper lead(s)" not in markdown
     assert "item_ids" not in markdown
     assert "variable_ids" not in markdown
-    assert markdown.index("## 参考文献") > markdown.index("### 后续研究问题")
-    assert "citation_1" in markdown
+    assert "citation_1" not in markdown
+    assert "P1" not in markdown
+    assert markdown.index("## 参考文献") > markdown.index("## 后续研究问题")
+    assert "[1] ASPREE trial. DOI: 10.1056/aspree." in markdown
+    assert "[2] Does aspirin help? DOI 未提供。" in markdown
     assert "ASPREE trial" in markdown
     assert "10.1056/aspree" in markdown
