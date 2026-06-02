@@ -32,6 +32,9 @@ all 5 of the DSL verbs the canonical Galileo example exercises, see
 - **`--file <relative>`** on every author verb — route the statement to
   a sibling Python module instead of `__init__.py`. Pair with
   `gaia pkg add-module --name <name>` to scaffold the sibling.
+- **`--export`** on statement-emitting author verbs — add the emitted
+  binding to the target module's literal `__all__`. Relation verbs export
+  the returned helper Claim only when this flag is explicit.
 - **`--background <csv>`** on `equal` / `contradict` / `exclusive` /
   `observe` — passes through to the engine's `background=[...]` kwarg.
 - **`derive --conclusion-prose`** / **`observe --observation-prose`** /
@@ -67,7 +70,7 @@ records its metadata in `pyproject.toml`).
 | Support | `derive` | `derive(conclusion, *, given=(), background=None, rationale="", label=None)` | yes |
 | Support | `observe` | `observe(conclusion, *, value=…, error=…, given=…, rationale="", label=None)` | yes |
 | Support | `compute` | `compute(result, *, fn, given=…, rationale="", label=None)` | yes |
-| Probabilistic | `infer` | `infer(evidence, hypothesis, p_e_given_h, *, p_e_given_not_h=…, given=…, label=None)` | yes |
+| Probabilistic | `infer` | `infer(evidence, *, hypothesis, p_e_given_h, p_e_given_not_h=…, given=…, label=None)` | yes |
 | Probabilistic | `associate` | `associate(a, b, p_a_given_b, p_b_given_a, *, pattern=…, rationale="", label=None)` | yes |
 | Sugar | `parameter` | `parameter(variable, value, *, content=…, prior=…, label=None, **metadata)` | yes |
 | Prior | `register-prior` | `register_prior(claim, *, value, justification, source_id=…)` | yes |
@@ -96,6 +99,7 @@ cutting flags. Per-verb flags layer on top of these.
 | `--rationale <text>` | string | none | Natural-language justification carried through to the DSL kwarg. |
 | `--metadata <json>` | JSON object | none | Optional metadata dict; rendered as the DSL `metadata=` kwarg. |
 | `--references <csv>` | csv idents | none | Comma-separated background reference identifiers (only the verbs that accept background context). |
+| `--export / --no-export` | bool | `--no-export` | Add the emitted binding to the target module's literal `__all__`. For `equal`, `contradict`, `exclusive`, and `associate`, this exports the returned relation helper Claim. |
 | `--check / --no-check` | bool | `--check` on | Run post-write `gaia build check` after a successful write. Short-circuited when pre-write fails. |
 | `--human` | bool flag | `False` | Render the envelope as human-readable text instead of JSON. |
 | `--interactive` | bool flag | `False` | Surface pre-write warnings as a numbered prompt (human mode only — JSON mode auto-suppresses). |
@@ -104,9 +108,10 @@ cutting flags. Per-verb flags layer on top of these.
 `--label` is **required** for every statement-emitting verb except
 `register-prior` (which writes a bare `register_prior(...)` expression with
 no LHS binding) and `note` / `claim` / `question` (where the positional
-content arg is also required). Verbs that emit a relation (`equal` /
-`contradict` / `exclusive` / `decompose`) bind the relation's helper Claim
-to `--label`.
+content arg is also required). Relation verbs (`equal` / `contradict` /
+`exclusive` / `associate`) return helper Claims; `--export` makes that
+returned helper part of the curated public interface. `decompose` returns
+its `whole` Claim rather than a separate public helper.
 
 ## Per-verb flag surface (statement-emitting verbs)
 
@@ -192,7 +197,7 @@ gaia author question <content> --label <ident> [--target <path>]
 ```
 gaia author <equal|contradict|exclusive> --a <ident> --b <ident> \
     --label <ident> [--target <path>]
-    [--rationale <text>] [--metadata <json>] ...
+    [--rationale <text>] [--metadata <json>] [--export] ...
 ```
 
 | Flag | Required | Description |
@@ -200,8 +205,11 @@ gaia author <equal|contradict|exclusive> --a <ident> --b <ident> \
 | `--a <ident>` | yes | Identifier of the first Claim. |
 | `--b <ident>` | yes | Identifier of the second Claim. |
 
-All three verbs produce a binary structural relation between existing
-Claim references — they do **not** mint fresh claims, by design.
+All three verbs produce a binary structural relation between existing Claim
+references and return a generated relation helper Claim. By default the helper
+is internal to the package; `--export` adds the returned helper binding to
+`__all__`, and the compiled export manifest marks it as a structural relation
+interface.
 
 ### `decompose`
 
@@ -294,7 +302,7 @@ gaia author infer --evidence <ident> \
 | `--hypothesis-content "<prose>"` | one-of | **Prose mode** — mint a fresh hypothesis Claim. |
 | `--hypothesis-label <ident>` | no | Explicit label override for prose mode. |
 | `--p-e-given-h <float>` | yes | P(evidence \| hypothesis). |
-| `--p-e-given-not-h <float>` | no | P(evidence \| NOT hypothesis); DSL default 0.5. |
+| `--p-e-given-not-h <float>` | no | P(evidence \| NOT hypothesis); DSL default 0.5. Omitting it emits a `gaia build check` / `gaia run infer` warning because an explicit background/false-positive rate is preferable when known. |
 | `--given <csv>` | no | Conditioning Claim identifiers. |
 
 ### `associate`
@@ -302,7 +310,7 @@ gaia author infer --evidence <ident> \
 ```
 gaia author associate --a <ident> --b <ident> \
     --p-a-given-b <float> --p-b-given-a <float> --label <ident> [--target <path>]
-    [--pattern <name>] [--rationale <text>] [--metadata <json>] ...
+    [--pattern <name>] [--rationale <text>] [--metadata <json>] [--export] ...
 ```
 
 | Flag | Required | Description |
@@ -312,6 +320,14 @@ gaia author associate --a <ident> --b <ident> \
 | `--p-a-given-b <float>` | yes | P(a \| b). |
 | `--p-b-given-a <float>` | yes | P(b \| a). |
 | `--pattern <name>` | no | Optional engine-pattern hint. |
+
+`associate(...)` returns an association helper Claim. By default the helper is
+internal to the package; `--export` adds the returned helper binding to
+`__all__`, and the compiled export manifest marks it as a probabilistic
+relation interface with endpoint QIDs and conditional probabilities.
+If neither endpoint has a declared marginal prior, inference lowers the
+association by a local Jaynes MaxEnt closure of the 2x2 joint table and emits a
+warning recommending `register_prior(...)` on at least one endpoint.
 
 ### `parameter`
 

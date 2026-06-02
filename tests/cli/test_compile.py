@@ -176,6 +176,137 @@ def test_compile_accepts_export_helper_in_root_all(tmp_path):
     assert [item["label"] for item in exports_manifest["exports"]] == ["main"]
 
 
+def test_compile_exports_relation_helpers_as_typed_interfaces(tmp_path):
+    """Returned relation helpers are valid exports, but manifests keep their shape."""
+    pkg_dir = _write_export_contract_package(
+        tmp_path,
+        import_name="relation_export_pkg",
+        body=(
+            "from gaia.engine.lang import (\n"
+            "    associate,\n"
+            "    claim,\n"
+            "    contradict,\n"
+            "    equal,\n"
+            "    exclusive,\n"
+            "    export,\n"
+            ")\n\n"
+            'a = claim("A.")\n'
+            'b = claim("B.")\n'
+            'same = equal(a, b, rationale="Same truth.", label="same")\n'
+            "not_both = contradict(\n"
+            "    a,\n"
+            "    b,\n"
+            '    rationale="Cannot both hold.",\n'
+            '    label="not_both",\n'
+            ")\n"
+            "one_of = exclusive(\n"
+            "    a,\n"
+            "    b,\n"
+            '    rationale="Exactly one holds.",\n'
+            '    label="one_of",\n'
+            ")\n"
+            "linked = associate(\n"
+            "    a,\n"
+            "    b,\n"
+            "    p_a_given_b=0.8,\n"
+            "    p_b_given_a=0.7,\n"
+            '    rationale="Associated.",\n'
+            '    label="linked",\n'
+            ")\n"
+            "__all__ = export(same, not_both, one_of, linked)\n"
+        ),
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+
+    assert result.exit_code == 0, result.output
+    exports_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "exports.json").read_text())
+    by_label = {item["label"]: item for item in exports_manifest["exports"]}
+    assert by_label["same"]["export_kind"] == "structural_relation"
+    assert by_label["same"]["relation_kind"] == "equivalence"
+    assert by_label["same"]["endpoints"] == [
+        "github:relation_export_pkg::a",
+        "github:relation_export_pkg::b",
+    ]
+    assert by_label["same"]["target_type"] == "operator"
+    assert by_label["same"]["target_id"].startswith("lco_")
+    assert by_label["not_both"]["export_kind"] == "structural_relation"
+    assert by_label["not_both"]["relation_kind"] == "contradiction"
+    assert by_label["not_both"]["endpoints"] == [
+        "github:relation_export_pkg::a",
+        "github:relation_export_pkg::b",
+    ]
+    assert by_label["not_both"]["target_type"] == "operator"
+    assert by_label["not_both"]["target_id"].startswith("lco_")
+    assert by_label["one_of"]["export_kind"] == "structural_relation"
+    assert by_label["one_of"]["relation_kind"] == "complement"
+    assert by_label["one_of"]["endpoints"] == [
+        "github:relation_export_pkg::a",
+        "github:relation_export_pkg::b",
+    ]
+    assert by_label["one_of"]["target_type"] == "operator"
+    assert by_label["one_of"]["target_id"].startswith("lco_")
+    assert by_label["linked"]["export_kind"] == "probabilistic_relation"
+    assert by_label["linked"]["relation_kind"] == "associate"
+    assert by_label["linked"]["endpoints"] == [
+        "github:relation_export_pkg::a",
+        "github:relation_export_pkg::b",
+    ]
+    assert by_label["linked"]["target_type"] == "strategy"
+    assert by_label["linked"]["target_id"].startswith("lcs_")
+    assert by_label["linked"]["p_a_given_b"] == 0.8
+    assert by_label["linked"]["p_b_given_a"] == 0.7
+
+
+def test_compile_keeps_exported_formula_claim_as_plain_claim_interface(tmp_path):
+    """Typed relation export fields apply to relation helpers, not formula claims."""
+    pkg_dir = _write_export_contract_package(
+        tmp_path,
+        import_name="formula_export_pkg",
+        body=(
+            "from gaia.engine.lang import claim, export, iff\n\n"
+            'a = claim("A.")\n'
+            'b = claim("B.")\n'
+            'same_formula = claim("A iff B.", formula=iff(a, b))\n'
+            "__all__ = export(same_formula)\n"
+        ),
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+
+    assert result.exit_code == 0, result.output
+    exports_manifest = json.loads((pkg_dir / ".gaia" / "manifests" / "exports.json").read_text())
+    [exported] = exports_manifest["exports"]
+    assert exported["label"] == "same_formula"
+    assert exported["type"] == "claim"
+    assert "export_kind" not in exported
+    assert "relation_kind" not in exported
+
+
+def test_compile_rejects_exported_implicit_lift_operand(tmp_path):
+    """Implicit Formula/BoolExpr lift helpers are internal coercions, not exports."""
+    pkg_dir = _write_export_contract_package(
+        tmp_path,
+        import_name="lift_operand_export_pkg",
+        body=(
+            "from gaia.engine.lang import claim, equal, export\n\n"
+            'a = claim("A.")\n'
+            'b = claim("B.")\n'
+            'c = claim("C.")\n'
+            'same = equal(a & b, c, rationale="Composite same as C.", label="same")\n'
+            "implicit_operand = same.from_actions[0].a\n"
+            "__all__ = export(implicit_operand)\n"
+        ),
+    )
+
+    result = runner.invoke(app, ["build", "compile", str(pkg_dir)])
+
+    assert result.exit_code != 0
+    assert "implicit_operand" in result.output
+    assert "implicit lift helper" in result.output
+    assert "write an explicit claim(..., formula=...)" in result.output
+
+
 def test_atomic_text_writer_replaces_without_temp_leftovers(tmp_path):
     path = tmp_path / "artifact.json"
 

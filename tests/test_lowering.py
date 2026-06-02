@@ -152,6 +152,50 @@ def test_associate_lowers_to_pairwise_potential_without_double_counting_marginal
     )
 
 
+def test_associate_without_marginals_uses_local_maxent_closure():
+    a = "github:lowertest::a"
+    b = "github:lowertest::b"
+    helper = "github:lowertest::assoc"
+    g = _lg(
+        knowledges=[
+            Knowledge(id=a, type="claim", content="A"),
+            Knowledge(id=b, type="claim", content="B"),
+            Knowledge(id=helper, type="claim", content="A is associated with B"),
+        ],
+        strategies=[
+            Strategy(
+                scope="local",
+                type="associate",
+                premises=[a, b],
+                conclusion=helper,
+                p_a_given_b=0.7,
+                p_b_given_a=0.6,
+            )
+        ],
+    )
+
+    with pytest.warns(UserWarning, match="local Jaynes MaxEnt closure"):
+        fg = lower_local_graph(g)
+
+    assert a not in fg.unary_factors
+    assert b not in fg.unary_factors
+    assert helper not in fg.variables
+    assert len(fg.factors) == 1
+    assert fg.factors[0].factor_type == FactorType.PAIRWISE_POTENTIAL
+
+    joint = exact_joint_over(fg, [a, b])
+    assert joint == pytest.approx(
+        [
+            0.2607662532950280,  # P(A=0,B=0)
+            0.2352107375879457,  # P(A=1,B=0)
+            0.1512069027351080,  # P(A=0,B=1)
+            0.3528161063819185,  # P(A=1,B=1)
+        ]
+    )
+    assert joint[3] / (joint[2] + joint[3]) == pytest.approx(0.7)
+    assert joint[3] / (joint[1] + joint[3]) == pytest.approx(0.6)
+
+
 def test_associate_lowering_rejects_bayes_inconsistent_marginals():
     a = "github:lowertest::a"
     b = "github:lowertest::b"

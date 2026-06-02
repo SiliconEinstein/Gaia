@@ -11,10 +11,12 @@ Covers:
   expression as direct argument:
 
     - ``equal``, ``contradict``, ``exclusive``  (RFC #703 / PR #706)
-    - ``derive``, ``infer``, ``register_prior`` (RFC #703 / PR #706)
+    - ``derive``, ``observe``, ``infer`` (RFC #703 / PR #706)
     - ``associate``, ``decompose``, ``depends_on``, ``candidate_relation``
       (lift-coverage extension PR — this file's second half)
 
+- ``register_prior`` deliberately rejects auto-lifted Formula / BoolExpr inputs
+  because load-bearing priors need explicit, named Claim targets.
 - Term-layer values (``Variable``, raw Python types) raise the educational
   ``TypeError`` from the lift's else branch.
 """
@@ -41,6 +43,7 @@ from gaia.engine.lang import (
     exclusive,
     infer,
     land,
+    observe,
     register_prior,
 )
 from gaia.engine.lang._boolean_valued import is_boolean_valued
@@ -136,6 +139,11 @@ def test_lift_materializes_propositional_formula_as_helper():
     assert isinstance(helper, Claim)
     assert helper.formula is not None
     assert isinstance(helper.formula, Land)
+    assert helper.metadata["generated"] is True
+    assert helper.metadata["helper_kind"] == "operand_lift"
+    assert helper.metadata["review"] is False
+    assert helper.metadata["lifted_by"] == "t"
+    assert helper.metadata["lift_position"] == "x"
     # Helper is distinct from the operand claims.
     assert helper is not a
     assert helper is not b
@@ -154,6 +162,11 @@ def test_lift_materializes_bool_expr_via_proposition_path():
     # claim.formula (which is the propositional/quantifier Formula path).
     assert helper.formula is None
     assert "predicate" in helper.metadata or "equation" in helper.metadata
+    assert helper.metadata["generated"] is True
+    assert helper.metadata["helper_kind"] == "operand_lift"
+    assert helper.metadata["review"] is False
+    assert helper.metadata["lifted_by"] == "t"
+    assert helper.metadata["lift_position"] == "x"
 
 
 def test_lift_rejects_term_layer_with_educational_message():
@@ -309,21 +322,32 @@ def test_infer_accepts_single_propositional_formula_in_given():
     assert isinstance(action.given[0].formula, Land)
 
 
-def test_register_prior_accepts_propositional_formula():
+def test_observe_accepts_propositional_formula_directly():
+    pkg = CollectedPackage(name="bv_observe_pkg", namespace="t")
+    token = _current_package.set(pkg)
+    try:
+        a = claim("A.")
+        b = claim("B.")
+        result = observe(a & b, rationale="The conjunction was observed.", label="obs_ab")
+    finally:
+        _current_package.reset(token)
+    assert isinstance(result, Claim)
+    assert isinstance(result.formula, Land)
+    assert result.prior is not None
+    action = result.from_actions[0]
+    assert action.conclusion is result
+
+
+def test_register_prior_rejects_auto_lifted_formula():
     pkg = CollectedPackage(name="bv_register_prior_pkg", namespace="t")
     token = _current_package.set(pkg)
     try:
         a = claim("A.")
         b = claim("B.")
-        # The helper Claim minted by the lift gets a prior registered on it.
-        register_prior(a & b, 0.7, justification="Joint prior for A and B.")
+        with pytest.raises(TypeError, match="explicit claim"):
+            register_prior(a & b, 0.7, justification="Joint prior for A and B.")
     finally:
         _current_package.reset(token)
-    # Verify a helper Claim was created with prior records.
-    helpers_with_priors = [
-        k for k in pkg.knowledge if isinstance(k, Claim) and k.metadata.get("prior_records")
-    ]
-    assert len(helpers_with_priors) == 1
 
 
 # ---------------------------------------------------------------------------

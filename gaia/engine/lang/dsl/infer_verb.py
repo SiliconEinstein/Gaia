@@ -15,6 +15,15 @@ from gaia.engine.lang.runtime.knowledge import Claim, Knowledge
 from gaia.engine.lang.runtime.nodes import Strategy
 
 
+class _DefaultPEGivenNotH:
+    def __repr__(self) -> str:
+        return "0.5"
+
+
+_DEFAULT_P_E_GIVEN_NOT_H = _DefaultPEGivenNotH()
+_DEFAULT_P_E_GIVEN_NOT_H_ARG: float | Claim | None = cast(Any, _DEFAULT_P_E_GIVEN_NOT_H)
+
+
 def _claim_ref(claim: Claim) -> str:
     # infer() returns the evidence Claim, so callers may relabel it after the
     # action is created. Keep helper display text independent of mutable labels;
@@ -85,6 +94,7 @@ def _infer_relation(
     given_tuple: tuple[Claim, ...],
     p_e_given_h: float | Claim | None,
     p_e_given_not_h: float | Claim | None,
+    p_e_given_not_h_defaulted: bool,
 ) -> dict[str, Any]:
     relation: dict[str, Any] = {
         "type": "infer",
@@ -93,6 +103,8 @@ def _infer_relation(
         "p_e_given_h": p_e_given_h,
         "p_e_given_not_h": p_e_given_not_h,
     }
+    if p_e_given_not_h_defaulted:
+        relation["p_e_given_not_h_defaulted"] = True
     if given_tuple:
         relation["given"] = given_tuple
     return relation
@@ -105,7 +117,7 @@ def infer(
     given: Claim | tuple[Claim, ...] | list[Claim] | None = (),
     background: list[Knowledge] | None = None,
     p_e_given_h: float | Claim | None = None,
-    p_e_given_not_h: float | Claim | None = 0.5,
+    p_e_given_not_h: float | Claim | None = _DEFAULT_P_E_GIVEN_NOT_H_ARG,
     rationale: str = "",
     label: str | None = None,
     **legacy_kwargs: Any,
@@ -133,12 +145,19 @@ def infer(
         given=given,
     )
     assert p_e_given_h is not None
+    raw_p_e_given_not_h: Any = p_e_given_not_h
+    p_e_given_not_h_defaulted = raw_p_e_given_not_h is _DEFAULT_P_E_GIVEN_NOT_H
+    if p_e_given_not_h_defaulted:
+        resolved_p_e_given_not_h: float | Claim | None = 0.5
+    else:
+        resolved_p_e_given_not_h = cast(float | Claim | None, raw_p_e_given_not_h)
     relation = _infer_relation(
         hypothesis=hypothesis,
         evidence=evidence,
         given_tuple=given_tuple,
         p_e_given_h=p_e_given_h,
-        p_e_given_not_h=p_e_given_not_h,
+        p_e_given_not_h=resolved_p_e_given_not_h,
+        p_e_given_not_h_defaulted=p_e_given_not_h_defaulted,
     )
     helper = Claim(
         f"{_claim_ref(evidence)} statistically supports {_claim_ref(hypothesis)}.",
@@ -157,7 +176,8 @@ def infer(
         evidence=evidence,
         given=given_tuple,
         p_e_given_h=p_e_given_h,
-        p_e_given_not_h=p_e_given_not_h,
+        p_e_given_not_h=resolved_p_e_given_not_h,
+        p_e_given_not_h_defaulted=p_e_given_not_h_defaulted,
         helper=helper,
     )
     action.warrants.append(helper)

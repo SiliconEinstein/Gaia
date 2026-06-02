@@ -79,6 +79,33 @@ def test_infer_default_p_e_given_not_h(gaia_package: FixturePackage) -> None:
     assert "p_e_given_not_h" not in written.split("defaulted_infer = infer")[1].split("\n")[0]
 
 
+def test_infer_default_postwrite_warning(gaia_package: FixturePackage) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "author",
+            "infer",
+            "--evidence",
+            "hypothesis",
+            "--hypothesis",
+            "observation",
+            "--p-e-given-h",
+            "0.7",
+            "--dsl-binding-name",
+            "defaulted_infer",
+            "--target",
+            str(gaia_package.root),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    envelope = _parse(result.output)
+    warnings = envelope["warnings"]
+    assert isinstance(warnings, list)
+    warning_messages = [str(warn) for warn in warnings]
+    assert any("p_e_given_not_h was omitted" in message for message in warning_messages)
+    assert any("neutral 0.5 background likelihood" in message for message in warning_messages)
+
+
 def test_infer_unresolved_hypothesis_exits_3(gaia_package: FixturePackage) -> None:
     result = runner.invoke(
         app,

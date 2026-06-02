@@ -138,17 +138,19 @@ and what is **exported** as the cross-package interface.
 
 | Level | Mechanism | Effect |
 |-------|-----------|--------|
-| **Exported** | Root `__all__` names that resolve to local `Knowledge` objects | Cross-package visible. Exported labels appear in `exports.json` and release manifests. |
+| **Exported** | Root `__all__` names that resolve to local `Knowledge` objects | Cross-package visible. Exported labels appear in `exports.json` and release manifests; returned relation helpers are typed as relation interfaces. |
 | **Compiled local declaration** | Any local Gaia object registered during import of the package root or source modules | Compiled into IR and labelable from its Python variable name, even when not exported. |
 | **Anonymous helper** | Generated helper or object without an assignable module variable | Compiled with generated or anonymous identity. |
 
 Labels are assigned automatically from loaded module variable names during
 package loading. `__all__` does not limit discovery or compilation; it marks the
-curated public `Knowledge` interface. Empty or missing `__all__` means no
+curated public interface. Empty or missing `__all__` means no
 exported public surface. Each root `__all__` entry must resolve through normal
 Python attribute lookup to a local `Knowledge` object, and the public name must
 match that object's Gaia label because the label forms the final segment of the
-object's QID.
+object's QID. Implicit operand-lift helpers created from direct `Formula` /
+`BoolExpr` verb operands are internal and cannot be exported; bind public
+formulas explicitly with `claim(..., formula=...)`.
 Action labels are addressable via `[@label]` references the same way Knowledge
 labels are; see [knowledge-and-reasoning.md §4.3](knowledge-and-reasoning.md#43-action-label-references).
 

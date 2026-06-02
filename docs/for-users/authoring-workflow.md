@@ -57,7 +57,9 @@ you'd rather write Python directly.
    module, copies its public runtime bindings into root globals for package
    local references, and merges only `authored.__all__` into its own
    `__all__`. Only names in the merged root `__all__` become the package's
-   exported public `Knowledge` surface.
+   exported public surface. Exported names must be local `Knowledge` objects;
+   returned helpers from relation verbs are allowed and are typed as relation
+   interfaces in manifests.
 
 ## The `authored/` submodule
 
@@ -75,7 +77,7 @@ my-package-gaia/
 The package-root `__init__.py` ends with:
 
 ```python
-__all__: list[str] = [...]               # your hand-authored public Knowledge exports
+__all__: list[str] = [...]               # your hand-authored public exports
 
 from . import authored as _authored
 
@@ -91,7 +93,9 @@ __all__ = [*__all__, *_authored.__all__]
 goes into `authored/`. This keeps hand-authored and CLI-authored statements
 in separate files that compose cleanly. Author commands default to internal
 writes; pass `--export` only for bindings that belong in the curated public
-surface.
+surface. For relation verbs, `--export` exports the returned relation helper;
+for direct formula operands, name the formula with `claim(..., formula=...)`
+instead of exporting the implicit lift helper.
 
 > **Pre-canon alpha packages.** You do **not** add the authored import block by
 > hand. On the **first** `gaia author <verb>` write, the CLI automatically

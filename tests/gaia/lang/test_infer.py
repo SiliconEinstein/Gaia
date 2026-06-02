@@ -79,10 +79,30 @@ def test_infer_returns_evidence_claim_and_defaults_not_h_to_neutral():
     assert action.hypothesis is h
     assert action.p_e_given_h == 0.8
     assert action.p_e_given_not_h == 0.5
+    assert action.p_e_given_not_h_defaulted is True
     assert action.helper is not None
     assert action.helper is not e
     assert action.warrants == [action.helper]
     assert action.helper.metadata["relation"]["p_e_given_not_h"] == 0.5
+    assert action.helper.metadata["relation"]["p_e_given_not_h_defaulted"] is True
+
+
+def test_infer_explicit_neutral_not_h_is_not_marked_defaulted():
+    with CollectedPackage("v6_test") as pkg:
+        h = Claim("H.")
+        e = Claim("E.")
+        infer(
+            e,
+            hypothesis=h,
+            p_e_given_h=0.8,
+            p_e_given_not_h=0.5,
+            rationale="H supports E.",
+        )
+
+    action = pkg.actions[0]
+    assert action.p_e_given_not_h == 0.5
+    assert action.p_e_given_not_h_defaulted is False
+    assert "p_e_given_not_h_defaulted" not in action.helper.metadata["relation"]
 
 
 def test_infer_accepts_given_claim_as_gate_condition():

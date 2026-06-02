@@ -149,12 +149,19 @@ Bayesian update: given a hypothesis Claim `H`, evidence Claim `E`, and explicit 
 - Without `given`: factor is `H → E`, CPT = `[P(E|¬H), P(E|H)]`.
 - With `given=G`: factor uses premises `[H, *G]`. When any of `G` is false, the CPT entry collapses to `0.5` (the soft-implication baseline) — the relation becomes neutral when its enabling preconditions are not in force. This is the *infer-with-given gating* contract introduced in v0.5.
 - `p_e_given_h` and `p_e_given_not_h` may be a literal float **or** a Claim whose first numeric `parameter("value", ...)` is read at compile time.
+- If `p_e_given_not_h` is omitted, Gaia records that the neutral `0.5` background likelihood was defaulted and warns during `gaia build check` / `gaia run infer`; authors should provide an explicit background/false-positive likelihood when they know it.
 
 Returns the evidence Claim. The author should prefer `bayes.model(...) + bayes.compare(...)` (see [§6 Bayes Module](#6-bayes-module)) when the probability is an instance of a predictive distribution.
 
 #### `associate(a, b, *, p_a_given_b, p_b_given_a, pattern=None, ...)`
 
-Symmetric pairwise potential between two Claims. At least one independent marginal prior declared on `a` / `b`, or supplied by the package priors layer, must resolve so the joint table is well-defined. `associate(...)` itself records only the two conditional constraints; model-derived marginals belong in `gaia.engine.bayes`. Returns the association warrant helper Claim.
+Symmetric pairwise potential between two Claims. `associate(...)` itself records
+only the two conditional constraints; if neither endpoint has a declared
+marginal prior, BP lowering closes the remaining local degree of freedom by
+Jaynes MaxEnt rather than inventing a user prior, and warns that an explicit
+endpoint `register_prior(...)` is preferable when the marginal is known.
+Model-derived marginals belong in `gaia.engine.bayes`. Returns the association
+warrant helper Claim.
 
 ### 3.3 Relation reasoning — hard constraint between Claims
 
@@ -229,6 +236,10 @@ The compiler (`gaia/engine/lang/compiler/compile.py`) walks the package's regist
 ### 4.2 Helper Claim Visibility
 
 Most action helpers carry `metadata["review"] = true` and `metadata["helper_kind"]` indicating the lowering origin (`implication_warrant`, `equivalence_result`, `association`, ...). Reviewers see them in the review manifest. They carry no independent prior — their distribution is fully determined by the IR operator they back, except for `infer` / `associate` warrants which encode the author's CPT.
+
+Top-level relation helpers returned by `equal`, `contradict`, `exclusive`, and `associate` are ordinary package-local `Knowledge` objects. They are addressable in author text and may be explicitly listed in root `__all__`; export manifests type them as structural or probabilistic relation interfaces. The `infer(...)` verb is different: it returns the evidence Claim, not the likelihood warrant helper. `decompose(...)` returns its `whole` Claim and lowers formula structure behind it.
+
+Implicit helpers minted by `_lift_to_claim(...)` are not public relation helpers. They are created only when a verb needs to adapt a direct `Formula` or `BoolExpr` operand into a Claim-shaped slot, are marked `metadata["helper_kind"] = "operand_lift"` and `metadata["review"] = false`, and are rejected from root `__all__`. Authors who want a formula in the public interface should bind it explicitly with `claim(..., formula=...)`.
 
 Structural-expression helpers from the deprecated function-call compatibility helpers `not_(A)`, `and_(A, B)`, and `or_(A, B)` use `metadata["review"] = false` and the kinds `negation_result / conjunction_result / disjunction_result`; they are non-reviewable scaffolding for propositional algebra and are detected by `gaia.engine.ir.knowledge.is_structural_expression_helper`.
 

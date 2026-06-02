@@ -5,8 +5,10 @@ Spec: docs/foundations/gaia-ir/07-lowering.md
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from dataclasses import replace
+from math import exp, log
 from typing import Any
 
 from gaia.engine.bp.factor_graph import CROMWELL_EPS, FactorGraph, FactorType
@@ -414,11 +416,30 @@ def _resolve_associate_marginal(
     return first_value
 
 
+def _associate_local_maxent_joint(
+    *,
+    p_a_given_b: float,
+    p_b_given_a: float,
+) -> tuple[float, float, float, float]:
+    """Return the MaxEnt joint cells (p00, p10, p01, p11) for two conditionals."""
+    ratio_10 = (1.0 - p_b_given_a) / p_b_given_a
+    ratio_01 = (1.0 - p_a_given_b) / p_a_given_b
+    total_ratio = 1.0 + ratio_10 + ratio_01
+    # With q=P11, constraints give P10=ratio_10*q, P01=ratio_01*q,
+    # P00=1-total_ratio*q. Setting dH/dq=0 gives P00=scale*q.
+    scale = exp((ratio_10 * log(ratio_10) + ratio_01 * log(ratio_01)) / total_ratio)
+    p11 = 1.0 / (total_ratio + scale)
+    p10 = ratio_10 * p11
+    p01 = ratio_01 * p11
+    p00 = 1.0 - total_ratio * p11
+    return p00, p10, p01, p11
+
+
 def _associate_pairwise_weights(
     s: Strategy,
     priors: dict[str, float],
     metadata_priors: dict[str, float],
-) -> tuple[str, str, float, float, tuple[float, float, float, float]]:
+) -> tuple[str, str, float | None, float | None, tuple[float, float, float, float]]:
     if len(s.premises) != 2:
         raise ValueError(f"associate strategy {s.strategy_id}: requires exactly 2 premises")
     if s.p_a_given_b is None or s.p_b_given_a is None:
@@ -443,9 +464,21 @@ def _associate_pairwise_weights(
     )
 
     if pi_a is None and pi_b is None:
-        raise ValueError(
-            f"associate strategy {s.strategy_id}: missing marginal prior for {a!r} or {b!r}"
+        # TODO: replace this local closure with a global MaxEnt backend when Gaia
+        # grows one; BP lowering still needs a concrete pairwise table today.
+        warnings.warn(
+            f"associate strategy {s.strategy_id}: no declared marginal prior for "
+            f"{a!r} or {b!r}; using local Jaynes MaxEnt closure. Prefer "
+            "register_prior(...) on at least one endpoint for an explicit marginal.",
+            UserWarning,
+            stacklevel=2,
         )
+        cells = _associate_local_maxent_joint(
+            p_a_given_b=p_a_given_b,
+            p_b_given_a=p_b_given_a,
+        )
+        weights = (cells[0] / 0.25, cells[1] / 0.25, cells[2] / 0.25, cells[3] / 0.25)
+        return a, b, None, None, weights
     if pi_a is None:
         pi_a = pi_b * p_a_given_b / p_b_given_a  # type: ignore[operator]
     if pi_b is None:
