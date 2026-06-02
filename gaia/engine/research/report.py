@@ -64,6 +64,12 @@ def _relation_counts(relations: object) -> dict[str, int]:
     return counts
 
 
+def _join_string_list(values: object) -> str:
+    if not isinstance(values, list):
+        return ""
+    return "; ".join(str(value) for value in values if isinstance(value, str) and value)
+
+
 def _render_focus_synthesis(artifact: dict[str, Any]) -> str:
     lines = _heading("Research Focus Synthesis")
     lines.extend(
@@ -146,6 +152,40 @@ def _render_focus_synthesis(artifact: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _render_citations(citations: object) -> list[str]:
+    lines = _section("Citations")
+    if not isinstance(citations, list) or not citations:
+        lines.extend(["_None._", ""])
+        return lines
+
+    lines.extend(
+        [
+            "| id | source | title | doi | item_ids | variable_ids |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for citation in citations:
+        if not isinstance(citation, dict):
+            continue
+        source = citation.get("paper_id") or citation.get("source_id")
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    _cell(citation.get("id")),
+                    _cell(source),
+                    _cell(citation.get("title")),
+                    _cell(citation.get("doi")),
+                    _cell(_join_string_list(citation.get("item_ids"))),
+                    _cell(_join_string_list(citation.get("variable_ids"))),
+                ]
+            )
+            + " |"
+        )
+    lines.append("")
+    return lines
+
+
 def _render_assessment(artifact: dict[str, Any]) -> str:
     lines = _heading("Research Assessment")
     focus = artifact.get("focus", {})
@@ -192,6 +232,8 @@ def _render_assessment(artifact: dict[str, Any]) -> str:
         lines.extend(_bullet_list(review.get("limitations", [])))
         lines.extend(_section("Next Queries"))
         lines.extend(_bullet_list(review.get("next_queries", [])))
+
+    lines.extend(_render_citations(artifact.get("citations", [])))
 
     lines.extend(_section("Relations"))
     if isinstance(relations, list) and relations:
