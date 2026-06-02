@@ -66,6 +66,7 @@ Then ask the active LLM/agent to return JSON only.
 - assessment 是围绕一个 focus 的证据评估，不是领域总览。
 - review 应该能让用户判断“现在是否可以进入更正式的 evidence graph / source promotion”。
 - review 应该像一篇 mini review：先给清晰主张，再按证据簇组织段落，正文可读，结构化 relations 和 obligations 作为后续审查材料。
-- 原始 relations 和 candidate_obligations 会保留在 assessment JSON artifact 中；Markdown report 会把它们改写成“证据关系解读”和“待解决评估问题”，所以这些字段本身也要可读、可复述。
+- 原始 relations 和 candidate_obligations 会保留在 assessment JSON artifact 中用于审计和后续 promotion；Markdown report 不会把它们机械改写成正文，所以重要的证据关系、限定条件和待解决问题必须自然写进 `review.summary`、`review.sections`、`review.limitations` 和 `review.next_queries`。
+- Markdown report 的 citations 会放在全文最后；正文只写 `[item:item_N]`，由 CLI 确定性替换为 `[citation_N]`。
 - 如果证据不足，要清楚说明不足来自 retrieval coverage、原文未读、指标不可比、还是理论定义不一致。
 - 严格 grounding 优先；只有调试 malformed JSON 时才考虑 `--no-strict-grounding`。

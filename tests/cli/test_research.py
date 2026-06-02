@@ -699,7 +699,9 @@ def test_research_report_prints_markdown_to_stdout(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert "# Research Assessment" in result.output
-    assert "needs_more_evidence: 1" in result.output
+    assert "Focus `core_tension` is assessed against an evidence packet" in result.output
+    assert "needs_more_evidence: 1" not in result.output
+    assert "## Citations" in result.output
 
 
 def test_research_stop_writes_stop_criteria_artifact(tmp_path: Path) -> None:

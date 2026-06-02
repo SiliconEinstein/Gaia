@@ -60,7 +60,7 @@ def test_report_renders_assessment_markdown() -> None:
                     "paper_id": "P1",
                     "title": "ASPREE trial",
                     "doi": "10.1056/aspree",
-                    "item_ids": ["item_0"],
+                    "item_ids": ["item_0", "item_1"],
                     "variable_ids": ["v1"],
                 }
             ],
@@ -77,7 +77,7 @@ def test_report_renders_assessment_markdown() -> None:
             "review": {
                 "language": "zh",
                 "depth": "review",
-                "summary": "老年人净获益不足。[item:item_0]",
+                "summary": "老年人净获益不足。[item:item_0][item:item_1]",
                 "sections": [{"title": "老年人证据", "body": "ASPREE 指向无获益。[item:item_0]"}],
                 "limitations": ["需要核对原始终点。"],
                 "next_queries": ["ASPREE absolute risk difference"],
@@ -95,23 +95,18 @@ def test_report_renders_assessment_markdown() -> None:
     assert "# Research Assessment" in markdown
     assert "elderly_net_benefit" in markdown
     assert "## Mini Review" in markdown
-    assert "opposes: 1" in markdown
     assert "老年人净获益不足。[citation_1]" in markdown
+    assert "[citation_1][citation_1]" not in markdown
     assert "老年人证据" in markdown
     assert "ASPREE 指向无获益。[citation_1]" in markdown
     assert "[item:item_0]" not in markdown
     assert "## Citations" in markdown
-    assert "## Evidence Interpretation" in markdown
-    assert "### 反对性证据" in markdown
-    assert "ASPREE 不支持老年人常规使用阿司匹林一级预防。" in markdown
-    assert "无心血管获益且大出血增加。" in markdown
-    assert "来源: [citation_1]" in markdown
+    assert "## Evidence Interpretation" not in markdown
     assert "| type | claim |" not in markdown
-    assert "## Open Assessment Questions" in markdown
-    assert "**需要补充证据**: 补充绝对风险差。" in markdown
+    assert "## Open Assessment Questions" not in markdown
     assert "| kind | content |" not in markdown
+    assert markdown.index("## Citations") > markdown.index("### Next Research Questions")
     assert "citation_1" in markdown
     assert "ASPREE trial" in markdown
     assert "10.1056/aspree" in markdown
     assert "item_0" in markdown
-    assert "补充绝对风险差。" in markdown

@@ -166,9 +166,11 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "with inline [item:item_N] markers; do not write paper citations manually."
             ),
             (
-                "Relations and candidate_obligations remain structured artifacts, but "
-                "Markdown reports rephrase them into readable sections; write claim, "
-                "rationale, and content as complete review-quality sentences."
+                "Relations and candidate_obligations remain structured artifacts for "
+                "audit and later promotion. Do not rely on the Markdown renderer to "
+                "turn them into prose; incorporate the important assessment reasoning "
+                "and open questions into review.summary, review.sections, limitations, "
+                "and next_queries."
             ),
             "When evidence is insufficient, emit obligations instead of overclaiming.",
         ],
