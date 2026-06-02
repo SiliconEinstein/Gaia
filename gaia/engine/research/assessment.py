@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -20,6 +21,7 @@ VALID_RELATIONS = set(RELATION_PROMOTION_HINTS)
 VALID_PROMOTION_HINTS = {
     hint for allowed_hints in RELATION_PROMOTION_HINTS.values() for hint in allowed_hints
 }
+INLINE_ITEM_REF_RE = re.compile(r"\[item:([A-Za-z0-9_.:-]+)\]")
 
 
 class AssessmentSchemaError(ValueError):
@@ -51,6 +53,7 @@ def build_assessment_artifact(
             evidence_packet,
             relations=relation_payloads,
             candidate_obligations=obligation_payloads,
+            review=review,
         ),
         "relations": relation_payloads,
         "candidate_obligations": obligation_payloads,
@@ -85,6 +88,7 @@ def _cited_ref_ids(
     *,
     relations: list[dict[str, Any]],
     candidate_obligations: list[dict[str, Any]],
+    review: dict[str, Any] | None = None,
 ) -> dict[str, set[str]]:
     cited: dict[str, set[str]] = {
         "item": set(),
@@ -99,7 +103,25 @@ def _cited_ref_ids(
         ref_id = _source_ref_id(ref)
         if isinstance(kind, str) and kind in cited and ref_id:
             cited[kind].add(ref_id)
+    for item_id in _inline_item_refs(review):
+        cited["item"].add(item_id)
     return cited
+
+
+def _inline_item_refs(value: Any) -> list[str]:
+    refs: list[str] = []
+    if isinstance(value, str):
+        for ref in INLINE_ITEM_REF_RE.findall(value):
+            _append_unique(refs, ref)
+    elif isinstance(value, dict):
+        for nested in value.values():
+            for ref in _inline_item_refs(nested):
+                _append_unique(refs, ref)
+    elif isinstance(value, list):
+        for nested in value:
+            for ref in _inline_item_refs(nested):
+                _append_unique(refs, ref)
+    return refs
 
 
 def _append_unique(values: list[str], value: Any) -> None:
@@ -168,8 +190,13 @@ def _citations_from_refs(
     *,
     relations: list[dict[str, Any]],
     candidate_obligations: list[dict[str, Any]],
+    review: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    cited = _cited_ref_ids(relations=relations, candidate_obligations=candidate_obligations)
+    cited = _cited_ref_ids(
+        relations=relations,
+        candidate_obligations=candidate_obligations,
+        review=review,
+    )
     citations: list[dict[str, Any]] = []
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
 

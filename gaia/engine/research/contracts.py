@@ -126,8 +126,14 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         },
         "relation_fields": {
             "type": sorted(VALID_RELATIONS),
-            "claim": "atomic statement about how the source bears on the focus",
-            "rationale": "why this source supports/opposes/qualifies/undercuts the focus",
+            "claim": (
+                "atomic user-readable statement about how the source bears on the focus; "
+                "write Chinese when language is zh"
+            ),
+            "rationale": (
+                "user-readable explanation of why this source supports/opposes/qualifies/"
+                "undercuts the focus"
+            ),
             "epistemic_status": "candidate, provisional, or accepted",
             "promotion_hint": {
                 relation_type: sorted(hints)
@@ -139,7 +145,10 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             "language": language,
             "depth": "review",
             "summary": "concise bottom-line answer",
-            "sections": "ordered list with title and body fields",
+            "sections": (
+                "ordered list with title and body fields; body text may cite evidence "
+                "with inline [item:item_N] refs that the report renderer maps to citations"
+            ),
             "evidence_table": (
                 "optional list summarizing trial/paper, population, endpoint, direction"
             ),
@@ -152,6 +161,15 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             "Discuss population, endpoint, trial-era, and background-therapy heterogeneity.",
             "Use absolute effects, NNT, and NNH when available.",
             "Write enough detail for a domain review, not a terse search summary.",
+            (
+                "In review.summary and review.sections[].body, cite important evidence "
+                "with inline [item:item_N] markers; do not write paper citations manually."
+            ),
+            (
+                "Relations and candidate_obligations remain structured artifacts, but "
+                "Markdown reports rephrase them into readable sections; write claim, "
+                "rationale, and content as complete review-quality sentences."
+            ),
             "When evidence is insufficient, emit obligations instead of overclaiming.",
         ],
         "example": {
@@ -178,7 +196,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "sections": [
                     {
                         "title": "老年人证据",
-                        "body": "ASPREE 相关证据提示心血管获益不足以抵消大出血风险。",
+                        "body": "ASPREE 相关证据提示心血管获益不足以抵消大出血风险。[item:item_20]",
                     }
                 ],
                 "evidence_table": [],

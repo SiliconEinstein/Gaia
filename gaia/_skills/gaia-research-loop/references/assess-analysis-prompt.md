@@ -33,8 +33,10 @@ Then ask the active LLM/agent to return JSON only.
 - 所有 relation 的 `source_refs` 必须引用 evidence packet 中真实存在的 `item`、`variable`、`factor` 或 `paper`；
 - `item` 是 artifact-local reference，不是新的知识实体；它通常指向 LKM search result 中的 `variable`，也可以指向 `factor`、`paper`、`package` 或 `chain`；
 - 不要编造文献、数值、item id、variable id 或 paper id；
+- relation 的 `claim`/`rationale` 和 obligation 的 `content` 必须是可读中文句子，不要写成内部标签或关键词碎片；
 - `review.depth` 必须是 `review`；
 - `review.summary` 和 `review.sections` 必须用中文，并达到短综述深度，而不是搜索摘要。
+- 在 `review.summary` 和每个 `review.sections[].body` 的关键证据句后写 inline item refs，例如 `[item:item_12]`；不要手写论文引用或 citation id，CLI 会确定性地把 item refs 映射成 paper-level citations。
 
 关系分类：
 
@@ -53,6 +55,7 @@ Then ask the active LLM/agent to return JSON only.
 4. 写 review：
    - 第一段给 bottom line；
    - 分节讨论主要证据簇、关键分歧、适用边界、方法限制；
+   - 每个关键论断后用 `[item:item_N]` 标注来自哪些 evidence packet items；
    - 如果有定量结果，记录方向、量级、NNT/NNH/critical exponents/observables 等领域相关指标；
    - 明确哪些结论来自当前 evidence packet，哪些还需要原文核查。
 5. 生成 `candidate_obligations`：只为会影响判断的缺口生成，不要泛泛写“需要更多研究”。
@@ -62,5 +65,7 @@ Then ask the active LLM/agent to return JSON only.
 
 - assessment 是围绕一个 focus 的证据评估，不是领域总览。
 - review 应该能让用户判断“现在是否可以进入更正式的 evidence graph / source promotion”。
+- review 应该像一篇 mini review：先给清晰主张，再按证据簇组织段落，正文可读，结构化 relations 和 obligations 作为后续审查材料。
+- 原始 relations 和 candidate_obligations 会保留在 assessment JSON artifact 中；Markdown report 会把它们改写成“证据关系解读”和“待解决评估问题”，所以这些字段本身也要可读、可复述。
 - 如果证据不足，要清楚说明不足来自 retrieval coverage、原文未读、指标不可比、还是理论定义不一致。
 - 严格 grounding 优先；只有调试 malformed JSON 时才考虑 `--no-strict-grounding`。
