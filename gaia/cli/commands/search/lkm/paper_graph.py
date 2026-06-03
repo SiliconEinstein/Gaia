@@ -34,13 +34,6 @@ class PaperGraphInclude(StrEnum):
     FACTOR_PARAMS = "factor_params"
 
 
-_DEFAULT_INCLUDE = [
-    PaperGraphInclude.PAPER,
-    PaperGraphInclude.VARIABLES,
-    PaperGraphInclude.FACTORS,
-    PaperGraphInclude.MOTIVATIONS,
-]
-
 _TITLE_RESOLVE_CAP = 20
 
 
@@ -70,8 +63,8 @@ def package_command(
         typer.Option(
             "--include",
             help=(
-                "Sub-graph to include (repeatable). Default: "
-                "paper, variables, factors, motivations."
+                "Legacy sub-graph to include (repeatable). "
+                "Omit to use LKM's default graph-shaped response."
             ),
             case_sensitive=False,
         ),
@@ -137,8 +130,8 @@ def package_command(
         raise typer.Exit(4)
 
     body: dict[str, Any] = dict(supplied)
-    chosen_include = include if include else _DEFAULT_INCLUDE
-    body["include"] = [item.value for item in chosen_include]
+    if include:
+        body["include"] = [item.value for item in include]
     if factor_refs_only:
         body["hydrate_factor_refs"] = False
     if title is not None:

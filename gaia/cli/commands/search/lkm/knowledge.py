@@ -87,6 +87,13 @@ def knowledge_command(
         str | None,
         typer.Option("--role", help="Filter by node role (e.g. conclusion / premise)."),
     ] = None,
+    include_paper_enrich: Annotated[
+        bool,
+        typer.Option(
+            "--include-paper-enrich",
+            help="Ask LKM to include enriched paper metadata when the index supports it.",
+        ),
+    ] = False,
     visibility: Annotated[
         str,
         typer.Option("--visibility", help="Visibility filter."),
@@ -152,6 +159,8 @@ def knowledge_command(
         body["keywords"] = list(keywords)
     if reasoning_only:
         body["reasoning_only"] = True
+    if include_paper_enrich:
+        body["include_paper_enrich"] = True
     filters: dict[str, Any] = {"visibility": visibility}
     if role:
         filters["role"] = role

@@ -314,7 +314,7 @@ The CLI is self-documenting. Use `gaia --help`, `gaia <group> --help`, and
 | `gaia review` | skeleton only | Reserved top-level home for future reviewer tooling; do not confuse it with `gaia inquiry review` or `gaia trace review`. |
 | `gaia search` | `lkm auth`, `lkm knowledge`, `lkm reasoning`, `lkm nodes`, `lkm package` | Query an external retrieval backend; the `lkm` backend wraps the Bohrium LKM knowledge-graph search API. |
 
-The Bohrium LKM knowledge-graph search backend is available under `gaia search lkm`; run `gaia search lkm auth login` to set up your access key (or set `GAIA_LKM_ACCESS_KEY` / `LKM_ACCESS_KEY`), then `gaia search lkm --help` for the full verb surface.
+The Bohrium LKM knowledge-graph search backend is available under `gaia search lkm`; run `gaia search lkm auth login` to set up your access key (or set `GAIA_LKM_ACCESS_KEY` / `LKM_ACCESS_KEY`), then `gaia search lkm --help` for the full verb surface. To reuse a paper graph as a local dependency, run `gaia pkg add --lkm-paper <paper_id>` or `gaia pkg add --lkm-claim <gcn_id>` from inside a Gaia package. The generated package keeps LKM graph edges as auditable metadata and scaffolds claim dependencies with `depends_on(..., given=[...])` for later review.
 
 The authoring CLI is intentionally conservative: target files must already
 exist, sibling files should be created with `gaia pkg add-module`, and literal
