@@ -62,7 +62,7 @@ pred_b = bayes.model(
     label="pred_b",
 )
 
-precomputed = PrecomputedLikelihoods(
+solver_run = PrecomputedLikelihoods(
     "Solver-provided log marginal likelihoods.",
     log_likelihoods={h_a: -1.5, h_b: -2.8},
     diagnostics=DIAGNOSTICS_PAYLOAD,
@@ -73,11 +73,11 @@ precomputed = PrecomputedLikelihoods(
 cmp = bayes.compare(
     data, models=[pred_a, pred_b],
     exclusivity="exhaustive_pairwise_complement",
-    precomputed=precomputed, label="cmp",
+    precomputed=solver_run, label="cmp",
 )
 
 __all__ = [
-    "h_a", "h_b", "data", "pred_a", "pred_b", "precomputed", "cmp",
+    "h_a", "h_b", "data", "pred_a", "pred_b", "solver_run", "cmp",
 ]
 """
 
