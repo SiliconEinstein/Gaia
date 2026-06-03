@@ -431,6 +431,35 @@ After a clean compile, verify the SOP-owned semantic content:
    missing `__all__` exports nothing, so downstream tools would see a package
    with no headline contributions.
 
+   Do **not** eyeball this — it is the easiest invariant to violate by reflex
+   (exporting a "load-bearing" weak point feels right and is wrong). After the
+   clean compile, run this assertion from the package root and fix anything it
+   prints before reporting completion:
+
+   ```bash
+   python3 - <<'PY'
+   import json
+   ir = json.load(open(".gaia/ir.json"))
+   bad = []
+   for k in ir.get("knowledges", []):
+       if not k.get("exported"):
+           continue
+       label, meta = k.get("label", ""), (k.get("metadata") or {})
+       if k.get("type") != "claim":
+           bad.append(f"{label}: a {k.get('type')} — only main-conclusion claims are exported")
+       elif meta.get("prior") is not None:
+           bad.append(f"{label}: leaf premise (prior={meta['prior']}) — inputs / weak points / highlights are not exported")
+   for b in bad:
+       print("  EXPORT IMPURITY —", b)
+   print("__all__ purity: OK" if not bad else "remove the above from the root __all__")
+   raise SystemExit(1 if bad else 0)
+   PY
+   ```
+
+   The rule is mechanical: an exported claim carries **no** `register_prior`
+   (a prior ⇒ it is a leaf input, not a derived conclusion); a `note`/`question`
+   is never exported. This mirrors the engine's own leaf definition.
+
 If any check fails, fix it and recompile before reporting completion.
 
 ### 6f. Hand off
