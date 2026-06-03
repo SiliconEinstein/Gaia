@@ -3,25 +3,22 @@ name: gaia-formalize-coarse
 description: |
   Use for a quick, single-paper formalization into a Gaia knowledge package:
   read one academic paper (Markdown preferred; plain-text or other readable
-  formats also accepted) and emit a standalone `<name>-gaia/` package. Runs a
-  four-phase analytical workflow (Phase 1 extract conclusions / motivation /
-  open questions / cross-conclusion logic graph; Phase 2 reconstruct each
-  conclusion's reasoning chain; Phase 3 audit weak points and highlights,
-  calibrate leaf priors; Phase 4 emit Gaia DSL package files), gated by an
-  upfront suitability check (skip review/survey/perspective papers and
-  corrupted paper text). Surfaces 9 argument-pattern weak-point types
+  formats also accepted) and emit a standalone `<name>-gaia/` package. Builds
+  the package incrementally: scaffold; write the conclusions (with motivation
+  and open questions, marking each main conclusion in the root `__all__`);
+  organize the cross-conclusion logic graph; then per
+  conclusion emit its weak points, highlights, and `derive(...)`; then finalize
+  (shared-factor decomposition, leaf priors, references, compile). Gated by an
+  upfront suitability check (skip review/survey/perspective papers, statistical
+  model-comparison papers, and corrupted paper text). Surfaces 9 argument-pattern weak-point types
   (`measurement`, `causal`, `model`, `statistical`, `generalization`,
-  `comparative`, `formal`, `computational`, `external`). Cross-grounds the
-  paper against LKM's existing knowledge graph in Phase 1b via
-  `gaia search lkm knowledge`, filtering on `provenance.source_packages` and
-  verifying reasoning-chain closure via `gaia search lkm reasoning --claim-id`.
+  `comparative`, `formal`, `computational`, `external`).
   This is the **Paper → package** entry point when speed matters — the quick
-  four-phase single-pass sibling of `gaia-formalize-fine` (the thorough
+  single-pass sibling of `gaia-formalize-fine` (the thorough
   six-pass treatment). Reach for `gaia-formalize-coarse` for a fast first cut
   of one paper; reach for `gaia-formalize-fine` when the source is
-  load-bearing, multi-section, or destined for publication. For the
-  LKM-driven (not paper-driven) route that grows a multi-paper graph, use
-  the `gaia-lkm-explore` orchestrator client instead. Use whenever the user asks to "formalize a
+  load-bearing, multi-section, or destined for publication. Use whenever the
+  user asks to "formalize a
   paper into Gaia", "produce a Gaia package from this paper", "turn this
   paper into a knowledge package", or any variant where the upstream is a
   single paper text and the requested output is Gaia DSL — even if the user
@@ -40,10 +37,14 @@ agent running this skill does the analytical work itself; it does not
 orchestrate a separate extraction pipeline and does not produce intermediate
 XML artifacts.
 
-Gaia knowledge-package shape is the canonical Gaia spec — see
-`docs/for-users/language-reference.md` and `docs/for-users/quick-start.md` in
-this repo. This skill defines the paper-driven workflow that produces packages
-conforming to that spec.
+The canonical DSL surface is whatever `gaia sdk` emits — run it to drop a
+self-contained SDK reference + one-page cheat sheet into `./gaia-sdk/`; that is
+the version-matched, runtime-accessible source of truth for every verb, term,
+and distribution. Package layout comes from `gaia pkg scaffold`. This skill
+defines the paper-driven workflow that produces packages conforming to that
+surface; it does not restate the DSL spec. (The fuller human docs live under
+`docs/for-users/` when running inside the repo, but the skill relies on
+`gaia sdk`, not those paths.)
 
 ```
 paper.{md,txt,...}
@@ -54,15 +55,10 @@ gaia-formalize-coarse
 ```
 
 `gaia-formalize-coarse` is the **quick paper-driven** sibling of
-[`../gaia-formalize-fine/SKILL.md`](../gaia-formalize-fine/SKILL.md) (the
-thorough six-pass treatment of the same paper-driven route) and of the
-**`gaia-lkm-explore`** orchestrator client — the **LKM-driven** turn loop that grows
-a Gaia package from LKM evidence chains (a sibling of `gaia`, run as
-`gaia-lkm-explore turn <pkg>`; not a registered skill). All three produce package
-outputs of identical shape, but enter the graph from different directions: the
-two `gaia-formalize-*` skills start from one paper and audit its derivations
-(coarse = fast single-pass, fine = exhaustive six-pass); `gaia-lkm-explore` starts
-from LKM search and grows a frontier across many papers.
+[`../gaia-formalize-fine/SKILL.md`](../gaia-formalize-fine/SKILL.md) — the
+thorough six-pass treatment of the same paper-driven route. Both start from one
+paper and audit its derivations into a package of identical shape; coarse is the
+fast single-pass cut, fine the exhaustive six-pass one.
 
 ## Output Mode
 
@@ -77,71 +73,151 @@ Refresh / multi-paper batches are out of scope; if the user wants to merge a
 paper into an existing multi-paper package, the workflow is to produce the
 single-paper package here and then hand it off to a downstream merge step.
 
-## Progressive Workflow
+## Workflow
 
-At the start of each `gaia-formalize-coarse` run, create a session todo list
-with the four items below. Mark only Phase 1 as in progress. Do not load later
-phase documents until the current phase is complete; each later phase depends
-on the working notes produced by the earlier phases.
+The package is built **incrementally** — scaffold first, then write the DSL into
+each module as it is organized — not analyzed in full and dumped at the end.
+Create a session todo list with the six steps below and work them in order.
 
-1. **Extract conclusions, motivation, open questions, and the
-   cross-conclusion logic graph** — load
-   [`references/phase-1-extract-conclusions.md`](references/phase-1-extract-conclusions.md).
-2. **Reconstruct each conclusion's reasoning chain** — load
-   [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md).
-3. **Audit weak points and highlights, calibrate probabilities** — load
-   [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md).
-   Phase 3 also contains the **Phase 1b LKM reverse-provenance trace** —
-   a best-effort cross-grounding pass against LKM's existing graph via
-   `gaia search lkm knowledge`. Skipped silently when the paper is
-   not yet in the LKM corpus.
-4. **Emit the Gaia package and audit log** — load
+1. **Suitability gate** (below) — decide whether the paper is formalizable; skip
+   with a `.skip.md` note if not.
+2. **Scaffold the package.** Read the DSL surface (`gaia sdk`), then
+   `gaia pkg scaffold` and write one module file per source section (flat under
+   `src/<import_name>/` — not `gaia pkg add-module`). See
    [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md).
+3. **Write the conclusions.** Walk the paper section by section. For each
+   section, emit its conclusions as `claim(...)` into the section's module,
+   and as each main conclusion is written append its label to the **root**
+   `src/<import_name>/__init__.py`'s `__all__` (root `__all__` is the
+   package's exported surface — see the export invariant). Into the
+   introduction module (`motivation.py`), emit the whole-paper motivation as
+   a single `note(...)` (framing prose, no truth value) **and** the paper's
+   overall open problem as a single `question(...)` (the research question
+   the paper as a whole sets out to answer); neither the note nor the
+   question is added to `__all__`. Methodology:
+   [`references/phase-1-extract-conclusions.md`](references/phase-1-extract-conclusions.md).
+   (At this point `motivation.py` holds the motivation note + the open-problem
+   question; section modules hold conclusion claims only — no derives, no leaf
+   premises; the root `__all__` lists the main-conclusion labels.)
+4. **Organize the logic graph.** With every conclusion now written, lay out the
+   directed dependencies among them (`A → B` = the paper uses A to derive B);
+   these become each conclusion's upstream `given=` in step 5. The derive graph
+   is the **only** structure among conclusions — do **not** add relation verbs
+   (`equal` / `contradict` / `exclusive` / `associate`) between them (established
+   conclusions don't contradict one another, and a derive dependency re-encoded
+   as a relation double-counts). The lone exception, an `equal` between a theory
+   atom and the experiment atom of the *same quantity*, comes from the step-5.1
+   atomicity split, not here. Methodology: phase-1
+   ("No relation verbs between conclusions").
+5. **Per conclusion, in topological order: derive + weak points + highlights.**
+   For each conclusion, work in this conceptual order:
+   1. **Atomicity re-check before the derive.** Building the evidence chain
+      often exposes a still-bundled conclusion — most commonly a theoretical
+      prediction fused with its experimental measurement, or a method fused
+      with the value it produced. If so, split it into atomic claims **now**
+      per `_shared/formalize-atomicity.md` ("Separate theory from experiment",
+      "Separate method from result"): replace the bundled claim in the module
+      with the atomic ones, update the logic graph, and proceed with each atomic
+      conclusion separately in step 5. When the split separates a **predicted
+      value from the measured value of the same quantity**, couple the two atoms
+      with `equal(...)` (the same quantity reached two independent ways — a
+      genuine cross-check). A general theorem and a *separate* experimental
+      validation are **not** this case (different truth conditions): leave them
+      as two independent conclusions, do not `equal` them.
+   2. Summarize the paper's reasoning chain **for this (now-atomic)
+      conclusion specifically** — the chain's content matches the conclusion's
+      nature: a theoretical conclusion gets its mathematical / logical
+      derivation; an experimental measurement gets the experimental procedure
+      (setup, instrument, sampling, how the value was read out); a computational
+      result gets the method + parameters + numerical run. After an atomicity
+      split, the theory atom and the experiment atom each get their own chain;
+      do not collapse them. This prose becomes that conclusion's `derive(...)`
+      `rationale=`.
+   3. From the reasoning, identify the upstream conclusions it depends on
+      (from the step-4 logic graph) — these go in `given=` first.
+   4. Surface its weak points and highlights as the **residual** load-bearing
+      factors — the uncertainties and strengths in the reasoning that the
+      upstream conclusions do **not** already capture. (If a factor is already
+      represented by an upstream conclusion, do not duplicate it as a leaf
+      premise here.) These go in `given=` after the upstream conclusions.
+      Premises may carry relations where they genuinely hold — same proposition
+      → reuse one claim, shared dependency → `decompose` (Pattern 3), a real
+      `contradict` / `exclusive` between premises of *different* conclusions →
+      add it — but never `contradict` / `exclusive` between two co-premises of
+      one `derive` (incoherent). See phase-3 ("Relations between premises").
+   5. Emit the leaf-premise `claim(...)`s and the `derive(...)` into the
+      conclusion's module; compile-check before moving on.
 
-After each phase, immediately mark the corresponding todo complete, mark the
-next one in progress, and only then load the next phase document. Phases 1–3
-produce structured working notes (held in the agent's scratch, not on disk).
-Phase 4 is the only phase that writes files.
+   Methodology:
+   [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md)
+   (reasoning chains / derive) and
+   [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md)
+   (weak points, highlights, prior calibration).
+6. **Finalize.** Run the global independence (Pattern 3) scan over all leaf
+   premises and `decompose` shared causes; write `priors.py` (a
+   `register_prior` per leaf premise) and `references.json`; run the full
+   `gaia build compile` and the self-check (which verifies, among other
+   things, that the root `__all__` populated in step 3 is non-empty and
+   curated). See phase-3 (independence) and phase-4 (priors, references,
+   compile, self-check).
 
-The four-phase split is mental scaffolding, not a contract with the user.
-The agent must treat the phases as cumulative — the package emitted in Phase
-4 must reflect the conclusions, reasoning chains, weak points, and
-highlights surfaced in Phases 1–3 as a single coherent body of work, not as
-independent passes.
+Load each methodology file as you reach the step that needs it; you may load
+several at once (steps 3–6 draw on all four). The step split is scaffolding for
+sequencing the build, not independent passes — the finished package must be one
+coherent body of work.
 
 ## Suitability Gate
 
-Before Phase 1 begins, decide whether the paper is amenable to formalization.
-Skip with a short note if:
+Before scaffolding (step 1), decide whether the paper is amenable to
+**coarse** formalization. Skip with a short note (or hand off to a sibling
+skill) in any of the following cases:
 
 - The paper is a review, survey, or perspective without original results.
 - The paper has no identifiable structured contributions (no derivations, no
   measurements, no method introductions).
 - The paper text is corrupted, truncated, or contains only abstract/metadata.
+- **The paper's core contribution is Bayesian / statistical model comparison.**
+  Coarse emits only `derive` (no `infer` / `observe` / `compute` /
+  `bayes.compare` / `bayes.model`), so a paper whose contribution is
+  "Model A beats Model B by Bayes factor / likelihood ratio / posterior
+  predictive" loses its core epistemic structure when coarsened to
+  deductive `claim`+`derive`. Hand off to `gaia-formalize-fine`, which
+  handles the `bayes.*` and `infer` surfaces. (A paper that *mentions*
+  statistical tests in service of a primarily deductive / experimental
+  story is fine for coarse; the gate is the **core contribution**, not
+  the presence of any statistical method.)
 
-In any of these cases, do not emit a Gaia package. Write a single
+In any of the first three cases, do not emit a Gaia package — write a single
 `<package_name>.skip.md` next to the input that records the reason in one
-paragraph. Do not invent contributions to fill the gap.
+paragraph. In the fourth case, redirect to `gaia-formalize-fine` rather than
+producing a coarsened package; record the redirect in the same `.skip.md`
+shape if no fine run is being launched immediately. Do not invent
+contributions to fill the gap.
 
 ## Non-Negotiable Invariants
 
 - **Self-contained `claim(...)` text.** The string body of every `claim(...)`
   must read as a first-class scientific proposition independent of the paper.
-  This is the same rule the legacy step 4 prompt enforced — here it is
-  enforced at the moment the claim is written, not as a post-hoc rewrite.
+  Enforce this at the moment the claim is written, not as a post-hoc rewrite.
   Setup, symbols, regimes, and inlined figure/table content live inside the
   claim string itself; structural pointers ("Eq. (3)", "Fig. 4",
   "Section II") are forbidden inside the claim body.
 - **Paper text is the only source of truth.** Do not introduce external
   knowledge, repair missing arguments, or upgrade speculative claims. If a
   symbol is undefined in the paper, leave it undefined and surface the gap
-  in the hand-off report. (Phase 1b LKM cross-grounding is the one
-  exception — it queries LKM purely to *audit* what the paper said, never
-  to augment paper content.)
-- **Two claim kinds only.** A `claim(...)` is either a step-1 root
-  conclusion or a step-3 weak point used as a leaf premise (the leaf gets
-  a paired `register_prior(...)`). A reasoning step is not a claim; it is
-  text that lives inside a `derive(...)` `rationale=` field.
+  in the hand-off report.
+- **Two claim kinds only.** A `claim(...)` is either a step-3 conclusion or
+  a step-5 leaf premise (a weak point or a highlight) used in a conclusion's
+  `given=[...]` with a paired `register_prior(...)`. A reasoning step is not a
+  claim; it is text that lives inside a `derive(...)` `rationale=` field. The
+  relation verbs (`equal` / `contradict` / `exclusive` / `associate`) are not
+  claims either — they emit relation-helper Claims internally that the engine
+  treats as structural, not as new propositions the agent has to write.
+  *Exception — Pattern 3:* when step-5 finds leaf premises that share a
+  latent cause, each is `decompose`d into a shared-cause claim plus a residual
+  claim; those parts are the prior-bearing leaf premises and the original is
+  kept as the composed whole (see the "Shared-factor evidence" guidance in
+  phase-3, run at the finalize step).
 - **One epistemic question per conclusion.** Each conclusion `claim(...)`
   body answers exactly one citable question — "what is the new bound /
   relation / procedure / value / agreement?" — not several. A paragraph
@@ -149,44 +225,73 @@ paragraph. Do not invent contributions to fill the gap.
   passed is three conclusions, not one. See
   `phase-1-extract-conclusions.md` for the split test and common
   under-splitting traps.
-- **One deduction per derived conclusion.** Each conclusion that has at
-  least one upstream conclusion or one weak point becomes the conclusion
-  of exactly one
-  `derive(conclusion, given=[premises], rationale=..., label=...)`.
-  Premises are the union of the conclusion's upstream conclusions (from
-  the cross-conclusion logic graph) and its weak-point claims. The
-  engine `derive(...)` signature accepts only
+- **One deduction per conclusion; no isolated conclusions.** Every
+  conclusion is the conclusion of exactly one
+  `derive(conclusion, given=[premises], rationale=..., label=...)`. There is
+  no such thing as an isolated conclusion — a conclusion always rests on
+  something. The `given` is built in order: first the conclusion's upstream
+  conclusions (every conclusion it depends on per the cross-conclusion logic
+  graph must appear), then its leaf premises (weak points and highlights). A root
+  conclusion with no upstream still has ≥1 leaf premise carrying its support.
+  The engine `derive(...)` signature accepts only
   `{given, background, rationale, label}` — no `metadata=` kwarg, so
-  warrant-strength intent lives in `--rationale` prose.
-- **Highlights are working-notes only.** Step-3 highlights characterize
-  *why* a conclusion is unusually solid, but they do not enter the
-  executable DSL — Gaia's BP semantics already handle credit through
-  priors and the `derive(...)` warrant. Highlights inform the qualitative
-  warrant-strength prose Phase 4 writes into each deduction's
-  `--rationale`.
-- **Probability calibration via `register_prior(...)`.** Leaf-claim priors
-  come from step-3 calibrations (`prior_probability` for the weak point,
-  capped at 0.9). Each justification ends with `TODO:review`. Do not
-  invent priors that contradict the reviewer's calibration in working
-  notes.
+  warrant-strength intent lives in `rationale=` prose.
+- **Weak points and highlights are the same kind of leaf premise.** Both are
+  non-trivial propositions the conclusion's derivation rests on, emitted as a
+  `claim(...)` in the conclusion's `given=[...]` with a paired
+  `register_prior(...)`. They are not distinguished mechanically — the only
+  difference is the prior magnitude (a weak point is a premise the reviewer is
+  less sure of, lower prior; a highlight is one the reviewer is very sure of,
+  higher prior) plus a `weak_point` / `highlight` tag. A highlight is extracted
+  because it is non-trivial and worth making explicit and reviewable, not to
+  raise the conclusion's belief; as a high-prior premise it is near-inert in BP,
+  which is fine. Neither is working-notes-only.
+- **Inputs carry priors; the paper's own conclusions do not.** A
+  `register_prior(...)` is emitted for every **leaf input** a conclusion rests
+  on — the experimental facts / observations it uses, the externally-established
+  theory / predictions / prior results it takes as given, and the audit's weak
+  points and highlights (a solid input surfaces as a high-prior highlight, a
+  shaky one as a low-prior weak point) — and for nothing else. The **current
+  paper's own conclusions never get a prior** — their belief propagates through
+  their `derive(...)` from these inputs. (Since there are no isolated
+  conclusions, there is no leaf conclusion to prior.) **Let the reviewer judge
+  each prior on its merits — there is no fixed range or cap.** A weak point is not forced
+  below any threshold; a highlight is not forced above one. The only bounds are
+  BP validity (strictly between 0 and 1; use ~0.001 and ~0.999 as the practical
+  extremes). Each justification ends with `TODO:review`.
+- **Main conclusions are the exported surface.** A package's external
+  interface — what downstream tools (`gaia register`, README rendering,
+  `gaia inquiry`, lkm_explorer, starmap, the `gaia-publish` skill) treat as
+  "this paper's headline contributions" — is its **main conclusions**: the
+  `claim(...)`s written in step 3 that carry the paper's contributions. The
+  motivation `note(...)`, the open-problem `question(...)`, weak points /
+  highlights, and decompose parts (shared cause + residuals from Pattern 3)
+  are **not** exported; they are framing, internal record, or audit material.
+  Mechanism: list the main-conclusion labels in the **root**
+  `src/<import_name>/__init__.py`'s `__all__` (the engine only reads
+  `__all__` from the root module — section modules' lists do not propagate).
+  The scaffold writes `__all__: list[str] = []` (empty = nothing exported), so
+  the curated list **must** be filled in, and per the engine convention this
+  happens the moment each conclusion is written (step 3), not deferred to
+  finalize. Root `__all__` is the single source of truth for the exported
+  surface and is validated at compile.
 
 ## Responsibility Boundaries
 
-- This skill owns the four analytical passes (plus the Phase 1b LKM
-  reverse-trace audit) and the Gaia package emission.
-- It does not own package-shape — that is the canonical Gaia spec (see
-  `docs/for-users/`). This skill consumes those rules where they apply and
-  adds paper-decomposition workflow on top.
-- Phase 4 runs `gaia build compile` itself to validate the directly-written
-  modules and iterates until it compiles clean. It does not run `gaia run infer`
-  / `gaia inquiry review` — those downstream quality gates are caller obligations
-  surfaced in the hand-off report.
+- This skill owns the paper-driven analytical workflow and the Gaia package emission.
+- It does not own package-shape — that is the canonical DSL surface (`gaia sdk`)
+  plus the `gaia pkg scaffold` layout. This skill consumes those where they
+  apply and adds paper-decomposition workflow on top.
+- The finalize step runs `gaia build compile` itself to validate the
+  directly-written modules and iterates until it compiles clean. It does not run
+  `gaia run infer` / `gaia inquiry review` — those downstream quality gates are
+  caller obligations surfaced in the hand-off report.
 - It does not orchestrate the existing `paper-extract` Python pipeline.
   The Python pipeline is a parallel route from paper to XML; this skill
   is the direct route from paper to Gaia.
-- It does not own the LKM API surface — Phase 1b shells out to the
-  `gaia search lkm` CLI (`knowledge` / `reasoning --claim-id`). Flags, auth,
-  and known quirks live behind `gaia search lkm <verb> --help`.
+- It does not query LKM. Formalization is a paper → package transformation;
+  consuming the knowledge graph is a separate, LKM-driven concern handled
+  elsewhere.
 - Multi-paper merges, cross-paper contradictions, and downstream rendering
   are separate concerns handled by other tools.
 
@@ -199,15 +304,17 @@ paragraph. Do not invent contributions to fill the gap.
 - [`references/phase-2-build-reasoning-chain.md`](references/phase-2-build-reasoning-chain.md)
   — per-conclusion reasoning reconstruction.
 - [`references/phase-3-review-weak-points.md`](references/phase-3-review-weak-points.md)
-  — weak-point and highlight audit, probability calibration, and the
-  Phase 1b LKM reverse-provenance trace.
+  — weak-point and highlight audit (both as leaf premises) and probability
+  calibration.
 - [`references/phase-4-emit-package.md`](references/phase-4-emit-package.md)
-  — composing Phase 1–3 working notes into Gaia DSL package files.
+  — emission mechanics: scaffold, write conclusions (and append each main
+  conclusion to root `__all__`), per-conclusion derive + leaf premises,
+  finalize (decompose, priors, references, compile, self-check).
 
 ### Shared formalization methodology (`../_shared/`)
 
 Extraction, atomicity, reasoning-chain, and independence methodology shared
-with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
+with `gaia-formalize-fine`; workflow steps 3–6 load these from `_shared/`:
 
 - [`../_shared/formalize-extract-conclusions.md`](../_shared/formalize-extract-conclusions.md)
   — what counts as a conclusion, fidelity, self-contained bodies, figures as
@@ -220,27 +327,21 @@ with `gaia-formalize-fine`; Phases 1–2 load these from `_shared/`:
 - [`../_shared/formalize-independence.md`](../_shared/formalize-independence.md)
   — the no-double-counting check on each conclusion's premise set.
 
-### Gaia knowledge-package contract (this repo's docs)
+### Gaia DSL surface and CLI (runtime-accessible)
 
-- `docs/for-users/quick-start.md` — end-to-end Gaia knowledge-package
-  workflow, including single-paper package layout and file templates.
-- `docs/for-users/language-reference.md` — `claim` / `derive` /
-  `question` emission rules, generic `lkm_id` / `provenance_source`
-  metadata semantics, deduction warrant calibration, label rules, and
-  `references.json` (CSL-JSON) conventions.
-- `docs/for-users/cli-commands.md` — full CLI reference (`gaia build compile`
-  / `build check` / `run infer` / `run render`).
-- `docs/for-users/hole-bridge-tutorial.md` — prior calibration tutorial.
+- **`gaia sdk`** — the canonical DSL surface: writes a self-contained SDK
+  reference + one-page cheat sheet (every `claim` / `derive` / `decompose` /
+  `question` rule, terms, distributions, relations, label and citation
+  conventions) into `./gaia-sdk/`. **Read this before emitting; it is the
+  source of truth, not the docs tree.**
+- **`gaia pkg scaffold`** — creates the package skeleton (`pyproject.toml`,
+  minted uuid, root `__init__.py`); run it. Write the section modules flat
+  under `src/<import_name>/` yourself — **not** `gaia pkg add-module` (which
+  routes into the `authored/` CLI subpackage; see phase-4 step 2).
+- **`gaia <group> <cmd> --help`** — per-command CLI reference
+  (`gaia build compile` / `build check` / `run infer` / `inquiry review`).
 
-For runtime help, prefer `gaia <group> <cmd> --help`.
-
-Sibling skills (this registry):
-
-- LKM search is the native `gaia search lkm` CLI (`knowledge` /
-  `reasoning [--claim-id]` / `nodes` / `package` / `auth`), used by the
-  Phase 1b reverse-provenance trace. Verify flags with
-  `gaia search lkm <verb> --help`.
-- The **`gaia-lkm-explore`** orchestrator client (run `gaia-lkm-explore turn <pkg>`; a
-  sibling of `gaia`, not a registered skill) — the LKM-driven exploration turn
-  loop producing the same Gaia knowledge-package output shape from a different
-  upstream.
+The fuller human docs (`docs/for-users/quick-start.md`,
+`language-reference.md`, `cli-commands.md`, `hole-bridge-tutorial.md`) exist
+for deeper reference when running inside the repo, but the skill relies on
+`gaia sdk` + `--help`, which match the installed version.
