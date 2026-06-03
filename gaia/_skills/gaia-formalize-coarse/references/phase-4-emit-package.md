@@ -200,59 +200,37 @@ decompose parts (step 6 shared cause + residuals), or any relation labels
 (see below). Section modules need no `__all__` of their own — the engine reads
 only the root's.
 
-### Conclusion-level relations (also step 4 emission)
+### The same-quantity `equal` (emitted in step 5)
 
-When step 4 (logic graph) surfaces `equal` / `contradict` / `exclusive` /
-`associate` relations between conclusions, emit them into the **downstream-most
-module among the two relata** so the relation can `import` both. Methodology
-is in `phase-1-extract-conclusions.md` (§Relations between conclusions);
-the code shape:
+Coarse emits **no** relation verbs between conclusions (phase-1 "No relation
+verbs between conclusions") — the derive graph is the only inter-conclusion
+structure. The one exception is an `equal` coupling a theory atom and the
+experiment atom of the **same quantity**, produced by the step-5.1 atomicity
+split; emit it in the downstream-most module among the two atoms so it can
+`import` both:
 
 ```python
-from gaia.engine.lang import equal, contradict, exclusive, associate
+from gaia.engine.lang import equal
 
 from .s2_methods import liu2015_c1_theory_prediction
 from .s3_results import liu2015_c3_experiment_value
 
-# Hard: theory atom and experiment atom express the same proposition
+# Same quantity, two independent paths (theory prediction vs measurement):
 liu2015_rel_theory_match = equal(
     liu2015_c1_theory_prediction,
     liu2015_c3_experiment_value,
-    rationale="The theoretical prediction P = 0.42 ± 0.03 and the measured value …",
+    rationale="The predicted P = 0.42 ± 0.03 and the measured P = 0.41 ± 0.02 are the same quantity …",
     label="liu2015_rel_theory_match",
 )
-
-# Hard: two competing hypotheses the paper says cannot both hold
-liu2015_rel_models_incompatible = contradict(
-    liu2015_c2_model_a, liu2015_c2_model_b,
-    rationale="A and B predict opposite signs of the response …",
-    label="liu2015_rel_models_incompatible",
-)
-
-# Hard: exhaustive binary choice (use decompose(formula=lor(...)) for n≥3)
-liu2015_rel_binary_outcome = exclusive(
-    liu2015_c4_outcome_pos, liu2015_c4_outcome_neg,
-    rationale="On this benchmark the metric is signed; one of the two must hold.",
-    label="liu2015_rel_binary_outcome",
-)
-
-# Soft (the exception — see phase-1 §Relations discipline): reach for
-# `associate` only when you are confident the relation holds but not that it is
-# a hard logical constraint, and most defensibly for contradict / exclusive
-# (hedging a structural claim you are unsure of). A clear relation is better
-# written as an explicit claim + derive; a weak one is left unmodelled. Soft
-# `associate(pattern="equal")` between two conclusions is discouraged. Shape:
-#   liu2015_rel_soft_tension = associate(
-#       liu2015_c2_model_a, liu2015_c2_model_b,
-#       p_a_given_b=…, p_b_given_a=…, pattern="contradict",
-#       rationale="…", label="liu2015_rel_soft_tension")  # conditionals must satisfy the pattern
 ```
 
-Relations carry no `register_prior` (hard verbs are deterministic;
-`associate` carries its conditionals directly) and are **not** in `__all__`.
+This `equal` carries no `register_prior` and is **not** in `__all__`. Do **not**
+emit `contradict` / `exclusive` / `associate` between conclusions; a general
+theorem versus a *separate* experimental validation is not this same-quantity
+case and stays two independent conclusions.
 
 **Premise-level relations and combinations** (phase-3 "Relations between
-premises") are emitted in **step 5**, when the premises are written, not here: a
+premises") are emitted in **step 5**, when the premises are written: a
 cross-conclusion `exclusive(p1, p2)` / `contradict(p1, p2)` goes in the
 downstream-most module among its relata; a disjunction premise `C = A | B` goes
 in the module of the conclusion that uses it. These likewise carry no
@@ -349,13 +327,17 @@ premises").
 
 ### 6b. Write `priors.py`
 
-Emit a `register_prior(...)` for **every leaf premise and nothing else**.
+Emit a `register_prior(...)` for **every leaf input and nothing else**.
 Conclusions never get a prior — there are no isolated conclusions (every
-conclusion is the conclusion of a `derive(...)`), so a conclusion's belief
-always propagates from its premises; it is never a leaf.
+conclusion is the conclusion of a `derive(...)`), so the current paper's
+conclusions always get their belief from their inputs; a conclusion is never a
+leaf.
 
-- Every leaf premise from the step-5 audit — weak point **and** highlight —
-  is a leaf; its reviewer-judged prior goes here verbatim. No cap: weak points
+- Every leaf input a conclusion rests on gets a prior: the **experimental facts
+  / observations** it uses, the **externally-established theory / predictions /
+  prior results** it takes as given, and the audit's **weak points and
+  highlights** (a solid input is a high-prior highlight, a shaky one a low-prior
+  weak point). The reviewer-judged value goes here verbatim. No cap: weak points
   land lower, highlights higher (often 0.9+); the only bounds are BP validity
   (strictly between 0 and 1, practical extremes ~0.001 / ~0.999).
 

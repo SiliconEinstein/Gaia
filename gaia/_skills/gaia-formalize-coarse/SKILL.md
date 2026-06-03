@@ -99,14 +99,16 @@ Create a session todo list with the six steps below and work them in order.
    (At this point `motivation.py` holds the motivation note + the open-problem
    question; section modules hold conclusion claims only — no derives, no leaf
    premises; the root `__all__` lists the main-conclusion labels.)
-4. **Organize the logic graph + surface conclusion-level relations.** With
-   every conclusion now written, lay out the directed dependencies among
-   them (`A → B` = the paper uses A to derive B), and emit the relations the
-   paper itself states between conclusions or atomic sub-conclusions:
-   `equal` / `contradict` / `exclusive` for genuine logical relations (`equal`
-   only after shared dependencies are extracted as shared nodes), reserving
-   soft `associate` for the rare relation you are confident in but unsure is
-   hard. Same methodology file as step 3 (§Relations between conclusions).
+4. **Organize the logic graph.** With every conclusion now written, lay out the
+   directed dependencies among them (`A → B` = the paper uses A to derive B);
+   these become each conclusion's upstream `given=` in step 5. The derive graph
+   is the **only** structure among conclusions — do **not** add relation verbs
+   (`equal` / `contradict` / `exclusive` / `associate`) between them (established
+   conclusions don't contradict one another, and a derive dependency re-encoded
+   as a relation double-counts). The lone exception, an `equal` between a theory
+   atom and the experiment atom of the *same quantity*, comes from the step-5.1
+   atomicity split, not here. Methodology: phase-1
+   ("No relation verbs between conclusions").
 5. **Per conclusion, in topological order: derive + weak points + highlights.**
    For each conclusion, work in this conceptual order:
    1. **Atomicity re-check before the derive.** Building the evidence chain
@@ -116,7 +118,12 @@ Create a session todo list with the six steps below and work them in order.
       per `_shared/formalize-atomicity.md` ("Separate theory from experiment",
       "Separate method from result"): replace the bundled claim in the module
       with the atomic ones, update the logic graph, and proceed with each atomic
-      conclusion separately in step 5.
+      conclusion separately in step 5. When the split separates a **predicted
+      value from the measured value of the same quantity**, couple the two atoms
+      with `equal(...)` (the same quantity reached two independent ways — a
+      genuine cross-check). A general theorem and a *separate* experimental
+      validation are **not** this case (different truth conditions): leave them
+      as two independent conclusions, do not `equal` them.
    2. Summarize the paper's reasoning chain **for this (now-atomic)
       conclusion specifically** — the chain's content matches the conclusion's
       nature: a theoretical conclusion gets its mathematical / logical
@@ -239,12 +246,16 @@ contributions to fill the gap.
   because it is non-trivial and worth making explicit and reviewable, not to
   raise the conclusion's belief; as a high-prior premise it is near-inert in BP,
   which is fine. Neither is working-notes-only.
-- **Only leaf premises carry priors.** A `register_prior(...)` is emitted for
-  every leaf premise (weak point and highlight alike) and for nothing else.
-  Conclusions never get a direct prior — their belief propagates through their
-  `derive(...)` from the premises. (Since there are no isolated conclusions,
-  there is no leaf conclusion to prior.) **Let the reviewer judge each prior on
-  its merits — there is no fixed range or cap.** A weak point is not forced
+- **Inputs carry priors; the paper's own conclusions do not.** A
+  `register_prior(...)` is emitted for every **leaf input** a conclusion rests
+  on — the experimental facts / observations it uses, the externally-established
+  theory / predictions / prior results it takes as given, and the audit's weak
+  points and highlights (a solid input surfaces as a high-prior highlight, a
+  shaky one as a low-prior weak point) — and for nothing else. The **current
+  paper's own conclusions never get a prior** — their belief propagates through
+  their `derive(...)` from these inputs. (Since there are no isolated
+  conclusions, there is no leaf conclusion to prior.) **Let the reviewer judge
+  each prior on its merits — there is no fixed range or cap.** A weak point is not forced
   below any threshold; a highlight is not forced above one. The only bounds are
   BP validity (strictly between 0 and 1; use ~0.001 and ~0.999 as the practical
   extremes). Each justification ends with `TODO:review`.

@@ -150,81 +150,32 @@ Step 5 consumes this graph: each conclusion's `derive(...)` lists its upstream
 conclusions in topological order. The graph is held in context (it maps onto
 the `derive` `given=` references — no intermediate artifact).
 
-### Relations between conclusions
+### No relation verbs between conclusions
 
-Not every connection between two conclusions is a derivation. Some pairs are
-**logical relations** the paper itself states (or strongly implies): "Model A
-and Model B cannot both be right"; "this theoretical prediction and that
-experimental value are the same proposition"; "these two outcomes exhaust the
-possibilities and the data picks one". Capture these at step 4 alongside the
-derivation edges — they sit at the same conclusion-graph layer.
+The derive logic graph is the **only** structure among conclusions. Do **not**
+scan for or emit `equal` / `contradict` / `exclusive` / `associate` between
+conclusions:
 
-The verbs (canonical surface: `gaia sdk`):
+- **`contradict` / `exclusive`** — a paper does not establish two mutually
+  incompatible propositions *as its conclusions*. When the contribution itself
+  *is* a relationship ("A and B are incompatible", "A is equivalent to B"), that
+  relationship is its own `claim(...)`, not a relation verb between two other
+  conclusions.
+- **`associate`** — between two conclusions it is either redundant with the
+  derive graph (double-counting, or a cycle when it runs opposite a derive edge)
+  or a coupling too weak to model.
+- **`equal`** — two conclusions that are genuinely the same proposition should be
+  **merged**, not coupled. The one legitimate conclusion-level `equal` — between
+  a theory atom and the experiment atom of the **same quantity** — arises from
+  the atomicity split in step 5.1 (see phase-2 / phase-4 step 5), not from a scan
+  here. A general theorem versus a *separate* experimental validation has
+  different truth conditions and is **not** equal'd: the two stay independent
+  conclusions, linked (if at all) only by a derive edge.
 
-| Verb | Semantics | Use when |
-|---|---|---|
-| `equal(a, b, rationale=…)` | both must hold the same truth value | A theoretical prediction and the matching experimental observation; word form vs equation form of the same proposition; "Y₁ = Y₂ within stated error bars". After atomicity-splitting a theory+experiment bundle in step 5.1, the resulting atoms typically deserve an `equal(...)` between them. |
-| `contradict(a, b, rationale=…)` | NOT (A AND B) — both cannot be true, but both **can** be false | Two competing hypotheses the paper says are incompatible (a third option may still exist). |
-| `exclusive(a, b, rationale=…)` | A XOR B — exactly one must be true (exhaustive + mutually exclusive; **strictly binary**) | The paper frames the alternatives as exhaustive — exactly one wins. For ≥3 alternatives use `decompose(formula=lor(...))` (see phase-4 step 6a) instead. |
-| `associate(a, b, p_a_given_b=…, p_b_given_a=…, rationale=…)` | symmetric probabilistic association (no logical entailment); pass `pattern="equal"` / `"contradict"` / `"exclusive"` when you mean a soft version of the hard relation | The paper hints at a relation but the strength is judgment-bound — e.g. "results A and B point in the same direction" without a logical equivalence; or competing-models language that does not actually exhaust the space. The two `p_*` conditionals are reviewer-judged honest estimates, not derived from data. |
-
-**Discipline — the three are not interchangeable.** The table lists the verbs;
-which one (and whether to use any) is governed by:
-
-- **`equal` (and any near-`equal` soft form) — guard against double counting.**
-  `equal(C1, C2)` asserts the two are the *same* truth, so any evidence their
-  derivations share would be counted on both ends of the identity. The fix is
-  **not** to avoid `equal` when paths share evidence — it is to make the sharing
-  explicit first: extract every shared dependency into one node both derivations
-  route through (`decompose`, Pattern 3). Once the graph is faithful, exact
-  inference discounts the shared part and credits only the independent premises
-  as genuine cross-validation (canonical case: a theory atom and the experiment
-  atom that measured it). The test is *"are all shared dependencies modelled as
-  shared nodes?"*, not *"do they share evidence?"*. If, after extraction,
-  nothing independent distinguishes the two, they are one proposition →
-  **merge**, do not `equal`.
-- **`contradict` / `exclusive` — get the logical relation right.** No
-  double-counting concern (these forbid truth combinations, they do not merge
-  evidence); the risk is asserting a relation that is not real — a wrong hard
-  `contradict` / `exclusive` silently distorts every downstream belief. Use the
-  hard verb only when the paper establishes genuine incompatibility
-  (`contradict`) or an exhaustive binary (`exclusive`).
-- **`associate` is the exception, not the default "softener".** Before reaching
-  for it: a *clear* relation the paper states is better **materialized as an
-  explicit `claim(...)` + `derive(...)`** (transparent, reviewable) than encoded
-  as a soft coupling; a *weak* relation is better left **unmodelled** (note it in
-  the hand-off). Reserve `associate(pattern=…)` for the narrow case where you are
-  confident an `equal` / `contradict` / `exclusive`-type relation holds but
-  **not** that it is a hard logical constraint — and even then it is most
-  defensible for `contradict` / `exclusive` (hedging a structural claim you are
-  unsure of). Soft `associate(pattern="equal")` between two conclusions is
-  discouraged: "softly the same proposition" is usually really a derivation or a
-  correlation (model it as such), and at the conclusion layer the soft form
-  anchors a missing marginal with an uninformed MaxEnt prior.
-
-**Rationale discipline (all relations).** The `rationale=` must (1) say *why
-these two specific relata* stand in this relation in the paper's setting, not
-restate the verb; (2) cite the paper-textual evidence with `[@key]` (no
-`Eq.` / `Fig.` / `Sec.` pointers); (3) for `associate`, additionally justify
-both conditionals. A rationale that reduces to "they look related" is not
-reviewable and must be rewritten before emit.
-
-The labelling rule: a relation between conclusions `C_i` and `C_j` lives in
-the **module of the later (downstream) conclusion** — so the relation can
-`import` both relata. Mint the label as `<key>_rel_<short_suffix>` (e.g.
-`liu2015_rel_theory_match`). Relations do **not** carry priors
-(hard relations are deterministic; `associate` carries its conditionals
-directly), so they get no `register_prior` entry and they are **not** added
-to root `__all__`.
-
-What NOT to model:
-
-- "In tension but can both be true" — flag in the hand-off report as an
-  unmodelled tension; do not force a `contradict`. A wrong `contradict`
-  silently distorts every downstream belief.
-- Quantitative-difference observations where the paper doesn't actually
-  claim "these are the same proposition" — use a `derive(...)` instead.
-- Field-wide rivalries the paper does not itself adjudicate.
+If two conclusions are in genuine tension the paper does not resolve, note it as
+an **unmodelled tension** in the hand-off — do not force a relation. (Relations
+between *premises* are a separate matter — see phase-3 "Relations between
+premises".)
 
 ## Step gate (before step 5)
 
@@ -234,8 +185,8 @@ Before starting the per-conclusion step:
 - Every conclusion has been written as a `claim(...)` in its section module and
   passes the atomicity, fidelity, and self-containment checks from `_shared/`.
 - The logic graph over the written conclusions is acyclic and minimal.
-- Conclusion-level relations (equal / contradict / exclusive / associate) the
-  paper states or strongly implies have been identified, located in their
-  downstream module, and labelled.
+- No relation verbs were added between conclusions — the derive logic graph is
+  the only inter-conclusion structure (a conclusion-level `equal` appears only
+  if a same-quantity theory/experiment split in step 5.1 warrants it).
 - `motivation.py` contains the motivation `note(...)` and the paper-level
   open-problem `question(...)`.

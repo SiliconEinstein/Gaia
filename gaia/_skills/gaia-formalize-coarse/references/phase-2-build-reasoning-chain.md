@@ -44,14 +44,14 @@ Coarse-specific points on top of the shared methodology:
   phase-3 audit will give it at least one leaf premise carrying its support.
   There are no isolated conclusions. This skill emits no `infer` /
   `observe` / `compute`, so the shared file's verb-specific remarks for those
-  verbs do not apply here. **Relation verbs are allowed when the paper itself
-  states or strongly implies them** — `equal` / `contradict` / `exclusive`
-  (hard) and `associate` (soft — the exception) — at the conclusion-graph layer
-  (phase-1 step 4 §Relations between conclusions) and between premises where a
-  relation genuinely holds and is coherent (phase-3 "Relations between
-  premises"); the one thing never to do is `contradict` / `exclusive` between
-  two co-premises of one `derive`. `decompose(...)` is emitted in the finalize
-  step (step 6) for the shared-factor (Pattern 3) case — to split a leaf
+  verbs do not apply here. Among conclusions the **derive logic graph is the
+  only structure — no relation verbs between conclusions** (the lone `equal`,
+  for a same-quantity theory/experiment split, comes from step 5.1; see phase-1
+  "No relation verbs between conclusions"). **Relation verbs between premises**
+  are allowed where a relation genuinely holds and is coherent (phase-3
+  "Relations between premises"); the one thing never to do is `contradict` /
+  `exclusive` between two co-premises of one `derive`. `decompose(...)` is
+  emitted in the finalize step (step 6) for the shared-factor (Pattern 3) case — to split a leaf
   premise that shares a latent cause into that cause plus its residual
   without deleting the original (see phase-3 "Shared-factor evidence").
 
