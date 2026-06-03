@@ -6,7 +6,7 @@ import json
 import keyword
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +44,14 @@ class MaterializedLKMPackage:
 
 
 @dataclass(frozen=True)
+class MaterializedLKMSearchPackages:
+    """Generated local Gaia packages backed by one LKM search envelope."""
+
+    packages: list[MaterializedLKMPackage]
+    skipped_result_count: int
+
+
+@dataclass(frozen=True)
 class _DependencyStatements:
     statements: list[str]
     skipped_factor_count: int
@@ -58,6 +66,7 @@ class _Node:
     title: str | None
     local_id: str | None
     role: str | None
+    search_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def materialize_lkm_paper_package(
@@ -67,6 +76,7 @@ def materialize_lkm_paper_package(
     index_id: str,
     paper_id: str,
     storage_root: Path | None = None,
+    allow_paper_fallback: bool = True,
 ) -> MaterializedLKMPackage:
     """Write, compile, and return a local Gaia package for an LKM paper graph."""
     item = _select_paper_item(payload, paper_id=paper_id)
@@ -86,7 +96,12 @@ def materialize_lkm_paper_package(
     src.mkdir(parents=True, exist_ok=True)
     (root / ".gaia").mkdir(exist_ok=True)
 
-    nodes = _collect_nodes(item, paper=paper, paper_id=resolved_paper_id)
+    nodes = _collect_nodes(
+        item,
+        paper=paper,
+        paper_id=resolved_paper_id,
+        allow_paper_fallback=allow_paper_fallback,
+    )
     dependency_result = _dependency_statements(
         item,
         nodes=nodes,
@@ -154,6 +169,86 @@ def materialize_lkm_paper_package(
     )
 
 
+def materialize_lkm_search_packages(
+    payload: dict[str, Any],
+    *,
+    project_root: Path,
+    index_id: str,
+    storage_root: Path | None = None,
+) -> MaterializedLKMSearchPackages:
+    """Write shallow local Gaia packages from normalized LKM search results.
+
+    This materializes only retrieved LKM variable nodes (claims/questions) as
+    source claims/questions. It deliberately does not fetch paper graphs or
+    reasoning chains; callers can upgrade specific nodes later with
+    ``gaia pkg add --lkm-paper`` once assessment needs deeper structure.
+    """
+    query = payload.get("query") if isinstance(payload.get("query"), dict) else {}
+    query_text = _text(query.get("text")) if isinstance(query, dict) else None
+    effective_index_id = (
+        _text(query.get("index_id")) if isinstance(query, dict) else None
+    ) or index_id
+    results = payload.get("results")
+    if not isinstance(results, list):
+        raise GaiaPackagingError("LKM search JSON must include a `results` list.")
+
+    skipped = 0
+    by_paper: dict[str, dict[str, Any]] = {}
+    for result in results:
+        if not isinstance(result, dict):
+            skipped += 1
+            continue
+        source = result.get("source") if isinstance(result.get("source"), dict) else {}
+        paper_id = _text(source.get("paper_id")) if isinstance(source, dict) else None
+        source_package = _text(source.get("source_package")) if isinstance(source, dict) else None
+        if paper_id is None:
+            paper_id = _paper_id_from_source_package(source_package)
+        if paper_id is None:
+            skipped += 1
+            continue
+        variable = _search_result_variable(
+            result,
+            query_text=query_text,
+            source_package=source_package,
+        )
+        if variable is None:
+            skipped += 1
+            continue
+        item = by_paper.get(paper_id)
+        if item is None:
+            paper_title = _text(source.get("paper_title")) if isinstance(source, dict) else None
+            doi = _text(source.get("doi")) if isinstance(source, dict) else None
+            item = {
+                "paper": _clean_dict(
+                    {
+                        "id": paper_id,
+                        "package_id": source_package or f"paper:{paper_id}",
+                        "en_title": paper_title,
+                        "doi": doi,
+                    }
+                ),
+                "variables": [],
+                "factors": [],
+                "motivations": [],
+            }
+            by_paper[paper_id] = item
+        item["variables"].append(variable)
+
+    packages: list[MaterializedLKMPackage] = []
+    for paper_id, item in by_paper.items():
+        packages.append(
+            materialize_lkm_paper_package(
+                item,
+                project_root=project_root,
+                index_id=effective_index_id,
+                paper_id=paper_id,
+                storage_root=storage_root,
+                allow_paper_fallback=False,
+            )
+        )
+    return MaterializedLKMSearchPackages(packages=packages, skipped_result_count=skipped)
+
+
 def _select_paper_item(payload: dict[str, Any], *, paper_id: str) -> dict[str, Any]:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
     papers = data.get("papers") if isinstance(data, dict) else None
@@ -206,11 +301,18 @@ def _paper_id(paper: dict[str, Any]) -> str | None:
     return None
 
 
+def _paper_id_from_source_package(source_package: str | None) -> str | None:
+    if source_package and source_package.startswith("paper:"):
+        return source_package.split(":", 1)[1]
+    return None
+
+
 def _collect_nodes(
     item: dict[str, Any],
     *,
     paper: dict[str, Any],
     paper_id: str,
+    allow_paper_fallback: bool = True,
 ) -> list[_Node]:
     nodes: list[_Node] = []
     seen_ids: set[str] = set()
@@ -245,10 +347,11 @@ def _collect_nodes(
                 title=_text(raw.get("title")),
                 local_id=_text(raw.get("local_id")),
                 role=_text(raw.get("role")),
+                search_metadata=_dict(raw.get("_gaia_search")),
             )
         )
 
-    if any(node.type == "claim" for node in nodes):
+    if any(node.type == "claim" for node in nodes) or not allow_paper_fallback:
         return nodes
 
     fallback_content = _fallback_claim_content(paper)
@@ -270,6 +373,70 @@ def _collect_nodes(
             ),
         )
     return nodes
+
+
+def _search_result_variable(
+    result: dict[str, Any],
+    *,
+    query_text: str | None,
+    source_package: str | None,
+) -> dict[str, Any] | None:
+    variable_type = _search_result_variable_type(result)
+    if variable_type not in {"claim", "question"}:
+        return None
+    source = result.get("source") if isinstance(result.get("source"), dict) else {}
+    raw_value = result.get("raw")
+    raw = raw_value if isinstance(raw_value, dict) else {}
+    payload_value = raw.get("payload")
+    raw_payload = payload_value if isinstance(payload_value, dict) else {}
+    variable = dict(raw_payload)
+    provider_id = _text(source.get("provider_id")) if isinstance(source, dict) else None
+    result_id = _text(result.get("id"))
+    rank = result.get("rank") if isinstance(result.get("rank"), dict) else {}
+    rank_score = rank.get("score") if isinstance(rank, dict) else None
+    if provider_id is None:
+        provider_id = _text(variable.get("global_id")) or _text(variable.get("id"))
+    if provider_id is None:
+        provider_id = result_id
+    content = _text(result.get("content")) or _text(variable.get("content"))
+    if content is None:
+        return None
+    variable["type"] = variable_type
+    variable["content"] = content
+    if provider_id is not None:
+        variable.setdefault("global_id", provider_id)
+    variable.setdefault("title", _text(result.get("title")))
+    if isinstance(source, dict):
+        variable.setdefault("local_id", _text(source.get("local_id")))
+        variable.setdefault("role", _text(source.get("role")))
+    variable["_gaia_search"] = _clean_dict(
+        {
+            "query_text": query_text,
+            "search_result_id": result_id,
+            "rank_score": rank_score if isinstance(rank_score, int | float) else None,
+            "source_package": source_package,
+            "provider_result_kind": _text(result.get("kind")),
+        }
+    )
+    return variable
+
+
+def _search_result_variable_type(result: dict[str, Any]) -> str | None:
+    kind = _text(result.get("kind"))
+    if kind in {"claim", "question"}:
+        return kind
+    gaia = result.get("gaia") if isinstance(result.get("gaia"), dict) else {}
+    object_kind = _text(gaia.get("object_kind")) if isinstance(gaia, dict) else None
+    if object_kind in {"claim", "question"}:
+        return object_kind
+    raw_value = result.get("raw")
+    raw = raw_value if isinstance(raw_value, dict) else {}
+    payload_value = raw.get("payload")
+    raw_payload = payload_value if isinstance(payload_value, dict) else {}
+    raw_type = _text(raw_payload.get("type")) if isinstance(raw_payload, dict) else None
+    if raw_type in {"claim", "question"}:
+        return raw_type
+    return None
 
 
 def _raw_lkm_nodes(item: dict[str, Any]) -> list[dict[str, Any]]:
@@ -411,6 +578,7 @@ def _module_text(
             "node_id": node.provider_id,
             "local_id": node.local_id,
             "role": node.role,
+            **node.search_metadata,
         }
         ctor = "question" if node.type == "question" else "claim"
         blocks.append(
@@ -573,6 +741,12 @@ def _list(value: Any) -> list[Any]:
     return []
 
 
+def _dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
 def _text(value: Any) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
@@ -610,4 +784,9 @@ def _clean_dict(value: dict[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in value.items() if item is not None}
 
 
-__all__ = ["MaterializedLKMPackage", "materialize_lkm_paper_package"]
+__all__ = [
+    "MaterializedLKMPackage",
+    "MaterializedLKMSearchPackages",
+    "materialize_lkm_paper_package",
+    "materialize_lkm_search_packages",
+]

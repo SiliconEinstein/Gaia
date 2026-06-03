@@ -6,6 +6,8 @@ Install, publish, and bootstrap packages.
 gaia pkg add <package>            Install a registered package from the registry
 gaia pkg add --lkm-index <id> --lkm-paper <paper-id>
                                   Materialize an LKM paper as a local package
+gaia pkg add --lkm-search-json <path>
+                                  Materialize LKM search claim/question results
 gaia pkg add lkm:<index>:paper:<paper-id>
                                   Materialize a canonical LKM paper source ref
 gaia pkg add-import --from <m>    Insert a sibling/module import into a package file
@@ -16,7 +18,7 @@ gaia pkg scaffold --target <p>    Bootstrap a fresh -gaia package directory layo
 
 | Verb | Purpose |
 |---|---|
-| `add` | Resolve a registry entry to a SHA-pinned git URL, add as dependency, optionally cache `dep_beliefs/<name>.json`; also accepts LKM paper source refs/flags, materializes the paper graph as a project-local Gaia package, compiles it, and adds it as an editable dependency |
+| `add` | Resolve a registry entry to a SHA-pinned git URL, add as dependency, optionally cache `dep_beliefs/<name>.json`; also accepts LKM source refs/flags, materializes LKM paper graphs or search variables as project-local Gaia packages, compiles them, and adds them as editable dependencies |
 | `add-import` | Insert an idempotent `from <module> import <names>` line into `__init__.py` or another package source file |
 | `add-module` | Create `src/<import_name>/<module>.py` with an optional docstring, optional seeded DSL imports, and a literal empty `__all__` |
 | `register` | Submit a package to the registry: emit Package/Versions/Deps TOML, exports/premises/holes/bridges/beliefs JSON, and (optionally) push + open a registry PR |
@@ -33,12 +35,24 @@ and canonical source refs:
 
 ```text
 gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
+gaia pkg add --lkm-search-json /tmp/lkm-search.json
 gaia pkg add lkm:bohrium:paper:811827932371615744
 gaia pkg add lkm:paper:811827932371615744
 ```
 
 The short `lkm:paper:<id>` form is a default-index compatibility alias; Gaia
-emits canonical refs with the explicit index id. The paper form fetches
+emits canonical refs with the explicit index id.
+
+`--lkm-search-json` consumes the normalized `gaia-json` envelope produced by
+`gaia search lkm ... --format gaia-json` and materializes claim/question results
+shallowly. Each retrieved LKM variable becomes a generated `claim(...)` or
+`question(...)` in a local LKM-backed dependency package, with metadata preserving
+the query text, search result id, retrieval score, LKM provider id,
+`source_package`, `local_id`, paper id/title, and DOI. This is intentionally a
+search-result landing step: it does not fetch reasoning chains or the full paper
+graph.
+
+The paper form fetches
 `/papers/graph`, writes a generated Gaia package under
 `.gaia/lkm_packages/<package-name>/`, compiles it so dependency manifests exist,
 and runs `uv add --editable <generated-package>`.
@@ -59,9 +73,10 @@ Downstream source can import generated claims directly, for example:
 from lkm_bohrium_controlling_phase_and_morphology_811827932371615744 import conclusion_1
 ```
 
-`gaia pkg add` still does not install standalone LKM claim nodes. Use
-`gaia search lkm reasoning --claim-id <claim-id>` to resolve a claim to its
-backing paper, then add the paper package.
+`gaia pkg add --lkm-claim <claim-id>` still does not fetch standalone LKM claim
+content by id. Use a normalized LKM search JSON file when you already have the
+claim/question payload, or use `gaia search lkm reasoning --claim-id <claim-id>`
+to inspect a claim's reasoning chain before adding the backing paper package.
 
 LKM index URLs are resolver configuration, not package names. `bohrium` is the
 built-in index id for `https://open.bohrium.com/openapi/v1/lkm`; custom indexes

@@ -14,6 +14,7 @@ from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_pa
 from gaia.cli.commands.pkg.lkm_materialize import (
     MaterializedLKMPackage,
     materialize_lkm_paper_package,
+    materialize_lkm_search_packages,
 )
 from gaia.cli.commands.search.lkm._indexes import (
     DEFAULT_LKM_INDEX_ID,
@@ -47,7 +48,7 @@ def add_command(
         DEFAULT_LKM_INDEX_ID,
         "--lkm-index",
         "--lkm-server",
-        help="Configured LKM index id for --lkm-paper / --lkm-claim.",
+        help="Configured LKM index id for LKM-backed package materialization.",
     ),
     lkm_paper: str | None = typer.Option(
         None,
@@ -58,6 +59,14 @@ def add_command(
         None,
         "--lkm-claim",
         help="Resolve this LKM claim id to its backing paper package.",
+    ),
+    lkm_search_json: str | None = typer.Option(
+        None,
+        "--lkm-search-json",
+        help=(
+            "Materialize claim/question variables from a normalized "
+            "`gaia search lkm --format gaia-json` output file."
+        ),
     ),
     target: str = typer.Option(
         ".",
@@ -82,7 +91,10 @@ def add_command(
 
     LKM paper refs/flags fetch the paper graph, generate a local Gaia package
     under ``.gaia/lkm_packages/``, compile it, and add it as an editable
-    dependency with ``uv add --editable``.
+    dependency with ``uv add --editable``. ``--lkm-search-json`` consumes
+    normalized LKM search output and shallowly materializes claim/question
+    variables as Gaia package dependencies without fetching reasoning chains or
+    whole paper graphs.
 
     ``--version`` pins a specific release; omit to take the latest
     registered version.
@@ -94,9 +106,16 @@ def add_command(
         gaia pkg add galileo-falling-bodies-gaia
         gaia pkg add mendel-v0-5-gaia --version 0.1.0
         gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
+        gaia pkg add --lkm-search-json /tmp/lkm-search.json
         gaia pkg add lkm:bohrium:paper:811827932371615744
     """
     try:
+        _validate_lkm_search_json_inputs(
+            package,
+            lkm_paper=lkm_paper,
+            lkm_claim=lkm_claim,
+            lkm_search_json=lkm_search_json,
+        )
         lkm_ref = _resolve_lkm_source_ref(
             package,
             lkm_index=lkm_index,
@@ -112,6 +131,13 @@ def add_command(
     # "run from inside the package" behavior by walking up to the nearest root.
     package_root = _resolve_package_root(target)
 
+    if lkm_search_json is not None:
+        _handle_lkm_search_json_add(
+            Path(lkm_search_json),
+            package_root=package_root,
+            index_id=lkm_index,
+        )
+        return
     if lkm_ref is not None:
         _handle_lkm_source_add(lkm_ref, package_root=package_root)
         return
@@ -172,6 +198,22 @@ class LKMSourceRef:
     def ref(self) -> str:
         """Return the canonical LKM source ref."""
         return f"lkm:{self.index_id}:{self.kind}:{self.provider_id}"
+
+
+def _validate_lkm_search_json_inputs(
+    package: str | None,
+    *,
+    lkm_paper: str | None,
+    lkm_claim: str | None,
+    lkm_search_json: str | None,
+) -> None:
+    if lkm_search_json is None:
+        return
+    if package is not None or lkm_paper is not None or lkm_claim is not None:
+        raise GaiaPackagingError(
+            "pass --lkm-search-json by itself; do not combine it with PACKAGE, "
+            "--lkm-paper, or --lkm-claim."
+        )
 
 
 def _resolve_lkm_source_ref(
@@ -242,6 +284,80 @@ def _handle_lkm_source_add(ref: LKMSourceRef, *, package_root: Path | None) -> N
         err=True,
     )
     raise typer.Exit(1)
+
+
+def _handle_lkm_search_json_add(
+    path: Path,
+    *,
+    package_root: Path | None,
+    index_id: str,
+) -> None:
+    if package_root is None:
+        typer.echo(
+            "Error: --lkm-search-json needs a target Gaia knowledge package. "
+            "Run it inside the package that should depend on these LKM search "
+            "variables, or point --target at it.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise GaiaPackagingError("LKM search JSON root must be an object.")
+        materialized = materialize_lkm_search_packages(
+            payload,
+            project_root=package_root,
+            index_id=normalize_lkm_index_id(index_id) or index_id,
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        typer.echo(f"Error: failed to read LKM search JSON {path}: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    except GaiaPackagingError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    if not materialized.packages:
+        typer.echo(
+            "Error: no claim/question variables with paper provenance were "
+            "found in the LKM search JSON.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    for package in materialized.packages:
+        try:
+            result = _run_uv(["uv", "add", "--editable", str(package.root)], cwd=package_root)
+        except GaiaPackagingError as exc:
+            _echo_lkm_uv_add_failure(package, str(exc))
+            raise typer.Exit(1) from exc
+        if result.returncode != 0:
+            stderr = result.stderr.strip() or result.stdout.strip()
+            _echo_lkm_uv_add_failure(package, stderr or "uv exited with a non-zero status")
+            raise typer.Exit(1)
+
+    package_word = "package" if len(materialized.packages) == 1 else "packages"
+    typer.echo(f"Materialized {len(materialized.packages)} LKM search {package_word}")
+    for package in materialized.packages:
+        typer.echo(f"Package: {package.dist_name}")
+        typer.echo(f"Path: {package.root}")
+        typer.echo(
+            "Contents: "
+            f"{package.claim_count} claims, "
+            f"{package.question_count} questions, "
+            f"{package.dependency_count} depends_on scaffold dependencies"
+        )
+        if package.regenerated_existing:
+            typer.echo(
+                "Warning: regenerated an existing LKM package; review downstream imports "
+                "if generated symbols changed.",
+                err=True,
+            )
+    if materialized.skipped_result_count:
+        typer.echo(
+            f"Note: skipped {materialized.skipped_result_count} search result(s) "
+            "that were not claim/question variables with paper provenance."
+        )
+    typer.echo("Added editable LKM search dependency with uv.")
 
 
 def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> None:

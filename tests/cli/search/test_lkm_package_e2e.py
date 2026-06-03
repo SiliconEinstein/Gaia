@@ -86,6 +86,79 @@ def _paper_graph_payload() -> dict[str, Any]:
     }
 
 
+def _knowledge_search_payload() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "query": {
+            "text": "alpha FAPbI3 phase purity",
+            "provider": "lkm",
+            "kind": "knowledge",
+            "index_id": "bohrium",
+        },
+        "results": [
+            {
+                "id": "lkm:bohrium:gcn_phase",
+                "provider": "lkm",
+                "kind": "claim",
+                "title": "Annealing improves alpha-phase purity",
+                "content": "Annealing at 120 C improves alpha-phase purity.",
+                "rank": {"score": 0.91, "score_kind": "retrieval"},
+                "gaia": {"object_kind": "claim", "qid": None},
+                "source": {
+                    "provider_id": "gcn_phase",
+                    "index_id": "bohrium",
+                    "source_package": "paper:811827932371615744",
+                    "paper_id": "811827932371615744",
+                    "paper_title": "Controlling phase and morphology",
+                    "doi": "10.1016/j.jpcs.2021.110374",
+                    "local_id": "paper:811827932371615744::conclusion_1",
+                    "role": "conclusion",
+                    "has_reasoning": True,
+                },
+                "raw": {
+                    "provider": "lkm",
+                    "payload": {
+                        "content": "Annealing at 120 C improves alpha-phase purity.",
+                        "global_id": "gcn_phase",
+                        "local_id": "paper:811827932371615744::conclusion_1",
+                        "title": "Annealing improves alpha-phase purity",
+                        "type": "claim",
+                    },
+                },
+            },
+            {
+                "id": "lkm:bohrium:gq_phase",
+                "provider": "lkm",
+                "kind": "question",
+                "title": "Which phase conversion pathway dominates?",
+                "content": "Which phase conversion pathway dominates?",
+                "rank": {"score": 0.73, "score_kind": "retrieval"},
+                "gaia": {"object_kind": "question", "qid": None},
+                "source": {
+                    "provider_id": "gq_phase",
+                    "index_id": "bohrium",
+                    "source_package": "paper:811827932371615744",
+                    "paper_id": "811827932371615744",
+                    "paper_title": "Controlling phase and morphology",
+                    "doi": "10.1016/j.jpcs.2021.110374",
+                    "local_id": "paper:811827932371615744::Q1",
+                    "role": "subproblem",
+                },
+                "raw": {
+                    "provider": "lkm",
+                    "payload": {
+                        "content": "Which phase conversion pathway dominates?",
+                        "global_id": "gq_phase",
+                        "local_id": "paper:811827932371615744::Q1",
+                        "title": "Which phase conversion pathway dominates?",
+                        "type": "question",
+                    },
+                },
+            },
+        ],
+    }
+
+
 def _write_consumer_package(
     root: Path,
     *,
@@ -219,6 +292,32 @@ def test_materialized_lkm_package_can_be_imported_and_referenced(tmp_path: Path)
     qids = {item["id"] for item in ir["knowledges"]}
     assert "referenced_lkm_claim" in labels
     assert any(qid.startswith(f"lkm:{materialized.import_name}::") for qid in qids)
+
+
+def test_materialize_lkm_search_variables_creates_shallow_paper_package(
+    tmp_path: Path,
+) -> None:
+    from gaia.cli.commands.pkg.lkm_materialize import materialize_lkm_search_packages
+
+    materialized = materialize_lkm_search_packages(
+        _knowledge_search_payload(),
+        project_root=tmp_path,
+        index_id="bohrium",
+    )
+
+    assert len(materialized.packages) == 1
+    package = materialized.packages[0]
+    assert package.source_ref == "lkm:bohrium:paper:811827932371615744"
+    assert package.claim_count == 1
+    assert package.question_count == 1
+    assert package.dependency_count == 0
+
+    generated_source = (package.root / "src" / package.import_name / "__init__.py").read_text()
+    assert "Annealing at 120 C improves alpha-phase purity." in generated_source
+    assert "Which phase conversion pathway dominates?" in generated_source
+    assert "'query_text': 'alpha FAPbI3 phase purity'" in generated_source
+    assert "'search_result_id': 'lkm:bohrium:gcn_phase'" in generated_source
+    assert "'source_package': 'paper:811827932371615744'" in generated_source
 
 
 def test_materialized_lkm_package_can_be_imported_from_uv_sources(
@@ -364,6 +463,41 @@ def test_pkg_add_lkm_paper_materializes_and_adds_editable_dependency(
     materialized_root = Path(uv_args[3])
     assert materialized_root.exists()
     assert (materialized_root / ".gaia" / "manifests" / "premises.json").exists()
+
+
+def test_pkg_add_lkm_search_json_materializes_shallow_dependencies(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+    search_json = tmp_path / "search.json"
+    search_json.write_text(json.dumps(_knowledge_search_payload()), encoding="utf-8")
+
+    uv_calls: list[tuple[list[str], Path | None]] = []
+
+    def fake_run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        uv_calls.append((args, kwargs.get("cwd")))
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(add_mod, "_run_uv", fake_run_uv)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-search-json", str(search_json)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Materialized 1 LKM search package" in result.output
+    assert "1 claims, 1 questions, 0 depends_on scaffold dependencies" in result.output
+    assert len(uv_calls) == 1
+    uv_args, uv_cwd = uv_calls[0]
+    assert uv_args[:3] == ["uv", "add", "--editable"]
+    assert uv_cwd == consumer
+    assert Path(uv_args[3]).exists()
 
 
 def test_pkg_add_lkm_paper_warns_when_response_has_no_paper_id(
