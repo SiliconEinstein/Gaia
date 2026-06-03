@@ -485,6 +485,12 @@ but those are consequences of the judged credibility, not rules.
     elsewhere.
   - **0.001–0.20** — almost certainly wrong (rare; reserved for clear
     refutations).
+  - **~0.5 (unbiased)** — a proposition the paper itself **newly proposes with no
+    external support** (a leaf with nothing backing it either way): genuinely
+    50/50 a priori, so set it at maximum entropy — neither low (as if doubtful)
+    nor high (as if established). Distinct from the 0.40–0.60 band, where the
+    reviewer judges the claim *shaky*; here there is simply no prior evidence to
+    favour true or false yet.
   - Only hard bounds are BP validity: strictly between 0 and 1, so ~0.001 and
     ~0.999 are the practical extremes (Cromwell). **No 0.9 cap** — a premise the
     reviewer is genuinely near-certain of belongs at 0.95–0.999.
