@@ -43,7 +43,7 @@ def _write_pkg(pkg_dir: Path, name: str = "anchor_pkg") -> None:
         '    "conclusion from above"\n'
         ")\n"
         "sup = support(premises=[hypothesis, evidence], conclusion=conclusion)\n"
-        '__all__ = ["hypothesis", "evidence", "conclusion", "sup"]\n'
+        '__all__ = ["hypothesis", "evidence", "conclusion"]\n'
     )
     (src / "__init__.py").write_text(body, encoding="utf-8")
 

@@ -39,7 +39,7 @@ def _pkg_with_holes(pkg_dir: Path, name: str = "review_pkg") -> None:
         "sup = support(premises=[hole, covered], conclusion=derived_claim)\n"
         'iid = note("data is i.i.d.")\n'
         'rq = question("does it generalize?")\n'
-        '__all__ = ["covered", "hole", "derived_claim", "sup", "iid", "rq"]\n',
+        '__all__ = ["covered", "hole", "derived_claim", "iid", "rq"]\n',
         encoding="utf-8",
     )
 
@@ -271,7 +271,7 @@ def test_review_adapter_preserves_strategy_and_operator_ids(tmp_path):
         'c = claim("C")\n'
         "sup = support(premises=[a], conclusion=c)\n"
         "conflict = contradiction(a, b)\n"
-        '__all__ = ["a", "b", "c", "sup", "conflict"]\n',
+        '__all__ = ["a", "b", "c", "conflict"]\n',
         encoding="utf-8",
     )
 

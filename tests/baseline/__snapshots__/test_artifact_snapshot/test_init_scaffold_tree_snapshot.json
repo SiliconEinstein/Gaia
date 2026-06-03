@@ -21,7 +21,7 @@
       "path": "pyproject.toml"
     },
     {
-      "content": "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n\nfrom .authored import *  # noqa: F403  (CLI-authored statements)\nfrom . import authored as _authored\n\n__all__ = [*__all__, *_authored.__all__]\n",
+      "content": "from gaia.engine.lang import claim\n\n__all__: list[str] = []\n\nfrom . import authored as _authored\n\nfor _gaia_name, _gaia_value in vars(_authored).items():\n    if not _gaia_name.startswith(\"_\"):\n        globals()[_gaia_name] = _gaia_value\ndel _gaia_name, _gaia_value\n\n__all__ = [*__all__, *_authored.__all__]\n",
       "kind": "text",
       "path": "src/demo/__init__.py"
     },

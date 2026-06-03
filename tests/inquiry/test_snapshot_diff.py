@@ -50,9 +50,9 @@ def _write_pkg(
     )
     if extra_claim:
         body += f'extra = claim("{extra_claim}")\n'
-        body += '__all__ = ["main", "evidence", "sup", "extra"]\n'
+        body += '__all__ = ["main", "evidence", "extra"]\n'
     else:
-        body += '__all__ = ["main", "evidence", "sup"]\n'
+        body += '__all__ = ["main", "evidence"]\n'
     (src / "__init__.py").write_text(body, encoding="utf-8")
 
 
