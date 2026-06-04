@@ -360,13 +360,14 @@ def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:
 def _extract_lkm_reasoning_paper_id(payload: dict[str, Any]) -> str | None:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
     chains = _reasoning_chains(data)
-    for chain in chains:
-        source_paper = _paper_id_from_source_package(chain.get("source_package"))
-        if source_paper:
-            return source_paper
-        paper_id = _text_id(chain.get("paper_id"))
-        if paper_id:
-            return paper_id
+
+    # Each stage resolves only when it points at a single distinct paper. A claim
+    # whose chains span several papers is genuinely ambiguous about which paper
+    # "backs" it, so we fall through rather than silently adding a dependency on
+    # whichever chain happened to sort first.
+    chain_paper_ids = _paper_ids_from_reasoning_chains(chains)
+    if len(chain_paper_ids) == 1:
+        return chain_paper_ids[0]
 
     paper_ids = _paper_ids_from_papers_block(data.get("papers") if isinstance(data, dict) else None)
     if len(paper_ids) == 1:
@@ -376,6 +377,17 @@ def _extract_lkm_reasoning_paper_id(payload: dict[str, Any]) -> str | None:
     if len(graph_paper_ids) == 1:
         return graph_paper_ids[0]
     return None
+
+
+def _paper_ids_from_reasoning_chains(chains: list[dict[str, Any]]) -> list[str]:
+    paper_ids: list[str] = []
+    for chain in chains:
+        paper_id = _paper_id_from_source_package(chain.get("source_package")) or _text_id(
+            chain.get("paper_id")
+        )
+        if paper_id and paper_id not in paper_ids:
+            paper_ids.append(paper_id)
+    return paper_ids
 
 
 def _reasoning_chains(data: Any) -> list[dict[str, Any]]:
