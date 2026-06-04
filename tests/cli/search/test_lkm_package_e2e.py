@@ -777,6 +777,64 @@ def test_pkg_add_lkm_claim_refuses_ambiguous_multi_paper_chains(
     assert calls == ["/claims/gcn_shared/reasoning"]
 
 
+def test_pkg_add_lkm_claim_refuses_ambiguous_chains_with_single_papers_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+    calls: list[str] = []
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        calls.append(path)
+        assert method == "GET"
+        assert path == "/claims/gcn_shared/reasoning"
+        assert index_id == "bohrium"
+        return {
+            "code": 0,
+            "data": {
+                "reasoning_chains": [
+                    {
+                        "source_package": "paper:811111111111111111",
+                        "graph": {"nodes": [], "edges": []},
+                    },
+                    {
+                        "source_package": "paper:822222222222222222",
+                        "graph": {"nodes": [], "edges": []},
+                    },
+                ],
+                "papers": [
+                    {
+                        "paper": {
+                            "id": "811111111111111111",
+                            "package_id": "paper:811111111111111111",
+                        }
+                    }
+                ],
+            },
+        }
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-claim", "gcn_shared"],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "did not identify a backing paper" in result.output
+    assert calls == ["/claims/gcn_shared/reasoning"]
+
+
 def test_pkg_add_lkm_paper_warns_when_response_has_no_paper_id(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

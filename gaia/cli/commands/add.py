@@ -361,21 +361,24 @@ def _extract_lkm_reasoning_paper_id(payload: dict[str, Any]) -> str | None:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
     chains = _reasoning_chains(data)
 
-    # Each stage resolves only when it points at a single distinct paper. A claim
-    # whose chains span several papers is genuinely ambiguous about which paper
-    # "backs" it, so we fall through rather than silently adding a dependency on
-    # whichever chain happened to sort first.
+    # Prefer paper ids carried by the reasoning itself over fallback metadata.
+    # Once direct reasoning evidence spans several papers, the backing paper is
+    # ambiguous and weaker summary blocks must not collapse it to a guess.
     chain_paper_ids = _paper_ids_from_reasoning_chains(chains)
     if len(chain_paper_ids) == 1:
         return chain_paper_ids[0]
-
-    paper_ids = _paper_ids_from_papers_block(data.get("papers") if isinstance(data, dict) else None)
-    if len(paper_ids) == 1:
-        return paper_ids[0]
+    if chain_paper_ids:
+        return None
 
     graph_paper_ids = _paper_ids_from_reasoning_graphs(chains)
     if len(graph_paper_ids) == 1:
         return graph_paper_ids[0]
+    if graph_paper_ids:
+        return None
+
+    paper_ids = _paper_ids_from_papers_block(data.get("papers") if isinstance(data, dict) else None)
+    if len(paper_ids) == 1:
+        return paper_ids[0]
     return None
 
 
