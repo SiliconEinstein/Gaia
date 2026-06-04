@@ -185,8 +185,7 @@ Every Gaia-native search command should return:
       "raw": {
         "provider": "lkm",
         "payload": {}
-      },
-      "raw_lkm": {}
+      }
     }
   ]
 }
@@ -206,8 +205,7 @@ Field rules:
 | `reasoning_view` | Thin reasoning summary when the LKM result is a reasoning chain: conclusion claim, motivating questions, dependency claim buckets, and steps |
 | `lkm_view` | Thin LKM graph summary for paper/package results: node counts, edge-type counts, and raw LKM logic relations |
 | `actions` | Suggested follow-up actions. `kind` + `ref` are the machine-readable contract; `label` / `target` are display metadata; `next_steps` is a human/agent hint |
-| `raw` | Optional original provider payload for debugging and migration |
-| `raw_lkm` | Unwrapped LKM payload for consumers that do not need the provider wrapper |
+| `raw` | Verbatim upstream payload (`{provider, payload}`) — the audit/debug escape hatch. Prefer the normalized fields above; read `raw.payload` only when you need data the envelope does not surface. Provider identity is already on the top-level `provider` field |
 
 Search output is name-first and id-backed. Paper titles are the primary display
 name when available (`title`, `source.paper_title`, `actions[].label`), while

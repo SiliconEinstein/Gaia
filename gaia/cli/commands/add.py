@@ -360,22 +360,37 @@ def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:
 def _extract_lkm_reasoning_paper_id(payload: dict[str, Any]) -> str | None:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
     chains = _reasoning_chains(data)
-    for chain in chains:
-        source_paper = _paper_id_from_source_package(chain.get("source_package"))
-        if source_paper:
-            return source_paper
-        paper_id = _text_id(chain.get("paper_id"))
-        if paper_id:
-            return paper_id
 
-    paper_ids = _paper_ids_from_papers_block(data.get("papers") if isinstance(data, dict) else None)
-    if len(paper_ids) == 1:
-        return paper_ids[0]
+    # Prefer paper ids carried by the reasoning itself over fallback metadata.
+    # Once direct reasoning evidence spans several papers, the backing paper is
+    # ambiguous and weaker summary blocks must not collapse it to a guess.
+    chain_paper_ids = _paper_ids_from_reasoning_chains(chains)
+    if len(chain_paper_ids) == 1:
+        return chain_paper_ids[0]
+    if chain_paper_ids:
+        return None
 
     graph_paper_ids = _paper_ids_from_reasoning_graphs(chains)
     if len(graph_paper_ids) == 1:
         return graph_paper_ids[0]
+    if graph_paper_ids:
+        return None
+
+    paper_ids = _paper_ids_from_papers_block(data.get("papers") if isinstance(data, dict) else None)
+    if len(paper_ids) == 1:
+        return paper_ids[0]
     return None
+
+
+def _paper_ids_from_reasoning_chains(chains: list[dict[str, Any]]) -> list[str]:
+    paper_ids: list[str] = []
+    for chain in chains:
+        paper_id = _paper_id_from_source_package(chain.get("source_package")) or _text_id(
+            chain.get("paper_id")
+        )
+        if paper_id and paper_id not in paper_ids:
+            paper_ids.append(paper_id)
+    return paper_ids
 
 
 def _reasoning_chains(data: Any) -> list[dict[str, Any]]:

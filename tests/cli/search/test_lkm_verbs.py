@@ -410,7 +410,8 @@ class TestKnowledge:
                 "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             },
         ]
-        assert item["raw_lkm"]["id"] == "gcn_579430355a0e4bbd"
+        assert item["raw"]["provider"] == "lkm"
+        assert item["raw"]["payload"]["id"] == "gcn_579430355a0e4bbd"
 
     def test_gaia_json_omits_inspect_when_claim_has_no_reasoning(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1205,6 +1206,64 @@ class TestReasoning:
             "depends_on_other_claims": [],
             "reasoning_steps": [{"reasoning": "Combine the evidence."}],
         }
+
+    def test_claim_reasoning_graph_zero_premise_factor_flags_package_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A graph factor that concludes a claim but carries no premise edges is
+        # an intermediate paper-chain node whose upstream premises live in the
+        # package: it must NOT be labeled derivable, and it must surface the
+        # package-context comment plus an inspect action — the same contract the
+        # legacy inline-factor path already enforces.
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "source_package": "paper:811827932371615744",
+                            "graph": {
+                                "nodes": [
+                                    {"id": "lfac_leaf", "type": "factor", "kind": "strategy"},
+                                    {
+                                        "id": "gcn_result",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Final result",
+                                    },
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "concludes",
+                                        "source": "lfac_leaf",
+                                        "target": "gcn_result",
+                                    },
+                                ],
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["gaia"]["object_kind"] is None
+        assert item["source"]["can_compile"] is False
+        assert item["source"]["has_factors"] is True
+        assert item["source"]["factors"] == [
+            {
+                "factor_id": "lfac_leaf",
+                "premise_count": 0,
+                "comment": "premises omitted; inspect package for upstream reasoning context",
+            }
+        ]
+        inspect_actions = [action for action in item["actions"] if action["kind"] == "inspect"]
+        assert inspect_actions, item["actions"]
+        assert "811827932371615744" in inspect_actions[0]["next_steps"]
 
 
 # --------------------------------------------------------------------------- #
