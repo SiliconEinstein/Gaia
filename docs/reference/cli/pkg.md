@@ -4,6 +4,7 @@ Install, publish, and bootstrap packages.
 
 ```text
 gaia pkg add <package>            Install a registered package from the registry
+gaia pkg add --local <path>       Add a local Gaia package dependency
 gaia pkg add --lkm-index <id> --lkm-paper <paper-id>
                                   Materialize an LKM paper as a local package
 gaia pkg add --lkm-index <id> --lkm-claim <claim-id>
@@ -20,7 +21,7 @@ gaia pkg scaffold --target <p>    Bootstrap a fresh -gaia package directory layo
 
 | Verb | Purpose |
 |---|---|
-| `add` | Resolve a registry entry to a SHA-pinned git URL, add as dependency, optionally cache `dep_beliefs/<name>.json`; also accepts LKM paper source refs/flags, materializes the paper graph as a project-local Gaia package, compiles it, and adds it as an editable dependency |
+| `add` | Resolve a registry entry to a SHA-pinned git URL, add as dependency, optionally cache `dep_beliefs/<name>.json`; add an existing local Gaia package with `--local`; also accepts LKM paper source refs/flags, materializes the paper graph as a project-local Gaia package, compiles it, and adds it as a local dependency |
 | `add-import` | Insert an idempotent `from <module> import <names>` line into `__init__.py` or another package source file |
 | `add-module` | Create `src/<import_name>/<module>.py` with an optional docstring, optional seeded DSL imports, and a literal empty `__all__` |
 | `register` | Submit a package to the registry: emit Package/Versions/Deps TOML, exports/premises/holes/bridges/beliefs JSON, and (optionally) push + open a registry PR |
@@ -31,6 +32,18 @@ The historical flat verbs map to grouped paths where applicable
 `add-import`, `add-module`, and `scaffold` verbs are v0.5 additions. See
 [CLI Commands](../../for-users/cli-commands.md) for workflow examples and
 use `gaia pkg <verb> --help` for the executable option surface.
+
+For local Gaia packages, use `--local`:
+
+```text
+gaia pkg add --local .gaia/lkm_packages/<package-name>
+```
+
+The local path must already be a Gaia knowledge package. Internally, Gaia asks
+`uv` to install it as an editable local dependency, but the public contract is
+"add this local package". Generated source packages from future research or LKM
+adapters should be written as Gaia packages first, then attached with `--local`
+instead of teaching `pkg add` source-specific search schemas.
 
 For LKM search results, `gaia pkg add` accepts both the friendly action form
 and canonical source refs:
