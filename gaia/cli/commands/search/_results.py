@@ -186,7 +186,6 @@ def _normalize_lkm_variable(
             "has_reasoning": variable.get("has_reasoning"),
         },
         "actions": actions,
-        "raw_lkm": variable,
         "raw": {"provider": "lkm", "payload": variable},
     }
 
@@ -258,7 +257,6 @@ def _normalize_lkm_chain(
             "can_compile": has_derivable_factor,
         },
         "actions": actions,
-        "raw_lkm": chain,
         "raw": {"provider": "lkm", "payload": chain},
     }
 
@@ -322,7 +320,6 @@ def _normalize_lkm_paper_graph_item(
             "stats": _dict(item.get("stats")),
         },
         "actions": _add_actions(paper_id, index_id=index_id, paper_title=paper_title, doi=doi),
-        "raw_lkm": item,
         "raw": {"provider": "lkm", "payload": item},
     }
 

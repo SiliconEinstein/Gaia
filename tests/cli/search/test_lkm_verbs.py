@@ -410,7 +410,8 @@ class TestKnowledge:
                 "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             },
         ]
-        assert item["raw_lkm"]["id"] == "gcn_579430355a0e4bbd"
+        assert item["raw"]["provider"] == "lkm"
+        assert item["raw"]["payload"]["id"] == "gcn_579430355a0e4bbd"
 
     def test_gaia_json_omits_inspect_when_claim_has_no_reasoning(
         self, monkeypatch: pytest.MonkeyPatch
