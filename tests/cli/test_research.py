@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -49,6 +51,20 @@ def _read_inquiry_state(pkg_dir: Path) -> dict[str, object]:
     state_path = pkg_dir / ".gaia" / "inquiry" / "state.json"
     assert state_path.exists()
     return json.loads(state_path.read_text(encoding="utf-8"))
+
+
+def _patch_uv_add(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+    calls: list[dict[str, object]] = []
+
+    def fake_run_uv(
+        args: list[str],
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append({"args": list(args), "cwd": kwargs.get("cwd")})
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr("gaia.cli.commands.add._run_uv", fake_run_uv)
+    return calls
 
 
 def _search(query: str, rows: list[dict[str, object]]) -> dict[str, object]:
@@ -249,6 +265,71 @@ def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path)
     state = _read_inquiry_state(pkg_dir)
     assert len(state["synthetic_hypotheses"]) == 1
     assert len(state["synthetic_obligations"]) == 1
+
+
+def test_research_scan_materializes_items_as_local_source_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    uv_calls = _patch_uv_add(monkeypatch)
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "hubble tension",
+                [
+                    _lkm_row(
+                        "P_H0",
+                        "lkm:bohrium:claim_1",
+                        0.92,
+                        paper_title="H0 tension review",
+                        doi="10.1000/h0",
+                        content="Local distance-ladder measurements prefer a higher H0.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "source_packages_added: 1" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+    source_roots = sorted((pkg_dir / ".gaia" / "research" / "source_packages").glob("*-gaia"))
+    assert len(source_roots) == 1
+    source_root = source_roots[0]
+    assert (source_root / "pyproject.toml").exists()
+    generated_sources = list((source_root / "src").glob("*/__init__.py"))
+    assert len(generated_sources) == 1
+    generated = generated_sources[0].read_text(encoding="utf-8")
+    assert "claim(" in generated
+    assert "Local distance-ladder measurements prefer a higher H0." in generated
+    assert '"variable_id": "claim_1"' in generated
+    assert '"paper_id": "P_H0"' in generated
+    assert '"landscape_artifact"' in generated
+    assert uv_calls == [
+        {
+            "args": ["uv", "add", "--editable", str(source_root)],
+            "cwd": pkg_dir,
+        }
+    ]
+
+    events = _read_events(pkg_dir)
+    source_payload = events[-1]["payload"]["source_packages_added"]
+    assert len(source_payload) == 1
+    assert source_payload[0]["path"] == str(source_root)
+    assert source_payload[0]["claim_count"] == 1
+
+    check = runner.invoke(app, ["build", "check", str(source_root)])
+    assert check.exit_code == 0, check.output
 
 
 def test_research_scan_reads_search_json_from_stdin(tmp_path: Path) -> None:

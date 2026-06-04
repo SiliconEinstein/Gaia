@@ -269,6 +269,36 @@ def _make_lkm_ref(index_id: str, kind: str, provider_id: str) -> LKMSourceRef:
     )
 
 
+def add_local_package_dependency(local: Path, *, package_root: Path) -> Path:
+    """Add ``local`` as an editable dependency of ``package_root``.
+
+    This is the programmatic counterpart of ``gaia pkg add --local``. Research
+    adapters can generate partial source packages, then route the dependency
+    mutation through this same package-native contract instead of shelling out
+    to another CLI process.
+    """
+    local_candidate = local if local.is_absolute() else package_root / local
+    local_root = _resolve_package_root(str(local_candidate))
+    if local_root is None and not local.is_absolute():
+        local_root = _resolve_package_root(str(local))
+    if local_root is None:
+        raise GaiaPackagingError(
+            f"--local path is not a Gaia knowledge package: {local_candidate.resolve()}"
+        )
+    if local_root == package_root:
+        raise GaiaPackagingError("--local cannot add the target package to itself.")
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(local_root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        raise GaiaPackagingError(str(exc)) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        raise GaiaPackagingError(f"uv add failed: {stderr}")
+
+    return local_root
+
+
 def _handle_local_package_add(local: Path, *, package_root: Path | None) -> None:
     if package_root is None:
         typer.echo(
@@ -278,33 +308,11 @@ def _handle_local_package_add(local: Path, *, package_root: Path | None) -> None
         )
         raise typer.Exit(1)
 
-    local_candidate = local if local.is_absolute() else package_root / local
-    local_root = _resolve_package_root(str(local_candidate))
-    if local_root is None and not local.is_absolute():
-        local_root = _resolve_package_root(str(local))
-    if local_root is None:
-        typer.echo(
-            f"Error: --local path is not a Gaia knowledge package: {local_candidate.resolve()}",
-            err=True,
-        )
-        raise typer.Exit(1)
-    if local_root == package_root:
-        typer.echo(
-            "Error: --local cannot add the target package to itself.",
-            err=True,
-        )
-        raise typer.Exit(1)
-
     try:
-        result = _run_uv(["uv", "add", "--editable", str(local_root)], cwd=package_root)
+        local_root = add_local_package_dependency(local, package_root=package_root)
     except GaiaPackagingError as exc:
-        typer.echo(str(exc), err=True)
+        typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc
-    if result.returncode != 0:
-        stderr = result.stderr.strip() or result.stdout.strip()
-        typer.echo(f"Error: uv add failed: {stderr}", err=True)
-        raise typer.Exit(1)
-
     typer.echo(f"Added local Gaia package: {local_root}")
 
 

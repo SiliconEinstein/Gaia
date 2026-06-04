@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
+from gaia.cli.commands.add import add_local_package_dependency
+from gaia.engine.packaging import GaiaPackagingError
 from gaia.engine.research import (
     ResearchPackage,
     ResearchReportError,
@@ -22,6 +24,7 @@ from gaia.engine.research import (
     ensure_research_manifest,
     evaluate_research_stop,
     load_research_package,
+    materialize_landscape_source_package,
     render_research_artifact_markdown,
     research_contract,
     sync_assessment_artifact,
@@ -174,6 +177,8 @@ def _print_sync_summary(payload: dict[str, object]) -> None:
     typer.echo(f"writes_source: {str(payload.get('writes_source')).lower()}")
     typer.echo(f"writes_inquiry: {str(payload.get('writes_inquiry')).lower()}")
     for key in (
+        "source_packages_written",
+        "source_packages_added",
         "questions_written",
         "notes_written",
         "candidate_relations_written",
@@ -187,6 +192,54 @@ def _print_sync_summary(payload: dict[str, object]) -> None:
     focus_set = payload.get("focus_set")
     if isinstance(focus_set, str) and focus_set:
         typer.echo(f"focus_set: {focus_set}")
+
+
+def _materialize_landscape_sources_or_exit(
+    research_pkg: ResearchPackage,
+    landscape: dict[str, Any],
+    *,
+    landscape_artifact: Path,
+    enabled: bool,
+    artifact_only: bool,
+    dry_run: bool,
+) -> dict[str, object]:
+    if not enabled or artifact_only or dry_run:
+        return {
+            "materialize_sources_enabled": bool(enabled),
+            "source_package_materialization": False,
+            "source_packages_written": [],
+            "source_packages_added": [],
+        }
+
+    materialized = materialize_landscape_source_package(
+        research_pkg,
+        landscape,
+        landscape_artifact=landscape_artifact,
+    )
+    if materialized is None:
+        return {
+            "materialize_sources_enabled": True,
+            "source_package_materialization": False,
+            "source_packages_written": [],
+            "source_packages_added": [],
+        }
+
+    payload = materialized.to_payload()
+    try:
+        local_root = add_local_package_dependency(materialized.root, package_root=research_pkg.path)
+    except GaiaPackagingError as exc:
+        typer.echo(f"Error: failed to add generated source package: {exc}", err=True)
+        typer.echo(f"Generated source package: {materialized.root}", err=True)
+        raise typer.Exit(1) from exc
+
+    added_payload = dict(payload)
+    added_payload["path"] = str(local_root)
+    return {
+        "materialize_sources_enabled": True,
+        "source_package_materialization": True,
+        "source_packages_written": [payload],
+        "source_packages_added": [added_payload],
+    }
 
 
 @research_app.command("contract")
@@ -243,6 +296,16 @@ def explore_command(
             help="Write only .gaia/research artifacts; skip inquiry/package sync.",
         ),
     ] = False,
+    materialize_sources: Annotated[
+        bool,
+        typer.Option(
+            "--materialize-sources/--no-materialize-sources",
+            help=(
+                "Materialize shallow search items as a local Gaia source package "
+                "and add it with `gaia pkg add --local` semantics."
+            ),
+        ),
+    ] = True,
     search_json: Annotated[
         list[str] | None,
         typer.Option(
@@ -309,13 +372,21 @@ def explore_command(
             landscape,
             out=out,
         )
+        source_payload = _materialize_landscape_sources_or_exit(
+            research_pkg,
+            landscape,
+            landscape_artifact=output_path,
+            enabled=materialize_sources,
+            artifact_only=artifact_only,
+            dry_run=dry_run,
+        )
         sync = sync_landscape_artifact(
             research_pkg,
             landscape,
             artifact_only=artifact_only,
             dry_run=dry_run,
         )
-        sync_payload = sync.to_payload()
+        sync_payload = {**sync.to_payload(), **source_payload}
         append_research_event(
             research_pkg,
             "explore.expand.completed",
@@ -352,13 +423,21 @@ def explore_command(
             landscape,
             out=out,
         )
+        source_payload = _materialize_landscape_sources_or_exit(
+            research_pkg,
+            landscape,
+            landscape_artifact=output_path,
+            enabled=materialize_sources,
+            artifact_only=artifact_only,
+            dry_run=dry_run,
+        )
         sync = sync_landscape_artifact(
             research_pkg,
             landscape,
             artifact_only=artifact_only,
             dry_run=dry_run,
         )
-        sync_payload = sync.to_payload()
+        sync_payload = {**sync.to_payload(), **source_payload}
         append_research_event(
             research_pkg,
             "explore.scan.completed",
@@ -393,6 +472,10 @@ def explore_command(
             "writes_source": False,
             "writes_inquiry": False,
             "artifact_only": artifact_only,
+            "materialize_sources_enabled": materialize_sources,
+            "source_package_materialization": False,
+            "source_packages_written": [],
+            "source_packages_added": [],
         },
     )
 
@@ -442,6 +525,16 @@ def expand_command(
             help="Write only .gaia/research artifacts; skip inquiry/package sync.",
         ),
     ] = False,
+    materialize_sources: Annotated[
+        bool,
+        typer.Option(
+            "--materialize-sources/--no-materialize-sources",
+            help=(
+                "Materialize shallow search items as a local Gaia source package "
+                "and add it with `gaia pkg add --local` semantics."
+            ),
+        ),
+    ] = True,
 ) -> None:
     """Run targeted Explore expansion around one focus or obligation."""
     explore_command(
@@ -449,6 +542,7 @@ def expand_command(
         mode="expand",
         dry_run=False,
         artifact_only=artifact_only,
+        materialize_sources=materialize_sources,
         search_json=search_json,
         query=query,
         source=source,

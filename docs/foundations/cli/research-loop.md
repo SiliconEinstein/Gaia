@@ -56,6 +56,9 @@ Broadly scan LKM results and update the package-local research process.
 
 Canonical writes:
 
+- materialize this scan's search items as a shallow local Gaia source package
+  and attach it with the same local dependency contract as `gaia pkg add
+  --local`;
 - create or refresh inquiry hypotheses for promising directions;
 - create inquiry obligations for obvious coverage gaps;
 - keep selected paper leads as candidates for later expansion.
@@ -66,8 +69,9 @@ Trace writes:
 - landscape summary;
 - command/event log.
 
-Default guardrail: do not write claims and do not deep-pull papers during the
-first broad scan.
+Default guardrail: write only shallow source claims/notes from the already
+available search output. Do not deep-pull paper graphs during the first broad
+scan.
 
 ### `gaia research focus`
 
@@ -191,7 +195,8 @@ pulling is wired into the assess boundary.
 | coverage gap | inquiry obligation | keep original explanation |
 | assessment relation | `candidate_relation(...)` until promoted | preserve evidence snippets and citation anchors |
 | candidate obligation | inquiry obligation | preserve assessment rationale |
-| paper lead | `gaia pkg add` only when selected | keep raw search/cache row |
+| search item | shallow local source package added through `gaia pkg add --local` semantics | keep raw row for trace and LLM contract |
+| paper lead | deep `gaia pkg add --lkm-paper` only when selected | keep raw search/cache row and pull candidate command |
 | stable conclusion | `claim(...)` / `derive(...)` / formal relation | preserve review history |
 | stop criteria | inquiry/review decision input | record metrics and timing |
 
@@ -216,8 +221,10 @@ one paper cluster.
 The current implementation follows the package/inquiry-centric direction for the
 main loop:
 
-- `explore` and `expand` write landscape artifacts and sync candidate focuses /
-  coverage gaps into inquiry hypotheses and obligations;
+- `explore` and `expand` write landscape artifacts, materialize shallow source
+  packages from search items, attach those packages as local dependencies, and
+  sync candidate focuses / coverage gaps into inquiry hypotheses and
+  obligations;
 - `focus` writes at most 3 accepted focuses as package `question(...)`
   statements and sets the first as the inquiry focus;
 - `assess` writes review notes, inquiry hypotheses/obligations, and
@@ -227,7 +234,8 @@ main loop:
 
 Known remaining gaps:
 
-- assessment does not yet call `gaia pkg add` / paper-pull primitives directly;
+- assessment does not yet call deep `gaia pkg add --lkm-paper` or reasoning-chain
+  pull primitives directly;
 - `promote` records materialization links but does not synthesize formal
   `claim(...)` or relation statements;
 - LLM prompt templates and report rendering still need iteration around review

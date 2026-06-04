@@ -34,6 +34,10 @@ from gaia.engine.research.report import (
     ResearchReportError,
     render_research_artifact_markdown,
 )
+from gaia.engine.research.source_packages import (
+    ResearchSourcePackage,
+    materialize_landscape_source_package,
+)
 from gaia.engine.research.stop import STOP_SCHEMA_VERSION, evaluate_research_stop
 from gaia.engine.research.sync import (
     ResearchSyncResult,
@@ -50,6 +54,7 @@ __all__ = [
     "ResearchContractError",
     "ResearchPackage",
     "ResearchReportError",
+    "ResearchSourcePackage",
     "ResearchSyncResult",
     "ResearchTargetError",
     "ScanBatch",
@@ -64,6 +69,7 @@ __all__ = [
     "evaluate_research_stop",
     "focus_contract",
     "load_research_package",
+    "materialize_landscape_source_package",
     "render_research_artifact_markdown",
     "research_contract",
     "scaffold_suggestion",

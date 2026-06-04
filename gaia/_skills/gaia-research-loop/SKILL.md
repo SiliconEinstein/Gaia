@@ -16,6 +16,7 @@ Run a package-native research loop without inventing a second research data
 model. The canonical state lives in:
 
 - Gaia package source: `question(...)`, `note(...)`,
+  `claim(...)` / `note(...)` from shallow source packages,
   `candidate_relation(...)`, `materialize(...)`.
 - Gaia inquiry state: active focus, hypotheses, obligations, tactic log.
 - `.gaia/research`: trace, cache, reports, timing, and audit artifacts only.
@@ -26,6 +27,8 @@ the JSON schema source; do not copy or freestyle schemas in the skill.
 ## Hard Boundaries
 
 - Start broad. Do not deep-pull papers during initial Explore or Expand.
+- During Explore and Expand, default to shallow source packages from search
+  items; reserve full paper/chain pulls for focused assessment.
 - Do not use `gaia-lkm-explore` for this workflow unless the user explicitly asks
   for legacy comparison.
 - Do not treat search rank as confidence.
@@ -92,6 +95,8 @@ gaia research explore "$PKG" --mode scan \
 Success criteria:
 
 - Landscape artifact exists under `.gaia/research/landscapes/`.
+- A shallow source package exists under `.gaia/research/source_packages/` and is
+  added through the local package dependency contract.
 - CLI reports `pull_budget: 0`.
 - Candidate focuses and coverage gaps are synced to inquiry hypotheses /
   obligations.
@@ -137,6 +142,7 @@ Success criteria:
 
 - Targeted landscape exists.
 - Expand still does not pull papers.
+- Expand still writes only shallow source packages, not paper graphs.
 - New gaps/hypotheses are written to inquiry state.
 - The landscape adds information that changes assessment readiness or stop
   criteria.
@@ -242,4 +248,7 @@ Before handing off:
 - Inventing `snippet`, `lkm_node`, or `gaia_qid` terminology. Use neutral
   `items` for artifact-local references; use `variable`, `paper`, or `factor`
   only when the source object is actually that type.
+- Treating artifact-local `items` as the durable evidence store. They are trace
+  references; the durable shallow evidence bundle is the generated local source
+  package.
 - Rewriting schemas in prompts. Always print and follow `gaia research contract`.
