@@ -79,8 +79,8 @@ def add_command(
     resolved ``git+<repo>@<sha>`` spec, and best-effort downloads the
     upstream ``beliefs.json`` into ``.gaia/dep_beliefs/<import_name>.json``
     so foreign-node priors flow into local inference. Must be run from
-    within a Gaia knowledge package (``pyproject.toml`` carrying
-    ``[tool.gaia]``).
+    within a Gaia knowledge package (``pyproject.toml`` carrying a
+    ``tool.gaia`` table).
 
     LKM paper refs/flags fetch the paper graph, generate a local Gaia package
     under ``.gaia/lkm_packages/``, compile it, and add it as an editable

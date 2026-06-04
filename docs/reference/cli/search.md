@@ -7,7 +7,10 @@ gaia search lkm knowledge <query>           Search LKM claim/question nodes
 gaia search lkm reasoning <query>           Search LKM reasoning chains
 gaia search lkm reasoning --claim-id <id>   Fetch reasoning chains for one claim
 gaia search lkm nodes <ids...>              Fetch LKM graph nodes by id
-gaia search lkm package [identifier]        Fetch one LKM paper package candidate
+gaia search lkm package --paper-id <id>     Fetch one LKM paper package candidate
+gaia search lkm package --package-id paper:<id>
+gaia search lkm package --doi <doi>
+gaia search lkm package --title <title>
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
@@ -22,6 +25,10 @@ inspect the upstream LKM JSON envelope directly.
 default (`format=graph`). In practice this means Gaia receives a small claim /
 factor / question graph for one target claim, rather than only the older
 factor-list slice.
+
+`package` requires exactly one identifier flag: `--package-id`, `--paper-id`,
+`--doi`, or `--title`. `--title` may return several candidate papers and accepts
+`--title-resolve-limit`; the other identifier modes address one paper directly.
 
 Use `--index <id>` on LKM verbs to select a configured LKM index. This follows
 the same split as `pip` / `uv`: the dependency or source ref stays stable,
@@ -98,8 +105,9 @@ the conclusion being produced by that reasoning step. Incoming claim edges such
 as `previous_conclusion_of`, `weakpoint_of`, and `highlight_of` are shown in
 `reasoning_view` as dependencies of the reasoning step:
 `depends_on_previous_conclusion_claims`, `depends_on_weakness_claims`, and
-`depends_on_highlight_claims`. The original LKM relation names are still kept in
-the raw payload.
+`depends_on_highlight_claims`. Other incoming claim edges to the factor are
+kept as `depends_on_other_claims`. The original LKM relation names are still
+kept in the raw payload.
 
 `package` results include `lkm_view`, a compact summary of the paper graph:
 node counts, edge-type counts, and any logic relations embedded in node
