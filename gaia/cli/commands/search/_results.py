@@ -216,7 +216,7 @@ def _normalize_lkm_chain(
         or provider_id
     )
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
-    factors_summary = _factor_summaries(chain)
+    factors_summary = _factor_summaries(chain) or _graph_factor_summaries(chain)
     has_derivable_factor = _chain_can_compile(chain)
     has_factors = bool(factors_summary) or _graph_has_factor(chain)
     needs_package_context = any("comment" in f for f in factors_summary)
@@ -681,15 +681,86 @@ def _graph_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _graph_factor_premise_count(
+    edges: list[dict[str, Any]],
+    nodes_by_id: dict[str, dict[str, Any]],
+    factor_id: str | None,
+) -> int:
+    """Count claim premises feeding ``factor_id`` in a graph-shaped chain.
+
+    Premise edges are any non-``motivates`` edge from a claim node into the
+    factor (e.g. ``previous_conclusion_of`` / ``weakpoint_of`` / ``highlight_of``),
+    matching the premise mapping used when materializing graph factors.
+    """
+    if factor_id is None:
+        return 0
+    count = 0
+    for edge in edges:
+        if _string(edge.get("target")) != factor_id:
+            continue
+        if _string(edge.get("type")) in (None, "motivates", "concludes"):
+            continue
+        source = nodes_by_id.get(_string(edge.get("source")) or "") or {}
+        if _string(source.get("type")) == "claim":
+            count += 1
+    return count
+
+
+def _graph_factor_has_conclusion(
+    edges: list[dict[str, Any]],
+    nodes_by_id: dict[str, dict[str, Any]],
+    factor_id: str | None,
+) -> bool:
+    if factor_id is None:
+        return False
+    for edge in edges:
+        if _string(edge.get("type")) != "concludes" or _string(edge.get("source")) != factor_id:
+            continue
+        target = nodes_by_id.get(_string(edge.get("target")) or "") or {}
+        if _string(target.get("type")) == "claim":
+            return True
+    return False
+
+
+def _graph_factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-factor premise counts derived from a graph-shaped chain.
+
+    Mirrors :func:`_factor_summaries` for the default graph payload: a factor
+    node with a ``concludes`` edge but no premise edges is an intermediate
+    paper-chain node whose upstream premises live in the paper package, so it
+    earns the same package-context comment (and ``inspect`` action) rather than
+    being mistaken for a derivable step.
+    """
+    graph = _dict(chain.get("graph"))
+    nodes_by_id = _nodes_by_id(_graph_nodes(graph))
+    edges = _graph_edges(graph)
+    summaries: list[dict[str, Any]] = []
+    for node in _graph_nodes(graph):
+        if _string(node.get("type")) != "factor":
+            continue
+        factor_id = _string(node.get("id"))
+        premise_count = _graph_factor_premise_count(edges, nodes_by_id, factor_id)
+        has_conclusion = _graph_factor_has_conclusion(edges, nodes_by_id, factor_id)
+        summary: dict[str, Any] = {"factor_id": factor_id, "premise_count": premise_count}
+        if premise_count > 0 and not has_conclusion:
+            summary["warning"] = _FACTOR_MISSING_CONCLUSION_WARNING
+        elif premise_count == 0 and has_conclusion:
+            summary["comment"] = _FACTOR_UPSTREAM_CONTEXT_COMMENT
+        summaries.append(summary)
+    return summaries
+
+
 def _graph_can_compile(chain: dict[str, Any]) -> bool:
     graph = _dict(chain.get("graph"))
     nodes_by_id = _nodes_by_id(_graph_nodes(graph))
-    for edge in _graph_edges(graph):
-        if _string(edge.get("type")) != "concludes":
+    edges = _graph_edges(graph)
+    for node in _graph_nodes(graph):
+        if _string(node.get("type")) != "factor":
             continue
-        source = nodes_by_id.get(_string(edge.get("source")) or "") or {}
-        target = nodes_by_id.get(_string(edge.get("target")) or "") or {}
-        if _string(source.get("type")) == "factor" and target:
+        factor_id = _string(node.get("id"))
+        if _graph_factor_has_conclusion(edges, nodes_by_id, factor_id) and (
+            _graph_factor_premise_count(edges, nodes_by_id, factor_id) > 0
+        ):
             return True
     return False
 
