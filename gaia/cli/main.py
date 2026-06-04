@@ -132,6 +132,7 @@ def _version_callback(value: bool) -> None:
 
 @app.callback()
 def _callback(
+    ctx: typer.Context,
     version: bool = typer.Option(
         False,
         "--version",
@@ -141,6 +142,18 @@ def _callback(
     ),
 ) -> None:
     """Gaia — knowledge package authoring toolkit."""
+    # Non-blocking PyPI update check (after the eager --version short-circuit;
+    # `version` is True only while that eager callback runs and exits first).
+    # Skip the bare-help / no-args case — there is no subcommand to run, and the
+    # help screen should stay quiet. Broad guard so this can NEVER break the CLI.
+    if version or ctx.invoked_subcommand is None:
+        return
+    try:
+        from gaia.cli._update_check import maybe_notify_update
+
+        maybe_notify_update()
+    except Exception:
+        pass
 
 
 # --------------------------------------------------------------------------- #

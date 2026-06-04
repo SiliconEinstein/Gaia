@@ -47,3 +47,26 @@ def test_version_flag_blocks_subcommand_execution() -> None:
     assert result.output.startswith("gaia-lang ")
     # And contains the ir_schema line — i.e., the eager callback ran fully.
     assert "ir_schema: ir-v" in result.output
+
+
+@pytest.mark.parametrize("argv", [["--version"], []], ids=["version", "no-args"])
+def test_no_update_check_on_version_or_bare(
+    argv: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``gaia --version`` and bare ``gaia`` never trigger the update check.
+
+    The eager ``--version`` exits first, and the no-subcommand case short-circuits
+    before the check (``no_args_is_help`` shows help and exits) — so the
+    network-touching ``maybe_notify_update`` must not be called for either. Patch
+    it to record invocations and assert none occur.
+    """
+    import gaia.cli._update_check as uc
+
+    calls = {"n": 0}
+
+    def spy(**_kwargs: object) -> None:
+        calls["n"] += 1
+
+    monkeypatch.setattr(uc, "maybe_notify_update", spy)
+    runner.invoke(app, argv)
+    assert calls["n"] == 0, f"update check fired for argv={argv!r}"
