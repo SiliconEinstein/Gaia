@@ -545,15 +545,22 @@ with `gaia search lkm <verb> --help`.
    (`total_chains == 0`); treat those as `unmatched` for verdict purposes
    and move on.
 
+   Current LKM claim-reasoning responses are graph-shaped by default. When a
+   chain has `graph.nodes[]` and `graph.edges[]`, read `concludes` as the edge
+   from factor to conclusion, `previous_conclusion_of` / `weakpoint_of` /
+   `highlight_of` as claim premises pointing into a factor, and `motivates` as
+   question or problem context. These relation names are LKM audit data; do not
+   translate them into Gaia DSL operators in Phase 1b notes.
+
 5. **Verify chain closure.** For each `reasoning_chains[]` entry, examine
-   the chain's `paper_id` (resolves into `data.papers`). A chain whose
-   `paper_id` matches the input paper's id represents reasoning fully
-   internal to this paper — expected for a typical paper-extract claim.
-   A chain whose `paper_id` is a *different* paper indicates LKM has
-   rooted this claim in inter-paper reasoning; this paper is feeding
-   into a cross-paper provenance chain. Count the cross-paper chains per
-   `gcn_id`; these are the "LKM treats as load-bearing for downstream
-   reasoning" signal.
+   `source_package` first, then the chain's legacy `paper_id` if present
+   (both resolve into `data.papers`). A chain whose source paper matches the
+   input paper's id represents reasoning fully internal to this paper —
+   expected for a typical paper-extract claim. A chain whose source paper is a
+   *different* paper indicates LKM has rooted this claim in inter-paper
+   reasoning; this paper is feeding into a cross-paper provenance chain. Count
+   the cross-paper chains per `gcn_id`; these are the "LKM treats as
+   load-bearing for downstream reasoning" signal.
 
 ### Outputs
 

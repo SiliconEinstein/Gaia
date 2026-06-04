@@ -1,11 +1,21 @@
 # LKM Package Integration Design
 
-**Status:** Draft  
+**Status:** Superseded draft
 **Author:** Claude (AI assistant)  
 **Date:** 2026-05-11  
 **Target:** v0.6 (Phase 1), v0.7 (Phase 2)
 
 ---
+
+> Superseded by `docs/specs/2026-05-20-gaia-search-design.md` and the current
+> `gaia search lkm ...` / `gaia pkg add --lkm-paper|--lkm-claim ...` CLI
+> surface. This older draft kept here as design history uses stale command
+> names (`gaia add lkm:...`), stale endpoint assumptions
+> (`GET /claims/{id}/evidence`), and a stale generated-package shape
+> (`paper.gaia.py`). Current LKM paper materialization fetches
+> `/papers/graph`, accepts graph-shaped responses by default, emits a normal
+> `*-gaia` package under `.gaia/lkm_packages/`, and represents LKM factor
+> edges as reviewable `depends_on(..., given=[...])` scaffolds.
 
 ## Overview
 

@@ -17,8 +17,9 @@ description: |
   biology, ML, climate, astrophysics, etc. Input is an LKM chain payload,
   fetched via `gaia search lkm knowledge "<root>"` to surface the root and
   `gaia search lkm reasoning --claim-id <id> --format raw-json` for the
-  chains + the `data.papers` metadata block (use `--format raw-json` — the
-  verbatim envelope is the audit substrate under `raw/`). The graph is
+  chains (graph-shaped by default) + the `data.papers` metadata block (use
+  `--format raw-json` — the verbatim envelope is the audit substrate under
+  `raw/`). The graph is
   strictly chain-bounded — only LKM-returned premises and their explicit
   content are admitted as nodes; no synthetic bridging from external sources.
   Reach for this skill when the user explicitly asks for a closure-chain /
@@ -35,7 +36,7 @@ The graph shows the **anatomy of one quantitative result**, not a literature gen
 
 `(observational / experimental anchors) + (theoretical / computational inputs) + (parameter / approximation choices) → (intermediate quantities) → (derivation / inversion / fitting) → (root result)`.
 
-External papers do **not** become "tier-1 upstream conclusions" — they appear as named **context** nodes (named by the formula, dataset, method, or theorem they contributed *as named in the LKM premise content*; *not* by paper id) attached to whichever reasoning step uses them. The backbone is the root paper's own reasoning chain returned by LKM `evidence`. The graph is strictly chain-bounded: every node and edge must trace to content that LKM returned. Do not mint synthetic intermediate nodes to bridge gaps in the chain payload — gaps are recorded as audit-table observations, not papered over.
+External papers do **not** become "tier-1 upstream conclusions" — they appear as named **context** nodes (named by the formula, dataset, method, or theorem they contributed *as named in the LKM premise content*; *not* by paper id) attached to whichever reasoning step uses them. The backbone is the root paper's own reasoning chain returned by LKM claim reasoning. The graph is strictly chain-bounded: every node and edge must trace to content that LKM returned. Do not mint synthetic intermediate nodes to bridge gaps in the chain payload — gaps are recorded as audit-table observations, not papered over.
 
 The same paradigm applies across domains:
 
@@ -48,7 +49,7 @@ The skill text below is domain-agnostic. Every domain-specific term in the produ
 
 ## Input
 
-The skill is invoked with a single root claim id and the corresponding LKM chain payload — the `gaia search lkm reasoning --claim-id <id> --format raw-json` output (and, if available, the `gaia search lkm knowledge "<root>" --format raw-json` output that surfaced the root). The root's conclusion text names a system / setting and a quantitative result. The skill does not perform discovery; it does not select among candidates. Callers (or the user directly) supply the chosen root id.
+The skill is invoked with a single root claim id and the corresponding LKM chain payload — the `gaia search lkm reasoning --claim-id <id> --format raw-json` output (and, if available, the `gaia search lkm knowledge "<root>" --format raw-json` output that surfaced the root). Current claim-reasoning payloads are graph-shaped by default: each chain may carry `graph.nodes[]` and `graph.edges[]`. Older payloads may instead carry `factors[]` with premises, conclusion, steps, and motivating questions. The root's conclusion text names a system / setting and a quantitative result. The skill does not perform discovery; it does not select among candidates. Callers (or the user directly) supply the chosen root id.
 
 If invoked with a chain-less claim id (`total_chains == 0`), stop and report the gate failure. Do not invent premises.
 
@@ -62,7 +63,7 @@ Every successful invocation leaves on disk:
 - the verbatim LKM raw payloads under `raw/` (at minimum `evidence_<root-gcn-id>.json` — the `gaia search lkm reasoning --claim-id … --format raw-json` envelope; if a `gaia search lkm knowledge … --format raw-json` recall was consulted to surface the root, also `match_NN.json`); raw payloads are never modified, pretty-printed, or stripped — they are the audit substrate the source pointers resolve against;
 - an audit table (rows per non-trivial edge — see §6) co-located with the graph artifacts.
 
-The audit table and every node/edge in `evidence_graph.json` carry a chain-payload anchor (premise `gcn_*`, factor `gfac_*`, `factors[i].steps[j].reasoning`, or claim content) so a reader can trace any element back to the LKM JSON. Anchor discipline is canonical in `references/source-ground-truth.md` — read it before producing output.
+The audit table and every node/edge in `evidence_graph.json` carry a chain-payload anchor (graph node id, graph edge, premise `gcn_*`, factor `gfac_*` / `lfac_*`, `factor.steps[j].reasoning` / `factors[i].steps[j].reasoning`, or claim content) so a reader can trace any element back to the LKM JSON. Anchor discipline is canonical in `references/source-ground-truth.md` — read it before producing output.
 
 ## Workflow
 
@@ -70,11 +71,11 @@ The audit table and every node/edge in `evidence_graph.json` carry a chain-paylo
 
 The evidence payload for the root must have `total_chains > 0`. Synthetic premises only with explicit user waiver. If the root id does not satisfy the gate, stop and report — do not proceed.
 
-The chain payload itself is the **single source of truth** for every node and audit anchor in this skill: claim `content`, factor `subtype`, premise `id` and `content`, optional `steps[].reasoning`, and the `data.papers` metadata block. No external paper text is admitted as a node.
+The chain payload itself is the **single source of truth** for every node and audit anchor in this skill: graph claim / question / factor nodes, graph edges, claim `content`, factor `subtype`, optional `steps[].reasoning`, and the `data.papers` metadata block. No external paper text is admitted as a node.
 
 ### 1. Factor diamonds (one per `gfac_*`)
 
-Each `gfac_*` factor in the root's evidence chains becomes a labelled diamond (`shape=diamond` in DOT, or analogous in Mermaid). The label is two short lines:
+Each factor node (`gfac_*` / `lfac_*`, or a legacy `factors[]` entry) in the root's evidence chains becomes a labelled diamond (`shape=diamond` in DOT, or analogous in Mermaid). The label is two short lines:
 
 - top line: the factor operator name in the user's locale (`共同支撑` for Chinese / `joint support` for English / etc.). If the LKM payload exposes a `subtype` (e.g. `noisy_and`, `noisy_or`), include it parenthetically: `共同支撑 (noisy_and)` / `joint support (noisy_and)`.
 - bottom line: a concrete tag derived from the factor's premises — e.g. *"inversion step"*, *"first-principles input"*, *"dataset + protocol"*, *"thermodynamic coverage"*. The exact wording comes from reading the premise contents and naming the cluster they form.
@@ -85,7 +86,9 @@ If the chain has **exactly one** `gfac_*` node, render exactly one diamond. Use 
 
 ### 2. Native premises → typed reasoning nodes
 
-The primary text source for each premise is `factors[].premises[].content` in the parent chain payload. Some chain payloads also expose `steps[].reasoning` — that field is **optional**. Do not require `steps`; do not fail when it is absent.
+For graph-shaped payloads, premises are claim nodes with incoming edges to a factor node. Treat `previous_conclusion_of`, `weakpoint_of`, `highlight_of`, and other claim-to-factor support edges as premise edges. The target of `factor --concludes--> claim` is the root or intermediate conclusion. `question --motivates--> claim` is motivating context, not a premise by itself.
+
+For older payloads, the primary text source for each premise is `factors[].premises[].content` in the parent chain payload. Some chain payloads also expose `steps[].reasoning` — that field is **optional**. Do not require `steps`; do not fail when it is absent.
 
 For each native premise (chain-internal id; `total_chains == 0` standalone but full content recoverable from the parent chain), classify the premise content into one of four reasoning-node types:
 
@@ -152,7 +155,7 @@ One row per non-trivial edge. **Background and verification-support edges must a
 | downstream | upstream | edge class | bridge sentence | chain-payload anchor |
 |------------|----------|------------|-----------------|----------------------|
 
-The chain-payload anchor points back into the LKM JSON: a premise id (`gcn_…`), factor id (`gfac_…`), `factors[i].steps[j].reasoning`, or claim content quoted verbatim. For verification-support edges that **partially disconfirm** the downstream node, state the polarity explicitly ("confirms within 5%", "partially disconfirms: independent value differs by 30%"). Without a chain-payload anchor, the row is just paraphrase.
+The chain-payload anchor points back into the LKM JSON: a graph node id, a graph edge (`graph.edges[source=...,target=...,type=...]`), a premise id (`gcn_…`), factor id (`gfac_…` / `lfac_...`), `factor.steps[j].reasoning` / `factors[i].steps[j].reasoning`, or claim content quoted verbatim. For verification-support edges that **partially disconfirm** the downstream node, state the polarity explicitly ("confirms within 5%", "partially disconfirms: independent value differs by 30%"). Without a chain-payload anchor, the row is just paraphrase.
 
 ### 7. Cycle check
 
@@ -160,7 +163,7 @@ Run `node scripts/check_dot_cycles.mjs <path-to-graph.dot>` (the script bundled 
 
 ### 8. Best-effort numerical-anchor check
 
-Before declaring the run complete, walk every numerical anchor in every reasoning node and try to locate it inside the chain payload — premise `content`, claim content, or `factors[i].steps[j].reasoning`. The check is **soft**: chain payloads are sometimes incomplete, and an anchor may legitimately not be locatable inside the JSON. When you can confirm an anchor, log the chain-payload location in the audit row. When you cannot, mark the row `anchor not locatable in chain payload` and leave the node in place — do not delete the node, do not invent a substitute, and do not fail the run on this alone. A node whose value is contradicted by some other piece of the chain payload, however, is a real error and must be fixed. This "contradicted anchor" case is source-consistency checking, not the contradiction-admission rule used by LKM-to-Gaia packages.
+Before declaring the run complete, walk every numerical anchor in every reasoning node and try to locate it inside the chain payload — graph node content, graph edge context, premise `content`, claim content, or `factor.steps[j].reasoning` / `factors[i].steps[j].reasoning`. The check is **soft**: chain payloads are sometimes incomplete, and an anchor may legitimately not be locatable inside the JSON. When you can confirm an anchor, log the chain-payload location in the audit row. When you cannot, mark the row `anchor not locatable in chain payload` and leave the node in place — do not delete the node, do not invent a substitute, and do not fail the run on this alone. A node whose value is contradicted by some other piece of the chain payload, however, is a real error and must be fixed. This "contradicted anchor" case is source-consistency checking, not the contradiction-admission rule used by LKM-to-Gaia packages.
 
 ## Return value
 

@@ -7,6 +7,8 @@ for downstream agents and future non-LKM providers.
 
 from __future__ import annotations
 
+import json
+from collections import Counter
 from enum import StrEnum
 from typing import Any
 
@@ -47,6 +49,7 @@ def normalize_lkm_knowledge(
         kind=kind,
         results=results,
         index_id=index_id,
+        pagination=_pagination(data, payload),
     )
 
 
@@ -77,6 +80,7 @@ def normalize_lkm_reasoning_search(
         kind="reasoning",
         results=results,
         index_id=index_id,
+        pagination=_pagination(data, payload),
     )
 
 
@@ -107,6 +111,7 @@ def _envelope(
     kind: str,
     results: list[dict[str, Any]],
     index_id: str | None = None,
+    pagination: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     query_payload = {
         "text": query,
@@ -115,11 +120,14 @@ def _envelope(
     }
     if index_id is not None:
         query_payload["index_id"] = index_id
-    return {
+    envelope: dict[str, Any] = {
         "schema_version": 1,
         "query": query_payload,
         "results": results,
     }
+    if pagination:
+        envelope["pagination"] = pagination
+    return envelope
 
 
 def _normalize_lkm_variable(
@@ -138,6 +146,7 @@ def _normalize_lkm_variable(
     object_kind = _lkm_variable_kind(_string(variable.get("type")))
     paper_title = _paper_title(paper)
     doi = _string(paper.get("doi"))
+    score = _number(variable.get("score"), variable.get("rerank_score"))
     actions: list[dict[str, Any]] = []
     if object_kind == "claim" and provider_id and variable.get("has_reasoning") is not False:
         claim_title = _string(variable.get("title"))
@@ -158,8 +167,9 @@ def _normalize_lkm_variable(
         "kind": object_kind,
         "title": _string(variable.get("title")) or provider_id,
         "content": _string(variable.get("content")),
+        "relevance_score": score,
         "rank": {
-            "score": _number(variable.get("score"), variable.get("rerank_score")),
+            "score": score,
             "score_kind": "retrieval",
         },
         "gaia": _gaia_identity(object_kind),
@@ -205,9 +215,11 @@ def _normalize_lkm_chain(
         or provider_id
     )
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
-    factors_summary = _factor_summaries(chain)
-    has_derivable_factor = _has_derivable_factor(chain)
+    factors_summary = _factor_summaries(chain) or _graph_factor_summaries(chain)
+    has_derivable_factor = _chain_can_compile(chain)
+    has_factors = bool(factors_summary) or _graph_has_factor(chain)
     needs_package_context = any("comment" in f for f in factors_summary)
+    score = _number(chain.get("score"), chain.get("rerank_score"))
     actions: list[dict[str, Any]] = []
     if (not has_derivable_factor or needs_package_context) and paper_id is not None:
         actions.append(
@@ -225,10 +237,12 @@ def _normalize_lkm_chain(
         "kind": "reasoning_chain",
         "title": title,
         "content": content,
+        "relevance_score": score,
         "rank": {
-            "score": _number(chain.get("score"), chain.get("rerank_score")),
+            "score": score,
             "score_kind": "retrieval",
         },
+        "reasoning_view": _reasoning_view(chain),
         "gaia": _gaia_identity("derive" if has_derivable_factor else None),
         "source": {
             "provider_id": provider_id,
@@ -239,6 +253,8 @@ def _normalize_lkm_chain(
             "doi": doi,
             "conclusion_id": _string(conclusion.get("id")) or _string(chain.get("conclusion_id")),
             "factors": factors_summary,
+            "has_factors": has_factors,
+            "can_compile": has_derivable_factor,
         },
         "actions": actions,
         "raw": {"provider": "lkm", "payload": chain},
@@ -259,6 +275,8 @@ def _chain_provider_id(chain: dict[str, Any], *, index: int) -> str:
         factor_id = _factor_id(factor)
         if factor_id is not None:
             return factor_id
+    if graph_factor_id := _first_graph_factor_id(chain):
+        return graph_factor_id
     return f"chain_{index}"
 
 
@@ -278,16 +296,19 @@ def _normalize_lkm_paper_graph_item(
     title = paper_title or source_package
     doi = _string(paper.get("doi"))
     content = _string(paper.get("en_abstract")) or _string(paper.get("zh_abstract"))
+    score = _number(item.get("score"), item.get("rerank_score"))
     return {
         "id": _lkm_result_id(index_id, provider_id),
         "provider": "lkm",
         "kind": "package",
         "title": title or provider_id,
         "content": content,
+        "relevance_score": score,
         "rank": {
-            "score": _number(item.get("score"), item.get("rerank_score")),
+            "score": score,
             "score_kind": "retrieval",
         },
+        "lkm_view": _paper_graph_lkm_view(item),
         "gaia": _gaia_identity("package"),
         "source": {
             "provider_id": paper_id,
@@ -301,6 +322,57 @@ def _normalize_lkm_paper_graph_item(
         "actions": _add_actions(paper_id, index_id=index_id, paper_title=paper_title, doi=doi),
         "raw": {"provider": "lkm", "payload": item},
     }
+
+
+def _paper_graph_lkm_view(item: dict[str, Any]) -> dict[str, Any]:
+    graph = _dict(item.get("graph"))
+    nodes = _graph_nodes(graph)
+    edges = _graph_edges(graph)
+    return {
+        "node_counts": _counts_by(nodes, "type"),
+        "edge_type_counts": _counts_by(edges, "type"),
+        "logic_relations": _logic_relations_from_nodes(nodes),
+    }
+
+
+def _counts_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in items:
+        if value := _string(item.get(key)):
+            counts[value] += 1
+    return dict(sorted(counts.items()))
+
+
+def _logic_relations_from_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, str]]:
+    relations: list[dict[str, str]] = []
+    for node in nodes:
+        source = _string(node.get("id"))
+        if source is None:
+            continue
+        metadata = _metadata(node.get("metadata"))
+        for structural_edge in _list(metadata.get("structural_edges")):
+            if not isinstance(structural_edge, dict):
+                continue
+            relation = _string(structural_edge.get("type")) or _string(
+                structural_edge.get("relation")
+            )
+            target = _string(structural_edge.get("target"))
+            if relation is None or target is None:
+                continue
+            relations.append({"source": source, "relation": relation, "target": target})
+    return relations
+
+
+def _metadata(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if not (text := _string(value)):
+        return {}
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+    return _dict(parsed)
 
 
 def _gaia_identity(object_kind: str | None) -> dict[str, str | None]:
@@ -384,6 +456,312 @@ def _variable_source(variable: dict[str, Any]) -> tuple[str | None, str | None]:
     return source_package, local_id
 
 
+def _pagination(*sources: dict[str, Any]) -> dict[str, Any]:
+    pagination: dict[str, Any] = {}
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        if isinstance(source.get("has_more"), bool):
+            pagination["has_more"] = source["has_more"]
+        total = _number(source.get("total"), source.get("total_chains"))
+        if total is not None:
+            pagination["total"] = total
+    return pagination
+
+
+def _reasoning_view(chain: dict[str, Any]) -> dict[str, Any]:
+    graph = _dict(chain.get("graph"))
+    if graph:
+        return _reasoning_view_from_graph(graph)
+    return _reasoning_view_from_factors(chain)
+
+
+def _empty_reasoning_view() -> dict[str, Any]:
+    return {
+        "conclusion_claim": {},
+        "questions": [],
+        "depends_on_previous_conclusion_claims": [],
+        "depends_on_weakness_claims": [],
+        "depends_on_highlight_claims": [],
+        "depends_on_other_claims": [],
+        "reasoning_steps": [],
+    }
+
+
+def _reasoning_view_from_factors(chain: dict[str, Any]) -> dict[str, Any]:
+    view = _empty_reasoning_view()
+    conclusion = _chain_conclusion(chain)
+    if conclusion:
+        view["conclusion_claim"] = _knowledge_ref(conclusion)
+    view["questions"] = _unique_refs(
+        _knowledge_ref(question)
+        for question in _list(chain.get("motivating_questions"))
+        if isinstance(question, dict)
+    )
+    premise_refs: list[dict[str, Any]] = []
+    steps: list[dict[str, Any]] = []
+    for factor in _list(chain.get("factors")):
+        if not isinstance(factor, dict):
+            continue
+        for premise in [*_list(factor.get("premises")), *_list(factor.get("supported_by"))]:
+            if isinstance(premise, dict):
+                premise_refs.append(_knowledge_ref(premise))
+        steps.extend(_reasoning_steps(factor))
+    view["depends_on_other_claims"] = _unique_refs(premise_refs)
+    view["reasoning_steps"] = steps
+    return view
+
+
+def _reasoning_view_from_graph(graph: dict[str, Any]) -> dict[str, Any]:
+    view = _empty_reasoning_view()
+    nodes = _graph_nodes(graph)
+    edges = _graph_edges(graph)
+    nodes_by_id = _nodes_by_id(nodes)
+    factor_ids, conclusion_ids = _graph_factor_and_conclusion_ids(edges)
+    if conclusion_ids:
+        view["conclusion_claim"] = _knowledge_ref(
+            nodes_by_id.get(conclusion_ids[0], {"id": conclusion_ids[0]})
+        )
+
+    extra_claims: list[dict[str, Any]] = []
+    questions: list[dict[str, Any]] = []
+    for edge in edges:
+        edge_type = _string(edge.get("type"))
+        source_id = _string(edge.get("source"))
+        target_id = _string(edge.get("target"))
+        if source_id is None:
+            continue
+        source = nodes_by_id.get(source_id, {"id": source_id})
+        if edge_type == "motivates":
+            if target_id in conclusion_ids and _string(source.get("type")) == "question":
+                questions.append(_knowledge_ref(source))
+            continue
+        if target_id not in factor_ids:
+            continue
+        _add_graph_dependency_ref(
+            view,
+            edge_type=edge_type,
+            source=source,
+            extra_claims=extra_claims,
+        )
+    view["questions"] = _unique_refs(questions)
+    for key in _GRAPH_DEPENDENCY_KEYS.values():
+        view[key] = _unique_refs(view[key])
+    view["depends_on_other_claims"] = _unique_refs(extra_claims)
+    view["reasoning_steps"] = [
+        step
+        for factor_id in factor_ids
+        for step in _reasoning_steps(nodes_by_id.get(factor_id, {}))
+    ]
+    return view
+
+
+_GRAPH_DEPENDENCY_KEYS = {
+    "previous_conclusion_of": "depends_on_previous_conclusion_claims",
+    "weakpoint_of": "depends_on_weakness_claims",
+    "highlight_of": "depends_on_highlight_claims",
+}
+
+
+def _graph_factor_and_conclusion_ids(
+    edges: list[dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    factor_ids: list[str] = []
+    conclusion_ids: list[str] = []
+    for edge in edges:
+        if _string(edge.get("type")) != "concludes":
+            continue
+        if source_id := _string(edge.get("source")):
+            factor_ids.append(source_id)
+        if target_id := _string(edge.get("target")):
+            conclusion_ids.append(target_id)
+    return _unique_strings(factor_ids), _unique_strings(conclusion_ids)
+
+
+def _add_graph_dependency_ref(
+    view: dict[str, Any],
+    *,
+    edge_type: str | None,
+    source: dict[str, Any],
+    extra_claims: list[dict[str, Any]],
+) -> None:
+    if edge_type in _GRAPH_DEPENDENCY_KEYS:
+        view[_GRAPH_DEPENDENCY_KEYS[edge_type]].append(_knowledge_ref(source))
+    elif _string(source.get("type")) == "claim":
+        extra_claims.append(_knowledge_ref(source))
+
+
+def _knowledge_ref(value: dict[str, Any]) -> dict[str, Any]:
+    ref: dict[str, Any] = {}
+    for key in ("id", "title", "content", "type", "kind"):
+        if item := _string(value.get(key)):
+            ref[key] = item
+    return ref
+
+
+def _unique_refs(refs: Any) -> list[dict[str, Any]]:
+    unique: list[dict[str, Any]] = []
+    seen: set[tuple[tuple[str, Any], ...] | str] = set()
+    for ref in refs:
+        if not isinstance(ref, dict) or not ref:
+            continue
+        key: tuple[tuple[str, Any], ...] | str = _string(ref.get("id")) or tuple(ref.items())
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(ref)
+    return unique
+
+
+def _unique_strings(values: list[str]) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
+
+
+def _reasoning_steps(value: dict[str, Any]) -> list[dict[str, Any]]:
+    steps: list[dict[str, Any]] = []
+    for step in _list(value.get("steps")):
+        if isinstance(step, dict):
+            cleaned = {
+                key: item
+                for key in ("reasoning", "text", "content", "description")
+                if (item := _string(step.get(key))) is not None
+            }
+            steps.append(cleaned or step)
+        elif step_text := _string(step):
+            steps.append({"reasoning": step_text})
+    return steps
+
+
+def _graph_nodes(graph: dict[str, Any]) -> list[dict[str, Any]]:
+    return [node for node in _list(graph.get("nodes")) if isinstance(node, dict)]
+
+
+def _graph_edges(graph: dict[str, Any]) -> list[dict[str, Any]]:
+    return [edge for edge in _list(graph.get("edges")) if isinstance(edge, dict)]
+
+
+def _nodes_by_id(nodes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    mapping: dict[str, dict[str, Any]] = {}
+    for node in nodes:
+        if node_id := _string(node.get("id")):
+            mapping[node_id] = node
+    return mapping
+
+
+def _first_graph_factor_id(chain: dict[str, Any]) -> str | None:
+    for node in _graph_nodes(_dict(chain.get("graph"))):
+        if _string(node.get("type")) == "factor":
+            return _string(node.get("id"))
+    return None
+
+
+def _graph_has_factor(chain: dict[str, Any]) -> bool:
+    return _first_graph_factor_id(chain) is not None
+
+
+def _graph_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
+    graph = _dict(chain.get("graph"))
+    nodes_by_id = _nodes_by_id(_graph_nodes(graph))
+    for edge in _graph_edges(graph):
+        if _string(edge.get("type")) != "concludes":
+            continue
+        target_id = _string(edge.get("target"))
+        if target_id and target_id in nodes_by_id:
+            return nodes_by_id[target_id]
+    return {}
+
+
+def _graph_factor_premise_count(
+    edges: list[dict[str, Any]],
+    nodes_by_id: dict[str, dict[str, Any]],
+    factor_id: str | None,
+) -> int:
+    """Count claim premises feeding ``factor_id`` in a graph-shaped chain.
+
+    Premise edges are any non-``motivates`` edge from a claim node into the
+    factor (e.g. ``previous_conclusion_of`` / ``weakpoint_of`` / ``highlight_of``),
+    matching the premise mapping used when materializing graph factors.
+    """
+    if factor_id is None:
+        return 0
+    count = 0
+    for edge in edges:
+        if _string(edge.get("target")) != factor_id:
+            continue
+        if _string(edge.get("type")) in (None, "motivates", "concludes"):
+            continue
+        source = nodes_by_id.get(_string(edge.get("source")) or "") or {}
+        if _string(source.get("type")) == "claim":
+            count += 1
+    return count
+
+
+def _graph_factor_has_conclusion(
+    edges: list[dict[str, Any]],
+    nodes_by_id: dict[str, dict[str, Any]],
+    factor_id: str | None,
+) -> bool:
+    if factor_id is None:
+        return False
+    for edge in edges:
+        if _string(edge.get("type")) != "concludes" or _string(edge.get("source")) != factor_id:
+            continue
+        target = nodes_by_id.get(_string(edge.get("target")) or "") or {}
+        if _string(target.get("type")) == "claim":
+            return True
+    return False
+
+
+def _graph_factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-factor premise counts derived from a graph-shaped chain.
+
+    Mirrors :func:`_factor_summaries` for the default graph payload: a factor
+    node with a ``concludes`` edge but no premise edges is an intermediate
+    paper-chain node whose upstream premises live in the paper package, so it
+    earns the same package-context comment (and ``inspect`` action) rather than
+    being mistaken for a derivable step.
+    """
+    graph = _dict(chain.get("graph"))
+    nodes_by_id = _nodes_by_id(_graph_nodes(graph))
+    edges = _graph_edges(graph)
+    summaries: list[dict[str, Any]] = []
+    for node in _graph_nodes(graph):
+        if _string(node.get("type")) != "factor":
+            continue
+        factor_id = _string(node.get("id"))
+        premise_count = _graph_factor_premise_count(edges, nodes_by_id, factor_id)
+        has_conclusion = _graph_factor_has_conclusion(edges, nodes_by_id, factor_id)
+        summary: dict[str, Any] = {"factor_id": factor_id, "premise_count": premise_count}
+        if premise_count > 0 and not has_conclusion:
+            summary["warning"] = _FACTOR_MISSING_CONCLUSION_WARNING
+        elif premise_count == 0 and has_conclusion:
+            summary["comment"] = _FACTOR_UPSTREAM_CONTEXT_COMMENT
+        summaries.append(summary)
+    return summaries
+
+
+def _graph_can_compile(chain: dict[str, Any]) -> bool:
+    graph = _dict(chain.get("graph"))
+    nodes_by_id = _nodes_by_id(_graph_nodes(graph))
+    edges = _graph_edges(graph)
+    for node in _graph_nodes(graph):
+        if _string(node.get("type")) != "factor":
+            continue
+        factor_id = _string(node.get("id"))
+        if _graph_factor_has_conclusion(edges, nodes_by_id, factor_id) and (
+            _graph_factor_premise_count(edges, nodes_by_id, factor_id) > 0
+        ):
+            return True
+    return False
+
+
 def _chain_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
     factors = _list(chain.get("factors"))
     for factor in factors:
@@ -392,6 +770,9 @@ def _chain_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
         conclusion = _dict(factor.get("conclusion"))
         if conclusion:
             return conclusion
+    graph_conclusion = _graph_conclusion(chain)
+    if graph_conclusion:
+        return graph_conclusion
     conclusion = _dict(chain.get("conclusion"))
     if conclusion:
         return conclusion
@@ -405,6 +786,16 @@ def _chain_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
             "content": conclusion_text,
         }
     return {}
+
+
+def _chain_can_compile(chain: dict[str, Any]) -> bool:
+    factors = _list(chain.get("factors"))
+    for factor in factors:
+        if not isinstance(factor, dict):
+            continue
+        if _dict(factor.get("conclusion")) and _list(factor.get("premises")):
+            return True
+    return _graph_can_compile(chain)
 
 
 def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
@@ -436,15 +827,6 @@ def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
             summary["comment"] = _FACTOR_UPSTREAM_CONTEXT_COMMENT
         summaries.append(summary)
     return summaries
-
-
-def _has_derivable_factor(chain: dict[str, Any]) -> bool:
-    for factor in _list(chain.get("factors")):
-        if not isinstance(factor, dict):
-            continue
-        if _list(factor.get("premises")) and _dict(factor.get("conclusion")):
-            return True
-    return False
 
 
 def _factor_id(factor: dict[str, Any]) -> str | None:
@@ -502,7 +884,7 @@ def _paper_graph_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(raw_papers, list):
         return [item for item in raw_papers if isinstance(item, dict)]
     if isinstance(raw_papers, dict):
-        return [{"paper": value} for value in raw_papers.values() if isinstance(value, dict)]
+        return [value for value in raw_papers.values() if isinstance(value, dict)]
     if "paper" in data:
         return [data]
     return []

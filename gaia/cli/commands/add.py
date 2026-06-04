@@ -7,6 +7,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import typer
 
@@ -38,7 +39,8 @@ def add_command(
     package: str | None = typer.Argument(
         None,
         help=(
-            "Package name (e.g., galileo-falling-bodies-gaia) or LKM ref (lkm:<index>:paper:<id>)."
+            "Package name (e.g., galileo-falling-bodies-gaia) or LKM ref "
+            "(lkm:<index>:paper:<id> / lkm:<index>:claim:<id>)."
         ),
     ),
     version: str | None = typer.Option(None, "--version", "-v", help="Specific version"),
@@ -77,8 +79,8 @@ def add_command(
     resolved ``git+<repo>@<sha>`` spec, and best-effort downloads the
     upstream ``beliefs.json`` into ``.gaia/dep_beliefs/<import_name>.json``
     so foreign-node priors flow into local inference. Must be run from
-    within a Gaia knowledge package (``pyproject.toml`` carrying
-    ``[tool.gaia]``).
+    within a Gaia knowledge package (``pyproject.toml`` carrying a
+    ``tool.gaia`` table).
 
     LKM paper refs/flags fetch the paper graph, generate a local Gaia package
     under ``.gaia/lkm_packages/``, compile it, and add it as an editable
@@ -94,6 +96,7 @@ def add_command(
         gaia pkg add galileo-falling-bodies-gaia
         gaia pkg add mendel-v0-5-gaia --version 0.1.0
         gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
+        gaia pkg add --lkm-index bohrium --lkm-claim gcn_579430355a0e4bbd
         gaia pkg add lkm:bohrium:paper:811827932371615744
     """
     try:
@@ -233,15 +236,29 @@ def _handle_lkm_source_add(ref: LKMSourceRef, *, package_root: Path | None) -> N
         _handle_lkm_paper_add(ref, package_root=package_root)
         return
 
-    typer.echo(
-        f"LKM claim source recognized: {ref.ref}\n"
-        "`gaia pkg add` installs paper-level Gaia packages, not standalone "
-        "claim nodes. Resolve this claim to its backing paper first:\n"
-        f"  gaia search lkm reasoning --index {ref.index_id} --claim-id {ref.provider_id}\n"
-        "Then add the paper package from the returned action.",
-        err=True,
-    )
-    raise typer.Exit(1)
+    _handle_lkm_claim_add(ref, package_root=package_root)
+
+
+def _handle_lkm_claim_add(ref: LKMSourceRef, *, package_root: Path | None) -> None:
+    if package_root is None:
+        typer.echo(
+            f"Error: LKM claim source recognized ({ref.ref}), but no current "
+            "Gaia knowledge package was found. Run `gaia pkg add --lkm-claim ...` "
+            "inside the package that should depend on this LKM paper, or point "
+            "--target at it.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        paper_id = _resolve_lkm_claim_backing_paper_id(ref)
+    except GaiaPackagingError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    paper_ref = LKMSourceRef(index_id=ref.index_id, kind="paper", provider_id=paper_id)
+    typer.echo(f"Resolved {ref.ref} to {paper_ref.ref}")
+    _handle_lkm_paper_add(paper_ref, package_root=package_root)
 
 
 def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> None:
@@ -259,10 +276,7 @@ def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> No
         payload = run_request(
             "POST",
             "/papers/graph",
-            json_body={
-                "paper_id": ref.provider_id,
-                "include": ["paper", "variables", "factors", "motivations"],
-            },
+            json_body={"paper_id": ref.provider_id},
             index_id=ref.index_id,
         )
         materialized = materialize_lkm_paper_package(
@@ -322,6 +336,135 @@ def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> No
         typer.echo(
             f"Import hint: from {materialized.import_name} import {materialized.exported_symbol}"
         )
+
+
+def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:
+    encoded = quote(ref.provider_id, safe="")
+    payload = run_request(
+        "GET",
+        f"/claims/{encoded}/reasoning",
+        params={"format": "graph", "max_chains": 10, "sort_by": "comprehensive"},
+        index_id=ref.index_id,
+    )
+    paper_id = _extract_lkm_reasoning_paper_id(payload)
+    if paper_id:
+        return paper_id
+    raise GaiaPackagingError(
+        "LKM claim reasoning did not identify a backing paper. "
+        "Inspect the raw claim reasoning response and add the paper manually "
+        f"with `gaia search lkm reasoning --index {ref.index_id} "
+        f"--claim-id {ref.provider_id} --format raw-json`."
+    )
+
+
+def _extract_lkm_reasoning_paper_id(payload: dict[str, Any]) -> str | None:
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    chains = _reasoning_chains(data)
+
+    # Prefer paper ids carried by the reasoning itself over fallback metadata.
+    # Once direct reasoning evidence spans several papers, the backing paper is
+    # ambiguous and weaker summary blocks must not collapse it to a guess.
+    chain_paper_ids = _paper_ids_from_reasoning_chains(chains)
+    if len(chain_paper_ids) == 1:
+        return chain_paper_ids[0]
+    if chain_paper_ids:
+        return None
+
+    graph_paper_ids = _paper_ids_from_reasoning_graphs(chains)
+    if len(graph_paper_ids) == 1:
+        return graph_paper_ids[0]
+    if graph_paper_ids:
+        return None
+
+    paper_ids = _paper_ids_from_papers_block(data.get("papers") if isinstance(data, dict) else None)
+    if len(paper_ids) == 1:
+        return paper_ids[0]
+    return None
+
+
+def _paper_ids_from_reasoning_chains(chains: list[dict[str, Any]]) -> list[str]:
+    paper_ids: list[str] = []
+    for chain in chains:
+        paper_id = _paper_id_from_source_package(chain.get("source_package")) or _text_id(
+            chain.get("paper_id")
+        )
+        if paper_id and paper_id not in paper_ids:
+            paper_ids.append(paper_id)
+    return paper_ids
+
+
+def _reasoning_chains(data: Any) -> list[dict[str, Any]]:
+    if not isinstance(data, dict):
+        return []
+    chains = data.get("reasoning_chains")
+    if not isinstance(chains, list):
+        return []
+    return [chain for chain in chains if isinstance(chain, dict)]
+
+
+def _paper_ids_from_reasoning_graphs(chains: list[dict[str, Any]]) -> list[str]:
+    graph_paper_ids: list[str] = []
+    for chain in chains:
+        graph = chain.get("graph")
+        if not isinstance(graph, dict):
+            continue
+        graph_nodes = graph.get("nodes")
+        if not isinstance(graph_nodes, list):
+            continue
+        for node in graph_nodes:
+            if not isinstance(node, dict):
+                continue
+            for key in ("id", "local_id"):
+                paper_id = _paper_id_from_graph_id(node.get(key))
+                if paper_id and paper_id not in graph_paper_ids:
+                    graph_paper_ids.append(paper_id)
+    return graph_paper_ids
+
+
+def _paper_ids_from_papers_block(raw: Any) -> list[str]:
+    paper_ids: list[str] = []
+
+    def add(value: str | None) -> None:
+        if value and value not in paper_ids:
+            paper_ids.append(value)
+
+    def add_from_paper_value(value: Any) -> None:
+        if not isinstance(value, dict):
+            return
+        nested_paper = value.get("paper")
+        paper = nested_paper if isinstance(nested_paper, dict) else value
+        add(_text_id(paper.get("id")))
+        add(_paper_id_from_source_package(paper.get("package_id")))
+
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            add(_paper_id_from_source_package(key))
+            add_from_paper_value(value)
+    elif isinstance(raw, list):
+        for value in raw:
+            add_from_paper_value(value)
+    return paper_ids
+
+
+def _paper_id_from_source_package(raw: Any) -> str | None:
+    value = _text_id(raw)
+    if value and value.startswith("paper:"):
+        return value.split(":", 1)[1]
+    return None
+
+
+def _paper_id_from_graph_id(raw: Any) -> str | None:
+    value = _text_id(raw)
+    if value and value.startswith("paper:") and "::" in value:
+        return value.split("::", 1)[0].split(":", 1)[1]
+    return None
+
+
+def _text_id(raw: Any) -> str | None:
+    if raw is None:
+        return None
+    value = str(raw).strip()
+    return value or None
 
 
 def _warn_unused_lkm_index(lkm_index: str) -> None:

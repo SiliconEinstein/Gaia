@@ -261,7 +261,7 @@ def _fetch_claim_reasoning(
     return run_request(
         "GET",
         f"/claims/{encoded}/reasoning",
-        params={"max_chains": max_chains, "sort_by": sort_by.value},
+        params={"format": "graph", "max_chains": max_chains, "sort_by": sort_by.value},
         index_id=index_id,
     )
 

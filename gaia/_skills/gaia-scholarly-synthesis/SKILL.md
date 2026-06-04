@@ -51,7 +51,7 @@ If the **graph is not provided**, stop and instruct the user to supply one (grap
 
 A literature synthesis benefits from reproducing or adapting figures and data tables from the source papers — that is convention in the field. This skill follows the convention on a **best-effort** basis, bounded by what the supplied source payload actually carries.
 
-**When the source payload describes a figure / table.** When premise `content`, claim content, or `factors[i].steps[j].reasoning` quotes or paraphrases a specific figure caption, table row, or numerical breakdown from a source paper, the synthesis may quote that text verbatim with attribution `Adapted from <author–year>`. The "adapted from" tag is mandatory whenever the wording originates from a paper that is not the user-selected root.
+**When the source payload describes a figure / table.** When graph node content, premise `content`, claim content, `factor.steps[j].reasoning`, or legacy `factors[i].steps[j].reasoning` quotes or paraphrases a specific figure caption, table row, or numerical breakdown from a source paper, the synthesis may quote that text verbatim with attribution `Adapted from <author–year>`. The "adapted from" tag is mandatory whenever the wording originates from a paper that is not the user-selected root.
 
 **When the source payload does not carry the figure / table itself.** The supplied payload is propositional content — it does not include rendered figure images, image-format tables, or non-textual artifacts. The skill must **not fabricate** a figure or invented numerical table. Instead, the skill records the gap in a **`missing-material.md`** file in the run folder, one row per gap:
 

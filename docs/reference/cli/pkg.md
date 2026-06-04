@@ -6,8 +6,12 @@ Install, publish, and bootstrap packages.
 gaia pkg add <package>            Install a registered package from the registry
 gaia pkg add --lkm-index <id> --lkm-paper <paper-id>
                                   Materialize an LKM paper as a local package
+gaia pkg add --lkm-index <id> --lkm-claim <claim-id>
+                                  Resolve an LKM claim to its backing paper package
 gaia pkg add lkm:<index>:paper:<paper-id>
                                   Materialize a canonical LKM paper source ref
+gaia pkg add lkm:<index>:claim:<claim-id>
+                                  Materialize the backing paper for a claim source ref
 gaia pkg add-import --from <m>    Insert a sibling/module import into a package file
 gaia pkg add-module --name <m>    Scaffold a sibling Python module
 gaia pkg register [path]          Submit a package to the official registry
@@ -33,15 +37,21 @@ and canonical source refs:
 
 ```text
 gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
+gaia pkg add --lkm-index bohrium --lkm-claim gcn_579430355a0e4bbd
 gaia pkg add lkm:bohrium:paper:811827932371615744
+gaia pkg add lkm:bohrium:claim:gcn_579430355a0e4bbd
 gaia pkg add lkm:paper:811827932371615744
 ```
 
-The short `lkm:paper:<id>` form is a default-index compatibility alias; Gaia
-emits canonical refs with the explicit index id. The paper form fetches
-`/papers/graph`, writes a generated Gaia package under
+The short `lkm:paper:<id>` / `lkm:claim:<id>` forms are default-index
+compatibility aliases; Gaia emits canonical refs with the explicit index id.
+The paper form fetches `/papers/graph`, writes a generated Gaia package under
 `.gaia/lkm_packages/<package-name>/`, compiles it so dependency manifests exist,
-and runs `uv add --editable <generated-package>`.
+and runs `uv add --editable <generated-package>`. The claim form first fetches
+graph-shaped claim reasoning, resolves the backing `paper:<id>`, then performs
+the same paper package materialization. If the reasoning response points to
+multiple backing papers, Gaia refuses to guess; inspect the raw reasoning
+response and add the intended paper explicitly.
 
 Generated packages are normal Python Gaia packages. Their distribution name is
 title-first and id-backed, for example
@@ -53,15 +63,21 @@ authoring counterpart of `derive(...)`: it preserves the premise-conclusion
 shape, but it does not enter IR/BP until a user reviews and materializes it as
 formal Gaia reasoning.
 
+For latest LKM logic-graph responses, Gaia builds the same scaffold from graph
+edges: a factor's `concludes` edge identifies the conclusion, while incoming
+claim edges such as `previous_conclusion_of`, `weakpoint_of`, and
+`highlight_of` are all treated as premise claims in `given=[...]`; other
+incoming claim edges to the same factor are treated the same way. The generated
+scaffold metadata preserves the original LKM edge types for auditability.
+
 Downstream source can import generated claims directly, for example:
 
 ```python
 from lkm_bohrium_controlling_phase_and_morphology_811827932371615744 import conclusion_1
 ```
 
-`gaia pkg add` still does not install standalone LKM claim nodes. Use
-`gaia search lkm reasoning --claim-id <claim-id>` to resolve a claim to its
-backing paper, then add the paper package.
+`gaia pkg add` still does not install standalone LKM claim nodes. Claim refs are
+convenience handles for installing the backing paper package.
 
 LKM index URLs are resolver configuration, not package names. `bohrium` is the
 built-in index id for `https://open.bohrium.com/openapi/v1/lkm`; custom indexes

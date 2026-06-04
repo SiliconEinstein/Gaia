@@ -1778,7 +1778,7 @@ def check_command(
     * ``--warrants`` / ``--blind`` — show v6 ReviewManifest warrants
       (use ``--blind`` to hide statuses for self-review)
     * ``--inquiry`` — render goal-oriented inquiry trees
-    * ``--gate`` — apply ``[tool.gaia.quality]`` thresholds, exit
+    * ``--gate`` — apply ``tool.gaia.quality`` thresholds, exit
       non-zero on failure (CI-friendly)
     * ``--refs`` — show citation/local-reference/artifact diagnostics
 

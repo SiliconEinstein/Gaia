@@ -286,7 +286,123 @@ def _raw_lkm_nodes(item: dict[str, Any]) -> list[dict[str, Any]]:
         for premise in _list(factor.get("premises")):
             if isinstance(premise, dict):
                 raw_nodes.append({**premise, "role": premise.get("role") or "premise"})
+    graph = item.get("graph")
+    if isinstance(graph, dict):
+        for raw in _list(graph.get("nodes")):
+            if isinstance(raw, dict):
+                raw_nodes.append(_graph_node_payload(raw))
     return raw_nodes
+
+
+def _raw_lkm_factors(item: dict[str, Any]) -> list[dict[str, Any]]:
+    legacy_factors = [factor for factor in _list(item.get("factors")) if isinstance(factor, dict)]
+    if legacy_factors:
+        return legacy_factors
+    return _graph_factors(item)
+
+
+def _graph_factors(item: dict[str, Any]) -> list[dict[str, Any]]:
+    graph = item.get("graph")
+    if not isinstance(graph, dict):
+        return []
+    nodes_by_id = _graph_nodes_by_id(graph)
+    edges = [edge for edge in _list(graph.get("edges")) if isinstance(edge, dict)]
+    factors: list[dict[str, Any]] = []
+    for factor in nodes_by_id.values():
+        if _text(factor.get("type")) != "factor":
+            continue
+        factor_id = _text(factor.get("id"))
+        if factor_id is None:
+            continue
+        premises, dependency_edges = _graph_factor_dependencies(
+            edges,
+            nodes_by_id=nodes_by_id,
+            factor_id=factor_id,
+        )
+        factors.extend(
+            _graph_factor_outputs(
+                factor,
+                edges=edges,
+                nodes_by_id=nodes_by_id,
+                factor_id=factor_id,
+                premises=premises,
+                dependency_edges=dependency_edges,
+            )
+        )
+    return factors
+
+
+def _graph_nodes_by_id(graph: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    nodes_by_id: dict[str, dict[str, Any]] = {}
+    for raw in _list(graph.get("nodes")):
+        if not isinstance(raw, dict):
+            continue
+        node_id = _text(raw.get("id"))
+        if node_id is not None:
+            nodes_by_id[node_id] = _graph_node_payload(raw)
+    return nodes_by_id
+
+
+def _graph_factor_dependencies(
+    edges: list[dict[str, Any]],
+    *,
+    nodes_by_id: dict[str, dict[str, Any]],
+    factor_id: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    premises: list[dict[str, Any]] = []
+    dependency_edges: list[dict[str, str]] = []
+    for edge in edges:
+        edge_type = _text(edge.get("type"))
+        source_id = _text(edge.get("source"))
+        target_id = _text(edge.get("target"))
+        if target_id != factor_id or source_id is None or edge_type is None:
+            continue
+        if edge_type == "motivates":
+            continue
+        source = nodes_by_id.get(source_id)
+        if source is None or _text(source.get("type")) != "claim":
+            continue
+        premises.append(source)
+        dependency_edges.append({"type": edge_type, "source": source_id, "target": factor_id})
+    return premises, dependency_edges
+
+
+def _graph_factor_outputs(
+    factor: dict[str, Any],
+    *,
+    edges: list[dict[str, Any]],
+    nodes_by_id: dict[str, dict[str, Any]],
+    factor_id: str,
+    premises: list[dict[str, Any]],
+    dependency_edges: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    outputs: list[dict[str, Any]] = []
+    for edge in edges:
+        if _text(edge.get("type")) != "concludes" or _text(edge.get("source")) != factor_id:
+            continue
+        target_id = _text(edge.get("target"))
+        conclusion = nodes_by_id.get(target_id or "")
+        if conclusion is None or _text(conclusion.get("type")) != "claim":
+            continue
+        outputs.append(
+            {
+                **factor,
+                "conclusion": {**conclusion, "role": conclusion.get("role") or "conclusion"},
+                "premises": premises,
+                "dependency_edges": dependency_edges,
+                "factor_type": _text(factor.get("factor_type"))
+                or _text(factor.get("kind"))
+                or "factor",
+                "global_id": _text(factor.get("global_id")) or factor_id,
+                "local_id": _text(factor.get("local_id")) or factor_id,
+            }
+        )
+    return outputs
+
+
+def _graph_node_payload(raw: dict[str, Any]) -> dict[str, Any]:
+    role = raw.get("role") or raw.get("kind")
+    return {**raw, "role": role}
 
 
 def _dependency_statements(
@@ -304,7 +420,7 @@ def _dependency_statements(
     statements: list[str] = []
     skipped_factor_count = 0
     used_labels: set[str] = set()
-    for index, factor in enumerate(_list(item.get("factors"))):
+    for index, factor in enumerate(_raw_lkm_factors(item)):
         if not isinstance(factor, dict):
             continue
         conclusion = factor.get("conclusion")
@@ -339,6 +455,7 @@ def _dependency_statements(
             "factor_id": _text(factor.get("global_id")) or _text(factor.get("local_id")),
             "factor_type": _text(factor.get("factor_type")),
             "subtype": _text(factor.get("subtype")),
+            "dependency_edge_types": _dependency_edge_types(factor),
         }
         rationale = _factor_rationale(factor, metadata)
         statements.append(
@@ -354,6 +471,17 @@ def _dependency_statements(
         statements=statements,
         skipped_factor_count=skipped_factor_count,
     )
+
+
+def _dependency_edge_types(factor: dict[str, Any]) -> list[str] | None:
+    edge_types = {
+        edge_type
+        for edge in _list(factor.get("dependency_edges"))
+        if isinstance(edge, dict) and (edge_type := _text(edge.get("type")))
+    }
+    if not edge_types:
+        return None
+    return sorted(edge_types)
 
 
 def _provider_id(raw: dict[str, Any]) -> str | None:
@@ -446,7 +574,7 @@ name = {_toml_string(dist_name)}
 version = "0.1.0"
 description = {_toml_string(description)}
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["gaia-lang>=0.5.0a1"]
 
 [build-system]
 requires = ["hatchling"]

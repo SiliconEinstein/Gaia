@@ -130,6 +130,7 @@ Every Gaia-native search command should return:
       "kind": "claim",
       "title": "Annealing temperature controls alpha-phase growth",
       "content": "For dip-coated films ...",
+      "relevance_score": 1.0,
       "rank": {
         "score": 1.0,
         "score_kind": "retrieval"
@@ -181,18 +182,24 @@ Every Gaia-native search command should return:
 }
 ```
 
+The envelope fields are common; result objects may additionally include
+provider-specific views such as `reasoning_view` or `lkm_view`.
+
 Field rules:
 
 | Field | Meaning |
 |---|---|
 | `id` | Stable search-result id in the provider namespace |
 | `provider` | `lkm`, `pkg`, or another future provider |
-| `kind` | Gaia-facing kind: `package`, `claim`, `question`, `note`, `derive`, `relation` |
+| `kind` | Gaia-facing result kind: `package`, `claim`, `question`, `note`, `reasoning_chain`, or a future provider kind |
 | `rank.score` | Retrieval ranking only, never a prior |
+| `relevance_score` | Easy-to-read alias for the retrieval ranking score; still not a prior or confidence |
 | `gaia` | Populated when the result already has a Gaia package identity |
 | `source` | Provider provenance needed for citations and follow-up calls |
+| `reasoning_view` | Thin reasoning summary when the LKM result is a reasoning chain: conclusion claim, motivating questions, dependency claim buckets, and steps |
+| `lkm_view` | Thin LKM graph summary for paper/package results: node counts, edge-type counts, and raw LKM logic relations |
 | `actions` | Suggested follow-up actions. `kind` + `ref` are the machine-readable contract; `label` / `target` are display metadata; `next_steps` is a human/agent hint |
-| `raw` | Optional original provider payload for debugging and migration |
+| `raw` | Verbatim upstream payload (`{provider, payload}`) — the audit/debug escape hatch. Prefer the normalized fields above; read `raw.payload` only when you need data the envelope does not surface. Provider identity is already on the top-level `provider` field |
 
 Search output is name-first and id-backed. Paper titles are the primary display
 name when available (`title`, `source.paper_title`, `actions[].label`), while
@@ -263,25 +270,28 @@ normalized boundary:
 |---|---|---|
 | `variable.type == "claim"` | `claim` | Candidate Gaia `claim(...)` |
 | `variable.type == "question"` | `question` | Candidate Gaia `question(...)` |
-| reasoning chain hit | `reasoning_chain` | Search result for LKM reasoning chains; may or may not include full factors |
-| complete `factor` with `premises` + `conclusion` | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; preserve raw factors for inspection |
+| reasoning chain hit | `reasoning_chain` | Search result for LKM reasoning chains; may be graph-shaped or legacy factor-shaped |
+| graph factor with `concludes` + incoming claim edges | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; preserve raw LKM relation names for inspection |
+| legacy complete `factor` with `premises` + `conclusion` | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; compatibility path for older responses |
 | `paper.package_id` | `package` candidate | Addable only after materialization or registry resolution |
 
 The public `/search` endpoint should be treated as claim/question retrieval.
 Reasoning factors are exposed through `reasoning` and `package`, not as public
 search-result variables. A `reasoning` result is not a complete Gaia
-`derive(...)` unless it includes a factor with both `premises` and
-`conclusion`.
+`derive(...)` unless Gaia can identify a factor, its conclusion, and at least
+one premise claim from either graph edges or the legacy factor fields.
 
-LKM `package` output should preserve `paper`, `variables`, `factors`, and
-`motivations` metadata, but Gaia-native output should also expose:
+LKM `package` output should preserve the raw graph payload. Legacy `paper`,
+`variables`, `factors`, and `motivations` fields may still appear, but the
+latest default response is graph-shaped. Gaia-native output should also expose:
 
 - `source.source_package`, e.g. `paper:811827932371615744`
 - `source.index_id`, e.g. `bohrium`; LKM-local ids are scoped to this index
 - `source.paper_title`, e.g. `Controlling phase and morphology of FAPbI3 films`
 - `source.paper_id`
 - candidate package ref `lkm:<index_id>:paper:<paper_id>`
-- whether the graph is already materialized as a Gaia package
+- a `gaia` identity placeholder; the current LKM adapter does not check local
+  materialization status during search
 
 ## 7. Search To `gaia pkg add`
 
@@ -313,14 +323,22 @@ Resolution rules:
    adds it as an editable `uv` dependency. LKM factors are emitted as
    `depends_on(...)` scaffold records by default, which are authoring-level
    placeholders for a later formal `derive(...)`/reasoning edge rather than
-   immediate BP semantics.
+   immediate BP semantics. In latest graph-shaped responses, `concludes`
+   identifies the conclusion and incoming claim-to-factor edges such as
+   `previous_conclusion_of`, `weakpoint_of`, and `highlight_of` become the
+   `given=[...]` premises; the original LKM edge types are kept in scaffold
+   metadata.
 3. A future official registry source-ref index may choose to resolve the same
    input to a published package instead of a local generated package, but the
    stable source ref stays the same.
 4. `lkm:<index_id>:claim:<claim_id>` is accepted as a source identity, but
-   `pkg add` installs paper-level packages, not standalone claim nodes. Until a
-   registry source-ref index can resolve the claim to its backing paper package,
-   the command points the user to `gaia search lkm reasoning --claim-id ...`.
+   `pkg add` installs paper-level packages, not standalone claim nodes. The
+   command fetches graph-shaped claim reasoning, resolves the backing
+   `paper:<id>` from reasoning `source_package`, graph-local paper ids, or
+   paper metadata, and then follows the paper materialization path above. If no
+   backing paper is identifiable, or if the reasoning evidence spans multiple
+   backing papers, it reports that boundary and asks the user to inspect the raw
+   reasoning response.
 
 The important boundary is that search returns:
 
@@ -395,6 +413,8 @@ from these artifacts and invalidated by `ir_hash`.
 - Make `gaia-json` the default output for search-oriented LKM verbs.
 - Normalize `knowledge`, `reasoning`, and `package` first.
 - Preserve raw payloads during alpha.
+- Claim reasoning fetches should request LKM's graph-shaped response by default
+  so normalized output can expose `reasoning_view`.
 
 ### Phase 2: Local package provider
 
@@ -405,15 +425,17 @@ from these artifacts and invalidated by `ir_hash`.
 
 ### Phase 3: Add refs
 
-- Extend `gaia pkg add` to accept `lkm:<index_id>:paper:<id>` and
-  `lkm:<index_id>:claim:<id>`, plus short default-index aliases if needed.
-- Validate friendly `--lkm-index ... --lkm-paper ...` / `--lkm-claim ...`
-  forms before registry package lookup.
-- Prefer registry materializations when available.
-- Until the registry exposes source-ref lookup, fail clearly with an inspection
-  command instead of treating LKM refs as ordinary package names.
-- Materialize local editable packages only when the user explicitly chooses that
-  path.
+- Implemented in PR 740: `gaia pkg add` accepts
+  `lkm:<index_id>:paper:<id>` / `lkm:<index_id>:claim:<id>`, short default-index
+  aliases, and the friendly `--lkm-index ... --lkm-paper ...` /
+  `--lkm-claim ...` forms before registry package lookup.
+- Current behavior materializes LKM paper refs as local editable packages under
+  `.gaia/lkm_packages/`, compiles the generated package, and runs
+  `uv add --editable`. Claim refs are resolved to one unambiguous backing paper
+  first; ambiguous multi-paper reasoning responses fail with an inspection
+  command instead of guessing.
+- A future official registry source-ref index may prefer a published package
+  over local generation, but that lookup is not part of this PR.
 
 ### Phase 4: Cross-provider search
 

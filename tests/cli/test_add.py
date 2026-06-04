@@ -110,7 +110,7 @@ def test_add_accepts_lkm_claim_flags_as_source_ref():
     result = runner.invoke(app, ["pkg", "add", "--lkm-claim", "gcn_abc123"])
     assert result.exit_code == 1
     assert "lkm:bohrium:claim:gcn_abc123" in result.output
-    assert "gaia search lkm reasoning --index bohrium --claim-id gcn_abc123" in result.output
+    assert "inside the package that should depend on this LKM paper" in result.output
 
 
 def test_add_rejects_conflicting_lkm_inputs_before_registry_lookup():

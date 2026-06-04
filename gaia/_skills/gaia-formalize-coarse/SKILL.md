@@ -14,7 +14,8 @@ description: |
   `comparative`, `formal`, `computational`, `external`). Cross-grounds the
   paper against LKM's existing knowledge graph in Phase 1b via
   `gaia search lkm knowledge`, filtering on `provenance.source_packages` and
-  verifying reasoning-chain closure via `gaia search lkm reasoning --claim-id`.
+  verifying reasoning-chain closure via `gaia search lkm reasoning --claim-id`
+  (graph-shaped by default).
   This is the **Paper → package** entry point when speed matters — the quick
   four-phase single-pass sibling of `gaia-formalize-fine` (the thorough
   six-pass treatment). Reach for `gaia-formalize-coarse` for a fast first cut
@@ -185,8 +186,10 @@ paragraph. Do not invent contributions to fill the gap.
   The Python pipeline is a parallel route from paper to XML; this skill
   is the direct route from paper to Gaia.
 - It does not own the LKM API surface — Phase 1b shells out to the
-  `gaia search lkm` CLI (`knowledge` / `reasoning --claim-id`). Flags, auth,
-  and known quirks live behind `gaia search lkm <verb> --help`.
+  `gaia search lkm` CLI (`knowledge` / `reasoning --claim-id`). Claim
+  reasoning is graph-shaped by default; preserve LKM relation names as audit
+  data instead of translating them into Gaia operators. Flags, auth, and known
+  quirks live behind `gaia search lkm <verb> --help`.
 - Multi-paper merges, cross-paper contradictions, and downstream rendering
   are separate concerns handled by other tools.
 

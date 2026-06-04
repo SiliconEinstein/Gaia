@@ -182,6 +182,7 @@ class TestKnowledge:
                 "--reasoning-only",
                 "--role",
                 "conclusion",
+                "--include-paper-enrich",
                 "--offset",
                 "5",
                 "--limit",
@@ -194,6 +195,7 @@ class TestKnowledge:
         assert body["retrieval_mode"] == "lexical"
         assert body["keywords"] == ["a", "b"]
         assert body["reasoning_only"] is True
+        assert body["include_paper_enrich"] is True
         assert body["filters"]["role"] == "conclusion"
         assert body["offset"] == 5 and body["limit"] == 3
 
@@ -327,6 +329,7 @@ class TestKnowledge:
             response={
                 "code": 0,
                 "data": {
+                    "has_more": True,
                     "papers": {
                         "paper:811827932371615744": {
                             "doi": "10.1016/j.jpcs.2021.110374",
@@ -372,9 +375,11 @@ class TestKnowledge:
             "kind": "knowledge",
             "index_id": "bohrium",
         }
+        assert out["pagination"] == {"has_more": True}
         item = out["results"][0]
         assert item["id"] == "lkm:bohrium:gcn_579430355a0e4bbd"
         assert item["kind"] == "claim"
+        assert item["relevance_score"] == 0.97
         assert item["rank"] == {"score": 0.97, "score_kind": "retrieval"}
         assert item["gaia"]["object_kind"] == "claim"
         assert item["source"]["paper_id"] == "811827932371615744"
@@ -405,6 +410,8 @@ class TestKnowledge:
                 "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             },
         ]
+        assert item["raw"]["provider"] == "lkm"
+        assert item["raw"]["payload"]["id"] == "gcn_579430355a0e4bbd"
 
     def test_gaia_json_omits_inspect_when_claim_has_no_reasoning(
         self, monkeypatch: pytest.MonkeyPatch
@@ -554,7 +561,11 @@ class TestReasoning:
         call = _FakeClient.last_call
         assert call["method"] == "GET"
         assert call["path"] == "/claims/gcn_abc123/reasoning"
-        assert call["params"] == {"max_chains": 10, "sort_by": "comprehensive"}
+        assert call["params"] == {
+            "format": "graph",
+            "max_chains": 10,
+            "sort_by": "comprehensive",
+        }
 
     def test_prefixed_claim_id_strips_prefix_and_infers_index(
         self, monkeypatch: pytest.MonkeyPatch
@@ -682,7 +693,11 @@ class TestReasoning:
         call = _FakeClient.last_call
         assert call["method"] == "GET"
         assert call["path"] == "/claims/gcn_abc123/reasoning"
-        assert call["params"] == {"max_chains": 3, "sort_by": "comprehensive"}
+        assert call["params"] == {
+            "format": "graph",
+            "max_chains": 3,
+            "sort_by": "comprehensive",
+        }
 
     def test_query_search_calls_reasoning_search_endpoint(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1057,6 +1072,199 @@ class TestReasoning:
             {"factor_id": "gfac_2d9b044b8de74fe4", "premise_count": 1}
         ]
 
+    def test_claim_reasoning_graph_uses_semantic_dependency_names(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "source_package": "paper:811",
+                            "graph": {
+                                "nodes": [
+                                    {
+                                        "id": "paper:811::question",
+                                        "type": "question",
+                                        "kind": "subproblem",
+                                        "content": "Why does the model work?",
+                                    },
+                                    {
+                                        "id": "gcn_prev",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Previous result",
+                                    },
+                                    {
+                                        "id": "gcn_weak",
+                                        "type": "claim",
+                                        "kind": "weak_point",
+                                        "title": "Known limitation",
+                                    },
+                                    {
+                                        "id": "gcn_highlight",
+                                        "type": "claim",
+                                        "kind": "highlight",
+                                        "title": "Key observation",
+                                    },
+                                    {
+                                        "id": "lfac_1",
+                                        "type": "factor",
+                                        "kind": "strategy",
+                                        "steps": [{"reasoning": "Combine the evidence."}],
+                                    },
+                                    {
+                                        "id": "gcn_result",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Final result",
+                                    },
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "motivates",
+                                        "source": "paper:811::question",
+                                        "target": "gcn_result",
+                                    },
+                                    {
+                                        "type": "previous_conclusion_of",
+                                        "source": "gcn_prev",
+                                        "target": "lfac_1",
+                                    },
+                                    {
+                                        "type": "weakpoint_of",
+                                        "source": "gcn_weak",
+                                        "target": "lfac_1",
+                                    },
+                                    {
+                                        "type": "highlight_of",
+                                        "source": "gcn_highlight",
+                                        "target": "lfac_1",
+                                    },
+                                    {
+                                        "type": "concludes",
+                                        "source": "lfac_1",
+                                        "target": "gcn_result",
+                                    },
+                                ],
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["id"] == "lkm:bohrium:lfac_1"
+        assert item["gaia"]["object_kind"] == "derive"
+        assert item["source"]["has_factors"] is True
+        assert item["source"]["can_compile"] is True
+        assert item["reasoning_view"] == {
+            "conclusion_claim": {
+                "id": "gcn_result",
+                "title": "Final result",
+                "type": "claim",
+                "kind": "conclusion",
+            },
+            "questions": [
+                {
+                    "id": "paper:811::question",
+                    "content": "Why does the model work?",
+                    "type": "question",
+                    "kind": "subproblem",
+                }
+            ],
+            "depends_on_previous_conclusion_claims": [
+                {
+                    "id": "gcn_prev",
+                    "title": "Previous result",
+                    "type": "claim",
+                    "kind": "conclusion",
+                }
+            ],
+            "depends_on_weakness_claims": [
+                {
+                    "id": "gcn_weak",
+                    "title": "Known limitation",
+                    "type": "claim",
+                    "kind": "weak_point",
+                }
+            ],
+            "depends_on_highlight_claims": [
+                {
+                    "id": "gcn_highlight",
+                    "title": "Key observation",
+                    "type": "claim",
+                    "kind": "highlight",
+                }
+            ],
+            "depends_on_other_claims": [],
+            "reasoning_steps": [{"reasoning": "Combine the evidence."}],
+        }
+
+    def test_claim_reasoning_graph_zero_premise_factor_flags_package_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A graph factor that concludes a claim but carries no premise edges is
+        # an intermediate paper-chain node whose upstream premises live in the
+        # package: it must NOT be labeled derivable, and it must surface the
+        # package-context comment plus an inspect action — the same contract the
+        # legacy inline-factor path already enforces.
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "source_package": "paper:811827932371615744",
+                            "graph": {
+                                "nodes": [
+                                    {"id": "lfac_leaf", "type": "factor", "kind": "strategy"},
+                                    {
+                                        "id": "gcn_result",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Final result",
+                                    },
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "concludes",
+                                        "source": "lfac_leaf",
+                                        "target": "gcn_result",
+                                    },
+                                ],
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["gaia"]["object_kind"] is None
+        assert item["source"]["can_compile"] is False
+        assert item["source"]["has_factors"] is True
+        assert item["source"]["factors"] == [
+            {
+                "factor_id": "lfac_leaf",
+                "premise_count": 0,
+                "comment": "premises omitted; inspect package for upstream reasoning context",
+            }
+        ]
+        inspect_actions = [action for action in item["actions"] if action["kind"] == "inspect"]
+        assert inspect_actions, item["actions"]
+        assert "811827932371615744" in inspect_actions[0]["next_steps"]
+
 
 # --------------------------------------------------------------------------- #
 # reasoning-search alias                                                      #
@@ -1267,13 +1475,15 @@ class TestNodes:
 
 
 class TestPackage:
-    def test_happy_default_include(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_happy_default_uses_latest_graph_response_shape(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(app, ["search", "lkm", "package", "--paper-id", "p1"])
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
         assert body["paper_id"] == "p1"
-        assert body["include"] == ["paper", "variables", "factors", "motivations"]
+        assert "include" not in body
 
     def test_accepts_server_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1388,6 +1598,62 @@ class TestPackage:
                                 "motivations_total": 1,
                                 "variables_total": 25,
                             },
+                            "graph": {
+                                "nodes": [
+                                    {
+                                        "id": "paper:811827932371615744::problem",
+                                        "type": "question",
+                                        "kind": "problem",
+                                        "content": "How can phase stability be controlled?",
+                                        "metadata": json.dumps(
+                                            {
+                                                "structural_edges": [
+                                                    {
+                                                        "target": (
+                                                            "paper:811827932371615744::conclusion_1"
+                                                        ),
+                                                        "type": "addresses",
+                                                    }
+                                                ]
+                                            }
+                                        ),
+                                    },
+                                    {
+                                        "id": "paper:811827932371615744::conclusion_1",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Annealing controls phase stability",
+                                    },
+                                    {
+                                        "id": "paper:811827932371615744::highlight_1",
+                                        "type": "claim",
+                                        "kind": "highlight",
+                                        "content": "120 C gives the best alpha phase.",
+                                    },
+                                    {
+                                        "id": "lfac_1",
+                                        "type": "factor",
+                                        "kind": "strategy",
+                                    },
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "motivates",
+                                        "source": "paper:811827932371615744::problem",
+                                        "target": "paper:811827932371615744::conclusion_1",
+                                    },
+                                    {
+                                        "type": "highlight_of",
+                                        "source": "paper:811827932371615744::highlight_1",
+                                        "target": "lfac_1",
+                                    },
+                                    {
+                                        "type": "concludes",
+                                        "source": "lfac_1",
+                                        "target": "paper:811827932371615744::conclusion_1",
+                                    },
+                                ],
+                            },
                         }
                     ]
                 },
@@ -1422,6 +1688,17 @@ class TestPackage:
         assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] == "Controlling phase and morphology"
         assert item["source"]["stats"]["variables_total"] == 25
+        assert item["lkm_view"] == {
+            "node_counts": {"claim": 2, "factor": 1, "question": 1},
+            "edge_type_counts": {"concludes": 1, "highlight_of": 1, "motivates": 1},
+            "logic_relations": [
+                {
+                    "source": "paper:811827932371615744::problem",
+                    "relation": "addresses",
+                    "target": "paper:811827932371615744::conclusion_1",
+                }
+            ],
+        }
         assert item["actions"] == [
             {
                 "kind": "add",
@@ -1437,6 +1714,58 @@ class TestPackage:
                 "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             }
         ]
+
+    def test_gaia_json_preserves_dict_shaped_wrapped_paper_graph(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "papers": {
+                        "paper:811827932371615744": {
+                            "paper": {
+                                "en_title": "Dict shaped paper",
+                                "id": "811827932371615744",
+                                "package_id": "paper:811827932371615744",
+                            },
+                            "graph": {
+                                "nodes": [
+                                    {"id": "gcn_result", "type": "claim"},
+                                    {"id": "lfac_1", "type": "factor"},
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "concludes",
+                                        "source": "lfac_1",
+                                        "target": "gcn_result",
+                                    }
+                                ],
+                            },
+                            "stats": {"variables_total": 2},
+                        }
+                    }
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "package", "--paper-id", "811827932371615744"],
+        )
+
+        assert result.exit_code == 0, result.output
+        item = json.loads(result.output)["results"][0]
+        assert item["id"] == "lkm:bohrium:paper:811827932371615744"
+        assert item["title"] == "Dict shaped paper"
+        assert item["source"]["paper_id"] == "811827932371615744"
+        assert item["source"]["stats"] == {"variables_total": 2}
+        assert item["lkm_view"] == {
+            "node_counts": {"claim": 1, "factor": 1},
+            "edge_type_counts": {"concludes": 1},
+            "logic_relations": [],
+        }
 
     def test_gaia_json_does_not_invent_add_ref_without_paper_id(
         self, monkeypatch: pytest.MonkeyPatch

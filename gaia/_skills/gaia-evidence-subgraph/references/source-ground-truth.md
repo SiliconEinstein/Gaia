@@ -1,12 +1,12 @@
 # Chain-Payload Audit Discipline
 
-LKM chain payloads (`gaia search lkm knowledge` recall + `gaia search lkm reasoning --claim-id <id> --format raw-json` chains) are this skill's **single source of truth**. Every node in the graph and every audit row must trace back into that JSON — no external paper text, no agent paraphrase, no synthetic bridging.
+LKM chain payloads (`gaia search lkm knowledge` recall + `gaia search lkm reasoning --claim-id <id> --format raw-json` chains) are this skill's **single source of truth**. Current claim-reasoning payloads are graph-shaped by default (`reasoning_chains[].graph.nodes[]` / `graph.edges[]`), while older payloads may carry `factors[]`. Every node in the graph and every audit row must trace back into that JSON — no external paper text, no agent paraphrase, no synthetic bridging.
 
 ## Why the discipline matters
 
 The graph claims to be *chain-backed*. That claim is meaningful only if a reader or auditor can take any node or edge and follow the audit table back to a specific piece of LKM-returned content. Two failure modes silently break the contract:
 
-1. **Synthetic bridging** — minting an intermediate-result node because "the closure chain obviously needs one here", even though no premise / step / claim content in the payload mentions it. This makes the graph indistinguishable from agent paraphrase.
+1. **Synthetic bridging** — minting an intermediate-result node because "the closure chain obviously needs one here", even though no graph node, graph edge, premise / step / claim content in the payload mentions it. This makes the graph indistinguishable from agent paraphrase.
 2. **Floating numerical anchors** — quoting a value on a node that does not appear inside any premise content, claim content, or `steps[].reasoning` in the chain. The number then has no provenance the user can verify.
 
 The discipline below is what prevents both.
@@ -17,9 +17,11 @@ For each node and edge, pick the most specific anchor available:
 
 | Anchor | What it points to |
 | --- | --- |
-| `gcn_<premise_id>` | A native premise inside `evidence_chains[].factors[].premises[]`. Quote `content` verbatim. |
-| `gfac_<factor_id>` | A factor diamond. Quote `subtype` and the cluster semantics implied by its premises. |
-| `factors[i].steps[j].reasoning` | An optional step note inside a factor — not always populated. When present, treat as second-class evidence after premise content. |
+| `graph.nodes[id=<gcn_* or paper:* or lfac_*>]` | A claim, question, or factor node inside a graph-shaped chain. Quote `content` verbatim when present. |
+| `graph.edges[source=<id>,target=<id>,type=<relation>]` | A graph-shaped chain edge. Preserve the LKM relation name (`concludes`, `motivates`, `previous_conclusion_of`, `weakpoint_of`, `highlight_of`, etc.) as an audit fact. |
+| `gcn_<premise_id>` | A native premise claim, either a graph claim node that points to a factor or a legacy `factors[].premises[]` entry. Quote `content` verbatim. |
+| `gfac_<factor_id>` / `lfac_<factor_id>` | A factor diamond. Quote `subtype` and the cluster semantics implied by its premises. |
+| `factor.steps[j].reasoning` / `factors[i].steps[j].reasoning` | An optional step note inside a factor — not always populated. When present, treat as second-class evidence after premise content. |
 | Root `data.claim.content` | The root claim text itself. Use only on the root node. |
 | `data.papers[paper:<id>]` | Bibliographic metadata for a `source_package`. Use for `gaia-scholarly-synthesis` references; **never** as the source of a graph node's text. |
 
@@ -31,6 +33,7 @@ Every audit-table row carries a `chain-payload anchor` column (last column). Exa
 
 | What you are anchoring | Anchor value |
 | --- | --- |
+| A graph edge saying a claim is a premise of a factor | `graph.edges[source=gcn_...,target=lfac_...,type=weakpoint_of]` |
 | A premise rendered as an intermediate-result node | `gcn_a1b2c3…` |
 | A factor diamond label | `gfac_d4e5f6… (subtype=noisy_and)` |
 | A step-level numerical claim | `gfac_d4e5f6…/steps[0].reasoning` |
@@ -58,7 +61,7 @@ The goal is no fabrication — not exhaustive coverage. A graph with a few `anch
 
 ## Multi-sub-model papers
 
-When a single paper analyses multiple sub-models / variants and LKM has split it into several claims, each chain-backed claim id is a candidate root. Pick **one** as the root for this graph and limit nodes to that claim's `evidence_chains`. If the user wants the other sub-models, that is a separate run with a different root id.
+When a single paper analyses multiple sub-models / variants and LKM has split it into several claims, each chain-backed claim id is a candidate root. Pick **one** as the root for this graph and limit nodes to that claim's `reasoning_chains[].graph` (or legacy `evidence_chains` / `factors[]`). If the user wants the other sub-models, that is a separate run with a different root id.
 
 If the chain you receive is missing a sub-model the user expected to see, run targeted `gaia search lkm knowledge` queries (`--retrieval-mode lexical --keywords <sub-model's distinctive terms> --scopes claim`) for that sub-model — do **not** import sub-model content from outside the chain payload.
 

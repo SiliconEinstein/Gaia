@@ -7,7 +7,10 @@ gaia search lkm knowledge <query>           Search LKM claim/question nodes
 gaia search lkm reasoning <query>           Search LKM reasoning chains
 gaia search lkm reasoning --claim-id <id>   Fetch reasoning chains for one claim
 gaia search lkm nodes <ids...>              Fetch LKM graph nodes by id
-gaia search lkm package [identifier]        Fetch one LKM paper package candidate
+gaia search lkm package --paper-id <id>     Fetch one LKM paper package candidate
+gaia search lkm package --package-id paper:<id>
+gaia search lkm package --doi <doi>
+gaia search lkm package --title <title>
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
@@ -17,6 +20,15 @@ to `--out PATH`.
 
 Use `--format raw-json` on `knowledge`, `reasoning`, or `package` to
 inspect the upstream LKM JSON envelope directly.
+
+`reasoning --claim-id` asks LKM for the graph-shaped reasoning response by
+default (`format=graph`). In practice this means Gaia receives a small claim /
+factor / question graph for one target claim, rather than only the older
+factor-list slice.
+
+`package` requires exactly one identifier flag: `--package-id`, `--paper-id`,
+`--doi`, or `--title`. `--title` may return several candidate papers and accepts
+`--title-resolve-limit`; the other identifier modes address one paper directly.
 
 Use `--index <id>` on LKM verbs to select a configured LKM index. This follows
 the same split as `pip` / `uv`: the dependency or source ref stays stable,
@@ -69,6 +81,9 @@ formal Gaia reasoning edge in IR/BP.
 
 LKM retrieval scores are ranking signals only. They must not be copied into
 Gaia priors, beliefs, or warrant strengths.
+Normalized results expose this same ranking signal as `relevance_score` and
+`rank.score`; both mean "how relevant this LKM hit was to the search", not "how
+true the claim is".
 
 `reasoning` returns reasoning-chain search results. Normalized results expose
 `source.factors` as a per-factor list of `{factor_id, premise_count}`. A factor
@@ -84,6 +99,21 @@ chain that the current conclusion depends on. A factor with premises but no
 inline conclusion is an incomplete LKM payload, not a valid continuation and not
 a candidate `derive(...)`; normalized `gaia-json` leaves `gaia.object_kind`
 unset and annotates that `source.factors[]` entry with a `warning`.
+
+For graph-shaped claim reasoning, Gaia reads `factor --concludes--> claim` as
+the conclusion being produced by that reasoning step. Incoming claim edges such
+as `previous_conclusion_of`, `weakpoint_of`, and `highlight_of` are shown in
+`reasoning_view` as dependencies of the reasoning step:
+`depends_on_previous_conclusion_claims`, `depends_on_weakness_claims`, and
+`depends_on_highlight_claims`. Other incoming claim edges to the factor are
+kept as `depends_on_other_claims`. The original LKM relation names are still
+kept in the raw payload.
+
+`package` results include `lkm_view`, a compact summary of the paper graph:
+node counts, edge-type counts, and any logic relations embedded in node
+metadata. The relation names such as `addresses`, `motivates`, and `supports`
+are LKM's own graph vocabulary; Gaia does not translate those names, it only
+surfaces them next to the normalized package candidate.
 
 The planned normalized result schema and the `search` / `pkg add` boundary are
 tracked in the internal draft `docs/specs/2026-05-20-gaia-search-design.md`.
