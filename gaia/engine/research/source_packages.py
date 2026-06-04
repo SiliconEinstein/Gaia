@@ -156,6 +156,10 @@ def _source_stat_key(call_name: str) -> str:
     return "note_count"
 
 
+def _qid(namespace: str, import_name: str, symbol: str) -> str:
+    return f"{namespace}:{import_name}::{symbol}"
+
+
 def _package_identity(pkg: ResearchPackage, landscape: JsonDict) -> tuple[str, str, str]:
     action = str(landscape.get("action") or "explore").replace(".", "-")
     digest = _short_hash(
@@ -252,7 +256,11 @@ def _init_source(
                 "variable_type": item.get("variable_type"),
                 "variable_id": _item_variable_id(item),
                 "paper_id": _item_source(item).get("paper_id"),
+                "package": None,
+                "import_name": None,
+                "namespace": None,
                 "symbol": symbol,
+                "ref": None,
             }
         )
 
@@ -298,6 +306,16 @@ def materialize_landscape_source_package(
     if not item_refs:
         shutil.rmtree(root)
         return None
+    item_refs = [
+        {
+            **item_ref,
+            "package": dist_name,
+            "import_name": import_name,
+            "namespace": namespace,
+            "ref": _qid(namespace, import_name, str(item_ref["symbol"])),
+        }
+        for item_ref in item_refs
+    ]
 
     (root / "pyproject.toml").write_text(
         _pyproject(
@@ -330,7 +348,41 @@ def materialize_landscape_source_package(
     )
 
 
+def attach_source_package_refs(
+    landscape: JsonDict,
+    source_packages: list[ResearchSourcePackage],
+) -> JsonDict:
+    """Attach generated package claim refs to matching landscape items."""
+    package_payloads = [source_package.to_payload() for source_package in source_packages]
+    refs_by_item: dict[str, JsonDict] = {}
+    for source_package in source_packages:
+        for item_ref in source_package.item_refs:
+            item_id = item_ref.get("item_id")
+            if isinstance(item_id, str) and item_id:
+                refs_by_item[item_id] = {
+                    "kind": "package_claim",
+                    "package": item_ref.get("package"),
+                    "import_name": item_ref.get("import_name"),
+                    "namespace": item_ref.get("namespace"),
+                    "symbol": item_ref.get("symbol"),
+                    "ref": item_ref.get("ref"),
+                    "source_package_path": str(source_package.root),
+                }
+
+    raw_items = landscape.get("items")
+    if isinstance(raw_items, list):
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            item_id = item.get("item_id")
+            if isinstance(item_id, str) and item_id in refs_by_item:
+                item["source_package_ref"] = refs_by_item[item_id]
+    landscape["source_packages"] = package_payloads
+    return landscape
+
+
 __all__ = [
     "ResearchSourcePackage",
+    "attach_source_package_refs",
     "materialize_landscape_source_package",
 ]

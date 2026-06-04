@@ -97,6 +97,9 @@ Success criteria:
 - Landscape artifact exists under `.gaia/research/landscapes/`.
 - A shallow source package exists under `.gaia/research/source_packages/` and is
   added through the local package dependency contract.
+- Landscape items include `source_package_ref.ref` when materialized; use those
+  refs for assessment `claim_refs` only when a concrete scaffold relation is
+  justified.
 - CLI reports `pull_budget: 0`.
 - Candidate focuses and coverage gaps are synced to inquiry hypotheses /
   obligations.

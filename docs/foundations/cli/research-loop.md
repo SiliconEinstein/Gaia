@@ -73,6 +73,11 @@ Default guardrail: write only shallow source claims/notes from the already
 available search output. Do not deep-pull paper graphs during the first broad
 scan.
 
+The landscape keeps artifact-local `items` for trace readability. When source
+materialization succeeds, each item also gets `source_package_ref.ref`, a Gaia
+package QID that assessment analysis can use in `claim_refs` for scaffolded
+`candidate_relation(...)` writes.
+
 ### `gaia research focus`
 
 Turn a landscape into a small set of assessable research questions.

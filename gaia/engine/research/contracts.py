@@ -158,7 +158,9 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "The combined items and paper leads from one or more landscape artifacts. "
                 "Use item ids exactly as presented by the evidence packet. Items are "
                 "artifact-local references to LKM variables, factors, papers, packages, "
-                "or chains; they are not new knowledge entities."
+                "or chains; they are not new knowledge entities. When an item includes "
+                "source_package_ref, its source_package_ref.ref is the Gaia package QID "
+                "for the shallow source claim/note generated during Explore."
             ),
         },
         "output_required_fields": {
@@ -182,6 +184,12 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 for relation_type, hints in RELATION_PROMOTION_HINTS.items()
             },
             "source_refs": "non-empty refs grounded in items, variables, factors, or papers",
+            "claim_refs": (
+                "optional list of concrete package claim refs used only when this relation "
+                "should be scaffolded as candidate_relation(...). Use local bindings or "
+                "foreign Gaia QIDs such as items[*].source_package_ref.ref; omit when the "
+                "relation is only a prose assessment."
+            ),
         },
         "review_fields": {
             "language": language,
@@ -238,6 +246,12 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "turn them into prose; incorporate the important assessment reasoning "
                 "and open questions into review.summary, review.sections, limitations, "
                 "and next_queries."
+            ),
+            (
+                "When a relation genuinely compares or links concrete package claims, "
+                "set claim_refs to those package refs. Do not invent refs; use only "
+                "local package bindings or source_package_ref.ref values visible in "
+                "the evidence packet."
             ),
             "When evidence is insufficient, emit obligations instead of overclaiming.",
         ],

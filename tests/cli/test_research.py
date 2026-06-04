@@ -133,6 +133,8 @@ def test_research_contract_commands_emit_json() -> None:
     assert assess_payload["contract"] == "gaia.research.assessment_analysis"
     assert "ready_for_assess" in focus_payload["focus_fields"]["readiness"]
     assert "supports" in assess_payload["relation_fields"]["type"]
+    assert "claim_refs" in assess_payload["relation_fields"]
+    assert "source_package_ref" in assess_payload["input"]["evidence_packet"]
 
 
 def test_research_status_creates_manifest_and_suggests_inquiry_commands(tmp_path: Path) -> None:
@@ -327,6 +329,12 @@ def test_research_scan_materializes_items_as_local_source_package(
     assert len(source_payload) == 1
     assert source_payload[0]["path"] == str(source_root)
     assert source_payload[0]["claim_count"] == 1
+
+    landscape = json.loads(_landscape_artifacts(pkg_dir)[0].read_text(encoding="utf-8"))
+    source_ref = landscape["items"][0]["source_package_ref"]
+    assert source_ref["package"] == source_root.name
+    assert source_ref["symbol"] == "source_item_0"
+    assert source_ref["ref"].endswith("::source_item_0")
 
     check = runner.invoke(app, ["build", "check", str(source_root)])
     assert check.exit_code == 0, check.output

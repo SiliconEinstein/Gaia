@@ -36,6 +36,7 @@ from gaia.engine.research.report import (
 )
 from gaia.engine.research.source_packages import (
     ResearchSourcePackage,
+    attach_source_package_refs,
     materialize_landscape_source_package,
 )
 from gaia.engine.research.stop import STOP_SCHEMA_VERSION, evaluate_research_stop
@@ -60,6 +61,7 @@ __all__ = [
     "ScanBatch",
     "append_research_event",
     "assess_contract",
+    "attach_source_package_refs",
     "build_assessment_artifact",
     "build_assessment_from_analysis",
     "build_assessment_from_landscapes",

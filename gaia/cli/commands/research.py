@@ -17,6 +17,7 @@ from gaia.engine.research import (
     ResearchTargetError,
     ScanBatch,
     append_research_event,
+    attach_source_package_refs,
     build_assessment_from_analysis,
     build_assessment_from_landscapes,
     build_focus_synthesis_artifact,
@@ -234,6 +235,11 @@ def _materialize_landscape_sources_or_exit(
 
     added_payload = dict(payload)
     added_payload["path"] = str(local_root)
+    attach_source_package_refs(landscape, [materialized])
+    landscape_artifact.write_text(
+        json.dumps(landscape, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     return {
         "materialize_sources_enabled": True,
         "source_package_materialization": True,
