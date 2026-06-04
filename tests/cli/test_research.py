@@ -28,7 +28,8 @@ def _write_research_package(pkg_dir: Path) -> Path:
     init_py.write_text(
         "from gaia.engine.lang import claim\n\n"
         'seed = claim("Seed claim for research actions.")\n'
-        '__all__ = ["seed"]\n',
+        'seed_alt = claim("Second seed claim for research actions.")\n'
+        '__all__ = ["seed", "seed_alt"]\n',
         encoding="utf-8",
     )
     return init_py
@@ -42,6 +43,12 @@ def _read_events(pkg_dir: Path) -> list[dict[str, object]]:
         for line in events_path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+
+
+def _read_inquiry_state(pkg_dir: Path) -> dict[str, object]:
+    state_path = pkg_dir / ".gaia" / "inquiry" / "state.json"
+    assert state_path.exists()
+    return json.loads(state_path.read_text(encoding="utf-8"))
 
 
 def _search(query: str, rows: list[dict[str, object]]) -> dict[str, object]:
@@ -200,6 +207,7 @@ def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path)
     assert result.exit_code == 0, result.output
     assert "Landscape:" in result.output
     assert "pull_budget: 0" in result.output
+    assert "writes_inquiry: true" in result.output
     assert init_py.read_text(encoding="utf-8") == source_before
     assert not (pkg_dir / ".gaia" / "lkm_packages").exists()
 
@@ -233,6 +241,14 @@ def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path)
     assert events[-1]["event"] == "explore.scan.completed"
     assert events[-1]["payload"]["artifact"].endswith(artifacts[0].name)
     assert events[-1]["payload"]["stats"]["paper_leads"] == 2
+    assert events[-1]["payload"]["writes_source"] is False
+    assert events[-1]["payload"]["writes_inquiry"] is True
+    assert len(events[-1]["payload"]["hypotheses_added"]) == 1
+    assert len(events[-1]["payload"]["obligations_added"]) == 1
+
+    state = _read_inquiry_state(pkg_dir)
+    assert len(state["synthetic_hypotheses"]) == 1
+    assert len(state["synthetic_obligations"]) == 1
 
 
 def test_research_scan_reads_search_json_from_stdin(tmp_path: Path) -> None:
@@ -308,10 +324,8 @@ def test_research_expand_writes_targeted_landscape(tmp_path: Path) -> None:
         app,
         [
             "research",
-            "explore",
-            str(pkg_dir),
-            "--mode",
             "expand",
+            str(pkg_dir),
             "--focus",
             "seed",
             "--search-json",
@@ -322,6 +336,7 @@ def test_research_expand_writes_targeted_landscape(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "Target: focus seed" in result.output
     assert "pull_budget: 0" in result.output
+    assert "writes_inquiry: true" in result.output
     assert init_py.read_text(encoding="utf-8") == source_before
     assert not (pkg_dir / ".gaia" / "lkm_packages").exists()
 
@@ -336,6 +351,12 @@ def test_research_expand_writes_targeted_landscape(tmp_path: Path) -> None:
     events = _read_events(pkg_dir)
     assert events[-1]["event"] == "explore.expand.completed"
     assert events[-1]["payload"]["target"] == {"kind": "focus", "id": "seed"}
+    assert events[-1]["payload"]["writes_source"] is False
+    assert events[-1]["payload"]["writes_inquiry"] is True
+
+    state = _read_inquiry_state(pkg_dir)
+    assert state["synthetic_hypotheses"][0]["scope_qid"] == "seed"
+    assert state["synthetic_obligations"][0]["target_qid"] == "seed"
 
 
 def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> None:
@@ -376,7 +397,7 @@ def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> N
                     {
                         "id": "elderly_net_benefit",
                         "kind": "research_focus",
-                        "status": "candidate",
+                        "status": "accepted",
                         "question": "70岁及以上人群中，阿司匹林一级预防的净获益是否为正？",
                         "rationale": "ASPREE 证据直接涉及老年人无获益和出血增加。",
                         "priority": "high",
@@ -387,7 +408,13 @@ def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> N
                         "suggested_queries": [],
                     }
                 ],
-                "coverage_gaps": [],
+                "coverage_gaps": [
+                    {
+                        "kind": "missing_absolute_effect",
+                        "description": "补充老年人绝对风险差和出血绝对风险。",
+                        "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                    }
+                ],
                 "notes": ["agent synthesis"],
             }
         ),
@@ -410,7 +437,12 @@ def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> N
     assert result.exit_code == 0, result.output
     assert "Focus synthesis:" in result.output
     assert "focuses: 1" in result.output
-    assert init_py.read_text(encoding="utf-8") == source_before
+    assert "questions_written: 1" in result.output
+    assert init_py.read_text(encoding="utf-8") != source_before
+    authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
+    authored_source = authored.read_text(encoding="utf-8")
+    assert "rq_elderly_net_benefit_" in authored_source
+    assert "question(" in authored_source
     artifacts = sorted((pkg_dir / ".gaia" / "research" / "focuses").glob("focuses-*.json"))
     assert len(artifacts) == 1
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
@@ -419,6 +451,15 @@ def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> N
     events = _read_events(pkg_dir)
     assert events[-1]["event"] == "focus.synthesis.completed"
     assert events[-1]["payload"]["analysis_json"] is True
+    assert len(events[-1]["payload"]["questions_written"]) == 1
+    assert len(events[-1]["payload"]["obligations_added"]) == 1
+
+    state = _read_inquiry_state(pkg_dir)
+    assert str(state["focus"]).startswith("rq_elderly_net_benefit_")
+    assert state["focus_kind"] == "question"
+
+    check = runner.invoke(app, ["build", "check", str(pkg_dir)])
+    assert check.exit_code == 0, check.output
 
 
 def test_research_assess_artifact_only_records_planning_event(tmp_path: Path) -> None:
@@ -555,6 +596,7 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
                         "epistemic_status": "candidate",
                         "promotion_hint": "none",
                         "source_refs": [{"kind": "item", "id": "item_0"}],
+                        "claim_refs": ["seed", "seed_alt"],
                     }
                 ],
                 "review": {
@@ -585,7 +627,6 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
             str(pkg_dir),
             "--focus",
             "elderly_net_benefit",
-            "--artifact-only",
             "--landscape",
             str(landscape_path),
             "--analysis-json",
@@ -596,7 +637,13 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
     assert result.exit_code == 0, result.output
     assert "relation_type_counts" in result.output
     assert "review: true" in result.output
-    assert init_py.read_text(encoding="utf-8") == source_before
+    assert "notes_written: 1" in result.output
+    assert "candidate_relations_written: 1" in result.output
+    assert init_py.read_text(encoding="utf-8") != source_before
+    authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
+    authored_source = authored.read_text(encoding="utf-8")
+    assert "note(" in authored_source
+    assert "candidate_relation(" in authored_source
     artifacts = _assessment_artifacts(pkg_dir)
     assessment = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert assessment["relations"][0]["type"] == "opposes"
@@ -604,6 +651,51 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
     events = _read_events(pkg_dir)
     assert events[-1]["payload"]["relation_type_counts"] == {"opposes": 1}
     assert events[-1]["payload"]["review"] is True
+    assert len(events[-1]["payload"]["notes_written"]) == 1
+    assert len(events[-1]["payload"]["candidate_relations_written"]) == 1
+    assert len(events[-1]["payload"]["obligations_added"]) == 1
+    assert len(events[-1]["payload"]["hypotheses_added"]) == 1
+
+    state = _read_inquiry_state(pkg_dir)
+    assert any(
+        item["target_qid"] == "elderly_net_benefit" for item in state["synthetic_obligations"]
+    )
+    assert any(item["scope_qid"] == "elderly_net_benefit" for item in state["synthetic_hypotheses"])
+
+    check = runner.invoke(app, ["build", "check", str(pkg_dir)])
+    assert check.exit_code == 0, check.output
+
+
+def test_research_promote_writes_materialization_scaffold(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "promote",
+            str(pkg_dir),
+            "--scaffold",
+            "candidate_relation_demo",
+            "--by",
+            "seed",
+            "--rationale",
+            "Human-reviewed formalization.",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Research promote" in result.output
+    assert "materializations_written: 1" in result.output
+    assert init_py.read_text(encoding="utf-8") != source_before
+    authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
+    authored_source = authored.read_text(encoding="utf-8")
+    assert "materialize(candidate_relation_demo" in authored_source
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "promote.completed"
+    assert len(events[-1]["payload"]["materializations_written"]) == 1
 
 
 def test_research_report_renders_artifact_to_markdown_file(tmp_path: Path) -> None:

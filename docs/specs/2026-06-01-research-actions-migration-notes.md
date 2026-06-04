@@ -113,12 +113,13 @@ reference material。不要再把新需求加到 historical specs 里。
 
 ```text
 .gaia/exploration/   # legacy experimental engine state
-.gaia/research/      # canonical package-native research artifacts
+.gaia/research/      # package-native research trace / audit artifacts
 ```
 
 共存期规则：
 
-- `.gaia/research/` 是 `gaia research` 的 canonical artifact location。
+- `.gaia/research/` 是 `gaia research` 的 trace / audit artifact location；语义
+  source of truth 应落在 package source 和 `.gaia/inquiry/`。
 - `.gaia/exploration/` 可以作为 import / migration source 读取，但不能作为新的
   canonical source of truth。
 - `gaia research` 不应双写两棵树；需要兼容旧结果时，显式执行 import/migrate step，

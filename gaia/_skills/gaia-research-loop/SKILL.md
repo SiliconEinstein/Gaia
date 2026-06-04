@@ -1,249 +1,245 @@
 ---
 name: gaia-research-loop
 description: |
-  Use when running Gaia's package-native research loop from a live or fixture
-  literature/LKM query: breadth-first Explore scan, LLM focus synthesis,
-  targeted Expand, review-grade Assess, and readable trace/report output.
-  The CLI owns contracts, validation, provenance, and artifact IO; this skill
-  owns agent-side planning, LLM prompting, and quality iteration.
+  Use when running or evaluating Gaia research workflows that explore a field,
+  synthesize focuses, expand around coverage gaps, assess evidence for a
+  focus, promote mature scaffolds, or produce a live research trace. Applies to
+  `gaia research`, LKM-backed literature discovery, package/inquiry-centric
+  research state, and review-quality Chinese or English mini-reviews.
 ---
 
 # Gaia Research Loop
 
-Run a package-native research workflow without creating a parallel research
-state system. The source of truth remains the Gaia package plus `.gaia/research`
-artifacts. Judgment-heavy work happens in the agent/LLM layer, then returns to
-the CLI as validated JSON.
+## Intent
 
-## Boundary
+Run a package-native research loop without inventing a second research data
+model. The canonical state lives in:
 
-The CLI is responsible for:
+- Gaia package source: `question(...)`, `note(...)`,
+  `candidate_relation(...)`, `materialize(...)`.
+- Gaia inquiry state: active focus, hypotheses, obligations, tactic log.
+- `.gaia/research`: trace, cache, reports, timing, and audit artifacts only.
 
-- writing `.gaia/research/manifest.json`, `events.jsonl`, and artifacts;
-- validating focus and assessment JSON contracts;
-- preserving LKM provenance and evidence refs;
-- enforcing artifact-only behavior unless the user explicitly asks for source
-  promotion;
-- keeping `gaia build check <pkg>` as the structural validation path.
+Use `gaia research` as the thin workflow layer. Use the printed CLI contracts as
+the JSON schema source; do not copy or freestyle schemas in the skill.
 
-The agent/skill is responsible for:
+## Hard Boundaries
 
-- planning breadth-first live queries;
-- deciding whether coverage is broad enough to synthesize focuses;
-- calling an LLM or using the active agent's reasoning to produce JSON;
-- writing detailed Chinese traces and review-grade reports;
-- deciding when to expand, assess, or ask for human input.
+- Start broad. Do not deep-pull papers during initial Explore or Expand.
+- Do not use `gaia-lkm-explore` for this workflow unless the user explicitly asks
+  for legacy comparison.
+- Do not treat search rank as confidence.
+- Do not write formal `claim(...)`, `derive(...)`, `contradict(...)`, or
+  `equal(...)` during `assess`; write scaffold state first.
+- Write `candidate_relation(...)` only when the assessment relation includes
+  concrete package claim refs.
+- Keep raw LKM search JSON. It is the source for later audit.
+- Never write access keys into package files, traces, reports, commits, or docs.
 
-## Required CLI contracts
+## Minimal Task Envelope
 
-Always inspect the contract before asking an LLM to emit analysis JSON:
-
-```bash
-gaia research contract focus --language zh
-gaia research contract assess --language zh
-```
-
-The LLM output must be JSON only. Save it to a file such as:
+At the start of a run, create or infer this envelope:
 
 ```text
-<run>/analysis/focus-analysis.json
-<run>/analysis/assess-analysis.json
+topic: <research topic>
+language: <zh|en|...>
+pkg: <Gaia package path>
+run_dir: <trace directory>
+seed_question: <one broad research question>
+mode: fixture | live
+review_depth: concise | review
+stop_when: coverage sufficient, relation mix adequate, obligations manageable,
+  and query novelty low enough
 ```
 
-Use the bundled prompt references instead of reconstructing prompts from memory:
+If `mode=live`, no fixture or mock data should enter the run. Preserve every CLI
+command, timing, raw search file, generated analysis JSON, rendered report, and
+notable failure in the trace.
 
-```text
-references/focus-analysis-prompt.md
-references/assess-analysis-prompt.md
-```
+## Loop
 
-Then pass it back to the CLI:
+### 1. Setup
+
+Create a package and seed question if none exists.
 
 ```bash
-gaia research focus <pkg> \
-  --landscape <scan-or-expand.json> \
-  --analysis-json <run>/analysis/focus-analysis.json \
-  --language zh
-
-gaia research assess <pkg> \
-  --focus <focus-id> \
-  --artifact-only \
-  --landscape <scan.json> \
-  --landscape <expand.json> \
-  --analysis-json <run>/analysis/assess-analysis.json
+gaia pkg scaffold --target "$PKG" --name <topic>-gaia --namespace <topic>
+gaia author question "<seed question>" --target "$PKG" \
+  --dsl-binding-name <seed_binding> --title "<title>" --export --no-check
+gaia research status "$PKG"
 ```
 
-## Workflow
+Success criteria:
 
-### 1. Prepare the package
+- `gaia research status` works.
+- Package path and run directory are recorded.
+- The seed question is package source, not just trace prose.
 
-Use an existing Gaia package or scaffold one:
+### 2. Broad Explore
+
+Run multiple query families before selecting a focus. For live runs, use real
+LKM search output and save every raw result.
 
 ```bash
-gaia pkg scaffold --target <topic>-gaia --name <topic>-gaia --namespace <topic>
-gaia author question "<中文研究问题>" --target <topic>-gaia --dsl-binding-name <binding> --title "<标题>" --export --no-check
-gaia research status <topic>-gaia
+gaia search lkm knowledge "<broad query family>" --limit 10 \
+  --out "$RUN/searches/01.json"
+
+gaia research explore "$PKG" --mode scan \
+  --search-json "$RUN/searches/01.json" \
+  --search-json "$RUN/searches/02.json"
 ```
 
-### 2. Breadth-first live scan
+Success criteria:
 
-Start broad. Use multiple query families before reading a single paper deeply.
-For each family, save raw LKM output verbatim:
+- Landscape artifact exists under `.gaia/research/landscapes/`.
+- CLI reports `pull_budget: 0`.
+- Candidate focuses and coverage gaps are synced to inquiry hypotheses /
+  obligations.
+- Raw search JSON remains available.
+
+### 3. Focus Synthesis
+
+Use the CLI contract as the schema and ask the active agent/LLM to synthesize
+real assessment questions.
 
 ```bash
-gaia search lkm knowledge "<query family 1>" --limit 10 --out <run>/searches/01.json
-gaia search lkm knowledge "<query family 2>" --limit 10 --out <run>/searches/02.json
-gaia search lkm knowledge "<query family 3>" --limit 10 --out <run>/searches/03.json
+gaia research contract focus --language "$LANG" > "$RUN/analysis/focus-contract.json"
+gaia research focus "$PKG" \
+  --landscape "$SCAN" \
+  --analysis-json "$RUN/analysis/focus-analysis.json" \
+  --language "$LANG"
 ```
 
-If LKM provenance hydration times out, retry once with a simpler query or lower
-limit. Record the failure in the trace; retrieval failure is a real eval signal.
+Success criteria:
 
-Build the scan landscape:
+- Focuses are questions, not query rewrites.
+- Top accepted focuses are at most 3 and become package `question(...)`
+  statements.
+- The first accepted question becomes the inquiry focus.
+- Gaps become inquiry obligations.
+- Non-accepted focuses remain hypotheses or trace-only candidates.
+
+### 4. Targeted Expand
+
+Use focus gaps and suggested queries to expand coverage around one focus or
+obligation.
 
 ```bash
-gaia research explore <pkg> --mode scan \
-  --search-json <run>/searches/01.json \
-  --search-json <run>/searches/02.json \
-  --search-json <run>/searches/03.json
+gaia search lkm knowledge "<targeted query>" --limit 10 \
+  --out "$RUN/searches/targeted-01.json"
+
+gaia research expand "$PKG" \
+  --focus <accepted_question_binding_or_focus_id> \
+  --search-json "$RUN/searches/targeted-01.json"
 ```
 
-### 3. LLM focus synthesis
+Success criteria:
 
-Read the scan artifact and ask the LLM to produce contract-compliant focus JSON.
-The LLM should cluster by population, endpoint, method, paper overlap, and
-evidence tension. Good focuses are not query rewrites; they are assessable
-questions.
+- Targeted landscape exists.
+- Expand still does not pull papers.
+- New gaps/hypotheses are written to inquiry state.
+- The landscape adds information that changes assessment readiness or stop
+  criteria.
 
-Use `references/focus-analysis-prompt.md` as the stable prompt template. Keep
-the current `gaia research contract focus --language zh` output in the prompt
-context so the LLM follows the live schema rather than stale instructions.
+### 5. Assess
 
-For Chinese runs, focus questions, rationales, coverage gaps, and notes should
-be written in Chinese.
-
-Validate and write the focus artifact:
+Assess one selected focus. The agent/LLM should read the evidence packet deeply
+enough to write a review-quality mini-synthesis in the requested language.
 
 ```bash
-gaia research focus <pkg> \
-  --landscape <scan.json> \
-  --analysis-json <run>/analysis/focus-analysis.json \
-  --language zh
+gaia research contract assess --language "$LANG" > "$RUN/analysis/assess-contract.json"
+gaia research assess "$PKG" \
+  --focus <accepted_question_binding_or_focus_id> \
+  --landscape "$SCAN" \
+  --landscape "$EXPAND" \
+  --analysis-json "$RUN/analysis/assess-analysis.json"
+
+gaia research report "$PKG" \
+  --artifact "$ASSESSMENT" \
+  --out "$RUN/trace/assessment_report.md"
 ```
 
-Review the focus artifact before expanding. Prefer 3-8 high-signal focuses.
+Success criteria:
 
-### 4. Targeted expand
+- Review prose is readable as a mini-review, not a table dump.
+- Relations are grounded in artifact item refs.
+- Unresolved issues become inquiry obligations.
+- Natural-language findings become inquiry hypotheses or `note(...)`.
+- `candidate_relation(...)` appears only for relations with concrete
+  `claim_refs`.
 
-For any focus marked `needs_expand`, run targeted queries generated by focus
-synthesis. Keep the expansion scoped to missing coverage; do not drift into
-single-paper formalization.
+### 6. Stop Or Continue
+
+Evaluate whether to expand, assess another focus, promote, or stop.
 
 ```bash
-gaia search lkm knowledge "<targeted query>" --limit 10 --out <run>/searches/07.json
-gaia research explore <pkg> --mode expand \
-  --focus <focus-id> \
-  --search-json <run>/searches/07.json
+gaia research stop "$PKG" \
+  --focus-artifact "$FOCUS_ARTIFACT" \
+  --assessment "$ASSESSMENT" \
+  --landscape "$EXPAND" \
+  --previous-landscape "$SCAN" \
+  --out "$RUN/trace/stop.json"
 ```
 
-Stop expanding when the selected focus has enough support, opposition,
-qualification, and methodological-undercut evidence to assess.
+Continue when coverage is weak, obligations remain high, relation mix is thin,
+or new queries still produce many novel paper leads.
 
-### 5. Review-grade assess
+### 7. Promote
 
-Ask the LLM to classify evidence relations and write a detailed Chinese review.
-The assessment should:
-
-- separate benefit endpoints from harm endpoints;
-- classify `supports`, `opposes`, `qualifies`, and `undercuts`;
-- discuss population, endpoint, method, trial-era, and background-therapy
-  heterogeneity;
-- use absolute effects, NNT, and NNH when available;
-- emit obligations instead of overclaiming missing evidence.
-
-Use `references/assess-analysis-prompt.md` as the stable prompt template. Keep
-the current `gaia research contract assess --language zh` output in the prompt
-context and require JSON-only output.
-
-Validate and write the assessment artifact:
+Promote only after scaffold review. `promote` is narrow: it links an existing
+scaffold to formal Gaia records.
 
 ```bash
-gaia research assess <pkg> \
-  --focus <focus-id> \
-  --artifact-only \
-  --landscape <scan.json> \
-  --landscape <expand.json> \
-  --analysis-json <run>/analysis/assess-analysis.json
+gaia research promote "$PKG" \
+  --scaffold <candidate_relation_binding> \
+  --by <formal_record_binding> \
+  --rationale "<why this scaffold is now formalized>"
 ```
 
-Use `--no-strict-grounding` only for debugging malformed analysis. Real runs
-should keep strict grounding on.
+Success criteria:
 
-### 6. Trace and report
+- `materialize(...)` is written in package source.
+- No hidden explore/assess/report work happens inside promote.
+- `gaia build check "$PKG"` still passes.
 
-Write a readable trace under the run directory:
+## Live Run Trace Checklist
 
-```text
-<run>/trace/evaluation_trace.md
-<run>/trace/assessment_review_zh.md
-```
+For every live run, save:
 
-The trace must include:
+- `searches/*.json`: raw LKM search results.
+- `analysis/focus-contract.json` and `analysis/assess-contract.json`.
+- `analysis/focus-analysis.json` and `analysis/assess-analysis.json`.
+- `.gaia/research/landscapes/*.json`.
+- `.gaia/research/focuses/*.json`.
+- `.gaia/research/assessments/*.json`.
+- `.gaia/research/events.jsonl`.
+- `.gaia/inquiry/state.json` and `.gaia/inquiry/tactics.jsonl` snapshot.
+- rendered reports under `trace/`.
+- one `trace/evaluation_trace.md` that lists commands, timing, counts, failures,
+  and subjective quality notes.
 
-- exact commands;
-- timings;
-- raw result counts;
-- paper lead counts;
-- item counts;
-- focus counts;
-- relation type counts;
-- failed queries/retries;
-- what the CLI did versus what the agent/LLM did.
+## Review Quality Bar
 
-The report should be in Chinese when the user's run is Chinese. It should read
-like a short scholarly review, not a CLI transcript.
+Before handing off:
 
-Render machine artifacts into readable Markdown with:
+1. `gaia build check "$PKG"` passes.
+2. `gaia research report` renders focus, assessment, and stop artifacts.
+3. The report body does not mention Gaia, LKM, artifact ids, or workflow jargon
+   unless in an explicit provenance section.
+4. Citations appear after the main body.
+5. Relations and obligations are explained in prose; raw tables stay in JSON
+   artifacts.
+6. The trace says what to do next: broaden search, expand a focus, assess another
+   focus, promote scaffolds, or stop.
 
-```bash
-gaia research report <pkg> --artifact <focuses.json> --out <run>/trace/focus_report.md
-gaia research report <pkg> --artifact <assessment.json> --out <run>/trace/assessment_report.md
-```
+## Common Mistakes
 
-Use stop criteria before deciding whether to broaden, expand, assess, or ask
-for human review:
-
-```bash
-gaia research stop <pkg> \
-  --focus-artifact <focuses.json> \
-  --assessment <assessment.json> \
-  --landscape <latest-landscape.json> \
-  --previous-landscape <earlier-landscape.json> \
-  --out <run>/trace/stop.json
-```
-
-The stop artifact is heuristic and auditable. It summarizes coverage, relation
-mix, unresolved obligations, and query novelty; the agent/user still owns the
-final research decision.
-
-## Quality checks
-
-Run:
-
-```bash
-gaia build check <pkg>
-```
-
-For fixture regression, run the repository tests that cover research artifacts
-and CLI. For live quality evaluation, preserve raw LKM JSON and reports; do not
-replace live eval with fixtures.
-
-## What not to do
-
-- Do not create a separate focus registry under `.gaia/research`.
-- Do not create a separate obligation ledger.
-- Do not write stable source claims during Explore or artifact-only Assess.
-- Do not assess after one narrow query unless the user explicitly asks for a
-  quick single-paper check.
-- Do not let the LLM invent refs; every relation must ground to items,
-  variables, factors, or papers in the evidence packet.
+- Starting from one attractive paper and narrowing before the landscape is broad.
+- Treating `focuses.json` as the focus registry. The registry is package
+  `question(...)` plus inquiry focus.
+- Treating `assessment.json` as formal knowledge. It is review/scaffold trace
+  until promoted.
+- Inventing `snippet`, `lkm_node`, or `gaia_qid` terminology. Use neutral
+  `items` for artifact-local references; use `variable`, `paper`, or `factor`
+  only when the source object is actually that type.
+- Rewriting schemas in prompts. Always print and follow `gaia research contract`.

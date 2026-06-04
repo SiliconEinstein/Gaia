@@ -72,12 +72,8 @@ Ask the agent/LLM to read the scan landscape and write:
 $RUN/analysis/focus-analysis.json
 ```
 
-Use the bundled skill prompt reference instead of reconstructing the prompt
-from prior traces:
-
-```text
-gaia/_skills/gaia-research-loop/references/focus-analysis-prompt.md
-```
+Use the printed contract as the schema source. The active agent/LLM prompt
+should be written for the current run and should not rely on old trace prompts.
 
 Validate and write the artifact:
 
@@ -92,6 +88,8 @@ Review:
 
 - Are there 3-8 meaningful focuses?
 - Are they real assessable questions, not query rewrites?
+- Are the top accepted focuses the right 1-3 questions to write as package
+  `question(...)` declarations?
 - Does each focus have evidence refs?
 - Are `needs_expand` focuses paired with targeted queries?
 
@@ -102,7 +100,7 @@ Use focus-generated queries:
 ```bash
 gaia search lkm knowledge "<targeted query>" --limit 10 --out "$RUN/searches/07.json"
 
-/usr/bin/time -p gaia research explore "$PKG" --mode expand \
+/usr/bin/time -p gaia research expand "$PKG" \
   --focus <focus-id> \
   --search-json "$RUN/searches/07.json"
 ```
@@ -124,11 +122,8 @@ Ask the agent/LLM to write:
 $RUN/analysis/assess-analysis.json
 ```
 
-Use the bundled skill prompt reference:
-
-```text
-gaia/_skills/gaia-research-loop/references/assess-analysis-prompt.md
-```
+Use the printed contract as the schema source. The active agent/LLM prompt
+should ask for a review-grade Chinese synthesis while preserving grounded refs.
 
 The analysis must include:
 
@@ -144,7 +139,6 @@ Validate and write the artifact:
 ```bash
 gaia research assess "$PKG" \
   --focus <focus-id> \
-  --artifact-only \
   --landscape "$PKG/.gaia/research/landscapes/<scan>.json" \
   --landscape "$PKG/.gaia/research/landscapes/<expand>.json" \
   --analysis-json "$RUN/analysis/assess-analysis.json"
@@ -152,7 +146,9 @@ gaia research assess "$PKG" \
 
 Record relation type counts. A healthy assess run should usually have a mix of
 `supports`, `opposes`, `qualifies`, and `undercuts`, not only
-`background_for`.
+`background_for`. When relations include concrete package claim refs, confirm
+that candidate relation scaffolds were written; otherwise they should remain
+in inquiry hypotheses plus the assessment review note.
 
 ## Reports
 
@@ -207,6 +203,11 @@ judgment. It summarizes:
 - relation mix;
 - unresolved obligations;
 - query novelty.
+
+For meeting review, a live run can also be bundled into a self-contained HTML
+viewer. Example:
+
+[Hubble tension trace viewer](research-loop-evals/hubble-tension-v2/trace-viewer.html)
 
 ## Verification
 

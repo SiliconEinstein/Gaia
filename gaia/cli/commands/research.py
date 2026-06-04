@@ -24,12 +24,16 @@ from gaia.engine.research import (
     load_research_package,
     render_research_artifact_markdown,
     research_contract,
+    sync_assessment_artifact,
+    sync_focus_artifact,
+    sync_landscape_artifact,
+    sync_materialization,
     write_research_artifact,
 )
 
 research_app = typer.Typer(
     name="research",
-    help="Package-native research actions (explore / assess / propose).",
+    help="Package-native research actions (explore / assess / promote).",
     no_args_is_help=True,
 )
 
@@ -162,6 +166,29 @@ def _relation_type_counts(relations: object) -> dict[str, int]:
     return counts
 
 
+def _split_csv_values(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _print_sync_summary(payload: dict[str, object]) -> None:
+    typer.echo(f"writes_source: {str(payload.get('writes_source')).lower()}")
+    typer.echo(f"writes_inquiry: {str(payload.get('writes_inquiry')).lower()}")
+    for key in (
+        "questions_written",
+        "notes_written",
+        "candidate_relations_written",
+        "materializations_written",
+        "obligations_added",
+        "hypotheses_added",
+    ):
+        value = payload.get(key)
+        if isinstance(value, list) and value:
+            typer.echo(f"{key}: {len(value)}")
+    focus_set = payload.get("focus_set")
+    if isinstance(focus_set, str) and focus_set:
+        typer.echo(f"focus_set: {focus_set}")
+
+
 @research_app.command("contract")
 def contract_command(
     kind: Annotated[str, typer.Argument(help="Contract to print: focus or assess.")],
@@ -207,7 +234,14 @@ def explore_command(
     ] = "scan",
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Plan the scan without pulling papers or writing source."),
+        typer.Option("--dry-run", help="Plan the scan without pulling papers or writing state."),
+    ] = False,
+    artifact_only: Annotated[
+        bool,
+        typer.Option(
+            "--artifact-only",
+            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
+        ),
     ] = False,
     search_json: Annotated[
         list[str] | None,
@@ -237,7 +271,7 @@ def explore_command(
         typer.Option("--obligation", help="Inquiry obligation target for --mode expand."),
     ] = None,
 ) -> None:
-    """Plan an artifact-only Explore action."""
+    """Run a breadth-first Explore scan or targeted expansion."""
     if mode not in {"scan", "expand"}:
         typer.echo("Error: supported explore modes are `scan` and `expand`.", err=True)
         raise typer.Exit(2)
@@ -275,6 +309,13 @@ def explore_command(
             landscape,
             out=out,
         )
+        sync = sync_landscape_artifact(
+            research_pkg,
+            landscape,
+            artifact_only=artifact_only,
+            dry_run=dry_run,
+        )
+        sync_payload = sync.to_payload()
         append_research_event(
             research_pkg,
             "explore.expand.completed",
@@ -284,9 +325,7 @@ def explore_command(
                 "artifact": str(output_path),
                 "stats": landscape["stats"],
                 "pull_budget": 0,
-                "writes_source": False,
-                "writes_focus_registry": False,
-                "writes_obligation_ledger": False,
+                **sync_payload,
             },
         )
         stats = landscape["stats"]
@@ -299,7 +338,7 @@ def explore_command(
         typer.echo(f"Target: {target['kind']} {target['id']}")
         typer.echo(f"Output: {output_path}")
         typer.echo("pull_budget: 0")
-        typer.echo("candidate_focuses: artifact-local only")
+        _print_sync_summary(sync_payload)
         _print_inquiry_suggestions(research_pkg)
         return
 
@@ -313,6 +352,13 @@ def explore_command(
             landscape,
             out=out,
         )
+        sync = sync_landscape_artifact(
+            research_pkg,
+            landscape,
+            artifact_only=artifact_only,
+            dry_run=dry_run,
+        )
+        sync_payload = sync.to_payload()
         append_research_event(
             research_pkg,
             "explore.scan.completed",
@@ -321,9 +367,7 @@ def explore_command(
                 "artifact": str(output_path),
                 "stats": landscape["stats"],
                 "pull_budget": 0,
-                "writes_source": False,
-                "writes_focus_registry": False,
-                "writes_obligation_ledger": False,
+                **sync_payload,
             },
         )
         stats = landscape["stats"]
@@ -335,7 +379,7 @@ def explore_command(
         )
         typer.echo(f"Output: {output_path}")
         typer.echo("pull_budget: 0")
-        typer.echo("candidate_focuses: artifact-local only")
+        _print_sync_summary(sync_payload)
         _print_inquiry_suggestions(research_pkg)
         return
 
@@ -347,8 +391,8 @@ def explore_command(
             "dry_run": True,
             "pull_budget": 0,
             "writes_source": False,
-            "writes_focus_registry": False,
-            "writes_obligation_ledger": False,
+            "writes_inquiry": False,
+            "artifact_only": artifact_only,
         },
     )
 
@@ -357,8 +401,61 @@ def explore_command(
     typer.echo("dry_run: true")
     typer.echo("pull_budget: 0")
     typer.echo("writes_source: false")
-    typer.echo("candidate_focuses: artifact-local only")
+    typer.echo("writes_inquiry: false")
     _print_inquiry_suggestions(research_pkg)
+
+
+@research_app.command("expand")
+def expand_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    focus: Annotated[
+        str | None,
+        typer.Option("--focus", help="Focus target to expand."),
+    ] = None,
+    obligation: Annotated[
+        str | None,
+        typer.Option("--obligation", help="Inquiry obligation target to expand."),
+    ] = None,
+    search_json: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--search-json",
+            help="Normalized `gaia search lkm` JSON file; use '-' to read stdin.",
+        ),
+    ] = None,
+    query: Annotated[
+        list[str] | None,
+        typer.Option("--query", help="Override query text for the matching --search-json."),
+    ] = None,
+    source: Annotated[
+        list[str] | None,
+        typer.Option("--source", help="Source QID for the matching --search-json."),
+    ] = None,
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Optional output path for the landscape artifact."),
+    ] = None,
+    artifact_only: Annotated[
+        bool,
+        typer.Option(
+            "--artifact-only",
+            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
+        ),
+    ] = False,
+) -> None:
+    """Run targeted Explore expansion around one focus or obligation."""
+    explore_command(
+        pkg,
+        mode="expand",
+        dry_run=False,
+        artifact_only=artifact_only,
+        search_json=search_json,
+        query=query,
+        source=source,
+        out=out,
+        focus=focus,
+        obligation=obligation,
+    )
 
 
 @research_app.command("focus")
@@ -386,8 +483,26 @@ def focus_command(
         str | None,
         typer.Option("--out", help="Optional output path for the focus synthesis artifact."),
     ] = None,
+    artifact_only: Annotated[
+        bool,
+        typer.Option(
+            "--artifact-only",
+            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
+        ),
+    ] = False,
+    max_questions: Annotated[
+        int,
+        typer.Option("--max-questions", help="Maximum accepted focuses to write as questions."),
+    ] = 3,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Plan package/inquiry writes without applying them."),
+    ] = False,
 ) -> None:
     """Synthesize assessment-ready research focuses from landscape artifacts."""
+    if max_questions < 1:
+        typer.echo("Error: --max-questions must be at least 1.", err=True)
+        raise typer.Exit(2)
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
     landscape_paths = [Path(item) for item in landscape or []] or _latest_landscape_paths(
@@ -414,6 +529,14 @@ def focus_command(
         artifact,
         out=out,
     )
+    sync = sync_focus_artifact(
+        research_pkg,
+        artifact,
+        max_questions=max_questions,
+        artifact_only=artifact_only,
+        dry_run=dry_run,
+    )
+    sync_payload = sync.to_payload()
     append_research_event(
         research_pkg,
         "focus.synthesis.completed",
@@ -424,15 +547,14 @@ def focus_command(
             "coverage_gaps": len(artifact["coverage_gaps"]),
             "analysis_json": analysis_json is not None,
             "language": language,
-            "writes_source": False,
-            "writes_focus_registry": False,
+            "max_questions": max_questions,
+            **sync_payload,
         },
     )
     typer.echo(f"Focus synthesis: {output_path}")
     typer.echo(f"focuses: {len(artifact['focuses'])}")
     typer.echo(f"coverage_gaps: {len(artifact['coverage_gaps'])}")
-    typer.echo("writes_source: false")
-    typer.echo("writes_focus_registry: false")
+    _print_sync_summary(sync_payload)
     _print_inquiry_suggestions(research_pkg)
 
 
@@ -444,9 +566,9 @@ def assess_command(
         bool,
         typer.Option(
             "--artifact-only/--write-source",
-            help="M1 supports only artifact-only assessment planning.",
+            help="Write only .gaia/research artifacts, or also sync review scaffolds.",
         ),
-    ] = True,
+    ] = False,
     landscape: Annotated[
         list[str] | None,
         typer.Option(
@@ -468,12 +590,12 @@ def assess_command(
             help="Require relation source refs to resolve inside the evidence packet.",
         ),
     ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Plan package/inquiry writes without applying them."),
+    ] = False,
 ) -> None:
-    """Plan an artifact-only Assess action."""
-    if not artifact_only:
-        typer.echo("Error: M1 assess supports only `--artifact-only`.", err=True)
-        raise typer.Exit(2)
-
+    """Assess one focus and sync review scaffolds into package/inquiry state."""
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
     landscape_paths = [Path(item) for item in landscape or []] or _latest_landscape_paths(
@@ -504,6 +626,13 @@ def assess_command(
             "assessment",
             assessment,
         )
+        sync = sync_assessment_artifact(
+            research_pkg,
+            assessment,
+            artifact_only=artifact_only,
+            dry_run=dry_run,
+        )
+        sync_payload = sync.to_payload()
         items = assessment["evidence_packet"]["items"]
         relation_counts = _relation_type_counts(assessment["relations"])
         append_research_event(
@@ -512,7 +641,6 @@ def assess_command(
             {
                 "focus": focus,
                 "artifact": str(output_path),
-                "artifact_only": True,
                 "landscapes": [str(path) for path in landscape_paths],
                 "items": len(items),
                 "relations": len(assessment["relations"]),
@@ -521,7 +649,7 @@ def assess_command(
                 "analysis_json": analysis_json is not None,
                 "review": "review" in assessment,
                 "strict_grounding": strict_grounding,
-                "writes_source": False,
+                **sync_payload,
             },
         )
         typer.echo(f"Assessment: {output_path}")
@@ -531,8 +659,8 @@ def assess_command(
         if relation_counts:
             typer.echo(f"relation_type_counts: {json.dumps(relation_counts, ensure_ascii=False)}")
         typer.echo(f"review: {'true' if 'review' in assessment else 'false'}")
-        typer.echo("artifact_only: true")
-        typer.echo("writes_source: false")
+        typer.echo(f"artifact_only: {str(artifact_only).lower()}")
+        _print_sync_summary(sync_payload)
         _print_inquiry_suggestions(research_pkg)
         return
 
@@ -545,8 +673,9 @@ def assess_command(
         "assess.planned",
         {
             "focus": focus,
-            "artifact_only": True,
+            "artifact_only": artifact_only,
             "writes_source": False,
+            "writes_inquiry": False,
             "relations": [],
             "promotion_hints": [],
         },
@@ -554,8 +683,61 @@ def assess_command(
 
     typer.echo("Research assess")
     typer.echo(f"focus: {focus}")
-    typer.echo("artifact_only: true")
+    typer.echo(f"artifact_only: {str(artifact_only).lower()}")
     typer.echo("writes_source: false")
+    typer.echo("writes_inquiry: false")
+    _print_inquiry_suggestions(research_pkg)
+
+
+@research_app.command("promote")
+def promote_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    scaffold: Annotated[
+        str,
+        typer.Option("--scaffold", help="Scaffold binding to materialize."),
+    ],
+    by: Annotated[
+        str,
+        typer.Option("--by", help="Comma-separated formal graph records materializing it."),
+    ],
+    rationale: Annotated[
+        str | None,
+        typer.Option("--rationale", help="Optional rationale for the materialization link."),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Plan package writes without applying them."),
+    ] = False,
+) -> None:
+    """Record a narrow scaffold-to-formal-knowledge materialization link."""
+    by_refs = _split_csv_values(by)
+    if not by_refs:
+        typer.echo("Error: --by must name at least one materialized target.", err=True)
+        raise typer.Exit(2)
+    research_pkg = _load_or_exit(pkg)
+    ensure_research_manifest(research_pkg)
+    sync = sync_materialization(
+        research_pkg,
+        scaffold=scaffold,
+        by=by_refs,
+        rationale=rationale,
+        dry_run=dry_run,
+    )
+    sync_payload = sync.to_payload()
+    append_research_event(
+        research_pkg,
+        "promote.completed",
+        {
+            "scaffold": scaffold,
+            "by": by_refs,
+            "rationale": rationale,
+            **sync_payload,
+        },
+    )
+    typer.echo("Research promote")
+    typer.echo(f"scaffold: {scaffold}")
+    typer.echo(f"by: {', '.join(by_refs)}")
+    _print_sync_summary(sync_payload)
     _print_inquiry_suggestions(research_pkg)
 
 
