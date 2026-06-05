@@ -26,7 +26,8 @@ the JSON schema source; do not copy or freestyle schemas in the skill.
 
 ## Hard Boundaries
 
-- Start broad. Do not deep-pull papers during initial Explore or Expand.
+- Start broad. Do not materialize deep paper graphs during initial Explore or
+  Expand.
 - During Explore and Expand, default to shallow source packages from search
   items; reserve full paper/chain pulls for focused assessment.
 - Do not use `gaia-lkm-explore` for this workflow unless the user explicitly asks
@@ -144,7 +145,7 @@ gaia research expand "$PKG" \
 Success criteria:
 
 - Targeted landscape exists.
-- Expand still does not pull papers.
+- Expand still does not materialize paper graphs.
 - Expand still writes only shallow source packages, not paper graphs.
 - New gaps/hypotheses are written to inquiry state.
 - The landscape adds information that changes assessment readiness or stop
@@ -161,8 +162,8 @@ gaia research assess "$PKG" \
   --focus <accepted_question_binding_or_focus_id> \
   --landscape "$SCAN" \
   --landscape "$EXPAND" \
-  --pull-paper <selected_lkm_paper_id> \
-  --pull-claim <selected_lkm_claim_id> \
+  --materialize-paper <selected_lkm_paper_id> \
+  --materialize-paper-from-claim <selected_lkm_claim_id> \
   --analysis-json "$RUN/analysis/assess-analysis.json"
 
 gaia research report "$PKG" \
@@ -174,8 +175,9 @@ Success criteria:
 
 - Review prose is readable as a mini-review, not a table dump.
 - Relations are grounded in artifact item refs.
-- Selected paper/claim leads are pulled only here, with `--pull-paper` or
-  `--pull-claim`, when deep paper graph evidence is needed.
+- Selected paper/claim leads are materialized only here, with
+  `--materialize-paper` or `--materialize-paper-from-claim`, when deep paper
+  graph evidence is needed.
 - Unresolved issues become inquiry obligations.
 - Natural-language findings become inquiry hypotheses or `note(...)`.
 - `candidate_relation(...)` appears only for relations with concrete

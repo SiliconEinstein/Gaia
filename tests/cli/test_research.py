@@ -138,6 +138,16 @@ def test_research_contract_commands_emit_json() -> None:
     assert "source_package_ref" in assess_payload["input"]["evidence_packet"]
 
 
+def test_research_assess_help_uses_materialize_names() -> None:
+    result = runner.invoke(app, ["research", "assess", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--materialize-paper" in result.output
+    assert "backing paper" in result.output
+    assert "--pull-paper" not in result.output
+    assert "--pull-claim" not in result.output
+
+
 def test_research_status_creates_manifest_and_suggests_inquiry_commands(tmp_path: Path) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
@@ -639,7 +649,7 @@ def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Pat
     assert events[-1]["payload"]["artifact"].endswith(artifacts[0].name)
 
 
-def test_research_assess_pulls_selected_lkm_paper_package(
+def test_research_assess_materializes_selected_lkm_paper_package(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -708,7 +718,7 @@ def test_research_assess_pulls_selected_lkm_paper_package(
             "seed",
             "--landscape",
             str(landscape_path),
-            "--pull-paper",
+            "--materialize-paper",
             "P_DEEP",
             "--lkm-index",
             "bohrium",
@@ -716,15 +726,15 @@ def test_research_assess_pulls_selected_lkm_paper_package(
     )
 
     assert result.exit_code == 0, result.output
-    assert "lkm_packages_pulled: 1" in result.output
+    assert "lkm_packages_materialized: 1" in result.output
     assert pull_calls == [{"ref": "lkm:bohrium:paper:P_DEEP", "package_root": pkg_dir}]
     events = _read_events(pkg_dir)
-    pulled = events[-1]["payload"]["lkm_packages_pulled"]
-    assert pulled[0]["source_ref"] == "lkm:bohrium:paper:P_DEEP"
-    assert pulled[0]["claim_count"] == 2
+    materialized = events[-1]["payload"]["lkm_packages_materialized"]
+    assert materialized[0]["source_ref"] == "lkm:bohrium:paper:P_DEEP"
+    assert materialized[0]["claim_count"] == 2
 
 
-def test_research_assess_pulls_lkm_claim_backing_paper_package(
+def test_research_assess_materializes_lkm_paper_from_claim_package(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -793,7 +803,7 @@ def test_research_assess_pulls_lkm_claim_backing_paper_package(
             "seed",
             "--landscape",
             str(landscape_path),
-            "--pull-claim",
+            "--materialize-paper-from-claim",
             "claim_from_reasoning",
             "--lkm-index",
             "bohrium",
@@ -801,14 +811,14 @@ def test_research_assess_pulls_lkm_claim_backing_paper_package(
     )
 
     assert result.exit_code == 0, result.output
-    assert "lkm_packages_pulled: 1" in result.output
+    assert "lkm_packages_materialized: 1" in result.output
     assert pull_calls == [
         {"ref": "lkm:bohrium:claim:claim_from_reasoning", "package_root": pkg_dir}
     ]
     events = _read_events(pkg_dir)
-    pulled = events[-1]["payload"]["lkm_packages_pulled"]
-    assert pulled[0]["requested_source_ref"] == "lkm:bohrium:claim:claim_from_reasoning"
-    assert pulled[0]["source_ref"] == "lkm:bohrium:paper:P_FROM_CLAIM"
+    materialized = events[-1]["payload"]["lkm_packages_materialized"]
+    assert materialized[0]["requested_source_ref"] == "lkm:bohrium:claim:claim_from_reasoning"
+    assert materialized[0]["source_ref"] == "lkm:bohrium:paper:P_FROM_CLAIM"
 
 
 def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> None:

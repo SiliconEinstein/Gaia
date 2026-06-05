@@ -188,7 +188,7 @@ def _print_sync_summary(payload: dict[str, object]) -> None:
     for key in (
         "source_packages_written",
         "source_packages_added",
-        "lkm_packages_pulled",
+        "lkm_packages_materialized",
         "questions_written",
         "notes_written",
         "candidate_relations_written",
@@ -274,7 +274,7 @@ def _lkm_materialized_payload(
     }
 
 
-def _pull_lkm_papers_or_exit(
+def _materialize_lkm_papers_or_exit(
     research_pkg: ResearchPackage,
     *,
     paper_ids: list[str],
@@ -286,11 +286,11 @@ def _pull_lkm_papers_or_exit(
     requests = [*paper_ids, *claim_ids]
     if not requests or artifact_only or dry_run:
         return {
-            "lkm_pull_requests": requests,
-            "lkm_packages_pulled": [],
+            "lkm_materialize_requests": requests,
+            "lkm_packages_materialized": [],
         }
 
-    pulled: list[dict[str, object]] = []
+    materialized_packages: list[dict[str, object]] = []
     for paper_id in paper_ids:
         try:
             ref = make_lkm_paper_ref(lkm_index, paper_id)
@@ -301,9 +301,9 @@ def _pull_lkm_papers_or_exit(
                 typer.echo(f"Generated LKM package: {exc.materialized.root}", err=True)
             raise typer.Exit(1) from exc
         except GaiaPackagingError as exc:
-            typer.echo(f"Error: failed to pull LKM paper {paper_id!r}: {exc}", err=True)
+            typer.echo(f"Error: failed to materialize LKM paper {paper_id!r}: {exc}", err=True)
             raise typer.Exit(1) from exc
-        pulled.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
+        materialized_packages.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
     for claim_id in claim_ids:
         try:
             ref = make_lkm_claim_ref(lkm_index, claim_id)
@@ -314,12 +314,12 @@ def _pull_lkm_papers_or_exit(
                 typer.echo(f"Generated LKM package: {exc.materialized.root}", err=True)
             raise typer.Exit(1) from exc
         except GaiaPackagingError as exc:
-            typer.echo(f"Error: failed to pull LKM claim {claim_id!r}: {exc}", err=True)
+            typer.echo(f"Error: failed to materialize LKM claim {claim_id!r}: {exc}", err=True)
             raise typer.Exit(1) from exc
-        pulled.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
+        materialized_packages.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
     return {
-        "lkm_pull_requests": requests,
-        "lkm_packages_pulled": pulled,
+        "lkm_materialize_requests": requests,
+        "lkm_packages_materialized": materialized_packages,
     }
 
 
@@ -769,17 +769,17 @@ def assess_command(
         bool,
         typer.Option("--dry-run", help="Plan package/inquiry writes without applying them."),
     ] = False,
-    pull_paper: Annotated[
+    materialize_paper: Annotated[
         list[str] | None,
         typer.Option(
-            "--pull-paper",
+            "--materialize-paper",
             help="Materialize this LKM paper id as a deep evidence package before assessment.",
         ),
     ] = None,
-    pull_claim: Annotated[
+    materialize_paper_from_claim: Annotated[
         list[str] | None,
         typer.Option(
-            "--pull-claim",
+            "--materialize-paper-from-claim",
             help=(
                 "Resolve this LKM claim id to its backing paper and materialize that "
                 "paper as a deep evidence package before assessment."
@@ -791,17 +791,19 @@ def assess_command(
         typer.Option(
             "--lkm-index",
             "--lkm-server",
-            help="Configured LKM index id for --pull-paper / --pull-claim.",
+            help=(
+                "Configured LKM index id for --materialize-paper / --materialize-paper-from-claim."
+            ),
         ),
     ] = DEFAULT_LKM_INDEX_ID,
 ) -> None:
     """Assess one focus and sync review scaffolds into package/inquiry state."""
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
-    lkm_pull_payload = _pull_lkm_papers_or_exit(
+    lkm_materialize_payload = _materialize_lkm_papers_or_exit(
         research_pkg,
-        paper_ids=list(pull_paper or []),
-        claim_ids=list(pull_claim or []),
+        paper_ids=list(materialize_paper or []),
+        claim_ids=list(materialize_paper_from_claim or []),
         lkm_index=lkm_index,
         artifact_only=artifact_only,
         dry_run=dry_run,
@@ -840,7 +842,7 @@ def assess_command(
             artifact_only=artifact_only,
             dry_run=dry_run,
         )
-        sync_payload = {**sync.to_payload(), **lkm_pull_payload}
+        sync_payload = {**sync.to_payload(), **lkm_materialize_payload}
         items = assessment["evidence_packet"]["items"]
         relation_counts = _relation_type_counts(assessment["relations"])
         append_research_event(
@@ -886,7 +888,7 @@ def assess_command(
             "writes_inquiry": False,
             "relations": [],
             "promotion_hints": [],
-            **lkm_pull_payload,
+            **lkm_materialize_payload,
         },
     )
 

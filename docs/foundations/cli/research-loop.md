@@ -114,8 +114,8 @@ Trace writes:
 - expansion summary;
 - paper-candidate rationale.
 
-Expansion does not pull papers. It fills coverage around a focus or obligation
-without letting a few early papers dominate the map.
+Expansion does not materialize paper graphs. It fills coverage around a focus or
+obligation without letting a few early papers dominate the map.
 
 ### `gaia research assess`
 
@@ -123,9 +123,10 @@ Assess one focus against selected evidence.
 
 Canonical writes:
 
-- optional `--pull-paper <paper_id>` / `--pull-claim <claim_id>` materializes
-  selected LKM paper evidence as deep local packages and attaches them through
-  the same editable package dependency contract as `gaia pkg add --lkm-paper` /
+- optional `--materialize-paper <paper_id>` /
+  `--materialize-paper-from-claim <claim_id>` materializes selected LKM paper
+  evidence as deep local packages and attaches them through the same editable
+  package dependency contract as `gaia pkg add --lkm-paper` /
   `gaia pkg add --lkm-claim`;
 - unresolved issues become inquiry obligations;
 - tentative interpretations become inquiry hypotheses or `note(...)`;
@@ -179,7 +180,7 @@ gaia research expand "$PKG" \
 
 gaia research assess "$PKG" \
   --focus rq_h0_systematics_vs_new_physics \
-  --pull-paper 811827932371615744 \
+  --materialize-paper 811827932371615744 \
   --analysis-json "$RUN/analysis/assess-analysis.json"
 
 gaia research promote "$PKG" \
@@ -192,9 +193,9 @@ Opt-out flags are for evaluation and debugging:
 - `--artifact-only`: write trace artifacts only;
 - `--dry-run`: show planned writes without applying them;
 
-`--pull-paper` / `--pull-claim` are the explicit deep paths. They should be
-used after a focus, paper lead, or claim lead is selected, not during the
-initial broad landscape scan.
+`--materialize-paper` / `--materialize-paper-from-claim` are the explicit deep
+paths. They should be used after a focus, paper lead, or claim lead is selected,
+not during the initial broad landscape scan.
 
 ## Mapping From Old Artifacts
 
@@ -238,14 +239,14 @@ main loop:
   statements and sets the first as the inquiry focus;
 - `assess` writes review notes, inquiry hypotheses/obligations, and
   `candidate_relation(...)` only when concrete claim references are supplied;
-  it can also materialize selected LKM papers with `--pull-paper` /
-  `--pull-claim`;
+  it can also materialize selected LKM papers with `--materialize-paper` /
+  `--materialize-paper-from-claim`;
 - `promote` writes an explicit `materialize(...)` link from scaffold to formal
   records.
 
 Known remaining gaps:
 
-- assessment does not yet call reasoning-chain pull primitives directly;
+- assessment does not yet call reasoning-chain materialization primitives directly;
 - `promote` records materialization links but does not synthesize formal
   `claim(...)` or relation statements;
 - LLM prompt templates and report rendering still need iteration around review
