@@ -11,6 +11,7 @@ import typer
 
 from gaia.cli.commands.add import (
     LKMDependencyAddError,
+    add_lkm_chain_dependency,
     add_lkm_claim_dependency,
     add_lkm_paper_dependency,
     add_local_package_dependency,
@@ -189,6 +190,7 @@ def _print_sync_summary(payload: dict[str, object]) -> None:
         "source_packages_written",
         "source_packages_added",
         "lkm_packages_materialized",
+        "lkm_chains_materialized",
         "questions_written",
         "notes_written",
         "candidate_relations_written",
@@ -262,7 +264,7 @@ def _lkm_materialized_payload(
     *,
     requested_ref: str | None = None,
 ) -> dict[str, object]:
-    return {
+    payload = {
         "requested_source_ref": requested_ref or str(materialized.source_ref),
         "source_ref": str(materialized.source_ref),
         "path": str(materialized.root),
@@ -272,6 +274,13 @@ def _lkm_materialized_payload(
         "question_count": int(materialized.question_count),
         "dependency_count": int(materialized.dependency_count),
     }
+    chain_count = getattr(materialized, "chain_count", None)
+    if isinstance(chain_count, int):
+        payload["chain_count"] = chain_count
+    total_chains = getattr(materialized, "total_chains", None)
+    if isinstance(total_chains, int):
+        payload["total_chains"] = total_chains
+    return payload
 
 
 def _materialize_lkm_papers_or_exit(
@@ -279,17 +288,49 @@ def _materialize_lkm_papers_or_exit(
     *,
     paper_ids: list[str],
     claim_ids: list[str],
+    chain_claim_ids: list[str],
     lkm_index: str,
     artifact_only: bool,
     dry_run: bool,
 ) -> dict[str, object]:
-    requests = [*paper_ids, *claim_ids]
+    requests = [*paper_ids, *claim_ids, *chain_claim_ids]
     if not requests or artifact_only or dry_run:
         return {
             "lkm_materialize_requests": requests,
             "lkm_packages_materialized": [],
+            "lkm_chains_materialized": [],
         }
 
+    materialized_packages = [
+        *_materialize_lkm_paper_refs(
+            research_pkg,
+            paper_ids=paper_ids,
+            lkm_index=lkm_index,
+        ),
+        *_materialize_lkm_claim_refs(
+            research_pkg,
+            claim_ids=claim_ids,
+            lkm_index=lkm_index,
+        ),
+    ]
+    materialized_chains = _materialize_lkm_chain_refs(
+        research_pkg,
+        claim_ids=chain_claim_ids,
+        lkm_index=lkm_index,
+    )
+    return {
+        "lkm_materialize_requests": requests,
+        "lkm_packages_materialized": materialized_packages,
+        "lkm_chains_materialized": materialized_chains,
+    }
+
+
+def _materialize_lkm_paper_refs(
+    research_pkg: ResearchPackage,
+    *,
+    paper_ids: list[str],
+    lkm_index: str,
+) -> list[dict[str, object]]:
     materialized_packages: list[dict[str, object]] = []
     for paper_id in paper_ids:
         try:
@@ -304,6 +345,16 @@ def _materialize_lkm_papers_or_exit(
             typer.echo(f"Error: failed to materialize LKM paper {paper_id!r}: {exc}", err=True)
             raise typer.Exit(1) from exc
         materialized_packages.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
+    return materialized_packages
+
+
+def _materialize_lkm_claim_refs(
+    research_pkg: ResearchPackage,
+    *,
+    claim_ids: list[str],
+    lkm_index: str,
+) -> list[dict[str, object]]:
+    materialized_packages: list[dict[str, object]] = []
     for claim_id in claim_ids:
         try:
             ref = make_lkm_claim_ref(lkm_index, claim_id)
@@ -317,10 +368,32 @@ def _materialize_lkm_papers_or_exit(
             typer.echo(f"Error: failed to materialize LKM claim {claim_id!r}: {exc}", err=True)
             raise typer.Exit(1) from exc
         materialized_packages.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
-    return {
-        "lkm_materialize_requests": requests,
-        "lkm_packages_materialized": materialized_packages,
-    }
+    return materialized_packages
+
+
+def _materialize_lkm_chain_refs(
+    research_pkg: ResearchPackage,
+    *,
+    claim_ids: list[str],
+    lkm_index: str,
+) -> list[dict[str, object]]:
+    materialized_chains: list[dict[str, object]] = []
+    for claim_id in claim_ids:
+        try:
+            ref = make_lkm_claim_ref(lkm_index, claim_id)
+            chain_materialized = add_lkm_chain_dependency(ref, package_root=research_pkg.path)
+        except LKMDependencyAddError as exc:
+            typer.echo(f"Error: failed to add LKM reasoning chain package: {exc}", err=True)
+            if exc.materialized is not None:
+                typer.echo(f"Generated LKM package: {exc.materialized.root}", err=True)
+            raise typer.Exit(1) from exc
+        except GaiaPackagingError as exc:
+            typer.echo(f"Error: failed to materialize LKM chain {claim_id!r}: {exc}", err=True)
+            raise typer.Exit(1) from exc
+        materialized_chains.append(
+            _lkm_materialized_payload(chain_materialized, requested_ref=ref.ref)
+        )
+    return materialized_chains
 
 
 @research_app.command("contract")
@@ -786,13 +859,24 @@ def assess_command(
             ),
         ),
     ] = None,
+    materialize_chain: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--materialize-chain",
+            help=(
+                "Materialize this LKM claim's reasoning chains as a focused "
+                "deep evidence package before assessment."
+            ),
+        ),
+    ] = None,
     lkm_index: Annotated[
         str,
         typer.Option(
             "--lkm-index",
             "--lkm-server",
             help=(
-                "Configured LKM index id for --materialize-paper / --materialize-paper-from-claim."
+                "Configured LKM index id for --materialize-paper, "
+                "--materialize-paper-from-claim, and --materialize-chain."
             ),
         ),
     ] = DEFAULT_LKM_INDEX_ID,
@@ -804,6 +888,7 @@ def assess_command(
         research_pkg,
         paper_ids=list(materialize_paper or []),
         claim_ids=list(materialize_paper_from_claim or []),
+        chain_claim_ids=list(materialize_chain or []),
         lkm_index=lkm_index,
         artifact_only=artifact_only,
         dry_run=dry_run,

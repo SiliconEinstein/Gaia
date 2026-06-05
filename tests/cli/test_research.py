@@ -143,6 +143,7 @@ def test_research_assess_help_uses_materialize_names() -> None:
 
     assert result.exit_code == 0, result.output
     assert "--materialize-paper" in result.output
+    assert "--materialize-chain" in result.output
     assert "backing paper" in result.output
     assert "--pull-paper" not in result.output
     assert "--pull-claim" not in result.output
@@ -819,6 +820,96 @@ def test_research_assess_materializes_lkm_paper_from_claim_package(
     materialized = events[-1]["payload"]["lkm_packages_materialized"]
     assert materialized[0]["requested_source_ref"] == "lkm:bohrium:claim:claim_from_reasoning"
     assert materialized[0]["source_ref"] == "lkm:bohrium:paper:P_FROM_CLAIM"
+
+
+def test_research_assess_materializes_lkm_reasoning_chain_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "chain-level assessment query",
+                [
+                    _lkm_row(
+                        "P_CHAIN",
+                        "lkm:bohrium:chain_target_claim",
+                        0.95,
+                        paper_title="Chain Backing Paper",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        [
+            "research",
+            "explore",
+            str(pkg_dir),
+            "--mode",
+            "scan",
+            "--search-json",
+            str(search_path),
+            "--no-materialize-sources",
+        ],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+
+    materialize_calls: list[dict[str, object]] = []
+
+    def fake_add_lkm_chain_dependency(ref: Any, *, package_root: Path) -> Any:
+        materialize_calls.append({"ref": ref.ref, "package_root": package_root})
+        return SimpleNamespace(
+            source_ref="lkm:bohrium:chain:chain_target_claim",
+            root=pkg_dir / ".gaia" / "lkm_packages" / "claim-chain-gaia",
+            dist_name="claim-chain-gaia",
+            import_name="claim_chain",
+            claim_count=4,
+            question_count=1,
+            dependency_count=3,
+            chain_count=2,
+            total_chains=5,
+        )
+
+    monkeypatch.setattr(
+        "gaia.cli.commands.research.add_lkm_chain_dependency",
+        fake_add_lkm_chain_dependency,
+        raising=False,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "seed",
+            "--landscape",
+            str(landscape_path),
+            "--materialize-chain",
+            "chain_target_claim",
+            "--lkm-index",
+            "bohrium",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "lkm_chains_materialized: 1" in result.output
+    assert materialize_calls == [
+        {"ref": "lkm:bohrium:claim:chain_target_claim", "package_root": pkg_dir}
+    ]
+    events = _read_events(pkg_dir)
+    materialized = events[-1]["payload"]["lkm_chains_materialized"]
+    assert materialized[0]["requested_source_ref"] == "lkm:bohrium:claim:chain_target_claim"
+    assert materialized[0]["source_ref"] == "lkm:bohrium:chain:chain_target_claim"
+    assert materialized[0]["chain_count"] == 2
 
 
 def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> None:

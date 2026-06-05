@@ -13,8 +13,10 @@ import typer
 
 from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_package
 from gaia.cli.commands.pkg.lkm_materialize import (
+    MaterializedLKMChainPackage,
     MaterializedLKMPackage,
     materialize_lkm_paper_package,
+    materialize_lkm_reasoning_chain_package,
 )
 from gaia.cli.commands.search.lkm._indexes import (
     DEFAULT_LKM_INDEX_ID,
@@ -205,7 +207,7 @@ class LKMDependencyAddError(GaiaPackagingError):
         self,
         message: str,
         *,
-        materialized: MaterializedLKMPackage | None = None,
+        materialized: MaterializedLKMPackage | MaterializedLKMChainPackage | None = None,
     ) -> None:
         """Initialize the error with the generated package, when available."""
         super().__init__(message)
@@ -482,6 +484,44 @@ def add_lkm_claim_dependency(
     return add_lkm_paper_dependency(paper_ref, package_root=package_root)
 
 
+def add_lkm_chain_dependency(
+    ref: LKMSourceRef,
+    *,
+    package_root: Path,
+    max_chains: int = 3,
+    sort_by: str = "comprehensive",
+) -> MaterializedLKMChainPackage:
+    """Materialize LKM reasoning chains for a claim and add them as a dependency."""
+    if ref.kind != "claim":
+        raise GaiaPackagingError(f"expected an LKM claim ref, got {ref.ref}")
+    encoded = quote(ref.provider_id, safe="")
+    payload = run_request(
+        "GET",
+        f"/claims/{encoded}/reasoning",
+        params={"format": "graph", "max_chains": max_chains, "sort_by": sort_by},
+        index_id=ref.index_id,
+    )
+    materialized = materialize_lkm_reasoning_chain_package(
+        payload,
+        project_root=package_root,
+        index_id=ref.index_id,
+        claim_id=ref.provider_id,
+        max_chains=max_chains,
+    )
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        raise LKMDependencyAddError(str(exc), materialized=materialized) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        raise LKMDependencyAddError(
+            stderr or "uv exited with a non-zero status",
+            materialized=materialized,
+        )
+    return materialized
+
+
 def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:
     encoded = quote(ref.provider_id, safe="")
     payload = run_request(
@@ -622,7 +662,10 @@ def _warn_unused_lkm_index(lkm_index: str) -> None:
         )
 
 
-def _echo_lkm_uv_add_failure(materialized: MaterializedLKMPackage, details: str) -> None:
+def _echo_lkm_uv_add_failure(
+    materialized: MaterializedLKMPackage | MaterializedLKMChainPackage,
+    details: str,
+) -> None:
     typer.echo(
         f"Error: uv add failed after materializing {materialized.source_ref}: {details}",
         err=True,

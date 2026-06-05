@@ -164,6 +164,7 @@ gaia research assess "$PKG" \
   --landscape "$EXPAND" \
   --materialize-paper <selected_lkm_paper_id> \
   --materialize-paper-from-claim <selected_lkm_claim_id> \
+  --materialize-chain <selected_lkm_claim_id> \
   --analysis-json "$RUN/analysis/assess-analysis.json"
 
 gaia research report "$PKG" \
@@ -176,8 +177,11 @@ Success criteria:
 - Review prose is readable as a mini-review, not a table dump.
 - Relations are grounded in artifact item refs.
 - Selected paper/claim leads are materialized only here, with
-  `--materialize-paper` or `--materialize-paper-from-claim`, when deep paper
+  `--materialize-paper` or `--materialize-paper-from-claim`, when full paper
   graph evidence is needed.
+- Selected claim reasoning is materialized only here, with
+  `--materialize-chain`, when focused premise-conclusion chain evidence is
+  needed without pulling the whole paper graph.
 - Unresolved issues become inquiry obligations.
 - Natural-language findings become inquiry hypotheses or `note(...)`.
 - `candidate_relation(...)` appears only for relations with concrete

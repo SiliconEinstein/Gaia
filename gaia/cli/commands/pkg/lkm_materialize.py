@@ -44,6 +44,28 @@ class MaterializedLKMPackage:
 
 
 @dataclass(frozen=True)
+class MaterializedLKMChainPackage:
+    """A generated local Gaia package backed by LKM claim reasoning chains."""
+
+    root: Path
+    dist_name: str
+    import_name: str
+    source_ref: str
+    claim_id: str
+    index_id: str
+    title: str | None
+    doi: str | None
+    exported_symbol: str | None
+    claim_count: int
+    question_count: int
+    dependency_count: int
+    skipped_factor_count: int
+    chain_count: int
+    total_chains: int | None
+    regenerated_existing: bool
+
+
+@dataclass(frozen=True)
 class _DependencyStatements:
     statements: list[str]
     skipped_factor_count: int
@@ -157,6 +179,123 @@ def materialize_lkm_paper_package(
     )
 
 
+def materialize_lkm_reasoning_chain_package(
+    payload: dict[str, Any],
+    *,
+    project_root: Path,
+    index_id: str,
+    claim_id: str,
+    max_chains: int | None = None,
+    storage_root: Path | None = None,
+) -> MaterializedLKMChainPackage:
+    """Write, compile, and return a local Gaia package for LKM reasoning chains."""
+    data = _data_object(payload)
+    chains = _reasoning_chain_candidates(data)
+    if max_chains is not None:
+        if max_chains < 1:
+            raise GaiaPackagingError("max_chains must be at least 1.")
+        chains = chains[:max_chains]
+    if not chains:
+        raise GaiaPackagingError(
+            "LKM claim reasoning response did not include any reasoning chains."
+        )
+
+    item = _reasoning_chain_item(data, chains=chains, claim_id=claim_id)
+    if not _raw_lkm_nodes(item):
+        raise GaiaPackagingError(
+            "LKM claim reasoning response did not include materializable graph nodes."
+        )
+
+    paper = _reasoning_paper_metadata(data, chains=chains)
+    paper_ids = _reasoning_paper_ids(data, chains=chains)
+    paper_id = paper_ids[0] if len(paper_ids) == 1 else f"chain:{claim_id}"
+    title = _text(paper.get("en_title")) or _text(paper.get("zh_title"))
+    doi = _text(paper.get("doi"))
+    source_ref = f"lkm:{index_id}:chain:{claim_id}"
+    dist_name = _chain_dist_name(index_id=index_id, claim_id=claim_id, title=title)
+    import_name = dist_name.removesuffix("-gaia").replace("-", "_")
+    root = (storage_root or (project_root / ".gaia" / "lkm_packages")) / dist_name
+    src = root / "src" / import_name
+    regenerated_existing = root.exists()
+
+    root.mkdir(parents=True, exist_ok=True)
+    src.mkdir(parents=True, exist_ok=True)
+    (root / ".gaia").mkdir(exist_ok=True)
+
+    nodes = _collect_nodes(item, paper=paper, paper_id=paper_id)
+    dependency_result = _dependency_statements(
+        item,
+        nodes=nodes,
+        index_id=index_id,
+        paper_id=paper_id,
+        paper_title=title,
+        doi=doi,
+    )
+    dependencies = dependency_result.statements
+    exported = [node.symbol for node in nodes if node.type in {"claim", "question"}]
+    exported_symbol = next((node.symbol for node in nodes if node.type == "claim"), None)
+
+    _write_pyproject(
+        root,
+        dist_name=dist_name,
+        import_name=import_name,
+        index_id=index_id,
+        paper_id=paper_id,
+        source_ref=source_ref,
+        title=title,
+        doi=doi,
+        source_kind="chain",
+        claim_id=claim_id,
+    )
+    (src / "__init__.py").write_text(
+        _module_text(
+            nodes,
+            dependencies=dependencies,
+            exported=exported,
+            index_id=index_id,
+            paper_id=paper_id,
+            source_ref=source_ref,
+            paper_title=title,
+            doi=doi,
+            source_description="LKM reasoning chain graph",
+            source_kind="chain",
+            claim_id=claim_id,
+        ),
+        encoding="utf-8",
+    )
+    (root / "README.md").write_text(
+        _readme_text(
+            dist_name=dist_name,
+            source_ref=source_ref,
+            title=title or f"Reasoning chains for {claim_id}",
+            doi=doi,
+            claim_count=sum(1 for node in nodes if node.type == "claim"),
+            question_count=sum(1 for node in nodes if node.type == "question"),
+            dependency_count=len(dependencies),
+        ),
+        encoding="utf-8",
+    )
+    _compile_generated_package(root)
+    return MaterializedLKMChainPackage(
+        root=root,
+        dist_name=dist_name,
+        import_name=import_name,
+        source_ref=source_ref,
+        claim_id=claim_id,
+        index_id=index_id,
+        title=title,
+        doi=doi,
+        exported_symbol=exported_symbol,
+        claim_count=sum(1 for node in nodes if node.type == "claim"),
+        question_count=sum(1 for node in nodes if node.type == "question"),
+        dependency_count=len(dependencies),
+        skipped_factor_count=dependency_result.skipped_factor_count,
+        chain_count=len(chains),
+        total_chains=_total_chains(data),
+        regenerated_existing=regenerated_existing,
+    )
+
+
 def _select_paper_item(payload: dict[str, Any], *, paper_id: str) -> dict[str, Any]:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
     papers = data.get("papers") if isinstance(data, dict) else None
@@ -197,6 +336,188 @@ def _paper_metadata(item: dict[str, Any]) -> dict[str, Any]:
     if isinstance(paper, dict):
         return paper
     return item
+
+
+def _data_object(payload: dict[str, Any]) -> dict[str, Any]:
+    data = payload.get("data")
+    if isinstance(data, dict):
+        return data
+    return payload
+
+
+def _reasoning_chain_candidates(data: dict[str, Any]) -> list[dict[str, Any]]:
+    chains = data.get("reasoning_chains")
+    if not isinstance(chains, list):
+        return []
+    return [chain for chain in chains if isinstance(chain, dict)]
+
+
+def _reasoning_chain_item(
+    data: dict[str, Any],
+    *,
+    chains: list[dict[str, Any]],
+    claim_id: str,
+) -> dict[str, Any]:
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
+    factors: list[dict[str, Any]] = []
+    variables: list[dict[str, Any]] = []
+    seen_nodes: set[str] = set()
+    seen_edges: set[tuple[str, str, str]] = set()
+
+    for chain in chains:
+        _append_reasoning_chain_items(chain, factors=factors, variables=variables)
+        _append_reasoning_graph_items(
+            chain,
+            nodes=nodes,
+            edges=edges,
+            seen_nodes=seen_nodes,
+            seen_edges=seen_edges,
+        )
+
+    return {
+        "paper": _reasoning_paper_metadata(data, chains=chains),
+        "variables": variables,
+        "factors": factors,
+        "graph": {"nodes": nodes, "edges": edges},
+        "stats": {"claim_id": claim_id, "reasoning_chains": len(chains)},
+    }
+
+
+def _append_reasoning_chain_items(
+    chain: dict[str, Any],
+    *,
+    factors: list[dict[str, Any]],
+    variables: list[dict[str, Any]],
+) -> None:
+    for factor in _list(chain.get("factors")):
+        if isinstance(factor, dict):
+            factors.append(factor)
+    for variable in _list(chain.get("variables")):
+        if isinstance(variable, dict):
+            variables.append(variable)
+
+
+def _append_reasoning_graph_items(
+    chain: dict[str, Any],
+    *,
+    nodes: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    seen_nodes: set[str],
+    seen_edges: set[tuple[str, str, str]],
+) -> None:
+    graph = chain.get("graph")
+    if not isinstance(graph, dict):
+        return
+    for raw in _list(graph.get("nodes")):
+        if _mark_graph_node_seen(raw, seen_nodes):
+            nodes.append(raw)
+    for raw in _list(graph.get("edges")):
+        if _mark_graph_edge_seen(raw, seen_edges):
+            edges.append(raw)
+
+
+def _mark_graph_node_seen(raw: Any, seen_nodes: set[str]) -> bool:
+    if not isinstance(raw, dict):
+        return False
+    node_id = _text(raw.get("id")) or _text(raw.get("global_id")) or _text(raw.get("local_id"))
+    if node_id is None:
+        return True
+    if node_id in seen_nodes:
+        return False
+    seen_nodes.add(node_id)
+    return True
+
+
+def _mark_graph_edge_seen(raw: Any, seen_edges: set[tuple[str, str, str]]) -> bool:
+    if not isinstance(raw, dict):
+        return False
+    source = _text(raw.get("source"))
+    target = _text(raw.get("target"))
+    edge_type = _text(raw.get("type"))
+    if source is None or target is None or edge_type is None:
+        return True
+    key = (edge_type, source, target)
+    if key in seen_edges:
+        return False
+    seen_edges.add(key)
+    return True
+
+
+def _reasoning_paper_metadata(
+    data: dict[str, Any],
+    *,
+    chains: list[dict[str, Any]],
+) -> dict[str, Any]:
+    paper_ids = _reasoning_paper_ids(data, chains=chains)
+    papers = _paper_candidates_from_block(data.get("papers"))
+    for paper_id in paper_ids:
+        for paper in papers:
+            if _paper_id(paper) == paper_id:
+                return paper
+    if papers:
+        return papers[0]
+    if paper_ids:
+        return {"id": paper_ids[0], "package_id": f"paper:{paper_ids[0]}"}
+    return {}
+
+
+def _paper_candidates_from_block(raw: Any) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    values = raw.values() if isinstance(raw, dict) else raw if isinstance(raw, list) else []
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        paper = value.get("paper")
+        candidates.append(paper if isinstance(paper, dict) else value)
+    return candidates
+
+
+def _reasoning_paper_ids(
+    data: dict[str, Any],
+    *,
+    chains: list[dict[str, Any]],
+) -> list[str]:
+    paper_ids: list[str] = []
+
+    def add(value: str | None) -> None:
+        if value and value not in paper_ids:
+            paper_ids.append(value)
+
+    for chain in chains:
+        add(_paper_id_from_source_package(chain.get("source_package")))
+        add(_text(chain.get("paper_id")))
+        graph = chain.get("graph")
+        if isinstance(graph, dict):
+            for node in _list(graph.get("nodes")):
+                if isinstance(node, dict):
+                    add(_paper_id_from_graph_ref(node.get("id")))
+                    add(_paper_id_from_graph_ref(node.get("local_id")))
+
+    for paper in _paper_candidates_from_block(data.get("papers")):
+        add(_paper_id(paper))
+    return paper_ids
+
+
+def _paper_id_from_source_package(raw: Any) -> str | None:
+    value = _text(raw)
+    if value and value.startswith("paper:"):
+        return value.split(":", 1)[1]
+    return None
+
+
+def _paper_id_from_graph_ref(raw: Any) -> str | None:
+    value = _text(raw)
+    if value and value.startswith("paper:") and "::" in value:
+        return value.split("::", 1)[0].split(":", 1)[1]
+    return None
+
+
+def _total_chains(data: dict[str, Any]) -> int | None:
+    value = data.get("total_chains")
+    if isinstance(value, int):
+        return value
+    return None
 
 
 def _paper_id(paper: dict[str, Any]) -> str | None:
@@ -523,10 +844,13 @@ def _module_text(
     source_ref: str,
     paper_title: str | None,
     doi: str | None,
+    source_description: str = "LKM paper graph",
+    source_kind: str = "paper",
+    claim_id: str | None = None,
 ) -> str:
     imports = "from gaia.engine.lang import claim, depends_on, question\n\n"
     header = (
-        '"""Generated Gaia package from an LKM paper graph.\n\n'
+        f'"""Generated Gaia package from an {source_description}.\n\n'
         "LKM factors are recorded as depends_on(...) scaffold dependencies. "
         "They preserve premise-conclusion structure for later Gaia review, "
         "but do not enter BP until materialized as formal reasoning.\n\n"
@@ -542,6 +866,8 @@ def _module_text(
             "paper_title": paper_title,
             "doi": doi,
             "source_ref": source_ref,
+            "source_kind": source_kind,
+            "claim_id": claim_id,
             "node_id": node.provider_id,
             "local_id": node.local_id,
             "role": node.role,
@@ -572,8 +898,15 @@ def _write_pyproject(
     source_ref: str,
     title: str | None,
     doi: str | None,
+    source_kind: str = "paper",
+    claim_id: str | None = None,
 ) -> None:
-    description = f"LKM paper package: {title or paper_id}"
+    description = (
+        f"LKM reasoning chain package: {title or claim_id or paper_id}"
+        if source_kind == "chain"
+        else f"LKM paper package: {title or paper_id}"
+    )
+    claim_id_line = f"claim_id = {_toml_string(claim_id)}\n" if claim_id else ""
     text = f"""\
 [project]
 name = {_toml_string(dist_name)}
@@ -595,10 +928,10 @@ namespace = "lkm"
 
 [tool.gaia.source]
 provider = "lkm"
-kind = "paper"
+kind = {_toml_string(source_kind)}
 index_id = {_toml_string(index_id)}
 paper_id = {_toml_string(paper_id)}
-ref = {_toml_string(source_ref)}
+{claim_id_line}ref = {_toml_string(source_ref)}
 title = {_toml_string(title or "")}
 doi = {_toml_string(doi or "")}
 """
@@ -744,4 +1077,15 @@ def _clean_dict(value: dict[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in value.items() if item is not None}
 
 
-__all__ = ["MaterializedLKMPackage", "materialize_lkm_paper_package"]
+def _chain_dist_name(*, index_id: str, claim_id: str, title: str | None) -> str:
+    title_slug = _slug(title or "reasoning-chain", max_chars=36)
+    claim_slug = _slug(claim_id, max_chars=30)
+    return f"lkm-{_slug(index_id, max_chars=24)}-chain-{title_slug}-{claim_slug}-gaia"
+
+
+__all__ = [
+    "MaterializedLKMChainPackage",
+    "MaterializedLKMPackage",
+    "materialize_lkm_paper_package",
+    "materialize_lkm_reasoning_chain_package",
+]

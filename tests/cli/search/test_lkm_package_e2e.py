@@ -11,7 +11,10 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from gaia.cli.commands.pkg.lkm_materialize import materialize_lkm_paper_package
+from gaia.cli.commands.pkg.lkm_materialize import (
+    materialize_lkm_paper_package,
+    materialize_lkm_reasoning_chain_package,
+)
 from gaia.cli.main import app
 from gaia.engine.packaging import GaiaPackagingError
 
@@ -305,6 +308,33 @@ def _paper_graph_payload_graph_only_dependencies() -> dict[str, Any]:
     }
 
 
+def _claim_reasoning_payload_graph_only_dependencies() -> dict[str, Any]:
+    paper_item = _paper_graph_payload_graph_only_dependencies()["data"]["papers"][0]
+    return {
+        "code": 0,
+        "data": {
+            "reasoning_chains": [
+                {
+                    "id": "chain_1",
+                    "source_package": "paper:811827932371615744",
+                    "graph": paper_item["graph"],
+                }
+            ],
+            "total_chains": 3,
+            "papers": [
+                {
+                    "paper": {
+                        "doi": "10.1016/j.jpcs.2021.110374",
+                        "en_title": "Controlling phase and morphology",
+                        "id": "811827932371615744",
+                        "package_id": "paper:811827932371615744",
+                    }
+                }
+            ],
+        },
+    }
+
+
 def test_materialized_lkm_package_can_be_imported_and_referenced(tmp_path: Path) -> None:
     materialized = materialize_lkm_paper_package(
         _paper_graph_payload(),
@@ -365,6 +395,37 @@ def test_materialize_lkm_paper_builds_depends_on_from_logic_graph_edges(
     assert (
         "'dependency_edge_types': ['highlight_of', 'previous_conclusion_of', 'weakpoint_of']"
     ) in generated_source
+
+    formalization = json.loads(
+        (materialized.root / ".gaia" / "formalization_manifest.json").read_text()
+    )
+    assert formalization["dependencies"][0]["kind"] == "depends_on"
+    assert formalization["dependencies"][0]["label"] == "lfac_phase"
+
+
+def test_materialize_lkm_reasoning_chain_builds_local_chain_package(
+    tmp_path: Path,
+) -> None:
+    materialized = materialize_lkm_reasoning_chain_package(
+        _claim_reasoning_payload_graph_only_dependencies(),
+        project_root=tmp_path,
+        index_id="bohrium",
+        claim_id="gcn_result",
+    )
+
+    assert materialized.source_ref == "lkm:bohrium:chain:gcn_result"
+    assert materialized.claim_count == 4
+    assert materialized.dependency_count == 1
+    assert materialized.chain_count == 1
+    assert materialized.total_chains == 3
+    pyproject = tomllib.loads((materialized.root / "pyproject.toml").read_text())
+    assert pyproject["tool"]["gaia"]["source"]["kind"] == "chain"
+    assert pyproject["tool"]["gaia"]["source"]["claim_id"] == "gcn_result"
+    generated_source = (
+        materialized.root / "src" / materialized.import_name / "__init__.py"
+    ).read_text()
+    assert "Generated Gaia package from an LKM reasoning chain graph." in generated_source
+    assert "lfac_phase = depends_on(" in generated_source
 
     formalization = json.loads(
         (materialized.root / ".gaia" / "formalization_manifest.json").read_text()
@@ -642,6 +703,65 @@ def test_pkg_add_lkm_claim_resolves_backing_paper_and_materializes_package(
         ("POST", "/papers/graph"),
     ]
     assert len(uv_calls) == 1
+
+
+def test_add_lkm_chain_dependency_materializes_reasoning_chain_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+    calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        assert index_id == "bohrium"
+        calls.append((method, path, params))
+        assert method == "GET"
+        assert path == "/claims/gcn_result/reasoning"
+        assert params == {
+            "format": "graph",
+            "max_chains": 3,
+            "sort_by": "comprehensive",
+        }
+        return _claim_reasoning_payload_graph_only_dependencies()
+
+    uv_calls: list[tuple[list[str], Path | None]] = []
+
+    def fake_run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        uv_calls.append((args, kwargs.get("cwd")))
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.setattr(add_mod, "_run_uv", fake_run_uv)
+
+    materialized = add_mod.add_lkm_chain_dependency(
+        add_mod.make_lkm_claim_ref("bohrium", "gcn_result"),
+        package_root=consumer,
+    )
+
+    assert materialized.source_ref == "lkm:bohrium:chain:gcn_result"
+    assert materialized.chain_count == 1
+    assert calls == [
+        (
+            "GET",
+            "/claims/gcn_result/reasoning",
+            {"format": "graph", "max_chains": 3, "sort_by": "comprehensive"},
+        )
+    ]
+    assert len(uv_calls) == 1
+    uv_args, uv_cwd = uv_calls[0]
+    assert uv_args[:3] == ["uv", "add", "--editable"]
+    assert Path(uv_args[3]) == materialized.root
+    assert uv_cwd == consumer
 
 
 def test_pkg_add_lkm_claim_resolves_backing_paper_from_nested_papers_block(
