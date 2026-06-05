@@ -8,6 +8,7 @@ existing Gaia package and inquiry primitives.
 from __future__ import annotations
 
 import json
+import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -119,6 +120,27 @@ def _events_path(pkg: ResearchPackage) -> Path:
     return research_dir(pkg) / "events.jsonl"
 
 
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    """Atomically replace a JSON file so concurrent readers never see truncation."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as f:
+            tmp_path = Path(f.name)
+            f.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+        tmp_path.replace(path)
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink()
+
+
 def _inquiry_snapshot(pkg: ResearchPackage) -> dict[str, Any]:
     state = load_state(pkg.path)
     return {
@@ -160,7 +182,7 @@ def ensure_research_manifest(pkg: ResearchPackage) -> dict[str, Any]:
     manifest["updated_at"] = now
     manifest["package"] = _package_payload(pkg)
     manifest["inquiry"] = _inquiry_snapshot(pkg)
-    path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    _write_json_atomic(path, manifest)
     return manifest
 
 
@@ -186,10 +208,7 @@ def append_research_event(
     manifest["events"] = {"count": count, "last_event": event}
     manifest["updated_at"] = record["timestamp"]
     manifest["inquiry"] = _inquiry_snapshot(pkg)
-    _manifest_path(pkg).write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    _write_json_atomic(_manifest_path(pkg), manifest)
     return record
 
 
@@ -229,8 +248,5 @@ def write_research_artifact(
     )
     manifest["artifacts"] = artifacts
     manifest["updated_at"] = _utcnow()
-    _manifest_path(pkg).write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    _write_json_atomic(_manifest_path(pkg), manifest)
     return output_path
