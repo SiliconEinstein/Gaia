@@ -189,6 +189,8 @@ Trace writes:
 - review/check output.
 
 Promotion is narrow. It is not the orchestrator for the whole research loop.
+Formal source synthesis from assessment scaffolds remains deferred until a
+separate promotion contract and review gate are designed.
 
 ## Minimal CLI Story
 
@@ -281,13 +283,14 @@ main loop:
   writes accepted open-ended research questions as package `question(...)`
   statements and records related hypotheses/obligations in inquiry state;
 - `promote` writes an explicit `materialize(...)` link from scaffold to formal
-  records.
+  records; formal source synthesis remains deferred.
 
 Known remaining gaps:
 
 - `promote` records materialization links but does not synthesize formal
   `claim(...)`, `derive(...)`, `infer(...)`, or relation statements yet. That
-  requires a dedicated LKM-to-Gaia promotion contract first.
+  requires a dedicated LKM-to-Gaia promotion contract and review-gate design
+  first, and is intentionally marked deferred in the roadmap.
 - legacy `.gaia/exploration/` import and `gaia-lkm-explore` deprecation are not
   implemented yet. Old artifacts may be provenance inputs, but must not become
   canonical semantic state.

@@ -118,11 +118,24 @@ Validation:
 Current implementation also exposes `gaia research contract propose` and renders proposal
 artifacts through `gaia research report`.
 
-### N2. Formal Promotion Contract
+### N2. Promotion Boundary And Deferred Formalization
 
-Before expanding `promote`, write a sub-spec for LKM-to-Gaia source promotion.
+Immediate goal: keep `promote` narrow and make the deferred boundary explicit.
 
-The sub-spec must define:
+Current `promote` should remain a scaffold bookkeeping action:
+
+```bash
+gaia research promote <pkg> --scaffold <binding> --by <formal_binding>
+```
+
+It records that an already-reviewed formal graph record materializes a scaffold. It should
+not synthesize new formal `claim(...)`, `derive(...)`, `infer(...)`, `contradict(...)`, or
+relation statements yet.
+
+Deferred work: full LKM-to-Gaia formal source promotion and review-gated source synthesis.
+This is intentionally **not** part of the next implementation slice because it requires a
+separate design pass. Before expanding `promote` beyond the current `materialize(...)`
+link, write and review a focused sub-spec that defines:
 
 - how assessment `supports` / `opposes` / `qualifies` / `undercuts` maps, or refuses to
   map, to `claim(...)`, `derive(...)`, `infer(...)`, `contradict(...)`, `question(...)`,
@@ -134,10 +147,16 @@ The sub-spec must define:
 - which parts are deterministic CLI validation and which parts remain agent / human
   judgment.
 
-Only after that sub-spec should implementation extend `gaia research promote` beyond
-the current `materialize(...)` link.
+Only after that deferred sub-spec is reviewed should implementation extend
+`gaia research promote` beyond the current `materialize(...)` link.
 
-Validation:
+Immediate validation:
+
+- roadmap and CLI docs clearly state that formal source synthesis is deferred;
+- current `promote` keeps writing only `materialize(...)` links;
+- tests continue to cover the existing scaffold-to-formal-link behavior.
+
+Deferred validation:
 
 - promotion cannot synthesize formal source from ungrounded assessment refs;
 - promotion refuses unsupported relation / hint combinations;
