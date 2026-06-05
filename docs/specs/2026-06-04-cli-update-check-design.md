@@ -54,9 +54,11 @@ upgrade. No granular channels, no auto-running the upgrade.
      stdout clean).
    - **Never reads stdin** — it is a notice, not an interactive prompt (an
      agent would hang on a prompt).
-   - Network call has a **short timeout (≈1.5s)** and **fails silent** — any
-     `httpx.HTTPError`, timeout, non-200, malformed JSON, or offline state →
-     no output, no error, command proceeds normally.
+   - Network call has a **short, per-phase timeout** (connect 0.75s, read 1.5s
+     via `httpx.Timeout(1.5, connect=0.75)` — bounds, not a single total
+     deadline) and **fails silent** — any `httpx.HTTPError`, timeout, non-200,
+     malformed JSON, or offline state → no output, no error, command proceeds
+     normally.
    - Cheap path first: if the daily cache says "checked recently", skip the
      network entirely and reuse the cached result.
 4. **Throttle (≤ once/day):** cache stamp under the XDG cache dir; only hit
@@ -81,8 +83,9 @@ upgrade. No granular channels, no auto-running the upgrade.
 - **Installed version:** reuse `get_library_version()` (`gaia/_meta.py` →
   `importlib.metadata.version("gaia-lang")`).
 - **PyPI query:** `httpx.get("https://pypi.org/pypi/gaia-lang/json",
-  timeout=1.5)` (httpx is already a dep; mirrors the `_registry.py` pattern:
-  `try/except httpx.HTTPError`). Parses **all keys of `releases`** (not
+  timeout=httpx.Timeout(1.5, connect=0.75))` (httpx is already a dep; mirrors
+  the `_registry.py` pattern: `try/except httpx.HTTPError`). The timeout is
+  per-phase (connect 0.75s, read 1.5s), not a single total deadline. Parses **all keys of `releases`** (not
   `info.version`, which is the latest *stable* and would miss the alpha line);
   skips fully-yanked releases; takes the max via PEP 440 ordering.
 - **Version comparison:** `packaging.version.Version`. `packaging` is declared

@@ -45,10 +45,12 @@ if TYPE_CHECKING:
 _DIST_NAME = "gaia-lang"
 #: PyPI JSON metadata endpoint for the distribution.
 _PYPI_URL = f"https://pypi.org/pypi/{_DIST_NAME}/json"
-#: Network timeout for the PyPI GET — a *total* bound, not per-phase. A bare
-#: float makes httpx apply the value independently to connect/read/write/pool
-#: (~2x worst case on a stalled connect), so cap connect tightly: the whole
-#: attempt is bounded to ~1.5s and a hung connect bails in 0.75s.
+#: Network timeout for the PyPI GET. ``httpx.Timeout(1.5, connect=0.75)`` sets
+#: **per-phase** bounds — connect 0.75s and read/write/pool 1.5s each — not a
+#: single total wall-clock deadline (a slow trickle could run ~0.75s connect +
+#: ~1.5s read). A bare float would apply the same value to every phase, so cap
+#: connect tightly: a hung connect (the common stall) bails in 0.75s while the
+#: read stays bounded at 1.5s. Fine for a once-daily, fail-silent check.
 _HTTP_TIMEOUT = httpx.Timeout(1.5, connect=0.75)
 #: Default throttle window between network checks, in seconds (24h).
 _DEFAULT_TTL_S = 24 * 60 * 60
