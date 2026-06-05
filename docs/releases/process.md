@@ -31,6 +31,80 @@ Use one GitHub issue per release, named `Release <version>` (for example,
 If a detail is not in the Release Issue, it is not part of the release plan.
 Chat messages can coordinate, but the Release Issue records the decision.
 
+## Example Release Issue
+
+Use the issue template for real releases. A dry-run issue can look like this:
+
+```md
+## Release
+
+Version: 0.5.0a2
+Channel: alpha
+Release captain: dp
+Status: dry-run green
+
+## Target
+
+Target commit: 7dc94636f1f93ada18af7fbf7ab0004921037a35
+Workflow: release-alpha.yml
+
+## Include
+
+PRs listed here are the release contents. PRs not listed here are not part of
+this release.
+
+- [x] PR #740 LKM graph API alignment
+
+## Do Not Merge Before This Release
+
+Optional. Use only for PRs that are at risk of being merged into `main` before
+this release is cut but should not enter this release.
+
+- [ ] none
+
+## Pre-Release Checks
+
+- [ ] Release notes exist or are not required for this channel
+- [x] Included PRs are merged into `main`
+- [x] At-risk non-included PRs are listed above, if any
+- [ ] Short release freeze announced
+- [x] Target commit recorded
+- [x] PR CI green for target commit
+- [ ] Nightly green, or reason recorded for not waiting
+
+## Dry-Run
+
+- [x] Release workflow dispatched with `dry_run=true`
+- [x] Dry-run workflow passed
+
+Dry-run workflow link:
+https://github.com/SiliconEinstein/Gaia/actions/runs/26992416344
+
+## Publish
+
+- [ ] Release workflow dispatched with `dry_run=false`
+- [ ] PyPI publication confirmed
+- [ ] `v<version>` tag confirmed
+- [ ] GitHub release or prerelease confirmed
+- [ ] Fresh install smoke completed
+- [ ] Release freeze lifted
+
+Publish workflow link:
+PyPI link:
+GitHub release link:
+Tag:
+
+## Known Limitations
+
+- This was a dry-run only. PyPI publish, tag creation, and GitHub prerelease
+  creation were skipped as expected.
+
+## Follow-Ups
+
+- Decide whether to publish `0.5.0a2` for real.
+- Add or confirm release notes if this becomes a real alpha release.
+```
+
 ## Channels
 
 | Channel | Version form | Trigger | Publish target | Intended users |
