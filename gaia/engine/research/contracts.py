@@ -13,6 +13,11 @@ from gaia.engine.research.focus import (
     VALID_FOCUS_READINESS,
     VALID_FOCUS_STATUSES,
 )
+from gaia.engine.research.proposal import (
+    VALID_PROPOSAL_KINDS,
+    VALID_PROPOSAL_PRIORITIES,
+    VALID_PROPOSAL_STATUSES,
+)
 
 
 class ResearchContractError(ValueError):
@@ -297,6 +302,94 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
     }
 
 
+def propose_contract(*, language: str = "zh") -> dict[str, Any]:
+    """Return the JSON contract for LLM proposal synthesis output."""
+    return {
+        "contract": "gaia.research.proposal_analysis",
+        "schema_version": 1,
+        "language": language,
+        "purpose": (
+            "Transform an assessment artifact into open-ended next research proposals, "
+            "hypotheses, and obligations. Proposals are not stable Gaia claims."
+        ),
+        "input": {
+            "assessment": (
+                "One .gaia/research/assessments/*.json artifact, including review.next_queries, "
+                "candidate_obligations, relations, and any cited source refs."
+            ),
+            "grounding": (
+                "Every proposal, hypothesis, and obligation should cite assessment, item, "
+                "paper, variable, factor, or package refs visible in the assessment."
+            ),
+        },
+        "output_required_fields": {
+            "proposals": "list[Proposal]",
+            "hypotheses": "list[Hypothesis]",
+            "candidate_obligations": "list[CandidateObligation]",
+            "notes": "list[str]",
+        },
+        "proposal_fields": {
+            "id": "stable snake/kebab identifier local to the proposal artifact",
+            "kind": sorted(VALID_PROPOSAL_KINDS),
+            "status": sorted(VALID_PROPOSAL_STATUSES),
+            "question": "open-ended question or action phrased for researchers",
+            "rationale": "why this proposal follows from the assessment",
+            "priority": sorted(VALID_PROPOSAL_PRIORITIES),
+            "source_refs": "non-empty refs grounding the proposal in assessment evidence",
+        },
+        "hypothesis_fields": {
+            "content": "tentative possibility to track in inquiry, not a stable claim",
+            "source_refs": "optional grounding refs",
+        },
+        "candidate_obligation_fields": {
+            "kind": "needs_more_evidence, needs_method_check, needs_replication, or other",
+            "content": "what must be checked before the proposal can be assessed or promoted",
+            "source_refs": "optional grounding refs",
+        },
+        "forbidden_outputs": [
+            "Do not emit stable truth claims, claim(...), stable_claim, or fields named claims.",
+            "Do not decide the answer to the research question; propose the next inquiry target.",
+            "Do not invent source refs not present in the assessment.",
+        ],
+        "analysis_guidance": [
+            "Prefer a small number of high-value open-ended questions over many narrow queries.",
+            "Separate research questions from tentative hypotheses and audit obligations.",
+            (
+                "Use --accept only when the selected proposals are worth tracking "
+                "as package questions."
+            ),
+            "Write Chinese user-facing prose when language is zh.",
+        ],
+        "example": {
+            "proposals": [
+                {
+                    "id": "rq_calibration_systematics",
+                    "kind": "research_question",
+                    "status": "accepted",
+                    "question": "TRGB 与 Cepheid 定标是否共享导致高 H0 的系统误差?",
+                    "rationale": "assessment 将距离阶梯系统误差识别为核心未决方向。",
+                    "priority": "high",
+                    "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
+                }
+            ],
+            "hypotheses": [
+                {
+                    "content": "TRGB 与 SH0ES 可能共享部分定标系统误差。",
+                    "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
+                }
+            ],
+            "candidate_obligations": [
+                {
+                    "kind": "needs_more_evidence",
+                    "content": "核查 Cepheid/TRGB/SNIa 绝对星等传递的不确定度协方差。",
+                    "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
+                }
+            ],
+            "notes": ["Accepted proposals should still be reviewed by a human before promotion."],
+        },
+    }
+
+
 def research_contract(kind: str, *, language: str = "zh") -> dict[str, Any]:
     """Return one named research contract."""
     normalized = kind.strip().lower()
@@ -304,12 +397,15 @@ def research_contract(kind: str, *, language: str = "zh") -> dict[str, Any]:
         return focus_contract(language=language)
     if normalized in {"assess", "assessment", "assessment_analysis"}:
         return assess_contract(language=language)
-    raise ResearchContractError("supported contracts are: focus, assess")
+    if normalized in {"propose", "proposal", "proposal_analysis"}:
+        return propose_contract(language=language)
+    raise ResearchContractError("supported contracts are: focus, assess, propose")
 
 
 __all__ = [
     "ResearchContractError",
     "assess_contract",
     "focus_contract",
+    "propose_contract",
     "research_contract",
 ]

@@ -32,6 +32,9 @@
 - `assess` 默认写 review `note(...)`、inquiry hypotheses / obligations，必要时写
   `candidate_relation(...)` scaffold，并可显式物化 LKM paper / paper-from-claim /
   reasoning-chain evidence package；
+- `propose` 默认从 assessment 写 proposal trace；显式 `--accept` 时把 accepted
+  open-ended research questions 写成 package `question(...)`，并把相关 hypotheses /
+  obligations 写入 inquiry state；
 - `report` / `stop` 已提供确定性 Markdown rendering 和 auditable stop criteria；
 - `promote` 目前只写窄的 `materialize(...)` scaffold-to-formal link。
 
@@ -48,6 +51,7 @@ gaia research explore <pkg> --mode scan --search-json <search.json>
 gaia research expand <pkg> --focus <focus> --search-json <search.json>
 gaia research focus <pkg> --analysis-json <focus-analysis.json>
 gaia research assess <pkg> --focus <focus> --analysis-json <assess-analysis.json>
+gaia research propose <pkg> --from-assessment <assessment.json>
 gaia research report <pkg> --artifact <artifact.json>
 gaia research stop <pkg> --landscape <landscape.json> --assessment <assessment.json>
 gaia research promote <pkg> --scaffold <binding> --by <formal_binding>
@@ -88,7 +92,7 @@ Success criteria:
 - future implementation work points back to this roadmap before creating a new
   bite-sized plan.
 
-### N1. Propose Action
+### N1. Propose Action (implemented)
 
 Implement:
 
@@ -110,6 +114,9 @@ Validation:
 - proposal schema rejects stable-claim-looking payloads;
 - accepted questions route through the same authored-source path used by `focus`;
 - event payload records proposal counts and whether anything was accepted.
+
+Current implementation also exposes `gaia research contract propose` and renders proposal
+artifacts through `gaia research report`.
 
 ### N2. Formal Promotion Contract
 

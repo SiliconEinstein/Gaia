@@ -705,6 +705,216 @@ def sync_assessment_artifact(
     return result
 
 
+def _source_assessment_focus_id(artifact: JsonDict) -> str:
+    source_assessment = artifact.get("source_assessment")
+    if isinstance(source_assessment, dict):
+        focus_id = source_assessment.get("focus_id") or source_assessment.get("id")
+        if isinstance(focus_id, str) and focus_id.strip():
+            return focus_id.strip()
+    return "research_proposal"
+
+
+def _accepted_research_question_proposals(
+    proposals: object,
+    *,
+    max_questions: int,
+) -> list[JsonDict]:
+    if not isinstance(proposals, list):
+        return []
+    accepted = [
+        proposal
+        for proposal in proposals
+        if isinstance(proposal, dict)
+        and proposal.get("status") == "accepted"
+        and proposal.get("kind") == "research_question"
+    ]
+    return sorted(
+        accepted,
+        key=lambda proposal: (
+            _PRIORITY_ORDER.get(str(proposal.get("priority", "low")), 99),
+            str(proposal.get("id", "")),
+        ),
+    )[:max_questions]
+
+
+def _sync_accepted_proposal_questions(
+    pkg: ResearchPackage,
+    proposals: list[JsonDict],
+    *,
+    source_focus_id: str,
+    result: ResearchSyncResult,
+) -> list[str]:
+    written_or_existing: list[str] = []
+    for proposal in proposals:
+        proposal_id = str(proposal.get("id") or "proposal")
+        question_text = proposal.get("question")
+        if not isinstance(question_text, str) or not question_text.strip():
+            continue
+        binding = _binding("rq", proposal_id)
+        metadata = _research_metadata(
+            "accepted_proposal",
+            {
+                "proposal_id": proposal_id,
+                "proposal_kind": proposal.get("kind"),
+                "priority": proposal.get("priority"),
+                "source_focus_id": source_focus_id,
+                "source_refs": proposal.get("source_refs", []),
+            },
+        )
+        code = (
+            f"{binding} = question("
+            f"{question_text.strip()!r}, title={proposal_id!r}, metadata={metadata!r})"
+        )
+        before_written = len(result.questions_written)
+        _append_statement_once(
+            pkg,
+            binding=binding,
+            generated_code=code,
+            required_imports=("question",),
+            result_list=result.questions_written,
+            skip_list=result.questions_skipped,
+            source_writes=result.writes_source,
+        )
+        if len(result.questions_written) > before_written or binding in result.questions_skipped:
+            written_or_existing.append(binding)
+    return written_or_existing
+
+
+def _sync_proposal_hypotheses(
+    pkg: ResearchPackage,
+    hypotheses: object,
+    *,
+    scope_qid: str | None,
+    result: ResearchSyncResult,
+) -> None:
+    if not isinstance(hypotheses, list):
+        return
+    for hypothesis in hypotheses:
+        if not isinstance(hypothesis, dict):
+            continue
+        content = hypothesis.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+        _add_hypothesis_once(
+            pkg,
+            content=content.strip(),
+            scope_qid=scope_qid,
+            anchor={
+                "kind": "proposal_hypothesis",
+                "source_refs": hypothesis.get("source_refs"),
+            },
+            result=result,
+        )
+
+
+def _sync_unaccepted_proposals_as_hypotheses(
+    pkg: ResearchPackage,
+    proposals: object,
+    *,
+    scope_qid: str | None,
+    result: ResearchSyncResult,
+) -> None:
+    if not isinstance(proposals, list):
+        return
+    for proposal in proposals:
+        if not isinstance(proposal, dict) or proposal.get("status") == "accepted":
+            continue
+        question_text = proposal.get("question")
+        if not isinstance(question_text, str) or not question_text.strip():
+            continue
+        _add_hypothesis_once(
+            pkg,
+            content=question_text.strip(),
+            scope_qid=scope_qid,
+            anchor={"kind": "proposal_candidate", "id": proposal.get("id")},
+            result=result,
+        )
+
+
+def _sync_proposal_obligations(
+    pkg: ResearchPackage,
+    obligations: object,
+    *,
+    target_qid: str,
+    result: ResearchSyncResult,
+) -> None:
+    if not isinstance(obligations, list):
+        return
+    for obligation in obligations:
+        if not isinstance(obligation, dict):
+            continue
+        content = obligation.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+        raw_kind = str(obligation.get("kind") or "other")
+        diagnostic_kind = "support_weak" if raw_kind == "needs_more_evidence" else "other"
+        _add_obligation_once(
+            pkg,
+            target_qid=target_qid,
+            content=content.strip(),
+            diagnostic_kind=diagnostic_kind,
+            anchor={
+                "kind": "proposal_obligation",
+                "source_refs": obligation.get("source_refs"),
+            },
+            result=result,
+        )
+
+
+def sync_proposal_artifact(
+    pkg: ResearchPackage,
+    proposal: JsonDict,
+    *,
+    max_questions: int = 3,
+    artifact_only: bool = False,
+    source_writes: bool = True,
+    dry_run: bool = False,
+) -> ResearchSyncResult:
+    """Record accepted open-ended proposals as questions and inquiry state."""
+    result = ResearchSyncResult(
+        dry_run=dry_run,
+        artifact_only=artifact_only,
+        source_writes_enabled=source_writes,
+    )
+    if artifact_only:
+        return result
+
+    source_focus_id = _source_assessment_focus_id(proposal)
+    accepted_questions = _accepted_research_question_proposals(
+        proposal.get("proposals"),
+        max_questions=max_questions,
+    )
+    written_or_existing = _sync_accepted_proposal_questions(
+        pkg,
+        accepted_questions,
+        source_focus_id=source_focus_id,
+        result=result,
+    )
+    if written_or_existing:
+        _set_focus(pkg, focus=written_or_existing[0], kind="question", result=result)
+
+    scope_qid = written_or_existing[0] if written_or_existing else source_focus_id
+    _sync_unaccepted_proposals_as_hypotheses(
+        pkg,
+        proposal.get("proposals"),
+        scope_qid=scope_qid,
+        result=result,
+    )
+    _sync_proposal_hypotheses(
+        pkg,
+        proposal.get("hypotheses"),
+        scope_qid=scope_qid,
+        result=result,
+    )
+    _sync_proposal_obligations(
+        pkg,
+        proposal.get("candidate_obligations"),
+        target_qid=scope_qid,
+        result=result,
+    )
+    return result
+
+
 def sync_materialization(
     pkg: ResearchPackage,
     *,
@@ -756,4 +966,5 @@ __all__ = [
     "sync_focus_artifact",
     "sync_landscape_artifact",
     "sync_materialization",
+    "sync_proposal_artifact",
 ]

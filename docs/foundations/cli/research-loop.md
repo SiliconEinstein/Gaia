@@ -40,6 +40,7 @@ broad explore
   -> focus synthesis
   -> targeted expand
   -> assess one focus
+  -> propose next open-ended research questions
   -> promote mature scaffold
   -> continue expand / assess / publish
 ```
@@ -145,6 +146,29 @@ Assessment should not normally write formal `claim(...)`, `contradict(...)`,
 `equal(...)`, or `derive(...)` records. Those require a later scaffold-promotion
 gate.
 
+### `gaia research propose`
+
+Turn an assessment into open-ended next research directions.
+
+Canonical writes:
+
+- by default, none; proposals are written as a reviewable trace artifact;
+- with `--accept`, up to 3 accepted `research_question` proposals become package
+  `question(...)` declarations;
+- accepted proposal questions can become the active inquiry focus;
+- tentative hypotheses become inquiry hypotheses;
+- unresolved requirements become inquiry obligations.
+
+Trace writes:
+
+- proposal artifact with research questions, tentative hypotheses, candidate
+  obligations, source refs, and notes;
+- command/event log recording whether proposals were accepted.
+
+Proposal is not a claim-writing step. It must not emit stable truth claims. It
+is the handoff from evidence assessment to the next cycle of research,
+simulation, experiment, proof, benchmark, or targeted evidence gathering.
+
 ### `gaia research promote`
 
 Promote mature scaffolded package state into formal knowledge.
@@ -186,6 +210,11 @@ gaia research assess "$PKG" \
   --materialize-chain gcn_selected_reasoning_claim \
   --analysis-json "$RUN/analysis/assess-analysis.json"
 
+gaia research propose "$PKG" \
+  --from-assessment "$RUN/artifacts/assessment.json" \
+  --analysis-json "$RUN/analysis/proposal-analysis.json" \
+  --accept
+
 gaia research promote "$PKG" \
   --scaffold cand_h0_distance_ladder_vs_sound_horizon \
   --by formal_h0_tension_relation
@@ -212,6 +241,7 @@ premise-conclusion chain for one claim but does not need the whole paper graph.
 | candidate obligation | inquiry obligation | preserve assessment rationale |
 | search item | shallow local source package added through `gaia pkg add --local` semantics | keep raw row for trace and LLM contract |
 | paper lead | deep `gaia pkg add --lkm-paper` only when selected | keep raw search/cache row and pull candidate command |
+| proposal | package `question(...)` only when accepted; otherwise inquiry hypothesis / obligation | keep proposal rationale and source refs |
 | stable conclusion | `claim(...)` / `derive(...)` / formal relation | preserve review history |
 | stop criteria | inquiry/review decision input | record metrics and timing |
 
@@ -247,14 +277,14 @@ main loop:
   it can also materialize selected deep LKM evidence with
   `--materialize-paper`, `--materialize-paper-from-claim`, or
   `--materialize-chain`;
+- `propose` writes proposal artifacts from assessments; with `--accept`, it
+  writes accepted open-ended research questions as package `question(...)`
+  statements and records related hypotheses/obligations in inquiry state;
 - `promote` writes an explicit `materialize(...)` link from scaffold to formal
   records.
 
 Known remaining gaps:
 
-- `gaia research propose` is not implemented yet. The next action should turn
-  assessed gaps into proposal artifacts and optional accepted inquiry
-  questions/obligations without writing stable truth claims.
 - `promote` records materialization links but does not synthesize formal
   `claim(...)`, `derive(...)`, `infer(...)`, or relation statements yet. That
   requires a dedicated LKM-to-Gaia promotion contract first.

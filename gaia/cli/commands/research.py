@@ -21,6 +21,7 @@ from gaia.cli.commands.add import (
 from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 from gaia.engine.packaging import GaiaPackagingError
 from gaia.engine.research import (
+    ProposalSchemaError,
     ResearchPackage,
     ResearchReportError,
     ResearchTargetError,
@@ -30,6 +31,7 @@ from gaia.engine.research import (
     build_assessment_from_analysis,
     build_assessment_from_landscapes,
     build_focus_synthesis_artifact,
+    build_proposal_from_assessment,
     build_research_landscape,
     ensure_research_manifest,
     evaluate_research_stop,
@@ -41,12 +43,14 @@ from gaia.engine.research import (
     sync_focus_artifact,
     sync_landscape_artifact,
     sync_materialization,
+    sync_proposal_artifact,
+    validate_proposal_artifact,
     write_research_artifact,
 )
 
 research_app = typer.Typer(
     name="research",
-    help="Package-native research actions (explore / assess / promote).",
+    help="Package-native research actions (explore / assess / propose / promote).",
     no_args_is_help=True,
 )
 
@@ -398,7 +402,7 @@ def _materialize_lkm_chain_refs(
 
 @research_app.command("contract")
 def contract_command(
-    kind: Annotated[str, typer.Argument(help="Contract to print: focus or assess.")],
+    kind: Annotated[str, typer.Argument(help="Contract to print: focus, assess, or propose.")],
     language: Annotated[
         str,
         typer.Option("--language", help="Preferred analysis language for examples/guidance."),
@@ -982,6 +986,112 @@ def assess_command(
     typer.echo(f"artifact_only: {str(artifact_only).lower()}")
     typer.echo("writes_source: false")
     typer.echo("writes_inquiry: false")
+    _print_inquiry_suggestions(research_pkg)
+
+
+@research_app.command("propose")
+def propose_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    from_assessment: Annotated[
+        str,
+        typer.Option(
+            "--from-assessment",
+            help="Assessment artifact to transform into open-ended research proposals.",
+        ),
+    ],
+    analysis_json: Annotated[
+        str | None,
+        typer.Option(
+            "--analysis-json",
+            help="Agent/LLM JSON matching `gaia research contract propose`; use '-' for stdin.",
+        ),
+    ] = None,
+    accept: Annotated[
+        bool,
+        typer.Option(
+            "--accept",
+            help="Write accepted research_question proposals into package source and inquiry.",
+        ),
+    ] = False,
+    max_questions: Annotated[
+        int,
+        typer.Option("--max-questions", help="Maximum accepted proposals to write as questions."),
+    ] = 3,
+    artifact_only: Annotated[
+        bool,
+        typer.Option(
+            "--artifact-only",
+            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Plan accepted package/inquiry writes without applying them.",
+        ),
+    ] = False,
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Optional output path for the proposal artifact."),
+    ] = None,
+) -> None:
+    """Propose open-ended next research questions from an assessment artifact."""
+    if max_questions < 1:
+        typer.echo("Error: --max-questions must be at least 1.", err=True)
+        raise typer.Exit(2)
+    research_pkg = _load_or_exit(pkg)
+    ensure_research_manifest(research_pkg)
+    assessment_path = Path(from_assessment)
+    assessment = _read_json_object_path(assessment_path)
+    analysis = (
+        _read_json_object_ref(analysis_json, label="--analysis-json")
+        if analysis_json is not None
+        else None
+    )
+    proposal = build_proposal_from_assessment(assessment=assessment, analysis=analysis)
+    try:
+        validate_proposal_artifact(proposal)
+    except ProposalSchemaError as exc:
+        typer.echo(f"Error: invalid proposal artifact: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    output_path = write_research_artifact(
+        research_pkg,
+        "proposals",
+        "proposal",
+        proposal,
+        out=out,
+    )
+    sync = sync_proposal_artifact(
+        research_pkg,
+        proposal,
+        max_questions=max_questions,
+        artifact_only=(artifact_only or not accept),
+        dry_run=dry_run,
+    )
+    sync_payload = sync.to_payload()
+    append_research_event(
+        research_pkg,
+        "propose.completed",
+        {
+            "artifact": str(output_path),
+            "source_assessment": str(assessment_path),
+            "proposals": len(proposal["proposals"]),
+            "hypotheses": len(proposal["hypotheses"]),
+            "candidate_obligations": len(proposal["candidate_obligations"]),
+            "analysis_json": analysis_json is not None,
+            "accepted": accept,
+            "max_questions": max_questions,
+            **sync_payload,
+        },
+    )
+    typer.echo(f"Proposal: {output_path}")
+    typer.echo(f"source_assessment: {assessment_path}")
+    typer.echo(f"proposals: {len(proposal['proposals'])}")
+    typer.echo(f"hypotheses: {len(proposal['hypotheses'])}")
+    typer.echo(f"candidate_obligations: {len(proposal['candidate_obligations'])}")
+    typer.echo(f"accepted: {str(accept).lower()}")
+    _print_sync_summary(sync_payload)
     _print_inquiry_suggestions(research_pkg)
 
 

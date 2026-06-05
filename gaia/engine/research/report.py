@@ -512,6 +512,82 @@ def _render_stop(artifact: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _render_proposal(artifact: dict[str, Any]) -> str:
+    lines = _heading("Research Proposal")
+    source_assessment = artifact.get("source_assessment")
+    focus_id = (
+        source_assessment.get("focus_id")
+        if isinstance(source_assessment, dict)
+        else "assessment_focus"
+    )
+    lines.extend(
+        [
+            f"- schema_version: {_cell(artifact.get('schema_version'))}",
+            f"- source_assessment: {_cell(focus_id)}",
+            "",
+        ]
+    )
+
+    lines.extend(_section("Proposals"))
+    proposals = artifact.get("proposals", [])
+    if isinstance(proposals, list) and proposals:
+        lines.extend(
+            [
+                "| id | kind | status | priority | question | rationale | source_refs |",
+                "| --- | --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for proposal in proposals:
+            if not isinstance(proposal, dict):
+                continue
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        _cell(proposal.get("id")),
+                        _cell(proposal.get("kind")),
+                        _cell(proposal.get("status")),
+                        _cell(proposal.get("priority")),
+                        _cell(proposal.get("question")),
+                        _cell(proposal.get("rationale")),
+                        _cell(_format_refs(proposal.get("source_refs"))),
+                    ]
+                )
+                + " |"
+            )
+        lines.append("")
+    else:
+        lines.extend(["_None._", ""])
+
+    lines.extend(_section("Hypotheses"))
+    hypotheses = artifact.get("hypotheses", [])
+    if isinstance(hypotheses, list) and hypotheses:
+        for hypothesis in hypotheses:
+            if not isinstance(hypothesis, dict):
+                continue
+            lines.append(f"- {_cell(hypothesis.get('content'))}")
+        lines.append("")
+    else:
+        lines.extend(["_None._", ""])
+
+    lines.extend(_section("Candidate Obligations"))
+    obligations = artifact.get("candidate_obligations", [])
+    if isinstance(obligations, list) and obligations:
+        for obligation in obligations:
+            if not isinstance(obligation, dict):
+                continue
+            kind = obligation.get("kind")
+            prefix = f"{kind}: " if isinstance(kind, str) and kind else ""
+            lines.append(f"- {_cell(prefix + str(obligation.get('content') or ''))}")
+        lines.append("")
+    else:
+        lines.extend(["_None._", ""])
+
+    lines.extend(_section("Notes"))
+    lines.extend(_bullet_list(artifact.get("notes", [])))
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def render_research_artifact_markdown(artifact: dict[str, Any]) -> str:
     """Render a package-native research artifact as readable Markdown."""
     kind = artifact.get("kind")
@@ -519,6 +595,8 @@ def render_research_artifact_markdown(artifact: dict[str, Any]) -> str:
         return _render_focus_synthesis(artifact)
     if kind == "assessment":
         return _render_assessment(artifact)
+    if kind == "research_proposal":
+        return _render_proposal(artifact)
     if kind == "research_stop":
         return _render_stop(artifact)
     raise ResearchReportError(f"unsupported research artifact kind: {kind!r}")

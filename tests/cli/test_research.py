@@ -111,6 +111,10 @@ def _assessment_artifacts(pkg_dir: Path) -> list[Path]:
     return sorted((pkg_dir / ".gaia" / "research" / "assessments").glob("assessment-*.json"))
 
 
+def _proposal_artifacts(pkg_dir: Path) -> list[Path]:
+    return sorted((pkg_dir / ".gaia" / "research" / "proposals").glob("proposal-*.json"))
+
+
 def _stop_artifacts(pkg_dir: Path) -> list[Path]:
     return sorted((pkg_dir / ".gaia" / "research" / "stops").glob("stop-*.json"))
 
@@ -125,17 +129,22 @@ def test_research_group_is_help_visible() -> None:
 def test_research_contract_commands_emit_json() -> None:
     focus = runner.invoke(app, ["research", "contract", "focus"])
     assess = runner.invoke(app, ["research", "contract", "assess"])
+    propose = runner.invoke(app, ["research", "contract", "propose"])
 
     assert focus.exit_code == 0, focus.output
     assert assess.exit_code == 0, assess.output
+    assert propose.exit_code == 0, propose.output
     focus_payload = json.loads(focus.output)
     assess_payload = json.loads(assess.output)
+    propose_payload = json.loads(propose.output)
     assert focus_payload["contract"] == "gaia.research.focus_synthesis"
     assert assess_payload["contract"] == "gaia.research.assessment_analysis"
+    assert propose_payload["contract"] == "gaia.research.proposal_analysis"
     assert "ready_for_assess" in focus_payload["focus_fields"]["readiness"]
     assert "supports" in assess_payload["relation_fields"]["type"]
     assert "claim_refs" in assess_payload["relation_fields"]
     assert "source_package_ref" in assess_payload["input"]["evidence_packet"]
+    assert "stable truth claims" in propose_payload["forbidden_outputs"][0]
 
 
 def test_research_assess_help_uses_materialize_names() -> None:
@@ -1029,6 +1038,177 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
     assert check.exit_code == 0, check.output
 
 
+def test_research_propose_writes_artifact_without_accepting(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    assessment_path = tmp_path / "assessment.json"
+    assessment_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "assessment",
+                "focus": {"kind": "focus", "id": "h0_tension"},
+                "evidence_packet": {"items": [], "paper_leads": []},
+                "relations": [],
+                "candidate_obligations": [
+                    {
+                        "kind": "needs_more_evidence",
+                        "content": "补充 TRGB 与 Cepheid 共同定标系统误差的证据。",
+                        "source_refs": [{"kind": "item", "id": "item_0"}],
+                    }
+                ],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "summary": "H0 张力需要继续区分系统误差与新物理。",
+                    "sections": [],
+                    "limitations": [],
+                    "next_queries": ["TRGB Cepheid calibration systematics H0 tension"],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["research", "propose", str(pkg_dir), "--from-assessment", str(assessment_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Proposal:" in result.output
+    assert "proposals: 1" in result.output
+    assert "accepted: false" in result.output
+    assert "writes_source: false" in result.output
+    assert "writes_inquiry: false" in result.output
+    assert init_py.read_text(encoding="utf-8") == source_before
+
+    artifacts = _proposal_artifacts(pkg_dir)
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert payload["kind"] == "research_proposal"
+    assert payload["source_assessment"]["focus_id"] == "h0_tension"
+    assert payload["proposals"][0]["question"] == (
+        "TRGB Cepheid calibration systematics H0 tension"
+    )
+    assert payload["candidate_obligations"][0]["content"] == (
+        "补充 TRGB 与 Cepheid 共同定标系统误差的证据。"
+    )
+
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "propose.completed"
+    assert events[-1]["payload"]["accepted"] is False
+    assert events[-1]["payload"]["writes_source"] is False
+    assert events[-1]["payload"]["writes_inquiry"] is False
+
+
+def test_research_propose_accepts_questions_hypotheses_and_obligations(
+    tmp_path: Path,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    init_py = _write_research_package(pkg_dir)
+    source_before = init_py.read_text(encoding="utf-8")
+    assessment_path = tmp_path / "assessment.json"
+    assessment_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "assessment",
+                "focus": {"kind": "focus", "id": "h0_tension"},
+                "evidence_packet": {"items": [], "paper_leads": []},
+                "relations": [],
+                "candidate_obligations": [],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "summary": "H0 张力仍有未解决方向。",
+                    "sections": [],
+                    "limitations": [],
+                    "next_queries": [],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    analysis_path = tmp_path / "proposal-analysis.json"
+    analysis_path.write_text(
+        json.dumps(
+            {
+                "proposals": [
+                    {
+                        "id": "rq_calibration_systematics",
+                        "kind": "research_question",
+                        "status": "accepted",
+                        "question": "TRGB 与 Cepheid 定标是否共享导致高 H0 的系统误差？",
+                        "rationale": "assessment 指出距离阶梯内部系统误差是核心未决方向。",
+                        "priority": "high",
+                        "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
+                    }
+                ],
+                "hypotheses": [
+                    {
+                        "content": "TRGB 与 SH0ES 可能共享部分定标系统误差。",
+                        "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
+                    }
+                ],
+                "candidate_obligations": [
+                    {
+                        "kind": "needs_more_evidence",
+                        "content": (
+                            "核查 Cepheid 零点、TRGB 零点和 SNIa 绝对星等传递的不确定度协方差。"
+                        ),
+                        "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
+                    }
+                ],
+                "notes": ["agent proposal"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "propose",
+            str(pkg_dir),
+            "--from-assessment",
+            str(assessment_path),
+            "--analysis-json",
+            str(analysis_path),
+            "--accept",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "accepted: true" in result.output
+    assert "questions_written: 1" in result.output
+    assert "obligations_added: 1" in result.output
+    assert "hypotheses_added: 1" in result.output
+    assert init_py.read_text(encoding="utf-8") != source_before
+    authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
+    authored_source = authored.read_text(encoding="utf-8")
+    assert "rq_rq_calibration_systematics_" in authored_source
+    assert "question(" in authored_source
+
+    state = _read_inquiry_state(pkg_dir)
+    assert state["focus_kind"] == "question"
+    assert str(state["focus"]).startswith("rq_rq_calibration_systematics_")
+    assert len(state["synthetic_hypotheses"]) == 1
+    assert len(state["synthetic_obligations"]) == 1
+
+    events = _read_events(pkg_dir)
+    assert events[-1]["event"] == "propose.completed"
+    assert events[-1]["payload"]["accepted"] is True
+    assert len(events[-1]["payload"]["questions_written"]) == 1
+    assert len(events[-1]["payload"]["obligations_added"]) == 1
+    assert len(events[-1]["payload"]["hypotheses_added"]) == 1
+
+    check = runner.invoke(app, ["build", "check", str(pkg_dir)])
+    assert check.exit_code == 0, check.output
+
+
 def test_research_promote_writes_materialization_scaffold(tmp_path: Path) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
@@ -1118,6 +1298,48 @@ def test_research_report_renders_artifact_to_markdown_file(tmp_path: Path) -> No
     events = _read_events(pkg_dir)
     assert events[-1]["event"] == "report.rendered"
     assert events[-1]["payload"]["writes_source"] is False
+
+
+def test_research_report_renders_proposal_artifact(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    artifact_path = tmp_path / "proposal.json"
+    artifact_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "research_proposal",
+                "source_assessment": {"kind": "assessment", "focus_id": "h0_tension"},
+                "proposals": [
+                    {
+                        "id": "rq_calibration_systematics",
+                        "kind": "research_question",
+                        "status": "accepted",
+                        "question": "TRGB 与 Cepheid 定标是否共享导致高 H0 的系统误差？",
+                        "rationale": "assessment 指出距离阶梯内部系统误差是核心未决方向。",
+                        "priority": "high",
+                        "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
+                    }
+                ],
+                "hypotheses": [{"content": "TRGB 与 SH0ES 可能共享系统误差。"}],
+                "candidate_obligations": [{"content": "核查协方差报告完整性。"}],
+                "notes": ["agent proposal"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["research", "report", str(pkg_dir), "--artifact", str(artifact_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "# Research Proposal" in result.output
+    assert "rq_calibration_systematics" in result.output
+    assert "TRGB 与 Cepheid 定标是否共享" in result.output
+    assert "## Hypotheses" in result.output
+    assert "## Candidate Obligations" in result.output
 
 
 def test_research_report_prints_markdown_to_stdout(tmp_path: Path) -> None:
