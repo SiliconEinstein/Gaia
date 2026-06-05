@@ -57,7 +57,10 @@ def package_hint(
     requested_paper_id: str | None = None,
 ) -> str | None:
     """Return a stderr-only hint for an LKM paper graph response."""
-    paper_id = requested_paper_id or _paper_id_from_papers(payload)
+    paper_id = requested_paper_id
+    if paper_id is None:
+        paper_ids = _paper_ids_from_papers(payload)
+        paper_id = paper_ids[0] if len(paper_ids) == 1 else None
     if paper_id is None:
         return None
     return _hint_block(
@@ -79,13 +82,13 @@ def _variables(payload: dict[str, Any]) -> list[dict[str, Any]]:
 def _claim_id_for_reasoning(variable: dict[str, Any]) -> str | None:
     if _text(variable.get("type")) != "claim":
         return None
-    if variable.get("has_reasoning") is False:
+    if variable.get("has_reasoning") is not True:
         return None
     return _text(variable.get("id")) or _text(variable.get("global_id"))
 
 
 def _paper_id_from_variable(variable: dict[str, Any]) -> str | None:
-    for key in ("source_package", "package_id", "paper_id", "local_id", "id"):
+    for key in ("source_package", "package_id", "paper_id", "local_id"):
         if paper_id := _paper_id_from_any(variable.get(key)):
             return paper_id
     provenance = _dict(variable.get("provenance"))
@@ -121,6 +124,11 @@ def _reasoning_chains(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _paper_id_from_papers(payload: dict[str, Any]) -> str | None:
+    paper_ids = _paper_ids_from_papers(payload)
+    return paper_ids[0] if paper_ids else None
+
+
+def _paper_ids_from_papers(payload: dict[str, Any]) -> list[str]:
     data = _dict(payload.get("data"))
     raw = data.get("papers", payload.get("papers"))
     if isinstance(raw, dict):
@@ -128,10 +136,12 @@ def _paper_id_from_papers(payload: dict[str, Any]) -> str | None:
         values.extend(raw.keys())
     else:
         values = _list(raw)
+    paper_ids: list[str] = []
     for item in values:
-        if paper_id := _paper_id_from_paper_item(item):
-            return paper_id
-    return None
+        paper_id = _paper_id_from_paper_item(item)
+        if paper_id is not None and paper_id not in paper_ids:
+            paper_ids.append(paper_id)
+    return paper_ids
 
 
 def _paper_id_from_paper_item(item: Any) -> str | None:
@@ -151,7 +161,8 @@ def _paper_id_from_any(value: Any) -> str | None:
     if text is None:
         return None
     if text.startswith("paper:"):
-        return text.split("::", 1)[0].split(":", 1)[1]
+        paper_id = text.split("::", 1)[0].split(":", 1)[1]
+        return paper_id or None
     return text if text.isdigit() else None
 
 

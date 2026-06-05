@@ -384,6 +384,30 @@ class TestKnowledge:
         assert json.loads(result.stdout)["data"]["variables"][0]["id"] == "gcn_no_reasoning"
         assert "gaia search lkm reasoning" not in result.stderr
 
+    def test_claim_without_reasoning_flag_has_no_inspect_hint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "variables": [
+                    {
+                        "id": "gcn_unknown_reasoning",
+                        "type": "claim",
+                        "provenance": {"source_packages": ["paper:811827932371615744"]},
+                    }
+                ],
+            },
+        }
+        _install_client(monkeypatch, response=payload)
+
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "standalone"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert "gaia search lkm reasoning" not in result.stderr
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
+
     def test_single_question_scope_dispatches_query_kind_to_question(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1135,6 +1159,29 @@ class TestPackage:
             monkeypatch,
             response=payload,
         )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "package", "--title", "ambiguous candidate"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert result.stderr == ""
+
+    def test_title_result_with_multiple_papers_has_no_materialize_hint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "papers": [
+                    {"paper": {"id": "811111111111111111"}},
+                    {"paper": {"id": "822222222222222222"}},
+                ]
+            },
+        }
+        _install_client(monkeypatch, response=payload)
 
         result = runner.invoke(
             app,
