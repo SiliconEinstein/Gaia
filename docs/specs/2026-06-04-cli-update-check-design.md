@@ -50,6 +50,12 @@ upgrade. No granular channels, no auto-running the upgrade.
    ```
 
 3. **Non-blocking / agent-safe (mandatory):**
+   - **Interactive-only (primary gate):** the notice fires only when `stderr`
+     is a **TTY** — a human who can act on it. Agents, CI, pipes, and
+     redirected stderr have no TTY, so they stay silent regardless of the
+     invocation (this is the industry-standard primitive — cf. npm's
+     update-notifier, `gh`, `rustup`). It subsumes the help / no-op / error
+     paths for all non-interactive use without per-path argv inspection.
    - Output goes to **stderr only** — never stdout (keeps machine-parsed
      stdout clean).
    - **Never reads stdin** — it is a notice, not an interactive prompt (an
@@ -60,20 +66,26 @@ upgrade. No granular channels, no auto-running the upgrade.
      malformed JSON, or offline state → no output, no error, command proceeds
      normally.
    - Cheap path first: if the daily cache says "checked recently", skip the
-     network entirely and reuse the cached result.
-4. **Throttle (≤ once/day):** cache stamp under the XDG cache dir; only hit
-   PyPI if the stamp is older than the TTL (default 24h). The stamp is
-   rewritten after every *attempt* (success or failure) so a flaky network
-   can't cause a per-invocation retry storm.
+     network entirely **and stay silent** (the notice is throttled too — see 4).
+4. **Throttle (≤ once/day, network *and* notice):** cache stamp under the XDG
+   cache dir; only hit PyPI if the stamp is older than the TTL (default 24h).
+   The stamp is rewritten after every *attempt* (success or failure) so a flaky
+   network can't cause a per-invocation retry storm. The notice fires **only on
+   the refresh** (when the network is actually queried), not on the cached-fresh
+   path — so an interactive session sees it at most once per TTL, not on every
+   command.
 5. **Opt-out / skip conditions** (any one suppresses the check entirely,
    before any network):
+   - `stderr` is **not an interactive terminal** (no TTY) → skip (the primary
+     gate above; covers agents, CI, pipes, redirects, and closed streams).
    - `GAIA_NO_UPDATE_CHECK=1` (or truthy) in env.
    - `CI` env var set (skip in CI by default).
-   - The invocation is `gaia --version` (eager callback already exits) or
-     `gaia` with no args / bare help (no subcommand to run).
+   - The invocation is `gaia --version` (eager callback already exits), `gaia`
+     with no args / bare help, or any `gaia <sub> -h/--help` (the root callback
+     skips when `-h`/`--help` is in argv — keeps subcommand help pristine even
+     for an interactive human).
    - Installed version cannot be resolved (e.g. running from a source
      checkout where the dist isn't installed) → skip silently.
-   - `stderr` is not writable / closed → skip.
 
 ## 4. Implementation
 

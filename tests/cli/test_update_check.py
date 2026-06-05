@@ -50,9 +50,24 @@ def _payload(*versions: str, yanked: tuple[str, ...] = ()) -> dict[str, object]:
     return {"info": {"version": "0.4.0"}, "releases": releases}
 
 
-def _capture(monkeypatch: pytest.MonkeyPatch) -> tuple[io.StringIO, io.StringIO]:
-    """Replace stdout + stderr with capturing buffers; return ``(out, err)``."""
-    out, err = io.StringIO(), io.StringIO()
+class _FakeTTY(io.StringIO):
+    """A StringIO that reports as an interactive terminal (passes the TTY gate)."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+def _capture(
+    monkeypatch: pytest.MonkeyPatch, *, tty: bool = True
+) -> tuple[io.StringIO, io.StringIO]:
+    """Replace stdout + stderr with capturing buffers; return ``(out, err)``.
+
+    ``err`` reports as a TTY by default so the interactive gate passes (an
+    interactive human). Pass ``tty=False`` to simulate an agent / pipe /
+    redirect, where the notice must stay silent.
+    """
+    out: io.StringIO = io.StringIO()
+    err: io.StringIO = _FakeTTY() if tty else io.StringIO()
     monkeypatch.setattr(uc.sys, "stdout", out)
     monkeypatch.setattr(uc.sys, "stderr", err)
     return out, err
@@ -206,7 +221,25 @@ class TestSilence:
             return _payload("0.5.0a4")
 
         uc.maybe_notify_update(fetcher=fetcher)
-        assert called["n"] == 0  # non-writable stderr skips before network
+        assert called["n"] == 0  # closed stderr is non-interactive → skips before network
+
+    def test_silent_when_stderr_not_a_tty(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An agent / pipe / redirect (stderr not a TTY) gets no notice.
+
+        This is the core agent-safety gate: a non-interactive stderr suppresses
+        the notice entirely, before any network — so help/no-op/error paths and
+        scripted use all stay silent regardless of the invocation.
+        """
+        _out, err = _capture(monkeypatch, tty=False)
+        called = {"n": 0}
+
+        def fetcher() -> dict[str, object]:
+            called["n"] += 1
+            return _payload("0.5.0a4")
+
+        uc.maybe_notify_update(fetcher=fetcher)
+        assert err.getvalue() == ""
+        assert called["n"] == 0  # non-interactive stderr skips before network
 
 
 # --------------------------------------------------------------------------- #
@@ -215,7 +248,9 @@ class TestSilence:
 
 
 class TestThrottle:
-    def test_second_call_within_ttl_skips_network(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_second_call_within_ttl_skips_network_and_notice(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         _out, err = _capture(monkeypatch)
         called = {"n": 0}
 
@@ -227,8 +262,9 @@ class TestThrottle:
         uc.maybe_notify_update(fetcher=fetcher)
         # Only the first call hit the fetcher; the second reused the stamp.
         assert called["n"] == 1
-        # Notice still surfaces both times (cached "latest" still > installed).
-        assert err.getvalue().count("gaia-lang 0.5.0a4 is available") == 2
+        # And the notice fires at most once per TTL — the cached-fresh second
+        # call stays silent (no per-invocation nagging on an interactive run).
+        assert err.getvalue().count("gaia-lang 0.5.0a4 is available") == 1
 
     def test_recheck_after_ttl(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(uc._TTL_ENV, "0")  # TTL=0 → stamp is always stale

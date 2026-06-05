@@ -2,19 +2,24 @@
 
 On invocation the CLI checks PyPI (prereleases included — the published
 line is the ``0.5.0aN`` alpha) for a newer ``gaia-lang`` and, if one exists,
-prints a one-line upgrade notice to **stderr**. The check is agent-safe by
-construction:
+prints a one-line upgrade notice to **stderr** — but only when stderr is an
+interactive terminal, i.e. a human is there to act on it. The check is
+agent-safe by construction:
 
 - Output goes to stderr only (machine-parsed stdout stays clean) and stdin
   is never read (a notice, never an interactive prompt).
 - The network call has a short timeout and fails silent — any HTTP error,
   timeout, non-200, malformed JSON, or offline state is swallowed.
-- At most one network call per TTL (default 24h), cached under the XDG cache
-  dir; the stamp is rewritten after every *attempt* so a flaky network can't
-  cause a per-invocation retry storm.
+- At most one network call *and* one notice per TTL (default 24h), cached
+  under the XDG cache dir; the stamp is rewritten after every *attempt* so a
+  flaky network can't cause a per-invocation retry storm, and a fresh stamp
+  stays silent so an interactive session isn't nagged on every command.
 - Several conditions skip the check entirely *before* any network: the
   opt-out env var ``GAIA_NO_UPDATE_CHECK``, ``CI`` set, an unresolvable
-  installed version (source checkout), and a non-writable stderr.
+  installed version (source checkout), and a **non-interactive stderr** (no
+  TTY — so agents, CI, pipes, and redirected output stay silent). The TTY
+  gate is the primary agent-safety primitive (cf. npm's update-notifier,
+  ``gh``, ``rustup``).
 
 The CLI call site (``gaia/cli/main.py``) wraps :func:`maybe_notify_update`
 in a broad ``try/except`` so this feature can never break a command.
@@ -221,21 +226,36 @@ def _upgrade_command() -> str:
     )
 
 
-def _stderr_writable() -> bool:
-    """True iff stderr exists and is open for writing."""
+def _stderr_is_interactive() -> bool:
+    """True iff stderr exists, is open, and is a TTY — i.e. a human is watching.
+
+    The notice is only useful to a person who can act on it; agents, CI, pipes,
+    and redirected stderr have no TTY, so the check stays silent for them. This
+    is the primary agent-safety gate (cf. npm's update-notifier, ``gh``).
+    """
     stream = sys.stderr
     if stream is None:
         return False
-    closed = getattr(stream, "closed", False)
-    return not closed
+    if getattr(stream, "closed", False):
+        return False
+    isatty = getattr(stream, "isatty", None)
+    if not callable(isatty):
+        return False
+    try:
+        return bool(isatty())
+    except Exception:
+        # A broken stream that raises on isatty() → treat as non-interactive.
+        return False
 
 
 def maybe_notify_update(*, fetcher: Fetcher | None = None) -> None:
     """Check PyPI for a newer ``gaia-lang`` and print an upgrade notice to stderr.
 
-    Non-blocking, throttled (≤ once per TTL), fail-silent, and agent-safe.
-    All skip conditions are evaluated before any network access. ``fetcher``
-    is injectable for tests; production uses :func:`_default_fetcher`.
+    Non-blocking, fail-silent, and agent-safe: the notice only fires when
+    stderr is an interactive terminal, and at most once per TTL (both the
+    network call and the notice). All skip conditions are evaluated before any
+    network access. ``fetcher`` is injectable for tests; production uses
+    :func:`_default_fetcher`.
 
     Args:
         fetcher: Optional override that returns the PyPI JSON payload (or
@@ -248,7 +268,7 @@ def maybe_notify_update(*, fetcher: Fetcher | None = None) -> None:
         return
     if os.environ.get("CI"):
         return
-    if not _stderr_writable():
+    if not _stderr_is_interactive():
         return
 
     try:
@@ -261,7 +281,9 @@ def maybe_notify_update(*, fetcher: Fetcher | None = None) -> None:
     except InvalidVersion:
         return
 
-    # --- Throttle: skip the network if the stamp is fresh ------------------ #
+    # --- Throttle: skip BOTH the network and the notice if the stamp is fresh.
+    # The notice fires at most once per TTL — on the refresh below, not on every
+    # invocation — so an interactive session isn't nagged on each command.
     path = cache_path()
     ttl = _ttl_seconds()
     stamp = _read_stamp(path)
@@ -269,10 +291,6 @@ def maybe_notify_update(*, fetcher: Fetcher | None = None) -> None:
     if stamp is not None:
         checked_at = stamp.get("checked_at")
         if isinstance(checked_at, (int, float)) and (time.time() - checked_at) < ttl:
-            # Fresh stamp — reuse its cached "latest" without a network call.
-            cached = stamp.get("latest")
-            latest_raw = cached if isinstance(cached, str) else None
-            _emit_if_newer(installed, latest_raw)
             return
 
     # --- Network attempt (always re-stamp afterwards) ---------------------- #
