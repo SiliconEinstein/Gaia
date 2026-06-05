@@ -23,8 +23,7 @@ inspect the upstream LKM JSON envelope directly.
 
 `reasoning --claim-id` asks LKM for the graph-shaped reasoning response by
 default (`format=graph`). In practice this means Gaia receives a small claim /
-factor / question graph for one target claim, rather than only the older
-factor-list slice.
+factor / question graph for one target claim.
 
 `package` requires exactly one identifier flag: `--package-id`, `--paper-id`,
 `--doi`, or `--title`. `--title` may return several candidate papers and accepts
@@ -36,10 +35,6 @@ while the index name resolves to the real URL and credential configuration.
 This build ships `bohrium` as the default configured index; `--server` remains
 a compatibility alias. Additional indexes can be added by setting
 `GAIA_LKM_INDEX_<NAME>_URL`.
-
-Hidden compatibility aliases remain available for older PR builds:
-`claims` for `knowledge`, `reasoning-search` for query-mode `reasoning`,
-`variables` for `nodes`, and `paper-graph` for `package`.
 
 ## Design Contract
 
@@ -86,19 +81,22 @@ Normalized results expose this same ranking signal as `relevance_score` and
 true the claim is".
 
 `reasoning` returns reasoning-chain search results. Normalized results expose
-`source.factors` as a per-factor list of `{factor_id, premise_count}`. A factor
-with premises and a conclusion is a candidate Gaia `derive(...)`. A factor with a
-conclusion but no premises is not a reasoning failure and is not lowered to
-`derive(..., given=[])`; in reasoning search it usually means the result is an
-intermediate paper-chain node whose upstream premises are outside this slice.
-Normalized `gaia-json` keeps the factor, adds a non-warning `comment` on that
-`source.factors[]` entry, and includes an `inspect` action whose `next_steps`
-runs `gaia search lkm package --index <index> --paper-id <paper>` so agents can
-fetch the whole paper package and recover the prior reasoning-chain/conclusion
-chain that the current conclusion depends on. A factor with premises but no
-inline conclusion is an incomplete LKM payload, not a valid continuation and not
-a candidate `derive(...)`; normalized `gaia-json` leaves `gaia.object_kind`
-unset and annotates that `source.factors[]` entry with a `warning`.
+`source.factors` as a per-factor list of `{factor_id, premise_count}` derived
+from `graph.nodes` and `graph.edges`. A factor node with incoming claim edges
+and a `concludes` edge is a candidate Gaia `derive(...)`. A factor with a
+`concludes` edge but no incoming claim premises is not a reasoning failure and
+is not lowered to `derive(..., given=[])`; in reasoning search it usually means
+the result is an intermediate paper-chain node whose upstream premises are
+outside this slice. Normalized `gaia-json` keeps the factor, adds a non-warning
+`comment` on that `source.factors[]` entry, and includes an `inspect` action
+whose `next_steps` runs
+`gaia search lkm package --index <index> --paper-id <paper>` so agents can fetch
+the whole paper package and recover the prior reasoning-chain/conclusion chain
+that the current conclusion depends on. A factor with incoming claim premises
+but no `concludes` edge is an incomplete LKM payload, not a valid continuation
+and not a candidate `derive(...)`; normalized `gaia-json` leaves
+`gaia.object_kind` unset and annotates that `source.factors[]` entry with a
+`warning`.
 
 For graph-shaped claim reasoning, Gaia reads `factor --concludes--> claim` as
 the conclusion being produced by that reasoning step. Incoming claim edges such
@@ -110,10 +108,11 @@ kept as `depends_on_other_claims`. The original LKM relation names are still
 kept in the raw payload.
 
 `package` results include `lkm_view`, a compact summary of the paper graph:
-node counts, edge-type counts, and any logic relations embedded in node
-metadata. The relation names such as `addresses`, `motivates`, and `supports`
-are LKM's own graph vocabulary; Gaia does not translate those names, it only
-surfaces them next to the normalized package candidate.
+`node_type_counts`, `node_kind_counts`, `edge_type_counts`,
+`addressed_problems`, and `open_questions`. Paper-level
+`addressed_problems` / `open_questions` stay next to the graph; conclusion
+dependencies are read from `graph.edges` such as `previous_conclusion_of`,
+`weakpoint_of`, `highlight_of`, `subproblem_of`, and `concludes`.
 
 The planned normalized result schema and the `search` / `pkg add` boundary are
 tracked in the internal draft `docs/specs/2026-05-20-gaia-search-design.md`.

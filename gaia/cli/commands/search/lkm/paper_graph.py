@@ -1,14 +1,13 @@
 """``gaia search lkm package`` — POST /papers/graph.
 
-Fetch the full extracted knowledge graph (variables / factors /
-motivations / ...) for a paper identified by exactly one of four mutually
-exclusive identifier flags. The Gaia-facing command calls this a package
-candidate; the upstream LKM endpoint calls it a paper graph.
+Fetch the latest graph-shaped extracted knowledge package for a paper
+identified by exactly one of four mutually exclusive identifier flags. The
+Gaia-facing command calls this a package candidate; the upstream LKM endpoint
+calls it a paper graph.
 """
 
 from __future__ import annotations
 
-from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -21,18 +20,6 @@ from gaia.cli.commands.search.lkm._shared import (
     run_request,
     validate_lkm_index,
 )
-
-
-class PaperGraphInclude(StrEnum):
-    """Sub-graphs that may be requested in the response."""
-
-    PAPER = "paper"
-    VARIABLES = "variables"
-    FACTORS = "factors"
-    MOTIVATIONS = "motivations"
-    PRIORS = "priors"
-    FACTOR_PARAMS = "factor_params"
-
 
 _TITLE_RESOLVE_CAP = 20
 
@@ -58,24 +45,6 @@ def package_command(
         str | None,
         typer.Option("--title", help="Identify by title (may resolve multiple papers)."),
     ] = None,
-    include: Annotated[
-        list[PaperGraphInclude] | None,
-        typer.Option(
-            "--include",
-            help=(
-                "Legacy sub-graph to include (repeatable). "
-                "Omit to use LKM's default graph-shaped response."
-            ),
-            case_sensitive=False,
-        ),
-    ] = None,
-    factor_refs_only: Annotated[
-        bool,
-        typer.Option(
-            "--factor-refs-only",
-            help="Return factor premise/conclusion ids only (~60% smaller response).",
-        ),
-    ] = False,
     title_resolve_limit: Annotated[
         int,
         typer.Option(
@@ -130,10 +99,6 @@ def package_command(
         raise typer.Exit(4)
 
     body: dict[str, Any] = dict(supplied)
-    if include:
-        body["include"] = [item.value for item in include]
-    if factor_refs_only:
-        body["hydrate_factor_refs"] = False
     if title is not None:
         body["title_resolve"] = {"limit": title_resolve_limit}
 
@@ -146,6 +111,3 @@ def package_command(
             index_id=index_id,
         )
     emit(payload, out)
-
-
-paper_graph_command = package_command

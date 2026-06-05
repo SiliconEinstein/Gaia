@@ -89,6 +89,3 @@ def nodes_command(
         index_id=index_id,
     )
     emit(payload, out)
-
-
-variables_command = nodes_command

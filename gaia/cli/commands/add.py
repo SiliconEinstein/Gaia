@@ -1,4 +1,4 @@
-"""gaia add -- install a Gaia knowledge package from the official registry."""
+"""``gaia pkg add`` — install registered or LKM-backed Gaia packages."""
 
 from __future__ import annotations
 
@@ -358,7 +358,7 @@ def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:
 
 
 def _extract_lkm_reasoning_paper_id(payload: dict[str, Any]) -> str | None:
-    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
     chains = _reasoning_chains(data)
 
     # Prefer paper ids carried by the reasoning itself over fallback metadata.

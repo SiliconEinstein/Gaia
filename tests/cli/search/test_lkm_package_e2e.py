@@ -33,48 +33,69 @@ def _paper_graph_payload() -> dict[str, Any]:
                         "id": "811827932371615744",
                         "package_id": "paper:811827932371615744",
                     },
-                    "variables": [
+                    "addressed_problems": [
                         {
                             "content": "Which phase conversion pathway dominates?",
-                            "global_id": "gq_phase",
+                            "global_id": "gap_phase",
+                            "id": "paper:811827932371615744::addressed_problem_1",
                             "local_id": "paper:811827932371615744::Q1",
-                            "type": "question",
                         }
                     ],
-                    "factors": [
+                    "open_questions": [
                         {
-                            "conclusion": {
-                                "content": "Annealing at 120 C improves alpha-phase purity.",
-                                "global_id": "gcn_conclusion",
-                                "local_id": "paper:811827932371615744::conclusion_1",
+                            "content": "Which stability mechanisms remain unresolved?",
+                            "global_id": "goq_stability",
+                            "id": "paper:811827932371615744::open_question_1",
+                        }
+                    ],
+                    "graph": {
+                        "nodes": [
+                            {
+                                "content": "The 120 C condition increases alpha-FAPbI3 fraction.",
+                                "id": "gcn_premise",
+                                "kind": "highlight",
+                                "local_id": "paper:811827932371615744::P1",
+                                "title": "120 C phase fraction",
                                 "type": "claim",
                             },
-                            "factor_type": "strategy",
-                            "global_id": "gfac_phase",
-                            "local_id": "lfac_phase",
-                            "premises": [
-                                {
-                                    "content": (
-                                        "The 120 C condition increases alpha-FAPbI3 fraction."
-                                    ),
-                                    "global_id": "gcn_premise",
-                                    "local_id": "paper:811827932371615744::P1",
-                                    "type": "claim",
-                                }
-                            ],
-                            "steps": [
-                                {
-                                    "reasoning": (
-                                        "Use the measured phase fraction to support the "
-                                        "annealing conclusion."
-                                    ),
-                                    "step_id": "1",
-                                }
-                            ],
-                            "subtype": "noisy_and",
-                        }
-                    ],
-                    "motivations": [],
+                            {
+                                "id": "lfac_phase",
+                                "kind": "reasoning_steps",
+                                "local_id": "lfac_phase",
+                                "steps": [
+                                    {
+                                        "reasoning": (
+                                            "Use the measured phase fraction to support the "
+                                            "annealing conclusion."
+                                        ),
+                                        "step_id": "1",
+                                    }
+                                ],
+                                "subtype": "noisy_and",
+                                "type": "factor",
+                            },
+                            {
+                                "content": "Annealing at 120 C improves alpha-phase purity.",
+                                "id": "gcn_conclusion",
+                                "kind": "conclusion",
+                                "local_id": "paper:811827932371615744::conclusion_1",
+                                "title": "Annealing result",
+                                "type": "claim",
+                            },
+                        ],
+                        "edges": [
+                            {
+                                "type": "highlight_of",
+                                "source": "gcn_premise",
+                                "target": "lfac_phase",
+                            },
+                            {
+                                "type": "concludes",
+                                "source": "lfac_phase",
+                                "target": "gcn_conclusion",
+                            },
+                        ],
+                    },
                     "stats": {
                         "factors_total": 1,
                         "type_counts": {"claim": 2, "question": 1},
@@ -144,40 +165,38 @@ def _write_empty_gaia_package(root: Path) -> None:
 def _paper_graph_payload_with_skipped_factors() -> dict[str, Any]:
     payload = _paper_graph_payload()
     paper_item = payload["data"]["papers"][0]
-    paper_item["factors"].extend(
+    graph = paper_item["graph"]
+    graph["nodes"].extend(
         [
             {
-                "conclusion": {
-                    "content": "Which phase conversion pathway dominates?",
-                    "global_id": "gq_phase",
-                    "type": "question",
-                },
-                "global_id": "gfac_question_conclusion",
-                "local_id": "lfac_question_conclusion",
-                "premises": [
-                    {
-                        "content": "The 120 C condition increases alpha-FAPbI3 fraction.",
-                        "global_id": "gcn_premise",
-                        "type": "claim",
-                    }
-                ],
+                "id": "lfac_no_premise",
+                "local_id": "lfac_no_premise",
+                "type": "factor",
+                "kind": "reasoning_steps",
             },
             {
-                "conclusion": {
-                    "content": "Annealing at 120 C improves alpha-phase purity.",
-                    "global_id": "gcn_conclusion",
-                    "type": "claim",
-                },
-                "global_id": "gfac_question_premise",
-                "local_id": "lfac_question_premise",
-                "premises": [
-                    {
-                        "content": "Which phase conversion pathway dominates?",
-                        "global_id": "gq_phase",
-                        "type": "question",
-                    }
-                ],
+                "id": "gq_subproblem_only",
+                "type": "question",
+                "kind": "subproblem",
+                "content": "Which phase conversion pathway dominates?",
             },
+            {
+                "id": "lfac_subproblem_only",
+                "local_id": "lfac_subproblem_only",
+                "type": "factor",
+                "kind": "reasoning_steps",
+            },
+        ]
+    )
+    graph["edges"].extend(
+        [
+            {"type": "concludes", "source": "lfac_no_premise", "target": "gcn_conclusion"},
+            {
+                "type": "subproblem_of",
+                "source": "gq_subproblem_only",
+                "target": "lfac_subproblem_only",
+            },
+            {"type": "concludes", "source": "lfac_subproblem_only", "target": "gcn_conclusion"},
         ]
     )
     return payload
@@ -231,7 +250,7 @@ def _paper_graph_payload_graph_only_dependencies() -> dict[str, Any]:
                                 "id": "lfac_phase",
                                 "local_id": "lfac_phase",
                                 "type": "factor",
-                                "kind": "strategy",
+                                "kind": "reasoning_steps",
                                 "subtype": "noisy_and",
                                 "steps": [
                                     {
@@ -717,6 +736,47 @@ def test_pkg_add_lkm_claim_errors_when_reasoning_has_no_backing_paper(
     result = runner.invoke(
         app,
         ["pkg", "add", "--lkm-index", "bohrium", "--lkm-claim", "gcn_orphan"],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "did not identify a backing paper" in result.output
+
+
+def test_pkg_add_lkm_claim_requires_nested_reasoning_data(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        assert method == "GET"
+        assert path == "/claims/gcn_old/reasoning"
+        assert index_id == "bohrium"
+        return {
+            "code": 0,
+            "reasoning_chains": [
+                {
+                    "source_package": "paper:811827932371615744",
+                    "graph": {"nodes": [], "edges": []},
+                }
+            ],
+        }
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-claim", "gcn_old"],
     )
 
     assert result.exit_code == 1, result.output

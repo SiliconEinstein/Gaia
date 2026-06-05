@@ -52,9 +52,6 @@ gaia search lkm auth ...
 This phase is a provider adapter with Gaia-native output by default. It should
 preserve the LKM API response under `raw`, and keep `--format raw-json`
 available so agent workflows can debug the upstream service directly.
-Older LKM endpoint-shaped names (`reasoning-search`, `variables`,
-`paper-graph`) may remain as hidden compatibility aliases, but user-facing
-commands should use Gaia-facing object names.
 
 ### Phase 1: Gaia-native output mode
 
@@ -270,25 +267,27 @@ normalized boundary:
 |---|---|---|
 | `variable.type == "claim"` | `claim` | Candidate Gaia `claim(...)` |
 | `variable.type == "question"` | `question` | Candidate Gaia `question(...)` |
-| reasoning chain hit | `reasoning_chain` | Search result for LKM reasoning chains; may be graph-shaped or legacy factor-shaped |
+| reasoning chain hit | `reasoning_chain` | Search result for LKM graph-shaped reasoning chains |
 | graph factor with `concludes` + incoming claim edges | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; preserve raw LKM relation names for inspection |
-| legacy complete `factor` with `premises` + `conclusion` | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; compatibility path for older responses |
 | `paper.package_id` | `package` candidate | Addable only after materialization or registry resolution |
 
 The public `/search` endpoint should be treated as claim/question retrieval.
 Reasoning factors are exposed through `reasoning` and `package`, not as public
 search-result variables. A `reasoning` result is not a complete Gaia
 `derive(...)` unless Gaia can identify a factor, its conclusion, and at least
-one premise claim from either graph edges or the legacy factor fields.
+one premise claim from graph edges.
 
-LKM `package` output should preserve the raw graph payload. Legacy `paper`,
-`variables`, `factors`, and `motivations` fields may still appear, but the
-latest default response is graph-shaped. Gaia-native output should also expose:
+LKM `package` output should preserve the raw graph payload. The latest default
+response is graph-shaped and separates paper-level context from reasoning
+topology. Gaia-native output should also expose:
 
 - `source.source_package`, e.g. `paper:811827932371615744`
 - `source.index_id`, e.g. `bohrium`; LKM-local ids are scoped to this index
 - `source.paper_title`, e.g. `Controlling phase and morphology of FAPbI3 films`
 - `source.paper_id`
+- `lkm_view.node_type_counts`, `lkm_view.node_kind_counts`, and
+  `lkm_view.edge_type_counts`
+- `lkm_view.addressed_problems` and `lkm_view.open_questions`
 - candidate package ref `lkm:<index_id>:paper:<paper_id>`
 - a `gaia` identity placeholder; the current LKM adapter does not check local
   materialization status during search

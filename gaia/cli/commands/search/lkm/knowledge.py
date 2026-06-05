@@ -185,6 +185,3 @@ def _query_kind(scopes: list[ScopeChoice] | None) -> str:
         ScopeChoice.CLAIM: "claim",
         ScopeChoice.QUESTION: "question",
     }[scopes[0]]
-
-
-claims_command = knowledge_command

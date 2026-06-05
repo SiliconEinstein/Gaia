@@ -49,7 +49,7 @@ The skill text below is domain-agnostic. Every domain-specific term in the produ
 
 ## Input
 
-The skill is invoked with a single root claim id and the corresponding LKM chain payload — the `gaia search lkm reasoning --claim-id <id> --format raw-json` output (and, if available, the `gaia search lkm knowledge "<root>" --format raw-json` output that surfaced the root). Current claim-reasoning payloads are graph-shaped by default: each chain may carry `graph.nodes[]` and `graph.edges[]`. Older payloads may instead carry `factors[]` with premises, conclusion, steps, and motivating questions. The root's conclusion text names a system / setting and a quantitative result. The skill does not perform discovery; it does not select among candidates. Callers (or the user directly) supply the chosen root id.
+The skill is invoked with a single root claim id and the corresponding LKM chain payload — the `gaia search lkm reasoning --claim-id <id> --format raw-json` output (and, if available, the `gaia search lkm knowledge "<root>" --format raw-json` output that surfaced the root). Claim-reasoning payloads are graph-shaped: each chain carries `graph.nodes[]` and `graph.edges[]`. The root's conclusion text names a system / setting and a quantitative result. The skill does not perform discovery; it does not select among candidates. Callers (or the user directly) supply the chosen root id.
 
 If invoked with a chain-less claim id (`total_chains == 0`), stop and report the gate failure. Do not invent premises.
 
@@ -63,7 +63,7 @@ Every successful invocation leaves on disk:
 - the verbatim LKM raw payloads under `raw/` (at minimum `evidence_<root-gcn-id>.json` — the `gaia search lkm reasoning --claim-id … --format raw-json` envelope; if a `gaia search lkm knowledge … --format raw-json` recall was consulted to surface the root, also `match_NN.json`); raw payloads are never modified, pretty-printed, or stripped — they are the audit substrate the source pointers resolve against;
 - an audit table (rows per non-trivial edge — see §6) co-located with the graph artifacts.
 
-The audit table and every node/edge in `evidence_graph.json` carry a chain-payload anchor (graph node id, graph edge, premise `gcn_*`, factor `gfac_*` / `lfac_*`, `factor.steps[j].reasoning` / `factors[i].steps[j].reasoning`, or claim content) so a reader can trace any element back to the LKM JSON. Anchor discipline is canonical in `references/source-ground-truth.md` — read it before producing output.
+The audit table and every node/edge in `evidence_graph.json` carry a chain-payload anchor (graph node id, graph edge, premise `gcn_*`, factor `gfac_*` / `lfac_*`, `factor.steps[j].reasoning`, or claim content) so a reader can trace any element back to the LKM JSON. Anchor discipline is canonical in `references/source-ground-truth.md` — read it before producing output.
 
 ## Workflow
 
@@ -75,7 +75,7 @@ The chain payload itself is the **single source of truth** for every node and au
 
 ### 1. Factor diamonds (one per `gfac_*`)
 
-Each factor node (`gfac_*` / `lfac_*`, or a legacy `factors[]` entry) in the root's evidence chains becomes a labelled diamond (`shape=diamond` in DOT, or analogous in Mermaid). The label is two short lines:
+Each factor node (`gfac_*` / `lfac_*`) in the root's evidence chains becomes a labelled diamond (`shape=diamond` in DOT, or analogous in Mermaid). The label is two short lines:
 
 - top line: the factor operator name in the user's locale (`共同支撑` for Chinese / `joint support` for English / etc.). If the LKM payload exposes a `subtype` (e.g. `noisy_and`, `noisy_or`), include it parenthetically: `共同支撑 (noisy_and)` / `joint support (noisy_and)`.
 - bottom line: a concrete tag derived from the factor's premises — e.g. *"inversion step"*, *"first-principles input"*, *"dataset + protocol"*, *"thermodynamic coverage"*. The exact wording comes from reading the premise contents and naming the cluster they form.
@@ -86,9 +86,7 @@ If the chain has **exactly one** `gfac_*` node, render exactly one diamond. Use 
 
 ### 2. Native premises → typed reasoning nodes
 
-For graph-shaped payloads, premises are claim nodes with incoming edges to a factor node. Treat `previous_conclusion_of`, `weakpoint_of`, `highlight_of`, and other claim-to-factor support edges as premise edges. The target of `factor --concludes--> claim` is the root or intermediate conclusion. `question --motivates--> claim` is motivating context, not a premise by itself.
-
-For older payloads, the primary text source for each premise is `factors[].premises[].content` in the parent chain payload. Some chain payloads also expose `steps[].reasoning` — that field is **optional**. Do not require `steps`; do not fail when it is absent.
+Premises are claim nodes with incoming edges to a factor node. Treat `previous_conclusion_of`, `weakpoint_of`, `highlight_of`, and other claim-to-factor support edges as premise edges. The target of `factor --concludes--> claim` is the root or intermediate conclusion. `question --subproblem_of--> claim` is problem context, not a premise by itself. Some factor nodes also expose `steps[].reasoning` — that field is **optional**. Do not require `steps`; do not fail when it is absent.
 
 For each native premise (chain-internal id; `total_chains == 0` standalone but full content recoverable from the parent chain), classify the premise content into one of four reasoning-node types:
 

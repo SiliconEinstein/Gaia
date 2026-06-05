@@ -60,13 +60,7 @@ def normalize_lkm_reasoning_search(
 ) -> dict[str, Any]:
     """Normalize LKM reasoning-chain search results."""
     data = _dict(payload.get("data"))
-    chains = (
-        _list(data.get("reasoning_chains"))
-        or _list(data.get("chains"))
-        or _list(data.get("items"))
-        or _list(data.get("results"))
-        or _list(payload.get("reasoning_chains"))
-    )
+    chains = _list(data.get("reasoning_chains"))
     papers = _papers(payload)
     results = [
         _normalize_lkm_chain(chain, index=index, papers=papers, index_id=index_id)
@@ -214,9 +208,9 @@ def _normalize_lkm_chain(
         or provider_id
     )
     content = _string(chain.get("content")) or _string(conclusion.get("content"))
-    factors_summary = _factor_summaries(chain) or _graph_factor_summaries(chain)
-    has_derivable_factor = _chain_can_compile(chain)
-    has_factors = bool(factors_summary) or _graph_has_factor(chain)
+    factors_summary = _graph_factor_summaries(chain)
+    has_derivable_factor = _graph_can_compile(chain)
+    has_factors = bool(factors_summary)
     needs_package_context = any("comment" in f for f in factors_summary)
     score = _number(chain.get("score"), chain.get("rerank_score"))
     actions: list[dict[str, Any]] = []
@@ -261,19 +255,9 @@ def _normalize_lkm_chain(
 
 
 def _chain_provider_id(chain: dict[str, Any], *, index: int) -> str:
-    provider_id = (
-        _string(chain.get("id"))
-        or _string(chain.get("chain_id"))
-        or _string(chain.get("factor_id"))
-    )
+    provider_id = _string(chain.get("id")) or _string(chain.get("chain_id"))
     if provider_id is not None:
         return provider_id
-    for factor in _list(chain.get("factors")):
-        if not isinstance(factor, dict):
-            continue
-        factor_id = _factor_id(factor)
-        if factor_id is not None:
-            return factor_id
     if graph_factor_id := _first_graph_factor_id(chain):
         return graph_factor_id
     return f"chain_{index}"
@@ -328,7 +312,8 @@ def _paper_graph_lkm_view(item: dict[str, Any]) -> dict[str, Any]:
     nodes = _graph_nodes(graph)
     edges = _graph_edges(graph)
     return {
-        "node_counts": _counts_by(nodes, "type"),
+        "node_type_counts": _counts_by(nodes, "type"),
+        "node_kind_counts": _counts_by(nodes, "kind"),
         "edge_type_counts": _counts_by(edges, "type"),
         "addressed_problems": _problem_refs(item.get("addressed_problems")),
         "open_questions": _problem_refs(item.get("open_questions")),
@@ -346,10 +331,9 @@ def _counts_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
 def _problem_refs(value: Any) -> list[dict[str, str]]:
     """Map the graph API's ``addressed_problems`` / ``open_questions`` entries.
 
-    These top-level lists are the latest graph API's first-class way of stating
-    what a paper tackles and what it leaves open (superseding the old
-    node-metadata ``structural_edges`` encoding). Keep the stable identifiers
-    plus the full text so the package view is self-contained.
+    These top-level lists are the graph API's first-class way of stating what a
+    paper tackles and what it leaves open. Keep the stable identifiers plus the
+    full text so the package view is self-contained.
     """
     refs: list[dict[str, str]] = []
     for entry in _list(value):
@@ -458,10 +442,7 @@ def _pagination(*sources: dict[str, Any]) -> dict[str, Any]:
 
 
 def _reasoning_view(chain: dict[str, Any]) -> dict[str, Any]:
-    graph = _dict(chain.get("graph"))
-    if graph:
-        return _reasoning_view_from_graph(graph)
-    return _reasoning_view_from_factors(chain)
+    return _reasoning_view_from_graph(_dict(chain.get("graph")))
 
 
 def _empty_reasoning_view() -> dict[str, Any]:
@@ -476,35 +457,10 @@ def _empty_reasoning_view() -> dict[str, Any]:
     }
 
 
-def _reasoning_view_from_factors(chain: dict[str, Any]) -> dict[str, Any]:
-    view = _empty_reasoning_view()
-    conclusion = _chain_conclusion(chain)
-    if conclusion:
-        view["conclusion_claim"] = _knowledge_ref(conclusion)
-    view["questions"] = _unique_refs(
-        _knowledge_ref(question)
-        for question in _list(chain.get("motivating_questions"))
-        if isinstance(question, dict)
-    )
-    premise_refs: list[dict[str, Any]] = []
-    steps: list[dict[str, Any]] = []
-    for factor in _list(chain.get("factors")):
-        if not isinstance(factor, dict):
-            continue
-        for premise in [*_list(factor.get("premises")), *_list(factor.get("supported_by"))]:
-            if isinstance(premise, dict):
-                premise_refs.append(_knowledge_ref(premise))
-        steps.extend(_reasoning_steps(factor))
-    view["depends_on_other_claims"] = _unique_refs(premise_refs)
-    view["reasoning_steps"] = steps
-    return view
-
-
-# Edge types that link a question/subproblem to the conclusion it motivates
-# (rather than a claim premise into a factor). The reasoning view (which turns
-# them into ``questions``) and the graph premise count (which must exclude them)
-# have to agree on this set, so keep it in one place.
-_QUESTION_RELATION_EDGE_TYPES = frozenset({"motivates", "subproblem_of"})
+# Edge types that link a subproblem to the conclusion it frames (rather than a
+# claim premise into a factor). The reasoning view and graph premise count must
+# agree on this set.
+_QUESTION_RELATION_EDGE_TYPES = frozenset({"subproblem_of"})
 
 
 def _reasoning_view_from_graph(graph: dict[str, Any]) -> dict[str, Any]:
@@ -657,10 +613,6 @@ def _first_graph_factor_id(chain: dict[str, Any]) -> str | None:
     return None
 
 
-def _graph_has_factor(chain: dict[str, Any]) -> bool:
-    return _first_graph_factor_id(chain) is not None
-
-
 def _graph_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
     graph = _dict(chain.get("graph"))
     nodes_by_id = _nodes_by_id(_graph_nodes(graph))
@@ -722,11 +674,10 @@ def _graph_factor_has_conclusion(
 def _graph_factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
     """Per-factor premise counts derived from a graph-shaped chain.
 
-    Mirrors :func:`_factor_summaries` for the default graph payload: a factor
-    node with a ``concludes`` edge but no premise edges is an intermediate
-    paper-chain node whose upstream premises live in the paper package, so it
-    earns the same package-context comment (and ``inspect`` action) rather than
-    being mistaken for a derivable step.
+    A factor node with a ``concludes`` edge but no premise edges is an
+    intermediate paper-chain node whose upstream premises live in the paper
+    package, so it earns the package-context comment (and ``inspect`` action)
+    rather than being mistaken for a derivable step.
     """
     graph = _dict(chain.get("graph"))
     nodes_by_id = _nodes_by_id(_graph_nodes(graph))
@@ -763,91 +714,23 @@ def _graph_can_compile(chain: dict[str, Any]) -> bool:
 
 
 def _chain_conclusion(chain: dict[str, Any]) -> dict[str, Any]:
-    factors = _list(chain.get("factors"))
-    for factor in factors:
-        if not isinstance(factor, dict):
-            continue
-        conclusion = _dict(factor.get("conclusion"))
-        if conclusion:
-            return conclusion
-    graph_conclusion = _graph_conclusion(chain)
-    if graph_conclusion:
-        return graph_conclusion
-    conclusion = _dict(chain.get("conclusion"))
-    if conclusion:
-        return conclusion
-    conclusion_id = _string(chain.get("conclusion_id"))
-    conclusion_title = _string(chain.get("conclusion_title"))
-    conclusion_text = _string(chain.get("conclusion_text"))
-    if conclusion_id or conclusion_title or conclusion_text:
-        return {
-            "id": conclusion_id,
-            "title": conclusion_title,
-            "content": conclusion_text,
-        }
-    return {}
-
-
-def _chain_can_compile(chain: dict[str, Any]) -> bool:
-    factors = _list(chain.get("factors"))
-    for factor in factors:
-        if not isinstance(factor, dict):
-            continue
-        if _dict(factor.get("conclusion")) and _list(factor.get("premises")):
-            return True
-    return _graph_can_compile(chain)
-
-
-def _factor_summaries(chain: dict[str, Any]) -> list[dict[str, Any]]:
-    """Per-factor premise counts.
-
-    For normal inline factors, ``premise_count > 0`` plus a factor-level
-    conclusion marks a derivation step (emit a ``derive``). A premised factor
-    without a factor-level conclusion is an incomplete LKM payload, not a valid
-    continuation. A zero-premise factor with a conclusion is an intermediate
-    paper-chain node whose upstream premises are omitted from this search result;
-    inspect the paper package to recover them. Replaces the old chain-level
-    ``can_compile`` / ``has_factors`` booleans, which conflated leaf factors with
-    failures.
-    """
-    summaries: list[dict[str, Any]] = []
-    for factor in _list(chain.get("factors")):
-        if not isinstance(factor, dict):
-            continue
-        factor_id = _factor_id(factor)
-        premise_count = len(_list(factor.get("premises")))
-        has_conclusion = bool(_dict(factor.get("conclusion")))
-        summary = {
-            "factor_id": factor_id,
-            "premise_count": premise_count,
-        }
-        if premise_count > 0 and not has_conclusion:
-            summary["warning"] = _FACTOR_MISSING_CONCLUSION_WARNING
-        elif premise_count == 0 and has_conclusion:
-            summary["comment"] = _FACTOR_UPSTREAM_CONTEXT_COMMENT
-        summaries.append(summary)
-    return summaries
-
-
-def _factor_id(factor: dict[str, Any]) -> str | None:
-    return (
-        _string(factor.get("global_id"))
-        or _string(factor.get("id"))
-        or _string(factor.get("factor_id"))
-    )
+    return _graph_conclusion(chain)
 
 
 def _chain_source_package(chain: dict[str, Any]) -> str | None:
     if paper_id := _string(chain.get("paper_id")):
         return f"paper:{paper_id}"
-    motivating_questions = _list(chain.get("motivating_questions"))
-    for question in motivating_questions:
-        if isinstance(question, dict) and (source := _string(question.get("source_package"))):
-            return source
-    conclusion = _chain_conclusion(chain)
-    local_id = _string(conclusion.get("local_id"))
-    if local_id and "::" in local_id:
-        return local_id.split("::", 1)[0]
+    for node in _graph_nodes(_dict(chain.get("graph"))):
+        for key in ("id", "local_id"):
+            if source := _source_package_from_graph_id(node.get(key)):
+                return source
+    return None
+
+
+def _source_package_from_graph_id(value: Any) -> str | None:
+    graph_id = _string(value)
+    if graph_id and graph_id.startswith("paper:") and "::" in graph_id:
+        return graph_id.split("::", 1)[0]
     return None
 
 

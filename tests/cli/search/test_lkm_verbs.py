@@ -1,4 +1,4 @@
-"""Tests for the public ``gaia search lkm`` verbs and compatibility aliases.
+"""Tests for the public ``gaia search lkm`` verbs.
 
 Every HTTP call is mocked by replacing ``_shared.LKMClient`` with a fake
 context manager whose ``.request`` returns a canned envelope (or raises a
@@ -315,14 +315,6 @@ class TestKnowledge:
         assert result.exit_code == 0, result.output
         assert json.loads(dest.read_text())["code"] == 0
 
-    def test_claims_alias_still_dispatches_to_search_endpoint(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
-        result = runner.invoke(app, ["search", "lkm", "claims", "perovskite"])
-        assert result.exit_code == 0, result.output
-        assert _FakeClient.last_call["path"] == "/search"
-
     def test_default_normalizes_knowledge_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(
             monkeypatch,
@@ -551,7 +543,11 @@ class TestReasoning:
     def test_fetches_claim_reasoning_by_claim_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(
             monkeypatch,
-            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+            response={
+                "code": 0,
+                "msg": "ok",
+                "data": {"reasoning_chains": [], "total_chains": 0},
+            },
         )
         result = runner.invoke(
             app,
@@ -573,7 +569,11 @@ class TestReasoning:
         """The prefixed `lkm:<index>:gcn_…` form (as printed) is accepted."""
         _install_client(
             monkeypatch,
-            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+            response={
+                "code": 0,
+                "msg": "ok",
+                "data": {"reasoning_chains": [], "total_chains": 0},
+            },
         )
         result = runner.invoke(
             app,
@@ -596,7 +596,11 @@ class TestReasoning:
         """A bare positional in the prefixed form also routes to --claim-id mode."""
         _install_client(
             monkeypatch,
-            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+            response={
+                "code": 0,
+                "msg": "ok",
+                "data": {"reasoning_chains": [], "total_chains": 0},
+            },
         )
         result = runner.invoke(
             app,
@@ -610,7 +614,11 @@ class TestReasoning:
     ) -> None:
         _install_client(
             monkeypatch,
-            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+            response={
+                "code": 0,
+                "msg": "ok",
+                "data": {"reasoning_chains": [], "total_chains": 0},
+            },
         )
         result = runner.invoke(
             app,
@@ -651,7 +659,11 @@ class TestReasoning:
     ) -> None:
         _install_client(
             monkeypatch,
-            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+            response={
+                "code": 0,
+                "msg": "ok",
+                "data": {"reasoning_chains": [], "total_chains": 0},
+            },
         )
         result = runner.invoke(
             app,
@@ -669,12 +681,16 @@ class TestReasoning:
         assert json.loads(result.output)["query"]["index_id"] == "bohrium"
         assert _FakeClient.last_call["path"] == "/claims/gcn_abc123/reasoning"
 
-    def test_legacy_positional_claim_id_fetches_claim_reasoning(
+    def test_positional_claim_id_fetches_claim_reasoning(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
             monkeypatch,
-            response={"code": 0, "msg": "ok", "reasoning_chains": [], "total_chains": 0},
+            response={
+                "code": 0,
+                "msg": "ok",
+                "data": {"reasoning_chains": [], "total_chains": 0},
+            },
         )
         result = runner.invoke(
             app,
@@ -723,7 +739,7 @@ class TestReasoning:
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["path"] == "/claims/a%2Fb%20c/reasoning"
 
-    def test_data_nested_shape_flattened(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_raw_json_keeps_nested_reasoning_shape(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(
             monkeypatch,
             response={
@@ -738,8 +754,9 @@ class TestReasoning:
         )
         assert result.exit_code == 0, result.output
         out = json.loads(result.output)
-        assert out["reasoning_chains"] == [{"id": 1}]
-        assert out["total_chains"] == 1
+        assert out["data"]["reasoning_chains"] == [{"id": 1}]
+        assert out["data"]["total_chains"] == 1
+        assert "reasoning_chains" not in out
 
     def test_max_chains_out_of_range_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -780,7 +797,7 @@ class TestReasoning:
         assert "--limit" in result.output
         assert _FakeClient.last_call == {}
 
-    def test_default_normalizes_reasoning_hit_without_factors(
+    def test_default_marks_zero_premise_graph_factor_as_package_context(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -791,12 +808,31 @@ class TestReasoning:
                     "reasoning_chains": [
                         {
                             "chain_id": "paper_7",
-                            "conclusion_id": "7",
-                            "conclusion_title": "Thermal stability",
-                            "conclusion_text": "The device is thermally stable.",
                             "paper_id": "811",
                             "score": 0.42,
-                            "factors": [],
+                            "graph": {
+                                "nodes": [
+                                    {
+                                        "id": "lfac_thermal",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                    },
+                                    {
+                                        "id": "gcn_thermal",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Thermal stability",
+                                        "content": "The device is thermally stable.",
+                                    },
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "concludes",
+                                        "source": "lfac_thermal",
+                                        "target": "gcn_thermal",
+                                    }
+                                ],
+                            },
                         }
                     ]
                 },
@@ -820,8 +856,14 @@ class TestReasoning:
         assert item["source"]["paper_id"] == "811"
         assert item["source"]["index_id"] == "bohrium"
         assert item["source"]["paper_title"] is None
-        assert item["source"]["conclusion_id"] == "7"
-        assert item["source"]["factors"] == []
+        assert item["source"]["conclusion_id"] == "gcn_thermal"
+        assert item["source"]["factors"] == [
+            {
+                "factor_id": "lfac_thermal",
+                "premise_count": 0,
+                "comment": "premises omitted; inspect package for upstream reasoning context",
+            }
+        ]
         assert item["actions"] == [
             {
                 "kind": "inspect",
@@ -856,13 +898,40 @@ class TestReasoning:
                         {
                             "id": "chain_1",
                             "source_package": "paper:811",
-                            "factors": [
-                                {
-                                    "conclusion": {"id": "gcn_result", "title": "Result"},
-                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
-                                    "steps": [{"reasoning": "Compare results."}],
-                                }
-                            ],
+                            "graph": {
+                                "nodes": [
+                                    {
+                                        "id": "gcn_premise",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Premise",
+                                    },
+                                    {
+                                        "id": "lfac_1",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                        "steps": [{"reasoning": "Compare results."}],
+                                    },
+                                    {
+                                        "id": "gcn_result",
+                                        "type": "claim",
+                                        "kind": "conclusion",
+                                        "title": "Result",
+                                    },
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "previous_conclusion_of",
+                                        "source": "gcn_premise",
+                                        "target": "lfac_1",
+                                    },
+                                    {
+                                        "type": "concludes",
+                                        "source": "lfac_1",
+                                        "target": "gcn_result",
+                                    },
+                                ],
+                            },
                         }
                     ]
                 },
@@ -875,9 +944,9 @@ class TestReasoning:
         item = json.loads(result.output)["results"][0]
         assert item["kind"] == "reasoning_chain"
         assert item["gaia"]["object_kind"] == "derive"
-        assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
+        assert item["source"]["factors"] == [{"factor_id": "lfac_1", "premise_count": 1}]
 
-    def test_default_uses_global_factor_id_not_local_factor_id(
+    def test_default_uses_graph_factor_id_not_local_id(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -889,14 +958,30 @@ class TestReasoning:
                         {
                             "id": "chain_1",
                             "source_package": "paper:811",
-                            "factors": [
-                                {
-                                    "global_id": "gfac_phase",
-                                    "local_id": "lfac_phase",
-                                    "conclusion": {"id": "gcn_result", "title": "Result"},
-                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
-                                }
-                            ],
+                            "graph": {
+                                "nodes": [
+                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
+                                    {
+                                        "id": "gfac_phase",
+                                        "local_id": "lfac_phase",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                    },
+                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "previous_conclusion_of",
+                                        "source": "gcn_premise",
+                                        "target": "gfac_phase",
+                                    },
+                                    {
+                                        "type": "concludes",
+                                        "source": "gfac_phase",
+                                        "target": "gcn_result",
+                                    },
+                                ],
+                            },
                         }
                     ]
                 },
@@ -909,7 +994,7 @@ class TestReasoning:
         item = json.loads(result.output)["results"][0]
         assert item["source"]["factors"] == [{"factor_id": "gfac_phase", "premise_count": 1}]
 
-    def test_default_warns_premised_factor_without_inline_conclusion(
+    def test_default_warns_premised_graph_factor_without_conclusion(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -921,13 +1006,23 @@ class TestReasoning:
                         {
                             "id": "chain_1",
                             "paper_id": "811",
-                            "conclusion": {"id": "gcn_result", "title": "Result"},
-                            "factors": [
-                                {
-                                    "id": "fac_missing_conclusion",
-                                    "premises": [{"id": "gcn_premise", "title": "Premise"}],
-                                }
-                            ],
+                            "graph": {
+                                "nodes": [
+                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
+                                    {
+                                        "id": "fac_missing_conclusion",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                    },
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "previous_conclusion_of",
+                                        "source": "gcn_premise",
+                                        "target": "fac_missing_conclusion",
+                                    }
+                                ],
+                            },
                         }
                     ]
                 },
@@ -980,13 +1075,23 @@ class TestReasoning:
                         {
                             "id": "chain_1",
                             "paper_id": "811",
-                            "factors": [
-                                {
-                                    "global_id": "gfac_intermediate",
-                                    "conclusion": {"id": "gcn_result", "title": "Result"},
-                                    "premises": [],
-                                }
-                            ],
+                            "graph": {
+                                "nodes": [
+                                    {
+                                        "id": "gfac_intermediate",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                    },
+                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "concludes",
+                                        "source": "gfac_intermediate",
+                                        "target": "gcn_result",
+                                    }
+                                ],
+                            },
                         }
                     ]
                 },
@@ -1019,17 +1124,35 @@ class TestReasoning:
             monkeypatch,
             response={
                 "code": 0,
-                "reasoning_chains": [
-                    {
-                        "factors": [
-                            {
-                                "id": "gfac_2d9b044b8de74fe4",
-                                "conclusion": {"id": "gcn_result", "title": "Result"},
-                                "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "graph": {
+                                "nodes": [
+                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
+                                    {
+                                        "id": "gfac_2d9b044b8de74fe4",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                    },
+                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "previous_conclusion_of",
+                                        "source": "gcn_premise",
+                                        "target": "gfac_2d9b044b8de74fe4",
+                                    },
+                                    {
+                                        "type": "concludes",
+                                        "source": "gfac_2d9b044b8de74fe4",
+                                        "target": "gcn_result",
+                                    },
+                                ],
                             }
-                        ]
-                    }
-                ],
+                        }
+                    ],
+                },
             },
         )
 
@@ -1041,25 +1164,43 @@ class TestReasoning:
         assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
         assert item["source"]["index_id"] == "bohrium"
 
-    def test_claim_reasoning_uses_global_factor_id_when_chain_id_is_missing(
+    def test_claim_reasoning_uses_graph_factor_id_when_chain_id_is_missing(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
             monkeypatch,
             response={
                 "code": 0,
-                "reasoning_chains": [
-                    {
-                        "factors": [
-                            {
-                                "global_id": "gfac_2d9b044b8de74fe4",
-                                "local_id": "lfac_local",
-                                "conclusion": {"id": "gcn_result", "title": "Result"},
-                                "premises": [{"id": "gcn_premise", "title": "Premise"}],
+                "data": {
+                    "reasoning_chains": [
+                        {
+                            "graph": {
+                                "nodes": [
+                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
+                                    {
+                                        "id": "gfac_2d9b044b8de74fe4",
+                                        "local_id": "lfac_local",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                    },
+                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
+                                ],
+                                "edges": [
+                                    {
+                                        "type": "previous_conclusion_of",
+                                        "source": "gcn_premise",
+                                        "target": "gfac_2d9b044b8de74fe4",
+                                    },
+                                    {
+                                        "type": "concludes",
+                                        "source": "gfac_2d9b044b8de74fe4",
+                                        "target": "gcn_result",
+                                    },
+                                ],
                             }
-                        ]
-                    }
-                ],
+                        }
+                    ],
+                },
             },
         )
 
@@ -1214,8 +1355,7 @@ class TestReasoning:
         # A graph factor that concludes a claim but carries no premise edges is
         # an intermediate paper-chain node whose upstream premises live in the
         # package: it must NOT be labeled derivable, and it must surface the
-        # package-context comment plus an inspect action — the same contract the
-        # legacy inline-factor path already enforces.
+        # package-context comment plus an inspect action.
         _install_client(
             monkeypatch,
             response={
@@ -1272,152 +1412,6 @@ class TestReasoning:
 
 
 # --------------------------------------------------------------------------- #
-# reasoning-search alias                                                      #
-# --------------------------------------------------------------------------- #
-
-
-class TestReasoningSearch:
-    def test_happy_plural_paper_ids(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(monkeypatch)
-        result = runner.invoke(
-            app,
-            [
-                "search",
-                "lkm",
-                "reasoning-search",
-                "q",
-                "--paper-ids",
-                "123",
-                "--paper-ids",
-                "456",
-            ],
-        )
-        assert result.exit_code == 0, result.output
-        body = _FakeClient.last_call["json_body"]
-        assert body["filters"] == {"paper_ids": ["123", "456"]}
-        assert body["format"] == "graph"
-
-    def test_rejects_paper_prefix_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(monkeypatch)
-        result = runner.invoke(
-            app,
-            ["search", "lkm", "reasoning-search", "q", "--paper-ids", "paper:123"],
-        )
-        assert result.exit_code == 4, result.output
-        assert "paper:" in result.output
-
-    def test_too_many_keywords_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(monkeypatch)
-        args = ["search", "lkm", "reasoning-search", "q"]
-        for i in range(11):
-            args += ["--keywords", f"k{i}"]
-        result = runner.invoke(app, args)
-        assert result.exit_code == 4, result.output
-
-    def test_limit_out_of_range_exits_4_before_request(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "reasoning-search", "q", "--limit", "101"])
-        assert result.exit_code == 4, result.output
-        assert _FakeClient.last_call == {}
-
-    def test_offset_out_of_range_exits_4_before_request(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "reasoning-search", "q", "--offset", "-1"])
-        assert result.exit_code == 4, result.output
-        assert _FakeClient.last_call == {}
-
-    def test_transport_error_exits_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(monkeypatch, raises=LKMTransportError("net"))
-        result = runner.invoke(app, ["search", "lkm", "reasoning-search", "q"])
-        assert result.exit_code == 2, result.output
-
-    def test_default_normalizes_reasoning_chain_results(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "papers": {
-                        "paper:811827932371615744": {
-                            "doi": "10.1016/j.jpcs.2021.110374",
-                            "en_title": "FAPbI3 processing paper",
-                            "id": "811827932371615744",
-                        }
-                    },
-                    "reasoning_chains": [
-                        {
-                            "id": "chain_1",
-                            "source_package": "paper:811827932371615744",
-                            "factors": [
-                                {
-                                    "conclusion": {
-                                        "content": "120 C is the optimal annealing window.",
-                                        "id": "gcn_result",
-                                        "title": "Optimal annealing window",
-                                    },
-                                    "premises": [
-                                        {
-                                            "content": "120 C produces stronger alpha-phase peaks.",
-                                            "id": "gcn_premise",
-                                            "title": "120 C alpha-phase evidence",
-                                        }
-                                    ],
-                                    "steps": [{"reasoning": "Compare 120 C and 150 C."}],
-                                }
-                            ],
-                        }
-                    ],
-                },
-            },
-        )
-
-        result = runner.invoke(
-            app,
-            ["search", "lkm", "reasoning-search", "FAPbI3"],
-        )
-
-        assert result.exit_code == 0, result.output
-        out = json.loads(result.output)
-        assert out["query"] == {
-            "text": "FAPbI3",
-            "provider": "lkm",
-            "kind": "reasoning",
-            "index_id": "bohrium",
-        }
-        item = out["results"][0]
-        assert item["id"] == "lkm:bohrium:chain_1"
-        assert item["kind"] == "reasoning_chain"
-        assert item["gaia"]["object_kind"] == "derive"
-        assert item["title"] == "Optimal annealing window"
-        assert item["content"] == "120 C is the optimal annealing window."
-        assert item["source"]["paper_id"] == "811827932371615744"
-        assert item["source"]["index_id"] == "bohrium"
-        assert item["source"]["paper_title"] == "FAPbI3 processing paper"
-        assert item["source"]["factors"] == [{"factor_id": None, "premise_count": 1}]
-        assert item["actions"] == [
-            {
-                "kind": "add",
-                "ref": "lkm:bohrium:paper:811827932371615744",
-                "label": 'Add paper "FAPbI3 processing paper"',
-                "target": {
-                    "kind": "paper",
-                    "title": "FAPbI3 processing paper",
-                    "doi": "10.1016/j.jpcs.2021.110374",
-                    "index_id": "bohrium",
-                    "paper_id": "811827932371615744",
-                },
-                "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
-            }
-        ]
-
-
-# --------------------------------------------------------------------------- #
 # nodes                                                                       #
 # --------------------------------------------------------------------------- #
 
@@ -1440,12 +1434,6 @@ class TestNodes:
         result = runner.invoke(app, ["search", "lkm", "nodes", "a", "--index", "bohrium"])
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["json_body"] == {"ids": ["a"]}
-
-    def test_variables_alias_remains_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "variables", "a"])
-        assert result.exit_code == 0, result.output
-        assert _FakeClient.last_call["path"] == "/variables/batch"
 
     def test_merge_with_ids_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         _install_client(monkeypatch)
@@ -1509,12 +1497,6 @@ class TestPackage:
         assert result.exit_code == 0, result.output
         assert json.loads(result.output)["query"]["index_id"] == "bohrium"
 
-    def test_paper_graph_alias_remains_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "paper-graph", "--paper-id", "p1"])
-        assert result.exit_code == 0, result.output
-        assert _FakeClient.last_call["path"] == "/papers/graph"
-
     def test_no_identifier_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(app, ["search", "lkm", "package"])
@@ -1524,29 +1506,6 @@ class TestPackage:
         _install_client(monkeypatch)
         result = runner.invoke(app, ["search", "lkm", "package", "--paper-id", "p1", "--doi", "d1"])
         assert result.exit_code == 4, result.output
-
-    def test_include_and_factor_refs_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(monkeypatch)
-        result = runner.invoke(
-            app,
-            [
-                "search",
-                "lkm",
-                "package",
-                "--package-id",
-                "paper:1",
-                "--include",
-                "priors",
-                "--include",
-                "factor_params",
-                "--factor-refs-only",
-            ],
-        )
-        assert result.exit_code == 0, result.output
-        body = _FakeClient.last_call["json_body"]
-        assert body["package_id"] == "paper:1"
-        assert body["include"] == ["priors", "factor_params"]
-        assert body["hydrate_factor_refs"] is False
 
     def test_title_resolve_limit_with_title(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1601,7 +1560,6 @@ class TestPackage:
                             },
                             "stats": {
                                 "factors_total": 2,
-                                "motivations_total": 1,
                                 "variables_total": 25,
                             },
                             "addressed_problems": [
@@ -1702,7 +1660,13 @@ class TestPackage:
         assert item["source"]["paper_title"] == "Controlling phase and morphology"
         assert item["source"]["stats"]["variables_total"] == 25
         assert item["lkm_view"] == {
-            "node_counts": {"claim": 2, "factor": 1, "question": 1},
+            "node_type_counts": {"claim": 2, "factor": 1, "question": 1},
+            "node_kind_counts": {
+                "conclusion": 1,
+                "highlight": 1,
+                "reasoning_steps": 1,
+                "subproblem": 1,
+            },
             "edge_type_counts": {"concludes": 1, "highlight_of": 1, "subproblem_of": 1},
             "addressed_problems": [
                 {
@@ -1837,7 +1801,8 @@ class TestPackage:
         assert item["source"]["paper_id"] == "811827932371615744"
         assert item["source"]["stats"] == {"variables_total": 2}
         assert item["lkm_view"] == {
-            "node_counts": {"claim": 1, "factor": 1},
+            "node_type_counts": {"claim": 1, "factor": 1},
+            "node_kind_counts": {},
             "edge_type_counts": {"concludes": 1},
             "addressed_problems": [],
             "open_questions": [],

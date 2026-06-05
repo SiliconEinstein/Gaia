@@ -158,7 +158,6 @@ def reasoning_command(
             sort_by=sort_by,
             index_id=index_id,
         )
-        payload = _normalize(payload)
         if output_format == SearchOutputFormat.GAIA_JSON:
             payload = normalize_lkm_reasoning_search(payload, query=claim_id, index_id=index_id)
         emit(payload, out)
@@ -326,26 +325,3 @@ def _search_reasoning(
         body["filters"] = {"paper_ids": list(paper_ids)}
 
     return run_request("POST", "/reasoning/search", json_body=body, index_id=index_id)
-
-
-def _normalize(payload: dict[str, Any]) -> dict[str, Any]:
-    """Flatten the two shapes the API may return into one stable envelope.
-
-    The api-contract and the reference SKILL body disagree on whether the
-    reasoning fields sit under ``data`` or at the top level:
-
-      * ``{code, msg, data: {reasoning_chains, total_chains, ...}}``
-      * ``{code, msg, reasoning_chains, total_chains, papers}``
-
-    We surface ``reasoning_chains`` / ``total_chains`` (and ``papers`` when
-    present) at the top level without dropping the original envelope keys,
-    so downstream consumers find them regardless of source shape.
-    """
-    data = payload.get("data")
-    if isinstance(data, dict) and ("reasoning_chains" in data or "total_chains" in data):
-        merged = dict(payload)
-        for key in ("reasoning_chains", "total_chains", "papers"):
-            if key in data and key not in merged:
-                merged[key] = data[key]
-        return merged
-    return payload

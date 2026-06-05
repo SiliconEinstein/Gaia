@@ -63,12 +63,14 @@ authoring counterpart of `derive(...)`: it preserves the premise-conclusion
 shape, but it does not enter IR/BP until a user reviews and materializes it as
 formal Gaia reasoning.
 
-For latest LKM logic-graph responses, Gaia builds the same scaffold from graph
-edges: a factor's `concludes` edge identifies the conclusion, while incoming
-claim edges such as `previous_conclusion_of`, `weakpoint_of`, and
-`highlight_of` are all treated as premise claims in `given=[...]`; other
-incoming claim edges to the same factor are treated the same way. The generated
-scaffold metadata preserves the original LKM edge types for auditability.
+For LKM logic-graph responses, Gaia builds the scaffold from graph edges: a
+factor's `concludes` edge identifies the conclusion, while incoming claim edges
+such as `previous_conclusion_of`, `weakpoint_of`, and `highlight_of` are all
+treated as premise claims in `given=[...]`; other incoming claim edges to the
+same factor are treated the same way. `addressed_problems` and `open_questions`
+are generated as paper-context question nodes, not as `depends_on(...)`
+premises. The generated scaffold metadata preserves the original LKM edge types
+for auditability.
 
 Downstream source can import generated claims directly, for example:
 
