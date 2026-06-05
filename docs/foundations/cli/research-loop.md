@@ -123,9 +123,10 @@ Assess one focus against selected evidence.
 
 Canonical writes:
 
-- optional `--pull-paper <paper_id>` materializes selected LKM papers as deep
-  local evidence packages and attaches them through the same editable package
-  dependency contract as `gaia pkg add --lkm-paper`;
+- optional `--pull-paper <paper_id>` / `--pull-claim <claim_id>` materializes
+  selected LKM paper evidence as deep local packages and attaches them through
+  the same editable package dependency contract as `gaia pkg add --lkm-paper` /
+  `gaia pkg add --lkm-claim`;
 - unresolved issues become inquiry obligations;
 - tentative interpretations become inquiry hypotheses or `note(...)`;
 - weak relations become `candidate_relation(...)` scaffolds;
@@ -191,8 +192,9 @@ Opt-out flags are for evaluation and debugging:
 - `--artifact-only`: write trace artifacts only;
 - `--dry-run`: show planned writes without applying them;
 
-`--pull-paper` is the explicit deep path. It should be used after a focus or
-paper lead is selected, not during the initial broad landscape scan.
+`--pull-paper` / `--pull-claim` are the explicit deep paths. They should be
+used after a focus, paper lead, or claim lead is selected, not during the
+initial broad landscape scan.
 
 ## Mapping From Old Artifacts
 
@@ -236,7 +238,8 @@ main loop:
   statements and sets the first as the inquiry focus;
 - `assess` writes review notes, inquiry hypotheses/obligations, and
   `candidate_relation(...)` only when concrete claim references are supplied;
-  it can also materialize selected LKM papers with `--pull-paper`;
+  it can also materialize selected LKM papers with `--pull-paper` /
+  `--pull-claim`;
 - `promote` writes an explicit `materialize(...)` link from scaffold to formal
   records.
 

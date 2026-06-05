@@ -288,6 +288,11 @@ def make_lkm_paper_ref(index_id: str, paper_id: str) -> LKMSourceRef:
     return _make_lkm_ref(index_id, "paper", paper_id)
 
 
+def make_lkm_claim_ref(index_id: str, claim_id: str) -> LKMSourceRef:
+    """Return a validated LKM claim source ref."""
+    return _make_lkm_ref(index_id, "claim", claim_id)
+
+
 def add_local_package_dependency(local: Path, *, package_root: Path) -> Path:
     """Add ``local`` as an editable dependency of ``package_root``.
 
@@ -462,6 +467,19 @@ def add_lkm_paper_dependency(
             materialized=materialized,
         )
     return materialized
+
+
+def add_lkm_claim_dependency(
+    ref: LKMSourceRef,
+    *,
+    package_root: Path,
+) -> MaterializedLKMPackage:
+    """Resolve an LKM claim to its backing paper package and add it."""
+    if ref.kind != "claim":
+        raise GaiaPackagingError(f"expected an LKM claim ref, got {ref.ref}")
+    paper_id = _resolve_lkm_claim_backing_paper_id(ref)
+    paper_ref = LKMSourceRef(index_id=ref.index_id, kind="paper", provider_id=paper_id)
+    return add_lkm_paper_dependency(paper_ref, package_root=package_root)
 
 
 def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:

@@ -11,8 +11,10 @@ import typer
 
 from gaia.cli.commands.add import (
     LKMDependencyAddError,
+    add_lkm_claim_dependency,
     add_lkm_paper_dependency,
     add_local_package_dependency,
+    make_lkm_claim_ref,
     make_lkm_paper_ref,
 )
 from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
@@ -255,8 +257,13 @@ def _materialize_landscape_sources_or_exit(
     }
 
 
-def _lkm_materialized_payload(materialized: Any) -> dict[str, object]:
+def _lkm_materialized_payload(
+    materialized: Any,
+    *,
+    requested_ref: str | None = None,
+) -> dict[str, object]:
     return {
+        "requested_source_ref": requested_ref or str(materialized.source_ref),
         "source_ref": str(materialized.source_ref),
         "path": str(materialized.root),
         "package": str(materialized.dist_name),
@@ -271,13 +278,15 @@ def _pull_lkm_papers_or_exit(
     research_pkg: ResearchPackage,
     *,
     paper_ids: list[str],
+    claim_ids: list[str],
     lkm_index: str,
     artifact_only: bool,
     dry_run: bool,
 ) -> dict[str, object]:
-    if not paper_ids or artifact_only or dry_run:
+    requests = [*paper_ids, *claim_ids]
+    if not requests or artifact_only or dry_run:
         return {
-            "lkm_pull_requests": list(paper_ids),
+            "lkm_pull_requests": requests,
             "lkm_packages_pulled": [],
         }
 
@@ -294,9 +303,22 @@ def _pull_lkm_papers_or_exit(
         except GaiaPackagingError as exc:
             typer.echo(f"Error: failed to pull LKM paper {paper_id!r}: {exc}", err=True)
             raise typer.Exit(1) from exc
-        pulled.append(_lkm_materialized_payload(materialized))
+        pulled.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
+    for claim_id in claim_ids:
+        try:
+            ref = make_lkm_claim_ref(lkm_index, claim_id)
+            materialized = add_lkm_claim_dependency(ref, package_root=research_pkg.path)
+        except LKMDependencyAddError as exc:
+            typer.echo(f"Error: failed to add LKM claim backing package: {exc}", err=True)
+            if exc.materialized is not None:
+                typer.echo(f"Generated LKM package: {exc.materialized.root}", err=True)
+            raise typer.Exit(1) from exc
+        except GaiaPackagingError as exc:
+            typer.echo(f"Error: failed to pull LKM claim {claim_id!r}: {exc}", err=True)
+            raise typer.Exit(1) from exc
+        pulled.append(_lkm_materialized_payload(materialized, requested_ref=ref.ref))
     return {
-        "lkm_pull_requests": list(paper_ids),
+        "lkm_pull_requests": requests,
         "lkm_packages_pulled": pulled,
     }
 
@@ -754,12 +776,22 @@ def assess_command(
             help="Materialize this LKM paper id as a deep evidence package before assessment.",
         ),
     ] = None,
+    pull_claim: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--pull-claim",
+            help=(
+                "Resolve this LKM claim id to its backing paper and materialize that "
+                "paper as a deep evidence package before assessment."
+            ),
+        ),
+    ] = None,
     lkm_index: Annotated[
         str,
         typer.Option(
             "--lkm-index",
             "--lkm-server",
-            help="Configured LKM index id for --pull-paper.",
+            help="Configured LKM index id for --pull-paper / --pull-claim.",
         ),
     ] = DEFAULT_LKM_INDEX_ID,
 ) -> None:
@@ -769,6 +801,7 @@ def assess_command(
     lkm_pull_payload = _pull_lkm_papers_or_exit(
         research_pkg,
         paper_ids=list(pull_paper or []),
+        claim_ids=list(pull_claim or []),
         lkm_index=lkm_index,
         artifact_only=artifact_only,
         dry_run=dry_run,
