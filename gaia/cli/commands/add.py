@@ -198,6 +198,20 @@ class LKMSourceRef:
         return f"lkm:{self.index_id}:{self.kind}:{self.provider_id}"
 
 
+class LKMDependencyAddError(GaiaPackagingError):
+    """Raised when a materialized LKM package could not be added."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        materialized: MaterializedLKMPackage | None = None,
+    ) -> None:
+        """Initialize the error with the generated package, when available."""
+        super().__init__(message)
+        self.materialized = materialized
+
+
 def _validate_local_source_args(
     package: str | None,
     *,
@@ -267,6 +281,11 @@ def _make_lkm_ref(index_id: str, kind: str, provider_id: str) -> LKMSourceRef:
         kind=kind,
         provider_id=normalized_provider_id,
     )
+
+
+def make_lkm_paper_ref(index_id: str, paper_id: str) -> LKMSourceRef:
+    """Return a validated LKM paper source ref."""
+    return _make_lkm_ref(index_id, "paper", paper_id)
 
 
 def add_local_package_dependency(local: Path, *, package_root: Path) -> Path:
@@ -358,31 +377,16 @@ def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> No
         raise typer.Exit(1)
 
     try:
-        payload = run_request(
-            "POST",
-            "/papers/graph",
-            json_body={"paper_id": ref.provider_id},
-            index_id=ref.index_id,
-        )
-        materialized = materialize_lkm_paper_package(
-            payload,
-            project_root=package_root,
-            index_id=ref.index_id,
-            paper_id=ref.provider_id,
-        )
+        materialized = add_lkm_paper_dependency(ref, package_root=package_root)
+    except LKMDependencyAddError as exc:
+        if exc.materialized is not None:
+            _echo_lkm_uv_add_failure(exc.materialized, str(exc))
+        else:
+            typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
     except GaiaPackagingError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc
-
-    try:
-        result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
-    except GaiaPackagingError as exc:
-        _echo_lkm_uv_add_failure(materialized, str(exc))
-        raise typer.Exit(1) from exc
-    if result.returncode != 0:
-        stderr = result.stderr.strip() or result.stdout.strip()
-        _echo_lkm_uv_add_failure(materialized, stderr or "uv exited with a non-zero status")
-        raise typer.Exit(1)
 
     typer.echo(f"Materialized {materialized.source_ref}")
     typer.echo(f"Package: {materialized.dist_name}")
@@ -421,6 +425,43 @@ def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> No
         typer.echo(
             f"Import hint: from {materialized.import_name} import {materialized.exported_symbol}"
         )
+
+
+def add_lkm_paper_dependency(
+    ref: LKMSourceRef,
+    *,
+    package_root: Path,
+) -> MaterializedLKMPackage:
+    """Materialize an LKM paper package and add it as an editable dependency."""
+    if ref.kind != "paper":
+        raise GaiaPackagingError(f"expected an LKM paper ref, got {ref.ref}")
+    try:
+        payload = run_request(
+            "POST",
+            "/papers/graph",
+            json_body={"paper_id": ref.provider_id},
+            index_id=ref.index_id,
+        )
+        materialized = materialize_lkm_paper_package(
+            payload,
+            project_root=package_root,
+            index_id=ref.index_id,
+            paper_id=ref.provider_id,
+        )
+    except GaiaPackagingError:
+        raise
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        raise LKMDependencyAddError(str(exc), materialized=materialized) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        raise LKMDependencyAddError(
+            stderr or "uv exited with a non-zero status",
+            materialized=materialized,
+        )
+    return materialized
 
 
 def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:

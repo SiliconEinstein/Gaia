@@ -9,7 +9,13 @@ from typing import Annotated, Any
 
 import typer
 
-from gaia.cli.commands.add import add_local_package_dependency
+from gaia.cli.commands.add import (
+    LKMDependencyAddError,
+    add_lkm_paper_dependency,
+    add_local_package_dependency,
+    make_lkm_paper_ref,
+)
+from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 from gaia.engine.packaging import GaiaPackagingError
 from gaia.engine.research import (
     ResearchPackage,
@@ -180,6 +186,7 @@ def _print_sync_summary(payload: dict[str, object]) -> None:
     for key in (
         "source_packages_written",
         "source_packages_added",
+        "lkm_packages_pulled",
         "questions_written",
         "notes_written",
         "candidate_relations_written",
@@ -245,6 +252,52 @@ def _materialize_landscape_sources_or_exit(
         "source_package_materialization": True,
         "source_packages_written": [payload],
         "source_packages_added": [added_payload],
+    }
+
+
+def _lkm_materialized_payload(materialized: Any) -> dict[str, object]:
+    return {
+        "source_ref": str(materialized.source_ref),
+        "path": str(materialized.root),
+        "package": str(materialized.dist_name),
+        "import_name": str(materialized.import_name),
+        "claim_count": int(materialized.claim_count),
+        "question_count": int(materialized.question_count),
+        "dependency_count": int(materialized.dependency_count),
+    }
+
+
+def _pull_lkm_papers_or_exit(
+    research_pkg: ResearchPackage,
+    *,
+    paper_ids: list[str],
+    lkm_index: str,
+    artifact_only: bool,
+    dry_run: bool,
+) -> dict[str, object]:
+    if not paper_ids or artifact_only or dry_run:
+        return {
+            "lkm_pull_requests": list(paper_ids),
+            "lkm_packages_pulled": [],
+        }
+
+    pulled: list[dict[str, object]] = []
+    for paper_id in paper_ids:
+        try:
+            ref = make_lkm_paper_ref(lkm_index, paper_id)
+            materialized = add_lkm_paper_dependency(ref, package_root=research_pkg.path)
+        except LKMDependencyAddError as exc:
+            typer.echo(f"Error: failed to add LKM paper package: {exc}", err=True)
+            if exc.materialized is not None:
+                typer.echo(f"Generated LKM package: {exc.materialized.root}", err=True)
+            raise typer.Exit(1) from exc
+        except GaiaPackagingError as exc:
+            typer.echo(f"Error: failed to pull LKM paper {paper_id!r}: {exc}", err=True)
+            raise typer.Exit(1) from exc
+        pulled.append(_lkm_materialized_payload(materialized))
+    return {
+        "lkm_pull_requests": list(paper_ids),
+        "lkm_packages_pulled": pulled,
     }
 
 
@@ -694,10 +747,32 @@ def assess_command(
         bool,
         typer.Option("--dry-run", help="Plan package/inquiry writes without applying them."),
     ] = False,
+    pull_paper: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--pull-paper",
+            help="Materialize this LKM paper id as a deep evidence package before assessment.",
+        ),
+    ] = None,
+    lkm_index: Annotated[
+        str,
+        typer.Option(
+            "--lkm-index",
+            "--lkm-server",
+            help="Configured LKM index id for --pull-paper.",
+        ),
+    ] = DEFAULT_LKM_INDEX_ID,
 ) -> None:
     """Assess one focus and sync review scaffolds into package/inquiry state."""
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
+    lkm_pull_payload = _pull_lkm_papers_or_exit(
+        research_pkg,
+        paper_ids=list(pull_paper or []),
+        lkm_index=lkm_index,
+        artifact_only=artifact_only,
+        dry_run=dry_run,
+    )
     landscape_paths = [Path(item) for item in landscape or []] or _latest_landscape_paths(
         research_pkg
     )
@@ -732,7 +807,7 @@ def assess_command(
             artifact_only=artifact_only,
             dry_run=dry_run,
         )
-        sync_payload = sync.to_payload()
+        sync_payload = {**sync.to_payload(), **lkm_pull_payload}
         items = assessment["evidence_packet"]["items"]
         relation_counts = _relation_type_counts(assessment["relations"])
         append_research_event(
@@ -778,6 +853,7 @@ def assess_command(
             "writes_inquiry": False,
             "relations": [],
             "promotion_hints": [],
+            **lkm_pull_payload,
         },
     )
 

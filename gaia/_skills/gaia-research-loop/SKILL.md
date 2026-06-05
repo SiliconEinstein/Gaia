@@ -161,6 +161,7 @@ gaia research assess "$PKG" \
   --focus <accepted_question_binding_or_focus_id> \
   --landscape "$SCAN" \
   --landscape "$EXPAND" \
+  --pull-paper <selected_lkm_paper_id> \
   --analysis-json "$RUN/analysis/assess-analysis.json"
 
 gaia research report "$PKG" \
@@ -172,6 +173,8 @@ Success criteria:
 
 - Review prose is readable as a mini-review, not a table dump.
 - Relations are grounded in artifact item refs.
+- Selected paper leads are pulled only here, with `--pull-paper`, when deep
+  paper graph evidence is needed.
 - Unresolved issues become inquiry obligations.
 - Natural-language findings become inquiry hypotheses or `note(...)`.
 - `candidate_relation(...)` appears only for relations with concrete

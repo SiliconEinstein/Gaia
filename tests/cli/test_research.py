@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -636,6 +637,91 @@ def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Pat
     events = _read_events(pkg_dir)
     assert events[-1]["event"] == "assess.completed"
     assert events[-1]["payload"]["artifact"].endswith(artifacts[0].name)
+
+
+def test_research_assess_pulls_selected_lkm_paper_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "deep assessment query",
+                [
+                    _lkm_row(
+                        "P_DEEP",
+                        "lkm:bohrium:deep_claim",
+                        0.95,
+                        paper_title="Deep Evidence Paper",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        [
+            "research",
+            "explore",
+            str(pkg_dir),
+            "--mode",
+            "scan",
+            "--search-json",
+            str(search_path),
+            "--no-materialize-sources",
+        ],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+
+    pull_calls: list[dict[str, object]] = []
+
+    def fake_add_lkm_paper_dependency(ref: Any, *, package_root: Path) -> Any:
+        pull_calls.append({"ref": ref.ref, "package_root": package_root})
+        return SimpleNamespace(
+            source_ref=ref.ref,
+            root=pkg_dir / ".gaia" / "lkm_packages" / "deep-paper-gaia",
+            dist_name="deep-paper-gaia",
+            import_name="deep_paper",
+            claim_count=2,
+            question_count=0,
+            dependency_count=1,
+        )
+
+    monkeypatch.setattr(
+        "gaia.cli.commands.research.add_lkm_paper_dependency",
+        fake_add_lkm_paper_dependency,
+        raising=False,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "seed",
+            "--landscape",
+            str(landscape_path),
+            "--pull-paper",
+            "P_DEEP",
+            "--lkm-index",
+            "bohrium",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "lkm_packages_pulled: 1" in result.output
+    assert pull_calls == [{"ref": "lkm:bohrium:paper:P_DEEP", "package_root": pkg_dir}]
+    events = _read_events(pkg_dir)
+    pulled = events[-1]["payload"]["lkm_packages_pulled"]
+    assert pulled[0]["source_ref"] == "lkm:bohrium:paper:P_DEEP"
+    assert pulled[0]["claim_count"] == 2
 
 
 def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> None:
