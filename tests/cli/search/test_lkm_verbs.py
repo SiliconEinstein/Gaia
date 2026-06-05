@@ -1226,7 +1226,11 @@ class TestReasoning:
                             "source_package": "paper:811827932371615744",
                             "graph": {
                                 "nodes": [
-                                    {"id": "lfac_leaf", "type": "factor", "kind": "strategy"},
+                                    {
+                                        "id": "lfac_leaf",
+                                        "type": "factor",
+                                        "kind": "reasoning_steps",
+                                    },
                                     {
                                         "id": "gcn_result",
                                         "type": "claim",
@@ -1602,15 +1606,15 @@ class TestPackage:
                             },
                             "addressed_problems": [
                                 {
-                                    "id": "paper:811827932371615744::problem",
-                                    "global_id": "gcn_problem",
+                                    "id": "paper:811827932371615744::problem_1",
+                                    "global_id": "gp_phase_stability",
                                     "content": "How can phase stability be controlled?",
                                 }
                             ],
                             "open_questions": [
                                 {
-                                    "id": "paper:811827932371615744::open_question",
-                                    "global_id": "gcn_open",
+                                    "id": "paper:811827932371615744::open_1",
+                                    "global_id": "gq_stability_mechanisms",
                                     "content": "Which stability mechanisms remain unresolved?",
                                 }
                             ],
@@ -1700,7 +1704,20 @@ class TestPackage:
         assert item["lkm_view"] == {
             "node_counts": {"claim": 2, "factor": 1, "question": 1},
             "edge_type_counts": {"concludes": 1, "highlight_of": 1, "subproblem_of": 1},
-            "logic_relations": [],
+            "addressed_problems": [
+                {
+                    "id": "paper:811827932371615744::problem_1",
+                    "global_id": "gp_phase_stability",
+                    "content": "How can phase stability be controlled?",
+                }
+            ],
+            "open_questions": [
+                {
+                    "id": "paper:811827932371615744::open_1",
+                    "global_id": "gq_stability_mechanisms",
+                    "content": "Which stability mechanisms remain unresolved?",
+                }
+            ],
         }
         assert item["actions"] == [
             {
@@ -1717,6 +1734,61 @@ class TestPackage:
                 "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
             }
         ]
+
+    def test_paper_graph_problem_refs_keep_ids_and_skip_malformed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # addressed_problems / open_questions keep the stable identifiers plus
+        # full text, drop entries with no usable field, and ignore non-dict junk.
+        _install_client(
+            monkeypatch,
+            response={
+                "code": 0,
+                "data": {
+                    "papers": [
+                        {
+                            "paper": {
+                                "en_title": "Problem refs",
+                                "id": "811827932371615744",
+                                "package_id": "paper:811827932371615744",
+                            },
+                            "addressed_problems": [
+                                {
+                                    "id": "paper:811827932371615744::problem_1",
+                                    "global_id": "gp_1",
+                                    "content": "Full problem statement.",
+                                },
+                                {"content": "Problem without ids."},
+                                {"score": 0.5},
+                                "not-a-dict",
+                            ],
+                            "open_questions": [
+                                {"global_id": "gq_1", "content": "Remaining question."}
+                            ],
+                            "graph": {"nodes": [], "edges": []},
+                        }
+                    ]
+                },
+            },
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "package", "--paper-id", "811827932371615744"],
+        )
+
+        assert result.exit_code == 0, result.output
+        view = json.loads(result.output)["results"][0]["lkm_view"]
+        assert view["addressed_problems"] == [
+            {
+                "id": "paper:811827932371615744::problem_1",
+                "global_id": "gp_1",
+                "content": "Full problem statement.",
+            },
+            {"content": "Problem without ids."},
+        ]
+        assert view["open_questions"] == [{"global_id": "gq_1", "content": "Remaining question."}]
+        assert "logic_relations" not in view
 
     def test_gaia_json_preserves_dict_shaped_wrapped_paper_graph(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1767,7 +1839,8 @@ class TestPackage:
         assert item["lkm_view"] == {
             "node_counts": {"claim": 1, "factor": 1},
             "edge_type_counts": {"concludes": 1},
-            "logic_relations": [],
+            "addressed_problems": [],
+            "open_questions": [],
         }
 
     def test_gaia_json_does_not_invent_add_ref_without_paper_id(

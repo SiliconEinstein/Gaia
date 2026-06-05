@@ -7,7 +7,6 @@ for downstream agents and future non-LKM providers.
 
 from __future__ import annotations
 
-import json
 from collections import Counter
 from enum import StrEnum
 from typing import Any
@@ -331,7 +330,8 @@ def _paper_graph_lkm_view(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "node_counts": _counts_by(nodes, "type"),
         "edge_type_counts": _counts_by(edges, "type"),
-        "logic_relations": _logic_relations_from_nodes(nodes),
+        "addressed_problems": _problem_refs(item.get("addressed_problems")),
+        "open_questions": _problem_refs(item.get("open_questions")),
     }
 
 
@@ -343,36 +343,24 @@ def _counts_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-def _logic_relations_from_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, str]]:
-    relations: list[dict[str, str]] = []
-    for node in nodes:
-        source = _string(node.get("id"))
-        if source is None:
+def _problem_refs(value: Any) -> list[dict[str, str]]:
+    """Map the graph API's ``addressed_problems`` / ``open_questions`` entries.
+
+    These top-level lists are the latest graph API's first-class way of stating
+    what a paper tackles and what it leaves open (superseding the old
+    node-metadata ``structural_edges`` encoding). Keep the stable identifiers
+    plus the full text so the package view is self-contained.
+    """
+    refs: list[dict[str, str]] = []
+    for entry in _list(value):
+        if not isinstance(entry, dict):
             continue
-        metadata = _metadata(node.get("metadata"))
-        for structural_edge in _list(metadata.get("structural_edges")):
-            if not isinstance(structural_edge, dict):
-                continue
-            relation = _string(structural_edge.get("type")) or _string(
-                structural_edge.get("relation")
-            )
-            target = _string(structural_edge.get("target"))
-            if relation is None or target is None:
-                continue
-            relations.append({"source": source, "relation": relation, "target": target})
-    return relations
-
-
-def _metadata(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
-    if not (text := _string(value)):
-        return {}
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        return {}
-    return _dict(parsed)
+        ref = {
+            key: text for key in ("id", "global_id", "content") if (text := _string(entry.get(key)))
+        }
+        if ref:
+            refs.append(ref)
+    return refs
 
 
 def _gaia_identity(object_kind: str | None) -> dict[str, str | None]:
@@ -512,6 +500,13 @@ def _reasoning_view_from_factors(chain: dict[str, Any]) -> dict[str, Any]:
     return view
 
 
+# Edge types that link a question/subproblem to the conclusion it motivates
+# (rather than a claim premise into a factor). The reasoning view (which turns
+# them into ``questions``) and the graph premise count (which must exclude them)
+# have to agree on this set, so keep it in one place.
+_QUESTION_RELATION_EDGE_TYPES = frozenset({"motivates", "subproblem_of"})
+
+
 def _reasoning_view_from_graph(graph: dict[str, Any]) -> dict[str, Any]:
     view = _empty_reasoning_view()
     nodes = _graph_nodes(graph)
@@ -532,7 +527,7 @@ def _reasoning_view_from_graph(graph: dict[str, Any]) -> dict[str, Any]:
         if source_id is None:
             continue
         source = nodes_by_id.get(source_id, {"id": source_id})
-        if edge_type in {"motivates", "subproblem_of"}:
+        if edge_type in _QUESTION_RELATION_EDGE_TYPES:
             if target_id in conclusion_ids and _string(source.get("type")) == "question":
                 questions.append(_knowledge_ref(source))
             continue
@@ -695,11 +690,11 @@ def _graph_factor_premise_count(
     for edge in edges:
         if _string(edge.get("target")) != factor_id:
             continue
-        if _string(edge.get("type")) in (
-            None,
-            "motivates",
-            "subproblem_of",
-            "concludes",
+        edge_type = _string(edge.get("type"))
+        if (
+            edge_type is None
+            or edge_type == "concludes"
+            or edge_type in _QUESTION_RELATION_EDGE_TYPES
         ):
             continue
         source = nodes_by_id.get(_string(edge.get("source")) or "") or {}
