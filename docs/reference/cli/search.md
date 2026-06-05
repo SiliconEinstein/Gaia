@@ -15,11 +15,10 @@ gaia search lkm auth ...                    Manage the LKM access key
 ```
 
 The current implementation is an LKM provider adapter. Search-oriented LKM
-verbs return Gaia-normalized JSON by default and write pretty JSON to stdout or
-to `--out PATH`.
-
-Use `--format raw-json` on `knowledge`, `reasoning`, or `package` to
-inspect the upstream LKM JSON envelope directly.
+verbs write the raw LKM JSON response to stdout, or to `--out PATH`.
+Gaia follow-up hints are printed on stderr by default, so redirecting stdout or
+using `--out` preserves machine-readable JSON. Use `--no-hint` to suppress
+those hints.
 
 `reasoning --claim-id` asks LKM for the graph-shaped reasoning response by
 default (`format=graph`). In practice this means Gaia receives a small claim /
@@ -46,24 +45,18 @@ The `search` group is provider-shaped by design:
   Gaia-native result envelope.
 
 Search commands should not mutate the current project. They may suggest
-follow-up actions, but package materialization, installation, and dependency
-changes belong to `gaia pkg add`. In normalized JSON, action `kind` + `ref` are the stable
-machine-readable contract; `next_steps` is only a human/agent hint, matching
-the broader Gaia CLI convention of printing "Next" guidance after scaffold or
-registration workflows.
+follow-up actions on stderr, but package materialization, installation, and
+dependency changes belong to `gaia pkg add`.
 
-LKM refs include the LKM index id so multiple backends can coexist without id
-collisions. Gaia emits canonical refs such as `lkm:bohrium:paper:<paper_id>`
-and `lkm:bohrium:claim:<claim_id>`; short refs like `lkm:paper:<paper_id>` are
-only compatibility aliases for the default index. Human-facing next steps
-should prefer explicit flags, for example
+LKM source identities include the LKM index id so multiple backends can coexist
+without id collisions. Gaia accepts canonical refs such as
+`lkm:bohrium:paper:<paper_id>` and `lkm:bohrium:claim:<claim_id>` in `gaia pkg
+add`; human-facing hints prefer explicit flags, for example
 `gaia pkg add --lkm-index bohrium --lkm-paper <paper_id>`.
 
-LKM paper results are name-first and id-backed. Search results and action labels
-should show the paper title when available (`source.paper_title`,
-`actions[].label`), while `actions[].ref` and `source.paper_id` remain the
-stable identity used by `gaia pkg add`, registry lookup, and local package
-metadata.
+LKM paper results are name-first and id-backed in the upstream payload. Paper
+titles remain display metadata; paper ids remain the stable identity used by
+`gaia pkg add`, registry lookup, and local package metadata.
 
 `gaia pkg add --lkm-index <id> --lkm-paper <paper-id>` consumes the paper action
 ref by fetching `/papers/graph`, generating a project-local Gaia package under
@@ -76,46 +69,21 @@ formal Gaia reasoning edge in IR/BP.
 
 LKM retrieval scores are ranking signals only. They must not be copied into
 Gaia priors, beliefs, or warrant strengths.
-Normalized results expose this same ranking signal as `relevance_score` and
-`rank.score`; both mean "how relevant this LKM hit was to the search", not "how
-true the claim is".
 
-`reasoning` returns reasoning-chain search results. Normalized results expose
-`source.factors` as a per-factor list of `{factor_id, premise_count}` derived
-from `graph.nodes` and `graph.edges`. A factor node with incoming claim edges
-and a `concludes` edge is a candidate Gaia `derive(...)`. A factor with a
-`concludes` edge but no incoming claim premises is not a reasoning failure and
-is not lowered to `derive(..., given=[])`; in reasoning search it usually means
-the result is an intermediate paper-chain node whose upstream premises are
-outside this slice. Normalized `gaia-json` keeps the factor, adds a non-warning
-`comment` on that `source.factors[]` entry, and includes an `inspect` action
-whose `next_steps` runs
-`gaia search lkm package --index <index> --paper-id <paper>` so agents can fetch
-the whole paper package and recover the prior reasoning-chain/conclusion chain
-that the current conclusion depends on. A factor with incoming claim premises
-but no `concludes` edge is an incomplete LKM payload, not a valid continuation
-and not a candidate `derive(...)`; normalized `gaia-json` leaves
-`gaia.object_kind` unset and annotates that `source.factors[]` entry with a
-`warning`.
+`reasoning` returns raw reasoning-chain search results. In graph-shaped
+responses, Gaia reads `factor --concludes--> claim` as the conclusion being
+produced by that reasoning step. Incoming claim edges such as
+`previous_conclusion_of`, `weakpoint_of`, and `highlight_of` are dependencies of
+the reasoning step. A factor with no usable incoming dependencies is incomplete
+context, not a valid `derive(..., given=[])`.
 
-For graph-shaped claim reasoning, Gaia reads `factor --concludes--> claim` as
-the conclusion being produced by that reasoning step. Incoming claim edges such
-as `previous_conclusion_of`, `weakpoint_of`, and `highlight_of` are shown in
-`reasoning_view` as dependencies of the reasoning step:
-`depends_on_previous_conclusion_claims`, `depends_on_weakness_claims`, and
-`depends_on_highlight_claims`. Other incoming claim edges to the factor are
-kept as `depends_on_other_claims`. The original LKM relation names are still
-kept in the raw payload.
-
-`package` results include `lkm_view`, a compact summary of the paper graph:
-`node_type_counts`, `node_kind_counts`, `edge_type_counts`,
-`addressed_problems`, and `open_questions`. Paper-level
+`package` returns the raw paper graph under `data.papers[]`. Paper-level
 `addressed_problems` / `open_questions` stay next to the graph; conclusion
 dependencies are read from `graph.edges` such as `previous_conclusion_of`,
 `weakpoint_of`, `highlight_of`, `subproblem_of`, and `concludes`.
 
-The planned normalized result schema and the `search` / `pkg add` boundary are
-tracked in the internal draft `docs/specs/2026-05-20-gaia-search-design.md`.
+The `search` / `pkg add` boundary is tracked in
+`docs/specs/2026-05-20-gaia-search-design.md`.
 
 ## Implementation
 

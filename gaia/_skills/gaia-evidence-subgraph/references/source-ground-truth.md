@@ -1,6 +1,6 @@
 # Chain-Payload Audit Discipline
 
-LKM chain payloads (`gaia search lkm knowledge` recall + `gaia search lkm reasoning --claim-id <id> --format raw-json` chains) are this skill's **single source of truth**. Current claim-reasoning payloads are graph-shaped by default (`reasoning_chains[].graph.nodes[]` / `graph.edges[]`). Every node in the graph and every audit row must trace back into that JSON — no external paper text, no agent paraphrase, no synthetic bridging.
+LKM chain payloads (`gaia search lkm knowledge` recall + `gaia search lkm reasoning --claim-id <id>` chains) are this skill's **single source of truth**. Current claim-reasoning payloads are graph-shaped by default (`reasoning_chains[].graph.nodes[]` / `graph.edges[]`). Every node in the graph and every audit row must trace back into that JSON — no external paper text, no agent paraphrase, no synthetic bridging.
 
 ## Why the discipline matters
 
@@ -67,5 +67,5 @@ If the chain you receive is missing a sub-model the user expected to see, run ta
 
 ## Caching
 
-- Persist the raw `gaia search lkm reasoning --claim-id … --format raw-json` JSON (and the `gaia search lkm knowledge … --format raw-json` JSON that surfaced the candidate) under the run's working folder. The audit anchors are line-item references into that JSON; without the JSON the anchors lose meaning.
+- Persist the raw `gaia search lkm reasoning --claim-id …` stdout JSON (and the `gaia search lkm knowledge …` stdout JSON that surfaced the candidate) under the run's working folder. The audit anchors are line-item references into that JSON; without the JSON the anchors lose meaning.
 - Re-issue `evidence` if more than a few minutes pass between discovery and graph build — the corpus may have moved, and an anchor that used to resolve may not after a re-fetch. When this happens, prefer re-pinning the anchor over editing the graph.

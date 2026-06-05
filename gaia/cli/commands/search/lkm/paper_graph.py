@@ -13,7 +13,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_paper_graph
+from gaia.cli.commands.search.lkm._hints import package_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     emit,
@@ -56,14 +56,10 @@ def package_command(
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
-    output_format: Annotated[
-        SearchOutputFormat,
-        typer.Option(
-            "--format",
-            help="Output format: raw upstream JSON or normalized Gaia search JSON.",
-            case_sensitive=False,
-        ),
-    ] = SearchOutputFormat.GAIA_JSON,
+    no_hint: Annotated[
+        bool,
+        typer.Option("--no-hint", help="Do not print Gaia next-step hints to stderr."),
+    ] = False,
 ) -> None:
     """Fetch an LKM paper package candidate (POST /papers/graph)."""
     index_id = validate_lkm_index(index)
@@ -103,11 +99,16 @@ def package_command(
         body["title_resolve"] = {"limit": title_resolve_limit}
 
     payload = run_request("POST", "/papers/graph", json_body=body, index_id=index_id)
-    if output_format == SearchOutputFormat.GAIA_JSON:
-        query_text = next(iter(supplied.values()))
-        payload = normalize_lkm_paper_graph(
-            payload,
-            query=str(query_text),
-            index_id=index_id,
-        )
-    emit(payload, out)
+    requested_paper_id = paper_id or _paper_id_from_package_id(package_id)
+    emit(
+        payload,
+        out,
+        hint=package_hint(payload, index_id=index_id, requested_paper_id=requested_paper_id),
+        show_hint=not no_hint,
+    )
+
+
+def _paper_id_from_package_id(package_id: str | None) -> str | None:
+    if package_id is None or not package_id.startswith("paper:"):
+        return None
+    return package_id.split(":", 1)[1]

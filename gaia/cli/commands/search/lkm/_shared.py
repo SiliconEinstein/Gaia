@@ -126,13 +126,25 @@ def _business_message(payload: dict[str, Any]) -> str:
     return ""
 
 
-def emit(payload: dict[str, Any], out: Path | None) -> None:
-    """Render ``payload`` as pretty JSON to ``out`` (atomic) or stdout."""
+def emit(
+    payload: dict[str, Any],
+    out: Path | None,
+    *,
+    hint: str | None = None,
+    show_hint: bool = True,
+) -> None:
+    """Render ``payload`` as pretty JSON to ``out`` (atomic) or stdout.
+
+    Hints are Gaia CLI affordances, not part of the LKM payload. They are
+    therefore written to stderr so stdout / ``--out`` stay raw LKM JSON.
+    """
     text = json.dumps(payload, ensure_ascii=False, indent=2)
     if out is None:
         typer.echo(text)
-        return
-    _atomic_write(out, text + "\n")
+    else:
+        _atomic_write(out, text + "\n")
+    if show_hint and hint:
+        typer.echo(hint, err=True)
 
 
 def _atomic_write(path: Path, text: str) -> None:

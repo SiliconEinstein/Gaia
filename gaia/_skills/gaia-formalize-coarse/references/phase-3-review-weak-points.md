@@ -517,14 +517,14 @@ with `gaia search lkm <verb> --help`.
    too generic, supplement with one or two distinctive anchor phrases
    from the paper's contribution sentences (Phase 1 working notes are a
    good source). Filter to claim-typed nodes with reasoning backing so
-   the next step has something to trace. Use `--format raw-json` so the
-   verbatim LKM envelope (`data` search results with `provenance`, plus
-   `data.papers`) is preserved for the provenance filter in step 3.
+   the next step has something to trace. The default stdout JSON is the
+   verbatim LKM envelope (`data.variables` with `provenance`) used for
+   the provenance filter in step 3.
 
    ```bash
    gaia search lkm knowledge "<paper title or anchor phrase>" \
      --scopes claim --reasoning-only \
-     --limit 50 --format raw-json --out search.json
+     --limit 50 --out search.json
    ```
 
 3. **Filter the raw search-result entries** for entries whose
@@ -538,7 +538,7 @@ with `gaia search lkm <verb> --help`.
 
    ```bash
    gaia search lkm reasoning --claim-id <gcn_id> \
-     --max-chains 10 --format raw-json --out reasoning_<gcn_id>.json
+     --max-chains 10 --out reasoning_<gcn_id>.json
    ```
 
    Some claims may come back with no reasoning chains

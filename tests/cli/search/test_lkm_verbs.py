@@ -109,6 +109,43 @@ class TestKnowledge:
         assert body["retrieval_mode"] == "hybrid"
         assert body["filters"] == {"visibility": "public"}
 
+    def test_default_emits_raw_json_with_gaia_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "variables": [
+                    {
+                        "id": "gcn_579430355a0e4bbd",
+                        "type": "claim",
+                        "has_reasoning": True,
+                        "provenance": {
+                            "source_packages": ["paper:811827932371615744"],
+                        },
+                    }
+                ]
+            },
+        }
+        _install_client(monkeypatch, response=payload)
+
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "perovskite"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert "gaia search lkm reasoning --index bohrium --claim-id gcn_579430355a0e4bbd" in (
+            result.stderr
+        )
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
+
+    def test_no_hint_suppresses_gaia_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = {"code": 0, "data": {"variables": [{"id": "gcn_1", "type": "claim"}]}}
+        _install_client(monkeypatch, response=payload)
+
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q", "--no-hint"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert result.stderr == ""
+
     def test_accepts_default_server_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
         result = runner.invoke(
@@ -116,7 +153,7 @@ class TestKnowledge:
             ["search", "lkm", "knowledge", "perovskite", "--server", "BOHRIUM"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+        assert json.loads(result.stdout)["code"] == 0
 
     def test_accepts_index_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
@@ -125,7 +162,7 @@ class TestKnowledge:
             ["search", "lkm", "knowledge", "perovskite", "--index", "BOHRIUM"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+        assert json.loads(result.stdout)["code"] == 0
 
     def test_index_url_can_come_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("GAIA_LKM_INDEX_PRIVATE_URL", "https://example.test/lkm")
@@ -135,7 +172,7 @@ class TestKnowledge:
             ["search", "lkm", "knowledge", "perovskite", "--index", "private"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["index_id"] == "private"
+        assert json.loads(result.stdout)["code"] == 0
         assert _FakeClient.last_init_kwargs == {"base_url": "https://example.test/lkm"}
 
     def test_index_id_normalizes_underscore_to_dash(
@@ -149,7 +186,7 @@ class TestKnowledge:
             ["search", "lkm", "knowledge", "perovskite", "--index", "private_index"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["index_id"] == "private-index"
+        assert json.loads(result.stdout)["code"] == 0
         assert _FakeClient.last_init_kwargs == {"base_url": "https://example.test/lkm"}
 
     def test_rejects_unknown_server_before_request(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -306,106 +343,18 @@ class TestKnowledge:
         assert "context deadline exceeded" in result.output
 
     def test_out_writes_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        _install_client(monkeypatch, response={"code": 0, "msg": "ok", "n": 1})
+        payload = {"code": 0, "msg": "ok", "n": 1}
+        _install_client(monkeypatch, response=payload)
         dest = tmp_path / "nested" / "out.json"
         result = runner.invoke(
             app,
-            ["search", "lkm", "knowledge", "q", "--format", "raw-json", "--out", str(dest)],
+            ["search", "lkm", "knowledge", "q", "--out", str(dest)],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(dest.read_text())["code"] == 0
+        assert result.stdout == ""
+        assert json.loads(dest.read_text()) == payload
 
-    def test_default_normalizes_knowledge_results(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "has_more": True,
-                    "papers": {
-                        "paper:811827932371615744": {
-                            "doi": "10.1016/j.jpcs.2021.110374",
-                            "en_title": "FAPbI3 processing paper",
-                            "id": "811827932371615744",
-                        }
-                    },
-                    "variables": [
-                        {
-                            "content": "Annealing at 120 C maximizes alpha phase.",
-                            "has_evidence": True,
-                            "has_reasoning": True,
-                            "id": "gcn_579430355a0e4bbd",
-                            "provenance": {
-                                "representative_lcn": {
-                                    "local_id": "paper:811827932371615744::conclusion_4",
-                                    "package_id": "paper:811827932371615744",
-                                    "version": "2.0.0",
-                                },
-                                "source_packages": ["paper:811827932371615744"],
-                            },
-                            "role": "conclusion",
-                            "score": 0.97,
-                            "title": "Annealing temperature controls alpha-phase growth",
-                            "type": "claim",
-                        }
-                    ],
-                },
-            },
-        )
-
-        result = runner.invoke(
-            app,
-            ["search", "lkm", "knowledge", "FAPbI3"],
-        )
-
-        assert result.exit_code == 0, result.output
-        out = json.loads(result.output)
-        assert out["schema_version"] == 1
-        assert out["query"] == {
-            "text": "FAPbI3",
-            "provider": "lkm",
-            "kind": "knowledge",
-            "index_id": "bohrium",
-        }
-        assert out["pagination"] == {"has_more": True}
-        item = out["results"][0]
-        assert item["id"] == "lkm:bohrium:gcn_579430355a0e4bbd"
-        assert item["kind"] == "claim"
-        assert item["relevance_score"] == 0.97
-        assert item["rank"] == {"score": 0.97, "score_kind": "retrieval"}
-        assert item["gaia"]["object_kind"] == "claim"
-        assert item["source"]["paper_id"] == "811827932371615744"
-        assert item["source"]["index_id"] == "bohrium"
-        assert item["source"]["paper_title"] == "FAPbI3 processing paper"
-        assert item["source"]["doi"] == "10.1016/j.jpcs.2021.110374"
-        assert item["source"]["role"] == "conclusion"
-        assert item["actions"] == [
-            {
-                "kind": "inspect",
-                "ref": "lkm:bohrium:claim:gcn_579430355a0e4bbd",
-                "label": 'Inspect claim "Annealing temperature controls alpha-phase growth"',
-                "next_steps": (
-                    "gaia search lkm reasoning --index bohrium --claim-id gcn_579430355a0e4bbd"
-                ),
-            },
-            {
-                "kind": "add",
-                "ref": "lkm:bohrium:paper:811827932371615744",
-                "label": 'Add paper "FAPbI3 processing paper"',
-                "target": {
-                    "kind": "paper",
-                    "title": "FAPbI3 processing paper",
-                    "doi": "10.1016/j.jpcs.2021.110374",
-                    "index_id": "bohrium",
-                    "paper_id": "811827932371615744",
-                },
-                "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
-            },
-        ]
-        assert item["raw"]["provider"] == "lkm"
-        assert item["raw"]["payload"]["id"] == "gcn_579430355a0e4bbd"
-
-    def test_gaia_json_omits_inspect_when_claim_has_no_reasoning(
+    def test_claim_without_reasoning_has_no_inspect_hint(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -432,51 +381,8 @@ class TestKnowledge:
         )
 
         assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["actions"] == []
-
-    def test_gaia_json_maps_question_variables_to_question(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "variables": [
-                        {
-                            "content": "Which phase conversion pathway dominates?",
-                            "id": "gq_123",
-                            "provenance": {
-                                "source_packages": ["paper:811827932371615744"],
-                            },
-                            "title": "Phase conversion question",
-                            "type": "question",
-                        }
-                    ],
-                },
-            },
-        )
-
-        result = runner.invoke(
-            app,
-            [
-                "search",
-                "lkm",
-                "knowledge",
-                "phase conversion",
-                "--scopes",
-                "question",
-                "--format",
-                "gaia-json",
-            ],
-        )
-
-        assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert json.loads(result.output)["query"]["kind"] == "question"
-        assert item["kind"] == "question"
-        assert item["gaia"]["object_kind"] == "question"
+        assert json.loads(result.stdout)["data"]["variables"][0]["id"] == "gcn_no_reasoning"
+        assert "gaia search lkm reasoning" not in result.stderr
 
     def test_single_question_scope_dispatches_query_kind_to_question(
         self, monkeypatch: pytest.MonkeyPatch
@@ -496,42 +402,7 @@ class TestKnowledge:
         )
 
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"] == {
-            "text": "open problem",
-            "provider": "lkm",
-            "kind": "question",
-            "index_id": "bohrium",
-        }
-
-    def test_gaia_json_maps_unknown_variable_types_to_note(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "variables": [
-                        {
-                            "content": "Provider-specific context node.",
-                            "id": "gctx_123",
-                            "title": "Provider context",
-                            "type": "provider_context",
-                        }
-                    ],
-                },
-            },
-        )
-
-        result = runner.invoke(
-            app,
-            ["search", "lkm", "knowledge", "context", "--format", "gaia-json"],
-        )
-
-        assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["kind"] == "note"
-        assert item["gaia"]["object_kind"] == "note"
+        assert _FakeClient.last_call["json_body"]["scopes"] == ["question"]
 
 
 # --------------------------------------------------------------------------- #
@@ -551,7 +422,7 @@ class TestReasoning:
         )
         result = runner.invoke(
             app,
-            ["search", "lkm", "reasoning", "--claim-id", "gcn_abc123", "--format", "raw-json"],
+            ["search", "lkm", "reasoning", "--claim-id", "gcn_abc123"],
         )
         assert result.exit_code == 0, result.output
         call = _FakeClient.last_call
@@ -588,7 +459,7 @@ class TestReasoning:
         assert result.exit_code == 0, result.output
         call = _FakeClient.last_call
         assert call["path"] == "/claims/gcn_abc123/reasoning"
-        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+        assert json.loads(result.stdout)["code"] == 0
 
     def test_prefixed_positional_claim_id_routes_to_claim_mode(
         self, monkeypatch: pytest.MonkeyPatch
@@ -604,7 +475,7 @@ class TestReasoning:
         )
         result = runner.invoke(
             app,
-            ["search", "lkm", "reasoning", "lkm:bohrium:gcn_abc123", "--format", "raw-json"],
+            ["search", "lkm", "reasoning", "lkm:bohrium:gcn_abc123"],
         )
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["path"] == "/claims/gcn_abc123/reasoning"
@@ -678,7 +549,7 @@ class TestReasoning:
             ],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+        assert json.loads(result.stdout)["code"] == 0
         assert _FakeClient.last_call["path"] == "/claims/gcn_abc123/reasoning"
 
     def test_positional_claim_id_fetches_claim_reasoning(
@@ -701,8 +572,6 @@ class TestReasoning:
                 "gcn_abc123",
                 "--max-chains",
                 "3",
-                "--format",
-                "raw-json",
             ],
         )
         assert result.exit_code == 0, result.output
@@ -721,7 +590,7 @@ class TestReasoning:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
-            ["search", "lkm", "reasoning", "thermal stability", "--format", "raw-json"],
+            ["search", "lkm", "reasoning", "thermal stability"],
         )
         assert result.exit_code == 0, result.output
         call = _FakeClient.last_call
@@ -734,7 +603,7 @@ class TestReasoning:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok"})
         result = runner.invoke(
             app,
-            ["search", "lkm", "reasoning", "--claim-id", "a/b c", "--format", "raw-json"],
+            ["search", "lkm", "reasoning", "--claim-id", "a/b c"],
         )
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["path"] == "/claims/a%2Fb%20c/reasoning"
@@ -750,10 +619,10 @@ class TestReasoning:
         )
         result = runner.invoke(
             app,
-            ["search", "lkm", "reasoning", "--claim-id", "x", "--format", "raw-json"],
+            ["search", "lkm", "reasoning", "--claim-id", "x"],
         )
         assert result.exit_code == 0, result.output
-        out = json.loads(result.output)
+        out = json.loads(result.stdout)
         assert out["data"]["reasoning_chains"] == [{"id": 1}]
         assert out["data"]["total_chains"] == 1
         assert "reasoning_chains" not in out
@@ -797,424 +666,41 @@ class TestReasoning:
         assert "--limit" in result.output
         assert _FakeClient.last_call == {}
 
-    def test_default_marks_zero_premise_graph_factor_as_package_context(
+    def test_claim_reasoning_emits_raw_json_with_paper_hint(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "chain_id": "paper_7",
-                            "paper_id": "811",
-                            "score": 0.42,
-                            "graph": {
-                                "nodes": [
-                                    {
-                                        "id": "lfac_thermal",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                    {
-                                        "id": "gcn_thermal",
-                                        "type": "claim",
-                                        "kind": "conclusion",
-                                        "title": "Thermal stability",
-                                        "content": "The device is thermally stable.",
-                                    },
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "concludes",
-                                        "source": "lfac_thermal",
-                                        "target": "gcn_thermal",
-                                    }
-                                ],
-                            },
-                        }
-                    ]
-                },
+        payload = {
+            "code": 0,
+            "data": {
+                "reasoning_chains": [
+                    {
+                        "source_package": "paper:811827932371615744",
+                        "graph": {"nodes": [], "edges": []},
+                    }
+                ]
             },
-        )
-
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
-
-        assert result.exit_code == 0, result.output
-        out = json.loads(result.output)
-        assert out["query"] == {
-            "text": "thermal stability",
-            "provider": "lkm",
-            "kind": "reasoning",
-            "index_id": "bohrium",
         }
-        item = out["results"][0]
-        assert item["id"] == "lkm:bohrium:paper_7"
-        assert item["kind"] == "reasoning_chain"
-        assert item["gaia"]["object_kind"] is None
-        assert item["source"]["paper_id"] == "811"
-        assert item["source"]["index_id"] == "bohrium"
-        assert item["source"]["paper_title"] is None
-        assert item["source"]["conclusion_id"] == "gcn_thermal"
-        assert item["source"]["factors"] == [
-            {
-                "factor_id": "lfac_thermal",
-                "premise_count": 0,
-                "comment": "premises omitted; inspect package for upstream reasoning context",
-            }
-        ]
-        assert item["actions"] == [
-            {
-                "kind": "inspect",
-                "ref": "lkm:bohrium:paper:811",
-                "label": "Inspect paper",
-                "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
-            },
-            {
-                "kind": "add",
-                "ref": "lkm:bohrium:paper:811",
-                "label": "Add LKM paper 811",
-                "target": {
-                    "kind": "paper",
-                    "title": None,
-                    "doi": None,
-                    "index_id": "bohrium",
-                    "paper_id": "811",
-                },
-                "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811",
-            },
-        ]
-
-    def test_default_marks_complete_chain_as_derive_object(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "id": "chain_1",
-                            "source_package": "paper:811",
-                            "graph": {
-                                "nodes": [
-                                    {
-                                        "id": "gcn_premise",
-                                        "type": "claim",
-                                        "kind": "conclusion",
-                                        "title": "Premise",
-                                    },
-                                    {
-                                        "id": "lfac_1",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                        "steps": [{"reasoning": "Compare results."}],
-                                    },
-                                    {
-                                        "id": "gcn_result",
-                                        "type": "claim",
-                                        "kind": "conclusion",
-                                        "title": "Result",
-                                    },
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "previous_conclusion_of",
-                                        "source": "gcn_premise",
-                                        "target": "lfac_1",
-                                    },
-                                    {
-                                        "type": "concludes",
-                                        "source": "lfac_1",
-                                        "target": "gcn_result",
-                                    },
-                                ],
-                            },
-                        }
-                    ]
-                },
-            },
-        )
-
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
-
-        assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["kind"] == "reasoning_chain"
-        assert item["gaia"]["object_kind"] == "derive"
-        assert item["source"]["factors"] == [{"factor_id": "lfac_1", "premise_count": 1}]
-
-    def test_default_uses_graph_factor_id_not_local_id(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "id": "chain_1",
-                            "source_package": "paper:811",
-                            "graph": {
-                                "nodes": [
-                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
-                                    {
-                                        "id": "gfac_phase",
-                                        "local_id": "lfac_phase",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "previous_conclusion_of",
-                                        "source": "gcn_premise",
-                                        "target": "gfac_phase",
-                                    },
-                                    {
-                                        "type": "concludes",
-                                        "source": "gfac_phase",
-                                        "target": "gcn_result",
-                                    },
-                                ],
-                            },
-                        }
-                    ]
-                },
-            },
-        )
-
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
-
-        assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["source"]["factors"] == [{"factor_id": "gfac_phase", "premise_count": 1}]
-
-    def test_default_warns_premised_graph_factor_without_conclusion(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "id": "chain_1",
-                            "paper_id": "811",
-                            "graph": {
-                                "nodes": [
-                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
-                                    {
-                                        "id": "fac_missing_conclusion",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "previous_conclusion_of",
-                                        "source": "gcn_premise",
-                                        "target": "fac_missing_conclusion",
-                                    }
-                                ],
-                            },
-                        }
-                    ]
-                },
-            },
-        )
-
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
-
-        assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["gaia"]["object_kind"] is None
-        assert item["source"]["factors"] == [
-            {
-                "factor_id": "fac_missing_conclusion",
-                "premise_count": 1,
-                "warning": "missing factor conclusion; cannot derive from this factor",
-            }
-        ]
-        assert item["actions"] == [
-            {
-                "kind": "inspect",
-                "ref": "lkm:bohrium:paper:811",
-                "label": "Inspect paper",
-                "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
-            },
-            {
-                "kind": "add",
-                "ref": "lkm:bohrium:paper:811",
-                "label": "Add LKM paper 811",
-                "target": {
-                    "kind": "paper",
-                    "title": None,
-                    "doi": None,
-                    "index_id": "bohrium",
-                    "paper_id": "811",
-                },
-                "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811",
-            },
-        ]
-
-    def test_default_marks_zero_premise_factor_as_package_context_required(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "id": "chain_1",
-                            "paper_id": "811",
-                            "graph": {
-                                "nodes": [
-                                    {
-                                        "id": "gfac_intermediate",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "concludes",
-                                        "source": "gfac_intermediate",
-                                        "target": "gcn_result",
-                                    }
-                                ],
-                            },
-                        }
-                    ]
-                },
-            },
-        )
-
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
-
-        assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["gaia"]["object_kind"] is None
-        assert item["source"]["factors"] == [
-            {
-                "factor_id": "gfac_intermediate",
-                "premise_count": 0,
-                "comment": "premises omitted; inspect package for upstream reasoning context",
-            }
-        ]
-        assert item["actions"][0] == {
-            "kind": "inspect",
-            "ref": "lkm:bohrium:paper:811",
-            "label": "Inspect paper",
-            "next_steps": "gaia search lkm package --index bohrium --paper-id 811",
-        }
-
-    def test_claim_reasoning_uses_factor_id_when_chain_id_is_missing(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "graph": {
-                                "nodes": [
-                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
-                                    {
-                                        "id": "gfac_2d9b044b8de74fe4",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "previous_conclusion_of",
-                                        "source": "gcn_premise",
-                                        "target": "gfac_2d9b044b8de74fe4",
-                                    },
-                                    {
-                                        "type": "concludes",
-                                        "source": "gfac_2d9b044b8de74fe4",
-                                        "target": "gcn_result",
-                                    },
-                                ],
-                            }
-                        }
-                    ],
-                },
-            },
-        )
+        _install_client(monkeypatch, response=payload)
 
         result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
 
         assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["id"] == "lkm:bohrium:gfac_2d9b044b8de74fe4"
-        assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
-        assert item["source"]["index_id"] == "bohrium"
+        assert json.loads(result.stdout) == payload
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
 
-    def test_claim_reasoning_uses_graph_factor_id_when_chain_id_is_missing(
+    def test_claim_reasoning_without_paper_hints_claim_resolution(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "graph": {
-                                "nodes": [
-                                    {"id": "gcn_premise", "type": "claim", "title": "Premise"},
-                                    {
-                                        "id": "gfac_2d9b044b8de74fe4",
-                                        "local_id": "lfac_local",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                    {"id": "gcn_result", "type": "claim", "title": "Result"},
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "previous_conclusion_of",
-                                        "source": "gcn_premise",
-                                        "target": "gfac_2d9b044b8de74fe4",
-                                    },
-                                    {
-                                        "type": "concludes",
-                                        "source": "gfac_2d9b044b8de74fe4",
-                                        "target": "gcn_result",
-                                    },
-                                ],
-                            }
-                        }
-                    ],
-                },
-            },
-        )
+        payload = {"code": 0, "data": {"reasoning_chains": []}}
+        _install_client(monkeypatch, response=payload)
 
         result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
 
         assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["id"] == "lkm:bohrium:gfac_2d9b044b8de74fe4"
-        assert item["source"]["provider_id"] == "gfac_2d9b044b8de74fe4"
-        assert item["source"]["factors"] == [
-            {"factor_id": "gfac_2d9b044b8de74fe4", "premise_count": 1}
-        ]
+        assert json.loads(result.stdout) == payload
+        assert "gaia pkg add --lkm-index bohrium --lkm-claim gcn_result" in result.stderr
 
-    def test_claim_reasoning_graph_uses_semantic_dependency_names(
+    def test_query_reasoning_emits_raw_json_with_paper_hint(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(
@@ -1298,117 +784,13 @@ class TestReasoning:
             },
         )
 
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
+        result = runner.invoke(app, ["search", "lkm", "reasoning", "thermal stability"])
 
         assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["id"] == "lkm:bohrium:lfac_1"
-        assert item["gaia"]["object_kind"] == "derive"
-        assert item["source"]["has_factors"] is True
-        assert item["source"]["can_compile"] is True
-        assert item["reasoning_view"] == {
-            "conclusion_claim": {
-                "id": "gcn_result",
-                "title": "Final result",
-                "type": "claim",
-                "kind": "conclusion",
-            },
-            "questions": [
-                {
-                    "id": "paper:811::question",
-                    "content": "Why does the model work?",
-                    "type": "question",
-                    "kind": "subproblem",
-                }
-            ],
-            "depends_on_previous_conclusion_claims": [
-                {
-                    "id": "gcn_prev",
-                    "title": "Previous result",
-                    "type": "claim",
-                    "kind": "conclusion",
-                }
-            ],
-            "depends_on_weakness_claims": [
-                {
-                    "id": "gcn_weak",
-                    "title": "Known limitation",
-                    "type": "claim",
-                    "kind": "weak_point",
-                }
-            ],
-            "depends_on_highlight_claims": [
-                {
-                    "id": "gcn_highlight",
-                    "title": "Key observation",
-                    "type": "claim",
-                    "kind": "highlight",
-                }
-            ],
-            "depends_on_other_claims": [],
-            "reasoning_steps": [{"reasoning": "Combine the evidence."}],
-        }
-
-    def test_claim_reasoning_graph_zero_premise_factor_flags_package_context(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # A graph factor that concludes a claim but carries no premise edges is
-        # an intermediate paper-chain node whose upstream premises live in the
-        # package: it must NOT be labeled derivable, and it must surface the
-        # package-context comment plus an inspect action.
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "reasoning_chains": [
-                        {
-                            "source_package": "paper:811827932371615744",
-                            "graph": {
-                                "nodes": [
-                                    {
-                                        "id": "lfac_leaf",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                    {
-                                        "id": "gcn_result",
-                                        "type": "claim",
-                                        "kind": "conclusion",
-                                        "title": "Final result",
-                                    },
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "concludes",
-                                        "source": "lfac_leaf",
-                                        "target": "gcn_result",
-                                    },
-                                ],
-                            },
-                        }
-                    ]
-                },
-            },
+        assert json.loads(result.stdout)["data"]["reasoning_chains"][0]["source_package"] == (
+            "paper:811"
         )
-
-        result = runner.invoke(app, ["search", "lkm", "reasoning", "--claim-id", "gcn_result"])
-
-        assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["gaia"]["object_kind"] is None
-        assert item["source"]["can_compile"] is False
-        assert item["source"]["has_factors"] is True
-        assert item["source"]["factors"] == [
-            {
-                "factor_id": "lfac_leaf",
-                "premise_count": 0,
-                "comment": "premises omitted; inspect package for upstream reasoning context",
-            }
-        ]
-        inspect_actions = [action for action in item["actions"] if action["kind"] == "inspect"]
-        assert inspect_actions, item["actions"]
-        assert "811827932371615744" in inspect_actions[0]["next_steps"]
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 811" in result.stderr
 
 
 # --------------------------------------------------------------------------- #
@@ -1486,7 +868,8 @@ class TestPackage:
             ["search", "lkm", "package", "--server", "bohrium", "--paper-id", "p1"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+        assert json.loads(result.stdout)["code"] == 0
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper p1" in result.stderr
 
     def test_accepts_index_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1495,7 +878,8 @@ class TestPackage:
             ["search", "lkm", "package", "--index", "bohrium", "--paper-id", "p1"],
         )
         assert result.exit_code == 0, result.output
-        assert json.loads(result.output)["query"]["index_id"] == "bohrium"
+        assert json.loads(result.stdout)["code"] == 0
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper p1" in result.stderr
 
     def test_no_identifier_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1541,94 +925,93 @@ class TestPackage:
         result = runner.invoke(app, ["search", "lkm", "package", "--doi", "d"])
         assert result.exit_code == 1, result.output
 
-    def test_default_normalizes_paper_graph_as_package(
+    def test_default_emits_raw_paper_graph_with_package_hint(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "papers": [
+                    {
+                        "paper": {
+                            "doi": "10.1016/j.jpcs.2021.110374",
+                            "en_abstract": "A facile all-dip-coating deposition is proposed.",
+                            "en_title": "Controlling phase and morphology",
+                            "id": "811827932371615744",
+                            "package_id": "paper:811827932371615744",
+                        },
+                        "stats": {
+                            "factors_total": 2,
+                            "variables_total": 25,
+                        },
+                        "addressed_problems": [
+                            {
+                                "id": "paper:811827932371615744::problem_1",
+                                "global_id": "gp_phase_stability",
+                                "content": "How can phase stability be controlled?",
+                            }
+                        ],
+                        "open_questions": [
+                            {
+                                "id": "paper:811827932371615744::open_1",
+                                "global_id": "gq_stability_mechanisms",
+                                "content": "Which stability mechanisms remain unresolved?",
+                            }
+                        ],
+                        "graph": {
+                            "nodes": [
+                                {
+                                    "id": "paper:811827932371615744::conclusion_1_subproblem",
+                                    "type": "question",
+                                    "kind": "subproblem",
+                                    "content": (
+                                        "Which local condition supports the phase-stability "
+                                        "conclusion?"
+                                    ),
+                                },
+                                {
+                                    "id": "paper:811827932371615744::conclusion_1",
+                                    "type": "claim",
+                                    "kind": "conclusion",
+                                    "title": "Annealing controls phase stability",
+                                },
+                                {
+                                    "id": "paper:811827932371615744::highlight_1",
+                                    "type": "claim",
+                                    "kind": "highlight",
+                                    "content": "120 C gives the best alpha phase.",
+                                },
+                                {
+                                    "id": "lfac_1",
+                                    "type": "factor",
+                                    "kind": "reasoning_steps",
+                                },
+                            ],
+                            "edges": [
+                                {
+                                    "type": "subproblem_of",
+                                    "source": ("paper:811827932371615744::conclusion_1_subproblem"),
+                                    "target": "paper:811827932371615744::conclusion_1",
+                                },
+                                {
+                                    "type": "highlight_of",
+                                    "source": "paper:811827932371615744::highlight_1",
+                                    "target": "lfac_1",
+                                },
+                                {
+                                    "type": "concludes",
+                                    "source": "lfac_1",
+                                    "target": "paper:811827932371615744::conclusion_1",
+                                },
+                            ],
+                        },
+                    }
+                ]
+            },
+        }
         _install_client(
             monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "papers": [
-                        {
-                            "paper": {
-                                "doi": "10.1016/j.jpcs.2021.110374",
-                                "en_abstract": "A facile all-dip-coating deposition is proposed.",
-                                "en_title": "Controlling phase and morphology",
-                                "id": "811827932371615744",
-                                "package_id": "paper:811827932371615744",
-                            },
-                            "stats": {
-                                "factors_total": 2,
-                                "variables_total": 25,
-                            },
-                            "addressed_problems": [
-                                {
-                                    "id": "paper:811827932371615744::problem_1",
-                                    "global_id": "gp_phase_stability",
-                                    "content": "How can phase stability be controlled?",
-                                }
-                            ],
-                            "open_questions": [
-                                {
-                                    "id": "paper:811827932371615744::open_1",
-                                    "global_id": "gq_stability_mechanisms",
-                                    "content": "Which stability mechanisms remain unresolved?",
-                                }
-                            ],
-                            "graph": {
-                                "nodes": [
-                                    {
-                                        "id": ("paper:811827932371615744::conclusion_1_subproblem"),
-                                        "type": "question",
-                                        "kind": "subproblem",
-                                        "content": (
-                                            "Which local condition supports the phase-stability "
-                                            "conclusion?"
-                                        ),
-                                    },
-                                    {
-                                        "id": "paper:811827932371615744::conclusion_1",
-                                        "type": "claim",
-                                        "kind": "conclusion",
-                                        "title": "Annealing controls phase stability",
-                                    },
-                                    {
-                                        "id": "paper:811827932371615744::highlight_1",
-                                        "type": "claim",
-                                        "kind": "highlight",
-                                        "content": "120 C gives the best alpha phase.",
-                                    },
-                                    {
-                                        "id": "lfac_1",
-                                        "type": "factor",
-                                        "kind": "reasoning_steps",
-                                    },
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "subproblem_of",
-                                        "source": (
-                                            "paper:811827932371615744::conclusion_1_subproblem"
-                                        ),
-                                        "target": "paper:811827932371615744::conclusion_1",
-                                    },
-                                    {
-                                        "type": "highlight_of",
-                                        "source": "paper:811827932371615744::highlight_1",
-                                        "target": "lfac_1",
-                                    },
-                                    {
-                                        "type": "concludes",
-                                        "source": "lfac_1",
-                                        "target": "paper:811827932371615744::conclusion_1",
-                                    },
-                                ],
-                            },
-                        }
-                    ]
-                },
-            },
+            response=payload,
         )
 
         result = runner.invoke(
@@ -1643,150 +1026,40 @@ class TestPackage:
         )
 
         assert result.exit_code == 0, result.output
-        out = json.loads(result.output)
-        assert out["query"] == {
-            "text": "811827932371615744",
-            "provider": "lkm",
-            "kind": "package",
-            "index_id": "bohrium",
-        }
-        item = out["results"][0]
-        assert item["id"] == "lkm:bohrium:paper:811827932371615744"
-        assert item["kind"] == "package"
-        assert item["gaia"]["object_kind"] == "package"
-        assert item["title"] == "Controlling phase and morphology"
-        assert item["source"]["source_package"] == "paper:811827932371615744"
-        assert item["source"]["index_id"] == "bohrium"
-        assert item["source"]["paper_title"] == "Controlling phase and morphology"
-        assert item["source"]["stats"]["variables_total"] == 25
-        assert item["lkm_view"] == {
-            "node_type_counts": {"claim": 2, "factor": 1, "question": 1},
-            "node_kind_counts": {
-                "conclusion": 1,
-                "highlight": 1,
-                "reasoning_steps": 1,
-                "subproblem": 1,
-            },
-            "edge_type_counts": {"concludes": 1, "highlight_of": 1, "subproblem_of": 1},
-            "addressed_problems": [
-                {
-                    "id": "paper:811827932371615744::problem_1",
-                    "global_id": "gp_phase_stability",
-                    "content": "How can phase stability be controlled?",
-                }
-            ],
-            "open_questions": [
-                {
-                    "id": "paper:811827932371615744::open_1",
-                    "global_id": "gq_stability_mechanisms",
-                    "content": "Which stability mechanisms remain unresolved?",
-                }
-            ],
-        }
-        assert item["actions"] == [
-            {
-                "kind": "add",
-                "ref": "lkm:bohrium:paper:811827932371615744",
-                "label": 'Add paper "Controlling phase and morphology"',
-                "target": {
-                    "kind": "paper",
-                    "title": "Controlling phase and morphology",
-                    "doi": "10.1016/j.jpcs.2021.110374",
-                    "index_id": "bohrium",
-                    "paper_id": "811827932371615744",
-                },
-                "next_steps": ("gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"),
-            }
-        ]
+        assert json.loads(result.stdout) == payload
+        assert "results" not in json.loads(result.stdout)
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
 
-    def test_paper_graph_problem_refs_keep_ids_and_skip_malformed(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # addressed_problems / open_questions keep the stable identifiers plus
-        # full text, drop entries with no usable field, and ignore non-dict junk.
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "papers": [
-                        {
-                            "paper": {
-                                "en_title": "Problem refs",
-                                "id": "811827932371615744",
-                                "package_id": "paper:811827932371615744",
+    def test_raw_paper_graph_preserves_problem_refs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "papers": [
+                    {
+                        "paper": {
+                            "en_title": "Problem refs",
+                            "id": "811827932371615744",
+                            "package_id": "paper:811827932371615744",
+                        },
+                        "addressed_problems": [
+                            {
+                                "id": "paper:811827932371615744::problem_1",
+                                "global_id": "gp_1",
+                                "content": "Full problem statement.",
                             },
-                            "addressed_problems": [
-                                {
-                                    "id": "paper:811827932371615744::problem_1",
-                                    "global_id": "gp_1",
-                                    "content": "Full problem statement.",
-                                },
-                                {"content": "Problem without ids."},
-                                {"score": 0.5},
-                                "not-a-dict",
-                            ],
-                            "open_questions": [
-                                {"global_id": "gq_1", "content": "Remaining question."}
-                            ],
-                            "graph": {"nodes": [], "edges": []},
-                        }
-                    ]
-                },
-            },
-        )
-
-        result = runner.invoke(
-            app,
-            ["search", "lkm", "package", "--paper-id", "811827932371615744"],
-        )
-
-        assert result.exit_code == 0, result.output
-        view = json.loads(result.output)["results"][0]["lkm_view"]
-        assert view["addressed_problems"] == [
-            {
-                "id": "paper:811827932371615744::problem_1",
-                "global_id": "gp_1",
-                "content": "Full problem statement.",
-            },
-            {"content": "Problem without ids."},
-        ]
-        assert view["open_questions"] == [{"global_id": "gq_1", "content": "Remaining question."}]
-        assert "logic_relations" not in view
-
-    def test_gaia_json_preserves_dict_shaped_wrapped_paper_graph(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _install_client(
-            monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "papers": {
-                        "paper:811827932371615744": {
-                            "paper": {
-                                "en_title": "Dict shaped paper",
-                                "id": "811827932371615744",
-                                "package_id": "paper:811827932371615744",
-                            },
-                            "graph": {
-                                "nodes": [
-                                    {"id": "gcn_result", "type": "claim"},
-                                    {"id": "lfac_1", "type": "factor"},
-                                ],
-                                "edges": [
-                                    {
-                                        "type": "concludes",
-                                        "source": "lfac_1",
-                                        "target": "gcn_result",
-                                    }
-                                ],
-                            },
-                            "stats": {"variables_total": 2},
-                        }
+                            {"content": "Problem without ids."},
+                            {"score": 0.5},
+                            "not-a-dict",
+                        ],
+                        "open_questions": [{"global_id": "gq_1", "content": "Remaining question."}],
+                        "graph": {"nodes": [], "edges": []},
                     }
-                },
+                ]
             },
+        }
+        _install_client(
+            monkeypatch,
+            response=payload,
         )
 
         result = runner.invoke(
@@ -1795,37 +1068,72 @@ class TestPackage:
         )
 
         assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["id"] == "lkm:bohrium:paper:811827932371615744"
-        assert item["title"] == "Dict shaped paper"
-        assert item["source"]["paper_id"] == "811827932371615744"
-        assert item["source"]["stats"] == {"variables_total": 2}
-        assert item["lkm_view"] == {
-            "node_type_counts": {"claim": 1, "factor": 1},
-            "node_kind_counts": {},
-            "edge_type_counts": {"concludes": 1},
-            "addressed_problems": [],
-            "open_questions": [],
-        }
+        assert json.loads(result.stdout) == payload
 
-    def test_gaia_json_does_not_invent_add_ref_without_paper_id(
+    def test_raw_package_preserves_dict_shaped_wrapped_paper_graph(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "papers": {
+                    "paper:811827932371615744": {
+                        "paper": {
+                            "en_title": "Dict shaped paper",
+                            "id": "811827932371615744",
+                            "package_id": "paper:811827932371615744",
+                        },
+                        "graph": {
+                            "nodes": [
+                                {"id": "gcn_result", "type": "claim"},
+                                {"id": "lfac_1", "type": "factor"},
+                            ],
+                            "edges": [
+                                {
+                                    "type": "concludes",
+                                    "source": "lfac_1",
+                                    "target": "gcn_result",
+                                }
+                            ],
+                        },
+                        "stats": {"variables_total": 2},
+                    }
+                }
+            },
+        }
         _install_client(
             monkeypatch,
-            response={
-                "code": 0,
-                "data": {
-                    "papers": [
-                        {
-                            "paper": {
-                                "en_title": "Unresolved paper candidate",
-                            },
-                            "stats": {"variables_total": 1},
-                        }
-                    ]
-                },
+            response=payload,
+        )
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "package", "--paper-id", "811827932371615744"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
+
+    def test_title_result_without_paper_id_has_no_hint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "papers": [
+                    {
+                        "paper": {
+                            "en_title": "Unresolved paper candidate",
+                        },
+                        "stats": {"variables_total": 1},
+                    }
+                ]
             },
+        }
+        _install_client(
+            monkeypatch,
+            response=payload,
         )
 
         result = runner.invoke(
@@ -1834,10 +1142,43 @@ class TestPackage:
         )
 
         assert result.exit_code == 0, result.output
-        item = json.loads(result.output)["results"][0]
-        assert item["id"] == "lkm:bohrium:package:0"
-        assert item["source"]["paper_id"] is None
-        assert item["source"]["source_package"] is None
-        assert item["source"]["paper_title"] == "Unresolved paper candidate"
-        assert item["source"]["index_id"] == "bohrium"
-        assert item["actions"] == []
+        assert json.loads(result.stdout) == payload
+        assert result.stderr == ""
+
+    def test_no_hint_suppresses_package_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = {"code": 0, "msg": "ok"}
+        _install_client(monkeypatch, response=payload)
+
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "package", "--paper-id", "811827932371615744", "--no-hint"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert result.stderr == ""
+
+    def test_out_writes_raw_package_file_and_hint_to_stderr(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        payload = {"code": 0, "data": {"papers": []}}
+        _install_client(monkeypatch, response=payload)
+        dest = tmp_path / "nested" / "paper_graph.json"
+
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "package",
+                "--paper-id",
+                "811827932371615744",
+                "--out",
+                str(dest),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.stdout == ""
+        assert json.loads(dest.read_text()) == payload
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)

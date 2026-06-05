@@ -16,9 +16,9 @@ description: |
   CJK-safe fonts and labels. Domain-agnostic: physics, chemistry, materials,
   biology, ML, climate, astrophysics, etc. Input is an LKM chain payload,
   fetched via `gaia search lkm knowledge "<root>"` to surface the root and
-  `gaia search lkm reasoning --claim-id <id> --format raw-json` for the
+  `gaia search lkm reasoning --claim-id <id>` for the
   chains (graph-shaped by default) + the `data.papers` metadata block (use
-  `--format raw-json` — the verbatim envelope is the audit substrate under
+  the default stdout JSON — the verbatim envelope is the audit substrate under
   `raw/`). The graph is
   strictly chain-bounded — only LKM-returned premises and their explicit
   content are admitted as nodes; no synthetic bridging from external sources.
@@ -49,7 +49,7 @@ The skill text below is domain-agnostic. Every domain-specific term in the produ
 
 ## Input
 
-The skill is invoked with a single root claim id and the corresponding LKM chain payload — the `gaia search lkm reasoning --claim-id <id> --format raw-json` output (and, if available, the `gaia search lkm knowledge "<root>" --format raw-json` output that surfaced the root). Claim-reasoning payloads are graph-shaped: each chain carries `graph.nodes[]` and `graph.edges[]`. The root's conclusion text names a system / setting and a quantitative result. The skill does not perform discovery; it does not select among candidates. Callers (or the user directly) supply the chosen root id.
+The skill is invoked with a single root claim id and the corresponding LKM chain payload — the `gaia search lkm reasoning --claim-id <id>` stdout JSON (and, if available, the `gaia search lkm knowledge "<root>"` stdout JSON that surfaced the root). Claim-reasoning payloads are graph-shaped: each chain carries `graph.nodes[]` and `graph.edges[]`. The root's conclusion text names a system / setting and a quantitative result. The skill does not perform discovery; it does not select among candidates. Callers (or the user directly) supply the chosen root id.
 
 If invoked with a chain-less claim id (`total_chains == 0`), stop and report the gate failure. Do not invent premises.
 
@@ -60,7 +60,7 @@ Every successful invocation leaves on disk:
 - a structured graph artifact (`evidence_graph.json`) capturing nodes, edges, and per-element source pointers into the LKM payload (RFC 6901 JSON Pointer convention against the verbatim raw payload);
 - the canonical re-renderable graph source (`evidence_graph.dot`, or `evidence_graph.mmd` when Mermaid is the chosen renderer);
 - a human-readable raster (`evidence_graph.png`, plus optionally SVG/PDF);
-- the verbatim LKM raw payloads under `raw/` (at minimum `evidence_<root-gcn-id>.json` — the `gaia search lkm reasoning --claim-id … --format raw-json` envelope; if a `gaia search lkm knowledge … --format raw-json` recall was consulted to surface the root, also `match_NN.json`); raw payloads are never modified, pretty-printed, or stripped — they are the audit substrate the source pointers resolve against;
+- the verbatim LKM raw payloads under `raw/` (at minimum `evidence_<root-gcn-id>.json` — the `gaia search lkm reasoning --claim-id …` stdout JSON; if a `gaia search lkm knowledge …` recall was consulted to surface the root, also `match_NN.json`); raw payloads are never modified, pretty-printed, or stripped — they are the audit substrate the source pointers resolve against;
 - an audit table (rows per non-trivial edge — see §6) co-located with the graph artifacts.
 
 The audit table and every node/edge in `evidence_graph.json` carry a chain-payload anchor (graph node id, graph edge, premise `gcn_*`, factor `gfac_*` / `lfac_*`, `factor.steps[j].reasoning`, or claim content) so a reader can trace any element back to the LKM JSON. Anchor discipline is canonical in `references/source-ground-truth.md` — read it before producing output.
