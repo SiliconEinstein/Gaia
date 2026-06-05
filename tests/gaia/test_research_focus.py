@@ -20,7 +20,7 @@ def _landscape() -> dict[str, object]:
             {
                 "id": "candidate_focus_query_0",
                 "question": "What are the main evidence tensions around aspirin?",
-                "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                "evidence_refs": [{"kind": "variable", "id": "variable_0"}],
             }
         ],
     }
@@ -37,7 +37,7 @@ def _focus(**overrides: object) -> dict[str, object]:
         "readiness": "ready_for_assess",
         "scope": {"population": "older adults", "endpoint": "net benefit"},
         "coverage": {"items": 3, "missing": []},
-        "evidence_refs": [{"kind": "item", "id": "item_0"}],
+        "evidence_refs": [{"kind": "variable", "id": "variable_0"}],
         "suggested_queries": [],
     }
     focus.update(overrides)
@@ -53,7 +53,7 @@ def test_focus_synthesis_accepts_llm_analysis_payload() -> None:
                 {
                     "kind": "missing_endpoint",
                     "description": "缺少颅内出血终点的分层证据。",
-                    "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                    "evidence_refs": [{"kind": "variable", "id": "variable_0"}],
                 }
             ],
             "notes": ["由 agent/LLM 从 landscape 中聚类生成。"],

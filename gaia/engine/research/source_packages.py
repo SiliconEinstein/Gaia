@@ -253,6 +253,7 @@ def _init_source(
             {
                 "item_id": item.get("item_id"),
                 "kind": item.get("kind"),
+                "value_type": call_name,
                 "variable_type": item.get("variable_type"),
                 "variable_id": _item_variable_id(item),
                 "paper_id": _item_source(item).get("paper_id"),
@@ -352,7 +353,7 @@ def attach_source_package_refs(
     landscape: JsonDict,
     source_packages: list[ResearchSourcePackage],
 ) -> JsonDict:
-    """Attach generated package claim refs to matching landscape items."""
+    """Attach generated package refs to matching landscape items."""
     package_payloads = [source_package.to_payload() for source_package in source_packages]
     refs_by_item: dict[str, JsonDict] = {}
     for source_package in source_packages:
@@ -360,7 +361,8 @@ def attach_source_package_refs(
             item_id = item_ref.get("item_id")
             if isinstance(item_id, str) and item_id:
                 refs_by_item[item_id] = {
-                    "kind": "package_claim",
+                    "kind": "package_ref",
+                    "value_type": item_ref.get("value_type"),
                     "package": item_ref.get("package"),
                     "import_name": item_ref.get("import_name"),
                     "namespace": item_ref.get("namespace"),
@@ -376,7 +378,7 @@ def attach_source_package_refs(
                 continue
             item_id = item.get("item_id")
             if isinstance(item_id, str) and item_id in refs_by_item:
-                item["source_package_ref"] = refs_by_item[item_id]
+                item["package_ref"] = refs_by_item[item_id]
     landscape["source_packages"] = package_payloads
     return landscape
 

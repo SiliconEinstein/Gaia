@@ -82,7 +82,8 @@ def test_research_landscape_dedupes_leads_and_preserves_provenance() -> None:
     assert p1["variable_ids"] == ["n1", "n3"]
     assert p1["result_count"] == 2
     assert "retrieved_snippets" not in payload
-    assert payload["items"][0]["item_id"] == "item_0"
+    assert payload["items"][0]["item_id"] == "n1"
+    assert payload["items"][0]["display_index"] == 0
     assert payload["items"][0]["kind"] == "variable"
     assert payload["items"][0]["id"] == "n1"
     assert payload["items"][0]["variable_type"] == "claim"

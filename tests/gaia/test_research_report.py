@@ -20,7 +20,7 @@ def test_report_renders_focus_synthesis_markdown() -> None:
                     "status": "candidate",
                     "rationale": "ASPREE 同时涉及无心血管获益和出血增加。",
                     "coverage": {"items": 4, "paper_leads": 2},
-                    "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                    "evidence_refs": [{"kind": "variable", "id": "v1"}],
                     "suggested_queries": ["aspirin elderly bleeding"],
                 }
             ],
@@ -40,7 +40,7 @@ def test_report_renders_focus_synthesis_markdown() -> None:
     assert "老年人一级预防净获益是否为正？" in markdown
     assert "missing_subgroup" in markdown
     assert "aspirin elderly bleeding" in markdown
-    assert "item:item_0" in markdown
+    assert "variable:v1" in markdown
 
 
 def test_report_renders_assessment_markdown() -> None:
@@ -50,7 +50,7 @@ def test_report_renders_assessment_markdown() -> None:
             "kind": "assessment",
             "focus": {"kind": "focus", "id": "elderly_net_benefit"},
             "evidence_packet": {
-                "items": [{"item_id": "item_0", "kind": "variable", "id": "v1"}],
+                "items": [{"item_id": "v1", "kind": "variable", "id": "v1"}],
                 "paper_leads": [{"paper_id": "P1", "title": "ASPREE trial"}],
             },
             "citations": [
@@ -60,7 +60,7 @@ def test_report_renders_assessment_markdown() -> None:
                     "paper_id": "P1",
                     "title": "ASPREE trial",
                     "doi": "10.1056/aspree",
-                    "item_ids": ["item_0", "item_1"],
+                    "item_ids": ["v1"],
                     "variable_ids": ["v1"],
                 },
                 {
@@ -68,7 +68,8 @@ def test_report_renders_assessment_markdown() -> None:
                     "source_kind": "paper",
                     "paper_id": "P2",
                     "title": "Does aspirin help?",
-                    "item_ids": ["item_2"],
+                    "item_ids": ["v2"],
+                    "variable_ids": ["v2"],
                 },
             ],
             "relations": [
@@ -78,7 +79,7 @@ def test_report_renders_assessment_markdown() -> None:
                     "rationale": "无心血管获益且大出血增加。",
                     "epistemic_status": "candidate",
                     "promotion_hint": "none",
-                    "source_refs": [{"kind": "item", "id": "item_0"}],
+                    "source_refs": [{"kind": "variable", "id": "v1"}],
                 }
             ],
             "review": {
@@ -87,20 +88,20 @@ def test_report_renders_assessment_markdown() -> None:
                 "title": "阿司匹林一级预防的净获益",
                 "abstract": "阿司匹林一级预防需要在心血管获益与出血风险之间权衡。",
                 "key_points": [
-                    "老年人证据提示常规使用的净获益不足。[item:item_0]",
+                    "老年人证据提示常规使用的净获益不足。[variable:v1]",
                     "后续需要按风险分层比较绝对获益与危害。",
                 ],
-                "summary": "老年人净获益不足。[item:item_0][item:item_1] 后续仍需风险分层。",
+                "summary": "老年人净获益不足。[variable:v1][paper:P1] 后续仍需风险分层。",
                 "sections": [
                     {
                         "title": "老年人证据",
-                        "body": "ASPREE 指向无获益。[item:item_0]",
+                        "body": "ASPREE 指向无获益。[variable:v1]",
                     },
                     {
                         "title": "证据合并",
                         "body": (
-                            "联合证据应合并引用。[item:item_2][item:item_0] "
-                            "系统误差来源，[item:item_0] 而不是统计噪声。"
+                            "联合证据应合并引用。[paper:P2][variable:v1] "
+                            "系统误差来源，[variable:v1] 而不是统计噪声。"
                         ),
                     },
                 ],
@@ -127,7 +128,7 @@ def test_report_renders_assessment_markdown() -> None:
                 {
                     "kind": "needs_more_evidence",
                     "content": "补充绝对风险差。",
-                    "source_refs": [{"kind": "item", "id": "item_0"}],
+                    "source_refs": [{"kind": "variable", "id": "v1"}],
                 }
             ],
         }
@@ -149,7 +150,7 @@ def test_report_renders_assessment_markdown() -> None:
     assert "反对常规使用" in markdown
     assert "## 图表建议" in markdown
     assert "阿司匹林一级预防的获益-风险矩阵" in markdown
-    assert "[item:item_0]" not in markdown
+    assert "[variable:v1]" not in markdown
     assert "## 参考文献" in markdown
     assert "## Evidence Interpretation" not in markdown
     assert "| type | claim |" not in markdown

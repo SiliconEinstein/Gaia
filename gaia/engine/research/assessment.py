@@ -21,7 +21,9 @@ VALID_RELATIONS = set(RELATION_PROMOTION_HINTS)
 VALID_PROMOTION_HINTS = {
     hint for allowed_hints in RELATION_PROMOTION_HINTS.values() for hint in allowed_hints
 }
-INLINE_ITEM_REF_RE = re.compile(r"\[item:([A-Za-z0-9_.:-]+)\]")
+INLINE_REF_RE = re.compile(
+    r"\[(variable|factor|chain|package|paper|package_ref):([A-Za-z0-9_.:-]+)\]"
+)
 
 
 class AssessmentSchemaError(ValueError):
@@ -91,11 +93,11 @@ def _cited_ref_ids(
     review: dict[str, Any] | None = None,
 ) -> dict[str, set[str]]:
     cited: dict[str, set[str]] = {
-        "item": set(),
         "variable": set(),
         "factor": set(),
         "chain": set(),
         "package": set(),
+        "package_ref": set(),
         "paper": set(),
     }
     for ref in _iter_source_refs([*relations, *candidate_obligations]):
@@ -103,25 +105,31 @@ def _cited_ref_ids(
         ref_id = _source_ref_id(ref)
         if isinstance(kind, str) and kind in cited and ref_id:
             cited[kind].add(ref_id)
-    for item_id in _inline_item_refs(review):
-        cited["item"].add(item_id)
+    for kind, ref_id in _inline_refs(review):
+        cited[kind].add(ref_id)
     return cited
 
 
-def _inline_item_refs(value: Any) -> list[str]:
-    refs: list[str] = []
+def _inline_refs(value: Any) -> list[tuple[str, str]]:
+    refs: list[tuple[str, str]] = []
     if isinstance(value, str):
-        for ref in INLINE_ITEM_REF_RE.findall(value):
-            _append_unique(refs, ref)
+        for kind, ref_id in INLINE_REF_RE.findall(value):
+            _append_unique_ref(refs, (kind, ref_id))
     elif isinstance(value, dict):
         for nested in value.values():
-            for ref in _inline_item_refs(nested):
-                _append_unique(refs, ref)
+            for ref in _inline_refs(nested):
+                _append_unique_ref(refs, ref)
     elif isinstance(value, list):
         for nested in value:
-            for ref in _inline_item_refs(nested):
-                _append_unique(refs, ref)
+            for ref in _inline_refs(nested):
+                _append_unique_ref(refs, ref)
     return refs
+
+
+def _append_unique_ref(values: list[tuple[str, str]], value: tuple[str, str]) -> None:
+    kind, ref_id = value
+    if kind and ref_id and value not in values:
+        values.append(value)
 
 
 def _append_unique(values: list[str], value: Any) -> None:
@@ -130,20 +138,23 @@ def _append_unique(values: list[str], value: Any) -> None:
 
 
 def _item_matches_cited_refs(item: dict[str, Any], cited: dict[str, set[str]]) -> bool:
-    item_id = item.get("item_id")
     kind = item.get("kind")
     source_id = item.get("id")
     source = item.get("source")
     paper_id = source.get("paper_id") if isinstance(source, dict) else None
+    package_ref_payload = item.get("package_ref")
+    package_ref = (
+        package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
+    )
     return (
-        (isinstance(item_id, str) and item_id in cited["item"])
-        or (
+        (
             isinstance(kind, str)
             and kind in cited
             and isinstance(source_id, str)
             and source_id in cited[kind]
         )
         or (isinstance(paper_id, str) and paper_id in cited["paper"])
+        or (isinstance(package_ref, str) and package_ref in cited["package_ref"])
     )
 
 
@@ -221,6 +232,21 @@ def _citations_from_refs(
     return citations
 
 
+def _stable_item_id(item: dict[str, Any], fallback: str) -> str:
+    kind = item.get("kind")
+    source_id = item.get("id")
+    if isinstance(kind, str) and kind != "item" and isinstance(source_id, str) and source_id:
+        return source_id
+    item_id = item.get("item_id")
+    if isinstance(item_id, str) and item_id:
+        return item_id
+    source = item.get("source")
+    paper_id = source.get("paper_id") if isinstance(source, dict) else None
+    if isinstance(paper_id, str) and paper_id:
+        return paper_id
+    return fallback
+
+
 def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[str, Any]:
     """Collect reference items and paper leads from landscape artifacts."""
     items: list[dict[str, Any]] = []
@@ -239,11 +265,9 @@ def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[s
             if not isinstance(raw_item, dict):
                 continue
             item = dict(raw_item)
-            original_item_id = item.get("item_id")
-            item["item_id"] = f"item_{len(items)}"
+            item["item_id"] = _stable_item_id(item, f"item_{len(items)}")
+            item.setdefault("display_index", len(items))
             item["landscape_index"] = landscape_index
-            if isinstance(original_item_id, str) and original_item_id:
-                item["landscape_item_id"] = original_item_id
             items.append(item)
         for raw_lead in landscape.get("paper_leads", []):
             if isinstance(raw_lead, dict):
@@ -267,6 +291,7 @@ def build_assessment_from_landscapes(
     items = evidence_packet["items"]
 
     focus_id = focus.get("id", "focus")
+    item_source_refs = [_source_ref_for_item(item) for item in items]
     relations = [
         {
             "type": "background_for",
@@ -274,9 +299,10 @@ def build_assessment_from_landscapes(
             "rationale": "The item was retrieved by a landscape query selected for this focus.",
             "epistemic_status": "candidate",
             "promotion_hint": "none",
-            "source_refs": [{"kind": "item", "id": item["item_id"]}],
+            "source_refs": [source_ref],
         }
-        for item in items
+        for source_ref in item_source_refs
+        if source_ref is not None
     ]
     if not relations:
         relations.append(
@@ -300,7 +326,9 @@ def build_assessment_from_landscapes(
                 "Classify whether the retrieved items support, oppose, qualify, "
                 "or undercut the focus."
             ),
-            "source_refs": [{"kind": "item", "id": item["item_id"]} for item in items],
+            "source_refs": [
+                source_ref for source_ref in item_source_refs if source_ref is not None
+            ],
         }
     ]
     artifact = build_assessment_artifact(
@@ -315,12 +343,13 @@ def build_assessment_from_landscapes(
 
 def _empty_grounding_ids() -> dict[str, set[str]]:
     return {
-        "item": set(),
         "variable": set(),
         "factor": set(),
         "chain": set(),
         "package": set(),
+        "package_ref": set(),
         "paper": set(),
+        "focus": set(),
     }
 
 
@@ -335,13 +364,15 @@ def _add_paper_grounding(ids: dict[str, set[str]], paper_id: Any) -> None:
 
 
 def _add_item_grounding(ids: dict[str, set[str]], item: dict[str, Any]) -> None:
-    _add_grounding_id(ids, "item", item.get("item_id"))
     kind = item.get("kind")
-    if isinstance(kind, str) and kind in ids and kind != "item":
+    if isinstance(kind, str) and kind in ids:
         _add_grounding_id(ids, kind, item.get("id"))
     source = item.get("source")
     if isinstance(source, dict):
         _add_paper_grounding(ids, source.get("paper_id"))
+    package_ref_payload = item.get("package_ref")
+    if isinstance(package_ref_payload, dict):
+        _add_grounding_id(ids, "package_ref", package_ref_payload.get("ref"))
 
 
 def _add_paper_lead_grounding(ids: dict[str, set[str]], lead: dict[str, Any]) -> None:
@@ -350,8 +381,36 @@ def _add_paper_lead_grounding(ids: dict[str, set[str]], lead: dict[str, Any]) ->
         _add_grounding_id(ids, "variable", variable_id)
 
 
-def _valid_grounding_ids(evidence_packet: dict[str, Any]) -> dict[str, set[str]]:
+def _source_ref_for_item(item: dict[str, Any]) -> dict[str, str] | None:
+    kind = item.get("kind")
+    source_id = item.get("id")
+    if (
+        isinstance(kind, str)
+        and kind in {"variable", "factor", "chain", "package"}
+        and isinstance(source_id, str)
+        and source_id
+    ):
+        return {"kind": kind, "id": source_id}
+    source = item.get("source")
+    paper_id = source.get("paper_id") if isinstance(source, dict) else None
+    if isinstance(paper_id, str) and paper_id:
+        return {"kind": "paper", "id": paper_id}
+    package_ref_payload = item.get("package_ref")
+    package_ref = (
+        package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
+    )
+    if isinstance(package_ref, str) and package_ref:
+        return {"kind": "package_ref", "id": package_ref}
+    return None
+
+
+def _valid_grounding_ids(
+    evidence_packet: dict[str, Any],
+    *,
+    focus: dict[str, Any],
+) -> dict[str, set[str]]:
     ids = _empty_grounding_ids()
+    _add_grounding_id(ids, "focus", focus.get("id"))
     items = evidence_packet.get("items", [])
     if isinstance(items, list):
         for item in items:
@@ -369,7 +428,8 @@ def _valid_grounding_ids(evidence_packet: dict[str, Any]) -> dict[str, set[str]]
 def validate_assessment_grounding(artifact: dict[str, Any]) -> dict[str, Any]:
     """Validate that relation refs resolve inside the assessment evidence packet."""
     evidence_packet = _require_dict(artifact.get("evidence_packet"), "evidence_packet")
-    valid_ids = _valid_grounding_ids(evidence_packet)
+    focus = _require_dict(artifact.get("focus"), "focus")
+    valid_ids = _valid_grounding_ids(evidence_packet, focus=focus)
     for relation_index, relation in enumerate(artifact.get("relations", [])):
         relation_payload = _require_dict(relation, f"relations[{relation_index}]")
         for ref_index, ref in enumerate(relation_payload.get("source_refs", [])):
@@ -378,7 +438,12 @@ def validate_assessment_grounding(artifact: dict[str, Any]) -> dict[str, Any]:
             )
             kind = _require_non_empty_string(ref_payload, "kind")
             ref_id = _require_non_empty_string(ref_payload, "id")
-            if kind in valid_ids and ref_id not in valid_ids[kind]:
+            if kind not in valid_ids:
+                raise AssessmentSchemaError(
+                    f"relations[{relation_index}].source_refs[{ref_index}] "
+                    f"kind {kind!r} is not supported"
+                )
+            if ref_id not in valid_ids[kind]:
                 raise AssessmentSchemaError(
                     f"relations[{relation_index}].source_refs[{ref_index}] "
                     f"{kind}:{ref_id} is not grounded in evidence_packet"

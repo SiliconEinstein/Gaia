@@ -490,14 +490,39 @@ def _review_markdown(review: JsonDict) -> str:
     return "\n\n".join(parts).strip()
 
 
+def _assessment_package_ref_value_types(assessment: JsonDict) -> dict[str, str]:
+    evidence_packet = assessment.get("evidence_packet")
+    items = evidence_packet.get("items") if isinstance(evidence_packet, dict) else None
+    if not isinstance(items, list):
+        return {}
+
+    refs: dict[str, str] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        package_ref_payload = item.get("package_ref")
+        if not isinstance(package_ref_payload, dict):
+            continue
+        ref = package_ref_payload.get("ref")
+        value_type = package_ref_payload.get("value_type")
+        if isinstance(ref, str) and ref and isinstance(value_type, str) and value_type:
+            refs[ref] = value_type
+    return refs
+
+
 def _relation_claim_refs(
     relation: JsonDict,
+    *,
+    package_ref_value_types: dict[str, str] | None = None,
 ) -> tuple[list[str], tuple[tuple[str, str], ...], tuple[tuple[str, str, str], ...]]:
     raw_refs = relation.get("claim_refs", relation.get("claims", []))
     if not isinstance(raw_refs, list):
         return [], (), ()
     refs = [str(item).strip() for item in raw_refs if str(item).strip()]
     if len(refs) < 2:
+        return [], (), ()
+    value_types = package_ref_value_types or {}
+    if any(value_types.get(ref) not in (None, "claim") for ref in refs):
         return [], (), ()
     tokens, error = split_csv_refs(",".join(refs))
     if error is not None:
@@ -574,9 +599,13 @@ def _sync_assessment_candidate_relation(
     relation: JsonDict,
     *,
     focus_id: str,
+    package_ref_value_types: dict[str, str],
     result: ResearchSyncResult,
 ) -> None:
-    claim_refs, sibling_imports, foreign_imports = _relation_claim_refs(relation)
+    claim_refs, sibling_imports, foreign_imports = _relation_claim_refs(
+        relation,
+        package_ref_value_types=package_ref_value_types,
+    )
     if len(claim_refs) < 2:
         result.candidate_relations_skipped.append(
             str(relation.get("id") or relation.get("claim") or "relation")
@@ -628,6 +657,7 @@ def _sync_assessment_relations(
     relations: object,
     *,
     focus_id: str,
+    package_ref_value_types: dict[str, str],
     result: ResearchSyncResult,
 ) -> None:
     if not isinstance(relations, list):
@@ -636,7 +666,13 @@ def _sync_assessment_relations(
         if not isinstance(relation, dict):
             continue
         _sync_assessment_relation_hypothesis(pkg, relation, focus_id=focus_id, result=result)
-        _sync_assessment_candidate_relation(pkg, relation, focus_id=focus_id, result=result)
+        _sync_assessment_candidate_relation(
+            pkg,
+            relation,
+            focus_id=focus_id,
+            package_ref_value_types=package_ref_value_types,
+            result=result,
+        )
 
 
 def _sync_assessment_obligations(
@@ -688,12 +724,14 @@ def sync_assessment_artifact(
 
     focus = assessment.get("focus")
     focus_id = str(focus.get("id") if isinstance(focus, dict) else "research_focus")
+    package_ref_value_types = _assessment_package_ref_value_types(assessment)
 
     _sync_assessment_review_note(pkg, assessment, focus_id=focus_id, result=result)
     _sync_assessment_relations(
         pkg,
         assessment.get("relations"),
         focus_id=focus_id,
+        package_ref_value_types=package_ref_value_types,
         result=result,
     )
     _sync_assessment_obligations(

@@ -20,7 +20,7 @@ def _relation(**overrides: object) -> dict[str, object]:
         "rationale": "The evidence packet contains a directly relevant trial summary.",
         "epistemic_status": "candidate",
         "promotion_hint": "derive",
-        "source_refs": [{"kind": "item", "id": "item_1"}],
+        "source_refs": [{"kind": "variable", "id": "variable_1"}],
     }
     relation.update(overrides)
     return relation
@@ -32,7 +32,7 @@ def test_assessment_artifact_validates_relation_mapping() -> None:
         evidence_packet={
             "items": [
                 {
-                    "item_id": "item_1",
+                    "item_id": "variable_1",
                     "kind": "variable",
                     "id": "variable_1",
                     "variable_type": "claim",
@@ -100,19 +100,19 @@ def test_assessment_rejects_invalid_citation_payload() -> None:
         evidence_packet={"items": []},
         relations=[_relation()],
     )
-    artifact["citations"] = [{"id": "", "source_kind": "paper", "item_ids": "item_0"}]
+    artifact["citations"] = [{"id": "", "source_kind": "paper", "item_ids": "variable_0"}]
 
     with pytest.raises(AssessmentSchemaError, match="citations"):
         validate_assessment_artifact(artifact)
 
 
-def test_assessment_derives_citations_from_review_inline_item_refs() -> None:
+def test_assessment_derives_citations_from_review_inline_variable_refs() -> None:
     artifact = build_assessment_artifact(
         focus={"kind": "focus", "id": "focus_1"},
         evidence_packet={
             "items": [
                 {
-                    "item_id": "item_0",
+                    "item_id": "variable_0",
                     "kind": "variable",
                     "id": "variable_0",
                     "source": {
@@ -133,8 +133,8 @@ def test_assessment_derives_citations_from_review_inline_item_refs() -> None:
         review={
             "language": "zh",
             "depth": "review",
-            "summary": "底线来自检索证据。[item:item_0]",
-            "sections": [{"title": "证据", "body": "正文也引用同一 item。[item:item_0]"}],
+            "summary": "底线来自检索证据。[variable:variable_0]",
+            "sections": [{"title": "证据", "body": "正文也引用同一证据。[variable:variable_0]"}],
         },
     )
 
@@ -145,7 +145,52 @@ def test_assessment_derives_citations_from_review_inline_item_refs() -> None:
             "paper_id": "P1",
             "title": "Paper One",
             "doi": "10.1/example",
-            "item_ids": ["item_0"],
+            "item_ids": ["variable_0"],
+            "variable_ids": ["variable_0"],
+        }
+    ]
+
+
+def test_assessment_derives_citations_from_stable_variable_refs() -> None:
+    artifact = build_assessment_artifact(
+        focus={"kind": "focus", "id": "focus_1"},
+        evidence_packet={
+            "items": [
+                {
+                    "item_id": "variable_0",
+                    "kind": "variable",
+                    "id": "variable_0",
+                    "source": {
+                        "paper_id": "P1",
+                        "paper_title": "Paper One",
+                        "doi": "10.1/example",
+                    },
+                }
+            ]
+        },
+        relations=[
+            _relation(
+                type="needs_more_evidence",
+                promotion_hint="obligation",
+                source_refs=[{"kind": "variable", "id": "variable_0"}],
+            )
+        ],
+        review={
+            "language": "zh",
+            "depth": "review",
+            "summary": "底线来自检索证据。[variable:variable_0]",
+            "sections": [],
+        },
+    )
+
+    assert artifact["citations"] == [
+        {
+            "id": "citation_1",
+            "source_kind": "paper",
+            "paper_id": "P1",
+            "title": "Paper One",
+            "doi": "10.1/example",
+            "item_ids": ["variable_0"],
             "variable_ids": ["variable_0"],
         }
     ]
@@ -192,7 +237,7 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
                     claim="ASPREE opposes routine aspirin use in healthy older adults.",
                     rationale="The item reports no cardiovascular benefit and more hemorrhage.",
                     promotion_hint="none",
-                    source_refs=[{"kind": "item", "id": "item_0"}],
+                    source_refs=[{"kind": "variable", "id": "aspree_variable"}],
                 )
             ],
             "review": {
@@ -207,7 +252,7 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
                 {
                     "kind": "needs_more_evidence",
                     "content": "补充老年亚组的绝对风险差。",
-                    "source_refs": [{"kind": "item", "id": "item_0"}],
+                    "source_refs": [{"kind": "variable", "id": "aspree_variable"}],
                 }
             ],
         },
@@ -222,7 +267,7 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
             "paper_id": "P_ASPREE",
             "title": "ASPREE trial",
             "doi": "10.1056/aspree",
-            "item_ids": ["item_0"],
+            "item_ids": ["aspree_variable"],
             "variable_ids": ["aspree_variable"],
         }
     ]
@@ -236,7 +281,9 @@ def test_assessment_grounding_rejects_unknown_item_ref() -> None:
             focus={"kind": "focus", "id": "elderly_net_benefit"},
             landscapes=[_landscape()],
             analysis={
-                "relations": [_relation(source_refs=[{"kind": "item", "id": "missing_item"}])],
+                "relations": [
+                    _relation(source_refs=[{"kind": "variable", "id": "missing_variable"}])
+                ],
                 "candidate_obligations": [],
             },
         )

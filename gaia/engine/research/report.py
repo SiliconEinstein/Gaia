@@ -11,7 +11,9 @@ class ResearchReportError(ValueError):
     """Raised when a research artifact cannot be rendered."""
 
 
-INLINE_ITEM_REF_RE = re.compile(r"\[item:([A-Za-z0-9_.:-]+)\]")
+INLINE_REF_RE = re.compile(
+    r"\[(variable|factor|chain|package|paper|package_ref):([A-Za-z0-9_.:-]+)\]"
+)
 ADJACENT_NUMERIC_REF_RE = re.compile(r"(?:\[\d+\])+")
 CN_SENTENCE_PUNCTUATION = "\u3002\uff01\uff1f"
 CN_CLAUSE_PUNCTUATION = "\uff0c\u3001\uff1b\uff1a"
@@ -71,20 +73,39 @@ def _format_refs(refs: object) -> str:
     return ", ".join(formatted)
 
 
-def _citation_ids_by_item(citations: object) -> dict[str, str]:
-    ids: dict[str, str] = {}
+def _add_citation_ref(
+    ids: dict[tuple[str, str], str],
+    kind: str,
+    ref_id: object,
+    citation_id: str,
+) -> None:
+    if isinstance(ref_id, str) and ref_id:
+        ids.setdefault((kind, ref_id), citation_id)
+
+
+def _citation_ids_by_ref(citations: object) -> dict[tuple[str, str], str]:
+    ids: dict[tuple[str, str], str] = {}
     if not isinstance(citations, list):
         return ids
     for citation in citations:
         if not isinstance(citation, dict):
             continue
         citation_id = citation.get("id")
-        item_ids = citation.get("item_ids")
-        if not isinstance(citation_id, str) or not isinstance(item_ids, list):
+        if not isinstance(citation_id, str):
             continue
-        for item_id in item_ids:
-            if isinstance(item_id, str) and item_id and item_id not in ids:
-                ids[item_id] = citation_id
+        item_ids = citation.get("item_ids")
+        if isinstance(item_ids, list):
+            for item_id in item_ids:
+                _add_citation_ref(ids, "variable", item_id, citation_id)
+        variable_ids = citation.get("variable_ids")
+        if isinstance(variable_ids, list):
+            for variable_id in variable_ids:
+                _add_citation_ref(ids, "variable", variable_id, citation_id)
+        _add_citation_ref(ids, "paper", citation.get("paper_id"), citation_id)
+        source_kind = citation.get("source_kind")
+        source_id = citation.get("source_id")
+        if isinstance(source_kind, str):
+            _add_citation_ref(ids, source_kind, source_id, citation_id)
     return ids
 
 
@@ -98,7 +119,7 @@ def _citation_context(citations: object) -> dict[str, Any]:
             if isinstance(citation_id, str) and citation_id:
                 citations_by_id[citation_id] = citation
     return {
-        "citation_ids_by_item": _citation_ids_by_item(citations),
+        "citation_ids_by_ref": _citation_ids_by_ref(citations),
         "citations_by_id": citations_by_id,
         "numbers_by_id": {},
         "ordered_ids": [],
@@ -150,13 +171,13 @@ def _replace_inline_item_refs(text: object, context: dict[str, Any]) -> object:
         return text
 
     def replace(match: re.Match[str]) -> str:
-        item_id = match.group(1)
-        citation_id = context["citation_ids_by_item"].get(item_id)
+        kind, ref_id = match.groups()
+        citation_id = context["citation_ids_by_ref"].get((kind, ref_id))
         if not citation_id:
             return match.group(0)
         return f"[{_citation_number(citation_id, context)}]"
 
-    replaced = INLINE_ITEM_REF_RE.sub(replace, text)
+    replaced = INLINE_REF_RE.sub(replace, text)
     replaced = _compact_adjacent_numeric_refs(replaced)
     return _normalize_citation_punctuation(replaced)
 

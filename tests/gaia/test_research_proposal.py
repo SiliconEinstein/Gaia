@@ -21,7 +21,7 @@ def _assessment() -> dict[str, object]:
             {
                 "kind": "needs_more_evidence",
                 "content": "Check whether TRGB and SH0ES share calibration systematics.",
-                "source_refs": [{"kind": "item", "id": "item_0"}],
+                "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
             }
         ],
         "review": {

@@ -143,7 +143,7 @@ def test_research_contract_commands_emit_json() -> None:
     assert "ready_for_assess" in focus_payload["focus_fields"]["readiness"]
     assert "supports" in assess_payload["relation_fields"]["type"]
     assert "claim_refs" in assess_payload["relation_fields"]
-    assert "source_package_ref" in assess_payload["input"]["evidence_packet"]
+    assert "package_ref" in assess_payload["input"]["evidence_packet"]
     assert "stable truth claims" in propose_payload["forbidden_outputs"][0]
 
 
@@ -352,10 +352,12 @@ def test_research_scan_materializes_items_as_local_source_package(
     assert source_payload[0]["claim_count"] == 1
 
     landscape = json.loads(_landscape_artifacts(pkg_dir)[0].read_text(encoding="utf-8"))
-    source_ref = landscape["items"][0]["source_package_ref"]
+    source_ref = landscape["items"][0]["package_ref"]
+    assert source_ref["kind"] == "package_ref"
+    assert source_ref["value_type"] == "claim"
     assert source_ref["package"] == source_root.name
-    assert source_ref["symbol"] == "source_item_0"
-    assert source_ref["ref"].endswith("::source_item_0")
+    assert source_ref["symbol"] == "source_claim_1"
+    assert source_ref["ref"].endswith("::source_claim_1")
 
     check = runner.invoke(app, ["build", "check", str(source_root)])
     assert check.exit_code == 0, check.output
@@ -514,7 +516,7 @@ def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> N
                         "readiness": "ready_for_assess",
                         "scope": {"population": "older adults"},
                         "coverage": {"items": 1, "paper_leads": 1},
-                        "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
                         "suggested_queries": [],
                     }
                 ],
@@ -522,7 +524,7 @@ def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> N
                     {
                         "kind": "missing_absolute_effect",
                         "description": "补充老年人绝对风险差和出血绝对风险。",
-                        "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
                     }
                 ],
                 "notes": ["agent synthesis"],
@@ -651,7 +653,7 @@ def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Pat
     assert assessment["relations"][0]["type"] == "background_for"
     assert assessment["relations"][0]["epistemic_status"] == "candidate"
     assert assessment["relations"][0]["promotion_hint"] == "none"
-    assert assessment["relations"][0]["source_refs"][0]["id"] == "item_0"
+    assert assessment["relations"][0]["source_refs"][0]["id"] == "n6"
     assert assessment["candidate_obligations"]
 
     events = _read_events(pkg_dir)
@@ -967,7 +969,7 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
                         ),
                         "epistemic_status": "candidate",
                         "promotion_hint": "none",
-                        "source_refs": [{"kind": "item", "id": "item_0"}],
+                        "source_refs": [{"kind": "variable", "id": "aspree"}],
                         "claim_refs": ["seed", "seed_alt"],
                     }
                 ],
@@ -983,7 +985,7 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
                     {
                         "kind": "needs_more_evidence",
                         "content": "补充老年人绝对风险差。",
-                        "source_refs": [{"kind": "item", "id": "item_0"}],
+                        "source_refs": [{"kind": "variable", "id": "aspree"}],
                     }
                 ],
             }
@@ -1038,6 +1040,146 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
     assert check.exit_code == 0, check.output
 
 
+def test_research_assess_skips_candidate_relation_for_non_claim_package_ref(
+    tmp_path: Path,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    question_row = _lkm_row(
+        "P_QUESTION",
+        "lkm:bohrium:open_question",
+        0.91,
+        paper_title="Open Question Paper",
+        content="What unresolved issue should be studied next?",
+    )
+    question_row["kind"] = "question"
+    search_path.write_text(
+        json.dumps(_search("open question query", [question_row])),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+    landscape = json.loads(landscape_path.read_text(encoding="utf-8"))
+    source_ref = landscape["items"][0]["package_ref"]
+    assert source_ref["value_type"] == "question"
+    analysis_path = tmp_path / "assess-analysis.json"
+    analysis_path.write_text(
+        json.dumps(
+            {
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": "A question ref must not be used as a candidate relation claim.",
+                        "rationale": "candidate_relation requires claim-compatible inputs.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "contradict",
+                        "source_refs": [{"kind": "variable", "id": "open_question"}],
+                        "claim_refs": ["seed", source_ref["ref"]],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "seed",
+            "--landscape",
+            str(landscape_path),
+            "--analysis-json",
+            str(analysis_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    events = _read_events(pkg_dir)
+    assert events[-1]["payload"]["candidate_relations_written"] == []
+    assert events[-1]["payload"]["candidate_relations_skipped"]
+    authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
+    if authored.exists():
+        assert "candidate_relation(" not in authored.read_text(encoding="utf-8")
+    check = runner.invoke(app, ["build", "check", str(pkg_dir)])
+    assert check.exit_code == 0, check.output
+
+
+def test_research_assess_reports_schema_errors_without_traceback(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "assessment query",
+                [
+                    _lkm_row(
+                        "P_SCHEMA",
+                        "lkm:bohrium:schema_claim",
+                        0.9,
+                        paper_title="Schema Paper",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+    assert scan.exit_code == 0, scan.output
+    analysis_path = tmp_path / "bad-assess-analysis.json"
+    analysis_path.write_text(
+        json.dumps(
+            {
+                "relations": [
+                    {
+                        "type": "qualifies",
+                        "claim": "The evidence qualifies the focus.",
+                        "rationale": "Bad promotion hint for this relation type.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "candidate_relation",
+                        "source_refs": [{"kind": "variable", "id": "schema_claim"}],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "seed",
+            "--landscape",
+            str(_landscape_artifacts(pkg_dir)[0]),
+            "--analysis-json",
+            str(analysis_path),
+        ],
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "Error: invalid assessment artifact:" in result.output
+    assert "promotion_hint" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_research_propose_writes_artifact_without_accepting(tmp_path: Path) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
@@ -1055,7 +1197,7 @@ def test_research_propose_writes_artifact_without_accepting(tmp_path: Path) -> N
                     {
                         "kind": "needs_more_evidence",
                         "content": "补充 TRGB 与 Cepheid 共同定标系统误差的证据。",
-                        "source_refs": [{"kind": "item", "id": "item_0"}],
+                        "source_refs": [{"kind": "assessment", "id": "h0_tension"}],
                     }
                 ],
                 "review": {
@@ -1264,7 +1406,7 @@ def test_research_report_renders_artifact_to_markdown_file(tmp_path: Path) -> No
                         "readiness": "ready_for_assess",
                         "scope": {"topic": "demo"},
                         "coverage": {"items": 2},
-                        "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                        "evidence_refs": [{"kind": "paper", "paper_id": "P1"}],
                         "suggested_queries": ["core tension follow up"],
                     }
                 ],

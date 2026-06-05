@@ -95,7 +95,7 @@ def focus_contract(*, language: str = "zh") -> dict[str, Any]:
                     "readiness": "ready_for_assess",
                     "scope": {"population": "older adults", "endpoint": "net clinical benefit"},
                     "coverage": {"items": 8, "paper_leads": 3, "missing": []},
-                    "evidence_refs": [{"kind": "item", "id": "item_12"}],
+                    "evidence_refs": [{"kind": "variable", "id": "aspree_result"}],
                     "suggested_queries": [],
                 }
             ],
@@ -123,7 +123,8 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "uncertainties, and next research directions, not the research workflow."
             ),
             "allowed_internal_syntax": (
-                "Inline [item:item_N] markers are allowed only as citation anchors and "
+                "Inline [variable:<id>], [paper:<paper_id>], or "
+                "[package_ref:<qid>] markers are allowed only as citation anchors and "
                 "must not be discussed as entities in prose."
             ),
             "prose_requirements": [
@@ -161,11 +162,13 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             "focus": "A focus id, question, or obligation selected by the agent/user.",
             "evidence_packet": (
                 "The combined items and paper leads from one or more landscape artifacts. "
-                "Use item ids exactly as presented by the evidence packet. Items are "
-                "artifact-local references to LKM variables, factors, papers, packages, "
-                "or chains; they are not new knowledge entities. When an item includes "
-                "source_package_ref, its source_package_ref.ref is the Gaia package QID "
-                "for the shallow source claim/note generated during Explore."
+                "Items are references to LKM variables, factors, papers, packages, or "
+                "chains; they are not new knowledge entities and are not a ref namespace. "
+                "Use stable refs whenever possible, especially source_refs like "
+                "{kind: 'variable', id: items[*].id}. When an item includes package_ref, "
+                "package_ref.ref is the Gaia package QID for the shallow source "
+                "claim/question/note generated during Explore, and package_ref.value_type "
+                "tells whether it can be used as a claim."
             ),
         },
         "output_required_fields": {
@@ -188,12 +191,16 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 relation_type: sorted(hints)
                 for relation_type, hints in RELATION_PROMOTION_HINTS.items()
             },
-            "source_refs": "non-empty refs grounded in items, variables, factors, or papers",
+            "source_refs": (
+                "non-empty refs grounded in variables, factors, chains, packages, "
+                "package_ref values, papers, or the current focus"
+            ),
             "claim_refs": (
                 "optional list of concrete package claim refs used only when this relation "
                 "should be scaffolded as candidate_relation(...). Use local bindings or "
-                "foreign Gaia QIDs such as items[*].source_package_ref.ref; omit when the "
-                "relation is only a prose assessment."
+                "foreign Gaia QIDs such as items[*].package_ref.ref; omit when the "
+                "relation is only a prose assessment. Only use package_ref.ref when "
+                "package_ref.value_type is 'claim'."
             ),
         },
         "review_fields": {
@@ -205,8 +212,9 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             "summary": "concise bottom-line answer written as standalone scholarly prose",
             "sections": (
                 "ordered list with title and body fields; body text must read like a "
-                "mini-review section and may cite evidence with inline [item:item_N] refs "
-                "that the report renderer maps to citations"
+                "mini-review section and may cite evidence with inline stable refs such "
+                "as [variable:<id>] or [paper:<paper_id>] that the report renderer maps "
+                "to citations"
             ),
             "evidence_table": (
                 "list summarizing probe/model family, evidence direction, key constraints, "
@@ -243,7 +251,8 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             ),
             (
                 "In review.summary and review.sections[].body, cite important evidence "
-                "with inline [item:item_N] markers; do not write paper citations manually."
+                "with inline stable refs such as [variable:<id>] or [paper:<paper_id>]; "
+                "do not write paper citations manually."
             ),
             (
                 "Relations and candidate_obligations remain structured artifacts for "
@@ -255,8 +264,8 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             (
                 "When a relation genuinely compares or links concrete package claims, "
                 "set claim_refs to those package refs. Do not invent refs; use only "
-                "local package bindings or source_package_ref.ref values visible in "
-                "the evidence packet."
+                "local package bindings or package_ref.ref values visible in "
+                "the evidence packet whose package_ref.value_type is 'claim'."
             ),
             "When evidence is insufficient, emit obligations instead of overclaiming.",
         ],
@@ -274,7 +283,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                     ),
                     "epistemic_status": "candidate",
                     "promotion_hint": "none",
-                    "source_refs": [{"kind": "item", "id": "item_20"}],
+                    "source_refs": [{"kind": "variable", "id": "aspree_result"}],
                 }
             ],
             "review": {
@@ -284,7 +293,10 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "sections": [
                     {
                         "title": "老年人证据",
-                        "body": "ASPREE 相关证据提示心血管获益不足以抵消大出血风险。[item:item_20]",
+                        "body": (
+                            "ASPREE 相关证据提示心血管获益不足以抵消大出血风险。"
+                            "[variable:aspree_result]"
+                        ),
                     }
                 ],
                 "evidence_table": [],
@@ -295,7 +307,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 {
                     "kind": "needs_more_evidence",
                     "content": "补充 CAC 分层下 NNT/NNH 的证据。",
-                    "source_refs": [{"kind": "item", "id": "item_33"}],
+                    "source_refs": [{"kind": "paper", "id": "P_ASPREE"}],
                 }
             ],
         },

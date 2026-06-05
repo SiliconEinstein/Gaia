@@ -21,6 +21,7 @@ from gaia.cli.commands.add import (
 from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 from gaia.engine.packaging import GaiaPackagingError
 from gaia.engine.research import (
+    AssessmentSchemaError,
     ProposalSchemaError,
     ResearchPackage,
     ResearchReportError,
@@ -908,17 +909,25 @@ def assess_command(
             else None
         )
         if analysis is None:
-            assessment = build_assessment_from_landscapes(
-                focus={"kind": "focus", "id": focus},
-                landscapes=landscapes,
-            )
+            try:
+                assessment = build_assessment_from_landscapes(
+                    focus={"kind": "focus", "id": focus},
+                    landscapes=landscapes,
+                )
+            except AssessmentSchemaError as exc:
+                typer.echo(f"Error: invalid assessment artifact: {exc}", err=True)
+                raise typer.Exit(2) from exc
         else:
-            assessment = build_assessment_from_analysis(
-                focus={"kind": "focus", "id": focus},
-                landscapes=landscapes,
-                analysis=analysis,
-                strict_grounding=strict_grounding,
-            )
+            try:
+                assessment = build_assessment_from_analysis(
+                    focus={"kind": "focus", "id": focus},
+                    landscapes=landscapes,
+                    analysis=analysis,
+                    strict_grounding=strict_grounding,
+                )
+            except AssessmentSchemaError as exc:
+                typer.echo(f"Error: invalid assessment artifact: {exc}", err=True)
+                raise typer.Exit(2) from exc
         output_path = write_research_artifact(
             research_pkg,
             "assessments",

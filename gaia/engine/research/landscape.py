@@ -283,7 +283,8 @@ def _landscape_items(batches: list[ScanBatch]) -> list[dict[str, Any]]:
             item_id = variable_id or paper_id or result_id or f"item_{len(items)}"
             content = result.get("content")
             item: dict[str, Any] = {
-                "item_id": f"item_{len(items)}",
+                "item_id": str(item_id),
+                "display_index": len(items),
                 "kind": item_kind,
                 "id": str(item_id),
                 "title": result.get("title"),

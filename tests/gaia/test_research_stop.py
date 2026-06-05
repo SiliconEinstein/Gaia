@@ -13,7 +13,7 @@ def _focus_artifact(*, readiness: str = "ready_for_assess", gaps: int = 0) -> di
                 "id": "focus_1",
                 "readiness": readiness,
                 "question": "核心问题？",
-                "evidence_refs": [{"kind": "item", "id": "item_0"}],
+                "evidence_refs": [{"kind": "variable", "id": "variable_0"}],
             }
         ],
         "coverage_gaps": [
@@ -36,7 +36,7 @@ def _assessment(
                 "rationale": "Grounded rationale.",
                 "epistemic_status": "candidate",
                 "promotion_hint": "none",
-                "source_refs": [{"kind": "item", "id": "item_0"}],
+                "source_refs": [{"kind": "variable", "id": "variable_0"}],
             }
             for relation_type in relation_types
         ],
