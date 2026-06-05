@@ -712,6 +712,7 @@ class TestReasoning:
         assert call["method"] == "POST"
         assert call["path"] == "/reasoning/search"
         assert call["json_body"]["query"] == "thermal stability"
+        assert call["json_body"]["format"] == "graph"
 
     def test_url_encodes_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok"})
@@ -1112,7 +1113,7 @@ class TestReasoning:
                                     {
                                         "id": "lfac_1",
                                         "type": "factor",
-                                        "kind": "strategy",
+                                        "kind": "reasoning_steps",
                                         "steps": [{"reasoning": "Combine the evidence."}],
                                     },
                                     {
@@ -1124,7 +1125,7 @@ class TestReasoning:
                                 ],
                                 "edges": [
                                     {
-                                        "type": "motivates",
+                                        "type": "subproblem_of",
                                         "source": "paper:811::question",
                                         "target": "gcn_result",
                                     },
@@ -1290,6 +1291,7 @@ class TestReasoningSearch:
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
         assert body["filters"] == {"paper_ids": ["123", "456"]}
+        assert body["format"] == "graph"
 
     def test_rejects_paper_prefix_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1598,24 +1600,29 @@ class TestPackage:
                                 "motivations_total": 1,
                                 "variables_total": 25,
                             },
+                            "addressed_problems": [
+                                {
+                                    "id": "paper:811827932371615744::problem",
+                                    "global_id": "gcn_problem",
+                                    "content": "How can phase stability be controlled?",
+                                }
+                            ],
+                            "open_questions": [
+                                {
+                                    "id": "paper:811827932371615744::open_question",
+                                    "global_id": "gcn_open",
+                                    "content": "Which stability mechanisms remain unresolved?",
+                                }
+                            ],
                             "graph": {
                                 "nodes": [
                                     {
-                                        "id": "paper:811827932371615744::problem",
+                                        "id": ("paper:811827932371615744::conclusion_1_subproblem"),
                                         "type": "question",
-                                        "kind": "problem",
-                                        "content": "How can phase stability be controlled?",
-                                        "metadata": json.dumps(
-                                            {
-                                                "structural_edges": [
-                                                    {
-                                                        "target": (
-                                                            "paper:811827932371615744::conclusion_1"
-                                                        ),
-                                                        "type": "addresses",
-                                                    }
-                                                ]
-                                            }
+                                        "kind": "subproblem",
+                                        "content": (
+                                            "Which local condition supports the phase-stability "
+                                            "conclusion?"
                                         ),
                                     },
                                     {
@@ -1633,13 +1640,15 @@ class TestPackage:
                                     {
                                         "id": "lfac_1",
                                         "type": "factor",
-                                        "kind": "strategy",
+                                        "kind": "reasoning_steps",
                                     },
                                 ],
                                 "edges": [
                                     {
-                                        "type": "motivates",
-                                        "source": "paper:811827932371615744::problem",
+                                        "type": "subproblem_of",
+                                        "source": (
+                                            "paper:811827932371615744::conclusion_1_subproblem"
+                                        ),
                                         "target": "paper:811827932371615744::conclusion_1",
                                     },
                                     {
@@ -1690,14 +1699,8 @@ class TestPackage:
         assert item["source"]["stats"]["variables_total"] == 25
         assert item["lkm_view"] == {
             "node_counts": {"claim": 2, "factor": 1, "question": 1},
-            "edge_type_counts": {"concludes": 1, "highlight_of": 1, "motivates": 1},
-            "logic_relations": [
-                {
-                    "source": "paper:811827932371615744::problem",
-                    "relation": "addresses",
-                    "target": "paper:811827932371615744::conclusion_1",
-                }
-            ],
+            "edge_type_counts": {"concludes": 1, "highlight_of": 1, "subproblem_of": 1},
+            "logic_relations": [],
         }
         assert item["actions"] == [
             {

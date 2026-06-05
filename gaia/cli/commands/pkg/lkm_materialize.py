@@ -357,7 +357,7 @@ def _graph_factor_dependencies(
         target_id = _text(edge.get("target"))
         if target_id != factor_id or source_id is None or edge_type is None:
             continue
-        if edge_type == "motivates":
+        if edge_type in {"motivates", "subproblem_of"}:
             continue
         source = nodes_by_id.get(source_id)
         if source is None or _text(source.get("type")) != "claim":

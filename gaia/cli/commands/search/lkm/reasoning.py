@@ -315,6 +315,7 @@ def _search_reasoning(
 
     body: dict[str, Any] = {
         "query": query,
+        "format": "graph",
         "retrieval_mode": retrieval_mode.value,
         "offset": offset,
         "limit": limit,

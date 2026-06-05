@@ -532,7 +532,7 @@ def _reasoning_view_from_graph(graph: dict[str, Any]) -> dict[str, Any]:
         if source_id is None:
             continue
         source = nodes_by_id.get(source_id, {"id": source_id})
-        if edge_type == "motivates":
+        if edge_type in {"motivates", "subproblem_of"}:
             if target_id in conclusion_ids and _string(source.get("type")) == "question":
                 questions.append(_knowledge_ref(source))
             continue
@@ -685,8 +685,8 @@ def _graph_factor_premise_count(
 ) -> int:
     """Count claim premises feeding ``factor_id`` in a graph-shaped chain.
 
-    Premise edges are any non-``motivates`` edge from a claim node into the
-    factor (e.g. ``previous_conclusion_of`` / ``weakpoint_of`` / ``highlight_of``),
+    Premise edges are any dependency edge from a claim node into the factor
+    (e.g. ``previous_conclusion_of`` / ``weakpoint_of`` / ``highlight_of``),
     matching the premise mapping used when materializing graph factors.
     """
     if factor_id is None:
@@ -695,7 +695,12 @@ def _graph_factor_premise_count(
     for edge in edges:
         if _string(edge.get("target")) != factor_id:
             continue
-        if _string(edge.get("type")) in (None, "motivates", "concludes"):
+        if _string(edge.get("type")) in (
+            None,
+            "motivates",
+            "subproblem_of",
+            "concludes",
+        ):
             continue
         source = nodes_by_id.get(_string(edge.get("source")) or "") or {}
         if _string(source.get("type")) == "claim":

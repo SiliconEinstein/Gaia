@@ -3,7 +3,8 @@
 The user-facing command is ``gaia search lkm reasoning <query>``. This module
 keeps the older endpoint-shaped command available for PR/build compatibility.
 It still calls ``POST /reasoning/search`` with the plural
-``filters.paper_ids`` array per the apifox spec.
+``filters.paper_ids`` array per the apifox spec. The upstream POST endpoint
+expects the graph-format switch in the request body.
 """
 
 from __future__ import annotations
@@ -116,6 +117,7 @@ def reasoning_search_command(
 
     body: dict[str, Any] = {
         "query": query,
+        "format": "graph",
         "retrieval_mode": retrieval_mode.value,
         "offset": offset,
         "limit": limit,
