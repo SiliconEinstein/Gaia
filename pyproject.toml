@@ -27,6 +27,7 @@ dependencies = [
     "httpx>=0.27",
     "faiss-cpu>=1.7",
     "tomli-w>=1.2.0",
+    "packaging>=23",  # PEP 440 version ordering (CLI update check); was only a transitive dev dep
 ]
 
 [project.urls]

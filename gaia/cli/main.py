@@ -24,6 +24,8 @@ The CLI organizes verbs into explicit top-level groups:
 See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
 """
 
+import sys
+
 import typer
 
 from gaia._meta import IR_SCHEMA, get_channel, get_commit, get_library_version
@@ -132,6 +134,7 @@ def _version_callback(value: bool) -> None:
 
 @app.callback()
 def _callback(
+    ctx: typer.Context,
     version: bool = typer.Option(
         False,
         "--version",
@@ -141,6 +144,27 @@ def _callback(
     ),
 ) -> None:
     """Gaia — knowledge package authoring toolkit."""
+    # Non-blocking PyPI update check (after the eager --version short-circuit;
+    # `version` is True only while that eager callback runs and exits first).
+    # Skip the bare-help / no-args case — there is no subcommand to run, and the
+    # help screen should stay quiet. Broad guard so this can NEVER break the CLI.
+    if version or ctx.invoked_subcommand is None:
+        return
+    # Keep *subcommand* help screens quiet too. `gaia build --help`,
+    # `gaia inquiry --help`, `gaia inquiry focus --help`, etc. still route
+    # through this root callback before Typer renders the help (invoked_subcommand
+    # is the group/command, not None), so the no-args guard above misses them.
+    # The not-yet-parsed --help only exists in argv at this point, so check it
+    # there. Conservative: a stray -h option *value* would suppress a single
+    # notice — harmless for a fail-silent check.
+    if "--help" in sys.argv[1:] or "-h" in sys.argv[1:]:
+        return
+    try:
+        from gaia.cli._update_check import maybe_notify_update
+
+        maybe_notify_update()
+    except Exception:
+        pass
 
 
 # --------------------------------------------------------------------------- #
