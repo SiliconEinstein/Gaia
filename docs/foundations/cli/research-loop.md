@@ -252,7 +252,18 @@ main loop:
 
 Known remaining gaps:
 
+- `gaia research propose` is not implemented yet. The next action should turn
+  assessed gaps into proposal artifacts and optional accepted inquiry
+  questions/obligations without writing stable truth claims.
 - `promote` records materialization links but does not synthesize formal
-  `claim(...)` or relation statements;
-- LLM prompt templates and report rendering still need iteration around review
-  quality, citation style, and stop criteria.
+  `claim(...)`, `derive(...)`, `infer(...)`, or relation statements yet. That
+  requires a dedicated LKM-to-Gaia promotion contract first.
+- legacy `.gaia/exploration/` import and `gaia-lkm-explore` deprecation are not
+  implemented yet. Old artifacts may be provenance inputs, but must not become
+  canonical semantic state.
+- LKM public writeback, Propose -> external discovery/research -> Merge, and
+  hosted/TUI product surfaces are explicitly later ecosystem work.
+
+Current implementation order is defined in
+[`../../specs/2026-06-01-research-actions-implementation-roadmap.md`](../../specs/2026-06-01-research-actions-implementation-roadmap.md).
+Do not resurrect older milestone plans when implementing the next slice.
