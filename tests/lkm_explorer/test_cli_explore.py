@@ -499,26 +499,9 @@ def test_gaia_cli_no_longer_lists_explore():
 _FIXTURE = Path(__file__).resolve().parent / "fixtures" / "lkm_search_free_fall.json"
 
 
-def _raw_lkm_fixture_payload() -> dict:
-    fixture = json.loads(_FIXTURE.read_text(encoding="utf-8"))
-    variables = []
-    for row in fixture["results"]:
-        variable = dict(row["raw"]["payload"])
-        source = row.get("source", {})
-        paper: dict[str, str] = {}
-        if source.get("paper_title"):
-            paper["en_title"] = source["paper_title"]
-        if source.get("doi"):
-            paper["doi"] = source["doi"]
-        if paper:
-            variable["paper"] = paper
-        variables.append(variable)
-    return {"code": 0, "data": {"variables": variables}}
-
-
 def _write_raw_lkm_fixture(tmp_path: Path) -> Path:
     path = tmp_path / "raw-lkm-free-fall.json"
-    path.write_text(json.dumps(_raw_lkm_fixture_payload()), encoding="utf-8")
+    path.write_text(_FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
     return path
 
 
@@ -558,7 +541,7 @@ def test_explore_observe_reads_stdin(galileo_pkg: Path):
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    payload = json.dumps(_raw_lkm_fixture_payload())
+    payload = _FIXTURE.read_text(encoding="utf-8")
     result = runner.invoke(
         app,
         ["observe", str(galileo_pkg), "--source", _galileo_qid("aristotle_model")],

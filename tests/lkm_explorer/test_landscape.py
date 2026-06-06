@@ -107,8 +107,9 @@ def test_landscape_skips_materialized_and_annotates_existing_contacts():
                 index_id="bohrium",
             )
         ],
-        materialized={"lkm:bohrium:n1"},
-        materialized_paper_ids={"P3"},
+        # Raw LKM node ids in the Gaia QID set must not suppress paper leads.
+        materialized={"lkm:bohrium:n2"},
+        materialized_paper_ids={"P1", "P3"},
         exploration_map=exploration_map,
     )
 

@@ -742,7 +742,66 @@ def test_pkg_add_lkm_claim_errors_when_reasoning_has_no_backing_paper(
     assert "did not identify a backing paper" in result.output
 
 
-def test_pkg_add_lkm_claim_requires_nested_reasoning_data(
+def test_pkg_add_lkm_claim_accepts_top_level_reasoning_chains(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import gaia.cli.commands.add as add_mod
+
+    consumer = tmp_path / "consumer"
+    _write_empty_gaia_package(consumer)
+    calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def fake_run_request(
+        method: str,
+        path: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        index_id: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        assert index_id == "bohrium"
+        calls.append((method, path, json_body))
+        if path == "/claims/gcn_old/reasoning":
+            assert method == "GET"
+            return {
+                "code": 0,
+                "reasoning_chains": [
+                    {
+                        "source_package": "paper:811827932371615744",
+                        "graph": {"nodes": [], "edges": []},
+                    }
+                ],
+            }
+        assert method == "POST"
+        assert path == "/papers/graph"
+        assert json_body == {"paper_id": "811827932371615744"}
+        return _paper_graph_payload_graph_only_dependencies()
+
+    def fake_run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(add_mod, "run_request", fake_run_request)
+    monkeypatch.setattr(add_mod, "_run_uv", fake_run_uv)
+    monkeypatch.chdir(consumer)
+
+    result = runner.invoke(
+        app,
+        ["pkg", "add", "--lkm-index", "bohrium", "--lkm-claim", "gcn_old"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Resolved lkm:bohrium:claim:gcn_old to lkm:bohrium:paper:811827932371615744" in (
+        result.output
+    )
+    assert calls == [
+        ("GET", "/claims/gcn_old/reasoning", None),
+        ("POST", "/papers/graph", {"paper_id": "811827932371615744"}),
+    ]
+
+
+def test_pkg_add_lkm_claim_errors_when_top_level_reasoning_has_no_backing_paper(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -765,7 +824,6 @@ def test_pkg_add_lkm_claim_requires_nested_reasoning_data(
             "code": 0,
             "reasoning_chains": [
                 {
-                    "source_package": "paper:811827932371615744",
                     "graph": {"nodes": [], "edges": []},
                 }
             ],

@@ -157,14 +157,16 @@ def distill_paper_leads(
 
     Walks raw ``data.variables[]`` and groups rows by ``paper_id``. A row is
     **dropped** when (a) it has no paper id, or (b) its paper is already pulled —
-    its ``paper_id`` is in ``materialized_paper_ids`` (or, defensively, coincides
-    with a materialized QID). An already-pulled paper is not fresh territory, so
-    it is not a contact (a matching contact, if any, is promoted by the
-    round/frontier path — :func:`promote_materialized_lkm_contacts` — not here).
+    its ``paper_id`` is in ``materialized_paper_ids``. An already-pulled paper
+    is not fresh territory, so it is not a contact (a matching contact, if any,
+    is promoted by the round/frontier path —
+    :func:`promote_materialized_lkm_contacts` — not here).
 
     Args:
         search_results: The parsed raw ``gaia search lkm knowledge`` JSON.
-        materialized: The joint-view materialized QID set.
+        materialized: The joint-view materialized QID set. Raw LKM paper/node
+            ids are not Gaia QIDs; paper freshness is checked with
+            ``materialized_paper_ids``.
         materialized_paper_ids: Paper ids already pulled into the joint view
             (encoded in the dependency sub-package dir names — SCHEMA.md §7f).
         index_id: LKM index used for this search. Raw LKM JSON does not carry
@@ -174,6 +176,10 @@ def distill_paper_leads(
         One :class:`_PaperLead` per distinct unmaterialized paper, max rank and
         unioned node ids merged in.
     """
+    # Kept in the signature because observe/landscape callers pass the joint
+    # Gaia QID set; raw LKM paper freshness is checked by materialized_paper_ids.
+    del materialized
+
     variables = _variables(search_results)
     if not variables:
         return []
@@ -181,11 +187,8 @@ def distill_paper_leads(
 
     leads: dict[str, _PaperLead] = {}
     for variable in variables:
-        node_id = _variable_node_id(variable, index_id=index_id)
-        if node_id in materialized:
-            continue
         paper_id = _variable_paper_id(variable)
-        if paper_id is None or paper_id in materialized or paper_id in pulled:
+        if paper_id is None or paper_id in pulled:
             continue
         lead = leads.get(paper_id)
         if lead is None:
@@ -312,7 +315,8 @@ def observe_lkm_results(
         exploration_map: The map to grow (mutated in place).
         search_results: Parsed raw ``gaia search lkm knowledge`` JSON.
         materialized: The joint-view materialized QID set (the surveyed
-            territory; a paper id matching a materialized QID is skipped).
+            territory). Raw LKM paper/node ids are not Gaia QIDs; already pulled
+            papers are supplied via ``materialized_paper_ids``.
         materialized_paper_ids: Paper ids already pulled into the joint view —
             skipped (already explored), not re-added as fresh contacts.
         source_qid: The surveyed node whose survey prompted this LKM search; it

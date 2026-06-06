@@ -23,20 +23,7 @@ FIXTURE = Path(__file__).resolve().parent / "fixtures" / "lkm_search_free_fall.j
 
 
 def _load_fixture() -> dict:
-    fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    variables = []
-    for row in fixture["results"]:
-        variable = dict(row["raw"]["payload"])
-        source = row.get("source", {})
-        paper: dict[str, str] = {}
-        if source.get("paper_title"):
-            paper["en_title"] = source["paper_title"]
-        if source.get("doi"):
-            paper["doi"] = source["doi"]
-        if paper:
-            variable["paper"] = paper
-        variables.append(variable)
-    return {"code": 0, "data": {"variables": variables}}
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 
 def _search(variables: list[dict]) -> dict:
@@ -105,9 +92,9 @@ def test_observe_records_unmaterialized_papers_as_contacts():
         assert c.meta["lkm_node_ids"], "expected the contributing lkm node id(s)"
 
 
-def test_observe_skips_result_with_materialized_lkm_node_id():
-    # If the raw LKM node id is already in the joint materialized set, it is not
-    # fresh territory.
+def test_observe_does_not_treat_raw_lkm_node_id_as_materialized_qid():
+    # Raw LKM node ids are provenance for the search result, not Gaia QIDs in
+    # the joint materialized set. Paper-level freshness is handled by paper_id.
     m = ExplorationMap()
     results = _search(
         [
@@ -123,7 +110,7 @@ def test_observe_skips_result_with_materialized_lkm_node_id():
         index_id="bohrium",
     )
     values = {c.ref["value"] for c in _lkm_contacts(m)}
-    assert values == {"222222"}, "only the fresh paper is a contact"
+    assert values == {"111111", "222222"}
 
 
 def test_observe_skips_already_pulled_paper_by_id():
