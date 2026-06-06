@@ -1,11 +1,12 @@
 """Paper-level landscape staging for LKM exploration.
 
 The normal frontier loop expands one ranked contact at a time. A landscape pass
-is deliberately shallower: it consumes one or more already-run ``gaia search lkm``
-JSON envelopes, deduplicates them to paper-level leads, and produces a neutral
-pull-order artifact. It does not call LKM, author Gaia source, or encode any
-field-specific schema such as PICO, evidence hierarchy, or endpoint categories.
-Those belong in optional tactics layered above this generic paper-lead table.
+is deliberately shallower: it consumes one or more already-run raw
+``gaia search lkm knowledge`` JSON files, deduplicates them to paper-level
+leads, and produces a neutral pull-order artifact. It does not call LKM, author
+Gaia source, or encode any field-specific schema such as PICO, evidence
+hierarchy, or endpoint categories. Those belong in optional tactics layered
+above this generic paper-lead table.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ def _utcnow() -> str:
 
 
 def _query_text(search_results: dict[str, Any], fallback: str | None = None) -> str | None:
-    """Return explicit query text, else the normalized envelope query."""
+    """Return explicit query text, else a query field if the raw payload has one."""
     if isinstance(fallback, str) and fallback.strip():
         return fallback.strip()
     query = search_results.get("query")
@@ -37,8 +38,9 @@ def _query_text(search_results: dict[str, Any], fallback: str | None = None) -> 
 
 
 def _result_count(search_results: dict[str, Any]) -> int:
-    results = search_results.get("results")
-    return len(results) if isinstance(results, list) else 0
+    data = search_results.get("data")
+    variables = data.get("variables") if isinstance(data, dict) else search_results.get("variables")
+    return len(variables) if isinstance(variables, list) else 0
 
 
 @dataclass
@@ -48,6 +50,7 @@ class LandscapeBatch:
     search_results: dict[str, Any]
     query: str | None = None
     source_qid: str | None = None
+    index_id: str | None = None
     path: str | None = None
 
 
@@ -149,8 +152,7 @@ def build_landscape(
     """Build a deduplicated paper-lead landscape from saved LKM search results.
 
     Args:
-        batches: Search envelopes to aggregate. They should be normalized
-            ``gaia-json`` results from ``gaia search lkm``.
+        batches: Raw ``gaia search lkm knowledge`` payloads to aggregate.
         materialized: Joint materialized QID set. Results already materialized as
             Gaia QIDs are skipped.
         materialized_paper_ids: Paper IDs already pulled into the joint view.
@@ -172,6 +174,7 @@ def build_landscape(
             batch.search_results,
             materialized=materialized,
             materialized_paper_ids=materialized_paper_ids,
+            index_id=batch.index_id,
         )
         queries.append(
             {

@@ -517,17 +517,17 @@ with `gaia search lkm <verb> --help`.
    too generic, supplement with one or two distinctive anchor phrases
    from the paper's contribution sentences (Phase 1 working notes are a
    good source). Filter to claim-typed nodes with reasoning backing so
-   the next step has something to trace. Use `--format raw-json` so the
-   verbatim LKM envelope (`data.variables[]` with `provenance`, plus
-   `data.papers`) is preserved for the provenance filter in step 3.
+   the next step has something to trace. The default stdout JSON is the
+   verbatim LKM envelope (`data.variables` with `provenance`) used for
+   the provenance filter in step 3.
 
    ```bash
    gaia search lkm knowledge "<paper title or anchor phrase>" \
      --scopes claim --reasoning-only \
-     --limit 50 --format raw-json --out search.json
+     --limit 50 --out search.json
    ```
 
-3. **Filter `data.variables[]`** for entries whose
+3. **Filter the raw search-result entries** for entries whose
    `provenance.source_packages` list contains the input paper's
    `paper:<id>`. Those are LKM claims whose provenance traces back to
    this paper. Collect the matching `gcn_*` ids (each will be
@@ -538,7 +538,7 @@ with `gaia search lkm <verb> --help`.
 
    ```bash
    gaia search lkm reasoning --claim-id <gcn_id> \
-     --max-chains 10 --format raw-json --out reasoning_<gcn_id>.json
+     --max-chains 10 --out reasoning_<gcn_id>.json
    ```
 
    Some claims may come back with no reasoning chains
@@ -548,13 +548,13 @@ with `gaia search lkm <verb> --help`.
    Current LKM claim-reasoning responses are graph-shaped by default. When a
    chain has `graph.nodes[]` and `graph.edges[]`, read `concludes` as the edge
    from factor to conclusion, `previous_conclusion_of` / `weakpoint_of` /
-   `highlight_of` as claim premises pointing into a factor, and `motivates` as
+   `highlight_of` as claim premises pointing into a factor, and `subproblem_of` as
    question or problem context. These relation names are LKM audit data; do not
    translate them into Gaia DSL operators in Phase 1b notes.
 
 5. **Verify chain closure.** For each `reasoning_chains[]` entry, examine
-   `source_package` first, then the chain's legacy `paper_id` if present
-   (both resolve into `data.papers`). A chain whose source paper matches the
+   `source_package`, `paper_id`, and any `paper:<id>::...` graph-node ids
+   (all resolve into `data.papers`). A chain whose source paper matches the
    input paper's id represents reasoning fully internal to this paper —
    expected for a typical paper-extract claim. A chain whose source paper is a
    *different* paper indicates LKM has rooted this claim in inter-paper
@@ -584,7 +584,7 @@ with `gaia search lkm <verb> --help`.
 
 ### When to skip
 
-- **Paper not in LKM corpus.** Step 3 yields no `data.variables[]` whose
+- **Paper not in LKM corpus.** Step 3 yields no search-result entry whose
   `provenance.source_packages` includes the paper's `paper:<id>`. Note
   the skip in the hand-off report; Phase 4 emit proceeds without
   cross-grounding.

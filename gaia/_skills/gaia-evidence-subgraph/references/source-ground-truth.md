@@ -1,6 +1,6 @@
 # Chain-Payload Audit Discipline
 
-LKM chain payloads (`gaia search lkm knowledge` recall + `gaia search lkm reasoning --claim-id <id> --format raw-json` chains) are this skill's **single source of truth**. Current claim-reasoning payloads are graph-shaped by default (`reasoning_chains[].graph.nodes[]` / `graph.edges[]`), while older payloads may carry `factors[]`. Every node in the graph and every audit row must trace back into that JSON — no external paper text, no agent paraphrase, no synthetic bridging.
+LKM chain payloads (`gaia search lkm knowledge` recall + `gaia search lkm reasoning --claim-id <id>` chains) are this skill's **single source of truth**. Current claim-reasoning payloads are graph-shaped by default (`reasoning_chains[].graph.nodes[]` / `graph.edges[]`). Every node in the graph and every audit row must trace back into that JSON — no external paper text, no agent paraphrase, no synthetic bridging.
 
 ## Why the discipline matters
 
@@ -18,10 +18,10 @@ For each node and edge, pick the most specific anchor available:
 | Anchor | What it points to |
 | --- | --- |
 | `graph.nodes[id=<gcn_* or paper:* or lfac_*>]` | A claim, question, or factor node inside a graph-shaped chain. Quote `content` verbatim when present. |
-| `graph.edges[source=<id>,target=<id>,type=<relation>]` | A graph-shaped chain edge. Preserve the LKM relation name (`concludes`, `motivates`, `previous_conclusion_of`, `weakpoint_of`, `highlight_of`, etc.) as an audit fact. |
-| `gcn_<premise_id>` | A native premise claim, either a graph claim node that points to a factor or a legacy `factors[].premises[]` entry. Quote `content` verbatim. |
+| `graph.edges[source=<id>,target=<id>,type=<relation>]` | A graph-shaped chain edge. Preserve the LKM relation name (`concludes`, `subproblem_of`, `previous_conclusion_of`, `weakpoint_of`, `highlight_of`, etc.) as an audit fact. |
+| `gcn_<premise_id>` | A native premise claim: a graph claim node that points to a factor. Quote `content` verbatim. |
 | `gfac_<factor_id>` / `lfac_<factor_id>` | A factor diamond. Quote `subtype` and the cluster semantics implied by its premises. |
-| `factor.steps[j].reasoning` / `factors[i].steps[j].reasoning` | An optional step note inside a factor — not always populated. When present, treat as second-class evidence after premise content. |
+| `factor.steps[j].reasoning` | An optional step note inside a factor — not always populated. When present, treat as second-class evidence after premise content. |
 | Root `data.claim.content` | The root claim text itself. Use only on the root node. |
 | `data.papers[paper:<id>]` | Bibliographic metadata for a `source_package`. Use for `gaia-scholarly-synthesis` references; **never** as the source of a graph node's text. |
 
@@ -61,11 +61,11 @@ The goal is no fabrication — not exhaustive coverage. A graph with a few `anch
 
 ## Multi-sub-model papers
 
-When a single paper analyses multiple sub-models / variants and LKM has split it into several claims, each chain-backed claim id is a candidate root. Pick **one** as the root for this graph and limit nodes to that claim's `reasoning_chains[].graph` (or legacy `evidence_chains` / `factors[]`). If the user wants the other sub-models, that is a separate run with a different root id.
+When a single paper analyses multiple sub-models / variants and LKM has split it into several claims, each chain-backed claim id is a candidate root. Pick **one** as the root for this graph and limit nodes to that claim's `reasoning_chains[].graph`. If the user wants the other sub-models, that is a separate run with a different root id.
 
 If the chain you receive is missing a sub-model the user expected to see, run targeted `gaia search lkm knowledge` queries (`--retrieval-mode lexical --keywords <sub-model's distinctive terms> --scopes claim`) for that sub-model — do **not** import sub-model content from outside the chain payload.
 
 ## Caching
 
-- Persist the raw `gaia search lkm reasoning --claim-id … --format raw-json` JSON (and the `gaia search lkm knowledge … --format raw-json` JSON that surfaced the candidate) under the run's working folder. The audit anchors are line-item references into that JSON; without the JSON the anchors lose meaning.
+- Persist the raw `gaia search lkm reasoning --claim-id …` stdout JSON (and the `gaia search lkm knowledge …` stdout JSON that surfaced the candidate) under the run's working folder. The audit anchors are line-item references into that JSON; without the JSON the anchors lose meaning.
 - Re-issue `evidence` if more than a few minutes pass between discovery and graph build — the corpus may have moved, and an anchor that used to resolve may not after a re-fetch. When this happens, prefer re-pinning the anchor over editing the graph.

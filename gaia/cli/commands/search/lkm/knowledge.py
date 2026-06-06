@@ -13,7 +13,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_knowledge
+from gaia.cli.commands.search.lkm._hints import knowledge_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     MAX_KEYWORDS,
@@ -110,14 +110,10 @@ def knowledge_command(
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
-    output_format: Annotated[
-        SearchOutputFormat,
-        typer.Option(
-            "--format",
-            help="Output format: raw upstream JSON or normalized Gaia search JSON.",
-            case_sensitive=False,
-        ),
-    ] = SearchOutputFormat.GAIA_JSON,
+    no_hint: Annotated[
+        bool,
+        typer.Option("--no-hint", help="Do not print Gaia next-step hints to stderr."),
+    ] = False,
 ) -> None:
     """Search LKM knowledge nodes (POST /search)."""
     index_id = validate_lkm_index(index)
@@ -167,24 +163,4 @@ def knowledge_command(
     body["filters"] = filters
 
     payload = run_request("POST", "/search", json_body=body, index_id=index_id)
-    if output_format == SearchOutputFormat.GAIA_JSON:
-        payload = normalize_lkm_knowledge(
-            payload,
-            query=query,
-            kind=_query_kind(scopes),
-            index_id=index_id,
-        )
-    emit(payload, out)
-
-
-def _query_kind(scopes: list[ScopeChoice] | None) -> str:
-    """Return the Gaia query kind represented by the requested LKM scopes."""
-    if scopes is None or len(scopes) != 1:
-        return "knowledge"
-    return {
-        ScopeChoice.CLAIM: "claim",
-        ScopeChoice.QUESTION: "question",
-    }[scopes[0]]
-
-
-claims_command = knowledge_command
+    emit(payload, out, hint=knowledge_hint(payload, index_id=index_id), show_hint=not no_hint)

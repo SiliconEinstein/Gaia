@@ -13,7 +13,7 @@ Commands (SCHEMA.md §7c / §7f):
 
 * ``init <pkg> --seed … [--doctrine …]`` — create
   ``.gaia/exploration/map.json`` with seeds + a policy from the named doctrine.
-* ``observe <pkg> --source <qid> [--search-json <file>] [--query …]`` —
+* ``observe <pkg> --source <qid> [--search-json <file>] [--query …] [--index …]`` —
   read ``gaia search lkm`` JSON (file/stdin) and record each unpulled related
   paper as an ``lkm_related`` paper-contact (SCHEMA.md §7f — the primary frontier
   source). This is the step the agent calls after each LKM survey.
@@ -220,6 +220,12 @@ _OBSERVE_QUERY_OPT = typer.Option(
     None,
     "--query",
     help="The LKM query text that surfaced these results (stored on contact meta).",
+)
+_LKM_INDEX_OPT = typer.Option(
+    "bohrium",
+    "--index",
+    "--server",
+    help="LKM index id that produced the raw search JSON.",
 )
 _RENDER_OUT_OPT = typer.Option(
     None,
@@ -841,24 +847,25 @@ def observe_command(
     search_json: str | None = _SEARCH_JSON_OPT,
     source: str | None = _OBSERVE_SOURCE_OPT,
     query: str | None = _OBSERVE_QUERY_OPT,
+    index_id: str = _LKM_INDEX_OPT,
 ) -> None:
     r"""Record unpulled related papers from an LKM search as frontier contacts.
 
-    Reads ``gaia search lkm`` result JSON (from ``--search-json <file>`` or, if
-    omitted, stdin) and, for every result whose **paper** is not materialized in
-    the joint view, adds or merges an ``lkm_related`` paper-contact (SCHEMA.md
-    §7f — the primary frontier source). De-dup is by ``paper_id`` (a paper
-    surfaced several times is one contact; sources + LKM node ids union, the max
-    rank wins). A result whose ``gaia.qid`` is already set (materialized in the
-    IR) is skipped. ``--source`` is the surveyed node whose survey prompted the
-    search and becomes the contact's ``lkm_related`` source.
+    Reads raw ``gaia search lkm knowledge`` JSON (from ``--search-json <file>``
+    or, if omitted, stdin) and, for every variable whose **paper** is not
+    materialized in the joint view, adds or merges an ``lkm_related``
+    paper-contact (SCHEMA.md §7f — the primary frontier source). De-dup is by
+    ``paper_id`` (a paper surfaced several times is one contact; sources + LKM
+    node ids union, the max rank wins). ``--source`` is the surveyed node whose
+    survey prompted the search and becomes the contact's ``lkm_related`` source.
 
     Example:
 
     .. code-block:: bash
 
         gaia search lkm knowledge "free fall" --limit 5 > leads.json
-        gaia-lkm-explore observe ./pkg --source example:pkg::seed --search-json leads.json
+        gaia-lkm-explore observe ./pkg --source example:pkg::seed \
+            --query "free fall" --search-json leads.json
         gaia search lkm knowledge "drag" | gaia-lkm-explore observe ./pkg --source example:pkg::seed
     """
     if not (_gaia_dir(pkg) / "exploration" / "map.json").exists():
@@ -916,6 +923,7 @@ def observe_command(
         materialized_paper_ids=materialized_papers,
         source_qid=source,
         query=query,
+        index_id=index_id,
         discovered_round=exploration_map.round,
     )
     _refresh_stats(exploration_map)
@@ -945,13 +953,14 @@ def landscape_command(
     search_json: list[str] | None = _LANDSCAPE_SEARCH_JSON_OPT,
     query: list[str] | None = _LANDSCAPE_QUERY_OPT,
     source: list[str] | None = _LANDSCAPE_SOURCE_OPT,
+    index_id: str = _LKM_INDEX_OPT,
     out: str | None = _LANDSCAPE_OUT_OPT,
     json_out: bool = _LANDSCAPE_JSON_OPT,
 ) -> None:
     r"""Aggregate saved LKM searches into a paper-level landscape artifact.
 
     This is a breadth-first staging pass before deep pulls. It reads one or more
-    normalized ``gaia search lkm`` JSON files, deduplicates their results by
+    raw ``gaia search lkm knowledge`` JSON files, deduplicates their variables by
     paper, skips already materialized papers when the package is compiled, and
     writes a generic ``exploration_landscape`` JSON artifact. It does **not** call
     LKM, mutate the map, pull papers, author Gaia source, or encode any
@@ -985,6 +994,7 @@ def landscape_command(
             search_results=_read_json_object(path),
             query=queries[i] if i < len(queries) else None,
             source_qid=sources[i] if i < len(sources) else None,
+            index_id=index_id,
             path=str(path),
         )
         for i, path in enumerate(search_paths)

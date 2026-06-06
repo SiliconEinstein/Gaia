@@ -128,21 +128,22 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
      `gaia search lkm reasoning "<query>"` / `gaia search lkm reasoning
      --claim-id <id>` for chains.
    - Anchor queries on the contact's `ref.value` and its `sources` (the
-     surveyed nodes that reach it). Save the DEFAULT-format JSON (`--format
-     gaia-json`, the default) — `observe` reads that normalized envelope, not
-     `--format raw-json`. Its shape is `{schema_version, query, results: [...]}`;
-     each result carries `id`, `kind`, `rank.score`, `gaia.{qid,object_kind}`,
-     `source.{paper_id,paper_title,doi,role,has_reasoning,has_evidence,
-     conclusion_id,factors}` (where `source.factors` is a per-factor list of
-     `{factor_id, premise_count}`), `actions[]`, and `raw.payload`
-     (the verbatim upstream node/chain, the only place full factor detail survives).
+     surveyed nodes that reach it). Save the stdout JSON. It is the raw LKM
+     response; Gaia next-step hints are printed on stderr and do not belong in
+     the saved JSON. There is no `--format` switch here. For knowledge recall,
+     the paper provenance lives in `data.variables[].provenance` (especially
+     `source_packages` / `representative_lcn.package_id`). For reasoning, the
+     graph lives in `data.reasoning_chains[].graph`.
 
 2. RECORD unpulled related papers as frontier contacts — REQUIRED, the primary
    growth path. Pipe each search's JSON to:
        gaia-lkm-explore observe <pkg> --source <this-contact-or-seed-qid> \\
            --query "<query>" --search-json /tmp/leads.json
-   Every result whose paper is not materialized becomes an `lkm_related`
-   paper-contact, ranked next round. Do this for EVERY survey query.
+   Every raw variable whose backing paper is not materialized becomes an
+   `lkm_related` paper-contact, ranked next round. Do this for EVERY survey
+   query. If the search used a non-default LKM index, pass the same `--index`
+   to `observe`; raw LKM JSON intentionally does not carry Gaia's local index
+   configuration.
    If the original research question is not in English and LKM search metadata
    hydration times out, KEEP the original seed/question but retry the LKM search
    with a faithful English equivalent query; record the actual search string in
@@ -156,8 +157,9 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
    dependency sub-package. It (a) promotes that paper's `lkm_related` contact to
    surveyed and (b) adds intra-survey `depends_on` contacts.
    (Optional: preview the subgraph extent first with
-   `gaia search lkm package --paper-id <paper_id>` — retrieve-only, counts via
-   `source.stats`; it CANNOT materialize, so still run `pkg add --lkm-paper` to pull.)
+   `gaia search lkm package --paper-id <paper_id>` — retrieve-only, with the raw
+   paper graph under `data.papers[]`; it CANNOT materialize, so still run
+   `pkg add --lkm-paper` to pull.)
 
 3b. FORMALIZE what you pulled — the PRIMARY authoring path after a pull. A pulled
    paper's claims are materialized as QIDs `lkm:<paper-package>::<label>`; the
@@ -191,43 +193,18 @@ You survey the contacts listed in this task (round 0: survey the seed(s) instead
 
 4. AUTHOR remaining evidence from search results — for leads you surfaced via
    `gaia search lkm` but did not pull (or that have no compilable chain),
-   classifying each LKM result by evidence status (mapping contract). Read the
-   status straight off the default
-   envelope — there is no `total_chains` field; a result is chain-backed iff the
-   normalizer says so:
-   - Chain-backed claim — a `reasoning` result (`kind == "reasoning_chain"`) with
-     `gaia.object_kind == "derive"` (the normalizer sets this only when at least
-     one factor has premises and a factor-level conclusion), or a `knowledge` claim with
-     `source.has_reasoning == true` (its `inspect` action gives the
-     `gaia search lkm reasoning --claim-id <id>` to fetch the chain). Emit
-     `claim(...)` for the conclusion + each usable premise. Route PER FACTOR in
-     `raw.payload.factors[]` by its premises and factor-level conclusion (NOT a
-     chain-level flag or chain-level conclusion):
-       * `premise_count > 0` with a factor-level conclusion → one
-         factor-derived `derive(conclusion,
-         given=[premises], rationale="<numbered LKM steps>", label="<factor_id>")`
-         (LKM factor ids are `gfac_*`; use that id as the label — `factor_id`
-         may be null when upstream omits it; then fall back to the chain id);
-       * `premise_count == 0` with a conclusion → an intermediate paper-chain
-         node whose upstream premises are omitted from the search result. Do NOT
-         emit it as `derive(..., given=[])` or immediately downgrade it to
-         `lkm_no_chain`; follow the `inspect` action to fetch the full package and
-         recover the prior reasoning-chain/conclusion chain;
-       * `premise_count > 0` without a factor-level conclusion → incomplete LKM
-         payload / likely data issue. Do NOT borrow `chain.conclusion`, do NOT
-         emit `derive`, and do NOT invent the missing conclusion; inspect the
-         package if needed, otherwise treat it as unusable chain context.
-   - LKM source claim (FALLBACK) — no chain or no usable chain context (a
-     `knowledge` claim with `source.has_reasoning == false`, or a
-     `reasoning_chain` empty shell with `source.factors == []`, or only
-     warning-bearing incomplete factors after you could not recover the package
-     context): emit a leaf/source `claim(...)` with
-     `provenance_source="lkm_no_chain"` and the preserved `lkm_id` (the result's
-     `id`); do not invent premises, factors, or derives. Reach for `lkm_no_chain`
-     only when you could not pull the source or it is genuinely chain-less —
-     prefer pulling the paper and formalizing its claims (3b) over restating them
-     as fresh local leaves.
-   - Search lead — a `question` result, or any result with insufficient
+   classifying each raw LKM item by evidence status (mapping contract).
+   - Chain-backed claim — a raw knowledge variable with `type == "claim"` and
+     `has_reasoning == true`; fetch its graph with
+     `gaia search lkm reasoning --claim-id <id>`. In the reasoning graph, factor
+     nodes with incoming dependency edges and a `concludes` edge are candidates
+     for `derive(...)` / `depends_on(...)`; factor nodes without enough inputs
+     are incomplete context, not empty-premise derives.
+   - LKM source claim (fallback) — a raw claim with no usable reasoning graph:
+     emit a leaf/source `claim(...)` with `provenance_source="lkm_no_chain"` and
+     the preserved LKM variable id. Prefer pulling the paper and formalizing its
+     claims (3b) over restating many raw search hits as fresh local leaves.
+   - Search lead — a raw `question` variable, or any item with insufficient
      content/provenance: do not emit.
    - Make every claim self-contained (system/material, method, quantity, value,
      conditions) so it is judgeable true/false without the LKM payload.

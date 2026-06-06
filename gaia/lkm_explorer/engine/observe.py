@@ -3,8 +3,8 @@
 The 4c live re-run proved the ``depends_on`` frontier fills in *within* a
 self-contained materialized paper but rarely opens new territory. The expansion
 signal is **``lkm_related``** (SCHEMA.md §3b): the papers an LKM survey surfaces
-that you have **not pulled yet**. This module turns a ``gaia search lkm …`` JSON
-result set into ``lkm_related`` frontier contacts.
+that you have **not pulled yet**. This module turns raw
+``gaia search lkm knowledge`` JSON into ``lkm_related`` frontier contacts.
 
 The actionable unit is the **paper** (``gaia pkg add --lkm-paper <paper_id>``
 pulls a whole paper), so ``lkm_related`` contacts are **paper-granularity**:
@@ -13,16 +13,15 @@ pulls a whole paper), so ``lkm_related`` contacts are **paper-granularity**:
 * ``sources = [{"qid": <surveyed node that prompted the search>, "edge":
   "lkm_related"}]`` (union across observations);
 * ``meta`` carries the LKM metadata the contact needs to be ranked and pulled
-  (``paper_id``, ``title``, ``doi``, the max LKM ``rank`` seen, the surfacing
-  ``query``, and the related ``lkm_node_ids`` — the result ids that pointed at
-  this paper).
+  (``paper_id``, ``title``, ``doi``, the max LKM relevance rank seen, the
+  surfacing ``query``, and the related ``lkm_node_ids`` — the raw LKM variable
+  ids that pointed at this paper).
 
 De-dup is by ``paper_id``: a paper surfaced by several results (or across
 several observations) is **one** contact with the union of its sources + node
 ids and the **max** rank seen. A result whose paper is **already materialized**
-in the joint view — or whose ``gaia.qid`` is already set (it is in the IR) — is
-**not** a contact (and an existing matching contact is promoted by the round /
-frontier path, not here).
+in the joint view is **not** a contact (and an existing matching contact is
+promoted by the round / frontier path, not here).
 
 This module is **pure** and testable against fixture search JSON — no live LKM:
 :func:`observe_lkm_results` reads the parsed JSON + the joint materialized set
@@ -65,68 +64,86 @@ class _PaperLead:
             self.lkm_node_ids = []
 
 
-def _result_paper_id(result: dict[str, Any]) -> str | None:
-    """Return a result's paper id, preferring ``source.paper_id``.
+def _variables(search_results: dict[str, Any]) -> list[dict[str, Any]]:
+    data = _dict(search_results.get("data"))
+    raw = data.get("variables", search_results.get("variables"))
+    return [item for item in _list(raw) if isinstance(item, dict)]
 
-    Falls back to ``actions[].target.paper_id`` (the ``pkg add --lkm-paper``
-    action target) when the source block is missing it. Returns ``None`` when no
-    paper id can be found (such a result cannot become a paper-contact).
-    """
-    source = result.get("source")
-    if isinstance(source, dict):
-        pid = source.get("paper_id")
-        if isinstance(pid, str) and pid:
-            return pid
-    for action in result.get("actions", []) or []:
-        if not isinstance(action, dict):
-            continue
-        target = action.get("target")
-        if isinstance(target, dict):
-            pid = target.get("paper_id")
-            if isinstance(pid, str) and pid:
-                return pid
+
+def _variable_paper_id(variable: dict[str, Any]) -> str | None:
+    """Return the paper id referenced by a raw LKM variable."""
+    for key in ("paper_id", "source_package", "package_id", "local_id"):
+        if paper_id := _paper_id_from_any(variable.get(key)):
+            return paper_id
+    provenance = _dict(variable.get("provenance"))
+    representative = _dict(provenance.get("representative_lcn"))
+    for key in ("package_id", "local_id"):
+        if paper_id := _paper_id_from_any(representative.get(key)):
+            return paper_id
+    for source_package in _list(provenance.get("source_packages")):
+        if paper_id := _paper_id_from_any(source_package):
+            return paper_id
     return None
 
 
-def _result_is_materialized(result: dict[str, Any]) -> bool:
-    """True iff the result is already in the IR (its ``gaia.qid`` is set).
-
-    A non-null ``gaia.qid`` means LKM resolved this node to a materialized Gaia
-    QID — it is not fresh territory, so its paper is not a contact on that count.
-    """
-    gaia = result.get("gaia")
-    if not isinstance(gaia, dict):
-        return False
-    qid = gaia.get("qid")
-    return isinstance(qid, str) and bool(qid)
-
-
-def _result_rank(result: dict[str, Any]) -> float | None:
-    """Return a result's LKM retrieval rank (``rank.score``), or ``None``."""
-    rank = result.get("rank")
-    if isinstance(rank, dict):
-        score = rank.get("score")
+def _variable_rank(variable: dict[str, Any]) -> float | None:
+    """Return a raw LKM variable's relevance rank, if present."""
+    for key in ("retrieval_score", "relevance_score", "score", "rerank_score"):
+        score = variable.get(key)
         if isinstance(score, (int, float)):
             return float(score)
     return None
 
 
-def _result_index_id(result: dict[str, Any]) -> str | None:
-    """Return the LKM index id (e.g. ``"bohrium"``) for the result, if present."""
-    source = result.get("source")
-    if isinstance(source, dict):
-        idx = source.get("index_id")
-        if isinstance(idx, str) and idx:
-            return idx
-    for action in result.get("actions", []) or []:
-        if not isinstance(action, dict):
-            continue
-        target = action.get("target")
-        if isinstance(target, dict):
-            idx = target.get("index_id")
-            if isinstance(idx, str) and idx:
-                return idx
-    return None
+def _variable_node_id(variable: dict[str, Any], *, index_id: str | None) -> str | None:
+    raw_id = _text(variable.get("id")) or _text(variable.get("global_id"))
+    if raw_id is None:
+        return None
+    return f"lkm:{index_id}:{raw_id}" if index_id else raw_id
+
+
+def _paper_metadata(variable: dict[str, Any]) -> dict[str, Any]:
+    for key in ("paper", "paper_enrich", "paper_metadata"):
+        if metadata := _dict(variable.get(key)):
+            return metadata
+    return {}
+
+
+def _variable_title(variable: dict[str, Any]) -> str | None:
+    paper = _paper_metadata(variable)
+    for key in ("en_title", "title", "paper_title"):
+        if title := _text(paper.get(key)):
+            return title
+    return _text(variable.get("paper_title"))
+
+
+def _variable_doi(variable: dict[str, Any]) -> str | None:
+    paper = _paper_metadata(variable)
+    return _text(paper.get("doi")) or _text(variable.get("doi"))
+
+
+def _paper_id_from_any(value: Any) -> str | None:
+    text = _text(value)
+    if text is None:
+        return None
+    if text.startswith("paper:"):
+        return text.split("::", 1)[0].split(":", 1)[1]
+    return text if text.isdigit() else None
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
+def _text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def distill_paper_leads(
@@ -134,62 +151,69 @@ def distill_paper_leads(
     *,
     materialized: set[str],
     materialized_paper_ids: set[str] | None = None,
+    index_id: str | None = None,
 ) -> list[_PaperLead]:
     """Reduce LKM search JSON to unmaterialized paper-granularity leads.
 
-    Walks ``search_results["results"]`` and groups rows by ``paper_id``. A row is
-    **dropped** when (a) it has no paper id, (b) its ``gaia.qid`` is already set
-    (it is materialized in the IR), or (c) its paper is already pulled — its
-    ``paper_id`` is in ``materialized_paper_ids`` (or, defensively, coincides with
-    a materialized QID). An already-pulled paper is not fresh territory, so it is
-    not a contact (a matching contact, if any, is promoted by the round/frontier
-    path — :func:`promote_materialized_lkm_contacts` — not here).
+    Walks raw ``data.variables[]`` and groups rows by ``paper_id``. A row is
+    **dropped** when (a) it has no paper id, or (b) its paper is already pulled —
+    its ``paper_id`` is in ``materialized_paper_ids``. An already-pulled paper
+    is not fresh territory, so it is not a contact (a matching contact, if any,
+    is promoted by the round/frontier path —
+    :func:`promote_materialized_lkm_contacts` — not here).
 
     Args:
-        search_results: The parsed ``gaia search lkm`` JSON (top-level object
-            with a ``results`` list).
-        materialized: The joint-view materialized QID set.
+        search_results: The parsed raw ``gaia search lkm knowledge`` JSON.
+        materialized: The joint-view materialized QID set. Raw LKM paper/node
+            ids are not Gaia QIDs; paper freshness is checked with
+            ``materialized_paper_ids``.
         materialized_paper_ids: Paper ids already pulled into the joint view
             (encoded in the dependency sub-package dir names — SCHEMA.md §7f).
+        index_id: LKM index used for this search. Raw LKM JSON does not carry
+            Gaia's configured index id, so the caller supplies it when known.
 
     Returns:
         One :class:`_PaperLead` per distinct unmaterialized paper, max rank and
         unioned node ids merged in.
     """
-    results = search_results.get("results")
-    if not isinstance(results, list):
+    # Kept in the signature because observe/landscape callers pass the joint
+    # Gaia QID set; raw LKM paper freshness is checked by materialized_paper_ids.
+    del materialized
+
+    variables = _variables(search_results)
+    if not variables:
         return []
     pulled = materialized_paper_ids or set()
 
     leads: dict[str, _PaperLead] = {}
-    for result in results:
-        if not isinstance(result, dict) or _result_is_materialized(result):
-            continue
-        paper_id = _result_paper_id(result)
-        if paper_id is None or paper_id in materialized or paper_id in pulled:
+    for variable in variables:
+        paper_id = _variable_paper_id(variable)
+        if paper_id is None or paper_id in pulled:
             continue
         lead = leads.get(paper_id)
         if lead is None:
             lead = _PaperLead(paper_id=paper_id)
             leads[paper_id] = lead
-        _merge_lead_row(lead, result)
+        _merge_lead_row(lead, variable, index_id=index_id)
 
     return list(leads.values())
 
 
-def _merge_lead_row(lead: _PaperLead, result: dict[str, Any]) -> None:
-    """Fold one search-result row's fields into an aggregating :class:`_PaperLead`."""
-    raw_source = result.get("source")
-    source: dict[str, Any] = raw_source if isinstance(raw_source, dict) else {}
-    title = source.get("paper_title") or result.get("title")
-    doi = source.get("doi")
-    rank = _result_rank(result)
-    node_id = result.get("id")
-    index_id = _result_index_id(result)
+def _merge_lead_row(
+    lead: _PaperLead,
+    variable: dict[str, Any],
+    *,
+    index_id: str | None,
+) -> None:
+    """Fold one raw LKM variable into an aggregating :class:`_PaperLead`."""
+    title = _variable_title(variable)
+    doi = _variable_doi(variable)
+    rank = _variable_rank(variable)
+    node_id = _variable_node_id(variable, index_id=index_id)
 
-    if lead.title is None and isinstance(title, str) and title:
+    if lead.title is None and title:
         lead.title = title
-    if lead.doi is None and isinstance(doi, str) and doi:
+    if lead.doi is None and doi:
         lead.doi = doi
     if lead.index_id is None and index_id is not None:
         lead.index_id = index_id
@@ -271,6 +295,7 @@ def observe_lkm_results(
     materialized_paper_ids: set[str] | None = None,
     source_qid: str | None = None,
     query: str | None = None,
+    index_id: str | None = None,
     discovered_round: int | None = None,
 ) -> ObserveResult:
     """Fold LKM search results into ``lkm_related`` frontier contacts (SCHEMA §7f).
@@ -288,14 +313,16 @@ def observe_lkm_results(
 
     Args:
         exploration_map: The map to grow (mutated in place).
-        search_results: Parsed ``gaia search lkm`` JSON.
+        search_results: Parsed raw ``gaia search lkm knowledge`` JSON.
         materialized: The joint-view materialized QID set (the surveyed
-            territory; a paper id matching a materialized QID is skipped).
+            territory). Raw LKM paper/node ids are not Gaia QIDs; already pulled
+            papers are supplied via ``materialized_paper_ids``.
         materialized_paper_ids: Paper ids already pulled into the joint view —
             skipped (already explored), not re-added as fresh contacts.
         source_qid: The surveyed node whose survey prompted this LKM search; it
             becomes the contact's ``lkm_related`` source.
         query: The surfacing query text, stored on ``meta`` for legibility.
+        index_id: LKM index used for this search.
         discovered_round: Round to stamp on newly added contacts.
 
     Returns:
@@ -305,6 +332,7 @@ def observe_lkm_results(
         search_results,
         materialized=materialized,
         materialized_paper_ids=materialized_paper_ids,
+        index_id=index_id,
     )
 
     new_ids: list[str] = []

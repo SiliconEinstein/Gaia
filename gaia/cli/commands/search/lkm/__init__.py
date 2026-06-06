@@ -1,8 +1,7 @@
 """``gaia search lkm`` — LKM knowledge-graph search indexes.
 
-Gaia-facing verbs wrap the public LKM HTTP endpoints while keeping the
-upstream endpoint names as hidden compatibility aliases where useful. Every
-verb writes pretty JSON to stdout or, with ``--out PATH``, atomically to a file.
+Gaia-facing verbs wrap the public LKM HTTP endpoints. Every verb writes pretty
+JSON to stdout or, with ``--out PATH``, atomically to a file.
 """
 
 from __future__ import annotations
@@ -12,13 +11,11 @@ import typer
 from gaia.cli.commands.search.lkm.auth import auth_app
 from gaia.cli.commands.search.lkm.knowledge import (
     _KNOWLEDGE_EPILOG,
-    claims_command,
     knowledge_command,
 )
-from gaia.cli.commands.search.lkm.paper_graph import package_command, paper_graph_command
+from gaia.cli.commands.search.lkm.paper_graph import package_command
 from gaia.cli.commands.search.lkm.reasoning import reasoning_command
-from gaia.cli.commands.search.lkm.reasoning_search import reasoning_search_command
-from gaia.cli.commands.search.lkm.variables import nodes_command, variables_command
+from gaia.cli.commands.search.lkm.variables import nodes_command
 
 _LKM_EPILOG = (
     "Configured indexes: bohrium (default). Set GAIA_LKM_INDEX_<NAME>_URL "
@@ -46,12 +43,8 @@ lkm_app = typer.Typer(
 
 lkm_app.add_typer(auth_app, name="auth")
 lkm_app.command(name="knowledge", epilog=_KNOWLEDGE_EPILOG)(knowledge_command)
-lkm_app.command(name="claims", epilog=_KNOWLEDGE_EPILOG, hidden=True)(claims_command)
 lkm_app.command(name="reasoning")(reasoning_command)
-lkm_app.command(name="reasoning-search", hidden=True)(reasoning_search_command)
 lkm_app.command(name="nodes")(nodes_command)
-lkm_app.command(name="variables", hidden=True)(variables_command)
 lkm_app.command(name="package")(package_command)
-lkm_app.command(name="paper-graph", hidden=True)(paper_graph_command)
 
 __all__ = ["lkm_app"]

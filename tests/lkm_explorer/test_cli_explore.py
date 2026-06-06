@@ -499,11 +499,18 @@ def test_gaia_cli_no_longer_lists_explore():
 _FIXTURE = Path(__file__).resolve().parent / "fixtures" / "lkm_search_free_fall.json"
 
 
+def _write_raw_lkm_fixture(tmp_path: Path) -> Path:
+    path = tmp_path / "raw-lkm-free-fall.json"
+    path.write_text(_FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
+    return path
+
+
 def test_explore_observe_records_lkm_contacts_from_fixture(galileo_pkg: Path):
     runner.invoke(
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     result = runner.invoke(
         app,
         [
@@ -514,7 +521,7 @@ def test_explore_observe_records_lkm_contacts_from_fixture(galileo_pkg: Path):
             "--query",
             "free fall",
             "--search-json",
-            str(_FIXTURE),
+            str(raw_fixture),
         ],
     )
     assert result.exit_code == 0, result.output
@@ -550,6 +557,7 @@ def test_explore_landscape_writes_neutral_paper_leads(galileo_pkg: Path):
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     out = galileo_pkg / ".gaia" / "exploration" / "custom-landscape.json"
     result = runner.invoke(
         app,
@@ -557,9 +565,9 @@ def test_explore_landscape_writes_neutral_paper_leads(galileo_pkg: Path):
             "landscape",
             str(galileo_pkg),
             "--search-json",
-            str(_FIXTURE),
+            str(raw_fixture),
             "--search-json",
-            str(_FIXTURE),
+            str(raw_fixture),
             "--source",
             _galileo_qid("aristotle_model"),
             "--out",
@@ -672,9 +680,10 @@ def test_explore_focuses_writes_focuses_from_landscape(galileo_pkg: Path):
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     landscape_result = runner.invoke(
         app,
-        ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)],
+        ["landscape", str(galileo_pkg), "--search-json", str(raw_fixture)],
     )
     assert landscape_result.exit_code == 0, landscape_result.output
 
@@ -710,8 +719,9 @@ def test_explore_artifact_writes_handoff_envelope(galileo_pkg: Path):
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     runner.invoke(app, ["scope", str(galileo_pkg)])
-    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(raw_fixture)])
     runner.invoke(app, ["focuses", str(galileo_pkg)])
 
     result = runner.invoke(app, ["artifact", str(galileo_pkg)])
@@ -734,8 +744,9 @@ def test_explore_gate_blocks_without_focuses(galileo_pkg: Path):
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     runner.invoke(app, ["scope", str(galileo_pkg)])
-    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(raw_fixture)])
     runner.invoke(app, ["artifact", str(galileo_pkg)])
 
     result = runner.invoke(app, ["gate", str(galileo_pkg)])
@@ -754,8 +765,9 @@ def test_explore_gate_passes_with_complete_assessable_artifacts(galileo_pkg: Pat
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     runner.invoke(app, ["scope", str(galileo_pkg)])
-    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(_FIXTURE)])
+    runner.invoke(app, ["landscape", str(galileo_pkg), "--search-json", str(raw_fixture)])
     runner.invoke(app, ["focuses", str(galileo_pkg)])
     (galileo_pkg / ".gaia" / "exploration" / "rounds.jsonl").write_text("{}\n", encoding="utf-8")
     runner.invoke(app, ["artifact", str(galileo_pkg)])
@@ -771,33 +783,33 @@ def test_explore_gate_passes_with_complete_assessable_artifacts(galileo_pkg: Pat
     assert payload["audit"]["allowed_next_steps"] == ["assess"]
 
 
-def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
+def test_explore_observe_dedups_raw_variables(galileo_pkg: Path):
     runner.invoke(
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
-    # Two rows share paper 'P1'; one row has a resolved gaia.qid (skip); one fresh.
+    # Two rows share paper 'P1'; P2 is a separate fresh paper.
     leads = {
-        "results": [
-            {
-                "id": "lkm:bohrium:gcn_1",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "P1", "index_id": "bohrium"},
-                "rank": {"score": 0.1},
-            },
-            {
-                "id": "lkm:bohrium:gcn_2",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "P1", "index_id": "bohrium"},
-                "rank": {"score": 0.8},
-            },
-            {
-                "id": "lkm:bohrium:gcn_3",
-                "gaia": {"qid": _galileo_qid("aristotle_model")},
-                "source": {"paper_id": "P2", "index_id": "bohrium"},
-                "rank": {"score": 0.5},
-            },
-        ]
+        "code": 0,
+        "data": {
+            "variables": [
+                {
+                    "id": "gcn_1",
+                    "provenance": {"source_packages": ["paper:P1"]},
+                    "score": 0.1,
+                },
+                {
+                    "id": "gcn_2",
+                    "provenance": {"source_packages": ["paper:P1"]},
+                    "score": 0.8,
+                },
+                {
+                    "id": "gcn_3",
+                    "provenance": {"source_packages": ["paper:P2"]},
+                    "score": 0.5,
+                },
+            ]
+        },
     }
     leads_file = galileo_pkg / "leads.json"
     leads_file.write_text(json.dumps(leads))
@@ -815,8 +827,8 @@ def test_explore_observe_dedups_and_skips_materialized(galileo_pkg: Path):
     assert result.exit_code == 0, result.output
     m = load_map(galileo_pkg)
     lkm = [c for c in m.frontier if c.ref["kind"] == "lkm"]
-    # P1 once (deduped, max rank 0.8); P2 skipped (resolved qid).
-    assert {c.ref["value"] for c in lkm} == {"P1"}
+    # P1 once (deduped, max rank 0.8); P2 is fresh.
+    assert {c.ref["value"] for c in lkm} == {"P1", "P2"}
     assert lkm[0].meta["rank"] == 0.8
 
 
@@ -825,6 +837,7 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
         app,
         ["init", str(galileo_pkg), "--seed", _galileo_qid("aristotle_model")],
     )
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     runner.invoke(
         app,
         [
@@ -835,7 +848,7 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
             "--query",
             "free fall",
             "--search-json",
-            str(_FIXTURE),
+            str(raw_fixture),
         ],
     )
     result = runner.invoke(app, ["frontier", str(galileo_pkg), "--json"])
@@ -870,9 +883,10 @@ def test_explore_frontier_ranks_lkm_contacts(galileo_pkg: Path):
 
 
 def test_explore_observe_without_init_fails(galileo_pkg: Path):
+    raw_fixture = _write_raw_lkm_fixture(galileo_pkg)
     result = runner.invoke(
         app,
-        ["observe", str(galileo_pkg), "--source", "x", "--search-json", str(_FIXTURE)],
+        ["observe", str(galileo_pkg), "--source", "x", "--search-json", str(raw_fixture)],
     )
     assert result.exit_code == 1
     assert "no exploration map" in result.output

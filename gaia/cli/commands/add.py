@@ -1,4 +1,4 @@
-"""gaia add -- install a Gaia knowledge package from the official registry."""
+"""``gaia pkg add`` — install registered or LKM-backed Gaia packages."""
 
 from __future__ import annotations
 
@@ -353,7 +353,7 @@ def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:
         "LKM claim reasoning did not identify a backing paper. "
         "Inspect the raw claim reasoning response and add the paper manually "
         f"with `gaia search lkm reasoning --index {ref.index_id} "
-        f"--claim-id {ref.provider_id} --format raw-json`."
+        f"--claim-id {ref.provider_id}`."
     )
 
 

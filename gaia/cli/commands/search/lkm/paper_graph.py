@@ -1,38 +1,25 @@
 """``gaia search lkm package`` — POST /papers/graph.
 
-Fetch the full extracted knowledge graph (variables / factors /
-motivations / ...) for a paper identified by exactly one of four mutually
-exclusive identifier flags. The Gaia-facing command calls this a package
-candidate; the upstream LKM endpoint calls it a paper graph.
+Fetch the latest graph-shaped extracted knowledge package for a paper
+identified by exactly one of four mutually exclusive identifier flags. The
+Gaia-facing command calls this a package candidate; the upstream LKM endpoint
+calls it a paper graph.
 """
 
 from __future__ import annotations
 
-from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 
-from gaia.cli.commands.search._results import SearchOutputFormat, normalize_lkm_paper_graph
+from gaia.cli.commands.search.lkm._hints import package_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     emit,
     run_request,
     validate_lkm_index,
 )
-
-
-class PaperGraphInclude(StrEnum):
-    """Sub-graphs that may be requested in the response."""
-
-    PAPER = "paper"
-    VARIABLES = "variables"
-    FACTORS = "factors"
-    MOTIVATIONS = "motivations"
-    PRIORS = "priors"
-    FACTOR_PARAMS = "factor_params"
-
 
 _TITLE_RESOLVE_CAP = 20
 
@@ -58,24 +45,6 @@ def package_command(
         str | None,
         typer.Option("--title", help="Identify by title (may resolve multiple papers)."),
     ] = None,
-    include: Annotated[
-        list[PaperGraphInclude] | None,
-        typer.Option(
-            "--include",
-            help=(
-                "Legacy sub-graph to include (repeatable). "
-                "Omit to use LKM's default graph-shaped response."
-            ),
-            case_sensitive=False,
-        ),
-    ] = None,
-    factor_refs_only: Annotated[
-        bool,
-        typer.Option(
-            "--factor-refs-only",
-            help="Return factor premise/conclusion ids only (~60% smaller response).",
-        ),
-    ] = False,
     title_resolve_limit: Annotated[
         int,
         typer.Option(
@@ -87,14 +56,10 @@ def package_command(
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
-    output_format: Annotated[
-        SearchOutputFormat,
-        typer.Option(
-            "--format",
-            help="Output format: raw upstream JSON or normalized Gaia search JSON.",
-            case_sensitive=False,
-        ),
-    ] = SearchOutputFormat.GAIA_JSON,
+    no_hint: Annotated[
+        bool,
+        typer.Option("--no-hint", help="Do not print Gaia next-step hints to stderr."),
+    ] = False,
 ) -> None:
     """Fetch an LKM paper package candidate (POST /papers/graph)."""
     index_id = validate_lkm_index(index)
@@ -130,22 +95,20 @@ def package_command(
         raise typer.Exit(4)
 
     body: dict[str, Any] = dict(supplied)
-    if include:
-        body["include"] = [item.value for item in include]
-    if factor_refs_only:
-        body["hydrate_factor_refs"] = False
     if title is not None:
         body["title_resolve"] = {"limit": title_resolve_limit}
 
     payload = run_request("POST", "/papers/graph", json_body=body, index_id=index_id)
-    if output_format == SearchOutputFormat.GAIA_JSON:
-        query_text = next(iter(supplied.values()))
-        payload = normalize_lkm_paper_graph(
-            payload,
-            query=str(query_text),
-            index_id=index_id,
-        )
-    emit(payload, out)
+    requested_paper_id = paper_id or _paper_id_from_package_id(package_id)
+    emit(
+        payload,
+        out,
+        hint=package_hint(payload, index_id=index_id, requested_paper_id=requested_paper_id),
+        show_hint=not no_hint,
+    )
 
 
-paper_graph_command = package_command
+def _paper_id_from_package_id(package_id: str | None) -> str | None:
+    if package_id is None or not package_id.startswith("paper:"):
+        return None
+    return package_id.split(":", 1)[1]

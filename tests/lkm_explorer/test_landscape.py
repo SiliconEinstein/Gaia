@@ -10,9 +10,9 @@ from gaia.lkm_explorer.engine.state import Contact, ExplorationMap
 
 def _search(query: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
-        "schema_version": 1,
-        "query": {"text": query, "provider": "lkm", "kind": "knowledge"},
-        "results": rows,
+        "code": 0,
+        "query": {"text": query},
+        "data": {"variables": rows},
     }
 
 
@@ -26,10 +26,10 @@ def _row(
 ) -> dict[str, Any]:
     return {
         "id": node_id,
-        "title": title,
-        "gaia": {"qid": qid},
-        "source": {"paper_id": paper_id, "index_id": "bohrium"},
-        "rank": {"score": rank},
+        "score": rank,
+        "provenance": {"source_packages": [f"paper:{paper_id}"]},
+        **({"paper": {"en_title": title}} if title else {}),
+        **({"global_id": qid} if qid else {}),
     }
 
 
@@ -45,6 +45,7 @@ def test_landscape_dedupes_paper_leads_across_query_batches():
                     ],
                 ),
                 source_qid="example:pkg::seed",
+                index_id="bohrium",
                 path="a.json",
             ),
             LandscapeBatch(
@@ -56,6 +57,7 @@ def test_landscape_dedupes_paper_leads_across_query_batches():
                     ],
                 ),
                 source_qid="example:pkg::seed",
+                index_id="bohrium",
                 path="b.json",
             ),
         ],
@@ -76,7 +78,7 @@ def test_landscape_dedupes_paper_leads_across_query_batches():
     assert p1["best_rank"] == 0.9
     assert p1["queries"] == ["seed query", "alternate query"]
     assert p1["source_qids"] == ["example:pkg::seed"]
-    assert set(p1["lkm_node_ids"]) == {"n1", "n3"}
+    assert set(p1["lkm_node_ids"]) == {"lkm:bohrium:n1", "lkm:bohrium:n3"}
     assert p1["result_count"] == 2
 
 
@@ -101,11 +103,13 @@ def test_landscape_skips_materialized_and_annotates_existing_contacts():
                         _row("P2", "n2", 0.7),
                         _row("P3", "n3", 0.6),
                     ],
-                )
+                ),
+                index_id="bohrium",
             )
         ],
-        materialized=set(),
-        materialized_paper_ids={"P3"},
+        # Raw LKM node ids in the Gaia QID set must not suppress paper leads.
+        materialized={"lkm:bohrium:n2"},
+        materialized_paper_ids={"P1", "P3"},
         exploration_map=exploration_map,
     )
 

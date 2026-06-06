@@ -49,16 +49,13 @@ gaia search lkm package ...
 gaia search lkm auth ...
 ```
 
-This phase is a provider adapter with Gaia-native output by default. It should
-preserve the LKM API response under `raw`, and keep `--format raw-json`
-available so agent workflows can debug the upstream service directly.
-Older LKM endpoint-shaped names (`reasoning-search`, `variables`,
-`paper-graph`) may remain as hidden compatibility aliases, but user-facing
-commands should use Gaia-facing object names.
+This phase is a provider adapter with raw LKM output by default. The command
+writes the upstream JSON response to stdout or `--out`; Gaia next-step hints go
+to stderr and can be disabled with `--no-hint`. There is no `--format` switch.
 
-### Phase 1: Gaia-native output mode
+### Phase 1: Raw LKM output with Gaia hints
 
-Provider commands should return normalized Gaia output by default:
+Provider commands keep the upstream LKM response as the machine contract:
 
 ```text
 gaia search lkm knowledge "FAPbI3"
@@ -68,7 +65,6 @@ gaia search lkm package --paper-id 811827932371615744
 gaia search lkm knowledge "FAPbI3" --index bohrium
 ```
 
-`--format raw-json` remains available for direct LKM API inspection.
 For `knowledge`, the current Apifox-backed LKM `/search` response surface is
 claim/question nodes only; Gaia should not expose reserved or stale
 action/setting scopes from older drafts.
@@ -110,102 +106,49 @@ gaia search all "FAPbI3"
 Do not add this until LKM and local package result envelopes are both stable.
 Cross-provider ranking is a separate problem from provider plumbing.
 
-## 4. Normalized Result Envelope
+## 4. LKM Search Output Contract
 
-Every Gaia-native search command should return:
+LKM search commands return the upstream JSON payload directly. A knowledge
+search therefore looks like the LKM `/search` response, not a Gaia wrapper:
 
 ```json
 {
-  "schema_version": 1,
-  "query": {
-    "text": "FAPbI3",
-    "provider": "lkm",
-    "kind": "knowledge",
-    "index_id": "bohrium"
-  },
-  "results": [
-    {
-      "id": "lkm:bohrium:gcn_579430355a0e4bbd",
-      "provider": "lkm",
-      "kind": "claim",
-      "title": "Annealing temperature controls alpha-phase growth",
-      "content": "For dip-coated films ...",
-      "relevance_score": 1.0,
-      "rank": {
+  "code": 0,
+  "data": {
+    "variables": [
+      {
+        "id": "gcn_579430355a0e4bbd",
+        "type": "claim",
+        "title": "Annealing temperature controls alpha-phase growth",
         "score": 1.0,
-        "score_kind": "retrieval"
-      },
-      "gaia": {
-        "qid": null,
-        "label": null,
-        "package": null,
-        "version": null,
-        "import_name": null,
-        "object_kind": "claim"
-      },
-      "source": {
-        "provider_id": "gcn_579430355a0e4bbd",
-        "index_id": "bohrium",
-        "source_package": "paper:811827932371615744",
-        "paper_id": "811827932371615744",
-        "paper_title": "Controlling phase and morphology of FAPbI3 films",
-        "doi": "10.1016/j.jpcs.2021.110374",
-        "role": "conclusion"
-      },
-      "actions": [
-        {
-          "kind": "inspect",
-          "ref": "lkm:bohrium:claim:gcn_579430355a0e4bbd",
-          "label": "Inspect claim \"Annealing temperature controls alpha-phase growth\"",
-          "next_steps": "gaia search lkm reasoning --index bohrium --claim-id gcn_579430355a0e4bbd"
-        },
-        {
-          "kind": "add",
-          "ref": "lkm:bohrium:paper:811827932371615744",
-          "label": "Add paper \"Controlling phase and morphology of FAPbI3 films\"",
-          "target": {
-            "kind": "paper",
-            "title": "Controlling phase and morphology of FAPbI3 films",
-            "doi": "10.1016/j.jpcs.2021.110374",
-            "index_id": "bohrium",
-            "paper_id": "811827932371615744"
-          },
-          "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"
+        "has_reasoning": true,
+        "provenance": {
+          "source_packages": ["paper:811827932371615744"],
+          "representative_lcn": {
+            "package_id": "paper:811827932371615744"
+          }
         }
-      ],
-      "raw": {
-        "provider": "lkm",
-        "payload": {}
       }
-    }
-  ]
+    ]
+  }
 }
 ```
 
-The envelope fields are common; result objects may additionally include
-provider-specific views such as `reasoning_view` or `lkm_view`.
-
-Field rules:
+Field rules for LKM search output:
 
 | Field | Meaning |
 |---|---|
-| `id` | Stable search-result id in the provider namespace |
-| `provider` | `lkm`, `pkg`, or another future provider |
-| `kind` | Gaia-facing result kind: `package`, `claim`, `question`, `note`, `reasoning_chain`, or a future provider kind |
-| `rank.score` | Retrieval ranking only, never a prior |
-| `relevance_score` | Easy-to-read alias for the retrieval ranking score; still not a prior or confidence |
-| `gaia` | Populated when the result already has a Gaia package identity |
-| `source` | Provider provenance needed for citations and follow-up calls |
-| `reasoning_view` | Thin reasoning summary when the LKM result is a reasoning chain: conclusion claim, motivating questions, dependency claim buckets, and steps |
-| `lkm_view` | Thin LKM graph summary for paper/package results: node counts, edge-type counts, and raw LKM logic relations |
-| `actions` | Suggested follow-up actions. `kind` + `ref` are the machine-readable contract; `label` / `target` are display metadata; `next_steps` is a human/agent hint |
-| `raw` | Verbatim upstream payload (`{provider, payload}`) — the audit/debug escape hatch. Prefer the normalized fields above; read `raw.payload` only when you need data the envelope does not surface. Provider identity is already on the top-level `provider` field |
+| `data.variables[]` | Raw claim/question hits from LKM `/search` |
+| `variables[].score` / `retrieval_score` / `relevance_score` | Retrieval ranking only, never a prior |
+| `variables[].has_reasoning` | Whether the claim can be inspected with `gaia search lkm reasoning --claim-id` |
+| `variables[].provenance` | Paper provenance, especially `source_packages` and `representative_lcn.package_id` |
+| `data.reasoning_chains[].graph` | Raw graph-shaped reasoning response for reasoning search |
+| `data.papers[]` | Raw paper graph response for package search |
 
-Search output is name-first and id-backed. Paper titles are the primary display
-name when available (`title`, `source.paper_title`, `actions[].label`), while
-`source.paper_id` and `actions[].ref` remain the stable machine identity. This
-keeps the CLI friendly without making title strings into package or lockfile
-keys.
+Gaia next-step guidance is deliberately outside the JSON payload. The CLI
+prints hints such as `gaia search lkm reasoning --claim-id ...` or
+`gaia pkg add --lkm-paper ...` on stderr; `--no-hint` disables them. This keeps
+the upstream payload auditable while still making the workflow easy to follow.
 
 ## 5. Local Gaia Package Search
 
@@ -261,37 +204,34 @@ This follows the same rule as theorem/proof search tools in other ecosystems:
 the useful result is not only a text match, but a resolvable symbol plus the
 module/import information needed to use it.
 
-## 6. LKM Mapping To Gaia Kinds
+## 6. LKM Mapping To Gaia Authoring Terms
 
-LKM terms should be treated as provider terms and mapped into Gaia terms at the
-normalized boundary:
+LKM terms remain provider terms in search output. Gaia maps them only when a
+user authors local claims or materializes a paper package:
 
-| LKM payload | Gaia result kind | Notes |
+| LKM payload | Gaia interpretation | Notes |
 |---|---|---|
-| `variable.type == "claim"` | `claim` | Candidate Gaia `claim(...)` |
-| `variable.type == "question"` | `question` | Candidate Gaia `question(...)` |
-| reasoning chain hit | `reasoning_chain` | Search result for LKM reasoning chains; may be graph-shaped or legacy factor-shaped |
-| graph factor with `concludes` + incoming claim edges | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; preserve raw LKM relation names for inspection |
-| legacy complete `factor` with `premises` + `conclusion` | `reasoning_chain` with `gaia.object_kind == "derive"` | Candidate Gaia `derive(...)`; compatibility path for older responses |
+| `variable.type == "claim"` | Candidate `claim(...)` | Use raw content and provenance |
+| `variable.type == "question"` | Candidate `question(...)` | Do not emit without content/provenance |
+| `data.reasoning_chains[].graph` | Reasoning graph | Inspect factor and claim nodes before authoring |
+| graph factor with `concludes` + incoming claim edges | Candidate `derive(...)` / `depends_on(...)` | Preserve raw LKM relation names in metadata when materializing |
 | `paper.package_id` | `package` candidate | Addable only after materialization or registry resolution |
 
 The public `/search` endpoint should be treated as claim/question retrieval.
 Reasoning factors are exposed through `reasoning` and `package`, not as public
 search-result variables. A `reasoning` result is not a complete Gaia
 `derive(...)` unless Gaia can identify a factor, its conclusion, and at least
-one premise claim from either graph edges or the legacy factor fields.
+one premise claim from graph edges.
 
-LKM `package` output should preserve the raw graph payload. Legacy `paper`,
-`variables`, `factors`, and `motivations` fields may still appear, but the
-latest default response is graph-shaped. Gaia-native output should also expose:
+LKM `package` output preserves the raw graph payload. The latest default
+response is graph-shaped and separates paper-level context from reasoning
+topology. Read:
 
-- `source.source_package`, e.g. `paper:811827932371615744`
-- `source.index_id`, e.g. `bohrium`; LKM-local ids are scoped to this index
-- `source.paper_title`, e.g. `Controlling phase and morphology of FAPbI3 films`
-- `source.paper_id`
-- candidate package ref `lkm:<index_id>:paper:<paper_id>`
-- a `gaia` identity placeholder; the current LKM adapter does not check local
-  materialization status during search
+- paper metadata from `data.papers[].paper`
+- paper-level `addressed_problems` and `open_questions` next to the graph
+- reasoning nodes and edges from `data.papers[].graph`
+- conclusion dependencies from graph edges such as `previous_conclusion_of`,
+  `weakpoint_of`, `highlight_of`, `subproblem_of`, and `concludes`
 
 ## 7. Search To `gaia pkg add`
 
@@ -340,29 +280,15 @@ Resolution rules:
    backing papers, it reports that boundary and asks the user to inspect the raw
    reasoning response.
 
-The important boundary is that search returns:
+The important boundary is that search returns raw LKM JSON and may print a
+human hint on stderr, for example:
 
-```json
-{
-  "actions": [
-    {
-      "kind": "add",
-      "ref": "lkm:bohrium:paper:811827932371615744",
-      "label": "Add paper \"Controlling phase and morphology of FAPbI3 films\"",
-      "target": {
-        "kind": "paper",
-        "title": "Controlling phase and morphology of FAPbI3 films",
-        "doi": "10.1016/j.jpcs.2021.110374",
-        "index_id": "bohrium",
-        "paper_id": "811827932371615744"
-      },
-      "next_steps": "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744"
-    }
-  ]
-}
+```text
+Hint: materialize this paper as a local Gaia package:
+  gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
 ```
 
-and `pkg add` performs the mutation.
+`pkg add` performs the mutation.
 
 Local package management should keep the same separation: use the paper title
 as the display name in `gaia search pkg`, `gaia pkg list`, and package summaries,
@@ -400,28 +326,26 @@ from these artifacts and invalidated by `ir_hash`.
 ### Phase 0: PR 683
 
 - Keep `gaia search lkm` as the initial provider adapter.
-- Add `--index` to LKM verbs and scope normalized ids/refs by
-  `lkm:<index_id>:...`; only `bohrium` is built in, with env-configured custom
-  indexes supported in this build.
+- Add `--index` to LKM verbs; only `bohrium` is built in, with env-configured
+  custom indexes supported in this build.
 - Keep `LKM_ACCESS_KEY` compatibility and clean error handling.
 - Document that scores are retrieval scores only.
 
-### Phase 1: Normalization library
+### Phase 1: Raw output and workflow hints
 
-- Add `gaia.cli.commands.search._results` with typed result builders.
-- Add `--format raw-json|gaia-json` to LKM verbs.
-- Make `gaia-json` the default output for search-oriented LKM verbs.
-- Normalize `knowledge`, `reasoning`, and `package` first.
-- Preserve raw payloads during alpha.
-- Claim reasoning fetches should request LKM's graph-shaped response by default
-  so normalized output can expose `reasoning_view`.
+- Keep raw LKM JSON as stdout / `--out` output for search-oriented LKM verbs.
+- Print Gaia next-step hints on stderr, with `--no-hint` for machine-only runs.
+- Claim reasoning fetches request LKM's graph-shaped response by default.
+- `gaia-lkm-explore observe` consumes raw `data.variables[]` rather than a Gaia
+  search wrapper.
 
 ### Phase 2: Local package provider
 
 - Add `gaia search pkg`.
 - Discover installed `*-gaia` distributions without importing them.
 - Read `.gaia/manifests/*` and `.gaia/ir.json`.
-- Return normalized result envelopes.
+- Define its own output contract when implemented; do not reintroduce an LKM
+  wrapper just to make remote and local search look identical.
 
 ### Phase 3: Add refs
 

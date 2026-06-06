@@ -97,7 +97,10 @@ def materialize_lkm_paper_package(
     )
     dependencies = dependency_result.statements
     exported = [node.symbol for node in nodes if node.type in {"claim", "question"}]
-    exported_symbol = next((node.symbol for node in nodes if node.type == "claim"), None)
+    exported_symbol = next(
+        (node.symbol for node in nodes if node.type == "claim" and node.role == "conclusion"),
+        None,
+    ) or next((node.symbol for node in nodes if node.type == "claim"), None)
 
     _write_pyproject(
         root,
@@ -274,18 +277,12 @@ def _collect_nodes(
 
 def _raw_lkm_nodes(item: dict[str, Any]) -> list[dict[str, Any]]:
     raw_nodes: list[dict[str, Any]] = []
-    for raw in _list(item.get("variables")):
+    for raw in _list(item.get("addressed_problems")):
         if isinstance(raw, dict):
-            raw_nodes.append(raw)
-    for factor in _list(item.get("factors")):
-        if not isinstance(factor, dict):
-            continue
-        conclusion = factor.get("conclusion")
-        if isinstance(conclusion, dict):
-            raw_nodes.append({**conclusion, "role": conclusion.get("role") or "conclusion"})
-        for premise in _list(factor.get("premises")):
-            if isinstance(premise, dict):
-                raw_nodes.append({**premise, "role": premise.get("role") or "premise"})
+            raw_nodes.append(_paper_context_node(raw, role="addressed_problem"))
+    for raw in _list(item.get("open_questions")):
+        if isinstance(raw, dict):
+            raw_nodes.append(_paper_context_node(raw, role="open_question"))
     graph = item.get("graph")
     if isinstance(graph, dict):
         for raw in _list(graph.get("nodes")):
@@ -294,10 +291,19 @@ def _raw_lkm_nodes(item: dict[str, Any]) -> list[dict[str, Any]]:
     return raw_nodes
 
 
+def _paper_context_node(raw: dict[str, Any], *, role: str) -> dict[str, Any]:
+    node = {
+        **raw,
+        "type": "question",
+        "kind": raw.get("kind") or role,
+        "role": raw.get("role") or role,
+    }
+    if "local_id" not in node and isinstance(raw.get("id"), str):
+        node["local_id"] = raw["id"]
+    return node
+
+
 def _raw_lkm_factors(item: dict[str, Any]) -> list[dict[str, Any]]:
-    legacy_factors = [factor for factor in _list(item.get("factors")) if isinstance(factor, dict)]
-    if legacy_factors:
-        return legacy_factors
     return _graph_factors(item)
 
 
@@ -357,7 +363,7 @@ def _graph_factor_dependencies(
         target_id = _text(edge.get("target"))
         if target_id != factor_id or source_id is None or edge_type is None:
             continue
-        if edge_type == "motivates":
+        if edge_type == "subproblem_of":
             continue
         source = nodes_by_id.get(source_id)
         if source is None or _text(source.get("type")) != "claim":

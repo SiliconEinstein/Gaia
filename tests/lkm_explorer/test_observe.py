@@ -26,6 +26,32 @@ def _load_fixture() -> dict:
     return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 
+def _search(variables: list[dict]) -> dict:
+    return {"code": 0, "data": {"variables": variables}}
+
+
+def _var(
+    paper_id: str,
+    node_id: str,
+    rank: float,
+    *,
+    title: str | None = None,
+    doi: str | None = None,
+) -> dict:
+    variable = {
+        "id": node_id,
+        "score": rank,
+        "provenance": {"source_packages": [f"paper:{paper_id}"]},
+    }
+    if title or doi:
+        variable["paper"] = {}
+        if title:
+            variable["paper"]["en_title"] = title
+        if doi:
+            variable["paper"]["doi"] = doi
+    return variable
+
+
 def _lkm_contacts(m: ExplorationMap) -> list[Contact]:
     return [c for c in m.frontier if c.ref.get("kind") == "lkm"]
 
@@ -39,7 +65,12 @@ def test_observe_records_unmaterialized_papers_as_contacts():
     m = ExplorationMap(seeds=[{"kind": "claim", "qid": "example:p::seed"}])
     results = _load_fixture()
     out = observe_lkm_results(
-        m, results, materialized=set(), source_qid="example:p::seed", query="free fall"
+        m,
+        results,
+        materialized=set(),
+        source_qid="example:p::seed",
+        query="free fall",
+        index_id="bohrium",
     )
 
     # The fixture's 5 results are 5 distinct unmaterialized papers (qid null).
@@ -61,52 +92,39 @@ def test_observe_records_unmaterialized_papers_as_contacts():
         assert c.meta["lkm_node_ids"], "expected the contributing lkm node id(s)"
 
 
-def test_observe_skips_result_with_resolved_gaia_qid():
-    # A result whose gaia.qid is set is already in the IR -> NOT a contact.
+def test_observe_does_not_treat_raw_lkm_node_id_as_materialized_qid():
+    # Raw LKM node ids are provenance for the search result, not Gaia QIDs in
+    # the joint materialized set. Paper-level freshness is handled by paper_id.
     m = ExplorationMap()
-    results = {
-        "results": [
-            {
-                "id": "lkm:bohrium:gcn_already",
-                "gaia": {"qid": "example:p::already"},
-                "source": {"paper_id": "111111", "index_id": "bohrium"},
-                "rank": {"score": 0.5},
-            },
-            {
-                "id": "lkm:bohrium:gcn_fresh",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "222222", "index_id": "bohrium"},
-                "rank": {"score": 0.4},
-            },
+    results = _search(
+        [
+            _var("111111", "gcn_already", 0.5),
+            _var("222222", "gcn_fresh", 0.4),
         ]
-    }
-    observe_lkm_results(m, results, materialized=set(), source_qid="s")
+    )
+    observe_lkm_results(
+        m,
+        results,
+        materialized={"lkm:bohrium:gcn_already"},
+        source_qid="s",
+        index_id="bohrium",
+    )
     values = {c.ref["value"] for c in _lkm_contacts(m)}
-    assert values == {"222222"}, "only the unresolved (fresh) paper is a contact"
+    assert values == {"111111", "222222"}
 
 
 def test_observe_skips_already_pulled_paper_by_id():
     # A paper already pulled into the joint view (its id in materialized_paper_ids)
     # is not re-added.
     m = ExplorationMap()
-    results = {
-        "results": [
-            {
-                "id": "lkm:bohrium:gcn_pulled",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "333", "index_id": "bohrium"},
-                "rank": {"score": 0.3},
-            },
-            {
-                "id": "lkm:bohrium:gcn_new",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "444", "index_id": "bohrium"},
-                "rank": {"score": 0.3},
-            },
-        ]
-    }
+    results = _search([_var("333", "gcn_pulled", 0.3), _var("444", "gcn_new", 0.3)])
     observe_lkm_results(
-        m, results, materialized=set(), materialized_paper_ids={"333"}, source_qid="s"
+        m,
+        results,
+        materialized=set(),
+        materialized_paper_ids={"333"},
+        source_qid="s",
+        index_id="bohrium",
     )
     assert {c.ref["value"] for c in _lkm_contacts(m)} == {"444"}
 
@@ -120,25 +138,13 @@ def test_observe_dedups_two_results_one_paper():
     # Two result rows pointing at the SAME paper_id -> one contact, union node
     # ids, MAX rank.
     m = ExplorationMap()
-    results = {
-        "results": [
-            {
-                "id": "lkm:bohrium:gcn_a",
-                "gaia": {"qid": None},
-                "title": "row a",
-                "source": {"paper_id": "555", "index_id": "bohrium", "doi": "10.1/x"},
-                "rank": {"score": 0.2},
-            },
-            {
-                "id": "lkm:bohrium:gcn_b",
-                "gaia": {"qid": None},
-                "title": "row b",
-                "source": {"paper_id": "555", "index_id": "bohrium"},
-                "rank": {"score": 0.7},
-            },
+    results = _search(
+        [
+            _var("555", "gcn_a", 0.2, title="row a", doi="10.1/x"),
+            _var("555", "gcn_b", 0.7, title="row b"),
         ]
-    }
-    observe_lkm_results(m, results, materialized=set(), source_qid="s")
+    )
+    observe_lkm_results(m, results, materialized=set(), source_qid="s", index_id="bohrium")
     contacts = _lkm_contacts(m)
     assert len(contacts) == 1
     c = contacts[0]
@@ -152,28 +158,14 @@ def test_observe_merges_across_two_calls():
     # A second observation of the same paper (different source) merges sources +
     # node ids and keeps the higher rank, without adding a second contact.
     m = ExplorationMap()
-    first = {
-        "results": [
-            {
-                "id": "lkm:bohrium:gcn_first",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "666", "index_id": "bohrium"},
-                "rank": {"score": 0.1},
-            }
-        ]
-    }
-    second = {
-        "results": [
-            {
-                "id": "lkm:bohrium:gcn_second",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "666", "index_id": "bohrium"},
-                "rank": {"score": 0.9},
-            }
-        ]
-    }
-    observe_lkm_results(m, first, materialized=set(), source_qid="src_a", query="q1")
-    out2 = observe_lkm_results(m, second, materialized=set(), source_qid="src_b", query="q2")
+    first = _search([_var("666", "gcn_first", 0.1)])
+    second = _search([_var("666", "gcn_second", 0.9)])
+    observe_lkm_results(
+        m, first, materialized=set(), source_qid="src_a", query="q1", index_id="bohrium"
+    )
+    out2 = observe_lkm_results(
+        m, second, materialized=set(), source_qid="src_b", query="q2", index_id="bohrium"
+    )
 
     contacts = _lkm_contacts(m)
     assert len(contacts) == 1
@@ -197,17 +189,8 @@ def test_observe_leaves_promoted_lkm_contact_intact():
             meta={"paper_id": "777", "rank": 0.1},
         )
     )
-    results = {
-        "results": [
-            {
-                "id": "lkm:bohrium:gcn_again",
-                "gaia": {"qid": None},
-                "source": {"paper_id": "777", "index_id": "bohrium"},
-                "rank": {"score": 0.99},
-            }
-        ]
-    }
-    out = observe_lkm_results(m, results, materialized=set(), source_qid="s")
+    results = _search([_var("777", "gcn_again", 0.99)])
+    out = observe_lkm_results(m, results, materialized=set(), source_qid="s", index_id="bohrium")
     assert not out.new_contacts and not out.updated_contacts
     c = next(c for c in m.frontier if c.ref["value"] == "777")
     assert c.status == "surveyed"
