@@ -11,6 +11,7 @@ Exit-code contract under test:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -28,6 +29,12 @@ from gaia.cli.main import app
 pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
+
+_ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub("", text)
 
 
 class _FakeClient:
@@ -158,8 +165,9 @@ class TestKnowledge:
         result = runner.invoke(app, ["search", "lkm", "knowledge", "--help"])
 
         assert result.exit_code == 0, result.output
-        assert "--reasoning-only" in result.stdout
-        assert "conclusions" in result.stdout
+        stdout = _strip_ansi(result.stdout)
+        assert "--reasoning-only" in stdout
+        assert "conclusions" in stdout
 
     def test_happy(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
