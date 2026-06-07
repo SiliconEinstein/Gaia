@@ -153,6 +153,38 @@ def test_add_local_gaia_package_as_editable_dependency(mock_uv, tmp_path, monkey
     assert f"Added local Gaia package: {dependency.resolve()}" in result.output
 
 
+@patch("gaia.cli.commands.add._run_uv")
+def test_add_local_relative_path_resolves_from_target_package(mock_uv, tmp_path, monkeypatch):
+    """Relative --local paths resolve from the target package root."""
+    consumer = tmp_path / "consumer-gaia"
+    dependency = consumer / ".gaia" / "lkm_packages" / "source-paper-gaia"
+    consumer.mkdir()
+    dependency.mkdir(parents=True)
+    _write_gaia_package_root(consumer)
+    _write_gaia_package_root(dependency)
+    monkeypatch.chdir(tmp_path)
+    mock_uv.return_value = MagicMock(returncode=0)
+
+    result = runner.invoke(
+        app,
+        [
+            "pkg",
+            "add",
+            "--target",
+            "consumer-gaia",
+            "--local",
+            ".gaia/lkm_packages/source-paper-gaia",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    mock_uv.assert_called_once_with(
+        ["uv", "add", "--editable", str(dependency.resolve())],
+        cwd=consumer.resolve(),
+    )
+    assert f"Added local Gaia package: {dependency.resolve()}" in result.output
+
+
 def test_add_local_requires_local_gaia_package(tmp_path, monkeypatch):
     """Gaia pkg add --local rejects paths that are not Gaia knowledge packages."""
     consumer = tmp_path / "consumer-gaia"

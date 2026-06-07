@@ -278,10 +278,13 @@ def _handle_local_package_add(local: Path, *, package_root: Path | None) -> None
         )
         raise typer.Exit(1)
 
-    local_root = _resolve_package_root(str(local))
+    local_candidate = local if local.is_absolute() else package_root / local
+    local_root = _resolve_package_root(str(local_candidate))
+    if local_root is None and not local.is_absolute():
+        local_root = _resolve_package_root(str(local))
     if local_root is None:
         typer.echo(
-            f"Error: --local path is not a Gaia knowledge package: {local.resolve()}",
+            f"Error: --local path is not a Gaia knowledge package: {local_candidate.resolve()}",
             err=True,
         )
         raise typer.Exit(1)
