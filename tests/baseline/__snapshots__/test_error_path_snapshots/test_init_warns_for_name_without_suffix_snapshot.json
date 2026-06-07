@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "build",
+    "init",
+    "my-package"
+  ],
+  "exit_code": 0,
+  "stderr": "Warning: package name does not end with '-gaia'. Consider 'my-package-gaia', or use `gaia pkg mount` for a non-invasive layout.\n",
+  "stdout": "Created Gaia knowledge package: my-package\n\nNext steps:\n  cd <parent of my-package>\n  gaia author claim \"...\" --target ./my-package\n\nRun gaia from the parent directory: author verbs with --target\npointing at ./my-package, and build/run with ./my-package as the path\nargument (shown below). Running any of them from inside the package\nwill not find gaia-lang.\n\n  gaia build compile ./my-package\n  gaia run infer ./my-package\n"
+}
