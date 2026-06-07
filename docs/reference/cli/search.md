@@ -11,6 +11,7 @@ gaia search lkm package --paper-id <id>     Fetch one LKM paper package candidat
 gaia search lkm package --package-id paper:<id>
 gaia search lkm package --doi <doi>
 gaia search lkm package --title <title>
+gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
@@ -20,13 +21,50 @@ Gaia follow-up hints are printed on stderr by default, so redirecting stdout or
 using `--out` preserves machine-readable JSON. Use `--no-hint` to suppress
 those hints.
 
+Use `knowledge --reasoning-only` when the goal is to find conclusion claims
+backed by reasoning chains. For best recall, use default `hybrid` mode with
+`--keywords`. Use `--retrieval-mode semantic` when speed matters more than
+recall quality. Use `--retrieval-mode lexical` only for exact keyword matching.
+
 `reasoning --claim-id` asks LKM for the graph-shaped reasoning response by
 default (`format=graph`). In practice this means Gaia receives a small claim /
 factor / question graph for one target claim.
 
+`reasoning <query>` searches whole reasoning chains (`POST
+/reasoning/search`), not single claim/question nodes. Query mode accepts
+`--retrieval-mode`, `--keywords`, `--paper-ids`, `--offset`, and `--limit`, and
+the raw response carries `reasoning_chains`, `total`, and `papers`.
+`--claim-id` mode instead calls `GET /claims/{id}/reasoning` and accepts
+`--max-chains` plus `--sort-by`.
+
+`nodes` wraps upstream `POST /variables/batch`. The command is named `nodes`
+because the returned ids are LKM graph nodes, not Gaia typed variables. The
+server returns hits in request order and may report partial misses in
+`not_found`; partial misses do not make the response a business error. This
+endpoint does not apply a visibility filter.
+
 `package` requires exactly one identifier flag: `--package-id`, `--paper-id`,
 `--doi`, or `--title`. `--title` may return several candidate papers and accepts
 `--title-resolve-limit`; the other identifier modes address one paper directly.
+The CLI keeps `/papers/graph` on the default raw paper-graph shape and does not
+expose deprecated projection / hydration switches.
+
+`docs` prints the online LKM API documentation links. The Apifox docs are the
+source of truth for endpoint parameter and response details:
+
+```text
+gaia search lkm docs
+```
+
+- Full LKM API docs: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84>
+- `POST /search`: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459806352>
+- `POST /reasoning/search`: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459807117>
+- `GET /claims/{id}/reasoning`: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459807347>
+- `POST /variables/batch`: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459805971>
+- `POST /papers/graph`: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459808997>
+
+Before changing `gaia search lkm` behavior, options, or help text, verify the
+relevant endpoint in Apifox instead of relying on copied local summaries.
 
 Use `--index <id>` on LKM verbs to select a configured LKM index. This follows
 the same split as `pip` / `uv`: the dependency or source ref stays stable,

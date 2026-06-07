@@ -27,6 +27,10 @@ from gaia.cli.commands.search.lkm._shared import (
     run_request,
     validate_lkm_index,
 )
+from gaia.cli.commands.search.lkm.docs import (
+    APIFOX_CLAIM_REASONING_URL,
+    APIFOX_REASONING_SEARCH_URL,
+)
 from gaia.cli.commands.search.lkm.knowledge import RetrievalMode
 
 
@@ -38,6 +42,14 @@ class SortBy(StrEnum):
 
 
 _MAX_CHAINS_CAP = 100
+
+_REASONING_EPILOG = (
+    "QUERY mode searches whole reasoning chains. --claim-id mode inspects "
+    "chains backing one claim.\n\n"
+    f"Query API docs: {APIFOX_REASONING_SEARCH_URL}\n\n"
+    f"Claim API docs: {APIFOX_CLAIM_REASONING_URL}\n"
+    "Endpoint links: gaia search lkm docs"
+)
 
 
 def reasoning_command(
