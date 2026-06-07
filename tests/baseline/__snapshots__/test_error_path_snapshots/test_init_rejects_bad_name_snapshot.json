@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "build",
+    "init",
+    "my-package"
+  ],
+  "exit_code": 1,
+  "stderr": "Error: package name must end with '-gaia'. Did you mean 'my-package-gaia'?\n",
+  "stdout": ""
+}
