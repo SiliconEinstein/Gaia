@@ -20,8 +20,10 @@ Workflow:
 
 ## Include
 
-PRs listed here are the release contents. PRs not listed here are not part of
-this release.
+PRs listed here are the audited release contents already present in the target
+commit. This list is not a filter: any PR already merged into the target commit
+is included by construction. To exclude a merged PR, choose an earlier target
+commit or revert the PR before dry-run.
 
 - [ ] PR #
 
@@ -44,14 +46,16 @@ this release is cut but should not enter this release.
 
 ## Dry-Run
 
-- [ ] Release workflow dispatched with `dry_run=true`
+- [ ] Release workflow dispatched with `dry_run=true` and `target_commit` set
 - [ ] Dry-run workflow passed
+- [ ] Dry-run run head SHA equals Target commit
 
 Dry-run workflow link:
 
 ## Publish
 
-- [ ] Release workflow dispatched with `dry_run=false`
+- [ ] Release workflow dispatched with `dry_run=false` and `target_commit` set
+- [ ] Publish run head SHA equals Target commit
 - [ ] PyPI publication confirmed
 - [ ] `v<version>` tag confirmed
 - [ ] GitHub release or prerelease confirmed

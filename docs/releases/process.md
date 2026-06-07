@@ -21,7 +21,7 @@ Use one GitHub issue per release, named `Release <version>` (for example,
 - release captain
 - channel and version
 - target commit
-- PRs included in the release
+- audited list of merged PRs intended for the release
 - PRs that must not merge before this release, when any need explicit blocking
 - dry-run workflow link
 - publish workflow link
@@ -50,8 +50,10 @@ Workflow: release-alpha.yml
 
 ## Include
 
-PRs listed here are the release contents. PRs not listed here are not part of
-this release.
+PRs listed here are the audited release contents already present in the target
+commit. This list is not a filter: any PR already merged into the target commit
+is included by construction. To exclude a merged PR, choose an earlier target
+commit or revert the PR before dry-run.
 
 - [x] PR #740 LKM graph API alignment
 
@@ -74,15 +76,17 @@ this release is cut but should not enter this release.
 
 ## Dry-Run
 
-- [x] Release workflow dispatched with `dry_run=true`
+- [x] Release workflow dispatched with `dry_run=true` and `target_commit` set
 - [x] Dry-run workflow passed
+- [x] Dry-run run head SHA equals Target commit
 
 Dry-run workflow link:
 https://github.com/SiliconEinstein/Gaia/actions/runs/26992416344
 
 ## Publish
 
-- [ ] Release workflow dispatched with `dry_run=false`
+- [ ] Release workflow dispatched with `dry_run=false` and `target_commit` set
+- [ ] Publish run head SHA equals Target commit
 - [ ] PyPI publication confirmed
 - [ ] `v<version>` tag confirmed
 - [ ] GitHub release or prerelease confirmed
@@ -133,8 +137,10 @@ beta, rc, and stable are explicit human promotions.
 - A PR that should be included in the release must pass CI and be merged into
   `main` before the target commit is selected.
 - A PR that is not ready to release must remain open or draft.
-- The `Include` section is the positive list of release contents. PRs absent
-  from `Include` are not part of the release.
+- The `Include` section is the audited list of release contents. It does not
+  filter the release artifact: the published wheel, sdist, tag, and GitHub
+  release are produced from the selected workflow head SHA. Any PR already in
+  the target commit ships even if it is absent from `Include`.
 - Use `Do Not Merge Before This Release` only for PRs that are at risk of being
   merged into `main` during the release window but should not enter this
   release.
@@ -155,17 +161,23 @@ beta, rc, and stable are explicit human promotions.
 7. Announce a short release freeze.
 8. Record the target commit in the Release Issue.
 9. Confirm PR CI and, when appropriate, nightly are green for the target commit.
-10. Dispatch the matching release workflow with `dry_run=true`.
-11. If dry-run is green, dispatch the same workflow with `dry_run=false`.
-12. Confirm PyPI publication.
-13. Confirm the `v<version>` git tag and GitHub release or prerelease.
-14. Update the Release Issue with links and known limitations.
-15. Lift the release freeze and close the issue.
+10. Dispatch the matching release workflow with `dry_run=true` and
+    `target_commit` set to the recorded target commit.
+11. Confirm the dry-run run head SHA equals the target commit.
+12. If dry-run is green, dispatch the same workflow with `dry_run=false` and
+    the same `target_commit`.
+13. Confirm the publish run head SHA equals the target commit.
+14. Confirm PyPI publication.
+15. Confirm the `v<version>` git tag and GitHub release or prerelease.
+16. Update the Release Issue with links and known limitations.
+17. Lift the release freeze and close the issue.
 
 ## Workflow Gates
 
 The release workflows all use `.github/actions/release/action.yml`. The release
-action validates:
+workflows require a `target_commit` input and fail before publishing if the
+workflow head SHA is not exactly that target. The shared release action then
+validates:
 
 - transient `pyproject.toml` version override
 - injected channel and commit metadata
