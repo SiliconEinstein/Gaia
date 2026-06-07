@@ -54,10 +54,10 @@ def test_infer_missing_pyproject_snapshot(tmp_path: Path, run_gaia, snapshot) ->
     assert cli_snapshot(result) == snapshot
 
 
-def test_init_rejects_bad_name_snapshot(run_gaia, snapshot) -> None:
-    """Gaia build init <name without -gaia suffix> must be rejected."""
-    result = run_gaia("build", "init", "my-package")
-    assert result.exit_code != 0
+def test_init_warns_for_name_without_suffix_snapshot(tmp_path: Path, run_gaia, snapshot) -> None:
+    """Gaia build init <name without -gaia suffix> warns but succeeds."""
+    result = run_gaia("build", "init", "my-package", cwd=tmp_path)
+    assert result.exit_code == 0
     assert cli_snapshot(result) == snapshot
 
 

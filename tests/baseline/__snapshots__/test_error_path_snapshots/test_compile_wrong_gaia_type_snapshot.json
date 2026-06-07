@@ -5,6 +5,6 @@
     "<TMP>"
   ],
   "exit_code": 1,
-  "stderr": "Error: not a Gaia knowledge package ([tool.gaia].type != 'knowledge-package').\n",
+  "stderr": "Error: directory is not a Gaia knowledge package. Expected one of:\n  - embedded layout: <TMP>\n  - legacy layout:   <TMP> with [tool.gaia].type = \"knowledge-package\"\n\nRun `gaia build init --embedded <TMP> (or `gaia pkg mount <TMP>) to create an embedded layout non-invasively.\n",
   "stdout": ""
 }
