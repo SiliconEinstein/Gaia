@@ -9,23 +9,20 @@ from __future__ import annotations
 import typer
 
 from gaia.cli.commands.search.lkm.auth import auth_app
+from gaia.cli.commands.search.lkm.docs import APIFOX_BASE_URL, docs_command
 from gaia.cli.commands.search.lkm.knowledge import (
     _KNOWLEDGE_EPILOG,
     knowledge_command,
 )
-from gaia.cli.commands.search.lkm.paper_graph import package_command
-from gaia.cli.commands.search.lkm.reasoning import reasoning_command
-from gaia.cli.commands.search.lkm.variables import nodes_command
+from gaia.cli.commands.search.lkm.paper_graph import _PACKAGE_EPILOG, package_command
+from gaia.cli.commands.search.lkm.reasoning import _REASONING_EPILOG, reasoning_command
+from gaia.cli.commands.search.lkm.variables import _NODES_EPILOG, nodes_command
 
 _LKM_EPILOG = (
     "Configured indexes: bohrium (default). Set GAIA_LKM_INDEX_<NAME>_URL "
-    "to add a named LKM index. Endpoints under "
-    "https://open.bohrium.com/openapi/v1/lkm:\n\n"
-    "  knowledge  POST /search + filters        — recall claim/question nodes\n"
-    "  reasoning  POST /reasoning/search        — search reasoning chains by query\n"
-    "             GET  /claims/{id}/reasoning   — fetch chains for one claim\n"
-    "  nodes      POST /variables/batch         — fetch LKM graph nodes by id\n"
-    "  package    POST /papers/graph            — fetch a paper package candidate\n\n"
+    "to add a named LKM index.\n\n"
+    f"Full LKM API docs: {APIFOX_BASE_URL}\n"
+    "Run `gaia search lkm docs` for endpoint links.\n\n"
     "Auth: every call needs a Bohrium access key. Run "
     "`gaia search lkm auth login` to set one up (or set "
     "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
@@ -36,15 +33,16 @@ _LKM_EPILOG = (
 
 lkm_app = typer.Typer(
     name="lkm",
-    help="Search configured LKM knowledge-graph indexes (4 verbs + auth).",
+    help="Search configured LKM knowledge-graph indexes (5 verbs + auth).",
     epilog=_LKM_EPILOG,
     no_args_is_help=True,
 )
 
 lkm_app.add_typer(auth_app, name="auth")
+lkm_app.command(name="docs")(docs_command)
 lkm_app.command(name="knowledge", epilog=_KNOWLEDGE_EPILOG)(knowledge_command)
-lkm_app.command(name="reasoning")(reasoning_command)
-lkm_app.command(name="nodes")(nodes_command)
-lkm_app.command(name="package")(package_command)
+lkm_app.command(name="reasoning", epilog=_REASONING_EPILOG)(reasoning_command)
+lkm_app.command(name="nodes", epilog=_NODES_EPILOG)(nodes_command)
+lkm_app.command(name="package", epilog=_PACKAGE_EPILOG)(package_command)
 
 __all__ = ["lkm_app"]

@@ -95,11 +95,72 @@ def _install_constructor_error(monkeypatch: pytest.MonkeyPatch, raises: Exceptio
 
 
 # --------------------------------------------------------------------------- #
+# docs                                                                        #
+# --------------------------------------------------------------------------- #
+
+
+class TestDocs:
+    def test_prints_lkm_api_and_cli_reference_links(self) -> None:
+        result = runner.invoke(app, ["search", "lkm", "docs"])
+
+        assert result.exit_code == 0, result.output
+        assert "LKM API docs:" in result.stdout
+        assert "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84" in result.stdout
+        assert "POST /search" in result.stdout
+        assert "POST /reasoning/search" in result.stdout
+        assert "GET /claims/{id}/reasoning" in result.stdout
+        assert "POST /variables/batch" in result.stdout
+        assert "POST /papers/graph" in result.stdout
+        assert "CLI reference:" in result.stdout
+        assert "docs/reference/cli/search.md" in result.stdout
+
+    @pytest.mark.parametrize(
+        ("argv", "expected_urls"),
+        [
+            (
+                ["search", "lkm", "knowledge", "--help"],
+                ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459806352"],
+            ),
+            (
+                ["search", "lkm", "reasoning", "--help"],
+                [
+                    "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459807117",
+                    "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459807347",
+                ],
+            ),
+            (
+                ["search", "lkm", "nodes", "--help"],
+                ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459805971"],
+            ),
+            (
+                ["search", "lkm", "package", "--help"],
+                ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459808997"],
+            ),
+        ],
+    )
+    def test_subcommand_help_prints_endpoint_specific_docs(
+        self, argv: list[str], expected_urls: list[str]
+    ) -> None:
+        result = runner.invoke(app, argv)
+
+        assert result.exit_code == 0, result.output
+        for url in expected_urls:
+            assert url in result.stdout
+
+
+# --------------------------------------------------------------------------- #
 # knowledge                                                                   #
 # --------------------------------------------------------------------------- #
 
 
 class TestKnowledge:
+    def test_help_recommends_reasoning_only_for_conclusions(self) -> None:
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "--help"])
+
+        assert result.exit_code == 0, result.output
+        assert "--reasoning-only" in result.stdout
+        assert "conclusions" in result.stdout
+
     def test_happy(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
         result = runner.invoke(app, ["search", "lkm", "knowledge", "perovskite"])

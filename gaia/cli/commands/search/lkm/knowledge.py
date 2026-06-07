@@ -23,6 +23,7 @@ from gaia.cli.commands.search.lkm._shared import (
     run_request,
     validate_lkm_index,
 )
+from gaia.cli.commands.search.lkm.docs import APIFOX_SEARCH_URL
 
 
 class ScopeChoice(StrEnum):
@@ -41,11 +42,13 @@ class RetrievalMode(StrEnum):
 
 
 _KNOWLEDGE_EPILOG = (
-    "Retrieval modes:\n\n"
-    "  semantic  meaning-similarity recall (different wording, same idea)\n"
-    "  lexical   keyword literal recall (must contain a specific term)\n"
-    "  hybrid    both channels fused, auto-degrading on single-channel "
-    "failure (default)\n\n"
+    "Use --reasoning-only when you want conclusion claims backed by reasoning "
+    "chains. It narrows the search to claim conclusions.\n\n"
+    "Best recall: use hybrid mode with --keywords. Faster, lower-recall search: "
+    "use --retrieval-mode semantic. Exact keyword matching only: use "
+    "--retrieval-mode lexical.\n\n"
+    f"API docs: {APIFOX_SEARCH_URL}\n"
+    "Endpoint links: gaia search lkm docs\n\n"
     "Note: `score` is a retrieval ranking signal, not a probability — "
     "do not pass to Gaia priors."
 )
@@ -80,7 +83,7 @@ def knowledge_command(
         bool,
         typer.Option(
             "--reasoning-only",
-            help="Only return claims backed by reasoning chains (narrows scopes/role).",
+            help=("Search conclusion claims backed by reasoning chains (narrows scopes/role)."),
         ),
     ] = False,
     role: Annotated[

@@ -21,6 +21,14 @@ from gaia.cli.commands.search.lkm._shared import (
     run_request,
     validate_lkm_index,
 )
+from gaia.cli.commands.search.lkm.docs import APIFOX_VARIABLES_BATCH_URL
+
+_NODES_EPILOG = (
+    "`nodes` wraps POST /variables/batch. Partial misses are reported in "
+    "not_found and do not make the response a business error.\n\n"
+    f"API docs: {APIFOX_VARIABLES_BATCH_URL}\n"
+    "Endpoint links: gaia search lkm docs"
+)
 
 
 def nodes_command(
