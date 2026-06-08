@@ -22,19 +22,20 @@ runs:
   using: composite
   steps:
     # Transient pyproject.toml version override. NEVER commit this change —
-    # the workflow runner discards its checkout on completion. The sed pin to
-    # the literal current dev version ('0.5.0') guarantees we error loudly if
-    # the source-of-truth version drifts and the brief is no longer accurate.
+    # the workflow runner discards its checkout on completion.
+    #
+    # The pattern reads the current version from pyproject.toml dynamically so
+    # the same action works on both `main` and `release/0.N.x` branches without
+    # manual updates when the minor series advances.
     - name: Set version in pyproject.toml (transient, not committed)
       shell: bash
       run: |
-        sed -i 's/^version = "0\.5\.0"$/version = "${{ inputs.version }}"/' pyproject.toml
-        # Strict assert: sed actually replaced; will fail loudly if pyproject's
-        # pinned version drifts from 0.5.0 (e.g., post-bump in future) making
-        # sed a silent no-op.
+        CURRENT=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+        echo "Current pyproject.toml version: ${CURRENT}"
+        sed -i "s/^version = \"${CURRENT}\"$/version = \"${{ inputs.version }}\"/" pyproject.toml
+        # Strict assert: sed actually replaced; fails loudly on a silent no-op.
         grep -q "^version = \"${{ inputs.version }}\"$" pyproject.toml || {
           echo "::error::pyproject.toml version mismatch after sed (expected '${{ inputs.version }}'; current: $(grep ^version pyproject.toml))"
-          echo "::error::This likely means the source version pin has drifted from 0.5.0; update the sed pattern in release/action.yml"
           exit 1
         }
         grep ^version pyproject.toml
