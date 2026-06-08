@@ -170,9 +170,7 @@ def test_gate_calibration_suppresses_unreliable_deltas(monkeypatch: pytest.Monke
 def test_review_package_no_infer_skips_calibration(tmp_path: Path) -> None:
     pkg = _copy_galileo(tmp_path)
 
-    result = runner.invoke(
-        app, ["review", "package", str(pkg), "--no-infer", "--format", "json"]
-    )
+    result = runner.invoke(app, ["review", "package", str(pkg), "--no-infer", "--format", "json"])
 
     assert result.exit_code in (0, 1), result.output
     payload = _json_stdout(result)

@@ -163,11 +163,7 @@ def _render_text(report: NodeReviewReport) -> None:
     typer.echo(f"Path: {report.path}")
     belief = report.belief
     if belief and belief.has_prior and belief.prior is not None and belief.delta is not None:
-        typer.echo(
-            "Belief: "
-            f"{belief.prior:.3f} → {belief.posterior:.3f} "
-            f"(Δ={belief.delta:+.3f})"
-        )
+        typer.echo(f"Belief: {belief.prior:.3f} → {belief.posterior:.3f} (Δ={belief.delta:+.3f})")
     elif belief:
         typer.echo(f"Belief: posterior={belief.posterior:.3f} (no authored prior)")
     typer.echo("")
