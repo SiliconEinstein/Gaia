@@ -30,17 +30,30 @@ gaia research status "$PKG"
 
 ## Breadth-First Explore
 
-Run several independent query families before choosing a focus. Preserve every
-raw search JSON:
+Run several independent query families before choosing a focus. For
+package-native landscape building, search reasoning-backed evidence first so
+the landscape has claim endpoints suitable for assessment and materialization.
+Preserve every raw search JSON:
 
 ```bash
-gaia search lkm knowledge "<broad query 1>" --limit 10 \
+gaia search lkm knowledge "<broad query 1>" --reasoning-only --limit 10 \
   --out "$RUN/searches/01.json"
-gaia search lkm knowledge "<broad query 2>" --limit 10 \
+gaia search lkm knowledge "<broad query 2>" --reasoning-only --limit 10 \
   --out "$RUN/searches/02.json"
-gaia search lkm knowledge "<broad query 3>" --limit 10 \
+gaia search lkm knowledge "<broad query 3>" --reasoning-only --limit 10 \
   --out "$RUN/searches/03.json"
 ```
+
+Default `gaia search lkm knowledge` recalls both claim and question nodes. That
+can be useful for later question discovery, but it will produce question-heavy
+shallow source packages when `explore` materializes sources. `--reasoning-only`
+is the claim+conclusion retrieval shape for reasoning-backed landscape evidence
+and candidate-relation-ready materialization.
+
+If the reasoning-only landscape misses obvious coverage gaps, run a separate
+supplemental broad/question discovery search and keep it labeled separately in
+`$RUN/searches/`; do not let that supplemental pass silently define the
+claim-materialized evidence surface.
 
 Record each search with `gaia research trace record --kind search`; see
 `benchmark-trace.md`.
@@ -92,7 +105,7 @@ gaia research focus "$PKG" \
 Use focus gaps and suggested queries:
 
 ```bash
-gaia search lkm knowledge "<targeted query>" --limit 10 \
+gaia search lkm knowledge "<targeted query>" --reasoning-only --limit 10 \
   --out "$RUN/searches/targeted-01.json"
 
 gaia research expand "$PKG" \
@@ -100,6 +113,9 @@ gaia research expand "$PKG" \
   --search-json "$RUN/searches/targeted-01.json" \
   --trace-dir "$TRACE"
 ```
+
+For targeted evidence expansion that should become package claim endpoints,
+keep `--reasoning-only` on the targeted search.
 
 For artifact-only benchmark mode, add:
 

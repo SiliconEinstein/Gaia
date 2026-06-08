@@ -40,6 +40,10 @@ Choose the lightest mode that satisfies the user request.
 ## Hard Boundaries
 
 - Start broad. Run multiple query families before choosing a focus.
+- Choose LKM search scope deliberately. For package-native landscape building,
+  search reasoning-backed evidence first: default `gaia search lkm knowledge`
+  searches both claim and question nodes, while `--reasoning-only` is the
+  claim+conclusion retrieval shape for claims backed by reasoning chains.
 - Do not use `gaia-lkm-explore` unless the user explicitly asks for legacy
   comparison.
 - Do not treat search rank as confidence.
@@ -151,6 +155,10 @@ Before handoff:
 
 - Starting from one attractive paper and narrowing before the landscape is
   broad.
+- Forgetting that default LKM knowledge search returns both claims and
+  questions. This can make fast source materialization question-heavy even
+  when the assessment needs claim endpoints. Start landscape searches with
+  `--reasoning-only` before `explore`/`expand` materializes sources.
 - Treating `assessment.json` as formal knowledge; it is scaffold trace until
   promoted.
 - Treating artifact-local items as durable evidence. Use stable refs already
