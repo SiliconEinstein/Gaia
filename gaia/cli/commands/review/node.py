@@ -98,34 +98,48 @@ def _belief_context(
     if not belief_claim_id:
         return None
     computation = compute_calibration_deltas(project_dir, top_k=None)
+
+    # Δ (prior→posterior) is only meaningful for claims with an authored prior.
     delta = {item.claim_qid: item for item in computation.deltas}.get(belief_claim_id)
-    if delta is None:
-        return None
-    if delta.abs_delta > 0.15:
-        findings.append(
-            ReviewFinding(
-                severity=ReviewSeverity.WARNING,
-                category="calibration",
-                location=delta.claim_qid,
-                message=(
-                    f"Large belief shift: Δ={delta.delta:+.3f} "
-                    f"(prior={delta.prior:.3f} → posterior={delta.posterior:.3f})"
-                ),
-                detector="node_calibration",
-                details={
-                    "prior": delta.prior,
-                    "posterior": delta.posterior,
-                    "delta": delta.delta,
-                },
+    if delta is not None:
+        if delta.abs_delta > 0.15:
+            findings.append(
+                ReviewFinding(
+                    severity=ReviewSeverity.WARNING,
+                    category="calibration",
+                    location=delta.claim_qid,
+                    message=(
+                        f"Large belief shift: Δ={delta.delta:+.3f} "
+                        f"(prior={delta.prior:.3f} → posterior={delta.posterior:.3f})"
+                    ),
+                    detector="node_calibration",
+                    details={
+                        "prior": delta.prior,
+                        "posterior": delta.posterior,
+                        "delta": delta.delta,
+                    },
+                )
             )
+        return NodeBeliefContext(
+            claim_qid=delta.claim_qid,
+            claim_label=delta.claim_label,
+            posterior=delta.posterior,
+            has_prior=True,
+            prior=delta.prior,
+            delta=delta.delta,
+            abs_delta=delta.abs_delta,
         )
+
+    # No authored prior: still surface the posterior (always computed) so the
+    # reviewer sees the belief, without inventing a prior or a Δ.
+    posterior = computation.posteriors.get(belief_claim_id)
+    if posterior is None:
+        return None
     return NodeBeliefContext(
-        claim_qid=delta.claim_qid,
-        claim_label=delta.claim_label,
-        prior=delta.prior,
-        posterior=delta.posterior,
-        delta=delta.delta,
-        abs_delta=delta.abs_delta,
+        claim_qid=belief_claim_id,
+        claim_label=belief_claim_id.split("::")[-1],
+        posterior=posterior,
+        has_prior=False,
     )
 
 
@@ -147,12 +161,15 @@ def _render_text(report: NodeReviewReport) -> None:
     typer.echo(f"Node: {report.node_id}")
     typer.echo(f"Kind: {report.node_kind}")
     typer.echo(f"Path: {report.path}")
-    if report.belief:
+    belief = report.belief
+    if belief and belief.has_prior and belief.prior is not None and belief.delta is not None:
         typer.echo(
             "Belief: "
-            f"{report.belief.prior:.3f} → {report.belief.posterior:.3f} "
-            f"(Δ={report.belief.delta:+.3f})"
+            f"{belief.prior:.3f} → {belief.posterior:.3f} "
+            f"(Δ={belief.delta:+.3f})"
         )
+    elif belief:
+        typer.echo(f"Belief: posterior={belief.posterior:.3f} (no authored prior)")
     typer.echo("")
 
     if not report.findings:

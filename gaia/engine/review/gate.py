@@ -30,21 +30,44 @@ def _severity_status(findings: list[ReviewFinding]) -> Literal["pass", "warning"
 def _calibration_findings(pkg_path: Path) -> tuple[list[ReviewFinding], dict[str, object]]:
     report = run_calibration_review(pkg_path, top_k=10)
     findings: list[ReviewFinding] = []
-    for delta in report.top_deltas:
-        if delta.abs_delta > 0.15:
-            findings.append(
-                ReviewFinding(
-                    severity=ReviewSeverity.WARNING,
-                    category="gate.calibration",
-                    location=delta.claim_qid,
-                    message=f"Large calibration delta: Δ={delta.delta:+.3f}",
-                    detector="gate_calibration",
-                    details=delta.model_dump(mode="json"),
-                )
+
+    # Deltas from an approximate run that did not converge are unreliable. Do not
+    # present them as authoritative large-delta warnings; emit a single
+    # reliability warning instead so the gate verdict reflects the real state.
+    reliable = bool(report.metadata.get("reliable", report.is_exact or report.converged))
+    if not reliable:
+        findings.append(
+            ReviewFinding(
+                severity=ReviewSeverity.WARNING,
+                category="gate.calibration",
+                location="global",
+                message=(
+                    f"Calibration deltas are unreliable: inference did not converge "
+                    f"(method={report.method_used}, converged={report.converged}, "
+                    f"is_exact={report.is_exact})."
+                ),
+                detector="gate_calibration_unreliable",
             )
+        )
+    else:
+        for delta in report.top_deltas:
+            if delta.abs_delta > 0.15:
+                findings.append(
+                    ReviewFinding(
+                        severity=ReviewSeverity.WARNING,
+                        category="gate.calibration",
+                        location=delta.claim_qid,
+                        message=f"Large calibration delta: Δ={delta.delta:+.3f}",
+                        detector="gate_calibration",
+                        details=delta.model_dump(mode="json"),
+                    )
+                )
     return findings, {
         "review_id": report.review_id,
         "converged": report.converged,
+        "is_exact": report.is_exact,
+        "method_used": report.method_used,
+        "reliable": reliable,
         "top_deltas": len(report.top_deltas),
     }
 

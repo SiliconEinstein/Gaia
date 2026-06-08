@@ -55,7 +55,27 @@ def test_review_node_json_includes_belief_context(tmp_path: Path) -> None:
     payload = _json_stdout(result)
     assert payload["node_kind"] == "claim"
     assert payload["belief"]["claim_label"] == "daily_observation"
+    assert payload["belief"]["has_prior"] is True
     assert payload["belief"]["prior"] == pytest.approx(0.9)
+    assert 0.0 <= payload["belief"]["posterior"] <= 1.0
+
+
+def test_review_node_without_authored_prior_shows_posterior_only(tmp_path: Path) -> None:
+    # aristotle_model is an independent claim with no register_prior -> MaxEnt.
+    # It must still show a posterior, but with no invented prior / Δ.
+    pkg = _copy_galileo(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["review", "node", "aristotle_model", "--path", str(pkg), "--format", "json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_stdout(result)
+    assert payload["node_kind"] == "claim"
+    assert payload["belief"]["has_prior"] is False
+    assert payload["belief"]["prior"] is None
+    assert payload["belief"]["delta"] is None
     assert 0.0 <= payload["belief"]["posterior"] <= 1.0
 
 
@@ -105,8 +125,46 @@ def test_review_calibration_json_exposes_inference_metadata(tmp_path: Path) -> N
     assert payload["is_exact"] is True
     assert payload["converged"] is True
     assert payload["iterations"] == 0
+    assert payload["metadata"]["reliable"] is True
     assert len(payload["top_deltas"]) == 1
     assert payload["top_deltas"][0]["claim_label"] == "daily_observation"
+
+
+def test_gate_calibration_suppresses_unreliable_deltas(monkeypatch: pytest.MonkeyPatch) -> None:
+    # An approximate run that did not converge must NOT surface large-delta
+    # warnings as authoritative; the gate emits a single reliability warning.
+    from gaia.engine.review import gate as gate_mod
+    from gaia.engine.review._schemas import CalibrationDelta, CalibrationReport
+
+    unreliable = CalibrationReport(
+        review_id="rid",
+        created_at="2026-01-01T00:00:00Z",
+        path="/tmp/pkg",
+        converged=False,
+        iterations=200,
+        method_used="trw_bp",
+        is_exact=False,
+        top_deltas=[
+            CalibrationDelta(
+                claim_qid="q::c",
+                claim_label="c",
+                prior=0.5,
+                posterior=0.9,
+                delta=0.4,
+                abs_delta=0.4,
+            )
+        ],
+        honesty_check=None,
+        metadata={"reliable": False},
+    )
+    monkeypatch.setattr(gate_mod, "run_calibration_review", lambda *_a, **_k: unreliable)
+
+    report = gate_mod.run_gate_review("/tmp/pkg", "calibration")
+
+    detectors = {f.detector for f in report.findings}
+    assert "gate_calibration_unreliable" in detectors
+    assert "gate_calibration" not in detectors
+    assert report.metadata["components"]["calibration"]["reliable"] is False
 
 
 def test_review_package_no_infer_skips_calibration(tmp_path: Path) -> None:

@@ -76,6 +76,9 @@ def calibration_command(
     typer.echo(f"Method: {report.method_used} ({'exact' if report.is_exact else 'approximate'})")
     typer.echo(f"Converged: {report.converged}")
     typer.echo(f"Iterations: {report.iterations}")
+    reliable = bool(report.metadata.get("reliable", report.is_exact or report.converged))
+    if not reliable:
+        typer.echo("⚠ Inference did not converge — deltas below are NOT reliable.")
     typer.echo("")
 
     if not report.top_deltas:

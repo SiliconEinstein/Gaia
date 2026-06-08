@@ -120,14 +120,21 @@ class CalibrationReport(BaseModel):
 
 
 class NodeBeliefContext(BaseModel):
-    """Prior/posterior context for a reviewed node when available."""
+    """Belief context for a reviewed node.
+
+    ``posterior`` is always available once inference runs. ``prior`` / ``delta`` /
+    ``abs_delta`` are populated only when the node carries an explicit authored
+    prior; for MaxEnt / derived nodes they stay ``None`` and ``has_prior`` is
+    ``False`` so a reviewer never mistakes a neutral baseline for an author belief.
+    """
 
     claim_qid: str
     claim_label: str
-    prior: float
     posterior: float
-    delta: float
-    abs_delta: float
+    has_prior: bool = False
+    prior: float | None = None
+    delta: float | None = None
+    abs_delta: float | None = None
 
 
 class NodeReviewReport(BaseModel):

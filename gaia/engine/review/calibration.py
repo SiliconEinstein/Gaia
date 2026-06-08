@@ -12,11 +12,17 @@ Design principle: No new IR/BP logic. Thin wrapper around existing bp.engine.
 Prior source (important): a Gaia factor graph stores a neutral 0.5 display
 measure for *every* variable in ``FactorGraph.variables`` — including derived
 claims, anonymous expression helpers, and claims that were never given a prior.
-Those neutral values are not authored priors. The authored class-IV soft priors
-(lowered from ``register_prior`` / claim metadata) live in
-``FactorGraph.unary_factors``. Calibration therefore reads priors from
-``unary_factors`` so it never reports a derived/helper/missing-prior claim as if
-it carried an explicit prior=0.5.
+Those neutral values are not authored priors. Calibration therefore takes the
+prior baseline from the authored value Gaia's prior resolver writes onto each
+claim (``Knowledge.metadata["prior"]``), restricted to reviewable ``CLAIM``
+knowledges, and only for claims the lowering actually installed as a live
+class-IV soft prior (membership in ``FactorGraph.unary_factors``). This excludes,
+by construction:
+
+  - MaxEnt-baseline claims (no authored prior, not in unary_factors),
+  - derived claims and anonymous / structural expression helpers,
+  - structural relation defaults (≈1-ε, asserted via hard evidence, not metadata),
+  - hard-evidence-pinned claims (popped out of unary_factors).
 """
 
 from __future__ import annotations
@@ -31,6 +37,7 @@ from gaia.engine.bp import lower_local_graph
 from gaia.engine.bp.engine import InferenceEngine
 from gaia.engine.inquiry.review_manifest import load_or_generate_review_manifest
 from gaia.engine.inquiry.snapshot import mint_review_id
+from gaia.engine.ir.knowledge import KnowledgeType, is_structural_expression_helper
 from gaia.engine.packaging import (
     apply_package_priors,
     compile_loaded_package_artifact,
@@ -49,8 +56,11 @@ class CalibrationComputation:
     """Result of a calibration computation.
 
     Attributes:
-        deltas: Per-claim prior→posterior deltas, sorted by |Δ| descending,
-            truncated to ``top_k`` when requested.
+        deltas: Per-claim prior→posterior deltas for claims with an authored
+            prior, sorted by |Δ| descending, truncated to ``top_k`` when
+            requested.
+        posteriors: Full posterior belief map for every variable, so callers
+            can show posterior context even for claims without an authored prior.
         converged: Whether the inference run reported convergence. Exact
             methods (junction tree / brute force) are always converged.
         iterations: Inference iterations actually run (0 for exact methods).
@@ -59,10 +69,20 @@ class CalibrationComputation:
     """
 
     deltas: list[CalibrationDelta] = field(default_factory=list)
+    posteriors: dict[str, float] = field(default_factory=dict)
     converged: bool = False
     iterations: int = 0
     method_used: str = "unknown"
     is_exact: bool = False
+
+    @property
+    def reliable(self) -> bool:
+        """True when deltas can be trusted: exact, or approximate-but-converged.
+
+        An approximate run that did not converge produces unreliable marginals,
+        so the deltas derived from it must not be presented as authoritative.
+        """
+        return self.is_exact or self.converged
 
 
 def compute_calibration_deltas(
@@ -92,28 +112,36 @@ def compute_calibration_deltas(
     # Lower to factor graph
     factor_graph = lower_local_graph(compiled.graph, review_manifest=review_manifest)
 
-    # Explicit authored priors only — NOT the neutral 0.5 display measure that
-    # FactorGraph.variables holds for every node. unary_factors is populated by
-    # add_variable(prior=...) which lowering calls only for claims with a
-    # register_prior / metadata prior (expression helpers are filtered out).
-    explicit_priors: dict[str, float] = dict(factor_graph.unary_factors)
+    # Authored priors: the value Gaia's prior resolver wrote onto each reviewable
+    # CLAIM (metadata["prior"]). Gate on unary_factors membership so we only keep
+    # claims the lowering actually installed as a live class-IV soft prior —
+    # this drops structural relation defaults, MaxEnt baselines, deliberately
+    # ignored helper priors, and hard-evidence-pinned claims.
+    labels: dict[str, str] = {}
+    authored_priors: dict[str, float] = {}
+    for knowledge in compiled.graph.knowledges:
+        if not knowledge.id:
+            continue
+        if knowledge.label:
+            labels[knowledge.id] = knowledge.label
+        if knowledge.type != KnowledgeType.CLAIM:
+            continue
+        if is_structural_expression_helper(knowledge):
+            continue
+        meta = knowledge.metadata or {}
+        prior_value = meta.get("prior")
+        if prior_value is None or knowledge.id not in factor_graph.unary_factors:
+            continue
+        authored_priors[knowledge.id] = float(prior_value)
 
     # Run BP inference
     engine = InferenceEngine()
     result = engine.run(factor_graph)
+    posteriors = dict(result.beliefs)
 
-    # Get posteriors from BP result
-    posteriors = result.beliefs
-
-    # Get labels
-    labels = {}
-    for knowledge in compiled.graph.knowledges:
-        if knowledge.id and knowledge.label:
-            labels[knowledge.id] = knowledge.label
-
-    # Compute deltas only for claims that carry an explicit prior.
+    # Compute deltas only for claims that carry an authored prior.
     deltas: list[CalibrationDelta] = []
-    for claim_id, prior in explicit_priors.items():
+    for claim_id, prior in authored_priors.items():
         posterior = posteriors.get(claim_id)
         if posterior is None:
             continue
@@ -142,6 +170,7 @@ def compute_calibration_deltas(
     selected = deltas if top_k is None else deltas[:top_k]
     return CalibrationComputation(
         deltas=selected,
+        posteriors=posteriors,
         converged=converged,
         iterations=iterations,
         method_used=result.method_used,
@@ -252,6 +281,7 @@ def run_calibration_review(
         honesty_check=honesty_result,
         metadata={
             "top_k": top_k,
-            "explicit_prior_claims": len(computation.deltas),
+            "authored_prior_claims": len(computation.deltas),
+            "reliable": computation.reliable,
         },
     )
