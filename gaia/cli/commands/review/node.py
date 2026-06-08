@@ -97,8 +97,8 @@ def _belief_context(
 ) -> NodeBeliefContext | None:
     if not belief_claim_id:
         return None
-    deltas, _, _ = compute_calibration_deltas(project_dir, top_k=None)
-    delta = {item.claim_qid: item for item in deltas}.get(belief_claim_id)
+    computation = compute_calibration_deltas(project_dir, top_k=None)
+    delta = {item.claim_qid: item for item in computation.deltas}.get(belief_claim_id)
     if delta is None:
         return None
     if delta.abs_delta > 0.15:

@@ -79,7 +79,8 @@ def _query_deltas(
     *,
     weakest: bool,
 ) -> tuple[list[ReviewFinding], dict[str, object]]:
-    deltas, converged, iterations = compute_calibration_deltas(pkg_path, top_k=None)
+    computation = compute_calibration_deltas(pkg_path, top_k=None)
+    deltas = computation.deltas
     if weakest:
         selected = sorted(deltas, key=lambda delta: delta.posterior)[:top_k]
         category = "query.weakest_claims"
@@ -103,8 +104,10 @@ def _query_deltas(
         for delta in selected
     ]
     return findings, {
-        "converged": converged,
-        "iterations": iterations,
+        "converged": computation.converged,
+        "iterations": computation.iterations,
+        "method_used": computation.method_used,
+        "is_exact": computation.is_exact,
         "total_deltas": len(deltas),
     }
 

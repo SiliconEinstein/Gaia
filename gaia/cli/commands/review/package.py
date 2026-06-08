@@ -16,7 +16,9 @@ def package_command(
     format: Literal["text", "json"] = typer.Option(
         "text", "--format", "-f", help="Output format: text or json"
     ),
-    no_infer: bool = typer.Option(False, "--no-infer", help="Skip BP inference"),
+    no_infer: bool = typer.Option(
+        False, "--no-infer", help="Skip BP inference (also skips calibration, which runs BP)"
+    ),
     no_calibration: bool = typer.Option(False, "--no-calibration", help="Skip calibration delta"),
     no_trace: bool = typer.Option(False, "--no-trace", help="Skip trace review"),
 ) -> None:

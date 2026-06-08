@@ -73,12 +73,13 @@ def calibration_command(
     typer.echo(f"Path: {report.path}")
     typer.echo(f"Review ID: {report.review_id}")
     typer.echo(f"Created: {report.created_at}")
+    typer.echo(f"Method: {report.method_used} ({'exact' if report.is_exact else 'approximate'})")
     typer.echo(f"Converged: {report.converged}")
     typer.echo(f"Iterations: {report.iterations}")
     typer.echo("")
 
     if not report.top_deltas:
-        typer.echo("No deltas to report (no claims with both prior and posterior).")
+        typer.echo("No deltas to report (no claims carry an explicit authored prior).")
     else:
         typer.echo(f"Top {len(report.top_deltas)} Belief Shifts (by |Δ|):")
         typer.echo("")

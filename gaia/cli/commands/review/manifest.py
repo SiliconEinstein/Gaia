@@ -198,14 +198,15 @@ def _build_enriched_items(project_dir: Path, manifest: ReviewManifest) -> list[A
     # 运行 inquiry review 获取 diagnostics
     inquiry_report = run_inquiry_review(project_dir, mode="auto", no_infer=False)
 
-    # 运行 calibration 获取 Δ
-    deltas, _, _ = compute_calibration_deltas(project_dir)
+    # 运行 calibration 获取完整 Δ 集（top_k=None），否则大包里多数审查项会
+    # 静默丢失 belief context 并被低估风险等级。
+    computation = compute_calibration_deltas(project_dir, top_k=None)
 
     # 合成
     return synthesize_review_items(
         manifest=manifest,
         diagnostics=list(inquiry_report.diagnostics),
-        calibration_deltas=deltas,
+        calibration_deltas=computation.deltas,
         graph=compiled.graph,
     )
 

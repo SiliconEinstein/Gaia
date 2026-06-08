@@ -78,7 +78,13 @@ class ReviewReport(BaseModel):
 
 
 class CalibrationDelta(BaseModel):
-    """Single claim's prior-to-posterior delta."""
+    """Single claim's prior-to-posterior delta.
+
+    Only claims carrying an *explicit* authored prior (a class-IV unary factor
+    lowered from ``register_prior`` / claim metadata) are represented here. A
+    variable's neutral 0.5 display measure is not an authored prior and is never
+    reported as one.
+    """
 
     claim_qid: str
     claim_label: str
@@ -89,13 +95,23 @@ class CalibrationDelta(BaseModel):
 
 
 class CalibrationReport(BaseModel):
-    """Calibration audit report — Δ_qid ranking + convergence."""
+    """Calibration audit report — Δ_qid ranking + inference convergence."""
 
     review_id: str
     created_at: str
     path: str
-    converged: bool
-    iterations: int
+    converged: bool = Field(
+        ..., description="True if the BP run reported convergence (exact methods are always True)"
+    )
+    iterations: int = Field(
+        ..., description="Inference iterations actually run (0 for exact methods)"
+    )
+    method_used: str = Field(
+        "unknown", description="Inference method: jt / trw_bp / mean_field / exact"
+    )
+    is_exact: bool = Field(
+        False, description="True if the inference method returns exact marginals"
+    )
     top_deltas: list[CalibrationDelta] = Field(..., description="Top-K by |Δ|, descending")
     honesty_check: dict[str, Any] | None = Field(
         None, description="Git diff results if --honesty used"

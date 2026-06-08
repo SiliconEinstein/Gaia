@@ -78,7 +78,9 @@ def report_command(
         "markdown", "--format", "-f", help="Output format: markdown, html, or json"
     ),
     output: str | None = typer.Option(None, "--output", "-o", help="Optional output path"),
-    no_infer: bool = typer.Option(False, "--no-infer", help="Skip BP inference"),
+    no_infer: bool = typer.Option(
+        False, "--no-infer", help="Skip BP inference (also skips calibration, which runs BP)"
+    ),
 ) -> None:
     """Render a human-readable package review report."""
     project_dir = Path(path).resolve()

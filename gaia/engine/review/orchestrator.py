@@ -90,8 +90,11 @@ def run_package_review(
 
     Args:
         pkg_path: Path to Gaia package
-        skip_inference: Skip BP inference in inquiry review
-        skip_calibration: Skip calibration delta computation
+        skip_inference: Skip BP inference. Because calibration is itself a BP
+            run, skipping inference also skips calibration (a "skip BP" flag
+            must not silently keep running BP under another name).
+        skip_calibration: Skip calibration delta computation independently of
+            inference.
         skip_trace: Skip trace review even if trace exists
 
     Returns:
@@ -99,6 +102,11 @@ def run_package_review(
     """
     pkg_path = Path(pkg_path).resolve()
     review_id = mint_review_id(None, "package")
+
+    # Calibration runs BP, so --no-infer must also disable it. Otherwise the
+    # report would still carry metadata.calibration after the user asked to
+    # skip inference.
+    skip_calibration = skip_calibration or skip_inference
 
     findings: list[ReviewFinding] = []
     recommendations: list[ReviewRecommendation] = []

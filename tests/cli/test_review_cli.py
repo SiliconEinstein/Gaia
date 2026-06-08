@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 
 from gaia.cli.main import app
 from gaia.engine.inquiry.review import run_review
-from gaia.engine.review.calibration import check_honesty
+from gaia.engine.review.calibration import check_honesty, compute_calibration_deltas
 
 pytestmark = pytest.mark.pr_gate
 
@@ -74,6 +74,52 @@ def test_review_red_team_scans_solution_artifact(tmp_path: Path) -> None:
     assert payload["review_type"] == "redteam"
     assert payload["metadata"]["verdict"] == "vulnerable"
     assert any(finding["detector"] == "redteam_shortcut" for finding in payload["findings"])
+
+
+def test_calibration_only_reports_explicit_priors(tmp_path: Path) -> None:
+    # galileo registers exactly one explicit prior (daily_observation=0.9). The
+    # neutral 0.5 display measure on derived / anon / helper variables must NOT
+    # be reported as an authored prior.
+    pkg = _copy_galileo(tmp_path)
+
+    computation = compute_calibration_deltas(pkg, top_k=None)
+
+    assert [d.claim_label for d in computation.deltas] == ["daily_observation"]
+    assert computation.deltas[0].prior == pytest.approx(0.9)
+    assert not any("_anon_" in d.claim_qid for d in computation.deltas)
+    # galileo is small => exact junction tree: converged, no iterations.
+    assert computation.is_exact is True
+    assert computation.converged is True
+    assert computation.iterations == 0
+    assert computation.method_used == "jt"
+
+
+def test_review_calibration_json_exposes_inference_metadata(tmp_path: Path) -> None:
+    pkg = _copy_galileo(tmp_path)
+
+    result = runner.invoke(app, ["review", "calibration", str(pkg), "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    payload = _json_stdout(result)
+    assert payload["method_used"] == "jt"
+    assert payload["is_exact"] is True
+    assert payload["converged"] is True
+    assert payload["iterations"] == 0
+    assert len(payload["top_deltas"]) == 1
+    assert payload["top_deltas"][0]["claim_label"] == "daily_observation"
+
+
+def test_review_package_no_infer_skips_calibration(tmp_path: Path) -> None:
+    pkg = _copy_galileo(tmp_path)
+
+    result = runner.invoke(
+        app, ["review", "package", str(pkg), "--no-infer", "--format", "json"]
+    )
+
+    assert result.exit_code in (0, 1), result.output
+    payload = _json_stdout(result)
+    # --no-infer means "skip BP"; calibration is a BP run and must be skipped too.
+    assert "calibration" not in payload["metadata"]
 
 
 def test_review_gate_calibration_json(tmp_path: Path) -> None:
