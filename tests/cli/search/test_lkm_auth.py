@@ -14,7 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from gaia.cli import _credentials as cred
-from gaia.cli.commands.search.lkm import auth as auth_module
+from gaia.cli import _onboarding as onboarding_module
 from gaia.cli.main import app
 
 pytestmark = pytest.mark.pr_gate
@@ -33,7 +33,7 @@ def isolated_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def _patch_validate(monkeypatch: pytest.MonkeyPatch, result: tuple[bool, str]) -> None:
-    monkeypatch.setattr(auth_module, "_validate_key", lambda _key: result)
+    monkeypatch.setattr(onboarding_module, "validate_lkm_access_key", lambda _key: result)
 
 
 # --------------------------------------------------------------------------- #
