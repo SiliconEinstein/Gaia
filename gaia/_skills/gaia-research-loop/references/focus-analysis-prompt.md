@@ -31,9 +31,9 @@ Then ask the active LLM/agent to return JSON only.
 - 保存为 `<run>/analysis/focus-analysis.json`；
 - `focuses` 通常为 3-8 个，除非 landscape 明显很小；
 - 所有 `question`、`rationale`、`coverage_gaps.description`、`notes` 用中文；
-- 每个 focus 必须有非空 `evidence_refs`，优先引用 landscape/evidence packet 中真实存在的 `item`，也可以引用 `paper` 或 query index；
-- 不要编造 item id、variable id、paper id 或 query index；
-- `item` 是 artifact-local reference，不是新的知识实体；底层知识对象应按 `kind` 区分为 `variable`、`factor`、`paper`、`package` 或 `chain`；
+- 每个 focus 必须有非空 `evidence_refs`，优先引用 landscape/evidence packet 中真实存在的 `variable`、`paper` 或 `package_ref`；
+- 不要编造 variable id、paper id、package ref 或 query index；
+- `items` 是 search result 列表，不是新的知识实体；引用时使用其中稳定存在的 `kind`/`id`，或其 `package_ref.ref`；
 - 不要把检索 query 机械改写成 focus；focus 必须是可以进入支持/反对/限定/削弱关系评估的研究问题。
 
 分析步骤：

@@ -515,7 +515,9 @@ def _relation_claim_refs(
     *,
     package_ref_value_types: dict[str, str] | None = None,
 ) -> tuple[list[str], tuple[tuple[str, str], ...], tuple[tuple[str, str, str], ...]]:
-    raw_refs = relation.get("claim_refs", relation.get("claims", []))
+    raw_refs = relation.get("claim_refs", relation.get("claims"))
+    if raw_refs is None:
+        raw_refs = _package_ref_source_refs(relation)
     if not isinstance(raw_refs, list):
         return [], (), ()
     refs = [str(item).strip() for item in raw_refs if str(item).strip()]
@@ -530,6 +532,20 @@ def _relation_claim_refs(
     sibling = tuple((item, "") for item in tokens.local)
     foreign = tuple((item.module, item.symbol, item.alias) for item in tokens.foreign_imports)
     return tokens.rendered, sibling, foreign
+
+
+def _package_ref_source_refs(relation: JsonDict) -> list[str]:
+    source_refs = relation.get("source_refs")
+    if not isinstance(source_refs, list):
+        return []
+    refs: list[str] = []
+    for ref in source_refs:
+        if not isinstance(ref, dict) or ref.get("kind") != "package_ref":
+            continue
+        ref_id = ref.get("id")
+        if isinstance(ref_id, str) and ref_id.strip():
+            refs.append(ref_id.strip())
+    return refs
 
 
 def _candidate_relation_pattern(relation_type: str, claim_refs: list[str]) -> str | None:

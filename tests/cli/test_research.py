@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -12,6 +13,11 @@ import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.main import app
+from gaia.engine.research import load_research_package
+from gaia.engine.research.benchmark import (
+    append_research_trace_step,
+    write_research_benchmark_summary,
+)
 
 pytestmark = pytest.mark.pr_gate
 
@@ -212,7 +218,11 @@ def test_research_scan_dry_run_writes_events_without_pulls_or_source_edits(
     assert events[-1]["payload"]["pull_budget"] == 0
 
 
-def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path) -> None:
+def test_research_scan_consumes_search_json_and_writes_landscape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
     source_before = init_py.read_text(encoding="utf-8")
@@ -290,6 +300,325 @@ def test_research_scan_consumes_search_json_and_writes_landscape(tmp_path: Path)
     assert len(state["synthetic_obligations"]) == 1
 
 
+def test_research_scan_records_trace_then_summarizes_benchmark(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "benchmark query",
+                [_lkm_row("P_BENCH", "lkm:bohrium:bench", 0.8, paper_title="Benchmark Paper")],
+            )
+        ),
+        encoding="utf-8",
+    )
+    trace_dir = tmp_path / "trace"
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "explore",
+            str(pkg_dir),
+            "--mode",
+            "scan",
+            "--search-json",
+            str(search_path),
+            "--trace-dir",
+            str(trace_dir),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "trace:" in result.output
+    assert "benchmark_summary:" not in result.output
+    benchmark_path = trace_dir / "benchmark.json"
+    assert not benchmark_path.exists()
+
+    summary = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "summarize",
+            str(pkg_dir),
+            "--trace-dir",
+            str(trace_dir),
+        ],
+    )
+
+    assert summary.exit_code == 0, summary.output
+    payload = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == 1
+    assert payload["run"]["package"]["project_name"] == "research-demo-gaia"
+    assert payload["summary"]["steps"] == 1
+    assert payload["summary"]["mode_counts"] == {"fast_package_native": 1}
+    step = payload["steps"][0]
+    assert step["name"] == "explore.scan"
+    assert step["kind"] == "cli"
+    assert step["mode"] == "fast_package_native"
+    assert step["wall_seconds"] >= 0
+    assert step["metrics"]["query_batches"] == 1
+    assert step["metrics"]["raw_results"] == 1
+    assert step["metrics"]["paper_leads"] == 1
+    assert step["metrics"]["source_packages_added"] == 1
+    assert step["outputs"][0].endswith(".json")
+
+
+def test_research_scan_defaults_trace_to_package_run_trace(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "default run trace query",
+                [_lkm_row("P_TRACE", "lkm:bohrium:trace", 0.7, paper_title="Trace Paper")],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "explore",
+            str(pkg_dir),
+            "--mode",
+            "scan",
+            "--search-json",
+            str(search_path),
+            "--artifact-only",
+            "--no-materialize-sources",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    trace_dir = pkg_dir / ".gaia" / "research" / "runs" / "current" / "trace"
+    trace_lines = (trace_dir / "trace.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(trace_lines) == 1
+    trace = json.loads(trace_lines[0])
+    assert trace["actor"] == "gaia_cli"
+    assert trace["step"] == "explore.scan"
+    assert trace["status"] == "ok"
+    assert trace["ts_start"] <= trace["ts_end"]
+    assert not (trace_dir / "benchmark.json").exists()
+
+    summary = runner.invoke(app, ["research", "trace", "summarize", str(pkg_dir)])
+
+    assert summary.exit_code == 0, summary.output
+    benchmark = json.loads((trace_dir / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["summary"]["steps"] == 1
+    assert benchmark["steps"][0]["name"] == "explore.scan"
+    assert trace["outputs"] == benchmark["steps"][0]["outputs"]
+
+
+def test_research_trace_record_appends_llm_token_step(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    trace_dir = tmp_path / "trace"
+    prompt_path = tmp_path / "prompt.md"
+    output_path = tmp_path / "focus-analysis.json"
+    prompt_path.write_text("Prompt text", encoding="utf-8")
+    output_path.write_text('{"focuses": []}', encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "record",
+            str(pkg_dir),
+            "--trace-dir",
+            str(trace_dir),
+            "--step",
+            "llm.focus_analysis",
+            "--kind",
+            "llm",
+            "--mode",
+            "fast_package_native",
+            "--model",
+            "gpt-5",
+            "--input-tokens",
+            "1200",
+            "--output-tokens",
+            "300",
+            "--wall-seconds",
+            "12.5",
+            "--input-file",
+            str(prompt_path),
+            "--output-file",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Trace:" in result.output
+    benchmark_path = trace_dir / "benchmark.json"
+    assert not benchmark_path.exists()
+
+    summary = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "summarize",
+            str(pkg_dir),
+            "--trace-dir",
+            str(trace_dir),
+        ],
+    )
+
+    assert summary.exit_code == 0, summary.output
+    payload = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    assert payload["summary"]["steps"] == 1
+    assert payload["summary"]["total_input_tokens"] == 1200
+    assert payload["summary"]["total_output_tokens"] == 300
+    assert payload["summary"]["total_tokens"] == 1500
+    step = payload["steps"][0]
+    assert step["name"] == "llm.focus_analysis"
+    assert step["kind"] == "llm"
+    assert step["model"] == "gpt-5"
+    assert step["token_usage"] == {
+        "input_tokens": 1200,
+        "output_tokens": 300,
+        "total_tokens": 1500,
+    }
+    assert step["inputs"] == [str(prompt_path)]
+    assert step["outputs"] == [str(output_path)]
+    trace_path = trace_dir / "trace.jsonl"
+    trace = json.loads(trace_path.read_text(encoding="utf-8").splitlines()[0])
+    assert trace["actor"] == "llm"
+    assert trace["step"] == "llm.focus_analysis"
+    assert trace["model"] == "gpt-5"
+    assert trace["token_usage"]["total_tokens"] == 1500
+
+
+def test_research_trace_summarize_rebuilds_benchmark_from_trace(
+    tmp_path: Path,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    trace_dir = tmp_path / "trace"
+
+    first = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "record",
+            str(pkg_dir),
+            "--trace-dir",
+            str(trace_dir),
+            "--step",
+            "search.lkm.first",
+            "--kind",
+            "search",
+            "--mode",
+            "external",
+            "--wall-seconds",
+            "1.25",
+        ],
+    )
+    assert first.exit_code == 0, first.output
+    second = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "record",
+            str(pkg_dir),
+            "--trace-dir",
+            str(trace_dir),
+            "--step",
+            "llm.focus",
+            "--kind",
+            "llm",
+            "--mode",
+            "fast_package_native",
+            "--input-tokens",
+            "10",
+            "--output-tokens",
+            "5",
+        ],
+    )
+    assert second.exit_code == 0, second.output
+
+    benchmark_path = trace_dir / "benchmark.json"
+    assert not benchmark_path.exists()
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "summarize",
+            str(pkg_dir),
+            "--trace-dir",
+            str(trace_dir),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "benchmark_summary:" in result.output
+    trace_lines = (trace_dir / "trace.jsonl").read_text(encoding="utf-8").splitlines()
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    assert benchmark["summary"]["steps"] == len(trace_lines) == 2
+    assert benchmark["summary"]["total_wall_seconds"] == 1.25
+    assert benchmark["summary"]["total_tokens"] == 15
+    assert [step["name"] for step in benchmark["steps"]] == [
+        "search.lkm.first",
+        "llm.focus",
+    ]
+
+
+def test_research_trace_concurrent_appends_summarize_once(
+    tmp_path: Path,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    research_pkg = load_research_package(pkg_dir)
+    trace_dir = tmp_path / "trace"
+
+    def record_step(index: int) -> None:
+        append_research_trace_step(
+            research_pkg,
+            trace_dir,
+            name=f"search.lkm.parallel_{index}",
+            kind="search",
+            mode="external",
+            wall_seconds=1.0,
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(record_step, range(40)))
+
+    benchmark_path = trace_dir / "benchmark.json"
+    assert not benchmark_path.exists()
+    benchmark_path = write_research_benchmark_summary(research_pkg, trace_dir)
+
+    trace_lines = (trace_dir / "trace.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(trace_lines) == 40
+    assert all(json.loads(line)["kind"] == "search" for line in trace_lines)
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    assert benchmark["summary"]["steps"] == 40
+    assert benchmark["summary"]["kind_counts"] == {"search": 40}
+    assert benchmark["summary"]["total_wall_seconds"] == 40.0
+
+
+def test_research_benchmark_command_is_not_registered() -> None:
+    result = runner.invoke(app, ["research", "benchmark", "--help"])
+
+    assert result.exit_code != 0
+    assert "No such command" in result.output
+
+
 def test_research_scan_materializes_items_as_local_source_package(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -363,7 +692,11 @@ def test_research_scan_materializes_items_as_local_source_package(
     assert check.exit_code == 0, check.output
 
 
-def test_research_scan_reads_search_json_from_stdin(tmp_path: Path) -> None:
+def test_research_scan_reads_search_json_from_stdin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     _write_research_package(pkg_dir)
     envelope = _search(
@@ -417,7 +750,11 @@ def test_research_expand_requires_focus_or_obligation(tmp_path: Path) -> None:
     assert not _landscape_artifacts(pkg_dir, "expand")
 
 
-def test_research_expand_writes_targeted_landscape(tmp_path: Path) -> None:
+def test_research_expand_writes_targeted_landscape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
     source_before = init_py.read_text(encoding="utf-8")
@@ -471,7 +808,11 @@ def test_research_expand_writes_targeted_landscape(tmp_path: Path) -> None:
     assert state["synthetic_obligations"][0]["target_qid"] == "seed"
 
 
-def test_research_focus_writes_synthesis_from_analysis_json(tmp_path: Path) -> None:
+def test_research_focus_writes_synthesis_from_analysis_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
     source_before = init_py.read_text(encoding="utf-8")
@@ -594,7 +935,11 @@ def test_research_assess_artifact_only_records_planning_event(tmp_path: Path) ->
     assert events[-1]["payload"]["focus"] == "seed"
 
 
-def test_research_assess_writes_grounded_assessment_from_landscape(tmp_path: Path) -> None:
+def test_research_assess_writes_grounded_assessment_from_landscape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
     source_before = init_py.read_text(encoding="utf-8")
@@ -871,6 +1216,7 @@ def test_research_assess_materializes_lkm_reasoning_chain_package(
     )
     assert scan.exit_code == 0, scan.output
     landscape_path = _landscape_artifacts(pkg_dir)[0]
+    trace_dir = tmp_path / "trace"
 
     materialize_calls: list[dict[str, object]] = []
 
@@ -908,6 +1254,8 @@ def test_research_assess_materializes_lkm_reasoning_chain_package(
             "chain_target_claim",
             "--lkm-index",
             "bohrium",
+            "--trace-dir",
+            str(trace_dir),
         ],
     )
 
@@ -921,9 +1269,30 @@ def test_research_assess_materializes_lkm_reasoning_chain_package(
     assert materialized[0]["requested_source_ref"] == "lkm:bohrium:claim:chain_target_claim"
     assert materialized[0]["source_ref"] == "lkm:bohrium:chain:chain_target_claim"
     assert materialized[0]["chain_count"] == 2
+    summary = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "summarize",
+            str(pkg_dir),
+            "--trace-dir",
+            str(trace_dir),
+        ],
+    )
+
+    assert summary.exit_code == 0, summary.output
+    benchmark = json.loads((trace_dir / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["summary"]["mode_counts"] == {"deep": 1}
+    assert benchmark["steps"][0]["name"] == "assess"
+    assert benchmark["steps"][0]["metrics"]["lkm_chains_materialized"] == 1
 
 
-def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> None:
+def test_research_assess_accepts_analysis_json_with_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
     source_before = init_py.read_text(encoding="utf-8")
@@ -1040,9 +1409,100 @@ def test_research_assess_accepts_analysis_json_with_review(tmp_path: Path) -> No
     assert check.exit_code == 0, check.output
 
 
+def test_research_assess_infers_candidate_relation_from_package_ref_sources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "relation source package refs",
+                [
+                    _lkm_row(
+                        "P_REL_A",
+                        "lkm:bohrium:rel_a",
+                        0.91,
+                        paper_title="Relation Paper A",
+                        content="Claim A supports one side of the relation.",
+                    ),
+                    _lkm_row(
+                        "P_REL_B",
+                        "lkm:bohrium:rel_b",
+                        0.89,
+                        paper_title="Relation Paper B",
+                        content="Claim B supports the other side of the relation.",
+                    ),
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+    landscape = json.loads(landscape_path.read_text(encoding="utf-8"))
+    package_refs = [item["package_ref"] for item in landscape["items"]]
+    assert [ref["value_type"] for ref in package_refs] == ["claim", "claim"]
+    analysis_path = tmp_path / "assess-analysis.json"
+    analysis_path.write_text(
+        json.dumps(
+            {
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": "Two package claim refs are in tension.",
+                        "rationale": "Both source refs are concrete shallow package claims.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [
+                            {"kind": "package_ref", "id": package_refs[0]["ref"]},
+                            {"kind": "package_ref", "id": package_refs[1]["ref"]},
+                        ],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "package_ref_tension",
+            "--landscape",
+            str(landscape_path),
+            "--analysis-json",
+            str(analysis_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "candidate_relations_written: 1" in result.output
+    authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
+    authored_source = authored.read_text(encoding="utf-8")
+    assert "candidate_relation(" in authored_source
+    assert "pattern='contradict'" in authored_source
+    assert package_refs[0]["symbol"] in authored_source
+    assert package_refs[1]["symbol"] in authored_source
+
+
 def test_research_assess_skips_candidate_relation_for_non_claim_package_ref(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     _write_research_package(pkg_dir)
     search_path = tmp_path / "search.json"
@@ -1114,7 +1574,11 @@ def test_research_assess_skips_candidate_relation_for_non_claim_package_ref(
     assert check.exit_code == 0, check.output
 
 
-def test_research_assess_reports_schema_errors_without_traceback(tmp_path: Path) -> None:
+def test_research_assess_reports_schema_errors_without_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
     pkg_dir = tmp_path / "research-demo-gaia"
     _write_research_package(pkg_dir)
     search_path = tmp_path / "search.json"

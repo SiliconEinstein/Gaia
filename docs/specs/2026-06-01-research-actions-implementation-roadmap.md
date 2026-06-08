@@ -36,6 +36,11 @@
   open-ended research questions 写成 package `question(...)`，并把相关 hypotheses /
   obligations 写入 inquiry state；
 - `report` / `stop` 已提供确定性 Markdown rendering 和 auditable stop criteria；
+- `--trace-dir` 可在 research actions 上记录 CLI timing / artifact metrics 到
+  `trace.jsonl`，最后用 `gaia research trace summarize` 重建派生的
+  `benchmark.json` summary；
+- `gaia research trace record` 可把外部 agent / LLM 的 token usage 追加到同一
+  trace；
 - `promote` 目前只写窄的 `materialize(...)` scaffold-to-formal link。
 
 旧的 `docs/superpowers/plans/2026-06-01-*` 与 `2026-06-02-*` milestone plans 是已执行
@@ -55,6 +60,7 @@ gaia research propose <pkg> --from-assessment <assessment.json>
 gaia research report <pkg> --artifact <artifact.json>
 gaia research stop <pkg> --landscape <landscape.json> --assessment <assessment.json>
 gaia research promote <pkg> --scaffold <binding> --by <formal_binding>
+gaia research trace record <pkg> --step <name> --kind llm --input-tokens <n>
 ```
 
 Deep LKM evidence entry points are explicit and assessment-scoped:

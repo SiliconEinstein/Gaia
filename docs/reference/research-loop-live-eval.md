@@ -12,13 +12,23 @@ focus quality, and assessment depth.
 
 ## Directory layout
 
-Use a fresh run directory:
+Use a fresh package-local run directory. Do not place live run artifacts under
+`/private/tmp` or another OS-cleaned scratch location unless the run is truly
+throwaway:
 
 ```bash
-RUN=/private/tmp/gaia-research-eval-live-<topic>
-PKG=$RUN/<topic>-gaia
+PKG=<path-to-existing-or-new-topic-gaia>
+RUN=$PKG/.gaia/research/runs/<topic>-$(date -u +%Y%m%dT%H%M%SZ)
+TRACE=$RUN/trace
 mkdir -p "$RUN/searches" "$RUN/analysis" "$RUN/trace"
 ```
+
+Every traced research command appends an execution row to
+`$RUN/trace/trace.jsonl`. Use `gaia research trace record` to record non-CLI
+steps such as LLM analysis generation, raw LKM searches timed by the agent,
+retries, or other external work. After the final trace write, run
+`gaia research trace summarize` once to rebuild `$RUN/trace/benchmark.json` as
+the derived summary.
 
 If you need a clean run, delete only this run directory.
 
@@ -47,7 +57,8 @@ gaia search lkm knowledge "<broad query 3>" --limit 10 --out "$RUN/searches/03.j
 /usr/bin/time -p gaia research explore "$PKG" --mode scan \
   --search-json "$RUN/searches/01.json" \
   --search-json "$RUN/searches/02.json" \
-  --search-json "$RUN/searches/03.json"
+  --search-json "$RUN/searches/03.json" \
+  --trace-dir "$TRACE"
 ```
 
 Record:
@@ -81,7 +92,25 @@ Validate and write the artifact:
 gaia research focus "$PKG" \
   --landscape "$PKG/.gaia/research/landscapes/<scan>.json" \
   --analysis-json "$RUN/analysis/focus-analysis.json" \
-  --language zh
+  --language zh \
+  --trace-dir "$TRACE"
+```
+
+If the focus analysis was produced by an external agent or LLM provider, append
+the token/time usage to the same trace directory:
+
+```bash
+gaia research trace record "$PKG" \
+  --trace-dir "$TRACE" \
+  --step llm.focus_analysis \
+  --kind llm \
+  --mode fast_package_native \
+  --model <model-name> \
+  --input-tokens <n> \
+  --output-tokens <n> \
+  --wall-seconds <seconds> \
+  --input-file "$PKG/.gaia/research/landscapes/<scan>.json" \
+  --output-file "$RUN/analysis/focus-analysis.json"
 ```
 
 Review:
@@ -102,7 +131,8 @@ gaia search lkm knowledge "<targeted query>" --limit 10 --out "$RUN/searches/07.
 
 /usr/bin/time -p gaia research expand "$PKG" \
   --focus <focus-id> \
-  --search-json "$RUN/searches/07.json"
+  --search-json "$RUN/searches/07.json" \
+  --trace-dir "$TRACE"
 ```
 
 Stop when coverage is enough to classify support, opposition, qualification,
@@ -141,7 +171,25 @@ gaia research assess "$PKG" \
   --focus <focus-id> \
   --landscape "$PKG/.gaia/research/landscapes/<scan>.json" \
   --landscape "$PKG/.gaia/research/landscapes/<expand>.json" \
-  --analysis-json "$RUN/analysis/assess-analysis.json"
+  --analysis-json "$RUN/analysis/assess-analysis.json" \
+  --trace-dir "$TRACE"
+```
+
+Append the assessment LLM usage in the same way:
+
+```bash
+gaia research trace record "$PKG" \
+  --trace-dir "$TRACE" \
+  --step llm.assess_analysis \
+  --kind llm \
+  --mode fast_package_native \
+  --model <model-name> \
+  --input-tokens <n> \
+  --output-tokens <n> \
+  --wall-seconds <seconds> \
+  --input-file "$PKG/.gaia/research/landscapes/<scan>.json" \
+  --input-file "$PKG/.gaia/research/landscapes/<expand>.json" \
+  --output-file "$RUN/analysis/assess-analysis.json"
 ```
 
 Record relation type counts. A healthy assess run should usually have a mix of
@@ -174,11 +222,13 @@ Render validated artifacts to Markdown:
 ```bash
 gaia research report "$PKG" \
   --artifact "$PKG/.gaia/research/focuses/<focuses>.json" \
-  --out "$RUN/trace/focus_report.md"
+  --out "$RUN/trace/focus_report.md" \
+  --trace-dir "$TRACE"
 
 gaia research report "$PKG" \
   --artifact "$PKG/.gaia/research/assessments/<assessment>.json" \
-  --out "$RUN/trace/assessment_report.md"
+  --out "$RUN/trace/assessment_report.md" \
+  --trace-dir "$TRACE"
 ```
 
 Evaluate stop criteria:
@@ -189,11 +239,15 @@ gaia research stop "$PKG" \
   --assessment "$PKG/.gaia/research/assessments/<assessment>.json" \
   --landscape "$PKG/.gaia/research/landscapes/<latest>.json" \
   --previous-landscape "$PKG/.gaia/research/landscapes/<previous>.json" \
-  --out "$RUN/trace/stop.json"
+  --out "$RUN/trace/stop.json" \
+  --trace-dir "$TRACE"
 
 gaia research report "$PKG" \
   --artifact "$RUN/trace/stop.json" \
-  --out "$RUN/trace/stop_report.md"
+  --out "$RUN/trace/stop_report.md" \
+  --trace-dir "$TRACE"
+
+gaia research trace summarize "$PKG" --trace-dir "$TRACE"
 ```
 
 The stop artifact is a heuristic checkpoint, not a substitute for research
@@ -203,6 +257,44 @@ judgment. It summarizes:
 - relation mix;
 - unresolved obligations;
 - query novelty.
+
+## Benchmark modes
+
+Run the same query set in three modes when you need to compare overhead:
+
+```bash
+# A. Artifact-only baseline: no inquiry/source sync, no shallow source package.
+gaia research explore "$PKG" --mode scan \
+  --search-json "$RUN/searches/01.json" \
+  --artifact-only \
+  --no-materialize-sources \
+  --trace-dir "$TRACE"
+```
+
+```bash
+# B. Fast package-native default: shallow source packages plus inquiry sync.
+gaia research explore "$PKG" --mode scan \
+  --search-json "$RUN/searches/01.json" \
+  --trace-dir "$TRACE"
+```
+
+```bash
+# C. Deep assessment: explicitly materialize paper/chain evidence.
+gaia research assess "$PKG" \
+  --focus <focus-id> \
+  --landscape "$PKG/.gaia/research/landscapes/<scan>.json" \
+  --analysis-json "$RUN/analysis/assess-analysis.json" \
+  --materialize-chain <claim_id> \
+  --trace-dir "$TRACE"
+```
+
+`trace.jsonl` records append-only step events with start/end timestamps, actor,
+inputs, outputs, metrics, model, and token usage when available.
+`benchmark.json` is a derived summary of step timing and structural metrics,
+rebuilt from `trace.jsonl` with `gaia research trace summarize`.
+Token usage is recorded only when the agent or caller appends it with
+`gaia research trace record`, because current Gaia research commands validate
+and sync artifacts but do not call an LLM provider directly.
 
 For meeting review, a live run can also be bundled into a self-contained HTML
 viewer. Example:
@@ -225,16 +317,16 @@ uv run pytest tests/gaia/test_research_focus.py tests/gaia/test_research_assessm
 
 ## Live V2 Example: Deconfined Criticality
 
-Run directory:
+Historical run directory pattern, now superseded by package-local runs:
 
 ```text
-/private/tmp/gaia-research-eval-live-deconfined-criticality-v2
+<PKG>/.gaia/research/runs/deconfined-criticality-v2
 ```
 
 Trace:
 
 ```text
-/private/tmp/gaia-research-eval-live-deconfined-criticality-v2/trace/evaluation_trace_v2.md
+<PKG>/.gaia/research/runs/deconfined-criticality-v2/trace/evaluation_trace_v2.md
 ```
 
 This run verifies that the v2 workflow is not an aspirin-specific prompt hack.

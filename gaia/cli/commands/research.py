@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from time import perf_counter
 from typing import Annotated, Any
 
 import typer
@@ -48,10 +49,20 @@ from gaia.engine.research import (
     validate_proposal_artifact,
     write_research_artifact,
 )
+from gaia.engine.research.benchmark import (
+    append_research_trace_step,
+    write_research_benchmark_summary,
+)
 
 research_app = typer.Typer(
     name="research",
     help="Package-native research actions (explore / assess / propose / promote).",
+    no_args_is_help=True,
+)
+
+trace_app = typer.Typer(
+    name="trace",
+    help="Record research run trace steps and rebuild derived benchmark summaries.",
     no_args_is_help=True,
 )
 
@@ -182,6 +193,50 @@ def _relation_type_counts(relations: object) -> dict[str, int]:
         if isinstance(relation_type, str) and relation_type:
             counts[relation_type] = counts.get(relation_type, 0) + 1
     return counts
+
+
+def _count_payload_items(payload: dict[str, object], key: str) -> int:
+    value = payload.get(key)
+    return len(value) if isinstance(value, list) else 0
+
+
+def _research_mode(
+    *,
+    artifact_only: bool,
+    materialize_sources: bool = False,
+    deep_materialization: bool = False,
+) -> str:
+    _ = materialize_sources
+    if artifact_only:
+        return "artifact_only"
+    if deep_materialization:
+        return "deep"
+    return "fast_package_native"
+
+
+def _record_trace_step(
+    research_pkg: ResearchPackage,
+    trace_dir: str | None,
+    *,
+    start: float,
+    name: str,
+    mode: str,
+    inputs: list[str] | None = None,
+    outputs: list[str] | None = None,
+    metrics: dict[str, object] | None = None,
+) -> None:
+    trace_path = append_research_trace_step(
+        research_pkg,
+        trace_dir,
+        name=name,
+        kind="cli",
+        mode=mode,
+        wall_seconds=perf_counter() - start,
+        inputs=inputs,
+        outputs=outputs,
+        metrics=metrics,
+    )
+    typer.echo(f"trace: {trace_path}")
 
 
 def _split_csv_values(value: str) -> list[str]:
@@ -437,6 +492,133 @@ def status_command(
     _print_inquiry_suggestions(research_pkg)
 
 
+@trace_app.command("record")
+def trace_record_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    step: Annotated[
+        str,
+        typer.Option("--step", help="Trace step name, e.g. llm.focus_analysis."),
+    ],
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Trace directory containing trace.jsonl and derived benchmark.json.",
+        ),
+    ] = None,
+    kind: Annotated[
+        str,
+        typer.Option("--kind", help="Step kind: cli, llm, search, or external."),
+    ] = "external",
+    mode: Annotated[
+        str,
+        typer.Option(
+            "--mode",
+            help="Run mode: artifact_only, fast_package_native, deep, or external.",
+        ),
+    ] = "external",
+    model: Annotated[
+        str | None,
+        typer.Option("--model", help="LLM/provider model name for token-bearing steps."),
+    ] = None,
+    input_tokens: Annotated[
+        int | None,
+        typer.Option("--input-tokens", help="Input token count for this step."),
+    ] = None,
+    output_tokens: Annotated[
+        int | None,
+        typer.Option("--output-tokens", help="Output token count for this step."),
+    ] = None,
+    wall_seconds: Annotated[
+        float,
+        typer.Option("--wall-seconds", help="Measured wall time for this external step."),
+    ] = 0.0,
+    input_file: Annotated[
+        list[str] | None,
+        typer.Option("--input-file", help="Input file path to record; repeatable."),
+    ] = None,
+    output_file: Annotated[
+        list[str] | None,
+        typer.Option("--output-file", help="Output file path to record; repeatable."),
+    ] = None,
+) -> None:
+    """Record an external, LLM, search, or manual step in a research run trace."""
+    if wall_seconds < 0:
+        typer.echo("Error: --wall-seconds must be non-negative.", err=True)
+        raise typer.Exit(2)
+    if input_tokens is not None and input_tokens < 0:
+        typer.echo("Error: --input-tokens must be non-negative.", err=True)
+        raise typer.Exit(2)
+    if output_tokens is not None and output_tokens < 0:
+        typer.echo("Error: --output-tokens must be non-negative.", err=True)
+        raise typer.Exit(2)
+
+    research_pkg = _load_or_exit(pkg)
+    ensure_research_manifest(research_pkg)
+    token_usage = None
+    if input_tokens is not None or output_tokens is not None:
+        token_input = input_tokens or 0
+        token_output = output_tokens or 0
+        token_usage = {
+            "input_tokens": token_input,
+            "output_tokens": token_output,
+            "total_tokens": token_input + token_output,
+        }
+    trace_path = append_research_trace_step(
+        research_pkg,
+        trace_dir,
+        name=step,
+        kind=kind,
+        mode=mode,
+        wall_seconds=wall_seconds,
+        inputs=list(input_file or []),
+        outputs=list(output_file or []),
+        model=model,
+        token_usage=token_usage,
+    )
+    append_research_event(
+        research_pkg,
+        "trace.step.recorded",
+        {
+            "trace": str(trace_path),
+            "step": step,
+            "kind": kind,
+            "mode": mode,
+            "model": model,
+            "token_usage": token_usage,
+        },
+    )
+    typer.echo(f"Trace: {trace_path}")
+
+
+@trace_app.command("summarize")
+def trace_summarize_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Trace directory containing trace.jsonl and derived benchmark.json.",
+        ),
+    ] = None,
+) -> None:
+    """Rebuild the derived benchmark summary from trace.jsonl."""
+    research_pkg = _load_or_exit(pkg)
+    ensure_research_manifest(research_pkg)
+    benchmark_path = write_research_benchmark_summary(research_pkg, trace_dir)
+    append_research_event(
+        research_pkg,
+        "trace.summary.rebuilt",
+        {
+            "benchmark_summary": str(benchmark_path),
+        },
+    )
+    typer.echo(f"benchmark_summary: {benchmark_path}")
+
+
+research_app.add_typer(trace_app, name="trace")
+
+
 @research_app.command("explore")
 def explore_command(
     pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
@@ -492,8 +674,16 @@ def explore_command(
         str | None,
         typer.Option("--obligation", help="Inquiry obligation target for --mode expand."),
     ] = None,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Run a breadth-first Explore scan or targeted expansion."""
+    benchmark_start = perf_counter()
     if mode not in {"scan", "expand"}:
         typer.echo("Error: supported explore modes are `scan` and `expand`.", err=True)
         raise typer.Exit(2)
@@ -559,6 +749,30 @@ def explore_command(
             },
         )
         stats = landscape["stats"]
+        _record_trace_step(
+            research_pkg,
+            trace_dir,
+            start=benchmark_start,
+            name="explore.expand",
+            mode=_research_mode(
+                artifact_only=artifact_only,
+                materialize_sources=materialize_sources,
+            ),
+            inputs=search_refs,
+            outputs=[str(output_path)],
+            metrics={
+                "query_batches": stats["query_batches"],
+                "raw_results": stats["raw_results"],
+                "paper_leads": stats["paper_leads"],
+                "items": len(landscape.get("items", [])),
+                "pull_budget": 0,
+                "source_packages_added": _count_payload_items(
+                    sync_payload, "source_packages_added"
+                ),
+                "hypotheses_added": _count_payload_items(sync_payload, "hypotheses_added"),
+                "obligations_added": _count_payload_items(sync_payload, "obligations_added"),
+            },
+        )
         typer.echo(
             "Landscape: "
             f"{stats['query_batches']} query batch(es), "
@@ -609,6 +823,30 @@ def explore_command(
             },
         )
         stats = landscape["stats"]
+        _record_trace_step(
+            research_pkg,
+            trace_dir,
+            start=benchmark_start,
+            name="explore.scan",
+            mode=_research_mode(
+                artifact_only=artifact_only,
+                materialize_sources=materialize_sources,
+            ),
+            inputs=search_refs,
+            outputs=[str(output_path)],
+            metrics={
+                "query_batches": stats["query_batches"],
+                "raw_results": stats["raw_results"],
+                "paper_leads": stats["paper_leads"],
+                "items": len(landscape.get("items", [])),
+                "pull_budget": 0,
+                "source_packages_added": _count_payload_items(
+                    sync_payload, "source_packages_added"
+                ),
+                "hypotheses_added": _count_payload_items(sync_payload, "hypotheses_added"),
+                "obligations_added": _count_payload_items(sync_payload, "obligations_added"),
+            },
+        )
         typer.echo(
             "Landscape: "
             f"{stats['query_batches']} query batch(es), "
@@ -644,6 +882,14 @@ def explore_command(
     typer.echo("pull_budget: 0")
     typer.echo("writes_source: false")
     typer.echo("writes_inquiry: false")
+    _record_trace_step(
+        research_pkg,
+        trace_dir,
+        start=benchmark_start,
+        name="explore.scan.plan",
+        mode="artifact_only",
+        metrics={"pull_budget": 0, "dry_run": True},
+    )
     _print_inquiry_suggestions(research_pkg)
 
 
@@ -694,6 +940,13 @@ def expand_command(
             ),
         ),
     ] = True,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Run targeted Explore expansion around one focus or obligation."""
     explore_command(
@@ -708,6 +961,7 @@ def expand_command(
         out=out,
         focus=focus,
         obligation=obligation,
+        trace_dir=trace_dir,
     )
 
 
@@ -751,8 +1005,16 @@ def focus_command(
         bool,
         typer.Option("--dry-run", help="Plan package/inquiry writes without applying them."),
     ] = False,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Synthesize assessment-ready research focuses from landscape artifacts."""
+    benchmark_start = perf_counter()
     if max_questions < 1:
         typer.echo("Error: --max-questions must be at least 1.", err=True)
         raise typer.Exit(2)
@@ -802,6 +1064,27 @@ def focus_command(
             "language": language,
             "max_questions": max_questions,
             **sync_payload,
+        },
+    )
+    _record_trace_step(
+        research_pkg,
+        trace_dir,
+        start=benchmark_start,
+        name="focus.synthesis",
+        mode=_research_mode(artifact_only=artifact_only),
+        inputs=[
+            *[str(path) for path in landscape_paths],
+            *([analysis_json] if analysis_json else []),
+        ],
+        outputs=[str(output_path)],
+        metrics={
+            "focuses": len(artifact["focuses"]),
+            "coverage_gaps": len(artifact["coverage_gaps"]),
+            "analysis_json": analysis_json is not None,
+            "questions_written": _count_payload_items(sync_payload, "questions_written"),
+            "obligations_added": _count_payload_items(sync_payload, "obligations_added"),
+            "hypotheses_added": _count_payload_items(sync_payload, "hypotheses_added"),
+            "dry_run": dry_run,
         },
     )
     typer.echo(f"Focus synthesis: {output_path}")
@@ -885,10 +1168,21 @@ def assess_command(
             ),
         ),
     ] = DEFAULT_LKM_INDEX_ID,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Assess one focus and sync review scaffolds into package/inquiry state."""
+    benchmark_start = perf_counter()
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
+    has_deep_materialization = bool(
+        materialize_paper or materialize_paper_from_claim or materialize_chain
+    )
     lkm_materialize_payload = _materialize_lkm_papers_or_exit(
         research_pkg,
         paper_ids=list(materialize_paper or []),
@@ -960,6 +1254,43 @@ def assess_command(
                 **sync_payload,
             },
         )
+        _record_trace_step(
+            research_pkg,
+            trace_dir,
+            start=benchmark_start,
+            name="assess",
+            mode=_research_mode(
+                artifact_only=artifact_only,
+                deep_materialization=has_deep_materialization,
+            ),
+            inputs=[
+                *[str(path) for path in landscape_paths],
+                *([analysis_json] if analysis_json else []),
+            ],
+            outputs=[str(output_path)],
+            metrics={
+                "items": len(items),
+                "relations": len(assessment["relations"]),
+                "candidate_obligations": len(assessment["candidate_obligations"]),
+                "analysis_json": analysis_json is not None,
+                "review": "review" in assessment,
+                "notes_written": _count_payload_items(sync_payload, "notes_written"),
+                "candidate_relations_written": _count_payload_items(
+                    sync_payload, "candidate_relations_written"
+                ),
+                "candidate_relations_skipped": _count_payload_items(
+                    sync_payload, "candidate_relations_skipped"
+                ),
+                "obligations_added": _count_payload_items(sync_payload, "obligations_added"),
+                "hypotheses_added": _count_payload_items(sync_payload, "hypotheses_added"),
+                "lkm_packages_materialized": _count_payload_items(
+                    sync_payload, "lkm_packages_materialized"
+                ),
+                "lkm_chains_materialized": _count_payload_items(
+                    sync_payload, "lkm_chains_materialized"
+                ),
+            },
+        )
         typer.echo(f"Assessment: {output_path}")
         typer.echo(f"focus: {focus}")
         typer.echo(f"items: {len(items)}")
@@ -995,6 +1326,25 @@ def assess_command(
     typer.echo(f"artifact_only: {str(artifact_only).lower()}")
     typer.echo("writes_source: false")
     typer.echo("writes_inquiry: false")
+    _record_trace_step(
+        research_pkg,
+        trace_dir,
+        start=benchmark_start,
+        name="assess.plan",
+        mode=_research_mode(
+            artifact_only=artifact_only,
+            deep_materialization=has_deep_materialization,
+        ),
+        metrics={
+            "relations": 0,
+            "lkm_packages_materialized": _count_payload_items(
+                lkm_materialize_payload, "lkm_packages_materialized"
+            ),
+            "lkm_chains_materialized": _count_payload_items(
+                lkm_materialize_payload, "lkm_chains_materialized"
+            ),
+        },
+    )
     _print_inquiry_suggestions(research_pkg)
 
 
@@ -1044,8 +1394,16 @@ def propose_command(
         str | None,
         typer.Option("--out", help="Optional output path for the proposal artifact."),
     ] = None,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Propose open-ended next research questions from an assessment artifact."""
+    benchmark_start = perf_counter()
     if max_questions < 1:
         typer.echo("Error: --max-questions must be at least 1.", err=True)
         raise typer.Exit(2)
@@ -1094,6 +1452,25 @@ def propose_command(
             **sync_payload,
         },
     )
+    _record_trace_step(
+        research_pkg,
+        trace_dir,
+        start=benchmark_start,
+        name="propose",
+        mode=_research_mode(artifact_only=(artifact_only or not accept)),
+        inputs=[from_assessment, *([analysis_json] if analysis_json else [])],
+        outputs=[str(output_path)],
+        metrics={
+            "proposals": len(proposal["proposals"]),
+            "hypotheses": len(proposal["hypotheses"]),
+            "candidate_obligations": len(proposal["candidate_obligations"]),
+            "analysis_json": analysis_json is not None,
+            "accepted": accept,
+            "questions_written": _count_payload_items(sync_payload, "questions_written"),
+            "obligations_added": _count_payload_items(sync_payload, "obligations_added"),
+            "hypotheses_added": _count_payload_items(sync_payload, "hypotheses_added"),
+        },
+    )
     typer.echo(f"Proposal: {output_path}")
     typer.echo(f"source_assessment: {assessment_path}")
     typer.echo(f"proposals: {len(proposal['proposals'])}")
@@ -1123,8 +1500,16 @@ def promote_command(
         bool,
         typer.Option("--dry-run", help="Plan package writes without applying them."),
     ] = False,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Record a narrow scaffold-to-formal-knowledge materialization link."""
+    benchmark_start = perf_counter()
     by_refs = _split_csv_values(by)
     if not by_refs:
         typer.echo("Error: --by must name at least one materialized target.", err=True)
@@ -1149,6 +1534,20 @@ def promote_command(
             **sync_payload,
         },
     )
+    _record_trace_step(
+        research_pkg,
+        trace_dir,
+        start=benchmark_start,
+        name="promote",
+        mode=_research_mode(artifact_only=dry_run),
+        metrics={
+            "by_refs": len(by_refs),
+            "materializations_written": _count_payload_items(
+                sync_payload, "materializations_written"
+            ),
+            "dry_run": dry_run,
+        },
+    )
     typer.echo("Research promote")
     typer.echo(f"scaffold: {scaffold}")
     typer.echo(f"by: {', '.join(by_refs)}")
@@ -1167,8 +1566,16 @@ def report_command(
         str | None,
         typer.Option("--out", help="Optional output path for the rendered Markdown report."),
     ] = None,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Render a research artifact as readable Markdown."""
+    benchmark_start = perf_counter()
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
     artifact_path = Path(artifact)
@@ -1186,6 +1593,19 @@ def report_command(
             "report.rendered",
             {"artifact": str(artifact_path), "out": None, "writes_source": False},
         )
+        _record_trace_step(
+            research_pkg,
+            trace_dir,
+            start=benchmark_start,
+            name="report",
+            mode="artifact_only",
+            inputs=[str(artifact_path)],
+            metrics={
+                "artifact_kind": payload.get("kind"),
+                "markdown_chars": len(markdown),
+                "writes_file": False,
+            },
+        )
         return
 
     output_path = Path(out)
@@ -1195,6 +1615,20 @@ def report_command(
         research_pkg,
         "report.rendered",
         {"artifact": str(artifact_path), "out": str(output_path), "writes_source": False},
+    )
+    _record_trace_step(
+        research_pkg,
+        trace_dir,
+        start=benchmark_start,
+        name="report",
+        mode="artifact_only",
+        inputs=[str(artifact_path)],
+        outputs=[str(output_path)],
+        metrics={
+            "artifact_kind": payload.get("kind"),
+            "markdown_chars": len(markdown),
+            "writes_file": True,
+        },
     )
     typer.echo(f"Report: {output_path}")
     typer.echo("writes_source: false")
@@ -1240,8 +1674,16 @@ def stop_command(
         str | None,
         typer.Option("--out", help="Optional output path for the stop criteria JSON."),
     ] = None,
+    trace_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--trace-dir",
+            help="Append timing and size metrics to this research trace directory.",
+        ),
+    ] = None,
 ) -> None:
     """Evaluate auditable stop criteria for the current research-loop state."""
+    benchmark_start = perf_counter()
     research_pkg = _load_or_exit(pkg)
     ensure_research_manifest(research_pkg)
     default_landscapes = _all_landscape_paths(research_pkg)
@@ -1282,6 +1724,26 @@ def stop_command(
             "recommendation": stop_artifact["recommendation"],
             "should_stop": stop_artifact["should_stop"],
             "writes_source": False,
+        },
+    )
+    _record_trace_step(
+        research_pkg,
+        trace_dir,
+        start=benchmark_start,
+        name="stop",
+        mode="artifact_only",
+        inputs=[
+            *([focus_artifact] if focus_artifact else []),
+            *([assessment] if assessment else []),
+            *[str(path) for path in landscape_paths],
+            *[str(path) for path in previous_paths],
+        ],
+        outputs=[str(output_path)],
+        metrics={
+            "recommendation": stop_artifact["recommendation"],
+            "should_stop": stop_artifact["should_stop"],
+            "landscapes": len(landscape_paths),
+            "previous_landscapes": len(previous_paths),
         },
     )
     typer.echo(f"Stop criteria: {output_path}")
