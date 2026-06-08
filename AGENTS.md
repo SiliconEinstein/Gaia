@@ -137,10 +137,12 @@ unless the user explicitly requests it.
 
 | Prefix | Use |
 |--------|-----|
-| `feature/<description>` | Feature development, bug fixes, refactoring — anything targeting `main` |
+| `feature/<description>` | Feature development and bug fixes targeting `main` |
+| `refactor/<description>` | Refactoring with no behaviour change |
 | `hotfix/<description>` | Patch branches that target a `release/0.N.x` branch |
 | `docs/<description>` | Documentation-only changes |
 | `rfc/<description>` | Design proposals and specs |
+| `codex/<description>` | AI agent branches (created automatically by Codex/Claude/Cursor) |
 
 All branches merge into `main` via PR, except `hotfix/*` branches which target
 the relevant `release/0.N.x` branch.
