@@ -133,6 +133,44 @@ the override is applied.
 Never use destructive git commands, force-push shared branches, or revert user changes
 unless the user explicitly requests it.
 
+### Branch naming
+
+| Prefix | Use |
+|--------|-----|
+| `feature/<description>` | Feature development, bug fixes, refactoring — anything targeting `main` |
+| `hotfix/<description>` | Patch branches that target a `release/0.N.x` branch |
+| `docs/<description>` | Documentation-only changes |
+| `rfc/<description>` | Design proposals and specs |
+
+All branches merge into `main` via PR, except `hotfix/*` branches which target
+the relevant `release/0.N.x` branch.
+
+### Release branches
+
+A `release/0.N.x` branch is created once per minor series when the RC phase
+begins. It is never merged back into `main`. The full policy is in
+`docs/releases/branch-strategy.md`; the short rules for contributors are:
+
+- **Alpha and beta** releases are dispatched from `main`. No release branch
+  exists yet.
+- **RC and stable** releases are dispatched from `release/0.N.x`.
+- **Hotfixes** on a released minor go to `release/0.N.x` via a `hotfix/*` PR,
+  then cherry-picked back to `main`:
+
+  ```bash
+  # Fix goes to the release branch first
+  git checkout -b hotfix/fix-foo release/0.5.x
+  # ... commit the fix ...
+  # Open PR targeting release/0.5.x, merge it, then:
+  git checkout main
+  git cherry-pick -x <merge-commit-sha>
+  ```
+
+- **Only security fixes and P0/P1 critical bugs** qualify for backport.
+  New features and non-critical improvements always target `main` only.
+- `release/0.N.x` branches have the same CI gates as `main` (lint, typecheck,
+  test, commit-lint). Do not skip hooks or bypass CI on release branches.
+
 ## Community
 
 - License: MIT, see [`LICENSE`](LICENSE).
