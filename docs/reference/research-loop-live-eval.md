@@ -296,11 +296,6 @@ Token usage is recorded only when the agent or caller appends it with
 `gaia research trace record`, because current Gaia research commands validate
 and sync artifacts but do not call an LLM provider directly.
 
-For meeting review, a live run can also be bundled into a self-contained HTML
-viewer. Example:
-
-[Hubble tension trace viewer](research-loop-evals/hubble-tension-v2/trace-viewer.html)
-
 ## Verification
 
 Run:
@@ -314,45 +309,3 @@ For repository regression:
 ```bash
 uv run pytest tests/gaia/test_research_focus.py tests/gaia/test_research_assessment.py tests/cli/test_research.py -q
 ```
-
-## Live V2 Example: Deconfined Criticality
-
-Historical run directory pattern, now superseded by package-local runs:
-
-```text
-<PKG>/.gaia/research/runs/deconfined-criticality-v2
-```
-
-Trace:
-
-```text
-<PKG>/.gaia/research/runs/deconfined-criticality-v2/trace/evaluation_trace_v2.md
-```
-
-This run verifies that the v2 workflow is not an aspirin-specific prompt hack.
-The focus and assessment prompts produced DQCP-native artifacts around:
-
-- continuous DQCP versus weak first-order transition;
-- emergent SO(5)/O(4)/U(1) symmetry and anisotropy;
-- NCCP1/easy-plane/QED3 duality and anomaly constraints;
-- microscopic model dependence.
-
-Observed live metrics:
-
-- broad scan: 4 query batches, 40 raw results, 33 paper leads;
-- targeted expand: 3 query batches, 30 raw results, 24 paper leads;
-- expand novelty: 17 new paper leads, ratio 0.7083;
-- focus synthesis: 4 focuses, 3 coverage gaps;
-- assessment: 70 items, 11 typed relations;
-- relation mix: supports 3 / opposes 3 / qualifies 3 / undercuts 2;
-- candidate obligations: 3;
-- stop recommendation: `expand_focus`.
-
-Important live pitfalls:
-
-- hybrid and semantic LKM search timed out for the initial broad query;
-- lexical search with explicit domain anchors was more reliable;
-- `SO5` queries can retrieve chemistry radical literature, so future searches
-  should anchor with `deconfined`, `NCCP1`, `Neel`, `VBS`, or `DQCP`;
-- current stop criteria are loop-level, not focus-local; future work may add a
-  `--focus-id` option.
