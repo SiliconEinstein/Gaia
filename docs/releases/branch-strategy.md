@@ -2,8 +2,8 @@
 
 This document defines when and how release branches are created, how hotfixes
 and backports flow between branches, and how the release workflows interact with
-the branch model. For the day-to-day release execution steps, see
-`docs/releases/process.md`.
+the branch model. For the day-to-day release execution steps, see the release
+process runbook in `docs/releases/`.
 
 ## TL;DR
 
