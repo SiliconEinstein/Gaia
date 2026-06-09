@@ -61,9 +61,7 @@ def validate_lkm_access_key(key: str) -> tuple[bool, str]:
 
     try:
         with LKMClient(access_key=key) as client:
-            payload = client.request(
-                "POST", "/search", json_body={"query": "ping", "limit": 1}
-            )
+            payload = client.request("POST", "/search", json_body={"query": "ping", "limit": 1})
     except LKMTransportError as exc:
         text = str(exc)
         if "HTTP 401" in text or "HTTP 403" in text:
