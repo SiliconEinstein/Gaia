@@ -38,13 +38,13 @@ _BOHRIUM_URL = "https://www.bohrium.com"
 _AUTH_VALID_CODES: frozenset[object] = frozenset({0, 290002})
 
 _SETUP_INSTRUCTIONS = (
-    "To get your Bohrium access key:\n"
-    "\n"
-    "  1. Open {url} in your browser\n"
-    "  2. Sign in or create an account\n"
-    "  3. Go to Account Settings → Access Keys\n"
-    "  4. Create a new key and copy it\n"
-).format(url=_BOHRIUM_URL)
+    f"To get your Bohrium access key:\n"
+    f"\n"
+    f"  1. Open {_BOHRIUM_URL} in your browser\n"
+    f"  2. Sign in or create an account\n"
+    f"  3. Go to Account Settings → Access Keys\n"
+    f"  4. Create a new key and copy it\n"
+)
 
 
 def validate_lkm_access_key(key: str) -> tuple[bool, str]:
@@ -117,7 +117,7 @@ def prompt_lkm_setup(*, heading: str | None = None) -> None:
 
     write_lkm_key(key, datetime.now(UTC))
     path = credentials_path()
-    typer.echo(f"✓ Access key validated and stored.")
+    typer.echo("✓ Access key validated and stored.")
     typer.echo(f"  Saved to: {path}")
 
 

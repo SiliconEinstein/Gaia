@@ -20,7 +20,6 @@ from typing import Annotated
 import typer
 
 import gaia.cli._onboarding as _onboarding
-
 from gaia.cli._credentials import (
     CredentialPermissionError,
     active_lkm_env_var,
