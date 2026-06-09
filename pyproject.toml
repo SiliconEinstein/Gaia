@@ -39,6 +39,9 @@ Issues = "https://github.com/SiliconEinstein/Gaia/issues"
 stats = [
     "scipy>=1.12",
 ]
+llm = [
+    "litellm>=1.72.2",
+]
 dev = [
     "commitizen>=4.0,<5",
     "mypy>=2.0.0",

@@ -103,7 +103,7 @@ def _append_trace_record(trace_dir: Path, step: dict[str, Any]) -> Path:
         "step": step.get("name"),
         "kind": kind,
         "mode": step.get("mode"),
-        "status": "ok",
+        "status": step.get("status") or "ok",
         "wall_seconds": wall_seconds,
         "inputs": list(step.get("inputs") or []),
         "outputs": list(step.get("outputs") or []),
@@ -137,6 +137,7 @@ def _benchmark_step_from_trace(record: dict[str, Any]) -> dict[str, Any]:
         "name": record.get("step"),
         "kind": record.get("kind"),
         "mode": record.get("mode"),
+        "status": record.get("status"),
         "timestamp": record.get("ts_end"),
         "wall_seconds": record.get("wall_seconds"),
         "inputs": list(record.get("inputs") or []),
@@ -223,6 +224,7 @@ def append_research_trace_step(
     metrics: dict[str, Any] | None = None,
     model: str | None = None,
     token_usage: dict[str, int] | None = None,
+    status: str = "ok",
 ) -> Path:
     """Append one measured step to source-of-truth ``trace.jsonl``."""
     trace_dir = resolve_trace_dir(pkg, trace_dir_path)
@@ -235,6 +237,7 @@ def append_research_trace_step(
         "inputs": list(inputs or []),
         "outputs": list(outputs or []),
         "metrics": dict(metrics or {}),
+        "status": status,
     }
     if model:
         step["model"] = model

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,6 +14,7 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
+import gaia.cli.commands.research as research_cli
 from gaia.cli.main import app
 from gaia.engine.research import load_research_package
 from gaia.engine.research.benchmark import (
@@ -162,6 +165,812 @@ def test_research_assess_help_uses_materialize_names() -> None:
     assert "backing paper" in result.output
     assert "--pull-paper" not in result.output
     assert "--pull-claim" not in result.output
+
+
+def test_research_run_help_is_visible() -> None:
+    result = runner.invoke(app, ["research", "run", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "Start a UI-observable research run" in result.output
+    assert "--topic" in result.output
+    assert "--json-stream" in result.output
+
+
+def test_research_run_start_writes_state_events_and_checkpoint(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "DQCP evidence assessment",
+            "--mode",
+            "fast-package-native",
+            "--language",
+            "zh",
+            "--profile",
+            "evidence-assessment",
+            "--run-id",
+            "dqcp-test-run",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Research run: " in result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "dqcp-test-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["schema_version"] == 1
+    assert state["run_id"] == "dqcp-test-run"
+    assert state["status"] == "waiting_for_input"
+    assert state["phase"] == "query_plan"
+    assert state["mode"] == "fast-package-native"
+    assert state["profile"] == "evidence-assessment"
+    assert state["language"] == "zh"
+    assert state["topic"] == "DQCP evidence assessment"
+    assert state["package"]["project_name"] == "research-demo-gaia"
+    assert state["run_dir"] == str(run_dir)
+    assert state["trace_dir"] == str(run_dir / "trace")
+    assert state["pending_checkpoint"] == str(
+        run_dir / "checkpoints" / "query_plan.request.json"
+    )
+    assert state["artifacts"] == {}
+    assert state["metrics"] == {}
+
+    checkpoint = json.loads(
+        (run_dir / "checkpoints" / "query_plan.request.json").read_text(encoding="utf-8")
+    )
+    assert checkpoint["schema_version"] == 1
+    assert checkpoint["type"] == "checkpoint.query_plan"
+    assert checkpoint["phase"] == "query_plan"
+    assert checkpoint["default_action"]["action"] == "continue"
+    assert checkpoint["default_action"]["queries"] == []
+
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.ndjson").read_text(encoding="utf-8").splitlines()
+    ]
+    assert [event["type"] for event in events] == [
+        "run.created",
+        "checkpoint.created",
+        "run.waiting_for_input",
+    ]
+    assert {event["run_id"] for event in events} == {"dqcp-test-run"}
+    assert (run_dir / "searches").is_dir()
+    assert (run_dir / "analysis").is_dir()
+    assert (run_dir / "trace").is_dir()
+
+
+def test_research_run_json_stream_emits_persisted_events(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "DQCP evidence assessment",
+            "--run-id",
+            "stream-test-run",
+            "--json-stream",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    streamed = [json.loads(line) for line in result.output.splitlines() if line.strip()]
+    assert [event["type"] for event in streamed] == [
+        "run.created",
+        "checkpoint.created",
+        "run.waiting_for_input",
+    ]
+    events_path = (
+        pkg_dir
+        / ".gaia"
+        / "research"
+        / "runs"
+        / "stream-test-run"
+        / "events.ndjson"
+    )
+    persisted = [
+        json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert streamed == persisted
+
+
+def test_research_run_executes_artifact_only_file_provider_loop(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    broad_search = tmp_path / "broad-search.json"
+    broad_search.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly primary prevention",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "aspree",
+                        0.9,
+                        paper_title="ASPREE trial",
+                        content="ASPREE reported no cardiovascular benefit and more bleeding.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    targeted_search = tmp_path / "targeted-search.json"
+    targeted_search.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly bleeding",
+                [
+                    _lkm_row(
+                        "P_BLEED",
+                        "bleed",
+                        0.8,
+                        paper_title="Bleeding risk study",
+                        content="Bleeding risk qualifies primary prevention net benefit.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    focus_analysis = tmp_path / "focus-analysis.json"
+    focus_analysis.write_text(
+        json.dumps(
+            {
+                "focuses": [
+                    {
+                        "id": "elderly_net_benefit",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "老年人阿司匹林一级预防是否有净获益？",
+                        "rationale": "ASPREE 同时涉及心血管获益和出血风险。",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {"population": "older adults"},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                        "suggested_queries": [],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": ["Ready for assessment."],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assess_analysis = tmp_path / "assess-analysis.json"
+    assess_analysis.write_text(
+        json.dumps(
+            {
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": (
+                            "ASPREE opposes routine aspirin primary prevention in older adults."
+                        ),
+                        "rationale": "The retrieved claim reports no cardiovascular benefit.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "aspree"}],
+                    }
+                ],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "summary": "老年人常规一级预防净获益不足。[variable:aspree]",
+                    "sections": [
+                        {
+                            "title": "老年人证据",
+                            "body": "ASPREE 指向无获益且出血风险需要谨慎权衡。[variable:aspree]",
+                        }
+                    ],
+                    "limitations": ["需要核对原始终点定义。"],
+                    "next_queries": ["aspirin elderly bleeding net benefit"],
+                },
+                "candidate_obligations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "artifact-only",
+            "--run-id",
+            "closed-loop-run",
+            "--search-json",
+            str(broad_search),
+            "--focus-analysis-json",
+            str(focus_analysis),
+            "--targeted-search-json",
+            str(targeted_search),
+            "--focus",
+            "elderly_net_benefit",
+            "--assess-analysis-json",
+            str(assess_analysis),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "status: completed" in result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "closed-loop-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "completed"
+    assert state["phase"] == "complete"
+    assert state["artifacts"]["benchmark"].endswith("/trace/benchmark.json")
+    assert state["artifacts"]["stop"].endswith("/trace/stop.json")
+    assert state["metrics"]["searches"] == 2
+
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.ndjson").read_text(encoding="utf-8").splitlines()
+    ]
+    event_types = [event["type"] for event in events]
+    assert "phase.completed" in event_types
+    assert "run.completed" in event_types
+    assert any(event.get("phase") == "assess_sync" for event in events)
+    assert (run_dir / "trace" / "assessment_report.md").exists()
+    assert (run_dir / "trace" / "focus_report.md").exists()
+    assert (run_dir / "trace" / "stop_report.md").exists()
+    benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["summary"]["steps"] >= 6
+
+
+def test_research_run_executes_search_and_command_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+
+    def fake_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        assert index == "bohrium"
+        assert limit == 7
+        assert reasoning_only is True
+        row_id = "aspree" if "primary" in query else "bleed"
+        return _search(
+            query,
+            [
+                _lkm_row(
+                    f"P_{row_id.upper()}",
+                    row_id,
+                    0.9,
+                    paper_title=f"{row_id.upper()} paper",
+                    content=f"{query} retrieved evidence.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+
+    provider = tmp_path / "provider.py"
+    provider.write_text(
+        """
+import json
+import os
+from pathlib import Path
+
+phase = os.environ["GAIA_RESEARCH_PHASE"]
+output = Path(os.environ["GAIA_RESEARCH_OUTPUT"])
+if phase == "focus_analysis":
+    payload = {
+        "focuses": [
+            {
+                "id": "elderly_net_benefit",
+                "kind": "research_focus",
+                "status": "accepted",
+                "question": "老年人阿司匹林一级预防是否有净获益？",
+                "rationale": "自动 search 已找到获益和出血风险线索。",
+                "priority": "high",
+                "readiness": "ready_for_assess",
+                "scope": {"population": "older adults"},
+                "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                "suggested_queries": [],
+            }
+        ],
+        "coverage_gaps": [],
+        "notes": ["Command provider selected the assessment focus."],
+    }
+else:
+    payload = {
+        "relations": [
+            {
+                "type": "opposes",
+                "claim": "ASPREE opposes routine primary-prevention aspirin in older adults.",
+                "rationale": "The retrieved evidence reports limited benefit and bleeding risk.",
+                "epistemic_status": "candidate",
+                "promotion_hint": "none",
+                "source_refs": [{"kind": "variable", "id": "aspree"}],
+            }
+        ],
+        "review": {
+            "language": "zh",
+            "depth": "review",
+            "summary": "老年人常规一级预防证据偏反对。[variable:aspree]",
+            "sections": [
+                {
+                    "title": "证据权衡",
+                    "body": "自动流程保留了 search 和 provider 的输入输出。[variable:aspree]",
+                }
+            ],
+            "limitations": ["仍需人工审阅原文。"],
+            "next_queries": [],
+        },
+        "candidate_obligations": [],
+    }
+output.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "artifact-only",
+            "--run-id",
+            "auto-provider-run",
+            "--query",
+            "aspirin elderly primary prevention",
+            "--targeted-query",
+            "aspirin elderly bleeding",
+            "--search-limit",
+            "7",
+            "--analysis-provider",
+            "command",
+            "--focus-analysis-command",
+            f"{sys.executable} {provider}",
+            "--assess-analysis-command",
+            f"{sys.executable} {provider}",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "status: completed" in result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "auto-provider-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "completed"
+    assert state["metrics"]["searches"] == 2
+    assert sorted(path.name for path in (run_dir / "searches").glob("*.json")) == [
+        "broad-01.json",
+        "targeted-01.json",
+    ]
+    assert (run_dir / "analysis" / "focus_analysis.input.json").exists()
+    assert (run_dir / "analysis" / "focus_analysis.output.json").exists()
+    assert (run_dir / "analysis" / "assess_analysis.input.json").exists()
+    assert (run_dir / "analysis" / "assess_analysis.output.json").exists()
+
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.ndjson").read_text(encoding="utf-8").splitlines()
+    ]
+    event_types = [event["type"] for event in events]
+    assert event_types.count("search.completed") == 2
+    assert event_types.count("provider.completed") == 2
+
+    benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["summary"]["kind_counts"]["search"] == 2
+    assert benchmark["summary"]["kind_counts"]["llm"] == 2
+
+
+def test_research_run_executes_litellm_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    broad_search = tmp_path / "broad-search.json"
+    broad_search.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly primary prevention",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "aspree",
+                        0.9,
+                        paper_title="ASPREE trial",
+                        content="ASPREE reported no cardiovascular benefit.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    calls: list[dict[str, object]] = []
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        messages = kwargs["messages"]
+        assert isinstance(messages, list)
+        user_content = str(messages[-1]["content"])
+        if '"phase": "focus_analysis"' in user_content:
+            payload = {
+                "focuses": [
+                    {
+                        "id": "elderly_net_benefit",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "老年人阿司匹林一级预防是否有净获益？",
+                        "rationale": "LiteLLM provider selected a grounded focus.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {"population": "older adults"},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                        "suggested_queries": [],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": ["litellm focus output"],
+            }
+        else:
+            payload = {
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": "ASPREE opposes routine primary prevention aspirin.",
+                        "rationale": "The retrieved evidence reports limited benefit.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "aspree"}],
+                    }
+                ],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "summary": "LiteLLM 评估输出。[variable:aspree]",
+                    "sections": [
+                        {
+                            "title": "证据",
+                            "body": "证据偏反对常规一级预防。[variable:aspree]",
+                        }
+                    ],
+                    "limitations": [],
+                    "next_queries": [],
+                },
+                "candidate_obligations": [],
+            }
+        return {
+            "choices": [{"message": {"content": json.dumps(payload, ensure_ascii=False)}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+            "id": "litellm-test-request",
+        }
+
+    fake_litellm = SimpleNamespace(
+        acompletion=fake_acompletion,
+        suppress_debug_info=False,
+        disable_cost_calc=False,
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "artifact-only",
+            "--run-id",
+            "litellm-provider-run",
+            "--search-json",
+            str(broad_search),
+            "--analysis-provider",
+            "litellm",
+            "--model",
+            "litellm_proxy/test-model",
+            "--llm-timeout",
+            "9",
+            "--llm-max-retries",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "status: completed" in result.output
+    assert len(calls) == 2
+    assert {call["model"] for call in calls} == {"litellm_proxy/test-model"}
+    assert {call["timeout"] for call in calls} == {9.0}
+    assert {call["max_retries"] for call in calls} == {1}
+    assert all(call["response_format"] == {"type": "json_object"} for call in calls)
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "litellm-provider-run"
+    assert (run_dir / "analysis" / "focus_analysis.output.json").exists()
+    assert (run_dir / "analysis" / "assess_analysis.output.json").exists()
+    benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["summary"]["kind_counts"]["llm"] == 2
+    assert benchmark["summary"]["total_input_tokens"] == 20
+    assert benchmark["summary"]["total_output_tokens"] == 40
+    assert benchmark["summary"]["total_tokens"] == 60
+
+
+def test_research_run_litellm_provider_loads_env_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    broad_search = tmp_path / "broad-search.json"
+    broad_search.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly primary prevention",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "aspree",
+                        0.9,
+                        paper_title="ASPREE trial",
+                        content="ASPREE reported no cardiovascular benefit.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "GAIA_RESEARCH_LLM_MODEL=litellm_proxy/env-model",
+                "OPENAI_API_BASE=https://gateway.example/v1",
+                "OPENAI_API_KEY=test-env-key",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    for key in ("GAIA_RESEARCH_LLM_MODEL", "OPENAI_API_BASE", "OPENAI_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    calls: list[dict[str, object]] = []
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        assert os.environ["OPENAI_API_BASE"] == "https://gateway.example/v1"
+        assert os.environ["OPENAI_API_KEY"] == "test-env-key"
+        messages = kwargs["messages"]
+        assert isinstance(messages, list)
+        user_content = str(messages[-1]["content"])
+        if '"phase": "focus_analysis"' in user_content:
+            payload = {
+                "focuses": [
+                    {
+                        "id": "elderly_net_benefit",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "老年人阿司匹林一级预防是否有净获益？",
+                        "rationale": "Env-file model selected a grounded focus.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {"population": "older adults"},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                        "suggested_queries": [],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": [],
+            }
+        else:
+            payload = {
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": "ASPREE opposes routine primary prevention aspirin.",
+                        "rationale": "The retrieved evidence reports limited benefit.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "aspree"}],
+                    }
+                ],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "summary": "Env file 评估输出。[variable:aspree]",
+                    "sections": [{"title": "证据", "body": "证据偏反对。[variable:aspree]"}],
+                    "limitations": [],
+                    "next_queries": [],
+                },
+                "candidate_obligations": [],
+            }
+        return {"choices": [{"message": {"content": json.dumps(payload)}}]}
+
+    fake_litellm = SimpleNamespace(
+        acompletion=fake_acompletion,
+        suppress_debug_info=False,
+        disable_cost_calc=False,
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "artifact-only",
+            "--run-id",
+            "litellm-env-file-run",
+            "--search-json",
+            str(broad_search),
+            "--analysis-provider",
+            "litellm",
+            "--env-file",
+            str(env_file),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 2
+    assert {call["model"] for call in calls} == {"litellm_proxy/env-model"}
+
+
+def test_research_run_litellm_provider_records_raw_and_failed_trace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    broad_search = tmp_path / "broad-search.json"
+    broad_search.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly primary prevention",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "aspree",
+                        0.9,
+                        paper_title="ASPREE trial",
+                        content="ASPREE reported no cardiovascular benefit.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        assert kwargs["response_format"] == {"type": "json_object"}
+        return {
+            "choices": [{"message": {"content": "Here is the JSON: {}"}}],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
+            "id": "litellm-invalid-json",
+        }
+
+    fake_litellm = SimpleNamespace(
+        acompletion=fake_acompletion,
+        suppress_debug_info=False,
+        disable_cost_calc=False,
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "artifact-only",
+            "--run-id",
+            "litellm-invalid-json-run",
+            "--search-json",
+            str(broad_search),
+            "--analysis-provider",
+            "litellm",
+            "--model",
+            "litellm_proxy/test-model",
+        ],
+    )
+
+    assert result.exit_code == 2, result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "litellm-invalid-json-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "failed"
+    assert state["phase"] == "focus_analysis"
+    raw_path = run_dir / "analysis" / "focus_analysis.raw.txt"
+    assert raw_path.read_text(encoding="utf-8") == "Here is the JSON: {}"
+    assert not (run_dir / "analysis" / "focus_analysis.output.json").exists()
+    trace = [
+        json.loads(line)
+        for line in (run_dir / "trace" / "trace.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    failed = trace[-1]
+    assert failed["step"] == "provider.litellm.focus_analysis"
+    assert failed["kind"] == "llm"
+    assert failed["status"] == "failed"
+    assert failed["outputs"] == [str(raw_path)]
+    assert failed["token_usage"] == {"input_tokens": 11, "output_tokens": 7}
+    assert failed["metrics"]["error_type"] == "ValueError"
+    assert failed["metrics"]["raw_path"] == str(raw_path)
+
+
+def test_research_run_waits_for_focus_analysis_when_missing(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    broad_search = tmp_path / "broad-search.json"
+    broad_search.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly primary prevention",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "aspree",
+                        0.9,
+                        paper_title="ASPREE trial",
+                        content="ASPREE reported no cardiovascular benefit.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "artifact-only",
+            "--run-id",
+            "checkpoint-run",
+            "--search-json",
+            str(broad_search),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "checkpoint-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "waiting_for_input"
+    assert state["phase"] == "focus_analysis"
+    checkpoint_path = Path(state["pending_checkpoint"])
+    assert checkpoint_path.name == "focus_analysis.request.json"
+    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    assert checkpoint["type"] == "checkpoint.focus_analysis"
+    assert _landscape_artifacts(pkg_dir)
 
 
 def test_research_status_creates_manifest_and_suggests_inquiry_commands(tmp_path: Path) -> None:

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
+import re
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 from time import perf_counter
@@ -52,6 +57,13 @@ from gaia.engine.research import (
 from gaia.engine.research.benchmark import (
     append_research_trace_step,
     write_research_benchmark_summary,
+)
+from gaia.engine.research.run import (
+    RUN_MODES,
+    ResearchRunStart,
+    append_run_event,
+    start_research_run,
+    write_run_state,
 )
 
 research_app = typer.Typer(
@@ -617,6 +629,1635 @@ def trace_summarize_command(
 
 
 research_app.add_typer(trace_app, name="trace")
+
+
+@research_app.command("run")
+def run_command(
+    pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
+    topic: Annotated[
+        str,
+        typer.Option("--topic", help="Research topic or seed question for the run."),
+    ],
+    mode: Annotated[
+        str,
+        typer.Option(
+            "--mode",
+            help="Run mode: artifact-only or fast-package-native.",
+        ),
+    ] = "fast-package-native",
+    language: Annotated[
+        str,
+        typer.Option("--language", help="Preferred language for generated analysis."),
+    ] = "zh",
+    profile: Annotated[
+        str,
+        typer.Option("--profile", help="Research profile used by the fixed pipeline."),
+    ] = "evidence-assessment",
+    run_id: Annotated[
+        str | None,
+        typer.Option("--run-id", help="Optional deterministic run id for tests or UI callers."),
+    ] = None,
+    env_file: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--env-file",
+            help=(
+                "Load dotenv-style KEY=VALUE file before live search/provider calls. "
+                "Repeatable; shell environment wins on conflicts."
+            ),
+        ),
+    ] = None,
+    query: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--query",
+            help="Run live broad LKM search for this query and persist normalized JSON.",
+        ),
+    ] = None,
+    search_json: Annotated[
+        list[str] | None,
+        typer.Option("--search-json", help="Broad normalized `gaia search lkm` JSON file."),
+    ] = None,
+    search_index: Annotated[
+        str,
+        typer.Option("--search-index", "--lkm-index", help="Configured LKM index id."),
+    ] = DEFAULT_LKM_INDEX_ID,
+    search_limit: Annotated[
+        int,
+        typer.Option("--search-limit", help="Per-query live LKM result limit."),
+    ] = 20,
+    reasoning_only: Annotated[
+        bool,
+        typer.Option(
+            "--reasoning-only/--all-lkm-results",
+            help="Restrict live LKM search to reasoning-backed claims.",
+        ),
+    ] = True,
+    analysis_provider: Annotated[
+        str,
+        typer.Option(
+            "--analysis-provider",
+            help="Analysis input source: checkpoint, command, or litellm.",
+        ),
+    ] = "checkpoint",
+    model: Annotated[
+        str | None,
+        typer.Option("--model", help="LiteLLM model for all analysis phases."),
+    ] = None,
+    focus_model: Annotated[
+        str | None,
+        typer.Option("--focus-model", help="LiteLLM model override for focus analysis."),
+    ] = None,
+    assess_model: Annotated[
+        str | None,
+        typer.Option("--assess-model", help="LiteLLM model override for assessment analysis."),
+    ] = None,
+    llm_temperature: Annotated[
+        float,
+        typer.Option("--llm-temperature", help="LiteLLM temperature."),
+    ] = 0.0,
+    llm_timeout: Annotated[
+        float,
+        typer.Option("--llm-timeout", help="LiteLLM timeout in seconds."),
+    ] = 120.0,
+    llm_max_retries: Annotated[
+        int,
+        typer.Option("--llm-max-retries", help="LiteLLM max retries."),
+    ] = 2,
+    llm_max_tokens: Annotated[
+        int | None,
+        typer.Option("--llm-max-tokens", help="Optional LiteLLM max output tokens."),
+    ] = None,
+    focus_analysis_command: Annotated[
+        str | None,
+        typer.Option(
+            "--focus-analysis-command",
+            help="Command provider for focus analysis; receives GAIA_RESEARCH_* env vars.",
+        ),
+    ] = None,
+    focus_analysis_json: Annotated[
+        str | None,
+        typer.Option(
+            "--focus-analysis-json",
+            help="JSON matching `gaia research contract focus` for file-provider runs.",
+        ),
+    ] = None,
+    targeted_search_json: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--targeted-search-json",
+            help="Targeted normalized `gaia search lkm` JSON file.",
+        ),
+    ] = None,
+    targeted_query: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--targeted-query",
+            help=(
+                "Targeted query text; runs live search when --targeted-search-json "
+                "is omitted."
+            ),
+        ),
+    ] = None,
+    focus: Annotated[
+        str | None,
+        typer.Option("--focus", help="Focus id/QID to assess after focus synthesis."),
+    ] = None,
+    assess_analysis_json: Annotated[
+        str | None,
+        typer.Option(
+            "--assess-analysis-json",
+            help="JSON matching `gaia research contract assess` for file-provider runs.",
+        ),
+    ] = None,
+    assess_analysis_command: Annotated[
+        str | None,
+        typer.Option(
+            "--assess-analysis-command",
+            help="Command provider for assessment analysis; receives GAIA_RESEARCH_* env vars.",
+        ),
+    ] = None,
+    json_stream: Annotated[
+        bool,
+        typer.Option("--json-stream", help="Emit UI events as NDJSON on stdout."),
+    ] = False,
+) -> None:
+    """Start a UI-observable research run."""
+    if mode not in RUN_MODES:
+        typer.echo(
+            f"Error: --mode must be one of: {', '.join(sorted(RUN_MODES))}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    if analysis_provider not in {"checkpoint", "command", "litellm"}:
+        typer.echo(
+            "Error: --analysis-provider must be one of: checkpoint, command, litellm.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    if search_limit < 1 or search_limit > 100:
+        typer.echo("Error: --search-limit must be between 1 and 100.", err=True)
+        raise typer.Exit(2)
+    research_pkg = _load_or_exit(pkg)
+    _load_research_env_files_or_exit(env_file)
+    broad_search_refs = list(search_json or [])
+    broad_queries = list(query or [])
+    targeted_search_refs = list(targeted_search_json or [])
+    targeted_queries = list(targeted_query or [])
+    try:
+        run = start_research_run(
+            research_pkg,
+            topic=topic,
+            mode=mode,
+            language=language,
+            profile=profile,
+            run_id=run_id,
+            wait_for_query_plan=not (broad_search_refs or broad_queries),
+        )
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+    for event in run.events:
+        if json_stream:
+            typer.echo(json.dumps(event, ensure_ascii=False))
+
+    if broad_queries:
+        broad_search_refs.extend(
+            _execute_live_searches(
+                research_pkg,
+                run,
+                queries=broad_queries,
+                prefix="broad",
+                search_index=search_index,
+                search_limit=search_limit,
+                reasoning_only=reasoning_only,
+                json_stream=json_stream,
+            )
+        )
+    if not targeted_search_refs and targeted_queries:
+        targeted_search_refs.extend(
+            _execute_live_searches(
+                research_pkg,
+                run,
+                queries=targeted_queries,
+                prefix="targeted",
+                search_index=search_index,
+                search_limit=search_limit,
+                reasoning_only=reasoning_only,
+                json_stream=json_stream,
+            )
+        )
+
+    if broad_search_refs:
+        _execute_file_provider_run(
+            research_pkg,
+            run,
+            topic=topic,
+            mode=mode,
+            language=language,
+            search_json=broad_search_refs,
+            focus_analysis_json=focus_analysis_json,
+            targeted_search_json=targeted_search_refs,
+            targeted_query=targeted_queries,
+            focus=focus,
+            assess_analysis_json=assess_analysis_json,
+            analysis_provider=analysis_provider,
+            model=model,
+            focus_model=focus_model,
+            assess_model=assess_model,
+            llm_temperature=llm_temperature,
+            llm_timeout=llm_timeout,
+            llm_max_retries=llm_max_retries,
+            llm_max_tokens=llm_max_tokens,
+            focus_analysis_command=focus_analysis_command,
+            assess_analysis_command=assess_analysis_command,
+            json_stream=json_stream,
+        )
+        if not json_stream:
+            typer.echo(f"Research run: {run.run_id}")
+            typer.echo(f"Run directory: {run.run_dir}")
+            typer.echo(f"State: {run.state_path}")
+            state = _read_json_object_path(run.state_path)
+            typer.echo(f"status: {state.get('status')}")
+            typer.echo(f"phase: {state.get('phase')}")
+        return
+
+    if json_stream:
+        return
+
+    typer.echo(f"Research run: {run.run_id}")
+    typer.echo(f"Run directory: {run.run_dir}")
+    typer.echo(f"State: {run.state_path}")
+    typer.echo(f"Events: {run.events_path}")
+    typer.echo(f"Pending checkpoint: {run.checkpoint_path}")
+    typer.echo("status: waiting_for_input")
+    typer.echo("phase: query_plan")
+
+
+def _run_state(run: ResearchRunStart) -> dict[str, Any]:
+    return _read_json_object_path(run.state_path)
+
+
+def _update_run_state(run: ResearchRunStart, updates: dict[str, Any]) -> dict[str, Any]:
+    state = _run_state(run)
+    state.update(updates)
+    write_run_state(run.state_path, state)
+    return state
+
+
+def _emit_run_event(
+    run: ResearchRunStart,
+    *,
+    event_type: str,
+    phase: str,
+    json_stream: bool,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    event = append_run_event(
+        run.events_path,
+        run_id=run.run_id,
+        event_type=event_type,
+        phase=phase,
+        payload=payload,
+    )
+    if json_stream:
+        typer.echo(json.dumps(event, ensure_ascii=False))
+    return event
+
+
+def _load_research_env_files_or_exit(env_file: list[str] | None) -> None:
+    refs = _research_env_file_refs(env_file)
+    for ref in refs:
+        path = Path(ref).expanduser()
+        if not path.exists():
+            typer.echo(f"Error: --env-file not found: {ref}", err=True)
+            raise typer.Exit(2)
+        if not path.is_file():
+            typer.echo(f"Error: --env-file is not a file: {ref}", err=True)
+            raise typer.Exit(2)
+        try:
+            assignments = _parse_research_env_file(path)
+        except ValueError as exc:
+            typer.echo(f"Error: invalid --env-file {ref}: {exc}", err=True)
+            raise typer.Exit(2) from exc
+        for key, value in assignments.items():
+            os.environ.setdefault(key, value)
+
+
+def _research_env_file_refs(env_file: list[str] | None) -> list[str]:
+    refs = [ref for ref in (env_file or []) if ref.strip()]
+    if refs:
+        return refs
+    configured = os.environ.get("GAIA_RESEARCH_ENV_FILE")
+    if configured:
+        return [ref for ref in configured.split(os.pathsep) if ref.strip()]
+    return []
+
+
+def _parse_research_env_file(path: Path) -> dict[str, str]:
+    assignments: dict[str, str] = {}
+    for line_number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line.removeprefix("export ").strip()
+        if "=" not in line:
+            raise ValueError(f"line {line_number} must be KEY=VALUE")
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            raise ValueError(f"line {line_number} has invalid key {key!r}")
+        assignments[key] = _parse_env_value(value.strip())
+    return assignments
+
+
+def _parse_env_value(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    comment_index = value.find(" #")
+    if comment_index != -1:
+        value = value[:comment_index].rstrip()
+    return value
+
+
+def _write_run_checkpoint(
+    run: ResearchRunStart,
+    *,
+    phase: str,
+    checkpoint_type: str,
+    prompt: str,
+    json_stream: bool,
+) -> None:
+    checkpoint_path = run.run_dir / "checkpoints" / f"{phase}.request.json"
+    checkpoint = {
+        "schema_version": 1,
+        "type": checkpoint_type,
+        "checkpoint_id": f"{phase}_001",
+        "phase": phase,
+        "prompt": prompt,
+        "choices": [{"id": "continue", "label": "Continue when input is available"}],
+        "default_action": {"action": "wait"},
+    }
+    checkpoint_path.write_text(
+        json.dumps(checkpoint, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    _update_run_state(
+        run,
+        {
+            "status": "waiting_for_input",
+            "phase": phase,
+            "pending_checkpoint": str(checkpoint_path),
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="checkpoint.created",
+        phase=phase,
+        json_stream=json_stream,
+        payload={"path": str(checkpoint_path), "checkpoint_type": checkpoint_type},
+    )
+    _emit_run_event(
+        run,
+        event_type="run.waiting_for_input",
+        phase=phase,
+        json_stream=json_stream,
+        payload={"pending_checkpoint": str(checkpoint_path)},
+    )
+
+
+def _record_run_cli_trace(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    start: float,
+    name: str,
+    mode: str,
+    inputs: list[str] | None = None,
+    outputs: list[str] | None = None,
+    metrics: dict[str, object] | None = None,
+    model: str | None = None,
+    token_usage: dict[str, int] | None = None,
+    status: str = "ok",
+) -> None:
+    append_research_trace_step(
+        research_pkg,
+        run.run_dir / "trace",
+        name=name,
+        kind="cli",
+        mode=mode,
+        wall_seconds=perf_counter() - start,
+        inputs=inputs,
+        outputs=outputs,
+        metrics=metrics,
+        model=model,
+        token_usage=token_usage,
+        status=status,
+    )
+
+
+def _record_run_trace(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    start: float,
+    name: str,
+    kind: str,
+    mode: str,
+    inputs: list[str] | None = None,
+    outputs: list[str] | None = None,
+    metrics: dict[str, object] | None = None,
+    model: str | None = None,
+    token_usage: dict[str, int] | None = None,
+    status: str = "ok",
+) -> None:
+    append_research_trace_step(
+        research_pkg,
+        run.run_dir / "trace",
+        name=name,
+        kind=kind,
+        mode=mode,
+        wall_seconds=perf_counter() - start,
+        inputs=inputs,
+        outputs=outputs,
+        metrics=metrics,
+        model=model,
+        token_usage=token_usage,
+        status=status,
+    )
+
+
+def _execute_live_searches(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    queries: list[str],
+    prefix: str,
+    search_index: str,
+    search_limit: int,
+    reasoning_only: bool,
+    json_stream: bool,
+) -> list[str]:
+    refs: list[str] = []
+    searches_dir = run.run_dir / "searches"
+    searches_dir.mkdir(parents=True, exist_ok=True)
+    for index, query_text in enumerate(queries, start=1):
+        output_path = searches_dir / f"{prefix}-{index:02d}.json"
+        _emit_run_event(
+            run,
+            event_type="search.started",
+            phase="live_search",
+            json_stream=json_stream,
+            payload={"query": query_text, "output": str(output_path), "prefix": prefix},
+        )
+        start = perf_counter()
+        try:
+            payload = _run_lkm_knowledge_search(
+                query_text,
+                index=search_index,
+                limit=search_limit,
+                reasoning_only=reasoning_only,
+            )
+        except typer.Exit:
+            raise
+        except Exception as exc:
+            _update_run_state(
+                run,
+                {
+                    "status": "failed",
+                    "phase": "live_search",
+                    "error": str(exc),
+                },
+            )
+            _emit_run_event(
+                run,
+                event_type="run.failed",
+                phase="live_search",
+                json_stream=json_stream,
+                payload={"query": query_text, "error": str(exc)},
+            )
+            typer.echo(f"Error: live LKM search failed for {query_text!r}: {exc}", err=True)
+            raise typer.Exit(2) from exc
+        output_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        refs.append(str(output_path))
+        results = payload.get("results")
+        _record_run_trace(
+            research_pkg,
+            run,
+            start=start,
+            name=f"search.lkm.{prefix}",
+            kind="search",
+            mode="lkm",
+            inputs=[query_text],
+            outputs=[str(output_path)],
+            metrics={
+                "query": query_text,
+                "index": search_index,
+                "limit": search_limit,
+                "reasoning_only": reasoning_only,
+                "results": len(results) if isinstance(results, list) else 0,
+            },
+        )
+        _emit_run_event(
+            run,
+            event_type="search.completed",
+            phase="live_search",
+            json_stream=json_stream,
+            payload={
+                "query": query_text,
+                "output": str(output_path),
+                "results": len(results) if isinstance(results, list) else 0,
+            },
+        )
+    return refs
+
+
+def _run_lkm_knowledge_search(
+    query: str,
+    *,
+    index: str,
+    limit: int,
+    reasoning_only: bool,
+) -> dict[str, object]:
+    from gaia.cli.commands.search._results import normalize_lkm_knowledge
+    from gaia.cli.commands.search.lkm._shared import run_request
+
+    body: dict[str, object] = {
+        "query": query,
+        "retrieval_mode": "hybrid",
+        "offset": 0,
+        "limit": limit,
+        "filters": {"visibility": "public"},
+    }
+    if reasoning_only:
+        body["reasoning_only"] = True
+    payload = run_request("POST", "/search", json_body=body, index_id=index)
+    return normalize_lkm_knowledge(payload, query=query, kind="knowledge", index_id=index)
+
+
+def _run_analysis_provider_command(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    phase: str,
+    command: str,
+    input_payload: dict[str, object],
+    output_name: str,
+    json_stream: bool,
+) -> str:
+    analysis_dir = run.run_dir / "analysis"
+    analysis_dir.mkdir(parents=True, exist_ok=True)
+    input_path = analysis_dir / f"{output_name}.input.json"
+    output_path = analysis_dir / f"{output_name}.output.json"
+    input_path.write_text(
+        json.dumps(input_payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    _emit_run_event(
+        run,
+        event_type="provider.started",
+        phase=phase,
+        json_stream=json_stream,
+        payload={"provider": "command", "input": str(input_path), "output": str(output_path)},
+    )
+    args = shlex.split(command)
+    if not args:
+        typer.echo(f"Error: empty provider command for {phase}.", err=True)
+        raise typer.Exit(2)
+    env = {
+        **os.environ,
+        "GAIA_RESEARCH_PHASE": phase,
+        "GAIA_RESEARCH_INPUT": str(input_path),
+        "GAIA_RESEARCH_OUTPUT": str(output_path),
+        "GAIA_RESEARCH_RUN_DIR": str(run.run_dir),
+    }
+    start = perf_counter()
+    completed = subprocess.run(
+        args,
+        cwd=research_pkg.path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        error = (completed.stderr or completed.stdout or "").strip()
+        _update_run_state(
+            run,
+            {
+                "status": "failed",
+                "phase": phase,
+                "error": error or f"provider command exited {completed.returncode}",
+            },
+        )
+        _emit_run_event(
+            run,
+            event_type="run.failed",
+            phase=phase,
+            json_stream=json_stream,
+            payload={"provider": "command", "returncode": completed.returncode, "error": error},
+        )
+        typer.echo(
+            f"Error: provider command failed for {phase} with exit code "
+            f"{completed.returncode}: {error}",
+            err=True,
+        )
+        raise typer.Exit(2)
+    if not output_path.exists():
+        typer.echo(
+            f"Error: provider command for {phase} did not write {output_path}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    _read_json_object_path(output_path)
+    _record_run_trace(
+        research_pkg,
+        run,
+        start=start,
+        name=f"provider.command.{phase}",
+        kind="llm",
+        mode="command",
+        inputs=[str(input_path)],
+        outputs=[str(output_path)],
+        metrics={
+            "provider": "command",
+            "phase": phase,
+            "returncode": completed.returncode,
+            "stdout_chars": len(completed.stdout or ""),
+            "stderr_chars": len(completed.stderr or ""),
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="provider.completed",
+        phase=phase,
+        json_stream=json_stream,
+        payload={"provider": "command", "input": str(input_path), "output": str(output_path)},
+    )
+    return str(output_path)
+
+
+def _run_analysis_provider_litellm(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    phase: str,
+    model: str,
+    input_payload: dict[str, object],
+    output_name: str,
+    temperature: float,
+    timeout: float,
+    max_retries: int,
+    max_tokens: int | None,
+    json_stream: bool,
+) -> str:
+    analysis_dir = run.run_dir / "analysis"
+    analysis_dir.mkdir(parents=True, exist_ok=True)
+    input_path = analysis_dir / f"{output_name}.input.json"
+    output_path = analysis_dir / f"{output_name}.output.json"
+    raw_path = analysis_dir / f"{output_name}.raw.txt"
+    hydrated_payload = _hydrate_analysis_provider_input(input_payload)
+    input_path.write_text(
+        json.dumps(hydrated_payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    _emit_run_event(
+        run,
+        event_type="provider.started",
+        phase=phase,
+        json_stream=json_stream,
+        payload={
+            "provider": "litellm",
+            "model": model,
+            "input": str(input_path),
+            "output": str(output_path),
+        },
+    )
+    start = perf_counter()
+    response: object | None = None
+    try:
+        response = asyncio.run(
+            _litellm_completion(
+                model=model,
+                phase=phase,
+                input_payload=hydrated_payload,
+                temperature=temperature,
+                timeout=timeout,
+                max_retries=max_retries,
+                max_tokens=max_tokens,
+            )
+        )
+        content = _litellm_response_content(response)
+        raw_path.write_text(content, encoding="utf-8")
+        output_payload = _json_object_from_llm_content(content)
+    except Exception as exc:
+        usage = _litellm_usage_dict(response)
+        prompt_tokens = _int_metric(usage.get("prompt_tokens"))
+        completion_tokens = _int_metric(usage.get("completion_tokens"))
+        _record_run_trace(
+            research_pkg,
+            run,
+            start=start,
+            name=f"provider.litellm.{phase}",
+            kind="llm",
+            mode="litellm",
+            inputs=[str(input_path)],
+            outputs=[str(raw_path)] if raw_path.exists() else [],
+            metrics={
+                "provider": "litellm",
+                "phase": phase,
+                "model": model,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "raw_path": str(raw_path) if raw_path.exists() else None,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": _int_metric(usage.get("total_tokens")),
+                "request_id": _litellm_request_id(response),
+            },
+            model=model,
+            token_usage={
+                "input_tokens": prompt_tokens,
+                "output_tokens": completion_tokens,
+            },
+            status="failed",
+        )
+        _update_run_state(run, {"status": "failed", "phase": phase, "error": str(exc)})
+        _emit_run_event(
+            run,
+            event_type="run.failed",
+            phase=phase,
+            json_stream=json_stream,
+            payload={"provider": "litellm", "model": model, "error": str(exc)},
+        )
+        typer.echo(f"Error: LiteLLM provider failed for {phase}: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    output_path.write_text(
+        json.dumps(output_payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    usage = _litellm_usage_dict(response)
+    prompt_tokens = _int_metric(usage.get("prompt_tokens"))
+    completion_tokens = _int_metric(usage.get("completion_tokens"))
+    _record_run_trace(
+        research_pkg,
+        run,
+        start=start,
+        name=f"provider.litellm.{phase}",
+        kind="llm",
+        mode="litellm",
+        inputs=[str(input_path)],
+        outputs=[str(output_path)],
+        metrics={
+            "provider": "litellm",
+            "phase": phase,
+            "model": model,
+            "raw_path": str(raw_path),
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": _int_metric(usage.get("total_tokens")),
+            "request_id": _litellm_request_id(response),
+        },
+        model=model,
+        token_usage={
+            "input_tokens": prompt_tokens,
+            "output_tokens": completion_tokens,
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="provider.completed",
+        phase=phase,
+        json_stream=json_stream,
+        payload={
+            "provider": "litellm",
+            "model": model,
+            "input": str(input_path),
+            "output": str(output_path),
+        },
+    )
+    return str(output_path)
+
+
+async def _litellm_completion(
+    *,
+    model: str,
+    phase: str,
+    input_payload: dict[str, object],
+    temperature: float,
+    timeout: float,
+    max_retries: int,
+    max_tokens: int | None,
+) -> object:
+    os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
+    import litellm
+
+    litellm.suppress_debug_info = True
+    litellm.disable_cost_calc = True
+    kwargs: dict[str, object] = {
+        "model": model,
+        "messages": _litellm_messages(phase=phase, input_payload=input_payload),
+        "temperature": temperature,
+        "timeout": timeout,
+        "max_retries": max_retries,
+        "response_format": {"type": "json_object"},
+    }
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    return await litellm.acompletion(**kwargs)
+
+
+def _litellm_messages(
+    *,
+    phase: str,
+    input_payload: dict[str, object],
+) -> list[dict[str, str]]:
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are Gaia's deterministic JSON compiler for research artifacts. "
+                "Return exactly one valid JSON object. The first non-whitespace "
+                "character must be `{` and the last must be `}`. Do not include "
+                "markdown, prose, XML, citations outside JSON, or code fences. Use "
+                "only source refs and ids present in the input artifact payloads."
+            ),
+        },
+        {
+            "role": "user",
+            "content": json.dumps(
+                {
+                    "phase": phase,
+                    "instruction": _litellm_phase_instruction(phase),
+                    "output_shape": _litellm_output_shape(phase),
+                    "validation_rules": [
+                        "Return a single JSON object, not an array or string.",
+                        "Do not add explanatory text before or after the JSON.",
+                        "Every source_refs entry must use ids present in artifact_payloads.",
+                        "If evidence is weak, encode uncertainty inside JSON fields.",
+                        "Prefer fewer high-quality grounded items over broad ungrounded output.",
+                    ],
+                    "input": input_payload,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+        },
+    ]
+
+
+def _litellm_phase_instruction(phase: str) -> str:
+    if phase == "focus_analysis":
+        return (
+            "Select 1-4 assessable research focuses from the scan landscape. "
+            "Each focus must be grounded in retrieved item ids and should be "
+            "narrow enough for immediate assessment."
+        )
+    if phase == "assess_analysis":
+        return (
+            "Assess only the selected focus against the provided landscapes. "
+            "Produce grounded candidate relations, a concise review, and only "
+            "obligations that directly follow from missing or conflicting evidence."
+        )
+    return "Produce the contract-shaped JSON for this research phase."
+
+
+def _litellm_output_shape(phase: str) -> dict[str, object]:
+    if phase == "focus_analysis":
+        return {
+            "required_top_level_keys": ["focuses", "coverage_gaps", "notes"],
+            "focuses_item_keys": [
+                "id",
+                "kind",
+                "status",
+                "question",
+                "rationale",
+                "priority",
+                "readiness",
+                "scope",
+                "coverage",
+                "evidence_refs",
+                "suggested_queries",
+            ],
+        }
+    if phase == "assess_analysis":
+        return {
+            "required_top_level_keys": ["relations", "review", "candidate_obligations"],
+            "relations_item_keys": [
+                "type",
+                "claim",
+                "rationale",
+                "epistemic_status",
+                "promotion_hint",
+                "source_refs",
+            ],
+            "review_keys": [
+                "language",
+                "depth",
+                "summary",
+                "sections",
+                "limitations",
+                "next_queries",
+            ],
+        }
+    return {"required_top_level_keys": []}
+
+
+def _hydrate_analysis_provider_input(payload: dict[str, object]) -> dict[str, object]:
+    hydrated = dict(payload)
+    artifact_payloads: list[dict[str, object]] = []
+    artifacts = payload.get("artifacts")
+    if isinstance(artifacts, list):
+        for artifact in artifacts:
+            if not isinstance(artifact, str):
+                continue
+            path = Path(artifact)
+            if path.exists():
+                artifact_payloads.append(
+                    {
+                        "path": artifact,
+                        "json": _read_json_object_path(path),
+                    }
+                )
+    hydrated["artifact_payloads"] = artifact_payloads
+    return hydrated
+
+
+def _json_object_from_llm_content(content: str) -> dict[str, object]:
+    text = content.strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"LiteLLM response was not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("LiteLLM response must be a JSON object.")
+    return payload
+
+
+def _litellm_response_content(response: object) -> str:
+    if isinstance(response, dict):
+        choices = response.get("choices")
+        if isinstance(choices, list) and choices:
+            first = choices[0]
+            if isinstance(first, dict):
+                message = first.get("message")
+                if isinstance(message, dict):
+                    content = message.get("content")
+                    return "" if content is None else str(content)
+    choices = getattr(response, "choices", None)
+    if choices:
+        message = getattr(choices[0], "message", None)
+        content = getattr(message, "content", None)
+        return "" if content is None else str(content)
+    return ""
+
+
+def _litellm_usage_dict(response: object) -> dict[str, object]:
+    usage = (
+        response.get("usage")
+        if isinstance(response, dict)
+        else getattr(response, "usage", None)
+    )
+    if usage is None:
+        return {}
+    if isinstance(usage, dict):
+        return dict(usage)
+    if hasattr(usage, "model_dump"):
+        dumped = usage.model_dump()
+        return dumped if isinstance(dumped, dict) else {}
+    try:
+        return dict(usage)
+    except Exception:
+        return {}
+
+
+def _litellm_request_id(response: object) -> str | None:
+    if isinstance(response, dict):
+        value = response.get("id") or response.get("request_id")
+        return str(value) if value else None
+    for attr in ("id", "request_id"):
+        value = getattr(response, attr, None)
+        if value:
+            return str(value)
+    return None
+
+
+def _int_metric(value: object) -> int:
+    return int(value) if isinstance(value, int | float) else 0
+
+
+def _resolve_litellm_model(model: str | None) -> str:
+    resolved = model or os.environ.get("GAIA_RESEARCH_LLM_MODEL")
+    if resolved and resolved.strip():
+        return resolved.strip()
+    typer.echo(
+        "Error: --analysis-provider litellm requires --model or GAIA_RESEARCH_LLM_MODEL.",
+        err=True,
+    )
+    raise typer.Exit(2)
+
+
+def _analysis_provider_input(
+    *,
+    phase: str,
+    topic: str,
+    language: str,
+    contract_kind: str,
+    artifact_paths: list[Path],
+    focus: str | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "type": "gaia.research.analysis_request",
+        "phase": phase,
+        "topic": topic,
+        "language": language,
+        "contract": research_contract(contract_kind, language=language),
+        "artifacts": [str(path) for path in artifact_paths],
+    }
+    if focus is not None:
+        payload["focus"] = focus
+    return payload
+
+
+def _execute_file_provider_run(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    topic: str,
+    mode: str,
+    language: str,
+    search_json: list[str],
+    focus_analysis_json: str | None,
+    targeted_search_json: list[str],
+    targeted_query: list[str],
+    focus: str | None,
+    assess_analysis_json: str | None,
+    analysis_provider: str,
+    model: str | None,
+    focus_model: str | None,
+    assess_model: str | None,
+    llm_temperature: float,
+    llm_timeout: float,
+    llm_max_retries: int,
+    llm_max_tokens: int | None,
+    focus_analysis_command: str | None,
+    assess_analysis_command: str | None,
+    json_stream: bool,
+) -> None:
+    artifact_only = mode == "artifact-only"
+    materialize_sources = not artifact_only
+    research_mode = _research_mode(
+        artifact_only=artifact_only,
+        materialize_sources=materialize_sources,
+    )
+    state_artifacts: dict[str, str] = {}
+    state_metrics: dict[str, object] = {"searches": len(search_json) + len(targeted_search_json)}
+
+    _update_run_state(run, {"status": "running", "phase": "explore_scan"})
+    _emit_run_event(
+        run,
+        event_type="phase.started",
+        phase="explore_scan",
+        json_stream=json_stream,
+        payload={"inputs": search_json},
+    )
+    start = perf_counter()
+    scan_landscape = build_research_landscape(
+        _scan_batches(search_json, queries=[], sources=[]),
+        pull_budget=0,
+    )
+    scan_path = write_research_artifact(research_pkg, "landscapes", "scan", scan_landscape)
+    source_payload = _materialize_landscape_sources_or_exit(
+        research_pkg,
+        scan_landscape,
+        landscape_artifact=scan_path,
+        enabled=materialize_sources,
+        artifact_only=artifact_only,
+        dry_run=False,
+    )
+    sync = sync_landscape_artifact(
+        research_pkg,
+        scan_landscape,
+        artifact_only=artifact_only,
+        dry_run=False,
+    )
+    sync_payload = {**sync.to_payload(), **source_payload}
+    append_research_event(
+        research_pkg,
+        "run.explore_scan.completed",
+        {"artifact": str(scan_path), "stats": scan_landscape["stats"], **sync_payload},
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="explore.scan",
+        mode=research_mode,
+        inputs=search_json,
+        outputs=[str(scan_path)],
+        metrics={
+            "query_batches": scan_landscape["stats"]["query_batches"],
+            "raw_results": scan_landscape["stats"]["raw_results"],
+            "paper_leads": scan_landscape["stats"]["paper_leads"],
+            "items": len(scan_landscape.get("items", [])),
+            "source_packages_added": _count_payload_items(sync_payload, "source_packages_added"),
+        },
+    )
+    state_artifacts["scan_landscape"] = str(scan_path)
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="explore_scan",
+        json_stream=json_stream,
+        payload={"artifact": str(scan_path), "stats": scan_landscape["stats"]},
+    )
+
+    if focus_analysis_json is None:
+        if analysis_provider == "command":
+            if focus_analysis_command is None:
+                typer.echo(
+                    "Error: --analysis-provider command requires --focus-analysis-command "
+                    "when --focus-analysis-json is omitted.",
+                    err=True,
+                )
+                raise typer.Exit(2)
+            focus_analysis_json = _run_analysis_provider_command(
+                research_pkg,
+                run,
+                phase="focus_analysis",
+                command=focus_analysis_command,
+                input_payload=_analysis_provider_input(
+                    phase="focus_analysis",
+                    topic=topic,
+                    language=language,
+                    contract_kind="focus",
+                    artifact_paths=[scan_path],
+                ),
+                output_name="focus_analysis",
+                json_stream=json_stream,
+            )
+        elif analysis_provider == "litellm":
+            resolved_model = _resolve_litellm_model(focus_model or model)
+            focus_analysis_json = _run_analysis_provider_litellm(
+                research_pkg,
+                run,
+                phase="focus_analysis",
+                model=resolved_model,
+                input_payload=_analysis_provider_input(
+                    phase="focus_analysis",
+                    topic=topic,
+                    language=language,
+                    contract_kind="focus",
+                    artifact_paths=[scan_path],
+                ),
+                output_name="focus_analysis",
+                temperature=llm_temperature,
+                timeout=llm_timeout,
+                max_retries=llm_max_retries,
+                max_tokens=llm_max_tokens,
+                json_stream=json_stream,
+            )
+        else:
+            _write_run_checkpoint(
+                run,
+                phase="focus_analysis",
+                checkpoint_type="checkpoint.focus_analysis",
+                prompt="Provide focus-analysis JSON matching `gaia research contract focus`.",
+                json_stream=json_stream,
+            )
+            return
+
+    _update_run_state(run, {"phase": "focus_sync"})
+    _emit_run_event(
+        run,
+        event_type="phase.started",
+        phase="focus_sync",
+        json_stream=json_stream,
+        payload={"inputs": [str(scan_path), focus_analysis_json]},
+    )
+    start = perf_counter()
+    focus_analysis = _read_json_object_ref(focus_analysis_json, label="--focus-analysis-json")
+    focus_artifact = build_focus_synthesis_artifact(
+        landscapes=[scan_landscape],
+        analysis=focus_analysis,
+        language=language,
+    )
+    focus_path = write_research_artifact(research_pkg, "focuses", "focuses", focus_artifact)
+    focus_sync = sync_focus_artifact(
+        research_pkg,
+        focus_artifact,
+        max_questions=3,
+        artifact_only=artifact_only,
+        dry_run=False,
+    )
+    focus_sync_payload = focus_sync.to_payload()
+    append_research_event(
+        research_pkg,
+        "run.focus_sync.completed",
+        {
+            "artifact": str(focus_path),
+            "landscapes": [str(scan_path)],
+            "focuses": len(focus_artifact["focuses"]),
+            "coverage_gaps": len(focus_artifact["coverage_gaps"]),
+            "analysis_json": True,
+            "language": language,
+            **focus_sync_payload,
+        },
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="focus.synthesis",
+        mode=research_mode,
+        inputs=[str(scan_path), focus_analysis_json],
+        outputs=[str(focus_path)],
+        metrics={
+            "focuses": len(focus_artifact["focuses"]),
+            "coverage_gaps": len(focus_artifact["coverage_gaps"]),
+            "analysis_json": True,
+            "questions_written": _count_payload_items(focus_sync_payload, "questions_written"),
+            "obligations_added": _count_payload_items(
+                focus_sync_payload, "obligations_added"
+            ),
+            "hypotheses_added": _count_payload_items(focus_sync_payload, "hypotheses_added"),
+        },
+    )
+    state_artifacts["focus"] = str(focus_path)
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="focus_sync",
+        json_stream=json_stream,
+        payload={"artifact": str(focus_path), "focuses": len(focus_artifact["focuses"])},
+    )
+    selected_focus = (
+        focus
+        or (focus_sync_payload.get("focus_set") if isinstance(focus_sync_payload, dict) else None)
+        or str(focus_artifact["focuses"][0]["id"])
+    )
+
+    landscapes = [scan_landscape]
+    landscape_paths = [scan_path]
+    if targeted_search_json:
+        _update_run_state(run, {"phase": "explore_expand"})
+        _emit_run_event(
+            run,
+            event_type="phase.started",
+            phase="explore_expand",
+            json_stream=json_stream,
+            payload={"inputs": targeted_search_json, "focus": selected_focus},
+        )
+        start = perf_counter()
+        expand_landscape = build_research_landscape(
+            _scan_batches(
+                targeted_search_json,
+                queries=targeted_query,
+                sources=[],
+            ),
+            pull_budget=0,
+        )
+        expand_landscape["action"] = "explore.expand"
+        expand_landscape["target"] = {"kind": "focus", "id": selected_focus}
+        expand_path = write_research_artifact(
+            research_pkg,
+            "landscapes",
+            "expand",
+            expand_landscape,
+        )
+        expand_source_payload = _materialize_landscape_sources_or_exit(
+            research_pkg,
+            expand_landscape,
+            landscape_artifact=expand_path,
+            enabled=materialize_sources,
+            artifact_only=artifact_only,
+            dry_run=False,
+        )
+        expand_sync = sync_landscape_artifact(
+            research_pkg,
+            expand_landscape,
+            artifact_only=artifact_only,
+            dry_run=False,
+        )
+        expand_sync_payload = {**expand_sync.to_payload(), **expand_source_payload}
+        append_research_event(
+            research_pkg,
+            "run.explore_expand.completed",
+            {
+                "artifact": str(expand_path),
+                "target": {"kind": "focus", "id": selected_focus},
+                "stats": expand_landscape["stats"],
+                **expand_sync_payload,
+            },
+        )
+        _record_run_cli_trace(
+            research_pkg,
+            run,
+            start=start,
+            name="explore.expand",
+            mode=research_mode,
+            inputs=targeted_search_json,
+            outputs=[str(expand_path)],
+            metrics={
+                "query_batches": expand_landscape["stats"]["query_batches"],
+                "raw_results": expand_landscape["stats"]["raw_results"],
+                "paper_leads": expand_landscape["stats"]["paper_leads"],
+                "items": len(expand_landscape.get("items", [])),
+                "source_packages_added": _count_payload_items(
+                    expand_sync_payload, "source_packages_added"
+                ),
+            },
+        )
+        landscapes.append(expand_landscape)
+        landscape_paths.append(expand_path)
+        state_artifacts["expand_landscape"] = str(expand_path)
+        _emit_run_event(
+            run,
+            event_type="phase.completed",
+            phase="explore_expand",
+            json_stream=json_stream,
+            payload={"artifact": str(expand_path), "stats": expand_landscape["stats"]},
+        )
+
+    if assess_analysis_json is None:
+        if analysis_provider == "command":
+            if assess_analysis_command is None:
+                typer.echo(
+                    "Error: --analysis-provider command requires --assess-analysis-command "
+                    "when --assess-analysis-json is omitted.",
+                    err=True,
+                )
+                raise typer.Exit(2)
+            assess_analysis_json = _run_analysis_provider_command(
+                research_pkg,
+                run,
+                phase="assess_analysis",
+                command=assess_analysis_command,
+                input_payload=_analysis_provider_input(
+                    phase="assess_analysis",
+                    topic=topic,
+                    language=language,
+                    contract_kind="assess",
+                    artifact_paths=landscape_paths,
+                    focus=selected_focus,
+                ),
+                output_name="assess_analysis",
+                json_stream=json_stream,
+            )
+        elif analysis_provider == "litellm":
+            resolved_model = _resolve_litellm_model(assess_model or model)
+            assess_analysis_json = _run_analysis_provider_litellm(
+                research_pkg,
+                run,
+                phase="assess_analysis",
+                model=resolved_model,
+                input_payload=_analysis_provider_input(
+                    phase="assess_analysis",
+                    topic=topic,
+                    language=language,
+                    contract_kind="assess",
+                    artifact_paths=landscape_paths,
+                    focus=selected_focus,
+                ),
+                output_name="assess_analysis",
+                temperature=llm_temperature,
+                timeout=llm_timeout,
+                max_retries=llm_max_retries,
+                max_tokens=llm_max_tokens,
+                json_stream=json_stream,
+            )
+        else:
+            _write_run_checkpoint(
+                run,
+                phase="assess_analysis",
+                checkpoint_type="checkpoint.assess_analysis",
+                prompt="Provide assessment JSON matching `gaia research contract assess`.",
+                json_stream=json_stream,
+            )
+            return
+
+    _update_run_state(run, {"phase": "assess_sync"})
+    _emit_run_event(
+        run,
+        event_type="phase.started",
+        phase="assess_sync",
+        json_stream=json_stream,
+        payload={
+            "focus": selected_focus,
+            "inputs": [*[str(path) for path in landscape_paths], assess_analysis_json],
+        },
+    )
+    start = perf_counter()
+    assess_analysis = _read_json_object_ref(assess_analysis_json, label="--assess-analysis-json")
+    try:
+        assessment = build_assessment_from_analysis(
+            focus={"kind": "focus", "id": selected_focus},
+            landscapes=landscapes,
+            analysis=assess_analysis,
+            strict_grounding=True,
+        )
+    except AssessmentSchemaError as exc:
+        _update_run_state(run, {"status": "failed", "phase": "assess_sync", "error": str(exc)})
+        _emit_run_event(
+            run,
+            event_type="run.failed",
+            phase="assess_sync",
+            json_stream=json_stream,
+            payload={"error": str(exc)},
+        )
+        typer.echo(f"Error: invalid assessment artifact: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    assessment_path = write_research_artifact(
+        research_pkg,
+        "assessments",
+        "assessment",
+        assessment,
+    )
+    assess_sync = sync_assessment_artifact(
+        research_pkg,
+        assessment,
+        artifact_only=artifact_only,
+        dry_run=False,
+    )
+    assess_sync_payload = assess_sync.to_payload()
+    relation_counts = _relation_type_counts(assessment["relations"])
+    append_research_event(
+        research_pkg,
+        "run.assess_sync.completed",
+        {
+            "focus": selected_focus,
+            "artifact": str(assessment_path),
+            "landscapes": [str(path) for path in landscape_paths],
+            "items": len(assessment["evidence_packet"]["items"]),
+            "relations": len(assessment["relations"]),
+            "relation_type_counts": relation_counts,
+            "candidate_obligations": len(assessment["candidate_obligations"]),
+            "analysis_json": True,
+            "review": "review" in assessment,
+            **assess_sync_payload,
+        },
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="assess",
+        mode=research_mode,
+        inputs=[*[str(path) for path in landscape_paths], assess_analysis_json],
+        outputs=[str(assessment_path)],
+        metrics={
+            "items": len(assessment["evidence_packet"]["items"]),
+            "relations": len(assessment["relations"]),
+            "candidate_obligations": len(assessment["candidate_obligations"]),
+            "analysis_json": True,
+            "review": "review" in assessment,
+            "notes_written": _count_payload_items(assess_sync_payload, "notes_written"),
+            "candidate_relations_written": _count_payload_items(
+                assess_sync_payload, "candidate_relations_written"
+            ),
+            "obligations_added": _count_payload_items(assess_sync_payload, "obligations_added"),
+            "hypotheses_added": _count_payload_items(assess_sync_payload, "hypotheses_added"),
+        },
+    )
+    state_artifacts["assessment"] = str(assessment_path)
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="assess_sync",
+        json_stream=json_stream,
+        payload={"artifact": str(assessment_path), "relations": len(assessment["relations"])},
+    )
+
+    _update_run_state(run, {"phase": "reports_stop"})
+    report_outputs: dict[str, Path] = {
+        "focus_report": run.run_dir / "trace" / "focus_report.md",
+        "assessment_report": run.run_dir / "trace" / "assessment_report.md",
+    }
+    for artifact_name, artifact_payload, artifact_path in (
+        ("focus_report", focus_artifact, focus_path),
+        ("assessment_report", assessment, assessment_path),
+    ):
+        start = perf_counter()
+        markdown = render_research_artifact_markdown(artifact_payload)
+        report_outputs[artifact_name].write_text(markdown, encoding="utf-8")
+        _record_run_cli_trace(
+            research_pkg,
+            run,
+            start=start,
+            name="report",
+            mode="artifact_only",
+            inputs=[str(artifact_path)],
+            outputs=[str(report_outputs[artifact_name])],
+            metrics={
+                "artifact_kind": artifact_payload.get("kind"),
+                "markdown_chars": len(markdown),
+                "writes_file": True,
+            },
+        )
+        state_artifacts[artifact_name] = str(report_outputs[artifact_name])
+
+    start = perf_counter()
+    stop_payload = evaluate_research_stop(
+        focus_artifact=focus_artifact,
+        assessment=assessment,
+        landscapes=[landscapes[-1]],
+        previous_landscapes=landscapes[:-1],
+    )
+    stop_path = run.run_dir / "trace" / "stop.json"
+    stop_path.write_text(
+        json.dumps(stop_payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="stop",
+        mode="artifact_only",
+        inputs=[str(focus_path), str(assessment_path), *[str(path) for path in landscape_paths]],
+        outputs=[str(stop_path)],
+        metrics={
+            "recommendation": stop_payload.get("recommendation"),
+            "should_stop": stop_payload.get("should_stop"),
+            **dict(stop_payload.get("metrics") or {}),
+        },
+    )
+    stop_report = run.run_dir / "trace" / "stop_report.md"
+    start = perf_counter()
+    stop_markdown = render_research_artifact_markdown(stop_payload)
+    stop_report.write_text(stop_markdown, encoding="utf-8")
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="report",
+        mode="artifact_only",
+        inputs=[str(stop_path)],
+        outputs=[str(stop_report)],
+        metrics={
+            "artifact_kind": stop_payload.get("kind"),
+            "markdown_chars": len(stop_markdown),
+            "writes_file": True,
+        },
+    )
+    state_artifacts["stop"] = str(stop_path)
+    state_artifacts["stop_report"] = str(stop_report)
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="reports_stop",
+        json_stream=json_stream,
+        payload={
+            "stop": str(stop_path),
+            "recommendation": stop_payload.get("recommendation"),
+            "should_stop": stop_payload.get("should_stop"),
+        },
+    )
+
+    benchmark_path = write_research_benchmark_summary(research_pkg, run.run_dir / "trace")
+    append_research_event(
+        research_pkg,
+        "run.trace.summary.rebuilt",
+        {"benchmark_summary": str(benchmark_path)},
+    )
+    state_artifacts["benchmark"] = str(benchmark_path)
+    state_metrics.update(
+        {
+            "landscapes": len(landscapes),
+            "relations": len(assessment["relations"]),
+            "candidate_obligations": len(assessment["candidate_obligations"]),
+        }
+    )
+    _update_run_state(
+        run,
+        {
+            "status": "completed",
+            "phase": "complete",
+            "pending_checkpoint": None,
+            "artifacts": state_artifacts,
+            "metrics": state_metrics,
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="run.completed",
+        phase="complete",
+        json_stream=json_stream,
+        payload={
+            "benchmark": str(benchmark_path),
+            "stop": str(stop_path),
+            "recommendation": stop_payload.get("recommendation"),
+        },
+    )
 
 
 @research_app.command("explore")
