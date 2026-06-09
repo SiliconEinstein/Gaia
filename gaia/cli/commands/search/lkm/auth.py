@@ -46,6 +46,15 @@ def login_command(
     ] = False,
 ) -> None:
     """Show setup instructions, prompt for an access key, validate it, and persist to file."""
+    env_var = active_lkm_env_var()
+    if env_var:
+        typer.echo(
+            f"Error: {env_var} is set; it shadows file-backed credentials. "
+            f"Unset it to manage the key via `gaia search lkm auth login`.",
+            err=True,
+        )
+        raise typer.Exit(4)
+
     if not force:
         existing = read_lkm_key()
         if existing:
