@@ -41,6 +41,7 @@ broad explore
   -> coverage expansion for thin review buckets
   -> focus synthesis
   -> targeted expand
+  -> selected evidence + deep materialization
   -> assess one focus
   -> propose next open-ended research questions
   -> promote mature scaffold
@@ -49,9 +50,11 @@ broad explore
 
 Early exploration should map model families, probe families, methods,
 systematics, and missing coverage. The field map turns that breadth into a
-review taxonomy before the loop chooses assessable focuses. Assessment can then
-inspect paper graphs, reasoning chains, and selected LKM-backed packages for a
-specific focus.
+review taxonomy before the loop chooses assessable focuses. After targeted
+expansion, the runner selects a compact evidence packet and deep-materializes
+only the paper graphs or reasoning chains needed for the selected focus.
+Assessment then reads that high-density packet instead of the full broad
+landscape.
 
 ## Command Semantics
 
@@ -280,7 +283,8 @@ main loop:
   obligations;
 - topic-only `run` with `--analysis-provider litellm` lets the runner generate
   broad queries, induce a field map, optionally search thin review buckets, and
-  pass the scan, coverage landscape, and field map into focus synthesis;
+  pass the scan, coverage landscape, and field map into focus synthesis, then
+  select/deep-materialize a compact evidence packet for assessment;
 - `focus` writes at most 3 accepted focuses as package `question(...)`
   statements and sets the first as the inquiry focus;
 - `assess` writes review notes, inquiry hypotheses/obligations, and

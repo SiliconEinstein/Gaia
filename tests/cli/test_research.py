@@ -902,6 +902,15 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
     assert (run_dir / "analysis" / "query_plan.output.json").exists()
     assert (run_dir / "analysis" / "field_map_analysis.output.json").exists()
     assert len(list((pkg_dir / ".gaia" / "research" / "field_maps").glob("*.json"))) == 1
+    selected_evidence_paths = sorted(
+        (pkg_dir / ".gaia" / "research" / "evidence").glob("selected-evidence-*.json")
+    )
+    assert len(selected_evidence_paths) == 1
+    assess_input = json.loads(
+        (run_dir / "analysis" / "assess_analysis.input.json").read_text(encoding="utf-8")
+    )
+    assert assess_input["artifact_payloads"][0]["json"]["kind"] == "selected_evidence"
+    assert assess_input["artifact_payloads"][0]["path"] == str(selected_evidence_paths[0])
     assert sorted(path.name for path in (run_dir / "searches").glob("*.json")) == [
         "broad-01.json",
         "coverage-01.json",
@@ -918,6 +927,193 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
     benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
     assert benchmark["summary"]["kind_counts"]["llm"] == 4
     assert benchmark["summary"]["kind_counts"]["search"] == 3
+
+
+def test_research_run_fast_mode_deep_expands_selected_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+
+    def fake_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        assert index == "bohrium"
+        assert limit == 2
+        assert reasoning_only is True
+        return _search(
+            query,
+            [
+                _lkm_row(
+                    "P_DEEP",
+                    "claim_deep",
+                    0.9,
+                    paper_title="Deep evidence paper",
+                    content="Selected focus evidence about weak first-order behavior.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+
+    materialize_calls: list[dict[str, object]] = []
+
+    def fake_materialize(
+        research_pkg: Any,
+        *,
+        paper_ids: list[str],
+        claim_ids: list[str],
+        chain_claim_ids: list[str],
+        lkm_index: str,
+        artifact_only: bool,
+        dry_run: bool,
+    ) -> dict[str, object]:
+        materialize_calls.append(
+            {
+                "paper_ids": paper_ids,
+                "claim_ids": claim_ids,
+                "chain_claim_ids": chain_claim_ids,
+                "lkm_index": lkm_index,
+                "artifact_only": artifact_only,
+                "dry_run": dry_run,
+                "pkg": research_pkg.path,
+            }
+        )
+        return {
+            "lkm_materialize_requests": [*paper_ids, *claim_ids, *chain_claim_ids],
+            "lkm_packages_materialized": [{"source_ref": "lkm:bohrium:paper:P_DEEP"}],
+            "lkm_chains_materialized": [{"source_ref": "lkm:bohrium:chain:claim_deep"}],
+        }
+
+    monkeypatch.setattr(research_cli, "_materialize_lkm_papers_or_exit", fake_materialize)
+
+    calls: list[str] = []
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        user_content = str(kwargs["messages"][-1]["content"])
+        if '"phase": "query_plan"' in user_content:
+            calls.append("query_plan")
+            payload = {"queries": [{"query": "weak first order evidence", "rationale": "broad"}]}
+        elif '"phase": "field_map_analysis"' in user_content:
+            calls.append("field_map_analysis")
+            payload = {
+                "domain_thesis": "Review map.",
+                "buckets": [
+                    {
+                        "id": "weak_first_order",
+                        "title": "Weak first order",
+                        "role": "core controversy",
+                        "required_for_review": True,
+                        "coverage_status": "covered",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_deep"}],
+                        "recommended_queries": [],
+                    }
+                ],
+                "controversy_axes": ["continuous versus weak first order"],
+                "coverage_gaps": [],
+                "recommended_expansions": [],
+                "synthesis_notes": [],
+            }
+        elif '"phase": "focus_analysis"' in user_content:
+            calls.append("focus_analysis")
+            payload = {
+                "focuses": [
+                    {
+                        "id": "weak_first_order_focus",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "Does evidence favor weak first-order behavior?",
+                        "rationale": "Grounded in selected claim.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "claim_deep"}],
+                        "suggested_queries": [],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": [],
+            }
+        else:
+            calls.append("assess_analysis")
+            assert '"kind": "selected_evidence"' in user_content
+            assert '"materialization_plan"' in user_content
+            payload = {
+                "relations": [
+                    {
+                        "type": "supports",
+                        "claim": "Selected evidence supports the weak first-order focus.",
+                        "rationale": "The selected packet contains the directly relevant claim.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "claim_deep"}],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        return {
+            "choices": [{"message": {"content": json.dumps(payload, ensure_ascii=False)}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+            "id": f"litellm-{calls[-1]}",
+        }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "litellm",
+        SimpleNamespace(
+            acompletion=fake_acompletion,
+            suppress_debug_info=False,
+            disable_cost_calc=False,
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "weak first order evidence",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "deep-expand-run",
+            "--analysis-provider",
+            "litellm",
+            "--model",
+            "litellm_proxy/test-model",
+            "--search-limit",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == ["query_plan", "field_map_analysis", "focus_analysis", "assess_analysis"]
+    assert materialize_calls == [
+        {
+            "paper_ids": ["P_DEEP"],
+            "claim_ids": [],
+            "chain_claim_ids": ["claim_deep"],
+            "lkm_index": "bohrium",
+            "artifact_only": False,
+            "dry_run": False,
+            "pkg": pkg_dir,
+        }
+    ]
+    selected_evidence_path = next(
+        (pkg_dir / ".gaia" / "research" / "evidence").glob("selected-evidence-*.json")
+    )
+    selected_evidence = json.loads(selected_evidence_path.read_text(encoding="utf-8"))
+    assert selected_evidence["materialization_result"]["lkm_packages_materialized"] == [
+        {"source_ref": "lkm:bohrium:paper:P_DEEP"}
+    ]
 
 
 def test_litellm_json_parser_repairs_latex_backslashes() -> None:

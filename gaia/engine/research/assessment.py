@@ -143,9 +143,7 @@ def _item_matches_cited_refs(item: dict[str, Any], cited: dict[str, set[str]]) -
     source = item.get("source")
     paper_id = source.get("paper_id") if isinstance(source, dict) else None
     package_ref_payload = item.get("package_ref")
-    package_ref = (
-        package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
-    )
+    package_ref = package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
     return (
         (
             isinstance(kind, str)
@@ -396,9 +394,7 @@ def _source_ref_for_item(item: dict[str, Any]) -> dict[str, str] | None:
     if isinstance(paper_id, str) and paper_id:
         return {"kind": "paper", "id": paper_id}
     package_ref_payload = item.get("package_ref")
-    package_ref = (
-        package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
-    )
+    package_ref = package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
     if isinstance(package_ref, str) and package_ref:
         return {"kind": "package_ref", "id": package_ref}
     return None
@@ -456,10 +452,15 @@ def build_assessment_from_analysis(
     focus: dict[str, Any],
     landscapes: list[dict[str, Any]],
     analysis: dict[str, Any],
+    evidence_packet: dict[str, Any] | None = None,
     strict_grounding: bool = True,
 ) -> dict[str, Any]:
     """Build an assessment artifact from agent/LLM analysis and landscapes."""
-    evidence_packet = _evidence_packet_from_landscapes(landscapes)
+    evidence_packet = (
+        dict(evidence_packet)
+        if evidence_packet is not None
+        else _evidence_packet_from_landscapes(landscapes)
+    )
     relations = analysis.get("relations", [])
     if not isinstance(relations, list):
         raise AssessmentSchemaError("analysis.relations must be a list")

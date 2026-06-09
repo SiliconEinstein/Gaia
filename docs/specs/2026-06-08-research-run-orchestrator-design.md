@@ -259,10 +259,15 @@ The medium-term pipeline phases are:
    takes the selected focus's `suggested_queries` plus coverage-gap suggested
    queries from `focus_analysis`.
 13. `explore_expand`: run targeted expand.
-14. `assess_analysis`: fixed LLM call producing `assess-analysis.json`.
-15. `assess_sync`: run `gaia research assess`.
-16. `reports_stop`: write stop JSON and one final trace-backed evidence report.
-17. `summarize_check`: run one final trace summary; callers still run build
+14. `evidence_select`: build a compact selected-evidence packet from the
+    selected focus and available landscapes.
+15. `deep_expand`: materialize only selected paper graphs or reasoning chains
+    needed to ground assessment.
+16. `assess_analysis`: fixed LLM call producing `assess-analysis.json` from
+    selected evidence rather than full landscapes.
+17. `assess_sync`: run `gaia research assess`.
+18. `reports_stop`: write stop JSON and one final trace-backed evidence report.
+19. `summarize_check`: run one final trace summary; callers still run build
     check explicitly.
 
 The first envelope-only slice stops at `query_plan` with
@@ -299,8 +304,9 @@ diagnostics.
   distinctly in state.
 - Topic-only `litellm` runs execute `query_plan`, broad live search,
   `field_map_analysis`, optional field-map coverage search, focus analysis,
-  suggested-query targeted live search, assessment, stop, final evidence
-  report, and trace summary without caller-supplied queries.
+  suggested-query targeted live search, selected-evidence/deep expansion,
+  assessment, stop, final evidence report, and trace summary without
+  caller-supplied queries.
 - `--analysis-provider command` records provider input/output files and `llm`
   trace rows while preserving the same downstream sync path as file-provider
   inputs.

@@ -26,6 +26,10 @@ from gaia.engine.research.contracts import (
     propose_contract,
     research_contract,
 )
+from gaia.engine.research.evidence_selection import (
+    SELECTED_EVIDENCE_SCHEMA_VERSION,
+    build_selected_evidence_artifact,
+)
 from gaia.engine.research.field_map import (
     FIELD_MAP_SCHEMA_VERSION,
     FieldMapSchemaError,
@@ -65,9 +69,10 @@ from gaia.engine.research.sync import (
 )
 
 __all__ = [
+    "FIELD_MAP_SCHEMA_VERSION",
+    "SELECTED_EVIDENCE_SCHEMA_VERSION",
     "STOP_SCHEMA_VERSION",
     "AssessmentSchemaError",
-    "FIELD_MAP_SCHEMA_VERSION",
     "FieldMapSchemaError",
     "FocusSynthesisSchemaError",
     "ProposalSchemaError",
@@ -88,6 +93,7 @@ __all__ = [
     "build_focus_synthesis_artifact",
     "build_proposal_from_assessment",
     "build_research_landscape",
+    "build_selected_evidence_artifact",
     "ensure_research_manifest",
     "evaluate_research_stop",
     "field_map_contract",

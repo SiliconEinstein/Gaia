@@ -132,7 +132,9 @@ For benchmark/live eval mode, follow `references/live-eval-sop.md`. In short:
    let `field_map_analysis` induce a review taxonomy from primary evidence
    before focus selection. Thin or missing review buckets can trigger
    coverage-expansion searches; then `focus_analysis.suggested_queries` drives
-   focus-targeted searches.
+   focus-targeted searches. Before assessment, let the runner select a compact
+   evidence packet and deep-materialize only the highest-value paper graphs or
+   reasoning chains needed to ground the selected focus.
    Do not pass `--llm-max-tokens` in normal live runs; the fixed prompts should
    stay compact, and provider truncation should be handled by prompt/schema
    tightening rather than caller-side caps.
@@ -144,8 +146,9 @@ For benchmark/live eval mode, follow `references/live-eval-sop.md`. In short:
 6. After the final trace append, run `gaia research trace summarize "$PKG"
    --trace-dir "$TRACE"` to rebuild derived `benchmark.json` from `trace.jsonl`.
 7. Produce `evaluation_trace.md`, `benchmark.json`, `trace.jsonl`, field-map,
-   focus and assess contracts, analysis JSON files, JSON stop criteria, and
-   one final scholarly evidence report at `$RUN/trace/final_report.md`.
+   selected-evidence, focus and assess contracts, analysis JSON files, JSON
+   stop criteria, and one final scholarly evidence report at
+   `$RUN/trace/final_report.md`.
 8. In `evaluation_trace.md`, distinguish end-to-end elapsed time from the
    derived benchmark summary's sum of explicitly recorded trace step wall times.
 9. Treat ordinary coverage gaps and `needs_more_evidence` items as deferred

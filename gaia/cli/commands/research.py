@@ -41,6 +41,7 @@ from gaia.engine.research import (
     build_focus_synthesis_artifact,
     build_proposal_from_assessment,
     build_research_landscape,
+    build_selected_evidence_artifact,
     ensure_research_manifest,
     evaluate_research_stop,
     load_research_package,
@@ -2317,6 +2318,154 @@ def _run_coverage_landscape_phase(
     return coverage_path, coverage_landscape
 
 
+def _focus_payload_for_selection(
+    focus_artifact: dict[str, Any],
+    selected_focus: str,
+) -> dict[str, Any]:
+    focuses = focus_artifact.get("focuses")
+    if isinstance(focuses, list):
+        for focus in focuses:
+            if isinstance(focus, dict) and str(focus.get("id")) == selected_focus:
+                return dict(focus)
+    return {"kind": "focus", "id": selected_focus}
+
+
+def _run_evidence_select_and_deep_expand(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    focus_artifact: dict[str, Any],
+    selected_focus: str,
+    landscapes: list[dict[str, Any]],
+    landscape_paths: list[Path],
+    lkm_index: str,
+    artifact_only: bool,
+    research_mode: str,
+    json_stream: bool,
+) -> tuple[Path, dict[str, Any]]:
+    focus_payload = _focus_payload_for_selection(focus_artifact, selected_focus)
+    _update_run_state(run, {"phase": "evidence_select"})
+    _emit_run_event(
+        run,
+        event_type="phase.started",
+        phase="evidence_select",
+        json_stream=json_stream,
+        payload={"focus": selected_focus, "inputs": [str(path) for path in landscape_paths]},
+    )
+    start = perf_counter()
+    selected_evidence = build_selected_evidence_artifact(
+        focus=focus_payload,
+        landscapes=landscapes,
+    )
+    selected_evidence_path = write_research_artifact(
+        research_pkg,
+        "evidence",
+        "selected-evidence",
+        selected_evidence,
+    )
+    plan = cast(dict[str, list[str]], selected_evidence["materialization_plan"])
+    selection = cast(dict[str, Any], selected_evidence["selection"])
+    append_research_event(
+        research_pkg,
+        "run.evidence_select.completed",
+        {
+            "focus": selected_focus,
+            "artifact": str(selected_evidence_path),
+            "selection": selection,
+            "materialization_plan": plan,
+        },
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="evidence.select",
+        mode=research_mode,
+        inputs=[str(path) for path in landscape_paths],
+        outputs=[str(selected_evidence_path)],
+        metrics={
+            **selection,
+            "paper_materialize_requests": len(plan["paper_ids"]),
+            "chain_materialize_requests": len(plan["chain_claim_ids"]),
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="evidence_select",
+        json_stream=json_stream,
+        payload={
+            "artifact": str(selected_evidence_path),
+            "selection": selection,
+            "materialization_plan": plan,
+        },
+    )
+
+    _update_run_state(run, {"phase": "deep_expand"})
+    _emit_run_event(
+        run,
+        event_type="phase.started",
+        phase="deep_expand",
+        json_stream=json_stream,
+        payload={"focus": selected_focus, "artifact": str(selected_evidence_path), "plan": plan},
+    )
+    start = perf_counter()
+    materialized = _materialize_lkm_papers_or_exit(
+        research_pkg,
+        paper_ids=list(plan["paper_ids"]),
+        claim_ids=list(plan["claim_ids"]),
+        chain_claim_ids=list(plan["chain_claim_ids"]),
+        lkm_index=lkm_index,
+        artifact_only=artifact_only,
+        dry_run=False,
+    )
+    selected_evidence["materialization_result"] = materialized
+    selected_evidence_path.write_text(
+        json.dumps(selected_evidence, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    append_research_event(
+        research_pkg,
+        "run.deep_expand.completed",
+        {
+            "focus": selected_focus,
+            "artifact": str(selected_evidence_path),
+            **materialized,
+        },
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="deep.expand",
+        mode=research_mode,
+        inputs=[str(selected_evidence_path)],
+        outputs=[str(selected_evidence_path)],
+        metrics={
+            "lkm_materialize_requests": _count_payload_items(
+                materialized,
+                "lkm_materialize_requests",
+            ),
+            "lkm_packages_materialized": _count_payload_items(
+                materialized,
+                "lkm_packages_materialized",
+            ),
+            "lkm_chains_materialized": _count_payload_items(
+                materialized,
+                "lkm_chains_materialized",
+            ),
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="deep_expand",
+        json_stream=json_stream,
+        payload={"artifact": str(selected_evidence_path), **materialized},
+    )
+    return selected_evidence_path, selected_evidence
+
+
 def _execute_file_provider_run(
     research_pkg: ResearchPackage,
     run: ResearchRunStart,
@@ -2664,6 +2813,27 @@ def _execute_file_provider_run(
             payload={"artifact": str(expand_path), "stats": expand_landscape["stats"]},
         )
 
+    selected_evidence_path: Path | None = None
+    selected_evidence_artifact: dict[str, Any] | None = None
+    if assess_analysis_json is None and analysis_provider in {"command", "litellm"}:
+        selected_evidence_path, selected_evidence_artifact = _run_evidence_select_and_deep_expand(
+            research_pkg,
+            run,
+            focus_artifact=focus_artifact,
+            selected_focus=str(selected_focus),
+            landscapes=landscapes,
+            landscape_paths=landscape_paths,
+            lkm_index=search_index,
+            artifact_only=artifact_only,
+            research_mode=research_mode,
+            json_stream=json_stream,
+        )
+        state_artifacts["selected_evidence"] = str(selected_evidence_path)
+
+    assessment_input_paths: list[Path] = (
+        [selected_evidence_path] if selected_evidence_path is not None else landscape_paths
+    )
+
     if assess_analysis_json is None:
         if analysis_provider == "command":
             if assess_analysis_command is None:
@@ -2683,7 +2853,7 @@ def _execute_file_provider_run(
                     topic=topic,
                     language=language,
                     contract_kind="assess",
-                    artifact_paths=landscape_paths,
+                    artifact_paths=assessment_input_paths,
                     focus=selected_focus,
                 ),
                 output_name="assess_analysis",
@@ -2701,7 +2871,7 @@ def _execute_file_provider_run(
                     topic=topic,
                     language=language,
                     contract_kind="assess",
-                    artifact_paths=landscape_paths,
+                    artifact_paths=assessment_input_paths,
                     focus=selected_focus,
                 ),
                 output_name="assess_analysis",
@@ -2729,16 +2899,26 @@ def _execute_file_provider_run(
         json_stream=json_stream,
         payload={
             "focus": selected_focus,
-            "inputs": [*[str(path) for path in landscape_paths], assess_analysis_json],
+            "inputs": [*[str(path) for path in assessment_input_paths], assess_analysis_json],
         },
     )
     start = perf_counter()
     assess_analysis = _read_json_object_ref(assess_analysis_json, label="--assess-analysis-json")
+    selected_evidence_packet = (
+        selected_evidence_artifact.get("evidence_packet")
+        if selected_evidence_artifact is not None
+        else None
+    )
     try:
         assessment = build_assessment_from_analysis(
             focus={"kind": "focus", "id": selected_focus},
             landscapes=landscapes,
             analysis=assess_analysis,
+            evidence_packet=(
+                cast(dict[str, Any], selected_evidence_packet)
+                if isinstance(selected_evidence_packet, dict)
+                else None
+            ),
             strict_grounding=True,
         )
     except AssessmentSchemaError as exc:
@@ -2773,6 +2953,7 @@ def _execute_file_provider_run(
             "focus": selected_focus,
             "artifact": str(assessment_path),
             "landscapes": [str(path) for path in landscape_paths],
+            "selected_evidence": str(selected_evidence_path) if selected_evidence_path else None,
             "items": len(assessment["evidence_packet"]["items"]),
             "relations": len(assessment["relations"]),
             "relation_type_counts": relation_counts,
@@ -2788,7 +2969,7 @@ def _execute_file_provider_run(
         start=start,
         name="assess",
         mode=research_mode,
-        inputs=[*[str(path) for path in landscape_paths], assess_analysis_json],
+        inputs=[*[str(path) for path in assessment_input_paths], assess_analysis_json],
         outputs=[str(assessment_path)],
         metrics={
             "items": len(assessment["evidence_packet"]["items"]),

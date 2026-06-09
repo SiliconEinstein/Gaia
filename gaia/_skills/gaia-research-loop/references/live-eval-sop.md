@@ -46,7 +46,9 @@ materializes `.gaia/research/field_maps/*.json`, and may run
 `searches/coverage-*.json` to fill thin or missing review buckets before focus
 synthesis. After focus synthesis, it uses the selected focus's
 `suggested_queries` plus focus coverage-gap suggested queries for targeted
-search.
+search. Before assessment, it writes `.gaia/research/evidence/selected-evidence-*.json`
+and, outside artifact-only mode, deep-materializes only the selected paper
+graphs or reasoning chains required by that compact evidence packet.
 Keep the LLM path unconstrained by caller-side output caps; if a provider emits
 oversized JSON, tighten the phase prompt or schema rather than adding
 `--llm-max-tokens`.
@@ -293,6 +295,7 @@ Produce or preserve:
 - `$RUN/analysis/field_map_analysis.json` or `field_map_analysis.output.json`
 - `.gaia/research/field_maps/*.json`
 - `$RUN/searches/coverage-*.json` when field-map buckets require expansion
+- `.gaia/research/evidence/selected-evidence-*.json`
 - `$RUN/analysis/focus-contract.json`
 - `$RUN/analysis/focus-analysis.json`
 - `$RUN/analysis/assess-contract.json`

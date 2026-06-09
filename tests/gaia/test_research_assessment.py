@@ -275,6 +275,44 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
     assert validate_assessment_grounding(artifact) is artifact
 
 
+def test_assessment_from_analysis_accepts_selected_evidence_packet() -> None:
+    selected_packet = {
+        "landscapes": [{"index": 0, "kind": "research_landscape", "action": "explore.expand"}],
+        "items": [
+            {
+                "item_id": "aspree_variable",
+                "kind": "variable",
+                "id": "aspree_variable",
+                "variable_type": "claim",
+                "content": "ASPREE reported no cardiovascular benefit.",
+                "source": {"paper_id": "P_ASPREE", "paper_title": "ASPREE trial"},
+            }
+        ],
+        "paper_leads": [{"paper_id": "P_ASPREE", "variable_ids": ["aspree_variable"]}],
+    }
+
+    artifact = build_assessment_from_analysis(
+        focus={"kind": "focus", "id": "elderly_net_benefit"},
+        landscapes=[],
+        evidence_packet=selected_packet,
+        analysis={
+            "relations": [
+                _relation(
+                    type="opposes",
+                    claim="ASPREE opposes routine aspirin use in healthy older adults.",
+                    rationale="The selected evidence reports no cardiovascular benefit.",
+                    promotion_hint="none",
+                    source_refs=[{"kind": "variable", "id": "aspree_variable"}],
+                )
+            ],
+            "candidate_obligations": [],
+        },
+    )
+
+    assert artifact["evidence_packet"] == selected_packet
+    assert validate_assessment_grounding(artifact) is artifact
+
+
 def test_assessment_grounding_rejects_unknown_item_ref() -> None:
     with pytest.raises(AssessmentSchemaError, match="not grounded"):
         build_assessment_from_analysis(
