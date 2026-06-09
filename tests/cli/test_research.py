@@ -214,9 +214,7 @@ def test_research_run_start_writes_state_events_and_checkpoint(tmp_path: Path) -
     assert state["package"]["project_name"] == "research-demo-gaia"
     assert state["run_dir"] == str(run_dir)
     assert state["trace_dir"] == str(run_dir / "trace")
-    assert state["pending_checkpoint"] == str(
-        run_dir / "checkpoints" / "query_plan.request.json"
-    )
+    assert state["pending_checkpoint"] == str(run_dir / "checkpoints" / "query_plan.request.json")
     assert state["artifacts"] == {}
     assert state["metrics"] == {}
 
@@ -269,17 +267,8 @@ def test_research_run_json_stream_emits_persisted_events(tmp_path: Path) -> None
         "checkpoint.created",
         "run.waiting_for_input",
     ]
-    events_path = (
-        pkg_dir
-        / ".gaia"
-        / "research"
-        / "runs"
-        / "stream-test-run"
-        / "events.ndjson"
-    )
-    persisted = [
-        json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()
-    ]
+    events_path = pkg_dir / ".gaia" / "research" / "runs" / "stream-test-run" / "events.ndjson"
+    persisted = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
     assert streamed == persisted
 
 
@@ -621,7 +610,26 @@ def test_research_run_executes_litellm_provider(
         messages = kwargs["messages"]
         assert isinstance(messages, list)
         user_content = str(messages[-1]["content"])
-        if '"phase": "focus_analysis"' in user_content:
+        if '"phase": "field_map_analysis"' in user_content:
+            payload = {
+                "domain_thesis": "一级预防证据需要先按人群、获益和危害建立地图。",
+                "buckets": [
+                    {
+                        "id": "trial_evidence",
+                        "title": "Trial evidence",
+                        "role": "main evidence base",
+                        "required_for_review": True,
+                        "coverage_status": "covered",
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                        "recommended_queries": [],
+                    }
+                ],
+                "controversy_axes": ["benefit versus bleeding"],
+                "coverage_gaps": [],
+                "recommended_expansions": [],
+                "synthesis_notes": [],
+            }
+        elif '"phase": "focus_analysis"' in user_content:
             payload = {
                 "focuses": [
                     {
@@ -708,19 +716,20 @@ def test_research_run_executes_litellm_provider(
 
     assert result.exit_code == 0, result.output
     assert "status: completed" in result.output
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert {call["model"] for call in calls} == {"litellm_proxy/test-model"}
     assert {call["timeout"] for call in calls} == {9.0}
     assert {call["max_retries"] for call in calls} == {1}
     assert all(call["response_format"] == {"type": "json_object"} for call in calls)
     run_dir = pkg_dir / ".gaia" / "research" / "runs" / "litellm-provider-run"
+    assert (run_dir / "analysis" / "field_map_analysis.output.json").exists()
     assert (run_dir / "analysis" / "focus_analysis.output.json").exists()
     assert (run_dir / "analysis" / "assess_analysis.output.json").exists()
     benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
-    assert benchmark["summary"]["kind_counts"]["llm"] == 2
-    assert benchmark["summary"]["total_input_tokens"] == 20
-    assert benchmark["summary"]["total_output_tokens"] == 40
-    assert benchmark["summary"]["total_tokens"] == 60
+    assert benchmark["summary"]["kind_counts"]["llm"] == 3
+    assert benchmark["summary"]["total_input_tokens"] == 30
+    assert benchmark["summary"]["total_output_tokens"] == 60
+    assert benchmark["summary"]["total_tokens"] == 90
 
 
 def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
@@ -774,8 +783,38 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
                     }
                 ]
             }
+        elif '"phase": "field_map_analysis"' in user_content:
+            calls.append("field_map_analysis")
+            payload = {
+                "domain_thesis": "一级预防综述需要覆盖试验证据和指南/风险分层。",
+                "buckets": [
+                    {
+                        "id": "trial_evidence",
+                        "title": "Trial evidence",
+                        "role": "main evidence base",
+                        "required_for_review": True,
+                        "coverage_status": "covered",
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                        "recommended_queries": [],
+                    },
+                    {
+                        "id": "risk_stratification",
+                        "title": "Risk stratification",
+                        "role": "review coverage gap",
+                        "required_for_review": True,
+                        "coverage_status": "thin",
+                        "evidence_refs": [{"kind": "query", "query_index": 0}],
+                        "recommended_queries": ["aspirin guideline risk stratification"],
+                    },
+                ],
+                "controversy_axes": ["benefit versus bleeding"],
+                "coverage_gaps": [],
+                "recommended_expansions": [],
+                "synthesis_notes": [],
+            }
         elif '"phase": "focus_analysis"' in user_content:
             calls.append("focus_analysis")
+            assert "field_map" in user_content
             payload = {
                 "focuses": [
                     {
@@ -853,15 +892,19 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
     )
 
     assert result.exit_code == 0, result.output
-    assert calls == ["query_plan", "focus_analysis", "assess_analysis"]
+    assert calls == ["query_plan", "field_map_analysis", "focus_analysis", "assess_analysis"]
     assert searched_queries == [
         "aspirin elderly primary prevention",
+        "aspirin guideline risk stratification",
         "aspirin elderly bleeding",
     ]
     run_dir = pkg_dir / ".gaia" / "research" / "runs" / "litellm-auto-plan-run"
     assert (run_dir / "analysis" / "query_plan.output.json").exists()
+    assert (run_dir / "analysis" / "field_map_analysis.output.json").exists()
+    assert len(list((pkg_dir / ".gaia" / "research" / "field_maps").glob("*.json"))) == 1
     assert sorted(path.name for path in (run_dir / "searches").glob("*.json")) == [
         "broad-01.json",
+        "coverage-01.json",
         "targeted-01.json",
     ]
     events = [
@@ -870,12 +913,11 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
         if line.strip()
     ]
     assert any(
-        event["type"] == "provider.completed" and event["phase"] == "query_plan"
-        for event in events
+        event["type"] == "provider.completed" and event["phase"] == "query_plan" for event in events
     )
     benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
-    assert benchmark["summary"]["kind_counts"]["llm"] == 3
-    assert benchmark["summary"]["kind_counts"]["search"] == 2
+    assert benchmark["summary"]["kind_counts"]["llm"] == 4
+    assert benchmark["summary"]["kind_counts"]["search"] == 3
 
 
 def test_litellm_json_parser_repairs_latex_backslashes() -> None:
@@ -933,7 +975,26 @@ def test_research_run_litellm_provider_loads_env_file(
         messages = kwargs["messages"]
         assert isinstance(messages, list)
         user_content = str(messages[-1]["content"])
-        if '"phase": "focus_analysis"' in user_content:
+        if '"phase": "field_map_analysis"' in user_content:
+            payload = {
+                "domain_thesis": "Env file run builds a review field map first.",
+                "buckets": [
+                    {
+                        "id": "trial_evidence",
+                        "title": "Trial evidence",
+                        "role": "main evidence base",
+                        "required_for_review": True,
+                        "coverage_status": "covered",
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                        "recommended_queries": [],
+                    }
+                ],
+                "controversy_axes": ["benefit versus bleeding"],
+                "coverage_gaps": [],
+                "recommended_expansions": [],
+                "synthesis_notes": [],
+            }
+        elif '"phase": "focus_analysis"' in user_content:
             payload = {
                 "focuses": [
                     {
@@ -1006,7 +1067,7 @@ def test_research_run_litellm_provider_loads_env_file(
     )
 
     assert result.exit_code == 0, result.output
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert {call["model"] for call in calls} == {"litellm_proxy/env-model"}
 
 
@@ -1075,17 +1136,17 @@ def test_research_run_litellm_provider_records_raw_and_failed_trace(
     run_dir = pkg_dir / ".gaia" / "research" / "runs" / "litellm-invalid-json-run"
     state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
     assert state["status"] == "failed"
-    assert state["phase"] == "focus_analysis"
-    raw_path = run_dir / "analysis" / "focus_analysis.raw.txt"
+    assert state["phase"] == "field_map_analysis"
+    raw_path = run_dir / "analysis" / "field_map_analysis.raw.txt"
     assert raw_path.read_text(encoding="utf-8") == "Here is the JSON: {}"
-    assert not (run_dir / "analysis" / "focus_analysis.output.json").exists()
+    assert not (run_dir / "analysis" / "field_map_analysis.output.json").exists()
     trace = [
         json.loads(line)
         for line in (run_dir / "trace" / "trace.jsonl").read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
     failed = trace[-1]
-    assert failed["step"] == "provider.litellm.focus_analysis"
+    assert failed["step"] == "provider.litellm.field_map_analysis"
     assert failed["kind"] == "llm"
     assert failed["status"] == "failed"
     assert failed["outputs"] == [str(raw_path)]

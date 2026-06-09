@@ -24,6 +24,101 @@ class ResearchContractError(ValueError):
     """Raised when an unknown research contract is requested."""
 
 
+def field_map_contract(*, language: str = "zh") -> dict[str, Any]:
+    """Return the JSON contract for autonomous review field-map induction."""
+    return {
+        "contract": "gaia.research.field_map",
+        "schema_version": 1,
+        "language": language,
+        "purpose": (
+            "Induce a review-oriented field map from primary search evidence before "
+            "choosing narrow assessment focuses. Do not assume existing review papers "
+            "are present in the corpus."
+        ),
+        "input": {
+            "topic": "The user's original review or evidence-assessment topic.",
+            "landscapes": "Breadth-first landscape artifacts built from live primary search.",
+            "grounding": (
+                "Use retrieved item ids, paper leads, query provenance, methods, "
+                "models, observables, and controversy signals visible in the landscapes."
+            ),
+        },
+        "output_required_fields": {
+            "domain_thesis": "one-paragraph map of what the field is about",
+            "buckets": "list[ReviewBucket]",
+            "controversy_axes": "list[str]",
+            "coverage_gaps": "list[CoverageGap]",
+            "recommended_expansions": "list[str]",
+            "synthesis_notes": "list[str]",
+        },
+        "bucket_fields": {
+            "id": "stable snake/kebab identifier",
+            "title": "reader-facing bucket title",
+            "role": (
+                "why this bucket matters for a review, e.g. historical backbone, "
+                "numerical evidence, theory constraint, experiment, controversy"
+            ),
+            "required_for_review": "bool",
+            "coverage_status": "covered, partial, thin, missing, or out_of_scope",
+            "evidence_refs": "refs grounded in retrieved variables, papers, or queries",
+            "recommended_queries": "list[str] to fill this bucket if coverage is thin",
+        },
+        "coverage_gap_fields": {
+            "kind": "missing_bucket, thin_bucket, missing_method, missing_experiment, etc.",
+            "description": "why the gap matters for a self-contained review",
+            "recommended_queries": "list[str] that can be searched now",
+        },
+        "analysis_guidance": [
+            (
+                "Think like a review author: infer the field taxonomy before selecting "
+                "narrow debates. The map should explain where later focuses fit."
+            ),
+            (
+                "Do not rely on review articles being present. Use primary evidence "
+                "signals to infer model families, methods, diagnostics, and disputes."
+            ),
+            (
+                "Separate review-coverage gaps from scientific unknowns. A missing "
+                "experimental bucket can drive more search; a need for new simulation "
+                "belongs in later assessment limitations."
+            ),
+            (
+                "Include buckets for historical/foundational theory, canonical models, "
+                "numerical diagnostics, theoretical constraints, experimental systems, "
+                "and recent controversies when the topic calls for them."
+            ),
+            "Keep recommended_expansions to the highest-value 2-5 live-search queries.",
+        ],
+        "example": {
+            "domain_thesis": (
+                "DQCP evidence spans canonical lattice simulations, emergent symmetry "
+                "diagnostics, field-theory constraints, and experimental proximate systems."
+            ),
+            "buckets": [
+                {
+                    "id": "canonical_lattice_models",
+                    "title": "Canonical lattice models",
+                    "role": "historical and numerical backbone",
+                    "required_for_review": True,
+                    "coverage_status": "partial",
+                    "evidence_refs": [{"kind": "query", "query_index": 0}],
+                    "recommended_queries": ["square lattice J-Q scaling violations"],
+                }
+            ],
+            "controversy_axes": ["continuous DQCP versus weak first-order transition"],
+            "coverage_gaps": [
+                {
+                    "kind": "missing_experiment",
+                    "description": "Experimental proximate DQCP systems are absent.",
+                    "recommended_queries": ["SrCu2(BO3)2 proximate deconfined critical point"],
+                }
+            ],
+            "recommended_expansions": ["SrCu2(BO3)2 proximate deconfined critical point"],
+            "synthesis_notes": ["Assess focuses only after the coverage buckets are visible."],
+        },
+    }
+
+
 def focus_contract(*, language: str = "zh") -> dict[str, Any]:
     """Return the JSON contract for LLM focus synthesis output."""
     return {
@@ -221,8 +316,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "and unresolved issues"
             ),
             "figure_specs": (
-                "list[object] with title, purpose, visual_structure, data_needed, "
-                "and takeaway"
+                "list[object] with title, purpose, visual_structure, data_needed, and takeaway"
             ),
             "limitations": "list[str]",
             "next_queries": "list[str]",
@@ -417,18 +511,21 @@ def propose_contract(*, language: str = "zh") -> dict[str, Any]:
 def research_contract(kind: str, *, language: str = "zh") -> dict[str, Any]:
     """Return one named research contract."""
     normalized = kind.strip().lower()
+    if normalized in {"field_map", "field-map", "map", "review_map"}:
+        return field_map_contract(language=language)
     if normalized in {"focus", "focuses", "focus_synthesis"}:
         return focus_contract(language=language)
     if normalized in {"assess", "assessment", "assessment_analysis"}:
         return assess_contract(language=language)
     if normalized in {"propose", "proposal", "proposal_analysis"}:
         return propose_contract(language=language)
-    raise ResearchContractError("supported contracts are: focus, assess, propose")
+    raise ResearchContractError("supported contracts are: field_map, focus, assess, propose")
 
 
 __all__ = [
     "ResearchContractError",
     "assess_contract",
+    "field_map_contract",
     "focus_contract",
     "propose_contract",
     "research_contract",

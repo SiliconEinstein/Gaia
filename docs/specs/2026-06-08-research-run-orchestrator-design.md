@@ -79,8 +79,9 @@ gaia research run "$PKG" \
   --assess-analysis-json "$RUN/analysis/assess-analysis.json"
 ```
 
-When the file-provider inputs are complete, the command executes scan, focus,
-optional expand, assess, stop, final report, and trace summary. When an input is
+When the file-provider inputs are complete, the command executes scan,
+field-map induction, optional coverage expansion, focus, optional targeted
+expand, assess, stop, final report, and trace summary. When an input is
 missing, it writes the next checkpoint and leaves `state.json` at
 `status=waiting_for_input`.
 
@@ -242,19 +243,26 @@ The medium-term pipeline phases are:
    `analysis/query_plan.output.json`.
 3. `search_broad`: execute searches, preserve raw JSON, append trace rows.
 4. `explore_scan`: run package-native or artifact-only scan.
-5. `focus_analysis`: fixed LLM call producing `focus-analysis.json`.
-6. `focus_sync`: run `gaia research focus`.
-7. `expand_plan`: focus-output `suggested_queries` or user-supplied targeted
+5. `field_map_analysis`: fixed LLM call inducing a review taxonomy from
+   primary broad-search evidence.
+6. `field_map_sync`: write `.gaia/research/field_maps/*.json`.
+7. `search_coverage`: execute field-map recommended expansions for thin or
+   missing review buckets.
+8. `explore_coverage`: build coverage landscape and sync/materialize if needed.
+9. `focus_analysis`: fixed LLM call producing `focus-analysis.json` from the
+   scan, coverage landscape, and field map.
+10. `focus_sync`: run `gaia research focus`.
+11. `expand_plan`: focus-output `suggested_queries` or user-supplied targeted
    queries.
-8. `search_targeted`: execute targeted searches. When neither
+12. `search_targeted`: execute targeted searches. When neither
    `--targeted-query` nor `--targeted-search-json` is supplied, the runner
    takes the selected focus's `suggested_queries` plus coverage-gap suggested
    queries from `focus_analysis`.
-9. `explore_expand`: run targeted expand.
-10. `assess_analysis`: fixed LLM call producing `assess-analysis.json`.
-11. `assess_sync`: run `gaia research assess`.
-12. `reports_stop`: write stop JSON and one final trace-backed evidence report.
-13. `summarize_check`: run one final trace summary; callers still run build
+13. `explore_expand`: run targeted expand.
+14. `assess_analysis`: fixed LLM call producing `assess-analysis.json`.
+15. `assess_sync`: run `gaia research assess`.
+16. `reports_stop`: write stop JSON and one final trace-backed evidence report.
+17. `summarize_check`: run one final trace summary; callers still run build
     check explicitly.
 
 The first envelope-only slice stops at `query_plan` with
@@ -289,9 +297,10 @@ diagnostics.
 - `--json-stream` emits machine-readable NDJSON matching the persisted events.
 - `--mode artifact-only` and `--mode fast-package-native` are recorded
   distinctly in state.
-- Topic-only `litellm` runs execute `query_plan`, broad live search, focus
-  analysis, suggested-query targeted live search, assessment, stop, final
-  evidence report, and trace summary without caller-supplied queries.
+- Topic-only `litellm` runs execute `query_plan`, broad live search,
+  `field_map_analysis`, optional field-map coverage search, focus analysis,
+  suggested-query targeted live search, assessment, stop, final evidence
+  report, and trace summary without caller-supplied queries.
 - `--analysis-provider command` records provider input/output files and `llm`
   trace rows while preserving the same downstream sync path as file-provider
   inputs.

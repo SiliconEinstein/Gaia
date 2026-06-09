@@ -6,10 +6,10 @@ since: v0.6
 
 # Research Loop CLI
 
-`gaia research` is the package-native workflow for broad exploration, focus
-synthesis, targeted expansion, and evidence assessment. Its canonical state
-lives in Gaia package source and Gaia inquiry state; research JSON exists only
-as trace, cache, or audit output.
+`gaia research` is the package-native workflow for broad exploration,
+review-field mapping, focus synthesis, targeted expansion, and evidence
+assessment. Its canonical state lives in Gaia package source and Gaia inquiry
+state; research JSON exists only as trace, cache, or audit output.
 
 The guiding rule is:
 
@@ -37,6 +37,8 @@ landscape is visible:
 
 ```text
 broad explore
+  -> review field-map induction
+  -> coverage expansion for thin review buckets
   -> focus synthesis
   -> targeted expand
   -> assess one focus
@@ -46,8 +48,10 @@ broad explore
 ```
 
 Early exploration should map model families, probe families, methods,
-systematics, and missing coverage. Assessment can then inspect paper graphs,
-reasoning chains, and selected LKM-backed packages for a specific focus.
+systematics, and missing coverage. The field map turns that breadth into a
+review taxonomy before the loop chooses assessable focuses. Assessment can then
+inspect paper graphs, reasoning chains, and selected LKM-backed packages for a
+specific focus.
 
 ## Command Semantics
 
@@ -237,8 +241,10 @@ premise-conclusion chain for one claim but does not need the whole paper graph.
 
 | Old artifact concept | Canonical home | Trace role |
 |----------------------|----------------|------------|
+| review field map | non-canonical review scaffold | record induced taxonomy, controversy axes, and coverage-expansion rationale |
 | focus artifact | `question(...)`, inquiry focus, inquiry obligations | record LLM synthesis and ranking |
-| coverage gap | inquiry obligation | keep original explanation |
+| review coverage gap | field-map/focus/assessment artifact unless it blocks the current focus | keep original explanation and suggested queries |
+| blocking focus gap | inquiry obligation | preserve actionability rationale |
 | assessment relation | `candidate_relation(...)` until promoted | preserve evidence snippets and citation anchors |
 | candidate obligation | inquiry obligation | preserve assessment rationale |
 | search item | shallow local source package added through `gaia pkg add --local` semantics | keep raw row for trace and LLM contract |
@@ -272,6 +278,9 @@ main loop:
   packages from search items, attach those packages as local dependencies, and
   sync candidate focuses / coverage gaps into inquiry hypotheses and
   obligations;
+- topic-only `run` with `--analysis-provider litellm` lets the runner generate
+  broad queries, induce a field map, optionally search thin review buckets, and
+  pass the scan, coverage landscape, and field map into focus synthesis;
 - `focus` writes at most 3 accepted focuses as package `question(...)`
   statements and sets the first as the inquiry focus;
 - `assess` writes review notes, inquiry hypotheses/obligations, and

@@ -77,7 +77,25 @@ Print the contract:
 gaia research contract focus --language zh > "$RUN/analysis/focus-contract.json"
 ```
 
-Ask the agent/LLM to read the scan landscape and write:
+Before choosing focuses, ask the agent/LLM to read the broad scan landscape and
+write a review field map:
+
+```bash
+gaia research contract field_map --language zh > "$RUN/analysis/field-map-contract.json"
+```
+
+```text
+$RUN/analysis/field_map_analysis.json
+```
+
+The field map should infer the review taxonomy from primary retrieved evidence:
+model families, methods, diagnostics, theory constraints, experimental systems,
+controversy axes, and review-coverage gaps. If it recommends high-value
+coverage searches for thin or missing buckets, run those searches and add the
+coverage landscape before focus synthesis.
+
+Then ask the agent/LLM to read the scan landscape, any coverage landscape, and
+the field map, and write:
 
 ```text
 $RUN/analysis/focus-analysis.json
@@ -91,6 +109,7 @@ Validate and write the artifact:
 ```bash
 gaia research focus "$PKG" \
   --landscape "$PKG/.gaia/research/landscapes/<scan>.json" \
+  --landscape "$PKG/.gaia/research/landscapes/<coverage>.json" \
   --analysis-json "$RUN/analysis/focus-analysis.json" \
   --language zh \
   --trace-dir "$TRACE"

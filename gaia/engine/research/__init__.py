@@ -21,9 +21,16 @@ from gaia.engine.research.assessment import (
 from gaia.engine.research.contracts import (
     ResearchContractError,
     assess_contract,
+    field_map_contract,
     focus_contract,
     propose_contract,
     research_contract,
+)
+from gaia.engine.research.field_map import (
+    FIELD_MAP_SCHEMA_VERSION,
+    FieldMapSchemaError,
+    build_field_map_artifact,
+    validate_field_map_artifact,
 )
 from gaia.engine.research.focus import (
     FocusSynthesisSchemaError,
@@ -60,6 +67,8 @@ from gaia.engine.research.sync import (
 __all__ = [
     "STOP_SCHEMA_VERSION",
     "AssessmentSchemaError",
+    "FIELD_MAP_SCHEMA_VERSION",
+    "FieldMapSchemaError",
     "FocusSynthesisSchemaError",
     "ProposalSchemaError",
     "ResearchContractError",
@@ -75,11 +84,13 @@ __all__ = [
     "build_assessment_artifact",
     "build_assessment_from_analysis",
     "build_assessment_from_landscapes",
+    "build_field_map_artifact",
     "build_focus_synthesis_artifact",
     "build_proposal_from_assessment",
     "build_research_landscape",
     "ensure_research_manifest",
     "evaluate_research_stop",
+    "field_map_contract",
     "focus_contract",
     "load_research_package",
     "materialize_landscape_source_package",
@@ -96,6 +107,7 @@ __all__ = [
     "validate_assessment_artifact",
     "validate_assessment_grounding",
     "validate_assessment_relation",
+    "validate_field_map_artifact",
     "validate_focus_synthesis_artifact",
     "validate_proposal_artifact",
     "validate_proposal_record",

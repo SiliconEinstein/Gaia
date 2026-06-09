@@ -97,6 +97,8 @@ Load only the reference needed for the current phase:
   `references/live-eval-sop.md`.
 - Research trace, derived `benchmark.json`, timing, token usage, retries, and quality
   notes: `references/benchmark-trace.md`.
+- Field-map induction JSON prompt:
+  `references/field-map-analysis-prompt.md`.
 - Focus analysis JSON prompt: `references/focus-analysis-prompt.md`.
 - Assessment analysis JSON prompt and candidate relation rules:
   `references/assess-analysis-prompt.md`.
@@ -127,7 +129,10 @@ For benchmark/live eval mode, follow `references/live-eval-sop.md`. In short:
    Do not pass broad `--query`, `--search-json`, `--targeted-query`, or
    `--targeted-search-json` unless the user explicitly asks to replay fixed
    inputs. Let the runner's `query_plan` LLM call generate broad searches, and
-   let `focus_analysis.suggested_queries` drive targeted searches.
+   let `field_map_analysis` induce a review taxonomy from primary evidence
+   before focus selection. Thin or missing review buckets can trigger
+   coverage-expansion searches; then `focus_analysis.suggested_queries` drives
+   focus-targeted searches.
    Do not pass `--llm-max-tokens` in normal live runs; the fixed prompts should
    stay compact, and provider truncation should be handled by prompt/schema
    tightening rather than caller-side caps.
@@ -138,9 +143,9 @@ For benchmark/live eval mode, follow `references/live-eval-sop.md`. In short:
    usage, retries, and other external steps.
 6. After the final trace append, run `gaia research trace summarize "$PKG"
    --trace-dir "$TRACE"` to rebuild derived `benchmark.json` from `trace.jsonl`.
-7. Produce `evaluation_trace.md`, `benchmark.json`, `trace.jsonl`, focus and
-   assess contracts, analysis JSON files, JSON stop criteria, and one final
-   scholarly evidence report at `$RUN/trace/final_report.md`.
+7. Produce `evaluation_trace.md`, `benchmark.json`, `trace.jsonl`, field-map,
+   focus and assess contracts, analysis JSON files, JSON stop criteria, and
+   one final scholarly evidence report at `$RUN/trace/final_report.md`.
 8. In `evaluation_trace.md`, distinguish end-to-end elapsed time from the
    derived benchmark summary's sum of explicitly recorded trace step wall times.
 9. Treat ordinary coverage gaps and `needs_more_evidence` items as deferred
@@ -166,13 +171,15 @@ Before handoff:
 1. `gaia build check "$PKG"` passes when package source changed.
 2. Focus, assessment, and stop remain JSON audit artifacts; the only default
    Markdown report from a run is `$RUN/trace/final_report.md`.
-3. Final review prose reads like a scholarly evidence review, not a command
+3. Field-map buckets cover the topic's review-level taxonomy before narrow
+   focus assessment begins.
+4. Final review prose reads like a scholarly evidence review, not a command
    transcript or run summary.
-4. Main review prose does not mention Gaia, LKM, CLI, artifact ids, or workflow
+5. Main review prose does not mention Gaia, LKM, CLI, artifact ids, or workflow
    jargon except in explicit provenance/trace sections.
-5. Relations and obligations are explained in prose; raw tables stay in JSON
+6. Relations and obligations are explained in prose; raw tables stay in JSON
    artifacts.
-6. The trace says what to do next: broaden search, expand a focus, assess
+7. The trace says what to do next: broaden search, expand a focus, assess
    another focus, deep-materialize selected papers/chains, defer known gaps, or
    stop.
 

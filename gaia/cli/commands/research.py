@@ -37,6 +37,7 @@ from gaia.engine.research import (
     attach_source_package_refs,
     build_assessment_from_analysis,
     build_assessment_from_landscapes,
+    build_field_map_artifact,
     build_focus_synthesis_artifact,
     build_proposal_from_assessment,
     build_research_landscape,
@@ -517,7 +518,10 @@ def _materialize_lkm_chain_refs(
 
 @research_app.command("contract")
 def contract_command(
-    kind: Annotated[str, typer.Argument(help="Contract to print: focus, assess, or propose.")],
+    kind: Annotated[
+        str,
+        typer.Argument(help="Contract to print: field_map, focus, assess, or propose."),
+    ],
     language: Annotated[
         str,
         typer.Option("--language", help="Preferred analysis language for examples/guidance."),
@@ -800,10 +804,7 @@ def run_command(
         list[str] | None,
         typer.Option(
             "--targeted-query",
-            help=(
-                "Targeted query text; runs live search when --targeted-search-json "
-                "is omitted."
-            ),
+            help=("Targeted query text; runs live search when --targeted-search-json is omitted."),
         ),
     ] = None,
     focus: Annotated[
@@ -1627,26 +1628,35 @@ def _litellm_messages(
 def _litellm_phase_instruction(phase: str) -> str:
     if phase == "query_plan":
         return (
-            "Generate 2-4 broad live-search queries for the topic. Cover distinct "
-            "evidence families and use domain terms likely to retrieve grounded "
-            "claims. Do not assess evidence yet."
+            "Generate 3-5 broad live-search queries for the topic. Cover distinct "
+            "evidence families likely to support an autonomous review map: "
+            "foundational theory, canonical models, methods/diagnostics, experiments "
+            "where relevant, and recent controversies. Do not assess evidence yet."
+        )
+    if phase == "field_map_analysis":
+        return (
+            "Induce a review-oriented field map from the broad landscape before "
+            "selecting narrow focuses. Build a taxonomy from primary retrieved "
+            "evidence: model families, methods, observables, theory constraints, "
+            "experimental systems, controversy axes, and coverage gaps. Recommend "
+            "only the highest-value live-search expansions needed for review coverage."
         )
     if phase == "focus_analysis":
         return (
-            "Select 1-4 assessable research focuses from the scan landscape. "
-            "Each focus must be grounded in retrieved item ids and should be "
-            "narrow enough for immediate assessment."
+            "Select 1-4 assessable research focuses from the landscapes and field map. "
+            "Each focus must be grounded in retrieved item ids, should fit into a "
+            "field-map bucket or controversy axis, and should be narrow enough for "
+            "immediate assessment."
         )
     if phase == "assess_analysis":
         return (
             "Assess only the selected focus against the provided landscapes. "
-            "Produce at most 5 grounded candidate relations, a concise review with "
-            "at most 3 sections of 1-2 sentences each, and at most 2 deferred "
+            "Produce at most 5 grounded candidate relations and a concise scholarly "
+            "review with title, abstract, key_points, summary, sections, optional "
+            "evidence_table, limitations, and next_queries. Emit at most 2 deferred "
             "candidate obligations that directly follow from missing or conflicting "
             "evidence. Set obligation.actionable=true only for a near-term blocking "
-            "task that should become an open inquiry obligation. Do not write title, "
-            "abstract, key_points, evidence_table, figure_specs, or other "
-            "article-draft fields."
+            "task that should become an open inquiry obligation."
         )
     return "Produce the contract-shaped JSON for this research phase."
 
@@ -1656,6 +1666,27 @@ def _litellm_output_shape(phase: str) -> dict[str, object]:
         return {
             "required_top_level_keys": ["queries"],
             "queries_item_shape": {"query": "search query text", "rationale": "why it helps"},
+        }
+    if phase == "field_map_analysis":
+        return {
+            "required_top_level_keys": [
+                "domain_thesis",
+                "buckets",
+                "controversy_axes",
+                "coverage_gaps",
+                "recommended_expansions",
+                "synthesis_notes",
+            ],
+            "buckets_item_keys": [
+                "id",
+                "title",
+                "role",
+                "required_for_review",
+                "coverage_status",
+                "evidence_refs",
+                "recommended_queries",
+            ],
+            "coverage_gaps_item_keys": ["kind", "description", "recommended_queries"],
         }
     if phase == "focus_analysis":
         return {
@@ -1688,8 +1719,12 @@ def _litellm_output_shape(phase: str) -> dict[str, object]:
             "review_keys": [
                 "language",
                 "depth",
+                "title",
+                "abstract",
+                "key_points",
                 "summary",
                 "sections",
+                "evidence_table",
                 "limitations",
                 "next_queries",
             ],
@@ -1766,9 +1801,7 @@ def _litellm_response_content(response: object) -> str:
 
 def _litellm_usage_dict(response: object) -> dict[str, object]:
     usage = (
-        response.get("usage")
-        if isinstance(response, dict)
-        else getattr(response, "usage", None)
+        response.get("usage") if isinstance(response, dict) else getattr(response, "usage", None)
     )
     if usage is None:
         return {}
@@ -1825,8 +1858,10 @@ def _query_plan_provider_input(
         "contract": {
             "required_top_level_keys": ["queries"],
             "queries": (
-                "Return 2-4 broad live-search queries as strings or objects with "
-                "`query` and optional `rationale`."
+                "Return 3-5 broad live-search queries as strings or objects with "
+                "`query` and optional `rationale`. Cover the evidence families, "
+                "foundational theory, canonical models, diagnostics, experiments, "
+                "and controversy axes needed for an autonomous review map."
             ),
         },
     }
@@ -1855,6 +1890,70 @@ def _queries_from_query_plan(payload: dict[str, object]) -> list[str]:
         typer.echo("Error: query_plan output did not contain any non-empty queries.", err=True)
         raise typer.Exit(2)
     return queries
+
+
+def _coverage_queries_from_field_map(
+    field_map_artifact: dict[str, object],
+    *,
+    limit: int = 4,
+) -> list[str]:
+    queries: list[str] = []
+    seen: set[str] = set()
+    for item in _field_map_coverage_query_candidates(field_map_artifact):
+        _append_unique_query(queries, seen, item, limit=limit)
+        if len(queries) >= limit:
+            break
+    return queries
+
+
+def _field_map_coverage_query_candidates(
+    field_map_artifact: dict[str, object],
+) -> list[object]:
+    candidates: list[object] = []
+    statuses = {"missing", "thin", "partial"}
+
+    buckets = field_map_artifact.get("buckets")
+    if isinstance(buckets, list):
+        for bucket in buckets:
+            if not isinstance(bucket, dict):
+                continue
+            required = bucket.get("required_for_review")
+            status = bucket.get("coverage_status")
+            if required is False or str(status) not in statuses:
+                continue
+            candidates.extend(_list_or_empty(bucket.get("recommended_queries")))
+
+    gaps = field_map_artifact.get("coverage_gaps")
+    if isinstance(gaps, list):
+        for gap in gaps:
+            if not isinstance(gap, dict):
+                continue
+            candidates.extend(_list_or_empty(gap.get("recommended_queries")))
+
+    candidates.extend(_list_or_empty(field_map_artifact.get("recommended_expansions")))
+    return candidates
+
+
+def _append_unique_query(
+    queries: list[str],
+    seen: set[str],
+    item: object,
+    *,
+    limit: int,
+) -> None:
+    if len(queries) >= limit:
+        return
+    query = _query_text(item)
+    if query is None:
+        return
+    normalized = " ".join(query.split())
+    if normalized and normalized not in seen:
+        queries.append(normalized)
+        seen.add(normalized)
+
+
+def _list_or_empty(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
 
 
 def _suggested_queries_for_focus(
@@ -1962,6 +2061,262 @@ def _analysis_provider_input(
     return payload
 
 
+def _maybe_run_field_map_and_coverage(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    topic: str,
+    language: str,
+    analysis_provider: str,
+    model: str | None,
+    focus_model: str | None,
+    llm_temperature: float,
+    llm_timeout: float,
+    llm_max_retries: int,
+    llm_max_tokens: int | None,
+    search_index: str,
+    search_limit: int,
+    reasoning_only: bool,
+    research_mode: str,
+    materialize_sources: bool,
+    artifact_only: bool,
+    focus_analysis_json: str | None,
+    scan_landscape: dict[str, Any],
+    scan_path: Path,
+    json_stream: bool,
+) -> tuple[list[dict[str, Any]], list[Path], Path | None, int, dict[str, str]]:
+    landscapes = [scan_landscape]
+    landscape_paths = [scan_path]
+    if focus_analysis_json is not None or analysis_provider != "litellm":
+        return landscapes, landscape_paths, None, 0, {}
+
+    field_map_path, field_map_artifact = _run_field_map_phase(
+        research_pkg,
+        run,
+        topic=topic,
+        language=language,
+        model=_resolve_litellm_model(focus_model or model),
+        llm_temperature=llm_temperature,
+        llm_timeout=llm_timeout,
+        llm_max_retries=llm_max_retries,
+        llm_max_tokens=llm_max_tokens,
+        research_mode=research_mode,
+        scan_landscape=scan_landscape,
+        scan_path=scan_path,
+        json_stream=json_stream,
+    )
+    state_artifacts = {"field_map": str(field_map_path)}
+    coverage_queries = _coverage_queries_from_field_map(field_map_artifact)
+    if not coverage_queries:
+        return landscapes, landscape_paths, field_map_path, 0, state_artifacts
+
+    coverage_search_json = _execute_live_searches(
+        research_pkg,
+        run,
+        queries=coverage_queries,
+        prefix="coverage",
+        search_index=search_index,
+        search_limit=search_limit,
+        reasoning_only=reasoning_only,
+        json_stream=json_stream,
+    )
+    coverage_path, coverage_landscape = _run_coverage_landscape_phase(
+        research_pkg,
+        run,
+        coverage_search_json=coverage_search_json,
+        coverage_queries=coverage_queries,
+        field_map_path=field_map_path,
+        research_mode=research_mode,
+        materialize_sources=materialize_sources,
+        artifact_only=artifact_only,
+        json_stream=json_stream,
+    )
+    landscapes.append(coverage_landscape)
+    landscape_paths.append(coverage_path)
+    state_artifacts["coverage_landscape"] = str(coverage_path)
+    return landscapes, landscape_paths, field_map_path, len(coverage_search_json), state_artifacts
+
+
+def _run_field_map_phase(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    topic: str,
+    language: str,
+    model: str,
+    llm_temperature: float,
+    llm_timeout: float,
+    llm_max_retries: int,
+    llm_max_tokens: int | None,
+    research_mode: str,
+    scan_landscape: dict[str, Any],
+    scan_path: Path,
+    json_stream: bool,
+) -> tuple[Path, dict[str, Any]]:
+    _update_run_state(run, {"phase": "field_map_analysis"})
+    field_map_json = _run_analysis_provider_litellm(
+        research_pkg,
+        run,
+        phase="field_map_analysis",
+        model=model,
+        input_payload=_analysis_provider_input(
+            phase="field_map_analysis",
+            topic=topic,
+            language=language,
+            contract_kind="field_map",
+            artifact_paths=[scan_path],
+        ),
+        output_name="field_map_analysis",
+        temperature=llm_temperature,
+        timeout=llm_timeout,
+        max_retries=llm_max_retries,
+        max_tokens=llm_max_tokens,
+        json_stream=json_stream,
+    )
+    _update_run_state(run, {"phase": "field_map_sync"})
+    _emit_run_event(
+        run,
+        event_type="phase.started",
+        phase="field_map_sync",
+        json_stream=json_stream,
+        payload={"inputs": [str(scan_path), field_map_json]},
+    )
+    start = perf_counter()
+    field_map_analysis = _read_json_object_ref(field_map_json, label="field-map JSON")
+    field_map_artifact = build_field_map_artifact(
+        topic=topic,
+        landscapes=[scan_landscape],
+        analysis=field_map_analysis,
+        language=language,
+    )
+    field_map_path = write_research_artifact(
+        research_pkg,
+        "field_maps",
+        "field-map",
+        field_map_artifact,
+    )
+    append_research_event(
+        research_pkg,
+        "run.field_map_sync.completed",
+        {
+            "artifact": str(field_map_path),
+            "buckets": len(field_map_artifact["buckets"]),
+            "coverage_gaps": len(field_map_artifact["coverage_gaps"]),
+            "recommended_expansions": len(field_map_artifact["recommended_expansions"]),
+        },
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="field_map.synthesis",
+        mode=research_mode,
+        inputs=[str(scan_path), field_map_json],
+        outputs=[str(field_map_path)],
+        metrics={
+            "buckets": len(field_map_artifact["buckets"]),
+            "coverage_gaps": len(field_map_artifact["coverage_gaps"]),
+            "recommended_expansions": len(field_map_artifact["recommended_expansions"]),
+            "analysis_json": True,
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="field_map_sync",
+        json_stream=json_stream,
+        payload={"artifact": str(field_map_path), "buckets": len(field_map_artifact["buckets"])},
+    )
+    return field_map_path, field_map_artifact
+
+
+def _run_coverage_landscape_phase(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    coverage_search_json: list[str],
+    coverage_queries: list[str],
+    field_map_path: Path,
+    research_mode: str,
+    materialize_sources: bool,
+    artifact_only: bool,
+    json_stream: bool,
+) -> tuple[Path, dict[str, Any]]:
+    _update_run_state(run, {"phase": "explore_coverage"})
+    _emit_run_event(
+        run,
+        event_type="phase.started",
+        phase="explore_coverage",
+        json_stream=json_stream,
+        payload={"inputs": coverage_search_json, "field_map": str(field_map_path)},
+    )
+    start = perf_counter()
+    coverage_landscape = build_research_landscape(
+        _scan_batches(coverage_search_json, queries=coverage_queries, sources=[]),
+        pull_budget=0,
+    )
+    coverage_landscape["action"] = "explore.coverage"
+    coverage_landscape["target"] = {"kind": "field_map", "id": str(field_map_path)}
+    coverage_path = write_research_artifact(
+        research_pkg,
+        "landscapes",
+        "coverage",
+        coverage_landscape,
+    )
+    coverage_source_payload = _materialize_landscape_sources_or_exit(
+        research_pkg,
+        coverage_landscape,
+        landscape_artifact=coverage_path,
+        enabled=materialize_sources,
+        artifact_only=artifact_only,
+        dry_run=False,
+    )
+    coverage_sync = sync_landscape_artifact(
+        research_pkg,
+        coverage_landscape,
+        artifact_only=artifact_only,
+        dry_run=False,
+    )
+    coverage_sync_payload = {**coverage_sync.to_payload(), **coverage_source_payload}
+    append_research_event(
+        research_pkg,
+        "run.explore_coverage.completed",
+        {
+            "artifact": str(coverage_path),
+            "target": {"kind": "field_map", "id": str(field_map_path)},
+            "stats": coverage_landscape["stats"],
+            **coverage_sync_payload,
+        },
+    )
+    _record_run_cli_trace(
+        research_pkg,
+        run,
+        start=start,
+        name="explore.coverage",
+        mode=research_mode,
+        inputs=coverage_search_json,
+        outputs=[str(coverage_path)],
+        metrics={
+            "query_batches": coverage_landscape["stats"]["query_batches"],
+            "raw_results": coverage_landscape["stats"]["raw_results"],
+            "paper_leads": coverage_landscape["stats"]["paper_leads"],
+            "items": len(coverage_landscape.get("items", [])),
+            "source_packages_added": _count_payload_items(
+                coverage_sync_payload,
+                "source_packages_added",
+            ),
+        },
+    )
+    _emit_run_event(
+        run,
+        event_type="phase.completed",
+        phase="explore_coverage",
+        json_stream=json_stream,
+        payload={"artifact": str(coverage_path), "stats": coverage_landscape["stats"]},
+    )
+    return coverage_path, coverage_landscape
+
+
 def _execute_file_provider_run(
     research_pkg: ResearchPackage,
     run: ResearchRunStart,
@@ -2058,6 +2413,37 @@ def _execute_file_provider_run(
         payload={"artifact": str(scan_path), "stats": scan_landscape["stats"]},
     )
 
+    (
+        landscapes,
+        landscape_paths,
+        field_map_path,
+        coverage_searches,
+        field_map_artifacts,
+    ) = _maybe_run_field_map_and_coverage(
+        research_pkg,
+        run,
+        topic=topic,
+        language=language,
+        analysis_provider=analysis_provider,
+        model=model,
+        focus_model=focus_model,
+        llm_temperature=llm_temperature,
+        llm_timeout=llm_timeout,
+        llm_max_retries=llm_max_retries,
+        llm_max_tokens=llm_max_tokens,
+        search_index=search_index,
+        search_limit=search_limit,
+        reasoning_only=reasoning_only,
+        research_mode=research_mode,
+        materialize_sources=materialize_sources,
+        artifact_only=artifact_only,
+        focus_analysis_json=focus_analysis_json,
+        scan_landscape=scan_landscape,
+        scan_path=scan_path,
+        json_stream=json_stream,
+    )
+    state_artifacts.update(field_map_artifacts)
+
     if focus_analysis_json is None:
         if analysis_provider == "command":
             if focus_analysis_command is None:
@@ -2077,7 +2463,7 @@ def _execute_file_provider_run(
                     topic=topic,
                     language=language,
                     contract_kind="focus",
-                    artifact_paths=[scan_path],
+                    artifact_paths=landscape_paths,
                 ),
                 output_name="focus_analysis",
                 json_stream=json_stream,
@@ -2094,7 +2480,10 @@ def _execute_file_provider_run(
                     topic=topic,
                     language=language,
                     contract_kind="focus",
-                    artifact_paths=[scan_path],
+                    artifact_paths=[
+                        *landscape_paths,
+                        *([field_map_path] if field_map_path is not None else []),
+                    ],
                 ),
                 output_name="focus_analysis",
                 temperature=llm_temperature,
@@ -2124,7 +2513,7 @@ def _execute_file_provider_run(
     start = perf_counter()
     focus_analysis = _read_json_object_ref(focus_analysis_json, label="--focus-analysis-json")
     focus_artifact = build_focus_synthesis_artifact(
-        landscapes=[scan_landscape],
+        landscapes=landscapes,
         analysis=focus_analysis,
         language=language,
     )
@@ -2142,7 +2531,7 @@ def _execute_file_provider_run(
         "run.focus_sync.completed",
         {
             "artifact": str(focus_path),
-            "landscapes": [str(scan_path)],
+            "landscapes": [str(path) for path in landscape_paths],
             "focuses": len(focus_artifact["focuses"]),
             "coverage_gaps": len(focus_artifact["coverage_gaps"]),
             "analysis_json": True,
@@ -2156,16 +2545,14 @@ def _execute_file_provider_run(
         start=start,
         name="focus.synthesis",
         mode=research_mode,
-        inputs=[str(scan_path), focus_analysis_json],
+        inputs=[*[str(path) for path in landscape_paths], focus_analysis_json],
         outputs=[str(focus_path)],
         metrics={
             "focuses": len(focus_artifact["focuses"]),
             "coverage_gaps": len(focus_artifact["coverage_gaps"]),
             "analysis_json": True,
             "questions_written": _count_payload_items(focus_sync_payload, "questions_written"),
-            "obligations_added": _count_payload_items(
-                focus_sync_payload, "obligations_added"
-            ),
+            "obligations_added": _count_payload_items(focus_sync_payload, "obligations_added"),
             "hypotheses_added": _count_payload_items(focus_sync_payload, "hypotheses_added"),
         },
     )
@@ -2195,10 +2582,8 @@ def _execute_file_provider_run(
         reasoning_only=reasoning_only,
         json_stream=json_stream,
     )
-    state_metrics["searches"] = len(search_json) + len(targeted_search_json)
+    state_metrics["searches"] = len(search_json) + coverage_searches + len(targeted_search_json)
 
-    landscapes = [scan_landscape]
-    landscape_paths = [scan_path]
     if targeted_search_json:
         _update_run_state(run, {"phase": "explore_expand"})
         _emit_run_event(
@@ -2460,9 +2845,9 @@ def _execute_file_provider_run(
     focus_trace_artifacts = _collect_trace_json_artifacts(trace_dir, kind="focus_synthesis")
     assessment_trace_artifacts = _collect_trace_json_artifacts(trace_dir, kind="assessment")
     final_focus_inputs = [path for path, _payload in focus_trace_artifacts] or [focus_path]
-    final_assessment_inputs = [
-        path for path, _payload in assessment_trace_artifacts
-    ] or [assessment_path]
+    final_assessment_inputs = [path for path, _payload in assessment_trace_artifacts] or [
+        assessment_path
+    ]
     final_focus_payloads = [
         cast(dict[str, Any], payload) for _path, payload in focus_trace_artifacts
     ] or [focus_artifact]

@@ -41,8 +41,12 @@ fixed search queries into the command. The runner should own the machine path:
 
 With `--analysis-provider litellm`, the runner first writes
 `analysis/query_plan.output.json` and uses those generated queries for broad
-live search. After focus synthesis, it uses the selected focus's
-`suggested_queries` plus coverage-gap suggested queries for targeted search.
+live search. It then writes `analysis/field_map_analysis.output.json`,
+materializes `.gaia/research/field_maps/*.json`, and may run
+`searches/coverage-*.json` to fill thin or missing review buckets before focus
+synthesis. After focus synthesis, it uses the selected focus's
+`suggested_queries` plus focus coverage-gap suggested queries for targeted
+search.
 Keep the LLM path unconstrained by caller-side output caps; if a provider emits
 oversized JSON, tighten the phase prompt or schema rather than adding
 `--llm-max-tokens`.
@@ -74,7 +78,8 @@ expansion resolves or defers them with rationale:
 gaia inquiry obligation close <obligation-qid> --path "$PKG"
 ```
 
-Then render/summarize any missing reports and run `gaia build check "$PKG"`.
+Then run the final report step if the orchestrator did not already produce it
+and run `gaia build check "$PKG"`.
 
 When deciding whether to expand again, inspect both novelty and grounding.
 High `new_paper_lead_ratio` means the search is finding new papers; it does
@@ -285,6 +290,9 @@ Produce or preserve:
 - `$RUN/trace/evaluation_trace.md`
 - `$RUN/trace/benchmark.json`
 - `$RUN/trace/trace.jsonl`
+- `$RUN/analysis/field_map_analysis.json` or `field_map_analysis.output.json`
+- `.gaia/research/field_maps/*.json`
+- `$RUN/searches/coverage-*.json` when field-map buckets require expansion
 - `$RUN/analysis/focus-contract.json`
 - `$RUN/analysis/focus-analysis.json`
 - `$RUN/analysis/assess-contract.json`
