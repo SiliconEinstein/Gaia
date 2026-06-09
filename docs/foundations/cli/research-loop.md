@@ -24,7 +24,7 @@ Research state has three layers.
 |-------|------------|----------|---------|
 | Package source | yes | `question(...)`, `note(...)`, `candidate_relation(...)`, `claim(...)`, `derive(...)`, `materialize(...)`, package dependencies | Durable knowledge and scaffolded knowledge |
 | Inquiry state | yes | current focus, open obligations, hypotheses, rejections, tactic log | Mutable research process state |
-| Research trace | no | raw search JSON, LLM analysis JSON, command events, rendered reports, timing, stop metrics | Reproducibility, debugging, meeting review |
+| Research trace | no | raw search JSON, LLM analysis JSON, command events, final report, timing, stop metrics | Reproducibility, debugging, meeting review |
 
 The package and inquiry state are what later compilation, review, inference,
 publication, and LKM ingestion should consume. Trace files should be readable and

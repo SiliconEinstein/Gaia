@@ -65,23 +65,24 @@ Then ask the active LLM/agent to return JSON only.
 3. 建立 relation mix：尽量区分支持、反对、限定和方法性削弱；不要把所有证据都写成 `background_for`。
 4. 写 review：
    - 按 Nature Reviews / Annual Review 风格的学术 mini-review 写，不要写成工具执行记录；
-   - 结构必须包含：标题、摘要、要点、5-8 个综述小节、证据概览表、图表建议、科学局限性、后续研究问题；
+   - 结构必须包含：title、abstract、key_points、summary、1-3 个紧凑综述小节、evidence_table、科学局限性、后续研究问题；
+   - 不要输出 Markdown 或 JSON 外的文章草稿；所有报告内容都必须放进 `review` 对象；
    - 第一段给研究问题和 provisional conclusion；
    - 分节讨论主要观测证据、竞争解释、方法限制、适用边界和未来关键检验；
    - 每个关键论断后用 `[variable:<id>]`、`[paper:<paper_id>]` 或 `[package_ref:<ref>]` 标注证据来源；
    - 如果有定量结果，记录方向、量级、NNT/NNH/critical exponents/observables 等领域相关指标；
    - 用“已有研究显示 / 当前文献提示 / 相关研究仍未解决”等学术表述，不要写“本轮 / evidence packet 显示 / agent 应该”。
-5. 生成 `candidate_obligations`：只为会影响判断的缺口生成，不要泛泛写“需要更多研究”。
+5. 生成 `candidate_obligations`：只为会影响判断的缺口生成，不要泛泛写“需要更多研究”。默认这些是 deferred assessment gaps，只保留在 assessment artifact 中；只有非常具体、近端、阻塞当前包判断且下一轮必须执行的任务才设置 `actionable: true`，否则省略 `actionable` 或设为 `false`。
 6. 生成 `review.next_queries`：写成自然的未来研究检索方向，优先补关键证据缺口、方法不确定性和未解决分歧。
 
 质量标准：
 
 - assessment 是围绕一个 focus 的证据评估，不是领域总览。
-- review 应该像一篇正式 mini-review：先交代研究问题，再给清晰主张，随后按证据簇和解释路径组织段落。
-- review 应该有足够篇幅与层次；不要只写一页 briefing。每节都要包含：已知事实、为什么重要、仍不确定什么、哪些观测或分析能区分竞争解释。
+- review 应该像一篇紧凑正式 mini-review：先交代研究问题，再给清晰主张，随后按证据簇和解释路径组织段落。
+- review 应该有足够层次但保持紧凑。每节都要包含：已知事实、为什么重要、仍不确定什么、哪些观测或分析能区分竞争解释。
 - 必须包含 evidence grading：区分 robust empirical discrepancy、model-dependent inference、plausible systematic uncertainty、speculative theoretical explanation、unresolved due to missing covariance/likelihood/original-data access。
 - review 的身份是“综述作者”，不是“工具执行者”；不得描述检索轮次、工作流、数据包、JSON、artifact 或后续写回流程。
-- 原始 relations 和 candidate_obligations 会保留在 assessment JSON artifact 中用于审计和后续 promotion；Markdown report 不会把它们机械改写成正文，所以重要的证据关系、限定条件和待解决问题必须自然写进 `review.summary`、`review.sections`、`review.limitations` 和 `review.next_queries`。
+- 原始 relations 和 candidate_obligations 会保留在 assessment JSON artifact 中用于审计和后续 promotion；默认 candidate_obligations 不会变成 open inquiry obligations，除非设置 `actionable: true`。Markdown report 不会把它们机械改写成正文，所以重要的证据关系、限定条件和待解决问题必须自然写进 `review.summary`、`review.sections`、`review.limitations` 和 `review.next_queries`。
 - Markdown report 的 citations 会放在全文最后；正文只写稳定 inline refs，由 CLI 确定性替换为数字引用如 `[1]`、`[2,3]`，参考文献以编号列表输出。
 - 如果证据不足，要用学术语言说明不足来自共享数据集、共同校准锚点、相关系统误差、协方差报告不完整、likelihood 不可得、模型依赖先验、观测覆盖不足、指标不可比、误差预算不完整、模型假设不同或理论定义不一致。
 - 局限性必须是科学局限性，不得写流程局限性。不要写“同一论文中的多个声明可能重复表达相近论点”；应改写为“若多项测量共享校准锚点或数据产品，表面一致性可能高估统计独立性”。

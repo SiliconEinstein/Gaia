@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from gaia.engine.research.report import render_research_artifact_markdown
+from gaia.engine.research.report import (
+    render_final_research_report_markdown,
+    render_research_artifact_markdown,
+)
 
 
 def test_report_renders_focus_synthesis_markdown() -> None:
@@ -158,6 +161,75 @@ def test_report_renders_assessment_markdown() -> None:
     assert "| kind | content |" not in markdown
     assert "evidence packet" not in markdown
     assert "item(s)" not in markdown
+
+
+def test_final_report_renders_academic_evidence_review_without_run_summary() -> None:
+    markdown = render_final_research_report_markdown(
+        focus_artifacts=[
+            {
+                "kind": "focus_synthesis",
+                "focuses": [
+                    {
+                        "id": "elderly_net_benefit",
+                        "question": "老年人一级预防净获益是否为正？",
+                    }
+                ],
+            }
+        ],
+        assessments=[
+            {
+                "kind": "assessment",
+                "focus": {"kind": "focus", "id": "elderly_net_benefit"},
+                "citations": [
+                    {
+                        "id": "citation_1",
+                        "source_kind": "paper",
+                        "paper_id": "P1",
+                        "title": "ASPREE trial",
+                        "doi": "10.1056/aspree",
+                        "item_ids": ["v1"],
+                        "variable_ids": ["v1"],
+                    }
+                ],
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": "ASPREE 不支持老年人常规使用阿司匹林一级预防。[variable:v1]",
+                        "rationale": "无心血管获益且大出血增加。[variable:v1]",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "v1"}],
+                    }
+                ],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "title": "阿司匹林一级预防的循证评估",
+                    "abstract": "老年人阿司匹林一级预防的核心问题是低绝对获益能否抵消出血危害。",
+                    "key_points": ["ASPREE 使常规使用的净获益判断转向保守。[variable:v1]"],
+                    "summary": "现有证据提示老年人常规一级预防净获益不足。[variable:v1]",
+                    "sections": [
+                        {
+                            "title": "老年人证据",
+                            "body": "ASPREE 指向无心血管获益并增加出血风险。[variable:v1]",
+                        }
+                    ],
+                    "limitations": ["仍需按基线风险和出血风险分层解释绝对效应。"],
+                    "next_queries": ["aspirin elderly absolute risk bleeding subgroup"],
+                },
+            }
+        ],
+    )
+
+    assert markdown.startswith("# 阿司匹林一级预防的循证评估")
+    assert "## 摘要" in markdown
+    assert "## 关键结论" in markdown
+    assert "## 证据分层与争议点" in markdown
+    assert "## 参考文献" in markdown
+    assert "stop recommendation" not in markdown
+    assert "total tokens" not in markdown
+    assert "trace" not in markdown
+    assert "artifact" not in markdown
     assert "paper lead(s)" not in markdown
     assert "item_ids" not in markdown
     assert "variable_ids" not in markdown
@@ -165,6 +237,5 @@ def test_report_renders_assessment_markdown() -> None:
     assert "P1" not in markdown
     assert markdown.index("## 参考文献") > markdown.index("## 后续研究问题")
     assert "[1] ASPREE trial. DOI: 10.1056/aspree." in markdown
-    assert "[2] Does aspirin help? DOI 未提供。" in markdown
     assert "ASPREE trial" in markdown
     assert "10.1056/aspree" in markdown

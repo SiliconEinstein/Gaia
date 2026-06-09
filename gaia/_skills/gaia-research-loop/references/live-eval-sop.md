@@ -28,7 +28,89 @@ gaia author question "<seed question>" --target "$PKG" \
 gaia research status "$PKG"
 ```
 
-## Breadth-First Explore
+## Orchestrated Topic-Only Run
+
+For benchmark/live eval runs on the package-native orchestrator, do not pass
+fixed search queries into the command. The runner should own the machine path:
+
+- no `--query`;
+- no `--search-json`;
+- no `--targeted-query`;
+- no `--targeted-search-json`.
+- no `--llm-max-tokens` for normal live runs.
+
+With `--analysis-provider litellm`, the runner first writes
+`analysis/query_plan.output.json` and uses those generated queries for broad
+live search. After focus synthesis, it uses the selected focus's
+`suggested_queries` plus coverage-gap suggested queries for targeted search.
+Keep the LLM path unconstrained by caller-side output caps; if a provider emits
+oversized JSON, tighten the phase prompt or schema rather than adding
+`--llm-max-tokens`.
+
+```bash
+gaia research run "$PKG" \
+  --topic "<research topic>" \
+  --mode fast-package-native \
+  --language "$LANG" \
+  --analysis-provider litellm \
+  --model "$GAIA_RESEARCH_LLM_MODEL" \
+  --search-limit 10 \
+  --trace-dir "$TRACE"
+```
+
+After the run, inspect open obligations with:
+
+```bash
+gaia inquiry obligation list --json --path "$PKG"
+```
+
+Ordinary focus coverage gaps and assessment `needs_more_evidence` items are
+deferred assessment gaps by default; they should remain in JSON artifacts and
+review limitations rather than becoming open inquiry obligations. Only close
+open obligations when the assessment, stop report, or an explicit follow-up
+expansion resolves or defers them with rationale:
+
+```bash
+gaia inquiry obligation close <obligation-qid> --path "$PKG"
+```
+
+Then render/summarize any missing reports and run `gaia build check "$PKG"`.
+
+When deciding whether to expand again, inspect both novelty and grounding.
+High `new_paper_lead_ratio` means the search is finding new papers; it does
+not mean those papers are useful. If `assessment_grounded_paper_lead_ratio` is
+low, prefer human review, selected paper/chain materialization, or explicit
+deferral over another broad topic-only expansion.
+
+## Follow-Up Runs
+
+If stop criteria recommends another expansion or obligations remain open, use a
+natural continuation topic. The topic should describe the user's research intent
+and refer to unresolved gaps at a high level; it should not smuggle in a
+query-plan as comma-separated technical keywords.
+
+Good:
+
+```bash
+gaia research run "$PKG" \
+  --topic "Continue the DQCP evidence assessment, focusing on unresolved gaps from the previous run." \
+  --mode fast-package-native \
+  --language "$LANG" \
+  --analysis-provider litellm \
+  --model "$GAIA_RESEARCH_LLM_MODEL" \
+  --search-limit 10
+```
+
+Avoid:
+
+```text
+--topic "Resolve open obligations: exact query A, exact query B, exact query C"
+```
+
+The follow-up run should still omit `--query`, `--targeted-query`, and
+`--llm-max-tokens`.
+
+## Manual Breadth-First Explore
 
 Run several independent query families before choosing a focus. For
 package-native landscape building, search reasoning-backed evidence first so
@@ -165,21 +247,13 @@ Only during assessment, when the focus requires it, consider deep evidence:
 Do not use deep materialization in artifact-only benchmark mode unless the user
 explicitly overrides that constraint.
 
-## Reports And Stop Criteria
+## Final Report And Stop Criteria
 
-Render focus and assessment artifacts:
-
-```bash
-gaia research report "$PKG" \
-  --artifact "$PKG/.gaia/research/focuses/<focuses>.json" \
-  --out "$RUN/trace/focus_report.md" \
-  --trace-dir "$TRACE"
-
-gaia research report "$PKG" \
-  --artifact "$PKG/.gaia/research/assessments/<assessment>.json" \
-  --out "$RUN/trace/assessment_report.md" \
-  --trace-dir "$TRACE"
-```
+Keep intermediate focus, assessment, and stop outputs as JSON audit artifacts.
+Do not render `focus_report.md`, `assessment_report.md`, or `stop_report.md`
+as part of the normal live-run protocol. The reader-facing Markdown surface is
+the final academic evidence report written at `$RUN/trace/final_report.md`
+after the completed analyses have been recorded in `trace.jsonl`.
 
 Evaluate stop criteria:
 
@@ -190,11 +264,6 @@ gaia research stop "$PKG" \
   --landscape "$PKG/.gaia/research/landscapes/<latest>.json" \
   --previous-landscape "$PKG/.gaia/research/landscapes/<previous>.json" \
   --out "$RUN/trace/stop.json" \
-  --trace-dir "$TRACE"
-
-gaia research report "$PKG" \
-  --artifact "$RUN/trace/stop.json" \
-  --out "$RUN/trace/stop_report.md" \
   --trace-dir "$TRACE"
 
 gaia research trace summarize "$PKG" --trace-dir "$TRACE"
@@ -220,10 +289,8 @@ Produce or preserve:
 - `$RUN/analysis/focus-analysis.json`
 - `$RUN/analysis/assess-contract.json`
 - `$RUN/analysis/assess-analysis.json`
-- `$RUN/trace/focus_report.md`
-- `$RUN/trace/assessment_report.md`
 - `$RUN/trace/stop.json`
-- `$RUN/trace/stop_report.md`
+- `$RUN/trace/final_report.md`
 - `.gaia/research/landscapes/*.json`
 - `.gaia/research/focuses/*.json`
 - `.gaia/research/assessments/*.json`

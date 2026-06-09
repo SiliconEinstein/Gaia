@@ -39,6 +39,7 @@ from gaia.engine.research.proposal import (
 )
 from gaia.engine.research.report import (
     ResearchReportError,
+    render_final_research_report_markdown,
     render_research_artifact_markdown,
 )
 from gaia.engine.research.source_packages import (
@@ -83,6 +84,7 @@ __all__ = [
     "load_research_package",
     "materialize_landscape_source_package",
     "propose_contract",
+    "render_final_research_report_markdown",
     "render_research_artifact_markdown",
     "research_contract",
     "scaffold_suggestion",

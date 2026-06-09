@@ -609,6 +609,277 @@ def _render_proposal(artifact: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _reader_text(value: object, context: dict[str, Any]) -> str:
+    replaced = _replace_inline_item_refs(value, context)
+    text = "" if replaced is None else str(replaced)
+    return INLINE_REF_RE.sub("", text).strip()
+
+
+def _dicts(value: object) -> list[dict[str, Any]]:
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
+def _list_like(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
+def _review_payload(assessment: dict[str, Any]) -> dict[str, Any]:
+    review = assessment.get("review")
+    return review if isinstance(review, dict) else {}
+
+
+def _review_language(assessments: list[dict[str, Any]]) -> object:
+    for assessment in assessments:
+        review = _review_payload(assessment)
+        language = review.get("language") or assessment.get("language")
+        if isinstance(language, str) and language:
+            return language
+    return "en"
+
+
+def _focus_questions_by_id(focus_artifacts: list[dict[str, Any]]) -> dict[str, str]:
+    questions: dict[str, str] = {}
+    for artifact in focus_artifacts:
+        for focus in _dicts(artifact.get("focuses")):
+            focus_id = focus.get("id")
+            question = focus.get("question")
+            if isinstance(focus_id, str) and isinstance(question, str) and question.strip():
+                questions.setdefault(focus_id, question.strip())
+    return questions
+
+
+def _assessment_focus_id(assessment: dict[str, Any]) -> str | None:
+    focus = assessment.get("focus")
+    focus_id = focus.get("id") if isinstance(focus, dict) else None
+    return focus_id if isinstance(focus_id, str) and focus_id else None
+
+
+def _assessment_title(
+    assessment: dict[str, Any],
+    *,
+    focus_questions: dict[str, str],
+    zh: bool,
+) -> str:
+    review = _review_payload(assessment)
+    title = review.get("title")
+    if isinstance(title, str) and title.strip():
+        return title.strip()
+    focus_id = _assessment_focus_id(assessment)
+    if focus_id and focus_id in focus_questions:
+        return focus_questions[focus_id]
+    return "证据评估" if zh else "Evidence Assessment"
+
+
+def _final_report_title(
+    *,
+    assessments: list[dict[str, Any]],
+    focus_questions: dict[str, str],
+    zh: bool,
+) -> str:
+    if len(assessments) == 1:
+        return _assessment_title(assessments[0], focus_questions=focus_questions, zh=zh)
+    return "综合循证研究报告" if zh else "Integrated Evidence Review"
+
+
+def _namespaced_citations(assessments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    citations: list[dict[str, Any]] = []
+    for index, assessment in enumerate(assessments, start=1):
+        for citation in _dicts(assessment.get("citations")):
+            citation_id = citation.get("id")
+            if not isinstance(citation_id, str) or not citation_id:
+                continue
+            namespaced = dict(citation)
+            namespaced["id"] = f"a{index}_{citation_id}"
+            citations.append(namespaced)
+    return citations
+
+
+def _append_abstract(
+    lines: list[str],
+    assessments: list[dict[str, Any]],
+    *,
+    context: dict[str, Any],
+    zh: bool,
+) -> None:
+    reviews = [_review_payload(assessment) for assessment in assessments]
+    abstracts = [
+        _reader_text(review.get("abstract"), context)
+        for review in reviews
+        if _reader_text(review.get("abstract"), context)
+    ]
+    if abstracts:
+        lines.extend(_section("摘要" if zh else "Abstract"))
+        lines.extend([abstracts[0], ""])
+        return
+    summaries = [
+        _reader_text(review.get("summary"), context)
+        for review in reviews
+        if _reader_text(review.get("summary"), context)
+    ]
+    if summaries:
+        lines.extend(_section("摘要" if zh else "Abstract"))
+        lines.extend([summaries[0], ""])
+
+
+def _append_key_points(
+    lines: list[str],
+    assessments: list[dict[str, Any]],
+    *,
+    context: dict[str, Any],
+    zh: bool,
+) -> None:
+    key_points: list[str] = []
+    for assessment in assessments:
+        for point in _list_like(_review_payload(assessment).get("key_points")):
+            text = _reader_text(point, context)
+            if text and text not in key_points:
+                key_points.append(text)
+    if not key_points:
+        return
+    lines.extend(_section("关键结论" if zh else "Key Findings"))
+    for point in key_points[:8]:
+        lines.append(f"- {point}")
+    lines.append("")
+
+
+def _append_assessment_review(
+    lines: list[str],
+    assessment: dict[str, Any],
+    *,
+    context: dict[str, Any],
+    focus_questions: dict[str, str],
+    include_title: bool,
+    zh: bool,
+) -> None:
+    review = _review_payload(assessment)
+    if include_title:
+        lines.extend(
+            _section(_assessment_title(assessment, focus_questions=focus_questions, zh=zh))
+        )
+    summary = _reader_text(review.get("summary"), context)
+    if summary:
+        lines.extend([f"### {'核心判断' if zh else 'Core Assessment'}", "", summary, ""])
+    for section in _dicts(review.get("sections")):
+        title = section.get("title")
+        body = _reader_text(section.get("body"), context)
+        if isinstance(title, str) and title.strip() and body:
+            lines.extend([f"### {_cell(title.strip())}", "", body, ""])
+    lines.extend(
+        _render_evidence_table(
+            review.get("evidence_table", []),
+            context=context,
+            language=review.get("language"),
+        )
+    )
+
+
+def _append_relation_synthesis(
+    lines: list[str],
+    assessments: list[dict[str, Any]],
+    *,
+    context: dict[str, Any],
+    zh: bool,
+) -> None:
+    grouped: dict[str, list[str]] = {}
+    for assessment in assessments:
+        for relation in _dicts(assessment.get("relations")):
+            relation_type = relation.get("type")
+            claim = _reader_text(relation.get("claim"), context)
+            rationale = _reader_text(relation.get("rationale"), context)
+            if not isinstance(relation_type, str) or not claim:
+                continue
+            sentence = f"{claim} {rationale}".strip()
+            grouped.setdefault(relation_type, [])
+            if sentence not in grouped[relation_type]:
+                grouped[relation_type].append(sentence)
+    ordered_types = ["supports", "opposes", "qualifies", "undercuts", "needs_more_evidence"]
+    labels = {
+        "supports": "支持性证据" if zh else "Supportive Evidence",
+        "opposes": "反向证据" if zh else "Opposing Evidence",
+        "qualifies": "限定条件" if zh else "Qualifying Evidence",
+        "undercuts": "方法性削弱" if zh else "Methodological Undercuts",
+        "needs_more_evidence": "仍缺关键证据" if zh else "Evidence Gaps",
+    }
+    if not any(grouped.get(relation_type) for relation_type in ordered_types):
+        return
+    lines.extend(_section("证据分层与争议点" if zh else "Evidence Grading And Tensions"))
+    for relation_type in ordered_types:
+        claims = grouped.get(relation_type, [])
+        if not claims:
+            continue
+        lines.append(f"### {labels[relation_type]}")
+        lines.append("")
+        for claim in claims[:4]:
+            lines.append(f"- {claim}")
+        lines.append("")
+
+
+def _append_limitations_and_tests(
+    lines: list[str],
+    assessments: list[dict[str, Any]],
+    *,
+    context: dict[str, Any],
+    zh: bool,
+) -> None:
+    limitations: list[str] = []
+    next_queries: list[str] = []
+    for assessment in assessments:
+        review = _review_payload(assessment)
+        for item in _list_like(review.get("limitations")):
+            text = _reader_text(item, context)
+            if text and text not in limitations:
+                limitations.append(text)
+        for item in _list_like(review.get("next_queries")):
+            text = _reader_text(item, context)
+            if text and text not in next_queries:
+                next_queries.append(text)
+    if limitations:
+        lines.extend(_section("局限性" if zh else "Limitations"))
+        for limitation in limitations:
+            lines.append(f"- {limitation}")
+        lines.append("")
+    if next_queries:
+        lines.extend(_section("后续研究问题" if zh else "Future Research Questions"))
+        for query in next_queries:
+            lines.append(f"- {query}")
+        lines.append("")
+
+
+def render_final_research_report_markdown(
+    *,
+    focus_artifacts: list[dict[str, Any]],
+    assessments: list[dict[str, Any]],
+) -> str:
+    """Render the reader-facing evidence report for all completed analyses."""
+    if not assessments:
+        raise ResearchReportError("final report requires at least one assessment artifact")
+    language = _review_language(assessments)
+    zh = _is_zh(language)
+    focus_questions = _focus_questions_by_id(focus_artifacts)
+    citations = _namespaced_citations(assessments)
+    context = _citation_context(citations)
+    lines = _heading(
+        _final_report_title(assessments=assessments, focus_questions=focus_questions, zh=zh)
+    )
+    _append_abstract(lines, assessments, context=context, zh=zh)
+    _append_key_points(lines, assessments, context=context, zh=zh)
+    for assessment in assessments:
+        _append_assessment_review(
+            lines,
+            assessment,
+            context=context,
+            focus_questions=focus_questions,
+            include_title=len(assessments) > 1,
+            zh=zh,
+        )
+    _append_relation_synthesis(lines, assessments, context=context, zh=zh)
+    _append_limitations_and_tests(lines, assessments, context=context, zh=zh)
+    rendered_citations = _render_citations(citations, language=language, context=context)
+    if context.get("ordered_ids"):
+        lines.extend(rendered_citations)
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def render_research_artifact_markdown(artifact: dict[str, Any]) -> str:
     """Render a package-native research artifact as readable Markdown."""
     kind = artifact.get("kind")
@@ -623,4 +894,8 @@ def render_research_artifact_markdown(artifact: dict[str, Any]) -> str:
     raise ResearchReportError(f"unsupported research artifact kind: {kind!r}")
 
 
-__all__ = ["ResearchReportError", "render_research_artifact_markdown"]
+__all__ = [
+    "ResearchReportError",
+    "render_final_research_report_markdown",
+    "render_research_artifact_markdown",
+]

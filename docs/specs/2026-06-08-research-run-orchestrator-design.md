@@ -59,11 +59,12 @@ $PKG/.gaia/research/runs/<slug>-<utcstamp>/
 ```
 
 The run envelope always records state, events, checkpoints, searches, analysis,
-and trace files. With no search input, the command creates a query-plan
-checkpoint. With either precomputed search JSON or `--query`, it executes the
-pipeline through focus, optional expand, assessment, reports, stop, and one
-final trace summary. `gaia build check "$PKG"` remains an explicit caller-side
-closed-loop verification step for now.
+and trace files. With `--analysis-provider litellm` and no search input, the
+command runs a fixed `query_plan` LLM call, executes live broad search from that
+plan, then uses focus `suggested_queries` for targeted search. With checkpoint
+or file-provider modes, missing inputs pause the run at the next checkpoint.
+`gaia build check "$PKG"` remains an explicit caller-side closed-loop
+verification step for now.
 
 The first executable slice also supports a file-provider loop:
 
@@ -79,24 +80,13 @@ gaia research run "$PKG" \
 ```
 
 When the file-provider inputs are complete, the command executes scan, focus,
-optional expand, assess, reports, stop, and trace summary. When an input is
+optional expand, assess, stop, final report, and trace summary. When an input is
 missing, it writes the next checkpoint and leaves `state.json` at
 `status=waiting_for_input`.
 
-The current executable slice also supports CLI-owned live search and a
-command-based analysis provider:
-
-```bash
-gaia research run "$PKG" \
-  --topic "aspirin primary prevention evidence" \
-  --mode artifact-only \
-  --query "aspirin elderly primary prevention" \
-  --targeted-query "aspirin elderly bleeding" \
-  --search-limit 20 \
-  --analysis-provider command \
-  --focus-analysis-command "python scripts/focus_provider.py" \
-  --assess-analysis-command "python scripts/assess_provider.py"
-```
+Manual replay can still provide fixed live-search inputs, but this is not the
+default benchmark path and should not appear in clean live-run prompts unless
+the user explicitly asks to replay fixed inputs.
 
 Live search writes normalized Gaia search JSON to `searches/broad-NN.json` and
 `searches/targeted-NN.json`, appends `kind=search` trace rows, and emits
@@ -106,7 +96,8 @@ Live search writes normalized Gaia search JSON to `searches/broad-NN.json` and
 The run records provider calls as `kind=llm` trace rows and emits
 `provider.started` / `provider.completed` events.
 
-For in-process model calls, the run command supports a LiteLLM provider:
+For in-process model calls, the run command supports a topic-only LiteLLM
+provider path:
 
 ```bash
 uv sync --extra llm
@@ -114,7 +105,6 @@ uv sync --extra llm
 gaia research run "$PKG" \
   --topic "deconfined quantum critical point evidence assessment" \
   --mode fast-package-native \
-  --query "Neel VBS J-Q anomalous exponent scaling DQCP" \
   --analysis-provider litellm \
   --model "openai/deepseek-v4-flash" \
   --env-file /Users/dp/Projects/gaia-project/Gaia/.env
@@ -125,6 +115,8 @@ If no model flag is passed, `GAIA_RESEARCH_LLM_MODEL` is used. `--env-file`
 loads dotenv-style `KEY=VALUE` files before search/provider calls; shell
 environment variables win on conflicts, and `GAIA_RESEARCH_ENV_FILE` can provide
 a default path. LiteLLM is an optional extra rather than a default dependency.
+Normal live runs should not pass `--llm-max-tokens`; compact phase prompts and
+schema validation should keep outputs bounded without caller-side truncation.
 The provider sets `LITELLM_LOCAL_MODEL_COST_MAP=True`, suppresses LiteLLM debug
 output, disables cost calculation, writes `analysis/<phase>.input.json` and
 `analysis/<phase>.output.json`, and records token/request metadata when the
@@ -245,24 +237,42 @@ The medium-term pipeline phases are:
 
 1. `setup`: validate package and create run directories.
 2. `query_plan`: fixed LLM call or user checkpoint for broad queries.
+   With `--analysis-provider litellm`, omitting `--query` and
+   `--search-json` triggers this call automatically and persists
+   `analysis/query_plan.output.json`.
 3. `search_broad`: execute searches, preserve raw JSON, append trace rows.
 4. `explore_scan`: run package-native or artifact-only scan.
 5. `focus_analysis`: fixed LLM call producing `focus-analysis.json`.
 6. `focus_sync`: run `gaia research focus`.
-7. `expand_plan`: fixed LLM call or user checkpoint for targeted queries.
-8. `search_targeted`: execute targeted searches.
+7. `expand_plan`: focus-output `suggested_queries` or user-supplied targeted
+   queries.
+8. `search_targeted`: execute targeted searches. When neither
+   `--targeted-query` nor `--targeted-search-json` is supplied, the runner
+   takes the selected focus's `suggested_queries` plus coverage-gap suggested
+   queries from `focus_analysis`.
 9. `explore_expand`: run targeted expand.
 10. `assess_analysis`: fixed LLM call producing `assess-analysis.json`.
 11. `assess_sync`: run `gaia research assess`.
-12. `reports_stop`: render reports and evaluate stop.
+12. `reports_stop`: write stop JSON and one final trace-backed evidence report.
 13. `summarize_check`: run one final trace summary; callers still run build
     check explicitly.
 
 The first envelope-only slice stops at `query_plan` with
-`status=waiting_for_input`. The file-provider and command-provider slices can
+`status=waiting_for_input`. The litellm provider can continue from a topic-only
+invocation because broad queries and targeted queries are generated in fixed
+machine-readable calls. The file-provider and command-provider slices can
 continue through trace summary when required inputs are supplied or generated,
 or pause at `focus_analysis` / `assess_analysis` when provider outputs are
 missing.
+
+Coverage gaps and ordinary assessment `needs_more_evidence` items are deferred
+gaps by default. They remain visible in artifacts and sync payloads as
+`obligations_deferred`, but they do not become open inquiry obligations unless
+the provider explicitly marks an item actionable/blocking. Stop criteria also
+tracks how many latest-landscape paper leads are grounded in assessment refs;
+high paper novelty with low assessment grounding should lead to review,
+selected deep materialization, or explicit deferral rather than automatic
+expansion.
 
 ## Error Handling
 
@@ -279,8 +289,9 @@ diagnostics.
 - `--json-stream` emits machine-readable NDJSON matching the persisted events.
 - `--mode artifact-only` and `--mode fast-package-native` are recorded
   distinctly in state.
-- `--query` executes live-search plumbing and persists normalized search JSON
-  under the run directory.
+- Topic-only `litellm` runs execute `query_plan`, broad live search, focus
+  analysis, suggested-query targeted live search, assessment, stop, final
+  evidence report, and trace summary without caller-supplied queries.
 - `--analysis-provider command` records provider input/output files and `llm`
   trace rows while preserving the same downstream sync path as file-provider
   inputs.

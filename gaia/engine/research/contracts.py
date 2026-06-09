@@ -206,33 +206,44 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         "review_fields": {
             "language": language,
             "depth": "review",
-            "title": "publication-style title naming the scientific question",
-            "abstract": "120-180 Chinese characters when language is zh; standalone overview",
-            "key_points": "4-6 bullet points with the main conclusions and uncertainties",
+            "title": "publication-style title that names the scientific question",
+            "abstract": "standalone 120-180 Chinese character abstract when language is zh",
+            "key_points": "list[str] with 4-6 evidence-weighted conclusions",
             "summary": "concise bottom-line answer written as standalone scholarly prose",
             "sections": (
-                "ordered list with title and body fields; body text must read like a "
-                "mini-review section and may cite evidence with inline stable refs such "
-                "as [variable:<id>] or [paper:<paper_id>] that the report renderer maps "
-                "to citations"
+                "ordered list with title and body fields; keep to 1-3 compact sections. "
+                "Body text may cite evidence with inline stable refs such as "
+                "[variable:<id>] or [paper:<paper_id>] that the report renderer maps "
+                "to citations."
             ),
             "evidence_table": (
-                "list summarizing probe/model family, evidence direction, key constraints, "
-                "and unresolved limitations"
+                "list[object] comparing evidence clusters, direction, constraints, "
+                "and unresolved issues"
             ),
             "figure_specs": (
-                "2-4 proposed figures; each has title, purpose, visual_structure, "
-                "data_needed, and takeaway"
+                "list[object] with title, purpose, visual_structure, data_needed, "
+                "and takeaway"
             ),
             "limitations": "list[str]",
             "next_queries": "list[str]",
+        },
+        "candidate_obligation_fields": {
+            "kind": "needs_more_evidence, needs_method_check, needs_replication, or other",
+            "content": "specific missing check that affects this focus",
+            "source_refs": "optional grounding refs",
+            "actionable": (
+                "optional bool; set true only for a near-term blocking task that should "
+                "be written as an open inquiry obligation. Omit or false means the item "
+                "is retained as a deferred assessment gap."
+            ),
         },
         "analysis_guidance": [
             "Separate benefit endpoints from harm endpoints.",
             "Distinguish support, opposition, qualification, and methodological undercutting.",
             "Discuss population, endpoint, trial-era, and background-therapy heterogeneity.",
             "Use absolute effects, NNT, and NNH when available.",
-            "Write enough detail for a domain review, not a terse search summary.",
+            "Write compact contract-shaped JSON; do not emit Markdown or prose outside "
+            "the JSON object.",
             (
                 "Write the review as a standalone scholarly mini-review; the reader must "
                 "not need to know Gaia, LKM, CLI, items, artifacts, agents, runs, rounds, "
@@ -308,6 +319,7 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                     "kind": "needs_more_evidence",
                     "content": "补充 CAC 分层下 NNT/NNH 的证据。",
                     "source_refs": [{"kind": "paper", "id": "P_ASPREE"}],
+                    "actionable": False,
                 }
             ],
         },

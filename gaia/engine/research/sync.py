@@ -59,6 +59,7 @@ class ResearchSyncResult:
     materializations_written: list[str] = field(default_factory=list)
     materializations_skipped: list[str] = field(default_factory=list)
     obligations_added: list[str] = field(default_factory=list)
+    obligations_deferred: list[JsonDict] = field(default_factory=list)
     obligations_skipped: int = 0
     hypotheses_added: list[str] = field(default_factory=list)
     hypotheses_skipped: int = 0
@@ -90,6 +91,7 @@ class ResearchSyncResult:
             "materializations_written": list(self.materializations_written),
             "materializations_skipped": list(self.materializations_skipped),
             "obligations_added": list(self.obligations_added),
+            "obligations_deferred": list(self.obligations_deferred),
             "obligations_skipped": self.obligations_skipped,
             "hypotheses_added": list(self.hypotheses_added),
             "hypotheses_skipped": self.hypotheses_skipped,
@@ -243,6 +245,33 @@ def _add_obligation_once(
     result.obligations_added.append(obligation.qid)
 
 
+def _defer_obligation(
+    *,
+    target_qid: str,
+    content: str,
+    diagnostic_kind: str,
+    anchor: JsonDict,
+    result: ResearchSyncResult,
+) -> None:
+    result.obligations_deferred.append(
+        {
+            "target_qid": target_qid,
+            "content": content,
+            "diagnostic_kind": diagnostic_kind,
+            "anchor": anchor,
+        }
+    )
+
+
+def _is_actionable_obligation(payload: JsonDict) -> bool:
+    for key in ("actionable", "blocking", "write_obligation"):
+        value = payload.get(key)
+        if isinstance(value, bool):
+            return value
+    status = payload.get("status")
+    return isinstance(status, str) and status in {"actionable", "blocking"}
+
+
 def _set_focus(pkg: ResearchPackage, *, focus: str, kind: str, result: ResearchSyncResult) -> None:
     if not result.writes_inquiry:
         return
@@ -349,7 +378,6 @@ def _sync_candidate_focus_hypotheses(
 
 
 def _sync_focus_coverage_gaps(
-    pkg: ResearchPackage,
     gaps: object,
     *,
     target_qid: str,
@@ -363,8 +391,7 @@ def _sync_focus_coverage_gaps(
         description = gap.get("description")
         if not isinstance(description, str) or not description.strip():
             continue
-        _add_obligation_once(
-            pkg,
+        _defer_obligation(
             target_qid=target_qid,
             content=description.strip(),
             diagnostic_kind="focus_weakness",
@@ -419,8 +446,7 @@ def sync_landscape_artifact(
             description = gap.get("description") or gap.get("suggestion")
             if not isinstance(description, str) or not description.strip():
                 continue
-            _add_obligation_once(
-                pkg,
+            _defer_obligation(
                 target_qid=target_qid,
                 content=description.strip(),
                 diagnostic_kind="focus_weakness",
@@ -459,9 +485,7 @@ def sync_focus_artifact(
     scope_qid = written_or_existing[0] if written_or_existing else None
     _sync_candidate_focus_hypotheses(pkg, focuses, scope_qid=scope_qid, result=result)
     target_qid = written_or_existing[0] if written_or_existing else "research_focus"
-    _sync_focus_coverage_gaps(
-        pkg, artifact.get("coverage_gaps"), target_qid=target_qid, result=result
-    )
+    _sync_focus_coverage_gaps(artifact.get("coverage_gaps"), target_qid=target_qid, result=result)
 
     return result
 
@@ -708,6 +732,18 @@ def _sync_assessment_obligations(
             continue
         raw_kind = str(obligation.get("kind") or "other")
         diagnostic_kind = "support_weak" if raw_kind == "needs_more_evidence" else "other"
+        if not _is_actionable_obligation(obligation):
+            _defer_obligation(
+                target_qid=focus_id,
+                content=content.strip(),
+                diagnostic_kind=diagnostic_kind,
+                anchor={
+                    "kind": "assessment_obligation",
+                    "source_refs": obligation.get("source_refs"),
+                },
+                result=result,
+            )
+            continue
         _add_obligation_once(
             pkg,
             target_qid=focus_id,

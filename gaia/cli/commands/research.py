@@ -11,7 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 from time import perf_counter
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import typer
 
@@ -44,6 +44,7 @@ from gaia.engine.research import (
     evaluate_research_stop,
     load_research_package,
     materialize_landscape_source_package,
+    render_final_research_report_markdown,
     render_research_artifact_markdown,
     research_contract,
     sync_assessment_artifact,
@@ -135,6 +136,52 @@ def _read_json_object_path(path: Path) -> dict[str, object]:
         typer.echo(f"Error: file must contain a JSON object: {path}", err=True)
         raise typer.Exit(2)
     return payload
+
+
+def _read_trace_records(trace_dir: Path) -> list[dict[str, object]]:
+    trace_path = trace_dir / "trace.jsonl"
+    if not trace_path.exists():
+        return []
+    records: list[dict[str, object]] = []
+    for line in trace_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            records.append(payload)
+    return records
+
+
+def _collect_trace_json_artifacts(
+    trace_dir: Path,
+    *,
+    kind: str,
+) -> list[tuple[Path, dict[str, object]]]:
+    artifacts: list[tuple[Path, dict[str, object]]] = []
+    seen: set[Path] = set()
+    for record in _read_trace_records(trace_dir):
+        outputs = record.get("outputs")
+        if not isinstance(outputs, list):
+            continue
+        for output in outputs:
+            if not isinstance(output, str) or not output.endswith(".json"):
+                continue
+            path = Path(output)
+            if not path.is_absolute():
+                path = trace_dir / path
+            if path in seen or not path.exists():
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict) and payload.get("kind") == kind:
+                seen.add(path)
+                artifacts.append((path, payload))
+    return artifacts
 
 
 def _read_json_object_ref(ref: str, *, label: str) -> dict[str, object]:
@@ -804,6 +851,7 @@ def run_command(
     broad_queries = list(query or [])
     targeted_search_refs = list(targeted_search_json or [])
     targeted_queries = list(targeted_query or [])
+    can_auto_query_plan = analysis_provider == "litellm"
     try:
         run = start_research_run(
             research_pkg,
@@ -812,7 +860,7 @@ def run_command(
             language=language,
             profile=profile,
             run_id=run_id,
-            wait_for_query_plan=not (broad_search_refs or broad_queries),
+            wait_for_query_plan=not (broad_search_refs or broad_queries or can_auto_query_plan),
         )
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
@@ -821,6 +869,23 @@ def run_command(
     for event in run.events:
         if json_stream:
             typer.echo(json.dumps(event, ensure_ascii=False))
+
+    broad_queries = _auto_plan_broad_queries_if_needed(
+        research_pkg,
+        run,
+        topic=topic,
+        language=language,
+        profile=profile,
+        analysis_provider=analysis_provider,
+        model=model,
+        existing_search_refs=broad_search_refs,
+        existing_queries=broad_queries,
+        llm_temperature=llm_temperature,
+        llm_timeout=llm_timeout,
+        llm_max_retries=llm_max_retries,
+        llm_max_tokens=llm_max_tokens,
+        json_stream=json_stream,
+    )
 
     if broad_queries:
         broad_search_refs.extend(
@@ -870,6 +935,9 @@ def run_command(
             llm_timeout=llm_timeout,
             llm_max_retries=llm_max_retries,
             llm_max_tokens=llm_max_tokens,
+            search_index=search_index,
+            search_limit=search_limit,
+            reasoning_only=reasoning_only,
             focus_analysis_command=focus_analysis_command,
             assess_analysis_command=assess_analysis_command,
             json_stream=json_stream,
@@ -897,6 +965,46 @@ def run_command(
 
 def _run_state(run: ResearchRunStart) -> dict[str, Any]:
     return _read_json_object_path(run.state_path)
+
+
+def _auto_plan_broad_queries_if_needed(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    topic: str,
+    language: str,
+    profile: str,
+    analysis_provider: str,
+    model: str | None,
+    existing_search_refs: list[str],
+    existing_queries: list[str],
+    llm_temperature: float,
+    llm_timeout: float,
+    llm_max_retries: int,
+    llm_max_tokens: int | None,
+    json_stream: bool,
+) -> list[str]:
+    if existing_search_refs or existing_queries or analysis_provider != "litellm":
+        return existing_queries
+    resolved_model = _resolve_litellm_model(model)
+    query_plan_json = _run_analysis_provider_litellm(
+        research_pkg,
+        run,
+        phase="query_plan",
+        model=resolved_model,
+        input_payload=_query_plan_provider_input(
+            topic=topic,
+            language=language,
+            profile=profile,
+        ),
+        output_name="query_plan",
+        temperature=llm_temperature,
+        timeout=llm_timeout,
+        max_retries=llm_max_retries,
+        max_tokens=llm_max_tokens,
+        json_stream=json_stream,
+    )
+    return _queries_from_query_plan(_read_json_object_ref(query_plan_json, label="query-plan JSON"))
 
 
 def _update_run_state(run: ResearchRunStart, updates: dict[str, Any]) -> dict[str, Any]:
@@ -1498,9 +1606,14 @@ def _litellm_messages(
                     "validation_rules": [
                         "Return a single JSON object, not an array or string.",
                         "Do not add explanatory text before or after the JSON.",
+                        "Do not add decorative or prose-only keys outside the requested shape.",
                         "Every source_refs entry must use ids present in artifact_payloads.",
                         "If evidence is weak, encode uncertainty inside JSON fields.",
                         "Prefer fewer high-quality grounded items over broad ungrounded output.",
+                        (
+                            "Keep strings compact; avoid LaTeX commands when Unicode "
+                            "text is available."
+                        ),
                     ],
                     "input": input_payload,
                 },
@@ -1512,6 +1625,12 @@ def _litellm_messages(
 
 
 def _litellm_phase_instruction(phase: str) -> str:
+    if phase == "query_plan":
+        return (
+            "Generate 2-4 broad live-search queries for the topic. Cover distinct "
+            "evidence families and use domain terms likely to retrieve grounded "
+            "claims. Do not assess evidence yet."
+        )
     if phase == "focus_analysis":
         return (
             "Select 1-4 assessable research focuses from the scan landscape. "
@@ -1521,13 +1640,23 @@ def _litellm_phase_instruction(phase: str) -> str:
     if phase == "assess_analysis":
         return (
             "Assess only the selected focus against the provided landscapes. "
-            "Produce grounded candidate relations, a concise review, and only "
-            "obligations that directly follow from missing or conflicting evidence."
+            "Produce at most 5 grounded candidate relations, a concise review with "
+            "at most 3 sections of 1-2 sentences each, and at most 2 deferred "
+            "candidate obligations that directly follow from missing or conflicting "
+            "evidence. Set obligation.actionable=true only for a near-term blocking "
+            "task that should become an open inquiry obligation. Do not write title, "
+            "abstract, key_points, evidence_table, figure_specs, or other "
+            "article-draft fields."
         )
     return "Produce the contract-shaped JSON for this research phase."
 
 
 def _litellm_output_shape(phase: str) -> dict[str, object]:
+    if phase == "query_plan":
+        return {
+            "required_top_level_keys": ["queries"],
+            "queries_item_shape": {"query": "search query text", "rationale": "why it helps"},
+        }
     if phase == "focus_analysis":
         return {
             "required_top_level_keys": ["focuses", "coverage_gaps", "notes"],
@@ -1564,6 +1693,12 @@ def _litellm_output_shape(phase: str) -> dict[str, object]:
                 "limitations",
                 "next_queries",
             ],
+            "candidate_obligations_item_keys": [
+                "kind",
+                "content",
+                "source_refs",
+                "actionable",
+            ],
         }
     return {"required_top_level_keys": []}
 
@@ -1596,10 +1731,19 @@ def _json_object_from_llm_content(content: str) -> dict[str, object]:
     try:
         payload = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise ValueError(f"LiteLLM response was not valid JSON: {exc}") from exc
+        repaired_text = _escape_invalid_json_backslashes(text)
+        try:
+            payload = json.loads(repaired_text)
+        except json.JSONDecodeError:
+            raise ValueError(f"LiteLLM response was not valid JSON: {exc}") from exc
     if not isinstance(payload, dict):
         raise ValueError("LiteLLM response must be a JSON object.")
     return payload
+
+
+def _escape_invalid_json_backslashes(text: str) -> str:
+    """Preserve LaTeX-style backslashes inside otherwise valid JSON strings."""
+    return re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", text)
 
 
 def _litellm_response_content(response: object) -> str:
@@ -1665,6 +1809,136 @@ def _resolve_litellm_model(model: str | None) -> str:
     raise typer.Exit(2)
 
 
+def _query_plan_provider_input(
+    *,
+    topic: str,
+    language: str,
+    profile: str,
+) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "type": "gaia.research.query_plan_request",
+        "phase": "query_plan",
+        "topic": topic,
+        "language": language,
+        "profile": profile,
+        "contract": {
+            "required_top_level_keys": ["queries"],
+            "queries": (
+                "Return 2-4 broad live-search queries as strings or objects with "
+                "`query` and optional `rationale`."
+            ),
+        },
+    }
+
+
+def _queries_from_query_plan(payload: dict[str, object]) -> list[str]:
+    raw_queries = payload.get("queries") or payload.get("broad_queries")
+    if not isinstance(raw_queries, list):
+        typer.echo("Error: query_plan output must contain a `queries` list.", err=True)
+        raise typer.Exit(2)
+    queries: list[str] = []
+    seen: set[str] = set()
+    for item in raw_queries:
+        if isinstance(item, str):
+            query = item
+        elif isinstance(item, dict):
+            raw = item.get("query") or item.get("text")
+            query = raw if isinstance(raw, str) else ""
+        else:
+            query = ""
+        normalized = " ".join(query.split())
+        if normalized and normalized not in seen:
+            queries.append(normalized)
+            seen.add(normalized)
+    if not queries:
+        typer.echo("Error: query_plan output did not contain any non-empty queries.", err=True)
+        raise typer.Exit(2)
+    return queries
+
+
+def _suggested_queries_for_focus(
+    focus_artifact: dict[str, object],
+    selected_focus: object,
+) -> list[str]:
+    selected_id = str(selected_focus)
+    queries: list[str] = []
+    seen: set[str] = set()
+
+    focuses = focus_artifact.get("focuses")
+    if isinstance(focuses, list):
+        for focus_item in focuses:
+            if not isinstance(focus_item, dict):
+                continue
+            if str(focus_item.get("id")) != selected_id:
+                continue
+            _extend_unique_queries(queries, seen, focus_item.get("suggested_queries"))
+
+    coverage_gaps = focus_artifact.get("coverage_gaps")
+    if isinstance(coverage_gaps, list):
+        for gap in coverage_gaps:
+            if isinstance(gap, dict):
+                _extend_unique_queries(queries, seen, gap.get("suggested_queries"))
+    return queries
+
+
+def _extend_unique_queries(
+    queries: list[str],
+    seen: set[str],
+    suggested: object,
+) -> None:
+    if not isinstance(suggested, list):
+        return
+    for item in suggested:
+        value = _query_text(item)
+        if value is None:
+            continue
+        normalized = " ".join(value.split())
+        if normalized and normalized not in seen:
+            queries.append(normalized)
+            seen.add(normalized)
+
+
+def _query_text(item: object) -> str | None:
+    if isinstance(item, str):
+        return item
+    if not isinstance(item, dict):
+        return None
+    raw = item.get("query") or item.get("text")
+    return raw if isinstance(raw, str) else None
+
+
+def _targeted_searches_after_focus(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    focus_artifact: dict[str, object],
+    selected_focus: object,
+    targeted_search_json: list[str],
+    targeted_query: list[str],
+    search_index: str,
+    search_limit: int,
+    reasoning_only: bool,
+    json_stream: bool,
+) -> tuple[list[str], list[str]]:
+    if targeted_search_json:
+        return targeted_search_json, targeted_query
+    queries = targeted_query or _suggested_queries_for_focus(focus_artifact, selected_focus)
+    if not queries:
+        return [], []
+    search_refs = _execute_live_searches(
+        research_pkg,
+        run,
+        queries=queries,
+        prefix="targeted",
+        search_index=search_index,
+        search_limit=search_limit,
+        reasoning_only=reasoning_only,
+        json_stream=json_stream,
+    )
+    return search_refs, queries
+
+
 def _analysis_provider_input(
     *,
     phase: str,
@@ -1709,6 +1983,9 @@ def _execute_file_provider_run(
     llm_timeout: float,
     llm_max_retries: int,
     llm_max_tokens: int | None,
+    search_index: str,
+    search_limit: int,
+    reasoning_only: bool,
     focus_analysis_command: str | None,
     assess_analysis_command: str | None,
     json_stream: bool,
@@ -1905,6 +2182,20 @@ def _execute_file_provider_run(
         or (focus_sync_payload.get("focus_set") if isinstance(focus_sync_payload, dict) else None)
         or str(focus_artifact["focuses"][0]["id"])
     )
+
+    targeted_search_json, targeted_query = _targeted_searches_after_focus(
+        research_pkg,
+        run,
+        focus_artifact=focus_artifact,
+        selected_focus=selected_focus,
+        targeted_search_json=targeted_search_json,
+        targeted_query=targeted_query,
+        search_index=search_index,
+        search_limit=search_limit,
+        reasoning_only=reasoning_only,
+        json_stream=json_stream,
+    )
+    state_metrics["searches"] = len(search_json) + len(targeted_search_json)
 
     landscapes = [scan_landscape]
     landscape_paths = [scan_path]
@@ -2138,33 +2429,6 @@ def _execute_file_provider_run(
     )
 
     _update_run_state(run, {"phase": "reports_stop"})
-    report_outputs: dict[str, Path] = {
-        "focus_report": run.run_dir / "trace" / "focus_report.md",
-        "assessment_report": run.run_dir / "trace" / "assessment_report.md",
-    }
-    for artifact_name, artifact_payload, artifact_path in (
-        ("focus_report", focus_artifact, focus_path),
-        ("assessment_report", assessment, assessment_path),
-    ):
-        start = perf_counter()
-        markdown = render_research_artifact_markdown(artifact_payload)
-        report_outputs[artifact_name].write_text(markdown, encoding="utf-8")
-        _record_run_cli_trace(
-            research_pkg,
-            run,
-            start=start,
-            name="report",
-            mode="artifact_only",
-            inputs=[str(artifact_path)],
-            outputs=[str(report_outputs[artifact_name])],
-            metrics={
-                "artifact_kind": artifact_payload.get("kind"),
-                "markdown_chars": len(markdown),
-                "writes_file": True,
-            },
-        )
-        state_artifacts[artifact_name] = str(report_outputs[artifact_name])
-
     start = perf_counter()
     stop_payload = evaluate_research_stop(
         focus_artifact=focus_artifact,
@@ -2191,32 +2455,53 @@ def _execute_file_provider_run(
             **dict(stop_payload.get("metrics") or {}),
         },
     )
-    stop_report = run.run_dir / "trace" / "stop_report.md"
     start = perf_counter()
-    stop_markdown = render_research_artifact_markdown(stop_payload)
-    stop_report.write_text(stop_markdown, encoding="utf-8")
+    trace_dir = run.run_dir / "trace"
+    focus_trace_artifacts = _collect_trace_json_artifacts(trace_dir, kind="focus_synthesis")
+    assessment_trace_artifacts = _collect_trace_json_artifacts(trace_dir, kind="assessment")
+    final_focus_inputs = [path for path, _payload in focus_trace_artifacts] or [focus_path]
+    final_assessment_inputs = [
+        path for path, _payload in assessment_trace_artifacts
+    ] or [assessment_path]
+    final_focus_payloads = [
+        cast(dict[str, Any], payload) for _path, payload in focus_trace_artifacts
+    ] or [focus_artifact]
+    final_assessment_payloads = [
+        cast(dict[str, Any], payload) for _path, payload in assessment_trace_artifacts
+    ] or [assessment]
+    final_report_path = trace_dir / "final_report.md"
+    final_markdown = render_final_research_report_markdown(
+        focus_artifacts=final_focus_payloads,
+        assessments=final_assessment_payloads,
+    )
+    final_report_path.write_text(final_markdown, encoding="utf-8")
     _record_run_cli_trace(
         research_pkg,
         run,
         start=start,
-        name="report",
-        mode="artifact_only",
-        inputs=[str(stop_path)],
-        outputs=[str(stop_report)],
+        name="report.final",
+        mode=research_mode,
+        inputs=[
+            *[str(path) for path in final_focus_inputs],
+            *[str(path) for path in final_assessment_inputs],
+        ],
+        outputs=[str(final_report_path)],
         metrics={
-            "artifact_kind": stop_payload.get("kind"),
-            "markdown_chars": len(stop_markdown),
+            "assessments": len(final_assessment_payloads),
+            "focus_artifacts": len(final_focus_payloads),
+            "markdown_chars": len(final_markdown),
             "writes_file": True,
         },
     )
     state_artifacts["stop"] = str(stop_path)
-    state_artifacts["stop_report"] = str(stop_report)
+    state_artifacts["final_report"] = str(final_report_path)
     _emit_run_event(
         run,
         event_type="phase.completed",
         phase="reports_stop",
         json_stream=json_stream,
         payload={
+            "final_report": str(final_report_path),
             "stop": str(stop_path),
             "recommendation": stop_payload.get("recommendation"),
             "should_stop": stop_payload.get("should_stop"),

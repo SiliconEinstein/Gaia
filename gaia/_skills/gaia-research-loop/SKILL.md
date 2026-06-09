@@ -14,8 +14,8 @@ description: |
 
 Run a package-native research loop without inventing a second research data
 model. Canonical research state lives in Gaia package source and inquiry state;
-`.gaia/research` is for landscapes, assessments, reports, run traces, derived
-benchmark summaries, and other audit artifacts.
+`.gaia/research` is for landscapes, assessments, the final evidence report,
+run traces, derived benchmark summaries, and other audit artifacts.
 
 Use printed `gaia research contract ...` output as the schema source. Do not
 copy, freestyle, or infer schemas from memory.
@@ -122,34 +122,59 @@ unless the user requested benchmark/live eval.
 For benchmark/live eval mode, follow `references/live-eval-sop.md`. In short:
 
 1. Use a fresh package-local `$RUN`.
-2. Save every raw LKM search result under `$RUN/searches/`.
-3. Use `--trace-dir "$TRACE"` for every `gaia research` command that
+2. Prefer the package-native orchestrator:
+   `gaia research run "$PKG" --topic "<topic>" --analysis-provider litellm`.
+   Do not pass broad `--query`, `--search-json`, `--targeted-query`, or
+   `--targeted-search-json` unless the user explicitly asks to replay fixed
+   inputs. Let the runner's `query_plan` LLM call generate broad searches, and
+   let `focus_analysis.suggested_queries` drive targeted searches.
+   Do not pass `--llm-max-tokens` in normal live runs; the fixed prompts should
+   stay compact, and provider truncation should be handled by prompt/schema
+   tightening rather than caller-side caps.
+3. Save every raw LKM search result under `$RUN/searches/`.
+4. Use `--trace-dir "$TRACE"` for every `gaia research` command that
    supports it.
-4. Use `gaia research trace record` for LKM search timing, LLM/provider token
+5. Use `gaia research trace record` for LKM search timing, LLM/provider token
    usage, retries, and other external steps.
-5. After the final trace append, run `gaia research trace summarize "$PKG"
+6. After the final trace append, run `gaia research trace summarize "$PKG"
    --trace-dir "$TRACE"` to rebuild derived `benchmark.json` from `trace.jsonl`.
-6. Produce `evaluation_trace.md`, `benchmark.json`, `trace.jsonl`, focus and
-   assess contracts, analysis JSON files, rendered reports, stop criteria, and
-   a final Chinese scholarly mini-review when requested in Chinese.
-7. In `evaluation_trace.md`, distinguish end-to-end elapsed time from the
+7. Produce `evaluation_trace.md`, `benchmark.json`, `trace.jsonl`, focus and
+   assess contracts, analysis JSON files, JSON stop criteria, and one final
+   scholarly evidence report at `$RUN/trace/final_report.md`.
+8. In `evaluation_trace.md`, distinguish end-to-end elapsed time from the
    derived benchmark summary's sum of explicitly recorded trace step wall times.
-8. Continue until obligations are resolved, explicitly deferred with rationale,
-   or stop criteria recommends a justified terminal action.
+9. Treat ordinary coverage gaps and `needs_more_evidence` items as deferred
+   assessment gaps unless they are explicitly marked actionable/blocking.
+   Continue until actionable obligations are resolved, explicitly deferred with
+   rationale, or stop criteria recommends a justified terminal action.
+
+For follow-up runs, keep `--topic` as a natural research instruction, not a
+hidden query list. Good: "Continue the DQCP evidence assessment, focusing on
+the unresolved evidence gaps from the previous run." Bad: a colon-separated
+list of exact paper families, exponents, and search phrases copied from
+obligations. The runner should generate the query plan.
+
+Before deciding to expand again, check whether the latest landscape actually
+grounds the assessment. A high new-paper-lead ratio by itself is not enough:
+if the assessment cites only a small fraction of the new leads, prefer human
+review, deep materialization, or explicit deferral over another broad expansion.
 
 ## Review Quality Bar
 
 Before handoff:
 
 1. `gaia build check "$PKG"` passes when package source changed.
-2. Focus, assessment, and stop artifacts render with `gaia research report`.
-3. Review prose reads like a scholarly mini-review, not a command transcript.
+2. Focus, assessment, and stop remain JSON audit artifacts; the only default
+   Markdown report from a run is `$RUN/trace/final_report.md`.
+3. Final review prose reads like a scholarly evidence review, not a command
+   transcript or run summary.
 4. Main review prose does not mention Gaia, LKM, CLI, artifact ids, or workflow
    jargon except in explicit provenance/trace sections.
 5. Relations and obligations are explained in prose; raw tables stay in JSON
    artifacts.
 6. The trace says what to do next: broaden search, expand a focus, assess
-   another focus, promote scaffolds, or stop.
+   another focus, deep-materialize selected papers/chains, defer known gaps, or
+   stop.
 
 ## Common Mistakes
 

@@ -32,6 +32,38 @@ def _paper_ids(landscapes: list[dict[str, Any]]) -> set[str]:
     return paper_ids
 
 
+def _paper_ids_by_variable(landscapes: list[dict[str, Any]]) -> dict[str, str]:
+    paper_by_variable: dict[str, str] = {}
+    for landscape in landscapes:
+        for item in _list(landscape.get("items")):
+            if not isinstance(item, dict):
+                continue
+            item_id = item.get("id")
+            paper_id = item.get("paper_id")
+            if isinstance(item_id, str) and item_id and isinstance(paper_id, str) and paper_id:
+                paper_by_variable[item_id] = paper_id
+    return paper_by_variable
+
+
+def _assessment_variable_ids(assessment: dict[str, Any] | None) -> set[str]:
+    if assessment is None:
+        return set()
+    variable_ids: set[str] = set()
+    payloads = [
+        *_list(assessment.get("relations")),
+        *_list(assessment.get("candidate_obligations")),
+    ]
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        for ref in _list(payload.get("source_refs")):
+            if isinstance(ref, dict) and ref.get("kind") == "variable":
+                ref_id = ref.get("id")
+                if isinstance(ref_id, str) and ref_id:
+                    variable_ids.add(ref_id)
+    return variable_ids
+
+
 def _relation_type_counts(assessment: dict[str, Any] | None) -> dict[str, int]:
     counts: dict[str, int] = {}
     if assessment is None:
@@ -145,17 +177,26 @@ def _query_novelty_dimension(
     landscapes: list[dict[str, Any]],
     previous_landscapes: list[dict[str, Any]],
     *,
+    assessment: dict[str, Any] | None,
     min_new_lead_ratio: float,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     current_ids = _paper_ids(landscapes)
     previous_ids = _paper_ids(previous_landscapes)
     new_ids = current_ids - previous_ids
     ratio = len(new_ids) / max(len(current_ids), 1)
+    cited_paper_ids = {
+        paper_id
+        for variable_id, paper_id in _paper_ids_by_variable(landscapes).items()
+        if variable_id in _assessment_variable_ids(assessment)
+    }
+    grounding_ratio = len(cited_paper_ids) / max(len(current_ids), 1)
     metrics = {
         "current_paper_leads": len(current_ids),
         "previous_paper_leads": len(previous_ids),
         "new_paper_leads": len(new_ids),
         "new_paper_lead_ratio": round(ratio, 4),
+        "assessment_grounded_paper_leads": len(cited_paper_ids),
+        "assessment_grounded_paper_lead_ratio": round(grounding_ratio, 4),
     }
     if not landscapes or not previous_landscapes:
         return (
@@ -176,6 +217,19 @@ def _query_novelty_dimension(
                 (
                     "Latest landscape adds too few new paper leads "
                     f"({ratio:.2f} < {min_new_lead_ratio:.2f})."
+                ),
+            ),
+            metrics,
+        )
+    if assessment is not None and grounding_ratio < min_new_lead_ratio:
+        return (
+            _dimension(
+                "weak",
+                grounding_ratio,
+                (
+                    "Latest landscape adds novel paper leads, but too few are grounded "
+                    "in the assessment "
+                    f"({grounding_ratio:.2f} < {min_new_lead_ratio:.2f})."
                 ),
             ),
             metrics,
@@ -229,6 +283,7 @@ def evaluate_research_stop(
     query_novelty, novelty_metrics = _query_novelty_dimension(
         current_landscapes,
         prior_landscapes,
+        assessment=assessment,
         min_new_lead_ratio=min_new_lead_ratio,
     )
     dimensions = {

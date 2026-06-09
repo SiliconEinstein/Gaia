@@ -217,19 +217,11 @@ The trace should distinguish:
 The Chinese review should read as a compact scholarly review. It should not be
 only a command transcript.
 
-Render validated artifacts to Markdown:
-
-```bash
-gaia research report "$PKG" \
-  --artifact "$PKG/.gaia/research/focuses/<focuses>.json" \
-  --out "$RUN/trace/focus_report.md" \
-  --trace-dir "$TRACE"
-
-gaia research report "$PKG" \
-  --artifact "$PKG/.gaia/research/assessments/<assessment>.json" \
-  --out "$RUN/trace/assessment_report.md" \
-  --trace-dir "$TRACE"
-```
+Keep validated focus, assessment, and stop artifacts as JSON audit records.
+The normal live-run protocol writes one reader-facing Markdown report at the
+end: `$RUN/trace/final_report.md`. That report synthesizes all traced
+assessment JSON artifacts into an academic evidence review rather than a
+workflow transcript.
 
 Evaluate stop criteria:
 
@@ -240,11 +232,6 @@ gaia research stop "$PKG" \
   --landscape "$PKG/.gaia/research/landscapes/<latest>.json" \
   --previous-landscape "$PKG/.gaia/research/landscapes/<previous>.json" \
   --out "$RUN/trace/stop.json" \
-  --trace-dir "$TRACE"
-
-gaia research report "$PKG" \
-  --artifact "$RUN/trace/stop.json" \
-  --out "$RUN/trace/stop_report.md" \
   --trace-dir "$TRACE"
 
 gaia research trace summarize "$PKG" --trace-dir "$TRACE"

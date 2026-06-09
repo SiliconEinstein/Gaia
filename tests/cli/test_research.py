@@ -415,6 +415,10 @@ def test_research_run_executes_artifact_only_file_provider_loop(tmp_path: Path) 
     assert state["phase"] == "complete"
     assert state["artifacts"]["benchmark"].endswith("/trace/benchmark.json")
     assert state["artifacts"]["stop"].endswith("/trace/stop.json")
+    assert state["artifacts"]["final_report"].endswith("/trace/final_report.md")
+    assert "focus_report" not in state["artifacts"]
+    assert "assessment_report" not in state["artifacts"]
+    assert "stop_report" not in state["artifacts"]
     assert state["metrics"]["searches"] == 2
 
     events = [
@@ -425,9 +429,14 @@ def test_research_run_executes_artifact_only_file_provider_loop(tmp_path: Path) 
     assert "phase.completed" in event_types
     assert "run.completed" in event_types
     assert any(event.get("phase") == "assess_sync" for event in events)
-    assert (run_dir / "trace" / "assessment_report.md").exists()
-    assert (run_dir / "trace" / "focus_report.md").exists()
-    assert (run_dir / "trace" / "stop_report.md").exists()
+    assert (run_dir / "trace" / "final_report.md").exists()
+    assert not (run_dir / "trace" / "assessment_report.md").exists()
+    assert not (run_dir / "trace" / "focus_report.md").exists()
+    assert not (run_dir / "trace" / "stop_report.md").exists()
+    final_report = (run_dir / "trace" / "final_report.md").read_text(encoding="utf-8")
+    assert "一级预防" in final_report
+    assert "stop recommendation" not in final_report
+    assert "total tokens" not in final_report
     benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
     assert benchmark["summary"]["steps"] >= 6
 
@@ -712,6 +721,169 @@ def test_research_run_executes_litellm_provider(
     assert benchmark["summary"]["total_input_tokens"] == 20
     assert benchmark["summary"]["total_output_tokens"] == 40
     assert benchmark["summary"]["total_tokens"] == 60
+
+
+def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    searched_queries: list[str] = []
+
+    def fake_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        searched_queries.append(query)
+        assert index == "bohrium"
+        assert limit == 3
+        assert reasoning_only is True
+        row_id = "aspree" if "primary" in query else "bleed"
+        return _search(
+            query,
+            [
+                _lkm_row(
+                    f"P_{row_id.upper()}",
+                    row_id,
+                    0.9,
+                    paper_title=f"{row_id.upper()} paper",
+                    content=f"{query} retrieved evidence.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+
+    calls: list[str] = []
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        messages = kwargs["messages"]
+        assert isinstance(messages, list)
+        user_content = str(messages[-1]["content"])
+        if '"phase": "query_plan"' in user_content:
+            calls.append("query_plan")
+            payload = {
+                "queries": [
+                    {
+                        "query": "aspirin elderly primary prevention",
+                        "rationale": "broad evidence scan",
+                    }
+                ]
+            }
+        elif '"phase": "focus_analysis"' in user_content:
+            calls.append("focus_analysis")
+            payload = {
+                "focuses": [
+                    {
+                        "id": "elderly_net_benefit",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "老年人阿司匹林一级预防是否有净获益？",
+                        "rationale": "Focus suggests targeted bleeding search.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {"population": "older adults"},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "aspree"}],
+                        "suggested_queries": ["aspirin elderly bleeding"],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": [],
+            }
+        else:
+            calls.append("assess_analysis")
+            payload = {
+                "relations": [
+                    {
+                        "type": "opposes",
+                        "claim": "ASPREE opposes routine primary prevention aspirin.",
+                        "rationale": "The retrieved evidence reports limited benefit.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "aspree"}],
+                    }
+                ],
+                "review": {
+                    "language": "zh",
+                    "depth": "review",
+                    "summary": "自动 query plan 与 suggested query 均已执行。[variable:aspree]",
+                    "sections": [{"title": "证据", "body": "证据偏反对。[variable:aspree]"}],
+                    "limitations": [],
+                    "next_queries": [],
+                },
+                "candidate_obligations": [],
+            }
+        return {
+            "choices": [{"message": {"content": json.dumps(payload, ensure_ascii=False)}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+            "id": f"litellm-{calls[-1]}",
+        }
+
+    fake_litellm = SimpleNamespace(
+        acompletion=fake_acompletion,
+        suppress_debug_info=False,
+        disable_cost_calc=False,
+    )
+    monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "artifact-only",
+            "--run-id",
+            "litellm-auto-plan-run",
+            "--analysis-provider",
+            "litellm",
+            "--model",
+            "litellm_proxy/test-model",
+            "--search-limit",
+            "3",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == ["query_plan", "focus_analysis", "assess_analysis"]
+    assert searched_queries == [
+        "aspirin elderly primary prevention",
+        "aspirin elderly bleeding",
+    ]
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "litellm-auto-plan-run"
+    assert (run_dir / "analysis" / "query_plan.output.json").exists()
+    assert sorted(path.name for path in (run_dir / "searches").glob("*.json")) == [
+        "broad-01.json",
+        "targeted-01.json",
+    ]
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.ndjson").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert any(
+        event["type"] == "provider.completed" and event["phase"] == "query_plan"
+        for event in events
+    )
+    benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["summary"]["kind_counts"]["llm"] == 3
+    assert benchmark["summary"]["kind_counts"]["search"] == 2
+
+
+def test_litellm_json_parser_repairs_latex_backslashes() -> None:
+    payload = research_cli._json_object_from_llm_content(
+        '{"review":{"summary":"弱一级标度 $T^{**}-T^*\\propto q^2$"}}'
+    )
+
+    assert payload == {"review": {"summary": "弱一级标度 $T^{**}-T^*\\propto q^2$"}}
 
 
 def test_research_run_litellm_provider_loads_env_file(
@@ -1102,11 +1274,12 @@ def test_research_scan_consumes_search_json_and_writes_landscape(
     assert events[-1]["payload"]["writes_source"] is False
     assert events[-1]["payload"]["writes_inquiry"] is True
     assert len(events[-1]["payload"]["hypotheses_added"]) == 1
-    assert len(events[-1]["payload"]["obligations_added"]) == 1
+    assert events[-1]["payload"]["obligations_added"] == []
+    assert len(events[-1]["payload"]["obligations_deferred"]) == 1
 
     state = _read_inquiry_state(pkg_dir)
     assert len(state["synthetic_hypotheses"]) == 1
-    assert len(state["synthetic_obligations"]) == 1
+    assert state["synthetic_obligations"] == []
 
 
 def test_research_scan_records_trace_then_summarizes_benchmark(
@@ -1614,7 +1787,9 @@ def test_research_expand_writes_targeted_landscape(
 
     state = _read_inquiry_state(pkg_dir)
     assert state["synthetic_hypotheses"][0]["scope_qid"] == "seed"
-    assert state["synthetic_obligations"][0]["target_qid"] == "seed"
+    assert state["synthetic_obligations"] == []
+    assert events[-1]["payload"]["obligations_added"] == []
+    assert events[-1]["payload"]["obligations_deferred"][0]["target_qid"] == "seed"
 
 
 def test_research_focus_writes_synthesis_from_analysis_json(
@@ -1714,11 +1889,13 @@ def test_research_focus_writes_synthesis_from_analysis_json(
     assert events[-1]["event"] == "focus.synthesis.completed"
     assert events[-1]["payload"]["analysis_json"] is True
     assert len(events[-1]["payload"]["questions_written"]) == 1
-    assert len(events[-1]["payload"]["obligations_added"]) == 1
+    assert events[-1]["payload"]["obligations_added"] == []
+    assert len(events[-1]["payload"]["obligations_deferred"]) == 1
 
     state = _read_inquiry_state(pkg_dir)
     assert str(state["focus"]).startswith("rq_elderly_net_benefit_")
     assert state["focus_kind"] == "question"
+    assert state["synthetic_obligations"] == []
 
     check = runner.invoke(app, ["build", "check", str(pkg_dir)])
     assert check.exit_code == 0, check.output
@@ -2205,13 +2382,12 @@ def test_research_assess_accepts_analysis_json_with_review(
     assert events[-1]["payload"]["review"] is True
     assert len(events[-1]["payload"]["notes_written"]) == 1
     assert len(events[-1]["payload"]["candidate_relations_written"]) == 1
-    assert len(events[-1]["payload"]["obligations_added"]) == 1
+    assert events[-1]["payload"]["obligations_added"] == []
+    assert len(events[-1]["payload"]["obligations_deferred"]) == 1
     assert len(events[-1]["payload"]["hypotheses_added"]) == 1
 
     state = _read_inquiry_state(pkg_dir)
-    assert any(
-        item["target_qid"] == "elderly_net_benefit" for item in state["synthetic_obligations"]
-    )
+    assert state["synthetic_obligations"] == []
     assert any(item["scope_qid"] == "elderly_net_benefit" for item in state["synthetic_hypotheses"])
 
     check = runner.invoke(app, ["build", "check", str(pkg_dir)])
