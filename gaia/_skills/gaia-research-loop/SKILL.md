@@ -147,8 +147,8 @@ For benchmark/live eval mode, follow `references/live-eval-sop.md`. In short:
    --trace-dir "$TRACE"` to rebuild derived `benchmark.json` from `trace.jsonl`.
 7. Produce `evaluation_trace.md`, `benchmark.json`, `trace.jsonl`, field-map,
    selected-evidence, focus and assess contracts, analysis JSON files, JSON
-   stop criteria, and one final scholarly evidence report at
-   `$RUN/trace/final_report.md`.
+   stop criteria, report plan/section/stitch JSON, and one final scholarly
+   evidence report at `$RUN/trace/final_report.md`.
 8. In `evaluation_trace.md`, distinguish end-to-end elapsed time from the
    derived benchmark summary's sum of explicitly recorded trace step wall times.
 9. Treat ordinary coverage gaps and `needs_more_evidence` items as deferred
@@ -176,8 +176,9 @@ Before handoff:
    Markdown report from a run is `$RUN/trace/final_report.md`.
 3. Field-map buckets cover the topic's review-level taxonomy before narrow
    focus assessment begins.
-4. Final review prose reads like a scholarly evidence review, not a command
-   transcript or run summary.
+4. Final review prose is written by report-plan/section/stitch phases and
+   reads like a scholarly evidence review, not a command transcript or run
+   summary.
 5. Main review prose does not mention Gaia, LKM, CLI, artifact ids, or workflow
    jargon except in explicit provenance/trace sections.
 6. Relations and obligations are explained in prose; raw tables stay in JSON

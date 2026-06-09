@@ -48,7 +48,10 @@ synthesis. After focus synthesis, it uses the selected focus's
 `suggested_queries` plus focus coverage-gap suggested queries for targeted
 search. Before assessment, it writes `.gaia/research/evidence/selected-evidence-*.json`
 and, outside artifact-only mode, deep-materializes only the selected paper
-graphs or reasoning chains required by that compact evidence packet.
+graphs or reasoning chains required by that compact evidence packet. After
+assessment, fast package-native LiteLLM runs write `report_plan`,
+`report_section_*`, and `report_stitch` analysis JSON before emitting the final
+Markdown report.
 Keep the LLM path unconstrained by caller-side output caps; if a provider emits
 oversized JSON, tighten the phase prompt or schema rather than adding
 `--llm-max-tokens`.
@@ -300,6 +303,9 @@ Produce or preserve:
 - `$RUN/analysis/focus-analysis.json`
 - `$RUN/analysis/assess-contract.json`
 - `$RUN/analysis/assess-analysis.json`
+- `$RUN/analysis/report_plan.output.json`
+- `$RUN/analysis/report_section_*.output.json`
+- `$RUN/analysis/report_stitch.output.json`
 - `$RUN/trace/stop.json`
 - `$RUN/trace/final_report.md`
 - `.gaia/research/landscapes/*.json`

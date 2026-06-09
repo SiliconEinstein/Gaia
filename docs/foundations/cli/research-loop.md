@@ -43,6 +43,7 @@ broad explore
   -> targeted expand
   -> selected evidence + deep materialization
   -> assess one focus
+  -> plan / write / stitch final report sections
   -> propose next open-ended research questions
   -> promote mature scaffold
   -> continue expand / assess / publish
@@ -54,7 +55,8 @@ review taxonomy before the loop chooses assessable focuses. After targeted
 expansion, the runner selects a compact evidence packet and deep-materializes
 only the paper graphs or reasoning chains needed for the selected focus.
 Assessment then reads that high-density packet instead of the full broad
-landscape.
+landscape. Final prose is written after assessment from a report plan and
+section drafts, so the assessment LLM can stay judgment-focused.
 
 ## Command Semantics
 

@@ -266,8 +266,13 @@ The medium-term pipeline phases are:
 16. `assess_analysis`: fixed LLM call producing `assess-analysis.json` from
     selected evidence rather than full landscapes.
 17. `assess_sync`: run `gaia research assess`.
-18. `reports_stop`: write stop JSON and one final trace-backed evidence report.
-19. `summarize_check`: run one final trace summary; callers still run build
+18. `report_plan`: fixed LLM call producing the final article outline from the
+    field map, selected evidence, and assessment judgment.
+19. `report_section`: fixed LLM calls writing one grounded section at a time.
+20. `report_stitch`: fixed LLM call stitching sections into the final scholarly
+    report without re-assessing evidence.
+21. `reports_stop`: write stop JSON and one final trace-backed evidence report.
+22. `summarize_check`: run one final trace summary; callers still run build
     check explicitly.
 
 The first envelope-only slice stops at `query_plan` with
@@ -305,8 +310,8 @@ diagnostics.
 - Topic-only `litellm` runs execute `query_plan`, broad live search,
   `field_map_analysis`, optional field-map coverage search, focus analysis,
   suggested-query targeted live search, selected-evidence/deep expansion,
-  assessment, stop, final evidence report, and trace summary without
-  caller-supplied queries.
+  assessment, sectioned report writing, stop, final evidence report, and trace
+  summary without caller-supplied queries.
 - `--analysis-provider command` records provider input/output files and `llm`
   trace rows while preserving the same downstream sync path as file-provider
   inputs.

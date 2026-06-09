@@ -1651,13 +1651,32 @@ def _litellm_phase_instruction(phase: str) -> str:
         )
     if phase == "assess_analysis":
         return (
-            "Assess only the selected focus against the provided landscapes. "
-            "Produce at most 5 grounded candidate relations and a concise scholarly "
-            "review with title, abstract, key_points, summary, sections, optional "
-            "evidence_table, limitations, and next_queries. Emit at most 2 deferred "
+            "Assess only the selected focus against the selected evidence packet. "
+            "Produce at most 5 grounded candidate relations, limitations, and next "
+            "queries. Do not write the final review prose; later report phases will "
+            "write the article from this judgment. Emit at most 2 deferred "
             "candidate obligations that directly follow from missing or conflicting "
             "evidence. Set obligation.actionable=true only for a near-term blocking "
             "task that should become an open inquiry obligation."
+        )
+    if phase == "report_plan":
+        return (
+            "Plan a scholarly evidence-review article from the field map, focus, "
+            "selected evidence, and assessment judgment. Produce a concise section "
+            "outline. Each section must have a stable id, title, purpose, and grounded "
+            "evidence refs. Do not reassess evidence; preserve the assessment judgment."
+        )
+    if phase == "report_section":
+        return (
+            "Write exactly one article section from the section plan, selected evidence, "
+            "and assessment judgment. Use only provided evidence refs. Do not change the "
+            "assessment conclusion. Return section markdown, not a full article."
+        )
+    if phase == "report_stitch":
+        return (
+            "Stitch section drafts into one academic evidence-review report. Add title, "
+            "abstract, transitions, and conclusion. Remove repetition, keep citations as "
+            "inline source refs, and do not add workflow or benchmark commentary."
         )
     return "Produce the contract-shaped JSON for this research phase."
 
@@ -1708,7 +1727,7 @@ def _litellm_output_shape(phase: str) -> dict[str, object]:
         }
     if phase == "assess_analysis":
         return {
-            "required_top_level_keys": ["relations", "review", "candidate_obligations"],
+            "required_top_level_keys": ["relations", "candidate_obligations"],
             "relations_item_keys": [
                 "type",
                 "claim",
@@ -1717,24 +1736,36 @@ def _litellm_output_shape(phase: str) -> dict[str, object]:
                 "promotion_hint",
                 "source_refs",
             ],
-            "review_keys": [
-                "language",
-                "depth",
-                "title",
-                "abstract",
-                "key_points",
-                "summary",
-                "sections",
-                "evidence_table",
-                "limitations",
-                "next_queries",
-            ],
+            "optional_judgment_keys": ["limitations", "next_queries"],
             "candidate_obligations_item_keys": [
                 "kind",
                 "content",
                 "source_refs",
                 "actionable",
             ],
+        }
+    if phase == "report_plan":
+        return {
+            "required_top_level_keys": [
+                "title",
+                "abstract",
+                "thesis",
+                "sections",
+                "conclusion_prompt",
+            ],
+            "sections_item_keys": ["id", "title", "purpose", "evidence_refs"],
+        }
+    if phase == "report_section":
+        return {
+            "required_top_level_keys": ["section_id", "title", "markdown", "used_refs"],
+            "markdown": "Markdown for exactly one report section. Start with a level-2 heading.",
+        }
+    if phase == "report_stitch":
+        return {
+            "required_top_level_keys": ["markdown"],
+            "markdown": (
+                "Complete final report Markdown with title, abstract, body, and conclusion."
+            ),
         }
     return {"required_top_level_keys": []}
 
@@ -2466,6 +2497,193 @@ def _run_evidence_select_and_deep_expand(
     return selected_evidence_path, selected_evidence
 
 
+def _report_provider_input(
+    *,
+    phase: str,
+    topic: str,
+    language: str,
+    artifact_paths: list[Path],
+    focus: str,
+    extra: dict[str, object] | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "type": "gaia.research.report_request",
+        "phase": phase,
+        "topic": topic,
+        "language": language,
+        "focus": focus,
+        "artifacts": [str(path) for path in artifact_paths],
+    }
+    if extra:
+        payload.update(extra)
+    return payload
+
+
+def _section_id(section: object, *, fallback: str) -> str:
+    if isinstance(section, dict):
+        raw = section.get("id")
+        if isinstance(raw, str) and raw:
+            return raw
+    return fallback
+
+
+def _safe_output_suffix(value: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._-")
+    return safe[:80] or "section"
+
+
+def _sections_from_report_plan(plan: dict[str, object]) -> list[dict[str, object]]:
+    sections = plan.get("sections")
+    if not isinstance(sections, list):
+        return []
+    return [section for section in sections if isinstance(section, dict)]
+
+
+def _run_sectioned_report_writing(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    topic: str,
+    language: str,
+    model: str,
+    focus: str,
+    field_map_path: Path | None,
+    focus_path: Path,
+    selected_evidence_path: Path | None,
+    assessment_path: Path,
+    llm_temperature: float,
+    llm_timeout: float,
+    llm_max_retries: int,
+    llm_max_tokens: int | None,
+    json_stream: bool,
+) -> tuple[str | None, list[str]]:
+    artifact_paths = [
+        *([field_map_path] if field_map_path is not None else []),
+        focus_path,
+        *([selected_evidence_path] if selected_evidence_path is not None else []),
+        assessment_path,
+    ]
+    if selected_evidence_path is None:
+        return None, []
+
+    _update_run_state(run, {"phase": "report_plan"})
+    report_plan_json = _run_analysis_provider_litellm(
+        research_pkg,
+        run,
+        phase="report_plan",
+        model=model,
+        input_payload=_report_provider_input(
+            phase="report_plan",
+            topic=topic,
+            language=language,
+            artifact_paths=artifact_paths,
+            focus=focus,
+        ),
+        output_name="report_plan",
+        temperature=llm_temperature,
+        timeout=llm_timeout,
+        max_retries=llm_max_retries,
+        max_tokens=llm_max_tokens,
+        json_stream=json_stream,
+    )
+    report_plan = _read_json_object_ref(report_plan_json, label="report-plan JSON")
+    section_paths: list[Path] = []
+    section_refs: list[str] = []
+    for index, section in enumerate(_sections_from_report_plan(report_plan), start=1):
+        section_id = _section_id(section, fallback=f"section_{index}")
+        output_name = f"report_section_{_safe_output_suffix(section_id)}"
+        section_json = _run_analysis_provider_litellm(
+            research_pkg,
+            run,
+            phase="report_section",
+            model=model,
+            input_payload=_report_provider_input(
+                phase="report_section",
+                topic=topic,
+                language=language,
+                artifact_paths=[selected_evidence_path, assessment_path, Path(report_plan_json)],
+                focus=focus,
+                extra={"section_id": section_id, "section": section},
+            ),
+            output_name=output_name,
+            temperature=llm_temperature,
+            timeout=llm_timeout,
+            max_retries=llm_max_retries,
+            max_tokens=llm_max_tokens,
+            json_stream=json_stream,
+        )
+        section_refs.append(section_json)
+        section_paths.append(Path(section_json))
+
+    stitch_json = _run_analysis_provider_litellm(
+        research_pkg,
+        run,
+        phase="report_stitch",
+        model=model,
+        input_payload=_report_provider_input(
+            phase="report_stitch",
+            topic=topic,
+            language=language,
+            artifact_paths=[assessment_path, Path(report_plan_json), *section_paths],
+            focus=focus,
+        ),
+        output_name="report_stitch",
+        temperature=llm_temperature,
+        timeout=llm_timeout,
+        max_retries=llm_max_retries,
+        max_tokens=llm_max_tokens,
+        json_stream=json_stream,
+    )
+    stitch_payload = _read_json_object_ref(stitch_json, label="report-stitch JSON")
+    markdown = stitch_payload.get("markdown")
+    if not isinstance(markdown, str) or not markdown.strip():
+        return None, [report_plan_json, *section_refs, stitch_json]
+    return markdown.strip() + "\n", [report_plan_json, *section_refs, stitch_json]
+
+
+def _maybe_run_sectioned_report_writing(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    topic: str,
+    language: str,
+    analysis_provider: str,
+    research_mode: str,
+    model: str | None,
+    assess_model: str | None,
+    focus: str,
+    field_map_path: Path | None,
+    focus_path: Path,
+    selected_evidence_path: Path | None,
+    assessment_path: Path,
+    llm_temperature: float,
+    llm_timeout: float,
+    llm_max_retries: int,
+    llm_max_tokens: int | None,
+    json_stream: bool,
+) -> tuple[str | None, list[str]]:
+    if analysis_provider != "litellm" or research_mode != "fast_package_native":
+        return None, []
+    return _run_sectioned_report_writing(
+        research_pkg,
+        run,
+        topic=topic,
+        language=language,
+        model=_resolve_litellm_model(assess_model or model),
+        focus=focus,
+        field_map_path=field_map_path,
+        focus_path=focus_path,
+        selected_evidence_path=selected_evidence_path,
+        assessment_path=assessment_path,
+        llm_temperature=llm_temperature,
+        llm_timeout=llm_timeout,
+        llm_max_retries=llm_max_retries,
+        llm_max_tokens=llm_max_tokens,
+        json_stream=json_stream,
+    )
+
+
 def _execute_file_provider_run(
     research_pkg: ResearchPackage,
     run: ResearchRunStart,
@@ -3021,6 +3239,29 @@ def _execute_file_provider_run(
             **dict(stop_payload.get("metrics") or {}),
         },
     )
+
+    sectioned_markdown, sectioned_report_inputs = _maybe_run_sectioned_report_writing(
+        research_pkg,
+        run,
+        topic=topic,
+        language=language,
+        analysis_provider=analysis_provider,
+        research_mode=research_mode,
+        model=model,
+        assess_model=assess_model,
+        focus=str(selected_focus),
+        field_map_path=field_map_path,
+        focus_path=focus_path,
+        selected_evidence_path=selected_evidence_path,
+        assessment_path=assessment_path,
+        llm_temperature=llm_temperature,
+        llm_timeout=llm_timeout,
+        llm_max_retries=llm_max_retries,
+        llm_max_tokens=llm_max_tokens,
+        json_stream=json_stream,
+    )
+
+    _update_run_state(run, {"phase": "reports_stop"})
     start = perf_counter()
     trace_dir = run.run_dir / "trace"
     focus_trace_artifacts = _collect_trace_json_artifacts(trace_dir, kind="focus_synthesis")
@@ -3036,7 +3277,7 @@ def _execute_file_provider_run(
         cast(dict[str, Any], payload) for _path, payload in assessment_trace_artifacts
     ] or [assessment]
     final_report_path = trace_dir / "final_report.md"
-    final_markdown = render_final_research_report_markdown(
+    final_markdown = sectioned_markdown or render_final_research_report_markdown(
         focus_artifacts=final_focus_payloads,
         assessments=final_assessment_payloads,
     )
@@ -3050,6 +3291,7 @@ def _execute_file_provider_run(
         inputs=[
             *[str(path) for path in final_focus_inputs],
             *[str(path) for path in final_assessment_inputs],
+            *sectioned_report_inputs,
         ],
         outputs=[str(final_report_path)],
         metrics={

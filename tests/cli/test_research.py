@@ -1040,7 +1040,7 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
                 "coverage_gaps": [],
                 "notes": [],
             }
-        else:
+        elif '"phase": "assess_analysis"' in user_content:
             calls.append("assess_analysis")
             assert '"kind": "selected_evidence"' in user_content
             assert '"materialization_plan"' in user_content
@@ -1056,6 +1056,38 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
                     }
                 ],
                 "candidate_obligations": [],
+            }
+        elif '"phase": "report_plan"' in user_content:
+            calls.append("report_plan")
+            payload = {
+                "title": "Weak first order report",
+                "abstract": "Sectioned report.",
+                "thesis": "Selected evidence supports the focus.",
+                "sections": [
+                    {
+                        "id": "judgment",
+                        "title": "Judgment",
+                        "purpose": "Summarize assessment judgment.",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_deep"}],
+                    }
+                ],
+                "conclusion_prompt": "Conclude cautiously.",
+            }
+        elif '"phase": "report_section"' in user_content:
+            calls.append("report_section:judgment")
+            payload = {
+                "section_id": "judgment",
+                "title": "Judgment",
+                "markdown": "## Judgment\n\nSelected evidence supports the focus.",
+                "used_refs": [{"kind": "variable", "id": "claim_deep"}],
+            }
+        else:
+            calls.append("report_stitch")
+            payload = {
+                "markdown": (
+                    "# Weak first order report\n\n"
+                    "## Judgment\n\nSelected evidence supports the focus.\n"
+                )
             }
         return {
             "choices": [{"message": {"content": json.dumps(payload, ensure_ascii=False)}}],
@@ -1095,7 +1127,15 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
     )
 
     assert result.exit_code == 0, result.output
-    assert calls == ["query_plan", "field_map_analysis", "focus_analysis", "assess_analysis"]
+    assert calls == [
+        "query_plan",
+        "field_map_analysis",
+        "focus_analysis",
+        "assess_analysis",
+        "report_plan",
+        "report_section:judgment",
+        "report_stitch",
+    ]
     assert materialize_calls == [
         {
             "paper_ids": ["P_DEEP"],
@@ -1114,6 +1154,218 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
     assert selected_evidence["materialization_result"]["lkm_packages_materialized"] == [
         {"source_ref": "lkm:bohrium:paper:P_DEEP"}
     ]
+
+
+def test_research_run_litellm_writes_report_in_sections(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+
+    def fake_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        assert index == "bohrium"
+        assert limit == 2
+        assert reasoning_only is True
+        return _search(
+            query,
+            [
+                _lkm_row(
+                    "P_REPORT",
+                    "claim_report",
+                    0.9,
+                    paper_title="Report evidence paper",
+                    content="Evidence supports a cautious conclusion.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+
+    def fake_no_materialize(*_args: object, **_kwargs: object) -> dict[str, object]:
+        return {
+            "lkm_materialize_requests": [],
+            "lkm_packages_materialized": [],
+            "lkm_chains_materialized": [],
+        }
+
+    monkeypatch.setattr(research_cli, "_materialize_lkm_papers_or_exit", fake_no_materialize)
+
+    calls: list[str] = []
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        user_content = str(kwargs["messages"][-1]["content"])
+        if '"phase": "query_plan"' in user_content:
+            calls.append("query_plan")
+            payload = {"queries": [{"query": "report evidence", "rationale": "broad"}]}
+        elif '"phase": "field_map_analysis"' in user_content:
+            calls.append("field_map_analysis")
+            payload = {
+                "domain_thesis": "Report field map.",
+                "buckets": [
+                    {
+                        "id": "evidence_base",
+                        "title": "Evidence base",
+                        "role": "main evidence",
+                        "required_for_review": True,
+                        "coverage_status": "covered",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_report"}],
+                        "recommended_queries": [],
+                    }
+                ],
+                "controversy_axes": ["support versus caution"],
+                "coverage_gaps": [],
+                "recommended_expansions": [],
+                "synthesis_notes": [],
+            }
+        elif '"phase": "focus_analysis"' in user_content:
+            calls.append("focus_analysis")
+            payload = {
+                "focuses": [
+                    {
+                        "id": "report_focus",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "What does the evidence show?",
+                        "rationale": "Grounded in report claim.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "claim_report"}],
+                        "suggested_queries": [],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": [],
+            }
+        elif '"phase": "assess_analysis"' in user_content:
+            calls.append("assess_analysis")
+            payload = {
+                "relations": [
+                    {
+                        "type": "qualifies",
+                        "claim": "The selected evidence supports a cautious conclusion.",
+                        "rationale": "The selected evidence packet contains the relevant claim.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "claim_report"}],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        elif '"phase": "report_plan"' in user_content:
+            calls.append("report_plan")
+            payload = {
+                "title": "分章节循证报告",
+                "abstract": "报告应分章节呈现证据。",
+                "thesis": "证据支持谨慎结论。",
+                "sections": [
+                    {
+                        "id": "evidence_base",
+                        "title": "证据基础",
+                        "purpose": "解释核心证据。",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_report"}],
+                    },
+                    {
+                        "id": "limitations",
+                        "title": "局限性",
+                        "purpose": "说明不确定性。",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_report"}],
+                    },
+                ],
+                "conclusion_prompt": "给出审慎结论。",
+            }
+        elif '"phase": "report_section"' in user_content:
+            section_id = (
+                "evidence_base"
+                if '"section_id": "evidence_base"' in user_content
+                else "limitations"
+            )
+            calls.append(f"report_section:{section_id}")
+            payload = {
+                "section_id": section_id,
+                "title": "证据基础" if section_id == "evidence_base" else "局限性",
+                "markdown": (
+                    "## 证据基础\n\n核心证据支持审慎判断。[variable:claim_report]\n"
+                    if section_id == "evidence_base"
+                    else "## 局限性\n\n仍需更多深读证据。[variable:claim_report]\n"
+                ),
+                "used_refs": [{"kind": "variable", "id": "claim_report"}],
+            }
+        else:
+            calls.append("report_stitch")
+            payload = {
+                "markdown": (
+                    "# 分章节循证报告\n\n"
+                    "## 摘要\n\n报告应分章节呈现证据。\n\n"
+                    "## 证据基础\n\n核心证据支持审慎判断。[variable:claim_report]\n\n"
+                    "## 局限性\n\n仍需更多深读证据。[variable:claim_report]\n"
+                )
+            }
+        return {
+            "choices": [{"message": {"content": json.dumps(payload, ensure_ascii=False)}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+            "id": f"litellm-{calls[-1]}",
+        }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "litellm",
+        SimpleNamespace(
+            acompletion=fake_acompletion,
+            suppress_debug_info=False,
+            disable_cost_calc=False,
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "report evidence",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "section-report-run",
+            "--analysis-provider",
+            "litellm",
+            "--model",
+            "litellm_proxy/test-model",
+            "--search-limit",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [
+        "query_plan",
+        "field_map_analysis",
+        "focus_analysis",
+        "assess_analysis",
+        "report_plan",
+        "report_section:evidence_base",
+        "report_section:limitations",
+        "report_stitch",
+    ]
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "section-report-run"
+    assert (run_dir / "analysis" / "report_plan.output.json").exists()
+    assert (run_dir / "analysis" / "report_section_evidence_base.output.json").exists()
+    assert (run_dir / "analysis" / "report_section_limitations.output.json").exists()
+    assert (run_dir / "analysis" / "report_stitch.output.json").exists()
+    final_report = (run_dir / "trace" / "final_report.md").read_text(encoding="utf-8")
+    assert final_report.startswith("# 分章节循证报告")
+    assert "## 证据基础" in final_report
+    assert "## 局限性" in final_report
 
 
 def test_litellm_json_parser_repairs_latex_backslashes() -> None:
