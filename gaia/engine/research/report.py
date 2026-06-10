@@ -769,11 +769,18 @@ def _append_limitations_and_tests(
     next_queries: list[str] = []
     for assessment in assessments:
         review = _review_payload(assessment)
-        for item in _list_like(review.get("limitations")):
+        assessment_limitations = [
+            *_list_like(review.get("limitations")),
+            *_list_like(assessment.get("limitations")),
+        ]
+        for item in assessment_limitations:
             text = _reader_text(item, context)
             if text and text not in limitations:
                 limitations.append(text)
-        for item in _list_like(review.get("next_queries")):
+        for item in [
+            *_list_like(review.get("next_queries")),
+            *_list_like(assessment.get("next_queries")),
+        ]:
             text = _reader_text(item, context)
             if text and text not in next_queries:
                 next_queries.append(text)

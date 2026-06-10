@@ -63,7 +63,11 @@ def _landscape_with_items(
         "kind": "research_landscape",
         "paper_leads": [{"paper_id": paper_id} for paper_id in papers],
         "items": [
-            {"id": variable_id, "paper_id": paper_id}
+            {
+                "id": variable_id,
+                "kind": "variable",
+                "source": {"paper_id": paper_id},
+            }
             for variable_id, paper_id in variable_to_paper.items()
         ],
     }

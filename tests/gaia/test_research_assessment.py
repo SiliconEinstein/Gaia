@@ -255,11 +255,15 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
                     "source_refs": [{"kind": "variable", "id": "aspree_variable"}],
                 }
             ],
+            "limitations": ["需要补充绝对风险差和人群异质性。"],
+            "next_queries": ["ASPREE absolute risk difference elderly subgroup"],
         },
     )
 
     assert artifact["relations"][0]["type"] == "opposes"
     assert artifact["review"]["summary"] == "老年人中常规一级预防净获益不足。"
+    assert artifact["limitations"] == ["需要补充绝对风险差和人群异质性。"]
+    assert artifact["next_queries"] == ["ASPREE absolute risk difference elderly subgroup"]
     assert artifact["citations"] == [
         {
             "id": "citation_1",
@@ -273,6 +277,69 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
     ]
     assert validate_assessment_artifact(artifact) is artifact
     assert validate_assessment_grounding(artifact) is artifact
+
+
+def test_assessment_grounding_allows_known_non_claim_package_refs_for_sync_skip() -> None:
+    selected_packet = {
+        "items": [
+            {
+                "item_id": "note_item",
+                "kind": "package",
+                "id": "note_item",
+                "content": "A note from a materialized source package.",
+                "package_ref": {"ref": "pkg:note", "value_type": "note"},
+            }
+        ],
+        "paper_leads": [],
+    }
+
+    artifact = build_assessment_from_analysis(
+        focus={"kind": "focus", "id": "elderly_net_benefit"},
+        landscapes=[],
+        evidence_packet=selected_packet,
+        analysis={
+            "relations": [
+                _relation(
+                    source_refs=[{"kind": "package_ref", "id": "pkg:note"}],
+                    claim_refs=["pkg:note"],
+                )
+            ],
+            "candidate_obligations": [],
+        },
+    )
+
+    assert validate_assessment_grounding(artifact) is artifact
+
+
+def test_assessment_grounding_rejects_unknown_package_claim_refs() -> None:
+    selected_packet = {
+        "items": [
+            {
+                "item_id": "claim_item",
+                "kind": "package",
+                "id": "claim_item",
+                "content": "A grounded materialized claim.",
+                "package_ref": {"ref": "pkg:claim", "value_type": "claim"},
+            }
+        ],
+        "paper_leads": [],
+    }
+
+    with pytest.raises(AssessmentSchemaError, match="not grounded"):
+        build_assessment_from_analysis(
+            focus={"kind": "focus", "id": "elderly_net_benefit"},
+            landscapes=[],
+            evidence_packet=selected_packet,
+            analysis={
+                "relations": [
+                    _relation(
+                        source_refs=[{"kind": "package_ref", "id": "pkg:claim"}],
+                        claim_refs=["pkg:missing"],
+                    )
+                ],
+                "candidate_obligations": [],
+            },
+        )
 
 
 def test_assessment_from_analysis_accepts_selected_evidence_packet() -> None:

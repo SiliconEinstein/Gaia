@@ -41,6 +41,16 @@ def _slug(value: str) -> str:
     return normalized[:40] or "research"
 
 
+def _validate_run_id(value: str) -> str:
+    if value != _slug(value):
+        msg = (
+            "run_id must contain only lowercase ASCII letters, digits, and hyphens, "
+            "and must not start or end with a hyphen"
+        )
+        raise ValueError(msg)
+    return value
+
+
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path: Path | None = None
@@ -114,7 +124,9 @@ def start_research_run(
         msg = f"unsupported research run mode: {mode!r}"
         raise ValueError(msg)
     ensure_research_manifest(pkg)
-    resolved_run_id = run_id or f"{_slug(topic)}-{_utcstamp()}"
+    resolved_run_id = (
+        _validate_run_id(run_id) if run_id is not None else f"{_slug(topic)}-{_utcstamp()}"
+    )
     run_dir = pkg.path / ".gaia" / "research" / "runs" / resolved_run_id
     searches_dir = run_dir / "searches"
     analysis_dir = run_dir / "analysis"

@@ -12,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from gaia.cli.commands.pkg.lkm_materialize import (
+    _chain_dist_name,
     materialize_lkm_paper_package,
     materialize_lkm_reasoning_chain_package,
 )
@@ -21,6 +22,25 @@ from gaia.engine.packaging import GaiaPackagingError
 pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
+
+
+def test_chain_dist_name_uses_full_claim_identity_for_sibling_claims() -> None:
+    first = _chain_dist_name(
+        index_id="bohrium",
+        claim_id="paper:12345678901234567890::low_rank_decomposition_overhead",
+        title="Same Paper Title",
+        max_chains=3,
+    )
+    second = _chain_dist_name(
+        index_id="bohrium",
+        claim_id="paper:12345678901234567890::low_rank_speedup_result",
+        title="Same Paper Title",
+        max_chains=3,
+    )
+
+    assert first != second
+    assert first.endswith("-gaia")
+    assert second.endswith("-gaia")
 
 
 def _paper_graph_payload() -> dict[str, Any]:

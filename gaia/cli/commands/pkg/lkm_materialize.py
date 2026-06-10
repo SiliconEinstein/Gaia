@@ -7,6 +7,7 @@ import keyword
 import re
 import unicodedata
 from dataclasses import dataclass
+from hashlib import sha1
 from pathlib import Path
 from typing import Any
 
@@ -212,7 +213,12 @@ def materialize_lkm_reasoning_chain_package(
     title = _text(paper.get("en_title")) or _text(paper.get("zh_title"))
     doi = _text(paper.get("doi"))
     source_ref = f"lkm:{index_id}:chain:{claim_id}"
-    dist_name = _chain_dist_name(index_id=index_id, claim_id=claim_id, title=title)
+    dist_name = _chain_dist_name(
+        index_id=index_id,
+        claim_id=claim_id,
+        title=title,
+        max_chains=max_chains,
+    )
     import_name = dist_name.removesuffix("-gaia").replace("-", "_")
     root = (storage_root or (project_root / ".gaia" / "lkm_packages")) / dist_name
     src = root / "src" / import_name
@@ -1077,10 +1083,22 @@ def _clean_dict(value: dict[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in value.items() if item is not None}
 
 
-def _chain_dist_name(*, index_id: str, claim_id: str, title: str | None) -> str:
+def _chain_dist_name(
+    *,
+    index_id: str,
+    claim_id: str,
+    title: str | None,
+    max_chains: int | None = None,
+) -> str:
     title_slug = _slug(title or "reasoning-chain", max_chars=36)
     claim_slug = _slug(claim_id, max_chars=30)
-    return f"lkm-{_slug(index_id, max_chars=24)}-chain-{title_slug}-{claim_slug}-gaia"
+    identity = json.dumps(
+        {"claim_id": claim_id, "index_id": index_id, "max_chains": max_chains},
+        ensure_ascii=True,
+        sort_keys=True,
+    )
+    digest = sha1(identity.encode("utf-8")).hexdigest()[:10]
+    return f"lkm-{_slug(index_id, max_chars=24)}-chain-{title_slug}-{claim_slug}-{digest}-gaia"
 
 
 __all__ = [

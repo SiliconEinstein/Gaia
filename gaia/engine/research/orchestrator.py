@@ -1343,6 +1343,62 @@ def _run_assessment_for_focus(
 def execute_file_provider_run(
     research_pkg: ResearchPackage,
     run: ResearchRunStart,
+    **kwargs: Any,
+) -> None:
+    """Execute the fixed workflow and keep UI state accurate on failures."""
+    runtime = cast(ResearchOrchestratorRuntime, kwargs["runtime"])
+    json_stream = bool(kwargs.get("json_stream", False))
+    try:
+        _execute_file_provider_run_impl(research_pkg, run, **kwargs)
+    except ResearchOrchestratorError as exc:
+        if exc.exit_code != 0:
+            _mark_run_failed(
+                run,
+                runtime=runtime,
+                json_stream=json_stream,
+                phase="failed",
+                error=str(exc),
+            )
+        raise
+    except Exception as exc:
+        _mark_run_failed(
+            run,
+            runtime=runtime,
+            json_stream=json_stream,
+            phase="failed",
+            error=str(exc),
+        )
+        raise
+
+
+def _mark_run_failed(
+    run: ResearchRunStart,
+    *,
+    runtime: ResearchOrchestratorRuntime,
+    json_stream: bool,
+    phase: str,
+    error: str,
+) -> None:
+    if run.state_path.exists():
+        try:
+            state = json.loads(run.state_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            state = {}
+        if isinstance(state, dict) and state.get("status") == "failed":
+            return
+    runtime.update_run_state(run, {"status": "failed", "phase": phase, "error": error})
+    runtime.emit_run_event(
+        run,
+        event_type="run.failed",
+        phase=phase,
+        json_stream=json_stream,
+        payload={"error": error},
+    )
+
+
+def _execute_file_provider_run_impl(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
     *,
     topic: str,
     mode: str,

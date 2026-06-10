@@ -249,6 +249,8 @@ def test_final_report_renders_academic_evidence_review_without_run_summary() -> 
                     "limitations": ["仍需按基线风险和出血风险分层解释绝对效应。"],
                     "next_queries": ["aspirin elderly absolute risk bleeding subgroup"],
                 },
+                "limitations": ["需要补充女性和糖尿病亚组的绝对风险差。"],
+                "next_queries": ["aspirin primary prevention diabetes female subgroup"],
             }
         ],
     )
@@ -267,6 +269,8 @@ def test_final_report_renders_academic_evidence_review_without_run_summary() -> 
     assert "variable_ids" not in markdown
     assert "citation_1" not in markdown
     assert "P1" not in markdown
+    assert "需要补充女性和糖尿病亚组的绝对风险差。" in markdown
+    assert "aspirin primary prevention diabetes female subgroup" in markdown
     assert markdown.index("## 参考文献") > markdown.index("## 后续研究问题")
     assert "[1] ASPREE trial. DOI: 10.1056/aspree." in markdown
     assert "ASPREE trial" in markdown

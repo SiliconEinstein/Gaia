@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 from time import perf_counter
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 
 import typer
 from pydantic import ValidationError
@@ -142,6 +142,49 @@ def _validate_evidence_selection_limits(
     if max_chains < 0 or max_chains > 100:
         typer.echo("Error: --evidence-max-chains must be between 0 and 100.", err=True)
         raise typer.Exit(2)
+
+
+def _mark_run_failed_if_needed(
+    run: Any,
+    runtime: Any,
+    *,
+    json_stream: bool,
+    error: str,
+) -> None:
+    state = _read_json_object_path(run.state_path)
+    if state.get("status") == "failed":
+        return
+    phase = state.get("phase") if isinstance(state.get("phase"), str) else "failed"
+    runtime.update_run_state(
+        run,
+        {"status": "failed", "phase": phase, "error": error},
+    )
+    runtime.emit_run_event(
+        run,
+        event_type="run.failed",
+        phase=phase,
+        json_stream=json_stream,
+        payload={"error": error},
+    )
+
+
+def _exit_after_orchestrator_error(
+    exc: ResearchOrchestratorError,
+    *,
+    run: Any,
+    runtime: Any,
+    json_stream: bool,
+) -> NoReturn:
+    if exc.exit_code != 0:
+        _mark_run_failed_if_needed(
+            run,
+            runtime,
+            json_stream=json_stream,
+            error=str(exc),
+        )
+    if exc.exit_code != 0 and str(exc):
+        typer.echo(f"Error: {exc}", err=True)
+    raise typer.Exit(exc.exit_code) from exc
 
 
 def _run_config_overrides_from_legacy_flags(
@@ -998,9 +1041,12 @@ def run_command(
                 runtime=runtime,
             )
     except ResearchOrchestratorError as exc:
-        if exc.exit_code != 0 and str(exc):
-            typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(exc.exit_code) from exc
+        _exit_after_orchestrator_error(
+            exc,
+            run=run,
+            runtime=runtime,
+            json_stream=json_stream,
+        )
 
     if broad_search_refs:
         if not json_stream:

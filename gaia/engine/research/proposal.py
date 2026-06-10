@@ -158,6 +158,9 @@ def _fallback_proposals(assessment: dict[str, Any]) -> list[dict[str, Any]]:
     next_queries = review.get("next_queries") if isinstance(review, dict) else []
     if not isinstance(next_queries, list):
         next_queries = []
+    top_level_next_queries = assessment.get("next_queries")
+    if isinstance(top_level_next_queries, list):
+        next_queries = [*next_queries, *top_level_next_queries]
     focus_id = _assessment_focus_id(assessment)
     proposals: list[dict[str, Any]] = []
     for index, query in enumerate(next_queries):

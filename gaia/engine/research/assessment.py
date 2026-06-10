@@ -41,10 +41,19 @@ def build_assessment_artifact(
     relations: list[dict[str, Any]],
     candidate_obligations: list[dict[str, Any]] | None = None,
     review: dict[str, Any] | None = None,
+    limitations: list[str] | None = None,
+    next_queries: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a v1 assessment artifact dictionary without writing source."""
     relation_payloads = [dict(relation) for relation in relations]
     obligation_payloads = [dict(item) for item in candidate_obligations or []]
+    limitation_payloads = list(limitations or [])
+    next_query_payloads = list(next_queries or [])
+    citation_review = dict(review or {})
+    if limitation_payloads:
+        citation_review.setdefault("limitations", limitation_payloads)
+    if next_query_payloads:
+        citation_review.setdefault("next_queries", next_query_payloads)
     artifact = {
         "schema_version": ASSESSMENT_SCHEMA_VERSION,
         "kind": "assessment",
@@ -55,11 +64,15 @@ def build_assessment_artifact(
             evidence_packet,
             relations=relation_payloads,
             candidate_obligations=obligation_payloads,
-            review=review,
+            review=citation_review if citation_review else None,
         ),
         "relations": relation_payloads,
         "candidate_obligations": obligation_payloads,
     }
+    if limitation_payloads:
+        artifact["limitations"] = limitation_payloads
+    if next_query_payloads:
+        artifact["next_queries"] = next_query_payloads
     if review is not None:
         artifact["review"] = dict(review)
     return artifact
@@ -421,29 +434,85 @@ def _valid_grounding_ids(
     return ids
 
 
+def _package_ref_value_types(evidence_packet: dict[str, Any]) -> dict[str, str]:
+    refs: dict[str, str] = {}
+    items = evidence_packet.get("items", [])
+    if not isinstance(items, list):
+        return refs
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        package_ref = item.get("package_ref")
+        if not isinstance(package_ref, dict):
+            continue
+        ref = package_ref.get("ref")
+        value_type = package_ref.get("value_type")
+        if isinstance(ref, str) and ref and isinstance(value_type, str) and value_type:
+            refs[ref] = value_type
+    return refs
+
+
+def _validate_source_ref_payload(
+    ref_payload: dict[str, Any],
+    *,
+    valid_ids: dict[str, set[str]],
+    field: str,
+) -> None:
+    kind = _require_non_empty_string(ref_payload, "kind")
+    ref_id = _require_non_empty_string(ref_payload, "id")
+    if kind not in valid_ids:
+        raise AssessmentSchemaError(f"{field} kind {kind!r} is not supported")
+    if ref_id not in valid_ids[kind]:
+        raise AssessmentSchemaError(f"{field} {kind}:{ref_id} is not grounded in evidence_packet")
+
+
+def _validate_claim_refs(
+    relation_payload: dict[str, Any],
+    *,
+    relation_index: int,
+    package_ref_value_types: dict[str, str],
+) -> None:
+    claim_refs = relation_payload.get("claim_refs", relation_payload.get("claims"))
+    if claim_refs is None:
+        return
+    if not isinstance(claim_refs, list):
+        raise AssessmentSchemaError(f"relations[{relation_index}].claim_refs must be a list")
+    for ref_index, ref in enumerate(claim_refs):
+        if not isinstance(ref, str) or not ref:
+            raise AssessmentSchemaError(
+                f"relations[{relation_index}].claim_refs[{ref_index}] must be a non-empty string"
+            )
+        if ":" not in ref:
+            continue
+        if ref not in package_ref_value_types:
+            raise AssessmentSchemaError(
+                f"relations[{relation_index}].claim_refs[{ref_index}] {ref!r} "
+                "is not grounded in evidence_packet package_ref values"
+            )
+
+
 def validate_assessment_grounding(artifact: dict[str, Any]) -> dict[str, Any]:
     """Validate that relation refs resolve inside the assessment evidence packet."""
     evidence_packet = _require_dict(artifact.get("evidence_packet"), "evidence_packet")
     focus = _require_dict(artifact.get("focus"), "focus")
     valid_ids = _valid_grounding_ids(evidence_packet, focus=focus)
+    package_ref_value_types = _package_ref_value_types(evidence_packet)
     for relation_index, relation in enumerate(artifact.get("relations", [])):
         relation_payload = _require_dict(relation, f"relations[{relation_index}]")
         for ref_index, ref in enumerate(relation_payload.get("source_refs", [])):
             ref_payload = _require_dict(
                 ref, f"relations[{relation_index}].source_refs[{ref_index}]"
             )
-            kind = _require_non_empty_string(ref_payload, "kind")
-            ref_id = _require_non_empty_string(ref_payload, "id")
-            if kind not in valid_ids:
-                raise AssessmentSchemaError(
-                    f"relations[{relation_index}].source_refs[{ref_index}] "
-                    f"kind {kind!r} is not supported"
-                )
-            if ref_id not in valid_ids[kind]:
-                raise AssessmentSchemaError(
-                    f"relations[{relation_index}].source_refs[{ref_index}] "
-                    f"{kind}:{ref_id} is not grounded in evidence_packet"
-                )
+            _validate_source_ref_payload(
+                ref_payload,
+                valid_ids=valid_ids,
+                field=f"relations[{relation_index}].source_refs[{ref_index}]",
+            )
+        _validate_claim_refs(
+            relation_payload,
+            relation_index=relation_index,
+            package_ref_value_types=package_ref_value_types,
+        )
     return artifact
 
 
@@ -470,6 +539,12 @@ def build_assessment_from_analysis(
     review = analysis.get("review")
     if review is not None and not isinstance(review, dict):
         raise AssessmentSchemaError("analysis.review must be an object")
+    limitations = analysis.get("limitations", [])
+    if not isinstance(limitations, list):
+        raise AssessmentSchemaError("analysis.limitations must be a list")
+    next_queries = analysis.get("next_queries", [])
+    if not isinstance(next_queries, list):
+        raise AssessmentSchemaError("analysis.next_queries must be a list")
 
     artifact = build_assessment_artifact(
         focus=focus,
@@ -477,6 +552,8 @@ def build_assessment_from_analysis(
         relations=relations,
         candidate_obligations=candidate_obligations,
         review=review,
+        limitations=[item for item in limitations if isinstance(item, str) and item],
+        next_queries=[item for item in next_queries if isinstance(item, str) and item],
     )
     validate_assessment_artifact(artifact)
     if strict_grounding:
@@ -569,6 +646,12 @@ def _validate_citation(citation: Any, index: int) -> None:
     _validate_string_list(payload.get("variable_ids", []), f"citations[{index}].variable_ids")
 
 
+def _validate_optional_string_lists(artifact: dict[str, Any], fields: tuple[str, ...]) -> None:
+    for field in fields:
+        if field in artifact:
+            _validate_string_list(artifact[field], field)
+
+
 def validate_assessment_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
     """Validate a v1 assessment artifact dictionary."""
     if artifact.get("schema_version") != ASSESSMENT_SCHEMA_VERSION:
@@ -602,6 +685,7 @@ def validate_assessment_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
 
     if "review" in artifact:
         _validate_review(artifact["review"])
+    _validate_optional_string_lists(artifact, ("limitations", "next_queries"))
 
     return artifact
 

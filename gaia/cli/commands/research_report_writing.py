@@ -747,7 +747,7 @@ def _run_sectioned_report_writing(
 
     def write_section(index: int, section: dict[str, object], context: dict[str, object]) -> str:
         section_id = _section_id(section, fallback=f"section_{index}")
-        output_name = f"report_section_{_safe_output_suffix(section_id)}"
+        output_name = f"report_section_{index:02d}_{_safe_output_suffix(section_id)}"
         return _run_analysis_provider_litellm(
             research_pkg,
             run,

@@ -35,6 +35,7 @@ def _assessment() -> dict[str, object]:
                 "early dark energy BAO CMB H0 tension constraints",
             ],
         },
+        "next_queries": ["strong lensing time delay H0 systematics"],
     }
 
 
@@ -46,6 +47,7 @@ def test_proposal_from_assessment_uses_review_next_queries_and_obligations() -> 
     assert [proposal["question"] for proposal in artifact["proposals"]] == [
         "TRGB Cepheid calibration systematics H0 tension",
         "early dark energy BAO CMB H0 tension constraints",
+        "strong lensing time delay H0 systematics",
     ]
     assert artifact["candidate_obligations"][0]["content"] == (
         "Check whether TRGB and SH0ES share calibration systematics."

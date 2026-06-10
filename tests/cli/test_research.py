@@ -293,6 +293,28 @@ def test_research_run_start_writes_state_events_and_checkpoint(tmp_path: Path) -
     assert (run_dir / "trace").is_dir()
 
 
+def test_research_run_rejects_unsafe_run_id(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "DQCP evidence assessment",
+            "--run-id",
+            "../escape",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "run_id must contain only lowercase ASCII letters" in result.output
+    assert not (tmp_path / "escape").exists()
+
+
 def test_research_run_json_stream_emits_persisted_events(tmp_path: Path) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     _write_research_package(pkg_dir)
@@ -903,6 +925,60 @@ output.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
     assert benchmark["summary"]["kind_counts"]["search"] == 2
     assert benchmark["summary"]["kind_counts"]["llm"] == 2
+
+
+def test_research_run_marks_state_failed_when_orchestrator_fails(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly primary prevention",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "paper:P_ASPREE::claim_1",
+                        0.92,
+                        paper_title="ASPREE trial",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "failed-provider-run",
+            "--search-json",
+            str(search_path),
+            "--analysis-provider",
+            "command",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "--focus-analysis-command" in result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "failed-provider-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "failed"
+    assert state["error"]
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.ndjson").read_text(encoding="utf-8").splitlines()
+    ]
+    assert events[-1]["type"] == "run.failed"
+    assert events[-1]["error"] == state["error"]
 
 
 def test_research_run_executes_litellm_provider(
@@ -1660,7 +1736,7 @@ def test_research_run_litellm_writes_report_in_sections(
                         "evidence_refs": [{"kind": "variable", "id": "claim_report"}],
                     },
                     {
-                        "id": "limitations",
+                        "id": "evidence:base",
                         "title": "局限性",
                         "purpose": "说明不确定性。",
                         "evidence_refs": [{"kind": "variable", "id": "claim_extra"}],
@@ -1672,7 +1748,7 @@ def test_research_run_litellm_writes_report_in_sections(
             section_id = (
                 "evidence_base"
                 if '"section_id": "evidence_base"' in user_content
-                else "limitations"
+                else "evidence:base"
             )
             request = json.loads(user_content)["input"]
             section_inputs[section_id] = request
@@ -1751,7 +1827,7 @@ def test_research_run_litellm_writes_report_in_sections(
         "assess_analysis",
         "report_plan",
         "report_section:evidence_base",
-        "report_section:limitations",
+        "report_section:evidence:base",
         "report_stitch",
     ]
     assert len(stitch_inputs) == 1
@@ -1761,8 +1837,8 @@ def test_research_run_litellm_writes_report_in_sections(
     assert "## 局限性" in draft_markdown
     run_dir = pkg_dir / ".gaia" / "research" / "runs" / "section-report-run"
     assert (run_dir / "analysis" / "report_plan.output.json").exists()
-    assert (run_dir / "analysis" / "report_section_evidence_base.output.json").exists()
-    assert (run_dir / "analysis" / "report_section_limitations.output.json").exists()
+    assert (run_dir / "analysis" / "report_section_01_evidence_base.output.json").exists()
+    assert (run_dir / "analysis" / "report_section_02_evidence_base.output.json").exists()
     assert (run_dir / "analysis" / "report_stitch.output.json").exists()
     evidence_base_context = section_inputs["evidence_base"]["section_evidence"]
     assert isinstance(evidence_base_context, dict)
@@ -1779,7 +1855,7 @@ def test_research_run_litellm_writes_report_in_sections(
     assert source["paper_id"] == "P_REPORT"
     assert source["paper_title"] == "Report evidence paper"
     assert evidence_base_context["missing_refs"] == []
-    limitations_context = section_inputs["limitations"]["section_evidence"]
+    limitations_context = section_inputs["evidence:base"]["section_evidence"]
     assert isinstance(limitations_context, dict)
     limitation_items = limitations_context["items"]
     assert isinstance(limitation_items, list)

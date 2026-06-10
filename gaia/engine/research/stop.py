@@ -39,7 +39,9 @@ def _paper_ids_by_variable(landscapes: list[dict[str, Any]]) -> dict[str, str]:
             if not isinstance(item, dict):
                 continue
             item_id = item.get("id")
-            paper_id = item.get("paper_id")
+            source = item.get("source")
+            source_paper_id = source.get("paper_id") if isinstance(source, dict) else None
+            paper_id = item.get("paper_id") or source_paper_id
             if isinstance(item_id, str) and item_id and isinstance(paper_id, str) and paper_id:
                 paper_by_variable[item_id] = paper_id
     return paper_by_variable
