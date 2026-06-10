@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import subprocess
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
@@ -1173,6 +1175,16 @@ def test_research_run_litellm_writes_report_in_sections(
         assert index == "bohrium"
         assert limit == 2
         assert reasoning_only is True
+        filler_rows = [
+            _lkm_row(
+                f"P_FILLER_{index}",
+                f"claim_filler_{index}",
+                0.1,
+                paper_title=f"Filler paper {index}",
+                content=f"Filler evidence {index}.",
+            )
+            for index in range(11)
+        ]
         return _search(
             query,
             [
@@ -1182,7 +1194,15 @@ def test_research_run_litellm_writes_report_in_sections(
                     0.9,
                     paper_title="Report evidence paper",
                     content="Evidence supports a cautious conclusion.",
-                )
+                ),
+                *filler_rows,
+                _lkm_row(
+                    "P_EXTRA",
+                    "claim_extra",
+                    0.05,
+                    paper_title="Landscape-only paper",
+                    content="Landscape-only evidence should still reach its report section.",
+                ),
             ],
         )
 
@@ -1198,6 +1218,7 @@ def test_research_run_litellm_writes_report_in_sections(
     monkeypatch.setattr(research_cli, "_materialize_lkm_papers_or_exit", fake_no_materialize)
 
     calls: list[str] = []
+    section_inputs: dict[str, dict[str, object]] = {}
 
     async def fake_acompletion(**kwargs: object) -> dict[str, object]:
         user_content = str(kwargs["messages"][-1]["content"])
@@ -1277,7 +1298,7 @@ def test_research_run_litellm_writes_report_in_sections(
                         "id": "limitations",
                         "title": "局限性",
                         "purpose": "说明不确定性。",
-                        "evidence_refs": [{"kind": "variable", "id": "claim_report"}],
+                        "evidence_refs": [{"kind": "variable", "id": "claim_extra"}],
                     },
                 ],
                 "conclusion_prompt": "给出审慎结论。",
@@ -1288,6 +1309,8 @@ def test_research_run_litellm_writes_report_in_sections(
                 if '"section_id": "evidence_base"' in user_content
                 else "limitations"
             )
+            request = json.loads(user_content)["input"]
+            section_inputs[section_id] = request
             calls.append(f"report_section:{section_id}")
             payload = {
                 "section_id": section_id,
@@ -1295,9 +1318,14 @@ def test_research_run_litellm_writes_report_in_sections(
                 "markdown": (
                     "## 证据基础\n\n核心证据支持审慎判断。[variable:claim_report]\n"
                     if section_id == "evidence_base"
-                    else "## 局限性\n\n仍需更多深读证据。[variable:claim_report]\n"
+                    else "## 局限性\n\n仍需更多深读证据。[variable:claim_extra]\n"
                 ),
-                "used_refs": [{"kind": "variable", "id": "claim_report"}],
+                "used_refs": [
+                    {
+                        "kind": "variable",
+                        "id": "claim_report" if section_id == "evidence_base" else "claim_extra",
+                    }
+                ],
             }
         else:
             calls.append("report_stitch")
@@ -1306,7 +1334,7 @@ def test_research_run_litellm_writes_report_in_sections(
                     "# 分章节循证报告\n\n"
                     "## 摘要\n\n报告应分章节呈现证据。\n\n"
                     "## 证据基础\n\n核心证据支持审慎判断。[variable:claim_report]\n\n"
-                    "## 局限性\n\n仍需更多深读证据。[variable:claim_report]\n"
+                    "## 局限性\n\n仍需更多深读证据。[variable:claim_extra]\n"
                 )
             }
         return {
@@ -1343,6 +1371,8 @@ def test_research_run_litellm_writes_report_in_sections(
             "litellm_proxy/test-model",
             "--search-limit",
             "2",
+            "--report-section-concurrency",
+            "1",
         ],
     )
 
@@ -1362,10 +1392,243 @@ def test_research_run_litellm_writes_report_in_sections(
     assert (run_dir / "analysis" / "report_section_evidence_base.output.json").exists()
     assert (run_dir / "analysis" / "report_section_limitations.output.json").exists()
     assert (run_dir / "analysis" / "report_stitch.output.json").exists()
+    evidence_base_context = section_inputs["evidence_base"]["section_evidence"]
+    assert isinstance(evidence_base_context, dict)
+    evidence_items = evidence_base_context["items"]
+    assert isinstance(evidence_items, list)
+    assert len(evidence_items) == 1
+    evidence_item = evidence_items[0]
+    assert isinstance(evidence_item, dict)
+    assert evidence_item["kind"] == "variable"
+    assert evidence_item["id"] == "claim_report"
+    assert evidence_item["content"] == "Evidence supports a cautious conclusion."
+    source = evidence_item["source"]
+    assert isinstance(source, dict)
+    assert source["paper_id"] == "P_REPORT"
+    assert source["paper_title"] == "Report evidence paper"
+    assert evidence_base_context["missing_refs"] == []
+    limitations_context = section_inputs["limitations"]["section_evidence"]
+    assert isinstance(limitations_context, dict)
+    limitation_items = limitations_context["items"]
+    assert isinstance(limitation_items, list)
+    assert len(limitation_items) == 1
+    limitation_item = limitation_items[0]
+    assert isinstance(limitation_item, dict)
+    assert limitation_item["id"] == "claim_extra"
+    limitation_source = limitation_item["source"]
+    assert isinstance(limitation_source, dict)
+    assert limitation_source["paper_title"] == "Landscape-only paper"
+    assert limitations_context["missing_refs"] == []
     final_report = (run_dir / "trace" / "final_report.md").read_text(encoding="utf-8")
     assert final_report.startswith("# 分章节循证报告")
     assert "## 证据基础" in final_report
     assert "## 局限性" in final_report
+    assert "[variable:claim_report]" not in final_report
+    assert "[variable:claim_extra]" not in final_report
+    assert "[1]" in final_report
+    assert "[2]" in final_report
+    assert "## 参考文献" in final_report
+    assert "Report evidence paper" in final_report
+    assert "Landscape-only paper" in final_report
+
+
+def test_research_run_parallelizes_report_sections(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "pkg"
+    _write_research_package(pkg_dir)
+
+    def fake_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        assert index == "bohrium"
+        assert limit == 2
+        assert reasoning_only is True
+        return _search(
+            query,
+            [
+                _lkm_row(
+                    "P_PARALLEL",
+                    "claim_parallel",
+                    0.9,
+                    paper_title="Parallel report paper",
+                    content="Parallel section evidence.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    monkeypatch.setattr(
+        research_cli,
+        "_materialize_lkm_papers_or_exit",
+        lambda *_args, **_kwargs: {
+            "lkm_materialize_requests": [],
+            "lkm_packages_materialized": [],
+            "lkm_chains_materialized": [],
+        },
+    )
+
+    active_sections = 0
+    max_active_sections = 0
+    active_lock = threading.Lock()
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        nonlocal active_sections, max_active_sections
+        user_content = str(kwargs["messages"][-1]["content"])
+        if '"phase": "query_plan"' in user_content:
+            payload = {"queries": [{"query": "parallel evidence", "rationale": "broad"}]}
+        elif '"phase": "field_map_analysis"' in user_content:
+            payload = {
+                "domain_thesis": "Parallel field map.",
+                "buckets": [
+                    {
+                        "id": "parallel",
+                        "title": "Parallel",
+                        "role": "evidence",
+                        "required_for_review": True,
+                        "coverage_status": "covered",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_parallel"}],
+                        "recommended_queries": [],
+                    }
+                ],
+                "controversy_axes": [],
+                "coverage_gaps": [],
+                "recommended_expansions": [],
+                "synthesis_notes": [],
+            }
+        elif '"phase": "focus_analysis"' in user_content:
+            payload = {
+                "focuses": [
+                    {
+                        "id": "parallel_focus",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "Can sections run concurrently?",
+                        "rationale": "Grounded in parallel evidence.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "claim_parallel"}],
+                        "suggested_queries": [],
+                    }
+                ],
+                "coverage_gaps": [],
+                "notes": [],
+            }
+        elif '"phase": "assess_analysis"' in user_content:
+            payload = {
+                "relations": [
+                    {
+                        "type": "supports",
+                        "claim": "Parallel evidence supports the focus.",
+                        "rationale": "The selected packet contains the claim.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "none",
+                        "source_refs": [{"kind": "variable", "id": "claim_parallel"}],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        elif '"phase": "report_plan"' in user_content:
+            payload = {
+                "title": "Parallel report",
+                "abstract": "Sections can run concurrently.",
+                "thesis": "Parallel section writing is independent.",
+                "sections": [
+                    {
+                        "id": "one",
+                        "title": "One",
+                        "purpose": "First section.",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_parallel"}],
+                    },
+                    {
+                        "id": "two",
+                        "title": "Two",
+                        "purpose": "Second section.",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_parallel"}],
+                    },
+                    {
+                        "id": "three",
+                        "title": "Three",
+                        "purpose": "Third section.",
+                        "evidence_refs": [{"kind": "variable", "id": "claim_parallel"}],
+                    },
+                ],
+                "conclusion_prompt": "Conclude.",
+            }
+        elif '"phase": "report_section"' in user_content:
+            request = json.loads(user_content)["input"]
+            section_id = str(request["section_id"])
+            with active_lock:
+                active_sections += 1
+                max_active_sections = max(max_active_sections, active_sections)
+            await asyncio.sleep(0.05)
+            with active_lock:
+                active_sections -= 1
+            payload = {
+                "section_id": section_id,
+                "title": section_id.title(),
+                "markdown": (
+                    f"## {section_id.title()}\n\nParallel evidence.[variable:claim_parallel]\n"
+                ),
+                "used_refs": [{"kind": "variable", "id": "claim_parallel"}],
+            }
+        else:
+            payload = {
+                "markdown": (
+                    "# Parallel report\n\n"
+                    "## One\n\nParallel evidence.[variable:claim_parallel]\n\n"
+                    "## Two\n\nParallel evidence.[variable:claim_parallel]\n\n"
+                    "## Three\n\nParallel evidence.[variable:claim_parallel]\n"
+                )
+            }
+        return {
+            "choices": [{"message": {"content": json.dumps(payload, ensure_ascii=False)}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+            "id": "litellm-test",
+        }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "litellm",
+        SimpleNamespace(
+            acompletion=fake_acompletion,
+            suppress_debug_info=False,
+            disable_cost_calc=False,
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "parallel evidence",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "parallel-section-run",
+            "--analysis-provider",
+            "litellm",
+            "--model",
+            "litellm_proxy/test-model",
+            "--search-limit",
+            "2",
+            "--report-section-concurrency",
+            "3",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert max_active_sections > 1
 
 
 def test_litellm_json_parser_repairs_latex_backslashes() -> None:

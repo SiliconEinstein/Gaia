@@ -317,6 +317,23 @@ def _render_citations(
     return lines
 
 
+def render_markdown_with_research_citations(
+    markdown: str,
+    *,
+    citations: object,
+    language: object = None,
+) -> str:
+    """Replace inline research refs in arbitrary markdown and append references."""
+    context = _citation_context(citations)
+    rendered = _replace_inline_item_refs(markdown, context)
+    rendered_text = rendered if isinstance(rendered, str) else str(rendered)
+    rendered_text = rendered_text.rstrip()
+    citation_lines = _render_citations(citations, language=language, context=context)
+    if not context.get("ordered_ids"):
+        return rendered_text + "\n"
+    return rendered_text + "\n\n" + "\n".join(citation_lines).rstrip() + "\n"
+
+
 def _render_evidence_table(
     table: object,
     *,
