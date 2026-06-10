@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from time import sleep
 from typing import Any
 
 import typer
@@ -31,6 +34,53 @@ def _research_cli_override(name: str, default: Any) -> Any:
     if module is None:
         return default
     return getattr(module, name, default)
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(0, value)
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value >= 0 else default
+
+
+def _lkm_materialization_with_transport_retries[T](
+    label: str,
+    operation: Callable[[], T],
+) -> T:
+    retries = _env_int("GAIA_RESEARCH_LKM_MATERIALIZE_RETRIES", 2)
+    base_wait = _env_float("GAIA_RESEARCH_LKM_MATERIALIZE_RETRY_BASE_SECONDS", 2.0)
+    for attempt in range(retries + 1):
+        try:
+            return operation()
+        except typer.Exit as exc:
+            exit_code = getattr(exc, "exit_code", None)
+            if exit_code != 2 or attempt >= retries:
+                raise
+            wait_seconds = base_wait * (2**attempt)
+            typer.echo(
+                (
+                    f"Warning: transient LKM transport failure while materializing {label}; "
+                    f"retrying in {wait_seconds:.1f}s ({attempt + 1}/{retries})."
+                ),
+                err=True,
+            )
+            sleep(wait_seconds)
+    raise AssertionError("unreachable LKM materialization retry state")
 
 
 def _materialize_landscape_sources_or_exit(
@@ -167,7 +217,17 @@ def _materialize_lkm_paper_refs(
                 "add_lkm_paper_dependency",
                 add_lkm_paper_dependency,
             )
-            materialized = add_paper_dependency(ref, package_root=research_pkg.path)
+
+            def materialize_current_paper(
+                ref: Any = ref,
+                add_paper_dependency: Any = add_paper_dependency,
+            ) -> Any:
+                return add_paper_dependency(ref, package_root=research_pkg.path)
+
+            materialized = _lkm_materialization_with_transport_retries(
+                ref.ref,
+                materialize_current_paper,
+            )
         except LKMDependencyAddError as exc:
             typer.echo(f"Error: failed to add LKM paper package: {exc}", err=True)
             if exc.materialized is not None:
@@ -194,7 +254,17 @@ def _materialize_lkm_claim_refs(
                 "add_lkm_claim_dependency",
                 add_lkm_claim_dependency,
             )
-            materialized = add_claim_dependency(ref, package_root=research_pkg.path)
+
+            def materialize_current_claim(
+                ref: Any = ref,
+                add_claim_dependency: Any = add_claim_dependency,
+            ) -> Any:
+                return add_claim_dependency(ref, package_root=research_pkg.path)
+
+            materialized = _lkm_materialization_with_transport_retries(
+                ref.ref,
+                materialize_current_claim,
+            )
         except LKMDependencyAddError as exc:
             typer.echo(f"Error: failed to add LKM claim backing package: {exc}", err=True)
             if exc.materialized is not None:
@@ -221,7 +291,17 @@ def _materialize_lkm_chain_refs(
                 "add_lkm_chain_dependency",
                 add_lkm_chain_dependency,
             )
-            chain_materialized = add_chain_dependency(ref, package_root=research_pkg.path)
+
+            def materialize_current_chain(
+                ref: Any = ref,
+                add_chain_dependency: Any = add_chain_dependency,
+            ) -> Any:
+                return add_chain_dependency(ref, package_root=research_pkg.path)
+
+            chain_materialized = _lkm_materialization_with_transport_retries(
+                f"{ref.ref} reasoning chain",
+                materialize_current_chain,
+            )
         except LKMDependencyAddError as exc:
             typer.echo(f"Error: failed to add LKM reasoning chain package: {exc}", err=True)
             if exc.materialized is not None:

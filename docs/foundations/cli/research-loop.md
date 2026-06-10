@@ -148,7 +148,7 @@ Trace writes:
 
 - assessment LLM input/output;
 - evidence table or citation cache;
-- readable mini-review;
+- structured evidence relations, limitations, and next-query directions;
 - stop/review metrics.
 
 Assessment should not normally write formal `claim(...)`, `contradict(...)`,

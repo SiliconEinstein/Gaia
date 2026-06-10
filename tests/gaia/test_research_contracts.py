@@ -18,12 +18,12 @@ def test_field_map_contract_describes_autonomous_review_taxonomy() -> None:
     assert "field taxonomy" in payload
 
 
-def test_assess_contract_forbids_workflow_terms_in_review_prose() -> None:
+def test_assess_contract_forbids_workflow_terms_in_structured_prose() -> None:
     contract = assess_contract(language="zh")
     payload = json.dumps(contract, ensure_ascii=False)
 
-    assert "standalone scholarly mini-review" in payload
-    assert "forbidden_review_terms" in contract
+    assert "final review prose" in payload
+    assert "forbidden_prose_terms" in contract
     for term in [
         "Gaia",
         "LKM",
@@ -40,23 +40,18 @@ def test_assess_contract_forbids_workflow_terms_in_review_prose() -> None:
         "source promotion",
         "assessment JSON",
     ]:
-        assert term in contract["forbidden_review_terms"]
+        assert term in contract["forbidden_prose_terms"]
 
 
-def test_assess_contract_requires_publication_style_review_fields() -> None:
+def test_assess_contract_keeps_assessment_structured_not_article_shaped() -> None:
     contract = assess_contract(language="zh")
-    review_fields = contract["review_fields"]
 
-    for field in [
-        "title",
-        "abstract",
-        "key_points",
-        "evidence_table",
-        "limitations",
-        "next_queries",
-    ]:
-        assert field in review_fields
+    required = contract["output_required_fields"]
+    optional = contract["output_optional_fields"]
+    assert set(required) == {"relations", "candidate_obligations"}
+    assert "limitations" in optional
+    assert "next_queries" in optional
 
     payload = json.dumps(contract, ensure_ascii=False)
-    assert "Nature Reviews" in payload
-    assert "numbered references" in payload
+    assert "Do not write the final report" in payload
+    assert "mini-review" in payload

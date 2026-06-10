@@ -3,7 +3,7 @@
 Use this reference when writing the final assessment report or the final
 benchmark summary for a live eval.
 
-## Chinese Scholarly Mini-Review
+## Chinese Scholarly Evidence Review
 
 For `zh` runs, the final assessment report should read like a compact scholarly
 review, not a command transcript.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -16,17 +17,24 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-import gaia.cli.commands.research as research_cli
+import gaia.cli.commands.research_orchestrator as research_orchestrator
+import gaia.cli.commands.research_providers as research_providers
 from gaia.cli.main import app
 from gaia.engine.research import load_research_package
 from gaia.engine.research.benchmark import (
     append_research_trace_step,
     write_research_benchmark_summary,
 )
+from gaia.engine.research.run import start_research_run
 
 pytestmark = pytest.mark.pr_gate
 
 runner = CliRunner()
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI color/style escape sequences from Typer rich help output."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 def _write_research_package(pkg_dir: Path) -> Path:
@@ -107,7 +115,11 @@ def _patch_deep_materialization(monkeypatch: pytest.MonkeyPatch) -> list[dict[st
             "lkm_chains_materialized": [],
         }
 
-    monkeypatch.setattr(research_cli, "_materialize_lkm_papers_or_exit", fake_materialize)
+    monkeypatch.setattr(
+        research_orchestrator,
+        "_materialize_lkm_papers_or_exit",
+        fake_materialize,
+    )
     return calls
 
 
@@ -192,22 +204,27 @@ def test_research_contract_commands_emit_json() -> None:
 
 def test_research_assess_help_uses_materialize_names() -> None:
     result = runner.invoke(app, ["research", "assess", "--help"])
+    output = _strip_ansi(result.output)
 
     assert result.exit_code == 0, result.output
-    assert "--materialize-paper" in result.output
-    assert "--materialize-chain" in result.output
-    assert "backing paper" in result.output
-    assert "--pull-paper" not in result.output
-    assert "--pull-claim" not in result.output
+    assert "--materialize-paper" in output
+    assert "--materialize-chain" in output
+    assert "backing paper" in output
+    assert "--pull-paper" not in output
+    assert "--pull-claim" not in output
 
 
 def test_research_run_help_is_visible() -> None:
     result = runner.invoke(app, ["research", "run", "--help"])
+    output = _strip_ansi(result.output)
 
     assert result.exit_code == 0, result.output
-    assert "Start a UI-observable research run" in result.output
-    assert "--topic" in result.output
-    assert "--json-stream" in result.output
+    assert "Start a UI-observable research run" in output
+    assert "--topic" in output
+    assert "--config" in output
+    assert "--focus-count" in output
+    assert "Evidence selection" in output
+    assert "--json-stream" in output
 
 
 def test_research_run_start_writes_state_events_and_checkpoint(tmp_path: Path) -> None:
@@ -304,6 +321,95 @@ def test_research_run_json_stream_emits_persisted_events(tmp_path: Path) -> None
     events_path = pkg_dir / ".gaia" / "research" / "runs" / "stream-test-run" / "events.ndjson"
     persisted = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
     assert streamed == persisted
+
+
+def test_orchestrator_live_search_uses_runtime_ports(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    research_pkg = load_research_package(pkg_dir)
+    run = start_research_run(
+        research_pkg,
+        topic="runtime ports",
+        mode="fast-package-native",
+        language="zh",
+        profile="evidence-assessment",
+        run_id="runtime-ports-run",
+        wait_for_query_plan=False,
+    )
+    calls: list[tuple[str, object]] = []
+
+    class FakeRuntime(research_orchestrator.CliResearchOrchestratorRuntime):
+        def emit_run_event(
+            self,
+            run: object,
+            *,
+            event_type: str,
+            phase: str,
+            json_stream: bool,
+            payload: dict[str, object],
+        ) -> None:
+            _ = run, phase, json_stream, payload
+            calls.append(("event", event_type))
+
+        def update_run_state(self, run: object, payload: dict[str, object]) -> None:
+            _ = run
+            calls.append(("state", payload))
+
+        def record_trace(
+            self,
+            research_pkg: object,
+            run: object,
+            *,
+            start: float,
+            name: str,
+            kind: str,
+            mode: str,
+            inputs: list[str],
+            outputs: list[str],
+            metrics: dict[str, object] | None = None,
+        ) -> None:
+            _ = research_pkg, run, start, kind, mode, inputs, outputs, metrics
+            calls.append(("trace", name))
+
+        def search_lkm(
+            self,
+            query: str,
+            *,
+            index: str,
+            limit: int,
+            reasoning_only: bool,
+        ) -> dict[str, object]:
+            _ = index, limit, reasoning_only
+            calls.append(("search", query))
+            return _search(
+                query,
+                [
+                    _lkm_row(
+                        "P_RUNTIME",
+                        "claim_runtime",
+                        0.9,
+                        paper_title="Runtime port paper",
+                    )
+                ],
+            )
+
+    refs = research_orchestrator.execute_live_searches(
+        research_pkg,
+        run,
+        queries=["runtime query"],
+        prefix="broad",
+        search_index="bohrium",
+        search_limit=5,
+        reasoning_only=True,
+        json_stream=False,
+        runtime=FakeRuntime(),
+    )
+
+    assert [Path(ref).name for ref in refs] == ["broad-01.json"]
+    assert ("search", "runtime query") in calls
+    assert ("trace", "search.lkm.broad") in calls
+    assert ("event", "search.started") in calls
+    assert ("event", "search.completed") in calls
 
 
 def test_research_run_executes_fast_package_native_file_provider_loop(tmp_path: Path) -> None:
@@ -464,6 +570,191 @@ def test_research_run_executes_fast_package_native_file_provider_loop(tmp_path: 
     assert benchmark["summary"]["steps"] >= 6
 
 
+def test_research_run_assesses_multiple_focuses_and_aggregates_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    broad_search = tmp_path / "broad-search.json"
+    broad_search.write_text(
+        json.dumps(
+            _search(
+                "dqcp evidence",
+                [
+                    _lkm_row(
+                        "P_A",
+                        "claim_a",
+                        0.9,
+                        paper_title="First focus paper",
+                        content="First focus evidence supports the question.",
+                    ),
+                    _lkm_row(
+                        "P_B",
+                        "claim_b",
+                        0.8,
+                        paper_title="Second focus paper",
+                        content="Second focus evidence qualifies the question.",
+                    ),
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    focus_analysis = tmp_path / "focus-analysis.json"
+    focus_analysis.write_text(
+        json.dumps(
+            {
+                "focuses": [
+                    {
+                        "id": "focus_a",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "First focus?",
+                        "rationale": "Grounded in claim_a.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "claim_a"}],
+                        "suggested_queries": ["focus a targeted"],
+                    },
+                    {
+                        "id": "focus_b",
+                        "kind": "research_focus",
+                        "status": "accepted",
+                        "question": "Second focus?",
+                        "rationale": "Grounded in claim_b.",
+                        "priority": "high",
+                        "readiness": "ready_for_assess",
+                        "scope": {},
+                        "coverage": {"items": 1, "paper_leads": 1, "missing": []},
+                        "evidence_refs": [{"kind": "variable", "id": "claim_b"}],
+                        "suggested_queries": ["focus b targeted"],
+                    },
+                ],
+                "coverage_gaps": [],
+                "notes": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    _patch_deep_materialization(monkeypatch)
+    searched_queries: list[str] = []
+
+    def fake_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        _ = index, limit, reasoning_only
+        searched_queries.append(query)
+        variable_id = "claim_a" if "a targeted" in query else "claim_b"
+        paper_id = "P_A_TARGETED" if variable_id == "claim_a" else "P_B_TARGETED"
+        return _search(
+            query,
+            [
+                _lkm_row(
+                    paper_id,
+                    variable_id,
+                    0.7,
+                    paper_title=f"{variable_id} targeted paper",
+                    content=f"{query} targeted evidence.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fake_lkm_search)
+
+    def fake_provider(
+        research_pkg: object,
+        run: object,
+        *,
+        phase: str,
+        command: str,
+        input_payload: dict[str, object],
+        output_name: str,
+        json_stream: bool,
+    ) -> str:
+        _ = research_pkg, command, json_stream
+        assert phase == "assess_analysis"
+        focus = input_payload["focus"]
+        variable_id = "claim_a" if focus == "focus_a" else "claim_b"
+        relation_type = "supports" if focus == "focus_a" else "qualifies"
+        payload = {
+            "relations": [
+                {
+                    "type": relation_type,
+                    "claim": f"{focus} relation is grounded.",
+                    "rationale": f"{focus} uses its selected evidence packet.",
+                    "epistemic_status": "candidate",
+                    "promotion_hint": "none",
+                    "source_refs": [{"kind": "variable", "id": variable_id}],
+                }
+            ],
+            "limitations": [f"{focus} needs source-level review."],
+            "next_queries": [],
+            "candidate_obligations": [],
+        }
+        output_path = run.run_dir / "analysis" / f"{output_name}.output.json"
+        output_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        return str(output_path)
+
+    monkeypatch.setattr(research_orchestrator, "_run_analysis_provider_command", fake_provider)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "multi focus evidence assessment",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "multi-focus-run",
+            "--search-json",
+            str(broad_search),
+            "--focus-analysis-json",
+            str(focus_analysis),
+            "--analysis-provider",
+            "command",
+            "--assess-analysis-command",
+            "fake-provider",
+            "--focus-count",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "multi-focus-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "completed"
+    assert state["metrics"]["focuses_assessed"] == 2
+    assert state["metrics"]["relations"] == 2
+    assert len(state["artifacts"]["assessments"]) == 2
+    assert (run_dir / "analysis" / "assess_analysis_focus_a.output.json").exists()
+    assert (run_dir / "analysis" / "assess_analysis_focus_b.output.json").exists()
+    assert searched_queries == ["focus a targeted", "focus b targeted"]
+    assert sorted(path.name for path in (run_dir / "searches").glob("targeted-*.json")) == [
+        "targeted-focus_a-01.json",
+        "targeted-focus_b-01.json",
+    ]
+    assessment_payloads = [
+        json.loads(path.read_text(encoding="utf-8")) for path in _assessment_artifacts(pkg_dir)
+    ]
+    assert {payload["focus"]["id"] for payload in assessment_payloads} == {
+        "focus_a",
+        "focus_b",
+    }
+    final_report = (run_dir / "trace" / "final_report.md").read_text(encoding="utf-8")
+    assert "focus_a relation is grounded" in final_report
+    assert "focus_b relation is grounded" in final_report
+
+
 def test_research_run_executes_search_and_command_provider(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -495,7 +786,7 @@ def test_research_run_executes_search_and_command_provider(
             ],
         )
 
-    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fake_lkm_search)
     _patch_deep_materialization(monkeypatch)
 
     provider = tmp_path / "provider.py"
@@ -645,6 +936,7 @@ def test_research_run_executes_litellm_provider(
         messages = kwargs["messages"]
         assert isinstance(messages, list)
         user_content = str(messages[-1]["content"])
+        payload: dict[str, Any]
         if '"phase": "field_map_analysis"' in user_content:
             payload = {
                 "domain_thesis": "一级预防证据需要先按人群、获益和危害建立地图。",
@@ -803,7 +1095,7 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
             ],
         )
 
-    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fake_lkm_search)
     _patch_deep_materialization(monkeypatch)
 
     calls: list[str] = []
@@ -812,6 +1104,7 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
         messages = kwargs["messages"]
         assert isinstance(messages, list)
         user_content = str(messages[-1]["content"])
+        payload: dict[str, Any]
         if '"phase": "query_plan"' in user_content:
             calls.append("query_plan")
             payload = {
@@ -959,7 +1252,7 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
     assert sorted(path.name for path in (run_dir / "searches").glob("*.json")) == [
         "broad-01.json",
         "coverage-01.json",
-        "targeted-01.json",
+        "targeted-elderly_net_benefit-01.json",
     ]
     events = [
         json.loads(line)
@@ -980,6 +1273,16 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
 ) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     _write_research_package(pkg_dir)
+    config_path = tmp_path / "research.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "profile": "review",
+                "evidence": {"max_items": 4, "max_papers": 3, "max_chains": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
 
     def fake_lkm_search(
         query: str,
@@ -1004,7 +1307,7 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
             ],
         )
 
-    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fake_lkm_search)
 
     materialize_calls: list[dict[str, object]] = []
 
@@ -1033,12 +1336,17 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
             "lkm_chains_materialized": [{"source_ref": "lkm:bohrium:chain:claim_deep"}],
         }
 
-    monkeypatch.setattr(research_cli, "_materialize_lkm_papers_or_exit", fake_materialize)
+    monkeypatch.setattr(
+        research_orchestrator,
+        "_materialize_lkm_papers_or_exit",
+        fake_materialize,
+    )
 
     calls: list[str] = []
 
     async def fake_acompletion(**kwargs: object) -> dict[str, object]:
         user_content = str(kwargs["messages"][-1]["content"])
+        payload: dict[str, Any]
         if '"phase": "query_plan"' in user_content:
             calls.append("query_plan")
             payload = {"queries": [{"query": "weak first order evidence", "rationale": "broad"}]}
@@ -1160,6 +1468,8 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
             "fast-package-native",
             "--run-id",
             "deep-expand-run",
+            "--config",
+            str(config_path),
             "--analysis-provider",
             "litellm",
             "--model",
@@ -1193,6 +1503,15 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
         (pkg_dir / ".gaia" / "research" / "evidence").glob("selected-evidence-*.json")
     )
     selected_evidence = json.loads(selected_evidence_path.read_text(encoding="utf-8"))
+    assert selected_evidence["selection_policy"] == {
+        "mode": "review",
+        "max_items": 4,
+        "max_papers": 3,
+        "max_chains": 2,
+        "max_omitted": 20,
+    }
+    assert selected_evidence["selection"]["unique_items_considered"] == 1
+    assert selected_evidence["coverage_audit"]["focus_refs_selected"] == 1
     assert selected_evidence["materialization_result"]["lkm_packages_materialized"] == [
         {"source_ref": "lkm:bohrium:paper:P_DEEP"}
     ]
@@ -1246,7 +1565,7 @@ def test_research_run_litellm_writes_report_in_sections(
             ],
         )
 
-    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fake_lkm_search)
 
     def fake_no_materialize(*_args: object, **_kwargs: object) -> dict[str, object]:
         return {
@@ -1255,13 +1574,19 @@ def test_research_run_litellm_writes_report_in_sections(
             "lkm_chains_materialized": [],
         }
 
-    monkeypatch.setattr(research_cli, "_materialize_lkm_papers_or_exit", fake_no_materialize)
+    monkeypatch.setattr(
+        research_orchestrator,
+        "_materialize_lkm_papers_or_exit",
+        fake_no_materialize,
+    )
 
     calls: list[str] = []
     section_inputs: dict[str, dict[str, object]] = {}
+    stitch_inputs: list[dict[str, object]] = []
 
     async def fake_acompletion(**kwargs: object) -> dict[str, object]:
         user_content = str(kwargs["messages"][-1]["content"])
+        payload: dict[str, Any]
         if '"phase": "query_plan"' in user_content:
             calls.append("query_plan")
             payload = {"queries": [{"query": "report evidence", "rationale": "broad"}]}
@@ -1368,13 +1693,15 @@ def test_research_run_litellm_writes_report_in_sections(
                 ],
             }
         else:
+            request = json.loads(user_content)["input"]
+            stitch_inputs.append(request)
             calls.append("report_stitch")
             payload = {
                 "markdown": (
                     "# 分章节循证报告\n\n"
                     "## 摘要\n\n报告应分章节呈现证据。\n\n"
-                    "## 证据基础\n\n核心证据支持审慎判断。[variable:claim_report]\n\n"
-                    "## 局限性\n\n仍需更多深读证据。[variable:claim_extra]\n"
+                    "## 证据基础\n\n核心证据支持审慎判断（claim_report）。\n\n"
+                    "## 局限性\n\n仍需更多深读证据（claim_extra）。\n"
                 )
             }
         return {
@@ -1427,6 +1754,11 @@ def test_research_run_litellm_writes_report_in_sections(
         "report_section:limitations",
         "report_stitch",
     ]
+    assert len(stitch_inputs) == 1
+    draft_markdown = stitch_inputs[0]["draft_markdown"]
+    assert isinstance(draft_markdown, str)
+    assert "## 证据基础" in draft_markdown
+    assert "## 局限性" in draft_markdown
     run_dir = pkg_dir / ".gaia" / "research" / "runs" / "section-report-run"
     assert (run_dir / "analysis" / "report_plan.output.json").exists()
     assert (run_dir / "analysis" / "report_section_evidence_base.output.json").exists()
@@ -1465,11 +1797,63 @@ def test_research_run_litellm_writes_report_in_sections(
     assert "## 局限性" in final_report
     assert "[variable:claim_report]" not in final_report
     assert "[variable:claim_extra]" not in final_report
+    assert "claim_report" not in final_report
+    assert "claim_extra" not in final_report
     assert "[1]" in final_report
     assert "[2]" in final_report
     assert "## 参考文献" in final_report
     assert "Report evidence paper" in final_report
     assert "Landscape-only paper" in final_report
+
+
+def test_sectioned_report_citations_fallback_to_refs_and_relations() -> None:
+    from gaia.cli.commands.research_report_writing import (
+        _normalize_rendered_report_citation_wrappers,
+        _normalize_report_citation_refs,
+        _sectioned_report_citations,
+    )
+    from gaia.engine.research import render_markdown_with_research_citations
+
+    section_contexts: list[dict[str, object]] = [
+        {
+            "refs": ["claim_from_plan", "123456789"],
+            "items": [],
+            "paper_leads": [],
+            "relations": [
+                {
+                    "source_refs": [
+                        {"kind": "variable", "id": "claim_from_relation"},
+                    ],
+                }
+            ],
+            "citations": [],
+            "missing_refs": [],
+        }
+    ]
+    citations = _sectioned_report_citations(section_contexts)
+    markdown = _normalize_report_citation_refs(
+        "计划引用（[claim_from_plan, 123456789]），关系引用([claim_from_relation])。",
+        citations,
+    )
+    rendered = render_markdown_with_research_citations(
+        markdown,
+        citations=citations,
+        language="zh",
+    )
+    rendered = _normalize_rendered_report_citation_wrappers(rendered)
+
+    assert "claim_from_plan" not in rendered
+    assert "123456789" not in rendered
+    assert "claim_from_relation" not in rendered
+    assert "[1]" in rendered
+    assert "[2]" in rendered
+    assert "[3]" in rendered
+    assert "[[" not in rendered
+    assert "（[" not in rendered
+    assert "([" not in rendered
+    assert "## 参考文献" in rendered
+    wrapped = _normalize_rendered_report_citation_wrappers("复杂引用（[1][2]、）和英文([3], [4])。")
+    assert wrapped == "复杂引用[1], [2]和英文[3], [4]。"
 
 
 def test_research_run_parallelizes_report_sections(
@@ -1502,9 +1886,9 @@ def test_research_run_parallelizes_report_sections(
             ],
         )
 
-    monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fake_lkm_search)
     monkeypatch.setattr(
-        research_cli,
+        research_orchestrator,
         "_materialize_lkm_papers_or_exit",
         lambda *_args, **_kwargs: {
             "lkm_materialize_requests": [],
@@ -1520,6 +1904,7 @@ def test_research_run_parallelizes_report_sections(
     async def fake_acompletion(**kwargs: object) -> dict[str, object]:
         nonlocal active_sections, max_active_sections
         user_content = str(kwargs["messages"][-1]["content"])
+        payload: dict[str, Any]
         if '"phase": "query_plan"' in user_content:
             payload = {"queries": [{"query": "parallel evidence", "rationale": "broad"}]}
         elif '"phase": "field_map_analysis"' in user_content:
@@ -1672,7 +2057,7 @@ def test_research_run_parallelizes_report_sections(
 
 
 def test_litellm_json_parser_repairs_latex_backslashes() -> None:
-    payload = research_cli._json_object_from_llm_content(
+    payload = research_providers._json_object_from_llm_content(
         '{"review":{"summary":"弱一级标度 $T^{**}-T^*\\propto q^2$"}}'
     )
 
@@ -1726,6 +2111,7 @@ def test_research_run_litellm_provider_loads_env_file(
         messages = kwargs["messages"]
         assert isinstance(messages, list)
         user_content = str(messages[-1]["content"])
+        payload: dict[str, Any]
         if '"phase": "field_map_analysis"' in user_content:
             payload = {
                 "domain_thesis": "Env file run builds a review field map first.",

@@ -173,6 +173,28 @@ def test_report_citation_rendering_strips_unresolved_internal_refs() -> None:
     assert "[1] Known paper. DOI unavailable." in markdown
 
 
+def test_report_citation_rendering_preserves_markdown_block_breaks() -> None:
+    markdown = render_markdown_with_research_citations(
+        "# Title\n\n## Evidence\n\nKnown claim [variable:v1].\n\n"
+        "## Limits\n\nUnknown claim [variable:gcn_missing].",
+        citations=[
+            {
+                "id": "citation_1",
+                "source_kind": "paper",
+                "paper_id": "P1",
+                "title": "Known paper",
+                "variable_ids": ["v1"],
+            }
+        ],
+        language="en",
+    )
+
+    assert "# Title\n\n## Evidence\n\nKnown claim [1]." in markdown
+    assert "\n\n## Limits\n\nUnknown claim." in markdown
+    assert "[variable:gcn_missing]" not in markdown
+    assert "Title ## Evidence" not in markdown
+
+
 def test_final_report_renders_academic_evidence_review_without_run_summary() -> None:
     markdown = render_final_research_report_markdown(
         focus_artifacts=[

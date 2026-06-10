@@ -14,6 +14,7 @@ based on the verb's contract.
 
 from __future__ import annotations
 
+import os
 from types import TracebackType
 from typing import Any
 
@@ -23,6 +24,17 @@ from gaia.cli._credentials import read_lkm_key
 from gaia.cli.commands.search.lkm._indexes import lkm_index_base_url
 
 BASE_URL = lkm_index_base_url("bohrium") or "https://open.bohrium.com/openapi/v1/lkm"
+
+
+def _timeout_seconds(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 class NoAccessKeyError(Exception):
@@ -60,7 +72,12 @@ class LKMClient:
 
     def __enter__(self) -> LKMClient:
         self._client = httpx.Client(
-            timeout=httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0),
+            timeout=httpx.Timeout(
+                connect=_timeout_seconds("GAIA_LKM_CONNECT_TIMEOUT", 10.0),
+                read=_timeout_seconds("GAIA_LKM_READ_TIMEOUT", 120.0),
+                write=_timeout_seconds("GAIA_LKM_WRITE_TIMEOUT", 10.0),
+                pool=_timeout_seconds("GAIA_LKM_POOL_TIMEOUT", 10.0),
+            ),
         )
         return self
 

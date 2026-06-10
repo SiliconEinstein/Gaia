@@ -83,6 +83,7 @@ from gaia.cli.commands.init import init_command
 from gaia.cli.commands.inquiry import inquiry_app
 from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
 from gaia.cli.commands.register import register_command
+from gaia.cli.commands.render import render_command
 from gaia.cli.commands.research import research_app
 from gaia.cli.commands.review import app as review_app
 from gaia.cli.commands.sdk import sdk_command

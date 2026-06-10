@@ -63,6 +63,7 @@ gaia research run "$PKG" \
   --language "$LANG" \
   --analysis-provider litellm \
   --model "$GAIA_RESEARCH_LLM_MODEL" \
+  --focus-count 3 \
   --search-limit 10 \
   --trace-dir "$TRACE"
 ```
@@ -108,6 +109,7 @@ gaia research run "$PKG" \
   --language "$LANG" \
   --analysis-provider litellm \
   --model "$GAIA_RESEARCH_LLM_MODEL" \
+  --focus-count 3 \
   --search-limit 10
 ```
 

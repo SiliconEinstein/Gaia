@@ -83,4 +83,79 @@ def test_selected_evidence_prefers_focus_matching_items_and_plans_deep_pull() ->
         "chain_claim_ids": ["claim_oppose", "claim_support"],
     }
     assert artifact["selection"]["items_considered"] == 3
+    assert artifact["selection"]["unique_items_considered"] == 3
     assert artifact["selection"]["items_selected"] == 2
+    assert artifact["selection_policy"]["mode"] == "fast"
+    assert artifact["coverage_audit"]["selected_unique_papers"] == 2
+    assert len(artifact["omitted_relevant_evidence"]) == 1
+
+
+def test_review_selection_uses_wider_paper_diverse_packet_and_audit() -> None:
+    items = []
+    paper_leads = []
+    for index in range(8):
+        paper_id = f"P{index}"
+        claim_id = f"claim_{index}"
+        items.append(
+            {
+                "kind": "variable",
+                "id": claim_id,
+                "variable_type": "claim",
+                "content": f"Review focus evidence item {index}.",
+                "source": {"paper_id": paper_id, "paper_title": f"Paper {index}"},
+            }
+        )
+        paper_leads.append(
+            {
+                "paper_id": paper_id,
+                "title": f"Paper {index}",
+                "variable_ids": [claim_id],
+            }
+        )
+    items.append(dict(items[0]))
+    landscape = {
+        "kind": "research_landscape",
+        "action": "explore.expand",
+        "items": items,
+        "paper_leads": paper_leads,
+    }
+
+    artifact = build_selected_evidence_artifact(
+        focus={
+            "kind": "focus",
+            "id": "review-focus",
+            "title": "review focus",
+            "evidence_refs": [
+                {"kind": "variable", "id": "claim_0"},
+                {"kind": "paper", "id": "P3"},
+            ],
+        },
+        landscapes=[landscape],
+        selection_mode="review",
+        max_items=5,
+        max_papers=4,
+        max_chains=4,
+        max_omitted=2,
+    )
+
+    packet = artifact["evidence_packet"]
+    selected_papers = {
+        item["source"]["paper_id"]
+        for item in packet["items"]
+        if isinstance(item.get("source"), dict)
+    }
+    assert artifact["selection_policy"] == {
+        "mode": "review",
+        "max_items": 5,
+        "max_papers": 4,
+        "max_chains": 4,
+        "max_omitted": 2,
+    }
+    assert artifact["selection"]["items_considered"] == 9
+    assert artifact["selection"]["unique_items_considered"] == 8
+    assert artifact["selection"]["duplicate_items_considered"] == 1
+    assert artifact["selection"]["items_selected"] == 5
+    assert len(selected_papers) == 5
+    assert artifact["coverage_audit"]["focus_refs_total"] == 2
+    assert artifact["coverage_audit"]["focus_refs_selected"] == 2
+    assert len(artifact["omitted_relevant_evidence"]) == 2

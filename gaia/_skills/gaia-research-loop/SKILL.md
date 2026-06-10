@@ -5,7 +5,7 @@ description: |
   synthesize focuses, expand around coverage gaps, assess evidence for a
   focus, promote mature scaffolds, or produce a live research trace. Applies
   to `gaia research`, LKM-backed literature discovery, package/inquiry-centric
-  research state, and review-quality Chinese or English mini-reviews.
+  research state, and review-quality Chinese or English final evidence reports.
 ---
 
 # Gaia Research Loop
@@ -98,7 +98,7 @@ Load only the reference needed for the current phase:
 - Focus analysis JSON prompt: `references/focus-analysis-prompt.md`.
 - Assessment analysis JSON prompt and candidate relation rules:
   `references/assess-analysis-prompt.md`.
-- Chinese scholarly mini-review and final eval summary:
+- Chinese scholarly final report and final eval summary:
   `references/final-report.md`.
 
 ## Normal Research Flow
@@ -121,7 +121,7 @@ For benchmark/live eval mode, follow `references/live-eval-sop.md`. In short:
 
 1. Use a fresh package-local `$RUN`.
 2. Prefer the package-native orchestrator:
-   `gaia research run "$PKG" --topic "<topic>" --analysis-provider litellm`.
+   `gaia research run "$PKG" --topic "<topic>" --analysis-provider litellm --focus-count 3`.
    Do not pass broad `--query`, `--search-json`, `--targeted-query`, or
    `--targeted-search-json` unless the user explicitly asks to replay fixed
    inputs. Let the runner's `query_plan` LLM call generate broad searches, and

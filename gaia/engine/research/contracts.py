@@ -207,37 +207,11 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         "schema_version": 1,
         "language": language,
         "purpose": (
-            "Classify grounded evidence relations for one focus and write a review-grade "
-            "assessment without writing stable Gaia source."
+            "Classify grounded evidence relations for one focus and identify scientific "
+            "limitations or next-search directions without writing stable Gaia source or "
+            "final review prose."
         ),
-        "review_style_contract": {
-            "genre": "standalone scholarly mini-review",
-            "target_style": "Nature Reviews / Annual Review style mini-review",
-            "audience": (
-                "Domain readers who care about the scientific question, evidence, "
-                "uncertainties, and next research directions, not the research workflow."
-            ),
-            "allowed_internal_syntax": (
-                "Inline [variable:<id>], [paper:<paper_id>], or "
-                "[package_ref:<qid>] markers are allowed only as citation anchors and "
-                "must not be discussed as entities in prose."
-            ),
-            "prose_requirements": [
-                (
-                    "Do not mention research infrastructure, workflow steps, or artifact "
-                    "formats in review.summary, review.sections, limitations, or next_queries."
-                ),
-                (
-                    "Translate source items into ordinary scholarly prose, e.g. "
-                    "'existing studies suggest' instead of 'the evidence packet shows'."
-                ),
-                (
-                    "Use Chinese academic prose when language is zh; keep English domain "
-                    "terms only when scientifically standard or necessary."
-                ),
-            ],
-        },
-        "forbidden_review_terms": [
+        "forbidden_prose_terms": [
             "Gaia",
             "LKM",
             "item",
@@ -268,8 +242,15 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
         },
         "output_required_fields": {
             "relations": "list[Relation]",
-            "review": "object containing Chinese/user-facing synthesis",
             "candidate_obligations": "list[CandidateObligation]",
+        },
+        "output_optional_fields": {
+            "limitations": "list[str] scientific limitations that affect this focus",
+            "next_queries": "list[str] targeted live-search queries for unresolved evidence gaps",
+            "review": (
+                "legacy optional object; do not produce it in the fixed workflow unless "
+                "a caller explicitly asks for a standalone assessment artifact"
+            ),
         },
         "relation_fields": {
             "type": sorted(VALID_RELATIONS),
@@ -298,25 +279,16 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "package_ref.value_type is 'claim'."
             ),
         },
-        "review_fields": {
-            "language": language,
-            "depth": "review",
-            "title": "publication-style title that names the scientific question",
-            "abstract": "standalone 120-180 Chinese character abstract when language is zh",
-            "key_points": "list[str] with 4-6 evidence-weighted conclusions",
-            "summary": "concise bottom-line answer written as standalone scholarly prose",
-            "sections": (
-                "ordered list with title and body fields; keep to 1-3 compact sections. "
-                "Body text may cite evidence with inline stable refs such as "
-                "[variable:<id>] or [paper:<paper_id>] that the report renderer maps "
-                "to citations."
+        "limitation_fields": {
+            "limitations": (
+                "Scientific limitations only: method dependence, finite-size effects, "
+                "shared datasets, incompatible observables, missing covariance, "
+                "definition mismatch, or incomplete source coverage."
             ),
-            "evidence_table": (
-                "list[object] comparing evidence clusters, direction, constraints, "
-                "and unresolved issues"
+            "next_queries": (
+                "Concrete query strings that would close material evidence gaps. Keep "
+                "them focused on missing methods, systems, observables, or constraints."
             ),
-            "limitations": "list[str]",
-            "next_queries": "list[str]",
         },
         "candidate_obligation_fields": {
             "kind": "needs_more_evidence, needs_method_check, needs_replication, or other",
@@ -336,32 +308,9 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
             "Write compact contract-shaped JSON; do not emit Markdown or prose outside "
             "the JSON object.",
             (
-                "Write the review as a standalone scholarly mini-review; the reader must "
-                "not need to know Gaia, LKM, CLI, items, artifacts, agents, runs, rounds, "
-                "traces, workflows, or evidence packets."
-            ),
-            (
-                "Use a publication-like structure: title, abstract, key points, review "
-                "sections, evidence table, figure specifications, scientific limitations, "
-                "outlook or next research questions, and numbered references."
-            ),
-            (
-                "Limitations must be scientific limitations only: shared datasets, common "
-                "calibration anchors, correlated systematics, incomplete covariance "
-                "reporting, missing likelihood access, model-dependent priors, or "
-                "incomplete observational coverage."
-            ),
-            (
-                "In review.summary and review.sections[].body, cite important evidence "
-                "with inline stable refs such as [variable:<id>] or [paper:<paper_id>]; "
-                "do not write paper citations manually."
-            ),
-            (
-                "Relations and candidate_obligations remain structured artifacts for "
-                "audit and later promotion. Do not rely on the Markdown renderer to "
-                "turn them into prose; incorporate the important assessment reasoning "
-                "and open questions into review.summary, review.sections, limitations, "
-                "and next_queries."
+                "Do not write the final report, mini-review, abstract, introduction, "
+                "or section prose. Later report phases write the article from these "
+                "structured judgments."
             ),
             (
                 "When a relation genuinely compares or links concrete package claims, "
@@ -388,23 +337,8 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                     "source_refs": [{"kind": "variable", "id": "aspree_result"}],
                 }
             ],
-            "review": {
-                "language": language,
-                "depth": "review",
-                "summary": "总体净获益有限, 老年人和中等风险人群尤其应谨慎。",
-                "sections": [
-                    {
-                        "title": "老年人证据",
-                        "body": (
-                            "ASPREE 相关证据提示心血管获益不足以抵消大出血风险。"
-                            "[variable:aspree_result]"
-                        ),
-                    }
-                ],
-                "evidence_table": [],
-                "limitations": ["需要逐篇核对原始试验终点定义。"],
-                "next_queries": ["aspirin primary prevention CAC net benefit"],
-            },
+            "limitations": ["需要逐篇核对原始试验终点定义。"],
+            "next_queries": ["aspirin primary prevention CAC net benefit"],
             "candidate_obligations": [
                 {
                     "kind": "needs_more_evidence",
@@ -429,7 +363,7 @@ def propose_contract(*, language: str = "zh") -> dict[str, Any]:
         ),
         "input": {
             "assessment": (
-                "One .gaia/research/assessments/*.json artifact, including review.next_queries, "
+                "One .gaia/research/assessments/*.json artifact, including next_queries, "
                 "candidate_obligations, relations, and any cited source refs."
             ),
             "grounding": (

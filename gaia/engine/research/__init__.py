@@ -42,6 +42,10 @@ from gaia.engine.research.focus import (
     validate_focus_synthesis_artifact,
 )
 from gaia.engine.research.landscape import ScanBatch, build_research_landscape
+from gaia.engine.research.orchestrator_ports import (
+    ResearchOrchestratorError,
+    ResearchOrchestratorRuntime,
+)
 from gaia.engine.research.proposal import (
     ProposalSchemaError,
     build_proposal_from_assessment,
@@ -53,6 +57,11 @@ from gaia.engine.research.report import (
     render_final_research_report_markdown,
     render_markdown_with_research_citations,
     render_research_artifact_markdown,
+)
+from gaia.engine.research.run_config import (
+    ResearchRunConfig,
+    load_research_run_config_file,
+    resolve_research_run_config,
 )
 from gaia.engine.research.source_packages import (
     ResearchSourcePackage,
@@ -78,8 +87,11 @@ __all__ = [
     "FocusSynthesisSchemaError",
     "ProposalSchemaError",
     "ResearchContractError",
+    "ResearchOrchestratorError",
+    "ResearchOrchestratorRuntime",
     "ResearchPackage",
     "ResearchReportError",
+    "ResearchRunConfig",
     "ResearchSourcePackage",
     "ResearchSyncResult",
     "ResearchTargetError",
@@ -100,12 +112,14 @@ __all__ = [
     "field_map_contract",
     "focus_contract",
     "load_research_package",
+    "load_research_run_config_file",
     "materialize_landscape_source_package",
     "propose_contract",
     "render_final_research_report_markdown",
     "render_markdown_with_research_citations",
     "render_research_artifact_markdown",
     "research_contract",
+    "resolve_research_run_config",
     "scaffold_suggestion",
     "sync_assessment_artifact",
     "sync_focus_artifact",

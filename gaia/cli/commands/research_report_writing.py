@@ -52,6 +52,12 @@ def _report_provider_input(
 
 
 def _report_ref_key(ref: object) -> tuple[str, str] | None:
+    if isinstance(ref, str) and ref:
+        if ref.startswith("gcn_"):
+            return "variable", ref
+        if ref.isdigit():
+            return "paper", ref
+        return "variable", ref
     if not isinstance(ref, dict):
         return None
     kind = ref.get("kind")
@@ -428,16 +434,131 @@ def _collect_report_section_evidence(
     return context
 
 
-def _sectioned_report_citations(section_contexts: list[dict[str, object]]) -> list[dict[str, Any]]:
-    citations: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for context in section_contexts:
-        context_citations = context.get("citations", [])
-        if not isinstance(context_citations, list):
-            continue
+def _report_citation_primary_key(citation: dict[str, Any]) -> str:
+    paper_id = citation.get("paper_id")
+    if isinstance(paper_id, str) and paper_id:
+        return f"paper:{paper_id}"
+    source_kind = citation.get("source_kind")
+    source_id = citation.get("source_id")
+    if isinstance(source_kind, str) and isinstance(source_id, str) and source_id:
+        return f"{source_kind}:{source_id}"
+    keys = sorted(_citation_report_ref_keys(citation))
+    if keys:
+        return "refs:" + json.dumps(keys, ensure_ascii=False)
+    payload = dict(citation)
+    payload.pop("id", None)
+    return "payload:" + json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+def _merge_report_citation_values(target: dict[str, Any], source: dict[str, Any]) -> None:
+    for field in ("item_ids", "variable_ids"):
+        existing_values = target.get(field)
+        if not isinstance(existing_values, list):
+            existing_values = []
+            target[field] = existing_values
+        values = source.get(field)
+        if isinstance(values, list):
+            for value in values:
+                if isinstance(value, str) and value and value not in existing_values:
+                    existing_values.append(value)
+    for field in ("title", "doi", "paper_id", "source_kind", "source_id"):
+        if not target.get(field) and source.get(field):
+            target[field] = source[field]
+
+
+def _append_report_citation(
+    by_key: dict[str, dict[str, Any]],
+    citation: dict[str, Any],
+) -> None:
+    key = _report_citation_primary_key(citation)
+    existing = by_key.get(key)
+    if existing is None:
+        by_key[key] = dict(citation)
+        return
+    _merge_report_citation_values(existing, citation)
+
+
+def _fallback_report_citation_for_ref(kind: str, ref_id: str) -> dict[str, Any]:
+    citation: dict[str, Any] = {
+        "source_kind": kind,
+        "source_id": ref_id,
+        "title": None,
+        "doi": None,
+        "item_ids": [],
+        "variable_ids": [],
+    }
+    if kind in {"variable", "item", "factor", "chain"}:
+        citation["variable_ids"].append(ref_id)
+    elif kind == "paper":
+        citation["paper_id"] = ref_id
+    return citation
+
+
+def _append_context_citations(
+    context_citations: object,
+    by_key: dict[str, dict[str, Any]],
+) -> None:
+    if isinstance(context_citations, list):
         for citation in context_citations:
             if isinstance(citation, dict):
-                _append_unique_dict(citations, citation, seen=seen)
+                _append_report_citation(by_key, citation)
+
+
+def _append_context_item_citations(
+    context_items: object,
+    by_key: dict[str, dict[str, Any]],
+) -> None:
+    if isinstance(context_items, list):
+        items = [item for item in context_items if isinstance(item, dict)]
+        for citation in _report_citations_from_items(items):
+            _append_report_citation(by_key, citation)
+
+
+def _append_context_relation_citations(
+    context_relations: object,
+    by_key: dict[str, dict[str, Any]],
+) -> None:
+    if isinstance(context_relations, list):
+        for relation in context_relations:
+            if not isinstance(relation, dict):
+                continue
+            for kind, ref_id in sorted(_relation_report_ref_keys(relation)):
+                _append_report_citation(
+                    by_key,
+                    _fallback_report_citation_for_ref(kind, ref_id),
+                )
+
+
+def _append_context_ref_citations(
+    context_refs: object,
+    by_key: dict[str, dict[str, Any]],
+) -> None:
+    if isinstance(context_refs, list):
+        for ref in context_refs:
+            key = _report_ref_key(ref)
+            if key is not None:
+                _append_report_citation(
+                    by_key,
+                    _fallback_report_citation_for_ref(*key),
+                )
+
+
+def _collect_context_report_citations(
+    context: dict[str, object],
+    by_key: dict[str, dict[str, Any]],
+) -> None:
+    _append_context_citations(context.get("citations"), by_key)
+    _append_context_item_citations(context.get("items"), by_key)
+    _append_context_relation_citations(context.get("relations"), by_key)
+    _append_context_ref_citations(context.get("refs"), by_key)
+
+
+def _sectioned_report_citations(section_contexts: list[dict[str, object]]) -> list[dict[str, Any]]:
+    by_key: dict[str, dict[str, Any]] = {}
+    citations: list[dict[str, Any]] = []
+    for context in section_contexts:
+        _collect_context_report_citations(context, by_key)
+    citations = list(by_key.values())
     for index, citation in enumerate(citations, start=1):
         citation["id"] = f"report_citation_{index}"
     return citations
@@ -463,6 +584,104 @@ def _sections_from_report_plan(plan: dict[str, object]) -> list[dict[str, object
     return [section for section in sections if isinstance(section, dict)]
 
 
+def _section_markdown(path: Path) -> str:
+    payload = _read_json_object_path(path)
+    markdown = payload.get("markdown")
+    if isinstance(markdown, str) and markdown.strip():
+        return markdown.strip()
+    title = payload.get("title")
+    title_text = title if isinstance(title, str) and title.strip() else path.stem
+    return f"## {title_text}\n\n"
+
+
+def _draft_stitched_report(
+    report_plan: dict[str, object],
+    section_paths: list[Path],
+) -> str:
+    title = report_plan.get("title")
+    title_text = title if isinstance(title, str) and title.strip() else "Evidence Review"
+    abstract = report_plan.get("abstract")
+    thesis = report_plan.get("thesis")
+    parts = [f"# {title_text.strip()}"]
+    if isinstance(abstract, str) and abstract.strip():
+        parts.append(f"## 摘要\n\n{abstract.strip()}")
+    if isinstance(thesis, str) and thesis.strip():
+        parts.append(f"## 主要判断\n\n{thesis.strip()}")
+    parts.extend(_section_markdown(path) for path in section_paths)
+    return "\n\n".join(part.strip() for part in parts if part.strip())
+
+
+def _normalize_report_markdown(markdown: str) -> str:
+    text = markdown.strip()
+    text = re.sub(r"(?<![\n#])(#{1,6} )", r"\n\n\1", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def _unwrap_nested_report_citation_ref_lists(markdown: str) -> str:
+    supported = "variable|factor|chain|package|paper|package_ref"
+    nested_list = re.compile(r"\[((?:\[(?:" + supported + r"):[^\]]+\](?:,\s*)?){2,})\]")
+    previous = None
+    text = markdown
+    while text != previous:
+        previous = text
+        text = nested_list.sub(r"\1", text)
+    return text
+
+
+def _report_citation_ref_replacements(citations: list[dict[str, Any]]) -> dict[str, str]:
+    replacements: dict[str, str] = {}
+    supported_kinds = {"variable", "factor", "chain", "package", "paper", "package_ref"}
+    for citation in citations:
+        paper_id = citation.get("paper_id")
+        if isinstance(paper_id, str) and paper_id:
+            replacements.setdefault(paper_id, f"[paper:{paper_id}]")
+        source_kind = citation.get("source_kind")
+        source_id = citation.get("source_id")
+        if (
+            isinstance(source_kind, str)
+            and source_kind in supported_kinds
+            and isinstance(source_id, str)
+            and source_id
+        ):
+            replacements.setdefault(source_id, f"[{source_kind}:{source_id}]")
+        for field in ("item_ids", "variable_ids"):
+            values = citation.get(field)
+            if not isinstance(values, list):
+                continue
+            for value in values:
+                if isinstance(value, str) and value:
+                    replacements.setdefault(value, f"[variable:{value}]")
+    return replacements
+
+
+def _normalize_report_citation_refs(markdown: str, citations: list[dict[str, Any]]) -> str:
+    replacements = _report_citation_ref_replacements(citations)
+    if not replacements:
+        return markdown
+    alternatives = "|".join(
+        re.escape(ref_id) for ref_id in sorted(replacements, key=len, reverse=True)
+    )
+    bracketed_pattern = re.compile(
+        r"(?<![A-Za-z0-9_:/.-])\[(" + alternatives + r")\](?![A-Za-z0-9_:/.-])"
+    )
+    text = bracketed_pattern.sub(lambda match: replacements[match.group(1)], markdown)
+    bare_pattern = re.compile(r"(?<![A-Za-z0-9_:/.-])(" + alternatives + r")(?![A-Za-z0-9_:/.-])")
+    return _unwrap_nested_report_citation_ref_lists(
+        bare_pattern.sub(lambda match: replacements[match.group(1)], text)
+    )
+
+
+def _normalize_rendered_report_citation_wrappers(markdown: str) -> str:
+    citation_group = r"((?:\[[0-9,\- ]+\]\s*(?:[,\uff0c\u3001]\s*)?)+)"
+
+    def replace(match: re.Match[str]) -> str:
+        inner = match.group(1).strip(" ,\uff0c\u3001")
+        return re.sub(r"\]\s*(?=\[)", "], ", inner)
+
+    text = re.sub(r"\uff08" + citation_group + r"\uff09", replace, markdown)
+    return re.sub(r"\(" + citation_group + r"\)", replace, text)
+
+
 def _run_sectioned_report_writing(
     research_pkg: ResearchPackage,
     run: ResearchRunStart,
@@ -474,8 +693,8 @@ def _run_sectioned_report_writing(
     field_map_path: Path | None,
     focus_path: Path,
     landscape_paths: list[Path],
-    selected_evidence_path: Path | None,
-    assessment_path: Path,
+    selected_evidence_paths: list[Path],
+    assessment_paths: list[Path],
     llm_temperature: float,
     llm_timeout: float,
     llm_max_retries: int,
@@ -486,10 +705,10 @@ def _run_sectioned_report_writing(
     artifact_paths = [
         *([field_map_path] if field_map_path is not None else []),
         focus_path,
-        *([selected_evidence_path] if selected_evidence_path is not None else []),
-        assessment_path,
+        *selected_evidence_paths,
+        *assessment_paths,
     ]
-    if selected_evidence_path is None:
+    if not selected_evidence_paths or not assessment_paths:
         return None, []
 
     _update_run_state(run, {"phase": "report_plan"})
@@ -538,7 +757,7 @@ def _run_sectioned_report_writing(
                 phase="report_section",
                 topic=topic,
                 language=language,
-                artifact_paths=[assessment_path, Path(report_plan_json)],
+                artifact_paths=[*assessment_paths, Path(report_plan_json)],
                 focus=focus,
                 extra={
                     "section_id": section_id,
@@ -575,6 +794,7 @@ def _run_sectioned_report_writing(
     section_refs = [section_refs_by_index[index] for index in range(1, len(sections) + 1)]
     section_paths = [Path(section_ref) for section_ref in section_refs]
 
+    draft_markdown = _draft_stitched_report(report_plan, section_paths)
     stitch_json = _run_analysis_provider_litellm(
         research_pkg,
         run,
@@ -584,8 +804,38 @@ def _run_sectioned_report_writing(
             phase="report_stitch",
             topic=topic,
             language=language,
-            artifact_paths=[assessment_path, Path(report_plan_json), *section_paths],
+            artifact_paths=[*assessment_paths, Path(report_plan_json)],
             focus=focus,
+            extra={
+                "draft_markdown": draft_markdown,
+                "stitch_policy": {
+                    "primary_source": "draft_markdown is the complete article draft.",
+                    "preserve": [
+                        (
+                            "Preserve the draft's section order, section headings, "
+                            "paragraphs, citations, and substantive claims."
+                        ),
+                        "Preserve the assessment conclusion and uncertainty language.",
+                        "Keep inline source refs already present in the draft.",
+                        (
+                            "Normalize every raw evidence id into renderer syntax: "
+                            "[variable:<id>] for variable/item ids and [paper:<id>] "
+                            "for paper ids."
+                        ),
+                    ],
+                    "edit": [
+                        "Improve title, abstract, transitions, paragraph flow, and conclusion.",
+                        "Remove exact repetition and repair local formatting issues.",
+                        "Add short connective sentences only when they improve continuity.",
+                    ],
+                    "avoid": [
+                        "Do not compress the article into a short executive summary.",
+                        "Do not drop sections or merge all sections into one paragraph.",
+                        "Do not leave bare gcn_* ids or bare numeric paper ids in prose.",
+                        "Do not add workflow, benchmark, trace, or implementation commentary.",
+                    ],
+                },
+            },
         ),
         output_name="report_stitch",
         temperature=llm_temperature,
@@ -598,10 +848,16 @@ def _run_sectioned_report_writing(
     markdown = stitch_payload.get("markdown")
     if not isinstance(markdown, str) or not markdown.strip():
         return None, [report_plan_json, *section_refs, stitch_json]
-    rendered = render_markdown_with_research_citations(
-        markdown.strip(),
-        citations=_sectioned_report_citations(section_contexts),
-        language=language,
+    citations = _sectioned_report_citations(section_contexts)
+    rendered = _normalize_rendered_report_citation_wrappers(
+        render_markdown_with_research_citations(
+            _normalize_report_citation_refs(
+                _normalize_report_markdown(markdown),
+                citations,
+            ),
+            citations=citations,
+            language=language,
+        )
     )
     return rendered, [report_plan_json, *section_refs, stitch_json]
 
@@ -620,8 +876,8 @@ def _maybe_run_sectioned_report_writing(
     field_map_path: Path | None,
     focus_path: Path,
     landscape_paths: list[Path],
-    selected_evidence_path: Path | None,
-    assessment_path: Path,
+    selected_evidence_paths: list[Path],
+    assessment_paths: list[Path],
     llm_temperature: float,
     llm_timeout: float,
     llm_max_retries: int,
@@ -641,8 +897,8 @@ def _maybe_run_sectioned_report_writing(
         field_map_path=field_map_path,
         focus_path=focus_path,
         landscape_paths=landscape_paths,
-        selected_evidence_path=selected_evidence_path,
-        assessment_path=assessment_path,
+        selected_evidence_paths=selected_evidence_paths,
+        assessment_paths=assessment_paths,
         llm_temperature=llm_temperature,
         llm_timeout=llm_timeout,
         llm_max_retries=llm_max_retries,

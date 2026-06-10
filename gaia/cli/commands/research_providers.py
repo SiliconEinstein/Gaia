@@ -8,8 +8,10 @@ import os
 import re
 import shlex
 import subprocess
+from importlib import import_module
 from pathlib import Path
 from time import perf_counter, sleep
+from typing import Any, cast
 
 import typer
 
@@ -371,10 +373,19 @@ async def _litellm_completion(
     max_tokens: int | None,
 ) -> object:
     os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
-    import litellm
 
-    litellm.suppress_debug_info = True
-    litellm.disable_cost_calc = True
+    litellm_runtime = cast(Any, import_module("litellm"))
+    litellm_runtime.suppress_debug_info = True
+    litellm_runtime.disable_cost_calc = True
+    litellm_runtime.set_verbose = False
+    litellm_runtime.callbacks = []
+    litellm_runtime.success_callback = []
+    litellm_runtime.failure_callback = []
+    litellm_runtime._async_success_callback = []
+    litellm_runtime._async_failure_callback = []
+    litellm_runtime.input_callback = []
+    litellm_runtime.service_callback = []
+    litellm_runtime.post_call_rules = []
     kwargs: dict[str, object] = {
         "model": model,
         "messages": _litellm_messages(phase=phase, input_payload=input_payload),
@@ -385,7 +396,7 @@ async def _litellm_completion(
     }
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
-    return await litellm.acompletion(**kwargs)
+    return await litellm_runtime.acompletion(**kwargs)
 
 
 def _litellm_messages(
@@ -482,9 +493,18 @@ def _litellm_phase_instruction(phase: str) -> str:
         )
     if phase == "report_stitch":
         return (
-            "Stitch section drafts into one academic evidence-review report. Add title, "
-            "abstract, transitions, and conclusion. Remove repetition, keep citations as "
-            "inline source refs, and do not add workflow or benchmark commentary."
+            "Revise the already stitched draft_markdown into one coherent scholarly "
+            "evidence-review report. Treat draft_markdown as the authoritative article "
+            "draft: preserve section order, headings, paragraphs, citations, substantive "
+            "claims, caveats, and the assessment conclusion. Do light article editing "
+            "only: improve title, abstract, transitions, local flow, and conclusion; "
+            "remove exact repetition; repair Markdown spacing. Before returning, "
+            "normalize citations so every evidence identifier is renderer-compatible: "
+            "use [variable:<id>] for variable/item ids such as gcn_* and [paper:<id>] "
+            "for paper ids; do not leave bare gcn_* ids or bare numeric paper ids in "
+            "prose. Do not compress the article into an executive summary, do not "
+            "drop sections, and do not add workflow, benchmark, trace, or "
+            "implementation commentary."
         )
     return "Produce the contract-shaped JSON for this research phase."
 
@@ -572,7 +592,12 @@ def _litellm_output_shape(phase: str) -> dict[str, object]:
         return {
             "required_top_level_keys": ["markdown"],
             "markdown": (
-                "Complete final report Markdown with title, abstract, body, and conclusion."
+                "Complete final report Markdown revised from input.draft_markdown. "
+                "Use one level-1 title, then level-2 sections with blank lines between "
+                "headings and paragraphs. Preserve the draft's body sections and inline "
+                "source refs; only edit for coherence, transitions, repetition, and "
+                "formatting. All evidence citations must use renderer syntax such as "
+                "[variable:gcn_...] or [paper:814...], never bare ids."
             ),
         }
     return {"required_top_level_keys": []}
@@ -581,6 +606,8 @@ def _litellm_output_shape(phase: str) -> dict[str, object]:
 def _hydrate_analysis_provider_input(payload: dict[str, object]) -> dict[str, object]:
     hydrated = dict(payload)
     artifact_payloads: list[dict[str, object]] = []
+    phase = payload.get("phase")
+    phase_name = phase if isinstance(phase, str) else ""
     artifacts = payload.get("artifacts")
     if isinstance(artifacts, list):
         for artifact in artifacts:
@@ -588,14 +615,184 @@ def _hydrate_analysis_provider_input(payload: dict[str, object]) -> dict[str, ob
                 continue
             path = Path(artifact)
             if path.exists():
+                artifact_json = _read_json_object_path(path)
                 artifact_payloads.append(
                     {
                         "path": artifact,
-                        "json": _read_json_object_path(path),
+                        "json": _compact_artifact_json(phase_name, artifact_json),
                     }
                 )
     hydrated["artifact_payloads"] = artifact_payloads
     return hydrated
+
+
+def _compact_artifact_json(
+    phase: str,
+    payload: dict[str, object],
+) -> dict[str, object]:
+    kind = payload.get("kind")
+    if kind == "research_landscape":
+        return _compact_research_landscape(payload)
+    if kind == "selected_evidence":
+        return _compact_selected_evidence(payload)
+    if phase.startswith("report_") and kind == "assessment":
+        return _compact_assessment(payload)
+    return payload
+
+
+def _compact_research_landscape(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "schema_version": payload.get("schema_version"),
+        "kind": payload.get("kind"),
+        "action": payload.get("action"),
+        "target": payload.get("target"),
+        "created_at": payload.get("created_at"),
+        "stats": payload.get("stats"),
+        "query_provenance": payload.get("query_provenance"),
+        "coverage_map": _compact_coverage_map(payload.get("coverage_map")),
+        "candidate_coverage_gaps": payload.get("candidate_coverage_gaps"),
+        "candidate_focuses": payload.get("candidate_focuses"),
+        "paper_leads": [
+            _compact_paper_lead(item) for item in _list_of_dicts(payload.get("paper_leads"))[:20]
+        ],
+        "items": [
+            _compact_landscape_item(item) for item in _list_of_dicts(payload.get("items"))[:25]
+        ],
+        "notes": payload.get("notes"),
+    }
+
+
+def _compact_selected_evidence(payload: dict[str, object]) -> dict[str, object]:
+    evidence_packet = payload.get("evidence_packet")
+    packet = evidence_packet if isinstance(evidence_packet, dict) else {}
+    materialization_plan = payload.get("materialization_plan")
+    materialization_result = payload.get("materialization_result")
+    return {
+        "schema_version": payload.get("schema_version"),
+        "kind": payload.get("kind"),
+        "created_at": payload.get("created_at"),
+        "focus": payload.get("focus"),
+        "selection": payload.get("selection"),
+        "materialization_plan": materialization_plan,
+        "materialization_summary": _materialization_summary(materialization_result),
+        "evidence_packet": {
+            "landscapes": packet.get("landscapes"),
+            "items": [
+                _compact_landscape_item(item) for item in _list_of_dicts(packet.get("items"))[:24]
+            ],
+            "paper_leads": [
+                _compact_paper_lead(item) for item in _list_of_dicts(packet.get("paper_leads"))[:18]
+            ],
+        },
+    }
+
+
+def _compact_assessment(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "schema_version": payload.get("schema_version"),
+        "kind": payload.get("kind"),
+        "created_at": payload.get("created_at"),
+        "focus": payload.get("focus"),
+        "overall": payload.get("overall"),
+        "findings": payload.get("findings"),
+        "relations": payload.get("relations"),
+        "candidate_relations": payload.get("candidate_relations"),
+        "obligations": payload.get("obligations"),
+        "limitations": payload.get("limitations"),
+        "next_actions": payload.get("next_actions"),
+    }
+
+
+def _compact_coverage_map(value: object) -> object:
+    if not isinstance(value, dict):
+        return value
+    return {
+        "query_families": value.get("query_families"),
+        "under_covered_regions": value.get("under_covered_regions"),
+        "candidate_focus_ids": value.get("candidate_focus_ids"),
+        "paper_overlap": value.get("paper_overlap"),
+    }
+
+
+def _compact_paper_lead(item: dict[str, object]) -> dict[str, object]:
+    return {
+        "paper_id": item.get("paper_id"),
+        "title": item.get("title"),
+        "doi": item.get("doi"),
+        "index_id": item.get("index_id"),
+        "queries": item.get("queries"),
+        "variable_ids": _list_of_strings(item.get("variable_ids"))[:8],
+        "result_count": item.get("result_count"),
+    }
+
+
+def _compact_landscape_item(item: dict[str, object]) -> dict[str, object]:
+    source = item.get("source")
+    source_payload = source if isinstance(source, dict) else {}
+    package_ref = item.get("package_ref")
+    return {
+        "item_id": item.get("item_id"),
+        "id": item.get("id"),
+        "kind": item.get("kind"),
+        "variable_type": item.get("variable_type"),
+        "title": _truncate_text(item.get("title"), 240),
+        "content": _truncate_text(item.get("content"), 450),
+        "source": {
+            "paper_id": source_payload.get("paper_id"),
+            "paper_title": source_payload.get("paper_title"),
+            "doi": source_payload.get("doi"),
+            "index_id": source_payload.get("index_id"),
+            "provider_id": source_payload.get("provider_id"),
+        },
+        "package_ref": package_ref,
+        "provenance": item.get("provenance"),
+    }
+
+
+def _materialization_summary(value: object) -> object:
+    if not isinstance(value, dict):
+        return value
+    return {
+        "lkm_materialize_requests": value.get("lkm_materialize_requests"),
+        "lkm_packages_materialized": [
+            _compact_materialized_package(item)
+            for item in _list_of_dicts(value.get("lkm_packages_materialized"))
+        ],
+        "lkm_chains_materialized": [
+            _compact_materialized_package(item)
+            for item in _list_of_dicts(value.get("lkm_chains_materialized"))
+        ],
+    }
+
+
+def _compact_materialized_package(item: dict[str, object]) -> dict[str, object]:
+    return {
+        "requested_source_ref": item.get("requested_source_ref"),
+        "source_ref": item.get("source_ref"),
+        "package": item.get("package"),
+        "import_name": item.get("import_name"),
+        "claim_count": item.get("claim_count"),
+        "question_count": item.get("question_count"),
+        "chain_count": item.get("chain_count"),
+    }
+
+
+def _list_of_dicts(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _list_of_strings(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def _truncate_text(value: object, limit: int) -> object:
+    if not isinstance(value, str) or len(value) <= limit:
+        return value
+    return value[: limit - 1].rstrip() + "…"
 
 
 def _json_object_from_llm_content(content: str) -> dict[str, object]:

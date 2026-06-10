@@ -193,7 +193,7 @@ def _replace_inline_item_refs(
 
     replaced = INLINE_REF_RE.sub(replace, text)
     if strip_unresolved:
-        replaced = UNRESOLVED_REF_SPACE_RE.sub(r"\1", re.sub(r"\s{2,}", " ", replaced))
+        replaced = UNRESOLVED_REF_SPACE_RE.sub(r"\1", re.sub(r"[ \t]{2,}", " ", replaced))
     replaced = _compact_adjacent_numeric_refs(replaced)
     return _normalize_citation_punctuation(replaced)
 
