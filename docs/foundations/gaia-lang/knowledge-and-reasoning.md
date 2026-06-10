@@ -192,7 +192,7 @@ Scaffold actions compile only into `.gaia/formalization_manifest.json`. They are
 
 ### 3.5 Compose — action-level composition
 
-`@compose(name=..., version=..., warrants=None, ...)` decorates a Python function as a named action workflow. Inside the function the author calls other action verbs; calling the decorated function:
+`@composition(name=..., version=..., warrants=None, ...)` (deprecated alias: `@compose`) decorates a Python function as a named action workflow. Inside the function the author calls other action verbs; calling the decorated function:
 
 1. Captures every action emitted inside the call into a `Compose` runtime object.
 2. Records `inputs` (Knowledge values passed as args, plus claims captured from background and child actions), `actions` (the ordered list of children, by reference or by id), and `conclusion` (the function's return value, which **must** be a `Claim`).
@@ -452,7 +452,7 @@ Operators that emit a relation-result conclusion (`equivalence`, `contradiction`
 | `Infer` / `Associate` action | `Strategy` with explicit CPT + warrant helper `Knowledge` | warrant helper is the primary label resolution target |
 | `Equal` / `Contradict` / `Exclusive` action | `Operator` + helper `Knowledge` | top-level operator gets `lco_*` ID; helper is reviewable |
 | `Decompose` action | formula `Operator`s over `parts` + `Operator(equivalence, [whole, formula_helper])` | enforces atomic-parts match and acyclicity |
-| `@compose`-decorated function | `gaia.engine.ir.Compose` first-class IR node | structure-hashed over inputs, child actions, conclusion, warrants |
+| `@composition`-decorated function | `gaia.engine.ir.Compose` first-class IR node | structure-hashed over inputs, child actions, conclusion, warrants |
 | `DependsOn` action | (not lowered) | authoring metadata only |
 
 Identity assignment:

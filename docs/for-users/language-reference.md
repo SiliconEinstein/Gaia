@@ -451,7 +451,7 @@ probabilistic, write down the probability model that justifies the update.
 | Logical hard constraints | `derive`, `compute`, `decompose`, `equal`, `contradict`, `exclusive`, formula claims | If the premises are true, the conclusion or relation should follow as a matter of logic or definition | Yes. Lowered as deterministic factors |
 | Hand-written probabilistic soft constraints | `infer`, `associate` | You are directly committing to conditional probabilities or an association strength | Yes. Lowered as probabilistic factors |
 | Model-based Bayesian soft constraints | `bayes.model`, `bayes.compare` | The probabilities come from a statistical model, distribution, and observed data | Yes. Lowered to likelihood-style probabilistic factors and reviewable relations |
-| Composed workflows | `@compose` | A Python function groups several actions into one named workflow | The child actions enter inference according to their own kinds |
+| Composed workflows | `@composition` | A Python function groups several actions into one named workflow | The child actions enter inference according to their own kinds |
 
 This split exists for a practical reason: reviewers and downstream users need
 to know what kind of commitment each line makes. A scaffold note says "work
@@ -944,7 +944,7 @@ from gaia.engine.lang.compat import (
 | `support([P], C, prior=...)` | `derive(C, given=[P])` (deterministic) or `infer(P, hypothesis=C, p_e_given_h=..., p_e_given_not_h=...)` / `bayes.compare(...)` (probabilistic) | `P` is the evidence; `C` is the hypothesis whose belief gets updated. |
 | `deduction([P], C)` | `derive(C, given=[P])` | Strict logical entailment lowers to a hard conditional implication. |
 | `compare / abduction / induction / analogy / extrapolation / elimination / case_analysis / mathematical_induction` | Author the deterministic skeleton with `derive(...)` + relation verbs, or `bayes.compare(...)` for explicit Bayesian comparisons | Do not use these as shortcuts for uncertainty that hasn't been spelled out as claims. |
-| `composite(..., sub_strategies=[...])` | Plain `derive(...)` chains plus `@compose` for the workflow boundary | Sub-strategy priors are no longer the v0.5 surface for soft leaves; use `infer(...)` / `bayes.compare(...)` instead. |
+| `composite(..., sub_strategies=[...])` | Plain `derive(...)` chains plus `@composition` for the workflow boundary | Sub-strategy priors are no longer the v0.5 surface for soft leaves; use `infer(...)` / `bayes.compare(...)` instead. |
 | `infer([premises], conclusion, ...)` (legacy positional) | `infer(evidence, hypothesis=..., given=..., p_e_given_h=..., p_e_given_not_h=...)` | The legacy positional form is preserved as a deprecated path; the keyword form is the v0.5 contract. |
 | `contradiction(a, b)` / `equivalence(a, b)` / `complement(a, b)` | `contradict(a, b)` / `equal(a, b)` / `exclusive(a, b)` | The relation-verb forms appear in review manifests and emit reviewable warrant helpers. |
 | `disjunction(*claims)` / `and_(...)` / `or_(...)` / `not_(...)` | `claim(..., formula=lor(...))` / `claim(..., formula=land(...))` / `claim(..., formula=lnot(...))`, or the dunder formula sugar `a \| b`, `a & b`, `~a` | Formula AST is the v0.5 way to express structural Boolean expressions; dunders now return Formula nodes, not legacy helper claims. |

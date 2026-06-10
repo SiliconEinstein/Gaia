@@ -13,7 +13,7 @@ For each claim "supported by other claims," choose one of these author verbs:
 - `gaia author observe --conclusion C [--value ... --error ...]` — raw measurement: ties a Claim, Variable, or Distribution to an observed value. Use for experimental measurements that anchor the graph in data.
 - `gaia author compute --conclusion-type T --fn f --given P1,P2,...` — deterministic mapping: a named callable produces the result from the premises. Use when the source presents a closed-form computation whose function is captured by code.
 - `gaia author decompose --whole W --parts A,B,... --formula-template and|or|atom` — structural split: composite claim → atomic parts. Use when an aggregate claim is best read as a conjunction (or disjunction) of independently judgeable atoms.
-- `gaia author compose --from-file pattern.py` — register a reusable multi-step pattern as a `@compose`-decorated function. Use Pass 4 to refine flat `derive`/`infer` calls into compositions when meaningful intermediate propositions appear.
+- `gaia author composition --from-file pattern.py` — register a reusable multi-step pattern as a `@composition`-decorated function. Use Pass 4 to refine flat `derive`/`infer` calls into compositions when meaningful intermediate propositions appear.
 
 Plus the structural-relation verbs (no `--given`; these state a logical constraint between claims):
 
@@ -119,6 +119,6 @@ Contradictions and exclusives are especially valuable in BP because they create 
 Before moving to Pass 3, verify:
 
 - **Theory-experiment pairs use `infer`?** Every place the source compares a theoretical prediction against an experimental observation should be connected via `infer(evidence=obs, hypothesis=pred, --p-e-given-h ..., --p-e-given-not-h ...)`. The relationship is explanatory ("does the observation support the prediction?"), not a rigid step-by-step derivation.
-- **Multiple observations confirming one law?** If several independent observations all support the same general rule, the conclusion claim (the law) should be a `derive(...)` over those observations — and in Pass 4 you will likely refactor that to a `compose`'d pattern that names the generalisation step explicitly.
+- **Multiple observations confirming one law?** If several independent observations all support the same general rule, the conclusion claim (the law) should be a `derive(...)` over those observations — and in Pass 4 you will likely refactor that to a `composition` that names the generalisation step explicitly.
 - **No missing alternatives?** When the source compares competing hypotheses against one observation, every alternative should be extracted as a claim and either chained as additional `infer` evidence or wired with `exclusive` if the source treats the alternatives as exhaustive.
 - **Contradictions modelled?** Every contradictory claim pair identified in Pass 1 should now have a `contradict(...)` (or `exclusive(...)`) operator. Also check: did any new contradictions emerge while writing relations?

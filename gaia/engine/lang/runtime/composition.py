@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Iterable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -150,7 +151,7 @@ def _infer_inputs(
     return _unique_knowledge([*explicit_inputs, *action_inputs])
 
 
-def compose(
+def composition(
     *,
     name: str,
     version: str,
@@ -171,7 +172,7 @@ def compose(
             finally:
                 _current_composition_scope.reset(token)
             if not isinstance(result, Claim):
-                raise TypeError("@compose functions must return a Claim object")
+                raise TypeError("@composition functions must return a Claim object")
 
             compose_background = list(background or [])
             compose_action = Compose(
@@ -199,5 +200,35 @@ def compose(
     return decorator
 
 
-composition = compose
+def compose(
+    *,
+    name: str,
+    version: str,
+    background: list[Knowledge] | None = None,
+    warrants: list[Claim] | None = None,
+    rationale: str = "",
+    label: str | None = None,
+) -> Callable[[Callable[..., Claim]], Callable[..., Claim]]:
+    """Deprecated alias of :func:`composition`.
+
+    The verb form ``compose`` reads as the inverse of ``decompose``, which it
+    is not — ``decompose`` is a claim-level structural equivalence while this
+    decorator builds an action-level composition template. The noun
+    ``composition`` is the canonical name (see issue #759).
+    """
+    warnings.warn(
+        "compose() is deprecated; use composition()",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return composition(
+        name=name,
+        version=version,
+        background=background,
+        warrants=warrants,
+        rationale=rationale,
+        label=label,
+    )
+
+
 Composition = Compose

@@ -6,7 +6,8 @@ matches one of the DSL surface verbs (``claim`` / ``artifact`` /
 ``contradict`` / ``exclusive`` / ``decompose`` / ``observe`` /
 ``compute`` / ``infer`` / ``associate`` / ``parameter`` /
 ``register_prior`` / ``depends_on`` / ``candidate_relation`` /
-``materialize`` / ``variable`` / ``compose`` / ``composition``). Direct
+``materialize`` / ``variable`` / ``composition`` (+ its deprecated alias
+``compose``)). Direct
 SDK authoring (``gaia sdk`` + writing the DSL in Python) is the primary
 path; this CLI is an OPTIONAL convenience for humans and agents alike.
 When used, it owns identifier collision checks, reference resolution,
@@ -23,9 +24,9 @@ envelope skeleton: 20 statement-emitting verbs (``claim`` /
 ``question`` / ``contradict`` / ``exclusive`` / ``decompose`` /
 ``observe`` / ``compute`` / ``infer`` / ``associate`` / ``parameter`` /
 ``register_prior`` / ``depends_on`` / ``candidate_relation`` /
-``materialize`` / ``variable``) plus the two file-based ``compose`` /
-``composition``
-validate-and-register verbs (see :mod:`.compose`). Prose-mode
+``materialize`` / ``variable``) plus the file-based ``composition``
+validate-and-register verb and its deprecated ``compose`` alias
+(see :mod:`.compose`). Prose-mode
 ``--<arg>-content`` flags, two pre-write warning kinds, and a
 restricted-globals formula sandbox round out the authoring surface; the
 engine's deprecation catalog is discovered via an AST scan over the DSL

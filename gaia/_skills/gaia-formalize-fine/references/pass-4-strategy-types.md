@@ -14,7 +14,7 @@ Passes 2-3 produce a graph dominated by `infer` (the general fall-back). Pass 4 
 | `infer` | Bayesian update: explicit P(E\|H), optional P(E\|~H) | Theory-vs-experiment fit, single-evidence updates to a hypothesis | `--p-e-given-h` (required), `--p-e-given-not-h` (defaults 0.5) |
 | `compute` | Deterministic mapping: callable `fn` produces conclusion from premises | Closed-form computations where the function is in code | `--fn` identifier of a callable; conclusion is the function's output Claim |
 | `observe` | Measurement event tying Claim / Variable / Distribution to data | Experimental observations that anchor the graph | `--value` / `--error` for quantity form, or discrete observation against a premise list |
-| `compose` | Reusable multi-step pattern: `@compose`-decorated function | Recurring derivation patterns that need a named, registered shape | Author the `pattern.py` and register via `gaia author compose --from-file` |
+| `composition` | Reusable multi-step pattern: `@composition`-decorated function | Recurring derivation patterns that need a named, registered shape | Author the `pattern.py` and register via `gaia author composition --from-file` |
 | `decompose` | Structural split: composite → atomic parts via `and`/`or`/`atom` | Aggregate claim is best read as the conjunction of independently judgeable parts | `--formula-template` or `--formula-expr` |
 
 Also available as **structural verbs** (modelled in Pass 2 alongside the rest, not in Pass 4):
@@ -49,7 +49,7 @@ For each `infer` relation drafted in Pass 2:
         NO  ↓
     Does the same multi-step pattern recur across multiple conclusions, and is naming intermediate
     propositions worthwhile?
-        YES → compose    (extract into a @compose pattern; per-call the wrapper authors a derive over
+        YES → composition (extract into a @composition pattern; per-call the wrapper authors a derive over
                           the composition's intermediate Claims)
         NO  → keep infer (with the most informative likelihood you can justify)
 ```
@@ -64,7 +64,7 @@ The release/0.4 SKILL talked about several named reasoning patterns. Several hav
 
 **Theory-experiment comparison ("abduction")**: extract the theoretical prediction and the experimental observation as separate claims (Pass 1), then use `infer(evidence=obs, hypothesis=pred, --p-e-given-h ...)`. When several alternative theories compete, chain `infer` against each candidate hypothesis with its own likelihoods. When the alternatives are mutually exclusive in the paper's framing, add `exclusive(a, b)` for the two-alternative case or `decompose --formula-template or` for three or more (`exclusive` is strictly binary). The abduction *concept* — the prior on the alternative reflects explanatory power for the specific observation, not the alternative's truth in general — survives intact; that deep guide lives in `../../gaia-review/SKILL.md`.
 
-**Repeated-observation generalisation ("induction")**: there is no single v0.5 verb. The recommended idiom is `derive` over a `compose`'d generalisation step. Specifically: author each observation as its own claim, then either (a) for the simple flat case, `derive(law, given=[obs_a, obs_b, obs_c], rationale=...)`, or (b) when the generalisation involves a named pattern, define a `@compose` function that takes the observations and the law and returns the law's `derive` step, and register it via `gaia author compose --from-file`. The underlying judgement — each observation must be **independent**; if dependent, extract the shared dependency as an explicit claim in Pass 5 — still applies.
+**Repeated-observation generalisation ("induction")**: there is no single v0.5 verb. The recommended idiom is `derive` over a `compose`'d generalisation step. Specifically: author each observation as its own claim, then either (a) for the simple flat case, `derive(law, given=[obs_a, obs_b, obs_c], rationale=...)`, or (b) when the generalisation involves a named pattern, define a `@composition` function that takes the observations and the law and returns the law's `derive` step, and register it via `gaia author composition --from-file`. The underlying judgement — each observation must be **independent**; if dependent, extract the shared dependency as an explicit claim in Pass 5 — still applies.
 
 **Process of elimination, proof by cases, mathematical induction, cross-system analogy, extrapolation beyond measured range:** these patterns **have no single-verb v0.5 form**. The recommended idiom for each:
 
@@ -89,8 +89,8 @@ Every Claim **must** be assigned to a named variable (no `_` prefix for claims t
 
 `compose` is the v0.5 way to capture **complex reasoning with meaningful intermediate steps**. Two triggers:
 
-1. **3+ premises and no `decompose` fit.** A flat `derive` over 4+ premises suffers the BP multiplicative effect — small uncertainties on each premise compound on the conclusion. If you can name meaningful intermediate propositions (not stubs introduced purely to split the call), refactor into a `@compose` pattern whose intermediate Claims are independently judgeable.
-2. **Recurring pattern.** The same shape of derivation appears across multiple conclusions. Register it once via `gaia author compose --from-file` and reuse.
+1. **3+ premises and no `decompose` fit.** A flat `derive` over 4+ premises suffers the BP multiplicative effect — small uncertainties on each premise compound on the conclusion. If you can name meaningful intermediate propositions (not stubs introduced purely to split the call), refactor into a `@composition` pattern whose intermediate Claims are independently judgeable.
+2. **Recurring pattern.** The same shape of derivation appears across multiple conclusions. Register it once via `gaia author composition --from-file` and reuse.
 
 If decomposition would be forced — no meaningful intermediate proposition exists — 3 premises is acceptable to keep as `derive` or `infer`; 4+ premises must decompose, otherwise BP multiplicative effect will severely suppress belief.
 

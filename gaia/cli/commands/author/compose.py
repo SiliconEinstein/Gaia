@@ -1,4 +1,4 @@
-"""``gaia author compose`` / ``gaia author composition`` — validate + register.
+"""``gaia author composition`` (+ deprecated alias ``compose``) — validate + register.
 
 The composition primitive is a Python-decorator-level concept (its body
 is an arbitrary Python function capturing nested ``Action`` invocations
@@ -11,14 +11,14 @@ into the package's pyproject ``[tool.gaia]`` metadata so downstream
 tooling can discover compositions without importing the package.
 
 The author inventory totals 19 verbs: 17 statement-emitting plus the
-two file-based ``compose`` / ``composition`` validate-and-register
-verbs documented here.
+file-based ``composition`` validate-and-register verb and its
+deprecated ``compose`` alias, both documented here.
 
 CLI surface::
 
-    gaia author compose --from-file <path> [--target <pkg-root>]
-                       [--check / --no-check] [--human]
-                       [--interactive] [--json/--no-json]
+    gaia author composition --from-file <path> [--target <pkg-root>]
+                           [--check / --no-check] [--human]
+                           [--interactive] [--json/--no-json]
 
 Validation contract (each failure exits 2 with a structured diagnostic):
 
@@ -37,8 +37,10 @@ Validation contract (each failure exits 2 with a structured diagnostic):
   We **insert-or-update by name**: re-running ``compose`` for the same
   ``name`` overwrites the entry (idempotent).
 
-The ``composition`` alias verb in :mod:`._init_` reuses this impl with
-``verb="composition"`` to keep the cli-surface inventory symmetric.
+``composition`` is the canonical verb; ``compose`` is a deprecated alias
+kept for compatibility (it reads as the inverse of ``decompose``, which it
+is not — see issue #759). Both reuse this impl, distinguished by ``verb=``;
+the ``compose`` spelling surfaces a deprecation warning in the envelope.
 
 ``--check`` (default on) drives a real :func:`postwrite_check` against
 the target package after registration succeeds. Semantics:
@@ -91,14 +93,14 @@ _COMPOSE_DECORATOR_NAMES = frozenset({"compose", "composition"})
 _EPILOG_EXAMPLE = """
 Invoke:
 
-    $ gaia author compose --from-file pattern.py --target ./my-pkg
     $ gaia author composition --from-file pattern.py --target ./my-pkg
+    $ gaia author compose --from-file pattern.py --target ./my-pkg  (deprecated alias)
 
 Example pattern file (`pattern.py`):
 
-    from gaia.engine.lang import compose, claim, derive
+    from gaia.engine.lang import composition, claim, derive
 
-    @compose(name="my-pkg:my-pattern", version="1.0")
+    @composition(name="my-pkg:my-pattern", version="1.0")
     def my_pattern(input_claim: Claim) -> Claim:
         result = derive(input_claim, given=[input_claim], label="warranted")
         return result
@@ -579,6 +581,11 @@ def _run_compose(
     outcome; the envelope distinguishes "registered and verified" from
     "registered but failed validation".
     """
+    deprecation_warnings = (
+        ["'gaia author compose' is deprecated; use 'gaia author composition'"]
+        if verb == "compose"
+        else []
+    )
     target_root = Path(target).resolve()
     file_path = Path(from_file).resolve()
 
@@ -674,11 +681,11 @@ def _run_compose(
     # itself compiles cleanly. The two are decoupled by design.
     if not check:
         payload["check"] = "skipped"
-        _emit_success(verb, payload=payload, warnings_list=[], human=human)
+        _emit_success(verb, payload=payload, warnings_list=deprecation_warnings, human=human)
         return
 
     post = postwrite_check(target_root)
-    warnings_messages = [w.message for w in post.warnings]
+    warnings_messages = [*deprecation_warnings, *(w.message for w in post.warnings)]
     if not post.ok:
         _emit_postwrite_failure(
             verb,
@@ -728,13 +735,13 @@ def compose_command(
     interactive: bool = typer.Option(
         False,
         "--interactive",
-        help="Reserved for symmetry; compose does not currently surface warnings.",
+        help=("Reserved for symmetry; the deprecation notice is envelope-only and never prompts."),
     ),
     json_: bool = typer.Option(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Validate + register a @compose-decorated function into pkg metadata."""
+    r"""Deprecated alias of ``composition``; validate + register a pattern file."""
     del json_, interactive
     _run_compose("compose", from_file=from_file, target=target, human=human, check=check)
 
@@ -776,7 +783,7 @@ def composition_command(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."
     ),
 ) -> None:
-    r"""Alias of ``compose``; validate + register a @composition-decorated function."""
+    r"""Validate + register a @composition-decorated function into pkg metadata."""
     del json_, interactive
     _run_compose("composition", from_file=from_file, target=target, human=human, check=check)
 

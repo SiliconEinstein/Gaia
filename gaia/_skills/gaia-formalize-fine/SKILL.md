@@ -52,7 +52,7 @@ gaia run infer .                → .gaia/beliefs.json
 | 1 | Content extraction | Are claims and notes extracted? Atomic? |
 | 2 | Reasoning connections | Are derivations, inferences, observations, computes, and structural relations modelled? |
 | 3 | Content completeness | Any missing premises, orphans, or `@label` errors? |
-| 4 | Strategy precision | Is each author verb the right one (`derive` vs `infer` vs `compute` vs `observe` vs `compose`)? |
+| 4 | Strategy precision | Is each author verb the right one (`derive` vs `infer` vs `compute` vs `observe` vs `composition`)? |
 | 5 | Structural integrity | Is evidence independent? Are `contradict` / `exclusive` semantics correct? |
 | 6 | Standalone readability | Can a reviewer understand everything without the source? |
 
@@ -84,7 +84,7 @@ The methodology below leans on this fixed set of CLI calls. Drill into `gaia <gr
   - `gaia author equal --a ... --b ...` — equate two claims (logical equivalence).
   - `gaia author contradict --a ... --b ...` — assert NOT (A AND B): both cannot be true, but both can be false.
   - `gaia author exclusive --a ... --b ...` — assert A XOR B: exactly one must be true (exhaustive + mutually exclusive).
-  - `gaia author compose --from-file pattern.py` — register a `@compose`-decorated reusable reasoning pattern.
+  - `gaia author composition --from-file pattern.py` — register a `@composition`-decorated reusable reasoning pattern.
   - `gaia author register-prior --claim ... --value ... --justification ... [--file priors.py]` — write a `register_prior(...)` statement; auto-injects the import if the target file is a sibling.
 - `gaia run infer <pkg>` — run BP, emit `.gaia/beliefs.json`. Pass `--depth N` (>0) to merge dependency packages' factor graphs for joint cross-package inference.
 - `gaia run render <pkg> --target github` — generate `.github-output/` README + narrative outline (handoff to `../gaia-publish/SKILL.md`).
