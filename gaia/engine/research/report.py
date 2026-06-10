@@ -15,6 +15,7 @@ INLINE_REF_RE = re.compile(
     r"\[(variable|factor|chain|package|paper|package_ref):([A-Za-z0-9_.:-]+)\]"
 )
 ADJACENT_NUMERIC_REF_RE = re.compile(r"(?:\[\d+\])+")
+UNRESOLVED_REF_SPACE_RE = re.compile(r"\s+([.,;:!?\u3002\uff0c\u3001\uff1b\uff1a\uff01\uff1f])")
 CN_SENTENCE_PUNCTUATION = "\u3002\uff01\uff1f"
 CN_CLAUSE_PUNCTUATION = "\uff0c\u3001\uff1b\uff1a"
 CN_SENTENCE_CITATION_RE = re.compile(rf"([{CN_SENTENCE_PUNCTUATION}])(\[\d+(?:[-,]\d+)*\])")
@@ -51,10 +52,18 @@ def _bullet_list(items: object) -> list[str]:
     return lines
 
 
-def _replace_refs_in_bullet_list(items: object, context: dict[str, Any]) -> list[str]:
+def _replace_refs_in_bullet_list(
+    items: object,
+    context: dict[str, Any],
+    *,
+    strip_unresolved: bool = False,
+) -> list[str]:
     if not isinstance(items, list) or not items:
         return ["_None._", ""]
-    lines = [f"- {_cell(_replace_inline_item_refs(item, context))}" for item in items]
+    lines = [
+        f"- {_cell(_replace_inline_item_refs(item, context, strip_unresolved=strip_unresolved))}"
+        for item in items
+    ]
     lines.append("")
     return lines
 
@@ -166,7 +175,12 @@ def _normalize_citation_punctuation(text: str) -> str:
     return CN_PUNCTUATION_SPACE_RE.sub(r"\1", text)
 
 
-def _replace_inline_item_refs(text: object, context: dict[str, Any]) -> object:
+def _replace_inline_item_refs(
+    text: object,
+    context: dict[str, Any],
+    *,
+    strip_unresolved: bool = False,
+) -> object:
     if not isinstance(text, str):
         return text
 
@@ -174,10 +188,12 @@ def _replace_inline_item_refs(text: object, context: dict[str, Any]) -> object:
         kind, ref_id = match.groups()
         citation_id = context["citation_ids_by_ref"].get((kind, ref_id))
         if not citation_id:
-            return match.group(0)
+            return "" if strip_unresolved else match.group(0)
         return f"[{_citation_number(citation_id, context)}]"
 
     replaced = INLINE_REF_RE.sub(replace, text)
+    if strip_unresolved:
+        replaced = UNRESOLVED_REF_SPACE_RE.sub(r"\1", re.sub(r"\s{2,}", " ", replaced))
     replaced = _compact_adjacent_numeric_refs(replaced)
     return _normalize_citation_punctuation(replaced)
 
@@ -325,7 +341,7 @@ def render_markdown_with_research_citations(
 ) -> str:
     """Replace inline research refs in arbitrary markdown and append references."""
     context = _citation_context(citations)
-    rendered = _replace_inline_item_refs(markdown, context)
+    rendered = _replace_inline_item_refs(markdown, context, strip_unresolved=True)
     rendered_text = rendered if isinstance(rendered, str) else str(rendered)
     rendered_text = rendered_text.rstrip()
     citation_lines = _render_citations(citations, language=language, context=context)
@@ -339,6 +355,7 @@ def _render_evidence_table(
     *,
     context: dict[str, Any],
     language: object = None,
+    strip_unresolved: bool = False,
 ) -> list[str]:
     if not isinstance(table, list) or not table:
         return []
@@ -364,7 +381,14 @@ def _render_evidence_table(
         lines.append(
             "| "
             + " | ".join(
-                _cell(_replace_inline_item_refs(row.get(column), context)) for column in columns
+                _cell(
+                    _replace_inline_item_refs(
+                        row.get(column),
+                        context,
+                        strip_unresolved=strip_unresolved,
+                    )
+                )
+                for column in columns
             )
             + " |"
         )
@@ -372,136 +396,44 @@ def _render_evidence_table(
     return lines
 
 
-def _render_figure_specs(
-    figures: object,
+def _review_body_text(value: object, context: dict[str, Any]) -> str:
+    replaced = _replace_inline_item_refs(value, context, strip_unresolved=True)
+    return _cell(replaced).strip()
+
+
+def _render_review_core(
+    review: dict[str, Any],
     *,
     context: dict[str, Any],
-    language: object = None,
+    language: object,
+    zh: bool,
 ) -> list[str]:
-    if not isinstance(figures, list) or not figures:
-        return []
+    lines: list[str] = []
+    lines.extend([f"### {'核心判断' if zh else 'Core Assessment'}", ""])
+    summary = _review_body_text(review.get("summary"), context)
+    lines.extend([summary, ""])
 
-    lines = _section("图表建议" if _is_zh(language) else "Figure Suggestions")
-    for index, figure in enumerate(figures, start=1):
-        if not isinstance(figure, dict):
-            continue
-        title = figure.get("title") or f"Figure {index}"
-        lines.append(
-            f"### 图 {index}: {_cell(title)}"
-            if _is_zh(language)
-            else f"### Figure {index}: {_cell(title)}"
-        )
-        lines.append("")
-        fields = [
-            ("purpose", "用途"),
-            ("visual_structure", "视觉结构"),
-            ("data_needed", "所需数据"),
-            ("takeaway", "预期结论"),
-        ]
-        for field, zh_label in fields:
-            value = figure.get(field)
-            if value in (None, "", [], {}):
+    sections = review.get("sections", [])
+    if isinstance(sections, list) and sections:
+        for section in sections:
+            if not isinstance(section, dict):
                 continue
-            label = zh_label if _is_zh(language) else field.replace("_", " ").title()
-            lines.append(f"- **{label}**: {_cell(_replace_inline_item_refs(value, context))}")
-        lines.append("")
-    return lines
-
-
-def _render_assessment(artifact: dict[str, Any]) -> str:
-    review = artifact.get("review", {})
-    language = review.get("language") if isinstance(review, dict) else artifact.get("language")
-    zh = _is_zh(language)
-    title = review.get("title") if isinstance(review, dict) else None
-    if not isinstance(title, str) or not title:
-        title = "研究评估" if zh else "Research Assessment"
-    lines = _heading(title)
-    focus = artifact.get("focus", {})
-    focus_id = focus.get("id") if isinstance(focus, dict) else None
-    evidence_packet = artifact.get("evidence_packet", {})
-    items = evidence_packet.get("items", []) if isinstance(evidence_packet, dict) else []
-    paper_leads = (
-        evidence_packet.get("paper_leads", []) if isinstance(evidence_packet, dict) else []
-    )
-    citations = artifact.get("citations", [])
-    citation_context = _citation_context(citations)
-    item_count = len(items) if isinstance(items, list) else 0
-    paper_lead_count = len(paper_leads) if isinstance(paper_leads, list) else 0
-
-    if isinstance(review, dict) and review:
-        abstract = review.get("abstract")
-        if isinstance(abstract, str) and abstract:
-            lines.extend(_section("摘要" if zh else "Abstract"))
-            lines.extend([_cell(_replace_inline_item_refs(abstract, citation_context)), ""])
-
-        key_points = review.get("key_points", [])
-        if isinstance(key_points, list) and key_points:
-            lines.extend(_section("要点" if zh else "Key Points"))
-            lines.extend(_replace_refs_in_bullet_list(key_points, citation_context))
-
-        lines.extend(_section("综述正文" if zh else "Review"))
-        lines.extend([f"### {'核心判断' if zh else 'Core Assessment'}", ""])
-        lines.extend(
-            [_cell(_replace_inline_item_refs(review.get("summary"), citation_context)), ""]
-        )
-        sections = review.get("sections", [])
-        if isinstance(sections, list) and sections:
-            for section in sections:
-                if not isinstance(section, dict):
-                    continue
-                lines.append(f"### {_cell(section.get('title'))}")
-                lines.append("")
-                lines.append(
-                    _cell(_replace_inline_item_refs(section.get("body"), citation_context))
-                )
-                lines.append("")
-        else:
-            lines.extend(["_None._", ""])
-
-        lines.extend(
-            _render_evidence_table(
-                review.get("evidence_table", []),
-                context=citation_context,
-                language=language,
-            )
-        )
-
-        lines.extend(
-            _render_figure_specs(
-                review.get("figure_specs", []),
-                context=citation_context,
-                language=language,
-            )
-        )
-
-        lines.extend(_section("局限性" if zh else "Limitations"))
-        limitations = review.get("limitations", [])
-        if isinstance(limitations, list) and limitations:
-            lines.extend(_replace_refs_in_bullet_list(limitations, citation_context))
-        else:
-            lines.extend(["_None._", ""])
-
-        lines.extend(_section("后续研究问题" if zh else "Next Research Questions"))
-        lines.extend(_replace_refs_in_bullet_list(review.get("next_queries", []), citation_context))
+            title = section.get("title")
+            body = _review_body_text(section.get("body"), context)
+            if isinstance(title, str) and title.strip() and body:
+                lines.extend([f"### {_cell(title.strip())}", "", body, ""])
     else:
-        lines.extend(
-            [
-                (
-                    f"本报告围绕 `{_cell(focus_id)}` 评估 {item_count} 条检索证据和 "
-                    f"{paper_lead_count} 篇候选文献。"
-                    if zh
-                    else (
-                        f"Focus `{_cell(focus_id)}` is evaluated using {item_count} "
-                        f"retrieved evidence record(s) and {paper_lead_count} candidate paper(s)."
-                    )
-                ),
-                "",
-            ]
+        lines.extend(["_None._", ""])
+
+    lines.extend(
+        _render_evidence_table(
+            review.get("evidence_table", []),
+            context=context,
+            language=language,
+            strip_unresolved=True,
         )
-
-    lines.extend(_render_citations(citations, language=language, context=citation_context))
-
-    return "\n".join(lines).rstrip() + "\n"
+    )
+    return lines
 
 
 def _render_stop(artifact: dict[str, Any]) -> str:
@@ -627,9 +559,9 @@ def _render_proposal(artifact: dict[str, Any]) -> str:
 
 
 def _reader_text(value: object, context: dict[str, Any]) -> str:
-    replaced = _replace_inline_item_refs(value, context)
+    replaced = _replace_inline_item_refs(value, context, strip_unresolved=True)
     text = "" if replaced is None else str(replaced)
-    return INLINE_REF_RE.sub("", text).strip()
+    return text.strip()
 
 
 def _dicts(value: object) -> list[dict[str, Any]]:
@@ -773,19 +705,14 @@ def _append_assessment_review(
         lines.extend(
             _section(_assessment_title(assessment, focus_questions=focus_questions, zh=zh))
         )
-    summary = _reader_text(review.get("summary"), context)
-    if summary:
-        lines.extend([f"### {'核心判断' if zh else 'Core Assessment'}", "", summary, ""])
-    for section in _dicts(review.get("sections")):
-        title = section.get("title")
-        body = _reader_text(section.get("body"), context)
-        if isinstance(title, str) and title.strip() and body:
-            lines.extend([f"### {_cell(title.strip())}", "", body, ""])
+    if not review:
+        return
     lines.extend(
-        _render_evidence_table(
-            review.get("evidence_table", []),
+        _render_review_core(
+            review,
             context=context,
             language=review.get("language"),
+            zh=zh,
         )
     )
 
@@ -903,7 +830,7 @@ def render_research_artifact_markdown(artifact: dict[str, Any]) -> str:
     if kind == "focus_synthesis":
         return _render_focus_synthesis(artifact)
     if kind == "assessment":
-        return _render_assessment(artifact)
+        return render_final_research_report_markdown(focus_artifacts=[], assessments=[artifact])
     if kind == "research_proposal":
         return _render_proposal(artifact)
     if kind == "research_stop":

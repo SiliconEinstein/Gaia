@@ -3771,11 +3771,12 @@ def test_research_report_prints_markdown_to_stdout(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0, result.output
-    assert "# Research Assessment" in result.output
-    assert "Focus `core_tension` is evaluated using 0 retrieved evidence record(s)" in result.output
+    assert "# Evidence Assessment" in result.output
+    assert "## Evidence Grading And Tensions" in result.output
+    assert "当前证据不足。 没有可用 items。" in result.output
     assert "evidence packet" not in result.output
     assert "needs_more_evidence: 1" not in result.output
-    assert "## Citations" in result.output
+    assert "## Citations" not in result.output
 
 
 def test_research_stop_writes_stop_criteria_artifact(tmp_path: Path) -> None:

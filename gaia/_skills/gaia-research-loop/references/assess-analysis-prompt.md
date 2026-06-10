@@ -44,7 +44,6 @@ Then ask the active LLM/agent to return JSON only.
 - `review.key_points` 必须包含 4-6 条关键结论；
 - `review.summary` 和 `review.sections` 必须用中文，并达到短综述深度，而不是搜索摘要；
 - `review.evidence_table` 必须给出至少一张证据概览表，比较观测途径或理论模型的证据方向、主要约束和未解决问题；
-- `review.figure_specs` 必须给出 2-4 个拟议图表，每个图表包含 `title`、`purpose`、`visual_structure`、`data_needed`、`takeaway`；
 - 在 `review.summary` 和每个 `review.sections[].body` 的关键证据句后写 inline refs，例如 `[variable:<id>]`、`[paper:<paper_id>]` 或 `[package_ref:<ref>]`；不要手写论文引用或 citation id，CLI 会确定性地映射成 paper-level citations。
 - `review.summary`、`review.sections[].body`、`review.limitations`、`review.next_queries` 必须面向领域读者，而不是面向工具使用者；读者不应需要知道 Gaia、LKM、CLI、artifact、trace 或本次工作流。
 - `review.*` 自然语言正文禁止出现以下工作流/基础设施词：Gaia、LKM、item、artifact、evidence packet、agent、CLI、trace、run、round、workflow、targeted expand、source promotion、assessment JSON。唯一例外是 citation anchor，例如 `[variable:<id>]` 或 `[paper:<paper_id>]`，它只能作为引用标记出现，不能被当作正文概念讨论。

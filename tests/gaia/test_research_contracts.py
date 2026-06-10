@@ -52,7 +52,6 @@ def test_assess_contract_requires_publication_style_review_fields() -> None:
         "abstract",
         "key_points",
         "evidence_table",
-        "figure_specs",
         "limitations",
         "next_queries",
     ]:
@@ -61,4 +60,3 @@ def test_assess_contract_requires_publication_style_review_fields() -> None:
     payload = json.dumps(contract, ensure_ascii=False)
     assert "Nature Reviews" in payload
     assert "numbered references" in payload
-    assert "figure_specs" in payload

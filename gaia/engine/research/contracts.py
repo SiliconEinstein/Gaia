@@ -315,9 +315,6 @@ def assess_contract(*, language: str = "zh") -> dict[str, Any]:
                 "list[object] comparing evidence clusters, direction, constraints, "
                 "and unresolved issues"
             ),
-            "figure_specs": (
-                "list[object] with title, purpose, visual_structure, data_needed, and takeaway"
-            ),
             "limitations": "list[str]",
             "next_queries": "list[str]",
         },
