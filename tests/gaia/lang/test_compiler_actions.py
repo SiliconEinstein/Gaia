@@ -6,7 +6,7 @@ from gaia.engine.lang import (
     Variable,
     associate,
     candidate_relation,
-    compose,
+    composition,
     compute,
     contradict,
     depends_on,
@@ -670,11 +670,11 @@ def test_duplicate_operator_action_label_raises():
 
 
 def test_duplicate_compose_action_label_raises():
-    @compose(name="test:workflow:first", version="1.0", label="same_workflow")
+    @composition(name="test:workflow:first", version="1.0", label="same_workflow")
     def first_workflow(seed: Claim) -> Claim:
         return derive("C1.", given=seed, rationale="First workflow.", label="first_child")
 
-    @compose(name="test:workflow:second", version="1.0", label="same_workflow")
+    @composition(name="test:workflow:second", version="1.0", label="same_workflow")
     def second_workflow(seed: Claim) -> Claim:
         return derive("C2.", given=seed, rationale="Second workflow.", label="second_child")
 

@@ -1,3 +1,5 @@
+import pytest
+
 import gaia.engine.bayes as bayes
 from gaia.engine.lang import (
     Claim,
@@ -6,6 +8,7 @@ from gaia.engine.lang import (
     associate,
     candidate_relation,
     compose,
+    composition,
     compute,
     derive,
     infer,
@@ -34,7 +37,7 @@ def _strategy_by_id(compiled):
 
 
 def test_compose_returns_conclusion_and_compiles_action_dag():
-    @compose(name="test:evidence:toy_likelihood", version="1.0")
+    @composition(name="test:evidence:toy_likelihood", version="1.0")
     def toy_likelihood(evidence: Claim, hypothesis: Claim) -> Claim:
         p_h = compute(Probability, fn=lambda: 0.8, label="compute_p_e_given_h")
         p_h.label = "p_e_given_h"
@@ -103,7 +106,7 @@ def test_compose_infers_closed_over_infer_given_as_input():
         gate = Claim("Gate.")
         gate.label = "gate"
 
-        @compose(name="test:evidence:gated", version="1.0")
+        @composition(name="test:evidence:gated", version="1.0")
         def gated_likelihood(evidence: Claim, hypothesis: Claim) -> Claim:
             return infer(
                 evidence,
@@ -134,7 +137,7 @@ def test_compose_keeps_own_background_and_warrants_separate_from_child_warrants(
         )
         compose_warrant.label = "compose_warrant"
 
-        @compose(
+        @composition(
             name="test:association:toy",
             version="1.0",
             background=[bg],
@@ -192,7 +195,7 @@ def test_compose_can_reference_bayes_model_and_compare_actions():
         data = Claim("Observed k = 3.")
         data.label = "data"
 
-        @compose(name="test:bayes:single", version="1.0")
+        @composition(name="test:bayes:single", version="1.0")
         def workflow(hypothesis: Claim, observation: Claim) -> Claim:
             model = bayes.model(
                 hypothesis,
@@ -262,7 +265,7 @@ def test_compose_does_not_capture_scaffold_records_as_child_reasoning():
         c = Claim("C.")
         c.label = "c"
 
-        @compose(name="test:scaffold-free", version="1.0")
+        @composition(name="test:scaffold-free", version="1.0")
         def workflow() -> Claim:
             candidate_relation(claims=[a, b], label="open_relation")
             return derive(c, given=[a], rationale="C follows from A.", label="derive_c")
@@ -275,3 +278,23 @@ def test_compose_does_not_capture_scaffold_records_as_child_reasoning():
         compiled.action_label_map["github:v6_scaffold_composition::action::derive_c"]
     ]
     assert compiled.formalization_manifest["dependencies"][0]["label"] == "open_relation"
+
+
+def test_compose_alias_is_deprecated_and_delegates_to_composition():
+    with CollectedPackage("v6_composition") as pkg:
+        e = Claim("Evidence holds.")
+        deprecation = r"compose\(\) is deprecated; use composition\(\)"
+        with pytest.warns(DeprecationWarning, match=deprecation):
+            decorator = compose(name="test:evidence:deprecated-alias", version="1.0")
+
+        @decorator
+        def deprecated_pattern() -> Claim:
+            return e
+
+        result = deprecated_pattern()
+
+    assert result is e
+    compose_actions = [action for action in pkg.actions if isinstance(action, Compose)]
+    assert len(compose_actions) == 1
+    assert compose_actions[0].name == "test:evidence:deprecated-alias"
+    assert compose_actions[0].version == "1.0"

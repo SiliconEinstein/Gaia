@@ -54,7 +54,7 @@ from gaia.engine.lang import (
     depends_on, candidate_relation, materialize,            # Scaffold annotations
     observe, derive, compute, decompose,                    # Reasoning actions — hard
     infer,                                                  # Reasoning actions — soft
-    compose, composition,                                   # Action composition
+    composition,                                            # Action composition
     register_prior,                                         # External prior records
     Normal, LogNormal, Beta, Gamma, StudentT,               # Distribution factories
     Cauchy, ChiSquared, Binomial, BetaBinomial, Poisson,
@@ -159,10 +159,11 @@ materialize(candidate)
 ## Action composition
 
 ```python
-@composition
-def my_argument():
+@composition(name="my-pkg:my-argument", version="1.0")
+def my_argument(...) -> Claim:
     ...                                # group several actions as one unit
-compose(action_a, action_b)            # combine actions explicitly
+# `compose` is a deprecated alias of `composition` (it is NOT the inverse
+# of `decompose`).
 ```
 
 ## Typed terms + formulas

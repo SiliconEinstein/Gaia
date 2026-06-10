@@ -77,8 +77,8 @@ records its metadata in `pyproject.toml`).
 | Scaffold | `depends-on` | `depends_on(conclusion, given, *, rationale="", background=None, label=None)` | yes |
 | Scaffold | `candidate-relation` | `candidate_relation(*, claims, pattern, rationale="", background=None, label=None)` | yes |
 | Scaffold | `materialize` | `materialize(scaffold, *, by, rationale="", label=None)` | yes |
-| Composition | `compose` | `@compose(name=…, version=…)` decorating `def fn(...) -> Claim` | **no — file-based** |
-| Composition | `composition` | alias of `compose` | **no — file-based** |
+| Composition | `composition` | `@composition(name=…, version=…)` decorating `def fn(...) -> Claim` | **no — file-based** |
+| Composition | `compose` | deprecated alias of `composition` | **no — file-based** |
 | Typed terms | `variable` | `Variable(symbol=…, domain=…, value=…)` or `Constant(value, primitive)` | yes |
 
 The 21st verb in this reference, `gaia pkg scaffold`, lives in the `pkg`
@@ -283,7 +283,7 @@ gaia author compute --conclusion-type <ident> --label <ident> [--target <path>]
 | `--given <csv>` | no | Comma-separated input identifiers. |
 
 The decorator form `@compute` stays at Python-source level (same logic as
-`compose` / `composition`).
+`composition` / its deprecated alias `compose`).
 
 ### `infer`
 
@@ -403,16 +403,19 @@ gaia author materialize --scaffold <ident> --by <csv> --label <ident> \
 | `--scaffold <ident>` | yes | Scaffold identifier the materialization targets. |
 | `--by <csv>` | yes | Comma-separated identifiers used as the `by=` arg (single-element scalars and multi-element lists both render as `by=[...]`). |
 
-## File-based verbs — `compose` / `composition`
+## File-based verbs — `composition` (+ deprecated alias `compose`)
 
-The two composition verbs do **not** append a statement to
+`composition` is the canonical verb; `compose` is a deprecated alias kept
+for compatibility (it reads as the inverse of `decompose`, which it is
+not — see issue #759) and surfaces a deprecation warning in the envelope.
+The composition verbs do **not** append a statement to
 `__init__.py`. The composition primitive is a Python-decorator-level
 concept (its body is an arbitrary Python function capturing nested
 `Action` invocations through a ContextVar), so the cli takes the file
 containing the decorated function as input and registers its metadata.
 
 ```
-gaia author <compose|composition> --from-file <path> [--target <pkg-root>]
+gaia author <composition|compose> --from-file <path> [--target <pkg-root>]
     [--check/--no-check] [--human] [--interactive] [--json/--no-json]
 ```
 
@@ -425,7 +428,7 @@ gaia author <compose|composition> --from-file <path> [--target <pkg-root>]
 diagnostic):
 
 * `--from-file` must exist and parse as valid Python.
-* Exactly **one** `@compose` / `@composition`-decorated `FunctionDef` per
+* Exactly **one** `@composition` / `@compose`-decorated `FunctionDef` per
   file (the *one-compose-per-file rule*). Both bare names and
   `<module>.compose` Attribute-shaped references are counted.
 * The decorator must carry `name=` and `version=` string kwargs.
@@ -688,9 +691,10 @@ from "your Python parses but the sandbox does not allow it".
 
 ## Compose validate-and-register
 
-The `compose` / `composition` verbs (see [File-based verbs](#file-based-
-verbs-compose-composition)) extract metadata from a Python file with a
-single `@compose` / `@composition`-decorated `FunctionDef` and record
+The `composition` verb and its deprecated `compose` alias (see
+[File-based verbs](#file-based-verbs-composition-deprecated-alias-compose))
+extract metadata from a Python file with a
+single `@composition` / `@compose`-decorated `FunctionDef` and record
 that metadata in the target package's `pyproject.toml` as a
 `[[tool.gaia.compositions]]` array-of-tables entry. Five string fields:
 `name` / `version` / `file` / `function` / `registered_at`
@@ -704,9 +708,9 @@ file contains zero or more than one decorated function, the verb exits
 The minimal pattern in the file:
 
 ```python
-from gaia.engine.lang import compose
+from gaia.engine.lang import composition
 
-@compose(name="my_strategy", version="0.1.0")
+@composition(name="my_strategy", version="0.1.0")
 def my_strategy(...) -> Claim:
     ...
 ```

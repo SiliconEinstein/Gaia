@@ -15,7 +15,7 @@ The CLI organizes verbs into explicit top-level groups:
            note / question / contradict / exclusive / decompose / observe /
            compute / infer / associate / parameter / register-prior /
            variable / depends-on / candidate-relation / materialize /
-           compose / composition
+           composition (+ deprecated alias compose)
   bayes    model / compare / distribution literals
   example  galileo / mendel (print or save the cli walkthrough for a
            shipping v0.5 example package)
@@ -290,9 +290,9 @@ app.add_typer(pkg_app, name="pkg")
 # checked appends, but not the recommended first move. Every write is
 # confined to the package's composed ``authored/`` submodule; the CLI
 # never writes the package-root ``__init__.py``. 18 statement-emitting
-# verbs share the same pre-write + envelope skeleton; ``compose`` /
-# ``composition`` use a file-based validate-and-register surface (see
-# gaia.cli.commands.author.compose).
+# verbs share the same pre-write + envelope skeleton; ``composition``
+# (+ its deprecated ``compose`` alias) uses a file-based
+# validate-and-register surface (see gaia.cli.commands.author.compose).
 
 author_app = typer.Typer(
     name="author",
@@ -302,7 +302,7 @@ author_app = typer.Typer(
         "claim / artifact / figure / equal / derive / note / question / "
         "contradict / exclusive / decompose / observe / compute / infer / "
         "associate / parameter / register-prior / variable / depends-on / "
-        "candidate-relation / materialize / compose / composition / list."
+        "candidate-relation / materialize / composition / list."
     ),
     no_args_is_help=True,
 )

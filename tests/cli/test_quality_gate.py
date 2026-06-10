@@ -143,10 +143,10 @@ def test_gate_fails_on_unreviewed_compose(tmp_path):
     pkg_dir = tmp_path / "gate_demo"
     _write_gate_package(
         pkg_dir,
-        "from gaia.engine.lang import Claim, compose, derive\n\n"
+        "from gaia.engine.lang import Claim, composition, derive\n\n"
         'premise = Claim("A.")\n'
         'premise.label = "premise"\n\n'
-        '@compose(name="test:workflow", version="1.0", label="workflow")\n'
+        '@composition(name="test:workflow", version="1.0", label="workflow")\n'
         "def workflow(a: Claim) -> Claim:\n"
         '    result = derive("C.", given=a, rationale="A implies C.", label="derive_c")\n'
         '    result.label = "c"\n'
