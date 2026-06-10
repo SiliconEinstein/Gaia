@@ -11,14 +11,14 @@ into the package's pyproject ``[tool.gaia]`` metadata so downstream
 tooling can discover compositions without importing the package.
 
 The author inventory totals 19 verbs: 17 statement-emitting plus the
-two file-based ``compose`` / ``composition`` validate-and-register
-verbs documented here.
+file-based ``composition`` validate-and-register verb and its
+deprecated ``compose`` alias, both documented here.
 
 CLI surface::
 
-    gaia author compose --from-file <path> [--target <pkg-root>]
-                       [--check / --no-check] [--human]
-                       [--interactive] [--json/--no-json]
+    gaia author composition --from-file <path> [--target <pkg-root>]
+                           [--check / --no-check] [--human]
+                           [--interactive] [--json/--no-json]
 
 Validation contract (each failure exits 2 with a structured diagnostic):
 
@@ -735,7 +735,7 @@ def compose_command(
     interactive: bool = typer.Option(
         False,
         "--interactive",
-        help="Reserved for symmetry; compose does not currently surface warnings.",
+        help=("Reserved for symmetry; the deprecation notice is envelope-only and never prompts."),
     ),
     json_: bool = typer.Option(
         True, "--json/--no-json", help="JSON-first output (default; redundant for clarity)."

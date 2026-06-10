@@ -63,9 +63,9 @@ from gaia.cli.commands.author._envelope import (
 # module scope). The list mirrors the 17 statement-emitting verbs plus the
 # typed-term factories ``Variable`` / ``Constant``. Hyphenated cli verbs map
 # to underscored callables in source (``depends-on`` → ``depends_on``); the
-# output ``kind`` always uses the underscored callable form. ``compose`` /
-# ``composition`` are NOT in this set — they live in pyproject.toml and are
-# handled by the trailing compositions section.
+# output ``kind`` always uses the underscored callable form. ``composition``
+# (and its deprecated ``compose`` alias) is NOT in this set — compositions
+# live in pyproject.toml and are handled by the trailing compositions section.
 _AUTHOR_CALLABLES: frozenset[str] = frozenset(
     {
         "claim",
@@ -543,9 +543,9 @@ def _read_compositions(pyproject: Path) -> list[dict[str, Any]]:
     """Read ``[[tool.gaia.compositions]]`` entries from pyproject.toml.
 
     Returns a list of dicts shaped
-    ``{"name": str, "kind": "compose", "target": str, "version": str}``.
-    The ``kind`` field is always ``"compose"`` (compose/composition are
-    aliases on the cli surface that share the same registration table).
+    ``{"name": str, "kind": "composition", "target": str, "version": str}``.
+    The ``kind`` field is always ``"composition"`` (the deprecated
+    ``compose`` alias shares the same registration table).
     ``target`` is the function reference recorded at registration time
     (e.g. ``"galileo_v05_compositions.galileo_v05"``); we render it as
     ``<module>.<function>`` if both are present, else the file path.
@@ -580,7 +580,7 @@ def _read_compositions(pyproject: Path) -> list[dict[str, Any]]:
         out.append(
             {
                 "name": name,
-                "kind": "compose",
+                "kind": "composition",
                 "target": target_repr,
                 "version": version if isinstance(version, str) else "",
             }
@@ -653,7 +653,7 @@ def _render_human(
         lines.append("Compositions registered in pyproject.toml:")
         for entry in compositions:
             name = entry.get("name", "")
-            kind = entry.get("kind", "compose")
+            kind = entry.get("kind", "composition")
             target = entry.get("target", "")
             lines.append(f"  {name:<20} ({kind:<12}) {target}")
     elif total == 0 and not warnings_list:
