@@ -38,13 +38,11 @@ def _materialize_landscape_sources_or_exit(
     landscape: dict[str, Any],
     *,
     landscape_artifact: Path,
-    enabled: bool,
-    artifact_only: bool,
     dry_run: bool,
 ) -> dict[str, object]:
-    if not enabled or artifact_only or dry_run:
+    if dry_run:
         return {
-            "materialize_sources_enabled": bool(enabled),
+            "materialize_sources_enabled": True,
             "source_package_materialization": False,
             "source_packages_written": [],
             "source_packages_added": [],
@@ -121,11 +119,10 @@ def _materialize_lkm_papers_or_exit(
     claim_ids: list[str],
     chain_claim_ids: list[str],
     lkm_index: str,
-    artifact_only: bool,
     dry_run: bool,
 ) -> dict[str, object]:
     requests = [*paper_ids, *claim_ids, *chain_claim_ids]
-    if not requests or artifact_only or dry_run:
+    if not requests or dry_run:
         return {
             "lkm_materialize_requests": requests,
             "lkm_packages_materialized": [],

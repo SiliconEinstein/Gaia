@@ -244,13 +244,8 @@ def _count_payload_items(payload: dict[str, object], key: str) -> int:
 
 def _research_mode(
     *,
-    artifact_only: bool,
-    materialize_sources: bool = False,
     deep_materialization: bool = False,
 ) -> str:
-    _ = materialize_sources
-    if artifact_only:
-        return "artifact_only"
     if deep_materialization:
         return "deep"
     return "fast_package_native"
@@ -335,7 +330,7 @@ def status_command(
     """Show package-native research status and initialize the audit manifest."""
     research_pkg = _load_or_exit(pkg)
     manifest = ensure_research_manifest(research_pkg)
-    append_research_event(research_pkg, "status.checked", {"artifact_only": True})
+    append_research_event(research_pkg, "status.checked", {"writes_source": False})
 
     inquiry = manifest["inquiry"]
     typer.echo("Research status")
@@ -369,7 +364,7 @@ def trace_record_command(
         str,
         typer.Option(
             "--mode",
-            help="Run mode: artifact_only, fast_package_native, deep, or external.",
+            help="Run mode label for this trace step.",
         ),
     ] = "external",
     model: Annotated[
@@ -485,7 +480,7 @@ def run_command(
         str,
         typer.Option(
             "--mode",
-            help="Run mode: artifact-only or fast-package-native.",
+            help="Run mode: fast-package-native.",
         ),
     ] = "fast-package-native",
     language: Annotated[
@@ -1197,8 +1192,6 @@ def _maybe_run_field_map_and_coverage(
     search_limit: int,
     reasoning_only: bool,
     research_mode: str,
-    materialize_sources: bool,
-    artifact_only: bool,
     focus_analysis_json: str | None,
     scan_landscape: dict[str, Any],
     scan_path: Path,
@@ -1246,8 +1239,6 @@ def _maybe_run_field_map_and_coverage(
         coverage_queries=coverage_queries,
         field_map_path=field_map_path,
         research_mode=research_mode,
-        materialize_sources=materialize_sources,
-        artifact_only=artifact_only,
         json_stream=json_stream,
     )
     landscapes.append(coverage_landscape)
@@ -1357,8 +1348,6 @@ def _run_coverage_landscape_phase(
     coverage_queries: list[str],
     field_map_path: Path,
     research_mode: str,
-    materialize_sources: bool,
-    artifact_only: bool,
     json_stream: bool,
 ) -> tuple[Path, dict[str, Any]]:
     _update_run_state(run, {"phase": "explore_coverage"})
@@ -1386,14 +1375,11 @@ def _run_coverage_landscape_phase(
         research_pkg,
         coverage_landscape,
         landscape_artifact=coverage_path,
-        enabled=materialize_sources,
-        artifact_only=artifact_only,
         dry_run=False,
     )
     coverage_sync = sync_landscape_artifact(
         research_pkg,
         coverage_landscape,
-        artifact_only=artifact_only,
         dry_run=False,
     )
     coverage_sync_payload = {**coverage_sync.to_payload(), **coverage_source_payload}
@@ -1457,7 +1443,6 @@ def _run_evidence_select_and_deep_expand(
     landscapes: list[dict[str, Any]],
     landscape_paths: list[Path],
     lkm_index: str,
-    artifact_only: bool,
     research_mode: str,
     json_stream: bool,
 ) -> tuple[Path, dict[str, Any]]:
@@ -1534,7 +1519,6 @@ def _run_evidence_select_and_deep_expand(
         claim_ids=list(plan["claim_ids"]),
         chain_claim_ids=list(plan["chain_claim_ids"]),
         lkm_index=lkm_index,
-        artifact_only=artifact_only,
         dry_run=False,
     )
     selected_evidence["materialization_result"] = materialized
@@ -1613,12 +1597,8 @@ def _execute_file_provider_run(
     assess_analysis_command: str | None,
     json_stream: bool,
 ) -> None:
-    artifact_only = mode == "artifact-only"
-    materialize_sources = not artifact_only
-    research_mode = _research_mode(
-        artifact_only=artifact_only,
-        materialize_sources=materialize_sources,
-    )
+    _ = mode
+    research_mode = _research_mode()
     state_artifacts: dict[str, str] = {}
     state_metrics: dict[str, object] = {"searches": len(search_json) + len(targeted_search_json)}
 
@@ -1640,14 +1620,11 @@ def _execute_file_provider_run(
         research_pkg,
         scan_landscape,
         landscape_artifact=scan_path,
-        enabled=materialize_sources,
-        artifact_only=artifact_only,
         dry_run=False,
     )
     sync = sync_landscape_artifact(
         research_pkg,
         scan_landscape,
-        artifact_only=artifact_only,
         dry_run=False,
     )
     sync_payload = {**sync.to_payload(), **source_payload}
@@ -1703,8 +1680,6 @@ def _execute_file_provider_run(
         search_limit=search_limit,
         reasoning_only=reasoning_only,
         research_mode=research_mode,
-        materialize_sources=materialize_sources,
-        artifact_only=artifact_only,
         focus_analysis_json=focus_analysis_json,
         scan_landscape=scan_landscape,
         scan_path=scan_path,
@@ -1790,7 +1765,6 @@ def _execute_file_provider_run(
         research_pkg,
         focus_artifact,
         max_questions=3,
-        artifact_only=artifact_only,
         dry_run=False,
     )
     focus_sync_payload = focus_sync.to_payload()
@@ -1832,11 +1806,7 @@ def _execute_file_provider_run(
         json_stream=json_stream,
         payload={"artifact": str(focus_path), "focuses": len(focus_artifact["focuses"])},
     )
-    selected_focus = (
-        focus
-        or (focus_sync_payload.get("focus_set") if isinstance(focus_sync_payload, dict) else None)
-        or str(focus_artifact["focuses"][0]["id"])
-    )
+    selected_focus = focus or str(focus_artifact["focuses"][0]["id"])
 
     targeted_search_json, targeted_query = _targeted_searches_after_focus(
         research_pkg,
@@ -1882,14 +1852,11 @@ def _execute_file_provider_run(
             research_pkg,
             expand_landscape,
             landscape_artifact=expand_path,
-            enabled=materialize_sources,
-            artifact_only=artifact_only,
             dry_run=False,
         )
         expand_sync = sync_landscape_artifact(
             research_pkg,
             expand_landscape,
-            artifact_only=artifact_only,
             dry_run=False,
         )
         expand_sync_payload = {**expand_sync.to_payload(), **expand_source_payload}
@@ -1943,7 +1910,6 @@ def _execute_file_provider_run(
             landscapes=landscapes,
             landscape_paths=landscape_paths,
             lkm_index=search_index,
-            artifact_only=artifact_only,
             research_mode=research_mode,
             json_stream=json_stream,
         )
@@ -2060,7 +2026,6 @@ def _execute_file_provider_run(
     assess_sync = sync_assessment_artifact(
         research_pkg,
         assessment,
-        artifact_only=artifact_only,
         dry_run=False,
     )
     assess_sync_payload = assess_sync.to_payload()
@@ -2131,7 +2096,7 @@ def _execute_file_provider_run(
         run,
         start=start,
         name="stop",
-        mode="artifact_only",
+        mode="evaluation",
         inputs=[str(focus_path), str(assessment_path), *[str(path) for path in landscape_paths]],
         outputs=[str(stop_path)],
         metrics={
@@ -2267,23 +2232,6 @@ def explore_command(
         bool,
         typer.Option("--dry-run", help="Plan the scan without pulling papers or writing state."),
     ] = False,
-    artifact_only: Annotated[
-        bool,
-        typer.Option(
-            "--artifact-only",
-            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
-        ),
-    ] = False,
-    materialize_sources: Annotated[
-        bool,
-        typer.Option(
-            "--materialize-sources/--no-materialize-sources",
-            help=(
-                "Materialize shallow search items as a local Gaia source package "
-                "and add it with `gaia pkg add --local` semantics."
-            ),
-        ),
-    ] = True,
     search_json: Annotated[
         list[str] | None,
         typer.Option(
@@ -2362,14 +2310,11 @@ def explore_command(
             research_pkg,
             landscape,
             landscape_artifact=output_path,
-            enabled=materialize_sources,
-            artifact_only=artifact_only,
             dry_run=dry_run,
         )
         sync = sync_landscape_artifact(
             research_pkg,
             landscape,
-            artifact_only=artifact_only,
             dry_run=dry_run,
         )
         sync_payload = {**sync.to_payload(), **source_payload}
@@ -2391,10 +2336,7 @@ def explore_command(
             trace_dir,
             start=benchmark_start,
             name="explore.expand",
-            mode=_research_mode(
-                artifact_only=artifact_only,
-                materialize_sources=materialize_sources,
-            ),
+            mode=_research_mode(),
             inputs=search_refs,
             outputs=[str(output_path)],
             metrics={
@@ -2437,14 +2379,11 @@ def explore_command(
             research_pkg,
             landscape,
             landscape_artifact=output_path,
-            enabled=materialize_sources,
-            artifact_only=artifact_only,
             dry_run=dry_run,
         )
         sync = sync_landscape_artifact(
             research_pkg,
             landscape,
-            artifact_only=artifact_only,
             dry_run=dry_run,
         )
         sync_payload = {**sync.to_payload(), **source_payload}
@@ -2465,10 +2404,7 @@ def explore_command(
             trace_dir,
             start=benchmark_start,
             name="explore.scan",
-            mode=_research_mode(
-                artifact_only=artifact_only,
-                materialize_sources=materialize_sources,
-            ),
+            mode=_research_mode(),
             inputs=search_refs,
             outputs=[str(output_path)],
             metrics={
@@ -2505,8 +2441,7 @@ def explore_command(
             "pull_budget": 0,
             "writes_source": False,
             "writes_inquiry": False,
-            "artifact_only": artifact_only,
-            "materialize_sources_enabled": materialize_sources,
+            "materialize_sources_enabled": True,
             "source_package_materialization": False,
             "source_packages_written": [],
             "source_packages_added": [],
@@ -2524,7 +2459,7 @@ def explore_command(
         trace_dir,
         start=benchmark_start,
         name="explore.scan.plan",
-        mode="artifact_only",
+        mode="dry_run",
         metrics={"pull_budget": 0, "dry_run": True},
     )
     _print_inquiry_suggestions(research_pkg)
@@ -2560,23 +2495,6 @@ def expand_command(
         str | None,
         typer.Option("--out", help="Optional output path for the landscape artifact."),
     ] = None,
-    artifact_only: Annotated[
-        bool,
-        typer.Option(
-            "--artifact-only",
-            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
-        ),
-    ] = False,
-    materialize_sources: Annotated[
-        bool,
-        typer.Option(
-            "--materialize-sources/--no-materialize-sources",
-            help=(
-                "Materialize shallow search items as a local Gaia source package "
-                "and add it with `gaia pkg add --local` semantics."
-            ),
-        ),
-    ] = True,
     trace_dir: Annotated[
         str | None,
         typer.Option(
@@ -2590,8 +2508,6 @@ def expand_command(
         pkg,
         mode="expand",
         dry_run=False,
-        artifact_only=artifact_only,
-        materialize_sources=materialize_sources,
         search_json=search_json,
         query=query,
         source=source,
@@ -2627,13 +2543,6 @@ def focus_command(
         str | None,
         typer.Option("--out", help="Optional output path for the focus synthesis artifact."),
     ] = None,
-    artifact_only: Annotated[
-        bool,
-        typer.Option(
-            "--artifact-only",
-            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
-        ),
-    ] = False,
     max_questions: Annotated[
         int,
         typer.Option("--max-questions", help="Maximum accepted focuses to write as questions."),
@@ -2685,7 +2594,6 @@ def focus_command(
         research_pkg,
         artifact,
         max_questions=max_questions,
-        artifact_only=artifact_only,
         dry_run=dry_run,
     )
     sync_payload = sync.to_payload()
@@ -2708,7 +2616,7 @@ def focus_command(
         trace_dir,
         start=benchmark_start,
         name="focus.synthesis",
-        mode=_research_mode(artifact_only=artifact_only),
+        mode=_research_mode(),
         inputs=[
             *[str(path) for path in landscape_paths],
             *([analysis_json] if analysis_json else []),
@@ -2735,13 +2643,6 @@ def focus_command(
 def assess_command(
     pkg: Annotated[str, typer.Argument(help="Path to an existing Gaia package.")],
     focus: Annotated[str, typer.Option("--focus", help="Focus, QID, or obligation target.")],
-    artifact_only: Annotated[
-        bool,
-        typer.Option(
-            "--artifact-only/--write-source",
-            help="Write only .gaia/research artifacts, or also sync review scaffolds.",
-        ),
-    ] = False,
     landscape: Annotated[
         list[str] | None,
         typer.Option(
@@ -2826,7 +2727,6 @@ def assess_command(
         claim_ids=list(materialize_paper_from_claim or []),
         chain_claim_ids=list(materialize_chain or []),
         lkm_index=lkm_index,
-        artifact_only=artifact_only,
         dry_run=dry_run,
     )
     landscape_paths = [Path(item) for item in landscape or []] or _latest_landscape_paths(
@@ -2868,7 +2768,6 @@ def assess_command(
         sync = sync_assessment_artifact(
             research_pkg,
             assessment,
-            artifact_only=artifact_only,
             dry_run=dry_run,
         )
         sync_payload = {**sync.to_payload(), **lkm_materialize_payload}
@@ -2897,7 +2796,6 @@ def assess_command(
             start=benchmark_start,
             name="assess",
             mode=_research_mode(
-                artifact_only=artifact_only,
                 deep_materialization=has_deep_materialization,
             ),
             inputs=[
@@ -2935,7 +2833,6 @@ def assess_command(
         if relation_counts:
             typer.echo(f"relation_type_counts: {json.dumps(relation_counts, ensure_ascii=False)}")
         typer.echo(f"review: {'true' if 'review' in assessment else 'false'}")
-        typer.echo(f"artifact_only: {str(artifact_only).lower()}")
         _print_sync_summary(sync_payload)
         _print_inquiry_suggestions(research_pkg)
         return
@@ -2949,7 +2846,6 @@ def assess_command(
         "assess.planned",
         {
             "focus": focus,
-            "artifact_only": artifact_only,
             "writes_source": False,
             "writes_inquiry": False,
             "relations": [],
@@ -2960,7 +2856,6 @@ def assess_command(
 
     typer.echo("Research assess")
     typer.echo(f"focus: {focus}")
-    typer.echo(f"artifact_only: {str(artifact_only).lower()}")
     typer.echo("writes_source: false")
     typer.echo("writes_inquiry: false")
     _record_trace_step(
@@ -2969,7 +2864,6 @@ def assess_command(
         start=benchmark_start,
         name="assess.plan",
         mode=_research_mode(
-            artifact_only=artifact_only,
             deep_materialization=has_deep_materialization,
         ),
         metrics={
@@ -3013,13 +2907,6 @@ def propose_command(
         int,
         typer.Option("--max-questions", help="Maximum accepted proposals to write as questions."),
     ] = 3,
-    artifact_only: Annotated[
-        bool,
-        typer.Option(
-            "--artifact-only",
-            help="Write only .gaia/research artifacts; skip inquiry/package sync.",
-        ),
-    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -3070,8 +2957,7 @@ def propose_command(
         research_pkg,
         proposal,
         max_questions=max_questions,
-        artifact_only=(artifact_only or not accept),
-        dry_run=dry_run,
+        dry_run=(dry_run or not accept),
     )
     sync_payload = sync.to_payload()
     append_research_event(
@@ -3094,7 +2980,7 @@ def propose_command(
         trace_dir,
         start=benchmark_start,
         name="propose",
-        mode=_research_mode(artifact_only=(artifact_only or not accept)),
+        mode="dry_run" if (dry_run or not accept) else _research_mode(),
         inputs=[from_assessment, *([analysis_json] if analysis_json else [])],
         outputs=[str(output_path)],
         metrics={
@@ -3176,7 +3062,7 @@ def promote_command(
         trace_dir,
         start=benchmark_start,
         name="promote",
-        mode=_research_mode(artifact_only=dry_run),
+        mode="dry_run" if dry_run else _research_mode(),
         metrics={
             "by_refs": len(by_refs),
             "materializations_written": _count_payload_items(
@@ -3235,7 +3121,7 @@ def report_command(
             trace_dir,
             start=benchmark_start,
             name="report",
-            mode="artifact_only",
+            mode="report",
             inputs=[str(artifact_path)],
             metrics={
                 "artifact_kind": payload.get("kind"),
@@ -3258,7 +3144,7 @@ def report_command(
         trace_dir,
         start=benchmark_start,
         name="report",
-        mode="artifact_only",
+        mode="report",
         inputs=[str(artifact_path)],
         outputs=[str(output_path)],
         metrics={
@@ -3368,7 +3254,7 @@ def stop_command(
         trace_dir,
         start=benchmark_start,
         name="stop",
-        mode="artifact_only",
+        mode="evaluation",
         inputs=[
             *([focus_artifact] if focus_artifact else []),
             *([assessment] if assessment else []),

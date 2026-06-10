@@ -23,7 +23,7 @@
 - `gaia build check` 仍然是 package structural validation path；
 - early Explore 保持 breadth-first，默认 pull budget 为 0。
 
-当前实现已经越过早期 artifact-only 计划。canonical behavior 是：
+当前实现已经越过早期 trace-only 计划。canonical behavior 是：
 
 - `explore` / `expand` 默认写 landscape trace、同步 inquiry hypotheses /
   obligations，并把浅层 search items 物化成本地 source package；
@@ -93,8 +93,8 @@ Success criteria:
 - this roadmap and `docs/foundations/cli/research-loop.md` describe the same default
   state flow;
 - historical superpowers plans are replaced by superseded stubs or removed;
-- no document says research actions default to artifact-only behavior, except when
-  explicitly describing `--artifact-only`;
+- no document says research actions default to trace-only or non-materializing
+  behavior;
 - future implementation work points back to this roadmap before creating a new
   bite-sized plan.
 

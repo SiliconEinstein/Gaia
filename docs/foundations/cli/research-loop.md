@@ -233,7 +233,6 @@ gaia research promote "$PKG" \
 
 Opt-out flags are for evaluation and debugging:
 
-- `--artifact-only`: write trace artifacts only;
 - `--dry-run`: show planned writes without applying them;
 
 `--materialize-paper`, `--materialize-paper-from-claim`, and

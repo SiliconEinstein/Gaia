@@ -7,5 +7,5 @@
 > plus
 > [`docs/foundations/cli/research-loop.md`](../../foundations/cli/research-loop.md).
 
-This historical plan has been emptied because its artifact-only assumptions no
+This historical plan has been emptied because its early research-loop assumptions no
 longer match the current package/inquiry-native research loop.

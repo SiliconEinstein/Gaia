@@ -7,7 +7,7 @@
 > plus
 > [`docs/foundations/cli/research-loop.md`](../../foundations/cli/research-loop.md).
 
-This historical milestone index described the early artifact-only implementation
+This historical milestone index described the early research-action implementation
 sequence. It conflicts with the current package/inquiry-native behavior, where
 `gaia research` defaults to syncing accepted state into package source and
-`.gaia/inquiry`, with `--artifact-only` as the opt-out.
+`.gaia/inquiry`.

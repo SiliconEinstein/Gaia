@@ -13,7 +13,7 @@ from typing import Any
 from gaia.engine.research.artifacts import ResearchPackage, ensure_research_manifest
 
 RUN_SCHEMA_VERSION = 1
-RUN_MODES = {"artifact-only", "fast-package-native"}
+RUN_MODES = {"fast-package-native"}
 
 
 @dataclass(frozen=True)

@@ -48,7 +48,6 @@ class ResearchSyncResult:
     """Summary of package/inquiry writes performed for one research action."""
 
     dry_run: bool = False
-    artifact_only: bool = False
     source_writes_enabled: bool = True
     questions_written: list[str] = field(default_factory=list)
     questions_skipped: list[str] = field(default_factory=list)
@@ -68,18 +67,17 @@ class ResearchSyncResult:
     @property
     def writes_source(self) -> bool:
         """Whether this sync is allowed to write package source."""
-        return not self.artifact_only and self.source_writes_enabled and not self.dry_run
+        return self.source_writes_enabled and not self.dry_run
 
     @property
     def writes_inquiry(self) -> bool:
         """Whether this sync is allowed to mutate inquiry state."""
-        return not self.artifact_only and not self.dry_run
+        return not self.dry_run
 
     def to_payload(self) -> JsonDict:
         """Return a JSON-compatible summary for research events."""
         return {
             "dry_run": self.dry_run,
-            "artifact_only": self.artifact_only,
             "writes_source": self.writes_source,
             "writes_inquiry": self.writes_inquiry,
             "questions_written": list(self.questions_written),
@@ -404,16 +402,14 @@ def sync_landscape_artifact(
     pkg: ResearchPackage,
     landscape: JsonDict,
     *,
-    artifact_only: bool = False,
     dry_run: bool = False,
 ) -> ResearchSyncResult:
     """Record broad/targeted landscape discoveries as inquiry scaffolds."""
     result = ResearchSyncResult(
         dry_run=dry_run,
-        artifact_only=artifact_only,
         source_writes_enabled=False,
     )
-    if artifact_only or dry_run:
+    if dry_run:
         return result
 
     target = landscape.get("target")
@@ -462,18 +458,14 @@ def sync_focus_artifact(
     artifact: JsonDict,
     *,
     max_questions: int = 3,
-    artifact_only: bool = False,
     source_writes: bool = True,
     dry_run: bool = False,
 ) -> ResearchSyncResult:
     """Write accepted focuses as package questions and inquiry state."""
     result = ResearchSyncResult(
         dry_run=dry_run,
-        artifact_only=artifact_only,
         source_writes_enabled=source_writes,
     )
-    if artifact_only:
-        return result
 
     focuses = _focuses_from_artifact(artifact)
     accepted = _accepted_focuses(focuses, max_questions=max_questions)
@@ -761,18 +753,14 @@ def sync_assessment_artifact(
     pkg: ResearchPackage,
     assessment: JsonDict,
     *,
-    artifact_only: bool = False,
     source_writes: bool = True,
     dry_run: bool = False,
 ) -> ResearchSyncResult:
     """Record assessment review output as package/inquiry scaffolds."""
     result = ResearchSyncResult(
         dry_run=dry_run,
-        artifact_only=artifact_only,
         source_writes_enabled=source_writes,
     )
-    if artifact_only:
-        return result
 
     focus = assessment.get("focus")
     focus_id = str(focus.get("id") if isinstance(focus, dict) else "research_focus")
@@ -956,18 +944,14 @@ def sync_proposal_artifact(
     proposal: JsonDict,
     *,
     max_questions: int = 3,
-    artifact_only: bool = False,
     source_writes: bool = True,
     dry_run: bool = False,
 ) -> ResearchSyncResult:
     """Record accepted open-ended proposals as questions and inquiry state."""
     result = ResearchSyncResult(
         dry_run=dry_run,
-        artifact_only=artifact_only,
         source_writes_enabled=source_writes,
     )
-    if artifact_only:
-        return result
 
     source_focus_id = _source_assessment_focus_id(proposal)
     accepted_questions = _accepted_research_question_proposals(
@@ -1011,18 +995,14 @@ def sync_materialization(
     scaffold: str,
     by: list[str],
     rationale: str | None = None,
-    artifact_only: bool = False,
     source_writes: bool = True,
     dry_run: bool = False,
 ) -> ResearchSyncResult:
     """Write an explicit ``materialize(...)`` link for a scaffold."""
     result = ResearchSyncResult(
         dry_run=dry_run,
-        artifact_only=artifact_only,
         source_writes_enabled=source_writes,
     )
-    if artifact_only:
-        return result
     if not _IDENTIFIER_RE.match(scaffold):
         result.materializations_skipped.append(scaffold)
         return result

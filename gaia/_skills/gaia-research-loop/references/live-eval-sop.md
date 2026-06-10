@@ -47,9 +47,9 @@ materializes `.gaia/research/field_maps/*.json`, and may run
 synthesis. After focus synthesis, it uses the selected focus's
 `suggested_queries` plus focus coverage-gap suggested queries for targeted
 search. Before assessment, it writes `.gaia/research/evidence/selected-evidence-*.json`
-and, outside artifact-only mode, deep-materializes only the selected paper
-graphs or reasoning chains required by that compact evidence packet. After
-assessment, fast package-native LiteLLM runs write `report_plan`,
+and deep-materializes only the selected paper graphs or reasoning chains
+required by that compact evidence packet. After assessment, fast
+package-native LiteLLM runs write `report_plan`,
 `report_section_*`, and `report_stitch` analysis JSON before emitting the final
 Markdown report.
 Keep the LLM path unconstrained by caller-side output caps; if a provider emits
@@ -164,12 +164,6 @@ gaia research explore "$PKG" --mode scan \
   --trace-dir "$TRACE"
 ```
 
-For artifact-only benchmark mode, add:
-
-```text
---artifact-only --no-materialize-sources
-```
-
 ## Focus Synthesis
 
 Print the contract and use it as the only schema source:
@@ -209,20 +203,13 @@ gaia research expand "$PKG" \
 For targeted evidence expansion that should become package claim endpoints,
 keep `--reasoning-only` on the targeted search.
 
-For artifact-only benchmark mode, add:
-
-```text
---artifact-only --no-materialize-sources
-```
-
 Continue expanding while coverage gaps block assessment or query novelty is
 still high.
 
 If stop criteria still reports `expand_focus` because an older focus artifact
 contains stale `needs_expand` focuses, synthesize a post-expand focus artifact
-from the expanded landscape. In artifact-only evals, run this update with
-`gaia research focus --artifact-only` so it refreshes readiness without adding
-new package questions or inquiry obligations.
+from the expanded landscape. Use `--dry-run` only when you need to inspect the
+planned package/inquiry writes without applying them.
 
 ## Assessment
 
@@ -253,9 +240,6 @@ Only during assessment, when the focus requires it, consider deep evidence:
 --materialize-paper-from-claim <selected_lkm_claim_id>
 --materialize-chain <selected_lkm_claim_id>
 ```
-
-Do not use deep materialization in artifact-only benchmark mode unless the user
-explicitly overrides that constraint.
 
 ## Final Report And Stop Criteria
 

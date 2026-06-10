@@ -30,10 +30,6 @@ Choose the lightest mode that satisfies the user request.
   evaluation, clean evaluation agent, end-to-end evaluation, or asks for timing
   and trace quality. Read `references/live-eval-sop.md` and
   `references/benchmark-trace.md`.
-- **Artifact-only benchmark mode**: use when benchmark/live eval is requested
-  with artifact-only constraints. In addition to benchmark mode, pass
-  `--artifact-only` where supported; for `explore` and `expand`, also pass
-  `--no-materialize-sources`.
 - **Fixture regression mode**: use only when the user explicitly asks for
   fixture/mock regression. Never substitute this for a requested live eval.
 
@@ -75,7 +71,7 @@ language: <zh|en|...>
 pkg: <Gaia package path>
 run_dir: <package-local run directory>
 seed_question: <broad research question>
-mode: normal | benchmark | artifact-only benchmark | fixture
+mode: normal | benchmark | fixture
 stop_when: coverage sufficient, relation mix adequate, obligations resolved or
   explicitly deferred, and query novelty low enough
 ```

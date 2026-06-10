@@ -79,6 +79,38 @@ def _patch_uv_add(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
     return calls
 
 
+def _patch_deep_materialization(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+    calls: list[dict[str, object]] = []
+
+    def fake_materialize(
+        research_pkg: Any,
+        *,
+        paper_ids: list[str],
+        claim_ids: list[str],
+        chain_claim_ids: list[str],
+        lkm_index: str,
+        dry_run: bool,
+    ) -> dict[str, object]:
+        calls.append(
+            {
+                "paper_ids": paper_ids,
+                "claim_ids": claim_ids,
+                "chain_claim_ids": chain_claim_ids,
+                "lkm_index": lkm_index,
+                "dry_run": dry_run,
+                "pkg": research_pkg.path,
+            }
+        )
+        return {
+            "lkm_materialize_requests": [*paper_ids, *claim_ids, *chain_claim_ids],
+            "lkm_packages_materialized": [],
+            "lkm_chains_materialized": [],
+        }
+
+    monkeypatch.setattr(research_cli, "_materialize_lkm_papers_or_exit", fake_materialize)
+    return calls
+
+
 def _search(query: str, rows: list[dict[str, object]]) -> dict[str, object]:
     return {
         "schema_version": 1,
@@ -274,7 +306,7 @@ def test_research_run_json_stream_emits_persisted_events(tmp_path: Path) -> None
     assert streamed == persisted
 
 
-def test_research_run_executes_artifact_only_file_provider_loop(tmp_path: Path) -> None:
+def test_research_run_executes_fast_package_native_file_provider_loop(tmp_path: Path) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     _write_research_package(pkg_dir)
     broad_search = tmp_path / "broad-search.json"
@@ -382,7 +414,7 @@ def test_research_run_executes_artifact_only_file_provider_loop(tmp_path: Path) 
             "--topic",
             "aspirin primary prevention evidence",
             "--mode",
-            "artifact-only",
+            "fast-package-native",
             "--run-id",
             "closed-loop-run",
             "--search-json",
@@ -464,6 +496,7 @@ def test_research_run_executes_search_and_command_provider(
         )
 
     monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    _patch_deep_materialization(monkeypatch)
 
     provider = tmp_path / "provider.py"
     provider.write_text(
@@ -535,7 +568,7 @@ output.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
             "--topic",
             "aspirin primary prevention evidence",
             "--mode",
-            "artifact-only",
+            "fast-package-native",
             "--run-id",
             "auto-provider-run",
             "--query",
@@ -690,6 +723,7 @@ def test_research_run_executes_litellm_provider(
         disable_cost_calc=False,
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+    _patch_deep_materialization(monkeypatch)
 
     result = runner.invoke(
         app,
@@ -700,7 +734,7 @@ def test_research_run_executes_litellm_provider(
             "--topic",
             "aspirin primary prevention evidence",
             "--mode",
-            "artifact-only",
+            "fast-package-native",
             "--run-id",
             "litellm-provider-run",
             "--search-json",
@@ -718,7 +752,7 @@ def test_research_run_executes_litellm_provider(
 
     assert result.exit_code == 0, result.output
     assert "status: completed" in result.output
-    assert len(calls) == 3
+    assert len(calls) == 5
     assert {call["model"] for call in calls} == {"litellm_proxy/test-model"}
     assert {call["timeout"] for call in calls} == {9.0}
     assert {call["max_retries"] for call in calls} == {1}
@@ -727,11 +761,13 @@ def test_research_run_executes_litellm_provider(
     assert (run_dir / "analysis" / "field_map_analysis.output.json").exists()
     assert (run_dir / "analysis" / "focus_analysis.output.json").exists()
     assert (run_dir / "analysis" / "assess_analysis.output.json").exists()
+    assert (run_dir / "analysis" / "report_plan.output.json").exists()
+    assert (run_dir / "analysis" / "report_stitch.output.json").exists()
     benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
-    assert benchmark["summary"]["kind_counts"]["llm"] == 3
-    assert benchmark["summary"]["total_input_tokens"] == 30
-    assert benchmark["summary"]["total_output_tokens"] == 60
-    assert benchmark["summary"]["total_tokens"] == 90
+    assert benchmark["summary"]["kind_counts"]["llm"] == 5
+    assert benchmark["summary"]["total_input_tokens"] == 50
+    assert benchmark["summary"]["total_output_tokens"] == 100
+    assert benchmark["summary"]["total_tokens"] == 150
 
 
 def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
@@ -768,6 +804,7 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
         )
 
     monkeypatch.setattr(research_cli, "_run_lkm_knowledge_search", fake_lkm_search)
+    _patch_deep_materialization(monkeypatch)
 
     calls: list[str] = []
 
@@ -881,7 +918,7 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
             "--topic",
             "aspirin primary prevention evidence",
             "--mode",
-            "artifact-only",
+            "fast-package-native",
             "--run-id",
             "litellm-auto-plan-run",
             "--analysis-provider",
@@ -894,7 +931,13 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
     )
 
     assert result.exit_code == 0, result.output
-    assert calls == ["query_plan", "field_map_analysis", "focus_analysis", "assess_analysis"]
+    assert calls[:4] == [
+        "query_plan",
+        "field_map_analysis",
+        "focus_analysis",
+        "assess_analysis",
+    ]
+    assert len(calls) == 6
     assert searched_queries == [
         "aspirin elderly primary prevention",
         "aspirin guideline risk stratification",
@@ -927,7 +970,7 @@ def test_research_run_litellm_auto_plans_queries_and_focus_suggestions(
         event["type"] == "provider.completed" and event["phase"] == "query_plan" for event in events
     )
     benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
-    assert benchmark["summary"]["kind_counts"]["llm"] == 4
+    assert benchmark["summary"]["kind_counts"]["llm"] == 6
     assert benchmark["summary"]["kind_counts"]["search"] == 3
 
 
@@ -972,7 +1015,6 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
         claim_ids: list[str],
         chain_claim_ids: list[str],
         lkm_index: str,
-        artifact_only: bool,
         dry_run: bool,
     ) -> dict[str, object]:
         materialize_calls.append(
@@ -981,7 +1023,6 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
                 "claim_ids": claim_ids,
                 "chain_claim_ids": chain_claim_ids,
                 "lkm_index": lkm_index,
-                "artifact_only": artifact_only,
                 "dry_run": dry_run,
                 "pkg": research_pkg.path,
             }
@@ -1144,7 +1185,6 @@ def test_research_run_fast_mode_deep_expands_selected_evidence(
             "claim_ids": [],
             "chain_claim_ids": ["claim_deep"],
             "lkm_index": "bohrium",
-            "artifact_only": False,
             "dry_run": False,
             "pkg": pkg_dir,
         }
@@ -1755,6 +1795,7 @@ def test_research_run_litellm_provider_loads_env_file(
         disable_cost_calc=False,
     )
     monkeypatch.setitem(sys.modules, "litellm", fake_litellm)
+    _patch_deep_materialization(monkeypatch)
 
     result = runner.invoke(
         app,
@@ -1765,7 +1806,7 @@ def test_research_run_litellm_provider_loads_env_file(
             "--topic",
             "aspirin primary prevention evidence",
             "--mode",
-            "artifact-only",
+            "fast-package-native",
             "--run-id",
             "litellm-env-file-run",
             "--search-json",
@@ -1778,7 +1819,7 @@ def test_research_run_litellm_provider_loads_env_file(
     )
 
     assert result.exit_code == 0, result.output
-    assert len(calls) == 3
+    assert len(calls) == 5
     assert {call["model"] for call in calls} == {"litellm_proxy/env-model"}
 
 
@@ -1831,7 +1872,7 @@ def test_research_run_litellm_provider_records_raw_and_failed_trace(
             "--topic",
             "aspirin primary prevention evidence",
             "--mode",
-            "artifact-only",
+            "fast-package-native",
             "--run-id",
             "litellm-invalid-json-run",
             "--search-json",
@@ -1897,7 +1938,7 @@ def test_research_run_waits_for_focus_analysis_when_missing(tmp_path: Path) -> N
             "--topic",
             "aspirin primary prevention evidence",
             "--mode",
-            "artifact-only",
+            "fast-package-native",
             "--run-id",
             "checkpoint-run",
             "--search-json",
@@ -2148,8 +2189,6 @@ def test_research_scan_defaults_trace_to_package_run_trace(tmp_path: Path) -> No
             "scan",
             "--search-json",
             str(search_path),
-            "--artifact-only",
-            "--no-materialize-sources",
         ],
     )
 
@@ -2673,23 +2712,21 @@ def test_research_focus_writes_synthesis_from_analysis_json(
     assert check.exit_code == 0, check.output
 
 
-def test_research_assess_artifact_only_records_planning_event(tmp_path: Path) -> None:
+def test_research_assess_records_planning_event(tmp_path: Path) -> None:
     pkg_dir = tmp_path / "research-demo-gaia"
     init_py = _write_research_package(pkg_dir)
     source_before = init_py.read_text(encoding="utf-8")
 
     result = runner.invoke(
         app,
-        ["research", "assess", str(pkg_dir), "--focus", "seed", "--artifact-only"],
+        ["research", "assess", str(pkg_dir), "--focus", "seed"],
     )
 
     assert result.exit_code == 0, result.output
-    assert "artifact_only: true" in result.output
     assert init_py.read_text(encoding="utf-8") == source_before
 
     events = _read_events(pkg_dir)
     assert events[-1]["event"] == "assess.planned"
-    assert events[-1]["payload"]["artifact_only"] is True
     assert events[-1]["payload"]["focus"] == "seed"
 
 
@@ -2734,7 +2771,6 @@ def test_research_assess_writes_grounded_assessment_from_landscape(
             str(pkg_dir),
             "--focus",
             "seed",
-            "--artifact-only",
             "--landscape",
             str(landscape_path),
         ],
@@ -2797,7 +2833,6 @@ def test_research_assess_materializes_selected_lkm_paper_package(
             "scan",
             "--search-json",
             str(search_path),
-            "--no-materialize-sources",
         ],
     )
     assert scan.exit_code == 0, scan.output
@@ -2882,7 +2917,6 @@ def test_research_assess_materializes_lkm_paper_from_claim_package(
             "scan",
             "--search-json",
             str(search_path),
-            "--no-materialize-sources",
         ],
     )
     assert scan.exit_code == 0, scan.output
@@ -2969,7 +3003,6 @@ def test_research_assess_materializes_lkm_reasoning_chain_package(
             "scan",
             "--search-json",
             str(search_path),
-            "--no-materialize-sources",
         ],
     )
     assert scan.exit_code == 0, scan.output

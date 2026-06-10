@@ -71,7 +71,7 @@ The first executable slice also supports a file-provider loop:
 ```bash
 gaia research run "$PKG" \
   --topic "aspirin primary prevention evidence" \
-  --mode artifact-only \
+  --mode fast-package-native \
   --search-json "$RUN/searches/broad.json" \
   --focus-analysis-json "$RUN/analysis/focus-analysis.json" \
   --targeted-search-json "$RUN/searches/targeted.json" \
@@ -222,15 +222,12 @@ Checkpoints are explicit interaction requests. The first checkpoint is
 Later checkpoints should include `focus_choice`, `expand_plan`,
 `assessment_review`, and `stop_decision`.
 
-## Modes
+## Mode
 
-- `fast-package-native`: do not pass `--artifact-only`; keep default shallow
-  source materialization for `explore` and `expand`.
-- `artifact-only`: pass `--artifact-only`; for `explore` and `expand`, also pass
-  `--no-materialize-sources`.
-
-The run state records these decisions so a UI can show whether package source
-will be mutated.
+`fast-package-native` is the supported run mode. The run state records package
+and inquiry writes through sync payloads so a UI can show which source packages,
+questions, notes, hypotheses, obligations, and candidate relations were
+materialized.
 
 ## Phase Plan
 
@@ -242,7 +239,7 @@ The medium-term pipeline phases are:
    `--search-json` triggers this call automatically and persists
    `analysis/query_plan.output.json`.
 3. `search_broad`: execute searches, preserve raw JSON, append trace rows.
-4. `explore_scan`: run package-native or artifact-only scan.
+4. `explore_scan`: run package-native scan.
 5. `field_map_analysis`: fixed LLM call inducing a review taxonomy from
    primary broad-search evidence.
 6. `field_map_sync`: write `.gaia/research/field_maps/*.json`.
@@ -305,8 +302,7 @@ diagnostics.
 - Starting a run writes `state.json`, `events.ndjson`, `trace/`, `analysis/`,
   `searches/`, and a query-plan checkpoint.
 - `--json-stream` emits machine-readable NDJSON matching the persisted events.
-- `--mode artifact-only` and `--mode fast-package-native` are recorded
-  distinctly in state.
+- `--mode fast-package-native` is accepted and recorded in state.
 - Topic-only `litellm` runs execute `query_plan`, broad live search,
   `field_map_analysis`, optional field-map coverage search, focus analysis,
   suggested-query targeted live search, selected-evidence/deep expansion,
