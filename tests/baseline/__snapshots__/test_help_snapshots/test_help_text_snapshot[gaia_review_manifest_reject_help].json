@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "review",
+    "manifest",
+    "reject",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia review manifest reject [OPTIONS] LABEL\n\n Mark an action as REJECTED after review.\n\n The reviewer has determined the reasoning step is invalid or flawed.\n\n Example:\n\n     gaia review manifest reject aristotle_paradox \\\n         --notes \"The contradiction is not well-established; weight difference\n is insufficient\"\n\n╭─ Arguments ──────────────────────────────────────────────────────────────────╮\n│ *    label      TEXT  Action label to reject [required]                      │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --notes  -n      TEXT  Reviewer notes explaining rejection                   │\n│ --path           TEXT  Path to Gaia package [default: .]                     │\n│ --help                 Show this message and exit.                           │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}
