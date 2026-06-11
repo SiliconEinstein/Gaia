@@ -3,7 +3,7 @@
 [![CI](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SiliconEinstein/Gaia/actions/workflows/ci.yml)
 [![Nightly](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml/badge.svg?branch=main)](https://github.com/SiliconEinstein/Gaia/actions/workflows/nightly.yml)
 [![Docs](https://github.com/SiliconEinstein/Gaia/actions/workflows/docs.yml/badge.svg?branch=main)](https://siliconeinstein.github.io/Gaia/)
-[![PyPI alpha](https://img.shields.io/badge/pypi-0.5.0a1-orange)](https://pypi.org/project/gaia-lang/0.5.0a1/)
+[![PyPI](https://img.shields.io/pypi/v/gaia-lang?include_prereleases&label=pypi)](https://pypi.org/project/gaia-lang/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Contributing?** Read [`AGENTS.md`](AGENTS.md).
@@ -19,27 +19,26 @@ from the declared information set.
 
 ## Version Status
 
-`main` is the active v0.5 development trunk. The published v0.5 artifact is
-currently the alpha preview `gaia-lang==0.5.0a1`; the source tree is tracking
-the upcoming `0.5.0` line until the stable v0.5 release is cut.
+`main` is the active v0.5 development trunk. v0.5 prereleases are published
+frequently while the source tree tracks the upcoming `0.5.0` line until the
+stable v0.5 release is cut.
 
-- Use `gaia-lang==0.5.0a1` or `pip install --pre gaia-lang` if you want the
-  current v0.5 alpha CLI, DSL, Bayes, and package workflow.
-- The exact alpha source is the
-  [`v0.5.0a1`](https://github.com/SiliconEinstein/Gaia/releases/tag/v0.5.0a1)
-  tag at `803c0918`.
+- Use `pip install --pre gaia-lang` if you want the latest v0.5 prerelease CLI,
+  DSL, Bayes, and package workflow.
+- Pin an exact prerelease only when you need reproducibility; immutable sources
+  live on the versioned tags listed in
+  [GitHub Releases](https://github.com/SiliconEinstein/Gaia/releases).
 - Use `gaia-lang==0.4.4` and the [`release/0.4`](https://github.com/SiliconEinstein/Gaia/tree/release/0.4)
   branch if you need the stable v0.4.x line.
-- v0.5 is breaking relative to v0.4; see the
-  [v0.5.0a1 release notes](docs/releases/0.5.0a1.md) and
+- v0.5 is breaking relative to v0.4; see
+  [GitHub Releases](https://github.com/SiliconEinstein/Gaia/releases) and the
   [migration guide](docs/migration.md).
-- New PRs should target `main`; exact prerelease sources are immutable tags
-  such as `v0.5.0a1`.
+- New PRs should target `main`.
 
 | Channel | Install | Source |
 |---------|---------|--------|
-| v0.5 alpha | `pip install gaia-lang==0.5.0a1` | [`v0.5.0a1`](https://github.com/SiliconEinstein/Gaia/releases/tag/v0.5.0a1) |
-| v0.5 nightly | install from `main` or use the nightly artifact | [`main`](https://github.com/SiliconEinstein/Gaia/tree/main) |
+| v0.5 prerelease | `pip install --pre gaia-lang` | [PyPI](https://pypi.org/project/gaia-lang/) |
+| v0.5 development | install from `main` or use the nightly artifact | [`main`](https://github.com/SiliconEinstein/Gaia/tree/main) |
 | v0.4 stable | `pip install gaia-lang==0.4.4` | [`release/0.4`](https://github.com/SiliconEinstein/Gaia/tree/release/0.4) |
 
 ## What Gaia Does
@@ -77,16 +76,16 @@ whether the reasoning is publishable, auditable, or ready to register.
 
 ## Install
 
-For the current v0.5 alpha:
-
-```bash
-pip install gaia-lang==0.5.0a1
-```
-
-Or, if you intentionally allow prereleases:
+For the latest v0.5 prerelease:
 
 ```bash
 pip install --pre gaia-lang
+```
+
+For a reproducible prerelease install, pin the exact version you want:
+
+```bash
+pip install gaia-lang==<exact-version>
 ```
 
 For the stable v0.4.x line:
@@ -95,12 +94,13 @@ For the stable v0.4.x line:
 pip install gaia-lang==0.4.4
 ```
 
-For development:
+For development or in-repo agents, follow the canonical setup in
+[`AGENTS.md`](AGENTS.md):
 
 ```bash
 git clone https://github.com/SiliconEinstein/Gaia.git
 cd Gaia
-uv sync --extra dev
+make bootstrap
 ```
 
 ## Quick Start

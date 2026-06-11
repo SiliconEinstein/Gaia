@@ -20,8 +20,15 @@ from gaia.cli.commands.search.lkm._shared import (
     run_request,
     validate_lkm_index,
 )
+from gaia.cli.commands.search.lkm.docs import APIFOX_PAPERS_GRAPH_URL
 
 _TITLE_RESOLVE_CAP = 20
+_PACKAGE_EPILOG = (
+    "Fetch the default raw paper graph. Deprecated projection/hydration "
+    "switches are intentionally not exposed.\n\n"
+    f"API docs: {APIFOX_PAPERS_GRAPH_URL}\n"
+    "Endpoint links: gaia search lkm docs"
+)
 
 
 def package_command(

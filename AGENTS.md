@@ -81,6 +81,20 @@ Whether to add `@pytest.mark.pr_gate`:
 The marker can apply per-test or per-file (module-level
 `pytestmark = pytest.mark.pr_gate`). Judgment call belongs to the PR author and reviewer.
 
+### LKM API docs sync
+
+Before changing `gaia search lkm` behavior, options, or help text, verify the
+relevant endpoint in the current Apifox LKM API docs:
+
+```text
+https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84
+```
+
+The CLI entrypoint `gaia search lkm docs` prints the full endpoint map. Treat
+Apifox as the source of truth for endpoint parameters and response shape; keep
+terminal `--help` concise and link out rather than copying long endpoint
+contracts into command epilog text.
+
 ### Push pre-flight
 
 **Do not bypass the pre-push hook** with `--no-verify` or any other hook-skip flag. If the
