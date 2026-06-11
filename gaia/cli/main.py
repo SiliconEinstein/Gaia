@@ -83,6 +83,7 @@ from gaia.cli.commands.inquiry import inquiry_app
 from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
+from gaia.cli.commands.review import app as review_app
 from gaia.cli.commands.sdk import sdk_command
 from gaia.cli.commands.search import search_app
 from gaia.cli.commands.skill import list_command as skill_list_command
@@ -223,33 +224,14 @@ app.add_typer(inspect_app, name="inspect")
 
 
 # --------------------------------------------------------------------------- #
-# review — reviewer tooling skeleton (alpha 0: empty)                         #
+# review — unified reviewer tooling (status / comprehensive / manifest)       #
 # --------------------------------------------------------------------------- #
 #
-# The `review` top-level group lands as a help-visible empty skeleton
-# so downstream reviewer-tooling work has a stable home. It is
-# *different* from `gaia inquiry review` and `gaia trace review` —
-# those are pre-existing inner subcommands, untouched by alpha 0.
-
-review_app = typer.Typer(
-    name="review",
-    help="Reviewer tooling (alpha 0: skeleton only — no commands yet).",
-    no_args_is_help=True,
-)
-
-
-@review_app.callback(invoke_without_command=True)
-def _review_skeleton(ctx: typer.Context) -> None:
-    """Placeholder for the reviewer-tooling group.
-
-    Alpha 0 ships this group as a help-visible skeleton; concrete commands
-    will arrive in a later release. Invoking `gaia review` directly with no
-    subcommand prints the help text (no_args_is_help=True).
-    """
-    if ctx.invoked_subcommand is None:
-        # no_args_is_help handles the bare case; this branch is defensive.
-        return
-
+# The `review` top-level group provides a unified interface across all three
+# review layers: ReviewManifest (IR-level), Inquiry Review (semantic), and
+# Trace Review (ARM verification). This is *different* from the specialized
+# `gaia inquiry review` and `gaia trace review` — those are deep dives into
+# specific aspects, while `gaia review` orchestrates and aggregates.
 
 app.add_typer(review_app, name="review")
 

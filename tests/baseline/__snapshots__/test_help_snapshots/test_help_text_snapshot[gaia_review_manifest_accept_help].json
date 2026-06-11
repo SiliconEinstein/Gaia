@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "review",
+    "manifest",
+    "accept",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia review manifest accept [OPTIONS] LABEL\n\n Mark an action as ACCEPTED after review.\n\n The reviewer has verified the reasoning step is valid.\n\n Example:\n\n     gaia review manifest accept aristotle_daily_observation_path \\\n         --notes \"Premises are sufficient, observation path is well-grounded\"\n\n╭─ Arguments ──────────────────────────────────────────────────────────────────╮\n│ *    label      TEXT  Action label to accept [required]                      │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --notes  -n      TEXT  Reviewer notes explaining acceptance                  │\n│ --path           TEXT  Path to Gaia package [default: .]                     │\n│ --help                 Show this message and exit.                           │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

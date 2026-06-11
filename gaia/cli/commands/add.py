@@ -61,6 +61,11 @@ def add_command(
         "--lkm-claim",
         help="Resolve this LKM claim id to its backing paper package.",
     ),
+    local: str | None = typer.Option(
+        None,
+        "--local",
+        help="Add this local Gaia package directory as a dependency.",
+    ),
     target: str = typer.Option(
         ".",
         "--target",
@@ -72,7 +77,7 @@ def add_command(
         ),
     ),
 ) -> None:
-    """Install a registered or LKM-backed Gaia knowledge package.
+    """Install a registered, LKM-backed, or local Gaia knowledge package.
 
     Resolves ``<package>`` against the gaia registry (default:
     ``SiliconEinstein/gaia-registry`` on GitHub), runs ``uv add`` on the
@@ -86,6 +91,11 @@ def add_command(
     under ``.gaia/lkm_packages/``, compile it, and add it as an editable
     dependency with ``uv add --editable``.
 
+    ``--local <path>`` adds an existing local Gaia package directory as a local
+    dependency. This keeps ``gaia pkg add`` package-centric: upstream research
+    adapters can generate partial or full source packages, then add those
+    packages through the same local package contract.
+
     ``--version`` pins a specific release; omit to take the latest
     registered version.
 
@@ -95,11 +105,19 @@ def add_command(
 
         gaia pkg add galileo-falling-bodies-gaia
         gaia pkg add mendel-v0-5-gaia --version 0.1.0
+        gaia pkg add --local .gaia/lkm_packages/generated-source-package
         gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744
         gaia pkg add --lkm-index bohrium --lkm-claim gcn_579430355a0e4bbd
         gaia pkg add lkm:bohrium:paper:811827932371615744
     """
     try:
+        _validate_local_source_args(
+            package,
+            version=version,
+            local=local,
+            lkm_paper=lkm_paper,
+            lkm_claim=lkm_claim,
+        )
         lkm_ref = _resolve_lkm_source_ref(
             package,
             lkm_index=lkm_index,
@@ -115,6 +133,9 @@ def add_command(
     # "run from inside the package" behavior by walking up to the nearest root.
     package_root = _resolve_package_root(target)
 
+    if local is not None:
+        _handle_local_package_add(Path(local), package_root=package_root)
+        return
     if lkm_ref is not None:
         _handle_lkm_source_add(lkm_ref, package_root=package_root)
         return
@@ -177,6 +198,23 @@ class LKMSourceRef:
         return f"lkm:{self.index_id}:{self.kind}:{self.provider_id}"
 
 
+def _validate_local_source_args(
+    package: str | None,
+    *,
+    version: str | None,
+    local: str | None,
+    lkm_paper: str | None,
+    lkm_claim: str | None,
+) -> None:
+    if local is None:
+        return
+    if package is not None or version is not None or lkm_paper is not None or lkm_claim is not None:
+        raise GaiaPackagingError(
+            "pass --local by itself with only --target; it cannot be combined "
+            "with PACKAGE, --version, --lkm-paper, or --lkm-claim."
+        )
+
+
 def _resolve_lkm_source_ref(
     package: str | None,
     *,
@@ -229,6 +267,45 @@ def _make_lkm_ref(index_id: str, kind: str, provider_id: str) -> LKMSourceRef:
         kind=kind,
         provider_id=normalized_provider_id,
     )
+
+
+def _handle_local_package_add(local: Path, *, package_root: Path | None) -> None:
+    if package_root is None:
+        typer.echo(
+            "Error: --local needs a target Gaia knowledge package. Run it inside "
+            "the consumer package, or point --target at that package.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    local_candidate = local if local.is_absolute() else package_root / local
+    local_root = _resolve_package_root(str(local_candidate))
+    if local_root is None and not local.is_absolute():
+        local_root = _resolve_package_root(str(local))
+    if local_root is None:
+        typer.echo(
+            f"Error: --local path is not a Gaia knowledge package: {local_candidate.resolve()}",
+            err=True,
+        )
+        raise typer.Exit(1)
+    if local_root == package_root:
+        typer.echo(
+            "Error: --local cannot add the target package to itself.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(local_root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        typer.echo(f"Error: uv add failed: {stderr}", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"Added local Gaia package: {local_root}")
 
 
 def _handle_lkm_source_add(ref: LKMSourceRef, *, package_root: Path | None) -> None:
