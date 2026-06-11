@@ -29,10 +29,15 @@
   - `research_providers.py` raises `typer.Exit` on an engine call path, and
     `ResearchOrchestratorError(exit_code=0)` doubles as a pause signal (review
     finding 14) — the port layer has no documented error contract.
-  - Review findings 1–4 (stop-heuristic field mismatch, dropped
-    `limitations`/`next_queries`, failures leaving `state.json` at `running`,
-    chain-package dist-name collision) should land before the split; carrying
-    known-broken contracts across two repos doubles the repair cost.
+  - The four high-severity review findings (stop-heuristic field mismatch,
+    dropped `limitations`/`next_queries`, failures leaving `state.json` at
+    `running`, chain-package dist-name collision) were addressed at head
+    `44a3e4e2`; the remaining medium-severity follow-ups are tracked in
+    [#761](https://github.com/SiliconEinstein/Gaia/issues/761), and the
+    research-sync relation validation holes in
+    [#764](https://github.com/SiliconEinstein/Gaia/issues/764). Both must be
+    resolved or explicitly re-homed before the split; carrying known-broken
+    contracts across two repos doubles the repair cost (section 7).
 
 ## 1. Dependency Boundary (five core surfaces research consumes)
 
@@ -84,7 +89,13 @@ itself a behavior-preserving refactor):
   `read_lkm_key()` moves with it.
 - Authoring write API: `author/_authored.py`, `_writer.py`, `_common.py` →
   `gaia/engine/authoring/` (public); CLI author commands become thin shells.
-  This also removes the `sync.py` purity violation.
+  This also removes the `sync.py` purity violation. The public API design must
+  fold in the fast/batch author mode requested by
+  [#745](https://github.com/SiliconEinstein/Gaia/issues/745) (batch statement
+  writes with one explicit validation pass at the end) and add the post-write
+  compile gate from [#764](https://github.com/SiliconEinstein/Gaia/issues/764)
+  — `append_statement` must stop swallowing `SyntaxError`, so a research-repo
+  caller can never leave `authored/__init__.py` unparseable.
 - Package dependency installer: the four `add_*_dependency` functions from
   `add.py` → `gaia/engine/packaging/installer.py` (public).
 - `gaia.engine.inquiry.state`: declare public in place (docs + semver
@@ -122,7 +133,16 @@ silently break the five surfaces in section 1. Research tests leave the
 
 **S1. Pre-split fixes (while still in the monorepo; PR #755 follow-up)**:
 
-- Fix review findings 1–4 (functional bugs).
+- Close out [#764](https://github.com/SiliconEinstein/Gaia/issues/764): surface
+  silently skipped candidate relations as user-visible diagnostics, validate
+  `claim_refs` against the evidence packet (reject unknown refs instead of
+  passing them), and gate sync writes behind a compile check.
+- Work through the [#761](https://github.com/SiliconEinstein/Gaia/issues/761)
+  scope list — it overlaps S1 almost item-for-item: moving run orchestration
+  out of CLI support modules into engine APIs, hardening multi-focus
+  checkpoint/resume, `None`-sentinel CLI override flags, sectioned-report
+  failure/concurrency behavior, citation-fallback dedup, and typed
+  retry/error contracts.
 - `sync.py` switches to the R1 `gaia.engine.authoring` API.
 - Remove typer from the engine entirely: `typer.Exit(2)` in
   `research_providers.py` becomes a typed provider exception; the pause stops
@@ -215,6 +235,41 @@ changelog; first release `gaia-research 0.1.0` depending on
    repos turn one PR into two. Current evidence (PR #755 is almost purely
    additive; the reverse dependency is one line) supports the split; if the
    `sync.py` ↔ authoring coupling deepens, re-evaluate.
+
+## 7. Tracked Issues and Coverage
+
+Open issues that the split plan must absorb, mapped to the work items that
+cover them:
+
+| Issue | What it tracks | Covered by | Phase | Exit criterion |
+|-------|----------------|-----------|-------|----------------|
+| [#764](https://github.com/SiliconEinstein/Gaia/issues/764) | Candidate relations silently skipped during research sync; `claim_refs` validation holes; missing compile gate after authored writes | S1 (skip diagnostics, packet validation) + R1 (compile gate in the public authoring API) | 0–1 | Closed before the phase-2 repo bootstrap |
+| [#761](https://github.com/SiliconEinstein/Gaia/issues/761) | PR #755 review follow-ups: engine/CLI orchestration extraction, multi-focus checkpoint semantics, CLI override sentinels, report failure/concurrency, citation dedup, typed retry contracts | S1 (engine extraction, checkpoints, overrides) + S2 (report rendering consolidation) + S3 (retry contracts) | 0–3 | Every checkbox either closed or re-homed to gaia-research before phase 4 |
+| [#745](https://github.com/SiliconEinstein/Gaia/issues/745) | Fast/batch author mode for agent research workflows | R1 (the public `gaia.engine.authoring` API ships batch writes + single validation pass as a first-class mode, not a research-side workaround) | 1 | Closed by the R1 extraction PR |
+
+Related but on a parallel track:
+[#762](https://github.com/SiliconEinstein/Gaia/issues/762) (new-user readiness
+for research review workflows) is product work, explicitly separated from the
+internal refactors above; it becomes part of the gaia-research 0.1.0 release
+criteria in phase 3 and moves to the new repo's tracker at bootstrap.
+
+**Coverage mechanism** — three enforcement points so these do not silently
+fall through the split:
+
+1. **PR linkage**: every implementing PR for S1/R1 work references its issue
+   with `Closes #N` (or checks off the matching #761 checkbox), so issue state
+   is the single source of progress truth — not this spec.
+2. **Phase gates**: the phase table in section 5 is only advanceable when the
+   issues listed for that phase in the table above are closed or explicitly
+   re-homed. Phase 2 (repo bootstrap) is the hard cutoff for #764; phase 4
+   (core removal) is the hard cutoff for the rest.
+3. **Issue re-homing at bootstrap**: when the gaia-research repo is created in
+   phase 2, any still-open research-side issue (or unchecked #761 item whose
+   code moved) is transferred to the new repo's tracker (GitHub issue
+   transfer), and the old issue is closed with a forwarding link. Core keeps
+   only issues whose fix lands in core code (R1–R6 surfaces). The R6
+   downstream-compat CI job is the backstop that re-detects anything both
+   trackers lose.
 
 ## Appendix: Stay / Move Boundary at a Glance
 
