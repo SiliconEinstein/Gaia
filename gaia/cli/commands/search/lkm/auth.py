@@ -20,18 +20,18 @@ from typing import Annotated
 
 import typer
 
-from gaia.cli._credentials import (
+from gaia.cli.commands.search.lkm._client import (
+    LKMClient,
+    LKMPermissionError,
+    LKMTransportError,
+)
+from gaia.lkm.credentials import (
     CredentialPermissionError,
     active_lkm_env_var,
     lkm_key_status,
     purge_lkm_key,
     read_lkm_key,
     write_lkm_key,
-)
-from gaia.cli.commands.search.lkm._client import (
-    LKMClient,
-    LKMPermissionError,
-    LKMTransportError,
 )
 
 _ENV_VAR = "GAIA_LKM_ACCESS_KEY"
