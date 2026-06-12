@@ -33,8 +33,9 @@ gaia research assess ...
 gaia research propose ...
 ```
 
-Standalone `gaia-research-loop` 或 `gaia-lkm-explore` 可以作为实验入口或兼容入口存在，
-但不能作为当前实现锚点。
+旧 `gaia-lkm-explore` 可以作为实验入口或兼容参考存在，但不能作为当前实现锚点。
+`gaia-research-loop` skill 可以作为 agent guide / prompt template collection 维护；
+它必须调用 `gaia research` contracts 和 CLI primitives，不能成为另一套 canonical API。
 
 ## 2. Package-Native 状态
 
