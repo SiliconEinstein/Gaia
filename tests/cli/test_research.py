@@ -2421,6 +2421,60 @@ def test_research_run_waits_for_focus_analysis_when_missing(tmp_path: Path) -> N
     assert _landscape_artifacts(pkg_dir)
 
 
+def test_research_run_rejects_checkpoint_provider_multi_focus(
+    tmp_path: Path,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    broad_search = tmp_path / "broad-search.json"
+    broad_search.write_text(
+        json.dumps(
+            _search(
+                "multi focus checkpoint",
+                [
+                    _lkm_row(
+                        "P_MULTI",
+                        "multi_focus",
+                        0.9,
+                        paper_title="Multi Focus Paper",
+                        content="Checkpoint provider cannot safely resume multiple focuses.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "research.json"
+    config_path.write_text(
+        json.dumps({"focus": {"count": 2}, "llm": {"provider": "checkpoint"}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "multi focus checkpoint",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "checkpoint-multi-focus-run",
+            "--config",
+            str(config_path),
+            "--search-json",
+            str(broad_search),
+        ],
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "checkpoint provider does not support focus_count > 1" in result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "checkpoint-multi-focus-run"
+    assert not run_dir.exists()
+
+
 def test_research_run_explicit_default_flags_override_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

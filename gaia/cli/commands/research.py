@@ -120,6 +120,13 @@ def _validate_run_options(
     if focus_count < 1 or focus_count > 8:
         typer.echo("Error: --focus-count must be between 1 and 8.", err=True)
         raise typer.Exit(2)
+    if analysis_provider == "checkpoint" and focus_count > 1:
+        typer.echo(
+            "Error: checkpoint provider does not support focus_count > 1; "
+            "provide --focus, set --focus-count 1, or use command/litellm analysis.",
+            err=True,
+        )
+        raise typer.Exit(2)
     if evidence_selection_mode not in {"fast", "review"}:
         typer.echo(
             "Error: --evidence-selection-mode must be one of: fast, review.",
