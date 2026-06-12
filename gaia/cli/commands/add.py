@@ -13,8 +13,10 @@ import typer
 
 from gaia.cli._registry import DEFAULT_REGISTRY, fetch_file_optional, resolve_package
 from gaia.cli.commands.pkg.lkm_materialize import (
+    MaterializedLKMChainPackage,
     MaterializedLKMPackage,
     materialize_lkm_paper_package,
+    materialize_lkm_reasoning_chain_package,
 )
 from gaia.cli.commands.search.lkm._indexes import (
     DEFAULT_LKM_INDEX_ID,
@@ -23,7 +25,10 @@ from gaia.cli.commands.search.lkm._indexes import (
     normalize_lkm_index_id,
 )
 from gaia.cli.commands.search.lkm._shared import run_request
-from gaia.engine.packaging import GaiaPackagingError
+from gaia.engine.packaging import (
+    GaiaPackagingError,
+    resolve_gaia_package_root,
+)
 
 
 def _run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -198,6 +203,20 @@ class LKMSourceRef:
         return f"lkm:{self.index_id}:{self.kind}:{self.provider_id}"
 
 
+class LKMDependencyAddError(GaiaPackagingError):
+    """Raised when a materialized LKM package could not be added."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        materialized: MaterializedLKMPackage | MaterializedLKMChainPackage | None = None,
+    ) -> None:
+        """Initialize the error with the generated package, when available."""
+        super().__init__(message)
+        self.materialized = materialized
+
+
 def _validate_local_source_args(
     package: str | None,
     *,
@@ -269,6 +288,46 @@ def _make_lkm_ref(index_id: str, kind: str, provider_id: str) -> LKMSourceRef:
     )
 
 
+def make_lkm_paper_ref(index_id: str, paper_id: str) -> LKMSourceRef:
+    """Return a validated LKM paper source ref."""
+    return _make_lkm_ref(index_id, "paper", paper_id)
+
+
+def make_lkm_claim_ref(index_id: str, claim_id: str) -> LKMSourceRef:
+    """Return a validated LKM claim source ref."""
+    return _make_lkm_ref(index_id, "claim", claim_id)
+
+
+def add_local_package_dependency(local: Path, *, package_root: Path) -> Path:
+    """Add ``local`` as an editable dependency of ``package_root``.
+
+    This is the programmatic counterpart of ``gaia pkg add --local``. Research
+    adapters can generate partial source packages, then route the dependency
+    mutation through this same package-native contract instead of shelling out
+    to another CLI process.
+    """
+    local_candidate = local if local.is_absolute() else package_root / local
+    local_root = _resolve_package_root(str(local_candidate))
+    if local_root is None and not local.is_absolute():
+        local_root = _resolve_package_root(str(local))
+    if local_root is None:
+        raise GaiaPackagingError(
+            f"--local path is not a Gaia knowledge package: {local_candidate.resolve()}"
+        )
+    if local_root == package_root:
+        raise GaiaPackagingError("--local cannot add the target package to itself.")
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(local_root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        raise GaiaPackagingError(str(exc)) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        raise GaiaPackagingError(f"uv add failed: {stderr}")
+
+    return local_root
+
+
 def _handle_local_package_add(local: Path, *, package_root: Path | None) -> None:
     if package_root is None:
         typer.echo(
@@ -278,33 +337,11 @@ def _handle_local_package_add(local: Path, *, package_root: Path | None) -> None
         )
         raise typer.Exit(1)
 
-    local_candidate = local if local.is_absolute() else package_root / local
-    local_root = _resolve_package_root(str(local_candidate))
-    if local_root is None and not local.is_absolute():
-        local_root = _resolve_package_root(str(local))
-    if local_root is None:
-        typer.echo(
-            f"Error: --local path is not a Gaia knowledge package: {local_candidate.resolve()}",
-            err=True,
-        )
-        raise typer.Exit(1)
-    if local_root == package_root:
-        typer.echo(
-            "Error: --local cannot add the target package to itself.",
-            err=True,
-        )
-        raise typer.Exit(1)
-
     try:
-        result = _run_uv(["uv", "add", "--editable", str(local_root)], cwd=package_root)
+        local_root = add_local_package_dependency(local, package_root=package_root)
     except GaiaPackagingError as exc:
-        typer.echo(str(exc), err=True)
+        typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc
-    if result.returncode != 0:
-        stderr = result.stderr.strip() or result.stdout.strip()
-        typer.echo(f"Error: uv add failed: {stderr}", err=True)
-        raise typer.Exit(1)
-
     typer.echo(f"Added local Gaia package: {local_root}")
 
 
@@ -350,31 +387,16 @@ def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> No
         raise typer.Exit(1)
 
     try:
-        payload = run_request(
-            "POST",
-            "/papers/graph",
-            json_body={"paper_id": ref.provider_id},
-            index_id=ref.index_id,
-        )
-        materialized = materialize_lkm_paper_package(
-            payload,
-            project_root=package_root,
-            index_id=ref.index_id,
-            paper_id=ref.provider_id,
-        )
+        materialized = add_lkm_paper_dependency(ref, package_root=package_root)
+    except LKMDependencyAddError as exc:
+        if exc.materialized is not None:
+            _echo_lkm_uv_add_failure(exc.materialized, str(exc))
+        else:
+            typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
     except GaiaPackagingError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc
-
-    try:
-        result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
-    except GaiaPackagingError as exc:
-        _echo_lkm_uv_add_failure(materialized, str(exc))
-        raise typer.Exit(1) from exc
-    if result.returncode != 0:
-        stderr = result.stderr.strip() or result.stdout.strip()
-        _echo_lkm_uv_add_failure(materialized, stderr or "uv exited with a non-zero status")
-        raise typer.Exit(1)
 
     typer.echo(f"Materialized {materialized.source_ref}")
     typer.echo(f"Package: {materialized.dist_name}")
@@ -413,6 +435,94 @@ def _handle_lkm_paper_add(ref: LKMSourceRef, *, package_root: Path | None) -> No
         typer.echo(
             f"Import hint: from {materialized.import_name} import {materialized.exported_symbol}"
         )
+
+
+def add_lkm_paper_dependency(
+    ref: LKMSourceRef,
+    *,
+    package_root: Path,
+) -> MaterializedLKMPackage:
+    """Materialize an LKM paper package and add it as an editable dependency."""
+    if ref.kind != "paper":
+        raise GaiaPackagingError(f"expected an LKM paper ref, got {ref.ref}")
+    try:
+        payload = run_request(
+            "POST",
+            "/papers/graph",
+            json_body={"paper_id": ref.provider_id},
+            index_id=ref.index_id,
+        )
+        materialized = materialize_lkm_paper_package(
+            payload,
+            project_root=package_root,
+            index_id=ref.index_id,
+            paper_id=ref.provider_id,
+        )
+    except GaiaPackagingError:
+        raise
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        raise LKMDependencyAddError(str(exc), materialized=materialized) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        raise LKMDependencyAddError(
+            stderr or "uv exited with a non-zero status",
+            materialized=materialized,
+        )
+    return materialized
+
+
+def add_lkm_claim_dependency(
+    ref: LKMSourceRef,
+    *,
+    package_root: Path,
+) -> MaterializedLKMPackage:
+    """Resolve an LKM claim to its backing paper package and add it."""
+    if ref.kind != "claim":
+        raise GaiaPackagingError(f"expected an LKM claim ref, got {ref.ref}")
+    paper_id = _resolve_lkm_claim_backing_paper_id(ref)
+    paper_ref = LKMSourceRef(index_id=ref.index_id, kind="paper", provider_id=paper_id)
+    return add_lkm_paper_dependency(paper_ref, package_root=package_root)
+
+
+def add_lkm_chain_dependency(
+    ref: LKMSourceRef,
+    *,
+    package_root: Path,
+    max_chains: int = 3,
+    sort_by: str = "comprehensive",
+) -> MaterializedLKMChainPackage:
+    """Materialize LKM reasoning chains for a claim and add them as a dependency."""
+    if ref.kind != "claim":
+        raise GaiaPackagingError(f"expected an LKM claim ref, got {ref.ref}")
+    encoded = quote(ref.provider_id, safe="")
+    payload = run_request(
+        "GET",
+        f"/claims/{encoded}/reasoning",
+        params={"format": "graph", "max_chains": max_chains, "sort_by": sort_by},
+        index_id=ref.index_id,
+    )
+    materialized = materialize_lkm_reasoning_chain_package(
+        payload,
+        project_root=package_root,
+        index_id=ref.index_id,
+        claim_id=ref.provider_id,
+        max_chains=max_chains,
+    )
+
+    try:
+        result = _run_uv(["uv", "add", "--editable", str(materialized.root)], cwd=package_root)
+    except GaiaPackagingError as exc:
+        raise LKMDependencyAddError(str(exc), materialized=materialized) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        raise LKMDependencyAddError(
+            stderr or "uv exited with a non-zero status",
+            materialized=materialized,
+        )
+    return materialized
 
 
 def _resolve_lkm_claim_backing_paper_id(ref: LKMSourceRef) -> str:
@@ -555,7 +665,10 @@ def _warn_unused_lkm_index(lkm_index: str) -> None:
         )
 
 
-def _echo_lkm_uv_add_failure(materialized: MaterializedLKMPackage, details: str) -> None:
+def _echo_lkm_uv_add_failure(
+    materialized: MaterializedLKMPackage | MaterializedLKMChainPackage,
+    details: str,
+) -> None:
     typer.echo(
         f"Error: uv add failed after materializing {materialized.source_ref}: {details}",
         err=True,
@@ -570,24 +683,6 @@ def _echo_lkm_uv_add_failure(materialized: MaterializedLKMPackage, details: str)
     )
 
 
-def _is_gaia_package_dir(directory: Path) -> bool:
-    """Return True if *directory* holds a Gaia knowledge-package pyproject.toml."""
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
-
-    pyproject = directory / "pyproject.toml"
-    if not pyproject.exists():
-        return False
-    try:
-        config = tomllib.loads(pyproject.read_text())
-    except Exception:
-        return False
-    gaia_type = config.get("tool", {}).get("gaia", {}).get("type")
-    return bool(gaia_type == "knowledge-package")
-
-
 def _resolve_package_root(target: str) -> Path | None:
     """Resolve the Gaia package root for ``gaia pkg add`` honoring ``--target``.
 
@@ -597,15 +692,7 @@ def _resolve_package_root(target: str) -> Path | None:
     historical "run from inside the package" behavior by walking up from the
     target directory to the nearest Gaia package root.
     """
-    base = Path(target).resolve()
-    if not base.exists():
-        return None
-    if base.is_file():
-        base = base.parent
-    for directory in [base, *base.parents]:
-        if _is_gaia_package_dir(directory):
-            return directory
-    return None
+    return resolve_gaia_package_root(target)
 
 
 def _fetch_dep_beliefs(
