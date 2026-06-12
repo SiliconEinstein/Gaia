@@ -8,25 +8,34 @@
 
 ## 1. Fixed Goal
 
-Split Gaia's research module into a new git repository while preserving and
-making first-class two usage modes:
+**Current goal: Goal A.** Split Gaia's research module into a new git
+repository and keep it connected to Gaia through public core APIs, plugin entry
+points, contract CI, and migrated review-run parity.
 
-1. **Review run mode**: product/skill-facing workflow that explores, assesses,
-   and writes an evidence-backed report for tens to hundreds of papers within a
-   short interactive window.
-2. **Graph session mode**: agent-framework-facing workflow that can keep
-   expanding a research graph to thousands or tens of thousands of nodes, with
-   runtime proportional to the newly explored area, durable node/relation/focus
-   records, and pause/resume support. A final report is optional.
+Goal A includes:
+
+1. A standalone `gaia-research` repository with migrated implementation,
+   tests, docs, package metadata, and skill assets.
+2. Public Gaia core surfaces needed by research, with dependency direction
+   `gaia-research -> gaia core`.
+3. `gaia research` connected back through plugin entry points when
+   `gaia-research` is installed.
+4. Review-run parity for the current package-native evidence-report workflow.
+5. Clear `.gaia/research/**` namespace ownership.
+
+Large-scale graph-session execution is a follow-up capability tracked in
+[#767](https://github.com/SiliconEinstein/Gaia/issues/767). It must not block
+Goal A. Goal A should only preserve extension points and avoid conflicting
+protocol choices.
 
 The split must incorporate the current Gaia research PRs and issues, especially
 PR #755, PR #763, the lessons from closed PR #726, and issues #745, #761, #762,
-and #764.
+and #764. Issue #767 is the graph-session follow-up handoff.
 
 ## 2. Non-Negotiable Invariants
 
-- Do not let "move PR #755 to another repo" replace the broader goal. The new
-  repo must support both short review runs and long graph sessions.
+- Do not let "move PR #755 to another repo" replace Goal A. The new repo must
+  be a connected, tested downstream package, not a code dump.
 - Do not create two parallel canonical research protocols. Lessons from the old
   `gaia-research-loop` task-envelope design may be absorbed, but the target
   on-disk contract should be unified under `.gaia/research/**`.
@@ -36,9 +45,8 @@ and #764.
   Gaia core; Gaia core must not depend on research.
 - Preserve package-native promotion discipline: research artifacts and graph
   session records are not automatically stable Gaia source.
-- Long graph-session operations must be incremental. Normal continuation should
-  process only new frontier/input batches, not recompute the whole graph each
-  turn.
+- Do not implement or partially specify `.gaia/research/sessions/**` inside
+  Goal A unless that work explicitly moves into the #767 follow-up scope.
 
 ## 3. Evidence Sources To Recheck
 
@@ -54,6 +62,7 @@ and #764.
 | Issue #761 | PR #755 follow-up robustness and refactor list | Checked 2026-06-12 |
 | Issue #762 | New-user product readiness for research workflows | Checked 2026-06-12 |
 | Issue #764 | Candidate relation sync correctness hole | Checked 2026-06-12 |
+| Issue #767 | Large-scale graph-session design follow-up | Created 2026-06-12 |
 
 Recheck this table whenever more than one day has passed, a PR is updated, or
 the implementation phase changes.
@@ -66,8 +75,8 @@ to section 7.
 ### V1. Goal Verifier
 
 - Does the step serve the new `gaia-research` repo split?
-- Does it preserve both Review Run Mode and Graph Session Mode?
-- Does it avoid prematurely optimizing only for final reports?
+- Does it preserve review-run parity and Gaia connection?
+- Does it avoid pulling #767 graph-session implementation back into Goal A?
 - Does it mention the relevant PR/issue constraints when they apply?
 
 ### V2. Architecture Verifier
@@ -77,12 +86,12 @@ to section 7.
 - Is `.gaia/research/**` the unified research artifact/session namespace?
 - Are package promotion and formal Gaia source writes still explicit gates?
 
-### V3. Long-Run Graph Verifier
+### V3. Graph Follow-up Boundary Verifier
 
-- Is graph-session state append-only or otherwise resumable?
-- Does continuation process only newly added frontier/input records?
-- Are node, edge, focus, obligation, and evidence references durable?
-- Can a run be paused, inspected, rebuilt from logs, and resumed?
+- Is large-scale graph-session work linked to #767 when mentioned?
+- Does Goal A avoid creating canonical `.gaia/research_loop/**` state?
+- Does Goal A reserve, but not prematurely define, `.gaia/research/sessions/**`?
+- Does the split preserve public extension points needed by future sessions?
 
 ### V4. Product/Skill Verifier
 
@@ -105,17 +114,20 @@ to section 7.
 
 Stop and re-check the fixed goal if any of these happen:
 
-- The design mentions report writing but not graph-session continuation.
+- The design expands from repo split/review-run parity into implementing
+  graph-session mechanics without explicitly moving into #767.
 - The implementation adds new `.gaia/research_loop/**` canonical state.
 - The split plan relies on private CLI modules as stable cross-repo APIs.
 - A correctness issue is deferred without a target repo, phase, or acceptance
   criterion.
-- A proposed graph expansion step requires scanning all historical nodes during
-  normal continuation.
 - Product/skill usage requires long command recipes rather than profiles,
   config, SDK calls, or a doctor command.
 
 ## 6. Decision Log
+
+Rows before the 2026-06-12 Goal A narrowing are historical context. The active
+goal and phase map are the Goal A definitions in sections 1-5; graph-session
+execution is re-homed to #767.
 
 | Date | Decision | Rationale | Verifier |
 | --- | --- | --- | --- |
@@ -123,7 +135,8 @@ Stop and re-check the fixed goal if any of these happen:
 | 2026-06-12 | Absorb PR #726 task-envelope lessons into `.gaia/research/**` rather than preserving `.gaia/research_loop/**`. | The task/candidate/gate pattern helps agent frameworks, but a second canonical namespace would split state and confuse migration. | V2, V3 |
 | 2026-06-12 | Make `gaia-research` a single shared kernel with two first-class modes: review runs and graph sessions. | The product skill path and long-running agent-framework path share providers, refs, provenance, and promotion discipline, but need different orchestration defaults and disk records. | V1-V4 |
 | 2026-06-12 | Add a completion acceptance checklist before implementation begins. | The split needs evidence-based gates for repository extraction, product review runs, graph-session incrementality, pause/resume, and issue closure rather than relying on implementation intent. | V1-V5 |
-| 2026-06-12 | Add a phase-by-phase implementation plan only after the dual-mode contract and acceptance evidence were explicit. | Implementation work now has ordered gates for monorepo hardening, core public APIs, repo bootstrap, review run, graph session, doctor/readiness, CI, and core removal. | V1-V5 |
+| 2026-06-12 | Add a phase-by-phase implementation plan only after the dual-mode contract and acceptance evidence were explicit. | This was the pre-Goal-A-narrowing phase map; it has since been superseded by the Goal A 0-6 map and #767 graph-session follow-up. | V1-V5 |
+| 2026-06-12 | Narrow the active goal to Goal A and re-home large-scale graph sessions to #767. | Repo extraction/connection and graph-session scalability are both large goals. Keeping graph execution inside split acceptance would make PR scope and completion evidence drift. | V1, V3 |
 
 ## 7. Checkpoint Log
 
@@ -132,8 +145,8 @@ Stop and re-check the fixed goal if any of these happen:
 | 2026-06-12 | Initial discovery over PRs, issues, and worktrees | V1, V2, V5 | Current split plan is viable but under-specifies long graph-session mode. | Amend split plan with dual-mode architecture and graph-session contract. |
 | 2026-06-12 | Add execution record and drift-control loop | V1-V5 | Process guardrails are now explicit and should be updated before each major step. | Use this record before editing the companion split plan. |
 | 2026-06-12 | Amend split plan with product goal, dual-mode architecture, unified disk contract, graph-session incremental contract, SDK shape, #762 release gate, and PR #726 absorption rule | V1-V5 | Split plan now states that moving PR #755 alone is insufficient; `.gaia/research/**` remains unified; graph sessions require frontier cursors and no normal full-history scan; #745/#761/#762/#764 all have phase gates. | Add acceptance checks/tests for graph-session contract and product doctor/readiness in the implementation plan. |
-| 2026-06-12 | Add acceptance checklist for split completion evidence, review-run smoke tests, graph-session incremental tests, core API gates, and issue phase gates | V1-V5 | Completion now has requirement-by-requirement proof targets, including instrumented storage checks for graph-session continuation and doctor/readiness checks for product usage. | Use the checklist as the handoff for writing detailed implementation tasks or bootstrapping the new repo. |
-| 2026-06-12 | Add implementation plan with phases 0-7 and concrete evidence commands | V1-V5 | Plan covers PR #755 hardening, #764/#761 fixes, #745 core authoring API, new repo bootstrap, SDK contracts, review-run mode, graph-session O(N) tests, #762 doctor/readiness, contract CI, and Gaia core removal. | Use the implementation plan to execute Phase 0 in a clean worktree or delegate phase tasks to subagents with verifier checkpoints. |
+| 2026-06-12 | Add acceptance checklist for split completion evidence, review-run smoke tests, graph-session incremental tests, core API gates, and issue phase gates | V1-V5 | This was the pre-Goal-A-narrowing checklist; graph-session incremental tests are now re-homed to #767. | Use the Goal A checklist as the handoff for writing detailed implementation tasks or bootstrapping the new repo. |
+| 2026-06-12 | Add implementation plan with phases 0-7 and concrete evidence commands | V1-V5 | This was the pre-Goal-A-narrowing implementation plan; it is now superseded by the Goal A 0-6 plan. | Use the Goal A implementation plan to continue from public core surfaces, skill plugin discovery, repo bootstrap, and review-run parity gates. |
 | 2026-06-12 | Execute Phase 0 slice for #764 on branch `codex/research-actions-pkg-contract`; pushed commit `55046adb` (`fix(research): surface relation sync skips`). | V1, V5 | Explicit non-claim `claim_refs` are rejected during assessment validation, inferred non-claim package refs produce visible sync skip reasons, and CLI sync summaries now surface `candidate_relations_skipped`. Verified with `uv run pytest tests/gaia/test_research_assessment.py -q`, `uv run pytest tests/cli/test_research.py -q -k candidate_relation`, targeted `ruff`, targeted `mypy`, and `git diff --check`. This is a #764 hardening slice, not split completion. | Continue Phase 0 with the remaining #761/#764 gates, then move to Phase 1 public core APIs only after the verifier table still passes. |
 | 2026-06-12 | Execute second Phase 0 slice for #764 on branch `codex/research-actions-pkg-contract`; pushed commit `177a8755` (`fix(research): reject unparseable sync writes`). | V1, V5 | Research sync now parse-checks `authored/__init__.py` after source writes, restores the prior authored source on parse failure, exposes `ResearchSyncSourceError`, and has CLI exit-2 handling without traceback. Verified with `uv run pytest tests/gaia/test_research_artifacts.py tests/gaia/test_research_assessment.py -q`, `uv run pytest tests/cli/test_research.py -q -k "candidate_relation or unparseable_sync_source or schema_errors"`, targeted `ruff`, targeted `mypy`, and `git diff --check`. This closes another #764 correctness hole while leaving broader repo split work open. | Re-run PR #755 CI/review state, then continue Phase 0 #761 items or move only the completed #764 slice forward for review. |
 | 2026-06-12 | Execute Phase 0 slice for #761 on branch `codex/research-actions-pkg-contract`; pushed commit `4cd5b21f` (`refactor(research): share assessment review rendering`). | V1, V5 | Sync no longer carries a separate review-to-markdown renderer. Package-authored assessment review notes now use the report renderer path, cover abstract, key points, summary, sections, evidence table, limitations, and next queries, and strip reader-facing unresolved internal refs. Verified with `uv run pytest tests/gaia/test_research_artifacts.py tests/gaia/test_research_report.py -q`, `uv run pytest tests/cli/test_research.py -q -k "accepts_analysis_json_with_review or unparseable_sync_source or candidate_relation"`, targeted `ruff`, targeted `mypy`, and `git diff --check`. This addresses the #761 rendering-consolidation slice only. | Check PR #755 CI/review threads, then decide whether to continue remaining #761 robustness items or split remaining follow-ups into smaller PRs. |
@@ -152,7 +165,8 @@ Stop and re-check the fixed goal if any of these happen:
 | 2026-06-12 | Execute first Phase 1.2 slice for public Gaia core authoring APIs on branch `codex/research-actions-pkg-contract`. | V1, V2, V5 | Added `gaia.engine.authoring` with public `ProposedAuthorOp`, `run_author_batch`, structured batch result types, and compatibility exports for the stable authored-submodule/write helpers used by research. Batch authoring writes operations in order, supports later operations referencing earlier labels, runs one final `postwrite_check`, and rolls back source files on later prewrite/postwrite failure. `gaia.cli.commands.author._proposed_op` now re-exports the engine model, and `gaia.engine.research.sync` imports authoring helpers through the public engine facade instead of directly importing `gaia.cli.commands.author._*`. Verified red-green with `tests/gaia/test_authoring_api.py` (initial failure: `ModuleNotFoundError: No module named 'gaia.engine.authoring'`), then fixed an import-cycle caught by `uv run pytest tests/cli/author -q`. Final local evidence: `uv run pytest tests/gaia/test_authoring_api.py tests/gaia/test_research_artifacts.py tests/gaia/test_research_assessment.py -q` (21 passed), `uv run pytest tests/cli/author -q` (343 passed), `uv run pytest tests/cli/test_research.py -q -k "sync or candidate_relation or unparseable_sync_source"` (3 passed, 58 deselected), targeted `ruff`, targeted `mypy`, `uv run ruff format --check ...`, and `git diff --check`. This is not full #745 closure: the remaining work is to move more CLI author implementation/helpers behind the public engine API and wire CLI verbs onto the public batch/write surface where appropriate. | Commit and push this code slice, re-check PR #755/#763 CI, then continue Phase 1.2 or move to public LKM client depending on the next highest coupling blocker. |
 | 2026-06-12 | Execute Phase 1.1 slice for public Gaia core LKM client/index/error APIs on branch `codex/research-actions-pkg-contract`. | V1, V2, V4, V5 | Added `gaia.lkm.client` and `gaia.lkm.indexes` as public import surfaces for LKM access, index normalization, and typed error handling. CLI-private `gaia.cli.commands.search.lkm._client` and `_indexes` now compatibility re-export the public modules, while CLI `_shared.run_request` translates `LKMPermissionError` and `LKMNotFoundError` into CLI exit codes. The public error surface includes `LKMCredentialError`, `NoAccessKeyError`, `LKMTransportError`, `LKMPermissionError`, `LKMNotFoundError`, and envelope `LKMError`, so downstream `gaia-research` can distinguish transport, permission, not-found, credential, and business-envelope failures without importing Typer or CLI modules. Verified red-green with `tests/gaia/test_lkm_client.py` (initial failure: `ModuleNotFoundError: No module named 'gaia.lkm'`), then fixed an import-cycle by moving index helpers to `gaia.lkm.indexes`. Fresh local evidence: `uv run pytest tests/gaia/test_lkm_client.py tests/cli/search/test_lkm_auth.py tests/cli/search/test_lkm_verbs.py -q` (99 passed), `uv run pytest tests/cli/search/test_lkm_package_e2e.py tests/gaia/test_materialize_api.py -q` (24 passed), targeted `ruff`, targeted `mypy`, `uv run ruff format --check ...`, and `git diff --check`. This is a public client/error slice only; public credential/readiness APIs remain a separate Phase 1.1 slice. | Commit and push this code slice, update PR #755 evidence, then continue Phase 1.1 credential/readiness or Phase 1 plugin entry points based on the highest remaining extraction blocker. |
 | 2026-06-12 | Follow up on PR #755 wheel-smoke failure after the public LKM client slice. | V1, V2, V5 | Remote `gh pr checks 755` showed build and commit-lint passing, `Run tests` passing, but the wheel smoke step failed because the built wheel omitted the new `gaia.lkm` package (`ModuleNotFoundError: No module named 'gaia.lkm'` during installed `gaia --help`). Added `gaia.lkm*` to setuptools package discovery, added a packaging contract test for the public LKM namespace, and extended the wheel-smoke facade import list to include `gaia.lkm`. Verified the red test first with `uv run pytest tests/test_alpha0_packaging.py -q` (failed on missing `gaia.lkm*`), then final local evidence: `uv run pytest tests/test_alpha0_packaging.py tests/gaia/test_lkm_client.py tests/cli/search/test_lkm_auth.py tests/cli/search/test_lkm_verbs.py -q` (101 passed), `uv run pytest tests/cli/search/test_lkm_package_e2e.py tests/gaia/test_materialize_api.py -q` (24 passed), targeted `ruff`, targeted `mypy`, YAML parse for `.github/actions/wheel-smoke/action.yml`, `git diff --check`, `uv build --wheel --out-dir /tmp/gaia-lkm-wheel-check-c2e066e0`, zipfile check for `gaia/lkm/{__init__,client,indexes}.py`, and direct `import gaia.lkm` from the built wheel path. | Commit and push the wheel packaging fix, then re-check PR #755 remote CI until build, commit-lint, and test are all green. |
-| 2026-06-12 | Address PR #763 review findings after PR #755 merged into main. | V1, V2, V5 | Made the implementation plan's 0-7 phase map canonical across the split plan and acceptance checklist; changed `gaia-research` dependency guidance to `gaia-lang>=0.6,<0.8` with explicit contract CI against the 0.7.0 removal candidate; added the missing `tests/gaia/test_research_orchestrator.py` import path; replaced stale `tests/cli/test_author.py` and `gaia/engine/packaging/installer.py` references with current `tests/cli/author` and `gaia/engine/packaging.py` paths. | Re-run doc consistency greps and push the #763 review-fix commit. |
+| 2026-06-12 | Address PR #763 review findings after PR #755 merged into main. | V1, V2, V5 | Made the then-current 0-7 phase map consistent across the split plan and acceptance checklist; that map is now superseded by Goal A 0-6. Also changed `gaia-research` dependency guidance to `gaia-lang>=0.6,<0.8`, added the missing `tests/gaia/test_research_orchestrator.py` import path, and replaced stale path references. | Re-run doc consistency greps and push the #763 review-fix commit. |
+| 2026-06-12 | Create #767 and realign split docs around Goal A. | V1, V3, V5 | Large-scale graph-session implementation notes now live in #767. Goal A docs should require repo split, Gaia connection, review-run parity, readiness, contract CI, and core removal; they should not require graph-session execution or O(N) tests. | Continue Goal A execution from public core surfaces, skill plugin discovery, repo bootstrap, and review-run parity gates. |
 
 ## 8. Process Learnings and PR Operating Rules
 
@@ -212,8 +226,9 @@ before new research behavior:
 3. Update and merge the split-plan PR as the stable acceptance baseline.
 4. Add the missing skill plugin discovery surface, such as `gaia.skills`, before
    moving bundled research skills out of Gaia core.
-5. Write the graph-session contract design as its own spec/PR before
-   implementing `.gaia/research/sessions/**`.
+5. Treat #767 as the graph-session design handoff; do not implement
+   `.gaia/research/sessions/**` as part of Goal A unless the goal is explicitly
+   expanded again.
 
 ### 8.4 Design Gate Discipline
 
@@ -224,9 +239,9 @@ before new research behavior:
 - If a design gate is waiting on user approval, record the blocked item clearly
   and stop changing code for that slice. Continue only with read-only review or
   unrelated already-approved work.
-- The graph-session disk contract remains such a design-gated item because it
-  determines the O(N) continuation verifier, pause/resume semantics, repair
-  context, and promotion boundary.
+- The graph-session disk contract remains such a design-gated item in #767
+  because it determines the O(N) continuation verifier, pause/resume semantics,
+  repair context, and promotion boundary.
 
 ### 8.5 Worktree Hygiene
 

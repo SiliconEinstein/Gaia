@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Split Gaia's research module into an independent `gaia-research` repository with first-class review-run and graph-session modes.
+**Goal:** Complete Goal A: split Gaia's research module into an independent
+`gaia-research` repository, connect it back to Gaia through public APIs and
+plugin entry points, and preserve review-run parity.
 
-**Architecture:** Gaia core keeps public language/package/search/authoring/materialization primitives and plugin hooks. `gaia-research` owns the shared research kernel, versioned `.gaia/research/**` contracts, SDK, providers, CLI, skill assets, review-run orchestration, and long-running graph-session orchestration. Contract CI proves the one-way dependency `gaia-research -> gaia core`.
+**Architecture:** Gaia core keeps public language/package/search/authoring/materialization primitives and plugin hooks. `gaia-research` owns the shared research kernel, versioned `.gaia/research/**` review-run contracts, SDK, providers, CLI, skill assets, and review-run orchestration. Contract CI proves the one-way dependency `gaia-research -> gaia core`. Large-scale graph-session execution is a post-Goal A follow-up tracked in #767.
 
 **Tech Stack:** Python 3.12, uv, Typer, Pydantic v2, pytest, ruff, mypy strict, GitHub Actions, Gaia package/check tooling, optional LiteLLM behind a `llm` extra.
 
@@ -27,11 +29,10 @@ the execution record.
 | 0 | Make monorepo research movable by closing correctness/coupling blockers. | PR #755 landed/superseded; #761 high-risk items owned; #764 closed or fixed before bootstrap. |
 | 1 | Extract Gaia core public APIs used by research. | Public LKM, authoring, materialization, inquiry, credentials, plugin surfaces exist and pass contract tests. |
 | 2 | Bootstrap `gaia-research` repo and preserve/import history. | New repo has package metadata, migrated code/tests/docs/skills, and no canonical `.gaia/research_loop/**` writes. |
-| 3 | Build `gaia-research` shared contracts and SDK. | Review-run and graph-session contracts are typed and SDK-accessible. |
+| 3 | Build Goal A `gaia-research` contracts and SDK. | Review-run contracts are typed and SDK-accessible; graph-session work is linked to #767. |
 | 4 | Re-enable review-run mode in the new repo. | Product/skill smoke tests produce observable state/events/report paths. |
-| 5 | Implement graph-session mode. | Incremental continuation, pause/resume, node/edge/focus/field-map records pass instrumented tests. |
-| 6 | Product readiness, skills, and doctor. | #762 acceptance checks pass and short happy paths are documented. |
-| 7 | Contract CI, release, and Gaia core removal. | Core installs downstream `gaia-research`, plugin path works, core no longer owns research implementation. |
+| 5 | Product readiness, skills, and doctor. | #762 acceptance checks pass and short happy paths are documented. |
+| 6 | Contract CI, release, and Gaia core removal. | Core installs downstream `gaia-research`, plugin path works, core no longer owns research implementation. |
 
 ## Phase 0: Make Monorepo Research Movable
 
@@ -436,98 +437,7 @@ CLI output for core handles.
 **Acceptance evidence:** Product/skill path is usable without copying long PR
 commands.
 
-## Phase 5: Graph Session Mode
-
-**Files likely created or modified in `gaia-research`:**
-
-- `src/gaia_research/engine/session.py`
-- `src/gaia_research/engine/frontier.py`
-- `src/gaia_research/engine/session_storage.py`
-- `src/gaia_research/engine/field_map_delta.py`
-- `src/gaia_research/engine/task_protocol.py`
-- `src/gaia_research/cli/session.py`
-- `tests/session/`
-
-### Task 5.1: Session Storage and Append-Only Records
-
-- [ ] Implement `.gaia/research/sessions/<session-id>/` storage:
-
-  ```text
-  state.json
-  events.ndjson
-  frontier.jsonl
-  nodes.jsonl
-  edges.jsonl
-  focuses.jsonl
-  obligations.jsonl
-  field_map.json
-  checkpoints/
-  ```
-
-- [ ] Add cursor/index files required for normal continuation.
-- [ ] Run:
-
-  ```bash
-  uv run pytest tests/session/test_session_state_contract.py tests/session/test_frontier_append.py -q
-  uv run ruff check src/gaia_research/engine/session*.py src/gaia_research/engine/frontier.py tests/session
-  uv run mypy src/gaia_research/engine/session.py src/gaia_research/engine/frontier.py
-  ```
-
-**Acceptance evidence:** Checklist A5 and A7 pass.
-
-### Task 5.2: Incremental Continuation Complexity Gate
-
-- [ ] Add an instrumented storage adapter that records every file open/read.
-- [ ] Seed a session with a large historical node/edge log.
-- [ ] Submit a small new frontier batch.
-- [ ] Assert normal continuation reads only:
-
-  ```text
-  state.json
-  cursor/index files
-  new frontier/input batch
-  delta index files
-  ```
-
-- [ ] Add a separate full-rebuild command/test that is allowed to scan history.
-- [ ] Run:
-
-  ```bash
-  uv run pytest tests/session/test_incremental_continuation.py -q
-  uv run pytest tests/session/test_full_rebuild.py -q
-  ```
-
-**Acceptance evidence:** Checklist A6 is proven by test, not by code review.
-
-### Task 5.3: Task Envelope, Candidate Repair, Pause/Resume
-
-- [ ] Implement versioned task envelopes and candidate validation from PR #726
-  lessons under `.gaia/research/**`.
-- [ ] Reject invalid candidates without advancing the session.
-- [ ] Produce repair context for the same task.
-- [ ] Implement pause/resume from saved cursor without requiring a report.
-- [ ] Run:
-
-  ```bash
-  uv run pytest tests/session/test_task_contract.py tests/session/test_pause_resume.py -q
-  ```
-
-**Acceptance evidence:** Agent framework integration can use deterministic
-tasks while semantic judgment remains outside Gaia Research.
-
-### Task 5.4: Promotion Boundary
-
-- [ ] Ensure session continuation writes graph-session records only by default.
-- [ ] Add explicit promotion/sync methods and tests for writing Gaia source.
-- [ ] Run:
-
-  ```bash
-  uv run pytest tests/session/test_promotion_boundary.py -q
-  ```
-
-**Acceptance evidence:** Checklist A8 passes for long graph sessions.
-
-## Phase 6: Product Readiness and Doctor
+## Phase 5: Product Readiness and Doctor
 
 **Files likely created or modified in `gaia-research`:**
 
@@ -539,13 +449,14 @@ tasks while semantic judgment remains outside Gaia Research.
 - `tests/doctor/`
 - `tests/profiles/`
 
-### Task 6.1: Doctor Command (#762)
+### Task 5.1: Doctor Command (#762)
 
 - [ ] Implement `gaia-research doctor <pkg>`.
 - [ ] Through plugin path, expose `gaia research doctor <pkg>`.
 - [ ] Check package shape, `.gaia/research` writability, LKM credential
-  readiness, provider/model config, profile resolution, run/session paths, and
-  schema compatibility.
+  readiness, provider/model config, profile resolution, review-run paths,
+  schema compatibility, and the absence of conflicting `.gaia/research_loop/**`
+  canonical state.
 - [ ] Redact secrets from all output.
 - [ ] Run:
 
@@ -556,15 +467,14 @@ tasks while semantic judgment remains outside Gaia Research.
 
 **Acceptance evidence:** #762 doctor/readiness checks pass.
 
-### Task 6.2: Profiles and Docs
+### Task 5.2: Profiles and Docs
 
-- [ ] Define `quick`, `review`, `deep`, and one graph-session profile.
+- [ ] Define `quick`, `review`, and `deep` review-run profiles.
 - [ ] Document short commands:
 
   ```bash
   gaia-research doctor "$PKG"
   gaia-research run-review "$PKG" --topic "..." --profile quick
-  gaia-research session open "$PKG" --topic "..." --profile graph
   ```
 
 - [ ] Add docs smoke tests for command examples where feasible.
@@ -577,7 +487,18 @@ tasks while semantic judgment remains outside Gaia Research.
 
 **Acceptance evidence:** Product and skill users do not need long flag recipes.
 
-## Phase 7: Contract CI, Release, and Core Removal
+### Task 5.3: Graph Session Follow-up Link
+
+- [ ] Link #767 from the `gaia-research` roadmap or docs.
+- [ ] State that `.gaia/research/sessions/**` is reserved for future
+  graph-session work and is not implemented by Goal A.
+- [ ] Confirm no Goal A docs or commands require users to run graph-session
+  flows.
+
+**Acceptance evidence:** Checklist A5 and A6 pass through explicit re-homing and
+non-conflict evidence, not through graph-session implementation.
+
+## Phase 6: Contract CI, Release, and Core Removal
 
 **Files likely modified across repos:**
 
@@ -589,7 +510,7 @@ tasks while semantic judgment remains outside Gaia Research.
 - `gaia-research/README.md`
 - `gaia-research/docs/release.md`
 
-### Task 7.1: Downstream Contract CI
+### Task 6.1: Downstream Contract CI
 
 - [ ] Add Gaia core workflow that installs candidate Gaia core and compatible
   `gaia-research`.
@@ -603,7 +524,7 @@ tasks while semantic judgment remains outside Gaia Research.
 
 **Acceptance evidence:** Checklist A3 and core removal gate pass.
 
-### Task 7.2: Remove Research Implementation From Gaia Core
+### Task 6.2: Remove Research Implementation From Gaia Core
 
 - [ ] Delete core-owned research implementation after `gaia-research` release
   candidate is available:
@@ -626,10 +547,10 @@ tasks while semantic judgment remains outside Gaia Research.
 
 **Acceptance evidence:** Checklist A2 passes.
 
-### Task 7.3: Final Completion Audit
+### Task 6.3: Final Completion Audit
 
 - [ ] Run the acceptance checklist section 6 audit against current state.
-- [ ] Inspect GitHub issue state for #745, #761, #762, and #764.
+- [ ] Inspect GitHub issue state for #745, #761, #762, #764, and #767.
 - [ ] Confirm every completion requirement A1-A10 has direct evidence.
 - [ ] Only then mark the long-running goal complete.
 
@@ -638,9 +559,10 @@ artifact paths for every requirement.
 
 ## Self-Review Notes
 
-- This plan covers both short review runs and long graph sessions.
+- This plan covers Goal A: repo split, Gaia connection, and review-run parity.
+- Large-scale graph sessions are re-homed to #767 and must not block Goal A.
 - It keeps `.gaia/research/**` as the only canonical research namespace.
 - It assigns #745, #761, #762, and #764 to phase gates.
-- It requires an instrumented storage test for the O(N) continuation claim.
-- It separates full rebuild from normal continuation.
+- It links the future O(N) continuation claim to #767 rather than making it a
+  split-completion requirement.
 - It leaves stable Gaia source writes behind explicit promotion/sync gates.
