@@ -44,6 +44,7 @@ from gaia.engine.research.focus import (
 from gaia.engine.research.landscape import ScanBatch, build_research_landscape
 from gaia.engine.research.orchestrator_ports import (
     ResearchOrchestratorError,
+    ResearchOrchestratorPaused,
     ResearchOrchestratorRuntime,
 )
 from gaia.engine.research.proposal import (
@@ -89,6 +90,7 @@ __all__ = [
     "ProposalSchemaError",
     "ResearchContractError",
     "ResearchOrchestratorError",
+    "ResearchOrchestratorPaused",
     "ResearchOrchestratorRuntime",
     "ResearchPackage",
     "ResearchReportError",

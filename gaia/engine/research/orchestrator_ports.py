@@ -19,6 +19,16 @@ class ResearchOrchestratorError(RuntimeError):
         self.exit_code = exit_code
 
 
+class ResearchOrchestratorPaused(RuntimeError):
+    """Raised when orchestration intentionally pauses for external input."""
+
+    def __init__(self, *, phase: str, checkpoint_path: Path) -> None:
+        """Initialize a typed pause signal with the pending checkpoint path."""
+        super().__init__(f"research workflow paused at {phase}")
+        self.phase = phase
+        self.checkpoint_path = checkpoint_path
+
+
 class ResearchOrchestratorRuntime(Protocol):
     """Runtime services required by the fixed research workflow."""
 
@@ -222,4 +232,8 @@ class ResearchOrchestratorRuntime(Protocol):
         """Materialize selected LKM paper graphs or reasoning chains."""
 
 
-__all__ = ["ResearchOrchestratorError", "ResearchOrchestratorRuntime"]
+__all__ = [
+    "ResearchOrchestratorError",
+    "ResearchOrchestratorPaused",
+    "ResearchOrchestratorRuntime",
+]

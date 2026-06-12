@@ -11,6 +11,7 @@ from typing import Any, cast
 from gaia.engine.research import (
     AssessmentSchemaError,
     ResearchOrchestratorError,
+    ResearchOrchestratorPaused,
     ResearchOrchestratorRuntime,
     ResearchPackage,
     ScanBatch,
@@ -187,7 +188,7 @@ def _write_run_checkpoint(
     prompt: str,
     json_stream: bool,
     runtime: ResearchOrchestratorRuntime,
-) -> None:
+) -> Path:
     checkpoint_path = run.run_dir / "checkpoints" / f"{phase}.request.json"
     checkpoint = {
         "schema_version": 1,
@@ -221,6 +222,7 @@ def _write_run_checkpoint(
         json_stream=json_stream,
         payload={"pending_checkpoint": str(checkpoint_path)},
     )
+    return checkpoint_path
 
 
 def execute_live_searches(
@@ -1233,7 +1235,7 @@ def _run_assessment_for_focus(
                 json_stream=json_stream,
             )
         else:
-            _write_run_checkpoint(
+            checkpoint_path = _write_run_checkpoint(
                 run,
                 phase="assess_analysis",
                 checkpoint_type="checkpoint.assess_analysis",
@@ -1241,7 +1243,10 @@ def _run_assessment_for_focus(
                 json_stream=json_stream,
                 runtime=runtime,
             )
-            raise ResearchOrchestratorError(exit_code=0)
+            raise ResearchOrchestratorPaused(
+                phase="assess_analysis",
+                checkpoint_path=checkpoint_path,
+            )
 
     runtime.update_run_state(run, {"phase": "assess_sync", "focus": selected_focus})
     runtime.emit_run_event(
@@ -1369,6 +1374,8 @@ def execute_file_provider_run(
     json_stream = bool(kwargs.get("json_stream", False))
     try:
         _execute_file_provider_run_impl(research_pkg, run, **kwargs)
+    except ResearchOrchestratorPaused:
+        raise
     except ResearchOrchestratorError as exc:
         if exc.exit_code != 0:
             _mark_run_failed(

@@ -32,6 +32,7 @@ from gaia.engine.research import (
     AssessmentSchemaError,
     ProposalSchemaError,
     ResearchOrchestratorError,
+    ResearchOrchestratorPaused,
     ResearchPackage,
     ResearchReportError,
     ResearchRunConfig,
@@ -193,6 +194,11 @@ def _exit_after_orchestrator_error(
     if exc.exit_code != 0 and str(exc):
         typer.echo(f"Error: {exc}", err=True)
     raise typer.Exit(exc.exit_code) from exc
+
+
+def _exit_after_orchestrator_pause(exc: ResearchOrchestratorPaused) -> NoReturn:
+    _ = exc
+    raise typer.Exit(0) from exc
 
 
 def _run_config_overrides_from_legacy_flags(
@@ -1049,6 +1055,8 @@ def run_command(
                 json_stream=json_stream,
                 runtime=runtime,
             )
+    except ResearchOrchestratorPaused as exc:
+        _exit_after_orchestrator_pause(exc)
     except ResearchOrchestratorError as exc:
         _exit_after_orchestrator_error(
             exc,
