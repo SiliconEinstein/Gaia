@@ -30,6 +30,7 @@ from gaia.cli._credentials import (
 )
 from gaia.cli.commands.search.lkm._client import (
     LKMClient,
+    LKMPermissionError,
     LKMTransportError,
 )
 
@@ -58,13 +59,12 @@ def _validate_key(key: str) -> tuple[bool, str]:
     try:
         with LKMClient(access_key=key) as client:
             payload = client.request("POST", "/search", json_body={"query": "ping", "limit": 1})
+    except LKMPermissionError:
+        return False, "access key rejected (HTTP 401/403)"
     except LKMTransportError as exc:
-        text = str(exc)
-        if "HTTP 401" in text or "HTTP 403" in text:
-            return False, "access key rejected (HTTP 401/403)"
         # Network / decode failure — surface as inconclusive, treat as invalid
         # for login purposes but with a transport-flavoured message.
-        return False, f"could not validate: {text}"
+        return False, f"could not validate: {exc}"
     code = payload.get("code")
     if code in _AUTH_VALID_CODES:
         return True, "ok"
