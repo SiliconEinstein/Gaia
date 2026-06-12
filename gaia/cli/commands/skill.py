@@ -24,17 +24,25 @@ from __future__ import annotations
 
 import os
 import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import StrEnum
+from importlib import metadata
 from importlib.resources import files
 from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import Any
+from types import ModuleType
+from typing import Any, Protocol, cast
 
 import typer
 
 # Importable name of the package under which the shipped skills live.
 _SKILLS_PACKAGE = "gaia._skills"
+
+# Entry point group used by installed distributions to expose additional
+# Gaia-compatible skill trees. Each entry point may load a package/module, a
+# package name string, a Traversable-like directory, or a callable returning one.
+_SKILL_PLUGIN_ENTRY_POINT_GROUP = "gaia.skills"
 
 # Per-cwd registry directory — our source of truth for "what gaia owns".
 _REGISTRY_DIRNAME = ".gaia-skills"
@@ -50,6 +58,12 @@ class TargetSurface(StrEnum):
     CLAUDE = "claude"
     AGENT = "agent"
     BOTH = "both"
+
+
+class _EntryPointLike(Protocol):
+    name: str
+
+    def load(self) -> object: ...
 
 
 _TARGET_OPTION: Any = typer.Option(
@@ -136,16 +150,43 @@ def _read_traversable_tree(node: Traversable, prefix: str = "") -> dict[str, byt
     return out
 
 
-def _load_shipped() -> dict[str, SkillEntry]:
-    """Walk the shipped ``gaia._skills`` tree via importlib.resources.
+def _iter_skill_entry_points() -> list[_EntryPointLike]:
+    """Return installed skill plugin entry points."""
+    entry_points = metadata.entry_points()
+    select = getattr(entry_points, "select", None)
+    if callable(select):
+        return list(cast(Iterable[_EntryPointLike], select(group=_SKILL_PLUGIN_ENTRY_POINT_GROUP)))
+    get = getattr(entry_points, "get", None)
+    if callable(get):
+        return list(cast(Iterable[_EntryPointLike], get(_SKILL_PLUGIN_ENTRY_POINT_GROUP, ())))
+    return []
 
-    Top-level entries whose name does not start with ``_`` are skills
-    (each becomes one ``SkillEntry`` keyed by directory name). The
-    ``_shared`` subtree is also returned as a single entry under the
-    key ``_shared``; it is replicated wholesale to the registry but is
-    never symlinked into any agent-surface skills directory.
-    """
-    root = files(_SKILLS_PACKAGE)
+
+def _looks_traversable(value: object) -> bool:
+    """Return whether ``value`` behaves like an importlib Traversable directory."""
+    return all(hasattr(value, name) for name in ("iterdir", "is_dir", "name"))
+
+
+def _resource_root_from_plugin(payload: object) -> Traversable | None:
+    """Resolve one loaded skill plugin payload to a resource root."""
+    current = payload() if callable(payload) else payload
+    if isinstance(current, str):
+        try:
+            return files(current)
+        except ModuleNotFoundError:
+            return None
+    if isinstance(current, ModuleType):
+        try:
+            return files(current.__name__)
+        except ModuleNotFoundError:
+            return None
+    if _looks_traversable(current):
+        return cast(Traversable, current)
+    return None
+
+
+def _skill_entries_from_root(root: Traversable) -> dict[str, SkillEntry]:
+    """Load top-level skill entries from one Traversable root."""
     entries: dict[str, SkillEntry] = {}
     for child in root.iterdir():
         if not child.is_dir():
@@ -156,6 +197,59 @@ def _load_shipped() -> dict[str, SkillEntry]:
         if name.startswith("_") and name != "_shared":
             continue
         entries[name] = SkillEntry(name=name, files=_read_traversable_tree(child))
+    return entries
+
+
+def _merge_skill_entries(
+    target: dict[str, SkillEntry],
+    incoming: dict[str, SkillEntry],
+) -> None:
+    """Merge plugin entries into ``target`` without letting plugins shadow core skills."""
+    for name, entry in incoming.items():
+        if name == "_shared" and name in target:
+            target[name] = SkillEntry(
+                name=name,
+                files={**target[name].files, **entry.files},
+            )
+            continue
+        target.setdefault(name, entry)
+
+
+def _load_plugin_skill_entries(
+    entry_points: list[_EntryPointLike] | None = None,
+) -> dict[str, SkillEntry]:
+    """Load skill entries exposed by installed distributions."""
+    entries: dict[str, SkillEntry] = {}
+    selected_entry_points = entry_points if entry_points is not None else _iter_skill_entry_points()
+    for entry_point in selected_entry_points:
+        try:
+            loaded = entry_point.load()
+            root = _resource_root_from_plugin(loaded)
+        except Exception:
+            continue
+        if root is None:
+            continue
+        try:
+            _merge_skill_entries(entries, _skill_entries_from_root(root))
+        except Exception:
+            continue
+    return entries
+
+
+def _load_shipped(
+    entry_points: list[_EntryPointLike] | None = None,
+) -> dict[str, SkillEntry]:
+    """Walk built-in and plugin skill trees via importlib.resources.
+
+    Top-level entries whose name does not start with ``_`` are skills
+    (each becomes one ``SkillEntry`` keyed by directory name). The
+    ``_shared`` subtree is also returned as a single entry under the
+    key ``_shared``; it is replicated wholesale to the registry but is
+    never symlinked into any agent-surface skills directory.
+    """
+    root = files(_SKILLS_PACKAGE)
+    entries = _skill_entries_from_root(root)
+    _merge_skill_entries(entries, _load_plugin_skill_entries(entry_points))
     return entries
 
 
