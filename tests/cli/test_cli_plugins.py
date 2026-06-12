@@ -149,6 +149,98 @@ def test_load_cli_plugins_rejects_top_level_name_conflicts() -> None:
     assert "plugin shadow" not in result.output
 
 
+def test_load_cli_plugins_allows_research_plugin_to_replace_legacy_group() -> None:
+    app = _root_app()
+
+    @app.command(name="research")
+    def legacy_research_command() -> None:
+        typer.echo("legacy research")
+
+    def register(root_app: typer.Typer) -> None:
+        @root_app.command(name="research")
+        def plugin_research_command() -> None:
+            typer.echo("external research plugin")
+
+    loaded = load_cli_plugins(app, entry_points=[FakeEntryPoint(register, name="research")])
+
+    assert loaded == ["research"]
+    result = runner.invoke(app, ["research"])
+    assert result.exit_code == 0, result.output
+    assert "external research plugin" in result.output
+    assert "legacy research" not in result.output
+
+
+def test_load_cli_plugins_restores_legacy_research_when_plugin_fails() -> None:
+    app = _root_app()
+
+    @app.command(name="research")
+    def legacy_research_command() -> None:
+        typer.echo("legacy research")
+
+    def broken_register(root_app: typer.Typer) -> None:
+        @root_app.command(name="temporary")
+        def temporary_command() -> None:
+            typer.echo("partial registration")
+
+        raise RuntimeError("registration failed")
+
+    loaded = load_cli_plugins(app, entry_points=[FakeEntryPoint(broken_register, name="research")])
+
+    assert loaded == []
+    result = runner.invoke(app, ["research"])
+    assert result.exit_code == 0, result.output
+    assert "legacy research" in result.output
+    help_result = runner.invoke(app, ["--help"])
+    assert "temporary" not in help_result.output
+
+
+def test_real_root_app_allows_research_plugin_to_replace_legacy_group() -> None:
+    snapshot = cli_main._registration_snapshot(cli_main.app)
+
+    def register(root_app: typer.Typer) -> None:
+        @root_app.command(name="research")
+        def plugin_research_command() -> None:
+            typer.echo("external research plugin")
+
+    try:
+        loaded = load_cli_plugins(
+            cli_main.app,
+            entry_points=[FakeEntryPoint(register, name="research")],
+        )
+
+        assert loaded == ["research"]
+        result = runner.invoke(cli_main.app, ["research"])
+        assert result.exit_code == 0, result.output
+        assert "external research plugin" in result.output
+    finally:
+        cli_main._rollback_registration(cli_main.app, snapshot)
+
+
+def test_real_root_app_keeps_research_group_when_plugin_handoff_fails() -> None:
+    snapshot = cli_main._registration_snapshot(cli_main.app)
+
+    def broken_register(root_app: typer.Typer) -> None:
+        @root_app.command(name="temporary")
+        def temporary_command() -> None:
+            typer.echo("partial registration")
+
+        raise RuntimeError("registration failed")
+
+    try:
+        loaded = load_cli_plugins(
+            cli_main.app,
+            entry_points=[FakeEntryPoint(broken_register, name="research")],
+        )
+
+        assert loaded == []
+        result = runner.invoke(cli_main.app, ["research", "--help"])
+        assert result.exit_code == 0, result.output
+        assert "temporary" not in result.output
+        assert "research" in result.output.lower()
+    finally:
+        cli_main._rollback_registration(cli_main.app, snapshot)
+
+
 def test_missing_research_hint_points_to_external_package() -> None:
     app = _root_app()
     add_missing_research_hint(app)
