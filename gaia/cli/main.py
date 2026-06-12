@@ -116,6 +116,47 @@ def _registered_top_level_names(root_app: typer.Typer) -> set[str]:
     return names
 
 
+def _registration_snapshot(root_app: typer.Typer) -> tuple[int, int]:
+    return (len(root_app.registered_commands), len(root_app.registered_groups))
+
+
+def _rollback_registration(
+    root_app: typer.Typer,
+    snapshot: tuple[int, int],
+) -> None:
+    command_count, group_count = snapshot
+    del root_app.registered_commands[command_count:]
+    del root_app.registered_groups[group_count:]
+
+
+def _new_registration_names(
+    root_app: typer.Typer,
+    snapshot: tuple[int, int],
+) -> list[str]:
+    command_count, group_count = snapshot
+    names: list[str] = []
+    for command_info in root_app.registered_commands[command_count:]:
+        if command_info.name is not None:
+            names.append(command_info.name)
+    for group_info in root_app.registered_groups[group_count:]:
+        if group_info.name is not None:
+            names.append(group_info.name)
+    return names
+
+
+def _has_plugin_name_conflict(
+    *,
+    existing_names: set[str],
+    new_names: list[str],
+) -> bool:
+    seen: set[str] = set()
+    for name in new_names:
+        if name in existing_names or name in seen:
+            return True
+        seen.add(name)
+    return False
+
+
 def _iter_cli_plugin_entry_points() -> list[_EntryPointLike]:
     entry_points = metadata.entry_points()
     if hasattr(entry_points, "select"):
@@ -134,15 +175,36 @@ def load_cli_plugins(
         entry_points if entry_points is not None else _iter_cli_plugin_entry_points()
     )
     for entry_point in selected_entry_points:
-        plugin = entry_point.load()
+        snapshot = _registration_snapshot(root_app)
+        existing_names = _registered_top_level_names(root_app)
+        try:
+            plugin = entry_point.load()
+        except Exception:
+            _rollback_registration(root_app, snapshot)
+            continue
         if not callable(plugin):
-            raise TypeError(
-                f"Gaia CLI plugin {entry_point.name!r} must load to a callable "
-                "that accepts the Typer app."
-            )
-        plugin(root_app)
+            _rollback_registration(root_app, snapshot)
+            continue
+        try:
+            plugin(root_app)
+        except Exception:
+            _rollback_registration(root_app, snapshot)
+            continue
+        new_names = _new_registration_names(root_app, snapshot)
+        if _has_plugin_name_conflict(
+            existing_names=existing_names,
+            new_names=new_names,
+        ):
+            _rollback_registration(root_app, snapshot)
+            continue
         loaded.append(entry_point.name)
     return loaded
+
+
+_MISSING_RESEARCH_HINT = (
+    "The research workflow now ships separately. Install the gaia-research "
+    "package to enable `gaia research`, for example: pip install gaia-research"
+)
 
 
 def add_missing_research_hint(root_app: typer.Typer) -> None:
@@ -150,13 +212,9 @@ def add_missing_research_hint(root_app: typer.Typer) -> None:
     if "research" in _registered_top_level_names(root_app):
         return
 
-    @root_app.command(name="research", hidden=True)
+    @root_app.command(name="research", hidden=True, help=_MISSING_RESEARCH_HINT)
     def _missing_research_plugin() -> None:
-        typer.echo(
-            "The research workflow now ships separately. Install the gaia-research "
-            "package to enable `gaia research`, for example: pip install gaia-research",
-            err=True,
-        )
+        typer.echo(_MISSING_RESEARCH_HINT, err=True)
         raise typer.Exit(4)
 
 
