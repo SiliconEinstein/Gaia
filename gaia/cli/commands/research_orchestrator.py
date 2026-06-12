@@ -120,6 +120,7 @@ class CliResearchOrchestratorRuntime(ResearchOrchestratorRuntime):
         inputs: list[str],
         outputs: list[str],
         metrics: dict[str, object] | None = None,
+        status: str = "ok",
     ) -> None:
         """Record a generic trace step."""
         _record_run_trace(
@@ -132,6 +133,7 @@ class CliResearchOrchestratorRuntime(ResearchOrchestratorRuntime):
             inputs=inputs,
             outputs=outputs,
             metrics=metrics,
+            status=status,
         )
 
     def record_cli_trace(

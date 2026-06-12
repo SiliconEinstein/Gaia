@@ -259,6 +259,25 @@ def execute_live_searches(
         except ResearchOrchestratorError:
             raise
         except Exception as exc:
+            runtime.record_trace(
+                research_pkg,
+                run,
+                start=start,
+                name=f"search.lkm.{prefix}",
+                kind="search",
+                mode="lkm",
+                inputs=[query_text],
+                outputs=[],
+                metrics={
+                    "query": query_text,
+                    "index": search_index,
+                    "limit": search_limit,
+                    "reasoning_only": reasoning_only,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                },
+                status="failed",
+            )
             runtime.update_run_state(
                 run,
                 {

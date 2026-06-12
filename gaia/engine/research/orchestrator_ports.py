@@ -77,6 +77,7 @@ class ResearchOrchestratorRuntime(Protocol):
         inputs: list[str],
         outputs: list[str],
         metrics: dict[str, object] | None = None,
+        status: str = "ok",
     ) -> None:
         """Record a generic trace step."""
 

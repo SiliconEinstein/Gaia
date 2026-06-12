@@ -982,6 +982,84 @@ def test_research_run_marks_state_failed_when_orchestrator_fails(tmp_path: Path)
     assert events[-1]["error"] == state["error"]
 
 
+def test_research_run_records_failed_live_search_trace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+
+    def fail_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        _ = (query, index, limit, reasoning_only)
+        raise RuntimeError("search backend unavailable")
+
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fail_lkm_search)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "failed search evidence",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "failed-search-run",
+            "--query",
+            "failed search evidence",
+        ],
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "live LKM search failed" in result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "failed-search-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "failed"
+    assert state["phase"] == "live_search"
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.ndjson").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert events[-1]["type"] == "run.failed"
+    trace = [
+        json.loads(line)
+        for line in (run_dir / "trace" / "trace.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    failed = trace[-1]
+    assert failed["step"] == "search.lkm.broad"
+    assert failed["kind"] == "search"
+    assert failed["status"] == "failed"
+    assert failed["inputs"] == ["failed search evidence"]
+    assert failed["outputs"] == []
+    assert failed["metrics"]["error_type"] == "RuntimeError"
+
+    summary = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "summarize",
+            str(pkg_dir),
+            "--trace-dir",
+            str(run_dir / "trace"),
+        ],
+    )
+    assert summary.exit_code == 0, summary.output
+    benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["steps"][-1]["name"] == "search.lkm.broad"
+    assert benchmark["steps"][-1]["status"] == "failed"
+
+
 def test_research_run_executes_litellm_provider(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
