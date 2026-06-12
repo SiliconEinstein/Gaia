@@ -195,7 +195,16 @@ def credential_status() -> LKMCredentialStatus:
         )
     doc = _load_document(path)
     lkm = doc.get("lkm")
-    if not isinstance(lkm, dict) or not lkm.get("access_key"):
+    if not isinstance(lkm, dict):
+        return LKMCredentialStatus(
+            source="none",
+            present=False,
+            masked_tail=mask_key(None),
+            path=str(path),
+            last_validated_at=None,
+        )
+    file_key = lkm.get("access_key")
+    if not isinstance(file_key, str) or not file_key:
         return LKMCredentialStatus(
             source="none",
             present=False,
@@ -206,7 +215,7 @@ def credential_status() -> LKMCredentialStatus:
     return LKMCredentialStatus(
         source="file",
         present=True,
-        masked_tail=mask_key(str(lkm.get("access_key"))),
+        masked_tail=mask_key(file_key),
         path=str(path),
         last_validated_at=str(lkm.get("last_validated_at"))
         if lkm.get("last_validated_at") is not None

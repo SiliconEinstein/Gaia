@@ -43,6 +43,28 @@ def test_public_status_reports_file_backed_readiness(tmp_path: Path) -> None:
     assert read_lkm_key() == "file-key-1234"
 
 
+def test_public_status_ignores_malformed_file_backed_key(tmp_path: Path) -> None:
+    credentials = tmp_path / "gaia" / "credentials.toml"
+    credentials.parent.mkdir(parents=True)
+    credentials.write_text(
+        '[lkm]\naccess_key = 12345\nlast_validated_at = "2026-06-12T00:00:00Z"\n',
+        encoding="utf-8",
+    )
+    credentials.chmod(0o600)
+
+    status = credential_status()
+
+    assert status == LKMCredentialStatus(
+        source="none",
+        present=False,
+        masked_tail="(none)",
+        path=str(credentials),
+        env_var=None,
+        last_validated_at=None,
+    )
+    assert read_lkm_key() is None
+
+
 def test_public_status_reports_env_backed_readiness(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GAIA_LKM_ACCESS_KEY", "env-key-5678")
 
