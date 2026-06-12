@@ -26,6 +26,8 @@ from gaia.cli._onboarding import try_interactive_onboarding
 from gaia.cli.commands.search.lkm._client import (
     LKMClient,
     LKMError,
+    LKMNotFoundError,
+    LKMPermissionError,
     LKMTransportError,
     NoAccessKeyError,
 )
@@ -117,6 +119,12 @@ def run_request(
         except CredentialPermissionError as retry_exc:
             typer.echo(f"Error: {retry_exc}", err=True)
             raise typer.Exit(2) from retry_exc
+    except LKMPermissionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    except LKMNotFoundError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
     except LKMTransportError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(2) from exc

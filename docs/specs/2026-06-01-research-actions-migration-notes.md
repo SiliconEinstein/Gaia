@@ -76,7 +76,7 @@ contract。
 
 | 状态 | 位置 | 含义 |
 | --- | --- | --- |
-| Research artifact | `.gaia/research/explore/` 或 `.gaia/research/assess/` | search lead、snippet、candidate relation、candidate focus；还不能进入 BP |
+| Research artifact | `.gaia/research/explore/` 或 `.gaia/research/assess/` | search lead、item reference、candidate relation、candidate focus；还不能进入 BP |
 | Formal Gaia source | `src/<pkg>/...` | 已接受并 formalized 的 Gaia DSL source |
 
 从 artifact promotion 到 formal source 时，必须检查 raw payload、evidence status、scope
@@ -90,7 +90,7 @@ PR #726 验证了有用的 agent-protocol 经验：
 - self-contained task instructions；
 - schema validation；
 - allowed refs 和 grounding checks；
-- assessment context 里必须有 retrieved snippets；
+- assessment context 里必须有从 landscape/search result 汇总出的 items；
 - event traces。
 
 这些经验应该被吸收到 package-native actions 或 Gaia primitives 背后。
@@ -113,12 +113,13 @@ reference material。不要再把新需求加到 historical specs 里。
 
 ```text
 .gaia/exploration/   # legacy experimental engine state
-.gaia/research/      # canonical package-native research artifacts
+.gaia/research/      # package-native research trace / audit artifacts
 ```
 
 共存期规则：
 
-- `.gaia/research/` 是 `gaia research` 的 canonical artifact location。
+- `.gaia/research/` 是 `gaia research` 的 trace / audit artifact location；语义
+  source of truth 应落在 package source 和 `.gaia/inquiry/`。
 - `.gaia/exploration/` 可以作为 import / migration source 读取，但不能作为新的
   canonical source of truth。
 - `gaia research` 不应双写两棵树；需要兼容旧结果时，显式执行 import/migrate step，

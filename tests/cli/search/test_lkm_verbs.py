@@ -21,6 +21,8 @@ from typer.testing import CliRunner
 from gaia.cli._credentials import CredentialPermissionError
 from gaia.cli.commands.search.lkm import _shared
 from gaia.cli.commands.search.lkm._client import (
+    LKMNotFoundError,
+    LKMPermissionError,
     LKMTransportError,
     NoAccessKeyError,
 )
@@ -363,6 +365,18 @@ class TestKnowledge:
         _install_client(monkeypatch, raises=LKMTransportError("boom"))
         result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
         assert result.exit_code == 2, result.output
+
+    def test_permission_error_exits_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch, raises=LKMPermissionError("denied"))
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
+        assert result.exit_code == 2, result.output
+        assert "denied" in result.output
+
+    def test_not_found_error_exits_1(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch, raises=LKMNotFoundError("missing"))
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
+        assert result.exit_code == 1, result.output
+        assert "missing" in result.output
 
     def test_no_key_exits_3(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, raises=NoAccessKeyError("no key"))
