@@ -190,20 +190,20 @@ def _exit_after_orchestrator_error(
 
 def _run_config_overrides_from_legacy_flags(
     *,
-    search_index: str,
-    search_limit: int,
-    reasoning_only: bool,
-    analysis_provider: str,
+    search_index: str | None,
+    search_limit: int | None,
+    reasoning_only: bool | None,
+    analysis_provider: str | None,
     model: str | None,
     focus_model: str | None,
     assess_model: str | None,
-    llm_temperature: float,
-    llm_timeout: float,
-    llm_max_retries: int,
+    llm_temperature: float | None,
+    llm_timeout: float | None,
+    llm_max_retries: int | None,
     llm_max_tokens: int | None,
-    report_section_concurrency: int,
-    focus_count: int,
-    evidence_selection_mode: str,
+    report_section_concurrency: int | None,
+    focus_count: int | None,
+    evidence_selection_mode: str | None,
     evidence_max_items: int | None,
     evidence_max_papers: int | None,
     evidence_max_chains: int | None,
@@ -215,7 +215,7 @@ def _run_config_overrides_from_legacy_flags(
                 search_limit=search_limit,
                 reasoning_only=reasoning_only,
             ),
-            "focus": {"count": focus_count} if focus_count != 1 else {},
+            "focus": {"count": focus_count} if focus_count is not None else {},
             "evidence": _legacy_evidence_overrides(
                 evidence_selection_mode=evidence_selection_mode,
                 evidence_max_items=evidence_max_items,
@@ -223,7 +223,7 @@ def _run_config_overrides_from_legacy_flags(
                 evidence_max_chains=evidence_max_chains,
             ),
             "report": {"section_concurrency": report_section_concurrency}
-            if report_section_concurrency != 4
+            if report_section_concurrency is not None
             else {},
             "llm": _legacy_llm_overrides(
                 analysis_provider=analysis_provider,
@@ -245,29 +245,29 @@ def _compact_mapping(values: dict[str, dict[str, Any]]) -> dict[str, Any]:
 
 def _legacy_search_overrides(
     *,
-    search_index: str,
-    search_limit: int,
-    reasoning_only: bool,
+    search_index: str | None,
+    search_limit: int | None,
+    reasoning_only: bool | None,
 ) -> dict[str, Any]:
     overrides: dict[str, Any] = {}
-    if search_index != DEFAULT_LKM_INDEX_ID:
+    if search_index is not None:
         overrides["index"] = search_index
-    if search_limit != 20:
+    if search_limit is not None:
         overrides["limit"] = search_limit
-    if reasoning_only is not True:
+    if reasoning_only is not None:
         overrides["reasoning_only"] = reasoning_only
     return overrides
 
 
 def _legacy_evidence_overrides(
     *,
-    evidence_selection_mode: str,
+    evidence_selection_mode: str | None,
     evidence_max_items: int | None,
     evidence_max_papers: int | None,
     evidence_max_chains: int | None,
 ) -> dict[str, Any]:
     overrides: dict[str, Any] = {}
-    if evidence_selection_mode != "fast":
+    if evidence_selection_mode is not None:
         overrides["selection_mode"] = evidence_selection_mode
     if evidence_max_items is not None:
         overrides["max_items"] = evidence_max_items
@@ -280,17 +280,17 @@ def _legacy_evidence_overrides(
 
 def _legacy_llm_overrides(
     *,
-    analysis_provider: str,
+    analysis_provider: str | None,
     model: str | None,
     focus_model: str | None,
     assess_model: str | None,
-    llm_temperature: float,
-    llm_timeout: float,
-    llm_max_retries: int,
+    llm_temperature: float | None,
+    llm_timeout: float | None,
+    llm_max_retries: int | None,
     llm_max_tokens: int | None,
 ) -> dict[str, Any]:
     overrides: dict[str, Any] = {}
-    if analysis_provider != "checkpoint":
+    if analysis_provider is not None:
         overrides["provider"] = analysis_provider
     if model is not None:
         overrides["model"] = model
@@ -298,11 +298,11 @@ def _legacy_llm_overrides(
         overrides["focus_model"] = focus_model
     if assess_model is not None:
         overrides["assess_model"] = assess_model
-    if llm_temperature != 0.0:
+    if llm_temperature is not None:
         overrides["temperature"] = llm_temperature
-    if llm_timeout != 120.0:
+    if llm_timeout is not None:
         overrides["timeout"] = llm_timeout
-    if llm_max_retries != 2:
+    if llm_max_retries is not None:
         overrides["max_retries"] = llm_max_retries
     if llm_max_tokens is not None:
         overrides["max_tokens"] = llm_max_tokens
@@ -753,27 +753,27 @@ def run_command(
         typer.Option("--search-json", help="Broad normalized `gaia search lkm` JSON file."),
     ] = None,
     search_index: Annotated[
-        str,
+        str | None,
         typer.Option("--search-index", "--lkm-index", help="Configured LKM index id."),
-    ] = DEFAULT_LKM_INDEX_ID,
+    ] = None,
     search_limit: Annotated[
-        int,
+        int | None,
         typer.Option("--search-limit", help="Per-query live LKM result limit."),
-    ] = 20,
+    ] = None,
     reasoning_only: Annotated[
-        bool,
+        bool | None,
         typer.Option(
             "--reasoning-only/--all-lkm-results",
             help="Restrict live LKM search to reasoning-backed claims.",
         ),
-    ] = True,
+    ] = None,
     analysis_provider: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--analysis-provider",
             help="Analysis input source: checkpoint, command, or litellm.",
         ),
-    ] = "checkpoint",
+    ] = None,
     model: Annotated[
         str | None,
         typer.Option("--model", help="LiteLLM model for all analysis phases."),
@@ -787,28 +787,28 @@ def run_command(
         typer.Option("--assess-model", help="LiteLLM model override for assessment analysis."),
     ] = None,
     llm_temperature: Annotated[
-        float,
+        float | None,
         typer.Option("--llm-temperature", help="LiteLLM temperature."),
-    ] = 0.0,
+    ] = None,
     llm_timeout: Annotated[
-        float,
+        float | None,
         typer.Option("--llm-timeout", help="LiteLLM timeout in seconds."),
-    ] = 120.0,
+    ] = None,
     llm_max_retries: Annotated[
-        int,
+        int | None,
         typer.Option("--llm-max-retries", help="LiteLLM max retries."),
-    ] = 2,
+    ] = None,
     llm_max_tokens: Annotated[
         int | None,
         typer.Option("--llm-max-tokens", help="Optional LiteLLM max output tokens."),
     ] = None,
     report_section_concurrency: Annotated[
-        int,
+        int | None,
         typer.Option(
             "--report-section-concurrency",
             help="Maximum concurrent LiteLLM calls for independent report sections.",
         ),
-    ] = 4,
+    ] = None,
     focus_analysis_command: Annotated[
         str | None,
         typer.Option(
@@ -842,19 +842,19 @@ def run_command(
         typer.Option("--focus", help="Focus id/QID to assess after focus synthesis."),
     ] = None,
     focus_count: Annotated[
-        int,
+        int | None,
         typer.Option(
             "--focus-count",
             help="Number of synthesized focuses to assess when --focus is omitted.",
         ),
-    ] = 1,
+    ] = None,
     evidence_selection_mode: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--evidence-selection-mode",
             help="Evidence selection policy: fast or review.",
         ),
-    ] = "fast",
+    ] = None,
     evidence_max_items: Annotated[
         int | None,
         typer.Option(

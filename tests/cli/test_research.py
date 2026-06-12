@@ -19,6 +19,7 @@ from typer.testing import CliRunner
 
 import gaia.cli.commands.research_orchestrator as research_orchestrator
 import gaia.cli.commands.research_providers as research_providers
+from gaia.cli.commands.search.lkm._indexes import DEFAULT_LKM_INDEX_ID
 from gaia.cli.main import app
 from gaia.engine.research import load_research_package
 from gaia.engine.research.benchmark import (
@@ -2418,6 +2419,88 @@ def test_research_run_waits_for_focus_analysis_when_missing(tmp_path: Path) -> N
     checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
     assert checkpoint["type"] == "checkpoint.focus_analysis"
     assert _landscape_artifacts(pkg_dir)
+
+
+def test_research_run_explicit_default_flags_override_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    config_path = tmp_path / "research.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "search": {"index": "custom-index", "limit": 7, "reasoning_only": False},
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls: list[dict[str, object]] = []
+
+    def fake_lkm_search(
+        query: str,
+        *,
+        index: str,
+        limit: int,
+        reasoning_only: bool,
+    ) -> dict[str, object]:
+        calls.append(
+            {
+                "query": query,
+                "index": index,
+                "limit": limit,
+                "reasoning_only": reasoning_only,
+            }
+        )
+        return _search(
+            query,
+            [
+                _lkm_row(
+                    "P_DEFAULT_OVERRIDE",
+                    "default_override",
+                    0.9,
+                    paper_title="Default Override Paper",
+                    content="Default-valued CLI flags should override config values.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(research_orchestrator, "_run_lkm_knowledge_search", fake_lkm_search)
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "default override evidence",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "explicit-default-override-run",
+            "--config",
+            str(config_path),
+            "--query",
+            "default override evidence",
+            "--search-index",
+            DEFAULT_LKM_INDEX_ID,
+            "--search-limit",
+            "20",
+            "--reasoning-only",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [
+        {
+            "query": "default override evidence",
+            "index": DEFAULT_LKM_INDEX_ID,
+            "limit": 20,
+            "reasoning_only": True,
+        }
+    ]
 
 
 def test_research_status_creates_manifest_and_suggests_inquiry_commands(tmp_path: Path) -> None:
