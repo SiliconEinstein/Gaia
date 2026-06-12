@@ -25,7 +25,10 @@ from gaia.cli.commands.search.lkm._indexes import (
     normalize_lkm_index_id,
 )
 from gaia.cli.commands.search.lkm._shared import run_request
-from gaia.engine.packaging import GaiaPackagingError
+from gaia.engine.packaging import (
+    GaiaPackagingError,
+    resolve_gaia_package_root,
+)
 
 
 def _run_uv(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -680,24 +683,6 @@ def _echo_lkm_uv_add_failure(
     )
 
 
-def _is_gaia_package_dir(directory: Path) -> bool:
-    """Return True if *directory* holds a Gaia knowledge-package pyproject.toml."""
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
-
-    pyproject = directory / "pyproject.toml"
-    if not pyproject.exists():
-        return False
-    try:
-        config = tomllib.loads(pyproject.read_text())
-    except Exception:
-        return False
-    gaia_type = config.get("tool", {}).get("gaia", {}).get("type")
-    return bool(gaia_type == "knowledge-package")
-
-
 def _resolve_package_root(target: str) -> Path | None:
     """Resolve the Gaia package root for ``gaia pkg add`` honoring ``--target``.
 
@@ -707,15 +692,7 @@ def _resolve_package_root(target: str) -> Path | None:
     historical "run from inside the package" behavior by walking up from the
     target directory to the nearest Gaia package root.
     """
-    base = Path(target).resolve()
-    if not base.exists():
-        return None
-    if base.is_file():
-        base = base.parent
-    for directory in [base, *base.parents]:
-        if _is_gaia_package_dir(directory):
-            return directory
-    return None
+    return resolve_gaia_package_root(target)
 
 
 def _fetch_dep_beliefs(
