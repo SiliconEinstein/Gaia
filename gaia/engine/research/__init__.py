@@ -71,6 +71,7 @@ from gaia.engine.research.source_packages import (
 from gaia.engine.research.stop import STOP_SCHEMA_VERSION, evaluate_research_stop
 from gaia.engine.research.sync import (
     ResearchSyncResult,
+    ResearchSyncSourceError,
     sync_assessment_artifact,
     sync_focus_artifact,
     sync_landscape_artifact,
@@ -94,6 +95,7 @@ __all__ = [
     "ResearchRunConfig",
     "ResearchSourcePackage",
     "ResearchSyncResult",
+    "ResearchSyncSourceError",
     "ResearchTargetError",
     "ScanBatch",
     "append_research_event",

@@ -3831,6 +3831,86 @@ def test_research_assess_skips_candidate_relation_for_non_claim_package_ref(
     assert check.exit_code == 0, check.output
 
 
+def test_research_assess_reports_unparseable_sync_source_without_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_uv_add(monkeypatch)
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "foreign qid relation",
+                [
+                    _lkm_row(
+                        "P_FOREIGN",
+                        "lkm:bohrium:foreign_seed",
+                        0.91,
+                        paper_title="Foreign Relation Paper",
+                        content="A claim is used to carry assessment context.",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    scan = runner.invoke(
+        app,
+        ["research", "explore", str(pkg_dir), "--mode", "scan", "--search-json", str(search_path)],
+    )
+    assert scan.exit_code == 0, scan.output
+    landscape_path = _landscape_artifacts(pkg_dir)[0]
+    analysis_path = tmp_path / "assess-analysis.json"
+    analysis_path.write_text(
+        json.dumps(
+            {
+                "relations": [
+                    {
+                        "id": "bad_foreign_ref",
+                        "type": "opposes",
+                        "claim": "An invalid foreign ref must not leave broken authored source.",
+                        "rationale": "The sync layer should compile-check authored writes.",
+                        "epistemic_status": "candidate",
+                        "promotion_hint": "contradict",
+                        "source_refs": [{"kind": "variable", "id": "foreign_seed"}],
+                        "claim_refs": ["lkm:bad-module::seed", "seed_alt"],
+                    }
+                ],
+                "candidate_obligations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "assess",
+            str(pkg_dir),
+            "--focus",
+            "seed",
+            "--landscape",
+            str(landscape_path),
+            "--analysis-json",
+            str(analysis_path),
+            "--no-strict-grounding",
+        ],
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "authored source is not parseable" in result.output
+    assert "Traceback" not in result.output
+    authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
+    authored_source = authored.read_text(encoding="utf-8")
+    assert "bad-module" not in authored_source
+    assert "candidate_relation(" not in authored_source
+    check = runner.invoke(app, ["build", "check", str(pkg_dir)])
+    assert check.exit_code == 0, check.output
+
+
 def test_research_assess_reports_schema_errors_without_traceback(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

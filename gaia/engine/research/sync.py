@@ -10,6 +10,7 @@ state in the existing package-native surfaces:
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -41,6 +42,10 @@ _READINESS_ORDER = {
     "needs_human_review": 2,
     "defer": 3,
 }
+
+
+class ResearchSyncSourceError(RuntimeError):
+    """Raised when research sync would leave authored source invalid."""
 
 
 @dataclass
@@ -136,6 +141,17 @@ def _binding_exists(path: Path, binding: str) -> bool:
     return re.search(rf"^\s*{re.escape(binding)}\s*=", source, flags=re.MULTILINE) is not None
 
 
+def _assert_parseable_authored_source(path: Path) -> None:
+    source = path.read_text(encoding="utf-8")
+    try:
+        ast.parse(source, filename=str(path))
+    except SyntaxError as exc:
+        line = f" line {exc.lineno}" if exc.lineno is not None else ""
+        raise ResearchSyncSourceError(
+            f"authored source is not parseable after research sync: {path}:{line}: {exc.msg}"
+        ) from exc
+
+
 def _research_metadata(kind: str, payload: JsonDict) -> JsonDict:
     return {"gaia_research": {"kind": kind, **payload}}
 
@@ -160,6 +176,7 @@ def _append_statement_once(
     if not source_writes:
         skip_list.append(binding)
         return
+    before_source = target.read_text(encoding="utf-8")
     append_statement(
         target,
         generated_code,
@@ -170,6 +187,11 @@ def _append_statement_once(
         import_package_name=pkg.import_name,
         export=export,
     )
+    try:
+        _assert_parseable_authored_source(target)
+    except ResearchSyncSourceError:
+        target.write_text(before_source, encoding="utf-8")
+        raise
     result_list.append(binding)
 
 
@@ -1040,6 +1062,7 @@ def sync_materialization(
 
 __all__ = [
     "ResearchSyncResult",
+    "ResearchSyncSourceError",
     "sync_assessment_artifact",
     "sync_focus_artifact",
     "sync_landscape_artifact",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ from gaia.engine.research.artifacts import (
     ensure_research_manifest,
     write_research_artifact,
 )
-from gaia.engine.research.sync import sync_assessment_artifact
+from gaia.engine.research.sync import ResearchSyncSourceError, sync_assessment_artifact
 
 
 def _pkg(path: Path) -> ResearchPackage:
@@ -92,3 +93,29 @@ def test_actionable_assessment_obligation_writes_open_inquiry_item(tmp_path: Pat
     obligations = load_state(tmp_path).synthetic_obligations
     assert len(obligations) == 1
     assert obligations[0].target_qid == "focus_1"
+
+
+def test_assessment_sync_rejects_unparseable_authored_source(tmp_path: Path) -> None:
+    assessment = {
+        "kind": "assessment",
+        "focus": {"kind": "focus", "id": "focus_1"},
+        "evidence_packet": {"items": []},
+        "relations": [
+            {
+                "id": "bad_foreign_ref",
+                "type": "opposes",
+                "claim": "An invalid foreign ref must not leave broken authored source.",
+                "claim_refs": ["lkm:bad-module::seed", "seed_alt"],
+            }
+        ],
+        "candidate_obligations": [],
+    }
+
+    with pytest.raises(ResearchSyncSourceError, match="authored source is not parseable"):
+        sync_assessment_artifact(_pkg(tmp_path), assessment)
+    authored_source = (tmp_path / "research_demo" / "authored" / "__init__.py").read_text(
+        encoding="utf-8"
+    )
+    ast.parse(authored_source)
+    assert "bad-module" not in authored_source
+    assert "candidate_relation(" not in authored_source

@@ -35,6 +35,7 @@ from gaia.engine.research import (
     ResearchPackage,
     ResearchReportError,
     ResearchRunConfig,
+    ResearchSyncSourceError,
     ResearchTargetError,
     ScanBatch,
     append_research_event,
@@ -1615,11 +1616,15 @@ def assess_command(
             "assessment",
             assessment,
         )
-        sync = sync_assessment_artifact(
-            research_pkg,
-            assessment,
-            dry_run=dry_run,
-        )
+        try:
+            sync = sync_assessment_artifact(
+                research_pkg,
+                assessment,
+                dry_run=dry_run,
+            )
+        except ResearchSyncSourceError as exc:
+            typer.echo(f"Error: {exc}", err=True)
+            raise typer.Exit(2) from exc
         sync_payload = {**sync.to_payload(), **lkm_materialize_payload}
         items = assessment["evidence_packet"]["items"]
         relation_counts = _relation_type_counts(assessment["relations"])
