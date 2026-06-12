@@ -21,6 +21,7 @@ from typing import Any
 
 import typer
 
+from gaia.cli._onboarding import try_interactive_onboarding
 from gaia.cli.commands.search.lkm._client import (
     LKMClient,
     LKMError,
@@ -93,8 +94,31 @@ def run_request(
         with LKMClient(base_url=base_url) as client:
             payload = client.request(method, path, json_body=json_body, params=params)
     except NoAccessKeyError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(3) from exc
+        # Interactive terminal: run the onboarding wizard and retry once.
+        # Non-interactive (CI/pipe): print the plain error and exit.
+        onboarded = try_interactive_onboarding(
+            heading="\nNo LKM access key configured. Let's set one up first.\n"
+        )
+        if not onboarded:
+            typer.echo(
+                "Error: No LKM access key configured. "
+                "Run `gaia search lkm auth login` or set GAIA_LKM_ACCESS_KEY.",
+                err=True,
+            )
+            raise typer.Exit(3) from exc
+        # Retry with the newly stored key.
+        try:
+            with LKMClient(base_url=base_url) as client:
+                payload = client.request(method, path, json_body=json_body, params=params)
+        except NoAccessKeyError as retry_exc:
+            typer.echo(f"Error: {retry_exc}", err=True)
+            raise typer.Exit(3) from retry_exc
+        except LKMTransportError as retry_exc:
+            typer.echo(f"Error: {retry_exc}", err=True)
+            raise typer.Exit(2) from retry_exc
+        except CredentialPermissionError as retry_exc:
+            typer.echo(f"Error: {retry_exc}", err=True)
+            raise typer.Exit(2) from retry_exc
     except LKMPermissionError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(2) from exc
