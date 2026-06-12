@@ -390,8 +390,9 @@ def test_orchestrator_live_search_uses_runtime_ports(tmp_path: Path) -> None:
             inputs: list[str],
             outputs: list[str],
             metrics: dict[str, object] | None = None,
+            status: str = "ok",
         ) -> None:
-            _ = research_pkg, run, start, kind, mode, inputs, outputs, metrics
+            _ = research_pkg, run, start, kind, mode, inputs, outputs, metrics, status
             calls.append(("trace", name))
 
         def search_lkm(
