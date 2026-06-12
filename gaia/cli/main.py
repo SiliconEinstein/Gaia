@@ -150,9 +150,7 @@ def _new_registration_names(
 
 def _remove_registered_top_level_name(root_app: typer.Typer, name: str) -> None:
     root_app.registered_commands[:] = [
-        command_info
-        for command_info in root_app.registered_commands
-        if command_info.name != name
+        command_info for command_info in root_app.registered_commands if command_info.name != name
     ]
     root_app.registered_groups[:] = [
         group_info for group_info in root_app.registered_groups if group_info.name != name
