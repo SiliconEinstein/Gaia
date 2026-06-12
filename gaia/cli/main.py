@@ -28,7 +28,7 @@ See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
 import sys
 from collections.abc import Iterable
 from importlib import metadata
-from typing import Protocol
+from typing import Any, Protocol
 
 import typer
 
@@ -116,24 +116,28 @@ def _registered_top_level_names(root_app: typer.Typer) -> set[str]:
     return names
 
 
-def _registration_snapshot(root_app: typer.Typer) -> tuple[int, int]:
-    return (len(root_app.registered_commands), len(root_app.registered_groups))
+_RegistrationSnapshot = tuple[list[Any], list[Any]]
+
+
+def _registration_snapshot(root_app: typer.Typer) -> _RegistrationSnapshot:
+    return (list(root_app.registered_commands), list(root_app.registered_groups))
 
 
 def _rollback_registration(
     root_app: typer.Typer,
-    snapshot: tuple[int, int],
+    snapshot: _RegistrationSnapshot,
 ) -> None:
-    command_count, group_count = snapshot
-    del root_app.registered_commands[command_count:]
-    del root_app.registered_groups[group_count:]
+    commands, groups = snapshot
+    root_app.registered_commands[:] = commands
+    root_app.registered_groups[:] = groups
 
 
 def _new_registration_names(
     root_app: typer.Typer,
-    snapshot: tuple[int, int],
+    snapshot: _RegistrationSnapshot,
 ) -> list[str]:
-    command_count, group_count = snapshot
+    command_count = len(snapshot[0])
+    group_count = len(snapshot[1])
     names: list[str] = []
     for command_info in root_app.registered_commands[command_count:]:
         if command_info.name is not None:
@@ -142,6 +146,17 @@ def _new_registration_names(
         if group_info.name is not None:
             names.append(group_info.name)
     return names
+
+
+def _remove_registered_top_level_name(root_app: typer.Typer, name: str) -> None:
+    root_app.registered_commands[:] = [
+        command_info
+        for command_info in root_app.registered_commands
+        if command_info.name != name
+    ]
+    root_app.registered_groups[:] = [
+        group_info for group_info in root_app.registered_groups if group_info.name != name
+    ]
 
 
 def _has_plugin_name_conflict(
@@ -177,6 +192,10 @@ def load_cli_plugins(
     for entry_point in selected_entry_points:
         snapshot = _registration_snapshot(root_app)
         existing_names = _registered_top_level_names(root_app)
+        if entry_point.name == "research":
+            # Transitional handoff: gaia-research owns the public group when installed.
+            _remove_registered_top_level_name(root_app, "research")
+            existing_names = _registered_top_level_names(root_app)
         try:
             plugin = entry_point.load()
         except Exception:
