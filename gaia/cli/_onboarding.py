@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 
 import typer
 
-from gaia.cli._credentials import credentials_path, write_lkm_key
+from gaia.lkm.credentials import credentials_path, write_lkm_key
 
 # NOTE: LKMClient / LKMTransportError are imported lazily inside
 # validate_lkm_access_key to avoid a circular import:
@@ -87,7 +87,7 @@ def prompt_lkm_setup(*, heading: str | None = None) -> None:
         typer.Exit(4): Empty input or an LKM env var is active (which would
             shadow the credentials file anyway).
     """
-    from gaia.cli._credentials import active_lkm_env_var
+    from gaia.lkm.credentials import active_lkm_env_var
 
     env_var = active_lkm_env_var()
     if env_var:
