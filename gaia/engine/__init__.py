@@ -1,4 +1,4 @@
-"""Gaia engine — public sub-facades under `gaia.engine.{bp,ir,lang,logic,inquiry,trace,packaging}`.
+"""Gaia engine — public sub-facades under `gaia.engine.*`.
 
 Alpha 0 architectural split: engine code is the stable contract surface,
 distinct from `gaia.cli`. Each sub-package owns its own `__all__`; this
