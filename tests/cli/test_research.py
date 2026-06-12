@@ -3790,8 +3790,10 @@ def test_research_assess_skips_candidate_relation_for_non_claim_package_ref(
                         "rationale": "candidate_relation requires claim-compatible inputs.",
                         "epistemic_status": "candidate",
                         "promotion_hint": "contradict",
-                        "source_refs": [{"kind": "variable", "id": "open_question"}],
-                        "claim_refs": ["seed", source_ref["ref"]],
+                        "source_refs": [
+                            {"kind": "package_ref", "id": source_ref["ref"]},
+                            {"kind": "variable", "id": "open_question"},
+                        ],
                     }
                 ],
                 "candidate_obligations": [],
@@ -3816,9 +3818,12 @@ def test_research_assess_skips_candidate_relation_for_non_claim_package_ref(
     )
 
     assert result.exit_code == 0, result.output
+    assert "candidate_relations_skipped: 1" in result.output
     events = _read_events(pkg_dir)
     assert events[-1]["payload"]["candidate_relations_written"] == []
     assert events[-1]["payload"]["candidate_relations_skipped"]
+    assert source_ref["ref"] in events[-1]["payload"]["candidate_relations_skipped"][0]
+    assert "value_type=question" in events[-1]["payload"]["candidate_relations_skipped"][0]
     authored = pkg_dir / "src" / "research_demo" / "authored" / "__init__.py"
     if authored.exists():
         assert "candidate_relation(" not in authored.read_text(encoding="utf-8")

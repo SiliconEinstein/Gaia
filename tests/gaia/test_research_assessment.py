@@ -279,7 +279,7 @@ def test_assessment_from_analysis_preserves_typed_relations_and_review() -> None
     assert validate_assessment_grounding(artifact) is artifact
 
 
-def test_assessment_grounding_allows_known_non_claim_package_refs_for_sync_skip() -> None:
+def test_assessment_grounding_rejects_non_claim_package_claim_refs() -> None:
     selected_packet = {
         "items": [
             {
@@ -293,22 +293,21 @@ def test_assessment_grounding_allows_known_non_claim_package_refs_for_sync_skip(
         "paper_leads": [],
     }
 
-    artifact = build_assessment_from_analysis(
-        focus={"kind": "focus", "id": "elderly_net_benefit"},
-        landscapes=[],
-        evidence_packet=selected_packet,
-        analysis={
-            "relations": [
-                _relation(
-                    source_refs=[{"kind": "package_ref", "id": "pkg:note"}],
-                    claim_refs=["pkg:note"],
-                )
-            ],
-            "candidate_obligations": [],
-        },
-    )
-
-    assert validate_assessment_grounding(artifact) is artifact
+    with pytest.raises(AssessmentSchemaError, match=r"claim_refs.*value_type 'note'"):
+        build_assessment_from_analysis(
+            focus={"kind": "focus", "id": "elderly_net_benefit"},
+            landscapes=[],
+            evidence_packet=selected_packet,
+            analysis={
+                "relations": [
+                    _relation(
+                        source_refs=[{"kind": "package_ref", "id": "pkg:note"}],
+                        claim_refs=["pkg:note"],
+                    )
+                ],
+                "candidate_obligations": [],
+            },
+        )
 
 
 def test_assessment_grounding_rejects_unknown_package_claim_refs() -> None:

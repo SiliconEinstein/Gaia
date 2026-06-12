@@ -521,6 +521,7 @@ def _print_sync_summary(payload: dict[str, object]) -> None:
         "questions_written",
         "notes_written",
         "candidate_relations_written",
+        "candidate_relations_skipped",
         "materializations_written",
         "obligations_added",
         "hypotheses_added",

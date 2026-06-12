@@ -489,6 +489,12 @@ def _validate_claim_refs(
                 f"relations[{relation_index}].claim_refs[{ref_index}] {ref!r} "
                 "is not grounded in evidence_packet package_ref values"
             )
+        value_type = package_ref_value_types[ref]
+        if value_type != "claim":
+            raise AssessmentSchemaError(
+                f"relations[{relation_index}].claim_refs[{ref_index}] {ref!r} "
+                f"has value_type {value_type!r}; claim_refs must reference claim package_refs"
+            )
 
 
 def validate_assessment_grounding(artifact: dict[str, Any]) -> dict[str, Any]:

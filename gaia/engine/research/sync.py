@@ -530,24 +530,31 @@ def _relation_claim_refs(
     relation: JsonDict,
     *,
     package_ref_value_types: dict[str, str] | None = None,
-) -> tuple[list[str], tuple[tuple[str, str], ...], tuple[tuple[str, str, str], ...]]:
+) -> tuple[
+    list[str],
+    tuple[tuple[str, str], ...],
+    tuple[tuple[str, str, str], ...],
+    str | None,
+]:
     raw_refs = relation.get("claim_refs", relation.get("claims"))
     if raw_refs is None:
         raw_refs = _package_ref_source_refs(relation)
     if not isinstance(raw_refs, list):
-        return [], (), ()
+        return [], (), (), "claim_refs missing or not a list"
     refs = [str(item).strip() for item in raw_refs if str(item).strip()]
-    if len(refs) < 2:
-        return [], (), ()
     value_types = package_ref_value_types or {}
-    if any(value_types.get(ref) not in (None, "claim") for ref in refs):
-        return [], (), ()
+    for ref in refs:
+        value_type = value_types.get(ref)
+        if value_type is not None and value_type != "claim":
+            return [], (), (), f"{ref} has value_type={value_type}; expected claim"
+    if len(refs) < 2:
+        return [], (), (), f"need at least two claim refs; got {len(refs)}"
     tokens, error = split_csv_refs(",".join(refs))
     if error is not None:
-        return [], (), ()
+        return [], (), (), str(error)
     sibling = tuple((item, "") for item in tokens.local)
     foreign = tuple((item.module, item.symbol, item.alias) for item in tokens.foreign_imports)
-    return tokens.rendered, sibling, foreign
+    return tokens.rendered, sibling, foreign, None
 
 
 def _package_ref_source_refs(relation: JsonDict) -> list[str]:
@@ -634,14 +641,15 @@ def _sync_assessment_candidate_relation(
     package_ref_value_types: dict[str, str],
     result: ResearchSyncResult,
 ) -> None:
-    claim_refs, sibling_imports, foreign_imports = _relation_claim_refs(
+    claim_refs, sibling_imports, foreign_imports, skip_reason = _relation_claim_refs(
         relation,
         package_ref_value_types=package_ref_value_types,
     )
     if len(claim_refs) < 2:
-        result.candidate_relations_skipped.append(
-            str(relation.get("id") or relation.get("claim") or "relation")
-        )
+        label = str(relation.get("id") or relation.get("claim") or "relation")
+        if skip_reason:
+            label = f"{label}: {skip_reason}"
+        result.candidate_relations_skipped.append(label)
         return
     relation_type = str(relation.get("type") or "relation")
     binding = _binding(
