@@ -74,6 +74,7 @@ include = [
     "gaia.inquiry*",
     "gaia.ir*",
     "gaia.lang*",
+    "gaia.lkm*",
     "gaia.lkm_explorer*",
     "gaia.logic*",
     "gaia.trace*",
