@@ -34,6 +34,18 @@ VALID_OBLIGATION_KINDS = {
     "other",
 }
 
+RESEARCH_PUBLIC_STATE_API: tuple[str, ...] = (
+    "STATE_SCHEMA_VERSION",
+    "VALID_OBLIGATION_KINDS",
+    "InquiryState",
+    "SyntheticHypothesis",
+    "SyntheticObligation",
+    "append_tactic_event",
+    "load_state",
+    "mint_qid",
+    "save_state",
+)
+
 
 def _utcnow() -> str:
     return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
