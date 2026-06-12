@@ -26,6 +26,9 @@ See `docs/migration.md` for guidance on moving off pre-alpha-0 invocations.
 """
 
 import sys
+from collections.abc import Iterable
+from importlib import metadata
+from typing import Protocol
 
 import typer
 
@@ -92,6 +95,70 @@ from gaia.cli.commands.skill import list_command as skill_list_command
 from gaia.cli.commands.skill import register_command as skill_register_command
 from gaia.cli.commands.starmap import starmap_command
 from gaia.cli.commands.trace import trace_app
+
+_CLI_PLUGIN_ENTRY_POINT_GROUP = "gaia.cli_plugins"
+
+
+class _EntryPointLike(Protocol):
+    name: str
+
+    def load(self) -> object: ...
+
+
+def _registered_top_level_names(root_app: typer.Typer) -> set[str]:
+    names: set[str] = set()
+    for command_info in root_app.registered_commands:
+        if command_info.name is not None:
+            names.add(command_info.name)
+    for group_info in root_app.registered_groups:
+        if group_info.name is not None:
+            names.add(group_info.name)
+    return names
+
+
+def _iter_cli_plugin_entry_points() -> list[_EntryPointLike]:
+    entry_points = metadata.entry_points()
+    if hasattr(entry_points, "select"):
+        return list(entry_points.select(group=_CLI_PLUGIN_ENTRY_POINT_GROUP))
+    return list(entry_points.get(_CLI_PLUGIN_ENTRY_POINT_GROUP, ()))  # type: ignore[attr-defined]
+
+
+def load_cli_plugins(
+    root_app: typer.Typer,
+    *,
+    entry_points: Iterable[_EntryPointLike] | None = None,
+) -> list[str]:
+    """Load installed CLI plugins from the ``gaia.cli_plugins`` entry point group."""
+    loaded: list[str] = []
+    selected_entry_points = (
+        entry_points if entry_points is not None else _iter_cli_plugin_entry_points()
+    )
+    for entry_point in selected_entry_points:
+        plugin = entry_point.load()
+        if not callable(plugin):
+            raise TypeError(
+                f"Gaia CLI plugin {entry_point.name!r} must load to a callable "
+                "that accepts the Typer app."
+            )
+        plugin(root_app)
+        loaded.append(entry_point.name)
+    return loaded
+
+
+def add_missing_research_hint(root_app: typer.Typer) -> None:
+    """Add a hidden ``gaia research`` hint when no installed plugin provides it."""
+    if "research" in _registered_top_level_names(root_app):
+        return
+
+    @root_app.command(name="research", hidden=True)
+    def _missing_research_plugin() -> None:
+        typer.echo(
+            "The research workflow now ships separately. Install the gaia-research "
+            "package to enable `gaia research`, for example: pip install gaia-research",
+            err=True,
+        )
+        raise typer.Exit(4)
+
 
 _ROOT_EPILOG = (
     "What gaia does:\n\n"
@@ -416,3 +483,7 @@ app.add_typer(research_app, name="research")
 # --------------------------------------------------------------------------- #
 
 app.add_typer(trace_app, name="trace")
+
+
+load_cli_plugins(app)
+add_missing_research_hint(app)
