@@ -21,7 +21,6 @@ from typing import Any
 
 import typer
 
-from gaia.cli._credentials import CredentialPermissionError
 from gaia.cli.commands.search.lkm._client import (
     LKMClient,
     LKMError,
@@ -36,6 +35,7 @@ from gaia.cli.commands.search.lkm._indexes import (
     lkm_index_base_url,
     normalize_lkm_index_id,
 )
+from gaia.lkm.credentials import CredentialPermissionError
 
 # Lexical-channel keyword cap, shared by knowledge / reasoning.
 MAX_KEYWORDS = 10
