@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+import typer
+
 from gaia.cli.commands.research_materialization import (
     _materialize_landscape_sources_or_exit,
     _materialize_lkm_papers_or_exit,
@@ -333,12 +335,18 @@ class CliResearchOrchestratorRuntime(ResearchOrchestratorRuntime):
         dry_run: bool,
     ) -> dict[str, object]:
         """Materialize shallow source packages for a landscape artifact."""
-        return _materialize_landscape_sources_or_exit(
-            research_pkg,
-            landscape,
-            landscape_artifact=landscape_artifact,
-            dry_run=dry_run,
-        )
+        try:
+            return _materialize_landscape_sources_or_exit(
+                research_pkg,
+                landscape,
+                landscape_artifact=landscape_artifact,
+                dry_run=dry_run,
+            )
+        except typer.Exit as exc:
+            raise _materialization_orchestrator_error(
+                "landscape source materialization",
+                exc,
+            ) from exc
 
     def materialize_lkm_deep_evidence(
         self,
@@ -351,17 +359,33 @@ class CliResearchOrchestratorRuntime(ResearchOrchestratorRuntime):
         dry_run: bool,
     ) -> dict[str, object]:
         """Materialize selected LKM paper graphs or reasoning chains."""
-        return _materialize_lkm_papers_or_exit(
-            research_pkg,
-            paper_ids=paper_ids,
-            claim_ids=claim_ids,
-            chain_claim_ids=chain_claim_ids,
-            lkm_index=lkm_index,
-            dry_run=dry_run,
-        )
+        try:
+            return _materialize_lkm_papers_or_exit(
+                research_pkg,
+                paper_ids=paper_ids,
+                claim_ids=claim_ids,
+                chain_claim_ids=chain_claim_ids,
+                lkm_index=lkm_index,
+                dry_run=dry_run,
+            )
+        except typer.Exit as exc:
+            raise _materialization_orchestrator_error(
+                "LKM deep evidence materialization",
+                exc,
+            ) from exc
 
 
 DEFAULT_RUNTIME = CliResearchOrchestratorRuntime()
+
+
+def _materialization_orchestrator_error(label: str, exc: typer.Exit) -> ResearchOrchestratorError:
+    exit_code = getattr(exc, "exit_code", 2)
+    if not isinstance(exit_code, int):
+        exit_code = 2
+    return ResearchOrchestratorError(
+        f"{label} failed with exit code {exit_code}",
+        exit_code=exit_code,
+    )
 
 
 def _read_search_json(ref: str) -> tuple[dict[str, object], str]:

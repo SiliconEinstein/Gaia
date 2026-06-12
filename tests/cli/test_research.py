@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 import gaia.cli.commands.research_orchestrator as research_orchestrator
@@ -434,6 +435,37 @@ def test_orchestrator_live_search_uses_runtime_ports(tmp_path: Path) -> None:
     assert ("trace", "search.lkm.broad") in calls
     assert ("event", "search.started") in calls
     assert ("event", "search.completed") in calls
+
+
+def test_cli_orchestrator_runtime_translates_materialization_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    research_pkg = load_research_package(pkg_dir)
+
+    def fail_materialization(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(
+        research_orchestrator,
+        "_materialize_lkm_papers_or_exit",
+        fail_materialization,
+    )
+
+    with pytest.raises(research_orchestrator.ResearchOrchestratorError) as exc_info:
+        research_orchestrator.DEFAULT_RUNTIME.materialize_lkm_deep_evidence(
+            research_pkg,
+            paper_ids=["P_FAIL"],
+            claim_ids=[],
+            chain_claim_ids=[],
+            lkm_index="bohrium",
+            dry_run=False,
+        )
+
+    assert exc_info.value.exit_code == 1
+    assert "LKM deep evidence materialization failed" in str(exc_info.value)
 
 
 def test_research_run_executes_fast_package_native_file_provider_loop(tmp_path: Path) -> None:
