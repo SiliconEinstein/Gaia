@@ -137,7 +137,7 @@ the future `gaia-research` repo with phase and owner.
 - `gaia/lkm/__init__.py`
 - `gaia/engine/authoring/`
 - `gaia/engine/materialize.py`
-- `gaia/engine/packaging/installer.py`
+- `gaia/engine/packaging.py`
 - `gaia/engine/inquiry/state.py`
 - `gaia/cli/main.py`
 - `gaia/cli/_credentials.py`
@@ -185,7 +185,7 @@ errors from permission/not-found errors without inspecting Typer exit codes.
 
   ```bash
   uv run pytest tests/gaia/test_authoring_api.py -q
-  uv run pytest tests/cli/test_author.py -q
+  uv run pytest tests/cli/author -q
   uv run ruff check gaia/engine/authoring gaia/cli/commands/author tests/gaia/test_authoring_api.py
   uv run mypy gaia/engine/authoring gaia/cli/commands/author
   ```
@@ -196,7 +196,7 @@ imports `gaia.cli.commands.author._*`.
 ### Task 1.3: Public Materialization and Installer APIs
 
 - [ ] Expose package dependency installer functions under
-  `gaia/engine/packaging/installer.py`.
+  `gaia/engine/packaging.py` or an equivalent public module.
 - [ ] Expose LKM materialization under `gaia/engine/materialize.py` or an
   equivalent public module.
 - [ ] Add content digest to LKM chain package names so sibling claims cannot
@@ -269,6 +269,7 @@ API is documented for downstream research.
     --path tests/gaia/test_research_field_map.py \
     --path tests/gaia/test_research_focus.py \
     --path tests/gaia/test_research_landscape.py \
+    --path tests/gaia/test_research_orchestrator.py \
     --path tests/gaia/test_research_proposal.py \
     --path tests/gaia/test_research_report.py \
     --path tests/gaia/test_research_run_config.py \
@@ -294,7 +295,7 @@ A1.
   ```toml
   [project]
   name = "gaia-research"
-  dependencies = ["gaia-lang>=0.6,<0.7", "pydantic>=2"]
+  dependencies = ["gaia-lang>=0.6,<0.8", "pydantic>=2"]
 
   [project.optional-dependencies]
   llm = ["litellm"]

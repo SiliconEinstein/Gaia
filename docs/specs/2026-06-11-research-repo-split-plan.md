@@ -112,7 +112,7 @@ gaia-research/
     providers/     # litellm / command / checkpoint providers (litellm behind [llm] extra)
     skills/        # packaged Gaia/Codex skill assets and registration metadata
     cli/           # typer app; console script `gaia-research`
-  pyproject.toml   # name=gaia-research, requires gaia-lang>=0.6,<0.7; extras: llm
+  pyproject.toml   # name=gaia-research, requires gaia-lang>=0.6,<0.8; extras: llm
 ```
 
 - Dependency direction: `gaia-research → gaia-lang` (core), never the reverse.
@@ -224,7 +224,7 @@ itself a behavior-preserving refactor):
   — `append_statement` must stop swallowing `SyntaxError`, so a research-repo
   caller can never leave `authored/__init__.py` unparseable.
 - Package dependency installer: the four `add_*_dependency` functions from
-  `add.py` → `gaia/engine/packaging/installer.py` (public).
+  `add.py` → `gaia/engine/packaging.py` or an equivalent public module.
 - `gaia.engine.inquiry.state`: declare public in place (docs + semver
   commitment) for the six symbols research uses.
 - Old import paths keep deprecation shims for one minor release.
@@ -363,19 +363,30 @@ PR #757's LKM onboarding belongs in the Gaia core LKM client/readiness surface;
 credential storage.
 
 **S9. Independent versioning and releases**: own commitizen config, semver, and
-changelog; first release `gaia-research 0.1.0` depending on
-`gaia-lang>=0.6,<0.7`; replicate core's alpha/beta/rc/stable four-channel
-`workflow_dispatch` release process.
+changelog. The first `gaia-research 0.1.0` line should depend on
+`gaia-lang>=0.6,<0.8` so it can run against both the 0.6 transition line
+where Gaia core may still bundle research and the 0.7 removal line where
+research is no longer in core. Its release gate must run contract CI against
+the latest compatible 0.6 release and the 0.7.0 removal candidate before Gaia
+core removes bundled research. Replicate core's alpha/beta/rc/stable
+four-channel `workflow_dispatch` release process.
 
-## 5. Migration Order (five phases)
+## 5. Migration Order (canonical phases 0-7)
+
+The phase numbers below are canonical across this plan, the acceptance
+checklist, and the implementation plan. Earlier five-phase summaries are
+superseded by this map.
 
 | Phase | Content | Output |
 |-------|---------|--------|
-| 0 | Land PR #755 + S1 pre-split fixes (findings 1–4, de-typer, sync decoupling prep) | research still in the monorepo, but "movable" |
-| 1 | Core R1 (API extraction + shims) + R3 (public materialize + finding 4 fix) + R4 | **gaia-lang 0.6.0**, no behavior change |
-| 2 | Core R2 plugin mechanism; bootstrap the new repo — import with `git filter-repo --path gaia/engine/research --path gaia/cli/commands/research... --path tests/...` to preserve history; also import PR #726 docs/tests as historical input, not active canonical code | gaia-research repo ready (unpublished) |
-| 3 | Dual-track transition: one more core release still bundling research with a `DeprecationWarning`; publish gaia-research 0.1.0 (S2–S9 complete, including graph-session contract and doctor/readiness) | downstream can switch smoothly |
-| 4 | Core R5 removal + R6 contract CI | **gaia-lang 0.7.0** (without research) |
+| 0 | Make monorepo research movable by landing PR #755 and closing or owning high-risk #761/#764 blockers. | Research still lives in the monorepo, but the implementation is extraction-ready. |
+| 1 | Extract Gaia core public APIs used by research: LKM client/readiness, authoring batch mode, materialization, packaging, inquiry-state contract, CLI plugin hook. | Gaia core exposes stable downstream surfaces without requiring research to import CLI-private modules. |
+| 2 | Bootstrap the `gaia-research` repository and preserve/import history, including PR #726 as historical/spec input only. | New repo exists with package metadata, migrated code/tests/docs/skills, and no canonical `.gaia/research_loop/**` writes. |
+| 3 | Build shared `gaia-research` contracts and SDK. | Review-run and graph-session contracts are typed, versioned, and SDK-accessible. |
+| 4 | Re-enable review-run mode in the new repo. | Product/skill smoke tests produce observable state/events/report paths. |
+| 5 | Implement graph-session mode. | Incremental continuation, pause/resume, node/edge/focus/field-map records pass instrumented tests. |
+| 6 | Product readiness, packaged skills, profiles, and doctor. | #762 acceptance checks pass and short happy paths are documented. |
+| 7 | Contract CI, release, and Gaia core removal. | `gaia-research` passes downstream contract CI against the 0.7.0 removal candidate; Gaia core no longer owns research implementation. |
 
 ## 6. Risks and Decision Points
 
@@ -390,8 +401,9 @@ changelog; first release `gaia-research 0.1.0` depending on
    keep history (high forensic value for review/debugging) at the cost of a
    one-time tooling step.
 4. **Downstream UIs**: every UI reading paths like
-   `.gaia/research/runs/<id>/state.json` sees unchanged paths through phase 3;
-   only the `schema_version` field is added — backward compatible.
+   `.gaia/research/runs/<id>/state.json` sees stable paths through the
+   transition and after extraction; only the `schema_version` field is added —
+   backward compatible.
 5. **Graph-session scalability**: long sessions can become unusable if normal
    continuation rescans all historical records. Mitigation: append-only records,
    frontier cursors, delta indexes, and explicit full-rebuild operations in the
@@ -410,9 +422,9 @@ cover them:
 | Issue | What it tracks | Covered by | Phase | Exit criterion |
 |-------|----------------|-----------|-------|----------------|
 | [#764](https://github.com/SiliconEinstein/Gaia/issues/764) | Candidate relations silently skipped during research sync; `claim_refs` validation holes; missing compile gate after authored writes | S1 (skip diagnostics, packet validation) + R1 (compile gate in the public authoring API) | 0–1 | Closed before the phase-2 repo bootstrap |
-| [#761](https://github.com/SiliconEinstein/Gaia/issues/761) | PR #755 review follow-ups: engine/CLI orchestration extraction, multi-focus checkpoint semantics, CLI override sentinels, report failure/concurrency, citation dedup, typed retry contracts | S1 (engine extraction, checkpoints, overrides) + S2 (report rendering consolidation) + S3 (retry contracts) | 0–3 | Every checkbox either closed or re-homed to gaia-research before phase 4 |
+| [#761](https://github.com/SiliconEinstein/Gaia/issues/761) | PR #755 review follow-ups: engine/CLI orchestration extraction, multi-focus checkpoint semantics, CLI override sentinels, report failure/concurrency, citation dedup, typed retry contracts | S1 (engine extraction, checkpoints, overrides) + S2 (report rendering consolidation) + S3 (retry contracts) | 0–4 | Core-owned blockers closed before phase 2; research-side remainder re-homed before phase 7 removal |
 | [#745](https://github.com/SiliconEinstein/Gaia/issues/745) | Fast/batch author mode for agent research workflows | R1 (the public `gaia.engine.authoring` API ships batch writes + single validation pass as a first-class mode, not a research-side workaround) | 1 | Closed by the R1 extraction PR |
-| [#762](https://github.com/SiliconEinstein/Gaia/issues/762) | New-user readiness for package-native research workflows: doctor, profiles, short commands, observable outputs | S8 (doctor/readiness, profile docs/tests) | 3 | Closed before publishing gaia-research 0.1.0 |
+| [#762](https://github.com/SiliconEinstein/Gaia/issues/762) | New-user readiness for package-native research workflows: doctor, profiles, short commands, observable outputs | S8 (doctor/readiness, profile docs/tests) | 6 | Closed before publishing gaia-research 0.1.0 |
 
 Related but closed/experimental:
 PR #726 contributes task-envelope, candidate-validation, repair-context, and
@@ -428,8 +440,9 @@ fall through the split:
    is the single source of progress truth — not this spec.
 2. **Phase gates**: the phase table in section 5 is only advanceable when the
    issues listed for that phase in the table above are closed or explicitly
-   re-homed. Phase 2 (repo bootstrap) is the hard cutoff for #764; phase 4
-   (core removal) is the hard cutoff for the rest.
+   re-homed. Phase 2 (repo bootstrap) is the hard cutoff for #764 and other
+   core-side correctness blockers; phase 7 (core removal) is the hard cutoff
+   for transferring or closing research-side follow-ups.
 3. **Issue re-homing at bootstrap**: when the gaia-research repo is created in
    phase 2, any still-open research-side issue (or unchecked #761 item whose
    code moved) is transferred to the new repo's tracker (GitHub issue

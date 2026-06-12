@@ -108,10 +108,13 @@ run gaia research --help through the plugin path
 | Gate | Required issue state before advancing |
 | --- | --- |
 | Phase 0 to Phase 1 | PR #755 landed or superseded; #761 high-risk follow-ups either fixed or listed in gaia-research tracker with owners. |
-| Phase 1 to Phase 2 | #745 public batch author mode exists; #764 relation skip/validation/compile gate is closed; materialization collision fix is present. |
+| Phase 1 to Phase 2 | Public LKM/readiness, authoring batch mode for #745, materialization, package-installer, inquiry-state, and CLI-plugin surfaces exist; #764 relation skip/validation/compile gate is closed; materialization collision fix is present. |
 | Phase 2 to Phase 3 | New repo bootstrapped; PR #726 lessons imported as historical/spec input only; no canonical `.gaia/research_loop/**` writes. |
-| Phase 3 release | #762 doctor/profile/readiness acceptance checks pass; graph-session contract tests pass; review-run smoke tests pass. |
-| Phase 4 removal | Gaia core has downstream contract CI; open research-side issues are transferred or closed with forwarding links. |
+| Phase 3 to Phase 4 | Shared review-run and graph-session contracts are typed, versioned, SDK-accessible, and use `.gaia/research/**`. |
+| Phase 4 to Phase 5 | Review-run SDK/CLI/skill smoke tests create package-local runs and observable state/events/report artifacts. |
+| Phase 5 to Phase 6 | Graph-session contract tests pass, including pause/resume, candidate repair, promotion boundary, and instrumented incremental-continuation read-set checks. |
+| Phase 6 to Phase 7 | #762 doctor/profile/readiness acceptance checks pass; packaged skill registration works through the external research distribution. |
+| Phase 7 removal | Gaia core has downstream contract CI against the `gaia-lang 0.7.0` removal candidate; open research-side issues are transferred or closed with forwarding links. |
 
 If any issue remains open past its phase gate, the release checklist must name
 the new owner repo, blocking label, and exact acceptance test that will close it.
