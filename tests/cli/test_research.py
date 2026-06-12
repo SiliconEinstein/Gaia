@@ -1061,6 +1061,99 @@ def test_research_run_records_failed_live_search_trace(
     assert benchmark["steps"][-1]["status"] == "failed"
 
 
+def test_research_run_records_failed_command_provider_trace(tmp_path: Path) -> None:
+    pkg_dir = tmp_path / "research-demo-gaia"
+    _write_research_package(pkg_dir)
+    search_path = tmp_path / "search.json"
+    search_path.write_text(
+        json.dumps(
+            _search(
+                "aspirin elderly primary prevention",
+                [
+                    _lkm_row(
+                        "P_ASPREE",
+                        "paper:P_ASPREE::claim_1",
+                        0.92,
+                        paper_title="ASPREE trial",
+                    )
+                ],
+            )
+        ),
+        encoding="utf-8",
+    )
+    provider = tmp_path / "failing_provider.py"
+    provider.write_text(
+        "import sys\n"
+        "print('provider cannot produce focus JSON', file=sys.stderr)\n"
+        "raise SystemExit(7)\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "research",
+            "run",
+            str(pkg_dir),
+            "--topic",
+            "aspirin primary prevention evidence",
+            "--mode",
+            "fast-package-native",
+            "--run-id",
+            "failed-command-provider-run",
+            "--search-json",
+            str(search_path),
+            "--analysis-provider",
+            "command",
+            "--focus-analysis-command",
+            f"{sys.executable} {provider}",
+        ],
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "provider command failed" in result.output
+    run_dir = pkg_dir / ".gaia" / "research" / "runs" / "failed-command-provider-run"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "failed"
+    assert state["phase"] == "focus_analysis"
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.ndjson").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert events[-1]["type"] == "run.failed"
+    trace = [
+        json.loads(line)
+        for line in (run_dir / "trace" / "trace.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    failed = trace[-1]
+    assert failed["step"] == "provider.command.focus_analysis"
+    assert failed["kind"] == "llm"
+    assert failed["status"] == "failed"
+    assert failed["outputs"] == []
+    assert failed["metrics"]["provider"] == "command"
+    assert failed["metrics"]["phase"] == "focus_analysis"
+    assert failed["metrics"]["returncode"] == 7
+    assert failed["metrics"]["error"] == "provider cannot produce focus JSON"
+
+    summary = runner.invoke(
+        app,
+        [
+            "research",
+            "trace",
+            "summarize",
+            str(pkg_dir),
+            "--trace-dir",
+            str(run_dir / "trace"),
+        ],
+    )
+    assert summary.exit_code == 0, summary.output
+    benchmark = json.loads((run_dir / "trace" / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["steps"][-1]["name"] == "provider.command.focus_analysis"
+    assert benchmark["steps"][-1]["status"] == "failed"
+
+
 def test_research_run_executes_litellm_provider(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

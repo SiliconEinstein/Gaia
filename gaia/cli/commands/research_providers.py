@@ -128,6 +128,16 @@ def _run_analysis_provider_command(
     )
     if completed.returncode != 0:
         error = (completed.stderr or completed.stdout or "").strip()
+        _record_command_provider_failed_trace(
+            research_pkg,
+            run,
+            start=start,
+            phase=phase,
+            input_path=input_path,
+            output_path=output_path if output_path.exists() else None,
+            completed=completed,
+            error=error or f"provider command exited {completed.returncode}",
+        )
         _update_run_state(
             run,
             {
@@ -150,12 +160,53 @@ def _run_analysis_provider_command(
         )
         raise typer.Exit(2)
     if not output_path.exists():
+        error = f"provider command for {phase} did not write {output_path}"
+        _record_command_provider_failed_trace(
+            research_pkg,
+            run,
+            start=start,
+            phase=phase,
+            input_path=input_path,
+            output_path=None,
+            completed=completed,
+            error=error,
+        )
+        _update_run_state(run, {"status": "failed", "phase": phase, "error": error})
+        _emit_run_event(
+            run,
+            event_type="run.failed",
+            phase=phase,
+            json_stream=json_stream,
+            payload={"provider": "command", "returncode": completed.returncode, "error": error},
+        )
         typer.echo(
-            f"Error: provider command for {phase} did not write {output_path}.",
+            f"Error: {error}.",
             err=True,
         )
         raise typer.Exit(2)
-    _read_json_object_path(output_path)
+    try:
+        _read_json_object_path(output_path)
+    except typer.Exit as exc:
+        error = f"provider command for {phase} wrote invalid JSON: {output_path}"
+        _record_command_provider_failed_trace(
+            research_pkg,
+            run,
+            start=start,
+            phase=phase,
+            input_path=input_path,
+            output_path=output_path,
+            completed=completed,
+            error=error,
+        )
+        _update_run_state(run, {"status": "failed", "phase": phase, "error": error})
+        _emit_run_event(
+            run,
+            event_type="run.failed",
+            phase=phase,
+            json_stream=json_stream,
+            payload={"provider": "command", "returncode": completed.returncode, "error": error},
+        )
+        raise typer.Exit(2) from exc
     _record_run_trace(
         research_pkg,
         run,
@@ -181,6 +232,38 @@ def _run_analysis_provider_command(
         payload={"provider": "command", "input": str(input_path), "output": str(output_path)},
     )
     return str(output_path)
+
+
+def _record_command_provider_failed_trace(
+    research_pkg: ResearchPackage,
+    run: ResearchRunStart,
+    *,
+    start: float,
+    phase: str,
+    input_path: Path,
+    output_path: Path | None,
+    completed: subprocess.CompletedProcess[str],
+    error: str,
+) -> None:
+    _record_run_trace(
+        research_pkg,
+        run,
+        start=start,
+        name=f"provider.command.{phase}",
+        kind="llm",
+        mode="command",
+        inputs=[str(input_path)],
+        outputs=[str(output_path)] if output_path is not None else [],
+        metrics={
+            "provider": "command",
+            "phase": phase,
+            "returncode": completed.returncode,
+            "stdout_chars": len(completed.stdout or ""),
+            "stderr_chars": len(completed.stderr or ""),
+            "error": error,
+        },
+        status="failed",
+    )
 
 
 def _run_analysis_provider_litellm(
