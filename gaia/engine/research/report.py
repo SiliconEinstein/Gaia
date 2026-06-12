@@ -401,6 +401,75 @@ def _review_body_text(value: object, context: dict[str, Any]) -> str:
     return _cell(replaced).strip()
 
 
+def _reader_text_section(title: str, value: object, context: dict[str, Any]) -> list[str]:
+    text = _review_body_text(value, context)
+    return [f"## {title}", "", text, ""] if text else []
+
+
+def _reader_bullet_section(title: str, items: object, context: dict[str, Any]) -> list[str]:
+    values = [
+        _review_body_text(item, context)
+        for item in _list_like(items)
+        if _review_body_text(item, context)
+    ]
+    if not values:
+        return []
+    return [f"## {title}", "", *(f"- {value}" for value in values), ""]
+
+
+def _reader_review_sections(sections: object, context: dict[str, Any]) -> list[str]:
+    rendered: list[str] = []
+    for section in _dicts(sections):
+        title = section.get("title")
+        body = _review_body_text(section.get("body"), context)
+        if isinstance(title, str) and title.strip() and body:
+            rendered.extend([f"## {_cell(title.strip())}", "", body, ""])
+    return rendered
+
+
+def render_assessment_review_note_markdown(
+    review: dict[str, Any],
+    *,
+    citations: object = None,
+    language: object = None,
+) -> str:
+    """Render an assessment review body for package-authored notes."""
+    resolved_language = language or review.get("language")
+    zh = _is_zh(resolved_language)
+    context = _citation_context(citations or [])
+    parts = [
+        *_reader_text_section("摘要" if zh else "Abstract", review.get("abstract"), context),
+        *_reader_bullet_section(
+            "关键结论" if zh else "Key Findings",
+            review.get("key_points"),
+            context,
+        ),
+        *_reader_text_section(
+            "核心判断" if zh else "Core Assessment",
+            review.get("summary"),
+            context,
+        ),
+        *_reader_review_sections(review.get("sections"), context),
+        *_render_evidence_table(
+            review.get("evidence_table", []),
+            context=context,
+            language=resolved_language,
+            strip_unresolved=True,
+        ),
+        *_reader_bullet_section(
+            "局限性" if zh else "Limitations",
+            review.get("limitations"),
+            context,
+        ),
+        *_reader_bullet_section(
+            "后续研究问题" if zh else "Future Research Questions",
+            review.get("next_queries"),
+            context,
+        ),
+    ]
+    return "\n".join(parts).strip()
+
+
 def _render_review_core(
     review: dict[str, Any],
     *,
@@ -847,6 +916,7 @@ def render_research_artifact_markdown(artifact: dict[str, Any]) -> str:
 
 __all__ = [
     "ResearchReportError",
+    "render_assessment_review_note_markdown",
     "render_final_research_report_markdown",
     "render_research_artifact_markdown",
 ]

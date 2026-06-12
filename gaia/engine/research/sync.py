@@ -30,6 +30,7 @@ from gaia.engine.inquiry.state import (
     save_state,
 )
 from gaia.engine.research.artifacts import ResearchPackage
+from gaia.engine.research.report import render_assessment_review_note_markdown
 
 JsonDict = dict[str, Any]
 
@@ -504,30 +505,6 @@ def sync_focus_artifact(
     return result
 
 
-def _review_markdown(review: JsonDict) -> str:
-    parts: list[str] = []
-    summary = review.get("summary")
-    if isinstance(summary, str) and summary.strip():
-        parts.append(summary.strip())
-    sections = review.get("sections", [])
-    if isinstance(sections, list):
-        for section in sections:
-            if not isinstance(section, dict):
-                continue
-            title = section.get("title")
-            body = section.get("body")
-            if isinstance(title, str) and title.strip():
-                parts.append(f"## {title.strip()}")
-            if isinstance(body, str) and body.strip():
-                parts.append(body.strip())
-    limitations = review.get("limitations", [])
-    if isinstance(limitations, list) and limitations:
-        lines = [str(item).strip() for item in limitations if str(item).strip()]
-        if lines:
-            parts.append("## Limitations\n" + "\n".join(f"- {line}" for line in lines))
-    return "\n\n".join(parts).strip()
-
-
 def _assessment_package_ref_value_types(assessment: JsonDict) -> dict[str, str]:
     evidence_packet = assessment.get("evidence_packet")
     items = evidence_packet.get("items") if isinstance(evidence_packet, dict) else None
@@ -609,7 +586,11 @@ def _sync_assessment_review_note(
     review = assessment.get("review")
     if not isinstance(review, dict):
         return
-    content = _review_markdown(review)
+    content = render_assessment_review_note_markdown(
+        review,
+        citations=assessment.get("citations"),
+        language=review.get("language") or assessment.get("language"),
+    )
     if not content:
         return
     binding = _binding("review", {"focus": focus_id, "summary": review.get("summary")})

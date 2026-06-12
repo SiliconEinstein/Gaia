@@ -119,3 +119,35 @@ def test_assessment_sync_rejects_unparseable_authored_source(tmp_path: Path) -> 
     ast.parse(authored_source)
     assert "bad-module" not in authored_source
     assert "candidate_relation(" not in authored_source
+
+
+def test_assessment_sync_review_note_uses_reader_facing_review_markdown(tmp_path: Path) -> None:
+    assessment = {
+        "kind": "assessment",
+        "focus": {"kind": "focus", "id": "focus_1"},
+        "relations": [],
+        "review": {
+            "language": "en",
+            "depth": "review",
+            "abstract": "Review abstract [variable:v1].",
+            "key_points": ["Key result [variable:v1]."],
+            "summary": "Summary keeps reader-facing prose [variable:v1].",
+            "sections": [{"title": "Evidence", "body": "Section body [variable:v1]."}],
+            "evidence_table": [{"claim": "Table claim [variable:v1]", "direction": "supports"}],
+            "limitations": ["Limitation [variable:v1]."],
+            "next_queries": ["follow-up query [variable:v1]"],
+        },
+        "candidate_obligations": [],
+    }
+
+    result = sync_assessment_artifact(_pkg(tmp_path), assessment)
+
+    assert len(result.notes_written) == 1
+    authored_source = (tmp_path / "research_demo" / "authored" / "__init__.py").read_text(
+        encoding="utf-8"
+    )
+    assert "[variable:v1]" not in authored_source
+    assert "Review abstract" in authored_source
+    assert "Key result" in authored_source
+    assert "Table claim" in authored_source
+    assert "follow-up query" in authored_source
