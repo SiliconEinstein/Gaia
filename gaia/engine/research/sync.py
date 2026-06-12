@@ -18,9 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from gaia.cli.commands.author._authored import ensure_authored_submodule
-from gaia.cli.commands.author._common import split_csv_refs
-from gaia.cli.commands.author._writer import append_statement
+from gaia.engine.authoring import append_statement, ensure_authored_submodule, split_csv_refs
 from gaia.engine.inquiry.state import (
     SyntheticHypothesis,
     SyntheticObligation,
