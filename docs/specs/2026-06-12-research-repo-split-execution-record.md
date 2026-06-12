@@ -152,3 +152,87 @@ Stop and re-check the fixed goal if any of these happen:
 | 2026-06-12 | Execute first Phase 1.2 slice for public Gaia core authoring APIs on branch `codex/research-actions-pkg-contract`. | V1, V2, V5 | Added `gaia.engine.authoring` with public `ProposedAuthorOp`, `run_author_batch`, structured batch result types, and compatibility exports for the stable authored-submodule/write helpers used by research. Batch authoring writes operations in order, supports later operations referencing earlier labels, runs one final `postwrite_check`, and rolls back source files on later prewrite/postwrite failure. `gaia.cli.commands.author._proposed_op` now re-exports the engine model, and `gaia.engine.research.sync` imports authoring helpers through the public engine facade instead of directly importing `gaia.cli.commands.author._*`. Verified red-green with `tests/gaia/test_authoring_api.py` (initial failure: `ModuleNotFoundError: No module named 'gaia.engine.authoring'`), then fixed an import-cycle caught by `uv run pytest tests/cli/author -q`. Final local evidence: `uv run pytest tests/gaia/test_authoring_api.py tests/gaia/test_research_artifacts.py tests/gaia/test_research_assessment.py -q` (21 passed), `uv run pytest tests/cli/author -q` (343 passed), `uv run pytest tests/cli/test_research.py -q -k "sync or candidate_relation or unparseable_sync_source"` (3 passed, 58 deselected), targeted `ruff`, targeted `mypy`, `uv run ruff format --check ...`, and `git diff --check`. This is not full #745 closure: the remaining work is to move more CLI author implementation/helpers behind the public engine API and wire CLI verbs onto the public batch/write surface where appropriate. | Commit and push this code slice, re-check PR #755/#763 CI, then continue Phase 1.2 or move to public LKM client depending on the next highest coupling blocker. |
 | 2026-06-12 | Execute Phase 1.1 slice for public Gaia core LKM client/index/error APIs on branch `codex/research-actions-pkg-contract`. | V1, V2, V4, V5 | Added `gaia.lkm.client` and `gaia.lkm.indexes` as public import surfaces for LKM access, index normalization, and typed error handling. CLI-private `gaia.cli.commands.search.lkm._client` and `_indexes` now compatibility re-export the public modules, while CLI `_shared.run_request` translates `LKMPermissionError` and `LKMNotFoundError` into CLI exit codes. The public error surface includes `LKMCredentialError`, `NoAccessKeyError`, `LKMTransportError`, `LKMPermissionError`, `LKMNotFoundError`, and envelope `LKMError`, so downstream `gaia-research` can distinguish transport, permission, not-found, credential, and business-envelope failures without importing Typer or CLI modules. Verified red-green with `tests/gaia/test_lkm_client.py` (initial failure: `ModuleNotFoundError: No module named 'gaia.lkm'`), then fixed an import-cycle by moving index helpers to `gaia.lkm.indexes`. Fresh local evidence: `uv run pytest tests/gaia/test_lkm_client.py tests/cli/search/test_lkm_auth.py tests/cli/search/test_lkm_verbs.py -q` (99 passed), `uv run pytest tests/cli/search/test_lkm_package_e2e.py tests/gaia/test_materialize_api.py -q` (24 passed), targeted `ruff`, targeted `mypy`, `uv run ruff format --check ...`, and `git diff --check`. This is a public client/error slice only; public credential/readiness APIs remain a separate Phase 1.1 slice. | Commit and push this code slice, update PR #755 evidence, then continue Phase 1.1 credential/readiness or Phase 1 plugin entry points based on the highest remaining extraction blocker. |
 | 2026-06-12 | Follow up on PR #755 wheel-smoke failure after the public LKM client slice. | V1, V2, V5 | Remote `gh pr checks 755` showed build and commit-lint passing, `Run tests` passing, but the wheel smoke step failed because the built wheel omitted the new `gaia.lkm` package (`ModuleNotFoundError: No module named 'gaia.lkm'` during installed `gaia --help`). Added `gaia.lkm*` to setuptools package discovery, added a packaging contract test for the public LKM namespace, and extended the wheel-smoke facade import list to include `gaia.lkm`. Verified the red test first with `uv run pytest tests/test_alpha0_packaging.py -q` (failed on missing `gaia.lkm*`), then final local evidence: `uv run pytest tests/test_alpha0_packaging.py tests/gaia/test_lkm_client.py tests/cli/search/test_lkm_auth.py tests/cli/search/test_lkm_verbs.py -q` (101 passed), `uv run pytest tests/cli/search/test_lkm_package_e2e.py tests/gaia/test_materialize_api.py -q` (24 passed), targeted `ruff`, targeted `mypy`, YAML parse for `.github/actions/wheel-smoke/action.yml`, `git diff --check`, `uv build --wheel --out-dir /tmp/gaia-lkm-wheel-check-c2e066e0`, zipfile check for `gaia/lkm/{__init__,client,indexes}.py`, and direct `import gaia.lkm` from the built wheel path. | Commit and push the wheel packaging fix, then re-check PR #755 remote CI until build, commit-lint, and test are all green. |
+
+## 8. Process Learnings and PR Operating Rules
+
+These rules were added after PR #755 merged and the follow-up PRs were
+reviewed. They are process guardrails for the remaining split work, not new
+product requirements.
+
+### 8.1 PR Scope Boundaries
+
+- Treat PR #755 as a merged extraction-prep base, not as the container for new
+  research split work. New core surfaces, skill discovery, repo bootstrap,
+  session contracts, and product readiness should land as separate PRs.
+- Keep each new PR tied to one acceptance slice from the checklist. A PR may
+  mention the broader split goal, but its own success criteria should be small
+  enough to review and revert independently.
+- Do not let a docs PR become the only place where implementation status is
+  tracked. Code PRs should carry their own scope, verifier commands, and issue
+  links in their PR bodies.
+- Keep the split-plan PR as the stable design and acceptance baseline. Use this
+  execution record as the single home for future cross-PR tracking, phase
+  transitions, merge boundaries, and process learnings. Avoid turning it into a
+  step-by-step live diary for every implementation detail.
+- After this baseline lands, execution PRs should update this file in the same
+  PR when they advance a phase, change merge order, close or re-home a tracked
+  issue, or produce a process learning. Do not create separate docs-only
+  tracking PRs just to record what an execution PR did.
+
+### 8.2 Multi-PR Tracking
+
+When the split is spread across multiple PRs, every PR should answer four
+questions in its body:
+
+1. Which acceptance item does this PR advance?
+2. Which open issue or phase gate does it close, narrow, or re-home?
+3. Which local verifier commands prove the slice?
+4. What remains explicitly out of scope?
+
+This execution record is the canonical place for future PR learnings and
+tracking that matter across PRs. It should capture phase transitions, merge
+boundaries, cross-PR decisions, merge-order changes, and learning that changes
+how the rest of the work should be managed. Fine-grained verifier output should
+stay in the relevant PR body unless it changes the global plan.
+
+When an implementation PR changes any of those global facts, that same PR should
+include the concise execution-record update. The PR body remains the detailed
+review surface; this file remains the durable cross-PR memory.
+
+### 8.3 Merge Order After PR #755
+
+After PR #755 merged, the follow-up order should prefer dependency boundaries
+before new research behavior:
+
+1. Update and merge the CLI plugin entrypoint PR, so Gaia core can delegate
+   `gaia research` to an installed downstream package.
+2. Update and merge the credential/readiness public API PR, so
+   `gaia-research doctor` can depend on a public core surface.
+3. Update and merge the split-plan PR as the stable acceptance baseline.
+4. Add the missing skill plugin discovery surface, such as `gaia.skills`, before
+   moving bundled research skills out of Gaia core.
+5. Write the graph-session contract design as its own spec/PR before
+   implementing `.gaia/research/sessions/**`.
+
+### 8.4 Design Gate Discipline
+
+- Use explicit design approval gates only for long-lived contracts, protocol
+  shapes, repo boundaries, and irreversible migration decisions.
+- Do not block routine implementation slices on repeated approval prompts once
+  the governing spec and acceptance checklist are already approved.
+- If a design gate is waiting on user approval, record the blocked item clearly
+  and stop changing code for that slice. Continue only with read-only review or
+  unrelated already-approved work.
+- The graph-session disk contract remains such a design-gated item because it
+  determines the O(N) continuation verifier, pause/resume semantics, repair
+  context, and promotion boundary.
+
+### 8.5 Worktree Hygiene
+
+- Use the main worktree for read-only status checks only when it has unrelated
+  dirty or untracked files.
+- Put each implementation slice in a dedicated worktree/branch.
+- Before editing, verify `git status --short --branch` in the target worktree
+  and avoid touching unrelated dirty files.
+- After #755, do not reuse its worktree for new implementation slices unless the
+  change is a direct follow-up to that merged branch and the worktree is clean.
