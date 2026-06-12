@@ -25,6 +25,8 @@ from gaia.cli._credentials import CredentialPermissionError
 from gaia.cli.commands.search.lkm._client import (
     LKMClient,
     LKMError,
+    LKMNotFoundError,
+    LKMPermissionError,
     LKMTransportError,
     NoAccessKeyError,
 )
@@ -93,6 +95,12 @@ def run_request(
     except NoAccessKeyError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(3) from exc
+    except LKMPermissionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    except LKMNotFoundError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
     except LKMTransportError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(2) from exc

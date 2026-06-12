@@ -53,18 +53,100 @@ __all__ = [
     "CompiledPackage",
     "GaiaPackagingError",
     "LoadedGaiaPackage",
+    "add_editable_package_dependency",
     "apply_package_priors",
     "collect_foreign_node_priors",
     "compile_loaded_package_artifact",
     "ensure_package_env",
+    "is_gaia_package_dir",
     "load_dependency_compiled_graphs",
     "load_gaia_package",
+    "resolve_gaia_package_root",
     "write_text_atomic",
 ]
 
 
 class GaiaPackagingError(RuntimeError):
     """Engine packaging error surface (raised by load / compile / priors paths)."""
+
+
+def is_gaia_package_dir(directory: str | Path) -> bool:
+    """Return True when *directory* is a Gaia knowledge-package root."""
+    root = Path(directory)
+    pyproject = root / "pyproject.toml"
+    if not pyproject.exists():
+        return False
+    try:
+        config = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    gaia_type = config.get("tool", {}).get("gaia", {}).get("type")
+    return bool(gaia_type == "knowledge-package")
+
+
+def resolve_gaia_package_root(target: str | Path) -> Path | None:
+    """Resolve the nearest Gaia knowledge-package root at or above *target*."""
+    base = Path(target).resolve()
+    if not base.exists():
+        return None
+    if base.is_file():
+        base = base.parent
+    for directory in [base, *base.parents]:
+        if is_gaia_package_dir(directory):
+            return directory
+    return None
+
+
+def add_editable_package_dependency(local: str | Path, *, package_root: str | Path) -> Path:
+    """Add a local Gaia package as an editable dependency of another package.
+
+    Args:
+        local: Path to the dependency package root, or a nested path inside it.
+        package_root: Path to the consuming Gaia package root, or a nested path
+            inside that package.
+
+    Returns:
+        The resolved dependency package root.
+
+    Raises:
+        GaiaPackagingError: If either side is not a Gaia package, the dependency
+            points at the consumer itself, ``uv`` is unavailable, or ``uv add``
+            fails.
+    """
+    consumer_root = resolve_gaia_package_root(package_root)
+    if consumer_root is None:
+        raise GaiaPackagingError(
+            f"target path is not inside a Gaia knowledge package: {Path(package_root).resolve()}"
+        )
+
+    local_path = Path(local)
+    local_candidate = local_path if local_path.is_absolute() else consumer_root / local_path
+    local_root = resolve_gaia_package_root(local_candidate)
+    if local_root is None and not local_path.is_absolute():
+        local_root = resolve_gaia_package_root(local_path)
+    if local_root is None:
+        raise GaiaPackagingError(
+            f"local dependency path is not a Gaia knowledge package: {local_candidate.resolve()}"
+        )
+    if local_root == consumer_root:
+        raise GaiaPackagingError("local dependency cannot point at the target package itself.")
+
+    try:
+        result = subprocess.run(
+            ["uv", "add", "--editable", str(local_root)],
+            cwd=consumer_root,
+            text=True,
+            capture_output=True,
+        )
+    except FileNotFoundError as exc:
+        raise GaiaPackagingError(
+            "uv is not installed. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+        ) from exc
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        raise GaiaPackagingError(f"uv add failed: {stderr}")
+
+    return local_root
 
 
 _MANIFEST_SCHEMA_VERSION = 1

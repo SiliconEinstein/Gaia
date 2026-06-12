@@ -1,0 +1,711 @@
+"""Assessment artifact schema helpers for package-native research actions."""
+
+from __future__ import annotations
+
+import re
+from datetime import UTC, datetime
+from typing import Any
+
+ASSESSMENT_SCHEMA_VERSION = 1
+
+RELATION_PROMOTION_HINTS: dict[str, set[str]] = {
+    "supports": {"derive", "infer", "depends_on", "none"},
+    "opposes": {"contradict", "infer", "none"},
+    "qualifies": {"derive", "question", "obligation", "none"},
+    "undercuts": {"obligation", "question", "none"},
+    "background_for": {"none"},
+    "needs_more_evidence": {"obligation", "none"},
+}
+
+VALID_RELATIONS = set(RELATION_PROMOTION_HINTS)
+VALID_PROMOTION_HINTS = {
+    hint for allowed_hints in RELATION_PROMOTION_HINTS.values() for hint in allowed_hints
+}
+INLINE_REF_RE = re.compile(
+    r"\[(variable|factor|chain|package|paper|package_ref):([A-Za-z0-9_.:-]+)\]"
+)
+
+
+class AssessmentSchemaError(ValueError):
+    """Raised when a research assessment artifact violates the v1 contract."""
+
+
+def _utcnow() -> str:
+    return datetime.now(tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def build_assessment_artifact(
+    *,
+    focus: dict[str, Any],
+    evidence_packet: dict[str, Any],
+    relations: list[dict[str, Any]],
+    candidate_obligations: list[dict[str, Any]] | None = None,
+    review: dict[str, Any] | None = None,
+    limitations: list[str] | None = None,
+    next_queries: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a v1 assessment artifact dictionary without writing source."""
+    relation_payloads = [dict(relation) for relation in relations]
+    obligation_payloads = [dict(item) for item in candidate_obligations or []]
+    limitation_payloads = list(limitations or [])
+    next_query_payloads = list(next_queries or [])
+    citation_review = dict(review or {})
+    if limitation_payloads:
+        citation_review.setdefault("limitations", limitation_payloads)
+    if next_query_payloads:
+        citation_review.setdefault("next_queries", next_query_payloads)
+    artifact = {
+        "schema_version": ASSESSMENT_SCHEMA_VERSION,
+        "kind": "assessment",
+        "created_at": _utcnow(),
+        "focus": dict(focus),
+        "evidence_packet": dict(evidence_packet),
+        "citations": _citations_from_refs(
+            evidence_packet,
+            relations=relation_payloads,
+            candidate_obligations=obligation_payloads,
+            review=citation_review if citation_review else None,
+        ),
+        "relations": relation_payloads,
+        "candidate_obligations": obligation_payloads,
+    }
+    if limitation_payloads:
+        artifact["limitations"] = limitation_payloads
+    if next_query_payloads:
+        artifact["next_queries"] = next_query_payloads
+    if review is not None:
+        artifact["review"] = dict(review)
+    return artifact
+
+
+def _iter_source_refs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    for record in records:
+        source_refs = record.get("source_refs")
+        if not isinstance(source_refs, list):
+            continue
+        for ref in source_refs:
+            if isinstance(ref, dict):
+                refs.append(ref)
+    return refs
+
+
+def _source_ref_id(ref: dict[str, Any]) -> str | None:
+    ref_id = ref.get("id") or ref.get("paper_id")
+    if isinstance(ref_id, str) and ref_id:
+        return ref_id
+    if isinstance(ref_id, int):
+        return str(ref_id)
+    return None
+
+
+def _cited_ref_ids(
+    *,
+    relations: list[dict[str, Any]],
+    candidate_obligations: list[dict[str, Any]],
+    review: dict[str, Any] | None = None,
+) -> dict[str, set[str]]:
+    cited: dict[str, set[str]] = {
+        "variable": set(),
+        "factor": set(),
+        "chain": set(),
+        "package": set(),
+        "package_ref": set(),
+        "paper": set(),
+    }
+    for ref in _iter_source_refs([*relations, *candidate_obligations]):
+        kind = ref.get("kind")
+        ref_id = _source_ref_id(ref)
+        if isinstance(kind, str) and kind in cited and ref_id:
+            cited[kind].add(ref_id)
+    for kind, ref_id in _inline_refs(review):
+        cited[kind].add(ref_id)
+    return cited
+
+
+def _inline_refs(value: Any) -> list[tuple[str, str]]:
+    refs: list[tuple[str, str]] = []
+    if isinstance(value, str):
+        for kind, ref_id in INLINE_REF_RE.findall(value):
+            _append_unique_ref(refs, (kind, ref_id))
+    elif isinstance(value, dict):
+        for nested in value.values():
+            for ref in _inline_refs(nested):
+                _append_unique_ref(refs, ref)
+    elif isinstance(value, list):
+        for nested in value:
+            for ref in _inline_refs(nested):
+                _append_unique_ref(refs, ref)
+    return refs
+
+
+def _append_unique_ref(values: list[tuple[str, str]], value: tuple[str, str]) -> None:
+    kind, ref_id = value
+    if kind and ref_id and value not in values:
+        values.append(value)
+
+
+def _append_unique(values: list[str], value: Any) -> None:
+    if isinstance(value, str) and value and value not in values:
+        values.append(value)
+
+
+def _item_matches_cited_refs(item: dict[str, Any], cited: dict[str, set[str]]) -> bool:
+    kind = item.get("kind")
+    source_id = item.get("id")
+    source = item.get("source")
+    paper_id = source.get("paper_id") if isinstance(source, dict) else None
+    package_ref_payload = item.get("package_ref")
+    package_ref = package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
+    return (
+        (
+            isinstance(kind, str)
+            and kind in cited
+            and isinstance(source_id, str)
+            and source_id in cited[kind]
+        )
+        or (isinstance(paper_id, str) and paper_id in cited["paper"])
+        or (isinstance(package_ref, str) and package_ref in cited["package_ref"])
+    )
+
+
+def _citation_key(item: dict[str, Any]) -> tuple[str, str] | None:
+    source = item.get("source")
+    source_payload = source if isinstance(source, dict) else {}
+    paper_id = source_payload.get("paper_id")
+    if isinstance(paper_id, str) and paper_id:
+        return ("paper", paper_id)
+    kind = item.get("kind")
+    source_id = item.get("id")
+    if isinstance(kind, str) and kind and isinstance(source_id, str) and source_id:
+        return (kind, source_id)
+    item_id = item.get("item_id")
+    if isinstance(item_id, str) and item_id:
+        return ("item", item_id)
+    return None
+
+
+def _new_citation(item: dict[str, Any], citation_id: str) -> dict[str, Any]:
+    source = item.get("source")
+    source_payload = source if isinstance(source, dict) else {}
+    paper_id = source_payload.get("paper_id")
+    source_kind = (
+        "paper" if isinstance(paper_id, str) and paper_id else str(item.get("kind") or "item")
+    )
+    citation: dict[str, Any] = {
+        "id": citation_id,
+        "source_kind": source_kind,
+        "title": source_payload.get("paper_title") or item.get("title"),
+        "doi": source_payload.get("doi"),
+        "item_ids": [],
+        "variable_ids": [],
+    }
+    if isinstance(paper_id, str) and paper_id:
+        citation["paper_id"] = paper_id
+    else:
+        citation["source_id"] = item.get("id")
+    return citation
+
+
+def _citations_from_refs(
+    evidence_packet: dict[str, Any],
+    *,
+    relations: list[dict[str, Any]],
+    candidate_obligations: list[dict[str, Any]],
+    review: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    cited = _cited_ref_ids(
+        relations=relations,
+        candidate_obligations=candidate_obligations,
+        review=review,
+    )
+    citations: list[dict[str, Any]] = []
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+
+    items = evidence_packet.get("items", [])
+    if not isinstance(items, list):
+        return citations
+
+    for item in items:
+        if not isinstance(item, dict) or not _item_matches_cited_refs(item, cited):
+            continue
+        key = _citation_key(item)
+        if key is None:
+            continue
+        citation = by_key.get(key)
+        if citation is None:
+            citation = _new_citation(item, f"citation_{len(citations) + 1}")
+            by_key[key] = citation
+            citations.append(citation)
+        _append_unique(citation["item_ids"], item.get("item_id"))
+        if item.get("kind") == "variable":
+            _append_unique(citation["variable_ids"], item.get("id"))
+    return citations
+
+
+def _stable_item_id(item: dict[str, Any], fallback: str) -> str:
+    kind = item.get("kind")
+    source_id = item.get("id")
+    if isinstance(kind, str) and kind != "item" and isinstance(source_id, str) and source_id:
+        return source_id
+    item_id = item.get("item_id")
+    if isinstance(item_id, str) and item_id:
+        return item_id
+    source = item.get("source")
+    paper_id = source.get("paper_id") if isinstance(source, dict) else None
+    if isinstance(paper_id, str) and paper_id:
+        return paper_id
+    return fallback
+
+
+def _evidence_packet_from_landscapes(landscapes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collect reference items and paper leads from landscape artifacts."""
+    items: list[dict[str, Any]] = []
+    paper_leads: list[dict[str, Any]] = []
+    landscape_refs: list[dict[str, Any]] = []
+    for landscape_index, landscape in enumerate(landscapes):
+        landscape_refs.append(
+            {
+                "index": landscape_index,
+                "kind": landscape.get("kind"),
+                "action": landscape.get("action"),
+                "target": landscape.get("target"),
+            }
+        )
+        for raw_item in landscape.get("items", []):
+            if not isinstance(raw_item, dict):
+                continue
+            item = dict(raw_item)
+            item["item_id"] = _stable_item_id(item, f"item_{len(items)}")
+            item.setdefault("display_index", len(items))
+            item["landscape_index"] = landscape_index
+            items.append(item)
+        for raw_lead in landscape.get("paper_leads", []):
+            if isinstance(raw_lead, dict):
+                lead = dict(raw_lead)
+                lead["landscape_index"] = landscape_index
+                paper_leads.append(lead)
+    return {
+        "landscapes": landscape_refs,
+        "items": items,
+        "paper_leads": paper_leads,
+    }
+
+
+def build_assessment_from_landscapes(
+    *,
+    focus: dict[str, Any],
+    landscapes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build a conservative assessment artifact from landscape reference items."""
+    evidence_packet = _evidence_packet_from_landscapes(landscapes)
+    items = evidence_packet["items"]
+
+    focus_id = focus.get("id", "focus")
+    item_source_refs = [_source_ref_for_item(item) for item in items]
+    relations = [
+        {
+            "type": "background_for",
+            "claim": f"Retrieved item is background evidence for {focus_id}.",
+            "rationale": "The item was retrieved by a landscape query selected for this focus.",
+            "epistemic_status": "candidate",
+            "promotion_hint": "none",
+            "source_refs": [source_ref],
+        }
+        for source_ref in item_source_refs
+        if source_ref is not None
+    ]
+    if not relations:
+        relations.append(
+            {
+                "type": "needs_more_evidence",
+                "claim": f"No retrieved items are available for {focus_id}.",
+                "rationale": (
+                    "Assessment cannot classify support or opposition without grounded items."
+                ),
+                "epistemic_status": "candidate",
+                "promotion_hint": "obligation",
+                "source_refs": [{"kind": "focus", "id": str(focus_id)}],
+            }
+        )
+
+    candidate_obligations = [
+        {
+            "kind": "needs_more_evidence",
+            "target": dict(focus),
+            "content": (
+                "Classify whether the retrieved items support, oppose, qualify, "
+                "or undercut the focus."
+            ),
+            "source_refs": [
+                source_ref for source_ref in item_source_refs if source_ref is not None
+            ],
+        }
+    ]
+    artifact = build_assessment_artifact(
+        focus=focus,
+        evidence_packet=evidence_packet,
+        relations=relations,
+        candidate_obligations=candidate_obligations,
+    )
+    validate_assessment_artifact(artifact)
+    return artifact
+
+
+def _empty_grounding_ids() -> dict[str, set[str]]:
+    return {
+        "variable": set(),
+        "factor": set(),
+        "chain": set(),
+        "package": set(),
+        "package_ref": set(),
+        "paper": set(),
+        "focus": set(),
+    }
+
+
+def _add_grounding_id(ids: dict[str, set[str]], kind: str, value: Any) -> None:
+    if isinstance(value, str) and value:
+        ids[kind].add(value)
+
+
+def _add_paper_grounding(ids: dict[str, set[str]], paper_id: Any) -> None:
+    if isinstance(paper_id, str) and paper_id:
+        ids["paper"].add(paper_id)
+
+
+def _add_item_grounding(ids: dict[str, set[str]], item: dict[str, Any]) -> None:
+    kind = item.get("kind")
+    if isinstance(kind, str) and kind in ids:
+        _add_grounding_id(ids, kind, item.get("id"))
+    source = item.get("source")
+    if isinstance(source, dict):
+        _add_paper_grounding(ids, source.get("paper_id"))
+    package_ref_payload = item.get("package_ref")
+    if isinstance(package_ref_payload, dict):
+        _add_grounding_id(ids, "package_ref", package_ref_payload.get("ref"))
+
+
+def _add_paper_lead_grounding(ids: dict[str, set[str]], lead: dict[str, Any]) -> None:
+    _add_paper_grounding(ids, lead.get("paper_id"))
+    for variable_id in lead.get("variable_ids", []) or []:
+        _add_grounding_id(ids, "variable", variable_id)
+
+
+def _source_ref_for_item(item: dict[str, Any]) -> dict[str, str] | None:
+    kind = item.get("kind")
+    source_id = item.get("id")
+    if (
+        isinstance(kind, str)
+        and kind in {"variable", "factor", "chain", "package"}
+        and isinstance(source_id, str)
+        and source_id
+    ):
+        return {"kind": kind, "id": source_id}
+    source = item.get("source")
+    paper_id = source.get("paper_id") if isinstance(source, dict) else None
+    if isinstance(paper_id, str) and paper_id:
+        return {"kind": "paper", "id": paper_id}
+    package_ref_payload = item.get("package_ref")
+    package_ref = package_ref_payload.get("ref") if isinstance(package_ref_payload, dict) else None
+    if isinstance(package_ref, str) and package_ref:
+        return {"kind": "package_ref", "id": package_ref}
+    return None
+
+
+def _valid_grounding_ids(
+    evidence_packet: dict[str, Any],
+    *,
+    focus: dict[str, Any],
+) -> dict[str, set[str]]:
+    ids = _empty_grounding_ids()
+    _add_grounding_id(ids, "focus", focus.get("id"))
+    items = evidence_packet.get("items", [])
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict):
+                _add_item_grounding(ids, item)
+
+    paper_leads = evidence_packet.get("paper_leads", [])
+    if isinstance(paper_leads, list):
+        for lead in paper_leads:
+            if isinstance(lead, dict):
+                _add_paper_lead_grounding(ids, lead)
+    return ids
+
+
+def _package_ref_value_types(evidence_packet: dict[str, Any]) -> dict[str, str]:
+    refs: dict[str, str] = {}
+    items = evidence_packet.get("items", [])
+    if not isinstance(items, list):
+        return refs
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        package_ref = item.get("package_ref")
+        if not isinstance(package_ref, dict):
+            continue
+        ref = package_ref.get("ref")
+        value_type = package_ref.get("value_type")
+        if isinstance(ref, str) and ref and isinstance(value_type, str) and value_type:
+            refs[ref] = value_type
+    return refs
+
+
+def _validate_source_ref_payload(
+    ref_payload: dict[str, Any],
+    *,
+    valid_ids: dict[str, set[str]],
+    field: str,
+) -> None:
+    kind = _require_non_empty_string(ref_payload, "kind")
+    ref_id = _require_non_empty_string(ref_payload, "id")
+    if kind not in valid_ids:
+        raise AssessmentSchemaError(f"{field} kind {kind!r} is not supported")
+    if ref_id not in valid_ids[kind]:
+        raise AssessmentSchemaError(f"{field} {kind}:{ref_id} is not grounded in evidence_packet")
+
+
+def _validate_claim_refs(
+    relation_payload: dict[str, Any],
+    *,
+    relation_index: int,
+    package_ref_value_types: dict[str, str],
+) -> None:
+    claim_refs = relation_payload.get("claim_refs", relation_payload.get("claims"))
+    if claim_refs is None:
+        return
+    if not isinstance(claim_refs, list):
+        raise AssessmentSchemaError(f"relations[{relation_index}].claim_refs must be a list")
+    for ref_index, ref in enumerate(claim_refs):
+        if not isinstance(ref, str) or not ref:
+            raise AssessmentSchemaError(
+                f"relations[{relation_index}].claim_refs[{ref_index}] must be a non-empty string"
+            )
+        if ":" not in ref:
+            continue
+        if ref not in package_ref_value_types:
+            raise AssessmentSchemaError(
+                f"relations[{relation_index}].claim_refs[{ref_index}] {ref!r} "
+                "is not grounded in evidence_packet package_ref values"
+            )
+        value_type = package_ref_value_types[ref]
+        if value_type != "claim":
+            raise AssessmentSchemaError(
+                f"relations[{relation_index}].claim_refs[{ref_index}] {ref!r} "
+                f"has value_type {value_type!r}; claim_refs must reference claim package_refs"
+            )
+
+
+def validate_assessment_grounding(artifact: dict[str, Any]) -> dict[str, Any]:
+    """Validate that relation refs resolve inside the assessment evidence packet."""
+    evidence_packet = _require_dict(artifact.get("evidence_packet"), "evidence_packet")
+    focus = _require_dict(artifact.get("focus"), "focus")
+    valid_ids = _valid_grounding_ids(evidence_packet, focus=focus)
+    package_ref_value_types = _package_ref_value_types(evidence_packet)
+    for relation_index, relation in enumerate(artifact.get("relations", [])):
+        relation_payload = _require_dict(relation, f"relations[{relation_index}]")
+        for ref_index, ref in enumerate(relation_payload.get("source_refs", [])):
+            ref_payload = _require_dict(
+                ref, f"relations[{relation_index}].source_refs[{ref_index}]"
+            )
+            _validate_source_ref_payload(
+                ref_payload,
+                valid_ids=valid_ids,
+                field=f"relations[{relation_index}].source_refs[{ref_index}]",
+            )
+        _validate_claim_refs(
+            relation_payload,
+            relation_index=relation_index,
+            package_ref_value_types=package_ref_value_types,
+        )
+    return artifact
+
+
+def build_assessment_from_analysis(
+    *,
+    focus: dict[str, Any],
+    landscapes: list[dict[str, Any]],
+    analysis: dict[str, Any],
+    evidence_packet: dict[str, Any] | None = None,
+    strict_grounding: bool = True,
+) -> dict[str, Any]:
+    """Build an assessment artifact from agent/LLM analysis and landscapes."""
+    evidence_packet = (
+        dict(evidence_packet)
+        if evidence_packet is not None
+        else _evidence_packet_from_landscapes(landscapes)
+    )
+    relations = analysis.get("relations", [])
+    if not isinstance(relations, list):
+        raise AssessmentSchemaError("analysis.relations must be a list")
+    candidate_obligations = analysis.get("candidate_obligations", [])
+    if not isinstance(candidate_obligations, list):
+        raise AssessmentSchemaError("analysis.candidate_obligations must be a list")
+    review = analysis.get("review")
+    if review is not None and not isinstance(review, dict):
+        raise AssessmentSchemaError("analysis.review must be an object")
+    limitations = analysis.get("limitations", [])
+    if not isinstance(limitations, list):
+        raise AssessmentSchemaError("analysis.limitations must be a list")
+    next_queries = analysis.get("next_queries", [])
+    if not isinstance(next_queries, list):
+        raise AssessmentSchemaError("analysis.next_queries must be a list")
+
+    artifact = build_assessment_artifact(
+        focus=focus,
+        evidence_packet=evidence_packet,
+        relations=relations,
+        candidate_obligations=candidate_obligations,
+        review=review,
+        limitations=[item for item in limitations if isinstance(item, str) and item],
+        next_queries=[item for item in next_queries if isinstance(item, str) and item],
+    )
+    validate_assessment_artifact(artifact)
+    if strict_grounding:
+        validate_assessment_grounding(artifact)
+    return artifact
+
+
+def _require_dict(payload: Any, field: str) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise AssessmentSchemaError(f"{field} must be an object")
+    return payload
+
+
+def _require_non_empty_string(payload: dict[str, Any], field: str) -> str:
+    value = payload.get(field)
+    if not isinstance(value, str) or not value:
+        raise AssessmentSchemaError(f"{field} must be a non-empty string")
+    return value
+
+
+def _validate_source_refs(source_refs: Any) -> None:
+    if not isinstance(source_refs, list) or not source_refs:
+        raise AssessmentSchemaError("relation source_refs must contain at least one source ref")
+    for index, ref in enumerate(source_refs):
+        ref_payload = _require_dict(ref, f"source_refs[{index}]")
+        _require_non_empty_string(ref_payload, "kind")
+        _require_non_empty_string(ref_payload, "id")
+
+
+def validate_assessment_relation(relation: dict[str, Any]) -> dict[str, Any]:
+    """Validate one v1 assessment relation record."""
+    relation_type = _require_non_empty_string(relation, "type")
+    if relation_type not in VALID_RELATIONS:
+        raise AssessmentSchemaError(
+            f"relation type {relation_type!r} is invalid; allowed: {sorted(VALID_RELATIONS)}"
+        )
+
+    _require_non_empty_string(relation, "claim")
+    _require_non_empty_string(relation, "rationale")
+    _require_non_empty_string(relation, "epistemic_status")
+    _validate_source_refs(relation.get("source_refs"))
+
+    hint = relation.get("promotion_hint", "none")
+    if not isinstance(hint, str) or not hint:
+        raise AssessmentSchemaError("promotion_hint must be a non-empty string")
+    allowed_hints = RELATION_PROMOTION_HINTS[relation_type]
+    if hint not in allowed_hints:
+        raise AssessmentSchemaError(
+            f"promotion_hint {hint!r} is not allowed for relation {relation_type!r}; "
+            f"allowed: {sorted(allowed_hints)}"
+        )
+    return relation
+
+
+def _validate_review(review: Any) -> None:
+    payload = _require_dict(review, "review")
+    _require_non_empty_string(payload, "language")
+    _require_non_empty_string(payload, "depth")
+    _require_non_empty_string(payload, "summary")
+    sections = payload.get("sections", [])
+    if not isinstance(sections, list):
+        raise AssessmentSchemaError("review.sections must be a list")
+    for index, section in enumerate(sections):
+        section_payload = _require_dict(section, f"review.sections[{index}]")
+        _require_non_empty_string(section_payload, "title")
+        _require_non_empty_string(section_payload, "body")
+    for field in ("limitations", "next_queries"):
+        value = payload.get(field, [])
+        if not isinstance(value, list):
+            raise AssessmentSchemaError(f"review.{field} must be a list")
+
+
+def _validate_string_list(value: Any, field: str) -> None:
+    if not isinstance(value, list):
+        raise AssessmentSchemaError(f"{field} must be a list")
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item:
+            raise AssessmentSchemaError(f"{field}[{index}] must be a non-empty string")
+
+
+def _validate_citation(citation: Any, index: int) -> None:
+    payload = _require_dict(citation, f"citations[{index}]")
+    for field in ("id", "source_kind"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value:
+            raise AssessmentSchemaError(f"citations[{index}].{field} must be a non-empty string")
+    if not isinstance(payload.get("paper_id") or payload.get("source_id"), str):
+        raise AssessmentSchemaError(f"citations[{index}] must include paper_id or source_id")
+    _validate_string_list(payload.get("item_ids"), f"citations[{index}].item_ids")
+    _validate_string_list(payload.get("variable_ids", []), f"citations[{index}].variable_ids")
+
+
+def _validate_optional_string_lists(artifact: dict[str, Any], fields: tuple[str, ...]) -> None:
+    for field in fields:
+        if field in artifact:
+            _validate_string_list(artifact[field], field)
+
+
+def validate_assessment_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
+    """Validate a v1 assessment artifact dictionary."""
+    if artifact.get("schema_version") != ASSESSMENT_SCHEMA_VERSION:
+        raise AssessmentSchemaError(
+            f"schema_version must be {ASSESSMENT_SCHEMA_VERSION}, "
+            f"got {artifact.get('schema_version')!r}"
+        )
+    if artifact.get("kind") != "assessment":
+        raise AssessmentSchemaError("kind must be 'assessment'")
+    _require_dict(artifact.get("focus"), "focus")
+    _require_dict(artifact.get("evidence_packet"), "evidence_packet")
+
+    relations = artifact.get("relations")
+    if not isinstance(relations, list):
+        raise AssessmentSchemaError("relations must be a list")
+    for index, relation in enumerate(relations):
+        validate_assessment_relation(_require_dict(relation, f"relations[{index}]"))
+
+    candidate_obligations = artifact.get("candidate_obligations")
+    if not isinstance(candidate_obligations, list):
+        raise AssessmentSchemaError("candidate_obligations must be a list")
+    for index, obligation in enumerate(candidate_obligations):
+        _require_dict(obligation, f"candidate_obligations[{index}]")
+
+    if "citations" in artifact:
+        citations = artifact["citations"]
+        if not isinstance(citations, list):
+            raise AssessmentSchemaError("citations must be a list")
+        for index, citation in enumerate(citations):
+            _validate_citation(citation, index)
+
+    if "review" in artifact:
+        _validate_review(artifact["review"])
+    _validate_optional_string_lists(artifact, ("limitations", "next_queries"))
+
+    return artifact
+
+
+__all__ = [
+    "ASSESSMENT_SCHEMA_VERSION",
+    "RELATION_PROMOTION_HINTS",
+    "VALID_PROMOTION_HINTS",
+    "VALID_RELATIONS",
+    "AssessmentSchemaError",
+    "build_assessment_artifact",
+    "build_assessment_from_analysis",
+    "build_assessment_from_landscapes",
+    "validate_assessment_artifact",
+    "validate_assessment_grounding",
+    "validate_assessment_relation",
+]
