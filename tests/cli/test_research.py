@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 import typer
@@ -63,13 +65,20 @@ module_names = [
     "gaia.cli.commands.research",
     "gaia.cli.commands.research_orchestrator",
     "gaia.engine.research",
+    "gaia.lkm_explorer",
 ]
-print(json.dumps({name: name in sys.modules for name in module_names}, sort_keys=True))
+print(json.dumps({
+    name: name in sys.modules
+    for name in module_names
+}, sort_keys=True))
 """
+    env = dict(os.environ)
+    env.pop("PYTHONPATH", None)
     result = subprocess.run(
-        [sys.executable, "-c", code],
+        [sys.executable, "-I", "-c", code],
         check=True,
         capture_output=True,
+        env=env,
         text=True,
     )
 
@@ -77,7 +86,26 @@ print(json.dumps({name: name in sys.modules for name in module_names}, sort_keys
         "gaia.cli.commands.research": False,
         "gaia.cli.commands.research_orchestrator": False,
         "gaia.engine.research": False,
+        "gaia.lkm_explorer": False,
     }
+
+
+def test_core_research_workflow_paths_are_removed() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    removed_paths = [
+        "gaia/cli/commands/research.py",
+        "gaia/cli/commands/research_orchestrator.py",
+        "gaia/engine/research",
+        "gaia/lkm_explorer",
+        "gaia/_skills/gaia-research-loop",
+        "gaia/_skills/gaia-evidence-subgraph",
+        "gaia/_skills/gaia-scholarly-synthesis",
+        "tests/gaia/test_research_report.py",
+        "tests/lkm_explorer",
+    ]
+
+    for relative in removed_paths:
+        assert not (repo_root / relative).exists(), relative
 
 
 def test_external_research_plugin_can_register_run_surface() -> None:
