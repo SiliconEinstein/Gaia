@@ -1,15 +1,35 @@
 ---
-status: current-canonical
+status: moved-to-gaia-research
 layer: cli
-since: v0.6
+since: v0.7
 ---
 
-# Research Loop CLI
+# Research Loop Handoff
 
-`gaia research` is the package-native workflow for broad exploration,
-review-field mapping, focus synthesis, targeted expansion, and evidence
-assessment. Its canonical state lives in Gaia package source and Gaia inquiry
-state; research JSON exists only as trace, cache, or audit output.
+`gaia research` is no longer implemented by Gaia core. The upper workflow for
+broad exploration, review-field mapping, focus synthesis, targeted expansion,
+assessment, and report writing is owned by the external `gaia-research`
+package, which may register the `gaia research` command through the
+`gaia.cli_plugins` entry point group.
+
+Gaia core keeps the primitives that `gaia-research` composes: package
+scaffolding and dependency management, `gaia search lkm`, inquiry state,
+authoring/materialization APIs, trace/review utilities, and compilation /
+inference / rendering. If `gaia-research` is not installed, `gaia research`
+prints a hidden install hint instead of falling back to the old core workflow.
+
+This file is a migration reference for the old package-native loop. The
+canonical workflow docs should live in `gaia-research/docs/foundations/` after
+the split. The old Gaia repo research implementation and its migrated tests can
+be deleted in a dedicated cleanup PR; the handoff PR only removes the public
+root CLI ownership.
+
+## Historical Loop
+
+The former `gaia research` workflow covered broad exploration, review-field
+mapping, focus synthesis, targeted expansion, and evidence assessment. Its
+canonical state lived in Gaia package source and Gaia inquiry state; research
+JSON existed only as trace, cache, or audit output.
 
 The guiding rule is:
 
