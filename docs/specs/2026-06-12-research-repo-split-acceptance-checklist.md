@@ -36,6 +36,10 @@ extension path for that follow-up.
 | A9 | #745, #761, #762, and #764 are closed or re-homed with release-blocking owners. | Issue tracker links from release checklist; phase gates in PR descriptions; no open silent-skip or batch-author correctness gap remains unowned. |
 | A10 | New-user readiness is first-class. | `gaia-research doctor` / `gaia research doctor` tests cover missing credentials, missing provider config, invalid package shape, profile resolution, and output paths without leaking secrets. |
 
+The Gaia core handoff and the Gaia core deletion do not need to land in the
+same PR: old core-owned research code and migrated tests may be removed in a
+dedicated cleanup PR after the plugin handoff is accepted.
+
 ## 2. Review Run Mode Acceptance
 
 Review run mode is accepted only when all of these pass:

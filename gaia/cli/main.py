@@ -17,7 +17,7 @@ The CLI organizes verbs into explicit top-level groups:
            variable / depends-on / candidate-relation / materialize /
            compose / composition
   bayes    model / compare / distribution literals
-  research package-native research actions (explore / assess / propose)
+  research external gaia-research plugin when installed
   example  galileo / mendel (print or save the cli walkthrough for a
            shipping v0.5 example package)
   trace    (independent sub-app: verify / review / show)
@@ -87,7 +87,6 @@ from gaia.cli.commands.inquiry import inquiry_app
 from gaia.cli.commands.pkg import add_import_command, add_module_command, scaffold_command
 from gaia.cli.commands.register import register_command
 from gaia.cli.commands.render import render_command
-from gaia.cli.commands.research import research_app
 from gaia.cli.commands.review import app as review_app
 from gaia.cli.commands.sdk import sdk_command
 from gaia.cli.commands.search import search_app
@@ -229,8 +228,13 @@ def add_missing_research_hint(root_app: typer.Typer) -> None:
     if "research" in _registered_top_level_names(root_app):
         return
 
-    @root_app.command(name="research", hidden=True, help=_MISSING_RESEARCH_HINT)
-    def _missing_research_plugin() -> None:
+    @root_app.command(
+        name="research",
+        hidden=True,
+        help=_MISSING_RESEARCH_HINT,
+        context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    )
+    def _missing_research_plugin(_ctx: typer.Context) -> None:
         typer.echo(_MISSING_RESEARCH_HINT, err=True)
         raise typer.Exit(4)
 
@@ -544,13 +548,6 @@ app.add_typer(skill_app, name="skill")
 # backends; see `gaia.cli.commands.search`.
 
 app.add_typer(search_app, name="search")
-
-
-# --------------------------------------------------------------------------- #
-# research — package-native research actions                                  #
-# --------------------------------------------------------------------------- #
-
-app.add_typer(research_app, name="research")
 
 
 # --------------------------------------------------------------------------- #
