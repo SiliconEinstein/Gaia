@@ -15,61 +15,27 @@ fight the env var.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Annotated
 
 import typer
 
-from gaia.cli.commands.search.lkm._client import (
-    LKMClient,
-    LKMPermissionError,
-    LKMTransportError,
-)
+import gaia.cli._onboarding as _onboarding
 from gaia.lkm.credentials import (
     CredentialPermissionError,
     active_lkm_env_var,
     lkm_key_status,
     purge_lkm_key,
     read_lkm_key,
-    write_lkm_key,
 )
 
 _ENV_VAR = "GAIA_LKM_ACCESS_KEY"
 _COMPAT_ENV_VAR = "LKM_ACCESS_KEY"
-
-# Business codes that still imply the access key itself authenticated:
-#   0       request succeeded
-#   290002  request reached the service and was rejected on *parameters*
-_AUTH_VALID_CODES = {0, 290002}
 
 auth_app = typer.Typer(
     name="auth",
     help="Manage the LKM access key (login / status / logout / rotate).",
     no_args_is_help=True,
 )
-
-
-def _validate_key(key: str) -> tuple[bool, str]:
-    """Probe the API with ``key`` via a cheap ``POST /search``.
-
-    Returns ``(is_valid, detail)``. A code of 0 or 290002 means the key
-    authenticated (the request reached the service); a 401/403 transport
-    error or an auth-flavoured business code means it did not.
-    """
-    try:
-        with LKMClient(access_key=key) as client:
-            payload = client.request("POST", "/search", json_body={"query": "ping", "limit": 1})
-    except LKMPermissionError:
-        return False, "access key rejected (HTTP 401/403)"
-    except LKMTransportError as exc:
-        # Network / decode failure — surface as inconclusive, treat as invalid
-        # for login purposes but with a transport-flavoured message.
-        return False, f"could not validate: {exc}"
-    code = payload.get("code")
-    if code in _AUTH_VALID_CODES:
-        return True, "ok"
-    msg = str(payload.get("msg", ""))
-    return False, f"access key rejected (code {code}: {msg})"
 
 
 @auth_app.command(name="login")
@@ -79,7 +45,7 @@ def login_command(
         typer.Option("--force", help="Re-validate and overwrite even if a valid key exists."),
     ] = False,
 ) -> None:
-    """Prompt for an access key, validate it, and persist to the credentials file."""
+    """Show setup instructions, prompt for an access key, validate it, and persist to file."""
     env_var = active_lkm_env_var()
     if env_var:
         typer.echo(
@@ -92,7 +58,7 @@ def login_command(
     if not force:
         existing = read_lkm_key()
         if existing:
-            valid, _ = _validate_key(existing)
+            valid, _ = _onboarding.validate_lkm_access_key(existing)
             if valid:
                 typer.echo(
                     "A valid access key is already stored. Use "
@@ -100,18 +66,7 @@ def login_command(
                 )
                 raise typer.Exit(0)
 
-    key = typer.prompt("Bohrium access key", hide_input=True).strip()
-    if not key:
-        typer.echo("Error: empty access key; nothing stored.", err=True)
-        raise typer.Exit(4)
-
-    valid, detail = _validate_key(key)
-    if not valid:
-        typer.echo(f"Access key rejected ({detail}). Not stored.", err=True)
-        raise typer.Exit(3)
-
-    write_lkm_key(key, datetime.now(UTC))
-    typer.echo("Access key validated and stored.")
+    _onboarding.prompt_lkm_setup()
 
 
 @auth_app.command(name="status")

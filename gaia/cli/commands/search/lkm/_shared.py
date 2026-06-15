@@ -17,10 +17,11 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import typer
 
+from gaia.cli._onboarding import try_interactive_onboarding
 from gaia.cli.commands.search.lkm._client import (
     LKMClient,
     LKMError,
@@ -93,20 +94,37 @@ def run_request(
         with LKMClient(base_url=base_url) as client:
             payload = client.request(method, path, json_body=json_body, params=params)
     except NoAccessKeyError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(3) from exc
-    except LKMPermissionError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(2) from exc
-    except LKMNotFoundError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    except LKMTransportError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(2) from exc
-    except CredentialPermissionError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(2) from exc
+        # Interactive terminal: run the onboarding wizard and retry once.
+        # Non-interactive (CI/pipe): print the plain error and exit.
+        onboarded = try_interactive_onboarding(
+            heading="\nNo LKM access key configured. Let's set one up first.\n"
+        )
+        if not onboarded:
+            typer.echo(
+                "Error: No LKM access key configured. "
+                "Run `gaia search lkm auth login` or set GAIA_LKM_ACCESS_KEY.",
+                err=True,
+            )
+            raise typer.Exit(3) from exc
+        # Retry with the newly stored key.
+        try:
+            with LKMClient(base_url=base_url) as client:
+                payload = client.request(method, path, json_body=json_body, params=params)
+        except (
+            NoAccessKeyError,
+            LKMPermissionError,
+            LKMNotFoundError,
+            LKMTransportError,
+            CredentialPermissionError,
+        ) as retry_exc:
+            _exit_for_request_error(retry_exc)
+    except (
+        LKMPermissionError,
+        LKMNotFoundError,
+        LKMTransportError,
+        CredentialPermissionError,
+    ) as exc:
+        _exit_for_request_error(exc)
 
     code = payload.get("code")
     if code != 0:
@@ -116,6 +134,17 @@ def run_request(
         typer.echo(f"Error: {err}", err=True)
         raise typer.Exit(1)
     return payload
+
+
+def _exit_for_request_error(exc: Exception) -> NoReturn:
+    if isinstance(exc, NoAccessKeyError):
+        exit_code = 3
+    elif isinstance(exc, LKMNotFoundError):
+        exit_code = 1
+    else:
+        exit_code = 2
+    typer.echo(f"Error: {exc}", err=True)
+    raise typer.Exit(exit_code) from exc
 
 
 def _business_message(payload: dict[str, Any]) -> str:

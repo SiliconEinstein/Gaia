@@ -14,7 +14,8 @@ import pytest
 from typer.testing import CliRunner
 
 from gaia.cli import _credentials as cred
-from gaia.cli.commands.search.lkm import auth as auth_module
+from gaia.cli import _onboarding as onboarding_module
+from gaia.cli.commands.search.lkm import _client
 from gaia.cli.main import app
 
 pytestmark = pytest.mark.pr_gate
@@ -26,14 +27,39 @@ _AUTH = ("search", "lkm", "auth")
 
 @pytest.fixture(autouse=True)
 def isolated_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Redirect the credential store and clear the env override for every test."""
+    """Redirect the credential store and clear all LKM env overrides for every test."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     monkeypatch.delenv("GAIA_LKM_ACCESS_KEY", raising=False)
+    monkeypatch.delenv("LKM_ACCESS_KEY", raising=False)
     return tmp_path / "gaia" / "credentials.toml"
 
 
 def _patch_validate(monkeypatch: pytest.MonkeyPatch, result: tuple[bool, str]) -> None:
-    monkeypatch.setattr(auth_module, "_validate_key", lambda _key: result)
+    monkeypatch.setattr(onboarding_module, "validate_lkm_access_key", lambda _key: result)
+
+
+def test_validate_lkm_access_key_permission_error_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class PermissionDeniedClient:
+        def __init__(self, *, access_key: str) -> None:
+            self.access_key = access_key
+
+        def __enter__(self) -> PermissionDeniedClient:
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+        def request(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+            raise _client.LKMPermissionError("permission denied")
+
+    monkeypatch.setattr(_client, "LKMClient", PermissionDeniedClient)
+
+    valid, detail = onboarding_module.validate_lkm_access_key("bad-key")
+
+    assert valid is False
+    assert "access key rejected" in detail
 
 
 # --------------------------------------------------------------------------- #
@@ -74,6 +100,18 @@ class TestLogin:
         result = runner.invoke(app, [*_AUTH, "login"], input="x\n")
         assert result.exit_code == 4, result.output
         assert "LKM_ACCESS_KEY" in result.output
+
+    def test_login_env_set_exits_4_even_when_valid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Regression: a valid env-sourced key must still exit 4 — env vars shadow
+        # the file store and login must refuse rather than pretend it managed a
+        # file credential. read_lkm_key() returns the env key first, so without
+        # the explicit active_lkm_env_var() guard the old code would exit 0.
+        monkeypatch.setenv("LKM_ACCESS_KEY", "valid-env-key")
+        _patch_validate(monkeypatch, (True, "ok"))
+        result = runner.invoke(app, [*_AUTH, "login"])
+        assert result.exit_code == 4, result.output
+        assert "LKM_ACCESS_KEY" in result.output
+        assert "shadows" in result.output
 
     def test_login_already_valid_exits_0(self, monkeypatch: pytest.MonkeyPatch) -> None:
         cred.write_lkm_key("existing-key", datetime.now(UTC))
