@@ -10,9 +10,16 @@
 > Implementation plan:
 > [Research Repo Split Implementation Plan](../superpowers/plans/2026-06-12-research-repo-split-implementation.md).
 
-This checklist defines the evidence required before the research split can be
-called complete. It is intentionally stricter than "the code moved": every item
-must be proven by files, tests, commands, PR/issue state, or runtime artifacts.
+This checklist defines the evidence required before **Goal A** can be called
+complete: the research repo split, Gaia connection, review-run parity, and
+release/removal gates. It is intentionally stricter than "the code moved":
+every item must be proven by files, tests, commands, PR/issue state, or runtime
+artifacts.
+
+Large-scale graph-session execution is tracked separately in
+[#767](https://github.com/SiliconEinstein/Gaia/issues/767). Goal A should not
+be blocked on implementing graph sessions; it should only preserve a clean
+extension path for that follow-up.
 
 ## 1. Completion Requirements
 
@@ -22,12 +29,16 @@ must be proven by files, tests, commands, PR/issue state, or runtime artifacts.
 | A2 | Gaia core no longer owns research implementation code after the removal phase. | Core release branch lacks `gaia/engine/research/**`, `gaia/cli/commands/research*.py`, and bundled research skill code; `gaia research` resolves via plugin or prints an install hint. |
 | A3 | Dependency direction is one-way: `gaia-research -> gaia core`. | Import check in both repos proves Gaia core does not import `gaia_research`; contract CI installs `gaia-research` as a downstream package. |
 | A4 | Review run mode supports product/skill use for evidence-backed reports. | SDK/CLI/skill smoke test creates a package-local run, performs mocked explore/assessment/report phases, and emits observable state/events/report paths. |
-| A5 | Graph session mode supports resumable long-running expansion without requiring a final report. | SDK/CLI smoke test opens a session, submits multiple frontier batches, writes nodes/edges/focus/field-map records, pauses, resumes, and continues without report generation. |
-| A6 | Normal graph-session continuation is incremental. | Performance/complexity regression test proves continuation reads the new frontier/input batch and cursor/index files, not all historical node/edge records. |
-| A7 | `.gaia/research/**` is the only canonical research namespace. | Tests assert review runs and graph sessions write under `.gaia/research/**`; docs and code do not create canonical `.gaia/research_loop/**` state. |
-| A8 | Research artifacts and graph-session records are not automatically stable Gaia source. | Promotion tests show source writes require explicit sync/promotion calls; default run/session steps leave `src/<pkg>/` unchanged unless a sync gate is requested. |
+| A5 | Large-scale graph-session work is explicitly re-homed outside Goal A. | #767 exists, is linked from the split docs, and contains the follow-up design notes for linear continuation, session state, and verifiers. |
+| A6 | Goal A preserves a future graph-session extension path without implementing it. | Docs and code reserve `.gaia/research/sessions/**` for future work, do not create canonical `.gaia/research_loop/**` state, and do not require Gaia core internals for future session state. |
+| A7 | `.gaia/research/**` is the only canonical research namespace. | Tests assert review runs write under `.gaia/research/**`; docs and code do not create canonical `.gaia/research_loop/**` state, and future graph sessions are reserved for `.gaia/research/sessions/**` via #767. |
+| A8 | Research artifacts are not automatically stable Gaia source. | Promotion/sync tests show source writes require explicit sync/promotion calls; default review-run artifact generation leaves stable claims/relations unchanged unless a sync gate is requested. |
 | A9 | #745, #761, #762, and #764 are closed or re-homed with release-blocking owners. | Issue tracker links from release checklist; phase gates in PR descriptions; no open silent-skip or batch-author correctness gap remains unowned. |
 | A10 | New-user readiness is first-class. | `gaia-research doctor` / `gaia research doctor` tests cover missing credentials, missing provider config, invalid package shape, profile resolution, and output paths without leaking secrets. |
+
+The Gaia core handoff and the Gaia core deletion do not need to land in the
+same PR: old core-owned research code and migrated tests may be removed in a
+dedicated cleanup PR after the plugin handoff is accepted.
 
 ## 2. Review Run Mode Acceptance
 
@@ -53,9 +64,14 @@ The release checklist must include one mocked CI run and one manually recorded
 live or staging run. The live/staging record may use a small topic, but it must
 exercise real provider/search configuration and produce a final report path.
 
-## 3. Graph Session Mode Acceptance
+## 3. Graph Session Follow-up Handoff
 
-Graph session mode is accepted only when all of these pass:
+Graph session mode is not a Goal A acceptance target. The implementation
+direction and verifier sketch are captured in
+[#767](https://github.com/SiliconEinstein/Gaia/issues/767), and future work
+should use that issue as the starting point.
+
+The follow-up issue currently carries these intended checks:
 
 | Check | Evidence command or artifact | Failure condition |
 | --- | --- | --- |
@@ -64,11 +80,11 @@ Graph session mode is accepted only when all of these pass:
 | Pause/resume | `tests/session/test_pause_resume.py::test_resume_continues_from_saved_cursor` | Resume reprocesses already accepted frontier records or requires a final report artifact. |
 | Field map delta | `tests/session/test_field_map_delta.py::test_field_map_updates_from_delta_records` | Normal continuation scans all historical nodes/edges to update the field map. |
 | Task contract | `tests/session/test_task_contract.py::test_candidate_validation_produces_repair_context` | Invalid candidate advances the session, lacks repair context, or creates a second protocol namespace. |
-| Promotion boundary | `tests/session/test_promotion_boundary.py::test_session_records_do_not_write_gaia_source_by_default` | Opening or continuing a session writes stable `claim(...)`, `derive(...)`, or `contradict(...)` without explicit promotion. |
+| Promotion boundary | `tests/session/test_promotion_boundary.py::test_stable_promotion_requires_explicit_gate` | Opening or continuing a session writes stable `claim(...)`, `derive(...)`, or `contradict(...)` without explicit promotion. |
 
-The key complexity check must use an instrumented storage adapter. It should
-seed a session with a large historical log, then submit a small frontier batch
-and assert that normal continuation reads only:
+The future complexity check should use an instrumented storage adapter. It
+should seed a session with a large historical log, then submit a small frontier
+batch and assert that normal continuation reads only:
 
 ```text
 state.json
@@ -77,9 +93,13 @@ the new frontier/input batch
 the necessary delta index files
 ```
 
-It must fail if continuation opens every historical node/edge record in
+It should fail if continuation opens every historical node/edge record in
 `nodes.jsonl` or `edges.jsonl`. Full rebuild commands may scan history, but
 they must be named and tested separately.
+
+For Goal A, the acceptance evidence is only that this work is re-homed to #767
+and that the split does not introduce a conflicting namespace, dependency
+direction, or promotion model.
 
 ## 4. Core Repo Acceptance
 
@@ -110,11 +130,10 @@ run gaia research --help through the plugin path
 | Phase 0 to Phase 1 | PR #755 landed or superseded; #761 high-risk follow-ups either fixed or listed in gaia-research tracker with owners. |
 | Phase 1 to Phase 2 | Public LKM/readiness, authoring batch mode for #745, materialization, package-installer, inquiry-state, and CLI-plugin surfaces exist; #764 relation skip/validation/compile gate is closed; materialization collision fix is present. |
 | Phase 2 to Phase 3 | New repo bootstrapped; PR #726 lessons imported as historical/spec input only; no canonical `.gaia/research_loop/**` writes. |
-| Phase 3 to Phase 4 | Shared review-run and graph-session contracts are typed, versioned, SDK-accessible, and use `.gaia/research/**`. |
+| Phase 3 to Phase 4 | Review-run contracts are typed, versioned, SDK-accessible, and use `.gaia/research/**`; graph-session contract work is linked to #767. |
 | Phase 4 to Phase 5 | Review-run SDK/CLI/skill smoke tests create package-local runs and observable state/events/report artifacts. |
-| Phase 5 to Phase 6 | Graph-session contract tests pass, including pause/resume, candidate repair, promotion boundary, and instrumented incremental-continuation read-set checks. |
-| Phase 6 to Phase 7 | #762 doctor/profile/readiness acceptance checks pass; packaged skill registration works through the external research distribution. |
-| Phase 7 removal | Gaia core has downstream contract CI against the `gaia-lang 0.7.0` removal candidate; open research-side issues are transferred or closed with forwarding links. |
+| Phase 5 to Phase 6 | #762 doctor/profile/readiness acceptance checks pass; packaged skill registration works through the external research distribution. |
+| Phase 6 removal | Gaia core has downstream contract CI against the `gaia-lang 0.7.0` removal candidate; open research-side issues are transferred or closed with forwarding links. |
 
 If any issue remains open past its phase gate, the release checklist must name
 the new owner repo, blocking label, and exact acceptance test that will close it.
@@ -128,10 +147,10 @@ Before marking the split goal complete, run this audit against current state:
 2. Inspect `pyproject.toml` and package metadata in both repositories.
 3. Run core contract CI or the local equivalent.
 4. Run gaia-research unit, contract, SDK, CLI, and skill smoke tests.
-5. Run the graph-session incremental continuation test with an instrumented
-   storage adapter.
+5. Confirm #767 remains linked as the post-Goal A graph-session follow-up and
+   no Goal A code/docs conflict with it.
 6. Run or inspect one product-style review run that produces a report.
-7. Inspect GitHub issue state for #745, #761, #762, and #764.
+7. Inspect GitHub issue state for #745, #761, #762, #764, and #767.
 8. Inspect docs for accidental canonical `.gaia/research_loop/**` state.
 9. Confirm no completion claim relies only on intent, partial migration, or
    narrow tests that do not cover the original objective.

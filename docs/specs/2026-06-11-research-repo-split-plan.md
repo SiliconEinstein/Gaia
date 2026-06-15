@@ -18,27 +18,35 @@ Completion checklist:
 Implementation plan:
 [Research Repo Split Implementation Plan](../superpowers/plans/2026-06-12-research-repo-split-implementation.md).
 
-## Product Goal and Mode Contract
+## Goal A: Repo Split and Gaia Connection
 
-The split is not complete if it merely moves the current `gaia research run`
-code into another repository. The new repository must support two usage modes
-through one shared research kernel:
+The current delivery goal is **Goal A**: split Gaia's research implementation
+into an independent `gaia-research` repository and keep it connected to Gaia
+through public core APIs, plugin entry points, contract CI, and a migrated
+review-run workflow.
 
-1. **Review run mode**: product- and skill-facing evidence synthesis. A caller
-   gives a topic/profile, the workflow performs broad LKM exploration, field-map
-   induction, focus selection, evidence assessment, and sectioned report
-   writing. The intended interactive target is tens to hundreds of papers in a
-   3-5 minute window when provider/search latency permits it.
-2. **Graph session mode**: agent-framework-facing graph expansion. A caller can
-   keep extending a research graph to thousands or tens of thousands of durable
-   nodes and relations, pause, inspect, resume, and continue from the frontier.
-   It may never request a final prose report. Normal continuation must process
-   only newly added frontier/input records, so runtime is proportional to the
-   explored area for that step rather than repeatedly growing a superlinear
-   whole-graph pass.
+Goal A is not the same as delivering every future research capability. In
+particular, large-scale graph sessions are now tracked as a follow-up capability
+in [#767](https://github.com/SiliconEinstein/Gaia/issues/767). Goal A should
+not be considered incomplete merely because graph-session execution has not
+been implemented. It should only avoid architectural choices that would make
+that follow-up hard or impossible.
 
-The two modes share providers, schemas, provenance, evidence references, and
-promotion discipline. They differ in orchestration defaults:
+Goal A includes:
+
+1. **Repository extraction**: `gaia-research` exists as its own git repository,
+   with migrated code, tests, docs, package metadata, and skill assets.
+2. **Gaia connection**: Gaia core exposes the public surfaces research needs,
+   and `gaia research` delegates through a plugin when `gaia-research` is
+   installed.
+3. **Review-run parity**: the current package-native review-run workflow keeps
+   working from the new repo, with SDK/CLI/skill smoke tests proving observable
+   state, events, checkpoints, and report paths.
+4. **Future graph compatibility**: `.gaia/research/**` ownership, SDK layering,
+   and promotion discipline leave room for #767 without requiring a second
+   canonical research protocol.
+
+The future capability roadmap remains:
 
 | Concern | Review run mode | Graph session mode |
 | --- | --- | --- |
@@ -48,10 +56,10 @@ promotion discipline. They differ in orchestration defaults:
 | State updates | Run state, events, artifacts, report | Append-only graph/session log plus checkpoints |
 | Gaia source writes | Explicit sync/promotion gates only | Explicit sync/promotion gates only |
 
-PR #755 is the implementation body for the first mode. The closed PR #726
-`gaia-research-loop` branch is **not** revived as a second canonical workflow,
-but its task envelope, candidate validation, repair, and gate lessons are input
-to the graph-session SDK and disk contract under `.gaia/research/**`.
+PR #755 is the implementation body for the review-run path that Goal A migrates.
+The closed PR #726 `gaia-research-loop` branch is **not** revived as a second
+canonical workflow. Its task-envelope, candidate-validation, repair, and gate
+lessons are now background for #767.
 
 ## 0. Current State and Feasibility
 
@@ -104,7 +112,7 @@ distributions — the current size does not justify that):
 ```
 gaia-research/
   src/gaia_research/
-    engine/        # pure library: shared kernel, run orchestration, graph sessions,
+    engine/        # pure library: shared kernel, review-run orchestration,
                    # landscape, assessment, report, stop, sync; zero typer imports
     contracts/     # pydantic models for disk artifacts, events, graph records,
                    # task envelopes, provider I/O, and schema-versioned files
@@ -122,9 +130,12 @@ gaia-research/
   `events.ndjson`, manifest, trace, benchmark) transfers to the research repo
   and is explicitly versioned — downstream UIs depend only on that contract
   plus the SDK, never on internal modules.
-- Review runs and graph sessions are both engine concepts. The CLI and skill
-  surfaces call the same SDK that product backends and agent frameworks call;
-  they are not separate implementations.
+- Review runs are the Goal A engine concept. The CLI and skill surfaces call
+  the same SDK that product backends call; they are not separate
+  implementations.
+- Graph sessions are a reserved follow-up capability (#767). The repository
+  layout should leave a natural place for them, but Goal A does not implement
+  `.gaia/research/sessions/**`.
 
 ### 2.1 Shared Kernel
 
@@ -143,7 +154,8 @@ Mode-specific orchestration is thin:
 - Review run mode wires the kernel into the PR #755 sequence:
   `query_plan -> broad_search -> field_map -> focus -> selected_evidence ->
   assess -> stop -> report`.
-- Graph session mode wires the kernel into an incremental loop:
+- Graph-session mode is tracked in #767 and should later wire the kernel into
+  an incremental loop:
   `frontier_batch -> search/materialize/analyze -> node_edge_delta ->
   field_map_delta -> focus_policy -> checkpoint/continue`.
 
@@ -163,28 +175,17 @@ new canonical `.gaia/research_loop/**` tree.
     analysis/
     trace/
     final_report.md
-  sessions/<session-id>/
-    state.json
-    events.ndjson
-    frontier.jsonl
-    nodes.jsonl
-    edges.jsonl
-    focuses.jsonl
-    obligations.jsonl
-    field_map.json
-    checkpoints/
 ```
 
 Every JSON/JSONL record carries `schema_version`. `events.ndjson` is the audit
 spine. The compact `state.json` files are indexes and UI summaries; they must be
 rebuildable from append-only records plus artifacts.
 
-Graph-session continuation reads the current frontier cursor and the newly
-accepted frontier/input batch. It may update derived indexes such as
-`field_map.json`, but it must not require a full historical node/edge scan
-during normal continuation. Full rebuild is an explicit maintenance operation.
+The `.gaia/research/sessions/**` namespace is reserved for #767. Goal A should
+not introduce any canonical `.gaia/research_loop/**` state or any graph-session
+state shape that conflicts with the #767 follow-up issue.
 
-### 2.3 Agent Task Contract
+### 2.3 Future Agent Task Contract
 
 PR #726's strongest idea is a self-contained task envelope:
 
@@ -192,7 +193,8 @@ PR #726's strongest idea is a self-contained task envelope:
 task envelope -> agent candidate -> validation -> artifact/delta -> next task
 ```
 
-In the split repo this becomes an SDK contract, not a second CLI product:
+In the future graph-session work this should become an SDK contract, not a
+second CLI product:
 
 - task envelopes are versioned records under `.gaia/research/**`;
 - candidates are validated against allowed refs and task kind;
@@ -202,7 +204,8 @@ In the split repo this becomes an SDK contract, not a second CLI product:
   or promote.
 
 This lets an external agent framework use Gaia Research as a deterministic
-protocol kernel while keeping semantic judgment in the agent.
+protocol kernel while keeping semantic judgment in the agent. This section is a
+handoff to #767, not a Goal A implementation requirement.
 
 ## 3. Refactors in the Gaia Core Repo (R1–R6, in order)
 
@@ -292,11 +295,6 @@ run = client.run_review(topic=..., profile="review")
 state = client.read_state(run.run_id)            # typed RunState (pydantic)
 for ev in client.iter_events(run.run_id):        # typed event stream
     ...
-
-session = client.open_session(topic=..., mode="graph")
-task = client.next_task(session.session_id)
-result = client.submit_candidate(session.session_id, candidate)
-client.resume_session(session.session_id)
 ```
 
 - Freeze the dict contracts of `state.json` / `events.ndjson` / artifacts into
@@ -304,10 +302,11 @@ client.resume_session(session.session_id)
   models).
 - The ports in `orchestrator_ports.py` become the documented extension point
   (custom analysis/search providers).
-- Expose both high-level mode methods (`run_review`, `open_session`,
-  `resume_session`) and primitive methods (`build_landscape`, `assess_focus`,
-  `write_report`, `next_task`, `submit_candidate`) so product backends and
-  agent frameworks do not shell out to the CLI.
+- Expose high-level review-run methods (`run_review`, state/event readers) and
+  review primitives (`build_landscape`, `assess_focus`, `write_report`) so
+  product backends do not shell out to the CLI. Graph-session SDK methods
+  (`open_session`, `next_task`, `submit_candidate`, `resume_session`) belong to
+  #767.
 
 **S3. Provider layering**: litellm goes behind the `gaia-research[llm]` extra;
 the command/checkpoint providers are built-in and dependency-free. Fix the
@@ -320,13 +319,12 @@ compatibility off the schema version. Fixing finding 3 (all failure paths write
 `status: failed` plus a `run.failed` event) is a precondition for this contract
 being trustworthy.
 
-The contract document must separately cover:
+The Goal A contract document must cover:
 
 - review-run state/events/checkpoints/report artifacts;
-- graph-session frontier/node/edge/focus/obligation records;
-- task-envelope/candidate/repair records absorbed from PR #726;
-- rebuild semantics for state indexes;
-- explicit full-rebuild vs normal incremental continuation.
+- rebuild semantics for review-run state summaries;
+- explicit ownership of `.gaia/research/**`, including a reservation that
+  `.gaia/research/sessions/**` is deferred to #767.
 
 **S5. Dual CLI entry**: console script `gaia-research` (standalone) plus the
 `gaia.cli_plugins` entry point (preserving the `gaia research ...` muscle
@@ -351,9 +349,8 @@ installed distributions (reusable entry-point group, e.g. `gaia.skills`).
 - `gaia research doctor` / `gaia-research doctor` checks package shape,
   `.gaia/research` writability, LKM credentials, provider/model config,
   profiles, run/session paths, and schema compatibility.
-- Built-in profiles cover `quick`, `review`, and `deep` for review-run mode,
-  plus at least one graph-session profile that favors frontier continuity over
-  final report writing.
+- Built-in profiles cover `quick`, `review`, and `deep` for review-run mode.
+  Graph-session profiles belong to #767.
 - Docs show short commands and SDK calls, not long flag recipes.
 - CLI output and SDK return values make state, events, checkpoints,
   intermediate artifacts, and final report paths obvious.
@@ -371,22 +368,22 @@ the latest compatible 0.6 release and the 0.7.0 removal candidate before Gaia
 core removes bundled research. Replicate core's alpha/beta/rc/stable
 four-channel `workflow_dispatch` release process.
 
-## 5. Migration Order (canonical phases 0-7)
+## 5. Migration Order (canonical Goal A phases 0-6)
 
 The phase numbers below are canonical across this plan, the acceptance
-checklist, and the implementation plan. Earlier five-phase summaries are
-superseded by this map.
+checklist, and the implementation plan. Earlier maps that included
+graph-session implementation as a split-completion phase are superseded by this
+Goal A map.
 
 | Phase | Content | Output |
 |-------|---------|--------|
 | 0 | Make monorepo research movable by landing PR #755 and closing or owning high-risk #761/#764 blockers. | Research still lives in the monorepo, but the implementation is extraction-ready. |
 | 1 | Extract Gaia core public APIs used by research: LKM client/readiness, authoring batch mode, materialization, packaging, inquiry-state contract, CLI plugin hook. | Gaia core exposes stable downstream surfaces without requiring research to import CLI-private modules. |
 | 2 | Bootstrap the `gaia-research` repository and preserve/import history, including PR #726 as historical/spec input only. | New repo exists with package metadata, migrated code/tests/docs/skills, and no canonical `.gaia/research_loop/**` writes. |
-| 3 | Build shared `gaia-research` contracts and SDK. | Review-run and graph-session contracts are typed, versioned, and SDK-accessible. |
+| 3 | Build Goal A `gaia-research` review-run contracts and SDK. | Review-run contracts are typed, versioned, and SDK-accessible; graph-session contract work is linked to #767. |
 | 4 | Re-enable review-run mode in the new repo. | Product/skill smoke tests produce observable state/events/report paths. |
-| 5 | Implement graph-session mode. | Incremental continuation, pause/resume, node/edge/focus/field-map records pass instrumented tests. |
-| 6 | Product readiness, packaged skills, profiles, and doctor. | #762 acceptance checks pass and short happy paths are documented. |
-| 7 | Contract CI, release, and Gaia core removal. | `gaia-research` passes downstream contract CI against the 0.7.0 removal candidate; Gaia core no longer owns research implementation. |
+| 5 | Product readiness, packaged skills, profiles, and doctor. | #762 acceptance checks pass and short happy paths are documented. |
+| 6 | Contract CI, release, and Gaia core removal. | `gaia-research` passes downstream contract CI against the 0.7.0 removal candidate; Gaia core no longer owns research implementation. |
 
 ## 6. Risks and Decision Points
 
@@ -404,10 +401,10 @@ superseded by this map.
    `.gaia/research/runs/<id>/state.json` sees stable paths through the
    transition and after extraction; only the `schema_version` field is added —
    backward compatible.
-5. **Graph-session scalability**: long sessions can become unusable if normal
-   continuation rescans all historical records. Mitigation: append-only records,
-   frontier cursors, delta indexes, and explicit full-rebuild operations in the
-   disk contract and tests.
+5. **Graph-session scalability is a separate capability risk**: #767 must later
+   prove append-only records, frontier cursors, delta indexes, and explicit
+   full-rebuild operations. Goal A mitigates only by preserving extension points
+   and not creating a conflicting protocol.
 6. **When the split is not worth it**: if research iteration stays tightly
    synchronized with core (every core change drags a research change), two
    repos turn one PR into two. Current evidence (PR #755 is almost purely
@@ -424,7 +421,8 @@ cover them:
 | [#764](https://github.com/SiliconEinstein/Gaia/issues/764) | Candidate relations silently skipped during research sync; `claim_refs` validation holes; missing compile gate after authored writes | S1 (skip diagnostics, packet validation) + R1 (compile gate in the public authoring API) | 0–1 | Closed before the phase-2 repo bootstrap |
 | [#761](https://github.com/SiliconEinstein/Gaia/issues/761) | PR #755 review follow-ups: engine/CLI orchestration extraction, multi-focus checkpoint semantics, CLI override sentinels, report failure/concurrency, citation dedup, typed retry contracts | S1 (engine extraction, checkpoints, overrides) + S2 (report rendering consolidation) + S3 (retry contracts) | 0–4 | Core-owned blockers closed before phase 2; research-side remainder re-homed before phase 7 removal |
 | [#745](https://github.com/SiliconEinstein/Gaia/issues/745) | Fast/batch author mode for agent research workflows | R1 (the public `gaia.engine.authoring` API ships batch writes + single validation pass as a first-class mode, not a research-side workaround) | 1 | Closed by the R1 extraction PR |
-| [#762](https://github.com/SiliconEinstein/Gaia/issues/762) | New-user readiness for package-native research workflows: doctor, profiles, short commands, observable outputs | S8 (doctor/readiness, profile docs/tests) | 6 | Closed before publishing gaia-research 0.1.0 |
+| [#762](https://github.com/SiliconEinstein/Gaia/issues/762) | New-user readiness for package-native research workflows: doctor, profiles, short commands, observable outputs | S8 (doctor/readiness, profile docs/tests) | 5 | Closed before publishing gaia-research 0.1.0 |
+| [#767](https://github.com/SiliconEinstein/Gaia/issues/767) | Future large-scale graph-session design and linear-continuation contract | Follow-up issue outside Goal A | Post-Goal A | Must not block Goal A; must be referenced when implementing `.gaia/research/sessions/**` |
 
 Related but closed/experimental:
 PR #726 contributes task-envelope, candidate-validation, repair-context, and
