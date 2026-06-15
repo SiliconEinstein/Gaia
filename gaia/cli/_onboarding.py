@@ -57,7 +57,11 @@ def validate_lkm_access_key(key: str) -> tuple[bool, str]:
     """
     # Lazy import to break the circular dependency:
     # _onboarding → _client → search/__init__ → auth → _onboarding
-    from gaia.cli.commands.search.lkm._client import LKMClient, LKMTransportError
+    from gaia.cli.commands.search.lkm._client import (
+        LKMClient,
+        LKMPermissionError,
+        LKMTransportError,
+    )
 
     try:
         with LKMClient(access_key=key) as client:
@@ -67,6 +71,8 @@ def validate_lkm_access_key(key: str) -> tuple[bool, str]:
         if "HTTP 401" in text or "HTTP 403" in text:
             return False, "access key rejected (HTTP 401/403)"
         return False, f"could not validate: {text}"
+    except LKMPermissionError as exc:
+        return False, f"access key rejected ({exc})"
     code = payload.get("code")
     if code in _AUTH_VALID_CODES:
         return True, "ok"

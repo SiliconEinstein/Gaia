@@ -15,6 +15,7 @@ from typer.testing import CliRunner
 
 from gaia.cli import _credentials as cred
 from gaia.cli import _onboarding as onboarding_module
+from gaia.cli.commands.search.lkm import _client
 from gaia.cli.main import app
 
 pytestmark = pytest.mark.pr_gate
@@ -35,6 +36,30 @@ def isolated_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def _patch_validate(monkeypatch: pytest.MonkeyPatch, result: tuple[bool, str]) -> None:
     monkeypatch.setattr(onboarding_module, "validate_lkm_access_key", lambda _key: result)
+
+
+def test_validate_lkm_access_key_permission_error_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class PermissionDeniedClient:
+        def __init__(self, *, access_key: str) -> None:
+            self.access_key = access_key
+
+        def __enter__(self) -> PermissionDeniedClient:
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+        def request(self, *_args: object, **_kwargs: object) -> dict[str, object]:
+            raise _client.LKMPermissionError("permission denied")
+
+    monkeypatch.setattr(_client, "LKMClient", PermissionDeniedClient)
+
+    valid, detail = onboarding_module.validate_lkm_access_key("bad-key")
+
+    assert valid is False
+    assert "access key rejected" in detail
 
 
 # --------------------------------------------------------------------------- #

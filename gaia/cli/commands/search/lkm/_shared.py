@@ -17,7 +17,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import typer
 
@@ -110,27 +110,21 @@ def run_request(
         try:
             with LKMClient(base_url=base_url) as client:
                 payload = client.request(method, path, json_body=json_body, params=params)
-        except NoAccessKeyError as retry_exc:
-            typer.echo(f"Error: {retry_exc}", err=True)
-            raise typer.Exit(3) from retry_exc
-        except LKMTransportError as retry_exc:
-            typer.echo(f"Error: {retry_exc}", err=True)
-            raise typer.Exit(2) from retry_exc
-        except CredentialPermissionError as retry_exc:
-            typer.echo(f"Error: {retry_exc}", err=True)
-            raise typer.Exit(2) from retry_exc
-    except LKMPermissionError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(2) from exc
-    except LKMNotFoundError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    except LKMTransportError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(2) from exc
-    except CredentialPermissionError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(2) from exc
+        except (
+            NoAccessKeyError,
+            LKMPermissionError,
+            LKMNotFoundError,
+            LKMTransportError,
+            CredentialPermissionError,
+        ) as retry_exc:
+            _exit_for_request_error(retry_exc)
+    except (
+        LKMPermissionError,
+        LKMNotFoundError,
+        LKMTransportError,
+        CredentialPermissionError,
+    ) as exc:
+        _exit_for_request_error(exc)
 
     code = payload.get("code")
     if code != 0:
@@ -140,6 +134,17 @@ def run_request(
         typer.echo(f"Error: {err}", err=True)
         raise typer.Exit(1)
     return payload
+
+
+def _exit_for_request_error(exc: Exception) -> NoReturn:
+    if isinstance(exc, NoAccessKeyError):
+        exit_code = 3
+    elif isinstance(exc, LKMNotFoundError):
+        exit_code = 1
+    else:
+        exit_code = 2
+    typer.echo(f"Error: {exc}", err=True)
+    raise typer.Exit(exit_code) from exc
 
 
 def _business_message(payload: dict[str, Any]) -> str:
