@@ -63,6 +63,7 @@ nav:
       - Bayes Hypothesis Types: for-users/bayes-hypothesis-types.md
       - Evidence-Based Argument Structuring: for-users/evidence-argument-structuring.md
   - Release Notes:
+      - Branch Strategy: releases/branch-strategy.md
       - Release Process: releases/process.md
       - v0.5.0a1 Alpha: releases/0.5.0a1.md
   - Foundational Docs:
