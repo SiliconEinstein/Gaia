@@ -131,7 +131,8 @@ The CI workflow (`ci.yml`) runs on push and pull-request events for
 Branch protection rules for `release/*`:
 
 - Require pull request with at least 1 approved review before merging.
-- Require status checks: `lint`, `typecheck`, `test`, `commit-lint`.
+- Require status checks: `test` and `commit-lint`. The `test` job contains the
+  lint, format, type-check, suppression-budget, pytest, and wheel-smoke gates.
 - No direct push (only the `github-actions[bot]` tag push is an exception,
   handled by the workflow's `contents: write` permission).
 - Do not allow force-push or branch deletion.

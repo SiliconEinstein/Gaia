@@ -2,12 +2,16 @@
 
 This runbook is the operational guide for cutting Gaia releases. For the
 release-channel design and workflow rationale, see the repository source file
-`docs/specs/2026-05-16-gaia-release-channel-strategy.md`.
+`docs/specs/2026-05-16-gaia-release-channel-strategy.md`. For branch ownership,
+hotfix, and backport policy, see `docs/releases/branch-strategy.md`.
 
 ## TL;DR
 
-- Releases are cut from `main`.
-- Only changes merged into `main` can enter a release.
+- Alpha and beta releases are cut from `main`.
+- RC, stable, and patch releases are cut from the relevant `release/0.N.x`
+  branch once that branch exists.
+- Only changes merged into the selected release source branch can enter a
+  release.
 - Work that is not ready to ship stays in an open or draft PR.
 - Every manual release has a GitHub Release Issue as its source of truth.
 - Run the release workflow with `dry_run=true` before publishing.
@@ -135,7 +139,7 @@ beta, rc, and stable are explicit human promotions.
 ## Merge Rules
 
 - A PR that should be included in the release must pass CI and be merged into
-  `main` before the target commit is selected.
+  the selected release source branch before the target commit is selected.
 - A PR that is not ready to release must remain open or draft.
 - The `Include` section is the audited list of release contents. It does not
   filter the release artifact: the published wheel, sdist, tag, and GitHub
@@ -145,8 +149,10 @@ beta, rc, and stable are explicit human promotions.
   merged into `main` during the release window but should not enter this
   release.
 - Once the release captain announces a short release freeze, avoid merging
-  unrelated PRs into `main` until the release is published or cancelled.
-- If an unwanted PR was already merged into `main`, choose explicitly:
+  unrelated PRs into the selected release source branch until the release is
+  published or cancelled.
+- If an unwanted PR was already merged into the selected release source branch,
+  choose explicitly:
   include it in the release, or revert it before dry-run. Do not assume the
   release workflow can partially exclude merged code.
 
@@ -157,7 +163,8 @@ beta, rc, and stable are explicit human promotions.
 3. Add included PRs.
 4. Add any at-risk PRs to `Do Not Merge Before This Release`.
 5. Confirm release notes exist or are not required for this channel.
-6. Merge only release-ready PRs into `main`.
+6. Merge only release-ready PRs into the selected release source branch (`main`
+   for alpha/beta; `release/0.N.x` for RC, stable, and patch releases).
 7. Announce a short release freeze.
 8. Record the target commit in the Release Issue.
 9. Confirm PR CI and, when appropriate, nightly are green for the target commit.
@@ -207,15 +214,17 @@ post-revert commit.
 
 ### A Release Blocker Appears During Dry-Run
 
-Cancel the publish run. Fix the blocker in a PR, merge it into `main`, update
-the target commit in the Release Issue, and run dry-run again.
+Cancel the publish run. Fix the blocker in a PR, merge it into the selected
+release source branch, update the target commit in the Release Issue, and run
+dry-run again.
 
 ### A Hotfix Is Needed
 
 Open a hotfix Release Issue, keep the include list minimal, and use the same
-dry-run-then-publish flow. If the hotfix should not include current `main`,
-first create an explicit release branch or revert unrelated merged changes, then
-record that decision in the Release Issue.
+dry-run-then-publish flow from the relevant `release/0.N.x` branch. If the
+branch does not exist yet, create it first as described in
+`docs/releases/branch-strategy.md`, then record that decision in the Release
+Issue.
 
 ## After Publication
 
