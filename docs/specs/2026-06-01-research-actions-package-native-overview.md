@@ -1,8 +1,15 @@
 # Gaia Research Actions Package-Native Overview
 
-> **状态：** `gaia research` 方向的 canonical overview。
+> **状态：** Historical / prior-art overview。它记录 package-native research
+> actions 的设计经验，但不再是当前 canonical split target。
 >
 > **日期：** 2026-06-01
+>
+> **当前 canonical 验收标准：**
+> [Research Module Split Acceptance](2026-06-13-research-module-split-acceptance.md)
+>
+> **当前执行计划：**
+> [Research Report Workflow Parity Migration Plan](../plans/2026-06-13-research-report-workflow-parity-migration.md)
 >
 > **实现路线图：**
 > [Research Actions Implementation Roadmap](2026-06-01-research-actions-implementation-roadmap.md)
@@ -15,6 +22,11 @@
 
 ## 1. 核心判断
 
+> **2026-06-13 correction:** 本文仍可作为 package-native artifact 和
+> promotion policy 的 prior art，但它把 `gaia research` 描述成 Gaia core 内的
+> canonical product surface。当前 split 边界已改为：Gaia core 保留 primitives，
+> `gaia-research` owns upper research workflows。
+
 Research Loop 不应该成为 Gaia package 旁边的第二套长期系统。它应该成为
 package-native 的 research action layer：
 
@@ -25,7 +37,7 @@ gaia research = Gaia primitives 之上的薄编排层
 LLM / agent = 研究判断层，不维护平行状态系统
 ```
 
-canonical user / agent surface 是：
+当时设想的 user / agent surface 是：
 
 ```bash
 gaia research explore ...
@@ -33,9 +45,12 @@ gaia research assess ...
 gaia research propose ...
 ```
 
-旧 `gaia-lkm-explore` 可以作为实验入口或兼容参考存在，但不能作为当前实现锚点。
+2026-06-13 以后，这些上层 workflow surface 应迁到 `gaia-research`，当前本轮只实现
+report workflow parity。旧 `gaia-lkm-explore` 可以作为实验入口或兼容参考存在，但
+不能作为当前实现锚点。
 `gaia-research-loop` skill 可以作为 agent guide / prompt template collection 维护；
-它必须调用 `gaia research` contracts 和 CLI primitives，不能成为另一套 canonical API。
+它必须调用 `gaia-research` contracts 和 Gaia CLI primitives，不能成为另一套
+canonical API。
 
 ## 2. Package-Native 状态
 

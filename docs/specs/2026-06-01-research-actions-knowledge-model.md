@@ -1,13 +1,22 @@
 # Research Actions Knowledge Model
 
-> **状态：** package-native research actions 的 canonical knowledge-model note。
+> **状态：** Historical / prior-art knowledge-model note。它仍可用于理解
+> focus、obligation、assessment relation 和 stable Gaia source 的分层，但不再是
+> 当前 canonical split target。
 >
 > **日期：** 2026-06-01
 >
-> **Canonical overview：**
+> **当前 canonical 验收标准：**
+> [Research Module Split Acceptance](2026-06-13-research-module-split-acceptance.md)
+>
+> **Prior-art overview：**
 > [Research Actions Package-Native Overview](2026-06-01-research-actions-package-native-overview.md)
 
 ## 1. 为什么需要这份说明
+
+> **2026-06-13 correction:** 本文的概念分层仍然有效；实现 ownership 已经改变。
+> 上层 research workflow 应迁到 `gaia-research`，Gaia core 只保留 primitives 和
+> stable package semantics。
 
 `gaia research` 的核心风险不是命令怎么拼，而是把不同层级的研究对象混成一种
 `claim(...)`。这会让 open question、process obligation、assessment judgment 和 stable

@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from gaia.cli._credentials import read_lkm_key
+from gaia.lkm.credentials import read_lkm_key
 from gaia.lkm.indexes import lkm_index_base_url
 
 BASE_URL = lkm_index_base_url("bohrium") or "https://open.bohrium.com/openapi/v1/lkm"

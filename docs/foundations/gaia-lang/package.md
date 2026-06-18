@@ -279,6 +279,13 @@ All artifacts are written to `.gaia/` within the package root.
 | `.gaia/beliefs.json` | `gaia run infer` | no (gitignored) | BP inference output: posterior beliefs per knowledge node |
 | `.gaia/dep_beliefs/` | `gaia pkg add` | no (gitignored) | cached posterior beliefs from upstream `*-gaia` dependencies |
 
+Gaia core also reserves `.gaia/research/**` for the external `gaia-research`
+package. Core may document and validate the namespace allocation, but after the
+research split it should not create canonical research run state there. The
+legacy `.gaia/research_loop/**` tree is not a registered canonical namespace;
+graph-session work is tracked separately as a future `gaia-research`
+capability.
+
 The compile artifacts must travel with the source so that registry clients can
 verify the compiled graph and cross-package interface. The inference outputs
 are reproducible from source + priors and are intentionally regenerated.

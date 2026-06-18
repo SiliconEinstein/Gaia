@@ -1,15 +1,35 @@
 ---
-status: current-canonical
+status: moved-to-gaia-research
 layer: cli
-since: v0.6
+since: v0.7
 ---
 
-# Research Loop CLI
+# Research Loop Handoff
 
-`gaia research` is the package-native workflow for broad exploration,
-review-field mapping, focus synthesis, targeted expansion, and evidence
-assessment. Its canonical state lives in Gaia package source and Gaia inquiry
-state; research JSON exists only as trace, cache, or audit output.
+`gaia research` is no longer implemented by Gaia core. The upper workflow for
+broad exploration, review-field mapping, focus synthesis, targeted expansion,
+assessment, and report writing is owned by the external `gaia-research`
+package, which may register the `gaia research` command through the
+`gaia.cli_plugins` entry point group.
+
+Gaia core keeps the primitives that `gaia-research` composes: package
+scaffolding and dependency management, `gaia search lkm`, inquiry state,
+authoring/materialization APIs, trace/review utilities, and compilation /
+inference / rendering. If `gaia-research` is not installed, `gaia research`
+prints a hidden install hint instead of falling back to the old core workflow.
+
+This file is a migration reference for the old package-native loop. The
+canonical workflow docs should live in `gaia-research/docs/foundations/` after
+the split. The old Gaia repo research implementation and its migrated tests can
+be deleted in a dedicated cleanup PR; the handoff PR only removes the public
+root CLI ownership.
+
+## Historical Loop
+
+The former `gaia research` workflow covered broad exploration, review-field
+mapping, focus synthesis, targeted expansion, and evidence assessment. Its
+canonical state lived in Gaia package source and Gaia inquiry state; research
+JSON existed only as trace, cache, or audit output.
 
 The guiding rule is:
 
@@ -273,44 +293,22 @@ synthesis, targeted expansion, assessment, and scaffold promotion are separate
 steps. This prevents the loop from narrowing too early around one frontier or
 one paper cluster.
 
-## Current Implementation Status
+## Current Ownership Status
 
-The current implementation follows the package/inquiry-centric direction for the
-main loop:
+Gaia core no longer ships the implementation described above. The active owner
+for topic-to-report research workflow code, docs, and future graph-session work
+is the external `gaia-research` repository.
 
-- `explore` and `expand` write landscape artifacts, materialize shallow source
-  packages from search items, attach those packages as local dependencies, and
-  sync candidate focuses / coverage gaps into inquiry hypotheses and
-  obligations;
-- topic-only `run` with `--analysis-provider litellm` lets the runner generate
-  broad queries, induce a field map, optionally search thin review buckets, and
-  pass the scan, coverage landscape, and field map into focus synthesis, then
-  select/deep-materialize a compact evidence packet for assessment;
-- `focus` writes at most 3 accepted focuses as package `question(...)`
-  statements and sets the first as the inquiry focus;
-- `assess` writes review notes, inquiry hypotheses/obligations, and
-  `candidate_relation(...)` only when concrete claim references are supplied;
-  it can also materialize selected deep LKM evidence with
-  `--materialize-paper`, `--materialize-paper-from-claim`, or
-  `--materialize-chain`;
-- `propose` writes proposal artifacts from assessments; with `--accept`, it
-  writes accepted open-ended research questions as package `question(...)`
-  statements and records related hypotheses/obligations in inquiry state;
-- `promote` writes an explicit `materialize(...)` link from scaffold to formal
-  records; formal source synthesis remains deferred.
+The old `gaia-lkm-explore` code and tests are archived as reference-only prior
+art in `gaia-research/docs/prior-art/lkm-explorer/`. The archive is not a Gaia
+core package, not a console script, not tested as production code, and not a
+compatibility contract.
 
-Known remaining gaps:
+Gaia core keeps only the primitives that research workflows compose:
 
-- `promote` records materialization links but does not synthesize formal
-  `claim(...)`, `derive(...)`, `infer(...)`, or relation statements yet. That
-  requires a dedicated LKM-to-Gaia promotion contract and review-gate design
-  first, and is intentionally marked deferred in the roadmap.
-- legacy `.gaia/exploration/` import and `gaia-lkm-explore` deprecation are not
-  implemented yet. Old artifacts may be provenance inputs, but must not become
-  canonical semantic state.
-- LKM public writeback, Propose -> external discovery/research -> Merge, and
-  hosted/TUI product surfaces are explicitly later ecosystem work.
-
-Current implementation order is defined in
-[`../../specs/2026-06-01-research-actions-implementation-roadmap.md`](../../specs/2026-06-01-research-actions-implementation-roadmap.md).
-Do not resurrect older milestone plans when implementing the next slice.
+- package scaffolding and dependency management;
+- `gaia search lkm`;
+- inquiry state;
+- authoring and materialization APIs;
+- trace/review utilities;
+- compile, infer, render, and package-graph visualization.

@@ -1,10 +1,17 @@
 # Research Actions Implementation Roadmap
 
-> **状态：** package-native research actions 的 canonical implementation roadmap。
+> **状态：** Historical / prior-art roadmap。它记录 Gaia-core package-native
+> research actions 的实现切片，但不再是当前 canonical migration plan。
 >
 > **日期：** 2026-06-01
 >
-> **Canonical overview：**
+> **当前 canonical 验收标准：**
+> [Research Module Split Acceptance](2026-06-13-research-module-split-acceptance.md)
+>
+> **当前执行计划：**
+> [Research Report Workflow Parity Migration Plan](../plans/2026-06-13-research-report-workflow-parity-migration.md)
+>
+> **Prior-art overview：**
 > [Research Actions Package-Native Overview](2026-06-01-research-actions-package-native-overview.md)
 >
 > **迁移说明：**
@@ -15,6 +22,10 @@
 
 ## 1. 实现原则
 
+> **2026-06-13 correction:** 本 roadmap 不再定义当前 implementation plan。
+> 当前工作只迁移现有 report workflow parity 到 `gaia-research`；graph-session
+> expansion 是下一步，不进入本轮验收。
+
 `gaia research` 应该按小切片实现。每个切片都必须保留 overview 中的硬性不变量：
 
 - 不创建平行 focus registry；
@@ -23,7 +34,7 @@
 - `gaia build check` 仍然是 package structural validation path；
 - early Explore 保持 breadth-first，默认 pull budget 为 0。
 
-当前实现已经越过早期 trace-only 计划。canonical behavior 是：
+本文当时记录的 package-native behavior 是：
 
 - `explore` / `expand` 默认写 landscape trace、同步 inquiry hypotheses /
   obligations，并把浅层 search items 物化成本地 source package；
@@ -179,13 +190,14 @@ Required work:
 - document or implement a read-only import path from `.gaia/exploration/` to
   `.gaia/research/` provenance;
 - mark `gaia-lkm-explore` as deprecated compatibility surface;
-- update docs and skills so `gaia research` is the only canonical workflow;
+- update docs and skills so the replacement workflow is owned by
+  `gaia-research`, with Gaia core providing only primitives and plugin handoff;
 - keep useful deterministic utilities only when they write package-native artifacts.
 
 Validation:
 
-- at least one real LKM-backed live run completes with `gaia research` and does not call
-  the old entry point;
+- at least one real LKM-backed live run completes through the replacement
+  `gaia-research` workflow and does not call the old entry point;
 - old `.gaia/exploration/` artifacts are never treated as canonical semantic state;
 - deprecation docs include replacement commands.
 

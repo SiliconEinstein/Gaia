@@ -32,6 +32,7 @@ from gaia.engine.inquiry.render import render_json, render_markdown, to_json_dic
 from gaia.engine.inquiry.review import ReviewReport, render_text, resolve_graph, run_review
 from gaia.engine.inquiry.review_manifest import load_or_generate_review_manifest
 from gaia.engine.inquiry.state import (
+    RESEARCH_PUBLIC_STATE_API,
     STATE_SCHEMA_VERSION,
     VALID_MODES,
     VALID_OBLIGATION_KINDS,
@@ -50,6 +51,7 @@ from gaia.engine.inquiry.state import (
 )
 
 __all__ = [
+    "RESEARCH_PUBLIC_STATE_API",
     "STATE_SCHEMA_VERSION",
     "VALID_MODES",
     "VALID_OBLIGATION_KINDS",

@@ -2,7 +2,13 @@
 
 > **状态：** Experimental / historical reference。
 >
-> **当前实现锚点：**
+> **当前 canonical 验收标准：**
+> [Research Module Split Acceptance](2026-06-13-research-module-split-acceptance.md)
+>
+> **当前执行计划：**
+> [Research Report Workflow Parity Migration Plan](../plans/2026-06-13-research-report-workflow-parity-migration.md)
+>
+> **Prior-art context：**
 > [Research Actions Package-Native Overview](2026-06-01-research-actions-package-native-overview.md)
 > 和
 > [Research Actions Implementation Roadmap](2026-06-01-research-actions-implementation-roadmap.md).

@@ -50,6 +50,25 @@ def _registry_root(cwd: Path) -> Path:
     return cwd / ".gaia-skills"
 
 
+class FakeSkillEntryPoint:
+    """Small importlib.metadata.EntryPoint stand-in for skill plugin tests."""
+
+    def __init__(self, payload: object, *, name: str = "gaia-research") -> None:
+        self.name = name
+        self._payload = payload
+
+    def load(self) -> object:
+        return self._payload
+
+
+class FakeSelectableEntryPoints(list[FakeSkillEntryPoint]):
+    """Small importlib.metadata entry-points collection stand-in."""
+
+    def select(self, *, group: str) -> list[FakeSkillEntryPoint]:
+        assert group == "gaia.skills"
+        return list(self)
+
+
 # --------------------------------------------------------------------------- #
 # Unit — _plan_diff                                                           #
 # --------------------------------------------------------------------------- #
@@ -293,14 +312,11 @@ class TestRegisterIntegration:
 
         registry = tmp_path / ".gaia-skills"
         assert registry.is_dir()
-        # All shipped skills materialised, plus _shared. (The retired
-        # `gaia-lkm-explorer` skill is now the `gaia-lkm-explore` orchestrator
-        # client — CLIENT.md — so it is intentionally absent here.)
+        # All Gaia-core shipped skills materialised, plus _shared. Research
+        # workflow skills now live as gaia-research prior art or follow-up work.
         for skill in (
             "gaia-formalize-fine",
             "gaia-formalize-coarse",
-            "gaia-evidence-subgraph",
-            "gaia-scholarly-synthesis",
             "gaia-obsidian-wiki",
             "gaia-publish",
             "gaia-review",
@@ -323,8 +339,6 @@ class TestRegisterIntegration:
         for skill in (
             "gaia-formalize-fine",
             "gaia-formalize-coarse",
-            "gaia-evidence-subgraph",
-            "gaia-scholarly-synthesis",
             "gaia-obsidian-wiki",
             "gaia-publish",
             "gaia-review",
@@ -513,6 +527,39 @@ class TestRegisterIntegration:
         # Target unchanged.
         assert Path(os.readlink(colliding)) == elsewhere
         assert (colliding / "marker.txt").read_text() == "foreign\n"
+
+    def test_register_materializes_installed_skill_entry_points(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Installed packages can expose skills through the gaia.skills entry point."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".claude").mkdir()
+        external_root = tmp_path / "external_skills"
+        skill_dir = external_root / "gaia-external-research"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Gaia External Research\n", encoding="utf-8")
+        shared_dir = external_root / "_shared"
+        shared_dir.mkdir()
+        (shared_dir / "research.md").write_text("shared research refs\n", encoding="utf-8")
+        monkeypatch.setattr(
+            skill_module.metadata,
+            "entry_points",
+            lambda: FakeSelectableEntryPoints([FakeSkillEntryPoint(external_root)]),
+        )
+
+        result = runner.invoke(app, ["skill", "register"])
+
+        assert result.exit_code == 0, result.output
+        registry = tmp_path / ".gaia-skills"
+        assert (registry / "gaia-external-research" / "SKILL.md").read_text(
+            encoding="utf-8"
+        ) == "# Gaia External Research\n"
+        assert (registry / "_shared" / "research.md").read_text(
+            encoding="utf-8"
+        ) == "shared research refs\n"
+        link = tmp_path / ".claude" / "skills" / "gaia-external-research"
+        assert link.is_symlink()
+        assert _is_owned_symlink(link, registry)
 
 
 class TestListIntegration:
