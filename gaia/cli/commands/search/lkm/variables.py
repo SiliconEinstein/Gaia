@@ -1,10 +1,8 @@
-"""``gaia search lkm nodes`` — POST /variables/batch.
+"""``gaia search lkm nodes`` — fetch LKM node records.
 
-Batch-fetch LKM graph node detail by id. The upstream endpoint calls these
-nodes ``variables``; the Gaia-facing CLI uses ``nodes`` to avoid confusion
-with Gaia typed variables. Ids may be passed positionally and/or via a
-newline-delimited ``--ids-file``; the two sources are merged, de-duplicated
-(order-preserving), and capped at 100.
+Batch-fetch LKM node record detail by id. Ids may be passed positionally and/or
+via a newline-delimited ``--ids-file``; the two sources are merged,
+de-duplicated (order-preserving), and capped at 100.
 """
 
 from __future__ import annotations
@@ -24,8 +22,9 @@ from gaia.cli.commands.search.lkm._shared import (
 from gaia.cli.commands.search.lkm.docs import APIFOX_VARIABLES_BATCH_URL
 
 _NODES_EPILOG = (
-    "`nodes` wraps POST /variables/batch. Partial misses are reported in "
-    "not_found and do not make the response a business error.\n\n"
+    "Use this for follow-up inspection when a search or reasoning response "
+    "prints specific LKM node ids. Partial misses are returned in `not_found` and do "
+    "not make the whole response fail.\n\n"
     f"API docs: {APIFOX_VARIABLES_BATCH_URL}\n"
     "Endpoint links: gaia search lkm docs"
 )
@@ -34,7 +33,7 @@ _NODES_EPILOG = (
 def nodes_command(
     ids: Annotated[
         list[str] | None,
-        typer.Argument(help="LKM graph node ids to fetch (positional, variadic)."),
+        typer.Argument(help="LKM node ids to fetch (variadic)."),
     ] = None,
     index: Annotated[
         str,
@@ -44,7 +43,7 @@ def nodes_command(
         Path | None,
         typer.Option(
             "--ids-file",
-            help="Newline-delimited file of additional ids (merged + deduped).",
+            help="Newline-delimited ids to merge with positional ids.",
         ),
     ] = None,
     out: Annotated[
@@ -52,7 +51,7 @@ def nodes_command(
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
 ) -> None:
-    """Batch-fetch LKM graph node detail (POST /variables/batch)."""
+    """Batch-fetch LKM node record detail."""
     index_id = validate_lkm_index(index)
     merged: list[str] = list(ids or [])
 
@@ -79,7 +78,7 @@ def nodes_command(
 
     if not deduped:
         typer.echo(
-            "Error: no variable ids supplied (after dropping blanks/duplicates).",
+            "Error: no node ids supplied (after dropping blanks/duplicates).",
             err=True,
         )
         raise typer.Exit(4)
