@@ -1,9 +1,8 @@
 """``gaia search lkm package`` — POST /papers/graph.
 
-Fetch the latest graph-shaped extracted knowledge package for a paper
-identified by exactly one of four mutually exclusive identifier flags. The
-Gaia-facing command calls this a package candidate; the upstream LKM endpoint
-calls it a paper graph.
+Fetch the latest graph-shaped extraction for one paper identified by exactly
+one of four mutually exclusive identifier flags. The Gaia-facing command calls
+this a package candidate; the upstream LKM endpoint calls it a paper graph.
 """
 
 from __future__ import annotations
@@ -24,8 +23,10 @@ from gaia.cli.commands.search.lkm.docs import APIFOX_PAPERS_GRAPH_URL
 
 _TITLE_RESOLVE_CAP = 20
 _PACKAGE_EPILOG = (
-    "Fetch the default raw paper graph. Deprecated projection/hydration "
-    "switches are intentionally not exposed.\n\n"
+    "Use this when you already know the paper and want the full extracted LKM "
+    "paper graph for that source paper. To add that graph to the current Gaia "
+    "package, use the suggested "
+    "`gaia pkg add --lkm-paper <id>` command printed on stderr.\n\n"
     f"API docs: {APIFOX_PAPERS_GRAPH_URL}\n"
     "Endpoint links: gaia search lkm docs"
 )
@@ -38,25 +39,25 @@ def package_command(
     ] = DEFAULT_LKM_INDEX_ID,
     package_id: Annotated[
         str | None,
-        typer.Option("--package-id", help="Identify by package id (form `paper:<digits>`)."),
+        typer.Option("--package-id", help="Paper package ref, e.g. `paper:<digits>`."),
     ] = None,
     paper_id: Annotated[
         str | None,
-        typer.Option("--paper-id", help="Identify by paper id."),
+        typer.Option("--paper-id", help="Bare numeric LKM paper id."),
     ] = None,
     doi: Annotated[
         str | None,
-        typer.Option("--doi", help="Identify by DOI."),
+        typer.Option("--doi", help="Paper DOI."),
     ] = None,
     title: Annotated[
         str | None,
-        typer.Option("--title", help="Identify by title (may resolve multiple papers)."),
+        typer.Option("--title", help="Paper title to resolve (may return multiple candidates)."),
     ] = None,
     title_resolve_limit: Annotated[
         int,
         typer.Option(
             "--title-resolve-limit",
-            help="Candidate papers per title (max 20; only valid with --title).",
+            help="Candidate papers to return for --title (max 20).",
         ),
     ] = 5,
     out: Annotated[
@@ -65,7 +66,7 @@ def package_command(
     ] = None,
     no_hint: Annotated[
         bool,
-        typer.Option("--no-hint", help="Do not print Gaia next-step hints to stderr."),
+        typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
     """Fetch an LKM paper package candidate (POST /papers/graph)."""

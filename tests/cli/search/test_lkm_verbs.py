@@ -39,6 +39,10 @@ def _strip_ansi(text: str) -> str:
     return _ANSI_RE.sub("", text)
 
 
+def _squash_ws(text: str) -> str:
+    return " ".join(_strip_ansi(text).split())
+
+
 class _FakeClient:
     """Stand-in for ``LKMClient`` capturing the last request."""
 
@@ -109,17 +113,32 @@ def _install_constructor_error(monkeypatch: pytest.MonkeyPatch, raises: Exceptio
 
 
 class TestDocs:
+    def test_lkm_help_uses_armchair_lkm_framing(self) -> None:
+        result = runner.invoke(app, ["search", "lkm", "--help"])
+
+        assert result.exit_code == 0, result.output
+        stdout = _squash_ws(result.stdout)
+        assert "paper knowledge items" in stdout
+        assert "weak-point / highlight claims" in stdout
+        assert "problems" in stdout
+        assert "open questions" in stdout
+        assert "reasoning chains and workflows" in stdout
+        assert "generic graph API" in stdout
+        assert "knowledge graph" not in stdout
+        assert "claim/question records" not in stdout
+        assert "workflow-shaped evidence" not in stdout
+
     def test_prints_lkm_api_and_cli_reference_links(self) -> None:
         result = runner.invoke(app, ["search", "lkm", "docs"])
 
         assert result.exit_code == 0, result.output
         assert "LKM API docs:" in result.stdout
         assert "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84" in result.stdout
-        assert "POST /search" in result.stdout
-        assert "POST /reasoning/search" in result.stdout
-        assert "GET /claims/{id}/reasoning" in result.stdout
-        assert "POST /variables/batch" in result.stdout
-        assert "POST /papers/graph" in result.stdout
+        assert "knowledge search" in result.stdout
+        assert "reasoning search" in result.stdout
+        assert "claim reasoning lookup" in result.stdout
+        assert "node lookup" in result.stdout
+        assert "paper graph lookup" in result.stdout
         assert "CLI reference:" in result.stdout
         assert "docs/reference/cli/search.md" in result.stdout
 
@@ -167,9 +186,16 @@ class TestKnowledge:
         result = runner.invoke(app, ["search", "lkm", "knowledge", "--help"])
 
         assert result.exit_code == 0, result.output
-        stdout = _strip_ansi(result.stdout)
+        stdout = _squash_ws(result.stdout)
         assert "--reasoning-only" in stdout
         assert "conclusions" in stdout
+        assert "paper knowledge items" in stdout
+        assert "weak-point / highlight claims" in stdout
+        assert "open questions" in stdout
+        assert "reasoning chains and workflows" in stdout
+        assert "premise" not in stdout
+        assert "claim/question records" not in stdout
+        assert "workflow-shaped evidence" not in stdout
 
     def test_happy(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok", "variables": []})
@@ -178,6 +204,7 @@ class TestKnowledge:
         body = _FakeClient.last_call["json_body"]
         assert body["query"] == "perovskite"
         assert body["retrieval_mode"] == "hybrid"
+        assert body["sort_by"] == "comprehensive"
         assert body["filters"] == {"visibility": "public"}
 
     def test_default_emits_raw_json_with_gaia_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -202,9 +229,12 @@ class TestKnowledge:
 
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == payload
+        assert "Suggested: inspect the supporting reasoning graph" in result.stderr
         assert "gaia search lkm reasoning --index bohrium --claim-id gcn_579430355a0e4bbd" in (
             result.stderr
         )
+        assert "Suggested: materialize the source paper as a Gaia package" in result.stderr
+        assert "editable local dependency under .gaia/lkm_packages/" in result.stderr
         assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
 
     def test_no_hint_suppresses_gaia_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -306,6 +336,49 @@ class TestKnowledge:
         assert body["include_paper_enrich"] is True
         assert body["filters"]["role"] == "conclusion"
         assert body["offset"] == 5 and body["limit"] == 3
+
+    def test_search_update_options_build_body(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "battery",
+                "--sort-by",
+                "recent",
+                "--paper-ids",
+                "123",
+                "--paper-ids",
+                "456",
+                "--doi",
+                "10.1038/example",
+                "--visibility",
+                "private",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        body = _FakeClient.last_call["json_body"]
+        assert body["sort_by"] == "recent"
+        assert body["filters"] == {
+            "visibility": "private",
+            "paper_ids": ["123", "456"],
+            "dois": ["10.1038/example"],
+        }
+
+    def test_rejects_prefixed_paper_ids_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "knowledge", "q", "--paper-ids", "paper:123"],
+        )
+        assert result.exit_code == 4, result.output
+        assert "without the `paper:` prefix" in result.output
+        assert _FakeClient.last_call == {}
 
     def test_allows_claim_and_question_scopes_without_reasoning_only(
         self, monkeypatch: pytest.MonkeyPatch
@@ -746,6 +819,34 @@ class TestReasoning:
         assert call["json_body"]["query"] == "thermal stability"
         assert call["json_body"]["format"] == "graph"
 
+    def test_query_search_accepts_search_update_options(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "reasoning",
+                "thermal stability",
+                "--sort-by",
+                "journal",
+                "--paper-ids",
+                "123",
+                "--doi",
+                "10.1038/example",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        body = _FakeClient.last_call["json_body"]
+        assert body["sort_by"] == "journal"
+        assert body["filters"] == {
+            "paper_ids": ["123"],
+            "dois": ["10.1038/example"],
+        }
+
     def test_url_encodes_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch, response={"code": 0, "msg": "ok"})
         result = runner.invoke(
@@ -813,6 +914,18 @@ class TestReasoning:
         assert "--limit" in result.output
         assert _FakeClient.last_call == {}
 
+    def test_rejects_query_only_sort_values_in_claim_mode(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "reasoning", "--claim-id", "gcn_abc123", "--sort-by", "journal"],
+        )
+        assert result.exit_code == 4, result.output
+        assert "comprehensive or recent" in result.output
+        assert _FakeClient.last_call == {}
+
     def test_claim_reasoning_emits_raw_json_with_paper_hint(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -833,6 +946,7 @@ class TestReasoning:
 
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == payload
+        assert "Suggested: materialize the source paper as a Gaia package" in result.stderr
         assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
 
     def test_claim_reasoning_without_paper_hints_claim_resolution(
@@ -845,6 +959,7 @@ class TestReasoning:
 
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == payload
+        assert "Suggested: resolve this claim to its source paper" in result.stderr
         assert "gaia pkg add --lkm-index bohrium --lkm-claim gcn_result" in result.stderr
 
     def test_query_reasoning_emits_raw_json_with_paper_hint(
@@ -937,6 +1052,7 @@ class TestReasoning:
         assert json.loads(result.stdout)["data"]["reasoning_chains"][0]["source_package"] == (
             "paper:811"
         )
+        assert "Suggested: materialize the source paper as a Gaia package" in result.stderr
         assert "gaia pkg add --lkm-index bohrium --lkm-paper 811" in result.stderr
 
 
@@ -1016,6 +1132,7 @@ class TestPackage:
         )
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout)["code"] == 0
+        assert "Suggested: materialize this paper as a Gaia package" in result.stderr
         assert "gaia pkg add --lkm-index bohrium --lkm-paper p1" in result.stderr
 
     def test_accepts_index_option(self, monkeypatch: pytest.MonkeyPatch) -> None:

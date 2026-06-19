@@ -23,9 +23,21 @@ def knowledge_hint(payload: dict[str, Any], *, index_id: str) -> str | None:
 
     blocks: list[str] = []
     if inspect_cmd is not None:
-        blocks.append(_hint_block("Hint: inspect claim reasoning:", inspect_cmd))
+        blocks.append(
+            _hint_block(
+                "Suggested: inspect the supporting reasoning graph",
+                inspect_cmd,
+                "Useful when you want to audit a claim hit before using it as Gaia evidence.",
+            )
+        )
     if add_cmd is not None:
-        blocks.append(_hint_block("Hint: materialize the backing paper package:", add_cmd))
+        blocks.append(
+            _hint_block(
+                "Suggested: materialize the source paper as a Gaia package",
+                add_cmd,
+                "Creates an editable local dependency under .gaia/lkm_packages/.",
+            )
+        )
     return "\n\n".join(blocks) or None
 
 
@@ -39,13 +51,15 @@ def reasoning_hint(
     paper_id = _paper_id_from_reasoning(payload)
     if paper_id is not None:
         return _hint_block(
-            "Hint: materialize the backing paper package:",
+            "Suggested: materialize the source paper as a Gaia package",
             f"gaia pkg add --lkm-index {index_id} --lkm-paper {paper_id}",
+            "Creates an editable local dependency under .gaia/lkm_packages/.",
         )
     if claim_id is not None:
         return _hint_block(
-            "Hint: resolve this claim to its backing paper package:",
+            "Suggested: resolve this claim to its source paper",
             f"gaia pkg add --lkm-index {index_id} --lkm-claim {claim_id}",
+            "Use this when the reasoning response did not expose a paper id.",
         )
     return None
 
@@ -64,13 +78,18 @@ def package_hint(
     if paper_id is None:
         return None
     return _hint_block(
-        "Hint: materialize this paper as a local Gaia package:",
+        "Suggested: materialize this paper as a Gaia package",
         f"gaia pkg add --lkm-index {index_id} --lkm-paper {paper_id}",
+        "Creates an editable local dependency under .gaia/lkm_packages/.",
     )
 
 
-def _hint_block(title: str, command: str) -> str:
-    return f"{title}\n  {command}"
+def _hint_block(title: str, command: str, detail: str | None = None) -> str:
+    lines = [title]
+    if detail is not None:
+        lines.append(f"  {detail}")
+    lines.append(f"  $ {command}")
+    return "\n".join(lines)
 
 
 def _variables(payload: dict[str, Any]) -> list[dict[str, Any]]:

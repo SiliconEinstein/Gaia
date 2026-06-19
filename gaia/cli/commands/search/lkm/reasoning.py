@@ -8,7 +8,6 @@ ids are valid for ``--claim-id``; a ``question`` id yields server code 290004.
 
 from __future__ import annotations
 
-from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -19,33 +18,37 @@ from gaia.cli.commands.search.lkm._hints import reasoning_hint
 from gaia.cli.commands.search.lkm._indexes import normalize_lkm_index_id
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
+    MAX_DOIS,
     MAX_KEYWORDS,
-    MAX_LIMIT,
-    MAX_OFFSET,
     MAX_PAPER_IDS,
     emit,
     run_request,
+    validate_dois,
     validate_lkm_index,
+    validate_paper_ids,
+    validate_search_window,
 )
 from gaia.cli.commands.search.lkm.docs import (
     APIFOX_CLAIM_REASONING_URL,
     APIFOX_REASONING_SEARCH_URL,
 )
-from gaia.cli.commands.search.lkm.knowledge import RetrievalMode
+from gaia.cli.commands.search.lkm.knowledge import RetrievalMode, SearchSortBy
 
-
-class SortBy(StrEnum):
-    """Ordering of returned reasoning chains."""
-
-    COMPREHENSIVE = "comprehensive"
-    RECENT = "recent"
+SortBy = SearchSortBy
 
 
 _MAX_CHAINS_CAP = 100
 
 _REASONING_EPILOG = (
-    "QUERY mode searches whole reasoning chains. --claim-id mode inspects "
-    "chains backing one claim.\n\n"
+    "Use query mode as a search surface for reasoning chains and workflows. "
+    "It is parallel to `knowledge <query>`, which searches paper knowledge "
+    "items such as conclusions, weak points, highlights, problems, and open "
+    "questions.\n\n"
+    "Use --claim-id only when you already have a claim id and want that claim's "
+    "supporting reasoning graph.\n\n"
+    "Query mode accepts search filters (--paper-id, --doi, --sort-by). "
+    "--claim-id mode fetches one claim's backing chains and only accepts "
+    "--max-chains plus --sort-by comprehensive|recent.\n\n"
     f"Query API docs: {APIFOX_REASONING_SEARCH_URL}\n\n"
     f"Claim API docs: {APIFOX_CLAIM_REASONING_URL}\n"
     "Endpoint links: gaia search lkm docs"
@@ -55,7 +58,7 @@ _REASONING_EPILOG = (
 def reasoning_command(
     query: Annotated[
         str | None,
-        typer.Argument(help="Natural-language query for reasoning-chain search."),
+        typer.Argument(help="Topic to search for reasoning chains or workflows."),
     ] = None,
     index: Annotated[
         str | None,
@@ -66,9 +69,8 @@ def reasoning_command(
         typer.Option(
             "--claim-id",
             help=(
-                "Fetch reasoning chains for one claim id instead of searching by query. "
-                "Accepts the bare id (gcn_…, pair with --index) or the prefixed form "
-                "printed in search results (lkm:<index>:gcn_…), which infers --index."
+                "Inspect reasoning for one claim id. Accepts bare gcn_... ids or "
+                "lkm:<index>:gcn_... refs from search results."
             ),
         ),
     ] = None,
@@ -80,31 +82,42 @@ def reasoning_command(
         list[str] | None,
         typer.Option(
             "--keywords",
-            help=f"Lexical-channel keyword (repeatable, max {MAX_KEYWORDS}).",
+            help=f"Keyword for the lexical channel (repeatable, max {MAX_KEYWORDS}).",
         ),
     ] = None,
     paper_ids: Annotated[
         list[str] | None,
         typer.Option(
             "--paper-ids",
+            "--paper-id",
             help=(
-                f"Restrict query search to these paper ids (repeatable, max {MAX_PAPER_IDS}; "
+                f"Restrict query mode to these source paper ids (repeatable, max {MAX_PAPER_IDS}; "
                 "numeric strings only, no `paper:` prefix)."
             ),
+        ),
+    ] = None,
+    dois: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--doi",
+            help=f"Restrict query mode to these source DOI values (repeatable, max {MAX_DOIS}).",
         ),
     ] = None,
     max_chains: Annotated[
         int,
         typer.Option(
             "--max-chains",
-            help="Max chains to return for --claim-id mode (max 100).",
+            help="Maximum backing chains for --claim-id mode (max 100).",
         ),
     ] = 10,
     sort_by: Annotated[
         SortBy,
         typer.Option(
             "--sort-by",
-            help="comprehensive (by premise count) or recent (by time).",
+            help=(
+                "Ranking profile. Query mode accepts relevance, recent, journal, "
+                "or comprehensive; --claim-id mode accepts comprehensive or recent."
+            ),
             case_sensitive=False,
         ),
     ] = SortBy.COMPREHENSIVE,
@@ -122,7 +135,7 @@ def reasoning_command(
     ] = None,
     no_hint: Annotated[
         bool,
-        typer.Option("--no-hint", help="Do not print Gaia next-step hints to stderr."),
+        typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
     """Search reasoning chains, or fetch them for one claim with --claim-id."""
@@ -144,16 +157,23 @@ def reasoning_command(
         typer.echo("Error: pass QUERY or --claim-id.", err=True)
         raise typer.Exit(4)
     if claim_id is not None:
+        if sort_by not in {SortBy.COMPREHENSIVE, SortBy.RECENT}:
+            typer.echo(
+                "Error: --claim-id mode only accepts --sort-by comprehensive or recent.",
+                err=True,
+            )
+            raise typer.Exit(4)
         if (
             keywords
             or paper_ids
+            or dois
             or offset != 0
             or limit != 20
             or retrieval_mode != RetrievalMode.HYBRID
         ):
             typer.echo(
                 "Error: --claim-id mode does not accept query-search options "
-                "(--retrieval-mode, --keywords, --paper-ids, --offset, --limit).",
+                "(--retrieval-mode, --keywords, --paper-ids, --doi, --offset, --limit).",
                 err=True,
             )
             raise typer.Exit(4)
@@ -172,10 +192,9 @@ def reasoning_command(
         return
 
     assert query is not None
-    if max_chains != 10 or sort_by != SortBy.COMPREHENSIVE:
+    if max_chains != 10:
         typer.echo(
-            "Error: query-search mode does not accept claim-inspection options "
-            "(--max-chains, --sort-by).",
+            "Error: query-search mode does not accept claim-inspection options (--max-chains).",
             err=True,
         )
         raise typer.Exit(4)
@@ -184,6 +203,8 @@ def reasoning_command(
         retrieval_mode=retrieval_mode,
         keywords=keywords,
         paper_ids=paper_ids,
+        dois=dois,
+        sort_by=sort_by,
         offset=offset,
         limit=limit,
         index_id=index_id,
@@ -277,6 +298,8 @@ def _search_reasoning(
     retrieval_mode: RetrievalMode,
     keywords: list[str] | None,
     paper_ids: list[str] | None,
+    dois: list[str] | None,
+    sort_by: SortBy,
     offset: int,
     limit: int,
     index_id: str,
@@ -290,44 +313,26 @@ def _search_reasoning(
             err=True,
         )
         raise typer.Exit(4)
-    if offset < 0 or offset > MAX_OFFSET:
-        typer.echo(
-            f"Error: --offset must be between 0 and {MAX_OFFSET}; got {offset}.",
-            err=True,
-        )
-        raise typer.Exit(4)
-    if limit < 1 or limit > MAX_LIMIT:
-        typer.echo(
-            f"Error: --limit must be between 1 and {MAX_LIMIT}; got {limit}.",
-            err=True,
-        )
-        raise typer.Exit(4)
-    if paper_ids:
-        if len(paper_ids) > MAX_PAPER_IDS:
-            typer.echo(
-                f"Error: at most {MAX_PAPER_IDS} --paper-ids allowed; got {len(paper_ids)}.",
-                err=True,
-            )
-            raise typer.Exit(4)
-        prefixed = [pid for pid in paper_ids if pid.startswith("paper:")]
-        if prefixed:
-            typer.echo(
-                "Error: --paper-ids must be numeric strings without the `paper:` "
-                f"prefix; got {prefixed}.",
-                err=True,
-            )
-            raise typer.Exit(4)
+    validate_search_window(offset, limit)
+    validate_paper_ids(paper_ids)
+    validate_dois(dois)
 
     body: dict[str, Any] = {
         "query": query,
         "format": "graph",
         "retrieval_mode": retrieval_mode.value,
+        "sort_by": sort_by.value,
         "offset": offset,
         "limit": limit,
     }
     if keywords:
         body["keywords"] = list(keywords)
+    filters: dict[str, Any] = {}
     if paper_ids:
-        body["filters"] = {"paper_ids": list(paper_ids)}
+        filters["paper_ids"] = list(paper_ids)
+    if dois:
+        filters["dois"] = list(dois)
+    if filters:
+        body["filters"] = filters
 
     return run_request("POST", "/reasoning/search", json_body=body, index_id=index_id)

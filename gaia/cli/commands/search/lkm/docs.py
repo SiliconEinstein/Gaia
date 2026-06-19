@@ -11,11 +11,11 @@ APIFOX_CLAIM_REASONING_URL = f"{APIFOX_BASE_URL}/api-459807347"
 APIFOX_VARIABLES_BATCH_URL = f"{APIFOX_BASE_URL}/api-459805971"
 APIFOX_PAPERS_GRAPH_URL = f"{APIFOX_BASE_URL}/api-459808997"
 ENDPOINT_DOCS: tuple[tuple[str, str], ...] = (
-    ("POST /search", APIFOX_SEARCH_URL),
-    ("POST /reasoning/search", APIFOX_REASONING_SEARCH_URL),
-    ("GET /claims/{id}/reasoning", APIFOX_CLAIM_REASONING_URL),
-    ("POST /variables/batch", APIFOX_VARIABLES_BATCH_URL),
-    ("POST /papers/graph", APIFOX_PAPERS_GRAPH_URL),
+    ("knowledge search", APIFOX_SEARCH_URL),
+    ("reasoning search", APIFOX_REASONING_SEARCH_URL),
+    ("claim reasoning lookup", APIFOX_CLAIM_REASONING_URL),
+    ("node lookup", APIFOX_VARIABLES_BATCH_URL),
+    ("paper graph lookup", APIFOX_PAPERS_GRAPH_URL),
 )
 
 
@@ -27,7 +27,7 @@ def docs_command() -> None:
         *[f"  {label}: {url}" for label, url in ENDPOINT_DOCS],
         "CLI reference: docs/reference/cli/search.md",
         "",
-        "Agent note: verify the relevant Apifox endpoint before changing "
+        "Maintenance note: verify the relevant Apifox endpoint before changing "
         "`gaia search lkm` behavior, options, or help text.",
     ]
     typer.echo("\n".join(lines))
