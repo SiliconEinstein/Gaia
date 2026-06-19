@@ -12,11 +12,11 @@ Locks the 7-submodule public surface:
   for references and artifact metadata, plus the ``BetaBinomial`` factory
   used by both Bayes hypothesis comparison and quantity-with-predicate
   surfaces, and ``export`` for package public-surface declarations.
-- `gaia.engine.inquiry` (45)
+- `gaia.engine.inquiry` (46)
 - `gaia.engine.trace` (7)
-- `gaia.engine.packaging` (10)
+- `gaia.engine.packaging` (13)
 
-Total 225. Adding or removing a symbol from a facade `__all__` requires
+Total 229. Adding or removing a symbol from a facade `__all__` requires
 updating both `docs/reference/engine/index.md` and these counts.
 """
 
@@ -33,9 +33,9 @@ EXPECTED = {
     "gaia.engine.bp": 24,
     "gaia.engine.ir": 36,
     "gaia.engine.lang": 97,
-    "gaia.engine.inquiry": 45,
+    "gaia.engine.inquiry": 46,
     "gaia.engine.trace": 7,
-    "gaia.engine.packaging": 10,
+    "gaia.engine.packaging": 13,
 }
 
 
@@ -49,4 +49,4 @@ def test_facade_surface(module_name: str, expected: int) -> None:
 
 def test_grand_total() -> None:
     total = sum(len(importlib.import_module(m).__all__) for m in EXPECTED)
-    assert total == 225
+    assert total == 229
