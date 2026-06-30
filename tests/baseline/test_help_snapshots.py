@@ -84,6 +84,7 @@ HELP_PATHS: list[tuple[str, ...]] = [
     ("search", "lkm", "reasoning", "--help"),
     ("search", "lkm", "nodes", "--help"),
     ("search", "lkm", "package", "--help"),
+    ("search", "lkm", "feedback", "--help"),
     ("search", "lkm", "auth", "--help"),
     ("search", "lkm", "auth", "login", "--help"),
     ("search", "lkm", "auth", "status", "--help"),

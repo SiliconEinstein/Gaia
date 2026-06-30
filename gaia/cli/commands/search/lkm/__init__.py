@@ -11,6 +11,7 @@ import typer
 
 from gaia.cli.commands.search.lkm.auth import auth_app
 from gaia.cli.commands.search.lkm.docs import APIFOX_BASE_URL, docs_command
+from gaia.cli.commands.search.lkm.feedback import _FEEDBACK_EPILOG, feedback_command
 from gaia.cli.commands.search.lkm.knowledge import (
     _KNOWLEDGE_EPILOG,
     knowledge_command,
@@ -31,7 +32,7 @@ _LKM_EPILOG = (
     "conclusion claims, weak-point / highlight claims, problems, and open "
     "questions. `reasoning` retrieves reasoning chains and workflows. `package` "
     "fetches the per-paper graph that `gaia pkg add` can materialize as a local "
-    "dependency.\n\n"
+    "dependency. `feedback` reports LKM service/data issues.\n\n"
     "Configured indexes: bohrium (default). Set GAIA_LKM_INDEX_<NAME>_URL "
     "to add a named LKM index.\n\n"
     f"API docs: {APIFOX_BASE_URL}\n"
@@ -54,5 +55,6 @@ lkm_app.command(name="knowledge", epilog=_KNOWLEDGE_EPILOG)(knowledge_command)
 lkm_app.command(name="reasoning", epilog=_REASONING_EPILOG)(reasoning_command)
 lkm_app.command(name="nodes", epilog=_NODES_EPILOG)(nodes_command)
 lkm_app.command(name="package", epilog=_PACKAGE_EPILOG)(package_command)
+lkm_app.command(name="feedback", epilog=_FEEDBACK_EPILOG)(feedback_command)
 
 __all__ = ["lkm_app"]
