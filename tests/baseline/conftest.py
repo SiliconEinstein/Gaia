@@ -85,12 +85,15 @@ class CliResult:
 def _resolve_gaia() -> str:
     """Find the installed `gaia` console-script.
 
-    Prefers the venv-shipped entrypoint (`<sys.prefix>/bin/gaia`) so that the
+    Prefers the repo venv-shipped entrypoint (`.venv/bin/gaia`) so that the
     subprocess runs against the same source tree the test suite is checking.
     """
-    candidate = Path(sys.prefix) / "bin" / "gaia"
-    if candidate.exists():
-        return str(candidate)
+    for candidate in (
+        REPO_ROOT / ".venv" / "bin" / "gaia",
+        Path(sys.prefix) / "bin" / "gaia",
+    ):
+        if candidate.exists():
+            return str(candidate)
     resolved = shutil.which("gaia")
     if resolved:
         return resolved
