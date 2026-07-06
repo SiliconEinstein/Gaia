@@ -174,12 +174,21 @@ def init_command(
         gitignore_path.write_text(block)
 
     # --- add gaia-lang dependency (warn on failure) ----------------------------
+    # Floor at the release that introduced the `gaia.engine.lang` API the
+    # generated module imports (0.5.0a1), matching the lkm package template. A
+    # bare `uv add gaia-lang` instead resolves to the latest STABLE line and
+    # excludes pre-releases, so a package built by a 0.5.x CLI would get an
+    # older, API-incompatible dependency (`>=0.4.4`, whose `gaia.lang` layout
+    # lacks `gaia.engine.lang`). Referencing a pre-release in the specifier opts
+    # uv into pre-releases for this dependency (PEP 440), and this floor resolves
+    # even when the running gaia is an unpublished dev version ahead of PyPI.
+    dep_spec = "gaia-lang>=0.5.0a1"
     try:
-        _run_uv(["uv", "add", "gaia-lang"], cwd=pkg_dir)
+        _run_uv(["uv", "add", dep_spec], cwd=pkg_dir)
     except GaiaPackagingError:
         typer.echo(
             f"Warning: could not add gaia-lang to {pkg_dir / 'pyproject.toml'}. "
-            "Run 'uv add gaia-lang' from inside the new package directory "
+            f"Run 'uv add \"{dep_spec}\"' from inside the new package directory "
             f"({pkg_dir}) to add it. "
             "This affects the new package's own Python environment — not "
             "the directory you are running gaia from. "
