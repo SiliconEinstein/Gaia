@@ -1,15 +1,15 @@
 """``gaia search lkm knowledge`` — POST /search.
 
 Cross-node retrieval over claim / question nodes. The
-returned ``score`` is a retrieval ranking signal, not a probability — see
-the verb help epilog.
+returned ``score`` / ``rerank_score`` values are retrieval ranking signals,
+not probabilities — see the verb help epilog.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 
@@ -27,6 +27,10 @@ from gaia.cli.commands.search.lkm._shared import (
     validate_search_window,
 )
 from gaia.cli.commands.search.lkm.docs import APIFOX_SEARCH_URL
+from gaia.cli.commands.search.lkm.policy import (
+    DEFAULT_SEARCH_SORT_BY,
+    build_knowledge_search_body,
+)
 
 
 class ScopeChoice(StrEnum):
@@ -34,6 +38,9 @@ class ScopeChoice(StrEnum):
 
     CLAIM = "claim"
     QUESTION = "question"
+    ABSTRACT = "abstract"
+    CONCLUSION = "conclusion"
+    PREMISE = "premise"
 
 
 class RetrievalMode(StrEnum):
@@ -53,21 +60,31 @@ class SearchSortBy(StrEnum):
     COMPREHENSIVE = "comprehensive"
 
 
+DEFAULT_SEARCH_SORT_CHOICE = SearchSortBy(DEFAULT_SEARCH_SORT_BY)
+
+
 _KNOWLEDGE_EPILOG = (
     "Use this surface when you need LKM-grounded paper knowledge items: "
     "conclusion claims, weak-point / highlight claims, problems, and open "
     "questions from papers. `reasoning <query>` is a parallel search surface "
     "for reasoning chains and workflows, not a later phase of knowledge search.\n\n"
-    "For paper conclusions you plan to audit, add --reasoning-only. If a hit "
-    "has a claim id, --claim-id can fetch that claim's supporting reasoning graph.\n\n"
+    "For paper conclusions you plan to audit, use --scopes conclusion. "
+    "--reasoning-only remains a legacy alias for claim searches that only want "
+    "reasoning-backed conclusions. If a hit has a claim id, --claim-id can fetch "
+    "that claim's supporting reasoning graph.\n\n"
     "Default search uses hybrid retrieval and comprehensive ranking. Add "
     "--keywords for lexical recall; use --sort-by recent or --sort-by journal "
     "when freshness or venue should dominate the first page.\n\n"
+    "Use --scopes abstract for paper-level abstract hits. Treat abstracts as "
+    "paper context, not Gaia claims; same-paper `related` hits are folded "
+    "context, not cross-paper recommendations.\n\n"
     f"API docs: {APIFOX_SEARCH_URL}\n"
     "Endpoint links: gaia search lkm docs\n\n"
-    "Note: `score` is a retrieval ranking signal, not a probability — "
+    "Note: `score` / `rerank_score` are retrieval ranking signals, not probabilities — "
     "do not pass to Gaia priors."
 )
+
+_REASONING_ONLY_SCOPES = ([ScopeChoice.CLAIM],)
 
 
 def knowledge_command(
@@ -80,7 +97,10 @@ def knowledge_command(
         list[ScopeChoice] | None,
         typer.Option(
             "--scopes",
-            help="Search scopes (repeatable; default: claim and question).",
+            help=(
+                "Search scopes: claim/question/abstract types or "
+                "conclusion/premise roles (repeatable)."
+            ),
             case_sensitive=False,
         ),
     ] = None,
@@ -126,7 +146,7 @@ def knowledge_command(
             help="Ranking profile: relevance, recent, journal, or comprehensive.",
             case_sensitive=False,
         ),
-    ] = SearchSortBy.COMPREHENSIVE,
+    ] = DEFAULT_SEARCH_SORT_CHOICE,
     paper_ids: Annotated[
         list[str] | None,
         typer.Option(
@@ -141,10 +161,42 @@ def knowledge_command(
     dois: Annotated[
         list[str] | None,
         typer.Option(
+            "--dois",
             "--doi",
             help=f"Restrict to these source DOI values (repeatable, max {MAX_DOIS}).",
         ),
     ] = None,
+    title: Annotated[
+        str | None,
+        typer.Option(
+            "--title",
+            help="Restrict by fuzzy paper title, ANDed with paper ids / DOIs.",
+        ),
+    ] = None,
+    publication_date_start: Annotated[
+        str | None,
+        typer.Option(
+            "--publication-date-start",
+            help="Restrict publication date lower bound (YYYY-MM-DD).",
+        ),
+    ] = None,
+    publication_date_end: Annotated[
+        str | None,
+        typer.Option(
+            "--publication-date-end",
+            help="Restrict publication date upper bound (YYYY-MM-DD).",
+        ),
+    ] = None,
+    limit_publication_date: Annotated[
+        bool,
+        typer.Option(
+            "--limit-publication-date/--no-limit-publication-date",
+            help=(
+                "Apply LKM publication-date filtering. The server default is true; "
+                "--no-limit-publication-date also recalls papers without dates."
+            ),
+        ),
+    ] = True,
     offset: Annotated[
         int,
         typer.Option("--offset", help="Pagination offset (max 10000)."),
@@ -173,37 +225,47 @@ def knowledge_command(
     validate_search_window(offset, limit)
     validate_paper_ids(paper_ids)
     validate_dois(dois)
-    if reasoning_only and scopes and scopes != [ScopeChoice.CLAIM]:
-        typer.echo(
-            "Error: --reasoning-only requires --scopes to be omitted or exactly "
-            "`claim`; question results do not have reasoning chains.",
-            err=True,
-        )
-        raise typer.Exit(4)
-
-    body: dict[str, Any] = {
-        "query": query,
-        "retrieval_mode": retrieval_mode.value,
-        "offset": offset,
-        "limit": limit,
-        "sort_by": sort_by.value,
-    }
-    if scopes:
-        body["scopes"] = [s.value for s in scopes]
-    if keywords:
-        body["keywords"] = list(keywords)
     if reasoning_only:
-        body["reasoning_only"] = True
-    if include_paper_enrich:
-        body["include_paper_enrich"] = True
-    filters: dict[str, Any] = {"visibility": visibility}
-    if role:
-        filters["role"] = role
-    if paper_ids:
-        filters["paper_ids"] = list(paper_ids)
-    if dois:
-        filters["dois"] = list(dois)
-    body["filters"] = filters
+        if scopes == [ScopeChoice.CONCLUSION]:
+            typer.echo(
+                "Error: Use `--scopes conclusion` without --reasoning-only; "
+                "--reasoning-only is the legacy alias for claim searches.",
+                err=True,
+            )
+            raise typer.Exit(4)
+        if scopes and scopes not in _REASONING_ONLY_SCOPES:
+            typer.echo(
+                "Error: --reasoning-only requires --scopes to be omitted or exactly "
+                "`claim`; use `--scopes conclusion` for conclusion-role search.",
+                err=True,
+            )
+            raise typer.Exit(4)
+        if role is not None and role != "conclusion":
+            typer.echo(
+                "Error: --reasoning-only requires --role to be omitted or `conclusion`.",
+                err=True,
+            )
+            raise typer.Exit(4)
+
+    body = build_knowledge_search_body(
+        query=query,
+        retrieval_mode=retrieval_mode.value,
+        sort_by=sort_by.value,
+        offset=offset,
+        limit=limit,
+        scopes=[s.value for s in scopes] if scopes else None,
+        keywords=keywords,
+        reasoning_only=reasoning_only,
+        include_paper_enrich=include_paper_enrich,
+        visibility=visibility,
+        role=role,
+        paper_ids=paper_ids,
+        dois=dois,
+        title=title,
+        publication_date_start=publication_date_start,
+        publication_date_end=publication_date_end,
+        limit_publication_date=limit_publication_date,
+    )
 
     payload = run_request("POST", "/search", json_body=body, index_id=index_id)
     emit(payload, out, hint=knowledge_hint(payload, index_id=index_id), show_hint=not no_hint)

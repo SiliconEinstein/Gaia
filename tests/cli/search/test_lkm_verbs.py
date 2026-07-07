@@ -26,6 +26,7 @@ from gaia.cli.commands.search.lkm._client import (
     LKMTransportError,
     NoAccessKeyError,
 )
+from gaia.cli.commands.search.lkm.policy import build_lkm_filters
 from gaia.cli.main import app
 
 pytestmark = pytest.mark.pr_gate
@@ -139,6 +140,7 @@ class TestDocs:
         assert "claim reasoning lookup" in result.stdout
         assert "node lookup" in result.stdout
         assert "paper graph lookup" in result.stdout
+        assert "feedback" in result.stdout
         assert "CLI reference:" in result.stdout
         assert "docs/reference/cli/search.md" in result.stdout
 
@@ -164,6 +166,10 @@ class TestDocs:
                 ["search", "lkm", "package", "--help"],
                 ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459808997"],
             ),
+            (
+                ["search", "lkm", "feedback", "--help"],
+                ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-474487249"],
+            ),
         ],
     )
     def test_subcommand_help_prints_endpoint_specific_docs(
@@ -181,6 +187,42 @@ class TestDocs:
 # --------------------------------------------------------------------------- #
 
 
+class TestPolicy:
+    def test_filter_policy_preserves_gaia_defaults_without_spurious_server_defaults(
+        self,
+    ) -> None:
+        assert build_lkm_filters(
+            visibility="public",
+            role=None,
+            paper_ids=None,
+            dois=None,
+            title=None,
+            publication_date_start=None,
+            publication_date_end=None,
+            limit_publication_date=True,
+        ) == {"visibility": "public"}
+
+    def test_filter_policy_includes_new_lkm_filters_when_explicit(self) -> None:
+        assert build_lkm_filters(
+            visibility=None,
+            role="conclusion",
+            paper_ids=["123"],
+            dois=["10.1038/example"],
+            title="phase stability",
+            publication_date_start="2020-01-01",
+            publication_date_end="2024-12-31",
+            limit_publication_date=False,
+        ) == {
+            "role": "conclusion",
+            "paper_ids": ["123"],
+            "dois": ["10.1038/example"],
+            "title": "phase stability",
+            "publication_date_start": "2020-01-01",
+            "publication_date_end": "2024-12-31",
+            "limit_publication_date": False,
+        }
+
+
 class TestKnowledge:
     def test_help_recommends_reasoning_only_for_conclusions(self) -> None:
         result = runner.invoke(app, ["search", "lkm", "knowledge", "--help"])
@@ -193,7 +235,7 @@ class TestKnowledge:
         assert "weak-point / highlight claims" in stdout
         assert "open questions" in stdout
         assert "reasoning chains and workflows" in stdout
-        assert "premise" not in stdout
+        assert "premise" in stdout
         assert "claim/question records" not in stdout
         assert "workflow-shaped evidence" not in stdout
 
@@ -354,6 +396,13 @@ class TestKnowledge:
                 "456",
                 "--doi",
                 "10.1038/example",
+                "--title",
+                "phase stability",
+                "--publication-date-start",
+                "2020-01-01",
+                "--publication-date-end",
+                "2024-12-31",
+                "--no-limit-publication-date",
                 "--visibility",
                 "private",
             ],
@@ -366,6 +415,10 @@ class TestKnowledge:
             "visibility": "private",
             "paper_ids": ["123", "456"],
             "dois": ["10.1038/example"],
+            "title": "phase stability",
+            "publication_date_start": "2020-01-01",
+            "publication_date_end": "2024-12-31",
+            "limit_publication_date": False,
         }
 
     def test_rejects_prefixed_paper_ids_before_request(
@@ -400,6 +453,30 @@ class TestKnowledge:
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["json_body"]["scopes"] == ["claim", "question"]
 
+    def test_allows_new_search_scopes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "paper background",
+                "--scopes",
+                "abstract",
+                "--scopes",
+                "conclusion",
+                "--scopes",
+                "premise",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["json_body"]["scopes"] == [
+            "abstract",
+            "conclusion",
+            "premise",
+        ]
+
     def test_rejects_reasoning_only_with_question_scope(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -418,6 +495,46 @@ class TestKnowledge:
         )
         assert result.exit_code == 4, result.output
         assert "reasoning-only" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_reasoning_only_with_conclusion_scope(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "q",
+                "--scopes",
+                "conclusion",
+                "--reasoning-only",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "Use `--scopes conclusion` without --reasoning-only" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_reasoning_only_with_non_conclusion_role(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "q",
+                "--reasoning-only",
+                "--role",
+                "highlight",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "--reasoning-only requires --role to be omitted or `conclusion`" in result.output
         assert _FakeClient.last_call == {}
 
     def test_rejects_retired_action_scope_before_request(
@@ -836,6 +953,13 @@ class TestReasoning:
                 "123",
                 "--doi",
                 "10.1038/example",
+                "--title",
+                "phase stability",
+                "--publication-date-start",
+                "2020-01-01",
+                "--publication-date-end",
+                "2024-12-31",
+                "--no-limit-publication-date",
             ],
         )
 
@@ -845,6 +969,10 @@ class TestReasoning:
         assert body["filters"] == {
             "paper_ids": ["123"],
             "dois": ["10.1038/example"],
+            "title": "phase stability",
+            "publication_date_start": "2020-01-01",
+            "publication_date_end": "2024-12-31",
+            "limit_publication_date": False,
         }
 
     def test_url_encodes_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -912,6 +1040,24 @@ class TestReasoning:
         )
         assert result.exit_code == 4, result.output
         assert "--limit" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_new_query_filters_in_claim_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "reasoning",
+                "--claim-id",
+                "gcn_abc123",
+                "--title",
+                "phase stability",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "--title" in result.output
         assert _FakeClient.last_call == {}
 
     def test_rejects_query_only_sort_values_in_claim_mode(
@@ -1106,6 +1252,103 @@ class TestNodes:
         _install_client(monkeypatch, raises=NoAccessKeyError("no key"))
         result = runner.invoke(app, ["search", "lkm", "nodes", "a"])
         assert result.exit_code == 3, result.output
+
+
+# --------------------------------------------------------------------------- #
+# feedback                                                                    #
+# --------------------------------------------------------------------------- #
+
+
+class TestFeedback:
+    def test_posts_feedback_with_gcn_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch, response={"code": 0, "data": {"id": "fb_1"}})
+
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "feedback",
+                "--type",
+                "bug",
+                "--gcn-id",
+                "gcn_abc",
+                "Missing premise nodes.",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {"code": 0, "data": {"id": "fb_1"}}
+        assert _FakeClient.last_call == {
+            "method": "POST",
+            "path": "/feedback",
+            "json_body": {
+                "type": "bug",
+                "content": "Missing premise nodes.",
+                "gcn_id": "gcn_abc",
+            },
+            "params": None,
+        }
+
+    def test_posts_feedback_with_paper_metadata_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "feedback",
+                "--type",
+                "feature",
+                "--paper-metadata-id",
+                "867766664756724177",
+                "Please expose better paper metadata.",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["json_body"] == {
+            "type": "feature",
+            "content": "Please expose better paper metadata.",
+            "paper_metadata_id": "867766664756724177",
+        }
+
+    def test_rejects_both_feedback_targets_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "feedback",
+                "--type",
+                "question",
+                "--gcn-id",
+                "gcn_abc",
+                "--paper-metadata-id",
+                "867766664756724177",
+                "Which paper is this linked to?",
+            ],
+        )
+
+        assert result.exit_code == 4, result.output
+        assert "mutually exclusive" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_blank_feedback_content_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+
+        result = runner.invoke(app, ["search", "lkm", "feedback", "--type", "bug", "   "])
+
+        assert result.exit_code == 4, result.output
+        assert "content" in result.output
+        assert _FakeClient.last_call == {}
 
 
 # --------------------------------------------------------------------------- #
