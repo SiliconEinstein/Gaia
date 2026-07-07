@@ -33,6 +33,7 @@ from gaia.cli.commands.search.lkm.docs import (
     APIFOX_REASONING_SEARCH_URL,
 )
 from gaia.cli.commands.search.lkm.knowledge import RetrievalMode, SearchSortBy
+from gaia.cli.commands.search.lkm.policy import build_reasoning_search_body
 
 SortBy = SearchSortBy
 
@@ -46,7 +47,8 @@ _REASONING_EPILOG = (
     "questions.\n\n"
     "Use --claim-id only when you already have a claim id and want that claim's "
     "supporting reasoning graph.\n\n"
-    "Query mode accepts search filters (--paper-id, --doi, --sort-by). "
+    "Query mode accepts search filters (--paper-id, --doi, --title, "
+    "publication dates, --sort-by). "
     "--claim-id mode fetches one claim's backing chains and only accepts "
     "--max-chains plus --sort-by comprehensive|recent.\n\n"
     f"Query API docs: {APIFOX_REASONING_SEARCH_URL}\n\n"
@@ -99,10 +101,43 @@ def reasoning_command(
     dois: Annotated[
         list[str] | None,
         typer.Option(
+            "--dois",
             "--doi",
             help=f"Restrict query mode to these source DOI values (repeatable, max {MAX_DOIS}).",
         ),
     ] = None,
+    title: Annotated[
+        str | None,
+        typer.Option(
+            "--title",
+            help="Restrict query mode by fuzzy paper title, ANDed with paper ids / DOIs.",
+        ),
+    ] = None,
+    publication_date_start: Annotated[
+        str | None,
+        typer.Option(
+            "--publication-date-start",
+            help="Restrict publication date lower bound in query mode (YYYY-MM-DD).",
+        ),
+    ] = None,
+    publication_date_end: Annotated[
+        str | None,
+        typer.Option(
+            "--publication-date-end",
+            help="Restrict publication date upper bound in query mode (YYYY-MM-DD).",
+        ),
+    ] = None,
+    limit_publication_date: Annotated[
+        bool,
+        typer.Option(
+            "--limit-publication-date/--no-limit-publication-date",
+            help=(
+                "Apply LKM publication-date filtering in query mode. The server "
+                "default is true; --no-limit-publication-date also recalls papers "
+                "without dates."
+            ),
+        ),
+    ] = True,
     max_chains: Annotated[
         int,
         typer.Option(
@@ -167,13 +202,19 @@ def reasoning_command(
             keywords
             or paper_ids
             or dois
+            or title
+            or publication_date_start
+            or publication_date_end
+            or not limit_publication_date
             or offset != 0
             or limit != 20
             or retrieval_mode != RetrievalMode.HYBRID
         ):
             typer.echo(
                 "Error: --claim-id mode does not accept query-search options "
-                "(--retrieval-mode, --keywords, --paper-ids, --doi, --offset, --limit).",
+                "(--retrieval-mode, --keywords, --paper-ids, --doi, --title, "
+                "--publication-date-start, --publication-date-end, "
+                "--no-limit-publication-date, --offset, --limit).",
                 err=True,
             )
             raise typer.Exit(4)
@@ -204,6 +245,10 @@ def reasoning_command(
         keywords=keywords,
         paper_ids=paper_ids,
         dois=dois,
+        title=title,
+        publication_date_start=publication_date_start,
+        publication_date_end=publication_date_end,
+        limit_publication_date=limit_publication_date,
         sort_by=sort_by,
         offset=offset,
         limit=limit,
@@ -299,6 +344,10 @@ def _search_reasoning(
     keywords: list[str] | None,
     paper_ids: list[str] | None,
     dois: list[str] | None,
+    title: str | None,
+    publication_date_start: str | None,
+    publication_date_end: str | None,
+    limit_publication_date: bool,
     sort_by: SortBy,
     offset: int,
     limit: int,
@@ -317,22 +366,19 @@ def _search_reasoning(
     validate_paper_ids(paper_ids)
     validate_dois(dois)
 
-    body: dict[str, Any] = {
-        "query": query,
-        "format": "graph",
-        "retrieval_mode": retrieval_mode.value,
-        "sort_by": sort_by.value,
-        "offset": offset,
-        "limit": limit,
-    }
-    if keywords:
-        body["keywords"] = list(keywords)
-    filters: dict[str, Any] = {}
-    if paper_ids:
-        filters["paper_ids"] = list(paper_ids)
-    if dois:
-        filters["dois"] = list(dois)
-    if filters:
-        body["filters"] = filters
+    body = build_reasoning_search_body(
+        query=query,
+        retrieval_mode=retrieval_mode.value,
+        sort_by=sort_by.value,
+        offset=offset,
+        limit=limit,
+        keywords=keywords,
+        paper_ids=paper_ids,
+        dois=dois,
+        title=title,
+        publication_date_start=publication_date_start,
+        publication_date_end=publication_date_end,
+        limit_publication_date=limit_publication_date,
+    )
 
     return run_request("POST", "/reasoning/search", json_body=body, index_id=index_id)

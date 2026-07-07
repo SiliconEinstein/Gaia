@@ -15,6 +15,7 @@ gaia search lkm package --paper-id <id>     Fetch one LKM paper package candidat
 gaia search lkm package --package-id paper:<id>
 gaia search lkm package --doi <doi>
 gaia search lkm package --title <title>
+gaia search lkm feedback --type bug <text>  Submit LKM service/data feedback
 gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
 ```
@@ -52,16 +53,26 @@ supporting reasoning graph. Use `package` to fetch a paper graph, and
 `gaia pkg add` when that paper should become an editable dependency of the
 current Gaia package.
 
-Use `knowledge --reasoning-only` when the goal is to find conclusion claims
-backed by reasoning chains. For best recall, use default `hybrid` mode with
+Use `knowledge --scopes conclusion` when the goal is to find conclusion claims.
+The older `--reasoning-only` flag remains a legacy alias for claim searches
+that only want reasoning-backed conclusions, but it should not be combined with
+`--scopes conclusion`. For best recall, use default `hybrid` mode with
 `--keywords`. Use `--retrieval-mode semantic` when speed matters more than
 recall quality. Use `--retrieval-mode lexical` only for exact keyword matching.
 `knowledge` tracks the latest `POST /search` API shape: `--sort-by` maps to
 `sort_by` (`relevance`, `recent`, `journal`, or `comprehensive`), while
-repeatable `--paper-id` / `--paper-ids` and `--doi` map to
-`filters.paper_ids` and `filters.dois`. `--paper-id(s)` and `--doi` each accept
-up to 50 values; paper ids must be bare numeric ids without a `paper:` prefix.
-The default ordering is `comprehensive`.
+repeatable `--paper-id` / `--paper-ids` and `--doi` / `--dois` map to
+`filters.paper_ids` and `filters.dois`. `--title` maps to `filters.title`.
+`--publication-date-start`, `--publication-date-end`, and
+`--limit-publication-date/--no-limit-publication-date` map to the LKM
+publication-date filters. `--paper-id(s)` and `--doi(s)` each accept up to 50
+values; paper ids must be bare numeric ids without a `paper:` prefix. The
+default Gaia CLI ordering is `comprehensive`; the server applies its own
+default date window unless `--no-limit-publication-date` is passed.
+`--scopes abstract` asks for paper-level abstract hits; use them as paper
+background context rather than Gaia claims. Same-paper `related` entries are
+folded context for the representative paper hit, not cross-paper
+recommendations or complete paper graphs.
 
 `reasoning --claim-id` asks LKM for the graph-shaped reasoning response by
 default (`format=graph`). In practice this means Gaia receives a supporting
@@ -70,12 +81,12 @@ reasoning graph for one target claim.
 `reasoning <query>` searches whole reasoning chains and workflows
 (`POST /reasoning/search`), not individual paper knowledge hits. Query mode
 accepts `--retrieval-mode`, `--keywords`, `--sort-by`, `--paper-id` /
-`--paper-ids`, `--doi`, `--offset`, and `--limit`, and the raw response carries
-`reasoning_chains` and `total`; it may also include `papers` when the backend
-provides paper metadata. Query-mode `--sort-by` maps to `sort_by` and accepts
-`relevance`, `recent`, `journal`, and `comprehensive`; `--paper-id(s)` and
-`--doi` map to `filters.paper_ids` and `filters.dois`, each with up to 50
-values.
+`--paper-ids`, `--doi` / `--dois`, `--title`, publication-date filters,
+`--offset`, and `--limit`, and the raw response carries `reasoning_chains` and
+`total`; it may also include `papers` when the backend provides paper metadata.
+Query-mode `--sort-by` maps to `sort_by` and accepts `relevance`, `recent`,
+`journal`, and `comprehensive`; `--paper-id(s)`, `--doi(s)`, and `--title` map
+to LKM filters and are intersected upstream.
 `--claim-id` mode instead calls `GET /claims/{id}/reasoning` and accepts
 `--max-chains` plus `--sort-by comprehensive|recent`.
 
@@ -88,6 +99,12 @@ response a business error. This endpoint does not apply a visibility filter.
 `--title-resolve-limit`; the other identifier modes address one paper directly.
 The CLI keeps `/papers/graph` on the default raw paper-graph shape and does not
 expose deprecated projection / hydration switches.
+
+`feedback` is a write endpoint (`POST /feedback`) for reporting LKM service or
+data issues. It accepts a required `--type bug|feature|question` and content
+text, plus at most one optional target: `--gcn-id` for a node or
+`--paper-metadata-id` for a paper metadata record. It returns the raw feedback
+envelope and does not emit Gaia follow-up hints.
 
 `docs` prints the online LKM API documentation links. The Apifox docs are the
 source of truth for endpoint parameter and response details:
@@ -102,6 +119,7 @@ gaia search lkm docs
 - Claim reasoning lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459807347>
 - Node lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459805971>
 - Paper graph lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459808997>
+- Feedback: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-474487249>
 
 Before changing `gaia search lkm` behavior, options, or help text, verify the
 relevant endpoint in Apifox instead of relying on copied local summaries.
@@ -145,8 +163,8 @@ reasoning links use `depends_on(...)` by default: think of this as the scaffold 
 `derive(...)`, preserving the dependency relation without yet making it a
 formal Gaia reasoning edge in IR/BP.
 
-LKM retrieval scores are ranking signals only. They must not be copied into
-Gaia priors, beliefs, or warrant strengths.
+LKM retrieval `score` / `rerank_score` values are ranking signals only. They
+must not be copied into Gaia priors, beliefs, or warrant strengths.
 
 `reasoning` returns raw reasoning-chain search results. In graph-shaped
 responses, Gaia reads each reasoning step's conclusion claim as the claim being
