@@ -48,13 +48,13 @@ def _fake_uv_init(args, *, cwd, text, capture_output):
 
 
 def _fake_uv_add_ok(args, *, cwd, text, capture_output):
-    """Simulate a successful `uv add gaia-lang`."""
+    """Simulate a successful `uv add` for the Gaia dependency."""
     del capture_output, cwd, text
     return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
 
 def _fake_uv_add_fail(args, *, cwd, text, capture_output):
-    """Simulate a failing `uv add gaia-lang`."""
+    """Simulate a failing `uv add` for the Gaia dependency."""
     del capture_output, cwd, text
     return subprocess.CompletedProcess(args, 1, stdout="", stderr="package not found")
 
@@ -136,6 +136,23 @@ def test_init_creates_package(tmp_path, monkeypatch):
     assert ".gaia/" in gitignore.read_text()
 
 
+def test_init_adds_gaia_lang_engine_api_floor(tmp_path, monkeypatch):
+    """`uv add` pins the dependency floor required by the generated import."""
+    monkeypatch.chdir(tmp_path)
+    calls: list[list[str]] = []
+
+    def recorder(args, *, cwd, text, capture_output):
+        calls.append(list(args))
+        return _fake_subprocess_run(args, cwd=cwd, text=text, capture_output=capture_output)
+
+    with patch("gaia.cli.commands.init.subprocess.run", side_effect=recorder):
+        result = runner.invoke(app, ["build", "init", "api-floor-gaia"])
+
+    assert result.exit_code == 0, f"Failed: {result.output}"
+    assert ["uv", "add", "gaia-lang>=0.5.0a1"] in calls
+    assert ["uv", "add", "gaia-lang"] not in calls
+
+
 def test_init_with_docstring_writes_module_docstring(tmp_path, monkeypatch):
     """`--docstring` writes a triple-quoted module docstring at line 1."""
     monkeypatch.chdir(tmp_path)
@@ -181,7 +198,7 @@ def test_init_simple_name(tmp_path, monkeypatch):
 
 
 def test_init_uv_add_failure_warns_but_succeeds(tmp_path, monkeypatch):
-    """If 'uv add gaia-lang' fails, the command warns but exits 0."""
+    """If adding the Gaia dependency fails, the command warns but exits 0."""
     monkeypatch.chdir(tmp_path)
     with patch(
         "gaia.cli.commands.init.subprocess.run",
