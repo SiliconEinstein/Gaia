@@ -53,8 +53,10 @@ supporting reasoning graph. Use `package` to fetch a paper graph, and
 `gaia pkg add` when that paper should become an editable dependency of the
 current Gaia package.
 
-Use `knowledge --reasoning-only` when the goal is to find conclusion claims
-backed by reasoning chains. For best recall, use default `hybrid` mode with
+Use `knowledge --scopes conclusion` when the goal is to find conclusion claims.
+The older `--reasoning-only` flag remains a legacy alias for claim searches
+that only want reasoning-backed conclusions, but it should not be combined with
+`--scopes conclusion`. For best recall, use default `hybrid` mode with
 `--keywords`. Use `--retrieval-mode semantic` when speed matters more than
 recall quality. Use `--retrieval-mode lexical` only for exact keyword matching.
 `knowledge` tracks the latest `POST /search` API shape: `--sort-by` maps to
@@ -117,7 +119,7 @@ gaia search lkm docs
 - Claim reasoning lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459807347>
 - Node lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459805971>
 - Paper graph lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459808997>
-- Feedback: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84>
+- Feedback: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-474487249>
 
 Before changing `gaia search lkm` behavior, options, or help text, verify the
 relevant endpoint in Apifox instead of relying on copied local summaries.

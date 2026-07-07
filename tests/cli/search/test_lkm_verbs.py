@@ -168,7 +168,7 @@ class TestDocs:
             ),
             (
                 ["search", "lkm", "feedback", "--help"],
-                ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84"],
+                ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-474487249"],
             ),
         ],
     )
@@ -495,6 +495,46 @@ class TestKnowledge:
         )
         assert result.exit_code == 4, result.output
         assert "reasoning-only" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_reasoning_only_with_conclusion_scope(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "q",
+                "--scopes",
+                "conclusion",
+                "--reasoning-only",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "Use `--scopes conclusion` without --reasoning-only" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_rejects_reasoning_only_with_non_conclusion_role(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "q",
+                "--reasoning-only",
+                "--role",
+                "highlight",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "--reasoning-only requires --role to be omitted or `conclusion`" in result.output
         assert _FakeClient.last_call == {}
 
     def test_rejects_retired_action_scope_before_request(

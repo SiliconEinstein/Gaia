@@ -68,8 +68,10 @@ _KNOWLEDGE_EPILOG = (
     "conclusion claims, weak-point / highlight claims, problems, and open "
     "questions from papers. `reasoning <query>` is a parallel search surface "
     "for reasoning chains and workflows, not a later phase of knowledge search.\n\n"
-    "For paper conclusions you plan to audit, add --reasoning-only. If a hit "
-    "has a claim id, --claim-id can fetch that claim's supporting reasoning graph.\n\n"
+    "For paper conclusions you plan to audit, use --scopes conclusion. "
+    "--reasoning-only remains a legacy alias for claim searches that only want "
+    "reasoning-backed conclusions. If a hit has a claim id, --claim-id can fetch "
+    "that claim's supporting reasoning graph.\n\n"
     "Default search uses hybrid retrieval and comprehensive ranking. Add "
     "--keywords for lexical recall; use --sort-by recent or --sort-by journal "
     "when freshness or venue should dominate the first page.\n\n"
@@ -82,7 +84,7 @@ _KNOWLEDGE_EPILOG = (
     "do not pass to Gaia priors."
 )
 
-_REASONING_ONLY_SCOPES = ([ScopeChoice.CLAIM], [ScopeChoice.CONCLUSION])
+_REASONING_ONLY_SCOPES = ([ScopeChoice.CLAIM],)
 
 
 def knowledge_command(
@@ -223,14 +225,27 @@ def knowledge_command(
     validate_search_window(offset, limit)
     validate_paper_ids(paper_ids)
     validate_dois(dois)
-    if reasoning_only and scopes and scopes not in _REASONING_ONLY_SCOPES:
-        typer.echo(
-            "Error: --reasoning-only requires --scopes to be omitted or exactly "
-            "`claim` or `conclusion`; question/abstract/premise results do not have "
-            "reasoning chains.",
-            err=True,
-        )
-        raise typer.Exit(4)
+    if reasoning_only:
+        if scopes == [ScopeChoice.CONCLUSION]:
+            typer.echo(
+                "Error: Use `--scopes conclusion` without --reasoning-only; "
+                "--reasoning-only is the legacy alias for claim searches.",
+                err=True,
+            )
+            raise typer.Exit(4)
+        if scopes and scopes not in _REASONING_ONLY_SCOPES:
+            typer.echo(
+                "Error: --reasoning-only requires --scopes to be omitted or exactly "
+                "`claim`; use `--scopes conclusion` for conclusion-role search.",
+                err=True,
+            )
+            raise typer.Exit(4)
+        if role is not None and role != "conclusion":
+            typer.echo(
+                "Error: --reasoning-only requires --role to be omitted or `conclusion`.",
+                err=True,
+            )
+            raise typer.Exit(4)
 
     body = build_knowledge_search_body(
         query=query,
