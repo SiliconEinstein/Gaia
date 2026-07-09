@@ -270,7 +270,7 @@ into an anonymous Claim at runtime).
 ### `observe`
 
 ```
-gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
+gaia author observe (--conclusion <ident> | --observation-content "<prose>" | --observation-prose "<prose>") \
     --dsl-binding-name <ident> [--target <path>]
     [--observation-label <ident>] [--label <engine-label>] [--value <expr>] [--error <expr>]
     [--given <csv>] [--source-refs <csv>] [--rationale <text>] [--metadata <json>] ...
