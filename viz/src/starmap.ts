@@ -2,8 +2,8 @@ import Graph from 'graphology';
 import Sigma from 'sigma';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import FA2Layout from 'graphology-layout-forceatlas2/worker';
-import type { GraphData, AnyNode, EdgeRole } from './types';
-import { isStrategy, isOperator } from './types';
+import type { GraphData, AnyNode, EdgeRole, GraphEdge } from './types';
+import { isStrategy, isOperator, isGeneratedHelper } from './types';
 
 // --------------------------------------------------------------------------
 // Color helpers
@@ -27,9 +27,23 @@ export function beliefColor(belief: number): string {
   return hex(136 + (46 - 136) * t, 136 + (204 - 136) * t, 136 + (113 - 136) * t);
 }
 
+/**
+ * Support/lowering color for a signed strategy effect in [-1, 1]: red =
+ * lowers the conclusion, grey = neutral, green = supports it. Reuses
+ * `beliefColor`'s red-grey-green ramp via `t = (effect + 1) / 2` so nodes
+ * (belief) and edges (effect) read as the same visual language. Mirrored in
+ * `gaia/cli/commands/_dot.py::_effect_color` for the static SVG — keep the
+ * two in sync.
+ */
+export function effectColor(effect: number): string {
+  return beliefColor((effect + 1) / 2);
+}
+
 const NEUTRAL = '#888888';
 const STRATEGY_COLOR = '#5b8def';
 const OPERATOR_COLOR = '#a266ff';
+/** Shrunk, dimmed size for generated/helper knowledge nodes (see isGeneratedHelper). */
+const GENERATED_HELPER_SIZE = 3;
 
 const EDGE_COLORS: Record<EdgeRole, string> = {
   premise: '#3a4a6c',
@@ -44,6 +58,24 @@ const EDGE_SIZE: Record<EdgeRole, number> = {
   conclusion: 2.0,
   variable: 1.0,
 };
+
+/**
+ * Color + size for one edge. Conclusion edges with a computed `effect`
+ * (infer/noisy_and strategies — see `_graph_json._strategy_effect`) are
+ * colored by sign and thickened by magnitude instead of the flat role
+ * color, so support/lowering is legible without opening the side panel.
+ * Edges without an effect (unscored strategy forms, or non-conclusion
+ * roles) keep the plain role styling.
+ */
+function edgeStyle(e: GraphEdge): { color: string; size: number } {
+  if (e.role === 'conclusion' && typeof e.effect === 'number') {
+    return {
+      color: effectColor(e.effect),
+      size: EDGE_SIZE.conclusion * (1 + Math.abs(e.effect) * 1.1),
+    };
+  }
+  return { color: EDGE_COLORS[e.role] || '#3a4a6c', size: EDGE_SIZE[e.role] || 1 };
+}
 
 // --------------------------------------------------------------------------
 // Build graphology Graph from GraphData
@@ -69,6 +101,7 @@ function nodeLabel(n: AnyNode): string {
 
 function nodeSize(n: AnyNode): number {
   if (isStrategy(n) || isOperator(n)) return 4;
+  if (isGeneratedHelper(n)) return GENERATED_HELPER_SIZE;
   // boost size by belief; default 6, peaks at 12 if belief high
   const k = n as { belief?: number | null };
   const b = k.belief == null ? 0.5 : k.belief;
@@ -86,11 +119,19 @@ function nodeColor(n: AnyNode): string {
 function nodeKind(n: AnyNode): string {
   if (isStrategy(n)) return 'strategy';
   if (isOperator(n)) return 'operator';
+  if (isGeneratedHelper(n)) return 'generated';
   return n.type || 'unknown';
 }
 
 export function buildGraph(data: GraphData): Graph {
   const g = new Graph({ multi: false, type: 'directed' });
+
+  // Generated/helper knowledge nodes (compiler-minted provenance, e.g. the
+  // "likelihood" claim infer() auto-writes) start collapsed so they don't
+  // dominate the layout; the filter panel's "generated" toggle reveals them
+  // on demand. Track their ids so incident edges start collapsed too —
+  // otherwise sigma would draw edges dangling off an invisible endpoint.
+  const generatedIds = new Set(data.nodes.filter(isGeneratedHelper).map((n) => n.id));
 
   // seed positions on a circle so the worker has something non-degenerate
   const N = data.nodes.length || 1;
@@ -106,7 +147,7 @@ export function buildGraph(data: GraphData): Graph {
       color: nodeColor(n),
       kind: nodeKind(n),
       raw: n,
-      hidden: false,
+      hidden: generatedIds.has(n.id),
       // dashed border if no belief and is a knowledge node
       borderColor: !isStrategy(n) && !isOperator(n) && (n as { belief?: number | null }).belief == null
         ? '#555' : undefined,
@@ -121,12 +162,14 @@ export function buildGraph(data: GraphData): Graph {
     }
     const id = `e${i}`;
     if (g.hasEdge(id)) return;
+    const style = edgeStyle(e);
     g.addEdgeWithKey(id, e.source, e.target, {
       role: e.role,
-      color: EDGE_COLORS[e.role] || '#3a4a6c',
-      size: EDGE_SIZE[e.role] || 1,
+      effect: e.effect ?? null,
+      color: style.color,
+      size: style.size,
       type: e.role === 'background' ? 'arrow' : 'arrow',
-      hidden: false,
+      hidden: generatedIds.has(e.source) || generatedIds.has(e.target),
     });
   });
   if (dropped) console.warn(`[starmap] dropped ${dropped} edges with missing endpoints`);

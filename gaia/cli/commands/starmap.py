@@ -63,11 +63,48 @@ def _render_html(template: str, graph_json: str) -> str:
     return template.replace(GRAPH_DATA_PLACEHOLDER, injection, 1)
 
 
-def _render_svg(dot_source: str, *, theme: str) -> str:
+def _type_sets_from_nodes(nodes: list[dict[str, Any]]) -> tuple[frozenset[str], frozenset[str]]:
+    """Return the distinct (strategy_type, operator_type) values present in *nodes*.
+
+    Feeds the stellaris legend so it only lists glyphs the graph actually
+    uses instead of every strategy/operator type the theme knows how to
+    draw (see :func:`gaia.cli.commands._stellaris_svg._build_legend_svg`).
+    """
+    strategy_types = {
+        n["strategy_type"] for n in nodes if n.get("type") == "strategy" and n.get("strategy_type")
+    }
+    operator_types = {
+        n["operator_type"] for n in nodes if n.get("type") == "operator" and n.get("operator_type")
+    }
+    return frozenset(strategy_types), frozenset(operator_types)
+
+
+def _has_effect_edges(edges: list[dict[str, Any]]) -> bool:
+    """True when any conclusion edge carries a computed support/lowering effect.
+
+    Decides whether the stellaris legend documents the green/red edge colors:
+    the dot emitter colors effect-scored conclusion edges in every theme, and
+    the standalone SVG's legend is its only decoding surface.
+    """
+    return any(
+        e.get("role") == "conclusion" and isinstance(e.get("effect"), (int, float)) for e in edges
+    )
+
+
+def _render_svg(
+    dot_source: str,
+    *,
+    theme: str,
+    strategy_types: frozenset[str] = frozenset(),
+    operator_types: frozenset[str] = frozenset(),
+    include_effect_edges: bool = False,
+) -> str:
     """Render *dot_source* to SVG via the appropriate Graphviz binary.
 
     For ``stellaris`` / ``dark`` the resulting SVG is post-processed to inject
-    the ``<defs>`` glow filter block and recolour the canvas background — see
+    the ``<defs>`` glow filter block, recolour the canvas background, and
+    build a legend scoped to *strategy_types*/*operator_types* (plus the
+    support/lowering edge rows when *include_effect_edges*) — see
     :mod:`gaia.cli.commands._stellaris_svg`.
 
     Raises:
@@ -101,7 +138,13 @@ def _render_svg(dot_source: str, *, theme: str) -> str:
         )
     svg = proc.stdout
     if theme in ("stellaris", "dark"):
-        svg = post_process_stellaris_svg(svg, dot_source=dot_source)
+        svg = post_process_stellaris_svg(
+            svg,
+            dot_source=dot_source,
+            include_effect_edges=include_effect_edges,
+            strategy_types=strategy_types,
+            operator_types=operator_types,
+        )
     return svg
 
 
@@ -185,7 +228,9 @@ def _load_starmap_beliefs(loaded: Any, compiled: Any) -> dict[str, Any] | None:
     return beliefs_data
 
 
-def _render_starmap_content(graph_json: str, *, fmt: str, theme: str) -> str:
+def _render_starmap_content(
+    graph_json: str, graph_payload: dict[str, Any], *, fmt: str, theme: str
+) -> str:
     """Render graph JSON into the requested starmap output format."""
     if fmt == "html":
         try:
@@ -195,8 +240,15 @@ def _render_starmap_content(graph_json: str, *, fmt: str, theme: str) -> str:
             raise typer.Exit(1) from exc
     if fmt == "svg":
         dot_source = to_dot(graph_json, theme=theme)
+        strategy_types, operator_types = _type_sets_from_nodes(graph_payload.get("nodes", []))
         try:
-            return _render_svg(dot_source, theme=theme)
+            return _render_svg(
+                dot_source,
+                theme=theme,
+                strategy_types=strategy_types,
+                operator_types=operator_types,
+                include_effect_edges=_has_effect_edges(graph_payload.get("edges", [])),
+            )
         except GaiaPackagingError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
@@ -294,7 +346,7 @@ def starmap_command(
         exported_ids=exported_ids,
     )
     graph_payload = json.loads(graph_json)
-    content = _render_starmap_content(graph_json, fmt=fmt, theme=theme)
+    content = _render_starmap_content(graph_json, graph_payload, fmt=fmt, theme=theme)
 
     out_path = Path(out) if out is not None else Path(_DEFAULT_OUT[fmt])
     if not out_path.is_absolute():

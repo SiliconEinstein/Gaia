@@ -648,6 +648,85 @@ def test_to_dot_contradiction_incident_edges_recolored():
     assert "dir=none" in line
 
 
+def _make_effect_fixture() -> str:
+    """Graph with three infer strategies: lowering, supporting, and unscored."""
+
+    def _claim(name: str) -> dict:
+        return {"id": f"p:m::{name}", "type": "claim", "label": name, "module": "m"}
+
+    def _strategy(sid: str, effect: float | None) -> dict:
+        node: dict = {"id": sid, "type": "strategy", "strategy_type": "infer", "module": "m"}
+        node["effect"] = effect
+        return node
+
+    return json.dumps(
+        {
+            "nodes": [
+                _claim("a"),
+                _claim("lowered"),
+                _claim("raised"),
+                _claim("plain"),
+                _strategy("strat_low", -0.81),
+                _strategy("strat_up", 0.81),
+                _strategy("strat_plain", None),
+            ],
+            "edges": [
+                {"source": "p:m::a", "target": "strat_low", "role": "premise"},
+                {
+                    "source": "strat_low",
+                    "target": "p:m::lowered",
+                    "role": "conclusion",
+                    "effect": -0.81,
+                },
+                {"source": "p:m::a", "target": "strat_up", "role": "premise"},
+                {
+                    "source": "strat_up",
+                    "target": "p:m::raised",
+                    "role": "conclusion",
+                    "effect": 0.81,
+                },
+                {"source": "p:m::a", "target": "strat_plain", "role": "premise"},
+                {
+                    "source": "strat_plain",
+                    "target": "p:m::plain",
+                    "role": "conclusion",
+                    "effect": None,
+                },
+            ],
+        }
+    )
+
+
+def test_to_dot_conclusion_edges_colored_by_effect():
+    """Effect-scored conclusion edges render red (lowering) / green (support)."""
+    dot = to_dot(_make_effect_fixture())
+    lowered = _edge_line(dot, "strat_low", "p:m::lowered")
+    assert 'color="#d5574a"' in lowered
+    assert "penwidth=2.27" in lowered
+    raised = _edge_line(dot, "strat_up", "p:m::raised")
+    assert 'color="#3fbf75"' in raised
+    assert "penwidth=2.27" in raised
+    # Effect styling replaces the theme role styling — no duplicate attrs.
+    assert lowered.count("penwidth") == 1
+    assert lowered.count("color") == 1
+
+
+def test_to_dot_unscored_conclusion_edge_keeps_role_styling():
+    """Edges without a computed effect keep the plain theme conclusion style."""
+    dot = to_dot(_make_effect_fixture())
+    plain = _edge_line(dot, "strat_plain", "p:m::plain")
+    assert "penwidth=1.2" in plain
+    assert "color" not in plain  # light theme conclusion has no explicit color
+
+
+def test_to_dot_premise_edges_unaffected_by_effect():
+    """Effect only styles the strategy->conclusion edge, not premise edges."""
+    dot = to_dot(_make_effect_fixture())
+    premise = _edge_line(dot, "p:m::a", "strat_low")
+    assert "penwidth=1.0" in premise
+    assert "#d5574a" not in premise
+
+
 def test_starmap_cli_theme_flag(tmp_path):
     """`gaia inspect starmap --format dot --theme stellaris` produces dot with sfdp layout."""
     pkg_dir = _prepare_inferred_package(tmp_path, name="starmap_theme")
@@ -1120,6 +1199,77 @@ def test_inject_legend_includes_all_node_role_rows():
         "conjunction",
     ):
         assert tname in out
+
+
+def test_inject_legend_scopes_rows_to_present_types():
+    """Type sets drop legend rows for glyphs the graph doesn't use."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend(
+        '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+        strategy_types=frozenset({"deduction"}),
+        operator_types=frozenset({"contradiction"}),
+    )
+    # Knowledge-box rows are unconditional.
+    assert "premise · no upstream strategy/operator" in out
+    assert "★ root claim · belief-prop seed" in out
+    # Present types keep their rows.
+    assert "∴ deduction" in out
+    assert "⊗ contradiction" in out
+    # Absent types are dropped.
+    assert "⊕ support" not in out
+    for absent in ("equivalence", "implication", "complement", "disjunction", "conjunction"):
+        assert absent not in out
+
+
+def test_inject_legend_empty_type_sets_drop_all_glyph_rows():
+    """A graph with zero operators/strategies gets no glyph rows at all."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend(
+        '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+        strategy_types=frozenset(),
+        operator_types=frozenset(),
+    )
+    assert "∴ deduction" not in out
+    assert "⊕ support" not in out
+    assert "contradiction" not in out
+    # Knowledge-box rows survive.
+    assert "derived · ≥1 upstream strategy/operator" in out
+
+
+def test_inject_legend_effect_rows_when_graph_has_scored_edges():
+    """include_effect_edges documents the green/red conclusion-edge colors."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend(
+        '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+        include_effect_edges=True,
+    )
+    assert "edge: supports conclusion" in out
+    assert "edge: lowers conclusion" in out
+    # Same swatch colors as the interactive HTML legend, so the two decoding
+    # surfaces stay consistent.
+    assert "#2ecc71" in out
+    assert "#e74c3c" in out
+
+
+def test_inject_legend_effect_rows_off_by_default():
+    """Legacy callers (no graph data) keep the legend unchanged."""
+    from gaia.cli.commands._stellaris_svg import inject_legend
+
+    out = inject_legend('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+    assert "edge: supports conclusion" not in out
+    assert "edge: lowers conclusion" not in out
+
+
+def test_has_effect_edges_detects_scored_conclusion_edges():
+    from gaia.cli.commands.starmap import _has_effect_edges
+
+    assert _has_effect_edges([{"role": "conclusion", "effect": -0.81}]) is True
+    assert _has_effect_edges([{"role": "conclusion", "effect": None}]) is False
+    assert _has_effect_edges([{"role": "premise"}]) is False
+    assert _has_effect_edges([]) is False
 
 
 def test_inject_legend_frontier_row_off_by_default():

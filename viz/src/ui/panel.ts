@@ -1,8 +1,9 @@
 import type Graph from 'graphology';
-import type { AnyNode } from '../types';
+import type { AnyNode, StrategyNode } from '../types';
 import { isStrategy, isOperator } from '../types';
+import { effectColor } from '../starmap';
 
-function escapeHtml(s: unknown): string {
+export function escapeHtml(s: unknown): string {
   if (s == null) return '';
   return String(s)
     .replace(/&/g, '&amp;')
@@ -15,6 +16,18 @@ function escapeHtml(s: unknown): string {
 function fmtBelief(b: number | null | undefined): string {
   if (b == null) return '<span class="badge">unknown</span>';
   return b.toFixed(3);
+}
+
+/** "supports (+0.81)" / "lowers (-0.81)" / "neutral (0.00)" badge, colored to match the edge. */
+function fmtEffect(effect: number): string {
+  const verb = effect > 0.02 ? 'supports' : effect < -0.02 ? 'lowers' : 'neutral';
+  const sign = effect > 0 ? '+' : '';
+  const color = effectColor(effect);
+  return `<span class="badge" style="border-color:${color};color:${color}">${verb} (${sign}${effect.toFixed(2)})</span>`;
+}
+
+function fmtConditionalProbabilities(cp: number[]): string {
+  return cp.map((p) => p.toFixed(3)).join(', ');
 }
 
 export interface PanelHandle {
@@ -81,6 +94,11 @@ export function mountPanel(host: HTMLElement, graph: Graph): PanelHandle {
     ];
 
     if (isStrategy(node)) {
+      const s = node as StrategyNode;
+      if (typeof s.effect === 'number') rows.push(['effect', fmtEffect(s.effect)]);
+      if (s.conditional_probabilities?.length) {
+        rows.push(['P(conclusion | premise)', fmtConditionalProbabilities(s.conditional_probabilities)]);
+      }
       if (node.reason) rows.push(['reason', escapeHtml(node.reason)]);
     } else if (isOperator(node)) {
       rows.push(['operator', escapeHtml(node.operator_type)]);

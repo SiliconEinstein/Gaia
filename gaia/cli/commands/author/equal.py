@@ -6,10 +6,11 @@ Maps to ``gaia.engine.lang.dsl.relate.equal``:
 
     equal(a, b, *, background=None, rationale="", label=None)
 
-The CLI requires ``--label`` so the helper Claim returned by ``equal``
-is referenceable in subsequent author commands (the underlying DSL
-function makes ``label`` optional, but the agent-facing CLI promotes it
-to required for binding hygiene).
+``--dsl-binding-name`` supplies the Python LHS so the helper Claim
+returned by ``equal`` is referenceable in subsequent author commands;
+``--label`` is the separate, optional engine ``label=`` kwarg passed
+through into the rendered call. Both are optional — omit both to emit a
+bare expression statement.
 """
 
 from __future__ import annotations

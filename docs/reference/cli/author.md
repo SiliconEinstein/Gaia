@@ -95,7 +95,7 @@ cutting flags. Per-verb flags layer on top of these.
 |---|---|---|---|
 | `--target <path>` | string | `.` | Path to the target Gaia package root (the directory containing `pyproject.toml`). |
 | `--file <relative>` | string | `__init__.py` | Relative path under `src/<import_name>/` to append the statement to. Default routes to the package entrypoint. Sibling files (e.g. `priors.py`) must exist first; use `gaia pkg add-module --name <name>` to scaffold them. |
-| `--label <ident>` | string | required (most verbs) | Python identifier the produced binding takes. Must not collide with module or DSL names. |
+| `--dsl-binding-name <ident>` | string | none (bare expr) | Python identifier the produced binding takes (`<name> = verb(...)`); the compiled IR label defaults to it. Omit to emit a bare expression statement with no LHS. Must not collide with module or DSL names. |
 | `--rationale <text>` | string | none | Natural-language justification carried through to the DSL kwarg. |
 | `--metadata <json>` | JSON object | none | Optional metadata dict; rendered as the DSL `metadata=` kwarg. |
 | `--references <csv>` | csv idents | none | Comma-separated background reference identifiers (only the verbs that accept background context). |
@@ -105,13 +105,29 @@ cutting flags. Per-verb flags layer on top of these.
 | `--interactive` | bool flag | `False` | Surface pre-write warnings as a numbered prompt (human mode only — JSON mode auto-suppresses). |
 | `--json / --no-json` | bool | `--json` on | Courtesy alias; redundant with the default. `--human` is the actual switch. |
 
-`--label` is **required** for every statement-emitting verb except
-`register-prior` (which writes a bare `register_prior(...)` expression with
-no LHS binding) and `note` / `claim` / `question` (where the positional
-content arg is also required). Relation verbs (`equal` / `contradict` /
-`exclusive` / `associate`) return helper Claims; `--export` makes that
-returned helper part of the curated public interface. `decompose` returns
-its `whole` Claim rather than a separate public helper.
+`--dsl-binding-name` names the Python binding the statement produces
+(`<name> = verb(...)`); the engine's package loader then defaults the
+compiled IR label to that binding name. It is optional at the CLI level —
+omit it and the verb emits a bare expression statement with no LHS — but
+most statements that get referenced downstream supply it. `register-prior`
+writes a bare `register_prior(...)` expression and has no binding flag;
+`artifact` / `figure` require `--dsl-binding-name`.
+
+`--label` is a **separate, verb-specific** flag, not a cross-cutting
+binding flag. On the relation and derivation verbs (`equal` / `contradict`
+/ `exclusive` / `associate` / `decompose` / `derive` / `observe` /
+`compute` / `infer` / `parameter` / `depends-on` / `candidate-relation` /
+`materialize`) it renders the engine `label=` kwarg inside the call,
+distinct from the Python binding. On `claim` it is optional and emits a
+follow-up `<binding>.label = "<text>"` assignment (because `claim()` has no
+`label=` kwarg), so it requires `--dsl-binding-name`. `note` / `question` /
+`variable` / `artifact` / `figure` / `register-prior` have no `--label` at
+all.
+
+Relation verbs (`equal` / `contradict` / `exclusive` / `associate`) return
+helper Claims; `--export` makes that returned helper part of the curated
+public interface. `decompose` returns its `whole` Claim rather than a
+separate public helper.
 
 ## Per-verb flag surface (statement-emitting verbs)
 
@@ -122,7 +138,7 @@ gets rendered into the package.
 ### `note`
 
 ```
-gaia author note <content> --label <ident> [--target <path>]
+gaia author note <content> --dsl-binding-name <ident> [--target <path>]
     [--title <text>] [--metadata <json>]
     [--check/--no-check] [--human] [--interactive]
 ```
@@ -166,9 +182,9 @@ Sugar for `gaia author artifact --kind figure`. A source-bound figure requires
 ### `claim`
 
 ```
-gaia author claim <content> --label <ident> [--target <path>]
+gaia author claim <content> --dsl-binding-name <ident> [--target <path>]
     [--title <text>] [--prior <float>] [--predicate "<expr>"]
-    [--references <csv>] [--metadata <json>]
+    [--references <csv>] [--label <text>] [--metadata <json>]
     [--check/--no-check] [--human] [--interactive]
 ```
 
@@ -179,11 +195,12 @@ gaia author claim <content> --label <ident> [--target <path>]
 | `--prior <float>` | no | Optional inline prior in (0, 1); routed via `register_prior` with source `claim_inline`. |
 | `--predicate "<expr>"` | no | Predicate-claim mode — sandbox-validated formula expression rendered as the `formula=` kwarg. See [Restricted-globals sandbox](#restricted-globals-sandbox). |
 | `--references <csv>` | no | Comma-separated background claims (rendered as `background=` kwarg). |
+| `--label <text>` | no | Optional engine label. `claim()` takes no `label=` kwarg, so the cli emits a follow-up `<binding>.label = "<text>"` line after the rendered call; requires `--dsl-binding-name`. |
 
 ### `question`
 
 ```
-gaia author question <content> --label <ident> [--target <path>]
+gaia author question <content> --dsl-binding-name <ident> [--target <path>]
     [--title <text>] [--targets <csv>] [--metadata <json>] ...
 ```
 
@@ -196,8 +213,8 @@ gaia author question <content> --label <ident> [--target <path>]
 
 ```
 gaia author <equal|contradict|exclusive> --a <ident> --b <ident> \
-    --label <ident> [--target <path>]
-    [--rationale <text>] [--metadata <json>] [--export] ...
+    --dsl-binding-name <ident> [--target <path>]
+    [--label <engine-label>] [--rationale <text>] [--metadata <json>] [--export] ...
 ```
 
 | Flag | Required | Description |
@@ -214,10 +231,10 @@ interface.
 ### `decompose`
 
 ```
-gaia author decompose --whole <ident> --parts <csv> --label <ident> \
+gaia author decompose --whole <ident> --parts <csv> --dsl-binding-name <ident> \
     [--target <path>]
     [--formula-template <atom|and|or>] [--formula-expr "<expr>"]
-    [--rationale <text>] [--metadata <json>] ...
+    [--label <engine-label>] [--rationale <text>] [--metadata <json>] ...
 ```
 
 | Flag | Required | Description |
@@ -231,8 +248,8 @@ gaia author decompose --whole <ident> --parts <csv> --label <ident> \
 
 ```
 gaia author derive (--conclusion <ident> | --conclusion-content "<prose>" | --conclusion-prose "<prose>") \
-    --given <csv> --label <ident> [--target <path>]
-    [--conclusion-label <ident>] [--rationale <text>]
+    --given <csv> --dsl-binding-name <ident> [--target <path>]
+    [--conclusion-label <ident>] [--label <engine-label>] [--rationale <text>]
     [--background <csv>] [--metadata <json>] ...
 ```
 
@@ -253,9 +270,9 @@ into an anonymous Claim at runtime).
 ### `observe`
 
 ```
-gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
-    --label <ident> [--target <path>]
-    [--observation-label <ident>] [--value <expr>] [--error <expr>]
+gaia author observe (--conclusion <ident> | --observation-content "<prose>" | --observation-prose "<prose>") \
+    --dsl-binding-name <ident> [--target <path>]
+    [--observation-label <ident>] [--label <engine-label>] [--value <expr>] [--error <expr>]
     [--given <csv>] [--source-refs <csv>] [--rationale <text>] [--metadata <json>] ...
 ```
 
@@ -272,8 +289,8 @@ gaia author observe (--conclusion <ident> | --observation-content "<prose>") \
 ### `compute`
 
 ```
-gaia author compute --conclusion-type <ident> --label <ident> [--target <path>]
-    [--fn <ident>] [--given <csv>] [--rationale <text>] [--metadata <json>] ...
+gaia author compute --conclusion-type <ident> --dsl-binding-name <ident> [--target <path>]
+    [--fn <ident>] [--label <engine-label>] [--given <csv>] [--rationale <text>] [--metadata <json>] ...
 ```
 
 | Flag | Required | Description |
@@ -290,8 +307,8 @@ The decorator form `@compute` stays at Python-source level (same logic as
 ```
 gaia author infer --evidence <ident> \
     (--hypothesis <ident> | --hypothesis-content "<prose>") \
-    --p-e-given-h <float> --label <ident> [--target <path>]
-    [--hypothesis-label <ident>] [--p-e-given-not-h <float>]
+    --p-e-given-h <float> --dsl-binding-name <ident> [--target <path>]
+    [--hypothesis-label <ident>] [--label <engine-label>] [--p-e-given-not-h <float>]
     [--given <csv>] [--rationale <text>] [--metadata <json>] ...
 ```
 
@@ -309,8 +326,8 @@ gaia author infer --evidence <ident> \
 
 ```
 gaia author associate --a <ident> --b <ident> \
-    --p-a-given-b <float> --p-b-given-a <float> --label <ident> [--target <path>]
-    [--pattern <name>] [--rationale <text>] [--metadata <json>] [--export] ...
+    --p-a-given-b <float> --p-b-given-a <float> --dsl-binding-name <ident> [--target <path>]
+    [--pattern <name>] [--label <engine-label>] [--rationale <text>] [--metadata <json>] [--export] ...
 ```
 
 | Flag | Required | Description |
@@ -332,9 +349,9 @@ warning recommending `register_prior(...)` on at least one endpoint.
 ### `parameter`
 
 ```
-gaia author parameter --variable <ident> --value <expr> --label <ident> \
+gaia author parameter --variable <ident> --value <expr> --dsl-binding-name <ident> \
     [--target <path>] [--content <text>] [--title <text>] [--prior <float>]
-    [--rationale <text>] [--metadata <json>] ...
+    [--label <engine-label>] [--rationale <text>] [--metadata <json>] ...
 ```
 
 | Flag | Required | Description |
@@ -369,8 +386,8 @@ LHS binding, since `register_prior()` returns `None`.
 ### `depends-on`
 
 ```
-gaia author depends-on --conclusion <ident> --given <csv> --label <ident> \
-    [--target <path>] [--rationale <text>] [--background <csv>] [--metadata <json>] ...
+gaia author depends-on --conclusion <ident> --given <csv> --dsl-binding-name <ident> \
+    [--target <path>] [--label <engine-label>] [--rationale <text>] [--background <csv>] [--metadata <json>] ...
 ```
 
 | Flag | Required | Description |
@@ -382,8 +399,8 @@ gaia author depends-on --conclusion <ident> --given <csv> --label <ident> \
 ### `candidate-relation`
 
 ```
-gaia author candidate-relation --claims <csv> --pattern <name> --label <ident> \
-    [--target <path>] [--rationale <text>] [--background <csv>] [--metadata <json>] ...
+gaia author candidate-relation --claims <csv> --pattern <name> --dsl-binding-name <ident> \
+    [--target <path>] [--label <engine-label>] [--rationale <text>] [--background <csv>] [--metadata <json>] ...
 ```
 
 | Flag | Required | Description |
@@ -394,8 +411,8 @@ gaia author candidate-relation --claims <csv> --pattern <name> --label <ident> \
 ### `materialize`
 
 ```
-gaia author materialize --scaffold <ident> --by <csv> --label <ident> \
-    [--target <path>] [--rationale <text>] [--metadata <json>] ...
+gaia author materialize --scaffold <ident> --by <csv> --dsl-binding-name <ident> \
+    [--target <path>] [--label <engine-label>] [--rationale <text>] [--metadata <json>] ...
 ```
 
 | Flag | Required | Description |
@@ -533,7 +550,7 @@ single JSON object to stdout matching this schema:
 |---|---|---|
 | `target` | always | Resolved absolute path of the target package. |
 | `written_to` | statement-emitting success | Path of the file the cli appended to (`src/<import_name>/__init__.py`). |
-| `label` | statement-emitting success | The `--label` value (None for `register-prior`). |
+| `label` | statement-emitting success | The `--dsl-binding-name` value (None for `register-prior`). |
 | `verb` | always | Echo of the verb name (alongside the top-level `verb`). |
 | `snippet` | statement-emitting success | The exact Python source string appended to the file. |
 | `auto_generated` | prose-mode success | List of `{label, snippet}` for each auto-minted Claim. |
@@ -575,9 +592,9 @@ matters because the *first* failure determines `kind` and exit code.
    for `--predicate` / `--formula-expr` distinguish via
    `prewrite.expr_unsafe` (also exit 2).
 3. **(d) Structural self-loop check** — the proposed op's `references`
-   set must not contain the proposed `--label`. Failure kind:
+   set must not contain the proposed `--dsl-binding-name`. Failure kind:
    `prewrite.self_loop` (exit 1).
-4. **(c) Collision and reference resolution** — the proposed `--label`
+4. **(c) Collision and reference resolution** — the proposed `--dsl-binding-name`
    must not collide with an existing module binding or DSL surface name;
    all `references` must resolve to module bindings (or one of the
    prepended-statement labels in the same invocation). Failure kinds:
@@ -592,7 +609,7 @@ unresolved-ref machinery (exit 3). Documented in
 
 | Kind | Fires when | Behavior |
 |---|---|---|
-| `prewrite.label_shadow` | The proposed `--label` collides with a Python builtin or DSL surface name (defensive — most shadow cases are intercepted by the (c) hard error). | Run proceeds; warning flows to envelope. |
+| `prewrite.label_shadow` | The proposed `--dsl-binding-name` collides with a Python builtin or DSL surface name (defensive — most shadow cases are intercepted by the (c) hard error). | Run proceeds; warning flows to envelope. |
 | `prewrite.deprecated_ref` | A call site in the generated code or one of `references` names a DSL symbol carrying a `DeprecationWarning` in the engine (sourced via AST scan of `gaia/engine/lang/dsl/**.py` at cli import; merged with a small hand-curated fallback for safety). Scan is narrowed to call positions, so a binding name that happens to match a deprecated factory does not trip the warning. | Run proceeds; `replacement` hint in `where`. |
 
 Both flow through `--interactive`: in human mode + `--interactive` + at
@@ -778,7 +795,7 @@ re-runs the cli sequence on every PR-gate run and asserts equivalence
 through the multi-level tolerance helper at
 `tests/cli/_equivalence_levels.py` — BYTE_TEXT on the user-authored
 content axes + structural counts, CONTENT_SET on the intrinsic
-single-`--label` discipline axis. Mendel is therefore the empirical
+label-bag axis. Mendel is therefore the empirical
 demonstration that the cli surface covers the v0.5 engine end-to-end.
 
 ## See also

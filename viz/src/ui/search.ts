@@ -41,7 +41,14 @@ export function mountSearch(host: HTMLElement, graph: Graph, sigma: Sigma): Sear
     graph.forEachNode((id, attrs) => {
       const label = String(attrs.label || '').toLowerCase();
       const idLow = id.toLowerCase();
-      if (label.includes(query) || idLow.includes(query)) {
+      // Hidden nodes (filtered-out kinds, incl. the default-collapsed
+      // generated helpers) never MATCH — highlighting an invisible node and
+      // recentering the camera on it reads as a no-op — but they still take
+      // the restore branch, so a node highlighted by an earlier query and
+      // then hidden via the filter sheds its boosted state instead of
+      // reappearing highlighted when its bucket is re-enabled.
+      const visible = attrs.hidden !== true;
+      if (visible && (label.includes(query) || idLow.includes(query))) {
         matches.push(id);
         if (!originalSizes.has(id)) originalSizes.set(id, attrs.size as number);
         graph.setNodeAttribute(id, 'size', (attrs.size as number) * 1.6);

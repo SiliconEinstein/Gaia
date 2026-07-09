@@ -54,6 +54,20 @@ html, body, #app {
   text-transform: uppercase;
   font-size: 11px;
 }
+#root-banner {
+  display: flex;
+  gap: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--fg);
+}
+#root-banner .item { display: flex; align-items: baseline; gap: 5px; overflow: hidden; text-overflow: ellipsis; }
+#root-banner .star { color: #ffd24a; }
+#root-banner .label { overflow: hidden; text-overflow: ellipsis; }
+#root-banner .belief { font-weight: 600; color: var(--fg-dim); flex-shrink: 0; }
+#root-banner.hidden { display: none; }
 #search-host { flex: 1; max-width: 360px; }
 #filter-host { margin-left: auto; }
 
@@ -255,6 +269,8 @@ html, body, #app {
   display: inline-block;
 }
 .swatch.sq { border-radius: 2px; }
+.swatch.line { width: 16px; height: 3px; border-radius: 2px; }
+.legend-row.hidden { display: none; }
 
 /* ----- status ----- */
 #status {
