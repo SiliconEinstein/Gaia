@@ -39,6 +39,11 @@ export function mountSearch(host: HTMLElement, graph: Graph, sigma: Sigma): Sear
     }
     const matches: string[] = [];
     graph.forEachNode((id, attrs) => {
+      // Hidden nodes (filtered-out kinds, incl. the default-collapsed
+      // generated helpers) never match: highlighting an invisible node and
+      // recentering the camera on it reads as a no-op to the user. Toggle
+      // the kind back on in the filter panel to search it.
+      if (attrs.hidden === true) return;
       const label = String(attrs.label || '').toLowerCase();
       const idLow = id.toLowerCase();
       if (label.includes(query) || idLow.includes(query)) {
