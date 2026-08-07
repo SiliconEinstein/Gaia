@@ -1,7 +1,7 @@
 """``gaia search lkm knowledge`` — POST /search.
 
-Cross-node retrieval over claim / question nodes. The
-returned ``score`` / ``rerank_score`` values are retrieval ranking signals,
+Fused retrieval over claim / question nodes, abstracts, and reasoning chains.
+The returned ``score`` / ``rerank_score`` values are retrieval ranking signals,
 not probabilities — see the verb help epilog.
 """
 
@@ -34,13 +34,17 @@ from gaia.cli.commands.search.lkm.policy import (
 
 
 class ScopeChoice(StrEnum):
-    """Node types the search can be scoped to."""
+    """Content types and roles accepted by the LKM search endpoint."""
 
-    CLAIM = "claim"
-    QUESTION = "question"
     ABSTRACT = "abstract"
-    CONCLUSION = "conclusion"
+    CLAIM = "claim"
     PREMISE = "premise"
+    CONCLUSION = "conclusion"
+    QUESTION = "question"
+    PROBLEM = "problem"
+    OPEN_QUESTION = "open_question"
+    SUBPROBLEM = "subproblem"
+    REASONING_CHAIN = "reasoning_chain"
 
 
 class RetrievalMode(StrEnum):
@@ -66,8 +70,11 @@ DEFAULT_SEARCH_SORT_CHOICE = SearchSortBy(DEFAULT_SEARCH_SORT_BY)
 _KNOWLEDGE_EPILOG = (
     "Use this surface when you need LKM-grounded paper knowledge items: "
     "conclusion claims, weak-point / highlight claims, problems, and open "
-    "questions from papers. `reasoning <query>` is a parallel search surface "
-    "for reasoning chains and workflows, not a later phase of knowledge search.\n\n"
+    "questions from papers. Use --scopes question for all research questions, "
+    "or problem, open_question, or subproblem for one question role.\n\n"
+    "Use --scopes reasoning_chain to include complete chains in this fused search. "
+    "`reasoning <query>` remains the dedicated search surface for reasoning chains "
+    "and workflows.\n\n"
     "For paper conclusions you plan to audit, use --scopes conclusion. "
     "--reasoning-only remains a legacy alias for claim searches that only want "
     "reasoning-backed conclusions. If a hit has a claim id, --claim-id can fetch "
@@ -98,8 +105,9 @@ def knowledge_command(
         typer.Option(
             "--scopes",
             help=(
-                "Search scopes: claim/question/abstract types or "
-                "conclusion/premise roles (repeatable)."
+                "Search scope: abstract; claim/premise/conclusion; "
+                "question/problem/open_question/subproblem; or reasoning_chain "
+                "(repeatable)."
             ),
             case_sensitive=False,
         ),
