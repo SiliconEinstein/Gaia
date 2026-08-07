@@ -96,34 +96,6 @@ only one question role is relevant. The response keeps these hits as
 `type: "question"` and reports the selected role in `role`. LKM normalizes its
 internal `open_question_sub` role to the public `open_question` value.
 
-### Use case: retrieve open questions from papers
-
-Use the `open_question` scope when the goal is to find research gaps or future
-work explicitly left unresolved by papers, without mixing in addressed
-problems or smaller subproblems:
-
-```bash
-gaia search lkm knowledge \
-  "unresolved mechanisms in solid-state battery dendrite suppression" \
-  --scopes open_question \
-  --keywords dendrite \
-  --keywords "solid electrolyte" \
-  --limit 20 \
-  --out open-questions.json
-```
-
-Add one or more `--paper-id` options to restrict the search to known papers.
-Because LKM aggregates hits by paper by default, additional open questions from
-the same paper can appear under a representative hit's `related` array. This
-command prints both representative and folded open-question hits:
-
-```bash
-jq '.data.variables[]
-    | [., (.related[]?)][]
-    | select(.type == "question" and .role == "open_question")
-    | {id, content, provenance}' open-questions.json
-```
-
 `--scopes reasoning_chain` instead asks this endpoint to include complete chain
 hits in the fused result. It can be combined with any claim, question, or
 abstract scope; use `gaia search lkm reasoning <query>` for the dedicated
