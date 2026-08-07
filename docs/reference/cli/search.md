@@ -34,14 +34,15 @@ packages with explicit follow-up commands.
 
 LKM has two parallel search surfaces:
 
-- `knowledge <query>` searches paper knowledge items: conclusion claims,
-  weak-point / highlight claims, addressed problems, and open questions.
+- `knowledge <query>` performs a fused search over selected scopes: claims,
+  research questions, abstracts, and optionally complete reasoning chains.
 - `reasoning <query>` searches reasoning chains and workflows.
 
 Optional follow-ups:
 
 ```bash
 gaia search lkm knowledge "solid state battery dendrite suppression" --reasoning-only
+gaia search lkm knowledge "unresolved battery failure mechanisms" --scopes open_question
 gaia search lkm reasoning "solid state battery dendrite suppression"
 gaia search lkm reasoning --claim-id <gcn_id>
 gaia search lkm package --paper-id <paper_id>
@@ -49,7 +50,8 @@ gaia pkg add --lkm-index bohrium --lkm-paper <paper_id>
 ```
 
 Use `--claim-id` when you already have a claim id and want that claim's
-supporting reasoning graph. Use `package` to fetch a paper graph, and
+supporting reasoning graph. Question ids cannot be used with `--claim-id`.
+Use `package` to fetch a paper graph, and
 `gaia pkg add` when that paper should become an editable dependency of the
 current Gaia package.
 
@@ -73,6 +75,31 @@ default date window unless `--no-limit-publication-date` is passed.
 background context rather than Gaia claims. Same-paper `related` entries are
 folded context for the representative paper hit, not cross-paper
 recommendations or complete paper graphs.
+
+The full scope hierarchy is:
+
+```text
+abstract
+claim
+├── premise
+└── conclusion
+question
+├── problem
+├── open_question
+└── subproblem
+reasoning_chain
+```
+
+Parent scopes include their child roles. Use `--scopes question` to search all
+research questions, or select `problem`, `open_question`, or `subproblem` when
+only one question role is relevant. The response keeps these hits as
+`type: "question"` and reports the selected role in `role`. LKM normalizes its
+internal `open_question_sub` role to the public `open_question` value.
+
+`--scopes reasoning_chain` instead asks this endpoint to include complete chain
+hits in the fused result. It can be combined with any claim, question, or
+abstract scope; use `gaia search lkm reasoning <query>` for the dedicated
+reasoning-chain search surface.
 
 `reasoning --claim-id` asks LKM for the graph-shaped reasoning response by
 default (`format=graph`). In practice this means Gaia receives a supporting

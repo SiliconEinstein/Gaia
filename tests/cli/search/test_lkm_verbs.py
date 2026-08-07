@@ -236,6 +236,8 @@ class TestKnowledge:
         assert "open questions" in stdout
         assert "reasoning chains and workflows" in stdout
         assert "premise" in stdout
+        assert "open_question" in stdout
+        assert "reasoning_chain" in stdout
         assert "claim/question records" not in stdout
         assert "workflow-shaped evidence" not in stdout
 
@@ -453,29 +455,66 @@ class TestKnowledge:
         assert result.exit_code == 0, result.output
         assert _FakeClient.last_call["json_body"]["scopes"] == ["claim", "question"]
 
-    def test_allows_new_search_scopes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_allows_all_search_scopes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
+        scopes = [
+            "abstract",
+            "claim",
+            "premise",
+            "conclusion",
+            "question",
+            "problem",
+            "open_question",
+            "subproblem",
+            "reasoning_chain",
+        ]
+        args = ["search", "lkm", "knowledge", "paper knowledge"]
+        for scope in scopes:
+            args.extend(["--scopes", scope])
+        result = runner.invoke(
+            app,
+            args,
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["json_body"]["scopes"] == scopes
+
+    @pytest.mark.parametrize("question_role", ["problem", "open_question", "subproblem"])
+    def test_question_roles_round_trip_in_raw_response(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        question_role: str,
+    ) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "variables": [
+                    {
+                        "id": "gcn_question",
+                        "type": "question",
+                        "role": question_role,
+                        "content": "What remains unresolved?",
+                    }
+                ]
+            },
+        }
+        _install_client(monkeypatch, response=payload)
+
         result = runner.invoke(
             app,
             [
                 "search",
                 "lkm",
                 "knowledge",
-                "paper background",
+                "unresolved mechanisms",
                 "--scopes",
-                "abstract",
-                "--scopes",
-                "conclusion",
-                "--scopes",
-                "premise",
+                question_role,
+                "--no-hint",
             ],
         )
+
         assert result.exit_code == 0, result.output
-        assert _FakeClient.last_call["json_body"]["scopes"] == [
-            "abstract",
-            "conclusion",
-            "premise",
-        ]
+        assert _FakeClient.last_call["json_body"]["scopes"] == [question_role]
+        assert json.loads(result.stdout) == payload
 
     def test_rejects_reasoning_only_with_question_scope(
         self, monkeypatch: pytest.MonkeyPatch
