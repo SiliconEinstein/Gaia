@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -223,6 +224,7 @@ class TestSubmit:
         [
             ("paper.txt", b"%PDF-1.7", "must be a PDF file"),
             ("paper.pdf", b"not a pdf", "valid PDF header"),
+            ("paper.pdf", b"%PDFjunk", "valid PDF header"),
             ("paper.pdf", b"", "is empty"),
         ],
     )
@@ -262,6 +264,32 @@ class TestSubmit:
         assert result.exit_code == 4, result.output
         assert "unknown LKM index" in result.output
         assert _FakeClient.calls == []
+
+    def test_rejects_unsafe_task_id_returned_by_submit(
+        self, monkeypatch: pytest.MonkeyPatch, pdf: Path
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            responses=[{"code": 0, "data": {"task_id": "../unsafe", "status": "queued"}}],
+        )
+
+        result = runner.invoke(app, ["extract", "submit", str(pdf)])
+
+        assert result.exit_code == 2, result.output
+        assert "invalid task id" in result.output
+
+    def test_rejects_invalid_status_returned_by_submit(
+        self, monkeypatch: pytest.MonkeyPatch, pdf: Path
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            responses=[{"code": 0, "data": {"task_id": "task-1", "status": "mystery"}}],
+        )
+
+        result = runner.invoke(app, ["extract", "submit", str(pdf)])
+
+        assert result.exit_code == 2, result.output
+        assert "invalid status" in result.output
 
     def test_wait_polls_until_terminal(self, monkeypatch: pytest.MonkeyPatch, pdf: Path) -> None:
         _install_client(
@@ -327,14 +355,40 @@ class TestSubmit:
             ],
         )
 
+        started = time.monotonic()
         result = runner.invoke(
             app,
             ["extract", "submit", str(pdf), "--wait", "--poll-interval", "1", "--timeout", "1"],
         )
 
         assert result.exit_code == 2, result.output
+        assert time.monotonic() - started >= 0.9
         assert "stopped waiting" in result.output
         assert "gaia extract status task-1" in result.output
+
+    @pytest.mark.parametrize(
+        ("status_data", "expected"),
+        [
+            ({"task_id": "task-1", "status": "mystery"}, "invalid status"),
+            ({"task_id": "other-task", "status": "running"}, "expected 'task-1'"),
+        ],
+    )
+    def test_wait_rejects_invalid_status_envelopes(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        pdf: Path,
+        status_data: dict[str, Any],
+        expected: str,
+    ) -> None:
+        _install_client(
+            monkeypatch,
+            responses=[_QUEUED, {"code": 0, "data": status_data}],
+        )
+
+        result = runner.invoke(app, ["extract", "submit", str(pdf), "--wait"])
+
+        assert result.exit_code == 2, result.output
+        assert expected in result.output
 
     @pytest.mark.parametrize(
         "argv",

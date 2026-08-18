@@ -39,6 +39,15 @@ def validate_task_id(task_id: str) -> str:
     return candidate
 
 
+def validate_returned_task_id(task_id: str) -> str:
+    """Reject a server-returned task id before it reaches a path or shell hint."""
+    candidate = task_id.strip()
+    if not candidate or candidate in {".", ".."} or not _SAFE_TASK_ID.match(candidate):
+        typer.echo(f"Error: LKM returned an invalid task id {task_id!r}.", err=True)
+        raise typer.Exit(2)
+    return candidate
+
+
 def validate_pdf(path: Path) -> None:
     """Reject anything the extraction service would refuse after the upload."""
     if not path.exists():
@@ -63,11 +72,11 @@ def validate_pdf(path: Path) -> None:
         raise typer.Exit(4)
 
     try:
-        header = path.open("rb").read(4)
+        header = path.open("rb").read(5)
     except OSError as exc:
         typer.echo(f"Error: could not read {path}: {exc}", err=True)
         raise typer.Exit(4) from exc
-    if header != b"%PDF":
+    if header != b"%PDF-":
         typer.echo(f"Error: {path} does not contain a valid PDF header.", err=True)
         raise typer.Exit(4)
 
@@ -92,5 +101,6 @@ __all__ = [
     "TERMINAL_STATUSES",
     "task_field",
     "validate_pdf",
+    "validate_returned_task_id",
     "validate_task_id",
 ]

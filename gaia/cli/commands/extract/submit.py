@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 
 import typer
 
@@ -22,10 +22,12 @@ from gaia.cli._lkm_runtime import (
 )
 from gaia.cli.commands.extract._hints import status_hint, submit_hint
 from gaia.cli.commands.extract._shared import (
+    KNOWN_STATUSES,
     TASK_PATH,
     TERMINAL_STATUSES,
     task_field,
     validate_pdf,
+    validate_returned_task_id,
 )
 from gaia.cli.commands.extract.docs import APIFOX_BASE_URL
 
@@ -99,6 +101,11 @@ def submit_command(
     if task_id is None:
         typer.echo("Error: LKM accepted the upload but returned no task_id.", err=True)
         raise typer.Exit(2)
+    task_id = validate_returned_task_id(task_id)
+    submitted_status = task_field(payload, "status")
+    if submitted_status not in KNOWN_STATUSES:
+        typer.echo(f"Error: LKM submit returned invalid status {submitted_status!r}.", err=True)
+        raise typer.Exit(2)
 
     if not wait:
         emit(
@@ -151,19 +158,38 @@ def _poll_until_terminal(
     timeout: float,
 ) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
+    last_status: str | None = None
     while True:
+        if time.monotonic() >= deadline:
+            _exit_wait_timeout(task_id, last_status, timeout)
         payload = run_request("GET", f"{TASK_PATH}/{task_id}", index_id=index_id)
-        status = task_field(payload, "status")
-        if status in TERMINAL_STATUSES:
-            return payload
-        if time.monotonic() + poll_interval >= deadline:
-            # Giving up on the wait does not cancel the remote task, and the
-            # task id stays valid — say so rather than implying data loss.
+        returned_task_id = task_field(payload, "task_id")
+        if returned_task_id != task_id:
             typer.echo(
-                f"Error: stopped waiting for extraction task {task_id} after "
-                f"{timeout:g}s; the task is still {status or 'in progress'} and "
-                f"can be polled with `gaia extract status {task_id}`.",
+                f"Error: LKM status returned task id {returned_task_id!r}; expected {task_id!r}.",
                 err=True,
             )
             raise typer.Exit(2)
-        time.sleep(poll_interval)
+        status = task_field(payload, "status")
+        if status not in KNOWN_STATUSES:
+            typer.echo(f"Error: LKM status returned invalid status {status!r}.", err=True)
+            raise typer.Exit(2)
+        last_status = status
+        if status in TERMINAL_STATUSES:
+            return payload
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            _exit_wait_timeout(task_id, last_status, timeout)
+        time.sleep(min(poll_interval, remaining))
+
+
+def _exit_wait_timeout(task_id: str, status: str | None, timeout: float) -> NoReturn:
+    # Giving up on the wait does not cancel the remote task, and the task id
+    # stays valid — say so rather than implying data loss.
+    typer.echo(
+        f"Error: stopped waiting for extraction task {task_id} after "
+        f"{timeout:g}s; the task is still {status or 'in progress'} and "
+        f"can be polled with `gaia extract status {task_id}`.",
+        err=True,
+    )
+    raise typer.Exit(2)
