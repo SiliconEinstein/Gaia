@@ -131,6 +131,49 @@ class LKMClient:
         _raise_for_business_status(payload)
         return payload
 
+    def request_multipart(
+        self,
+        method: str,
+        path: str,
+        *,
+        files: dict[str, tuple[str, Any, str]],
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Perform a multipart/form-data call and return the parsed JSON.
+
+        ``files`` maps a form field to ``(filename, file object, content type)``.
+        httpx sets the multipart boundary itself, so no content-type header is
+        supplied here.
+        """
+        if self._client is None:
+            raise RuntimeError("LKMClient must be used as a context manager.")
+        url = f"{self._base_url}{path}"
+        headers: dict[str, str] = {
+            "accept": "*/*",
+            "accessKey": self._access_key,
+        }
+        try:
+            resp = self._client.request(
+                method,
+                url,
+                files=files,
+                data=data,
+                headers=headers,
+                timeout=httpx.Timeout(
+                    connect=_timeout_seconds("GAIA_LKM_CONNECT_TIMEOUT", 10.0),
+                    read=_timeout_seconds("GAIA_LKM_READ_TIMEOUT", 120.0),
+                    write=_timeout_seconds("GAIA_LKM_UPLOAD_TIMEOUT", 300.0),
+                    pool=_timeout_seconds("GAIA_LKM_POOL_TIMEOUT", 10.0),
+                ),
+            )
+        except httpx.HTTPError as exc:
+            raise LKMTransportError(f"LKM API request failed: {exc}") from exc
+
+        payload = _json_payload(resp)
+        _raise_for_http_status(resp.status_code, payload)
+        _raise_for_business_status(payload)
+        return payload
+
 
 def _json_payload(resp: httpx.Response) -> dict[str, Any]:
     try:

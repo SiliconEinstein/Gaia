@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "extract",
+    "result",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia extract result [OPTIONS] TASK_ID\n\n Fetch what an LKM extraction task produced (GET /parse/task/{id}/result).\n\n╭─ Arguments ──────────────────────────────────────────────────────────────────╮\n│ *    task_id      TEXT  Extraction task id returned by `gaia extract         │\n│                         submit`.                                             │\n│                         [required]                                           │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --index,--server        TEXT  Configured LKM index id. [default: bohrium]    │\n│ --out                   PATH  Write JSON to PATH (atomic) instead of stdout. │\n│ --help                        Show this message and exit.                    │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n The success payload is `variables` / `factors` / `motivations` / `stats`\n directly under `data` — not the `papers[]` wrapper `gaia search lkm package`\n returns, and not a nodes/edges graph. Every result also carries\n `step_durations`: how long each finished pipeline step took, in order.\n Node `local_id` values such as `paper:6::P1` are file-local. Only a non-null\n `global_id` is an LKM id you can pass to `gaia search lkm nodes` or `gaia pkg\n add`.\n Asking for the result of a queued or running task is a business error (code\n 290017, exit 1); that does not mean the task was lost. Reviews and abstract\n collections often stop early, so an empty `files` list on a partial task is\n expected.\n API docs: https://s.apifox.cn/<UUID4>\n\n\n"
+}

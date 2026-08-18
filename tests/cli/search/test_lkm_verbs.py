@@ -1,6 +1,6 @@
 """Tests for the public ``gaia search lkm`` verbs.
 
-Every HTTP call is mocked by replacing ``_shared.LKMClient`` with a fake
+Every HTTP call is mocked by replacing ``_lkm_runtime.LKMClient`` with a fake
 context manager whose ``.request`` returns a canned envelope (or raises a
 typed transport / no-key error). No real LKM endpoint is contacted.
 
@@ -18,8 +18,8 @@ from typing import Any, ClassVar
 import pytest
 from typer.testing import CliRunner
 
+from gaia.cli import _lkm_runtime
 from gaia.cli._credentials import CredentialPermissionError
-from gaia.cli.commands.search.lkm import _shared
 from gaia.cli.commands.search.lkm._client import (
     LKMNotFoundError,
     LKMPermissionError,
@@ -85,7 +85,7 @@ def _install_client(
     response: dict[str, Any] | None = None,
     raises: Exception | None = None,
 ) -> None:
-    """Patch ``_shared.LKMClient`` so verbs use the fake (no key required)."""
+    """Patch ``_lkm_runtime.LKMClient`` so verbs use the fake (no key required)."""
 
     def factory(*_args: object, **_kwargs: object) -> _FakeClient:
         if raises is not None and isinstance(raises, NoAccessKeyError):
@@ -93,18 +93,18 @@ def _install_client(
         _FakeClient.last_init_kwargs = dict(_kwargs)
         return _FakeClient(response=response, raises=raises)
 
-    monkeypatch.setattr(_shared, "LKMClient", factory)
+    monkeypatch.setattr(_lkm_runtime, "LKMClient", factory)
     _FakeClient.last_call = {}
     _FakeClient.last_init_kwargs = {}
 
 
 def _install_constructor_error(monkeypatch: pytest.MonkeyPatch, raises: Exception) -> None:
-    """Patch ``_shared.LKMClient`` to fail during construction."""
+    """Patch ``_lkm_runtime.LKMClient`` to fail during construction."""
 
     def factory(*_args: object, **_kwargs: object) -> _FakeClient:
         raise raises
 
-    monkeypatch.setattr(_shared, "LKMClient", factory)
+    monkeypatch.setattr(_lkm_runtime, "LKMClient", factory)
     _FakeClient.last_call = {}
 
 
@@ -644,8 +644,8 @@ class TestKnowledge:
             def request(self, *_args: object, **_kwargs: object) -> dict[str, object]:
                 raise retry_error
 
-        monkeypatch.setattr(_shared, "LKMClient", RetryClient)
-        monkeypatch.setattr(_shared, "try_interactive_onboarding", lambda **_kwargs: True)
+        monkeypatch.setattr(_lkm_runtime, "LKMClient", RetryClient)
+        monkeypatch.setattr(_lkm_runtime, "try_interactive_onboarding", lambda **_kwargs: True)
 
         result = runner.invoke(app, ["search", "lkm", "knowledge", "q"])
 

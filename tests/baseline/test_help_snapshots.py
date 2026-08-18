@@ -90,6 +90,12 @@ HELP_PATHS: list[tuple[str, ...]] = [
     ("search", "lkm", "auth", "status", "--help"),
     ("search", "lkm", "auth", "logout", "--help"),
     ("search", "lkm", "auth", "rotate", "--help"),
+    # extract group (lkm async PDF extraction)
+    ("extract", "--help"),
+    ("extract", "docs", "--help"),
+    ("extract", "submit", "--help"),
+    ("extract", "status", "--help"),
+    ("extract", "result", "--help"),
     # trace subgroup
     ("trace", "--help"),
     ("trace", "verify", "--help"),
