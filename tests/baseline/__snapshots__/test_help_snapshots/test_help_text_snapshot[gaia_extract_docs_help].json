@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "extract",
+    "docs",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "\n Usage: gaia extract docs [OPTIONS]\n\n Print LKM extraction API documentation links.\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}

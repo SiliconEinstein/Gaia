@@ -81,6 +81,7 @@ from gaia.cli.commands.bayes import (
 from gaia.cli.commands.check import check_command
 from gaia.cli.commands.compile import compile_command
 from gaia.cli.commands.example import example_app
+from gaia.cli.commands.extract import extract_app
 from gaia.cli.commands.infer import infer_command
 from gaia.cli.commands.init import init_command
 from gaia.cli.commands.inquiry import inquiry_app
@@ -548,6 +549,18 @@ app.add_typer(skill_app, name="skill")
 # backends; see `gaia.cli.commands.search`.
 
 app.add_typer(search_app, name="search")
+
+
+# --------------------------------------------------------------------------- #
+# extract — local PDF -> LKM-extracted knowledge                              #
+# --------------------------------------------------------------------------- #
+#
+# `gaia extract <verb>` wraps the asynchronous LKM parse endpoints as three
+# atomic verbs (1:1 with the HTTP endpoints). It sits beside `search` rather
+# than inside it: `search` queries papers LKM already ingested, while this
+# group submits a job for a PDF the caller holds.
+
+app.add_typer(extract_app, name="extract")
 
 
 # --------------------------------------------------------------------------- #
