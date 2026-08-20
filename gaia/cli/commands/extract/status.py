@@ -19,7 +19,7 @@ from gaia.cli._lkm_runtime import (
 )
 from gaia.cli.commands.extract._hints import status_hint
 from gaia.cli.commands.extract._shared import TASK_PATH, validate_task_id
-from gaia.cli.commands.extract.docs import APIFOX_BASE_URL
+from gaia.cli.commands.extract.docs import APIFOX_STATUS_URL
 
 _STATUS_EPILOG = (
     "`status` reads the task once and exits; it does not block. Use "
@@ -29,7 +29,7 @@ _STATUS_EPILOG = (
     "`step_durations` lists the pipeline steps that have finished so far, in "
     "order, with their `duration_ms` — measured progress for a task that has "
     "been running a while.\n\n"
-    f"API docs: {APIFOX_BASE_URL}"
+    f"API docs: {APIFOX_STATUS_URL}"
 )
 
 

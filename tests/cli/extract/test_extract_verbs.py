@@ -138,13 +138,44 @@ class TestDocs:
         result = runner.invoke(app, ["extract", "docs"])
 
         assert result.exit_code == 0, result.output
-        assert "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84" in result.stdout
-        assert "POST /parse/task" in result.stdout
-        assert "GET /parse/task/{task_id}/result" in result.stdout
+        assert "LKM API docs:" in result.stdout
+        assert "Endpoint docs:" in result.stdout
+        assert "submit extraction task" in result.stdout
+        assert "task status" in result.stdout
+        assert "task result" in result.stdout
+        assert "CLI reference:" in result.stdout
         assert "docs/reference/cli/extract.md" in result.stdout
+        assert (
+            "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-502383795"
+            in result.stdout
+        )
+        assert (
+            "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-502383796"
+            in result.stdout
+        )
+        assert (
+            "https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-502383797"
+            in result.stdout
+        )
 
 
 class TestSubmit:
+    def test_help_describes_the_actual_no_wait_output_and_option_ranges(self) -> None:
+        result = runner.invoke(app, ["extract", "submit", "--help"])
+
+        assert result.exit_code == 0, result.output
+        stdout = _squash_ws(result.stdout)
+        # Without --wait, submit prints the full envelope, not just the task id.
+        assert "full submit envelope" in stdout
+        assert "data.task_id" in stdout
+        # Option help states the same ranges _validate_polling enforces. (The
+        # phrases can be split across table-border characters when wrapped, so
+        # check the numbers land near their bound rather than one long string.)
+        assert "must be between 1 and 300" in stdout
+        assert "must be greater than 0" in stdout
+        assert "at most" in stdout
+        assert "86400" in stdout
+
     def test_uploads_pdf_as_multipart_field_file(
         self, monkeypatch: pytest.MonkeyPatch, pdf: Path
     ) -> None:
@@ -479,6 +510,13 @@ class TestStatus:
 
 
 class TestResult:
+    def test_help_uses_the_task_id_placeholder_consistently(self) -> None:
+        result = runner.invoke(app, ["extract", "result", "--help"])
+
+        assert result.exit_code == 0, result.output
+        assert "/parse/task/{task_id}/result" in result.stdout
+        assert "/parse/task/{id}/result" not in result.stdout
+
     def test_fetches_the_flat_graph(self, monkeypatch: pytest.MonkeyPatch) -> None:
         payload = {
             "code": 0,

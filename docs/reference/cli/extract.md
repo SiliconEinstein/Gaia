@@ -36,8 +36,9 @@ The file must be a PDF of at most 64 MiB; the extension, size, and `%PDF`
 header are checked locally before anything is uploaded. The response carries
 `task_id`, `pdf_md5`, `status`, `cache_hit`, `cache_source`, and `created_at`.
 
-Acceptance is not completion. Without `--wait` the task id is all you get, and
-you poll it yourself. Resubmitting the same PDF reuses the existing extraction
+Acceptance is not completion. Without `--wait`, `submit` returns immediately
+with the full envelope above on stdout — save `data.task_id` from it and poll
+yourself with `gaia extract status`. Resubmitting the same PDF reuses the existing extraction
 instead of starting over — an already-processed PDF comes back terminal
 immediately with `cache_hit: true`. Resubmitting is not a way to hurry a
 running task along: extra submissions only mint extra task ids that share the

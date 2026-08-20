@@ -19,7 +19,7 @@ from gaia.cli._lkm_runtime import (
     validate_lkm_index,
 )
 from gaia.cli.commands.extract._shared import TASK_PATH, validate_task_id
-from gaia.cli.commands.extract.docs import APIFOX_BASE_URL
+from gaia.cli.commands.extract.docs import APIFOX_RESULT_URL
 
 _RESULT_EPILOG = (
     "The success payload is `variables` / `factors` / `motivations` / `stats` "
@@ -33,7 +33,7 @@ _RESULT_EPILOG = (
     "(code 290017, exit 1); that does not mean the task was lost. Reviews and "
     "abstract collections often stop early, so an empty `files` list on a "
     "partial task is expected.\n\n"
-    f"API docs: {APIFOX_BASE_URL}"
+    f"API docs: {APIFOX_RESULT_URL}"
 )
 
 
@@ -51,7 +51,7 @@ def result_command(
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
 ) -> None:
-    """Fetch what an LKM extraction task produced (GET /parse/task/{id}/result)."""
+    """Fetch what an LKM extraction task produced (GET /parse/task/{task_id}/result)."""
     index_id = validate_lkm_index(index)
     task = validate_task_id(task_id)
     payload = run_request("GET", f"{TASK_PATH}/{task}/result", index_id=index_id)

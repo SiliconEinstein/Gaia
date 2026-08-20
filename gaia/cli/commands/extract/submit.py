@@ -29,7 +29,7 @@ from gaia.cli.commands.extract._shared import (
     validate_pdf,
     validate_returned_task_id,
 )
-from gaia.cli.commands.extract.docs import APIFOX_BASE_URL
+from gaia.cli.commands.extract.docs import APIFOX_SUBMIT_URL
 
 _MIN_POLL_INTERVAL = 1.0
 _MAX_POLL_INTERVAL = 300.0
@@ -44,9 +44,11 @@ _SUBMIT_EPILOG = (
     "when an earlier submission of this same PDF produced it. Resubmitting "
     "will not hurry a running task along; it only mints extra task ids that "
     "share the same progress and result.\n\n"
-    "Without --wait the task id is all you get; poll it with "
-    "`gaia extract status`.\n\n"
-    f"API docs: {APIFOX_BASE_URL}"
+    "Without --wait, submit returns immediately with the full submit envelope "
+    "on stdout (not just the task id). Save `data.task_id` from it and poll "
+    "with `gaia extract status`, or pass --wait to have this command poll for "
+    "you.\n\n"
+    f"API docs: {APIFOX_SUBMIT_URL}"
 )
 
 
@@ -67,12 +69,22 @@ def submit_command(
         float,
         typer.Option(
             "--poll-interval",
-            help="Seconds between polls when --wait is set; the 5s default matches the service.",
+            help=(
+                "Seconds between polls when --wait is set; must be between "
+                f"{_MIN_POLL_INTERVAL:g} and {_MAX_POLL_INTERVAL:g} (the 5s default "
+                "matches the service)."
+            ),
         ),
     ] = 5.0,
     timeout: Annotated[
         float,
-        typer.Option("--timeout", help="Seconds to wait before giving up when --wait is set."),
+        typer.Option(
+            "--timeout",
+            help=(
+                "Seconds to wait before giving up when --wait is set; must be greater "
+                f"than 0 and at most {_MAX_TIMEOUT:g}."
+            ),
+        ),
     ] = 1800.0,
     out: Annotated[
         Path | None,
