@@ -32,8 +32,9 @@ gaia extract submit paper.pdf
 gaia extract submit paper.pdf --wait --poll-interval 5 --timeout 3600
 ```
 
-The file must be a PDF of at most 64 MiB; the extension, size, and `%PDF`
-header are checked locally before anything is uploaded. The response carries
+The file must be a PDF of at most 64 MiB and 50 pages. The extension, size,
+and `%PDF` header are checked locally before anything is uploaded; the page
+cap is enforced by the service. The response carries
 `task_id`, `pdf_md5`, `status`, `cache_hit`, `cache_source`, and `created_at`.
 
 Acceptance is not completion. Without `--wait`, `submit` returns immediately

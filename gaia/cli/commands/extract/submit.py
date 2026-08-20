@@ -55,7 +55,7 @@ _SUBMIT_EPILOG = (
 def submit_command(
     pdf: Annotated[
         Path,
-        typer.Argument(help="Local PDF to extract (max 64 MiB)."),
+        typer.Argument(help="Local PDF to extract (max 64 MiB, 50 pages)."),
     ],
     index: Annotated[
         str,

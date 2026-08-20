@@ -175,6 +175,7 @@ class TestSubmit:
         assert "must be greater than 0" in stdout
         assert "at most" in stdout
         assert "86400" in stdout
+        assert "max 64 MiB, 50 pages" in stdout
 
     def test_uploads_pdf_as_multipart_field_file(
         self, monkeypatch: pytest.MonkeyPatch, pdf: Path
