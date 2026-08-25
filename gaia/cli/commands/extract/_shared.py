@@ -21,13 +21,27 @@ TASK_PATH = "/parse/task"
 # tens of megabytes just to be refused.
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 
-# `partial` is terminal: the pipeline stopped early but kept the intermediate
-# XML it did produce.
+# `partial` is a non-retryable business terminal (review / too short /
+# collection). Resubmitting the same PDF stays partial and does not rerun.
 PENDING_STATUSES = frozenset({"queued", "running"})
 TERMINAL_STATUSES = frozenset({"succeeded", "partial", "failed"})
 KNOWN_STATUSES = PENDING_STATUSES | TERMINAL_STATUSES
 
+RESULT_FORMATS = ("local", "graph")
+
 _SAFE_TASK_ID = re.compile(r"^[A-Za-z0-9._~-]+$")
+
+
+def validate_result_format(result_format: str) -> str:
+    """Reject a result shape the service would refuse after a round trip."""
+    candidate = result_format.strip().lower()
+    if candidate not in RESULT_FORMATS:
+        typer.echo(
+            f"Error: invalid --format {result_format!r}; expected local or graph.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    return candidate
 
 
 def validate_task_id(task_id: str) -> str:

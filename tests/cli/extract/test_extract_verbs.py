@@ -497,7 +497,7 @@ class TestStatus:
         result = runner.invoke(app, ["extract", "status", "task-1"])
 
         assert result.exit_code == 0, result.output
-        assert "not a full graph" in result.stderr
+        assert "non-retryable business failure" in result.stderr
         assert "gaia extract result task-1" in result.stderr
 
     @pytest.mark.parametrize("task_id", ["../etc/passwd", "task 1", ""])
@@ -542,6 +542,41 @@ class TestResult:
             }
         ]
         assert json.loads(result.stdout) == payload
+
+    def test_format_graph_is_forwarded_as_query(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "status": "succeeded",
+                "paper": None,
+                "addressed_problems": [],
+                "open_questions": [],
+                "graph": {"nodes": [], "edges": []},
+            },
+        }
+        _install_client(monkeypatch, responses=[payload])
+
+        result = runner.invoke(app, ["extract", "result", "task-1", "--format", "graph"])
+
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.calls == [
+            {
+                "method": "GET",
+                "path": "/parse/task/task-1/result",
+                "json_body": None,
+                "params": {"format": "graph"},
+            }
+        ]
+        assert json.loads(result.stdout) == payload
+
+    def test_rejects_unknown_format(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+
+        result = runner.invoke(app, ["extract", "result", "task-1", "--format", "nodes"])
+
+        assert result.exit_code == 4, result.output
+        assert "invalid --format" in result.stderr
+        assert _FakeClient.calls == []
 
     def test_not_ready_is_a_business_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(

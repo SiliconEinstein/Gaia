@@ -1,8 +1,9 @@
 """``gaia extract result`` — GET /parse/task/{task_id}/result.
 
-A succeeded task returns a flat variables / factors / motivations graph. A
-partial or failed task returns its stage, failure reason, and expiring links
-to whatever intermediate XML exists.
+A succeeded task returns either the default flat graph or, with
+``--format graph``, the same ``paper`` / ``graph.nodes`` / ``graph.edges``
+shape as ``gaia search lkm package``. A partial task is a non-retryable
+business terminal; failed is a technical failure that may be resubmitted.
 """
 
 from __future__ import annotations
@@ -18,21 +19,26 @@ from gaia.cli._lkm_runtime import (
     run_request,
     validate_lkm_index,
 )
-from gaia.cli.commands.extract._shared import TASK_PATH, validate_task_id
+from gaia.cli.commands.extract._shared import (
+    TASK_PATH,
+    validate_result_format,
+    validate_task_id,
+)
 from gaia.cli.commands.extract.docs import APIFOX_RESULT_URL
 
 _RESULT_EPILOG = (
-    "The success payload is `variables` / `factors` / `motivations` / `stats` "
-    "directly under `data` — not the `papers[]` wrapper `gaia search lkm "
-    "package` returns, and not a nodes/edges graph. Every result also carries "
-    "`step_durations`: how long each finished pipeline step took, in order.\n\n"
-    "Node `local_id` values such as `paper:6::P1` are file-local. Only a "
+    "Default `--format local` is `variables` / `factors` / `motivations` / "
+    "`stats` under `data`. `--format graph` matches `gaia search lkm "
+    "package` (`paper` + `addressed_problems` + `open_questions` + "
+    "`graph.nodes` / `graph.edges`), where `paper` is null unless the "
+    "extraction was reused from a corpus paper. Format only applies to "
+    "succeeded results; an unknown value exits 4 before any request.\n\n"
+    "Node `local_id` values and graph node `id`s are file-local. Only a "
     "non-null `global_id` is an LKM id you can pass to `gaia search lkm "
     "nodes` or `gaia pkg add`.\n\n"
-    "Asking for the result of a queued or running task is a business error "
-    "(code 290017, exit 1); that does not mean the task was lost. Reviews and "
-    "abstract collections often stop early, so an empty `files` list on a "
-    "partial task is expected.\n\n"
+    "Queued or running: 290017, exit 1 — the task is not lost. `partial` is "
+    "a non-retryable business failure; do not resubmit the same PDF. Empty "
+    "`files` on partial is expected.\n\n"
     f"API docs: {APIFOX_RESULT_URL}"
 )
 
@@ -46,6 +52,13 @@ def result_command(
         str,
         typer.Option("--index", "--server", help="Configured LKM index id."),
     ] = DEFAULT_LKM_INDEX_ID,
+    result_format: Annotated[
+        str,
+        typer.Option(
+            "--format",
+            help="Succeeded result shape: local (flat graph) or graph (same as lkm package).",
+        ),
+    ] = "local",
     out: Annotated[
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
@@ -54,5 +67,12 @@ def result_command(
     """Fetch what an LKM extraction task produced (GET /parse/task/{task_id}/result)."""
     index_id = validate_lkm_index(index)
     task = validate_task_id(task_id)
-    payload = run_request("GET", f"{TASK_PATH}/{task}/result", index_id=index_id)
+    shape = validate_result_format(result_format)
+    params = {"format": shape} if shape != "local" else None
+    payload = run_request(
+        "GET",
+        f"{TASK_PATH}/{task}/result",
+        params=params,
+        index_id=index_id,
+    )
     emit(payload, out)
