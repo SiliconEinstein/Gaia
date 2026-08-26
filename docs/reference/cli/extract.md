@@ -42,8 +42,8 @@ with the full envelope above on stdout — save `data.task_id` from it and poll
 yourself with `gaia extract status`. Resubmitting the same PDF reuses the existing extraction
 instead of starting over — an already-processed PDF comes back terminal
 immediately with `cache_hit: true`. Resubmitting is not a way to hurry a
-running task along: extra submissions only mint extra task ids that share the
-same progress and result.
+running task along: the same user and PDF still `queued` or `running`
+returns business error `290020` with the existing `task_id`.
 
 `cache_source` is present only on a cache hit and says where the reuse came
 from:
@@ -79,7 +79,7 @@ One read, no polling. Branch on `status`, not on `stage`:
 |---|---|
 | `queued` / `running` | Still working; call again |
 | `succeeded` | Terminal; the full graph is available |
-| `partial` | Terminal; the pipeline stopped early but kept intermediate XML |
+| `partial` | Terminal, non-retryable business failure; do not resubmit the same PDF |
 | `failed` | Terminal; see `failed_reason` |
 
 `stage` (`metadata`, `ocr`, `step0`–`step4`, `graph`, `done`) is progress
@@ -97,20 +97,27 @@ Extraction commonly takes several minutes to a quarter of an hour.
 
 ```bash
 gaia extract result <task-id>
+gaia extract result <task-id> --format graph
 ```
 
-A succeeded task returns `variables` / `factors` / `motivations` / `stats`
-directly under `data`, plus `step_durations`. That is not the `papers[]`
-wrapper `gaia search lkm package` returns, and not a nodes/edges graph.
+`--format local` (default) returns `variables` / `factors` / `motivations` /
+`stats` under `data`. `--format graph` matches `gaia search lkm package`:
+`paper` + `addressed_problems` + `open_questions` + `graph.nodes` /
+`graph.edges`. `paper` is null unless the extraction was reused from a paper
+already in the corpus, so branch on `graph` rather than on `paper`. Format only
+changes a succeeded payload; an unknown value exits 4 before any request.
 
-Node `local_id` values such as `paper:6::P1` are file-local. Only a non-null
-`global_id` is an LKM id you can pass to `gaia search lkm nodes` or
-`gaia pkg add`.
+Node `local_id` values and graph node `id`s such as `paper:6::P1` are
+file-local. Only a non-null `global_id` is an LKM id you can pass to
+`gaia search lkm nodes` or `gaia pkg add`.
 
-A partial or failed task returns `task_id`, `status`, `stage`,
-`failed_reason`, `step_durations`, and `files` — expiring presigned links to
-whatever intermediate XML exists. Reviews and abstract collections often stop before any
-step produces output, so an empty `files` list is expected rather than a bug.
+A partial or failed task ignores `--format` and returns `task_id`, `status`,
+`stage`, `failed_reason`, `step_durations`, and `files`. `partial` is a
+non-retryable business failure (review, too short, collection); do not
+resubmit the same PDF. `failed` is technical and the same file may be
+submitted again. Empty `files` on partial is expected.
 
 Asking for the result of a queued or running task is a business error (code
-`290017`, exit 1). It does not mean the task was lost.
+`290017`, exit 1). It does not mean the task was lost. A task id that does not
+exist, or belongs to another user, is `290016`. A PDF over 50 pages is
+`290022`.

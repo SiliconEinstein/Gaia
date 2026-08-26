@@ -37,7 +37,7 @@ def status_hint(payload: dict[str, Any], *, index_id: str, task_id: str) -> str 
     if status in {"succeeded", "partial"}:
         detail = None
         if status == "partial":
-            detail = "A partial task returns intermediate XML links, not a full graph."
+            detail = "partial is a non-retryable business failure; do not resubmit the same PDF."
         return _hint_block(
             "Suggested: fetch what the task produced",
             f"gaia extract result {task_id} --index {index_id}",
