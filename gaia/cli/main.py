@@ -543,7 +543,7 @@ app.add_typer(skill_app, name="skill")
 # search — retrieval backends (sub-app: lkm)                                  #
 # --------------------------------------------------------------------------- #
 #
-# `gaia search lkm <verb>` wraps the Bohrium LKM public search API as five
+# `gaia search lkm <verb>` wraps the Bohrium LKM public search API as six
 # atomic verbs (1:1 with the HTTP endpoints) plus an `auth` credential
 # lifecycle. The `search` parent leaves room for future non-LKM retrieval
 # backends; see `gaia.cli.commands.search`.

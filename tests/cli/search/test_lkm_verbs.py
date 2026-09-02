@@ -124,6 +124,7 @@ class TestDocs:
         assert "problems" in stdout
         assert "open questions" in stdout
         assert "reasoning chains and workflows" in stdout
+        assert "bibliographic forward references" in stdout
         assert "generic graph API" in stdout
         assert "knowledge graph" not in stdout
         assert "claim/question records" not in stdout
@@ -140,6 +141,7 @@ class TestDocs:
         assert "claim reasoning lookup" in result.stdout
         assert "node lookup" in result.stdout
         assert "paper graph lookup" in result.stdout
+        assert "paper reference lookup" in result.stdout
         assert "feedback" in result.stdout
         assert "CLI reference:" in result.stdout
         assert "docs/reference/cli/search.md" in result.stdout
@@ -165,6 +167,10 @@ class TestDocs:
             (
                 ["search", "lkm", "package", "--help"],
                 ["https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459808997"],
+            ),
+            (
+                ["search", "lkm", "references", "--help"],
+                ["POST /papers/reference"],
             ),
             (
                 ["search", "lkm", "feedback", "--help"],
@@ -1751,3 +1757,267 @@ class TestPackage:
         assert result.stdout == ""
         assert json.loads(dest.read_text()) == payload
         assert "gaia pkg add --lkm-index bohrium --lkm-paper 811827932371615744" in (result.stderr)
+
+
+# --------------------------------------------------------------------------- #
+# references                                                                  #
+# --------------------------------------------------------------------------- #
+
+
+_REFERENCE_SEED_ID = "1020661015349559308"
+_REFERENCE_NEIGHBOR_ID = "811827932371615744"
+
+
+def _reference_payload(*, seed_id: str = _REFERENCE_SEED_ID) -> dict[str, Any]:
+    return {
+        "code": 0,
+        "data": {
+            "papers": [
+                {
+                    "id": seed_id,
+                    "doi": "10.1093/nar/gkae620",
+                    "en_title": "Example seed paper",
+                    "references": None,
+                    "cited_by": [
+                        {
+                            "id": _REFERENCE_NEIGHBOR_ID,
+                            "doi": "10.1016/j.jpcs.2021.110374",
+                            "en_title": "Citing paper",
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+
+
+class TestReferences:
+    def test_happy_default_posts_reference_body(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app, ["search", "lkm", "references", "--paper-id", _REFERENCE_SEED_ID]
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["method"] == "POST"
+        assert _FakeClient.last_call["path"] == "/papers/reference"
+        assert _FakeClient.last_call["json_body"] == {
+            "paper_ids": [_REFERENCE_SEED_ID],
+            "with_abstract": True,
+            "with_reference": False,
+            "with_cited_by": True,
+        }
+
+    def test_accepts_doi_and_repeatable_seeds(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "references",
+                "--paper-id",
+                _REFERENCE_SEED_ID,
+                "--doi",
+                "10.1038/s41586-021-03381-x",
+                "--doi",
+                "10.1093/nar/gkae620",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["json_body"] == {
+            "paper_ids": [_REFERENCE_SEED_ID],
+            "dois": ["10.1038/s41586-021-03381-x", "10.1093/nar/gkae620"],
+            "with_abstract": True,
+            "with_reference": False,
+            "with_cited_by": True,
+        }
+
+    def test_include_flags_are_sent_explicitly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "references",
+                "--paper-id",
+                _REFERENCE_SEED_ID,
+                "--no-with-abstract",
+                "--with-reference",
+                "--no-with-cited-by",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        body = _FakeClient.last_call["json_body"]
+        assert body["with_abstract"] is False
+        assert body["with_reference"] is True
+        assert body["with_cited_by"] is False
+
+    def test_strips_paper_prefix(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "references", "--paper-id", f"paper:{_REFERENCE_SEED_ID}"],
+        )
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.last_call["json_body"]["paper_ids"] == [_REFERENCE_SEED_ID]
+
+    def test_no_identifier_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "references"])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_empty_doi_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "references", "--doi", "   "])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_empty_paper_prefix_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "references", "--paper-id", "paper:"])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_non_numeric_paper_id_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "references", "--paper-id", "p1"])
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_too_many_seeds_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        args = ["search", "lkm", "references"]
+        for i in range(21):
+            args.extend(["--paper-id", str(1000 + i)])
+        result = runner.invoke(app, args)
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_combined_seed_cap_counts_both_sides(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        args = ["search", "lkm", "references"]
+        for i in range(10):
+            args.extend(["--paper-id", str(1000 + i)])
+        for i in range(11):
+            args.extend(["--doi", f"10.0.0/{i}"])
+        result = runner.invoke(app, args)
+        assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_unknown_title_flag_exits_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "references", "--paper-id", _REFERENCE_SEED_ID, "--title", "x"],
+        )
+        assert result.exit_code == 2, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_business_error_exits_1(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _install_client(monkeypatch, response={"code": 290002, "msg": "too many seeds"})
+        result = runner.invoke(
+            app, ["search", "lkm", "references", "--paper-id", _REFERENCE_SEED_ID]
+        )
+        assert result.exit_code == 1, result.output
+
+    def test_default_emits_raw_papers_with_package_hint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        payload = _reference_payload()
+        _install_client(monkeypatch, response=payload)
+        result = runner.invoke(
+            app, ["search", "lkm", "references", "--paper-id", _REFERENCE_SEED_ID]
+        )
+        assert result.exit_code == 0, result.output
+        parsed = json.loads(result.stdout)
+        assert parsed == payload
+        assert "items" not in parsed.get("data", {})
+        assert parsed["data"]["papers"][0]["id"] == _REFERENCE_SEED_ID
+        assert (
+            f"gaia search lkm package --index bohrium --paper-id {_REFERENCE_SEED_ID}"
+            in result.stderr
+        )
+        assert "gaia pkg add" not in result.stderr
+
+    def test_doi_only_uncovered_paper_has_no_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = {
+            "code": 0,
+            "data": {
+                "papers": [
+                    {
+                        "id": "",
+                        "doi": "10.1038/s41586-021-03381-x",
+                        "en_title": "Uncovered seed",
+                        "references": None,
+                        "cited_by": [],
+                    }
+                ]
+            },
+        }
+        _install_client(monkeypatch, response=payload)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "references", "--doi", "10.1038/s41586-021-03381-x"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert result.stderr == ""
+
+    def test_doi_only_covered_paper_hints_package(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = _reference_payload()
+        _install_client(monkeypatch, response=payload)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "references", "--doi", "10.1093/nar/gkae620"],
+        )
+        assert result.exit_code == 0, result.output
+        assert (
+            f"gaia search lkm package --index bohrium --paper-id {_REFERENCE_SEED_ID}"
+            in result.stderr
+        )
+
+    def test_no_hint_suppresses_package_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = _reference_payload()
+        _install_client(monkeypatch, response=payload)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "references",
+                "--paper-id",
+                _REFERENCE_SEED_ID,
+                "--no-hint",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == payload
+        assert result.stderr == ""
+
+    def test_out_writes_raw_file_and_hint_to_stderr(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        payload = _reference_payload()
+        _install_client(monkeypatch, response=payload)
+        dest = tmp_path / "nested" / "papers_reference.json"
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "references",
+                "--paper-id",
+                _REFERENCE_SEED_ID,
+                "--out",
+                str(dest),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert result.stdout == ""
+        assert json.loads(dest.read_text()) == payload
+        assert (
+            f"gaia search lkm package --index bohrium --paper-id {_REFERENCE_SEED_ID}"
+            in result.stderr
+        )

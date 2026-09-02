@@ -4,7 +4,8 @@ Search external retrieval providers for Gaia authoring. LKM (Large Knowledge
 Model) is Bohrium's agent-ready paper search engine for grounding scientific
 claims, inspecting reasoning chains, and resolving source papers. In Gaia CLI,
 the LKM backend is a read-only source of papers, paper knowledge items,
-reasoning chains, workflows, and extracted per-paper graphs.
+reasoning chains, workflows, bibliographic references, and extracted
+per-paper graphs.
 
 ```text
 gaia search lkm knowledge <query>           Search LKM paper knowledge items
@@ -15,6 +16,8 @@ gaia search lkm package --paper-id <id>     Fetch one LKM paper package candidat
 gaia search lkm package --package-id paper:<id>
 gaia search lkm package --doi <doi>
 gaia search lkm package --title <title>
+gaia search lkm references --paper-id <id>  Look up references / cited-by lists
+gaia search lkm references --doi <doi>
 gaia search lkm feedback --type bug <text>  Submit LKM service/data feedback
 gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
@@ -46,14 +49,15 @@ gaia search lkm knowledge "unresolved battery failure mechanisms" --scopes open_
 gaia search lkm reasoning "solid state battery dendrite suppression"
 gaia search lkm reasoning --claim-id <gcn_id>
 gaia search lkm package --paper-id <paper_id>
+gaia search lkm references --paper-id <paper_id>
 gaia pkg add --lkm-index bohrium --lkm-paper <paper_id>
 ```
 
 Use `--claim-id` when you already have a claim id and want that claim's
 supporting reasoning graph. Question ids cannot be used with `--claim-id`.
-Use `package` to fetch a paper graph, and
-`gaia pkg add` when that paper should become an editable dependency of the
-current Gaia package.
+Use `package` to fetch a paper graph, `references` for bibliographic
+forward-reference / cited-by cards, and `gaia pkg add` when that paper should
+become an editable dependency of the current Gaia package.
 
 Use `knowledge --scopes conclusion` when the goal is to find conclusion claims.
 The older `--reasoning-only` flag remains a legacy alias for claim searches
@@ -127,6 +131,18 @@ response a business error. This endpoint does not apply a visibility filter.
 The CLI keeps `/papers/graph` on the default raw paper-graph shape and does not
 expose deprecated projection / hydration switches.
 
+`references` looks up bibliographic paper cards (`POST /papers/reference`) for
+papers already identified by `--paper-id` and/or `--doi` (repeatable; at least
+one side required). Combined seeds are capped at 20 before dedupe. A `paper:`
+prefix on `--paper-id` is stripped. There is no `--title` or `--package-id`.
+The three include switches are always sent and match the HTTP defaults:
+`--with-abstract` (on), `--with-reference` (off), `--with-cited-by` (on). The
+response uses `data.papers`. An empty paper `id` means LKM has not covered
+that record; `references` /
+`cited_by` are `null` when that list was not queried and `[]` when it was
+queried and empty. A successful hit with a numeric LKM id may hint
+`gaia search lkm package --paper-id <id>` on stderr.
+
 `feedback` is a write endpoint (`POST /feedback`) for reporting LKM service or
 data issues. It accepts a required `--type bug|feature|question` and content
 text, plus at most one optional target: `--gcn-id` for a node or
@@ -146,6 +162,7 @@ gaia search lkm docs
 - Claim reasoning lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459807347>
 - Node lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459805971>
 - Paper graph lookup: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-459808997>
+- Paper reference lookup: `POST /papers/reference`
 - Feedback: <https://s.apifox.cn/33d12311-ec59-4a5c-a849-391704fe7f84/api-474487249>
 
 Before changing `gaia search lkm` behavior, options, or help text, verify the
@@ -204,6 +221,9 @@ a valid `derive(..., given=[])`.
 `addressed_problems` / `open_questions` stay next to the graph; conclusion
 dependencies are read from `graph.edges` such as `previous_conclusion_of`,
 `weakpoint_of`, `highlight_of`, `subproblem_of`, and `concludes`.
+
+`references` returns bibliographic paper cards under `data.papers[]`. Neighbor
+lists are paper metadata, not graph nodes or edges.
 
 The `search` / `pkg add` boundary is tracked in
 `docs/specs/2026-05-20-gaia-search-design.md`.

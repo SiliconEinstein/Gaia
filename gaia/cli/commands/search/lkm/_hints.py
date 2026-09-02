@@ -64,6 +64,26 @@ def reasoning_hint(
     return None
 
 
+def references_hint(
+    payload: dict[str, Any],
+    *,
+    index_id: str,
+    requested_paper_ids: list[str] | None = None,
+) -> str | None:
+    """Return a stderr-only hint for an LKM papers/reference response."""
+    paper_id = requested_paper_ids[0] if requested_paper_ids else None
+    if paper_id is None:
+        paper_ids = _paper_ids_from_papers(payload)
+        paper_id = paper_ids[0] if paper_ids else None
+    if paper_id is None:
+        return None
+    return _hint_block(
+        "Suggested: fetch the LKM paper graph",
+        f"gaia search lkm package --index {index_id} --paper-id {paper_id}",
+        "Use this when LKM already covers the paper and you want its extracted graph.",
+    )
+
+
 def package_hint(
     payload: dict[str, Any],
     *,
