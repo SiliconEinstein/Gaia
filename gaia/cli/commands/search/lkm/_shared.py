@@ -27,6 +27,8 @@ MAX_LIMIT = 100
 MAX_PAPER_IDS = 50
 MAX_DOIS = 50
 MAX_VARIABLE_IDS = 100
+# Combined paper_ids + dois cap for POST /papers/reference (before dedupe).
+MAX_REFERENCE_SEEDS = 20
 
 
 def validate_search_window(offset: int, limit: int) -> None:
@@ -88,6 +90,73 @@ def validate_dois(dois: list[str] | None, *, option_name: str = "--doi") -> None
         raise typer.Exit(4)
 
 
+def validate_reference_seeds(
+    paper_ids: list[str] | None,
+    dois: list[str] | None,
+) -> tuple[list[str], list[str]]:
+    """Trim and validate ``/papers/reference`` seeds.
+
+    ``--paper-id`` values may carry a ``paper:`` prefix (stripped). Combined
+    length is capped at ``MAX_REFERENCE_SEEDS`` before dedupe. At least one
+    side must be non-empty after trimming.
+    """
+    normalized_ids = _normalize_reference_paper_ids(paper_ids)
+    normalized_dois = _normalize_reference_dois(dois)
+    if not normalized_ids and not normalized_dois:
+        typer.echo("Error: at least one of --paper-id / --doi is required.", err=True)
+        raise typer.Exit(4)
+    total = len(normalized_ids) + len(normalized_dois)
+    if total > MAX_REFERENCE_SEEDS:
+        typer.echo(
+            f"Error: --paper-id and --doi together must be <= {MAX_REFERENCE_SEEDS} "
+            f"before dedupe; got {total}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    return normalized_ids, normalized_dois
+
+
+def _normalize_reference_paper_ids(paper_ids: list[str] | None) -> list[str]:
+    if not paper_ids:
+        return []
+    normalized: list[str] = []
+    for raw in paper_ids:
+        value = raw.strip()
+        if not value:
+            typer.echo("Error: --paper-id values must be non-empty.", err=True)
+            raise typer.Exit(4)
+        if value.startswith("paper:"):
+            value = value.split(":", 1)[1]
+        if not value:
+            typer.echo(
+                "Error: --paper-id values must be numeric strings after stripping "
+                "a `paper:` prefix.",
+                err=True,
+            )
+            raise typer.Exit(4)
+        if not value.isdigit():
+            typer.echo(
+                f"Error: --paper-id must be a numeric paper id; got {raw!r}.",
+                err=True,
+            )
+            raise typer.Exit(4)
+        normalized.append(value)
+    return normalized
+
+
+def _normalize_reference_dois(dois: list[str] | None) -> list[str]:
+    if not dois:
+        return []
+    normalized: list[str] = []
+    for raw in dois:
+        value = raw.strip()
+        if not value:
+            typer.echo("Error: --doi values must be non-empty.", err=True)
+            raise typer.Exit(4)
+        normalized.append(value)
+    return normalized
+
+
 __all__ = [
     "DEFAULT_LKM_INDEX_ID",
     "MAX_DOIS",
@@ -95,6 +164,7 @@ __all__ = [
     "MAX_LIMIT",
     "MAX_OFFSET",
     "MAX_PAPER_IDS",
+    "MAX_REFERENCE_SEEDS",
     "MAX_VARIABLE_IDS",
     "LKMClient",
     "emit",
@@ -103,5 +173,6 @@ __all__ = [
     "validate_lkm_index",
     "validate_lkm_server",
     "validate_paper_ids",
+    "validate_reference_seeds",
     "validate_search_window",
 ]
