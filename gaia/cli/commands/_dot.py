@@ -463,6 +463,38 @@ def _emit_dot_cluster(
     out.append("")
 
 
+def _effect_color(effect: float | None) -> str | None:
+    """Map a signed strategy effect in [-1, 1] to a red-grey-green hex color.
+
+    Mirrors the ``beliefColor`` ramp in ``viz/src/starmap.ts`` (red = 0,
+    grey = 0.5, green = 1) via ``t = (effect + 1) / 2``, so the static SVG
+    and the interactive HTML read the same way: red = lowering, grey =
+    neutral, green = support. Returns None when *effect* is None (unscored
+    strategy form — support/deduction/... carry no CPT), so the caller keeps
+    the theme's plain role color instead of a fabricated neutral one.
+    """
+    if effect is None:
+        return None
+    t = max(0.0, min(1.0, (effect + 1.0) / 2.0))
+    if t < 0.5:
+        u = t * 2
+        r, g, b = 231 + (136 - 231) * u, 76 + (136 - 76) * u, 60 + (136 - 60) * u
+    else:
+        u = (t - 0.5) * 2
+        r, g, b = 136 + (46 - 136) * u, 136 + (204 - 136) * u, 136 + (113 - 136) * u
+    return f"#{round(r):02x}{round(g):02x}{round(b):02x}"
+
+
+def _effect_penwidth(effect: float, base: float) -> float:
+    """Scale a base edge penwidth by the magnitude of a signed *effect*.
+
+    Weak effects (``|effect|`` near 0) stay close to *base*; substantial ones
+    (``|effect|`` near 1) get up to ~2.3x *base*, so "Substantial lowering"
+    and "Weak lowering" read as different line weights, not just colors.
+    """
+    return round(base + abs(effect) * base * 1.1, 2)
+
+
 def _emit_dot_edges(
     out: list[str],
     *,
@@ -471,7 +503,16 @@ def _emit_dot_edges(
     contra_op_ids: set[str],
     theme: _Theme,
 ) -> None:
-    """Append DOT edges with role-specific styling."""
+    """Append DOT edges with role-specific styling.
+
+    Conclusion-role edges additionally pick up a sign color/penwidth from
+    their own ``effect`` field (populated by
+    :func:`gaia.cli.commands._graph_json._strategy_effect`) — see
+    :func:`_effect_color` — so a reader can see support (green) vs lowering
+    (red) directly on the figure, without opening the side panel. Edges
+    without a computed effect (unscored strategy forms) keep the theme's
+    plain role styling.
+    """
     known_ids = {n["id"] for n in nodes}
     out.append("    // edges")
     for edge in edges:
@@ -486,6 +527,16 @@ def _emit_dot_edges(
         else:
             role = edge.get("role")
             attrs = getattr(theme.edge, role, theme.edge.default) if role else theme.edge.default
+            if role == "conclusion":
+                effect = cast("float | None", edge.get("effect"))
+                color = _effect_color(effect)
+                if color is not None:
+                    # Effect-scored edges replace the theme's role styling
+                    # entirely (not append) — the theme strings already carry
+                    # penwidth/color and duplicated attributes would rely on
+                    # Graphviz's silent last-wins semantics.
+                    penwidth = _effect_penwidth(cast(float, effect), base=1.2)
+                    attrs = f'penwidth={penwidth}, color="{color}"'
         out.append(f"    {_quote_id(src)} -> {_quote_id(tgt)} [{attrs}];")
 
 

@@ -11,6 +11,7 @@
       <div id="sigma-container"></div>
       <header id="topbar">
         <div class="brand">gaia · starmap</div>
+        <div id="root-banner" class="hidden"></div>
         <div id="search-host"></div>
         <div id="filter-host"></div>
       </header>
@@ -20,8 +21,10 @@
         <div class="legend-row"><span class="swatch" style="background:#e74c3c"></span>belief 0</div>
         <div class="legend-row"><span class="swatch" style="background:#888"></span>belief 0.5 / unknown</div>
         <div class="legend-row"><span class="swatch" style="background:#2ecc71"></span>belief 1</div>
-        <div class="legend-row"><span class="swatch sq" style="background:#5b8def"></span>strategy</div>
-        <div class="legend-row"><span class="swatch sq" style="background:#a266ff"></span>operator</div>
+        <div class="legend-row" data-legend-for="strategy"><span class="swatch sq" style="background:#5b8def"></span>strategy</div>
+        <div class="legend-row" data-legend-for="operator"><span class="swatch sq" style="background:#a266ff"></span>operator</div>
+        <div class="legend-row" data-legend-for="effect"><span class="swatch line" style="background:#2ecc71"></span>edge: supports conclusion</div>
+        <div class="legend-row" data-legend-for="effect"><span class="swatch line" style="background:#e74c3c"></span>edge: lowers conclusion</div>
       </div>
       <div id="status">loading…</div>
     </div>

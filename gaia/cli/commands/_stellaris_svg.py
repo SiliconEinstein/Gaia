@@ -182,7 +182,114 @@ def _hex_points(cx: float, cy: float, r: float) -> str:
     return " ".join(pts)
 
 
-def _build_legend_svg(include_frontier: bool = False) -> str:
+_STRATEGY_GATE_TYPES = frozenset({"deduction", "support"})
+
+# (kind, fill, line, label, gate) — kind drives the icon shape; label
+# includes leading symbol for ellipse / diamond / hex-* / root rows; gate is
+# the (strategy_type | operator_type value) this row documents, or None for
+# rows that aren't tied to a specific type (always shown).
+_LEGEND_ROW_SPECS: tuple[tuple[str, str, str, str, str | None], ...] = (
+    (
+        "box-premise",
+        _LEGEND_PREMISE_FILL,
+        _LEGEND_PREMISE_LINE,
+        "premise · no upstream strategy/operator",
+        None,
+    ),
+    (
+        "box-derived",
+        _LEGEND_DERIVED_FILL,
+        _LEGEND_DERIVED_LINE,
+        "derived · ≥1 upstream strategy/operator",
+        None,
+    ),
+    ("box-root", _LEGEND_ROOT_FILL, _LEGEND_ROOT_LINE, "★ root claim · belief-prop seed", None),
+    ("ellipse", _LEGEND_STRAT_FILL, _LEGEND_STRAT_LINE, "∴ deduction", "deduction"),
+    (
+        "diamond",
+        _LEGEND_SUPPORT_FILL,
+        _LEGEND_SUPPORT_LINE,
+        "⊕ support (independent evidence)",
+        "support",
+    ),
+    ("hex-contra", _LEGEND_CONTRA_FILL, _LEGEND_CONTRA_LINE, "⊗ contradiction", "contradiction"),
+    ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊙ equivalence", "equivalence"),
+    ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊃ implication", "implication"),
+    ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "¬ complement", "complement"),
+    ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "∨ disjunction", "disjunction"),
+    ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "∧ conjunction", "conjunction"),
+)
+
+
+def _legend_row_present(
+    gate: str | None,
+    *,
+    strategy_types: frozenset[str] | None,
+    operator_types: frozenset[str] | None,
+) -> bool:
+    """Return whether a legend row should render, given its type ``gate``.
+
+    ``gate is None`` rows (the knowledge-box rows) always render. A
+    strategy/operator-gated row renders when the caller didn't supply a
+    type set at all (``None`` = "show everything", for callers without
+    graph data) or when its type is actually present in the graph.
+    """
+    if gate is None:
+        return True
+    types = strategy_types if gate in _STRATEGY_GATE_TYPES else operator_types
+    return types is None or gate in types
+
+
+# Support/lowering edge colors at the ramp endpoints — same swatch colors the
+# interactive HTML legend uses, so both decoding surfaces read identically.
+_LEGEND_EFFECT_SUPPORT = "#2ecc71"
+_LEGEND_EFFECT_LOWER = "#e74c3c"
+
+
+def _legend_rows(
+    *,
+    include_frontier: bool,
+    include_effect_edges: bool,
+    strategy_types: frozenset[str] | None,
+    operator_types: frozenset[str] | None,
+) -> list[tuple[str, str, str, str, str | None]]:
+    """Return the legend rows to render, filtered to glyphs the graph uses.
+
+    See :func:`_build_legend_svg` for what ``strategy_types``/
+    ``operator_types``/``include_frontier``/``include_effect_edges`` mean.
+    """
+    rows = [
+        row
+        for row in _LEGEND_ROW_SPECS
+        if _legend_row_present(row[4], strategy_types=strategy_types, operator_types=operator_types)
+    ]
+    if include_effect_edges:
+        rows.append(
+            (
+                "line",
+                _LEGEND_EFFECT_SUPPORT,
+                _LEGEND_EFFECT_SUPPORT,
+                "edge: supports conclusion",
+                None,
+            )
+        )
+        rows.append(
+            ("line", _LEGEND_EFFECT_LOWER, _LEGEND_EFFECT_LOWER, "edge: lowers conclusion", None)
+        )
+    if include_frontier:
+        rows.append(
+            ("box-fog", _LEGEND_FOG_FILL, _LEGEND_FOG_LINE, "frontier · unexplored (fog)", None)
+        )
+    return rows
+
+
+def _build_legend_svg(
+    *,
+    include_frontier: bool = False,
+    include_effect_edges: bool = False,
+    strategy_types: frozenset[str] | None = None,
+    operator_types: frozenset[str] | None = None,
+) -> str:
     """Build a self-contained legend ``<g>`` block, pinned top-left.
 
     Inserted as a sibling of Graphviz's main render group right before
@@ -194,39 +301,35 @@ def _build_legend_svg(include_frontier: bool = False) -> str:
     diamond with gold-glow) + 6 operators (contradiction with red glow,
     plus the 5 neutral hex types differentiated by unicode symbol).
 
+    ``strategy_types`` / ``operator_types`` are the ``strategy_type`` /
+    ``operator_type`` values actually present in the graph being rendered
+    (from graph.json). When given (not None), rows for a glyph whose type
+    isn't present are dropped — e.g. a graph built entirely from ``infer``
+    strategies and zero operators would otherwise ship a legend listing
+    deduction/support/contradiction/equivalence/implication/complement/
+    disjunction/conjunction, none of which the figure actually uses. ``None``
+    (the default) keeps every row, for callers that don't have graph data at
+    hand.
+
+    ``include_effect_edges`` adds the two support/lowering edge-color rows.
+    The dot emitter colors effect-scored conclusion edges green/red in every
+    theme, and the standalone SVG has no hover panel — the legend is its only
+    decoding surface, so the rows appear whenever the caller knows the graph
+    carries scored edges (the ``gaia inspect starmap`` path passes this from
+    the actual edge data; default False keeps legacy callers unchanged).
+
     When ``include_frontier`` is True, one extra row documenting the dashed
     "fog" box is appended — the explorer render overlays open-frontier
     (unpulled) papers as dashed question-boxes, and only that render draws
     them. The shared ``gaia inspect starmap`` path has no fog nodes, so it
     leaves this False and the row is omitted.
     """
-    # (kind, fill, line, label) — kind drives the icon shape; label includes
-    # leading symbol for ellipse / diamond / hex-* / root rows.
-    rows: list[tuple[str, str, str, str]] = [
-        (
-            "box-premise",
-            _LEGEND_PREMISE_FILL,
-            _LEGEND_PREMISE_LINE,
-            "premise · no upstream strategy/operator",
-        ),
-        (
-            "box-derived",
-            _LEGEND_DERIVED_FILL,
-            _LEGEND_DERIVED_LINE,
-            "derived · ≥1 upstream strategy/operator",
-        ),
-        ("box-root", _LEGEND_ROOT_FILL, _LEGEND_ROOT_LINE, "★ root claim · belief-prop seed"),
-        ("ellipse", _LEGEND_STRAT_FILL, _LEGEND_STRAT_LINE, "∴ deduction"),
-        ("diamond", _LEGEND_SUPPORT_FILL, _LEGEND_SUPPORT_LINE, "⊕ support (independent evidence)"),
-        ("hex-contra", _LEGEND_CONTRA_FILL, _LEGEND_CONTRA_LINE, "⊗ contradiction"),
-        ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊙ equivalence"),
-        ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "⊃ implication"),
-        ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "¬ complement"),
-        ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "∨ disjunction"),
-        ("hex-neutral", _LEGEND_NEUTRAL_FILL, _LEGEND_NEUTRAL_LINE, "∧ conjunction"),
-    ]
-    if include_frontier:
-        rows.append(("box-fog", _LEGEND_FOG_FILL, _LEGEND_FOG_LINE, "frontier · unexplored (fog)"))
+    rows = _legend_rows(
+        include_frontier=include_frontier,
+        include_effect_edges=include_effect_edges,
+        strategy_types=strategy_types,
+        operator_types=operator_types,
+    )
     pad_x, pad_y = 16, 14
     row_h = 26
     icon_w = 32
@@ -248,7 +351,7 @@ def _build_legend_svg(include_frontier: bool = False) -> str:
     )
     y = pad_y + 14 + 14
 
-    for kind, fill, line, label in rows:
+    for kind, fill, line, label, _gate in rows:
         cx = pad_x + icon_w / 2
         cy = y + row_h / 2
         if kind in ("box-premise", "box-derived"):
@@ -260,6 +363,10 @@ def _build_legend_svg(include_frontier: bool = False) -> str:
             parts.append(
                 f'<rect x="{pad_x}" y="{y + 4}" width="{icon_w}" height="{row_h - 8}" rx="3" '
                 f'fill="{fill}" stroke="{line}" stroke-width="1.4" stroke-dasharray="4,2"/>'
+            )
+        elif kind == "line":
+            parts.append(
+                f'<rect x="{pad_x}" y="{cy - 2}" width="{icon_w}" height="4" rx="2" fill="{fill}"/>'
             )
         elif kind == "box-root":
             parts.append(
@@ -334,19 +441,34 @@ def _build_legend_svg(include_frontier: bool = False) -> str:
     return "\n" + "".join(parts) + "\n"
 
 
-def inject_legend(svg_text: str, *, include_frontier: bool = False) -> str:
+def inject_legend(
+    svg_text: str,
+    *,
+    include_frontier: bool = False,
+    include_effect_edges: bool = False,
+    strategy_types: frozenset[str] | None = None,
+    operator_types: frozenset[str] | None = None,
+) -> str:
     """Inject the stellaris legend ``<g>`` before the closing ``</svg>``.
 
     When ``include_frontier`` is True the legend gains a dashed "fog" row for
     the explorer's open-frontier overlay; default False keeps the plain starmap
-    legend unchanged.
+    legend unchanged. ``include_effect_edges`` adds the support/lowering
+    edge-color rows for graphs whose conclusion edges carry a computed effect.
+    ``strategy_types``/``operator_types`` are forwarded to
+    :func:`_build_legend_svg` to drop glyph rows the graph doesn't use.
 
     Idempotent: if a ``<g id="legend">`` is already present, returns the
     input unchanged.
     """
     if 'id="legend"' in svg_text:
         return svg_text
-    legend = _build_legend_svg(include_frontier=include_frontier)
+    legend = _build_legend_svg(
+        include_frontier=include_frontier,
+        include_effect_edges=include_effect_edges,
+        strategy_types=strategy_types,
+        operator_types=operator_types,
+    )
     return re.sub(r"(</svg>)", legend + r"\1", svg_text, count=1)
 
 
@@ -422,7 +544,13 @@ def ensure_contradiction_classes(svg_text: str, contradiction_ids: set[str]) -> 
 
 
 def post_process_stellaris_svg(
-    svg_text: str, dot_source: str | None = None, *, include_frontier: bool = False
+    svg_text: str,
+    dot_source: str | None = None,
+    *,
+    include_frontier: bool = False,
+    include_effect_edges: bool = False,
+    strategy_types: frozenset[str] | None = None,
+    operator_types: frozenset[str] | None = None,
 ) -> str:
     """Apply all stellaris SVG transforms: defs + bg recolour + legend.
 
@@ -435,9 +563,19 @@ def post_process_stellaris_svg(
     ``include_frontier`` (keyword-only, default False) adds the dashed "fog"
     legend row for the explorer render's open-frontier overlay. The shared
     ``gaia inspect starmap`` caller leaves it False so its legend is unchanged.
+
+    ``include_effect_edges``/``strategy_types``/``operator_types`` are
+    forwarded to :func:`inject_legend` so the legend documents the
+    support/lowering edge colors when the graph carries scored edges and only
+    lists glyphs the graph actually uses (defaults keep legacy callers
+    unchanged).
     """
     processed = inject_legend(
-        recolor_background(inject_defs(svg_text)), include_frontier=include_frontier
+        recolor_background(inject_defs(svg_text)),
+        include_frontier=include_frontier,
+        include_effect_edges=include_effect_edges,
+        strategy_types=strategy_types,
+        operator_types=operator_types,
     )
     if dot_source is not None:
         processed = ensure_contradiction_classes(
