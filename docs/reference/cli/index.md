@@ -15,7 +15,7 @@ organized into explicit top-level groups:
 | [inquiry](inquiry.md) | `focus` / `review` / `obligation [add\|list\|close]` / `hypothesis [add\|list\|remove]` / `tactics log` / `reject` | Local semantic-inquiry loop *(unchanged)* |
 | [pkg](pkg.md) | `add` / `add-import` / `add-module` / `register` / `scaffold` | Install dependencies, manage package modules/imports, publish, and bootstrap packages |
 | [search](search.md) | `lkm [docs\|knowledge\|reasoning\|nodes\|package\|auth]` | Retrieve remote knowledge candidates for Gaia authoring; future home for local package search |
-| [extract](extract.md) | `docs` / `submit` / `status` / `result` | Extract knowledge from a local PDF via the asynchronous LKM parse endpoints |
+| [extract](extract.md) | `docs` / `submit` / `status` / `result` | Extract knowledge from a local PDF or parser markdown via the asynchronous LKM parse endpoints |
 | [bayes](bayes.md) | `model` / `compare` / distribution literals | Bayesian model and distribution authoring helpers |
 | [trace](trace.md) | `verify` / `review` / `show` | ARM Trace tooling *(independent sub-app; unchanged)* |
 

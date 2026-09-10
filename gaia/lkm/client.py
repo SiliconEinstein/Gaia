@@ -136,14 +136,15 @@ class LKMClient:
         method: str,
         path: str,
         *,
-        files: dict[str, tuple[str, Any, str]],
+        files: dict[str, tuple[str, Any, str]] | None = None,
         data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Perform a multipart/form-data call and return the parsed JSON.
+        """Perform a form upload and return the parsed JSON.
 
         ``files`` maps a form field to ``(filename, file object, content type)``.
         httpx sets the multipart boundary itself, so no content-type header is
-        supplied here.
+        supplied here. Content-only submits omit ``files`` and send ``data`` as
+        ``application/x-www-form-urlencoded``, which the parse endpoint accepts.
         """
         if self._client is None:
             raise RuntimeError("LKMClient must be used as a context manager.")
@@ -156,7 +157,7 @@ class LKMClient:
             resp = self._client.request(
                 method,
                 url,
-                files=files,
+                files=files or None,
                 data=data,
                 headers=headers,
                 timeout=httpx.Timeout(

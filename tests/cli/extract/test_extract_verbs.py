@@ -85,17 +85,13 @@ class _FakeClient:
         files: dict[str, tuple[str, Any, str]],
         data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        filename, handle, content_type = files["file"]
-        _FakeClient.calls.append(
-            {
-                "method": method,
-                "path": path,
-                "filename": filename,
-                "content_type": content_type,
-                "body": handle.read(),
-                "data": data,
-            }
-        )
+        rec: dict[str, Any] = {"method": method, "path": path, "data": data}
+        if files and "file" in files:
+            filename, handle, content_type = files["file"]
+            rec["filename"] = filename
+            rec["content_type"] = content_type
+            rec["body"] = handle.read()
+        _FakeClient.calls.append(rec)
         return self._next()
 
 
@@ -118,6 +114,13 @@ def _install_client(
 def pdf(tmp_path: Path) -> Path:
     path = tmp_path / "paper.pdf"
     path.write_bytes(b"%PDF-1.7 body")
+    return path
+
+
+@pytest.fixture
+def markdown(tmp_path: Path) -> Path:
+    path = tmp_path / "paper.md"
+    path.write_text("# Title\n\nsecret-markdown\n", encoding="utf-8")
     return path
 
 
@@ -168,6 +171,9 @@ class TestSubmit:
         # Without --wait, submit prints the full envelope, not just the task id.
         assert "full submit envelope" in stdout
         assert "data.task_id" in stdout
+        assert "--content" in stdout
+        assert "--md5" in stdout
+        assert "--page" in stdout
         # Option help states the same ranges _validate_polling enforces. (The
         # phrases can be split across table-border characters when wrapped, so
         # check the numbers land near their bound rather than one long string.)
@@ -175,7 +181,9 @@ class TestSubmit:
         assert "must be greater than 0" in stdout
         assert "at most" in stdout
         assert "86400" in stdout
-        assert "max 64 MiB, 50 pages" in stdout
+        assert "max 64 MiB" in stdout
+        assert "50-page reject" in stdout
+        assert "PDF-only" in stdout
 
     def test_uploads_pdf_as_multipart_field_file(
         self, monkeypatch: pytest.MonkeyPatch, pdf: Path
@@ -191,7 +199,116 @@ class TestSubmit:
         assert call["filename"] == "paper.pdf"
         assert call["content_type"] == "application/pdf"
         assert call["body"] == b"%PDF-1.7 body"
+        assert call["data"] is None
         assert json.loads(result.stdout)["data"]["task_id"] == "task-1"
+
+    def test_pdf_plus_content_sends_text_field_and_omits_unset_md5_page(
+        self, monkeypatch: pytest.MonkeyPatch, pdf: Path, markdown: Path
+    ) -> None:
+        _install_client(monkeypatch, responses=[_QUEUED])
+
+        result = runner.invoke(
+            app, ["extract", "submit", str(pdf), "--content", str(markdown)]
+        )
+
+        assert result.exit_code == 0, result.output
+        call = _FakeClient.calls[0]
+        assert call["filename"] == "paper.pdf"
+        assert call["body"] == b"%PDF-1.7 body"
+        assert call["data"] == {"content": "# Title\n\nsecret-markdown\n"}
+
+    def test_pdf_plus_content_forwards_explicit_md5_and_page(
+        self, monkeypatch: pytest.MonkeyPatch, pdf: Path, markdown: Path
+    ) -> None:
+        _install_client(monkeypatch, responses=[_QUEUED])
+        digest = "0123456789abcdef0123456789abcdef"
+
+        result = runner.invoke(
+            app,
+            [
+                "extract",
+                "submit",
+                str(pdf),
+                "--content",
+                str(markdown),
+                "--md5",
+                digest,
+                "--page",
+                "12",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _FakeClient.calls[0]["data"] == {
+            "content": "# Title\n\nsecret-markdown\n",
+            "md5": digest,
+            "page": "12",
+        }
+
+    def test_content_only_omits_file_and_sends_md5_page(
+        self, monkeypatch: pytest.MonkeyPatch, markdown: Path
+    ) -> None:
+        _install_client(monkeypatch, responses=[_QUEUED])
+        digest = "0123456789abcdef0123456789abcdef"
+
+        result = runner.invoke(
+            app,
+            [
+                "extract",
+                "submit",
+                "--content",
+                str(markdown),
+                "--md5",
+                digest,
+                "--page",
+                "8",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        call = _FakeClient.calls[0]
+        assert "filename" not in call
+        assert call["data"] == {
+            "content": "# Title\n\nsecret-markdown\n",
+            "md5": digest,
+            "page": "8",
+        }
+
+    def test_content_at_file_and_literal(
+        self, monkeypatch: pytest.MonkeyPatch, markdown: Path
+    ) -> None:
+        _install_client(monkeypatch, responses=[_QUEUED])
+
+        via_at = runner.invoke(app, ["extract", "submit", "--content", f"@{markdown}"])
+        assert via_at.exit_code == 0, via_at.output
+        assert _FakeClient.calls[0]["data"] == {"content": "# Title\n\nsecret-markdown\n"}
+
+        _FakeClient.calls = []
+        literal = runner.invoke(app, ["extract", "submit", "--content", "# literal"])
+        assert literal.exit_code == 0, literal.output
+        assert _FakeClient.calls[0]["data"] == {"content": "# literal"}
+
+    def test_rejects_empty_submit_and_bad_md5_and_missing_content(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        _install_client(monkeypatch, responses=[_QUEUED])
+
+        empty = runner.invoke(app, ["extract", "submit"])
+        assert empty.exit_code == 4, empty.output
+        assert "requires a PDF argument, or --content" in empty.output
+
+        bad = runner.invoke(
+            app, ["extract", "submit", "--content", "# x", "--md5", "not-md5"]
+        )
+        assert bad.exit_code == 4, bad.output
+        assert "32-char hex digest" in bad.output
+
+        missing = runner.invoke(
+            app, ["extract", "submit", "--content", str(tmp_path / "missing.md")]
+        )
+        assert missing.exit_code == 4, missing.output
+        assert "cannot open content file" in missing.output
+        assert _FakeClient.calls == []
 
     def test_emits_raw_json_with_polling_hint_on_stderr(
         self, monkeypatch: pytest.MonkeyPatch, pdf: Path
@@ -219,7 +336,7 @@ class TestSubmit:
         [
             ("lkm", "already extracted in the LKM corpus"),
             ("local", "earlier submission of this same PDF"),
-            (None, "Resubmitting a PDF reuses the existing extraction"),
+            (None, "Resubmitting this same PDF or content identity reuses the existing extraction"),
         ],
     )
     def test_cache_hit_points_at_the_result_and_names_its_source(

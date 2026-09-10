@@ -58,8 +58,8 @@ def _cache_detail(payload: dict[str, Any]) -> str:
     if source == "lkm":
         return "This paper was already extracted in the LKM corpus."
     if source == "local":
-        return "An earlier submission of this same PDF produced it."
-    return "Resubmitting a PDF reuses the existing extraction instead of redoing it."
+        return "An earlier submission of this same PDF or content identity produced it."
+    return "Resubmitting this same PDF or content identity reuses the existing extraction instead of redoing it."
 
 
 def _hint_block(title: str, command: str, detail: str | None = None) -> str:

@@ -1,8 +1,8 @@
 """``gaia extract submit`` — POST /parse/task.
 
-Upload a local PDF and queue it for LKM knowledge extraction. Acceptance is
-not completion: the verb returns a task id, and ``--wait`` is the only mode
-that blocks until the task reaches a terminal state.
+Queue LKM knowledge extraction from a PDF, parser markdown, or both.
+Acceptance is not completion: the verb returns a task id, and ``--wait`` is
+the only mode that blocks until the task reaches a terminal state.
 """
 
 from __future__ import annotations
@@ -25,6 +25,9 @@ from gaia.cli.commands.extract._shared import (
     KNOWN_STATUSES,
     TASK_PATH,
     TERMINAL_STATUSES,
+    normalize_submit_md5,
+    normalize_submit_page,
+    resolve_submit_content,
     task_field,
     validate_pdf,
     validate_returned_task_id,
@@ -38,20 +41,30 @@ _MAX_TIMEOUT = 86400.0
 _SUBMIT_EPILOG = (
     "Examples:\n\n"
     "  gaia extract submit paper.pdf\n\n"
-    "  gaia extract submit paper.pdf --wait\n\n"
+    "  gaia extract submit paper.pdf --content paper.md\n\n"
+    "  gaia extract submit --content paper.md --md5 <32-hex> --page 12\n\n"
     "What you have:\n\n"
     "  a local PDF, return the task id now  ->  submit\n\n"
     "  a local PDF, block until terminal    ->  submit --wait\n\n"
+    "  parser markdown                      ->  --content (path, @file, or literal)\n\n"
+    "  content-only, try the PDF cache      ->  --content --md5, optional --page\n\n"
     "  already have a task_id               ->  status / result\n\n"
-    "Use this when you hold a PDF that may not be in the LKM corpus yet. "
-    "Resubmitting the same PDF reuses the existing extraction rather than "
-    "starting over, so an already-processed PDF comes back terminal "
-    "immediately with `cache_hit`. `cache_source` says where that reuse came "
-    "from: `lkm` when the paper was already extracted in the corpus, `local` "
-    "when an earlier submission of this same PDF produced it. Resubmitting "
-    "will not hurry a running task along: the same user and PDF still "
-    "queued or running returns business error 290020 with the existing "
-    "task_id.\n\n"
+    "--content is the API text field, not a second file part. A path or @file "
+    "is read locally and posted as content. Even with --content, pass the PDF "
+    "when you have it: that raises the chance of a cache hit and skips LAS "
+    "OCR. --md5 is the PDF's 32-char hex digest; use it on content-only "
+    "submits. --page is optional. When a PDF is given, both flags are unused "
+    "— do not pass them. The 50-page reject applies only to PDF-only "
+    "submits.\n\n"
+    "Use this when the paper may not be in the LKM corpus yet. Resubmitting "
+    "the same identity reuses the existing extraction rather than starting "
+    "over, so an already-processed paper comes back terminal immediately with "
+    "`cache_hit`. `cache_source` says where that reuse came from: `lkm` when "
+    "the paper was already extracted in the corpus, `local` when an earlier "
+    "submission of this same PDF or content identity produced it. "
+    "Resubmitting will not hurry a running task along: the same user and "
+    "identity still queued or running returns business error 290020 with the "
+    "existing task_id.\n\n"
     "Without --wait, submit returns immediately with the full submit envelope "
     "on stdout (not just the task id). Save `data.task_id` from it and poll "
     "with `gaia extract status`, or pass --wait to have this command poll for "
@@ -63,9 +76,31 @@ _SUBMIT_EPILOG = (
 
 def submit_command(
     pdf: Annotated[
-        Path,
-        typer.Argument(help="Local PDF to extract (max 64 MiB, 50 pages)."),
-    ],
+        Path | None,
+        typer.Argument(help="Local PDF to extract (max 64 MiB; 50-page reject is PDF-only)."),
+    ] = None,
+    content: Annotated[
+        str | None,
+        typer.Option(
+            "--content",
+            help=(
+                "API content field: path, @file, or literal markdown (file is "
+                "read locally). Skips LAS OCR. Prefer also passing the PDF; "
+                "that raises the chance of a cache hit."
+            ),
+        ),
+    ] = None,
+    md5: Annotated[
+        str | None,
+        typer.Option(
+            "--md5",
+            help="PDF MD5 (32-char hex). Content-only: you may pass it. Unused when a PDF is given.",
+        ),
+    ] = None,
+    page: Annotated[
+        int | None,
+        typer.Option("--page", help="Optional. Unused when a PDF is given."),
+    ] = None,
     index: Annotated[
         str,
         typer.Option("--index", "--server", help="Configured LKM index id."),
@@ -104,20 +139,45 @@ def submit_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Submit a local PDF for LKM knowledge extraction.
+    """Submit a local PDF or parser markdown for knowledge extraction.
 
     POST /parse/task.
     """
     index_id = validate_lkm_index(index)
-    validate_pdf(pdf)
+    content_text = resolve_submit_content(content)
+    if pdf is None and content_text == "":
+        typer.echo("Error: requires a PDF argument, or --content.", err=True)
+        raise typer.Exit(4)
+    if pdf is not None:
+        validate_pdf(pdf)
+    digest = normalize_submit_md5(md5)
+    page_field = normalize_submit_page(page)
     if wait:
         _validate_polling(poll_interval, timeout)
 
-    with pdf.open("rb") as handle:
+    data: dict[str, str] = {}
+    if content_text:
+        data["content"] = content_text
+    if digest:
+        data["md5"] = digest
+    if page_field is not None:
+        data["page"] = page_field
+
+    if pdf is not None:
+        with pdf.open("rb") as handle:
+            payload = run_multipart_request(
+                "POST",
+                TASK_PATH,
+                files={"file": (pdf.name, handle, "application/pdf")},
+                data=data or None,
+                index_id=index_id,
+            )
+    else:
         payload = run_multipart_request(
             "POST",
             TASK_PATH,
-            files={"file": (pdf.name, handle, "application/pdf")},
+            files=None,
+            data=data or None,
             index_id=index_id,
         )
 

@@ -99,19 +99,21 @@ def run_multipart_request(
     method: str,
     path: str,
     *,
-    files: dict[str, tuple[str, Any, str]],
+    files: dict[str, tuple[str, Any, str]] | None = None,
     data: dict[str, Any] | None = None,
     index_id: str = DEFAULT_LKM_INDEX_ID,
     server_id: str | None = None,
 ) -> dict[str, Any]:
-    """Upload a multipart body to the LKM API under the same exit contract.
+    """Upload a multipart or form body to the LKM API under the same exit contract.
 
     The caller owns the file objects in ``files`` and is responsible for
     closing them; a retry after interactive onboarding rewinds them first.
+    ``files`` may be omitted for content-only submits (form fields in ``data``).
     """
 
     def call(client: LKMClient) -> dict[str, Any]:
-        _rewind(files)
+        if files:
+            _rewind(files)
         return client.request_multipart(method, path, files=files, data=data)
 
     return _call(call, index_id=index_id, server_id=server_id)

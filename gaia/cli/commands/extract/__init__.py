@@ -1,11 +1,11 @@
-"""``gaia extract`` — turn a local PDF into LKM-extracted knowledge.
+"""``gaia extract`` — turn a local PDF or parser markdown into LKM knowledge.
 
 ``gaia search lkm`` queries papers already ingested into LKM. This group is
-the other direction: hand LKM a PDF you hold and get back the research
-questions, conclusions, and reasoning steps it extracts from that file. It is
-a job surface, not a retrieval surface — submission is asynchronous and the
-result is a flat graph rather than search hits — which is why it sits beside
-``search`` instead of inside it.
+the other direction: hand LKM a PDF and/or parser markdown you hold and get
+back the research questions, conclusions, and reasoning steps it extracts.
+It is a job surface, not a retrieval surface — submission is asynchronous
+and the result is a flat graph rather than search hits — which is why it
+sits beside ``search`` instead of inside it.
 """
 
 from __future__ import annotations
@@ -22,19 +22,21 @@ from gaia.cli.commands.extract.submit import _SUBMIT_EPILOG, submit_command
 _EXTRACT_EPILOG = (
     "Examples:\n\n"
     "  gaia extract submit paper.pdf\n\n"
-    "  gaia extract submit paper.pdf --wait\n\n"
+    "  gaia extract submit paper.pdf --content paper.md\n\n"
+    "  gaia extract submit --content paper.md --md5 <32-hex> --page 12\n\n"
     "What you have:\n\n"
     "  a local PDF                   ->  submit\n\n"
+    "  parser markdown               ->  submit --content\n\n"
     "  a task_id from submit         ->  status, or submit --wait\n\n"
     "  a terminal task               ->  result\n\n"
     "  a paper already in the corpus ->  gaia search lkm\n\n"
     "Auth: every call needs a Bohrium access key, the same one "
     "`gaia search lkm` uses. Run `gaia search lkm auth login` to set one up "
     "(or set GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
-    "Flow: `submit` uploads a PDF and returns a task id; `status` reads that "
-    "task once; `result` fetches what it produced. `submit --wait` does the "
-    "polling for you. Extraction commonly takes several minutes to a quarter "
-    "of an hour.\n\n"
+    "Flow: `submit` sends a PDF and/or parser markdown and returns a task "
+    "id; `status` reads that task once; `result` fetches what it produced. "
+    "`submit --wait` does the polling for you. Extraction commonly takes "
+    "several minutes to a quarter of an hour.\n\n"
     "Terminal states are succeeded, partial, and failed. `partial` is a "
     "non-retryable business failure (review, too short, collection); do not "
     "resubmit the same PDF. `failed` is technical and may be submitted again.\n\n"
@@ -49,7 +51,7 @@ _EXTRACT_EPILOG = (
 
 extract_app = typer.Typer(
     name="extract",
-    help="Extract knowledge from a local PDF via Bohrium LKM.",
+    help="Extract knowledge from a local PDF or parser markdown via Bohrium LKM.",
     epilog=_EXTRACT_EPILOG,
     no_args_is_help=True,
 )

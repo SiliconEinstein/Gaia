@@ -19,7 +19,7 @@ _DOCS_EPILOG = (
     "Examples:\n\n"
     "  gaia extract docs\n\n"
     "What you have:\n\n"
-    "  a PDF to extract        ->  submit\n\n"
+    "  a PDF or markdown       ->  submit\n\n"
     "  a task_id               ->  status / result\n\n"
     "  a paper already in LKM  ->  gaia search lkm"
 )
