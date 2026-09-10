@@ -13,6 +13,9 @@ gaia extract result <task-id>        Fetch what the task produced
 gaia extract docs                    Print API documentation links
 ```
 
+These verbs extract from a PDF you hold. A paper already in LKM is
+`gaia search lkm`, not this group.
+
 This is a job surface, not a retrieval surface, which is why it sits beside
 `search` rather than inside it. It is also knowledge extraction rather than
 layout parsing: it returns claims and reasoning, not page text, tables, or

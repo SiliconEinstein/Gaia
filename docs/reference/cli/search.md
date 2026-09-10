@@ -23,6 +23,9 @@ gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
+These verbs query papers already ingested into LKM. A local PDF that may not
+be in the corpus is `gaia extract`, not this group.
+
 The current implementation is an LKM provider adapter. Search-oriented LKM
 verbs write raw LKM JSON to stdout, or to `--out PATH`. Gaia follow-up
 suggestions are printed on stderr by default so stdout stays machine-readable

@@ -41,6 +41,14 @@ SortBy = SearchSortBy
 _MAX_CHAINS_CAP = 100
 
 _REASONING_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm reasoning \"solid state battery dendrite suppression\"\n\n"
+    "  gaia search lkm reasoning --claim-id <gcn_id>\n\n"
+    "What you have:\n\n"
+    "  a topic or claim text   ->  reasoning <query>\n\n"
+    "  a claim id (gcn_...)    ->  reasoning --claim-id\n\n"
+    "  a question id           ->  knowledge, not --claim-id\n\n"
+    "  a paper id from a hit   ->  package\n\n"
     "Use query mode as a search surface for reasoning chains and workflows. "
     "It is parallel to `knowledge <query>`, which searches paper knowledge "
     "items such as conclusions, weak points, highlights, problems, and open "
@@ -52,7 +60,7 @@ _REASONING_EPILOG = (
     "--claim-id mode fetches one claim's backing chains and only accepts "
     "--max-chains plus --sort-by comprehensive|recent.\n\n"
     f"Query API docs: {APIFOX_REASONING_SEARCH_URL}\n\n"
-    f"Claim API docs: {APIFOX_CLAIM_REASONING_URL}\n"
+    f"Claim API docs: {APIFOX_CLAIM_REASONING_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -173,7 +181,10 @@ def reasoning_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Search reasoning chains, or fetch them for one claim with --claim-id."""
+    """Search reasoning chains, or fetch them for one claim with --claim-id.
+
+    Query: POST /reasoning/search. Claim: GET /claims/{id}/reasoning.
+    """
     # A claim id may arrive bare (``gcn_…``) or in the prefixed form printed
     # in search results (``lkm:<index>:gcn_…``). The prefixed form carries its
     # own index; parse it off and reconcile with an explicit --index.

@@ -15,6 +15,16 @@ ENDPOINT_DOCS: tuple[tuple[str, str], ...] = (
 )
 
 
+_DOCS_EPILOG = (
+    "Examples:\n\n"
+    "  gaia extract docs\n\n"
+    "What you have:\n\n"
+    "  a PDF to extract        ->  submit\n\n"
+    "  a task_id               ->  status / result\n\n"
+    "  a paper already in LKM  ->  gaia search lkm"
+)
+
+
 def docs_command() -> None:
     """Print LKM extraction API documentation links."""
     lines = [
@@ -35,5 +45,6 @@ __all__ = [
     "APIFOX_STATUS_URL",
     "APIFOX_SUBMIT_URL",
     "ENDPOINT_DOCS",
+    "_DOCS_EPILOG",
     "docs_command",
 ]

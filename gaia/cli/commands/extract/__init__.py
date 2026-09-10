@@ -12,12 +12,22 @@ from __future__ import annotations
 
 import typer
 
-from gaia.cli.commands.extract.docs import APIFOX_BASE_URL, docs_command
+from gaia.cli.commands.extract.docs import APIFOX_BASE_URL, _DOCS_EPILOG, docs_command
 from gaia.cli.commands.extract.result import _RESULT_EPILOG, result_command
 from gaia.cli.commands.extract.status import _STATUS_EPILOG, status_command
 from gaia.cli.commands.extract.submit import _SUBMIT_EPILOG, submit_command
 
+# Rich reflows a single epilog paragraph: only a blank line (\n\n) starts a
+# new block. Keep examples and the "what you have" rows as their own blocks.
 _EXTRACT_EPILOG = (
+    "Examples:\n\n"
+    "  gaia extract submit paper.pdf\n\n"
+    "  gaia extract submit paper.pdf --wait\n\n"
+    "What you have:\n\n"
+    "  a local PDF                   ->  submit\n\n"
+    "  a task_id from submit         ->  status, or submit --wait\n\n"
+    "  a terminal task               ->  result\n\n"
+    "  a paper already in the corpus ->  gaia search lkm\n\n"
     "Auth: every call needs a Bohrium access key, the same one "
     "`gaia search lkm` uses. Run `gaia search lkm auth login` to set one up "
     "(or set GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
@@ -32,7 +42,7 @@ _EXTRACT_EPILOG = (
     "reasoning, not page text, tables, or formulas.\n\n"
     "Configured indexes: bohrium (default). Set GAIA_LKM_INDEX_<NAME>_URL "
     "to add a named LKM index.\n\n"
-    f"API docs: {APIFOX_BASE_URL}\n"
+    f"API docs: {APIFOX_BASE_URL}\n\n"
     "Endpoint links: gaia extract docs\n\n"
     "Exit codes: 0 ok / 1 business error / 2 transport / 3 no key / 4 bad args."
 )
@@ -44,7 +54,7 @@ extract_app = typer.Typer(
     no_args_is_help=True,
 )
 
-extract_app.command(name="docs")(docs_command)
+extract_app.command(name="docs", epilog=_DOCS_EPILOG)(docs_command)
 extract_app.command(name="submit", epilog=_SUBMIT_EPILOG)(submit_command)
 extract_app.command(name="status", epilog=_STATUS_EPILOG)(status_command)
 extract_app.command(name="result", epilog=_RESULT_EPILOG)(result_command)

@@ -23,6 +23,14 @@ from gaia.cli.commands.search.lkm._shared import (
 )
 
 _REFERENCES_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm references --paper-id <paper_id>\n\n"
+    "  gaia search lkm references --doi 10.1234/example --with-reference\n\n"
+    "What you have:\n\n"
+    "  a paper ID or DOI, cited-by list  ->  references (default)\n\n"
+    "  a paper ID or DOI, forward refs   ->  --with-reference\n\n"
+    "  the extracted knowledge graph     ->  package\n\n"
+    "  a title or package id             ->  not this command\n\n"
     "Use this when you already know paper ids or DOIs and want bibliographic "
     "forward references and/or reverse cited-by lists. This is a paper-card "
     "lookup, not a knowledge graph; use `package` for the extracted LKM paper "
@@ -33,7 +41,7 @@ _REFERENCES_EPILOG = (
     "Defaults match the HTTP API and are always sent: --with-abstract, "
     "--no-with-reference, --with-cited-by. The response uses `data.papers`. "
     "An empty paper id means LKM has not covered that record.\n\n"
-    "API: POST /papers/reference\n"
+    "API: POST /papers/reference\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -93,7 +101,10 @@ def references_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Look up paper references and cited-by lists (POST /papers/reference)."""
+    """Look up paper references and cited-by lists.
+
+    POST /papers/reference.
+    """
     index_id = validate_lkm_index(index)
     paper_ids, dois = validate_reference_seeds(paper_ids, dois)
 

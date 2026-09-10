@@ -31,9 +31,24 @@ from gaia.lkm.credentials import (
 _ENV_VAR = "GAIA_LKM_ACCESS_KEY"
 _COMPAT_ENV_VAR = "LKM_ACCESS_KEY"
 
+_AUTH_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm auth login\n\n"
+    "  gaia search lkm auth status\n\n"
+    "What you have:\n\n"
+    "  no key yet             ->  login\n\n"
+    "  check the stored key   ->  status\n\n"
+    "  replace the key        ->  rotate\n\n"
+    "  remove the stored key  ->  logout\n\n"
+    "The access key lives in `$XDG_CONFIG_HOME/gaia/credentials.toml`. "
+    "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY shadows the file; login / logout / "
+    "rotate refuse while an env var is set."
+)
+
 auth_app = typer.Typer(
     name="auth",
     help="Manage the LKM access key (login / status / logout / rotate).",
+    epilog=_AUTH_EPILOG,
     no_args_is_help=True,
 )
 

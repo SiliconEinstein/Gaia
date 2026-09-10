@@ -23,11 +23,20 @@ from gaia.cli.commands.search.lkm.docs import APIFOX_PAPERS_GRAPH_URL
 
 _TITLE_RESOLVE_CAP = 20
 _PACKAGE_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm package --paper-id <paper_id>\n\n"
+    "  gaia search lkm package --doi 10.1234/example\n\n"
+    "What you have:\n\n"
+    "  a numeric paper ID  ->  --paper-id\n\n"
+    "  a paper:N ref       ->  --package-id\n\n"
+    "  a DOI               ->  --doi\n\n"
+    "  only a title        ->  --title\n\n"
+    "  a local PDF         ->  gaia extract\n\n"
     "Use this when you already know the paper and want the full extracted LKM "
     "paper graph for that source paper. To add that graph to the current Gaia "
     "package, use the suggested "
     "`gaia pkg add --lkm-paper <id>` command printed on stderr.\n\n"
-    f"API docs: {APIFOX_PAPERS_GRAPH_URL}\n"
+    f"API docs: {APIFOX_PAPERS_GRAPH_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )
 
@@ -69,7 +78,10 @@ def package_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Fetch an LKM paper package candidate (POST /papers/graph)."""
+    """Fetch an LKM paper package candidate.
+
+    POST /papers/graph.
+    """
     index_id = validate_lkm_index(index)
     identifiers = {
         "package_id": package_id,

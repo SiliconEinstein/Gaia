@@ -27,6 +27,14 @@ from gaia.cli.commands.extract._shared import (
 from gaia.cli.commands.extract.docs import APIFOX_RESULT_URL
 
 _RESULT_EPILOG = (
+    "Examples:\n\n"
+    "  gaia extract result <task_id>\n\n"
+    "  gaia extract result <task_id> --format graph\n\n"
+    "What you have:\n\n"
+    "  a succeeded task, flat graph   ->  --format local (default)\n\n"
+    "  a succeeded task, nodes/edges  ->  --format graph\n\n"
+    "  still queued or running        ->  status, not result\n\n"
+    "  a non-null global_id           ->  gaia search lkm nodes / pkg add\n\n"
     "Default `--format local` is `variables` / `factors` / `motivations` / "
     "`stats` under `data`. `--format graph` matches `gaia search lkm "
     "package` (`paper` + `addressed_problems` + `open_questions` + "
@@ -39,7 +47,8 @@ _RESULT_EPILOG = (
     "Queued or running: 290017, exit 1 — the task is not lost. `partial` is "
     "a non-retryable business failure; do not resubmit the same PDF. Empty "
     "`files` on partial is expected.\n\n"
-    f"API docs: {APIFOX_RESULT_URL}"
+    f"API docs: {APIFOX_RESULT_URL}\n\n"
+    "Endpoint links: gaia extract docs"
 )
 
 
@@ -64,7 +73,10 @@ def result_command(
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
     ] = None,
 ) -> None:
-    """Fetch what an LKM extraction task produced (GET /parse/task/{task_id}/result)."""
+    """Fetch what an LKM extraction task produced.
+
+    GET /parse/task/{task_id}/result.
+    """
     index_id = validate_lkm_index(index)
     task = validate_task_id(task_id)
     shape = validate_result_format(result_format)

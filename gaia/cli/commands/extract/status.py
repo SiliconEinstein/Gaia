@@ -22,6 +22,12 @@ from gaia.cli.commands.extract._shared import TASK_PATH, validate_task_id
 from gaia.cli.commands.extract.docs import APIFOX_STATUS_URL
 
 _STATUS_EPILOG = (
+    "Examples:\n\n"
+    "  gaia extract status <task_id>\n\n"
+    "What you have:\n\n"
+    "  queued or running  ->  call status again\n\n"
+    "  succeeded          ->  result\n\n"
+    "  partial or failed  ->  result; do not resubmit on partial\n\n"
     "`status` reads the task once and exits; it does not block. Use "
     "`gaia extract submit --wait` when you want the CLI to poll for you.\n\n"
     "`stage` is progress narration (metadata, ocr, step0-step4, graph, done); "
@@ -29,7 +35,8 @@ _STATUS_EPILOG = (
     "`step_durations` lists the pipeline steps that have finished so far, in "
     "order, with their `duration_ms` — measured progress for a task that has "
     "been running a while.\n\n"
-    f"API docs: {APIFOX_STATUS_URL}"
+    f"API docs: {APIFOX_STATUS_URL}\n\n"
+    "Endpoint links: gaia extract docs"
 )
 
 
@@ -51,7 +58,10 @@ def status_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Check one LKM extraction task (GET /parse/task/{task_id})."""
+    """Check one LKM extraction task.
+
+    GET /parse/task/{task_id}.
+    """
     index_id = validate_lkm_index(index)
     task = validate_task_id(task_id)
     payload = run_request("GET", f"{TASK_PATH}/{task}", index_id=index_id)

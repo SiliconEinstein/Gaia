@@ -68,6 +68,14 @@ DEFAULT_SEARCH_SORT_CHOICE = SearchSortBy(DEFAULT_SEARCH_SORT_BY)
 
 
 _KNOWLEDGE_EPILOG = (
+    "Examples:\n\n"
+    "  gaia search lkm knowledge \"solid state battery dendrite suppression\"\n\n"
+    "  gaia search lkm knowledge \"unresolved battery failure\" --scopes open_question\n\n"
+    "What you have:\n\n"
+    "  a research question or claim text  ->  knowledge (this command)\n\n"
+    "  a claim id from a hit              ->  reasoning --claim-id\n\n"
+    "  a numeric paper ID from a hit      ->  package, references\n\n"
+    "  a local PDF                        ->  gaia extract\n\n"
     "Use this surface when you need LKM-grounded paper knowledge items: "
     "conclusion claims, weak-point / highlight claims, problems, and open "
     "questions from papers. Use --scopes question for all research questions, "
@@ -85,7 +93,7 @@ _KNOWLEDGE_EPILOG = (
     "Use --scopes abstract for paper-level abstract hits. Treat abstracts as "
     "paper context, not Gaia claims; same-paper `related` hits are folded "
     "context, not cross-paper recommendations.\n\n"
-    f"API docs: {APIFOX_SEARCH_URL}\n"
+    f"API docs: {APIFOX_SEARCH_URL}\n\n"
     "Endpoint links: gaia search lkm docs\n\n"
     "Note: `score` / `rerank_score` are retrieval ranking signals, not probabilities — "
     "do not pass to Gaia priors."
@@ -222,7 +230,10 @@ def knowledge_command(
         typer.Option("--no-hint", help="Suppress Gaia follow-up suggestions on stderr."),
     ] = False,
 ) -> None:
-    """Search LKM paper knowledge items (POST /search)."""
+    """Search LKM paper knowledge items.
+
+    POST /search.
+    """
     index_id = validate_lkm_index(index)
     if keywords and len(keywords) > MAX_KEYWORDS:
         typer.echo(
