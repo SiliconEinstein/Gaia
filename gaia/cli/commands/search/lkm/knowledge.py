@@ -75,7 +75,7 @@ _KNOWLEDGE_EPILOG = (
     "  a research question or claim text  ->  knowledge (this command)\n\n"
     "  a claim id from a hit              ->  reasoning --claim-id\n\n"
     "  a numeric paper ID from a hit      ->  package, references\n\n"
-    "  a local PDF                        ->  gaia extract\n\n"
+    "  a local PDF or parser markdown     ->  gaia extract\n\n"
     "Use this surface when you need LKM-grounded paper knowledge items: "
     "conclusion claims, weak-point / highlight claims, problems, and open "
     "questions from papers. Use --scopes question for all research questions, "

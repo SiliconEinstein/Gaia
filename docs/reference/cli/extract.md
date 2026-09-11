@@ -47,7 +47,7 @@ locally and posted as `content`; literal markdown is sent as-is. Passing
 have it — that raises the chance of a cache hit.
 
 `--md5` is the PDF's 32-character hex digest. Use it on content-only
-submits to try the PDF-identity cache. `--page` is optional. When a PDF is
+submits to try the PDF cache. `--page` is optional. When a PDF is
 given, both flags are unused — do not pass them; the service derives them
 from the file. The CLI never hashes the PDF or counts its pages.
 
@@ -59,10 +59,11 @@ carries `task_id`, `pdf_md5`, `status`, `cache_hit`, `cache_source`, and
 
 Acceptance is not completion. Without `--wait`, `submit` returns immediately
 with the full envelope above on stdout — save `data.task_id` from it and poll
-yourself with `gaia extract status`. Resubmitting the same identity reuses
-the existing extraction instead of starting over — an already-processed
-paper comes back terminal immediately with `cache_hit: true`. Resubmitting
-is not a way to hurry a running task along: the same user and identity still
+yourself with `gaia extract status`. Resubmitting the same PDF or
+`--content` body reuses the existing extraction instead of starting over —
+an already-processed paper comes back terminal immediately with
+`cache_hit: true`. Resubmitting is not a way to hurry a running task along:
+the same user sending the same PDF or `--content` body while it is still
 `queued` or `running` returns business error `290020` with the existing
 `task_id`.
 
@@ -72,7 +73,7 @@ from:
 | `cache_source` | Meaning |
 |---|---|
 | `lkm` | The paper was already extracted in the LKM corpus; the graph is served from there and no pipeline runs |
-| `local` | An earlier submission of this same PDF or content identity produced it |
+| `local` | An earlier submission of this same PDF or `--content` body produced it |
 
 An `lkm` hit is normally available immediately. A `local` hit depends on how
 far that earlier task got, so still branch on `status`.
@@ -103,17 +104,18 @@ One read, no polling. Branch on `status`, not on `stage`:
 |---|---|
 | `queued` / `running` | Still working; call again |
 | `succeeded` | Terminal; the full graph is available |
-| `partial` | Terminal, non-retryable business failure; do not resubmit the same PDF |
+| `partial` | Terminal, non-retryable business failure; do not resubmit the same PDF or `--content` body |
 | `failed` | Terminal; see `failed_reason` |
 
-`stage` (`metadata`, `ocr`, `step0`–`step4`, `graph`, `done`) is progress
-narration for humans, not a control signal.
+`stage` is progress narration for humans, not a control signal. Names
+include `metadata`, `ocr`, `step0`–`step4`, `step2_3`, `graph`, and `done`;
+the list is not exhaustive.
 
 `step_durations` is the measured half of that progress: the pipeline steps
-that have finished so far, in `ocr` → `step0` → `step1` → `step2` → `step3` →
-`step4` → `graph` order, each as `{"step": ..., "duration_ms": ...}`. Only
+that have finished so far, each as `{"step": ..., "duration_ms": ...}`. Only
 succeeded and skipped steps appear, and `metadata` is excluded because that
-work happens during submit. `status` and `result` both return it.
+work happens during submit. Combined names such as `step2_3` can appear.
+`status` and `result` both return it.
 
 Extraction commonly takes several minutes to a quarter of an hour.
 
@@ -128,8 +130,11 @@ gaia extract result <task-id> --format graph
 `stats` under `data`. `--format graph` matches `gaia search lkm package`:
 `paper` + `addressed_problems` + `open_questions` + `graph.nodes` /
 `graph.edges`. `paper` is null unless the extraction was reused from a paper
-already in the corpus, so branch on `graph` rather than on `paper`. Format only
-changes a succeeded payload; an unknown value exits 4 before any request.
+already in the corpus, so branch on `graph` rather than on `paper`. A
+succeeded envelope also carries `task_id`, `status`, `cache_hit`,
+`cache_source`, and `step_durations`. Status responses do not include the
+cache fields. Format only changes a succeeded payload; an unknown value
+exits 4 before any request.
 
 Node `local_id` values and graph node `id`s such as `paper:6::P1` are
 file-local. Only a non-null `global_id` is an LKM id you can pass to
@@ -138,8 +143,9 @@ file-local. Only a non-null `global_id` is an LKM id you can pass to
 A partial or failed task ignores `--format` and returns `task_id`, `status`,
 `stage`, `failed_reason`, `step_durations`, and `files`. `partial` is a
 non-retryable business failure (review, too short, collection); do not
-resubmit the same PDF. `failed` is technical and the same file may be
-submitted again. Empty `files` on partial is expected.
+resubmit the same PDF or `--content` body. `failed` is technical and the
+same PDF or `--content` body may be submitted again. Empty `files` on
+partial is expected.
 
 Asking for the result of a queued or running task is a business error (code
 `290017`, exit 1). It does not mean the task was lost. A task id that does not

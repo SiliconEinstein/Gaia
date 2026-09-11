@@ -336,7 +336,7 @@ class TestSubmit:
         [
             ("lkm", "already extracted in the LKM corpus"),
             ("local", "earlier submission of this same PDF"),
-            (None, "Resubmitting this same PDF or content identity reuses the existing extraction"),
+            (None, "Resubmitting this same PDF or --content body reuses the existing extraction"),
         ],
     )
     def test_cache_hit_points_at_the_result_and_names_its_source(

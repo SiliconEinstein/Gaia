@@ -25,7 +25,7 @@ TASK_PATH = "/parse/task"
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 
 # `partial` is a non-retryable business terminal (review / too short /
-# collection). Resubmitting the same PDF stays partial and does not rerun.
+# collection). Resubmitting the same PDF or --content body stays partial and does not rerun.
 PENDING_STATUSES = frozenset({"queued", "running"})
 TERMINAL_STATUSES = frozenset({"succeeded", "partial", "failed"})
 KNOWN_STATUSES = PENDING_STATUSES | TERMINAL_STATUSES

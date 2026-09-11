@@ -31,7 +31,7 @@ _LKM_EPILOG = (
     "  a research question or claim text  ->  knowledge, reasoning\n\n"
     "  a numeric paper ID from those hits ->  package, references\n\n"
     "  a global gcn_... / node id         ->  reasoning --claim-id, nodes\n\n"
-    "  a local PDF                        ->  gaia extract\n\n"
+    "  a local PDF or parser markdown     ->  gaia extract\n\n"
     "Auth: every call needs a Bohrium access key. Run "
     "`gaia search lkm auth login` to set one up (or set "
     "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"

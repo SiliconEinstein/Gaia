@@ -28,7 +28,7 @@ _DOCS_EPILOG = (
     "  gaia search lkm docs\n\n"
     "What you have:\n\n"
     "  a research question  ->  knowledge / reasoning\n\n"
-    "  a local PDF          ->  gaia extract"
+    "  a local PDF or markdown  ->  gaia extract"
 )
 
 

@@ -31,7 +31,7 @@ _PACKAGE_EPILOG = (
     "  a paper:N ref       ->  --package-id\n\n"
     "  a DOI               ->  --doi\n\n"
     "  only a title        ->  --title\n\n"
-    "  a local PDF         ->  gaia extract\n\n"
+    "  a local PDF or parser markdown ->  gaia extract\n\n"
     "Use this when you already know the paper and want the full extracted LKM "
     "paper graph for that source paper. To add that graph to the current Gaia "
     "package, use the suggested "

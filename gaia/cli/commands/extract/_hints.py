@@ -15,7 +15,7 @@ def submit_hint(payload: dict[str, Any], *, index_id: str) -> str | None:
     status = task_field(payload, "status")
     if status in {"succeeded", "partial"}:
         return _hint_block(
-            "Suggested: the extraction is already done for this PDF",
+            "Suggested: the extraction is already done for this PDF or --content body",
             f"gaia extract result {task_id} --index {index_id}",
             _cache_detail(payload),
         )
@@ -37,7 +37,7 @@ def status_hint(payload: dict[str, Any], *, index_id: str, task_id: str) -> str 
     if status in {"succeeded", "partial"}:
         detail = None
         if status == "partial":
-            detail = "partial is a non-retryable business failure; do not resubmit the same PDF."
+            detail = "partial is a non-retryable business failure; do not resubmit the same PDF or --content body."
         return _hint_block(
             "Suggested: fetch what the task produced",
             f"gaia extract result {task_id} --index {index_id}",
@@ -58,8 +58,8 @@ def _cache_detail(payload: dict[str, Any]) -> str:
     if source == "lkm":
         return "This paper was already extracted in the LKM corpus."
     if source == "local":
-        return "An earlier submission of this same PDF or content identity produced it."
-    return "Resubmitting this same PDF or content identity reuses the existing extraction instead of redoing it."
+        return "An earlier submission of this same PDF or --content body produced it."
+    return "Resubmitting this same PDF or --content body reuses the existing extraction instead of redoing it."
 
 
 def _hint_block(title: str, command: str, detail: str | None = None) -> str:

@@ -39,7 +39,7 @@ _EXTRACT_EPILOG = (
     "several minutes to a quarter of an hour.\n\n"
     "Terminal states are succeeded, partial, and failed. `partial` is a "
     "non-retryable business failure (review, too short, collection); do not "
-    "resubmit the same PDF. `failed` is technical and may be submitted again.\n\n"
+    "resubmit the same PDF or `--content` body. `failed` is technical and may be submitted again.\n\n"
     "This is knowledge extraction, not layout parsing: it returns claims and "
     "reasoning, not page text, tables, or formulas.\n\n"
     "Configured indexes: bohrium (default). Set GAIA_LKM_INDEX_<NAME>_URL "
