@@ -199,7 +199,6 @@ class TestPolicy:
     ) -> None:
         assert build_lkm_filters(
             visibility="public",
-            role=None,
             paper_ids=None,
             dois=None,
             title=None,
@@ -211,7 +210,6 @@ class TestPolicy:
     def test_filter_policy_includes_new_lkm_filters_when_explicit(self) -> None:
         assert build_lkm_filters(
             visibility=None,
-            role="conclusion",
             paper_ids=["123"],
             dois=["10.1038/example"],
             title="phase stability",
@@ -219,7 +217,6 @@ class TestPolicy:
             publication_date_end="2024-12-31",
             limit_publication_date=False,
         ) == {
-            "role": "conclusion",
             "paper_ids": ["123"],
             "dois": ["10.1038/example"],
             "title": "phase stability",
@@ -368,8 +365,6 @@ class TestKnowledge:
                 "--keywords",
                 "b",
                 "--reasoning-only",
-                "--role",
-                "conclusion",
                 "--include-paper-enrich",
                 "--offset",
                 "5",
@@ -384,7 +379,7 @@ class TestKnowledge:
         assert body["keywords"] == ["a", "b"]
         assert body["reasoning_only"] is True
         assert body["include_paper_enrich"] is True
-        assert body["filters"]["role"] == "conclusion"
+        assert "role" not in body["filters"]
         assert body["offset"] == 5 and body["limit"] == 3
 
     def test_search_update_options_build_body(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -542,7 +537,7 @@ class TestKnowledge:
         assert "reasoning-only" in result.output
         assert _FakeClient.last_call == {}
 
-    def test_rejects_reasoning_only_with_conclusion_scope(
+    def test_allows_reasoning_only_with_conclusion_scope(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(monkeypatch)
@@ -558,11 +553,13 @@ class TestKnowledge:
                 "--reasoning-only",
             ],
         )
-        assert result.exit_code == 4, result.output
-        assert "Use `--scopes conclusion` without --reasoning-only" in result.output
-        assert _FakeClient.last_call == {}
+        assert result.exit_code == 0, result.output
+        body = _FakeClient.last_call["json_body"]
+        assert body["scopes"] == ["conclusion"]
+        assert body["reasoning_only"] is True
+        assert "role" not in body["filters"]
 
-    def test_rejects_reasoning_only_with_non_conclusion_role(
+    def test_ignores_deprecated_role_and_does_not_send_filters_role(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(monkeypatch)
@@ -578,9 +575,11 @@ class TestKnowledge:
                 "highlight",
             ],
         )
-        assert result.exit_code == 4, result.output
-        assert "--reasoning-only requires --role to be omitted or `conclusion`" in result.output
-        assert _FakeClient.last_call == {}
+        assert result.exit_code == 0, result.output
+        assert "--role is ignored" in result.stderr
+        body = _FakeClient.last_call["json_body"]
+        assert body["reasoning_only"] is True
+        assert "role" not in body["filters"]
 
     def test_rejects_retired_action_scope_before_request(
         self, monkeypatch: pytest.MonkeyPatch
@@ -674,6 +673,52 @@ class TestKnowledge:
             args += ["--keywords", f"k{i}"]
         result = runner.invoke(app, args)
         assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_keyword_too_long_exits_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "knowledge", "q", "--keywords", "x" * 101],
+        )
+        assert result.exit_code == 4, result.output
+        assert "at most 100 bytes" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_invalid_publication_date_exits_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            ["search", "lkm", "knowledge", "q", "--publication-date-start", "2020/01/01"],
+        )
+        assert result.exit_code == 4, result.output
+        assert "YYYY-MM-DD" in result.output
+        assert _FakeClient.last_call == {}
+
+    def test_reversed_publication_dates_exit_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(
+            app,
+            [
+                "search",
+                "lkm",
+                "knowledge",
+                "q",
+                "--publication-date-start",
+                "2024-12-31",
+                "--publication-date-end",
+                "2020-01-01",
+            ],
+        )
+        assert result.exit_code == 4, result.output
+        assert "on or before" in result.output
+        assert _FakeClient.last_call == {}
 
     def test_limit_out_of_range_exits_4_before_request(
         self, monkeypatch: pytest.MonkeyPatch
@@ -689,6 +734,15 @@ class TestKnowledge:
         _install_client(monkeypatch)
         result = runner.invoke(app, ["search", "lkm", "knowledge", "q", "--offset", "-1"])
         assert result.exit_code == 4, result.output
+        assert _FakeClient.last_call == {}
+
+    def test_offset_above_lkm_max_exits_4_before_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "knowledge", "q", "--offset", "2001"])
+        assert result.exit_code == 4, result.output
+        assert "2000" in result.output
         assert _FakeClient.last_call == {}
 
     def test_nested_error_message_is_rendered(self, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -19,13 +19,17 @@ from gaia.cli.commands.search.lkm._indexes import normalize_lkm_index_id
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     MAX_DOIS,
+    MAX_KEYWORD_LENGTH,
     MAX_KEYWORDS,
+    MAX_OFFSET,
     MAX_PAPER_IDS,
     emit,
     run_request,
     validate_dois,
+    validate_keywords,
     validate_lkm_index,
     validate_paper_ids,
+    validate_publication_dates,
     validate_search_window,
 )
 from gaia.cli.commands.search.lkm.docs import (
@@ -92,7 +96,10 @@ def reasoning_command(
         list[str] | None,
         typer.Option(
             "--keywords",
-            help=f"Keyword for the lexical channel (repeatable, max {MAX_KEYWORDS}).",
+            help=(
+                f"Keyword for the lexical channel (repeatable, max {MAX_KEYWORDS}, "
+                f"each at most {MAX_KEYWORD_LENGTH} bytes)."
+            ),
         ),
     ] = None,
     paper_ids: Annotated[
@@ -166,7 +173,7 @@ def reasoning_command(
     ] = SortBy.COMPREHENSIVE,
     offset: Annotated[
         int,
-        typer.Option("--offset", help="Query-search pagination offset (max 10000)."),
+        typer.Option("--offset", help=f"Query-search pagination offset (max {MAX_OFFSET})."),
     ] = 0,
     limit: Annotated[
         int,
@@ -367,15 +374,11 @@ def _search_reasoning(
     if not query.strip():
         typer.echo("Error: query must be non-empty.", err=True)
         raise typer.Exit(4)
-    if keywords and len(keywords) > MAX_KEYWORDS:
-        typer.echo(
-            f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
-            err=True,
-        )
-        raise typer.Exit(4)
+    validate_keywords(keywords)
     validate_search_window(offset, limit)
     validate_paper_ids(paper_ids)
     validate_dois(dois)
+    validate_publication_dates(publication_date_start, publication_date_end)
 
     body = build_reasoning_search_body(
         query=query,

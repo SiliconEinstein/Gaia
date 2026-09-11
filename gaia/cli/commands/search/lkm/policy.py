@@ -25,7 +25,6 @@ def build_knowledge_search_body(
     reasoning_only: bool,
     include_paper_enrich: bool,
     visibility: str,
-    role: str | None,
     paper_ids: list[str] | None,
     dois: list[str] | None,
     title: str | None,
@@ -51,7 +50,6 @@ def build_knowledge_search_body(
         body["include_paper_enrich"] = True
     body["filters"] = build_lkm_filters(
         visibility=visibility,
-        role=role,
         paper_ids=paper_ids,
         dois=dois,
         title=title,
@@ -90,7 +88,6 @@ def build_reasoning_search_body(
         body["keywords"] = list(keywords)
     filters = build_lkm_filters(
         visibility=None,
-        role=None,
         paper_ids=paper_ids,
         dois=dois,
         title=title,
@@ -106,7 +103,6 @@ def build_reasoning_search_body(
 def build_lkm_filters(
     *,
     visibility: str | None,
-    role: str | None,
     paper_ids: list[str] | None,
     dois: list[str] | None,
     title: str | None,
@@ -118,7 +114,6 @@ def build_lkm_filters(
     filters: dict[str, Any] = {}
     optional_fields: tuple[tuple[str, Any], ...] = (
         ("visibility", visibility),
-        ("role", role),
         ("paper_ids", list(paper_ids) if paper_ids else None),
         ("dois", list(dois) if dois else None),
         ("title", title),

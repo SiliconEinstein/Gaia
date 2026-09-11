@@ -17,13 +17,17 @@ from gaia.cli.commands.search.lkm._hints import knowledge_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     MAX_DOIS,
+    MAX_KEYWORD_LENGTH,
     MAX_KEYWORDS,
+    MAX_OFFSET,
     MAX_PAPER_IDS,
     emit,
     run_request,
     validate_dois,
+    validate_keywords,
     validate_lkm_index,
     validate_paper_ids,
+    validate_publication_dates,
     validate_search_window,
 )
 from gaia.cli.commands.search.lkm.docs import APIFOX_SEARCH_URL
@@ -83,10 +87,13 @@ _KNOWLEDGE_EPILOG = (
     "Use --scopes reasoning_chain to include complete chains in this fused search. "
     "`reasoning <query>` remains the dedicated search surface for reasoning chains "
     "and workflows.\n\n"
-    "For paper conclusions you plan to audit, use --scopes conclusion. "
-    "--reasoning-only remains a legacy alias for claim searches that only want "
-    "reasoning-backed conclusions. If a hit has a claim id, --claim-id can fetch "
-    "that claim's supporting reasoning graph.\n\n"
+    "Empty --scopes defaults to conclusion claims plus abstracts. Use "
+    "--scopes conclusion for conclusions only; use --scopes premise for "
+    "premises. Response `kind` values such as highlight / weak_point are "
+    "display labels, not search filters.\n\n"
+    "--reasoning-only is a deprecated alias for --scopes conclusion. "
+    "If a hit has a claim id, `reasoning --claim-id` can fetch that claim's "
+    "supporting reasoning graph.\n\n"
     "Default search uses hybrid retrieval and comprehensive ranking. Add "
     "--keywords for lexical recall; use --sort-by recent or --sort-by journal "
     "when freshness or venue should dominate the first page.\n\n"
@@ -99,7 +106,7 @@ _KNOWLEDGE_EPILOG = (
     "do not pass to Gaia priors."
 )
 
-_REASONING_ONLY_SCOPES = ([ScopeChoice.CLAIM],)
+_REASONING_ONLY_SCOPES = frozenset({ScopeChoice.CLAIM, ScopeChoice.CONCLUSION})
 
 
 def knowledge_command(
@@ -128,20 +135,25 @@ def knowledge_command(
         list[str] | None,
         typer.Option(
             "--keywords",
-            help=f"Keyword for the lexical channel (repeatable, max {MAX_KEYWORDS}).",
+            help=(
+                f"Keyword for the lexical channel (repeatable, max {MAX_KEYWORDS}, "
+                f"each at most {MAX_KEYWORD_LENGTH} bytes)."
+            ),
         ),
     ] = None,
     reasoning_only: Annotated[
         bool,
         typer.Option(
             "--reasoning-only",
-            help="Return only conclusion claims that have reasoning chains.",
+            help="Deprecated alias for --scopes conclusion.",
         ),
     ] = False,
     role: Annotated[
         str | None,
         typer.Option(
-            "--role", help="Filter by node role (e.g. conclusion / highlight / weakpoint)."
+            "--role",
+            help="Deprecated and ignored. Use --scopes to filter by role.",
+            hidden=True,
         ),
     ] = None,
     include_paper_enrich: Annotated[
@@ -215,7 +227,7 @@ def knowledge_command(
     ] = True,
     offset: Annotated[
         int,
-        typer.Option("--offset", help="Pagination offset (max 10000)."),
+        typer.Option("--offset", help=f"Pagination offset (max {MAX_OFFSET})."),
     ] = 0,
     limit: Annotated[
         int,
@@ -235,33 +247,24 @@ def knowledge_command(
     POST /search.
     """
     index_id = validate_lkm_index(index)
-    if keywords and len(keywords) > MAX_KEYWORDS:
-        typer.echo(
-            f"Error: at most {MAX_KEYWORDS} --keywords allowed; got {len(keywords)}.",
-            err=True,
-        )
-        raise typer.Exit(4)
+    validate_keywords(keywords)
     validate_search_window(offset, limit)
     validate_paper_ids(paper_ids)
     validate_dois(dois)
-    if reasoning_only:
-        if scopes == [ScopeChoice.CONCLUSION]:
+    validate_publication_dates(publication_date_start, publication_date_end)
+    if role is not None:
+        typer.echo(
+            "Warning: --role is ignored. Use --scopes to filter by role "
+            "(for example `--scopes conclusion`).",
+            err=True,
+        )
+    if reasoning_only and scopes:
+        extra = [scope.value for scope in scopes if scope not in _REASONING_ONLY_SCOPES]
+        if extra:
             typer.echo(
-                "Error: Use `--scopes conclusion` without --reasoning-only; "
-                "--reasoning-only is the legacy alias for claim searches.",
-                err=True,
-            )
-            raise typer.Exit(4)
-        if scopes and scopes not in _REASONING_ONLY_SCOPES:
-            typer.echo(
-                "Error: --reasoning-only requires --scopes to be omitted or exactly "
-                "`claim`; use `--scopes conclusion` for conclusion-role search.",
-                err=True,
-            )
-            raise typer.Exit(4)
-        if role is not None and role != "conclusion":
-            typer.echo(
-                "Error: --reasoning-only requires --role to be omitted or `conclusion`.",
+                "Error: --reasoning-only requires --scopes to be omitted or only "
+                "`claim` / `conclusion`; use `--scopes conclusion` instead of "
+                f"combining --reasoning-only with {extra}.",
                 err=True,
             )
             raise typer.Exit(4)
@@ -277,7 +280,6 @@ def knowledge_command(
         reasoning_only=reasoning_only,
         include_paper_enrich=include_paper_enrich,
         visibility=visibility,
-        role=role,
         paper_ids=paper_ids,
         dois=dois,
         title=title,

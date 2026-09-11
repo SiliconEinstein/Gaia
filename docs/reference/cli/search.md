@@ -47,7 +47,7 @@ LKM has two parallel search surfaces:
 Optional follow-ups:
 
 ```bash
-gaia search lkm knowledge "solid state battery dendrite suppression" --reasoning-only
+gaia search lkm knowledge "solid state battery dendrite suppression" --scopes conclusion
 gaia search lkm knowledge "unresolved battery failure mechanisms" --scopes open_question
 gaia search lkm reasoning "solid state battery dendrite suppression"
 gaia search lkm reasoning --claim-id <gcn_id>
@@ -62,22 +62,28 @@ Use `package` to fetch a paper graph, `references` for bibliographic
 forward-reference / cited-by cards, and `gaia pkg add` when that paper should
 become an editable dependency of the current Gaia package.
 
-Use `knowledge --scopes conclusion` when the goal is to find conclusion claims.
-The older `--reasoning-only` flag remains a legacy alias for claim searches
-that only want reasoning-backed conclusions, but it should not be combined with
-`--scopes conclusion`. For best recall, use default `hybrid` mode with
-`--keywords`. Use `--retrieval-mode semantic` when speed matters more than
-recall quality. Use `--retrieval-mode lexical` only for exact keyword matching.
+Omit `--scopes` to use LKM's default: conclusion claims plus abstracts. Use
+`knowledge --scopes conclusion` when the goal is only conclusion claims, or
+`--scopes premise` for premises. Response `kind` values such as `highlight` /
+`weak_point` are claim display labels, not search filters. `--role` is
+deprecated and ignored; LKM no longer reads `filters.role`.
+`--reasoning-only` is a deprecated alias for `--scopes conclusion` and may
+still be combined with `--scopes claim` or `--scopes conclusion`. For best
+recall, use default `hybrid` mode with `--keywords`. Use `--retrieval-mode
+semantic` when speed matters more than recall quality. Use `--retrieval-mode
+lexical` only for exact keyword matching.
 `knowledge` tracks the latest `POST /search` API shape: `--sort-by` maps to
 `sort_by` (`relevance`, `recent`, `journal`, or `comprehensive`), while
 repeatable `--paper-id` / `--paper-ids` and `--doi` / `--dois` map to
 `filters.paper_ids` and `filters.dois`. `--title` maps to `filters.title`.
 `--publication-date-start`, `--publication-date-end`, and
 `--limit-publication-date/--no-limit-publication-date` map to the LKM
-publication-date filters. `--paper-id(s)` and `--doi(s)` each accept up to 50
-values; paper ids must be bare numeric ids without a `paper:` prefix. The
-default Gaia CLI ordering is `comprehensive`; the server applies its own
-default date window unless `--no-limit-publication-date` is passed.
+publication-date filters. Dates must be `YYYY-MM-DD`. `--paper-id(s)` and
+`--doi(s)` each accept up to 50 values; paper ids must be bare numeric ids
+without a `paper:` prefix. `--offset` is capped at 2000; each `--keywords`
+value is at most 100 bytes. The default Gaia CLI ordering is
+`comprehensive`; the server applies its own default date window unless
+`--no-limit-publication-date` is passed.
 `--scopes abstract` asks for paper-level abstract hits; use them as paper
 background context rather than Gaia claims. Same-paper `related` entries are
 folded context for the representative paper hit, not cross-paper
