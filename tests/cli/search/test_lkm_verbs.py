@@ -227,12 +227,13 @@ class TestPolicy:
 
 
 class TestKnowledge:
-    def test_help_recommends_reasoning_only_for_conclusions(self) -> None:
+    def test_help_marks_reasoning_only_as_deprecated_alias(self) -> None:
         result = runner.invoke(app, ["search", "lkm", "knowledge", "--help"])
 
         assert result.exit_code == 0, result.output
         stdout = _squash_ws(result.stdout)
         assert "--reasoning-only" in stdout
+        assert "Deprecated alias" in stdout
         assert "conclusions" in stdout
         assert "paper knowledge items" in stdout
         assert "weak-point / highlight claims" in stdout
@@ -675,9 +676,7 @@ class TestKnowledge:
         assert result.exit_code == 4, result.output
         assert _FakeClient.last_call == {}
 
-    def test_keyword_too_long_exits_4_before_request(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_keyword_too_long_exits_4_before_request(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,

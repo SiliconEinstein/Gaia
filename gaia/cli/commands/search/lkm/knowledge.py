@@ -73,8 +73,8 @@ DEFAULT_SEARCH_SORT_CHOICE = SearchSortBy(DEFAULT_SEARCH_SORT_BY)
 
 _KNOWLEDGE_EPILOG = (
     "Examples:\n\n"
-    "  gaia search lkm knowledge \"solid state battery dendrite suppression\"\n\n"
-    "  gaia search lkm knowledge \"unresolved battery failure\" --scopes open_question\n\n"
+    '  gaia search lkm knowledge "solid state battery dendrite suppression"\n\n'
+    '  gaia search lkm knowledge "unresolved battery failure" --scopes open_question\n\n'
     "What you have:\n\n"
     "  a research question or claim text  ->  knowledge (this command)\n\n"
     "  a claim id from a hit              ->  reasoning --claim-id\n\n"
@@ -152,7 +152,7 @@ def knowledge_command(
         str | None,
         typer.Option(
             "--role",
-            help="Deprecated and ignored. Use --scopes to filter by role.",
+            help="Deprecated and ignored. Use --scopes instead.",
             hidden=True,
         ),
     ] = None,
@@ -254,8 +254,7 @@ def knowledge_command(
     validate_publication_dates(publication_date_start, publication_date_end)
     if role is not None:
         typer.echo(
-            "Warning: --role is ignored. Use --scopes to filter by role "
-            "(for example `--scopes conclusion`).",
+            "Warning: --role is ignored. Use --scopes instead (for example `--scopes conclusion`).",
             err=True,
         )
     if reasoning_only and scopes:

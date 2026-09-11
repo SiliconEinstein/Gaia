@@ -46,7 +46,7 @@ _MAX_CHAINS_CAP = 100
 
 _REASONING_EPILOG = (
     "Examples:\n\n"
-    "  gaia search lkm reasoning \"solid state battery dendrite suppression\"\n\n"
+    '  gaia search lkm reasoning "solid state battery dendrite suppression"\n\n'
     "  gaia search lkm reasoning --claim-id <gcn_id>\n\n"
     "What you have:\n\n"
     "  a topic or claim text   ->  reasoning <query>\n\n"

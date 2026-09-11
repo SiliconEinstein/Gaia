@@ -75,16 +75,11 @@ def validate_publication_dates(
     publication_date_end: str | None,
 ) -> None:
     """Validate LKM publication-date bounds as YYYY-MM-DD with start <= end."""
-    start = _parse_publication_date(
-        publication_date_start, option_name="--publication-date-start"
-    )
-    end = _parse_publication_date(
-        publication_date_end, option_name="--publication-date-end"
-    )
+    start = _parse_publication_date(publication_date_start, option_name="--publication-date-start")
+    end = _parse_publication_date(publication_date_end, option_name="--publication-date-end")
     if start is not None and end is not None and start > end:
         typer.echo(
-            "Error: --publication-date-start must be on or before "
-            "--publication-date-end.",
+            "Error: --publication-date-start must be on or before --publication-date-end.",
             err=True,
         )
         raise typer.Exit(4)

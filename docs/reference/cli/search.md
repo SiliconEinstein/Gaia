@@ -69,9 +69,9 @@ Omit `--scopes` to use LKM's default: conclusion claims plus abstracts. Use
 deprecated and ignored; LKM no longer reads `filters.role`.
 `--reasoning-only` is a deprecated alias for `--scopes conclusion` and may
 still be combined with `--scopes claim` or `--scopes conclusion`. For best
-recall, use default `hybrid` mode with `--keywords`. Use `--retrieval-mode
-semantic` when speed matters more than recall quality. Use `--retrieval-mode
-lexical` only for exact keyword matching.
+recall, use default `hybrid` mode with `--keywords`. Use
+`--retrieval-mode semantic` when speed matters more than recall quality. Use
+`--retrieval-mode lexical` only for exact keyword matching.
 `knowledge` tracks the latest `POST /search` API shape: `--sort-by` maps to
 `sort_by` (`relevance`, `recent`, `journal`, or `comprehensive`), while
 repeatable `--paper-id` / `--paper-ids` and `--doi` / `--dois` map to
