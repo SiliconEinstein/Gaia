@@ -1,9 +1,10 @@
 """``gaia extract result`` — GET /parse/task/{task_id}/result.
 
 A succeeded task returns either the default flat graph or, with
-``--format graph``, the same ``paper`` / ``graph.nodes`` / ``graph.edges``
-shape as ``gaia search lkm package``. A partial task is a non-retryable
-business terminal; failed is a technical failure that may be resubmitted.
+``--format graph``, ``graph.nodes`` / ``graph.edges`` (same field kinds as
+``gaia search lkm package``, not that command's envelope). A partial task
+is a non-retryable business terminal; failed is a technical failure that
+may be resubmitted.
 """
 
 from __future__ import annotations
@@ -36,14 +37,16 @@ _RESULT_EPILOG = (
     "  still queued or running        ->  status, not result\n\n"
     "  a non-null global_id           ->  gaia search lkm nodes / pkg add\n\n"
     "Default `--format local` is `variables` / `factors` / `motivations` / "
-    "`stats` under `data`. `--format graph` matches `gaia search lkm "
-    "package` (`paper` + `addressed_problems` + `open_questions` + "
-    "`graph.nodes` / `graph.edges`), where `paper` is null unless the "
-    "extraction was reused from a corpus paper. Format only applies to "
-    "succeeded results; an unknown value exits 4 before any request.\n\n"
+    "`stats` under `data`. `--format graph` returns `addressed_problems`, "
+    "`open_questions`, and `graph.nodes` / `graph.edges` under `data` — the "
+    "same field kinds as `gaia search lkm package`, not that command's "
+    "envelope. Format only applies to succeeded results; an unknown value "
+    "exits 4 before any request.\n\n"
     "Node `local_id` values and graph node `id`s are file-local. Only a "
     "non-null `global_id` is an LKM id you can pass to `gaia search lkm "
     "nodes` or `gaia pkg add`.\n\n"
+    "Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit. "
+    "If billing fails, retry the same task_id and do not resubmit the PDF.\n\n"
     "Queued or running: 290017, exit 1 — the task is not lost. `partial` is "
     "a non-retryable business failure; do not resubmit the same PDF. Empty "
     "`files` on partial is expected.\n\n"
@@ -65,7 +68,7 @@ def result_command(
         str,
         typer.Option(
             "--format",
-            help="Succeeded result shape: local (flat graph) or graph (same as lkm package).",
+            help="Succeeded result shape: local (flat graph) or graph (nodes/edges, not the package envelope).",
         ),
     ] = "local",
     out: Annotated[

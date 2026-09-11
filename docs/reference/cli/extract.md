@@ -21,6 +21,8 @@ This is a job surface, not a retrieval surface, which is why it sits beside
 layout parsing: it returns claims and reasoning, not page text, tables, or
 formulas.
 
+Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit.
+
 Auth, index selection, output, and exit codes match `gaia search lkm` — the
 same Bohrium access key (`gaia search lkm auth login`, or
 `GAIA_LKM_ACCESS_KEY` / `LKM_ACCESS_KEY`), the same `--index` / `--server`
@@ -35,16 +37,16 @@ gaia extract submit paper.pdf
 gaia extract submit paper.pdf --wait --poll-interval 5 --timeout 3600
 ```
 
-The file must be a PDF of at most 64 MiB and 50 pages. The extension, size,
-and `%PDF` header are checked locally before anything is uploaded; the page
-cap is enforced by the service. The response carries
+The file must be a PDF of at most 64 MiB and 50 pages. The response carries
 `task_id`, `pdf_md5`, `status`, `cache_hit`, `cache_source`, and `created_at`.
+Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit.
 
 Acceptance is not completion. Without `--wait`, `submit` returns immediately
 with the full envelope above on stdout — save `data.task_id` from it and poll
-yourself with `gaia extract status`. Resubmitting the same PDF reuses the existing extraction
-instead of starting over — an already-processed PDF comes back terminal
-immediately with `cache_hit: true`. Resubmitting is not a way to hurry a
+yourself with `gaia extract status`. `--wait` only polls the upload you are
+submitting now; an existing `task_id` is polled by calling `status` again.
+Resubmitting the same PDF reuses the existing extraction instead of starting
+over; still branch on `status`. Resubmitting is not a way to hurry a
 running task along: the same user and PDF still `queued` or `running`
 returns business error `290020` with the existing `task_id`.
 
@@ -104,11 +106,14 @@ gaia extract result <task-id> --format graph
 ```
 
 `--format local` (default) returns `variables` / `factors` / `motivations` /
-`stats` under `data`. `--format graph` matches `gaia search lkm package`:
-`paper` + `addressed_problems` + `open_questions` + `graph.nodes` /
-`graph.edges`. `paper` is null unless the extraction was reused from a paper
-already in the corpus, so branch on `graph` rather than on `paper`. Format only
-changes a succeeded payload; an unknown value exits 4 before any request.
+`stats` under `data`. `--format graph` returns `addressed_problems`,
+`open_questions`, and `graph.nodes` / `graph.edges` under `data` — the same
+field kinds as `gaia search lkm package`, not that command's envelope.
+Format only changes a succeeded payload; an unknown value exits 4 before any
+request.
+
+Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit.
+If billing fails, retry the same `task_id` and do not resubmit the PDF.
 
 Node `local_id` values and graph node `id`s such as `paper:6::P1` are
 file-local. Only a non-null `global_id` is an LKM id you can pass to
