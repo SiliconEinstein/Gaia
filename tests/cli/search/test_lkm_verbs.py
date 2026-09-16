@@ -236,7 +236,7 @@ class TestPolicy:
 
 
 class TestKnowledge:
-    def test_help_hides_reasoning_only_and_states_billing(self) -> None:
+    def test_help_omits_reasoning_only_and_states_billing(self) -> None:
         result = runner.invoke(app, ["search", "lkm", "knowledge", "--help"])
 
         assert result.exit_code == 0, result.output
@@ -375,7 +375,6 @@ class TestKnowledge:
                 "a",
                 "--keywords",
                 "b",
-                "--reasoning-only",
                 "--include-paper-enrich",
                 "--offset",
                 "5",
@@ -389,7 +388,6 @@ class TestKnowledge:
         assert body["retrieval_mode"] == "lexical"
         assert body["keywords"] == ["a", "b"]
         assert "reasoning_only" not in body
-        assert "--reasoning-only is deprecated" in result.stderr
         assert body["include_paper_enrich"] is True
         assert "role" not in body["filters"]
         assert body["offset"] == 5 and body["limit"] == 3
@@ -529,9 +527,7 @@ class TestKnowledge:
         assert _FakeClient.last_call["json_body"]["scopes"] == [question_role]
         assert json.loads(result.stdout) == payload
 
-    def test_rejects_reasoning_only_with_question_scope(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_rejects_unknown_reasoning_only_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
@@ -545,11 +541,11 @@ class TestKnowledge:
                 "--reasoning-only",
             ],
         )
-        assert result.exit_code == 4, result.output
+        assert result.exit_code != 0, result.output
         assert "reasoning-only" in result.output
         assert _FakeClient.last_call == {}
 
-    def test_allows_reasoning_only_with_conclusion_scope(
+    def test_scopes_conclusion_does_not_send_reasoning_only(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(monkeypatch)
@@ -562,14 +558,12 @@ class TestKnowledge:
                 "q",
                 "--scopes",
                 "conclusion",
-                "--reasoning-only",
             ],
         )
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
         assert body["scopes"] == ["conclusion"]
         assert "reasoning_only" not in body
-        assert "--reasoning-only is deprecated" in result.stderr
         assert "role" not in body["filters"]
 
     def test_ignores_deprecated_role_and_does_not_send_filters_role(
@@ -583,16 +577,14 @@ class TestKnowledge:
                 "lkm",
                 "knowledge",
                 "q",
-                "--reasoning-only",
                 "--role",
                 "highlight",
             ],
         )
         assert result.exit_code == 0, result.output
         assert "--role is ignored" in result.stderr
-        assert "--reasoning-only is deprecated" in result.stderr
         body = _FakeClient.last_call["json_body"]
-        assert body["scopes"] == ["conclusion"]
+        assert "scopes" not in body
         assert "reasoning_only" not in body
         assert "role" not in body["filters"]
 

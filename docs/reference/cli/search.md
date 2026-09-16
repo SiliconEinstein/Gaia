@@ -73,8 +73,7 @@ Omit `--scopes` to use LKM's default: conclusion claims plus abstracts. Use
 `--scopes premise` for premises. Response `kind` values such as `highlight` /
 `weak_point` are claim display labels, not search filters. `--role` is
 deprecated and ignored; LKM no longer reads `filters.role`.
-`--reasoning-only` is a hidden deprecated alias for `--scopes conclusion` and
-is not sent as `reasoning_only`. For best
+There is no `--reasoning-only`; use `--scopes conclusion`. For best
 recall, use default `hybrid` mode with `--keywords`. Use
 `--retrieval-mode semantic` when speed matters more than recall quality. Use
 `--retrieval-mode lexical` only for exact keyword matching.

@@ -109,8 +109,6 @@ _KNOWLEDGE_EPILOG = (
     "do not pass to Gaia priors."
 )
 
-_REASONING_ONLY_SCOPES = frozenset({ScopeChoice.CLAIM, ScopeChoice.CONCLUSION})
-
 
 def knowledge_command(
     query: Annotated[
@@ -147,14 +145,6 @@ def knowledge_command(
             ),
         ),
     ] = None,
-    reasoning_only: Annotated[
-        bool,
-        typer.Option(
-            "--reasoning-only",
-            help="Deprecated alias for --scopes conclusion.",
-            hidden=True,
-        ),
-    ] = False,
     role: Annotated[
         str | None,
         typer.Option(
@@ -264,26 +254,6 @@ def knowledge_command(
             "Warning: --role is ignored. Use --scopes instead (for example `--scopes conclusion`).",
             err=True,
         )
-    resolved_scopes = scopes
-    if reasoning_only:
-        typer.echo(
-            "Warning: --reasoning-only is deprecated. Use --scopes conclusion.",
-            err=True,
-        )
-        if resolved_scopes:
-            extra = [
-                scope.value for scope in resolved_scopes if scope not in _REASONING_ONLY_SCOPES
-            ]
-            if extra:
-                typer.echo(
-                    "Error: --reasoning-only requires --scopes to be omitted or only "
-                    "`claim` / `conclusion`; use `--scopes conclusion` instead of "
-                    f"combining --reasoning-only with {extra}.",
-                    err=True,
-                )
-                raise typer.Exit(4)
-        else:
-            resolved_scopes = [ScopeChoice.CONCLUSION]
 
     body = build_knowledge_search_body(
         query=query,
@@ -291,7 +261,7 @@ def knowledge_command(
         sort_by=sort_by.value,
         offset=offset,
         limit=limit,
-        scopes=[s.value for s in resolved_scopes] if resolved_scopes else None,
+        scopes=[s.value for s in scopes] if scopes else None,
         keywords=keywords,
         include_paper_enrich=include_paper_enrich,
         visibility=visibility,
