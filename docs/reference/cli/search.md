@@ -1,16 +1,16 @@
 # `gaia search`
 
 Search external retrieval providers for Gaia authoring. LKM (Large Knowledge
-Model) is Bohrium's agent-ready paper search engine for grounding scientific
-claims, inspecting reasoning chains, and resolving source papers. In Gaia CLI,
-the LKM backend is a read-only source of papers, paper knowledge items,
-reasoning chains, workflows, bibliographic references, and extracted
-per-paper graphs.
+Model) is Bohrium's shared-knowledge layer, built on a subset of the Gaia
+language: it integrates, curates, retrieves, and reasons over published
+structured knowledge. In Gaia CLI, the LKM backend is a read-only source of
+papers, paper knowledge items, reasoning chains, workflows, bibliographic
+references, and extracted per-paper graphs.
 
 ```text
-gaia search lkm knowledge <query>           Search LKM paper knowledge items
-gaia search lkm reasoning <query>           Search LKM reasoning chains
-gaia search lkm reasoning --claim-id <id>   Fetch reasoning chains for one claim
+gaia search lkm knowledge <query>           Find claims/questions/abstracts by topic
+gaia search lkm reasoning <query>           Find similar arguments or experiments
+gaia search lkm reasoning --claim-id <id>   Fetch reasoning for a supported conclusion
 gaia search lkm nodes <ids...>              Fetch LKM node records by id
 gaia search lkm package --paper-id <id>     Fetch one LKM paper package candidate
 gaia search lkm package --package-id paper:<id>
@@ -23,8 +23,8 @@ gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
-These verbs query papers already ingested into LKM. A local PDF that may not
-be in the corpus is `gaia extract`, not this group.
+These verbs search that shared layer. A local PDF that may not be in LKM is
+`gaia extract`, not this group.
 
 The current implementation is an LKM provider adapter. Search-oriented LKM
 verbs write raw LKM JSON to stdout, or to `--out PATH`. Gaia follow-up
@@ -33,16 +33,18 @@ JSON. Use `--no-hint` to suppress those suggestions.
 
 Conceptually, LKM searches over scientific papers' conclusion claims, weak-point
 / highlight claims, addressed problems, open questions, reasoning chains, and
-workflows. LKM is not Gaia's internal IR, not a Gaia knowledge package, and not
+workflows. LKM is not Gaia's local IR, not a Gaia knowledge package, and not
 a generic graph API. Treat its results as corpus-backed evidence
 with paper provenance that can be inspected directly or materialized into Gaia
 packages with explicit follow-up commands.
 
-LKM has two parallel search surfaces:
+LKM has two complementary search surfaces:
 
 - `knowledge <query>` performs a fused search over selected scopes: claims,
-  research questions, abstracts, and optionally complete reasoning chains.
-- `reasoning <query>` searches reasoning chains and workflows.
+  research questions, abstracts, and optionally complete reasoning chains by
+  topic or wording.
+- `reasoning <query>` searches for a similar whole argument, derivation,
+  calculation, experimental process, or workflow.
 
 Optional follow-ups:
 
@@ -56,8 +58,10 @@ gaia search lkm references --paper-id <paper_id>
 gaia pkg add --lkm-index bohrium --lkm-paper <paper_id>
 ```
 
-Use `--claim-id` when you already have a claim id and want that claim's
-supporting reasoning graph. Question ids cannot be used with `--claim-id`.
+Any global `gcn_...` / node id can be inspected with `nodes`. Use
+`--claim-id` only for a conclusion claim reported with `has_reasoning=true`
+when you want its supporting reasoning graph. Premise and question ids cannot
+be used with `--claim-id`.
 Use `package` to fetch a paper graph, `references` for bibliographic
 forward-reference / cited-by cards, and `gaia pkg add` when that paper should
 become an editable dependency of the current Gaia package.
@@ -88,6 +92,8 @@ value is at most 100 bytes. The default Gaia CLI ordering is
 background context rather than Gaia claims. Same-paper `related` entries are
 folded context for the representative paper hit, not cross-paper
 recommendations or complete paper graphs.
+
+`knowledge` returns 10 hits by default; pass `--limit` to request 1–100.
 
 The full scope hierarchy is:
 
@@ -126,7 +132,8 @@ accepts `--retrieval-mode`, `--keywords`, `--sort-by`, `--paper-id` /
 `total`; it may also include `papers` when the backend provides paper metadata.
 Query-mode `--sort-by` maps to `sort_by` and accepts `relevance`, `recent`,
 `journal`, and `comprehensive`; `--paper-id(s)`, `--doi(s)`, and `--title` map
-to LKM filters and are intersected upstream.
+to LKM filters and are intersected upstream. Query mode returns 10 chains by
+default; pass `--limit` to request 1–100.
 `--claim-id` mode instead calls `GET /claims/{id}/reasoning` and accepts
 `--max-chains` plus `--sort-by comprehensive|recent`.
 

@@ -102,6 +102,35 @@ def package_command(
             )
         raise typer.Exit(4)
 
+    identifier_name, identifier_value = next(iter(supplied.items()))
+    identifier_value = identifier_value.strip()
+    option_name = f"--{identifier_name.replace('_', '-')}"
+    if not identifier_value:
+        typer.echo(f"Error: {option_name} must be non-empty.", err=True)
+        raise typer.Exit(4)
+    if identifier_name == "paper_id" and not (
+        identifier_value.isascii() and identifier_value.isdigit()
+    ):
+        typer.echo(
+            "Error: --paper-id must be a bare numeric LKM paper id "
+            f"without a `paper:` prefix; got {identifier_value!r}.",
+            err=True,
+        )
+        raise typer.Exit(4)
+    if identifier_name == "package_id":
+        package_paper_id = identifier_value.removeprefix("paper:")
+        if (
+            not identifier_value.startswith("paper:")
+            or not package_paper_id.isascii()
+            or not package_paper_id.isdigit()
+        ):
+            typer.echo(
+                f"Error: --package-id must look like `paper:<digits>`; got {identifier_value!r}.",
+                err=True,
+            )
+            raise typer.Exit(4)
+    supplied[identifier_name] = identifier_value
+
     title_limit_explicit = title_resolve_limit != 5
     if title is None and title_limit_explicit:
         typer.echo("Error: --title-resolve-limit is only valid with --title.", err=True)
@@ -119,7 +148,9 @@ def package_command(
         body["title_resolve"] = {"limit": title_resolve_limit}
 
     payload = run_request("POST", "/papers/graph", json_body=body, index_id=index_id)
-    requested_paper_id = paper_id or _paper_id_from_package_id(package_id)
+    requested_paper_id = supplied.get("paper_id") or _paper_id_from_package_id(
+        supplied.get("package_id")
+    )
     emit(
         payload,
         out,

@@ -27,7 +27,8 @@ _DOCS_EPILOG = (
     "Examples:\n\n"
     "  gaia search lkm docs\n\n"
     "What you have:\n\n"
-    "  a research question  ->  knowledge / reasoning\n\n"
+    "  claims, questions, or abstracts by topic/wording  ->  knowledge\n\n"
+    "  a similar argument, derivation, or experiment     ->  reasoning\n\n"
     "  a local PDF          ->  gaia extract"
 )
 

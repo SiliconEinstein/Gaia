@@ -557,7 +557,7 @@ app.add_typer(search_app, name="search")
 #
 # `gaia extract <verb>` wraps the asynchronous LKM parse endpoints as three
 # atomic verbs (1:1 with the HTTP endpoints). It sits beside `search` rather
-# than inside it: `search` queries papers LKM already ingested, while this
+# than inside it: `search` queries the shared LKM layer, while this
 # group submits a job for a PDF the caller holds.
 
 app.add_typer(extract_app, name="extract")

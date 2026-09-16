@@ -10,7 +10,7 @@ from __future__ import annotations
 import typer
 
 from gaia.cli.commands.search.lkm.auth import auth_app
-from gaia.cli.commands.search.lkm.docs import APIFOX_BASE_URL, _DOCS_EPILOG, docs_command
+from gaia.cli.commands.search.lkm.docs import _DOCS_EPILOG, APIFOX_BASE_URL, docs_command
 from gaia.cli.commands.search.lkm.feedback import _FEEDBACK_EPILOG, feedback_command
 from gaia.cli.commands.search.lkm.knowledge import (
     _KNOWLEDGE_EPILOG,
@@ -25,20 +25,22 @@ from gaia.cli.commands.search.lkm.variables import _NODES_EPILOG, nodes_command
 # new block. Keep examples and the "what you have" rows as their own blocks.
 _LKM_EPILOG = (
     "Examples:\n\n"
-    "  gaia search lkm knowledge \"solid state battery dendrite suppression\"\n\n"
+    '  gaia search lkm knowledge "solid state battery dendrite suppression"\n\n'
     "  gaia search lkm package --paper-id <paper_id>\n\n"
     "What you have:\n\n"
-    "  a research question or claim text  ->  knowledge, reasoning\n\n"
+    "  claims, questions, or abstracts by topic/wording  ->  knowledge\n\n"
+    "  a similar argument, derivation, or experiment     ->  reasoning <query>\n\n"
     "  a numeric paper ID from those hits ->  package, references\n\n"
-    "  a global gcn_... / node id         ->  reasoning --claim-id, nodes\n\n"
+    "  any global gcn_... / node id       ->  nodes\n\n"
+    "  a conclusion gcn_... with has_reasoning=true      ->  reasoning --claim-id\n\n"
     "  a local PDF                        ->  gaia extract\n\n"
     "Auth: every call needs a Bohrium access key. Run "
     "`gaia search lkm auth login` to set one up (or set "
     "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
-    "LKM (Large Knowledge Model) is Bohrium's agent-ready paper search engine "
-    "for grounding scientific claims, inspecting reasoning chains, and "
-    "resolving source papers; it is not Gaia's internal IR or a generic "
-    "graph API.\n\n"
+    "LKM (Large Knowledge Model) is Bohrium's shared-knowledge layer, built "
+    "on a subset of the Gaia language: it integrates, curates, retrieves, "
+    "and reasons over published structured knowledge. It is not Gaia's "
+    "local IR, not a Gaia knowledge package, and not a generic graph API.\n\n"
     "Search surfaces: `knowledge` retrieves paper knowledge items, including "
     "conclusion claims, weak-point / highlight claims, problems, and open "
     "questions. `reasoning` retrieves reasoning chains and workflows. `package` "
@@ -57,7 +59,7 @@ _LKM_EPILOG = (
 
 lkm_app = typer.Typer(
     name="lkm",
-    help="Search knowledge already extracted into Bohrium LKM.",
+    help="Search Bohrium LKM shared knowledge.",
     epilog=_LKM_EPILOG,
     no_args_is_help=True,
 )

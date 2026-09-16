@@ -26,6 +26,7 @@ MAX_KEYWORDS = 10
 MAX_KEYWORD_LENGTH = 100
 # POST /search and /reasoning/search reject offset > 2000.
 MAX_OFFSET = 2000
+DEFAULT_SEARCH_LIMIT = 10
 MAX_LIMIT = 100
 MAX_PAPER_IDS = 50
 MAX_DOIS = 50
@@ -120,7 +121,7 @@ def validate_paper_ids(paper_ids: list[str] | None, *, option_name: str = "--pap
             err=True,
         )
         raise typer.Exit(4)
-    non_numeric = [pid for pid in paper_ids if not pid.isdigit()]
+    non_numeric = [pid for pid in paper_ids if not (pid.isascii() and pid.isdigit())]
     if non_numeric:
         typer.echo(
             f"Error: {option_name} must be numeric paper ids; got {non_numeric}.",
@@ -189,7 +190,7 @@ def _normalize_reference_paper_ids(paper_ids: list[str] | None) -> list[str]:
                 err=True,
             )
             raise typer.Exit(4)
-        if not value.isdigit():
+        if not (value.isascii() and value.isdigit()):
             typer.echo(
                 f"Error: --paper-id must be a numeric paper id; got {raw!r}.",
                 err=True,
@@ -214,6 +215,7 @@ def _normalize_reference_dois(dois: list[str] | None) -> list[str]:
 
 __all__ = [
     "DEFAULT_LKM_INDEX_ID",
+    "DEFAULT_SEARCH_LIMIT",
     "MAX_DOIS",
     "MAX_KEYWORDS",
     "MAX_KEYWORD_LENGTH",

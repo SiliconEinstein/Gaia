@@ -5,5 +5,5 @@
   ],
   "exit_code": 0,
   "stderr": "",
-  "stdout": "\n Usage: gaia search [OPTIONS] COMMAND [ARGS]...\n\n Retrieval backends (lkm).\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Commands ───────────────────────────────────────────────────────────────────╮\n│ lkm  Search knowledge already extracted into Bohrium LKM.                    │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+  "stdout": "\n Usage: gaia search [OPTIONS] COMMAND [ARGS]...\n\n Retrieval backends (lkm).\n\n╭─ Options ────────────────────────────────────────────────────────────────────╮\n│ --help          Show this message and exit.                                  │\n╰──────────────────────────────────────────────────────────────────────────────╯\n╭─ Commands ───────────────────────────────────────────────────────────────────╮\n│ lkm  Search Bohrium LKM shared knowledge.                                    │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
 }

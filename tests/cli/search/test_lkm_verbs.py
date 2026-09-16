@@ -125,7 +125,13 @@ class TestDocs:
         assert "open questions" in stdout
         assert "reasoning chains and workflows" in stdout
         assert "bibliographic forward references" in stdout
+        assert "shared-knowledge layer" in stdout
+        assert "integrates, curates, retrieves" in stdout
         assert "generic graph API" in stdout
+        assert "claims, questions, or abstracts by topic/wording -> knowledge" in stdout
+        assert "a similar argument, derivation, or experiment -> reasoning <query>" in stdout
+        assert "any global gcn_... / node id -> nodes" in stdout
+        assert "a conclusion gcn_... with has_reasoning=true -> reasoning --claim-id" in stdout
         assert "knowledge graph" not in stdout
         assert "claim/question records" not in stdout
         assert "workflow-shaped evidence" not in stdout
@@ -253,6 +259,7 @@ class TestKnowledge:
         assert body["query"] == "perovskite"
         assert body["retrieval_mode"] == "hybrid"
         assert body["sort_by"] == "comprehensive"
+        assert body["limit"] == 10
         assert body["filters"] == {"visibility": "public"}
 
     def test_default_emits_raw_json_with_gaia_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1033,6 +1040,7 @@ class TestReasoning:
         assert call["path"] == "/reasoning/search"
         assert call["json_body"]["query"] == "thermal stability"
         assert call["json_body"]["format"] == "graph"
+        assert call["json_body"]["limit"] == 10
 
     def test_query_search_accepts_search_update_options(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1459,32 +1467,32 @@ class TestPackage:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _install_client(monkeypatch)
-        result = runner.invoke(app, ["search", "lkm", "package", "--paper-id", "p1"])
+        result = runner.invoke(app, ["search", "lkm", "package", "--paper-id", "123"])
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
-        assert body["paper_id"] == "p1"
+        assert body["paper_id"] == "123"
         assert "include" not in body
 
     def test_accepts_server_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
-            ["search", "lkm", "package", "--server", "bohrium", "--paper-id", "p1"],
+            ["search", "lkm", "package", "--server", "bohrium", "--paper-id", "123"],
         )
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout)["code"] == 0
         assert "Suggested: materialize this paper as a Gaia package" in result.stderr
-        assert "gaia pkg add --lkm-index bohrium --lkm-paper p1" in result.stderr
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 123" in result.stderr
 
     def test_accepts_index_option(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
-            ["search", "lkm", "package", "--index", "bohrium", "--paper-id", "p1"],
+            ["search", "lkm", "package", "--index", "bohrium", "--paper-id", "123"],
         )
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout)["code"] == 0
-        assert "gaia pkg add --lkm-index bohrium --lkm-paper p1" in result.stderr
+        assert "gaia pkg add --lkm-index bohrium --lkm-paper 123" in result.stderr
 
     def test_no_identifier_exits_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1495,6 +1503,31 @@ class TestPackage:
         _install_client(monkeypatch)
         result = runner.invoke(app, ["search", "lkm", "package", "--paper-id", "p1", "--doi", "d1"])
         assert result.exit_code == 4, result.output
+
+    @pytest.mark.parametrize(
+        ("flag", "value", "message"),
+        [
+            ("--paper-id", "paper:123", "bare numeric"),
+            ("--paper-id", "abc", "bare numeric"),
+            ("--paper-id", "１２３", "bare numeric"),
+            ("--package-id", "123", "paper:<digits>"),
+            ("--package-id", "paper:abc", "paper:<digits>"),
+            ("--doi", "   ", "non-empty"),
+            ("--title", "   ", "non-empty"),
+        ],
+    )
+    def test_invalid_identifier_exits_4_before_request(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        flag: str,
+        value: str,
+        message: str,
+    ) -> None:
+        _install_client(monkeypatch)
+        result = runner.invoke(app, ["search", "lkm", "package", flag, value])
+        assert result.exit_code == 4, result.output
+        assert message in result.output
+        assert _FakeClient.last_call == {}
 
     def test_title_resolve_limit_with_title(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
@@ -1511,7 +1544,7 @@ class TestPackage:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
-            ["search", "lkm", "package", "--paper-id", "p1", "--title-resolve-limit", "7"],
+            ["search", "lkm", "package", "--paper-id", "123", "--title-resolve-limit", "7"],
         )
         assert result.exit_code == 4, result.output
 

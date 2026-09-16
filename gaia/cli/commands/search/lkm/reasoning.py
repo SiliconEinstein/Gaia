@@ -18,6 +18,7 @@ from gaia.cli.commands.search.lkm._hints import reasoning_hint
 from gaia.cli.commands.search.lkm._indexes import normalize_lkm_index_id
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
+    DEFAULT_SEARCH_LIMIT,
     MAX_DOIS,
     MAX_KEYWORD_LENGTH,
     MAX_KEYWORDS,
@@ -49,9 +50,10 @@ _REASONING_EPILOG = (
     '  gaia search lkm reasoning "solid state battery dendrite suppression"\n\n'
     "  gaia search lkm reasoning --claim-id <gcn_id>\n\n"
     "What you have:\n\n"
-    "  a topic or claim text   ->  reasoning <query>\n\n"
-    "  a claim id (gcn_...)    ->  reasoning --claim-id\n\n"
-    "  a question id           ->  knowledge, not --claim-id\n\n"
+    "  a similar argument, derivation, or experiment  ->  reasoning <query>\n\n"
+    "  any global gcn_... / node id                  ->  nodes\n\n"
+    "  a conclusion gcn_... with has_reasoning=true  ->  reasoning --claim-id\n\n"
+    "  a question id                                  ->  nodes, not --claim-id\n\n"
     "  a paper id from a hit   ->  package\n\n"
     "Use query mode as a search surface for reasoning chains and workflows. "
     "It is parallel to `knowledge <query>`, which searches paper knowledge "
@@ -72,7 +74,7 @@ _REASONING_EPILOG = (
 def reasoning_command(
     query: Annotated[
         str | None,
-        typer.Argument(help="Topic to search for reasoning chains or workflows."),
+        typer.Argument(help="Argument, derivation, or experiment whose process should match."),
     ] = None,
     index: Annotated[
         str | None,
@@ -178,7 +180,7 @@ def reasoning_command(
     limit: Annotated[
         int,
         typer.Option("--limit", help="Query-search page size (max 100)."),
-    ] = 20,
+    ] = DEFAULT_SEARCH_LIMIT,
     out: Annotated[
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),
@@ -225,7 +227,7 @@ def reasoning_command(
             or publication_date_end
             or not limit_publication_date
             or offset != 0
-            or limit != 20
+            or limit != DEFAULT_SEARCH_LIMIT
             or retrieval_mode != RetrievalMode.HYBRID
         ):
             typer.echo(

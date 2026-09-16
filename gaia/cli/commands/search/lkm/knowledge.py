@@ -16,6 +16,7 @@ import typer
 from gaia.cli.commands.search.lkm._hints import knowledge_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
+    DEFAULT_SEARCH_LIMIT,
     MAX_DOIS,
     MAX_KEYWORD_LENGTH,
     MAX_KEYWORDS,
@@ -77,7 +78,8 @@ _KNOWLEDGE_EPILOG = (
     '  gaia search lkm knowledge "unresolved battery failure" --scopes open_question\n\n'
     "What you have:\n\n"
     "  a research question or claim text  ->  knowledge (this command)\n\n"
-    "  a claim id from a hit              ->  reasoning --claim-id\n\n"
+    "  any global gcn_... / node id       ->  nodes\n\n"
+    "  a conclusion id with has_reasoning=true  ->  reasoning --claim-id\n\n"
     "  a numeric paper ID from a hit      ->  package, references\n\n"
     "  a local PDF                        ->  gaia extract\n\n"
     "Use this surface when you need LKM-grounded paper knowledge items: "
@@ -110,7 +112,10 @@ _REASONING_ONLY_SCOPES = frozenset({ScopeChoice.CLAIM, ScopeChoice.CONCLUSION})
 
 
 def knowledge_command(
-    query: Annotated[str, typer.Argument(help="Research question or claim to ground in LKM.")],
+    query: Annotated[
+        str,
+        typer.Argument(help="Claims, questions, or abstracts to find by topic or wording."),
+    ],
     index: Annotated[
         str,
         typer.Option("--index", "--server", help="Configured LKM index id."),
@@ -232,7 +237,7 @@ def knowledge_command(
     limit: Annotated[
         int,
         typer.Option("--limit", help="Page size (max 100)."),
-    ] = 20,
+    ] = DEFAULT_SEARCH_LIMIT,
     out: Annotated[
         Path | None,
         typer.Option("--out", help="Write JSON to PATH (atomic) instead of stdout."),

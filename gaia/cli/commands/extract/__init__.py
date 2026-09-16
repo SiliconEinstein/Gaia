@@ -1,6 +1,6 @@
 """``gaia extract`` — turn a local PDF into LKM-extracted knowledge.
 
-``gaia search lkm`` queries papers already ingested into LKM. This group is
+``gaia search lkm`` searches Bohrium's shared-knowledge layer. This group is
 the other direction: hand LKM a PDF you hold and get back the research
 questions, conclusions, and reasoning steps it extracts from that file. It is
 a job surface, not a retrieval surface — submission is asynchronous and the
