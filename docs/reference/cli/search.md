@@ -71,8 +71,7 @@ become an editable dependency of the current Gaia package.
 Omit `--scopes` to use LKM's default: conclusion claims plus abstracts. Use
 `knowledge --scopes conclusion` when the goal is only conclusion claims, or
 `--scopes premise` for premises. Response `kind` values such as `highlight` /
-`weak_point` are claim display labels, not search filters. There is no
-`--role` or `--reasoning-only`; use `--scopes`. For best
+`weak_point` are claim display labels, not search filters. For best
 recall, use default `hybrid` mode with `--keywords`. Use
 `--retrieval-mode semantic` when speed matters more than recall quality. Use
 `--retrieval-mode lexical` only for exact keyword matching.
