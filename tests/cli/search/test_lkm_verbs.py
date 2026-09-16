@@ -543,7 +543,7 @@ class TestKnowledge:
             ],
         )
         assert result.exit_code != 0, result.output
-        assert "reasoning-only" in result.output
+        assert "reasoning-only" in _strip_ansi(result.output)
         assert _FakeClient.last_call == {}
 
     def test_scopes_conclusion_does_not_send_reasoning_only(
@@ -581,7 +581,7 @@ class TestKnowledge:
             ],
         )
         assert result.exit_code != 0, result.output
-        assert "role" in result.output
+        assert "role" in _strip_ansi(result.output)
         assert _FakeClient.last_call == {}
 
     def test_rejects_retired_action_scope_before_request(
