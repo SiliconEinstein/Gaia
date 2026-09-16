@@ -143,13 +143,12 @@ response a business error. This endpoint does not apply a visibility filter.
 `package` requires exactly one identifier flag: `--package-id`, `--paper-id`,
 `--doi`, or `--title`. `--title` may return several candidate papers and accepts
 `--title-resolve-limit`; the other identifier modes address one paper directly.
-The CLI keeps `/papers/graph` on the default raw paper-graph shape and does not
-expose deprecated projection / hydration switches.
+The CLI keeps `/papers/graph` on the default raw paper-graph shape.
 
 `references` looks up bibliographic paper cards (`POST /papers/reference`) for
 papers already identified by `--paper-id` and/or `--doi` (repeatable; at least
 one side required). Combined seeds are capped at 20 before dedupe. A `paper:`
-prefix on `--paper-id` is stripped. There is no `--title` or `--package-id`.
+prefix on `--paper-id` is stripped.
 The three include switches are always sent and match the HTTP defaults:
 `--with-abstract` (on), `--with-reference` (off), `--with-cited-by` (on). The
 response uses `data.papers`. An empty paper `id` means LKM has not covered

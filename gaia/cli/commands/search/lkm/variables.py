@@ -28,7 +28,6 @@ _NODES_EPILOG = (
     "  gaia search lkm nodes --ids-file ids.txt\n\n"
     "What you have:\n\n"
     "  one or more global gcn_... / node ids  ->  nodes\n\n"
-    "  a file-local paper:N::P1 id            ->  not this command\n\n"
     "  claims, questions, or abstracts by topic/wording  ->  knowledge\n\n"
     "  a similar argument, derivation, or experiment     ->  reasoning\n\n"
     "Use this for follow-up inspection when a search or reasoning response "
