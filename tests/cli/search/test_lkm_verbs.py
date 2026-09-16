@@ -242,6 +242,7 @@ class TestKnowledge:
         assert result.exit_code == 0, result.output
         stdout = _squash_ws(result.stdout)
         assert "--reasoning-only" not in stdout
+        assert "--role" not in stdout
         assert "0.05 CNY" in stdout
         assert "conclusions" in stdout
         assert "paper knowledge items" in stdout
@@ -566,9 +567,7 @@ class TestKnowledge:
         assert "reasoning_only" not in body
         assert "role" not in body["filters"]
 
-    def test_ignores_deprecated_role_and_does_not_send_filters_role(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_rejects_unknown_role_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_client(monkeypatch)
         result = runner.invoke(
             app,
@@ -581,12 +580,9 @@ class TestKnowledge:
                 "highlight",
             ],
         )
-        assert result.exit_code == 0, result.output
-        assert "--role is ignored" in result.stderr
-        body = _FakeClient.last_call["json_body"]
-        assert "scopes" not in body
-        assert "reasoning_only" not in body
-        assert "role" not in body["filters"]
+        assert result.exit_code != 0, result.output
+        assert "role" in result.output
+        assert _FakeClient.last_call == {}
 
     def test_rejects_retired_action_scope_before_request(
         self, monkeypatch: pytest.MonkeyPatch

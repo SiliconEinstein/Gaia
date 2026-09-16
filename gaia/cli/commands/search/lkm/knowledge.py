@@ -145,14 +145,6 @@ def knowledge_command(
             ),
         ),
     ] = None,
-    role: Annotated[
-        str | None,
-        typer.Option(
-            "--role",
-            help="Deprecated and ignored. Use --scopes instead.",
-            hidden=True,
-        ),
-    ] = None,
     include_paper_enrich: Annotated[
         bool,
         typer.Option(
@@ -249,11 +241,6 @@ def knowledge_command(
     validate_paper_ids(paper_ids)
     validate_dois(dois)
     validate_publication_dates(publication_date_start, publication_date_end)
-    if role is not None:
-        typer.echo(
-            "Warning: --role is ignored. Use --scopes instead (for example `--scopes conclusion`).",
-            err=True,
-        )
 
     body = build_knowledge_search_body(
         query=query,
