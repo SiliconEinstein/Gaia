@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import typer
 
-from gaia.cli.commands.extract.docs import APIFOX_BASE_URL, _DOCS_EPILOG, docs_command
+from gaia.cli.commands.extract.docs import _DOCS_EPILOG, APIFOX_BASE_URL, docs_command
 from gaia.cli.commands.extract.result import _RESULT_EPILOG, result_command
 from gaia.cli.commands.extract.status import _STATUS_EPILOG, status_command
 from gaia.cli.commands.extract.submit import _SUBMIT_EPILOG, submit_command

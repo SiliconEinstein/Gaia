@@ -68,7 +68,10 @@ def result_command(
         str,
         typer.Option(
             "--format",
-            help="Succeeded result shape: local (flat graph) or graph (nodes/edges, not the package envelope).",
+            help=(
+                "Succeeded result shape: local (flat graph) or graph "
+                "(nodes/edges, not the package envelope)."
+            ),
         ),
     ] = "local",
     out: Annotated[

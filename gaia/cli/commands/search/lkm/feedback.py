@@ -28,7 +28,7 @@ class FeedbackType(StrEnum):
 
 _FEEDBACK_EPILOG = (
     "Examples:\n\n"
-    "  gaia search lkm feedback --type bug \"ranking looks off for this query\"\n\n"
+    '  gaia search lkm feedback --type bug "ranking looks off for this query"\n\n'
     "What you have:\n\n"
     "  a service or data issue      ->  feedback --type bug|feature|question\n\n"
     "  a node to attach             ->  --gcn-id\n\n"
