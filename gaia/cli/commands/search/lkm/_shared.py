@@ -33,6 +33,11 @@ MAX_DOIS = 50
 MAX_VARIABLE_IDS = 100
 # Combined paper_ids + dois cap for POST /papers/reference (before dedupe).
 MAX_REFERENCE_SEEDS = 20
+SEARCH_BILLING_NOTE = (
+    "Search and lookup calls cost 0.05 CNY each, covered first by LKM's "
+    "personal monthly 1,000-call quota."
+)
+EXTRACT_BILLING_NOTE = "Extract costs 1.00 CNY per successful paper, or 0.10 CNY on a cache hit."
 
 
 def validate_search_window(offset: int, limit: int) -> None:
@@ -216,6 +221,7 @@ def _normalize_reference_dois(dois: list[str] | None) -> list[str]:
 __all__ = [
     "DEFAULT_LKM_INDEX_ID",
     "DEFAULT_SEARCH_LIMIT",
+    "EXTRACT_BILLING_NOTE",
     "MAX_DOIS",
     "MAX_KEYWORDS",
     "MAX_KEYWORD_LENGTH",
@@ -224,6 +230,7 @@ __all__ = [
     "MAX_PAPER_IDS",
     "MAX_REFERENCE_SEEDS",
     "MAX_VARIABLE_IDS",
+    "SEARCH_BILLING_NOTE",
     "LKMClient",
     "emit",
     "run_request",

@@ -15,6 +15,7 @@ import typer
 from gaia.cli.commands.search.lkm._hints import package_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_lkm_index,
@@ -36,6 +37,7 @@ _PACKAGE_EPILOG = (
     "paper graph for that source paper. To add that graph to the current Gaia "
     "package, use the suggested "
     "`gaia pkg add --lkm-paper <id>` command printed on stderr.\n\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
     f"API docs: {APIFOX_PAPERS_GRAPH_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )

@@ -23,8 +23,10 @@ gaia search lkm docs                        Print API documentation links
 gaia search lkm auth ...                    Manage the LKM access key
 ```
 
-These verbs search those reasoning graphs. A local PDF that may not be in LKM
-is `gaia extract`, not this group.
+These verbs search those reasoning graphs. Search and lookup calls cost 0.05
+CNY each, covered first by LKM's personal monthly 1,000-call quota. A local
+PDF that may not be in LKM is `gaia extract` (1.00 CNY per successful paper,
+or 0.10 CNY on a cache hit), not this group.
 
 The current implementation is an LKM provider adapter. Search-oriented LKM
 verbs write raw LKM JSON to stdout, or to `--out PATH`. Gaia follow-up
@@ -71,8 +73,8 @@ Omit `--scopes` to use LKM's default: conclusion claims plus abstracts. Use
 `--scopes premise` for premises. Response `kind` values such as `highlight` /
 `weak_point` are claim display labels, not search filters. `--role` is
 deprecated and ignored; LKM no longer reads `filters.role`.
-`--reasoning-only` is a deprecated alias for `--scopes conclusion` and may
-still be combined with `--scopes claim` or `--scopes conclusion`. For best
+`--reasoning-only` is a hidden deprecated alias for `--scopes conclusion` and
+is not sent as `reasoning_only`. For best
 recall, use default `hybrid` mode with `--keywords`. Use
 `--retrieval-mode semantic` when speed matters more than recall quality. Use
 `--retrieval-mode lexical` only for exact keyword matching.

@@ -24,6 +24,7 @@ from gaia.cli.commands.search.lkm._shared import (
     MAX_KEYWORDS,
     MAX_OFFSET,
     MAX_PAPER_IDS,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_dois,
@@ -65,6 +66,7 @@ _REASONING_EPILOG = (
     "publication dates, --sort-by). "
     "--claim-id mode fetches one claim's backing chains and only accepts "
     "--max-chains plus --sort-by comprehensive|recent.\n\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
     f"Query API docs: {APIFOX_REASONING_SEARCH_URL}\n\n"
     f"Claim API docs: {APIFOX_CLAIM_REASONING_URL}\n\n"
     "Endpoint links: gaia search lkm docs"

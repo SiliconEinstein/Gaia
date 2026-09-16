@@ -15,6 +15,7 @@ import typer
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     MAX_VARIABLE_IDS,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_lkm_index,
@@ -33,6 +34,7 @@ _NODES_EPILOG = (
     "Use this for follow-up inspection when a search or reasoning response "
     "prints specific LKM node ids. Partial misses are returned in `not_found` and do "
     "not make the whole response fail.\n\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
     f"API docs: {APIFOX_VARIABLES_BATCH_URL}\n\n"
     "Endpoint links: gaia search lkm docs"
 )

@@ -128,6 +128,9 @@ class TestDocs:
         assert "source-grounded reasoning graphs" in stdout
         assert "addressable units" in stdout
         assert "generic graph API" in stdout
+        assert "0.05 CNY" in stdout
+        assert "1,000-call quota" in stdout
+        assert "1.00 CNY" in stdout
         assert "claims, questions, or abstracts by topic/wording -> knowledge" in stdout
         assert "a similar argument, derivation, or experiment -> reasoning <query>" in stdout
         assert "any global gcn_... / node id -> nodes" in stdout
@@ -233,13 +236,13 @@ class TestPolicy:
 
 
 class TestKnowledge:
-    def test_help_marks_reasoning_only_as_deprecated_alias(self) -> None:
+    def test_help_hides_reasoning_only_and_states_billing(self) -> None:
         result = runner.invoke(app, ["search", "lkm", "knowledge", "--help"])
 
         assert result.exit_code == 0, result.output
         stdout = _squash_ws(result.stdout)
-        assert "--reasoning-only" in stdout
-        assert "Deprecated alias" in stdout
+        assert "--reasoning-only" not in stdout
+        assert "0.05 CNY" in stdout
         assert "conclusions" in stdout
         assert "paper knowledge items" in stdout
         assert "weak-point / highlight claims" in stdout
@@ -385,7 +388,8 @@ class TestKnowledge:
         assert body["scopes"] == ["claim"]
         assert body["retrieval_mode"] == "lexical"
         assert body["keywords"] == ["a", "b"]
-        assert body["reasoning_only"] is True
+        assert "reasoning_only" not in body
+        assert "--reasoning-only is deprecated" in result.stderr
         assert body["include_paper_enrich"] is True
         assert "role" not in body["filters"]
         assert body["offset"] == 5 and body["limit"] == 3
@@ -564,7 +568,8 @@ class TestKnowledge:
         assert result.exit_code == 0, result.output
         body = _FakeClient.last_call["json_body"]
         assert body["scopes"] == ["conclusion"]
-        assert body["reasoning_only"] is True
+        assert "reasoning_only" not in body
+        assert "--reasoning-only is deprecated" in result.stderr
         assert "role" not in body["filters"]
 
     def test_ignores_deprecated_role_and_does_not_send_filters_role(
@@ -585,8 +590,10 @@ class TestKnowledge:
         )
         assert result.exit_code == 0, result.output
         assert "--role is ignored" in result.stderr
+        assert "--reasoning-only is deprecated" in result.stderr
         body = _FakeClient.last_call["json_body"]
-        assert body["reasoning_only"] is True
+        assert body["scopes"] == ["conclusion"]
+        assert "reasoning_only" not in body
         assert "role" not in body["filters"]
 
     def test_rejects_retired_action_scope_before_request(

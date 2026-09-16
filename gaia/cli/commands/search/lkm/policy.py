@@ -22,7 +22,6 @@ def build_knowledge_search_body(
     limit: int,
     scopes: list[str] | None,
     keywords: list[str] | None,
-    reasoning_only: bool,
     include_paper_enrich: bool,
     visibility: str,
     paper_ids: list[str] | None,
@@ -44,8 +43,6 @@ def build_knowledge_search_body(
         body["scopes"] = scopes
     if keywords:
         body["keywords"] = list(keywords)
-    if reasoning_only:
-        body["reasoning_only"] = True
     if include_paper_enrich:
         body["include_paper_enrich"] = True
     body["filters"] = build_lkm_filters(

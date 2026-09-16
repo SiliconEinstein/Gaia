@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import typer
 
+from gaia.cli.commands.search.lkm._shared import EXTRACT_BILLING_NOTE, SEARCH_BILLING_NOTE
 from gaia.cli.commands.search.lkm.auth import auth_app
 from gaia.cli.commands.search.lkm.docs import _DOCS_EPILOG, APIFOX_BASE_URL, docs_command
 from gaia.cli.commands.search.lkm.feedback import _FEEDBACK_EPILOG, feedback_command
@@ -37,6 +38,7 @@ _LKM_EPILOG = (
     "Auth: every call needs a Bohrium access key. Run "
     "`gaia search lkm auth login` to set one up (or set "
     "GAIA_LKM_ACCESS_KEY / LKM_ACCESS_KEY).\n\n"
+    f"{SEARCH_BILLING_NOTE} {EXTRACT_BILLING_NOTE}\n\n"
     "LKM (Large Knowledge Model) turns papers into source-grounded reasoning "
     "graphs: questions, claims, reasoning chains, and evidence become "
     "addressable units, aligned across papers. It is not Gaia's local IR, "

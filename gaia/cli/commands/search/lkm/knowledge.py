@@ -22,6 +22,7 @@ from gaia.cli.commands.search.lkm._shared import (
     MAX_KEYWORDS,
     MAX_OFFSET,
     MAX_PAPER_IDS,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_dois,
@@ -93,7 +94,6 @@ _KNOWLEDGE_EPILOG = (
     "--scopes conclusion for conclusions only; use --scopes premise for "
     "premises. Response `kind` values such as highlight / weak_point are "
     "display labels, not search filters.\n\n"
-    "--reasoning-only is a deprecated alias for --scopes conclusion. "
     "If a hit has a claim id, `reasoning --claim-id` can fetch that claim's "
     "supporting reasoning graph.\n\n"
     "Default search uses hybrid retrieval and comprehensive ranking. Add "
@@ -102,6 +102,7 @@ _KNOWLEDGE_EPILOG = (
     "Use --scopes abstract for paper-level abstract hits. Treat abstracts as "
     "paper context, not Gaia claims; same-paper `related` hits are folded "
     "context, not cross-paper recommendations.\n\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
     f"API docs: {APIFOX_SEARCH_URL}\n\n"
     "Endpoint links: gaia search lkm docs\n\n"
     "Note: `score` / `rerank_score` are retrieval ranking signals, not probabilities — "
@@ -151,6 +152,7 @@ def knowledge_command(
         typer.Option(
             "--reasoning-only",
             help="Deprecated alias for --scopes conclusion.",
+            hidden=True,
         ),
     ] = False,
     role: Annotated[
@@ -262,16 +264,26 @@ def knowledge_command(
             "Warning: --role is ignored. Use --scopes instead (for example `--scopes conclusion`).",
             err=True,
         )
-    if reasoning_only and scopes:
-        extra = [scope.value for scope in scopes if scope not in _REASONING_ONLY_SCOPES]
-        if extra:
-            typer.echo(
-                "Error: --reasoning-only requires --scopes to be omitted or only "
-                "`claim` / `conclusion`; use `--scopes conclusion` instead of "
-                f"combining --reasoning-only with {extra}.",
-                err=True,
-            )
-            raise typer.Exit(4)
+    resolved_scopes = scopes
+    if reasoning_only:
+        typer.echo(
+            "Warning: --reasoning-only is deprecated. Use --scopes conclusion.",
+            err=True,
+        )
+        if resolved_scopes:
+            extra = [
+                scope.value for scope in resolved_scopes if scope not in _REASONING_ONLY_SCOPES
+            ]
+            if extra:
+                typer.echo(
+                    "Error: --reasoning-only requires --scopes to be omitted or only "
+                    "`claim` / `conclusion`; use `--scopes conclusion` instead of "
+                    f"combining --reasoning-only with {extra}.",
+                    err=True,
+                )
+                raise typer.Exit(4)
+        else:
+            resolved_scopes = [ScopeChoice.CONCLUSION]
 
     body = build_knowledge_search_body(
         query=query,
@@ -279,9 +291,8 @@ def knowledge_command(
         sort_by=sort_by.value,
         offset=offset,
         limit=limit,
-        scopes=[s.value for s in scopes] if scopes else None,
+        scopes=[s.value for s in resolved_scopes] if resolved_scopes else None,
         keywords=keywords,
-        reasoning_only=reasoning_only,
         include_paper_enrich=include_paper_enrich,
         visibility=visibility,
         paper_ids=paper_ids,

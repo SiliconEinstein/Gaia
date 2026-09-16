@@ -16,6 +16,7 @@ from gaia.cli.commands.search.lkm._hints import references_hint
 from gaia.cli.commands.search.lkm._shared import (
     DEFAULT_LKM_INDEX_ID,
     MAX_REFERENCE_SEEDS,
+    SEARCH_BILLING_NOTE,
     emit,
     run_request,
     validate_lkm_index,
@@ -41,6 +42,7 @@ _REFERENCES_EPILOG = (
     "Defaults match the HTTP API and are always sent: --with-abstract, "
     "--no-with-reference, --with-cited-by. The response uses `data.papers`. "
     "An empty paper id means LKM has not covered that record.\n\n"
+    f"{SEARCH_BILLING_NOTE}\n\n"
     "API: POST /papers/reference\n\n"
     "Endpoint links: gaia search lkm docs"
 )
